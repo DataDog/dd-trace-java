@@ -58,6 +58,13 @@ profiling_test_matrix: &profiling_test_matrix
   parameters:
     testJvm: [ "8", "ZULU8", "ORACLE8", "11", "ZULU11", "17" ]
 
+agent_integration_tests_modules: &agent_integration_tests_modules "dd-trace-core|communication|internal-api|utils"
+core_modules: &core_modules "dd-trace-core|communication|internal-api|telemetry|utils|dd-java-agent/agent-bootstrap|dd-java-agent/agent-installer|dd-java-agent/agent-tooling|dd-java-agent/agent-builder|dd-java-agent/agent-appsec"
+instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation|dd-java-agent/agent-tooling|dd-java-agent/agent-installer|dd-java-agent/agent-builder|dd-java-agent/agent-bootstrap|dd-java-agent/appsec|dd-trace-core|dd-trace-api|internal-api"
+iast_modules: &iast_modules "dd-java-agent/iast|internal-api|utils/test-utils"
+debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
+profiling_modules: &profiling_modules "dd-java-agent/agent-profiling|dd-trace-core/jfr-openjdk"
+
 parameters:
   gradle_flags:
     # Using no-daemon is important for the caches to be in a consistent state
@@ -162,7 +169,7 @@ commands:
         type: string
     steps:
       - run:
-          name: "Check if file relevant to job have changed"
+          name: "Check if files relevant to job have changed"
           command: |
             if [ -n $CIRCLE_PULL_REQUEST ]; then
               PR=$(echo https://api.github.com/repos/${CIRCLE_PULL_REQUEST:19} | sed "s/\/pull\//\/pulls\//")
@@ -279,9 +286,9 @@ jobs:
 
       - display_memory_usage
 
-  base_tests: &base_tests
+  tests: &tests
     <<: *defaults
-    resource_class: xlarge
+    resource_class: large
 
     docker:
       - image: *default_container
@@ -293,64 +300,32 @@ jobs:
       testJvm:
         type: string
         default: ""
+      maxHeapSize:
+        type: string
+        default: "512M"
+      gradleParameters:
+        type: string
+        default: ""
+      gradleTarget:
+        type: string
+        default: ""
+      triggeredBy:
+        type: string
+        default: ".*"
+      stage:
+        type: string
+        default: ""
+      maxWorkers:
+        type: integer
+        default: 2
 
-    steps:
-      - setup_code
 
-      - restore_cache:
-          <<: *dependency_cache_keys
-
-      - restore_cache:
-          <<: *build_cache_keys
-
-      - run:
-          name: Run tests
-          command: >-
-            MAVEN_OPTS="-Xms64M -Xmx512M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
-            ./gradlew << parameters.testTask >> -PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipIastTests -PskipDebuggerTests
-            <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
-            << pipeline.parameters.gradle_flags >>
-            --max-workers=8
-            --continue
-
-      - run:
-          name: Collect reports
-          when: on_fail
-          command: .circleci/collect_reports.sh
-
-      - store_artifacts:
-          path: ./reports
-
-      - run:
-          name: Collect test results
-          when: always
-          command: .circleci/collect_results.sh
-
-      - store_test_results:
-          path: ./results
-
-      - display_memory_usage
-
-      - early_return_for_forked_pull_requests
-
-      - run:
-          name: Upload test results to Datadog
-          when: always
-          command: .circleci/upload_ciapp.sh base << parameters.testJvm >> || true
-
-  profiling_tests:
-    <<: *base_tests
-    resource_class: xlarge
-
-    docker:
-      - image: *default_container
 
     steps:
       - setup_code
 
       - skip_unless_matching_files_changed:
-          pattern: "dd-java-agent/agent-profiling|dd-trace-core/jfr-openjdk"
+          pattern: << parameters.triggeredBy >>
 
       - restore_cache:
           <<: *dependency_cache_keys
@@ -358,15 +333,23 @@ jobs:
       - restore_cache:
           <<: *build_cache_keys
 
+      - when:
+          condition:
+            or:
+              - equal: ["smoke", << parameters.stage >>]
+              - equal: ["instrumentation", << parameters.stage >>]
+          steps:
+            - setup_testcontainers
+
       - run:
           name: Run tests
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx512M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=256M -Ddatadog.forkedMinHeapSize=64M"
-            ./gradlew :dd-java-agent:agent-profiling:<< parameters.testTask >>
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms<< parameters.maxHeapSize >> -Xmx<< parameters.maxHeapSize >> -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
+            ./gradlew <<# parameters.gradleTarget >><< parameters.gradleTarget >>:<</ parameters.gradleTarget >><< parameters.testTask >> << parameters.gradleParameters >>
             <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
-            --max-workers=6
+            --max-workers=<< parameters.maxWorkers >>
             --continue
 
       - run:
@@ -392,227 +375,7 @@ jobs:
       - run:
           name: Upload test results to Datadog
           when: always
-          command: .circleci/upload_ciapp.sh profiling << parameters.testJvm >> || true
-
-  iast_tests:
-    <<: *base_tests
-    resource_class: xlarge
-
-    docker:
-      - image: *default_container
-
-    steps:
-      - setup_code
-
-      - skip_unless_matching_files_changed:
-          pattern: "dd-java-agent/iast|internal-api|utils/test-utils"
-
-      - restore_cache:
-          <<: *dependency_cache_keys
-
-      - restore_cache:
-          <<: *build_cache_keys
-
-      - run:
-          name: Run tests
-          command: >-
-            MAVEN_OPTS="-Xms64M -Xmx512M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=256M -Ddatadog.forkedMinHeapSize=64M"
-            ./gradlew :dd-java-agent:iast:<< parameters.testTask >>
-            <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
-            << pipeline.parameters.gradle_flags >>
-            --max-workers=6
-            --continue
-
-      - run:
-          name: Collect reports
-          when: on_fail
-          command: .circleci/collect_reports.sh
-
-      - store_artifacts:
-          path: ./reports
-
-      - run:
-          name: Collect test results
-          when: always
-          command: .circleci/collect_results.sh
-
-      - store_test_results:
-          path: ./results
-
-      - display_memory_usage
-
-      - early_return_for_forked_pull_requests
-
-      - run:
-          name: Upload test results to Datadog
-          when: always
-          command: .circleci/upload_ciapp.sh iast << parameters.testJvm >> || true
-
-  debugger_tests:
-    <<: *base_tests
-    resource_class: xlarge
-
-    docker:
-      - image: *default_container
-
-    steps:
-      - setup_code
-
-      - skip_unless_matching_files_changed:
-          pattern: "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
-
-      - restore_cache:
-          <<: *dependency_cache_keys
-
-      - restore_cache:
-          <<: *build_cache_keys
-
-      - run:
-          name: Run tests
-          command: >-
-            MAVEN_OPTS="-Xms64M -Xmx512M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=1G -Ddatadog.forkedMinHeapSize=512M"
-            ./gradlew :dd-java-agent:agent-debugger:<< parameters.testTask >>
-            <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
-            << pipeline.parameters.gradle_flags >>
-            --max-workers=6
-            --continue
-
-      - run:
-          name: Collect reports
-          when: on_fail
-          command: .circleci/collect_reports.sh
-
-      - store_artifacts:
-          path: ./reports
-
-      - run:
-          name: Collect test results
-          when: always
-          command: .circleci/collect_results.sh
-
-      - store_test_results:
-          path: ./results
-
-      - display_memory_usage
-
-      - early_return_for_forked_pull_requests
-
-      - run:
-          name: Upload test results to Datadog
-          when: always
-          command: .circleci/upload_ciapp.sh debugger << parameters.testJvm >> || true
-
-  instrumentation_tests:
-    <<: *base_tests
-    resource_class: xlarge
-
-    docker:
-      - image: *default_container
-
-    steps:
-      - setup_code
-      - skip_unless_matching_files_changed:
-          pattern: "dd-java-agent/instrumentation|dd-java-agent/agent-tooling|dd-java-agent/agent-installer|dd-java-agent/agent-builder|dd-java-agent/agent-bootstrap|dd-java-agent/appsec|dd-trace-core|dd-trace-api|internal-api"
-
-      - restore_cache:
-          <<: *dependency_cache_keys
-
-      - restore_cache:
-          <<: *build_cache_keys
-
-      - setup_testcontainers
-
-      - run:
-          name: Run tests
-          command: >-
-            MAVEN_OPTS="-Xms64M -Xmx512M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
-            ./gradlew :dd-java-agent:instrumentation:<< parameters.testTask >>
-            <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
-            << pipeline.parameters.gradle_flags >>
-            --max-workers=6
-            --continue
-
-      - run:
-          name: Collect reports
-          when: on_fail
-          command: .circleci/collect_reports.sh
-
-      - store_artifacts:
-          path: ./reports
-
-      - run:
-          name: Collect test results
-          when: always
-          command: .circleci/collect_results.sh
-
-      - store_test_results:
-          path: ./results
-
-      - display_memory_usage
-
-      - early_return_for_forked_pull_requests
-
-      - run:
-          name: Upload test results to Datadog
-          when: always
-          command: .circleci/upload_ciapp.sh instrumentation << parameters.testJvm >> || true
-
-  smoke_tests:
-    <<: *base_tests
-    resource_class: medium+
-
-    docker:
-      - image: *default_container
-
-    steps:
-      - setup_code
-
-      - restore_cache:
-          <<: *dependency_cache_keys
-
-      - restore_cache:
-          <<: *build_cache_keys
-
-      - setup_testcontainers
-
-      - run:
-          name: Run Tests
-          command: >-
-            MAVEN_OPTS="-Xms64M -Xmx512M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
-            ./gradlew stageMainDist :dd-smoke-test:<< parameters.testTask >>
-            <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
-            << pipeline.parameters.gradle_flags >>
-            --max-workers=2
-            --continue
-
-      - run:
-          name: Collect Reports
-          when: on_fail
-          command: .circleci/collect_reports.sh
-
-      - store_artifacts:
-          path: ./reports
-
-      - run:
-          name: Collect test results
-          when: always
-          command: .circleci/collect_results.sh
-
-      - store_test_results:
-          path: ./results
-
-      - display_memory_usage
-
-      - early_return_for_forked_pull_requests
-
-      - run:
-          name: Upload test results to Datadog
-          when: always
-          command: .circleci/upload_ciapp.sh smoke << parameters.testJvm >> || true
+          command: .circleci/upload_ciapp.sh << parameters.stage >> << parameters.testJvm >> || true
 
   # The only way to do fan-in in CircleCI seems to have a proper job, so let's have one that
   # doesn't consume so many resources. The execution time for this including spin up seems to
@@ -626,59 +389,17 @@ jobs:
     parameters:
       testJvm:
         type: string
-
-    steps:
-      - run:
-          name: All tests for << parameters.testJvm >> passed!
-          command: echo 'All tests passed!'
-
-  profiling:
-    resource_class: small
-
-    docker:
-      - image: alpine
-
-    parameters:
-      testJvm:
+        default: "all configured JVMs"
+      stage:
         type: string
 
     steps:
       - run:
-          name: All profiling tests for << parameters.testJvm >> passed!
-          command: echo 'All profiling tests passed!'
-
-  iast:
-    resource_class: small
-
-    docker:
-      - image: alpine
-
-    parameters:
-      testJvm:
-        type: string
-
-    steps:
-      - run:
-          name: All IAST tests for << parameters.testJvm >> passed!
-          command: echo 'All IAST tests passed!'
-
-  debugger:
-    resource_class: small
-
-    docker:
-      - image: alpine
-
-    parameters:
-      testJvm:
-        type: string
-
-    steps:
-      - run:
-          name: All Debugger tests for << parameters.testJvm >> passed!
-          command: echo 'All Debugger tests passed!'
+          name: Completed stage << parameters.stage >> on << parameters.testJvm >> passed!
+          command: echo '<< parameters.stage >> completed!'
 
   agent_integration_tests:
-    <<: *base_tests
+    <<: *tests
     resource_class: medium
 
     docker:
@@ -838,72 +559,117 @@ jobs:
 build_test_jobs: &build_test_jobs
   - build
 
-  - base_tests:
+  - tests:
       requires:
         - build
       name: z_test_<< matrix.testJvm >>_base
+      maxHeapSize: "1940M"
+      triggeredBy: *core_modules
+      gradleParameters: "-PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipIastTests -PskipDebuggerTests"
+      stage: core
+      maxWorkers: 6
       matrix:
         <<: *test_matrix
 
-  - base_tests:
+  - tests:
       requires:
         - build
       name: z_test_8_base
+      maxHeapSize: "1940M"
+      triggeredBy: *core_modules
+      gradleParameters: "-PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipIastTests -PskipDebuggerTests"
       testTask: test jacocoTestReport jacocoTestCoverageVerification
+      stage: core
+      maxWorkers: 6
       testJvm: "8"
 
-  - instrumentation_tests:
+  - tests:
       requires:
         - build
       name: z_test_<< matrix.testJvm >>_inst
+      maxHeapSize: "1940M"
+      gradleTarget: ":dd-java-agent:instrumentation"
+      triggeredBy: *instrumentation_modules
+      stage: instrumentation
+      maxWorkers: 8
       matrix:
         <<: *test_matrix
 
-  - instrumentation_tests:
+  - tests:
       requires:
         - build
       name: z_test_8_inst
+      maxHeapSize: "1940M"
+      gradleTarget: ":dd-java-agent:instrumentation"
+      triggeredBy: *instrumentation_modules
+      stage: instrumentation
+      maxWorkers: 8
       testJvm: "8"
 
-  - instrumentation_tests:
+  - tests:
       requires:
         - build
       name: test_8_inst_latest
       testTask: latestDepTest
+      maxHeapSize: "1940M"
+      gradleTarget: ":dd-java-agent:instrumentation"
+      triggeredBy: *instrumentation_modules
+      stage: instrumentation
+      maxWorkers: 8
       testJvm: "8"
 
-  - profiling_tests:
+  - tests:
       requires:
         - build
+      maxWorkers: 4
+      gradleTarget: ":dd-java-agent:agent-profiling"
+      triggeredBy: *profiling_modules
+      maxHeapSize: "1G"
+      stage: profiling
       name: test_<< matrix.testJvm >>_profiling
       matrix:
         <<: *profiling_test_matrix
 
-  - iast_tests:
+  - tests:
       requires:
         - build
+      maxWorkers: 4
       name: test_<< matrix.testJvm >>_iast
+      gradleTarget: ":dd-java-agent:agent-iast"
+      triggeredBy: *iast_modules
+      stage: iast
       matrix:
         <<: *profiling_test_matrix
 
-  - debugger_tests:
+  - tests:
       requires:
         - build
       name: test_<< matrix.testJvm >>_debugger
+      maxWorkers: 4
+      gradleTarget: ":dd-java-agent:agent-debugger"
+      triggeredBy: *debugger_modules
+      maxHeapSize: "1G"
+      stage: debugger
       matrix:
         <<: *profiling_test_matrix
 
-  - smoke_tests:
+  - tests:
       requires:
         - build
       name: z_test_<< matrix.testJvm >>_smoke
+      gradleTarget: "stageMainDist :dd-smoke-test"
+      maxHeapSize: "1750M"
+      stage: smoke
       matrix:
         <<: *test_matrix
 
-  - smoke_tests:
+  - tests:
       requires:
         - build
       name: z_test_8_smoke
+      gradleTarget: "stageMainDist :dd-smoke-test"
+      maxHeapSize: "1750M"
+      stage: smoke
       testJvm: "8"
 
   - fan_in:
@@ -912,6 +678,7 @@ build_test_jobs: &build_test_jobs
         - z_test_<< matrix.testJvm >>_inst
         - z_test_<< matrix.testJvm >>_smoke
       name: test_<< matrix.testJvm >>
+      stage: tracing
       matrix:
         <<: *test_matrix
 
@@ -921,11 +688,13 @@ build_test_jobs: &build_test_jobs
         - z_test_8_inst
         - z_test_8_smoke
       name: test_8
+      stage: tracing
       testJvm: "8"
 
   - agent_integration_tests:
       requires:
         - build
+      triggeredBy: *agent_integration_tests_modules
       testTask: traceAgentTest
 
   - check:
@@ -946,7 +715,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - build
 
-  - profiling:
+  - fan_in:
       requires:
         - check
         - test_8_profiling
@@ -956,9 +725,9 @@ build_test_jobs: &build_test_jobs
         - test_11_profiling
         - test_17_profiling
       name: profiling
-      testJvm: "required tasks" # only used in a print statement
+      stage: profiling
 
-  - debugger:
+  - fan_in:
       requires:
         - check
         - test_8_debugger
@@ -968,9 +737,9 @@ build_test_jobs: &build_test_jobs
         - test_11_debugger
         - test_17_debugger
       name: debugger
-      testJvm: "required tasks" # only used in a print statement
+      stage: debugger
 
-  - iast:
+  - fan_in:
       requires:
         - check
         - test_8_iast
@@ -980,7 +749,7 @@ build_test_jobs: &build_test_jobs
         - test_11_iast
         - test_17_iast
       name: iast
-      testJvm: "required tasks" # only used in a print statement
+      stage: iast
 
   # This job requires all the jobs needed for a successful build, so github only needs to enforce this one
   # and it will be simpler to require different JVM versions for different branches and old releases
@@ -997,7 +766,7 @@ build_test_jobs: &build_test_jobs
         - iast
         - debugger
       name: required
-      testJvm: "required tasks" # only used in a print statement
+      stage: required
 
 workflows:
   build_test:
