@@ -1,0 +1,40 @@
+{
+  "version": "2.1",
+  "metadata": {
+    "rules_version": "0.42.0"
+  },
+  "actions": [
+    {
+      "id": "block",
+      "type": "block_request",
+      "parameters": {
+        "status_code": 500,
+        "type": "html"
+      }
+    }
+  ],
+  "rules": [
+    {
+      "id": "ip_match_rule",
+      "name": "rule1",
+      "tags": {
+        "type": "flow1",
+        "category": "category1"
+      },
+      "conditions": [
+        {
+          "operator": "ip_match",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "http.client_ip"
+              }
+            ],
+            "data": "ip_data"
+          }
+        }
+      ],
+      "on_match": ["block"]
+    }
+  ]
+}

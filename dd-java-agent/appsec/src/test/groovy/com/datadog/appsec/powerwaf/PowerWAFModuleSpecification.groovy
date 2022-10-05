@@ -52,6 +52,61 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener = pwafModule.eventSubscriptions.first()
   }
 
+  void 'use default actions if no defined in config'() {
+    when:
+    PowerWAFModule powerWAFModule = new PowerWAFModule()
+    StubAppSecConfigService confService = new StubAppSecConfigService("no_actions_config.json")
+    confService.init()
+    powerWAFModule.config(confService)
+
+    then:
+    powerWAFModule.ctxAndAddresses.get().actionInfoMap.size() == 1
+    powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('block') != null
+    powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('block').parameters == [
+            status_code: 403,
+            type:'json',
+            grpc_status_code: 10
+    ]
+  }
+
+  void 'override default actions by config'() {
+    when:
+    PowerWAFModule powerWAFModule = new PowerWAFModule()
+    StubAppSecConfigService confService = new StubAppSecConfigService("override_actions_config.json")
+    confService.init()
+    powerWAFModule.config(confService)
+
+    then:
+    powerWAFModule.ctxAndAddresses.get().actionInfoMap.size() == 1
+    powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('block') != null
+    powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('block').parameters == [
+            status_code: 500,
+            type:'html',
+    ]
+  }
+
+  void 'append actions in addition to default'() {
+    when:
+    PowerWAFModule powerWAFModule = new PowerWAFModule()
+    StubAppSecConfigService confService = new StubAppSecConfigService("another_actions_config.json")
+    confService.init()
+    powerWAFModule.config(confService)
+
+    then:
+    powerWAFModule.ctxAndAddresses.get().actionInfoMap.size() == 2
+    powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('block') != null
+    powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('block').parameters == [
+            status_code: 403,
+            type:'json',
+            grpc_status_code: 10
+    ]
+    powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('test') != null
+    powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('test').parameters == [
+            status_code: 302,
+            type:'xxx'
+    ]
+  }
+
   void 'is named powerwaf'() {
     expect:
     pwafModule.name == 'powerwaf'
