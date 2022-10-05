@@ -621,6 +621,7 @@ build_test_jobs: &build_test_jobs
   - tests:
       requires:
         - build
+      maxWorkers: 4
       gradleTarget: ":dd-java-agent:agent-profiling"
       triggeredBy: *profiler_modules
       maxHeapSize: "1G"
@@ -632,6 +633,7 @@ build_test_jobs: &build_test_jobs
   - tests:
       requires:
         - build
+      maxWorkers: 4
       name: test_<< matrix.testJvm >>_iast
       gradleTarget: ":dd-java-agent:agent-iast"
       triggeredBy: *iast_modules
@@ -643,6 +645,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - build
       name: test_<< matrix.testJvm >>_debugger
+      maxWorkers: 4
       gradleTarget: ":dd-java-agent:agent-debugger"
       triggeredBy: *debugger_modules
       maxHeapSize: "1G"
