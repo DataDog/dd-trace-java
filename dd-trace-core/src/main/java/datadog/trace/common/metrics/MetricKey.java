@@ -30,12 +30,12 @@ public final class MetricKey {
     // unrolled polynomial hashcode which avoids allocating varargs
     // the constants are 31^5, 31^4, 31^3, 31^2, 31^1, 31^0
     this.hash =
-        923521 * this.resource.hashCode()
-            + 29791 * this.service.hashCode()
-            + 961 * this.operationName.hashCode()
-            + 31 * this.type.hashCode()
-            + httpStatusCode
-            + (this.synthetics ? 28629151 : 0);
+        28629151 * this.resource.hashCode()
+            + 923521 * this.service.hashCode()
+            + 29791 * this.operationName.hashCode()
+            + 961 * this.type.hashCode()
+            + 31 * httpStatusCode
+            + (this.synthetics ? 1 : 0);
   }
 
   public UTF8BytesString getResource() {
