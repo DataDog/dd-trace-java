@@ -209,10 +209,10 @@ jobs:
           name: Build Project
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew clean compile shadowJar
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2048M -Xms2048M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+            ./gradlew clean compile shadowJar check -PskipTests
             << pipeline.parameters.gradle_flags >>
-            --max-workers=4
+            --max-workers=8
             --rerun-tasks
 
       - run:
@@ -222,6 +222,19 @@ jobs:
 
       - store_artifacts:
           path: ./libs
+
+      - run:
+          name: Collect reports
+          when: on_fail
+          command: .circleci/collect_reports.sh --destination ./check_reports --move
+
+      - run:
+          name: Delete reports
+          when: on_success
+          command: .circleci/collect_reports.sh --destination ./check_reports --delete
+
+      - store_artifacts:
+          path: ./check_reports
 
       - persist_to_workspace:
           root: .
@@ -273,11 +286,32 @@ jobs:
           name: Build Project
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew clean compile shadowJar
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2048M -Xms2048M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+            ./gradlew clean compile shadowJar check -PskipTests
             << pipeline.parameters.gradle_flags >>
-            --max-workers=4
+            --max-workers=8
             --rerun-tasks
+
+      - run:
+          name: Collect Libs
+          when: always
+          command: .circleci/collect_libs.sh
+
+      - store_artifacts:
+          path: ./libs
+
+      - run:
+          name: Collect reports
+          when: on_fail
+          command: .circleci/collect_reports.sh --destination ./check_reports --move
+
+      - run:
+          name: Delete reports
+          when: on_success
+          command: .circleci/collect_reports.sh --destination ./check_reports --delete
+
+      - store_artifacts:
+          path: ./check_reports
 
       - save_cache:
           key: dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ epoch }}
@@ -413,7 +447,7 @@ jobs:
           - DD_BIND_HOST=0.0.0.0
           - DD_API_KEY=invalid_key_but_this_is_fine
 
-  check:
+  test_published_artifacts:
     <<: *defaults
     resource_class: large
 
@@ -427,27 +461,23 @@ jobs:
           <<: *build_cache_keys
 
       - run:
-          name: Build Project
-          command: >-
-            MAVEN_OPTS="-Xms64M -Xmx256M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew build -PskipTests
-            << pipeline.parameters.gradle_flags >>
-            --max-workers=3
-
-      - run:
-          name: Test Published Dependencies
+          name: Publish Artifacts Locally
           command: |
             mvn_local_repo=$(./mvnw help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
             rm -rf "${mvn_local_repo}/com/datadoghq"
-            export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms256M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+            export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2048M -Xms2048M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew publishToMavenLocal << pipeline.parameters.gradle_flags >> --max-workers=3
+
+      - run:
+          name: Test Published Artifacts
+          command: |
             cd test-published-dependencies
+            export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx512M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew check --max-workers=3
 
       - run:
           name: Collect Reports
-          when: always
+          when: on_fail
           command: .circleci/collect_reports.sh
 
       - store_artifacts:
@@ -701,7 +731,7 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *agent_integration_tests_modules
       testTask: traceAgentTest
 
-  - check:
+  - test_published_artifacts:
       requires:
         - build
 
@@ -721,7 +751,7 @@ build_test_jobs: &build_test_jobs
 
   - fan_in:
       requires:
-        - check
+        - test_published_artifacts
         - test_8_profiling
         - test_ORACLE8_profiling
         - test_ZULU8_profiling
@@ -733,7 +763,7 @@ build_test_jobs: &build_test_jobs
 
   - fan_in:
       requires:
-        - check
+        - test_published_artifacts
         - test_8_debugger
         - test_ORACLE8_debugger
         - test_ZULU8_debugger
@@ -745,7 +775,7 @@ build_test_jobs: &build_test_jobs
 
   - fan_in:
       requires:
-        - check
+        - test_published_artifacts
         - test_8_iast
         - test_ORACLE8_iast
         - test_ZULU8_iast
@@ -759,7 +789,7 @@ build_test_jobs: &build_test_jobs
   # and it will be simpler to require different JVM versions for different branches and old releases
   - fan_in:
       requires:
-        - check
+        - test_published_artifacts
         - agent_integration_tests
         - test_7
         - test_8
