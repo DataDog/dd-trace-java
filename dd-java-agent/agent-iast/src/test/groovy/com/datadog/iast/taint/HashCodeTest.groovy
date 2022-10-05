@@ -35,6 +35,7 @@ class HashCodeTest extends DDSpecification {
     setup:
     final nBuckets = 64
     final expectedPerBucket = N_HASHES / nBuckets
+    final tolerance = 0.2
 
     when:
     final positiveHashCodes = HASH_CODES.collect {
@@ -45,8 +46,8 @@ class HashCodeTest extends DDSpecification {
 
     then:
     nPerBucket.each {
-      assert it <= expectedPerBucket * 1.1
-      assert it >= expectedPerBucket * 0.9
+      assert it <= expectedPerBucket * (1 + tolerance)
+      assert it >= expectedPerBucket * (1 - tolerance)
     }
   }
 
