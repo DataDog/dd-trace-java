@@ -1,4 +1,4 @@
-package spring.jpa;
+package spring.hibernate.jpa;
 
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
