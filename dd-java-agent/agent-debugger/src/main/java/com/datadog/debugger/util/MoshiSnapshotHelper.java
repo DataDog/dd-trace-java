@@ -546,6 +546,8 @@ public class MoshiSnapshotHelper {
           jsonWriter.name(NOT_CAPTURED_REASON);
           jsonWriter.value(COLLECTION_SIZE_REASON);
         }
+        jsonWriter.name(SIZE);
+        jsonWriter.value(String.valueOf(map.size()));
       } else if (limits.maxReferenceDepth > 0) {
         jsonWriter.name(FIELDS);
         jsonWriter.beginObject();

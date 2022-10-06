@@ -582,6 +582,7 @@ public class SnapshotSerializationTest {
     Map<String, Object> thisArg = doMapSize(0);
     assertNotCaptured(thisArg, "strMap", HashMap.class.getName(), COLLECTION_SIZE_REASON);
     assertMapItems(thisArg, "strMap");
+    assertSize(thisArg, "strMap", "10");
   }
 
   @Test
@@ -591,6 +592,7 @@ public class SnapshotSerializationTest {
     Map<String, Object> field = (Map<String, Object>) thisArg.get("strMap");
     List<Object> entries = (List<Object>) field.get(ENTRIES);
     Assert.assertEquals(3, entries.size());
+    assertSize(thisArg, "strMap", "10");
   }
 
   @Test
@@ -600,6 +602,7 @@ public class SnapshotSerializationTest {
     assertMapItems(
         thisArg, "strMap", "foo0", "bar0", "foo1", "bar1", "foo2", "bar2", "foo3", "bar3", "foo4",
         "bar4", "foo5", "bar5", "foo6", "bar6", "foo7", "bar7", "foo8", "bar8", "foo9", "bar9");
+    assertSize(thisArg, "strMap", "10");
   }
 
   private Map<String, Object> doMapSize(int maxColSize) throws IOException {
