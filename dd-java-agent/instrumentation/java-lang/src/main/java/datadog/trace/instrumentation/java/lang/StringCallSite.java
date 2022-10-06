@@ -15,4 +15,16 @@ public class StringCallSite {
     InstrumentationBridge.onStringConcat(self, param, result);
     return result;
   }
+
+  @CallSite.AfterArray(
+      value = {
+        @CallSite.After("void java.lang.String.<init>(java.lang.String)"),
+        @CallSite.After("void java.lang.String.<init>(java.lang.StringBuffer)"),
+        @CallSite.After("void java.lang.String.<init>(java.lang.StringBuilder)"),
+      })
+  public static String afterConstructor(
+      @CallSite.This final String self, @CallSite.Argument final CharSequence param) {
+    InstrumentationBridge.onStringConstructor(param, self);
+    return self;
+  }
 }
