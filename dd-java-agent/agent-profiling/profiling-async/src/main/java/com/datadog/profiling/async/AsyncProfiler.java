@@ -5,6 +5,7 @@ import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.utils.LibraryHelper;
 import com.datadog.profiling.utils.ProfilingMode;
+import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.File;
@@ -75,8 +76,7 @@ public final class AsyncProfiler {
       profilingModes.add(ProfilingMode.CPU);
     }
     if (configProvider.getBoolean(
-        ProfilingConfig.PROFILING_ASYNC_WALL_ENABLED,
-        ProfilingConfig.PROFILING_ASYNC_WALL_ENABLED_DEFAULT)) {
+        ProfilingConfig.PROFILING_ASYNC_WALL_ENABLED, getAsyncWallEnabledDefault())) {
       profilingModes.add(ProfilingMode.WALL);
     }
     try {
@@ -93,6 +93,14 @@ public final class AsyncProfiler {
 
   public static AsyncProfiler getInstance() {
     return Singleton.INSTANCE;
+  }
+
+  private static boolean getAsyncWallEnabledDefault() {
+    if (Platform.isJ9()) {
+      // wallclock profiling is useless on J9 - do not automatically enable it
+      return false;
+    }
+    return ProfilingConfig.PROFILING_ASYNC_WALL_ENABLED_DEFAULT;
   }
 
   private static one.profiler.AsyncProfiler inferFromOsAndArch()
