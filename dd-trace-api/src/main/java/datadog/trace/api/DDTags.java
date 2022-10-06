@@ -16,14 +16,14 @@ public class DDTags {
 
   public static final String ERROR_MSG = "error.msg"; // string representing the error message
   public static final String ERROR_TYPE = "error.type"; // string representing the type of the error
-  public static final String ERROR_STACK = "error.stack"; // human readable version of the stack
+  public static final String ERROR_STACK = "error.stack"; // human-readable version of the stack
 
   public static final String ANALYTICS_SAMPLE_RATE = "_dd1.sr.eausr";
   @Deprecated public static final String EVENT_SAMPLE_RATE = ANALYTICS_SAMPLE_RATE;
 
-  /** Manually force tracer to be keep the trace */
+  /** Manually force tracer to keep the trace */
   public static final String MANUAL_KEEP = "manual.keep";
-  /** Manually force tracer to be drop the trace */
+  /** Manually force tracer to drop the trace */
   public static final String MANUAL_DROP = "manual.drop";
 
   public static final String TRACE_START_TIME = "t0";
@@ -40,4 +40,5 @@ public class DDTags {
   public static final String ORIGIN_KEY = "_dd.origin";
   public static final String LIBRARY_VERSION_TAG_KEY = "library_version";
   public static final String CI_ENV_VARS = "_dd.ci.env_vars";
+  public static final String MEASURED = "_dd.measured";
 }

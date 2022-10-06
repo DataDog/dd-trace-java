@@ -85,7 +85,7 @@ includeSubprojShadowJar ':dd-java-agent:instrumentation', 'inst'
 includeSubprojShadowJar ':dd-java-agent:agent-jmxfetch', 'metrics'
 includeSubprojShadowJar ':dd-java-agent:agent-profiling', 'profiling'
 includeSubprojShadowJar ':dd-java-agent:appsec', 'appsec'
-includeSubprojShadowJar ':dd-java-agent:iast', 'iast'
+includeSubprojShadowJar ':dd-java-agent:agent-iast', 'iast'
 includeSubprojShadowJar ':dd-java-agent:agent-debugger', 'debugger'
 if (project.rootProject.hasProperty("agentIncludeCwsTls") && agentIncludeCwsTls) {
   includeSubprojShadowJar ':dd-java-agent:cws-tls', 'cws-tls'

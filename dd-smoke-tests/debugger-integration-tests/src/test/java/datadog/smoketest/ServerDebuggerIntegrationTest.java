@@ -6,9 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.agent.Configuration;
+import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.agent.SnapshotProbe;
-import com.datadog.debugger.sink.SnapshotSink;
 import com.datadog.debugger.util.TagsHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.bootstrap.debugger.Snapshot;
@@ -243,8 +243,8 @@ public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
     assertNotNull(snapshotRequest);
     String bodyStr = snapshotRequest.getBody().readUtf8();
     LOG.info("got snapshot: {}", bodyStr);
-    JsonAdapter<List<SnapshotSink.IntakeRequest>> adapter = createAdapterForSnapshot();
-    List<SnapshotSink.IntakeRequest> intakeRequests = adapter.fromJson(bodyStr);
+    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
+    List<JsonSnapshotSerializer.IntakeRequest> intakeRequests = adapter.fromJson(bodyStr);
     return intakeRequests.stream()
         .map(intakeRequest -> intakeRequest.getDebugger().getSnapshot())
         .collect(Collectors.toList());

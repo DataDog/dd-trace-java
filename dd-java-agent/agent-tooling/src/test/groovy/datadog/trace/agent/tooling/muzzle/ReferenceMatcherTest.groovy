@@ -65,43 +65,6 @@ class ReferenceMatcherTest extends DDSpecification {
     MuzzleWeakReferenceTest.classLoaderRefIsGarbageCollected()
   }
 
-  private static class CountingClassLoader extends URLClassLoader {
-    int count = 0
-
-    CountingClassLoader(URL[] urls, ClassLoader parent) {
-      super(urls, (ClassLoader) parent)
-    }
-
-    @Override
-    URL getResource(String name) {
-      count++
-      return super.getResource(name)
-    }
-  }
-
-  def "muzzle results are cached"() {
-    setup:
-    ClassLoader cl = new CountingClassLoader(
-      [
-        ClasspathUtils.createJarWithClasses(MethodBodyAdvice.A,
-        MethodBodyAdvice.B,
-        MethodBodyAdvice.SomeInterface,
-        MethodBodyAdvice.SkipLevel,
-        MethodBodyAdvice.HasMethod,
-        MethodBodyAdvice.SomeImplementation)
-      ] as URL[],
-      (ClassLoader) null)
-    Reference[] refs = ReferenceCreator.createReferencesFrom(MethodBodyAdvice.getName(), testClasspath).values().toArray(new Reference[0])
-    ReferenceMatcher refMatcher = new ReferenceMatcher(refs)
-    assert refMatcher.matches(cl)
-    int countAfterFirstMatch = cl.count
-    // re-running the muzzle matcher against the same classloader should use the result cache
-    assert refMatcher.matches(cl)
-
-    expect:
-    cl.count == countAfterFirstMatch
-  }
-
   def "matching ref #referenceName #referenceFlags against #classToCheck produces #expectedMismatches"() {
     setup:
     Reference.Builder builder = new Reference.Builder(referenceName)

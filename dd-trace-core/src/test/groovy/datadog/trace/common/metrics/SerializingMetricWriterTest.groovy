@@ -41,11 +41,11 @@ class SerializingMetricWriterTest extends DDSpecification {
     where:
     content << [
       [
-        Pair.of(new MetricKey("resource1", "service1", "operation1", "type", 0), new AggregateMetric().recordDurations(10, new AtomicLongArray(1L))),
-        Pair.of(new MetricKey("resource2", "service2", "operation2", "type2", 200), new AggregateMetric().recordDurations(9, new AtomicLongArray(1L)))
+        Pair.of(new MetricKey("resource1", "service1", "operation1", "type", 0, false), new AggregateMetric().recordDurations(10, new AtomicLongArray(1L))),
+        Pair.of(new MetricKey("resource2", "service2", "operation2", "type2", 200, true), new AggregateMetric().recordDurations(9, new AtomicLongArray(1L)))
       ],
       (0..10000).collect({ i ->
-        Pair.of(new MetricKey("resource" + i, "service" + i, "operation" + i, "type", 0), new AggregateMetric().recordDurations(10, new AtomicLongArray(1L)))
+        Pair.of(new MetricKey("resource" + i, "service" + i, "operation" + i, "type", 0, false), new AggregateMetric().recordDurations(10, new AtomicLongArray(1L)))
       })
     ]
   }
@@ -101,7 +101,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         MetricKey key = pair.getLeft()
         AggregateMetric value = pair.getRight()
         int size = unpacker.unpackMapHeader()
-        assert size == 11
+        assert size == 12
         int elementCount = 0
         assert unpacker.unpackString() == "Name"
         assert unpacker.unpackString() == key.getOperationName() as String
@@ -117,6 +117,9 @@ class SerializingMetricWriterTest extends DDSpecification {
         ++elementCount
         assert unpacker.unpackString() == "HTTPStatusCode"
         assert unpacker.unpackInt() == key.getHttpStatusCode()
+        ++elementCount
+        assert unpacker.unpackString() == "Synthetics"
+        assert unpacker.unpackBoolean() == key.isSynthetics()
         ++elementCount
         assert unpacker.unpackString() == "Hits"
         assert unpacker.unpackInt() == value.getHitCount()

@@ -20,12 +20,12 @@ testSets {
 
 tasks.named("compileTestGroovy").configure {
   dependsOn "compileTestScala"
-  classpath += files(compileTestScala.destinationDir)
+  classpath += files(compileTestScala.destinationDirectory)
 }
 
 tasks.named("compileLatestDepTestGroovy").configure {
   dependsOn "compileLatestDepTestScala"
-  classpath += files(compileLatestDepTestScala.destinationDir)
+  classpath += files(compileLatestDepTestScala.destinationDirectory)
 }
 
 dependencies {

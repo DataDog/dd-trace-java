@@ -1,14 +1,8 @@
 package datadog.trace.agent.tooling.muzzle;
 
-import static net.bytebuddy.dynamic.loading.ClassLoadingStrategy.BOOTSTRAP_LOADER;
-
-import datadog.trace.agent.tooling.Utils;
-import datadog.trace.agent.tooling.WeakCaches;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.muzzle.Reference.Mismatch;
 import datadog.trace.api.Pair;
-import datadog.trace.api.function.Function;
-import datadog.trace.bootstrap.WeakCache;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,7 +17,6 @@ import net.bytebuddy.pool.TypePool;
 
 /** Matches a set of references against a classloader. */
 public class ReferenceMatcher {
-  private final WeakCache<ClassLoader, Boolean> mismatchCache = WeakCaches.newWeakCache();
   private final Reference[] references;
 
   private ReferenceProvider referenceProvider;
@@ -41,28 +34,12 @@ public class ReferenceMatcher {
   }
 
   /**
-   * Matcher used by ByteBuddy. Fails fast and only caches empty results, or complete results
+   * Matcher used by ByteBuddy, fails-fast at first mismatch found.
    *
    * @param loader Classloader to validate against (or null for bootstrap)
    * @return true if all references match the classpath of loader
    */
   public boolean matches(ClassLoader loader) {
-    return mismatchCache.computeIfAbsent(
-        // weak cache requires non-null keys; use proxy as alias for bootstrap loader
-        BOOTSTRAP_LOADER == loader ? Utils.getBootstrapProxy() : loader, DOES_MATCH);
-  }
-
-  // Can't use a function reference because of Java7 support
-  private final Function<ClassLoader, Boolean> DOES_MATCH =
-      new Function<ClassLoader, Boolean>() {
-        @Override
-        public Boolean apply(ClassLoader loader) {
-          // map our bootstrap proxy alias back to the original bootstrap loader
-          return doesMatch(Utils.getBootstrapProxy() == loader ? BOOTSTRAP_LOADER : loader);
-        }
-      };
-
-  private boolean doesMatch(ClassLoader loader) {
     List<Mismatch> mismatches = new ArrayList<>();
     TypePool typePool = SharedTypePools.typePool(loader);
     for (Reference reference : references) {

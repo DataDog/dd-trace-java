@@ -225,6 +225,11 @@ public final class Platform {
         && !RUNTIME.name.contains("OpenJDK");
   }
 
+  public static boolean isJ9() {
+    return System.getProperty("java.vendor").equals("IBM Corporation")
+        && System.getProperty("java.vm.name").contains("J9");
+  }
+
   public static String getLangVersion() {
     return String.valueOf(JAVA_VERSION.major);
   }

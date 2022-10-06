@@ -8,6 +8,7 @@ import datadog.trace.agent.tooling.bytebuddy.DDOutlinePoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
 import datadog.trace.api.Config;
+import datadog.trace.api.IntegrationsCollector;
 import datadog.trace.api.ProductActivationConfig;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -118,8 +119,10 @@ public class AgentInstaller {
       agentBuilder = agentBuilder.with(listener);
     }
 
-    Iterable<Instrumenter> instrumenters =
-        Instrumenters.load(AgentInstaller.class.getClassLoader());
+    Instrumenters instrumenters = Instrumenters.load(AgentInstaller.class.getClassLoader());
+
+    // pre-size state before registering instrumentations to reduce number of allocations
+    InstrumenterState.setMaxInstrumentationId(instrumenters.maxInstrumentationId());
 
     // This needs to be a separate loop through all the instrumenters before we start adding
     // advice so that we can exclude field injection, since that will try to check exclusion
@@ -163,6 +166,17 @@ public class AgentInstaller {
       log.debug("Installed {} instrumenter(s)", installedCount);
     }
 
+    if (Config.get().isTelemetryEnabled()) {
+      InstrumenterState.setObserver(
+          new InstrumenterState.Observer() {
+            @Override
+            public void applied(Iterable<String> instrumentationNames) {
+              IntegrationsCollector.get().update(instrumentationNames, true);
+            }
+          });
+    }
+
+    InstrumenterState.resetDefaultState();
     try {
       return transformerBuilder.installOn(inst);
     } finally {

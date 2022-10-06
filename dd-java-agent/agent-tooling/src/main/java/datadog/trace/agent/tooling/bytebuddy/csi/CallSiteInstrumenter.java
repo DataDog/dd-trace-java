@@ -38,8 +38,8 @@ public abstract class CallSiteInstrumenter extends Instrumenter.Default
   @SuppressWarnings("unchecked")
   private static Iterable<CallSiteAdvice> fetchAdvicesFromSpi(
       @Nonnull final Class<?> spiInterface) {
-    return (ServiceLoader<CallSiteAdvice>)
-        ServiceLoader.load(spiInterface, spiInterface.getClassLoader());
+    final ClassLoader targetClassLoader = CallSiteInstrumenter.class.getClassLoader();
+    return (ServiceLoader<CallSiteAdvice>) ServiceLoader.load(spiInterface, targetClassLoader);
   }
 
   @Override

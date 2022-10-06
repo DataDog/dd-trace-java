@@ -49,12 +49,12 @@ dependencies {
 }
 
 tasks.named("compileLatestDepTestGroovy").configure {
-  classpath = classpath.plus(files(compileLatestDepTestScala.destinationDir))
+  classpath = classpath.plus(files(compileLatestDepTestScala.destinationDirectory))
   dependsOn "compileLatestDepTestScala"
 }
 
 tasks.named("compileLatestPre207TestGroovy").configure {
-  classpath = classpath.plus(files(compileLatestPre207TestScala.destinationDir))
+  classpath = classpath.plus(files(compileLatestPre207TestScala.destinationDirectory))
   dependsOn "compileLatestPre207TestScala"
 }
 
