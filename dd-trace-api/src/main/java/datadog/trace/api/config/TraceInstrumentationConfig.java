@@ -87,6 +87,9 @@ public final class TraceInstrumentationConfig {
   public static final String SERVLET_ROOT_CONTEXT_SERVICE_NAME =
       "trace.servlet.root-context.service.name";
 
+  public static final String RESOLVER_NOMATCH_CACHE_SIZE = "resolver.nomatch.cache.size";
+  public static final String RESOLVER_MEMO_POOL_ENABLED = "resolver.memo.pool.enabled";
+  public static final String RESOLVER_MEMO_POOL_SIZE = "resolver.memo.pool.size";
   public static final String RESOLVER_OUTLINE_POOL_ENABLED = "resolver.outline.pool.enabled";
   public static final String RESOLVER_OUTLINE_POOL_SIZE = "resolver.outline.pool.size";
   public static final String RESOLVER_TYPE_POOL_SIZE = "resolver.type.pool.size";

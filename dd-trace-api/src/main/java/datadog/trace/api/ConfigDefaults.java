@@ -130,6 +130,8 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;
 
+  static final int DEFAULT_RESOLVER_NOMATCH_CACHE_SIZE = 8192;
+  static final int DEFAULT_RESOLVER_MEMO_POOL_SIZE = 256;
   static final int DEFAULT_RESOLVER_OUTLINE_POOL_SIZE = 128;
   static final int DEFAULT_RESOLVER_TYPE_POOL_SIZE = 64;
 

@@ -173,7 +173,7 @@ public class AgentTransformerBuilder
 
     ElementMatcher<ClassLoader> classLoaderMatcher = instrumenter.classLoaderMatcher();
 
-    if (null != hierarchyHint) {
+    if (null != hierarchyHint && !Config.get().isResolverMemoPoolEnabled()) {
       // use hint to limit expensive type matching to class-loaders with marker type
       classLoaderMatcher = requireBoth(hasClassNamed(hierarchyHint), classLoaderMatcher);
     }
@@ -251,6 +251,7 @@ public class AgentTransformerBuilder
       Map<String, String> contextStore, Instrumenter.Default instrumenter) {
     ElementMatcher<ClassLoader> activation;
 
+    // use instrumenter type to skip enabling stores that will never be used
     if (instrumenter instanceof Instrumenter.ForBootstrap) {
       activation = ANY_CLASS_LOADER;
     } else if (instrumenter instanceof Instrumenter.ForTypeHierarchy) {

@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.springwebflux.server;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.abstractClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -30,7 +30,7 @@ public final class RouterFunctionInstrumentation extends AbstractWebfluxInstrume
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     // TODO: this doesn't handle nested routes (DefaultNestedRouterFunction)
-    return not(isAbstract()).and(extendsClass(named(hierarchyMarkerType())));
+    return not(abstractClass()).and(extendsClass(named(hierarchyMarkerType())));
   }
 
   @Override

@@ -77,7 +77,8 @@ final class TypeFactory {
           TypeDescription.CLASS,
           TypeDescription.THROWABLE,
           TypeDescription.ForLoadedType.of(Serializable.class),
-          TypeDescription.ForLoadedType.of(Cloneable.class)
+          TypeDescription.ForLoadedType.of(Cloneable.class),
+          TypeDescription.ForLoadedType.of(Runnable.class)
         }) {
       commonLoadedTypes.put(loaded.getName(), loaded);
     }
@@ -108,9 +109,9 @@ final class TypeFactory {
 
   boolean createOutlines = true;
 
-  private ClassLoader originalClassLoader;
+  ClassLoader classLoader;
 
-  private ClassLoader classLoader;
+  private ClassLoader originalClassLoader;
 
   private ClassFileLocator classFileLocator;
 

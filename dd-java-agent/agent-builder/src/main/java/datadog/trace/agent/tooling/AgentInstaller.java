@@ -7,6 +7,7 @@ import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDOutlinePoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
+import datadog.trace.agent.tooling.bytebuddy.memoize.MemoizedMatchers;
 import datadog.trace.api.Config;
 import datadog.trace.api.IntegrationsCollector;
 import datadog.trace.api.ProductActivationConfig;
@@ -82,7 +83,11 @@ public class AgentInstaller {
       DDCachingPoolStrategy.registerAsSupplier();
     }
 
-    DDElementMatchers.registerAsSupplier();
+    if (Config.get().isResolverMemoPoolEnabled()) {
+      MemoizedMatchers.registerAsSupplier();
+    } else {
+      DDElementMatchers.registerAsSupplier();
+    }
 
     // By default ByteBuddy will skip all methods that are synthetic or default finalizer
     // but we need to instrument some synthetic methods in Scala, so change the ignore matcher

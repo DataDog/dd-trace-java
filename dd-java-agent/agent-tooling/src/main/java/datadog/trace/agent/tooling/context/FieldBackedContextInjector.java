@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.context.ShouldInjectFieldsState.hasInj
 import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
 import static datadog.trace.util.Strings.getInternalName;
 
+import datadog.trace.agent.tooling.bytebuddy.memoize.MemoizedMatchers;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
@@ -68,6 +69,7 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
   static final ThreadLocal<BitSet> INJECTED_STORE_IDS = new ThreadLocal<>();
 
   final boolean serialVersionUIDFieldInjection = Config.get().isSerialVersionUIDFieldInjection();
+  final boolean isMemoizingEnabled = Config.get().isResolverMemoPoolEnabled();
 
   final String keyClassName;
   final String contextClassName;
@@ -202,8 +204,12 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
             BitSet excludedStoreIds = new BitSet();
 
             // check hierarchy to see if we might need to delegate to the superclass
-            boolean hasSuperStores =
-                hasInjectedField(instrumentedType.getSuperClass(), excludedStoreIds);
+            boolean hasSuperStores;
+            if (isMemoizingEnabled) {
+              hasSuperStores = MemoizedMatchers.hasSuperStores(instrumentedType, excludedStoreIds);
+            } else {
+              hasSuperStores = hasInjectedField(instrumentedType.getSuperClass(), excludedStoreIds);
+            }
 
             if (!foundGetter) {
               addStoreGetter(injectedStoreIds, hasSuperStores, excludedStoreIds);
