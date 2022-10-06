@@ -78,6 +78,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
   protected String[] defaultJavaProperties = [
     "${getMaxMemoryArgumentForFork()}",
     "${getMinMemoryArgumentForFork()}",
+    isIBM ? "" : "${profilingCommand}",
     "-javaagent:${shadowJarPath}",
     isIBM ? "-Xdump:directory=/tmp" : "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
     "-Ddd.trace.agent.port=${server.address.port}",

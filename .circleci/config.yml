@@ -392,15 +392,15 @@ jobs:
       - run:
           name: Run tests
           command: >-
-            if [[ << parameters.profile >> ]] && [[ << parameters.testJvm >> != "IBM8" ]] && [[ << parameters.testJvm >> != "ORACLE8" ]]; 
+            if [[ << parameters.profile >> ]] && [[ << parameters.testJvm >> != "IBM8" ]] && [[ << parameters.testJvm >> != "ORACLE8" ]] && [[ << parameters.testJvm >> != "7" ]]; 
             then
-              PROFILER_COMMAND="-XX:StartFlightRecording=settings=profile,filename=/tmp/<< parameters.stage >>-<< parameters.testJvm >>.jfr,dumponexit=true"
+              PROFILER_COMMAND="-PenableProfiling"
             fi
             
             MAVEN_OPTS="-Xms64M -Xmx512M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms<< parameters.maxHeapSize >> -Xmx<< parameters.maxHeapSize >> $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms<< parameters.maxHeapSize >> -Xmx<< parameters.maxHeapSize >> -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
             ./gradlew <<# parameters.gradleTarget >><< parameters.gradleTarget >>:<</ parameters.gradleTarget >><< parameters.testTask >> << parameters.gradleParameters >>
-            <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
+            <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >> $PROFILER_COMMAND
             << pipeline.parameters.gradle_flags >>
             --max-workers=<< parameters.maxWorkers >>
             --continue
@@ -726,7 +726,7 @@ build_test_jobs: &build_test_jobs
       gradleTarget: "stageMainDist :dd-smoke-test"
       maxHeapSize: "1G"
       stage: smoke
-      maxWorkers: 6
+      maxWorkers: 4
       matrix:
         <<: *test_matrix
 
@@ -737,7 +737,7 @@ build_test_jobs: &build_test_jobs
       gradleTarget: "stageMainDist :dd-smoke-test"
       maxHeapSize: "1G"
       stage: smoke
-      maxWorkers: 6
+      maxWorkers: 4
       testJvm: "8"
 
   - xlarge_tests:

@@ -28,6 +28,13 @@ subprojects { Project subProj ->
     // The jar path for the test agent (taken from https://github.com/DataDog/dd-trace-test-agent )
     jvmArgs "-Ddatadog.smoketest.test.agent.dir=${project.getRootDir()}/dd-smoke-tests/src/main/resources/datadog.smoketest.test.agent.jar"
 
+    if (project.rootProject.hasProperty("enableProfiling")) {
+      // profile the test itself
+      jvmArgs "-XX:StartFlightRecording=settings=profile,filename=/tmp/${subProj.name}-test.jfr,dumponexit=true"
+      // propagate to the test application
+      jvmArgs "-Ddatadog.smoketest.agent.profiling.command=-XX:StartFlightRecording=settings=profile,filename=/tmp/${subProj.name}-app.jfr,dumponexit=true"
+    }
+
     // Make it so all smoke tests can be run with a single command.
     if (parent_project.hasProperty(subTask.name)) {
       parent_project.tasks.named(subTask.name).configure {
