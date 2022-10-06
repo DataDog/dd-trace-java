@@ -1,4 +1,4 @@
-package spring.jpa;
+package spring.hibernate.jpa;
 
 import java.util.List;
 import org.springframework.data.repository.CrudRepository;
