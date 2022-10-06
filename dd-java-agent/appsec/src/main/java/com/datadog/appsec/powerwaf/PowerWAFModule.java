@@ -71,7 +71,7 @@ public class PowerWAFModule implements AppSecModule {
               new HashMap<String, Object>() {
                 {
                   put("status_code", 403);
-                  put("type", "json");
+                  put("type", "auto");
                   put("grpc_status_code", 10);
                 }
               }));

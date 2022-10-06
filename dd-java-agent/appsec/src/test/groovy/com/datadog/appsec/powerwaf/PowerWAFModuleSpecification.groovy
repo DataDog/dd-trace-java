@@ -63,9 +63,9 @@ class PowerWAFModuleSpecification extends DDSpecification {
     powerWAFModule.ctxAndAddresses.get().actionInfoMap.size() == 1
     powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('block') != null
     powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('block').parameters == [
-            status_code: 403,
-            type:'json',
-            grpc_status_code: 10
+      status_code: 403,
+      type:'auto',
+      grpc_status_code: 10
     ]
   }
 
@@ -80,8 +80,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     powerWAFModule.ctxAndAddresses.get().actionInfoMap.size() == 1
     powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('block') != null
     powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('block').parameters == [
-            status_code: 500,
-            type:'html',
+      status_code: 500,
+      type:'html',
     ]
   }
 
@@ -96,14 +96,14 @@ class PowerWAFModuleSpecification extends DDSpecification {
     powerWAFModule.ctxAndAddresses.get().actionInfoMap.size() == 2
     powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('block') != null
     powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('block').parameters == [
-            status_code: 403,
-            type:'json',
-            grpc_status_code: 10
+      status_code: 403,
+      type:'auto',
+      grpc_status_code: 10
     ]
     powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('test') != null
     powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('test').parameters == [
-            status_code: 302,
-            type:'xxx'
+      status_code: 302,
+      type:'xxx'
     ]
   }
 
