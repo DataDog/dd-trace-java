@@ -23,7 +23,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.pool.TypePool;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
@@ -509,13 +508,22 @@ public class DebuggerTransformer implements ClassFileTransformer {
       // duplicate class definition for name: "okhttp3/RealCall"
       // for more info see:
       // https://stackoverflow.com/questions/69563714/linkageerror-attempted-duplicate-class-definition-when-dynamically-instrument
-      ClassFileLocator locator =
-          AgentStrategies.locationStrategy().classFileLocator(classLoader, null);
+      TypePool tpCurrentClassLoader =
+          new TypePool.Default.WithLazyResolution(
+              TypePool.CacheProvider.Simple.withObjectType(),
+              AgentStrategies.locationStrategy().classFileLocator(classLoader, null),
+              TypePool.Default.ReaderMode.FAST);
+      // Introduced the java agent DataDog classloader for resolving types introduced by other
+      // Datadog instrumentation (Tracing, AppSec, Profiling, ...)
+      // Here we assume that the current class is loaded in DataDog classloader
       TypePool tp =
           new TypePool.Default.WithLazyResolution(
               TypePool.CacheProvider.Simple.withObjectType(),
-              locator,
-              TypePool.Default.ReaderMode.FAST);
+              AgentStrategies.locationStrategy()
+                  .classFileLocator(getClass().getClassLoader(), null),
+              TypePool.Default.ReaderMode.FAST,
+              tpCurrentClassLoader);
+
       try {
         TypeDescription td1 = tp.describe(type1.replace('/', '.')).resolve();
         TypeDescription td2 = tp.describe(type2.replace('/', '.')).resolve();
