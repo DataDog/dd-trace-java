@@ -17,19 +17,17 @@ import org.slf4j.LoggerFactory;
  *
  * <p>The configuration of (serviceName,env)->rate is configured by the core agent.
  */
-public class RateByServiceSampler<T extends CoreSpan<T>>
-    implements Sampler<T>, PrioritySampler<T>, RemoteResponseListener {
+public class RateByServiceSampler implements Sampler, PrioritySampler, RemoteResponseListener {
 
   private static final Logger log = LoggerFactory.getLogger(RateByServiceSampler.class);
   public static final String SAMPLING_AGENT_RATE = "_dd.agent_psr";
 
   private static final double DEFAULT_RATE = 1.0;
 
-  private volatile RateSamplersByEnvAndService<T> serviceRates =
-      new RateSamplersByEnvAndService<>();
+  private volatile RateSamplersByEnvAndService serviceRates = new RateSamplersByEnvAndService();
 
   @Override
-  public boolean sample(final T span) {
+  public <T extends CoreSpan<T>> boolean sample(final T span) {
     // Priority sampling sends all traces to the core agent, including traces marked dropped.
     // This allows the core agent to collect stats on all traces.
     return true;
@@ -37,12 +35,12 @@ public class RateByServiceSampler<T extends CoreSpan<T>>
 
   /** If span is a root span, set the span context samplingPriority to keep or drop */
   @Override
-  public void setSamplingPriority(final T span) {
+  public <T extends CoreSpan<T>> void setSamplingPriority(final T span) {
     final String serviceName = span.getServiceName();
     final String env = getSpanEnv(span);
 
-    final RateSamplersByEnvAndService<T> rates = serviceRates;
-    RateSampler<T> sampler = rates.getSampler(new EnvAndService(env, serviceName));
+    final RateSamplersByEnvAndService rates = serviceRates;
+    RateSampler sampler = rates.getSampler(new EnvAndService(env, serviceName));
 
     if (sampler.sample(span)) {
       span.setSamplingPriority(
@@ -59,7 +57,7 @@ public class RateByServiceSampler<T extends CoreSpan<T>>
     }
   }
 
-  private String getSpanEnv(final T span) {
+  private <T extends CoreSpan<T>> String getSpanEnv(final T span) {
     return span.getTag("env", "");
   }
 
@@ -69,7 +67,7 @@ public class RateByServiceSampler<T extends CoreSpan<T>>
     final Map<String, Number> newServiceRates = responseJson.get("rate_by_service");
     if (null != newServiceRates) {
       log.debug("Update service sampler rates: {} -> {}", endpoint, responseJson);
-      final Map<EnvAndService, RateSampler<T>> updatedServiceRates =
+      final Map<EnvAndService, RateSampler> updatedServiceRates =
           new HashMap<>(newServiceRates.size() * 2);
       for (final Map.Entry<String, Number> entry : newServiceRates.entrySet()) {
         if (entry.getValue() != null) {
@@ -78,11 +76,11 @@ public class RateByServiceSampler<T extends CoreSpan<T>>
               RateByServiceSampler.createRateSampler(entry.getValue().doubleValue()));
         }
       }
-      serviceRates = new RateSamplersByEnvAndService<>(updatedServiceRates);
+      serviceRates = new RateSamplersByEnvAndService(updatedServiceRates);
     }
   }
 
-  private static <T extends CoreSpan<T>> RateSampler<T> createRateSampler(final double sampleRate) {
+  private static RateSampler createRateSampler(final double sampleRate) {
     final double sanitizedRate;
     if (sampleRate < 0) {
       log.error("SampleRate is negative or null, disabling the sampler");
@@ -93,26 +91,26 @@ public class RateByServiceSampler<T extends CoreSpan<T>>
       sanitizedRate = sampleRate;
     }
 
-    return new DeterministicSampler.TraceSampler<>(sanitizedRate);
+    return new DeterministicSampler.TraceSampler(sanitizedRate);
   }
 
-  private static final class RateSamplersByEnvAndService<T extends CoreSpan<T>> {
-    private static final RateSampler<?> DEFAULT = createRateSampler(DEFAULT_RATE);
+  private static final class RateSamplersByEnvAndService {
+    private static final RateSampler DEFAULT = createRateSampler(DEFAULT_RATE);
 
-    private final Map<EnvAndService, RateSampler<T>> serviceRates;
+    private final Map<EnvAndService, RateSampler> serviceRates;
 
     RateSamplersByEnvAndService() {
       this(new HashMap<>(0));
     }
 
-    RateSamplersByEnvAndService(Map<EnvAndService, RateSampler<T>> serviceRates) {
+    RateSamplersByEnvAndService(Map<EnvAndService, RateSampler> serviceRates) {
       this.serviceRates = serviceRates;
     }
 
     @SuppressWarnings("unchecked")
-    public RateSampler<T> getSampler(EnvAndService key) {
-      RateSampler<T> sampler = serviceRates.get(key);
-      return null == sampler ? (RateSampler<T>) DEFAULT : sampler;
+    public RateSampler getSampler(EnvAndService key) {
+      RateSampler sampler = serviceRates.get(key);
+      return null == sampler ? (RateSampler) DEFAULT : sampler;
     }
   }
 

@@ -378,16 +378,16 @@ class CoreTracerTest extends DDCoreSpecification {
   }
 }
 
-class ControllableSampler<T extends CoreSpan<T>> implements Sampler<T>, PrioritySampler<T> {
+class ControllableSampler implements Sampler, PrioritySampler {
   protected int nextSamplingPriority = PrioritySampling.SAMPLER_KEEP
 
   @Override
-  void setSamplingPriority(T span) {
+  <T extends CoreSpan<T>> void setSamplingPriority(T span) {
     span.setSamplingPriority(nextSamplingPriority, SamplingMechanism.DEFAULT)
   }
 
   @Override
-  boolean sample(T span) {
+  <T extends CoreSpan<T>> boolean sample(T span) {
     return true
   }
 }

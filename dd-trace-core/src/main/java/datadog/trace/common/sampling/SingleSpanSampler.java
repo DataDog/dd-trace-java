@@ -11,14 +11,14 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public interface SingleSpanSampler<T extends CoreSpan<T>> {
+public interface SingleSpanSampler {
 
-  boolean setSamplingPriority(T span);
+  <T extends CoreSpan<T>> boolean setSamplingPriority(T span);
 
   final class Builder {
     private static final Logger log = LoggerFactory.getLogger(Builder.class);
 
-    public static <T extends CoreSpan<T>> SingleSpanSampler<T> forConfig(Config config) {
+    public static <T extends CoreSpan<T>> SingleSpanSampler forConfig(Config config) {
       String spanSamplingRules = config.getSpanSamplingRules();
       String spanSamplingRulesFile = config.getSpanSamplingRulesFile();
 
@@ -37,12 +37,12 @@ public interface SingleSpanSampler<T extends CoreSpan<T>> {
       if (spanSamplingRulesDefined) {
         SpanSamplingRules rules = SpanSamplingRules.deserialize(spanSamplingRules);
         if (rules != null) {
-          return new RuleBasedSingleSpanSampler<>(rules);
+          return new RuleBasedSingleSpanSampler(rules);
         }
       } else if (spanSamplingRulesFileDefined) {
         SpanSamplingRules rules = SpanSamplingRules.deserializeFile(spanSamplingRulesFile);
         if (rules != null) {
-          return new RuleBasedSingleSpanSampler<>(rules);
+          return new RuleBasedSingleSpanSampler(rules);
         }
       }
 
@@ -52,8 +52,8 @@ public interface SingleSpanSampler<T extends CoreSpan<T>> {
     private Builder() {}
   }
 
-  final class RuleBasedSingleSpanSampler<T extends CoreSpan<T>> implements SingleSpanSampler<T> {
-    private final List<SamplingRule.SpanSamplingRule<T>> spanSamplingRules;
+  final class RuleBasedSingleSpanSampler implements SingleSpanSampler {
+    private final List<SamplingRule.SpanSamplingRule> spanSamplingRules;
 
     public RuleBasedSingleSpanSampler(SpanSamplingRules rules) {
       if (rules == null) {
@@ -61,21 +61,21 @@ public interface SingleSpanSampler<T extends CoreSpan<T>> {
       }
       this.spanSamplingRules = new ArrayList<>();
       for (SpanSamplingRules.Rule rule : rules.getRules()) {
-        RateSampler<T> sampler = new DeterministicSampler.SpanSampler<>(rule.getSampleRate());
+        RateSampler sampler = new DeterministicSampler.SpanSampler(rule.getSampleRate());
         SimpleRateLimiter simpleRateLimiter =
             rule.getMaxPerSecond() == Integer.MAX_VALUE
                 ? null
                 : new SimpleRateLimiter(rule.getMaxPerSecond());
-        SamplingRule.SpanSamplingRule<T> spanSamplingRule =
-            new SamplingRule.SpanSamplingRule<>(
+        SamplingRule.SpanSamplingRule spanSamplingRule =
+            new SamplingRule.SpanSamplingRule(
                 rule.getService(), rule.getName(), sampler, simpleRateLimiter);
         spanSamplingRules.add(spanSamplingRule);
       }
     }
 
     @Override
-    public boolean setSamplingPriority(T span) {
-      for (SamplingRule.SpanSamplingRule<T> rule : spanSamplingRules) {
+    public <T extends CoreSpan<T>> boolean setSamplingPriority(T span) {
+      for (SamplingRule.SpanSamplingRule rule : spanSamplingRules) {
         if (rule.matches(span)) {
           if (rule.sample(span)) {
             double rate = rule.getSampler().getSampleRate();
