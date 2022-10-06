@@ -1,239 +1,84 @@
 package datadog.trace.api.iast
 
-
 import datadog.trace.test.util.DDSpecification
+import groovy.transform.Canonical
 
 class InstrumentationBridgeTest extends DDSpecification {
+  @Canonical
+  static class BridgeMethod {
+    String bridgeMethod
+    List<Object> params
+    String moduleMethod
 
-  def "bridge calls module when a new hash is detected"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
-
-    when:
-    InstrumentationBridge.onMessageDigestGetInstance('SHA-1')
-
-    then:
-    1 * module.onHashingAlgorithm('SHA-1')
+    String toString() {
+      "bridge method $bridgeMethod"
+    }
   }
 
-  def "bridge calls don't fail with null module when a new hash is detected"() {
+  private final static BRIDGE_METHODS = [
+    new BridgeMethod('onCipherGetInstance', ['algo'], 'onCipherAlgorithm'),
+    new BridgeMethod('onMessageDigestGetInstance', ['algo'], 'onHashingAlgorithm'),
+    new BridgeMethod('onParameterName', ['name'], 'onParameterName'),
+    new BridgeMethod('onParameterValue', ['name', 'value'], 'onParameterValue'),
+    new BridgeMethod('onStringConcat', ['self', 'param', 'result'], 'onStringConcat'),
+    new BridgeMethod('onStringConstructor', [new StringBuilder('foo'), 'result'], 'onStringConstructor'),
+    new BridgeMethod('onStringBuilderInit', [new StringBuilder('self'), 'param'], 'onStringBuilderAppend'),
+    new BridgeMethod('onStringBuilderAppend', [new StringBuilder('self'), 'param'], 'onStringBuilderAppend'),
+    new BridgeMethod('onStringBuilderToString', [new StringBuilder('self'), 'result'], 'onStringBuilderToString'),
+  ]
+
+  void '#bridgeMethod does not fail when module is not set'() {
     setup:
-    InstrumentationBridge.registerIastModule(null)
+    InstrumentationBridge.registerIastModule null
 
     when:
-    InstrumentationBridge.onMessageDigestGetInstance('SHA-1')
+    InstrumentationBridge."${bridgeMethod.bridgeMethod}"(*bridgeMethod.params)
 
     then:
     noExceptionThrown()
+
+    where:
+    bridgeMethod << BRIDGE_METHODS
   }
 
-  def "bridge calls don't leak exceptions when a new hash is detected"() {
+  void '#bridgeMethod delegates to the module'() {
     setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
+    def exception
+    def module = Mock(IastModule)
+    InstrumentationBridge.registerIastModule module
 
     when:
-    InstrumentationBridge.onMessageDigestGetInstance('SHA-1')
+    InstrumentationBridge."${bridgeMethod.bridgeMethod}"(*bridgeMethod.params)
 
     then:
-    1 * module.onHashingAlgorithm(_) >> { throw new Error('Boom!!!') }
+    1 * module."${bridgeMethod.moduleMethod}"(*_) >> { List args ->
+      try {
+        args.size().times { assert args[it].is(bridgeMethod.params[it]) }
+      } catch (Throwable t) {
+        exception = t
+      }
+    }
+    0 * _
+    exception == null
+
+    where:
+    bridgeMethod << BRIDGE_METHODS
+  }
+
+  void '#bridgeMethod leaks no exceptions'() {
+    setup:
+    def module = Mock(IastModule)
+    InstrumentationBridge.registerIastModule module
+
+    when:
+    InstrumentationBridge."${bridgeMethod.bridgeMethod}"(*bridgeMethod.params)
+
+    then:
+    1 * module."${bridgeMethod.moduleMethod}"(*_) >> { throw new Throwable('should not leak') }
+    0 * _
     noExceptionThrown()
-  }
 
-  def "bridge calls module when a new cipher is detected"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
-
-    when:
-    InstrumentationBridge.onCipherGetInstance('AES')
-
-    then:
-    1 * module.onCipherAlgorithm('AES')
-  }
-
-  def "bridge calls don't fail with null module when a new cipher is detected"() {
-    setup:
-    InstrumentationBridge.registerIastModule(null)
-
-    when:
-    InstrumentationBridge.onCipherGetInstance('AES')
-
-    then:
-    noExceptionThrown()
-  }
-
-  def "bridge calls don't leak exceptions when a new cipher is detected"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
-
-    when:
-    InstrumentationBridge.onCipherGetInstance('AES')
-
-    then:
-    1 * module.onCipherAlgorithm(_) >> { throw new Error('Boom!!!') }
-    noExceptionThrown()
-  }
-
-  def "bridge calls module when a new string concat is detected"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
-
-    when:
-    InstrumentationBridge.onStringConcat('Hello ', 'World!', 'Hello World!')
-
-    then:
-    1 * module.onStringConcat('Hello ', 'World!', 'Hello World!')
-  }
-
-  def "bridge calls don't fail with null module when a string concat is detected"() {
-    setup:
-    InstrumentationBridge.registerIastModule(null)
-
-    when:
-    InstrumentationBridge.onStringConcat('Hello ', 'World!', 'Hello World!')
-
-    then:
-    noExceptionThrown()
-  }
-
-  def "bridge calls don't leak exceptions when a string concat is detected"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
-
-    when:
-    InstrumentationBridge.onStringConcat('Hello ', 'World!', 'Hello World!')
-
-    then:
-    1 * module.onStringConcat(_, _, _) >> { throw new Error('Boom!!!') }
-    noExceptionThrown()
-  }
-
-  def "bridge calls module when a new string builder init is detected"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
-    final self = new StringBuilder()
-
-    when:
-    InstrumentationBridge.onStringBuilderInit(self, 'test')
-
-    then:
-    1 * module.onStringBuilderAppend(self, 'test')
-  }
-
-  def "bridge calls don't fail with null module when a string builder init is detected"() {
-    setup:
-    InstrumentationBridge.registerIastModule(null)
-
-    when:
-    InstrumentationBridge.onStringBuilderInit(new StringBuilder(), 'test')
-
-    then:
-    noExceptionThrown()
-  }
-
-  def "bridge calls don't leak exceptions when a string builder init is detected"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
-
-    when:
-    InstrumentationBridge.onStringBuilderInit(new StringBuilder(), 'test')
-
-    then:
-    1 * module.onStringBuilderAppend(_, _) >> { throw new Error('Boom!!!') }
-    noExceptionThrown()
-  }
-
-  def "bridge calls module when a new string builder append is detected"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
-    final self = new StringBuilder()
-
-    when:
-    InstrumentationBridge.onStringBuilderAppend(self, 'test')
-
-    then:
-    1 * module.onStringBuilderAppend(self, 'test')
-  }
-
-  def "bridge calls don't fail with null module when a string builder append is detected"() {
-    setup:
-    InstrumentationBridge.registerIastModule(null)
-
-    when:
-    InstrumentationBridge.onStringBuilderAppend(new StringBuilder(), 'test')
-
-    then:
-    noExceptionThrown()
-  }
-
-  def "bridge calls don't leak exceptions when a string builder append is detected"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
-
-    when:
-    InstrumentationBridge.onStringBuilderAppend(new StringBuilder(), 'test')
-
-    then:
-    1 * module.onStringBuilderAppend(_, _) >> { throw new Error('Boom!!!') }
-    noExceptionThrown()
-  }
-
-  def "bridge calls module when a new string builder toString() is detected"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
-    final self = new StringBuilder()
-
-    when:
-    InstrumentationBridge.onStringBuilderToString(self, 'test')
-
-    then:
-    1 * module.onStringBuilderToString(self, 'test')
-  }
-
-  def "bridge calls don't fail with null module when a string builder toString is detected"() {
-    setup:
-    InstrumentationBridge.registerIastModule(null)
-
-    when:
-    InstrumentationBridge.onStringBuilderToString(new StringBuilder('test'), 'test')
-
-    then:
-    noExceptionThrown()
-  }
-
-  def "bridge calls don't leak exceptions when a string builder toString is detected"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
-
-    when:
-    InstrumentationBridge.onStringBuilderToString(new StringBuilder('test'), 'test')
-
-    then:
-    1 * module.onStringBuilderToString(_, _) >> { throw new Error('Boom!!!') }
-    noExceptionThrown()
-  }
-
-  def "bridge calls don't leak exceptions for onParameterName and onParameterValue on null parameters"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
-
-    when:
-    InstrumentationBridge.onParameterValue(null, null)
-    InstrumentationBridge.onParameterName()
-
-    then:
-    noExceptionThrown()
+    where:
+    bridgeMethod << BRIDGE_METHODS
   }
 }

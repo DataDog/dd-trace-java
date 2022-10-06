@@ -82,6 +82,16 @@ public abstract class InstrumentationBridge {
     }
   }
 
+  public static void onStringConstructor(CharSequence param, String result) {
+    try {
+      if (MODULE != null) {
+        MODULE.onStringConstructor(param, result);
+      }
+    } catch (Throwable t) {
+      onUnexpectedException("Callback for onStringConstructor has thrown", t);
+    }
+  }
+
   public static void onStringBuilderInit(final StringBuilder self, final CharSequence param) {
     try {
       if (MODULE != null) {

@@ -1,5 +1,6 @@
 package datadog.trace.api.iast;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public interface IastModule {
@@ -21,6 +22,8 @@ public interface IastModule {
   void onParameterValue(@Nullable String paramName, @Nullable String paramValue);
 
   void onStringConcat(@Nullable String left, @Nullable String right, @Nullable String result);
+
+  void onStringConstructor(@Nullable CharSequence argument, @Nonnull String result);
 
   void onStringBuilderAppend(@Nullable StringBuilder builder, @Nullable CharSequence param);
 

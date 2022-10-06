@@ -150,6 +150,25 @@ public final class IastModuleImpl implements IastModule {
   }
 
   @Override
+  public void onStringConstructor(@Nullable CharSequence argument, @Nonnull String result) {
+    if (!canBeTainted(argument)) {
+      return;
+    }
+
+    IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    Range[] ranges = getRanges(taintedObjects, argument);
+    if (ranges.length == 0) {
+      return;
+    }
+
+    taintedObjects.taint(result, ranges);
+  }
+
+  @Override
   public void onStringBuilderAppend(
       @Nullable final StringBuilder builder, @Nullable final CharSequence param) {
     if (!canBeTainted(builder) || !canBeTainted(param)) {

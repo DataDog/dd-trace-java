@@ -21,7 +21,7 @@ class IastModuleImplTestBase extends DDSpecification {
 
   protected AgentTracer.TracerAPI tracer = Mock(AgentTracer.TracerAPI)
 
-  def setup() {
+  void setup() {
     AgentTracer.forceRegister(tracer)
     overheadController.acquireRequest() >> true
     overheadController.consumeQuota(_ as Operation, _ as AgentSpan) >> true

@@ -263,7 +263,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     injectSysConfig(TracerConfig.SCOPE_ITERATION_KEEP_ALIVE, "1") // don't let iteration spans linger
   }
 
-  def setup() {
+  void setup() {
     // re-register in case a new JVM is spawned
     TimelineTracingContextTracker.register()
 
