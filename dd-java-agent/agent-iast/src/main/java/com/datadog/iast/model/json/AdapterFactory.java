@@ -8,6 +8,7 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
+import datadog.trace.api.DDId;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
@@ -16,6 +17,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -40,7 +42,10 @@ class AdapterFactory implements JsonAdapter.Factory {
 
   @Override
   @Nullable
-  public JsonAdapter<?> create(Type type, Set<? extends Annotation> annotations, Moshi moshi) {
+  public JsonAdapter<?> create(
+      @Nonnull final Type type,
+      @Nonnull final Set<? extends Annotation> annotations,
+      @Nonnull final Moshi moshi) {
     final Class<?> rawType = Types.getRawType(type);
     if (Source.class.equals(rawType)) {
       for (final Annotation annotation : annotations) {
@@ -49,8 +54,10 @@ class AdapterFactory implements JsonAdapter.Factory {
         }
       }
       return null;
-    } else if (VulnerabilityBatch.class.equals(Types.getRawType(type))) {
+    } else if (VulnerabilityBatch.class.equals(rawType)) {
       return new VulnerabilityBatchAdapter(moshi);
+    } else if (DDId.class.equals(rawType)) {
+      return new DDIdAdapter();
     }
     return null;
   }
@@ -58,7 +65,8 @@ class AdapterFactory implements JsonAdapter.Factory {
   public static class SourceIndexAdapter extends JsonAdapter<Source> {
 
     @Override
-    public void toJson(JsonWriter writer, @Nullable @SourceIndex Source value) throws IOException {
+    public void toJson(@Nonnull final JsonWriter writer, @Nullable @SourceIndex final Source value)
+        throws IOException {
       if (value == null) {
         writer.nullValue();
         return;
@@ -75,7 +83,7 @@ class AdapterFactory implements JsonAdapter.Factory {
 
     @Nullable
     @Override
-    public @SourceIndex Source fromJson(JsonReader reader) throws IOException {
+    public @SourceIndex Source fromJson(@Nonnull final JsonReader reader) throws IOException {
       throw new UnsupportedOperationException("Source deserialization is not supported");
     }
   }
@@ -86,14 +94,15 @@ class AdapterFactory implements JsonAdapter.Factory {
 
     private final JsonAdapter<List<Vulnerability>> vulnerabilitiesAdapter;
 
-    public VulnerabilityBatchAdapter(final Moshi moshi) {
+    public VulnerabilityBatchAdapter(@Nonnull final Moshi moshi) {
       sourcesAdapter = moshi.adapter(Types.newParameterizedType(List.class, Source.class));
       vulnerabilitiesAdapter =
           moshi.adapter(Types.newParameterizedType(List.class, Vulnerability.class));
     }
 
     @Override
-    public void toJson(JsonWriter writer, @Nullable VulnerabilityBatch value) throws IOException {
+    public void toJson(@Nonnull final JsonWriter writer, @Nullable final VulnerabilityBatch value)
+        throws IOException {
       if (value == null) {
         writer.nullValue();
         return;
@@ -121,9 +130,28 @@ class AdapterFactory implements JsonAdapter.Factory {
 
     @Nullable
     @Override
-    public VulnerabilityBatch fromJson(JsonReader reader) throws IOException {
+    public VulnerabilityBatch fromJson(@Nonnull final JsonReader reader) throws IOException {
       throw new UnsupportedOperationException(
           "VulnerabilityBatch deserialization is not supported");
+    }
+  }
+
+  public static class DDIdAdapter extends JsonAdapter<DDId> {
+
+    @Override
+    public void toJson(@Nonnull final JsonWriter writer, final @Nullable DDId value)
+        throws IOException {
+      if (value == null) {
+        writer.nullValue();
+        return;
+      }
+      writer.value(value.toLong());
+    }
+
+    @Nullable
+    @Override
+    public DDId fromJson(@Nonnull final JsonReader reader) throws IOException {
+      throw new UnsupportedOperationException("DDId deserialization is not supported");
     }
   }
 }

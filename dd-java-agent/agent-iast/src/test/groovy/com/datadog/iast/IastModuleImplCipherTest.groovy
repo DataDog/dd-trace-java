@@ -3,20 +3,22 @@ package com.datadog.iast
 import com.datadog.iast.model.Evidence
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
+import datadog.trace.api.DDId
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
 class IastModuleImplCipherTest extends IastModuleImplTestBase {
 
   void 'iast module vulnerable cipher algorithm'(){
     given:
+    final spanId = DDId.from(123456)
     final span = Mock(AgentSpan)
-    tracer.activeSpan() >> span
 
     when:
     module.onCipherAlgorithm(algorithm)
 
     then:
-    1 * tracer.activeSpan()
+    1 * tracer.activeSpan() >> span
+    1 * span.getSpanId() >> spanId
     1 * overheadController.consumeQuota(_, _) >> true
     1 * reporter.report(_, _) >> { args ->
       Vulnerability vuln = args[1] as Vulnerability

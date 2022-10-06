@@ -59,7 +59,7 @@ public final class IastModuleImpl implements IastModule {
     Vulnerability vulnerability =
         new Vulnerability(
             VulnerabilityType.WEAK_CIPHER,
-            Location.forStack(stackTraceElement),
+            Location.forSpanAndStack(span.getSpanId(), stackTraceElement),
             new Evidence(algorithm));
     reporter.report(span, vulnerability);
   }
@@ -88,7 +88,7 @@ public final class IastModuleImpl implements IastModule {
     Vulnerability vulnerability =
         new Vulnerability(
             VulnerabilityType.WEAK_HASH,
-            Location.forStack(stackTraceElement),
+            Location.forSpanAndStack(span.getSpanId(), stackTraceElement),
             new Evidence(algorithm));
     reporter.report(span, vulnerability);
   }
