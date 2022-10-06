@@ -71,9 +71,15 @@ commands:
 
             if [[ -n "${CIRCLE_PR_NUMBER}" ]]
             then
-              FETCH_REFS="${FETCH_REFS} +refs/pull/${CIRCLE_PR_NUMBER}/merge:pr/${CIRCLE_PR_NUMBER}/merge"
+              PR_MERGE="pr/${CIRCLE_PR_NUMBER}/merge"
+              FETCH_REFS="${FETCH_REFS} +refs/pull/${CIRCLE_PR_NUMBER}/merge:${PR_MERGE}"
               git fetch -u origin ${FETCH_REFS}
-              git checkout "pr/${CIRCLE_PR_NUMBER}/merge"
+              git checkout "${PR_MERGE}"
+              echo "----"
+              git show HEAD
+              echo "----"
+              git show HEAD | grep -e "^Merge:" | cut -d ' ' -f 2- | sed 's/ /.../' | xargs git diff --name-only
+              echo "----"
             fi
 
             # Everything falls back to the main cache
@@ -89,6 +95,8 @@ commands:
             fi
             # Have new branches start from the main cache
             echo "${BASE_CACHE_ID}" >| _circle_ci_cache_base_id
+            # TODO debug
+            exit 1
 
       - attach_workspace:
           at: .
