@@ -1,0 +1,37 @@
+configurations {
+  jarfile
+}
+
+dependencies {
+  jarfile "com.datadoghq:dd-trace-ot:$version"
+}
+
+def currentJavaHomePath = getJavaHomePath(System.getProperty("java.home"))
+def jarFile = configurations.jarfile.filter { it.name.startsWith('dd-trace-ot')}.singleFile
+
+tasks.register('checkJarContents', Exec) {
+  inputs.file(jarFile)
+  commandLine('./check_jar_contents',
+    '--command', "${currentJavaHomePath}/bin/jar",
+    '--file', "${jarFile}"
+    )
+}
+
+tasks.register('checkJarSize') {
+  inputs.file(jarFile)
+  doLast {
+    // Arbitrary limit to prevent unintentional increases to the dd-trace-ot jar size
+    // Raise or lower as required
+    assert jarFile.length() <= 7 * 1024 * 1024
+  }
+}
+
+tasks.named('check').configure {
+  dependsOn 'checkJarContents'
+  dependsOn 'checkJarSize'
+}
+
+def getJavaHomePath(String path) {
+  def javaHome = new File(path).toPath().toRealPath()
+  return javaHome.endsWith("jre") ? javaHome.parent : javaHome
+}
