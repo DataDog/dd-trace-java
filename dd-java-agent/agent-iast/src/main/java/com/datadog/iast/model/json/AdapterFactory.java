@@ -135,23 +135,4 @@ class AdapterFactory implements JsonAdapter.Factory {
           "VulnerabilityBatch deserialization is not supported");
     }
   }
-
-  public static class DDIdAdapter extends JsonAdapter<DDId> {
-
-    @Override
-    public void toJson(@Nonnull final JsonWriter writer, final @Nullable DDId value)
-        throws IOException {
-      if (value == null) {
-        writer.nullValue();
-        return;
-      }
-      writer.value(value.toLong());
-    }
-
-    @Nullable
-    @Override
-    public DDId fromJson(@Nonnull final JsonReader reader) throws IOException {
-      throw new UnsupportedOperationException("DDId deserialization is not supported");
-    }
-  }
 }
