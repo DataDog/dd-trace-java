@@ -40,7 +40,7 @@ public class DebuggerAgent {
       log.info("Debugger agent disabled");
       return;
     }
-    log.info("Starting debugger...");
+    log.info("Starting Dynamic Instrumentation");
     String finalDebuggerSnapshotUrl = config.getFinalDebuggerSnapshotUrl();
     String agentUrl = config.getAgentUrl();
     boolean isSnapshotUploadThroughAgent = Objects.equals(finalDebuggerSnapshotUrl, agentUrl);

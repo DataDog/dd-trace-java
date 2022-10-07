@@ -106,7 +106,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
     currentConfiguration = newConfiguration;
 
     if (changes.hasProbeRelatedChanges()) {
-      log.info("apply new probe configuration, changes: {}", changes);
+      log.info("Applying new probe configuration, changes: {}", changes);
       handleProbesChanges(changes);
     }
     if (changes.hasRateLimitRelatedChanged()) {
@@ -176,7 +176,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
 
     // ensures that we have at least re-transformed 1 class
     if (changedClasses.size() > 0) {
-      log.debug("Re-transformation done.");
+      log.debug("Re-transformation done");
     }
   }
 
