@@ -41,6 +41,7 @@ ext {
     'com.datadog.iast.model.Vulnerability',
     // Small JsonAdapters with unimplemented fromJson
     'com.datadog.iast.model.json.SourceTypeAdapter',
+    'com.datadog.iast.model.json.DDIdAdapter',
   ]
   excludedClassesBranchCoverage = []
   excludedClassesInstructionCoverage = []

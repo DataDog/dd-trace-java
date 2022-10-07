@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -25,6 +26,11 @@ public class SnapshotSummaryTest {
       new ProbeLocation("com.datadog.debugger.SomeClass", "someMethod", null, null);
   private static final ProbeDetails PROBE_DETAILS =
       new ProbeDetails(UUID.randomUUID().toString(), PROBE_LOCATION);
+
+  @BeforeAll
+  public static void staticSetup() {
+    DebuggerContext.initSnapshotSerializer(null);
+  }
 
   @BeforeEach
   public void setup() {

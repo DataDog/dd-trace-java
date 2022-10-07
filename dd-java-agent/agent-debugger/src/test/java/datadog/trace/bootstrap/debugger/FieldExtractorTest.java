@@ -41,7 +41,8 @@ public class FieldExtractorTest {
                 limits.maxLength,
                 limits.maxFieldCount));
     Snapshot.CapturedValue capturedValue =
-        Snapshot.CapturedValue.raw(field.getType().getName(), value, limits, subFields, null);
+        Snapshot.CapturedValue.raw(
+            field.getName(), field.getType().getName(), value, limits, subFields, null);
     results.put(field.getName(), capturedValue);
   }
 

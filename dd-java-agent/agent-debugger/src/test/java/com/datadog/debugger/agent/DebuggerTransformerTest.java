@@ -190,6 +190,9 @@ public class DebuggerTransformerTest {
             new InputStreamReader(
                 DebuggerTransformerTest.class.getResourceAsStream("/TargetClass.ftlh")),
             cfg);
+    // TODO asserts are operating on 'toString()' which requires keeping the underlying object so we
+    // just disable serialization for now
+    DebuggerContext.initSnapshotSerializer(null);
   }
 
   @AfterEach

@@ -10,6 +10,11 @@ import spock.lang.IgnoreIf
 class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
 
   @Override
+  def logLevel() {
+    return "debug"
+  }
+
+  @Override
   ProcessBuilder createProcessBuilder() {
     String springBootShadowJar = System.getProperty("datadog.smoketest.springboot.shadowJar.path")
 

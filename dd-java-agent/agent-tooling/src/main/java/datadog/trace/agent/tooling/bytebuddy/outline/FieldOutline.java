@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling.bytebuddy.outline;
 
 import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.findDescriptor;
+import static datadog.trace.agent.tooling.bytebuddy.outline.TypeOutline.NO_ANNOTATIONS;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -55,7 +56,9 @@ final class FieldOutline extends FieldDescription.InDefinedShape.AbstractBase {
 
   @Override
   public AnnotationList getDeclaredAnnotations() {
-    return new AnnotationList.Explicit(declaredAnnotations);
+    return declaredAnnotations.isEmpty()
+        ? NO_ANNOTATIONS
+        : new AnnotationList.Explicit(declaredAnnotations);
   }
 
   void declare(AnnotationDescription annotation) {

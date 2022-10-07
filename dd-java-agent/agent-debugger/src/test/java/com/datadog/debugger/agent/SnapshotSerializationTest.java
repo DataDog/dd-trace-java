@@ -380,6 +380,8 @@ public class SnapshotSerializationTest {
     assertNotCaptured(
         objFieldFields, "complexObjField", AnotherClass.class.getName(), DEPTH_REASON);
     assertNotCaptured(
+        objFieldFields, "complexObjField", AnotherClass.class.getName(), DEPTH_REASON);
+    assertNotCaptured(
         objFieldFields,
         "this$0",
         "com.datadog.debugger.agent.SnapshotSerializationTest",
@@ -394,6 +396,8 @@ public class SnapshotSerializationTest {
     Map<String, Object> objLocalFields = (Map<String, Object>) objLocal.get(FIELDS);
     assertPrimitiveValue(objLocalFields, "complexIntField", "int", "21");
     assertPrimitiveValue(objLocalFields, "complexStrField", String.class.getName(), "bar");
+    assertNotCaptured(
+        objLocalFields, "complexObjField", AnotherClass.class.getName(), DEPTH_REASON);
     assertNotCaptured(
         objLocalFields, "complexObjField", AnotherClass.class.getName(), DEPTH_REASON);
     assertNotCaptured(
