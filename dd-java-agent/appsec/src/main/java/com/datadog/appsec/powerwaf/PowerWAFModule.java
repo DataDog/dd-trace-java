@@ -63,18 +63,7 @@ public class PowerWAFModule implements AppSecModule {
 
   private static final JsonAdapter<List<PowerWAFResultData>> RES_JSON_ADAPTER;
 
-  private static final Map<String, ActionInfo> defaultActions =
-      Collections.singletonMap(
-          "block",
-          new ActionInfo(
-              "block_request",
-              new HashMap<String, Object>() {
-                {
-                  put("status_code", 403);
-                  put("type", "auto");
-                  put("grpc_status_code", 10);
-                }
-              }));
+  private static final Map<String, ActionInfo> DEFAULT_ACTIONS;
 
   private static class RuleInfo {
     final String name;
@@ -136,6 +125,13 @@ public class PowerWAFModule implements AppSecModule {
     Moshi moshi = new Moshi.Builder().build();
     RES_JSON_ADAPTER =
         moshi.adapter(Types.newParameterizedType(List.class, PowerWAFResultData.class));
+
+    Map<String, Object> actionParams = new HashMap<>();
+    actionParams.put("status_code", 403);
+    actionParams.put("type", "auto");
+    actionParams.put("grpc_status_code", 10);
+    DEFAULT_ACTIONS =
+        Collections.singletonMap("block", new ActionInfo("block_request", actionParams));
   }
 
   private final boolean wafMetricsEnabled =
@@ -242,7 +238,7 @@ public class PowerWAFModule implements AppSecModule {
       Map<String, RuleInfo> rulesInfoMap =
           config.getRules().stream().collect(toMap(AppSecConfig.Rule::getId, RuleInfo::new));
 
-      Map<String, ActionInfo> actionInfoMap = new HashMap<>(defaultActions);
+      Map<String, ActionInfo> actionInfoMap = new HashMap<>(DEFAULT_ACTIONS);
       actionInfoMap.putAll(
           ((List<Map<String, Object>>)
                   config.getRawConfig().getOrDefault("actions", Collections.emptyList()))
