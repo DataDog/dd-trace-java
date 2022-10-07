@@ -21,6 +21,8 @@ abstract class ProcessManager extends Specification {
   protected String buildDirectory = System.getProperty("datadog.smoketest.builddir")
   @Shared
   protected String shadowJarPath = System.getProperty("datadog.smoketest.agent.shadowJar.path")
+  @Shared
+  protected boolean isIBM = System.getProperty("java.vendor", "").contains("IBM")
 
   @Shared
   protected static int profilingPort = -1
