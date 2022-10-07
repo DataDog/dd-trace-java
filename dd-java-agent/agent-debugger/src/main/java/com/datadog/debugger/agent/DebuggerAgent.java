@@ -35,14 +35,12 @@ public class DebuggerAgent {
 
   public static synchronized void run(
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
-
     Config config = Config.get();
-
     if (!config.isDebuggerEnabled()) {
       log.info("Debugger agent disabled");
       return;
     }
-
+    log.info("Starting debugger...");
     String finalDebuggerSnapshotUrl = config.getFinalDebuggerSnapshotUrl();
     String agentUrl = config.getAgentUrl();
     boolean isSnapshotUploadThroughAgent = Objects.equals(finalDebuggerSnapshotUrl, agentUrl);
