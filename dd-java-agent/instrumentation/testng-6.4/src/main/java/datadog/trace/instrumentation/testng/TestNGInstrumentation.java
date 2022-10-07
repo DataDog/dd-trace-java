@@ -36,7 +36,7 @@ public class TestNGInstrumentation extends Instrumenter.CiVisibility
   }
 
   public static class TestNGAdvice {
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addTracingListener(@Advice.This final TestNG testNG) {
       for (final ITestListener testListener : testNG.getTestListeners()) {
         if (testListener instanceof TracingListener) {
