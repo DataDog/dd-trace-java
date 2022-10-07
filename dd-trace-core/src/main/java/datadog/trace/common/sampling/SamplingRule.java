@@ -96,7 +96,6 @@ public abstract class SamplingRule<T extends CoreSpan<T>> {
     }
   }
 
-  // TODO how to combine this with a rate-limiter?
   public static final class SpanSamplingRule<T extends CoreSpan<T>> extends SamplingRule<T> {
     private final Pattern servicePattern;
     private final Pattern operationPattern;
@@ -106,19 +105,29 @@ public abstract class SamplingRule<T extends CoreSpan<T>> {
     public SpanSamplingRule(
         final String serviceNameGlob,
         final String operationNameGlob,
-        final RateSampler<T> sampler) {
+        final RateSampler<T> sampler,
+        final SimpleRateLimiter rateLimiter) {
       super(sampler);
-      servicePattern = GlobPattern.globToRegexPattern(serviceNameGlob);
-      operationPattern = GlobPattern.globToRegexPattern(operationNameGlob);
-      rateLimiter = null; // TODO
+      // TODO optimize if no globs such as * or ? are in use then implement exact match
+      this.servicePattern = GlobPattern.globToRegexPattern(serviceNameGlob);
+      this.operationPattern = GlobPattern.globToRegexPattern(operationNameGlob);
+      this.rateLimiter = rateLimiter;
     }
 
     @Override
     public boolean matches(T span) {
-      // TODO do we run rateLimiter here or in the sample method? Before or after the match.
       return (servicePattern == null || servicePattern.matcher(span.getServiceName()).matches())
           && (operationPattern == null
               || operationPattern.matcher(span.getOperationName()).matches());
+    }
+
+    @Override
+    public boolean sample(T span) {
+      return super.sample(span) && (rateLimiter == null || rateLimiter.tryAcquire());
+    }
+
+    public void apply(T span) {
+      // TODO set necessary
     }
   }
 }

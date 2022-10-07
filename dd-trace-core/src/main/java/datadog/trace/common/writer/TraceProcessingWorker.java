@@ -6,6 +6,7 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.communication.ddagent.DroppingPolicy;
+import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.FlushEvent;
 import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy;
@@ -48,12 +49,16 @@ public class TraceProcessingWorker implements AutoCloseable {
       final DroppingPolicy droppingPolicy,
       final Prioritization prioritization,
       final long flushInterval,
-      final TimeUnit timeUnit) {
+      final TimeUnit timeUnit,
+      final SingleSpanSampler singleSpanSampler) {
     this.capacity = capacity;
     this.primaryQueue = createQueue(capacity);
     this.secondaryQueue = createQueue(capacity);
     this.spanQueue = createQueue(capacity);
-    this.spanProcessingWorker = SpanProcessingWorker.build(capacity, spanQueue);
+    this.spanProcessingWorker =
+        singleSpanSampler != null
+            ? SpanProcessingWorker.build(capacity, spanQueue, singleSpanSampler)
+            : null;
     this.prioritizationStrategy =
         prioritization.create(primaryQueue, secondaryQueue, droppingPolicy, spanProcessingWorker);
     this.serializingHandler =
@@ -92,7 +97,9 @@ public class TraceProcessingWorker implements AutoCloseable {
 
   @Override
   public void close() {
-    spanProcessingWorker.close();
+    if (spanProcessingWorker != null) {
+      spanProcessingWorker.close();
+    }
     serializerThread.interrupt();
     try {
       serializerThread.join(THREAD_JOIN_TIMOUT_MS);

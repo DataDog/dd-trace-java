@@ -40,6 +40,8 @@ public final class TracerConfig {
   public static final String TRACE_SAMPLING_OPERATION_RULES = "trace.sampling.operation.rules";
   // JSON rules
   public static final String TRACE_SAMPLING_RULES = "trace.sampling.rules";
+  public static final String SPAN_SAMPLING_RULES = "span.sampling.rules";
+  public static final String SPAN_SAMPLING_RULES_FILE = "span.sampling.rules.file";
   // a global rate used for all services (that don’t have a dedicated rule defined).
   public static final String TRACE_SAMPLE_RATE = "trace.sample.rate";
   public static final String TRACE_RATE_LIMIT = "trace.rate.limit";

@@ -16,6 +16,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.common.sampling.Sampler;
+import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.common.writer.ddintake.DDIntakeApi;
@@ -63,6 +64,8 @@ public class WriterFactory {
           "Using 'EnsureTrace' prioritization type. (Do not use this type if your application is running in production mode)");
     }
 
+    SingleSpanSampler singleSpanSampler = SingleSpanSampler.Builder.forConfig(config);
+
     RemoteWriter remoteWriter;
     if (DD_INTAKE_WRITER_TYPE.equals(configuredType)) {
       final TrackType trackType = DDIntakeTrackTypeResolver.resolve(config);
@@ -93,6 +96,7 @@ public class WriterFactory {
               .prioritization(prioritization)
               .healthMetrics(new HealthMetrics(statsDClient))
               .monitoring(commObjects.monitoring)
+              .singleSpanSampler(singleSpanSampler)
               .build();
     } else {
       if (!DD_AGENT_WRITER_TYPE.equals(configuredType)) {
@@ -131,6 +135,7 @@ public class WriterFactory {
               .healthMetrics(new HealthMetrics(statsDClient))
               .monitoring(commObjects.monitoring)
               .alwaysFlush(alwaysFlush)
+              .spanSamplingRules(singleSpanSampler)
               .build();
     }
 

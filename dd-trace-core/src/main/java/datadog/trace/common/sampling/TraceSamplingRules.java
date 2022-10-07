@@ -76,6 +76,7 @@ public class TraceSamplingRules {
     }
   }
 
+  // TODO maybe return a List instead?
   public static TraceSamplingRules deserialize(String json) {
     try {
       return new TraceSamplingRules(LIST_OF_RULES_ADAPTER.fromJson(json));

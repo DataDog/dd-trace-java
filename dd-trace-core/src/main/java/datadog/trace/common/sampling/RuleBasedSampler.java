@@ -16,6 +16,7 @@ import java.util.Map.Entry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// TODO maybe rename it to TraceSampler?
 public class RuleBasedSampler<T extends CoreSpan<T>> implements Sampler<T>, PrioritySampler<T> {
 
   private static final Logger log = LoggerFactory.getLogger(RuleBasedSampler.class);

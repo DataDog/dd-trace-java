@@ -298,6 +298,8 @@ import static datadog.trace.api.config.TracerConfig.SCOPE_INHERIT_ASYNC_PROPAGAT
 import static datadog.trace.api.config.TracerConfig.SCOPE_ITERATION_KEEP_ALIVE;
 import static datadog.trace.api.config.TracerConfig.SCOPE_STRICT_MODE;
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING;
+import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES;
+import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES_FILE;
 import static datadog.trace.api.config.TracerConfig.SPAN_TAGS;
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_ARGS;
@@ -498,6 +500,8 @@ public class Config {
   private final Map<String, String> traceSamplingServiceRules;
   private final Map<String, String> traceSamplingOperationRules;
   private final String traceSamplingRules;
+  private final String spanSamplingRules;
+  private final String spanSamplingRulesFile;
   private final Double traceSampleRate;
   private final int traceRateLimit;
 
@@ -1003,6 +1007,8 @@ public class Config {
     traceSamplingServiceRules = configProvider.getMergedMap(TRACE_SAMPLING_SERVICE_RULES);
     traceSamplingOperationRules = configProvider.getMergedMap(TRACE_SAMPLING_OPERATION_RULES);
     traceSamplingRules = configProvider.getString(TRACE_SAMPLING_RULES);
+    spanSamplingRules = configProvider.getString(SPAN_SAMPLING_RULES);
+    spanSamplingRulesFile = configProvider.getString(SPAN_SAMPLING_RULES_FILE);
     traceSampleRate = configProvider.getDouble(TRACE_SAMPLE_RATE);
     traceRateLimit = configProvider.getInteger(TRACE_RATE_LIMIT, DEFAULT_TRACE_RATE_LIMIT);
 
@@ -1710,6 +1716,14 @@ public class Config {
 
   public int getTraceRateLimit() {
     return traceRateLimit;
+  }
+
+  public String getSpanSamplingRules() {
+    return spanSamplingRules;
+  }
+
+  public String getSpanSamplingRulesFile() {
+    return spanSamplingRulesFile;
   }
 
   public boolean isProfilingEnabled() {
@@ -2945,6 +2959,10 @@ public class Config {
         + ", traceRateLimit="
         + traceRateLimit
         + ", profilingEnabled="
+        + spanSamplingRules
+        + ", spanSamplingRules="
+        + spanSamplingRulesFile
+        + ", spanSamplingRulesFile="
         + profilingEnabled
         + ", profilingAgentless="
         + profilingAgentless
