@@ -51,7 +51,7 @@ public class StaticValueRefResolver implements ValueReferenceResolver {
     if (isField) {
       target = ReflectiveFieldValueResolver.resolve(self, self.getClass(), parts[0]);
     } else {
-      target = valueMap.containsKey(parts[0]) ? valueMap.get(parts[0]) : Values.UNDEFINED_OBJECT;
+      target = valueMap.getOrDefault(parts[0], Values.UNDEFINED_OBJECT);
     }
     for (int i = 1; i < parts.length; i++) {
       if (target == Values.UNDEFINED_OBJECT) {
