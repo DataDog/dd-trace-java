@@ -3,7 +3,7 @@ package datadog.trace.agent.tooling.csi
 import datadog.trace.agent.tooling.bytebuddy.csi.Advices
 import net.bytebuddy.description.type.TypeDescription
 
-import java.security.MessageDigest
+import static datadog.trace.agent.tooling.csi.CallSiteAdvice.HasFlags.COMPUTE_MAX_STACK
 
 class AdvicesTest extends BaseCallSiteTest {
 
@@ -21,8 +21,8 @@ class AdvicesTest extends BaseCallSiteTest {
 
   def 'test non empty advices'() {
     setup:
-    final pointcut = buildPointcut(String.getDeclaredMethod('concat', String))
-    final advices = Advices.fromCallSites(mockAdvice(pointcut))
+    final pointcut = stringConcatPointcut()
+    final advices = Advices.fromCallSites(mockInvokeAdvice(pointcut))
 
     when:
     final empty = advices.empty
@@ -33,8 +33,8 @@ class AdvicesTest extends BaseCallSiteTest {
 
   def 'test advices for type'() {
     setup:
-    final pointcut = buildPointcut(String.getDeclaredMethod('concat', String))
-    final advices = Advices.fromCallSites(mockAdvice(pointcut))
+    final pointcut = stringConcatPointcut()
+    final advices = Advices.fromCallSites(mockInvokeAdvice(pointcut))
 
     when:
     final existing = advices.findAdvice(pointcut)
@@ -43,7 +43,7 @@ class AdvicesTest extends BaseCallSiteTest {
     existing != null
 
     when:
-    final notFound  = advices.findAdvice('java/lang/Integer', pointcut.method(), pointcut.descriptor())
+    final notFound = advices.findAdvice('java/lang/Integer', pointcut.method(), pointcut.descriptor())
 
     then:
     notFound == null
@@ -53,7 +53,7 @@ class AdvicesTest extends BaseCallSiteTest {
     setup:
     final startsWith1 = buildPointcut(String.getDeclaredMethod('startsWith', String))
     final startsWith2 = buildPointcut(String.getDeclaredMethod('startsWith', String, int.class))
-    final advices = Advices.fromCallSites(mockAdvice(startsWith1), mockAdvice(startsWith2))
+    final advices = Advices.fromCallSites(mockInvokeAdvice(startsWith1), mockInvokeAdvice(startsWith2))
 
     when:
     final startsWith1Found = advices.findAdvice(startsWith1)
@@ -70,8 +70,8 @@ class AdvicesTest extends BaseCallSiteTest {
 
   def 'test helper class names'() {
     setup:
-    final concatAdvice = mockAdvice(buildPointcut(String.getDeclaredMethod('concat', String)), 'foo.bar.Helper1', 'foo.bar.Helper2')
-    final digestAdvice = mockAdvice(buildPointcut(MessageDigest.getDeclaredMethod('getInstance', String)), 'foo.bar.Helper3')
+    final concatAdvice = mockInvokeAdvice(stringConcatPointcut(), 'foo.bar.Helper1', 'foo.bar.Helper2')
+    final digestAdvice = mockInvokeAdvice(messageDigestGetInstancePointcut(), 'foo.bar.Helper3')
     final advices = Advices.fromCallSites([concatAdvice, digestAdvice])
 
     when:
@@ -83,10 +83,10 @@ class AdvicesTest extends BaseCallSiteTest {
 
   def 'test advices with duplicated pointcut'() {
     setup:
-    final pointcut = buildPointcut(String.getDeclaredMethod('concat', String))
+    final pointcut = stringConcatPointcut()
 
     when:
-    Advices.fromCallSites(mockAdvice(pointcut), mockAdvice(pointcut))
+    Advices.fromCallSites(mockInvokeAdvice(pointcut), mockInvokeAdvice(pointcut))
 
     then:
     thrown(UnsupportedOperationException)
@@ -104,34 +104,53 @@ class AdvicesTest extends BaseCallSiteTest {
     result == advices
   }
 
-  def 'test constant pool introspector'() {
+  def 'test constant pool introspector'(final Pointcut pointcutMock,
+    final boolean emptyAdvices,
+    final boolean adviceFound) {
     setup:
     final target = StringConcatExample
     final targetType = Mock(TypeDescription) {
       getName() >> target.name
     }
-    final advice = mockAdvice(pointcutMock)
+    final advice = mockInvokeAdvice(pointcutMock)
     final advices = Advices.fromCallSites(advice)
     final introspector = Advices.AdviceIntrospector.ConstantPoolInstrospector.INSTANCE
 
-    when: 'find is called without a class loader'
-    def result = introspector.findAdvices(advices, targetType, null)
-
-    then: 'no filtering should happen'
-    result == advices
-
-    when: 'find is called with a class loader'
-    result = introspector.findAdvices(advices, targetType, StringConcatExample.classLoader)
+    when:
+    final result = introspector.findAdvices(advices, targetType, StringConcatExample.classLoader)
     final found = result.findAdvice(pointcutMock) != null
 
-    then: 'constant pool should be used to filter'
-    result != advices
+    then:
     result.empty == emptyAdvices
     found == adviceFound
 
     where:
-    pointcutMock                                                          | emptyAdvices | adviceFound
-    buildPointcut(String.getDeclaredMethod('concat', String))             | false         | true
-    buildPointcut(MessageDigest.getDeclaredMethod('getInstance', String)) | true          | false
+    pointcutMock                       | emptyAdvices | adviceFound
+    stringConcatPointcut()             | false        | true
+    messageDigestGetInstancePointcut() | true         | false
+  }
+
+  def 'test compute max stack flag'() {
+    when:
+    def advices = Advices.EMPTY
+
+    then:
+    !advices.computeMaxStack()
+
+    when:
+    advices = Advices.fromCallSites([mockInvokeAdvice(stringConcatPointcut(), 0)])
+
+    then:
+    !advices.computeMaxStack()
+
+    when:
+    advices = Advices.fromCallSites([
+      mockInvokeAdvice(stringConcatPointcut(), 0),
+      mockInvokeAdvice(messageDigestGetInstancePointcut(), COMPUTE_MAX_STACK),
+      mockInvokeAdvice(stringConcatFactoryPointcut(), 0)
+    ])
+
+    then:
+    advices.computeMaxStack()
   }
 }

@@ -68,9 +68,11 @@ abstract class GrpcTest extends AgentTestRunner {
     } as TriConsumer<RequestContext, String, String>)
     ig.registerCallback(EVENTS.requestHeaderDone(),{
       appSecHeaderDone = true
+      Flow.ResultFlow.empty()
     } as Function<RequestContext, Flow<Void>>)
     ig.registerCallback(EVENTS.grpcServerRequestMessage(), { reqCtx, obj ->
       collectedAppSecReqMsgs << obj
+      Flow.ResultFlow.empty()
     } as BiFunction<RequestContext, Object, Flow<Void>>)
   }
 

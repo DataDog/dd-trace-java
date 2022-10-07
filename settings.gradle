@@ -74,7 +74,8 @@ include ':remote-config'
 include ':dd-java-agent:appsec'
 include ':dd-java-agent:appsec:weblog:weblog-common'
 
-include ':dd-java-agent:iast'
+// iast
+include ':dd-java-agent:agent-iast'
 
 include ':dd-java-agent:cws-tls'
 

@@ -1,5 +1,6 @@
 package com.datadog.debugger.util;
 
+import static com.datadog.debugger.agent.JsonSnapshotSerializer.getValue;
 import static java.util.stream.Collectors.*;
 
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
@@ -104,7 +105,7 @@ public class SnapshotSummary {
   private static String formatCapturedValues(Map<String, CapturedValue> capturedValues) {
     return capturedValues.entrySet().stream()
         .sorted(Entry.comparingByKey())
-        .map(entry -> entry.getKey() + "=" + entry.getValue().getValue())
+        .map(entry -> entry.getKey() + "=" + getValue(entry.getValue(), entry.getKey()))
         .collect(joining(", "));
   }
 
@@ -141,7 +142,7 @@ public class SnapshotSummary {
   private static Optional<String> getReturnValue(Snapshot snapshot) {
     CapturedContext exit = snapshot.getCaptures().getReturn();
     if (exit != null && exit.getLocals() != null && exit.getLocals().get("@return") != null) {
-      return Optional.of(exit.getLocals().get("@return").getValue());
+      return Optional.of(getValue(exit.getLocals().get("@return"), "@return"));
     }
     return Optional.empty();
   }

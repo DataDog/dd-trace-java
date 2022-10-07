@@ -52,7 +52,18 @@ build_cache_paths: &build_cache_paths
 
 test_matrix: &test_matrix
   parameters:
-    testJvm: [ "IBM8", "ZULU8","ORACLE8", "11", "ZULU11", "ZULU13", "15", "17" ]
+    testJvm: [ "IBM8", "ZULU8", "ORACLE8", "11", "ZULU11", "17" ]
+
+profiling_test_matrix: &profiling_test_matrix
+  parameters:
+    testJvm: [ "8", "ZULU8", "ORACLE8", "11", "ZULU11", "17" ]
+
+agent_integration_tests_modules: &agent_integration_tests_modules "dd-trace-core|communication|internal-api|utils"
+core_modules: &core_modules "dd-trace-core|communication|internal-api|telemetry|utils|dd-java-agent/agent-bootstrap|dd-java-agent/agent-installer|dd-java-agent/agent-tooling|dd-java-agent/agent-builder|dd-java-agent/agent-appsec"
+instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation|dd-java-agent/agent-tooling|dd-java-agent/agent-installer|dd-java-agent/agent-builder|dd-java-agent/agent-bootstrap|dd-java-agent/appsec|dd-trace-core|dd-trace-api|internal-api"
+iast_modules: &iast_modules "dd-java-agent/agent-iast|internal-api|utils/test-utils"
+debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
+profiling_modules: &profiling_modules "dd-java-agent/agent-profiling|dd-trace-core/jfr-openjdk"
 
 parameters:
   gradle_flags:
@@ -150,6 +161,32 @@ commands:
               circleci step halt
             fi
 
+  skip_unless_matching_files_changed:
+    description: >-
+      If files matching the regular expression haven't changed in the commit, then skip the job
+    parameters:
+      pattern:
+        type: string
+    steps:
+      - run:
+          name: "Check if files relevant to job have changed"
+          command: |
+            CIRCLE_PR_NUMBER="${CIRCLE_PR_NUMBER:-${CIRCLE_PULL_REQUEST##*/}}"
+
+            if [ -n "$CIRCLE_PR_NUMBER" ]; then
+              BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+              if [[ "$BRANCH" != "master" ]] && [[ "$BRANCH" != "release/*" ]]; then
+                # We know that we have checked out the PR merge branch, so the HEAD commit is a merge
+                # As a backup, if anything goes wrong with the diff, the build will fail
+                CHANGED_FILES=$(git show HEAD | grep -e "^Merge:" | cut -d ' ' -f 2- | sed 's/ /.../' | xargs git diff --name-only)
+                # Count the number of matches, and ignore if the grep doesn't match anything
+                MATCH_COUNT=$(echo "$CHANGED_FILES" | grep -c -E "gradle/|<< parameters.pattern >>") || true
+                if [[ "$MATCH_COUNT" -eq "0" ]]; then
+                  circleci step halt
+                fi
+              fi
+            fi
+
   display_memory_usage:
     steps:
       - run:
@@ -168,14 +205,17 @@ jobs:
       - restore_cache:
           <<: *dependency_cache_keys
 
+      - restore_cache:
+          <<: *build_cache_keys
+
       - run:
           name: Build Project
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew clean compile shadowJar
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2048M -Xms2048M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+            ./gradlew clean compile shadowJar check -PskipTests
             << pipeline.parameters.gradle_flags >>
-            --max-workers=4
+            --max-workers=8
             --rerun-tasks
 
       - run:
@@ -185,6 +225,19 @@ jobs:
 
       - store_artifacts:
           path: ./libs
+
+      - run:
+          name: Collect reports
+          when: on_fail
+          command: .circleci/collect_reports.sh --destination ./check_reports --move
+
+      - run:
+          name: Delete reports
+          when: on_success
+          command: .circleci/collect_reports.sh --destination ./check_reports --delete
+
+      - store_artifacts:
+          path: ./check_reports
 
       - persist_to_workspace:
           root: .
@@ -236,11 +289,32 @@ jobs:
           name: Build Project
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew clean compile shadowJar
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2048M -Xms2048M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+            ./gradlew clean compile shadowJar check -PskipTests
             << pipeline.parameters.gradle_flags >>
-            --max-workers=4
+            --max-workers=8
             --rerun-tasks
+
+      - run:
+          name: Collect Libs
+          when: always
+          command: .circleci/collect_libs.sh
+
+      - store_artifacts:
+          path: ./libs
+
+      - run:
+          name: Collect reports
+          when: on_fail
+          command: .circleci/collect_reports.sh --destination ./check_reports --move
+
+      - run:
+          name: Delete reports
+          when: on_success
+          command: .circleci/collect_reports.sh --destination ./check_reports --delete
+
+      - store_artifacts:
+          path: ./check_reports
 
       - save_cache:
           key: dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ epoch }}
@@ -252,9 +326,9 @@ jobs:
 
       - display_memory_usage
 
-  base_tests: &base_tests
+  tests: &tests
     <<: *defaults
-    resource_class: xlarge
+    resource_class: large
 
     docker:
       - image: *default_container
@@ -266,9 +340,35 @@ jobs:
       testJvm:
         type: string
         default: ""
+      maxHeapSize:
+        type: string
+        default: "512M"
+      gradleParameters:
+        type: string
+        default: ""
+      gradleTarget:
+        type: string
+        default: ""
+      triggeredBy:
+        type: string
+        default: ".*"
+      stage:
+        type: string
+        default: ""
+      maxWorkers:
+        type: integer
+        default: 2
+      profile:
+        type: boolean
+        default: false
+
+
 
     steps:
       - setup_code
+
+      - skip_unless_matching_files_changed:
+          pattern: << parameters.triggeredBy >>
 
       - restore_cache:
           <<: *dependency_cache_keys
@@ -276,15 +376,28 @@ jobs:
       - restore_cache:
           <<: *build_cache_keys
 
+      - when:
+          condition:
+            or:
+              - equal: ["smoke", << parameters.stage >>]
+              - equal: ["instrumentation", << parameters.stage >>]
+          steps:
+            - setup_testcontainers
+
       - run:
           name: Run tests
           command: >-
+            if [[ << parameters.profile >> ]] && [[ << parameters.testJvm >> != "IBM8" ]] && [[ << parameters.testJvm >> != "ORACLE8" ]]; 
+            then
+              PROFILER_COMMAND="-XX:StartFlightRecording=settings=profile,filename=/tmp/<< parameters.stage >>-<< parameters.testJvm >>.jfr,dumponexit=true"
+            fi
+            
             MAVEN_OPTS="-Xms64M -Xmx512M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
-            ./gradlew << parameters.testTask >> -PskipInstTests -PskipSmokeTests
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms<< parameters.maxHeapSize >> -Xmx<< parameters.maxHeapSize >> $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
+            ./gradlew <<# parameters.gradleTarget >><< parameters.gradleTarget >>:<</ parameters.gradleTarget >><< parameters.testTask >> << parameters.gradleParameters >>
             <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
-            --max-workers=8
+            --max-workers=<< parameters.maxWorkers >>
             --continue
 
       - run:
@@ -294,6 +407,18 @@ jobs:
 
       - store_artifacts:
           path: ./reports
+
+      - when:
+          condition:
+            equal: [true, << parameters.profile >>]
+          steps:
+            - run:
+                name: Collect profiles
+                when: always
+                command: .circleci/collect_profiles.sh
+
+            - store_artifacts:
+                path: ./profiles
 
       - run:
           name: Collect test results
@@ -310,115 +435,11 @@ jobs:
       - run:
           name: Upload test results to Datadog
           when: always
-          command: .circleci/upload_ciapp.sh base << parameters.testJvm >> || true
+          command: .circleci/upload_ciapp.sh << parameters.stage >> << parameters.testJvm >> || true
 
-  instrumentation_tests:
-    <<: *base_tests
+  xlarge_tests:
+    <<: *tests
     resource_class: xlarge
-
-    docker:
-      - image: *default_container
-
-    steps:
-      - setup_code
-
-      - restore_cache:
-          <<: *dependency_cache_keys
-
-      - restore_cache:
-          <<: *build_cache_keys
-
-      - setup_testcontainers
-
-      - run:
-          name: Run tests
-          command: >-
-            MAVEN_OPTS="-Xms64M -Xmx512M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
-            ./gradlew :dd-java-agent:instrumentation:<< parameters.testTask >>
-            <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
-            << pipeline.parameters.gradle_flags >>
-            --max-workers=6
-            --continue
-
-      - run:
-          name: Collect reports
-          when: on_fail
-          command: .circleci/collect_reports.sh
-
-      - store_artifacts:
-          path: ./reports
-
-      - run:
-          name: Collect test results
-          when: always
-          command: .circleci/collect_results.sh
-
-      - store_test_results:
-          path: ./results
-
-      - display_memory_usage
-
-      - early_return_for_forked_pull_requests
-
-      - run:
-          name: Upload test results to Datadog
-          when: always
-          command: .circleci/upload_ciapp.sh instrumentation << parameters.testJvm >> || true
-
-  smoke_tests:
-    <<: *base_tests
-    resource_class: medium+
-
-    docker:
-      - image: *default_container
-
-    steps:
-      - setup_code
-
-      - restore_cache:
-          <<: *dependency_cache_keys
-
-      - restore_cache:
-          <<: *build_cache_keys
-
-      - setup_testcontainers
-
-      - run:
-          name: Run Tests
-          command: >-
-            MAVEN_OPTS="-Xms64M -Xmx512M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
-            ./gradlew stageMainDist :dd-smoke-test:<< parameters.testTask >>
-            <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
-            << pipeline.parameters.gradle_flags >>
-            --max-workers=2
-            --continue
-
-      - run:
-          name: Collect Reports
-          when: on_fail
-          command: .circleci/collect_reports.sh
-
-      - store_artifacts:
-          path: ./reports
-
-      - run:
-          name: Collect test results
-          when: always
-          command: .circleci/collect_results.sh
-
-      - store_test_results:
-          path: ./results
-
-      - display_memory_usage
-
-      - early_return_for_forked_pull_requests
-
-      - run:
-          name: Upload test results to Datadog
-          when: always
-          command: .circleci/upload_ciapp.sh smoke << parameters.testJvm >> || true
 
   # The only way to do fan-in in CircleCI seems to have a proper job, so let's have one that
   # doesn't consume so many resources. The execution time for this including spin up seems to
@@ -432,14 +453,17 @@ jobs:
     parameters:
       testJvm:
         type: string
+        default: "all configured JVMs"
+      stage:
+        type: string
 
     steps:
       - run:
-          name: All tests for << parameters.testJvm >> passed!
-          command: echo 'All tests passed!'
+          name: Completed stage << parameters.stage >> on << parameters.testJvm >> passed!
+          command: echo '<< parameters.stage >> completed!'
 
   agent_integration_tests:
-    <<: *base_tests
+    <<: *tests
     resource_class: medium
 
     docker:
@@ -450,7 +474,7 @@ jobs:
           - DD_BIND_HOST=0.0.0.0
           - DD_API_KEY=invalid_key_but_this_is_fine
 
-  check:
+  test_published_artifacts:
     <<: *defaults
     resource_class: large
 
@@ -464,27 +488,23 @@ jobs:
           <<: *build_cache_keys
 
       - run:
-          name: Build Project
-          command: >-
-            MAVEN_OPTS="-Xms64M -Xmx256M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew build -PskipTests
-            << pipeline.parameters.gradle_flags >>
-            --max-workers=3
-
-      - run:
-          name: Test Published Dependencies
+          name: Publish Artifacts Locally
           command: |
             mvn_local_repo=$(./mvnw help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
             rm -rf "${mvn_local_repo}/com/datadoghq"
-            export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms256M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+            export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2048M -Xms2048M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew publishToMavenLocal << pipeline.parameters.gradle_flags >> --max-workers=3
+
+      - run:
+          name: Test Published Artifacts
+          command: |
             cd test-published-dependencies
+            export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx512M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew check --max-workers=3
 
       - run:
           name: Collect Reports
-          when: always
+          when: on_fail
           command: .circleci/collect_reports.sh
 
       - store_artifacts:
@@ -498,6 +518,9 @@ jobs:
     parallelism: 3
     steps:
       - setup_code
+
+      - skip_unless_matching_files_changed:
+          pattern: "dd-java-agent/instrumentation"
 
       # We are not running with a separate cache of all muzzle artifacts here because it gets very big and
       # ends up taking more time restoring/saving than the actual increase in time it takes just
@@ -596,51 +619,118 @@ jobs:
 build_test_jobs: &build_test_jobs
   - build
 
-  - base_tests:
+  - xlarge_tests:
       requires:
         - build
       name: z_test_<< matrix.testJvm >>_base
+      maxHeapSize: "1940M"
+      triggeredBy: *core_modules
+      gradleParameters: "-PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipIastTests -PskipDebuggerTests"
+      stage: core
+      maxWorkers: 6
       matrix:
         <<: *test_matrix
 
-  - base_tests:
+  - xlarge_tests:
       requires:
         - build
       name: z_test_8_base
+      maxHeapSize: "1940M"
+      triggeredBy: *core_modules
+      gradleParameters: "-PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipIastTests -PskipDebuggerTests"
       testTask: test jacocoTestReport jacocoTestCoverageVerification
+      stage: core
+      maxWorkers: 6
       testJvm: "8"
 
-  - instrumentation_tests:
+  - xlarge_tests:
       requires:
         - build
       name: z_test_<< matrix.testJvm >>_inst
+      maxHeapSize: "1940M"
+      gradleTarget: ":dd-java-agent:instrumentation"
+      triggeredBy: *instrumentation_modules
+      stage: instrumentation
+      maxWorkers: 8
       matrix:
         <<: *test_matrix
 
-  - instrumentation_tests:
+  - xlarge_tests:
       requires:
         - build
       name: z_test_8_inst
+      maxHeapSize: "1940M"
+      gradleTarget: ":dd-java-agent:instrumentation"
+      triggeredBy: *instrumentation_modules
+      stage: instrumentation
+      maxWorkers: 8
       testJvm: "8"
 
-  - instrumentation_tests:
+  - xlarge_tests:
       requires:
         - build
       name: test_8_inst_latest
       testTask: latestDepTest
+      maxHeapSize: "1940M"
+      gradleTarget: ":dd-java-agent:instrumentation"
+      triggeredBy: *instrumentation_modules
+      stage: instrumentation
+      maxWorkers: 8
       testJvm: "8"
 
-  - smoke_tests:
+  - tests:
+      requires:
+        - build
+      maxWorkers: 4
+      gradleTarget: ":dd-java-agent:agent-profiling"
+      triggeredBy: *profiling_modules
+      maxHeapSize: "1G"
+      stage: profiling
+      name: test_<< matrix.testJvm >>_profiling
+      matrix:
+        <<: *profiling_test_matrix
+
+  - tests:
+      requires:
+        - build
+      maxWorkers: 4
+      name: test_<< matrix.testJvm >>_iast
+      gradleTarget: ":dd-java-agent:agent-iast"
+      triggeredBy: *iast_modules
+      maxHeapSize: "1G"
+      stage: iast
+      matrix:
+        <<: *profiling_test_matrix
+
+  - tests:
+      requires:
+        - build
+      name: test_<< matrix.testJvm >>_debugger
+      maxWorkers: 4
+      gradleTarget: ":dd-java-agent:agent-debugger"
+      triggeredBy: *debugger_modules
+      maxHeapSize: "1G"
+      stage: debugger
+      matrix:
+        <<: *profiling_test_matrix
+
+  - xlarge_tests:
       requires:
         - build
       name: z_test_<< matrix.testJvm >>_smoke
+      gradleTarget: "stageMainDist :dd-smoke-test"
+      maxHeapSize: "1750M"
+      stage: smoke
       matrix:
         <<: *test_matrix
 
-  - smoke_tests:
+  - tests:
       requires:
         - build
       name: z_test_8_smoke
+      gradleTarget: "stageMainDist :dd-smoke-test"
+      maxHeapSize: "1750M"
+      stage: smoke
       testJvm: "8"
 
   - fan_in:
@@ -649,6 +739,7 @@ build_test_jobs: &build_test_jobs
         - z_test_<< matrix.testJvm >>_inst
         - z_test_<< matrix.testJvm >>_smoke
       name: test_<< matrix.testJvm >>
+      stage: tracing
       matrix:
         <<: *test_matrix
 
@@ -658,14 +749,17 @@ build_test_jobs: &build_test_jobs
         - z_test_8_inst
         - z_test_8_smoke
       name: test_8
+      stage: tracing
       testJvm: "8"
 
   - agent_integration_tests:
       requires:
         - build
+      triggeredBy: *agent_integration_tests_modules
       testTask: traceAgentTest
+      testJvm: "8"
 
-  - check:
+  - test_published_artifacts:
       requires:
         - build
 
@@ -683,19 +777,57 @@ build_test_jobs: &build_test_jobs
       requires:
         - build
 
+  - fan_in:
+      requires:
+        - test_published_artifacts
+        - test_8_profiling
+        - test_ORACLE8_profiling
+        - test_ZULU8_profiling
+        - test_ZULU11_profiling
+        - test_11_profiling
+        - test_17_profiling
+      name: profiling
+      stage: profiling
+
+  - fan_in:
+      requires:
+        - test_published_artifacts
+        - test_8_debugger
+        - test_ORACLE8_debugger
+        - test_ZULU8_debugger
+        - test_ZULU11_debugger
+        - test_11_debugger
+        - test_17_debugger
+      name: debugger
+      stage: debugger
+
+  - fan_in:
+      requires:
+        - test_published_artifacts
+        - test_8_iast
+        - test_ORACLE8_iast
+        - test_ZULU8_iast
+        - test_ZULU11_iast
+        - test_11_iast
+        - test_17_iast
+      name: iast
+      stage: iast
+
   # This job requires all the jobs needed for a successful build, so github only needs to enforce this one
   # and it will be simpler to require different JVM versions for different branches and old releases
   - fan_in:
       requires:
-        - check
+        - test_published_artifacts
         - agent_integration_tests
         - test_8
         - test_11
-        - test_15
         - test_17
         - test_ZULU8
+        - profiling
+        - iast
+        - debugger
       name: required
-      testJvm: "required tasks" # only used in a print statement
+      stage: required
 
 workflows:
   build_test:

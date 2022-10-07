@@ -4,8 +4,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.SnapshotProbe;
-import com.datadog.debugger.sink.SnapshotSink;
 import com.datadog.debugger.util.TagsHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.agent.test.utils.PortUtils;
@@ -77,8 +77,9 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
     }
     assertNotNull(snapshotRequest);
     String bodyStr = snapshotRequest.getBody().readUtf8();
-    JsonAdapter<List<SnapshotSink.IntakeRequest>> adapter = createAdapterForSnapshot();
-    SnapshotSink.IntakeRequest request = adapter.fromJson(bodyStr).get(0);
+    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
+    System.out.println(bodyStr);
+    JsonSnapshotSerializer.IntakeRequest request = adapter.fromJson(bodyStr).get(0);
     Snapshot snapshot = request.getDebugger().getSnapshot();
     assertEquals("123356536", snapshot.getProbe().getId());
     assertTrue(Pattern.matches("\\d+", request.getTraceId()));

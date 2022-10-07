@@ -262,7 +262,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONU
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_CONTEXT_SERVICE_NAME;
-import static datadog.trace.api.config.TraceInstrumentationConfig.TEMP_JARS_CLEAN_ON_BOOT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE_FILE;
@@ -314,6 +313,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RULES;
+import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_RULES;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES;
 import static datadog.trace.api.config.TracerConfig.TRACE_STRICT_WRITES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH;
@@ -496,6 +496,7 @@ public class Config {
 
   private final Map<String, String> traceSamplingServiceRules;
   private final Map<String, String> traceSamplingOperationRules;
+  private final String traceSamplingRules;
   private final Double traceSampleRate;
   private final int traceRateLimit;
 
@@ -598,8 +599,6 @@ public class Config {
   private final boolean servletAsyncTimeoutError;
 
   private final int xDatadogTagsMaxLength;
-
-  private final boolean tempJarsCleanOnBoot;
 
   private final boolean traceAgentV05Enabled;
 
@@ -1000,6 +999,7 @@ public class Config {
 
     traceSamplingServiceRules = configProvider.getMergedMap(TRACE_SAMPLING_SERVICE_RULES);
     traceSamplingOperationRules = configProvider.getMergedMap(TRACE_SAMPLING_OPERATION_RULES);
+    traceSamplingRules = configProvider.getString(TRACE_SAMPLING_RULES);
     traceSampleRate = configProvider.getDouble(TRACE_SAMPLE_RATE);
     traceRateLimit = configProvider.getInteger(TRACE_RATE_LIMIT, DEFAULT_TRACE_RATE_LIMIT);
 
@@ -1272,9 +1272,6 @@ public class Config {
             TRACE_X_DATADOG_TAGS_MAX_LENGTH, DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH);
 
     servletAsyncTimeoutError = configProvider.getBoolean(SERVLET_ASYNC_TIMEOUT_ERROR, true);
-
-    tempJarsCleanOnBoot =
-        configProvider.getBoolean(TEMP_JARS_CLEAN_ON_BOOT, false) && isWindowsOS();
 
     debugEnabled = isDebugMode();
 
@@ -1697,6 +1694,10 @@ public class Config {
     return traceSamplingOperationRules;
   }
 
+  public String getTraceSamplingRules() {
+    return traceSamplingRules;
+  }
+
   public Double getTraceSampleRate() {
     return traceSampleRate;
   }
@@ -2029,10 +2030,6 @@ public class Config {
 
   public boolean isServletAsyncTimeoutError() {
     return servletAsyncTimeoutError;
-  }
-
-  public boolean isTempJarsCleanOnBoot() {
-    return tempJarsCleanOnBoot;
   }
 
   public boolean isTraceAgentV05Enabled() {
@@ -2931,6 +2928,8 @@ public class Config {
         + traceSamplingServiceRules
         + ", traceSamplingOperationRules="
         + traceSamplingOperationRules
+        + ", traceSamplingJsonRules="
+        + traceSamplingRules
         + ", traceSampleRate="
         + traceSampleRate
         + ", traceRateLimit="
@@ -3052,8 +3051,6 @@ public class Config {
         + servletAsyncTimeoutError
         + ", datadogTagsLimit="
         + xDatadogTagsMaxLength
-        + ", tempJarsCleanOnBoot="
-        + tempJarsCleanOnBoot
         + ", traceAgentV05Enabled="
         + traceAgentV05Enabled
         + ", debugEnabled="

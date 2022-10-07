@@ -499,6 +499,7 @@ public class Snapshot {
     private Map<String, CapturedValue> locals;
     private CapturedThrowable throwable;
     private Map<String, CapturedValue> fields;
+    private Limits limits = Limits.DEFAULT;
 
     public CapturedContext() {}
 
@@ -660,6 +661,10 @@ public class Snapshot {
       this.throwable = new CapturedThrowable(t);
     }
 
+    public void addThrowable(CapturedThrowable capturedThrowable) {
+      this.throwable = capturedThrowable;
+    }
+
     public void addFields(CapturedValue[] values) {
       if (values == null) {
         return;
@@ -670,6 +675,11 @@ public class Snapshot {
       for (CapturedValue value : values) {
         fields.put(value.name, value);
       }
+    }
+
+    public void setLimits(
+        int maxReferenceDepth, int maxCollectionSize, int maxLength, int maxFieldCount) {
+      this.limits = new Limits(maxReferenceDepth, maxCollectionSize, maxLength, maxFieldCount);
     }
 
     public Map<String, CapturedValue> getArguments() {
@@ -686,6 +696,10 @@ public class Snapshot {
 
     public Map<String, CapturedValue> getFields() {
       return fields;
+    }
+
+    public Limits getLimits() {
+      return limits;
     }
 
     @Override
@@ -721,37 +735,45 @@ public class Snapshot {
 
   /** Stores a captured value */
   public static class CapturedValue {
-    private final transient String name;
+    private String name;
     private final String type;
-    private final String value;
-    private final transient WeakReference<Object> rawValueRef;
-    private Map<String, CapturedValue> fields;
-    private final String reasonNotCaptured;
+    private Object value;
+    private String strValue;
+    private final WeakReference<Object> rawValueRef;
+    private final Map<String, CapturedValue> fields;
+    private final Limits limits;
+    private final String notCapturedReason;
 
     private CapturedValue(
         String name,
         String type,
         Object value,
-        ValueConverter valueConverter,
-        FieldExtractor.Limits fieldExtractorLimits,
-        String reasonNotCaptured) {
+        Limits limits,
+        Map<String, CapturedValue> fields,
+        String notCapturedReason) {
       this.name = name;
       this.type = type;
       this.rawValueRef = new WeakReference<>(value);
-      this.value = valueConverter.convert(value);
-      this.fields =
-          fieldExtractorLimits.maxFieldDepth >= 0
-              ? FieldExtractor.extract(value, fieldExtractorLimits)
-              : Collections.emptyMap();
-      this.reasonNotCaptured = reasonNotCaptured;
+      this.value = value;
+      this.fields = fields;
+      this.limits = limits;
+      this.notCapturedReason = notCapturedReason;
+    }
+
+    public String getName() {
+      return name;
     }
 
     public String getType() {
       return type;
     }
 
-    public String getValue() {
+    public Object getValue() {
       return value;
+    }
+
+    public String getStrValue() {
+      return strValue;
     }
 
     Object getRawValue() {
@@ -762,28 +784,24 @@ public class Snapshot {
       return fields;
     }
 
-    public String getReasonNotCaptured() {
-      return reasonNotCaptured;
+    public Limits getLimits() {
+      return limits;
+    }
+
+    public String getNotCapturedReason() {
+      return notCapturedReason;
+    }
+
+    public void setName(String name) {
+      this.name = name;
     }
 
     public static Snapshot.CapturedValue of(String type, Object value) {
-      return new Snapshot.CapturedValue(
-          null,
-          type,
-          value,
-          new ValueConverter(),
-          new FieldExtractor.Limits(1, FieldExtractor.DEFAULT_FIELD_COUNT),
-          null);
+      return build(null, type, value, Limits.DEFAULT, null);
     }
 
     public static Snapshot.CapturedValue of(String name, String type, Object value) {
-      return new Snapshot.CapturedValue(
-          name,
-          type,
-          value,
-          new ValueConverter(),
-          new FieldExtractor.Limits(1, FieldExtractor.DEFAULT_FIELD_COUNT),
-          null);
+      return build(name, type, value, Limits.DEFAULT, null);
     }
 
     public static Snapshot.CapturedValue of(
@@ -793,39 +811,44 @@ public class Snapshot {
         int maxReferenceDepth,
         int maxCollectionSize,
         int maxLength,
-        int maxFieldDepth,
         int maxFieldCount) {
-      return new Snapshot.CapturedValue(
+      return build(
           name,
           type,
           value,
-          new ValueConverter(
-              new ValueConverter.Limits(
-                  maxReferenceDepth, maxCollectionSize, maxLength, maxFieldCount)),
-          new FieldExtractor.Limits(maxFieldDepth, maxFieldCount),
+          new Limits(maxReferenceDepth, maxCollectionSize, maxLength, maxFieldCount),
           null);
     }
 
-    public static Snapshot.CapturedValue reasonNotCaptured(
+    public static Snapshot.CapturedValue notCapturedReason(
         String name, String type, String reason) {
-      return new CapturedValue(
-          name,
-          type,
-          null,
-          new ValueConverter(),
-          new FieldExtractor.Limits(1, FieldExtractor.DEFAULT_FIELD_COUNT),
-          reason);
+      return build(name, type, null, Limits.DEFAULT, reason);
     }
 
-    static Snapshot.CapturedValue raw(
-        String type, Object value, int maxFieldDepth, int maxFieldCount) {
+    public static Snapshot.CapturedValue raw(String type, Object value, String notCapturedReason) {
       return new CapturedValue(
-          null,
-          type,
-          value,
-          new ValueConverter(),
-          new FieldExtractor.Limits(maxFieldDepth, maxFieldCount),
-          null);
+          null, type, value, Limits.DEFAULT, Collections.emptyMap(), notCapturedReason);
+    }
+
+    public static Snapshot.CapturedValue raw(
+        String type,
+        Object value,
+        Limits limits,
+        Map<String, CapturedValue> fields,
+        String notCapturedReason) {
+      return new CapturedValue(null, type, value, limits, fields, notCapturedReason);
+    }
+
+    private static CapturedValue build(
+        String name, String type, Object value, Limits limits, String notCapturedReason) {
+      CapturedValue val =
+          new CapturedValue(name, type, value, limits, Collections.emptyMap(), notCapturedReason);
+      val.strValue = DebuggerContext.serializeValue(val);
+      if (val.strValue != null) {
+        // if serialization has happened, release the value object
+        val.value = null;
+      }
+      return val;
     }
 
     @Override
@@ -837,12 +860,12 @@ public class Snapshot {
           && Objects.equals(type, that.type)
           && Objects.equals(value, that.value)
           && Objects.equals(fields, that.fields)
-          && Objects.equals(reasonNotCaptured, that.reasonNotCaptured);
+          && Objects.equals(notCapturedReason, that.notCapturedReason);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(name, type, value, fields, reasonNotCaptured);
+      return Objects.hash(name, type, value, fields, notCapturedReason);
     }
 
     @Override
@@ -859,8 +882,8 @@ public class Snapshot {
           + '\''
           + ", fields="
           + fields
-          + ", reasonNotCaptured='"
-          + reasonNotCaptured
+          + ", notCapturedReason='"
+          + notCapturedReason
           + '\''
           + '}';
     }

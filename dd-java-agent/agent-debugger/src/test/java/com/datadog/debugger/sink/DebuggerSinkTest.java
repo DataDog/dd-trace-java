@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static utils.TestHelper.getFixtureContent;
 
+import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.trace.api.Config;
@@ -51,6 +52,7 @@ public class DebuggerSinkTest {
 
   @BeforeEach
   void setUp() {
+    DebuggerContext.initSnapshotSerializer(new JsonSnapshotSerializer());
     when(config.getHostName()).thenReturn("host-name");
     when(config.getServiceName()).thenReturn("service-name");
     when(config.getEnv()).thenReturn("test");
