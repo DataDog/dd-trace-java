@@ -46,6 +46,7 @@ import datadog.trace.civisibility.CiVisibilityTraceInterceptor;
 import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
+import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
@@ -244,6 +245,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private Writer writer;
     private IdGenerationStrategy idGenerationStrategy;
     private Sampler<DDSpan> sampler;
+    private SingleSpanSampler<DDSpan> singleSpanSampler;
     private HttpCodec.Injector injector;
     private HttpCodec.Extractor extractor;
     private AgentScopeManager scopeManager;
@@ -282,6 +284,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     public CoreTracerBuilder sampler(Sampler<DDSpan> sampler) {
       this.sampler = sampler;
+      return this;
+    }
+
+    public CoreTracerBuilder singleSpanSampler(SingleSpanSampler<DDSpan> singleSpanSampler) {
+      this.singleSpanSampler = singleSpanSampler;
       return this;
     }
 
@@ -375,6 +382,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       serviceName(config.getServiceName());
       // Explicitly skip setting writer to avoid allocating resources prematurely.
       sampler(Sampler.Builder.<DDSpan>forConfig(config));
+      singleSpanSampler(SingleSpanSampler.Builder.<DDSpan>forConfig(config));
       instrumentationGateway(new InstrumentationGateway());
       injector(HttpCodec.createInjector(config));
       extractor(HttpCodec.createExtractor(config, config.getRequestHeaderTags()));
@@ -397,6 +405,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           writer,
           idGenerationStrategy,
           sampler,
+          singleSpanSampler,
           injector,
           extractor,
           scopeManager,
@@ -422,6 +431,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final Writer writer,
       final IdGenerationStrategy idGenerationStrategy,
       final Sampler<DDSpan> sampler,
+      final SingleSpanSampler<DDSpan> singleSpanSampler,
       final HttpCodec.Injector injector,
       final HttpCodec.Extractor extractor,
       final AgentScopeManager scopeManager,
@@ -506,7 +516,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (writer == null) {
       this.writer =
           WriterFactory.createWriter(
-              config, sharedCommunicationObjects, sampler, this.statsDClient);
+              config, sharedCommunicationObjects, sampler, singleSpanSampler, this.statsDClient);
     } else {
       this.writer = writer;
     }

@@ -18,7 +18,7 @@ public interface SingleSpanSampler<T extends CoreSpan<T>> {
   final class Builder {
     private static final Logger log = LoggerFactory.getLogger(Builder.class);
 
-    public static SingleSpanSampler forConfig(Config config) {
+    public static <T extends CoreSpan<T>> SingleSpanSampler<T> forConfig(Config config) {
       String spanSamplingRules = config.getSpanSamplingRules();
       String spanSamplingRulesFile = config.getSpanSamplingRulesFile();
 
@@ -37,7 +37,7 @@ public interface SingleSpanSampler<T extends CoreSpan<T>> {
       if (spanSamplingRulesDefined) {
         SpanSamplingRules rules = SpanSamplingRules.deserialize(spanSamplingRules);
         if (rules != null) {
-          return new RuleBasedSingleSpanSampler(rules);
+          return new RuleBasedSingleSpanSampler<T>(rules);
         }
       } else if (spanSamplingRulesFileDefined) {
         // TODO read rules from the file
@@ -56,13 +56,11 @@ public interface SingleSpanSampler<T extends CoreSpan<T>> {
       }
       this.spanSamplingRules = new ArrayList<>();
       for (SpanSamplingRules.Rule rule : rules.getRules()) {
-        RateSampler<T> sampler =
-            new DeterministicSampler<>(
-                rule.getSampleRate()); // TODO create a sampler. Maybe with a RateLimiter?
+        RateSampler<T> sampler = new DeterministicSampler<>(rule.getSampleRate());
         SimpleRateLimiter simpleRateLimiter =
-            rule.getMaxPerSecond() < Integer.MAX_VALUE
-                ? new SimpleRateLimiter(rule.getMaxPerSecond())
-                : null;
+            rule.getMaxPerSecond() == Integer.MAX_VALUE
+                ? null
+                : new SimpleRateLimiter(rule.getMaxPerSecond());
         SamplingRule.SpanSamplingRule<T> spanSamplingRule =
             new SamplingRule.SpanSamplingRule<>(
                 rule.getService(), rule.getName(), sampler, simpleRateLimiter);
@@ -76,7 +74,6 @@ public interface SingleSpanSampler<T extends CoreSpan<T>> {
         if (rule.matches(span)) {
           if (rule.sample(span)) {
             rule.apply(span);
-            // TODO apply the rule for the sampled span
             return true;
           }
           break;

@@ -35,14 +35,17 @@ public class WriterFactory {
       final Config config,
       final SharedCommunicationObjects commObjects,
       final Sampler sampler,
+      final SingleSpanSampler singleSpanSampler,
       final StatsDClient statsDClient) {
-    return createWriter(config, commObjects, sampler, statsDClient, config.getWriterType());
+    return createWriter(
+        config, commObjects, sampler, singleSpanSampler, statsDClient, config.getWriterType());
   }
 
   public static Writer createWriter(
       final Config config,
       final SharedCommunicationObjects commObjects,
       final Sampler sampler,
+      final SingleSpanSampler singleSpanSampler,
       final StatsDClient statsDClient,
       final String configuredType) {
 
@@ -54,7 +57,8 @@ public class WriterFactory {
       return new TraceStructureWriter(
           Strings.replace(configuredType, TRACE_STRUCTURE_WRITER_TYPE, ""));
     } else if (configuredType.startsWith(MULTI_WRITER_TYPE)) {
-      return new MultiWriter(config, commObjects, sampler, statsDClient, configuredType);
+      return new MultiWriter(
+          config, commObjects, sampler, singleSpanSampler, statsDClient, configuredType);
     }
 
     Prioritization prioritization =
@@ -63,8 +67,6 @@ public class WriterFactory {
       log.info(
           "Using 'EnsureTrace' prioritization type. (Do not use this type if your application is running in production mode)");
     }
-
-    SingleSpanSampler singleSpanSampler = SingleSpanSampler.Builder.forConfig(config);
 
     RemoteWriter remoteWriter;
     if (DD_INTAKE_WRITER_TYPE.equals(configuredType)) {

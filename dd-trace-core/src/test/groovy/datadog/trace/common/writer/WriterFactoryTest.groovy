@@ -26,7 +26,7 @@ class WriterFactoryTest extends DDSpecification {
     def statsd = Mock(StatsDClient)
 
     when:
-    def writer = WriterFactory.createWriter(config, sharedComm, sampler, statsd, configuredType)
+    def writer = WriterFactory.createWriter(config, sharedComm, sampler, null, statsd, configuredType)
 
     then:
     writer.class == expectedClass

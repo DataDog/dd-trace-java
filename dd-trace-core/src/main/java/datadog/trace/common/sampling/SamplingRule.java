@@ -128,6 +128,7 @@ public abstract class SamplingRule<T extends CoreSpan<T>> {
 
     public void apply(T span) {
       // TODO set necessary
+      //      span.setAllTags()
     }
   }
 }
