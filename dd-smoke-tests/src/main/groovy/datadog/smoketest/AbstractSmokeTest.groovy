@@ -89,8 +89,8 @@ abstract class AbstractSmokeTest extends ProcessManager {
     "-Ddd.profiling.upload.period=${PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS}",
     "-Ddd.profiling.url=${getProfilingUrl()}",
     "-Ddd.profiling.async.enabled=false",
-    "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
-    "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
+    "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
+    "-Dorg.slf4j.simpleLogger.defaultLogLevel=${logLevel()}"
   ]
 
   def setup() {
@@ -136,5 +136,9 @@ abstract class AbstractSmokeTest extends ProcessManager {
 
   List<DecodedTrace> getTraces() {
     decodeTraces
+  }
+
+  def logLevel() {
+    return "info"
   }
 }

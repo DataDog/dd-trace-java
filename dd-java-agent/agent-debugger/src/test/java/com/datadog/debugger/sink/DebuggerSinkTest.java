@@ -270,7 +270,7 @@ public class DebuggerSinkTest {
           Snapshot.CapturedValue.of("dd.trace_id", "java.lang.String", "123"),
           Snapshot.CapturedValue.of("dd.span_id", "java.lang.String", "456"),
         });
-    SNAPSHOT.getCaptures().setEntry(entry);
+    SNAPSHOT.setEntry(entry);
     sink.addSnapshot(SNAPSHOT);
     String fixtureContent =
         getFixtureContent(SINK_FIXTURE_PREFIX + "/snapshotWithCorrelationIdsRegex.txt");
