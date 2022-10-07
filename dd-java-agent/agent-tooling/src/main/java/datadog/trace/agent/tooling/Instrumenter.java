@@ -112,6 +112,8 @@ public interface Instrumenter {
    */
   boolean isApplicable(Set<TargetSystem> enabledSystems);
 
+  TargetSystem getTargetSystem();
+
   /**
    * Adds this instrumentation to a {@link TransformerBuilder}.
    *
@@ -290,8 +292,14 @@ public interface Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-      return false;
+    public boolean isApplicable(final Set<TargetSystem> enabledSystems) {
+      final TargetSystem targetSystem = getTargetSystem();
+      return targetSystem != null && enabledSystems.contains(targetSystem);
+    }
+
+    @Override
+    public TargetSystem getTargetSystem() {
+      return null;
     }
 
     protected final boolean isShortcutMatchingEnabled(boolean defaultToShortcut) {
@@ -307,8 +315,8 @@ public interface Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-      return enabledSystems.contains(TargetSystem.TRACING);
+    public TargetSystem getTargetSystem() {
+      return TargetSystem.TRACING;
     }
   }
 
@@ -319,8 +327,8 @@ public interface Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-      return enabledSystems.contains(TargetSystem.PROFILING);
+    public TargetSystem getTargetSystem() {
+      return TargetSystem.PROFILING;
     }
   }
 
@@ -331,8 +339,8 @@ public interface Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-      return enabledSystems.contains(TargetSystem.APPSEC);
+    public TargetSystem getTargetSystem() {
+      return TargetSystem.APPSEC;
     }
   }
 
@@ -343,8 +351,8 @@ public interface Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-      return enabledSystems.contains(TargetSystem.IAST);
+    public TargetSystem getTargetSystem() {
+      return TargetSystem.IAST;
     }
   }
 
@@ -356,8 +364,8 @@ public interface Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-      return enabledSystems.contains(TargetSystem.CIVISIBILITY);
+    public TargetSystem getTargetSystem() {
+      return TargetSystem.CIVISIBILITY;
     }
   }
 

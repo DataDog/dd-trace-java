@@ -178,6 +178,11 @@ public class TraceConfigInstrumentation implements Instrumenter {
   }
 
   @Override
+  public TargetSystem getTargetSystem() {
+    return TargetSystem.TRACING;
+  }
+
+  @Override
   public void instrument(TransformerBuilder transformerBuilder) {
     if (classMethodsToTrace.isEmpty()) {
       return;

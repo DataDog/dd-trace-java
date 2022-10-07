@@ -1,5 +1,7 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.TargetSystemAwareMatcher.IAST_ENABLED_FLAG;
+
 /**
  * Global ignores used by the agent.
  *
@@ -16,7 +18,9 @@ public class GlobalIgnores {
 
   public static boolean isIgnored(String name, boolean skipAdditionalIgnores) {
     // ignored classes/packages are now maintained in the 'ignored_class_name.trie' resource
-    switch (IgnoredClassNameTrie.apply(name)) {
+    // try to get value from cache otherwise use apply
+    Integer allowCode = GlobalIgnoresCache.getAllowCode(name);
+    switch (allowCode) {
       case 0:
         return false; // global allow
       case 1:
@@ -27,6 +31,8 @@ public class GlobalIgnores {
         return name.endsWith("Proxy");
       case 4:
         return !name.endsWith("HttpMessageConverter");
+      case IAST_ENABLED_FLAG:
+        return false;
       default:
         break;
     }
