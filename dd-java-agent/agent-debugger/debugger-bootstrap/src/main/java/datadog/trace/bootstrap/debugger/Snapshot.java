@@ -608,17 +608,15 @@ public class Snapshot {
           } else {
             CapturedValue capturedTarget = ((CapturedValue) target);
             target = capturedTarget.getValue();
-            CapturedValue cValue = null;
             if (target != null) {
               // resolve to a CapturedValue instance
-              cValue = ReflectiveFieldValueResolver.resolve(capturedTarget, target, parts[i]);
-              target = cValue.getValue();
+              target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), parts[i]);
             } else {
               target = Values.UNDEFINED_OBJECT;
             }
           }
         } else {
-          target = ReflectiveFieldValueResolver.resolveObject(target, target.getClass(), parts[i]);
+          target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), parts[i]);
         }
       }
       return target;

@@ -49,7 +49,7 @@ public class StaticValueRefResolver implements ValueReferenceResolver {
     }
     Object target;
     if (isField) {
-      target = ReflectiveFieldValueResolver.resolveObject(self, self.getClass(), parts[0]);
+      target = ReflectiveFieldValueResolver.resolve(self, self.getClass(), parts[0]);
     } else {
       target = valueMap.getOrDefault(parts[0], Values.UNDEFINED_OBJECT);
     }
@@ -60,7 +60,7 @@ public class StaticValueRefResolver implements ValueReferenceResolver {
       if (target instanceof ObjectValue) {
         target = ((ObjectValue) target).getValue();
       }
-      target = ReflectiveFieldValueResolver.resolveObject(target, target.getClass(), parts[i]);
+      target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), parts[i]);
     }
     return target;
   }
