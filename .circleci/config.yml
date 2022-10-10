@@ -505,7 +505,7 @@ jobs:
           command: |
             cd test-published-dependencies
             export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx512M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew check --max-workers=3
+            ./gradlew check --info --max-workers=3
 
       - run:
           name: Collect Reports

@@ -33,7 +33,10 @@ dependencies {
   compileOnly deps.autoserviceAnnotation
 
   api project(':dd-trace-api')
-  api project(':dd-trace-core')
+  implementation (project(':dd-trace-core')) {
+    // why all communication pulls in remote config is beyond me...
+    exclude(group: 'com.datadoghq', module: 'remote-config')
+  }
 
   // OpenTracing
   api group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
@@ -42,8 +45,6 @@ dependencies {
   api group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.0'
 
   api deps.slf4j
-  api deps.okhttp
-  api deps.okio
 
   testImplementation project(":dd-java-agent:testing")
 
@@ -76,60 +77,31 @@ jar {
   archiveClassifier = 'unbundled'
 }
 
-def bundledProjects = [
-  ':dd-trace-core',
-  ':communication',
-  ':internal-api',
-  ':utils:container-utils',
-  ':utils:histograms',
-  ':utils:process-utils',
-  ':utils:socket-utils',
-  ':utils:time-utils',
-  ':utils:version-utils'
-]
-
 shadowJar {
   archiveClassifier = ''
 
   dependencies {
-    bundledProjects.forEach {
-      include(project(it))
-    }
+    // direct dependencies
+    exclude(dependency('io.opentracing:'))
+    exclude(dependency('io.opentracing.contrib:'))
+    exclude(dependency('org.slf4j:'))
   }
-}
 
-/**
- *  We're bundling the internal dependencies.  So we need to add external transitive dependencies
- *  of those projects. Directly adding to the XML is the only way to prevent the shadowJar plugin
- *  from removing them
- */
-def bundledProjectNames = bundledProjects.collect { it.substring(it.lastIndexOf(":") + 1) }
-def externalDependencies = { p ->
-  p.configurations
-    .matching { it.name in ['compile', 'api', 'implementation']}
-    .collectMany { it.dependencies.withType(ExternalDependency) }
-}
-tasks.withType(GenerateMavenPom).configureEach { task ->
-  doFirst {
-    task.pom.withXml { XmlProvider provider ->
-      Node dependencies = provider.asNode().dependencies[0]
-      def addedDependencies = externalDependencies(project).collect { it.name }
-      addedDependencies.addAll(bundledProjectNames)
-      bundledProjects.forEach { bundledProject ->
-        externalDependencies(project(bundledProject)).forEach { transitiveDependency ->
-          if (!addedDependencies.contains(transitiveDependency.name)) {
-            def dependency = dependencies.appendNode("dependency")
-            dependency.appendNode("groupId", transitiveDependency.group)
-            dependency.appendNode("artifactId", transitiveDependency.name)
-            dependency.appendNode("version", transitiveDependency.version)
-            dependency.appendNode("scope", "compile")
-            addedDependencies.add(transitiveDependency.name)
-          }
-        }
-      }
-      dependencies.children().removeAll { Node node -> bundledProjectNames.contains(node.artifactId[0].children()[0]) }
-    }
+  relocate('com.', 'ddtrot.com.')
+  relocate('dogstatsd/', 'ddtrot/dogstatsd/')
+  relocate('jni/', 'ddtrot/jni/')
+  relocate('jnr/', 'ddtrot/jnr/')
+  relocate('okhttp3.', 'ddtrot.okhttp3.')
+  relocate('okio.', 'ddtrot.okio.')
+  relocate('org.', 'ddtrot.org.') {
+    exclude('org.slf4j.*')
   }
+  relocate('datadog.', 'ddtrot.dd.') {
+    exclude('datadog.opentracing.*')
+    exclude('datadog.trace.api.*')
+    exclude('datadog.trace.context.*')
+  }
+  exclude('META-INF/maven/**')
 }
 
 jmh {
