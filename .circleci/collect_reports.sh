@@ -38,6 +38,8 @@ mkdir -p $REPORTS_DIR >/dev/null 2>&1
 cp /tmp/hs_err_pid*.log $REPORTS_DIR || true
 cp /tmp/java_pid*.hprof $REPORTS_DIR || true
 cp /tmp/javacore.* $REPORTS_DIR || true
+cp /tmp/*.trc $REPORTS_DIR || true
+cp /tmp/*.dmp $REPORTS_DIR || true
 
 function process_reports () {
     project_to_save=$1
@@ -69,3 +71,5 @@ for report_path in workspace/**/build/reports; do
     report_path=${report_path//\/build\/reports/}
     process_reports $report_path
 done
+
+tar -cvzf reports.tar $REPORTS_DIR

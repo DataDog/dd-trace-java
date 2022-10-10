@@ -411,7 +411,7 @@ jobs:
           command: .circleci/collect_reports.sh
 
       - store_artifacts:
-          path: ./reports
+          path: ./reports.tar
 
       - when:
           condition:
@@ -423,7 +423,7 @@ jobs:
                 command: .circleci/collect_profiles.sh
 
             - store_artifacts:
-                path: ./profiles
+                path: ./profiles.tar
 
       - run:
           name: Collect test results
