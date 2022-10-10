@@ -72,6 +72,46 @@ public abstract class InstrumentationBridge {
     }
   }
 
+  public static void onStringConcat(final String self, final String param, final String result) {
+    try {
+      if (MODULE != null) {
+        MODULE.onStringConcat(self, param, result);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onStringConcat threw.", t);
+    }
+  }
+
+  public static void onStringBuilderInit(final StringBuilder self, final CharSequence param) {
+    try {
+      if (MODULE != null) {
+        MODULE.onStringBuilderAppend(self, param);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onStringBuilderInit threw.", t);
+    }
+  }
+
+  public static void onStringBuilderAppend(final StringBuilder self, final CharSequence param) {
+    try {
+      if (MODULE != null) {
+        MODULE.onStringBuilderAppend(self, param);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onStringBuilderAppend threw.", t);
+    }
+  }
+
+  public static void onStringBuilderToString(final StringBuilder self, final String result) {
+    try {
+      if (MODULE != null) {
+        MODULE.onStringBuilderToString(self, result);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onStringBuilderToString threw.", t);
+    }
+  }
+
   private static void onUnexpectedException(final String message, final Throwable error) {
     LOG.warn(message, error);
   }
