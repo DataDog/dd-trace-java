@@ -9,7 +9,7 @@ shopt -s globstar
 
 REPORTS_DIR=./reports
 MOVE=false
-DELETE=true
+DELETE=false
 
 while [[ $# -gt 0 ]]; do
   case $1 in
