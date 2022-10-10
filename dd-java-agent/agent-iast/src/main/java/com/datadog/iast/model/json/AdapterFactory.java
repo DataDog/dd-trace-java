@@ -1,5 +1,6 @@
 package com.datadog.iast.model.json;
 
+import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityBatch;
@@ -27,12 +28,11 @@ import javax.annotation.Nullable;
  */
 class AdapterFactory implements JsonAdapter.Factory {
 
-  private static final ThreadLocal<Context> CONTEXT_THREAD_LOCAL =
-      ThreadLocal.withInitial(Context::new);
+  static final ThreadLocal<Context> CONTEXT_THREAD_LOCAL = ThreadLocal.withInitial(Context::new);
 
-  private static class Context {
-    private final List<Source> sources;
-    private final Map<Source, Integer> sourceIndexMap;
+  static class Context {
+    final List<Source> sources;
+    final Map<Source, Integer> sourceIndexMap;
 
     public Context() {
       sources = new ArrayList<>();
@@ -58,6 +58,8 @@ class AdapterFactory implements JsonAdapter.Factory {
       return new VulnerabilityBatchAdapter(moshi);
     } else if (DDId.class.equals(rawType)) {
       return new DDIdAdapter();
+    } else if (Evidence.class.equals(rawType)) {
+      return new EvidenceAdapter();
     }
     return null;
   }
