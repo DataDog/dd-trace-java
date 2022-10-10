@@ -1,6 +1,7 @@
 package datadog.trace.api.iast;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,6 +70,50 @@ public abstract class InstrumentationBridge {
       }
     } catch (final Throwable t) {
       onUnexpectedException("Callback for onHash threw.", t);
+    }
+  }
+
+  public static void onStringConcat(
+      @Nonnull final String self, @Nullable final String param, @Nonnull final String result) {
+    try {
+      if (MODULE != null) {
+        MODULE.onStringConcat(self, param, result);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onStringConcat threw.", t);
+    }
+  }
+
+  public static void onStringBuilderInit(
+      @Nonnull final StringBuilder self, @Nullable final CharSequence param) {
+    try {
+      if (MODULE != null) {
+        MODULE.onStringBuilderInit(self, param);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onStringBuilderInit threw.", t);
+    }
+  }
+
+  public static void onStringBuilderAppend(
+      @Nonnull final StringBuilder self, @Nullable final CharSequence param) {
+    try {
+      if (MODULE != null) {
+        MODULE.onStringBuilderAppend(self, param);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onStringBuilderAppend threw.", t);
+    }
+  }
+
+  public static void onStringBuilderToString(
+      @Nonnull final StringBuilder self, @Nonnull final String result) {
+    try {
+      if (MODULE != null) {
+        MODULE.onStringBuilderToString(self, result);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onStringBuilderToString threw.", t);
     }
   }
 

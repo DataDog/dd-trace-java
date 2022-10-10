@@ -3,19 +3,28 @@ package com.datadog.iast
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import spock.lang.Shared
 
-import static com.datadog.iast.taint.TaintUtils.*
+import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
+import static com.datadog.iast.taint.TaintUtils.fromTaintFormat
+import static com.datadog.iast.taint.TaintUtils.getStringFromTaintFormat
+import static com.datadog.iast.taint.TaintUtils.taintFormat
 
-class IastModuleImplOnConcatTest extends IastModuleImplTestBase {
+class IastModuleImplOnStringConcatTest extends IastModuleImplTestBase {
 
-  def objectHolder = new ArrayList()
+  @Shared
+  private List<Object> objectHolder = []
 
-  void 'onConcat null or empty'() {
+  def setup() {
+    objectHolder.clear()
+  }
+
+  void 'onStringConcat null or empty (#left, #right)'() {
     given:
     final result = left + right
 
     when:
-    module.onConcat(left, right, result)
+    module.onStringConcat(left, right, result)
 
     then:
     0 * _
@@ -23,16 +32,15 @@ class IastModuleImplOnConcatTest extends IastModuleImplTestBase {
     where:
     left | right
     ""   | null
-    null | ""
     ""   | ""
   }
 
-  void 'onConcat without span'() {
+  void 'onStringConcat without span (#left, #right)'() {
     given:
     final result = left + right
 
     when:
-    module.onConcat(left, right, result)
+    module.onStringConcat(left, right, result)
 
     then:
     1 * tracer.activeSpan() >> null
@@ -41,11 +49,10 @@ class IastModuleImplOnConcatTest extends IastModuleImplTestBase {
     where:
     left | right
     "1"  | null
-    null | "2"
     "3"  | "4"
   }
 
-  void 'onConcat'() {
+  void 'onStringConcat (#left, #right)'() {
     given:
     final span = Mock(AgentSpan)
     tracer.activeSpan() >> span
@@ -63,11 +70,11 @@ class IastModuleImplOnConcatTest extends IastModuleImplTestBase {
 
     and:
     final result = getStringFromTaintFormat(expected)
-    objectHolder.add(result)
-    final shouldBeTainted = fromTaintFormat(expected) != null
+    objectHolder.add(expected)
+    final shouldBeTainted = fromTaintFormat(result) != null
 
     when:
-    module.onConcat(left, right, result)
+    module.onStringConcat(left, right, expected)
 
     then:
     1 * tracer.activeSpan() >> span
@@ -86,10 +93,8 @@ class IastModuleImplOnConcatTest extends IastModuleImplTestBase {
     where:
     left        | right       | expected
     "123"       | null        | "123null"
-    null        | "123"       | "null123"
     "123"       | "456"       | "123456"
     "==>123<==" | null        | "==>123<==null"
-    null        | "==>123<==" | "null==>123<=="
     "==>123<==" | "456"       | "==>123<==456"
     "123"       | "==>456<==" | "123==>456<=="
     "==>123<==" | "==>456<==" | "==>123<====>456<=="
