@@ -20,7 +20,7 @@ final class FieldOutline extends FieldDescription.InDefinedShape.AbstractBase {
   private final String name;
   private final String descriptor;
 
-  private final List<AnnotationDescription> declaredAnnotations = new ArrayList<>();
+  private List<AnnotationDescription> declaredAnnotations;
 
   FieldOutline(TypeDescription declaringType, int access, String name, String descriptor) {
     this.declaringType = declaringType;
@@ -56,13 +56,16 @@ final class FieldOutline extends FieldDescription.InDefinedShape.AbstractBase {
 
   @Override
   public AnnotationList getDeclaredAnnotations() {
-    return declaredAnnotations.isEmpty()
+    return null == declaredAnnotations
         ? NO_ANNOTATIONS
         : new AnnotationList.Explicit(declaredAnnotations);
   }
 
   void declare(AnnotationDescription annotation) {
     if (null != annotation) {
+      if (null == declaredAnnotations) {
+        declaredAnnotations = new ArrayList<>();
+      }
       declaredAnnotations.add(annotation);
     }
   }

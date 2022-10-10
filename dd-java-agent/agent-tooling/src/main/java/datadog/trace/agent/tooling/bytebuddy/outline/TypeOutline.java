@@ -31,7 +31,8 @@ final class TypeOutline extends WithName {
   private final String superName;
   private final String[] interfaces;
 
-  private final List<AnnotationDescription> declaredAnnotations = new ArrayList<>();
+  private List<AnnotationDescription> declaredAnnotations;
+
   private final List<FieldDescription.InDefinedShape> declaredFields = new ArrayList<>();
   private final List<MethodDescription.InDefinedShape> declaredMethods = new ArrayList<>();
 
@@ -80,7 +81,7 @@ final class TypeOutline extends WithName {
 
   @Override
   public AnnotationList getDeclaredAnnotations() {
-    return declaredAnnotations.isEmpty()
+    return null == declaredAnnotations
         ? NO_ANNOTATIONS
         : new AnnotationList.Explicit(declaredAnnotations);
   }
@@ -97,6 +98,9 @@ final class TypeOutline extends WithName {
 
   void declare(AnnotationDescription annotation) {
     if (null != annotation) {
+      if (null == declaredAnnotations) {
+        declaredAnnotations = new ArrayList<>();
+      }
       declaredAnnotations.add(annotation);
     }
   }

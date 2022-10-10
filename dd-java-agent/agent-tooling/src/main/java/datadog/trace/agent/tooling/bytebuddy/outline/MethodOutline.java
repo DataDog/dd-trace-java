@@ -28,7 +28,7 @@ final class MethodOutline extends MethodDescription.InDefinedShape.AbstractBase 
   private final int modifiers;
   private final String name;
 
-  private final List<AnnotationDescription> declaredAnnotations = new ArrayList<>();
+  private List<AnnotationDescription> declaredAnnotations;
 
   MethodOutline(TypeDescription declaringType, int access, String name, String descriptor) {
     this.declaringType = declaringType;
@@ -96,7 +96,7 @@ final class MethodOutline extends MethodDescription.InDefinedShape.AbstractBase 
 
   @Override
   public AnnotationList getDeclaredAnnotations() {
-    return declaredAnnotations.isEmpty()
+    return null == declaredAnnotations
         ? NO_ANNOTATIONS
         : new AnnotationList.Explicit(declaredAnnotations);
   }
@@ -108,6 +108,9 @@ final class MethodOutline extends MethodDescription.InDefinedShape.AbstractBase 
 
   void declare(AnnotationDescription annotation) {
     if (null != annotation) {
+      if (null == declaredAnnotations) {
+        declaredAnnotations = new ArrayList<>();
+      }
       declaredAnnotations.add(annotation);
     }
   }
