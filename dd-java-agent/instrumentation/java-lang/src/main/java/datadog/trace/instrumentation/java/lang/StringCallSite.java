@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.java.lang;
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.InstrumentationBridge;
+import java.util.Locale;
 
 @CallSite(spi = IastAdvice.class)
 public class StringCallSite {
@@ -26,5 +27,19 @@ public class StringCallSite {
       @CallSite.This final String self, @CallSite.Argument final CharSequence param) {
     InstrumentationBridge.onStringConstructor(param, self);
     return self;
+  }
+
+  @CallSite.Around("java.lang.String java.lang.String.format(java.lang.String,java.lang.Object[])")
+  public static String format(@CallSite.Argument String fmt, @CallSite.Argument Object[] args) {
+    return InstrumentationBridge.onStringFormat(null, fmt, args);
+  }
+
+  @CallSite.Around(
+      "java.lang.String java.lang.String.format(java.util.Locale,java.lang.String,java.lang.Object[])")
+  public static String format(
+      @CallSite.Argument Locale l,
+      @CallSite.Argument String fmt,
+      @CallSite.Argument Object[] args) {
+    return InstrumentationBridge.onStringFormat(l, fmt, args);
   }
 }

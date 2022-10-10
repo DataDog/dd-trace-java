@@ -1,5 +1,6 @@
 package datadog.trace.api.iast;
 
+import java.util.Locale;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -28,4 +29,6 @@ public interface IastModule {
   void onStringBuilderAppend(@Nullable StringBuilder builder, @Nullable CharSequence param);
 
   void onStringBuilderToString(@Nullable StringBuilder builder, @Nullable String result);
+
+  String onStringFormat(@Nullable Locale l, @Nonnull String fmt, @Nullable Object[] args);
 }

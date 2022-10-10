@@ -54,4 +54,24 @@ class StringCallSiteTest extends AgentTestRunner {
     where:
     arg << ['My String', new StringBuilder('My String'), new StringBuffer('My String')]
   }
+
+  void 'string format'() {
+    def result
+
+    when:
+    result = TestStringSuite.stringFormat(null, '%s %s', 'Hello', 'World')
+
+    then:
+    result == 'Hello not World'
+    1 * iastModule.onStringFormat(null, '%s %s', ['Hello', 'World'] as Object) >> 'Hello not World'
+    0 * _
+
+    when:
+    result = TestStringSuite.stringFormat(Locale.US, '%s %s', 'Hello', 'World')
+
+    then:
+    result == 'Hello not World'
+    1 * iastModule.onStringFormat(Locale.US, '%s %s', ['Hello', 'World'] as Object) >> 'Hello not World'
+    0 * _
+  }
 }

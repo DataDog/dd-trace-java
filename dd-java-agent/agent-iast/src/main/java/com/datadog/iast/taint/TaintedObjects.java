@@ -20,7 +20,7 @@ public class TaintedObjects {
     map.put(new TaintedObject(obj, Ranges.forString(obj, source), map.getReferenceQueue()));
   }
 
-  public void taint(final @Nonnull Object obj, final @Nonnull Range[] ranges) {
+  public void taint(final @Nonnull Object obj, final @Nonnull Range... ranges) {
     map.put(new TaintedObject(obj, ranges, map.getReferenceQueue()));
   }
 
