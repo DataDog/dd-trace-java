@@ -1,6 +1,7 @@
 package foo.bar;
 
 import java.util.Arrays;
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +30,19 @@ public class TestSuite {
       throw new IllegalArgumentException();
     }
     LOGGER.debug("After string concat {}", result);
+    return result;
+  }
+
+  public static String stringFormat(Locale l, String fmt, Object... args) {
+    String result;
+
+    LOGGER.debug("Before string format {} {} {}", l, fmt, Arrays.toString(args));
+    if (l == null) {
+      result = String.format(fmt, args);
+    } else {
+      result = String.format(l, fmt, args);
+    }
+    LOGGER.debug("After string format {}", result);
     return result;
   }
 
