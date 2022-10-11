@@ -729,6 +729,25 @@ build_test_jobs: &build_test_jobs
       matrix:
         <<: *test_matrix
 
+  - xlarge_tests:
+      requires:
+        - build
+      name: test_IBM11_smoke
+      gradleTarget: "stageMainDist :dd-smoke-test"
+      maxHeapSize: "1G"
+      stage: smoke
+      testJvm: "IBM11"
+
+  - xlarge_tests:
+      requires:
+        - build
+      name: test_IBM17_smoke
+      gradleTarget: "stageMainDist :dd-smoke-test"
+      maxHeapSize: "1G"
+      stage: smoke
+      testJvm: "IBM17"
+
+
   - tests:
       requires:
         - build
@@ -826,8 +845,11 @@ build_test_jobs: &build_test_jobs
         - agent_integration_tests
         - test_7
         - test_8
+        - test_IBM8
         - test_11
+        - test_IBM11_smoke
         - test_17
+        - test_IBM17_smoke
         - test_ZULU8
         - profiling
         - iast

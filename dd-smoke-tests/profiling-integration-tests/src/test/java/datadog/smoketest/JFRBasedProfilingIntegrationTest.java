@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Multimap;
 import datadog.trace.api.Pair;
+import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import delight.fileupload.FileUpload;
 import java.io.ByteArrayInputStream;
@@ -33,11 +34,13 @@ import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.apache.commons.fileupload.FileItem;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 import org.openjdk.jmc.common.item.Aggregators;
 import org.openjdk.jmc.common.item.Attribute;
 import org.openjdk.jmc.common.item.IAttribute;
@@ -50,8 +53,9 @@ import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class ProfilingIntegrationTest {
-  private static final Logger log = LoggerFactory.getLogger(ProfilingIntegrationTest.class);
+@DisabledIfSystemProperty(named = "java.vm.name", matches = ".*J9.*")
+class JFRBasedProfilingIntegrationTest {
+  private static final Logger log = LoggerFactory.getLogger(JFRBasedProfilingIntegrationTest.class);
   private static final Duration ONE_NANO = Duration.ofNanos(1);
 
   @FunctionalInterface
@@ -76,7 +80,9 @@ class ProfilingIntegrationTest {
 
   private static final Path LOG_FILE_BASE =
       Paths.get(
-          buildDirectory(), "reports", "testProcess." + ProfilingIntegrationTest.class.getName());
+          buildDirectory(),
+          "reports",
+          "testProcess." + JFRBasedProfilingIntegrationTest.class.getName());
 
   private MockWebServer profilingServer;
   private MockWebServer tracingServer;
@@ -163,6 +169,8 @@ class ProfilingIntegrationTest {
           createDefaultProcessBuilder(
                   jmxFetchDelay, legacyTracingIntegration, endpointCollectionEnabled, logFilePath)
               .start();
+
+      Assumptions.assumeFalse(Platform.isJ9());
 
       final RecordedRequest firstRequest = retrieveRequest();
 
@@ -606,7 +614,10 @@ class ProfilingIntegrationTest {
       final int exitDelay,
       final Path logFilePath) {
     final String templateOverride =
-        ProfilingIntegrationTest.class.getClassLoader().getResource("overrides.jfp").getFile();
+        JFRBasedProfilingIntegrationTest.class
+            .getClassLoader()
+            .getResource("overrides.jfp")
+            .getFile();
 
     final List<String> command =
         Arrays.asList(

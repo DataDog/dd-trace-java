@@ -170,8 +170,8 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   private void assertFullMethodCaptureArgs(Snapshot.CapturedContext context) {
-    if ("IBM Corporation".equals(Platform.getRuntimeVendor())) {
-      // skip for IBM as we cannot get local variable debug info.
+    if (Platform.isJ9()) {
+      // skip for J9/OpenJ9 as we cannot get local variable debug info.
       return;
     }
     assertCaptureArgs(context, "argInt", "int", "42");
