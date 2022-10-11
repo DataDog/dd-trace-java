@@ -1,0 +1,58 @@
+name: Experiment
+
+on:
+  push:
+    branches: [ ban/github-actions-experiment ]
+
+jobs:
+  pick-out-the-right-milestone:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # 2.3.4
+        with:
+          fetch-depth: '0'
+
+      - name: Find highest release tag
+        run: |
+          # Find the highest release tag
+          git --version
+          git log --decorate=full --simplify-by-decoration --pretty=oneline HEAD | cut -d '(' -f 2- | cut -d ')' -f 1 | tr -d ' ' | tr ',' '\n' | grep -E '^tag:' | cut -c 15-| grep -E 'v[0-9]+\.[0-9]+\.[0-9]+' | cut -c 2- | sort -V -r
+
+#jobs:
+#  add_milestone_to_merged:
+#    if: github.event.pull_request.merged && github.event.pull_request.milestone == null
+#    name: Add milestone to merged pull requests
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Get project milestones
+#        id: milestones
+#        uses: actions/github-script@47f7cf65b5ced0830a325f705cad64f2f58dddf7 # 3.1.0
+#        with:
+#          github-token: ${{secrets.GITHUB_TOKEN}}
+#          script: |
+#            const list = await github.issues.listMilestones({
+#              owner: context.repo.owner,
+#              repo: context.repo.repo,
+#              state: 'open'
+#            })
+#            // Need to manually sort because "sort by number" isn't part of the api
+#            // highest number first
+#            const milestones = list.data.sort((a,b) => (b.number - a.number))
+#
+#            return milestones.length == 0 ? null : milestones[0].number
+#      - name: Update Pull Request
+#        if: steps.milestones.outputs.result != null
+#        uses: actions/github-script@47f7cf65b5ced0830a325f705cad64f2f58dddf7 # 3.1.0
+#        with:
+#          github-token: ${{secrets.GITHUB_TOKEN}}
+#          script: |
+#            // Confusingly, the issues api is used because pull requests are issues
+#            await github.issues.update({
+#              owner: context.repo.owner,
+#              repo: context.repo.repo,
+#              issue_number: ${{ github.event.pull_request.number }},
+#              milestone: ${{ steps.milestones.outputs.result }},
+#            });
