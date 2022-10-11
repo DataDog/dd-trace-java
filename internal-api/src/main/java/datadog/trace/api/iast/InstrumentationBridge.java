@@ -132,9 +132,12 @@ public abstract class InstrumentationBridge {
       if (MODULE != null) {
         return MODULE.onStringFormat(l, fmt, args);
       }
-    } catch (final Throwable t) {
+    } catch (RealCallThrowable t) {
+      t.rethrow();
+    } catch (Throwable t) {
       onUnexpectedException("Callback for onStringBuilderToString threw.", t);
+      return String.format(l, fmt, args);
     }
-    return String.format(l, fmt, args);
+    return null; // unreachable
   }
 }

@@ -14,6 +14,7 @@ import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.iast.IastModule;
+import datadog.trace.api.iast.RealCallThrowable;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.stacktrace.StackWalker;
@@ -227,11 +228,19 @@ public final class IastModuleImpl implements IastModule {
   @Override
   public String onStringFormat(@Nullable Locale l, @Nonnull String fmt, @Nullable Object[] args) {
     if (fmt == null) {
-      throw new NullPointerException("null format given");
+      try {
+        return String.format(l, fmt, args);
+      } catch (Throwable t) {
+        throw new RealCallThrowable(t);
+      }
     }
     final IastRequestContext ctx = IastRequestContext.get();
     if (ctx == null) {
-      return String.format(l, fmt, args);
+      try {
+        return String.format(l, fmt, args);
+      } catch (Throwable t) {
+        throw new RealCallThrowable(t);
+      }
     }
 
     if (args == null) {
@@ -241,20 +250,14 @@ public final class IastModuleImpl implements IastModule {
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     TaintedObject toFmt = taintedObjects.get(fmt);
     if (toFmt == null) {
-      // if the format is not tainted, we can just check for tainted arguments
-      if (!isAnyTainted(taintedObjects, args)) {
-        return String.format(l, fmt, args);
-      }
-      TaintedTrackingAppendable tta =
-          new TaintedTrackingAppendable(taintedObjects, Collections.emptyMap());
-      String result = new Formatter(tta, l).format(fmt, args).toString();
-      if (tta.taintedRanges.size() > 0) {
-        taintedObjects.taint(
-            result, tta.taintedRanges.toArray(new Range[tta.taintedRanges.size()]));
-      }
-      return result;
+      return onStringFormatFmtNotTainted(l, fmt, args, taintedObjects);
+    } else {
+      return onStringFormatFmtTainted(l, fmt, args, taintedObjects, toFmt);
     }
+  }
 
+  private String onStringFormatFmtTainted(
+      Locale l, String fmt, Object[] args, TaintedObjects taintedObjects, TaintedObject toFmt) {
     // If the format is tainted, however, things get more complicated.
     // We find the tainted ranges of the format, replace them with %<n>$s,
     // and add new arguments at n.
@@ -279,7 +282,13 @@ public final class IastModuleImpl implements IastModule {
             patternPositions.get(i),
             patternPositions.get(i + 1),
             null)) {
-          String result = String.format(l, fmt, args);
+          String result;
+          try {
+            result = String.format(l, fmt, args);
+          } catch (Throwable t) {
+            throw new RealCallThrowable(t);
+          }
+
           taintedObjects.taint(
               result, new Range(0, result.length(), toFmt.getRanges()[0].getSource()));
           return result;
@@ -319,7 +328,37 @@ public final class IastModuleImpl implements IastModule {
 
     TaintedTrackingAppendable tta =
         new TaintedTrackingAppendable(taintedObjects, taintedFmtPortions);
-    String result = new Formatter(tta, l).format(newFmt, newArgs.toArray()).toString();
+    String result;
+    try {
+      result = new Formatter(tta, l).format(newFmt, newArgs.toArray()).toString();
+    } catch (Throwable t) {
+      throw new RealCallThrowable(t);
+    }
+    if (tta.taintedRanges.size() > 0) {
+      taintedObjects.taint(result, tta.taintedRanges.toArray(new Range[tta.taintedRanges.size()]));
+    }
+    return result;
+  }
+
+  private String onStringFormatFmtNotTainted(
+      Locale l, String fmt, Object[] args, TaintedObjects taintedObjects) {
+    // if the format is not tainted, we can just check for tainted arguments
+    if (!isAnyTainted(taintedObjects, args)) {
+      try {
+        return String.format(l, fmt, args);
+      } catch (Throwable t) {
+        throw new RealCallThrowable(t);
+      }
+    }
+
+    TaintedTrackingAppendable tta =
+        new TaintedTrackingAppendable(taintedObjects, Collections.emptyMap());
+    String result;
+    try {
+      result = new Formatter(tta, l).format(fmt, args).toString();
+    } catch (Throwable t) {
+      throw new RealCallThrowable(t);
+    }
     if (tta.taintedRanges.size() > 0) {
       taintedObjects.taint(result, tta.taintedRanges.toArray(new Range[tta.taintedRanges.size()]));
     }

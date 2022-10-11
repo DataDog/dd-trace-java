@@ -6,6 +6,7 @@ import com.datadog.iast.model.SourceType
 import com.datadog.iast.taint.TaintedObject
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.RealCallThrowable
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
 import java.util.regex.Matcher
@@ -67,6 +68,20 @@ class IastModuleImplOnStringFormatTest extends IastModuleImplTestBase {
 
     then:
     thrown IllegalStateException
+  }
+
+  void 'exception during the real call results in RealCallThrowable'() {
+    setup:
+    String fmt = 'Hello %s'
+    Formattable f = Mock()
+
+    when:
+    module.onStringFormat(null, fmt, f)
+
+    then:
+    1 * f.formatTo(*_) >> { throw new RuntimeException('foo') }
+    RealCallThrowable rct = thrown RealCallThrowable
+    rct.cause.message == 'foo'
   }
 
   private String run(String fmt, List objects) {

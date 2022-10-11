@@ -63,7 +63,8 @@ excludedClassesCoverage += [
   "datadog.trace.util.ClassNameTrie.JavaGenerator",
   "datadog.trace.util.CollectionUtils",
   "datadog.trace.api.IntegrationsCollector.Holder",
-  "datadog.trace.api.ConfigCollector.Holder"
+  "datadog.trace.api.ConfigCollector.Holder",
+  "datadog.trace.api.iast.RealCallThrowable",
 ]
 excludedClassesBranchCoverage = ['datadog.trace.api.ProductActivationConfig',]
 
