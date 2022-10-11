@@ -373,6 +373,18 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
     return getRootSpanContextOrThis().samplingPriority;
   }
 
+  public void setSpanSamplingPriority(double rate, int limit) {
+    synchronized (unsafeTags) {
+      // TODO extract tag name constants
+      // TODO do we need to check some condition here or simply set the tags without any checks?
+      unsafeSetTag("_dd.span_sampling.mechanism", SamplingMechanism.SPAN_SAMPLING_RATE);
+      unsafeSetTag("_dd.span_sampling.rule_rate", rate);
+      if (limit != Integer.MAX_VALUE) {
+        unsafeSetTag("_dd.span_sampling.max_per_second", limit);
+      }
+    }
+  }
+
   /**
    * Prevent future changes to the context's sampling priority.
    *

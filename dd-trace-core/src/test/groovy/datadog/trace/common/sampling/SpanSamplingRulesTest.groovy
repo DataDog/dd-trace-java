@@ -7,8 +7,9 @@ class SpanSamplingRulesTest extends DDCoreSpecification {
   def "Deserialize empty list of Span Sampling rules from JSON"() {
     when:
     def rules = SpanSamplingRules.deserialize("[]")
+
     then:
-    rules.rules.size() == 0
+    rules == null
   }
 
   def "Deserialize Span Sampling rules from JSON"() {
@@ -19,6 +20,7 @@ class SpanSamplingRulesTest extends DDCoreSpecification {
       {\"name\": \"operation-name\", \"sample_rate\": 0.75, \"max_per_second\": 10}, 
       {\"sample_rate\": 0.25}
     ]""")
+
     then:
     rules.rules.size() == 4
 
@@ -50,7 +52,7 @@ class SpanSamplingRulesTest extends DDCoreSpecification {
     ]""")
 
     then:
-    rules.rules.size() == 0
+    rules == null
 
     where:
     rate << ["-0.1", "-11", "1.2", "100", null, "\"zero\"", "\"\""]
@@ -63,7 +65,7 @@ class SpanSamplingRulesTest extends DDCoreSpecification {
     ]""")
 
     then:
-    rules.rules.size() == 0
+    rules == null
 
     where:
     limit << ["0", "-11", null, "\"zero\"", "\"\""]

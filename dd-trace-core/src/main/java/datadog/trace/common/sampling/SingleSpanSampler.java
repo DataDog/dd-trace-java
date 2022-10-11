@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
 
 public interface SingleSpanSampler<T extends CoreSpan<T>> {
 
-  boolean sample(T span);
+  boolean setSamplingPriority(T span);
 
   final class Builder {
     private static final Logger log = LoggerFactory.getLogger(Builder.class);
@@ -37,7 +37,7 @@ public interface SingleSpanSampler<T extends CoreSpan<T>> {
       if (spanSamplingRulesDefined) {
         SpanSamplingRules rules = SpanSamplingRules.deserialize(spanSamplingRules);
         if (rules != null) {
-          return new RuleBasedSingleSpanSampler<T>(rules);
+          return new RuleBasedSingleSpanSampler<>(rules);
         }
       } else if (spanSamplingRulesFileDefined) {
         // TODO read rules from the file
@@ -45,6 +45,8 @@ public interface SingleSpanSampler<T extends CoreSpan<T>> {
 
       return null;
     }
+
+    private Builder() {}
   }
 
   final class RuleBasedSingleSpanSampler<T extends CoreSpan<T>> implements SingleSpanSampler<T> {
@@ -56,6 +58,7 @@ public interface SingleSpanSampler<T extends CoreSpan<T>> {
       }
       this.spanSamplingRules = new ArrayList<>();
       for (SpanSamplingRules.Rule rule : rules.getRules()) {
+        // TODO need to be adjusted to use span-id instead of trace-id for deterministic sampling
         RateSampler<T> sampler = new DeterministicSampler<>(rule.getSampleRate());
         SimpleRateLimiter simpleRateLimiter =
             rule.getMaxPerSecond() == Integer.MAX_VALUE
@@ -69,11 +72,14 @@ public interface SingleSpanSampler<T extends CoreSpan<T>> {
     }
 
     @Override
-    public boolean sample(T span) {
+    public boolean setSamplingPriority(T span) {
       for (SamplingRule.SpanSamplingRule<T> rule : spanSamplingRules) {
         if (rule.matches(span)) {
           if (rule.sample(span)) {
-            rule.apply(span);
+            double rate = rule.getSampler().getSampleRate();
+            SimpleRateLimiter rateLimiter = rule.getRateLimiter();
+            int limit = rateLimiter == null ? Integer.MAX_VALUE : rateLimiter.getCapacity();
+            span.setSpanSamplingPriority(rate, limit);
             return true;
           }
           break;

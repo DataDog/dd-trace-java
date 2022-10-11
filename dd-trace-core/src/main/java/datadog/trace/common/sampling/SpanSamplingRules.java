@@ -122,7 +122,20 @@ public class SpanSamplingRules {
 
   public static SpanSamplingRules deserialize(String json) {
     try {
-      return new SpanSamplingRules(LIST_OF_RULES_ADAPTER.fromJson(json));
+      List<Rule> rules = LIST_OF_RULES_ADAPTER.fromJson(json);
+      if (rules == null) {
+        return null;
+      }
+      List<Rule> notNullRules = new ArrayList<>(rules.size());
+      for (Rule rule : rules) {
+        if (rule != null) {
+          notNullRules.add(rule);
+        }
+      }
+      if (notNullRules.isEmpty()) {
+        return null;
+      }
+      return new SpanSamplingRules(notNullRules);
     } catch (Throwable ex) {
       log.error("Couldn't parse Span Sampling Rules from JSON", ex);
       return null;
@@ -156,13 +169,7 @@ public class SpanSamplingRules {
   private final List<Rule> rules;
 
   public SpanSamplingRules(List<Rule> rules) {
-    List<Rule> notNullRules = new ArrayList<>(rules.size());
-    for (Rule rule : rules) {
-      if (rule != null) {
-        notNullRules.add(rule);
-      }
-    }
-    this.rules = notNullRules;
+    this.rules = rules;
   }
 
   public List<Rule> getRules() {

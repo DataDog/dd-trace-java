@@ -20,7 +20,9 @@ public class SpanProcessingWorker implements AutoCloseable {
       int capacity,
       MpscBlockingConsumerArrayQueue<Object> spanOutQueue,
       SingleSpanSampler singleSpanSampler) {
-    // TODO return null when Single Span Sampling rules are empty
+    if (singleSpanSampler == null) {
+      return null;
+    }
     return new SpanProcessingWorker(capacity, spanOutQueue);
   }
 

@@ -55,10 +55,7 @@ public class TraceProcessingWorker implements AutoCloseable {
     this.primaryQueue = createQueue(capacity);
     this.secondaryQueue = createQueue(capacity);
     this.spanQueue = createQueue(capacity);
-    this.spanProcessingWorker =
-        singleSpanSampler != null
-            ? SpanProcessingWorker.build(capacity, spanQueue, singleSpanSampler)
-            : null;
+    this.spanProcessingWorker = SpanProcessingWorker.build(capacity, spanQueue, singleSpanSampler);
     this.prioritizationStrategy =
         prioritization.create(primaryQueue, secondaryQueue, droppingPolicy, spanProcessingWorker);
     this.serializingHandler =

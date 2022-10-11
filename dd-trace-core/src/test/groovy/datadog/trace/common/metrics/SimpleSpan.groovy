@@ -210,6 +210,11 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   }
 
   @Override
+  SimpleSpan setSpanSamplingPriority(double rate, int limit) {
+    return this
+  }
+
+  @Override
   SimpleSpan setMetric(CharSequence name, int value) {
     return this
   }

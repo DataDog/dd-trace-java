@@ -126,9 +126,8 @@ public abstract class SamplingRule<T extends CoreSpan<T>> {
       return super.sample(span) && (rateLimiter == null || rateLimiter.tryAcquire());
     }
 
-    public void apply(T span) {
-      // TODO set necessary
-      //      span.setAllTags()
+    public SimpleRateLimiter getRateLimiter() {
+      return rateLimiter;
     }
   }
 }

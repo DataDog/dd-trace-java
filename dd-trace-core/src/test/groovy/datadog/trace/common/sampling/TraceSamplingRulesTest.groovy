@@ -7,6 +7,7 @@ class TraceSamplingRulesTest extends DDCoreSpecification {
   def "Deserialize empty list of Trace Sampling rules from JSON"() {
     when:
     def rules = TraceSamplingRules.deserialize("[]")
+
     then:
     rules.rules.size() == 0
   }
@@ -19,6 +20,7 @@ class TraceSamplingRulesTest extends DDCoreSpecification {
       {\"name\": \"operation-name\", \"sample_rate\": 0.75}, 
       {\"sample_rate\": 0.25}
     ]""")
+
     then:
     rules.rules.size() == 4
 
