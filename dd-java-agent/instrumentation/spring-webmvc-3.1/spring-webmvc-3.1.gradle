@@ -25,6 +25,15 @@ muzzle {
       '1.2.4'] // broken releases... missing dependencies
     extraDependency "javax.servlet:javax.servlet-api:3.0.1"
   }
+
+  pass {
+    group = 'org.jboss.resteasy'
+    module = 'resteasy-spring'
+    versions = "[2.3,]"
+    skipVersions += '2.3.10.Final' // broken release... missing dependencies
+    extraDependency "javax.servlet:javax.servlet-api:3.0.1"
+    extraDependency "org.springframework:spring-webmvc:3.1.0.RELEASE"
+  }
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -59,4 +68,6 @@ dependencies {
   // For spring security
   testImplementation "jakarta.xml.bind:jakarta.xml.bind-api:2.3.2"
   testImplementation "org.glassfish.jaxb:jaxb-runtime:2.3.2"
+
+  testImplementation group: 'org.jboss.resteasy', name: 'resteasy-spring', version: '3.0.0.Final'
 }
