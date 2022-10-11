@@ -58,8 +58,7 @@ public interface SingleSpanSampler<T extends CoreSpan<T>> {
       }
       this.spanSamplingRules = new ArrayList<>();
       for (SpanSamplingRules.Rule rule : rules.getRules()) {
-        // TODO need to be adjusted to use span-id instead of trace-id for deterministic sampling
-        RateSampler<T> sampler = new DeterministicSampler<>(rule.getSampleRate());
+        RateSampler<T> sampler = new DeterministicSampler.SpanSampler<>(rule.getSampleRate());
         SimpleRateLimiter simpleRateLimiter =
             rule.getMaxPerSecond() == Integer.MAX_VALUE
                 ? null

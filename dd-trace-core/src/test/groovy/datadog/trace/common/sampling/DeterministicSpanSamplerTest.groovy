@@ -4,13 +4,13 @@ import datadog.trace.api.DDId
 import datadog.trace.core.DDSpan
 import datadog.trace.test.util.DDSpecification
 
-class DeterministicSamplerTest extends DDSpecification {
+class DeterministicSpanSamplerTest extends DDSpecification {
 
-  def "test known values: #traceId"() {
+  def "test known values: #spanId"() {
     given:
-    DeterministicSampler sampler = new DeterministicSampler(0.5)
+    DeterministicSampler sampler = new DeterministicSampler.SpanSampler(0.5)
     DDSpan span = Mock(DDSpan) {
-      getTraceId() >> DDId.from(traceId)
+      getSpanId() >> DDId.from(spanId)
     }
 
     when:
@@ -20,7 +20,7 @@ class DeterministicSamplerTest extends DDSpecification {
     sampled == expected
 
     where:
-    expected | traceId
+    expected | spanId
     false    | "10428415896243638596"
     false    | "11199607447739267382"
     false    | "11273630029763932141"
@@ -123,11 +123,11 @@ class DeterministicSamplerTest extends DDSpecification {
     true     | "9956202364908137547"
   }
 
-  def "test sampling none: #traceId"() {
+  def "test sampling none: #spanId"() {
     given:
-    DeterministicSampler sampler = new DeterministicSampler(0)
+    DeterministicSampler sampler = new DeterministicSampler.SpanSampler(0)
     DDSpan span = Mock(DDSpan) {
-      getTraceId() >> DDId.from(traceId)
+      getSpanId() >> DDId.from(spanId)
     }
 
     when:
@@ -137,9 +137,9 @@ class DeterministicSamplerTest extends DDSpecification {
     sampled == expected
 
     // These values are repeated from the "known values test"
-    // It is an arbitrary subset of all possible traceIds
+    // It is an arbitrary subset of all possible spanIds
     where:
-    expected | traceId
+    expected | spanId
     false    | "10428415896243638596"
     false    | "11199607447739267382"
     false    | "11273630029763932141"
@@ -242,23 +242,23 @@ class DeterministicSamplerTest extends DDSpecification {
     false    | "9956202364908137547"
   }
 
-  def "test sampling all: #traceId"() {
+  def "test sampling all: #spanId"() {
     given:
-    DeterministicSampler sampler = new DeterministicSampler(1)
+    DeterministicSampler sampler = new DeterministicSampler.SpanSampler(1)
     DDSpan span = Mock(DDSpan) {
-      getTraceId() >> DDId.from(traceId)
+      getSpanId() >> DDId.from(spanId)
     }
 
     when:
     def sampled = sampler.sample(span)
 
     then:
-    sampled == expected
+    sampled
 
     // These values are repeated from the "known values test"
-    // It is an arbitrary subset of all possible traceIds
+    // It is an arbitrary subset of all possible spanIds
     where:
-    expected | traceId
+    expected | spanId
     true     | "10428415896243638596"
     true     | "11199607447739267382"
     true     | "11273630029763932141"
@@ -359,18 +359,5 @@ class DeterministicSamplerTest extends DDSpecification {
     true     | "9828766684487745566"
     true     | "9908585559158765387"
     true     | "9956202364908137547"
-  }
-
-  def "test cutoff calculation"() {
-    when:
-    long cutoff = DeterministicSampler.cutoff(rate / 10000F)
-    then:
-    Math.abs(cutoff - new BigDecimal(rate / 10000D)
-      .multiply(new BigDecimal(BigInteger.valueOf(2).pow(64).subtract(BigInteger.ONE)))
-      .toBigInteger()
-      .longValue() + Long.MIN_VALUE) <= 1
-
-    where:
-    rate << (0..10000)
   }
 }
