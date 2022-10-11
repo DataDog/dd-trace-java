@@ -44,17 +44,11 @@ public final class DBQueryInfo {
   public boolean SqlObfuscation = Config.get().getJdbcSqlObfuscation();
 
   public DBQueryInfo(String sql) {
-    //  System.out.println("SqlObfuscation = false");
-    System.out.println(sql);
     this.sql = SQLNormalizer.normalize(sql);
 
     if (SqlObfuscation) {
-      System.out.println("SqlObfuscation = true");
-      System.out.println(sql);
       this.originSql = UTF8BytesString.create(sql.getBytes(UTF_8));
     } else {
-      System.out.println("SqlObfuscation = false");
-      System.out.println(sql);
       this.originSql = UTF8BytesString.EMPTY;
     }
 

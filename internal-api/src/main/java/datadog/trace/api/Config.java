@@ -1955,7 +1955,6 @@ public class Config {
   }
 
   public boolean getJdbcSqlObfuscation() {
-    System.out.println("default val = "+jdbcSqlObfuscation);
     return jdbcSqlObfuscation;
   }
 
