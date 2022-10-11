@@ -15,9 +15,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
-import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
+import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
@@ -219,6 +219,26 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     null  | [ip: null, port: 555]
     true  | [ip: "10.0.0.1", port: 555]
     false | [ip: "3ffe:1900:4545:3:200:f8ff:fe21:67cf", port: 555]
+  }
+
+  void 'preference for header derived vs peer ip address'() {
+    setup:
+    def ctx = Mock(AgentSpan.Context.Extracted)
+    def decorator = newDecorator()
+
+    when:
+    1 * ctx.getClientIp() >> headerIpAddr
+    decorator.onRequest(this.span, [ip: peerIpAddr], null, ctx)
+
+    then:
+    1 * this.span.setTag(Tags.HTTP_CLIENT_IP, result)
+
+    where:
+    headerIpAddr | peerIpAddr  | result
+    '1.1.1.1'    | '8.8.8.8'   | '1.1.1.1'
+    '1.1.1.1'    | '127.0.0.1' | '1.1.1.1'
+    '127.0.0.1'  | '8.8.8.8'   | '8.8.8.8'
+    null         | '127.0.0.1' | '127.0.0.1'
   }
 
   def "test onResponse"() {
