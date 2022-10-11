@@ -19,6 +19,7 @@
       <Package name="com.datadog.appsec.report.raw.contexts.tags" />
       <Package name="com.datadog.appsec.report.raw.contexts.trace" />
       <Package name="com.datadog.appsec.report.raw.events" />
+      <Package name="datadog.trace.agent.test.checkpoints" />
     </Or>
   </Match>
 </FindBugsFilter>
