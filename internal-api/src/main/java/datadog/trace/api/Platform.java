@@ -236,8 +236,7 @@ public final class Platform {
   }
 
   public static boolean isJ9() {
-    return System.getProperty("java.vendor").equals("IBM Corporation")
-        && System.getProperty("java.vm.name").contains("J9");
+    return System.getProperty("java.vm.name").contains("J9");
   }
 
   public static String getLangVersion() {
