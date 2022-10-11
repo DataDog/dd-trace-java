@@ -344,4 +344,19 @@ public final class Types {
     }
     return buf.toString();
   }
+
+  public static boolean isPrimitive(String type) {
+    switch (type) {
+      case "byte":
+      case "short":
+      case "char":
+      case "int":
+      case "long":
+      case "boolean":
+      case "float":
+      case "double":
+        return true;
+    }
+    return false;
+  }
 }
