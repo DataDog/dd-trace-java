@@ -50,4 +50,9 @@ abstract class AbstractModulesSmokeTest extends AbstractSmokeTest {
     instrumentedMessageClient
     !logHasErrors
   }
+
+  @Override
+  def logLevel() {
+    return "debug"
+  }
 }
