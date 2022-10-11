@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module xmlns="urn:jboss:module:1.1" name="commons-logging">
+  <resources>
+    <resource-root path="commons-logging.jar"/>
+  </resources>
+  <dependencies>
+    <system>
+      <paths>
+        <path name="jdk/internal/reflect"/>
+      </paths>
+    </system>
+  </dependencies>
+</module>

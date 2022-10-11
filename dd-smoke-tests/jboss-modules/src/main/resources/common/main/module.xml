@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module xmlns="urn:jboss:module:1.0" name="common">
+  <resources>
+    <resource-root path="common.jar"/>
+  </resources>
+  <dependencies>
+    <module name="commons-logging">
+      <exports>
+        <include path="org/apache/commons/logging"/>
+      </exports>
+    </module>
+    <module name="guava"/>
+  </dependencies>
+</module>
