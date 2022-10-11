@@ -124,12 +124,22 @@ public final class Platform {
     public final String patches;
 
     public JvmRuntime() {
-      String rtVer = System.getProperty("java.runtime.version");
-      String javaVer = System.getProperty("java.version");
-      this.name = System.getProperty("java.runtime.name");
-      this.vendor = System.getProperty("java.vm.vendor");
+      this(
+          System.getProperty("java.version"),
+          System.getProperty("java.runtime.version"),
+          System.getProperty("java.runtime.name"),
+          System.getProperty("java.vm.vendor"));
+    }
+
+    // Only visible for testing
+    JvmRuntime(String javaVer, String rtVer, String name, String vendor) {
+      this.name = name == null ? "" : name;
+      this.vendor = vendor == null ? "" : vendor;
+      javaVer = javaVer == null ? "" : javaVer;
       this.version = javaVer;
-      this.patches = rtVer.substring(javaVer.length() + 1);
+      rtVer = javaVer.isEmpty() || rtVer == null ? javaVer : rtVer;
+      int patchStart = javaVer.length() + 1;
+      this.patches = (patchStart >= rtVer.length()) ? "" : rtVer.substring(javaVer.length() + 1);
     }
   }
 
