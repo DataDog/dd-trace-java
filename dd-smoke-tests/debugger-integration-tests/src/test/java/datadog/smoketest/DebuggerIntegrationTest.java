@@ -20,8 +20,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.DisplayName;
@@ -219,27 +217,6 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
       assertTrue(probeIds.contains("12335653" + i));
     }
     assertFalse(logHasErrors(logFilePath, it -> false));
-  }
-
-  private static boolean logHasErrors(Path logFilePath, Function<String, Boolean> checker)
-      throws IOException {
-    final AtomicBoolean hasErrors = new AtomicBoolean();
-    Files.lines(logFilePath)
-        .forEach(
-            it -> {
-              if (it.contains(" ERROR ")
-                  || it.contains("ASSERTION FAILED")
-                  || it.contains("Error:")) {
-                System.out.println(it);
-                hasErrors.set(true);
-              }
-              hasErrors.set(hasErrors.get() || checker.apply(it));
-            });
-    if (hasErrors.get()) {
-      System.out.println(
-          "Test application log is containing errors. See full run logs in " + logFilePath);
-    }
-    return hasErrors.get();
   }
 
   private static void assertContainsLogLine(Path logFilePath, String containsLine)
