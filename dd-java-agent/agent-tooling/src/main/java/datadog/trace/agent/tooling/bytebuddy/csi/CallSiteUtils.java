@@ -233,7 +233,7 @@ public abstract class CallSiteUtils {
   }
 
   private static void checkCast(final MethodVisitor mv, final Type parameter) {
-    if (parameter.getSort() == Type.OBJECT) {
+    if (parameter.getSort() == Type.OBJECT || parameter.getSort() == Type.ARRAY) {
       mv.visitTypeInsn(Opcodes.CHECKCAST, parameter.getInternalName());
     } else {
       final BoxingHandler handler = BOX_HANDLERS[parameter.getSort()];

@@ -29,157 +29,159 @@ public class JsonToExpressionConverter {
   public static PredicateExpression createPredicate(JsonReader reader) throws IOException {
     reader.beginObject();
     String predicateType = reader.nextName();
-    try {
-      switch (predicateType) {
-        case "not":
-          {
-            JsonReader.Token token = reader.peek();
-            if (token == BEGIN_ARRAY || token == STRING || token == NUMBER) {
-              throw new UnsupportedOperationException(
-                  "Operation 'not' expects a predicate as its argument");
-            }
-            return DSL.not(createPredicate(reader));
+    PredicateExpression expr = null;
+    switch (predicateType) {
+      case "not":
+        {
+          JsonReader.Token token = reader.peek();
+          if (token == BEGIN_ARRAY || token == STRING || token == NUMBER) {
+            throw new UnsupportedOperationException(
+                "Operation 'not' expects a predicate as its argument");
           }
-        case "==":
-        case "eq":
-          {
-            JsonReader.Token token = reader.peek();
-            if (token == BEGIN_ARRAY) {
-              reader.beginArray();
-              PredicateExpression predicate = createBinaryValuePredicate(reader, DSL::eq);
-              reader.endArray();
-              return predicate;
-            }
+          expr = DSL.not(createPredicate(reader));
+          break;
+        }
+      case "==":
+      case "eq":
+        {
+          JsonReader.Token token = reader.peek();
+          if (token != BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
                 "Operation 'eq' expects the arguments to be defined as array");
           }
-        case "!=":
-        case "neq":
-          {
-            JsonReader.Token token = reader.peek();
-            if (token == BEGIN_ARRAY) {
-              reader.beginArray();
-              PredicateExpression predicate = DSL.not(createBinaryValuePredicate(reader, DSL::eq));
-              reader.endArray();
-              return predicate;
-            }
+          reader.beginArray();
+          expr = createBinaryValuePredicate(reader, DSL::eq);
+          reader.endArray();
+          break;
+        }
+      case "!=":
+      case "neq":
+        {
+          JsonReader.Token token = reader.peek();
+          if (token != BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
                 "Operation 'neq' expects the arguments to be defined as array");
           }
-        case ">=":
-        case "ge":
-          {
-            JsonReader.Token token = reader.peek();
-            if (token == BEGIN_ARRAY) {
-              reader.beginArray();
-              PredicateExpression predicate = createBinaryValuePredicate(reader, DSL::ge);
-              reader.endArray();
-              return predicate;
-            }
+          reader.beginArray();
+          expr = DSL.not(createBinaryValuePredicate(reader, DSL::eq));
+          reader.endArray();
+          break;
+        }
+      case ">=":
+      case "ge":
+        {
+          JsonReader.Token token = reader.peek();
+          if (token != BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
                 "Operation 'ge' expects the arguments to be defined as array");
           }
-        case ">":
-        case "gt":
-          {
-            JsonReader.Token token = reader.peek();
-            if (token == BEGIN_ARRAY) {
-              reader.beginArray();
-              PredicateExpression predicate = createBinaryValuePredicate(reader, DSL::gt);
-              reader.endArray();
-              return predicate;
-            }
+          reader.beginArray();
+          expr = createBinaryValuePredicate(reader, DSL::ge);
+          reader.endArray();
+          break;
+        }
+      case ">":
+      case "gt":
+        {
+          JsonReader.Token token = reader.peek();
+          if (token != BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
                 "Operation 'gt' expects the arguments to be defined as array");
           }
-        case "<=":
-        case "le":
-          {
-            JsonReader.Token token = reader.peek();
-            if (token == BEGIN_ARRAY) {
-              reader.beginArray();
-              PredicateExpression predicate = createBinaryValuePredicate(reader, DSL::le);
-              reader.endArray();
-              return predicate;
-            }
+          reader.beginArray();
+          expr = createBinaryValuePredicate(reader, DSL::gt);
+          reader.endArray();
+          break;
+        }
+      case "<=":
+      case "le":
+        {
+          JsonReader.Token token = reader.peek();
+          if (token != BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
                 "Operation 'le' expects the arguments to be defined as array");
           }
-        case "<":
-        case "lt":
-          {
-            JsonReader.Token token = reader.peek();
-            if (token == BEGIN_ARRAY) {
-              reader.beginArray();
-              PredicateExpression predicate = createBinaryValuePredicate(reader, DSL::lt);
-              reader.endArray();
-              return predicate;
-            }
+          reader.beginArray();
+          expr = createBinaryValuePredicate(reader, DSL::le);
+          reader.endArray();
+          break;
+        }
+      case "<":
+      case "lt":
+        {
+          JsonReader.Token token = reader.peek();
+          if (token != BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
                 "Operation 'lt' expects the arguments to be defined as array");
           }
-        case "or":
-          {
-            JsonReader.Token token = reader.peek();
-            if (token == BEGIN_ARRAY) {
-              reader.beginArray();
-              PredicateExpression predicate = createCompositeLogicalPredicate(reader, DSL::or);
-              reader.endArray();
-              return predicate;
-            }
+          reader.beginArray();
+          expr = createBinaryValuePredicate(reader, DSL::lt);
+          reader.endArray();
+          break;
+        }
+      case "or":
+        {
+          JsonReader.Token token = reader.peek();
+          if (token != BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
                 "Operation 'or' expects the arguments to be defined as array");
           }
-        case "and":
-          {
-            JsonReader.Token token = reader.peek();
-            if (token == BEGIN_ARRAY) {
-              reader.beginArray();
-              PredicateExpression predicate = createCompositeLogicalPredicate(reader, DSL::and);
-              reader.endArray();
-              return predicate;
-            }
+          reader.beginArray();
+          expr = createCompositeLogicalPredicate(reader, DSL::or);
+          reader.endArray();
+          break;
+        }
+      case "and":
+        {
+          JsonReader.Token token = reader.peek();
+          if (token != BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
                 "Operation 'and' expects the arguments to be defined as array");
           }
-        case "hasAny":
-          {
-            JsonReader.Token token = reader.peek();
-            if (token == BEGIN_ARRAY) {
-              reader.beginArray();
-              PredicateExpression predicate = createHasAnyPredicate(reader);
-              reader.endArray();
-              return predicate;
-            }
+          reader.beginArray();
+          expr = createCompositeLogicalPredicate(reader, DSL::and);
+          reader.endArray();
+          break;
+        }
+      case "hasAny":
+        {
+          JsonReader.Token token = reader.peek();
+          if (token != BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
                 "Operation 'hasAny' expects the arguments to be defined as array");
           }
-        case "hasAll":
-          {
-            JsonReader.Token token = reader.peek();
-            if (token == BEGIN_ARRAY) {
-              reader.beginArray();
-              PredicateExpression predicate = createHasAllPredicate(reader);
-              reader.endArray();
-              return predicate;
-            }
+          reader.beginArray();
+          expr = createHasAnyPredicate(reader);
+          reader.endArray();
+          break;
+        }
+      case "hasAll":
+        {
+          JsonReader.Token token = reader.peek();
+          if (token != BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
                 "Operation 'hasAll' expects the arguments to be defined as array");
           }
-        case "isEmpty":
-          {
-            JsonReader.Token token = reader.peek();
-            if (token == BEGIN_ARRAY) {
-              throw new UnsupportedOperationException(
-                  "Operation 'isEmpty' expects exactly one value argument");
-            }
-            return DSL.isEmpty(asValueExpression(reader));
+          reader.beginArray();
+          expr = createHasAllPredicate(reader);
+          reader.endArray();
+          break;
+        }
+      case "isEmpty":
+        {
+          JsonReader.Token token = reader.peek();
+          if (token == BEGIN_ARRAY) {
+            throw new UnsupportedOperationException(
+                "Operation 'isEmpty' expects exactly one value argument");
           }
-      }
-    } finally {
-      reader.endObject();
+          expr = DSL.isEmpty(asValueExpression(reader));
+          break;
+        }
+      default:
+        throw new UnsupportedOperationException("Unsupported operation '" + predicateType + "'");
     }
-    throw new UnsupportedOperationException("Unsupported operation '" + predicateType + "'");
+    reader.endObject();
+    return expr;
   }
 
   public static PredicateExpression createHasAnyPredicate(JsonReader reader) throws IOException {

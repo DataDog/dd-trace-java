@@ -176,21 +176,28 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
     }
 
-    String ip = null;
-    int port = UNSET_PORT;
+    String peerIp = null;
+    int peerPort = UNSET_PORT;
     if (connection != null) {
-      ip = peerHostIP(connection);
-      port = peerPort(connection);
+      peerIp = peerHostIP(connection);
+      peerPort = peerPort(connection);
     }
 
     String inferredAddressStr = null;
     if (config.isTraceClientIpResolverEnabled()) {
-      InetAddress inferredAddress = ClientIpAddressResolver.resolve(context);
-      // As a fallback, if no IP was resolved, the peer IP address should be checked
-      // to see if it is public and used as the resolved IP if it is.
-      // If no public IP address, then a private IP address should reported as a fall back.
-      if (inferredAddress == null && ip != null) {
-        inferredAddress = ClientIpAddressResolver.parseIpAddress(ip);
+      InetAddress inferredAddress = ClientIpAddressResolver.resolve(context, span);
+      // the peer address should be used if:
+      // 1. the headers yield nothing, regardless of whether it is public or not
+      // 2. it is public and the headers yield a private address
+      if (peerIp != null) {
+        if (inferredAddress == null) {
+          inferredAddress = ClientIpAddressResolver.parseIpAddress(peerIp);
+        } else if (ClientIpAddressResolver.isIpAddrPrivate(inferredAddress)) {
+          InetAddress peerAddress = ClientIpAddressResolver.parseIpAddress(peerIp);
+          if (!ClientIpAddressResolver.isIpAddrPrivate(peerAddress)) {
+            inferredAddress = peerAddress;
+          }
+        }
       }
       if (inferredAddress != null) {
         inferredAddressStr = inferredAddress.getHostAddress();
@@ -198,15 +205,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
     }
 
-    if (ip != null) {
-      if (ip.indexOf(':') > 0) {
-        span.setTag(Tags.PEER_HOST_IPV6, ip);
+    if (peerIp != null) {
+      if (peerIp.indexOf(':') > 0) {
+        span.setTag(Tags.PEER_HOST_IPV6, peerIp);
       } else {
-        span.setTag(Tags.PEER_HOST_IPV4, ip);
+        span.setTag(Tags.PEER_HOST_IPV4, peerIp);
       }
     }
-    setPeerPort(span, port);
-    Flow<Void> flow = callIGCallbackAddressAndPort(span, ip, port, inferredAddressStr);
+    setPeerPort(span, peerPort);
+    Flow<Void> flow = callIGCallbackAddressAndPort(span, peerIp, peerPort, inferredAddressStr);
     if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
       span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
     }

@@ -82,8 +82,8 @@ class MuzzlePlugin implements Plugin<Project> {
           final ClassLoader userCL = createCompileDepsClassLoader(project, bootstrapProject)
           final ClassLoader instrumentationCL = createInstrumentationClassloader(project, toolingProject)
           Method assertionMethod = instrumentationCL.loadClass('datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin')
-            .getMethod('assertInstrumentationMuzzled', ClassLoader.class, ClassLoader.class, boolean.class)
-          assertionMethod.invoke(null, instrumentationCL, userCL, true)
+            .getMethod('assertInstrumentationMuzzled', ClassLoader.class, ClassLoader.class, boolean.class, String.class)
+          assertionMethod.invoke(null, instrumentationCL, userCL, true, null)
         }
         println "Muzzle executing for $project"
       }
@@ -391,8 +391,8 @@ class MuzzlePlugin implements Plugin<Project> {
         try {
           // find all instrumenters, get muzzle, and assert
           Method assertionMethod = instrumentationCL.loadClass('datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin')
-            .getMethod('assertInstrumentationMuzzled', ClassLoader.class, ClassLoader.class, boolean.class)
-          assertionMethod.invoke(null, instrumentationCL, userCL, muzzleDirective.assertPass)
+            .getMethod('assertInstrumentationMuzzled', ClassLoader.class, ClassLoader.class, boolean.class, String.class)
+          assertionMethod.invoke(null, instrumentationCL, userCL, muzzleDirective.assertPass, muzzleDirective.name ?: muzzleDirective.module)
         } finally {
           Thread.currentThread().contextClassLoader = ccl
         }

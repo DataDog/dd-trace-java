@@ -1,6 +1,7 @@
 package datadog.smoketest;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -84,6 +85,8 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
     assertEquals("123356536", snapshot.getProbe().getId());
     assertTrue(Pattern.matches("\\d+", request.getTraceId()));
     assertTrue(Pattern.matches("\\d+", request.getSpanId()));
+    assertFalse(
+        logHasErrors(logFilePath, it -> it.contains("TypePool$Resolution$NoSuchTypeException")));
   }
 
   @Override

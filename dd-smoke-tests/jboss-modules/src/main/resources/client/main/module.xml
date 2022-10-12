@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module xmlns="urn:jboss:module:1.0" name="client">
+  <resources>
+    <resource-root path="client.jar"/>
+  </resources>
+  <dependencies>
+    <module name="httpclient"/>
+    <module name="messaging"/>
+  </dependencies>
+</module>

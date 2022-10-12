@@ -28,3 +28,5 @@ for profile_path in workspace/**/build/profiles; do
     profile_path=${profile_path//\/build\/profiles/}
     save_profiles $profiles
 done
+
+tar -cvzf profiles.tar $PROFILES_DIR

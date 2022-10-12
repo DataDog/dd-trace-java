@@ -12,6 +12,7 @@ import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
 import datadog.trace.bootstrap.debugger.Snapshot;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -21,6 +22,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import okhttp3.HttpUrl;
 import okhttp3.mockwebserver.MockResponse;
@@ -249,6 +251,27 @@ public abstract class BaseIntegrationTest {
     assertNotNull(throwable);
     assertEquals(typeName, throwable.getType());
     assertEquals(message, throwable.getMessage());
+  }
+
+  protected static boolean logHasErrors(Path logFilePath, Function<String, Boolean> checker)
+      throws IOException {
+    final AtomicBoolean hasErrors = new AtomicBoolean();
+    Files.lines(logFilePath)
+        .forEach(
+            it -> {
+              if (it.contains(" ERROR ")
+                  || it.contains("ASSERTION FAILED")
+                  || it.contains("Error:")) {
+                System.out.println(it);
+                hasErrors.set(true);
+              }
+              hasErrors.set(hasErrors.get() || checker.apply(it));
+            });
+    if (hasErrors.get()) {
+      System.out.println(
+          "Test application log is containing errors. See full run logs in " + logFilePath);
+    }
+    return hasErrors.get();
   }
 
   private static class MockDispatcher extends okhttp3.mockwebserver.QueueDispatcher {
