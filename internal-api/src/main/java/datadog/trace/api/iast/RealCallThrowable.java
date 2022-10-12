@@ -1,39 +1,40 @@
 package datadog.trace.api.iast;
 
 import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 
 public class RealCallThrowable extends RuntimeException {
   private static final MethodHandle FILTER;
 
   static {
-    try {
-      FILTER =
-          MethodHandles.lookup()
-              .findStatic(
-                  RealCallThrowable.class
-                      .getClassLoader()
-                      .loadClass("datadog.trace.util.stacktrace.StackUtils"),
-                  "filterDatadog",
-                  MethodType.methodType(Throwable.class, Throwable.class));
-    } catch (NoSuchMethodException | IllegalAccessException | ClassNotFoundException e) {
-      throw new RuntimeException(e);
-    }
+    //    try {
+    //      FILTER =
+    //          MethodHandles.lookup()
+    //              .findStatic(
+    //                  RealCallThrowable.class
+    //                      .getClassLoader()
+    //                      .loadClass("datadog.trace.util.stacktrace.StackUtils"),
+    //                  "filterDatadog",
+    //                  MethodType.methodType(Throwable.class, Throwable.class));
+    //    } catch (NoSuchMethodException | IllegalAccessException | ClassNotFoundException e) {
+    //      throw new RuntimeException(e);
+    //    }
+    FILTER = null;
   }
 
   public RealCallThrowable(Throwable cause) {
-    super(cause);
+    super(filter(cause));
+  }
+
+  private static Throwable filter(Throwable cause) {
+    try {
+      return (Throwable) FILTER.invoke(cause);
+    } catch (Throwable e) {
+      return cause;
+    }
   }
 
   public void rethrow() {
-    Throwable cause;
-    try {
-      cause = (Throwable) FILTER.invoke(getCause());
-    } catch (Throwable e) {
-      cause = getCause();
-    }
-    RealCallThrowable.<RuntimeException>doRethrow(cause);
+    RealCallThrowable.<RuntimeException>doRethrow(getCause());
   }
 
   @SuppressWarnings("unchecked")

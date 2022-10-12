@@ -20,6 +20,13 @@ public class OverheadController {
 
   final OverheadContext globalContext = new OverheadContext();
 
+  protected OverheadController() {
+    // for testing
+    this.maxConcurrentRequests = 0;
+    this.sampling = 0;
+    this.availableRequests = new AtomicInteger();
+  }
+
   public OverheadController(final Config config, final AgentTaskScheduler taskScheduler) {
     maxConcurrentRequests = config.getIastMaxConcurrentRequests();
     sampling = computeSamplingParameter(config.getIastRequestSampling());

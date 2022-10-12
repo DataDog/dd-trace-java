@@ -1,3 +1,7 @@
+plugins {
+  id 'java-test-fixtures'
+}
+
 muzzle {
   pass {
     coreJdk()
@@ -16,6 +20,7 @@ testSets {
 }
 
 dependencies {
-  testRuntimeClasspath project(':dd-java-agent:instrumentation:iast-instrumenter')
+  compileOnly(project(':dd-java-agent:agent-iast'))
+  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
 }
 

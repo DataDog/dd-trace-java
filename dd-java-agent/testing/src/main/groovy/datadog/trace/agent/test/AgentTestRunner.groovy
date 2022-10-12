@@ -168,7 +168,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   }
 
   @SuppressForbidden
-  def setupSpec() {
+  void setupSpec() {
     // If this fails, it's likely the result of another test loading Config before it can be
     // injected into the bootstrap classpath. If one test extends AgentTestRunner in a module, all tests must extend
     assert Config.getClassLoader() == null: "Config must load on the bootstrap classpath."
@@ -307,7 +307,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   /** Override to clean up things after the agent is removed */
   protected void cleanupAfterAgent() {}
 
-  def cleanupSpec() {
+  void cleanupSpec() {
     TEST_TRACER?.close()
 
     if (null != activeTransformer) {

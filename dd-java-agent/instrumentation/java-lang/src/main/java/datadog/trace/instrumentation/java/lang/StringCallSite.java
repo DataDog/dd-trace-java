@@ -31,7 +31,7 @@ public class StringCallSite {
 
   @CallSite.Around("java.lang.String java.lang.String.format(java.lang.String,java.lang.Object[])")
   public static String format(@CallSite.Argument String fmt, @CallSite.Argument Object[] args) {
-    return InstrumentationBridge.onStringFormat(null, fmt, args);
+    return StringHelperContainer.onStringFormat(null, fmt, args);
   }
 
   @CallSite.Around(
@@ -40,6 +40,6 @@ public class StringCallSite {
       @CallSite.Argument Locale l,
       @CallSite.Argument String fmt,
       @CallSite.Argument Object[] args) {
-    return InstrumentationBridge.onStringFormat(l, fmt, args);
+    return StringHelperContainer.onStringFormat(l, fmt, args);
   }
 }

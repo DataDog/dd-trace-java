@@ -1,6 +1,5 @@
 package datadog.trace.api.iast;
 
-import java.util.Locale;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -125,19 +124,5 @@ public abstract class InstrumentationBridge {
 
   private static void onUnexpectedException(final String message, final Throwable error) {
     LOG.warn(message, error);
-  }
-
-  public static String onStringFormat(Locale l, String fmt, Object[] args) {
-    try {
-      if (MODULE != null) {
-        return MODULE.onStringFormat(l, fmt, args);
-      }
-    } catch (RealCallThrowable t) {
-      t.rethrow();
-    } catch (Throwable t) {
-      onUnexpectedException("Callback for onStringBuilderToString threw.", t);
-      return String.format(l, fmt, args);
-    }
-    return null; // unreachable
   }
 }
