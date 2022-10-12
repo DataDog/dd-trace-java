@@ -16,6 +16,9 @@ configurations {
   sharedShadowInclude
 }
 
+sourceCompatibility = JavaVersion.VERSION_1_7
+targetCompatibility = JavaVersion.VERSION_1_7
+
 /*
  * 7 shadow jars are created
  * - The main "dd-java-agent" jar that also has the bootstrap project
