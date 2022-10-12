@@ -612,6 +612,7 @@ public class MoshiSnapshotHelper {
         throws IOException {
       int mapSize = entries.size();
       int maxSize = Math.min(mapSize, limits.maxCollectionSize);
+      Limits newLimits = Limits.decDepthLimits(limits.maxReferenceDepth, limits);
       int i = 0;
       Iterator<?> it = entries.iterator();
       while (i < maxSize && it.hasNext()) {
@@ -619,16 +620,8 @@ public class MoshiSnapshotHelper {
         jsonWriter.beginArray();
         Object keyObj = entry.getKey();
         Object valObj = entry.getValue();
-        serializeValue(
-            jsonWriter,
-            entry.getKey(),
-            entry.getKey().getClass().getName(),
-            Limits.decDepthLimits(limits.maxReferenceDepth, limits));
-        serializeValue(
-            jsonWriter,
-            entry.getValue(),
-            entry.getValue().getClass().getName(),
-            Limits.decDepthLimits(limits.maxReferenceDepth, limits));
+        serializeValue(jsonWriter, keyObj, keyObj.getClass().getName(), newLimits);
+        serializeValue(jsonWriter, valObj, valObj.getClass().getName(), newLimits);
         jsonWriter.endArray();
         i++;
       }
@@ -640,15 +633,12 @@ public class MoshiSnapshotHelper {
       // /!\ here we assume that Collection#Size is O(1) /!\
       int colSize = collection.size();
       int maxSize = Math.min(colSize, limits.maxCollectionSize);
+      Limits newLimits = Limits.decDepthLimits(limits.maxReferenceDepth, limits);
       int i = 0;
       Iterator<?> it = collection.iterator();
       while (i < maxSize && it.hasNext()) {
         Object val = it.next();
-        serializeValue(
-            jsonWriter,
-            val,
-            val.getClass().getName(),
-            Limits.decDepthLimits(limits.maxReferenceDepth, limits));
+        serializeValue(jsonWriter, val, val.getClass().getName(), newLimits);
         i++;
       }
       return new SerializationResult(colSize, maxSize == colSize);
@@ -657,6 +647,7 @@ public class MoshiSnapshotHelper {
     private SerializationResult serializeObjectArray(
         JsonWriter jsonWriter, Object[] objArray, Limits limits) throws IOException {
       int maxSize = Math.min(objArray.length, limits.maxCollectionSize);
+      Limits newLimits = Limits.decDepthLimits(limits.maxReferenceDepth, limits);
       int i = 0;
       while (i < maxSize) {
         Object val = objArray[i];
@@ -664,7 +655,7 @@ public class MoshiSnapshotHelper {
             jsonWriter,
             val,
             val != null ? val.getClass().getName() : "java.lang.Object",
-            Limits.decDepthLimits(limits.maxReferenceDepth, limits));
+            newLimits);
         i++;
       }
       return new SerializationResult(objArray.length, maxSize == objArray.length);
