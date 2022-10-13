@@ -10,13 +10,21 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.SubscriptionService;
-import datadog.trace.api.iast.CallSiteHelperContainer;
-import datadog.trace.api.iast.CallSiteHelperRegistry;
 import datadog.trace.api.iast.IastModule;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.InvokeDynamicHelperContainer;
+import datadog.trace.api.iast.InvokeDynamicHelperRegistry;
 import datadog.trace.util.AgentTaskScheduler;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.lang.invoke.MethodHandles;
-import java.util.ServiceLoader;
+import java.lang.reflect.UndeclaredThrowableException;
+import java.nio.charset.StandardCharsets;
+import java.util.function.Consumer;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,20 +48,19 @@ public class IastSystem {
     if (overheadController == null) {
       overheadController = new OverheadController(config, AgentTaskScheduler.INSTANCE);
     }
-    initializeCallSiteHelperRegistry();
+    initializeInvokeDynamicHelperRegistry();
     final IastModule iastModule = new IastModuleImpl(config, reporter, overheadController);
     InstrumentationBridge.registerIastModule(iastModule);
     registerRequestStartedCallback(ss, overheadController);
     registerRequestEndedCallback(ss, overheadController);
   }
 
-  private static void initializeCallSiteHelperRegistry() {
-    CallSiteHelperRegistry.reset();
-    ServiceLoader<CallSiteHelperContainer> callSiteHelperContainers =
-        ServiceLoader.load(CallSiteHelperContainer.class, IastSystem.class.getClassLoader());
-    for (CallSiteHelperContainer cshc : callSiteHelperContainers) {
-      CallSiteHelperRegistry.registerHelperContainer(MethodHandles.lookup(), cshc.getClass());
-    }
+  private static void initializeInvokeDynamicHelperRegistry() {
+    InvokeDynamicHelperRegistry.reset();
+    doWithServiceClasses(
+        InvokeDynamicHelperContainer.class,
+        IastSystem.class.getClassLoader(),
+        cshc -> InvokeDynamicHelperRegistry.registerHelperContainer(MethodHandles.lookup(), cshc));
   }
 
   private static void registerRequestStartedCallback(
@@ -67,5 +74,30 @@ public class IastSystem {
     final EventType<BiFunction<RequestContext, IGSpanInfo, Flow<Void>>> event =
         Events.get().requestEnded();
     ss.registerCallback(event, new RequestEndedHandler(overheadController));
+  }
+
+  @SuppressFBWarnings("OS_OPEN_STREAM")
+  private static <T> void doWithServiceClasses(
+      Class<T> cls, ClassLoader cl, Consumer<Class<? extends T>> consumer) {
+    try (InputStream classListIs = cl.getResourceAsStream("META-INF/services/" + cls.getName())) {
+      if (classListIs == null) {
+        return;
+      }
+
+      BufferedReader r =
+          new BufferedReader(new InputStreamReader(classListIs, StandardCharsets.US_ASCII));
+      r.lines()
+          .map(
+              line -> {
+                try {
+                  return (Class<? extends T>) cl.loadClass(line);
+                } catch (ClassNotFoundException e) {
+                  throw new UndeclaredThrowableException(e);
+                }
+              })
+          .forEachOrdered(consumer);
+    } catch (IOException e) {
+      throw new UndeclaredThrowableException(e);
+    }
   }
 }

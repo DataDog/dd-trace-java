@@ -69,7 +69,7 @@ public class CallPseudoAdviceDump implements Opcodes {
       Handle handle =
           new Handle(
               Opcodes.H_INVOKESTATIC,
-              "datadog/trace/api/iast/CallSiteHelperRegistry",
+              "datadog/trace/api/iast/InvokeDynamicHelperRegistry",
               "bootstrap",
               "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;)Ljava/lang/invoke/CallSite;",
               false);

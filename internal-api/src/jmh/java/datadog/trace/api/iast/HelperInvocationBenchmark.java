@@ -48,8 +48,8 @@ public class HelperInvocationBenchmark {
     }
   }
 
-  public static class HelperContainer implements CallSiteHelperContainer {
-    @CallSiteHelper
+  public static class HelperContainer implements InvokeDynamicHelperContainer {
+    @InvokeDynamicHelper
     public static void helperMeth(Blackhole bh, String s) {
       bh.consume(s);
     }
@@ -61,8 +61,9 @@ public class HelperInvocationBenchmark {
 
     public StateClass() {
       StaticBridge.helpers = new HelpersImpl();
-      CallSiteHelperRegistry.reset();
-      CallSiteHelperRegistry.registerHelperContainer(MethodHandles.lookup(), HelperContainer.class);
+      InvokeDynamicHelperRegistry.reset();
+      InvokeDynamicHelperRegistry.registerHelperContainer(
+          MethodHandles.lookup(), HelperContainer.class);
       String cpaClassName =
           HelperInvocationBenchmark.class.getPackage().getName() + ".CallPseudoAdvice";
       try {

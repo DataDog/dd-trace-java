@@ -7,7 +7,7 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
-public @interface CallSiteHelper {
+public @interface InvokeDynamicHelper {
   /* A static method on the same class taking 0 arguments and returning a MethodHandle */
   String fallbackMethodHandleProvider() default "";
 }

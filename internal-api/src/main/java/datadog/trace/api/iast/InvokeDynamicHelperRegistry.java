@@ -14,15 +14,15 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CallSiteHelperRegistry {
-  private static final Logger LOG = LoggerFactory.getLogger(CallSiteHelperRegistry.class);
+public class InvokeDynamicHelperRegistry {
+  private static final Logger LOG = LoggerFactory.getLogger(InvokeDynamicHelperRegistry.class);
 
   private static final Map<String, MethodHandle> HELPERS = new HashMap<>();
 
   public static void registerHelperContainer(
-      MethodHandles.Lookup lookup, Class<? extends CallSiteHelperContainer> container) {
+      MethodHandles.Lookup lookup, Class<? extends InvokeDynamicHelperContainer> container) {
     for (Method declaredMethod : container.getDeclaredMethods()) {
-      CallSiteHelper annotation = declaredMethod.getAnnotation(CallSiteHelper.class);
+      InvokeDynamicHelper annotation = declaredMethod.getAnnotation(InvokeDynamicHelper.class);
       if (annotation == null) {
         continue;
       }

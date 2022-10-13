@@ -14,9 +14,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.core.DDSpan
-import org.junit.rules.TestRule
-import org.junit.runner.Description
-import org.junit.runners.model.Statement
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
 

@@ -8,8 +8,8 @@ import com.datadog.iast.model.Source;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
 import com.google.auto.service.AutoService;
-import datadog.trace.api.iast.CallSiteHelper;
-import datadog.trace.api.iast.CallSiteHelperContainer;
+import datadog.trace.api.iast.InvokeDynamicHelper;
+import datadog.trace.api.iast.InvokeDynamicHelperContainer;
 import datadog.trace.api.iast.RealCallThrowable;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -26,8 +26,8 @@ import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-@AutoService(CallSiteHelperContainer.class)
-public class StringHelperContainer implements CallSiteHelperContainer {
+@AutoService(InvokeDynamicHelperContainer.class)
+public class StringHelperContainer implements InvokeDynamicHelperContainer {
 
   private static final Object[] EMPTY = new Object[0];
 
@@ -35,7 +35,7 @@ public class StringHelperContainer implements CallSiteHelperContainer {
       Pattern.compile("%(\\d+\\$)?([-#+ 0,(\\<]*)?(\\d+)?(\\.\\d+)?([tT])?([a-zA-Z%])");
 
   /** @see String#format(String, Object...) */
-  @CallSiteHelper(fallbackMethodHandleProvider = "onStringFormatFallback")
+  @InvokeDynamicHelper(fallbackMethodHandleProvider = "onStringFormatFallback")
   public static String onStringFormat(
       @Nullable Locale l, @Nonnull String fmt, @Nullable Object[] args) {
     if (fmt == null) {

@@ -1,10 +1,11 @@
-package datadog.trace.agent.tooling.bytebuddy.csi;
+package datadog.trace.agent.tooling.bytebuddy;
 
+import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith;
+
+import datadog.trace.agent.tooling.UsesInvokeDynamicHelpers;
 import datadog.trace.agent.tooling.csi.CallSite;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.build.Plugin;
 import net.bytebuddy.description.annotation.AnnotationDescription;
@@ -20,13 +21,19 @@ import net.bytebuddy.jar.asm.ClassVisitor;
 import net.bytebuddy.jar.asm.Handle;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
-import net.bytebuddy.matcher.ElementMatchers;
 import net.bytebuddy.pool.TypePool;
 import net.bytebuddy.utility.OpenedClassReader;
 
-public class CsiAdviceTransformationPlugin extends Plugin.ForElementMatcher {
-  public CsiAdviceTransformationPlugin(File targetDir) {
-    super(ElementMatchers.isAnnotatedWith(CallSite.class));
+/**
+ * Looks for users of invokedynamic helpers and replaces static calls to them with invokedynamic
+ * calls.
+ *
+ * <p>Currently, it looks for classes annotated with {@link CallSite} and {@link
+ * UsesInvokeDynamicHelpers}.
+ */
+public class InvokeDynamicHelperUsersPlugin extends Plugin.ForElementMatcher {
+  public InvokeDynamicHelperUsersPlugin(File targetDir) {
+    super(isAnnotatedWith(CallSite.class).or(isAnnotatedWith(UsesInvokeDynamicHelpers.class)));
   }
 
   @Override
@@ -61,29 +68,15 @@ public class CsiAdviceTransformationPlugin extends Plugin.ForElementMatcher {
         MethodList<?> methods,
         int writerFlags,
         int readerFlags) {
-      List<MethodDescription> relevantMethods = new ArrayList<>();
-      for (MethodDescription md : methods) {
-        for (AnnotationDescription ann : md.getDeclaredAnnotations()) {
-          if (ann.getAnnotationType()
-              .getName()
-              .startsWith("datadog.trace.agent.tooling.csi.CallSite$")) {
-            relevantMethods.add(md);
-          }
-        }
-      }
-
-      return new ReplaceHelperCallsClassVisitor(classVisitor, relevantMethods, typePool);
+      return new ReplaceHelperCallsClassVisitor(classVisitor, typePool);
     }
   }
 
   public static class ReplaceHelperCallsClassVisitor extends ClassVisitor {
-    private final List<MethodDescription> relevantMethods;
     private final TypePool typePool;
 
-    protected ReplaceHelperCallsClassVisitor(
-        ClassVisitor classVisitor, List<MethodDescription> methods, TypePool typePool) {
+    protected ReplaceHelperCallsClassVisitor(ClassVisitor classVisitor, TypePool typePool) {
       super(OpenedClassReader.ASM_API, classVisitor);
-      this.relevantMethods = methods;
       this.typePool = typePool;
     }
 
@@ -91,21 +84,7 @@ public class CsiAdviceTransformationPlugin extends Plugin.ForElementMatcher {
     public MethodVisitor visitMethod(
         int access, String name, String descriptor, String signature, String[] exceptions) {
       MethodVisitor superMV = super.visitMethod(access, name, descriptor, signature, exceptions);
-      if (isRelevantMethod(name, descriptor)) {
-        return new ReplaceHelperCallsMethodVisitor(api, superMV, typePool);
-      } else {
-        return superMV;
-      }
-    }
-
-    private boolean isRelevantMethod(String name, String descriptor) {
-      for (MethodDescription meth : this.relevantMethods) {
-        if (meth.getName().equals(name) && meth.getDescriptor().equals(descriptor)) {
-          return true;
-        }
-      }
-
-      return false;
+      return new ReplaceHelperCallsMethodVisitor(api, superMV, typePool);
     }
   }
 
@@ -131,7 +110,7 @@ public class CsiAdviceTransformationPlugin extends Plugin.ForElementMatcher {
         super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
         return;
       }
-      if (!isAnnotatedWithCallSiteHelper(referredToMeth)) {
+      if (!isAnnotatedWithInvokeDynamicHelper(referredToMeth)) {
         super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
         return;
       }
@@ -139,7 +118,7 @@ public class CsiAdviceTransformationPlugin extends Plugin.ForElementMatcher {
       Handle bootstrapHandle =
           new Handle(
               Opcodes.H_INVOKESTATIC,
-              "datadog/trace/api/iast/CallSiteHelperRegistry",
+              "datadog/trace/api/iast/InvokeDynamicHelperRegistry",
               "bootstrap",
               "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;)Ljava/lang/invoke/CallSite;",
               false);
@@ -147,9 +126,11 @@ public class CsiAdviceTransformationPlugin extends Plugin.ForElementMatcher {
       super.visitInvokeDynamicInsn(name, descriptor, bootstrapHandle, helperKey);
     }
 
-    private boolean isAnnotatedWithCallSiteHelper(MethodDescription referredToMeth) {
+    private boolean isAnnotatedWithInvokeDynamicHelper(MethodDescription referredToMeth) {
       for (AnnotationDescription ann : referredToMeth.getDeclaredAnnotations()) {
-        if (ann.getAnnotationType().getName().equals("datadog.trace.api.iast.CallSiteHelper")) {
+        if (ann.getAnnotationType()
+            .getName()
+            .equals("datadog.trace.api.iast.InvokeDynamicHelper")) {
           return true;
         }
       }
