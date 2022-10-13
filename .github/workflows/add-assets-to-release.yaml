@@ -39,16 +39,11 @@ jobs:
               release_id: `${RELEASE_ID}`,
               name: `${VERSION}`
             })        
-      - name: Return clean version as output
-        id: version_name
-        run: echo "version=${VERSION}" >> $GITHUB_OUTPUT
-    outputs:
-      ver: ${{ steps.version_name.outputs.version }}
   dd-java-agent:
-    needs: test-and-set-version
+    needs: [get-version, test-and-set-version]
     runs-on: ubuntu-latest
     env: 
-      VERSION: ${{needs.test-and-set-version.outputs.ver}}
+      VERSION: ${{needs.get-version.outputs.ver}}
     steps:
       - name: Download from Sonatype
         run: |
@@ -73,10 +68,10 @@ jobs:
           asset_name: dd-java-agent.jar
           asset_content_type: application/java-archive
   dd-trace-api:
-    needs: test-and-set-version
+    needs: [get-version, test-and-set-version]
     runs-on: ubuntu-latest
     env: 
-      VERSION: ${{needs.test-and-set-version.outputs.ver}}
+      VERSION: ${{needs.get-version.outputs.ver}}
     steps:
       - name: Download from Sonatype
         run: |
@@ -91,10 +86,10 @@ jobs:
           asset_name: dd-trace-api-${{ env.VERSION }}.jar
           asset_content_type: application/java-archive
   dd-trace-ot:
-    needs: test-and-set-version
+    needs: [get-version, test-and-set-version]
     runs-on: ubuntu-latest
     env: 
-      VERSION: ${{needs.test-and-set-version.outputs.ver}}
+      VERSION: ${{needs.get-version.outputs.ver}}
     steps:
       - name: Download from Sonatype
         run: |
