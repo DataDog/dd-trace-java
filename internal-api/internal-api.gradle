@@ -83,4 +83,13 @@ dependencies {
 jmh {
   jmhVersion = '1.32'
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+  if (System.getenv('TEST_EXECUTABLE')) {
+    jvm = System.getenv('TEST_EXECUTABLE')
+  }
+  if (project.hasProperty('jvmArgs')) {
+    jvmArgs = " ${project.'jvmArgs'}"
+  }
+  if (project.hasProperty('include')) {
+    includes = [project.include]
+  }
 }
