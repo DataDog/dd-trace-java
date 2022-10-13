@@ -175,7 +175,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
     assertCaptureArgs(context, "argInt", "int", "42");
     assertCaptureArgs(context, "argStr", "java.lang.String", "foobar");
     assertCaptureArgs(context, "argDouble", "double", "3.42");
-    assertCaptureArgs(context, "argMap", "java.util.Map", "{key1=val1, key2=val2, key3=val3}");
+    assertCaptureArgs(context, "argMap", "java.util.HashMap", "{key1=val1, key2=val2, key3=val3}");
     assertCaptureArgs(context, "argVar", "java.lang.String[]", "[var1, var2, var3]");
   }
 

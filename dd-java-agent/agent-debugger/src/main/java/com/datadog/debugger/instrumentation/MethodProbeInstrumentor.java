@@ -283,12 +283,12 @@ public final class MethodProbeInstrumentor extends Instrumentor {
       // bail out if no args
       return;
     }
-    insnList.add(new InsnNode(Opcodes.DUP));
-    // stack: [capturedcontext, capturedcontext]
-    ldc(insnList, argTypes.length);
-    // stack: [capturedcontext, capturedcontext, int]
-    insnList.add(new TypeInsnNode(Opcodes.ANEWARRAY, CAPTURED_VALUE.getInternalName()));
-    // stack: [capturedcontext, capture, array]
+    insnList.add(new InsnNode(Opcodes.DUP)); // stack: [capturedcontext, capturedcontext]
+    ldc(insnList, argTypes.length); // stack: [capturedcontext, capturedcontext, int]
+    insnList.add(
+        new TypeInsnNode(
+            Opcodes.ANEWARRAY,
+            CAPTURED_VALUE.getInternalName())); // stack: [capturedcontext, capture, array]
     int counter = 0;
     int slot = isStatic ? 0 : 1;
     for (Type argType : argTypes) {
@@ -297,23 +297,31 @@ public final class MethodProbeInstrumentor extends Instrumentor {
         // if argument names are not resolved correctly let's assign p+arg_index
         currentArgName = "p" + counter;
       }
-      insnList.add(new InsnNode(Opcodes.DUP));
-      // stack: [capturedcontext, capturedcontext, array, array]
-      ldc(insnList, counter++);
-      // stack: [capturedcontext, capturedcontext, array, array, int]
-      ldc(insnList, currentArgName);
-      // stack: [capturedcontext, capturedcontext, array, array, int, string]
-      InsnList loadArg = new InsnList();
-      loadArg.add(new VarInsnNode(argType.getOpcode(Opcodes.ILOAD), slot));
-      collectDynamicType(argType.getClassName(), insnList, loadArg);
-      insnList.add(new VarInsnNode(argType.getOpcode(Opcodes.ILOAD), slot));
-      // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name, arg]
-      tryBox(argType, insnList);
-      // stack: [capturedcontext, capturedcontext, array, array, int, type_name, object]
-      addCapturedValueOf(insnList, probe.getCapture());
-      // stack: [capturedcontext, capturedcontext, array, array, int, typed_value]
-      insnList.add(new InsnNode(Opcodes.AASTORE));
-      // stack: [capturedcontext, capturedcontext, array]
+      insnList.add(
+          new InsnNode(Opcodes.DUP)); // stack: [capturedcontext, capturedcontext, array, array]
+      ldc(insnList, counter++); // stack: [capturedcontext, capturedcontext, array, array, int]
+      ldc(
+          insnList,
+          currentArgName); // stack: [capturedcontext, capturedcontext, array, array, int, string]
+      ldc(
+          insnList,
+          argType.getClassName()); // stack: [capturedcontext, capturedcontext, array, array, int,
+      // string, type_name]
+      insnList.add(
+          new VarInsnNode(
+              argType.getOpcode(Opcodes.ILOAD),
+              slot)); // stack: [capturedcontext, capturedcontext, array, array, int, string,
+      // type_name, arg]
+      tryBox(
+          argType,
+          insnList); // stack: [capturedcontext, capturedcontext, array, array, int, type_name,
+      // object]
+      addCapturedValueOf(
+          insnList,
+          probe.getCapture()); // stack: [capturedcontext, capturedcontext, array, array, int,
+      // typed_value]
+      insnList.add(
+          new InsnNode(Opcodes.AASTORE)); // stack: [capturedcontext, capturedcontext, array]
       slot += argType.getSize();
     }
     invokeVirtual(
@@ -321,38 +329,7 @@ public final class MethodProbeInstrumentor extends Instrumentor {
         CAPTURE_CONTEXT_TYPE,
         "addArguments",
         Type.VOID_TYPE,
-        Types.asArray(CAPTURED_VALUE, 1));
-    // stack: [capturedcontext]
-  }
-
-  private void collectDynamicType(String declaredType, InsnList insnList, InsnList loadingObjNode) {
-    // if primitive type use the declared type, otherwise use the dynamic type
-    if (Types.isPrimitive(declaredType)) {
-      ldc(insnList, declaredType);
-      // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name]
-      return;
-    }
-    //  (obj != null) ? obj.getClass().getName() : declaredType
-    insnList.add(loadingObjNode);
-    // stack: [capturedcontext, capturedcontext, array, array, int, string, obj]
-    insnList.add(new InsnNode(Opcodes.DUP));
-    // stack: [capturedcontext, capturedcontext, array, array, int, string, obj, obj]
-    LabelNode targetNode = new LabelNode();
-    insnList.add(new JumpInsnNode(Opcodes.IFNULL, targetNode));
-    // stack: [capturedcontext, capturedcontext, array, array, int, string, obj]
-    invokeVirtual(insnList, OBJECT_TYPE, "getClass", CLASS_TYPE);
-    // stack: [capturedcontext, capturedcontext, array, array, int, string, class]
-    invokeVirtual(insnList, CLASS_TYPE, "getName", STRING_TYPE);
-    // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name]
-    LabelNode gotoNode = new LabelNode();
-    insnList.add(new JumpInsnNode(Opcodes.GOTO, gotoNode));
-    insnList.add(targetNode);
-    // stack: [capturedcontext, capturedcontext, array, array, int, string, obj]
-    insnList.add(new InsnNode(Opcodes.POP));
-    // stack: [capturedcontext, capturedcontext, array, array, int, string]
-    ldc(insnList, declaredType);
-    // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name]
-    insnList.add(gotoNode);
+        Types.asArray(CAPTURED_VALUE, 1)); // // stack: [capturedcontext]
   }
 
   private void tryBox(Type type, InsnList insnList) {
@@ -369,6 +346,7 @@ public final class MethodProbeInstrumentor extends Instrumentor {
       // method capture, local variables are not initialized - bail out
       return;
     }
+
     if (methodNode.localVariables == null || methodNode.localVariables.isEmpty()) {
       if (!Config.get().isDebuggerInstrumentTheWorld()) {
         reportWarning("Missing local variable debug info");
@@ -376,6 +354,7 @@ public final class MethodProbeInstrumentor extends Instrumentor {
       // no local variables info - bail out
       return;
     }
+
     List<LocalVariableNode> applicableVars = new ArrayList<>();
     for (LocalVariableNode variableNode : methodNode.localVariables) {
       int idx = variableNode.index - localVarBaseOffset;
@@ -383,41 +362,49 @@ public final class MethodProbeInstrumentor extends Instrumentor {
         applicableVars.add(variableNode);
       }
     }
-    insnList.add(new InsnNode(Opcodes.DUP));
-    // stack: [capturedcontext, capturedcontext]
-    ldc(insnList, applicableVars.size());
-    // stack: [capturedcontext, capturedcontext, int]
-    insnList.add(new TypeInsnNode(Opcodes.ANEWARRAY, CAPTURED_VALUE.getInternalName()));
-    // stack: [capturedcontext, capturedcontext, array]
+
+    insnList.add(new InsnNode(Opcodes.DUP)); // stack: [capturedcontext, capturedcontext]
+    ldc(insnList, applicableVars.size()); // stack: [capturedcontext, capturedcontext, int]
+    insnList.add(
+        new TypeInsnNode(
+            Opcodes.ANEWARRAY,
+            CAPTURED_VALUE.getInternalName())); // stack: [capturedcontext, capturedcontext, array]
     int idx = 0;
     for (LocalVariableNode variableNode : applicableVars) {
-      insnList.add(new InsnNode(Opcodes.DUP));
-      // stack: [capturedcontext, capturedcontext, array, array]
-      ldc(insnList, idx++);
-      // stack: [capturedcontext, capturedcontext, array, array, int]
-      ldc(insnList, variableNode.name);
-      // stack: [capturedcontext, capturedcontext, array, array, int, name]
+      insnList.add(
+          new InsnNode(Opcodes.DUP)); // stack: [capturedcontext, capturedcontext, array, array]
+      ldc(insnList, idx++); // stack: [capturedcontext, capturedcontext, array, array, int]
+      ldc(
+          insnList,
+          variableNode.name); // stack: [capturedcontext, capturedcontext, array, array, int, name]
       Type varType = Type.getType(variableNode.desc);
-      InsnList loadVar = new InsnList();
-      loadVar.add(new VarInsnNode(varType.getOpcode(Opcodes.ILOAD), variableNode.index));
-      collectDynamicType(varType.getClassName(), insnList, loadVar);
-      // stack: [capturedcontext, capturedcontext, array, array, int, name, type_name]
-      insnList.add(new VarInsnNode(varType.getOpcode(Opcodes.ILOAD), variableNode.index));
-      // stack: [capturedcontext, capturedcontext, array, array, int, name, type_name, value]
-      tryBox(varType, insnList);
-      // stack: [capturedcontext, capturedcontext, array, array, int, name, type_name, object]
-      addCapturedValueOf(insnList, probe.getCapture());
-      // stack: [capturedcontext, capturedcontext, array, array, int, typed_value]
-      insnList.add(new InsnNode(Opcodes.AASTORE));
-      // stack: [capturedcontext, capturedcontext, array]
+      ldc(
+          insnList,
+          Type.getType(variableNode.desc)
+              .getClassName()); // stack: [capturedcontext, capturedcontext, array, array, int,
+      // name, type_name]
+      insnList.add(
+          new VarInsnNode(
+              varType.getOpcode(Opcodes.ILOAD),
+              variableNode
+                  .index)); // stack: [capturedcontext, capturedcontext, array, array, int, name,
+      // type_name, value]
+      tryBox(
+          varType, insnList); // stack: [capturedcontext, capturedcontext, array, array, int, name,
+      // type_name, object]
+      addCapturedValueOf(
+          insnList,
+          probe.getCapture()); // stack: [capturedcontext, capturedcontext, array, array, int,
+      // typed_value]
+      insnList.add(
+          new InsnNode(Opcodes.AASTORE)); // stack: [capturedcontext, capturedcontext, array]
     }
     invokeVirtual(
         insnList,
         CAPTURE_CONTEXT_TYPE,
         "addLocals",
         Type.VOID_TYPE,
-        Types.asArray(CAPTURED_VALUE, 1));
-    // stack: [capturedcontext]
+        Types.asArray(CAPTURED_VALUE, 1)); // // stack: [capturedcontext]
   }
 
   private void collectReturnValue(AbstractInsnNode location, InsnList insnList) {
@@ -436,40 +423,49 @@ public final class MethodProbeInstrumentor extends Instrumentor {
     // expected stack top is [ret_value, snapshot, capturedcontext]
     int snapshotVar = newVar(SNAPSHOT_TYPE);
     int captureVar = newVar(CAPTURE_CONTEXT_TYPE);
-    insnList.add(new VarInsnNode(Opcodes.ASTORE, captureVar));
-    // stack: [ret_value, snapshot]
-    insnList.add(new VarInsnNode(Opcodes.ASTORE, snapshotVar));
-    // stack: [ret_value]
+    insnList.add(new VarInsnNode(Opcodes.ASTORE, captureVar)); // stack: [ret_value, snapshot]
+    insnList.add(new VarInsnNode(Opcodes.ASTORE, snapshotVar)); // stack: [ret_value]
     Type returnType = Type.getReturnType(methodNode.desc);
     int retVar = newVar(returnType);
     if (returnType.getSize() == 2) {
       insnList.add(new InsnNode(Opcodes.DUP2));
     } else {
       insnList.add(new InsnNode(Opcodes.DUP));
-    }
-    // stack: [ret_value, ret_value]
-    insnList.add(new VarInsnNode(returnType.getOpcode(Opcodes.ISTORE), retVar));
-    // stack: [ret_value]
-    insnList.add(new VarInsnNode(Opcodes.ALOAD, snapshotVar));
-    // stack: [ret_value, snapshot]
-    insnList.add(new VarInsnNode(Opcodes.ALOAD, captureVar));
-    // stack: [ret_value, snapshot, capturedcontext]
-    insnList.add(new InsnNode(Opcodes.DUP));
-    // stack: [ret_value, snapshot, capturedcontext, capturedcontext]
-    ldc(insnList, null);
-    // stack: [ret_value, snapshot, capturedcontext, capturedcontext, null]
-    InsnList loadReturnValue = new InsnList();
-    loadReturnValue.add(new VarInsnNode(returnType.getOpcode(Opcodes.ILOAD), retVar));
-    collectDynamicType(returnType.getClassName(), insnList, loadReturnValue);
-    // stack: [ret_value, snapshot, capturedcontext, capturedcontext, null, type_name]
-    insnList.add(new VarInsnNode(returnType.getOpcode(Opcodes.ILOAD), retVar));
-    // stack: [ret_value, snapshot, capturedcontext, capturedcontext, null, type_name, ret_value]
-    tryBox(returnType, insnList);
-    // stack: [ret_value, snapshot, capturedcontext, capturedcontext, null, type_name, ret_value]
-    addCapturedValueOf(insnList, probe.getCapture());
-    // stack: [ret_value, snapshot, capturedcontext, capturedcontext, typed_value]
-    invokeVirtual(insnList, CAPTURE_CONTEXT_TYPE, "addReturn", Type.VOID_TYPE, CAPTURED_VALUE);
-    // stack: [ret_value, snapshot, capturedcontext]
+    } // stack: [ret_value, ret_value]
+    insnList.add(
+        new VarInsnNode(returnType.getOpcode(Opcodes.ISTORE), retVar)); // stack: [ret_value]
+    insnList.add(new VarInsnNode(Opcodes.ALOAD, snapshotVar)); // stack: [ret_value, snapshot]
+    insnList.add(
+        new VarInsnNode(
+            Opcodes.ALOAD, captureVar)); // stack: [ret_value, snapshot, capturedcontext]
+    insnList.add(
+        new InsnNode(
+            Opcodes.DUP)); // stack: [ret_value, snapshot, capturedcontext, capturedcontext]
+    ldc(insnList, null); // // stack: [ret_value, snapshot, capturedcontext, capturedcontext, null]
+    ldc(
+        insnList,
+        returnType
+            .getClassName()); // stack: [ret_value, snapshot, capturedcontext, capturedcontext,
+    // null, type_name]
+    insnList.add(
+        new VarInsnNode(
+            returnType.getOpcode(Opcodes.ILOAD),
+            retVar)); // stack: [ret_value, snapshot, capturedcontext, capturedcontext, null,
+    // type_name, ret_value]
+    tryBox(
+        returnType,
+        insnList); // stack: [ret_value, snapshot, capturedcontext, capturedcontext, null,
+    // type_name, ret_value]
+    addCapturedValueOf(
+        insnList,
+        probe.getCapture()); // stack: [ret_value, snapshot, capturedcontext, capturedcontext,
+    // typed_value]
+    invokeVirtual(
+        insnList,
+        CAPTURE_CONTEXT_TYPE,
+        "addReturn",
+        Type.VOID_TYPE,
+        CAPTURED_VALUE); // // stack: [ret_value, snapshot, capturedcontext]
   }
 
   private void collectExceptionValue(AbstractInsnNode location, InsnList insnList) {
@@ -532,12 +528,12 @@ public final class MethodProbeInstrumentor extends Instrumentor {
       // bail out if no fields
       return;
     }
-    insnList.add(new InsnNode(Opcodes.DUP));
-    // stack: [capturedcontext, capturedcontext]
-    ldc(insnList, fieldCount);
-    // stack: [capturedcontext, capturedcontext, int]
-    insnList.add(new TypeInsnNode(Opcodes.ANEWARRAY, CAPTURED_VALUE.getInternalName()));
-    // stack: [capturedcontext, capturedcontext, array]
+    insnList.add(new InsnNode(Opcodes.DUP)); // stack: [capturedcontext, capturedcontext]
+    ldc(insnList, fieldCount); // stack: [capturedcontext, capturedcontext, int]
+    insnList.add(
+        new TypeInsnNode(
+            Opcodes.ANEWARRAY,
+            CAPTURED_VALUE.getInternalName())); // stack: [capturedcontext, capturedcontext, array]
     int counter = 0;
     List<FieldNode> fieldList = isStatic ? new ArrayList<>() : new ArrayList<>(classNode.fields);
     if (correlationAvailable) {
@@ -552,71 +548,98 @@ public final class MethodProbeInstrumentor extends Instrumentor {
       if (isStaticField(fieldNode)) {
         continue;
       }
-      insnList.add(new InsnNode(Opcodes.DUP));
-      // stack: [capturedcontext, capturedcontext, array, array]
-      ldc(insnList, counter++);
-      // stack: [capturedcontext, capturedcontext, array, array, int]
-      ldc(insnList, fieldNode.name);
-      // stack: [capturedcontext, capturedcontext, array, array, int, string]
+      insnList.add(
+          new InsnNode(Opcodes.DUP)); // stack: [capturedcontext, capturedcontext, array, array]
+      ldc(insnList, counter++); // stack: [capturedcontext, capturedcontext, array, array, int]
+      ldc(
+          insnList,
+          fieldNode.name); // stack: [capturedcontext, capturedcontext, array, array, int, string]
       Type fieldType = Type.getType(fieldNode.desc);
-      if ("dd.trace_id".equals(fieldNode.name) || "dd.span_id".equals(fieldNode.name)) {
-        ldc(insnList, fieldType.getClassName());
-      } else {
-        InsnList loadField = new InsnList();
-        loadField.add(new VarInsnNode(Opcodes.ALOAD, 0));
-        loadField.add(
-            new FieldInsnNode(Opcodes.GETFIELD, classNode.name, fieldNode.name, fieldNode.desc));
-        collectDynamicType(fieldType.getClassName(), insnList, loadField);
-      }
-      // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name]
+      ldc(
+          insnList,
+          fieldType.getClassName()); // stack: [capturedcontext, capturedcontext, array, array, int,
+      // string, type_name]
       switch (fieldNode.name) {
         case "dd.trace_id":
           {
-            invokeStatic(insnList, CORRELATION_ACCESS_TYPE, "instance", CORRELATION_ACCESS_TYPE);
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
+            invokeStatic(
+                insnList,
+                CORRELATION_ACCESS_TYPE,
+                "instance",
+                Type.getType(
+                    CorrelationAccess
+                        .class)); // stack: [capturedcontext, capturedcontext, array, array, int,
+            // string, type_name,
             // access]
-            invokeVirtual(insnList, CORRELATION_ACCESS_TYPE, "getTraceId", STRING_TYPE);
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
+            invokeVirtual(
+                insnList,
+                CORRELATION_ACCESS_TYPE,
+                "getTraceId",
+                Type.getType(
+                    String.class)); // stack: [capturedcontext, capturedcontext, array, array, int,
+            // string, type_name,
             // field_value]
             break;
           }
         case "dd.span_id":
           {
-            invokeStatic(insnList, CORRELATION_ACCESS_TYPE, "instance", CORRELATION_ACCESS_TYPE);
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
+            invokeStatic(
+                insnList,
+                CORRELATION_ACCESS_TYPE,
+                "instance",
+                Type.getType(
+                    CorrelationAccess
+                        .class)); // stack: [capturedcontext, capturedcontext, array, array, int,
+            // string, type_name,
             // access]
-            invokeVirtual(insnList, CORRELATION_ACCESS_TYPE, "getSpanId", STRING_TYPE);
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
+            invokeVirtual(
+                insnList,
+                CORRELATION_ACCESS_TYPE,
+                "getSpanId",
+                Type.getType(
+                    String.class)); // stack: [capturedcontext, capturedcontext, array, array, int,
+            // string, type_name,
             // field_value]
             break;
           }
         default:
           {
-            insnList.add(new VarInsnNode(Opcodes.ALOAD, 0));
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name, this]
+            insnList.add(
+                new VarInsnNode(
+                    Opcodes.ALOAD,
+                    0)); // stack: [capturedcontext, capturedcontext, array, array, int, string,
+            // type_name, this]
             insnList.add(
                 new FieldInsnNode(
-                    Opcodes.GETFIELD, classNode.name, fieldNode.name, fieldNode.desc));
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
+                    Opcodes.GETFIELD,
+                    classNode.name,
+                    fieldNode.name,
+                    fieldNode
+                        .desc)); // stack: [capturedcontext, capturedcontext, array, array, int,
+            // string, type_name,
             // field_value]
           }
       }
       // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
       // field_value]
-      tryBox(fieldType, insnList);
-      // stack: [capturedcontext, capturedcontext, array, array, int, type_name, object]
-      addCapturedValueOf(insnList, probe.getCapture());
-      // stack: [capturedcontext, capturedcontext, array, array, int, typed_value]
-      insnList.add(new InsnNode(Opcodes.AASTORE));
-      // stack: [capturedcontext, capturedcontext, array]
+
+      tryBox(
+          fieldType,
+          insnList); // stack: [capturedcontext, capturedcontext, array, array, int, type_name,
+      // object]
+      addCapturedValueOf(
+          insnList,
+          probe.getCapture()); // stack: [capturedcontext, capturedcontext, array, array, int,
+      // typed_value]
+      insnList.add(
+          new InsnNode(Opcodes.AASTORE)); // stack: [capturedcontext, capturedcontext, array]
     }
     invokeVirtual(
         insnList,
         CAPTURE_CONTEXT_TYPE,
         "addFields",
         Type.VOID_TYPE,
-        Types.asArray(CAPTURED_VALUE, 1));
-    // stack: [capturedcontext]
+        Types.asArray(CAPTURED_VALUE, 1)); // stack: [capturedcontext]
   }
 
   private boolean isInScope(LocalVariableNode variableNode, AbstractInsnNode location) {

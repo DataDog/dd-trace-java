@@ -54,7 +54,7 @@ public class TransformerDefinitionMatcherTest {
         matcher.match(
             null,
             getClassPath(String.class),
-            String.class.getName(),
+            String.class.getTypeName(),
             getClassFileBytes(String.class));
     assertEquals(1, probeDefinitions.size());
     assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());

@@ -262,7 +262,7 @@ public class ProbeStatus {
               probeId,
               Status.ERROR,
               new ProbeException(
-                  ex.getClass().getName(),
+                  ex.getClass().getTypeName(),
                   ex.getMessage(),
                   Arrays.stream(ex.getStackTrace())
                       .map(CapturedStackFrame::from)
@@ -283,7 +283,7 @@ public class ProbeStatus {
   public static class DiagnosticsFactory implements JsonAdapter.Factory {
     @Override
     public JsonAdapter<?> create(Type type, Set<? extends Annotation> set, Moshi moshi) {
-      if (type.getTypeName().equals(Diagnostics.class.getName())) {
+      if (type.getTypeName().equals(Diagnostics.class.getTypeName())) {
         JsonAdapter<Diagnostics> delegate = moshi.nextAdapter(this, type, set);
         return new DiagnosticsWrapperAdapter(delegate);
       }
