@@ -6,6 +6,7 @@ import datadog.trace.bootstrap.debugger.Snapshot.CapturedValue;
 import datadog.trace.bootstrap.debugger.Snapshot.ProbeLocation;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -13,7 +14,7 @@ import java.util.Map.Entry;
 /** Helper class for generating snapshot summaries */
 public class SnapshotSummaryBuilder {
   private final Snapshot.ProbeDetails probe;
-  private String arguments = "";
+  private String arguments;
   private String method;
   private String returnValue;
   private String locals;
@@ -30,7 +31,7 @@ public class SnapshotSummaryBuilder {
       arguments = formatCapturedValues(entry.getArguments());
     }
     if (entry.getLocals() != null) {
-      locals = formatCapturedValues(entry.getLocals());
+      locals = formatCapturedValues(removeReturnFromLocals(entry.getLocals()));
     }
   }
 
@@ -56,7 +57,7 @@ public class SnapshotSummaryBuilder {
       arguments = formatCapturedValues(line.getArguments());
     }
     if (line.getLocals() != null) {
-      locals = formatCapturedValues(line.getLocals());
+      locals = formatCapturedValues(removeReturnFromLocals(line.getLocals()));
     }
   }
 
@@ -71,7 +72,9 @@ public class SnapshotSummaryBuilder {
     }
     sb.append(method);
     sb.append("(");
-    sb.append(arguments);
+    if (arguments != null) {
+      sb.append(arguments);
+    }
     sb.append(")");
     if (returnValue != null) {
       sb.append(": ").append(returnValue);
@@ -148,5 +151,12 @@ public class SnapshotSummaryBuilder {
         .sorted(Entry.comparingByKey())
         .map(entry -> entry.getKey() + "=" + entry.getValue().getValue())
         .collect(joining(", "));
+  }
+
+  private static Map<String, CapturedValue> removeReturnFromLocals(
+      Map<String, CapturedValue> locals) {
+    Map<String, CapturedValue> localMap = new HashMap<>(locals);
+    localMap.remove("@return");
+    return localMap;
   }
 }
