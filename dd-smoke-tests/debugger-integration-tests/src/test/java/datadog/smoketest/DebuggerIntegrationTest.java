@@ -8,10 +8,10 @@ import static org.junit.Assert.assertTrue;
 
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.SnapshotProbe;
-import com.datadog.debugger.util.TagsHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.util.TagsHelper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
