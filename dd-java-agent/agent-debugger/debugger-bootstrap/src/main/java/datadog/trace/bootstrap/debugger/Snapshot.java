@@ -37,6 +37,7 @@ public class Snapshot {
   private final transient Set<String> capturingProbeIds = new HashSet<>();
   private String traceId; // trace_id
   private String spanId; // span_id
+  private final transient SnapshotSummaryBuilder summaryBuilder;
 
   public Snapshot(java.lang.Thread thread, ProbeDetails probe) {
     this.startTs = System.nanoTime();
@@ -46,6 +47,7 @@ public class Snapshot {
     this.language = LANGUAGE;
     this.thread = new CapturedThread(thread);
     this.probe = probe;
+    this.summaryBuilder = new SnapshotSummaryBuilder(probe);
     addCapturingProbeId(probe);
   }
 
@@ -73,6 +75,7 @@ public class Snapshot {
     this.thread = thread;
     this.traceId = traceId;
     this.spanId = spanId;
+    this.summaryBuilder = new SnapshotSummaryBuilder(probeDetails);
     addCapturingProbeId(probe);
   }
 
@@ -83,6 +86,7 @@ public class Snapshot {
   }
 
   public void setEntry(CapturedContext context) {
+    summaryBuilder.addEntry(context);
     if (checkCapture(context)) {
       captures.setEntry(context);
     }
@@ -91,12 +95,14 @@ public class Snapshot {
   public void setExit(CapturedContext context) {
     duration = System.nanoTime() - startTs;
     context.addExtension(ValueReferences.DURATION_EXTENSION_NAME, duration);
+    summaryBuilder.addExit(context);
     if (checkCapture(context)) {
       captures.setReturn(context);
     }
   }
 
   public void addLine(CapturedContext context, int line) {
+    summaryBuilder.addLine(context);
     if (checkCapture(context)) {
       captures.addLine(line, context);
     }
@@ -154,6 +160,10 @@ public class Snapshot {
 
   public String getSpanId() {
     return spanId;
+  }
+
+  public String getSummary() {
+    return summaryBuilder.build();
   }
 
   public void commit() {
@@ -257,6 +267,7 @@ public class Snapshot {
       }
       stack.add(CapturedStackFrame.from(ste));
     }
+    summaryBuilder.addStack(stack);
   }
 
   public enum Kind {

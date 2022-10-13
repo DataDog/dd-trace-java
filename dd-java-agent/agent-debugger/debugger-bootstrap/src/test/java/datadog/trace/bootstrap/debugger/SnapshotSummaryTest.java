@@ -1,12 +1,7 @@
-package com.datadog.debugger.util;
+package datadog.trace.bootstrap.debugger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.datadog.debugger.agent.DenyListHelper;
-import com.datadog.debugger.agent.JsonSnapshotSerializer;
-import datadog.trace.bootstrap.debugger.CapturedStackFrame;
-import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.bootstrap.debugger.Snapshot.CapturedContext;
 import datadog.trace.bootstrap.debugger.Snapshot.CapturedValue;
 import datadog.trace.bootstrap.debugger.Snapshot.ProbeDetails;
@@ -18,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class SnapshotSummaryTest {
@@ -32,17 +26,10 @@ public class SnapshotSummaryTest {
     DebuggerContext.initSnapshotSerializer(null);
   }
 
-  @BeforeEach
-  public void setup() {
-    // initialise the deny list so the ValueConverter works with most classes
-    DebuggerContext.initClassFilter(new DenyListHelper(null));
-    DebuggerContext.initSnapshotSerializer(new JsonSnapshotSerializer());
-  }
-
   @Test
   public void testSummaryEmptySnapshot() {
     Snapshot snapshot = new Snapshot(Thread.currentThread(), PROBE_DETAILS);
-    assertEquals("SomeClass.someMethod()", SnapshotSummary.formatMessage(snapshot));
+    assertEquals("SomeClass.someMethod()", snapshot.getSummary());
   }
 
   @Test
@@ -61,15 +48,14 @@ public class SnapshotSummaryTest {
     snapshot.setEntry(entry);
     assertEquals(
         "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c], arg4={foo=bar})",
-        SnapshotSummary.formatMessage(snapshot));
+        snapshot.getSummary());
 
     CapturedContext exit = new CapturedContext();
     exit.addLocals(new Snapshot.CapturedValue[] {CapturedValue.of("@return", "double", 2.0)});
     snapshot.setExit(exit);
     assertEquals(
-        "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c], arg4={foo=bar}): 2.0\n"
-            + "@return=2.0",
-        SnapshotSummary.formatMessage(snapshot));
+        "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c], arg4={foo=bar}): 2.0",
+        snapshot.getSummary());
   }
 
   @Test
@@ -82,17 +68,10 @@ public class SnapshotSummaryTest {
           Snapshot.CapturedValue.of("arg2", "int", 42),
           Snapshot.CapturedValue.of("arg3", List.class.getName(), Arrays.asList("a", "b", "c"))
         });
-    entry.addLocals(
-        new Snapshot.CapturedValue[] {
-          Snapshot.CapturedValue.of("str", String.class.getName(), "this is a local string"),
-          Snapshot.CapturedValue.of("i", "int", 1001),
-          Snapshot.CapturedValue.of("list", List.class.getName(), Arrays.asList("1", "2", "3"))
-        });
     snapshot.setEntry(entry);
     assertEquals(
-        "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c])\n"
-            + "i=1001, list=[1, 2, 3], str=this is a local string",
-        SnapshotSummary.formatMessage(snapshot));
+        "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c])",
+        snapshot.getSummary());
 
     CapturedContext exit = new CapturedContext();
     exit.addLocals(
@@ -105,8 +84,8 @@ public class SnapshotSummaryTest {
     snapshot.setExit(exit);
     assertEquals(
         "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c]): 2.0\n"
-            + "@return=2.0, i=1001, list=[1, 2, 3], str=this is a local string",
-        SnapshotSummary.formatMessage(snapshot));
+            + "i=1001, list=[1, 2, 3], str=this is a local string",
+        snapshot.getSummary());
   }
 
   @Test
@@ -134,23 +113,24 @@ public class SnapshotSummaryTest {
           Snapshot.CapturedValue.of("arg2", "int", 42),
         });
     snapshot.addLine(lineCapture, 23);
+    snapshot.commit();
 
     // this is intentionally different from PROBE_DETAILS, the stacktrace should take precedence
     assertEquals(
         "SnapshotSummaryTest.testSummaryLineSnapshot(arg1=this is a string, arg2=42)\n"
             + "i=1001, list=[1, 2, 3], str=this is a local string",
-        SnapshotSummary.formatMessage(snapshot));
+        snapshot.getSummary());
   }
 
   @Test
   public void testUnexpectedStackFrameFormat() {
-    Snapshot snapshot1 = new Snapshot(Thread.currentThread(), PROBE_DETAILS);
-    snapshot1.getStack().add(new CapturedStackFrame("foobar", 123));
-    assertEquals("foobar()", SnapshotSummary.formatMessage(snapshot1));
+    SnapshotSummaryBuilder snapshotSummaryBuilder = new SnapshotSummaryBuilder(PROBE_DETAILS);
+    snapshotSummaryBuilder.addStack(Arrays.asList(new CapturedStackFrame("foobar", 123)));
+    assertEquals("foobar()", snapshotSummaryBuilder.build());
 
-    Snapshot snapshot2 = new Snapshot(Thread.currentThread(), PROBE_DETAILS);
-    snapshot2.getStack().add(new CapturedStackFrame("foobar()", 123));
-    assertEquals("foobar()", SnapshotSummary.formatMessage(snapshot2));
+    SnapshotSummaryBuilder snapshotSummaryBuilder2 = new SnapshotSummaryBuilder(PROBE_DETAILS);
+    snapshotSummaryBuilder2.addStack(Arrays.asList(new CapturedStackFrame("foobar()", 123)));
+    assertEquals("foobar()", snapshotSummaryBuilder2.build());
   }
 
   @Test
@@ -168,7 +148,6 @@ public class SnapshotSummaryTest {
           Snapshot.CapturedValue.of("arg2", "int", 42),
         });
     snapshot.addLine(lineCapture, 13);
-    assertEquals(
-        "SomeFile:[13](arg1=this is a string, arg2=42)", SnapshotSummary.formatMessage(snapshot));
+    assertEquals("SomeFile:[13](arg1=this is a string, arg2=42)", snapshot.getSummary());
   }
 }
