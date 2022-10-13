@@ -99,8 +99,7 @@ public abstract class CallSiteUtils {
       case COPY:
         dup(mv, parameters);
         break;
-      case PREPEND_ARRAY:
-      case APPEND_ARRAY:
+      case COPY_ARRAY:
         dupN(mv, parameters, mode);
         break;
     }
@@ -186,6 +185,7 @@ public abstract class CallSiteUtils {
         loadArray(mv, arraySize, parameters);
         break;
       case COPY:
+      case COPY_ARRAY:
         loadArray(mv, arraySize, parameters);
         loadArray(mv, arraySize, parameters);
         mv.visitInsn(Opcodes.POP);

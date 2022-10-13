@@ -2,8 +2,9 @@ package datadog.trace.agent.tooling.bytebuddy.csi;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
-import datadog.trace.agent.tooling.AgentInstaller;
+import datadog.trace.bootstrap.Agent;
 import java.lang.instrument.Instrumentation;
+import java.net.URLClassLoader;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -21,65 +22,72 @@ import org.springframework.web.client.RestTemplate;
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.SingleShotTime)
 @OutputTimeUnit(MILLISECONDS)
-@Fork(value = 10)
 public class CallSiteBenchmark {
+
+  public static final int FORKS = 10;
+
+  private ClassLoader classLoader;
 
   private Instrumentation instrumentation;
 
   @Setup(Level.Trial)
   public void setUp() {
+    final URLClassLoader parent = (URLClassLoader) getClass().getClassLoader();
+    classLoader = new URLClassLoader(parent.getURLs());
     instrumentation = ByteBuddyAgent.install();
   }
 
   @Benchmark
+  @Fork(
+      value = FORKS,
+      jvmArgsAppend = {
+        "-Ddd.trace.enabled=false",
+        "-Ddd.trace.startup.logs=false",
+        "-Ddd.jmxfetch.enabled=false"
+      })
   public void none() throws Exception {
-    runBenchmark(Type.NONE);
+    runBenchmark(false);
   }
 
   @Benchmark
+  @Fork(
+      value = FORKS,
+      jvmArgsAppend = {
+        "-Ddd.trace.enabled=false",
+        "-Ddd.trace.startup.logs=false",
+        "-Ddd.jmxfetch.enabled=false",
+        "-Ddd.benchmark.instrumentation=callee"
+      })
   public void callee() throws Exception {
-    runBenchmark(Type.CALLEE);
+    runBenchmark(true);
   }
 
   @Benchmark
+  @Fork(
+      value = FORKS,
+      jvmArgsAppend = {
+        "-Ddd.trace.enabled=false",
+        "-Ddd.trace.startup.logs=false",
+        "-Ddd.jmxfetch.enabled=false",
+        "-Ddd.benchmark.instrumentation=callSite"
+      })
   public void callSite() throws Exception {
-    runBenchmark(Type.CALL_SITE);
+    runBenchmark(true);
   }
 
-  private void runBenchmark(final Type type) throws Exception {
-    type.apply(instrumentation);
-    final Class<?> server = Class.forName("foo.bar.DummyApplication");
+  private void runBenchmark(final boolean transform) throws Exception {
+    if (transform) {
+      Agent.start(instrumentation, Agent.class.getProtectionDomain().getCodeSource().getLocation());
+    }
+    final Class<?> server = Class.forName("foo.bar.DummyApplication", true, classLoader);
     try (ConfigurableApplicationContext context = SpringApplication.run(server)) {
       final RestTemplate template = new RestTemplate();
       final String url = "http://localhost:8080/benchmark?param=Hello!";
       final String response = template.getForObject(url, String.class);
-      type.validate(response);
-    }
-  }
-
-  enum Type {
-    NONE(null),
-    CALL_SITE("callSite"),
-    CALLEE("callee");
-
-    private final String instrumenter;
-
-    Type(final String instrumenter) {
-      this.instrumenter = instrumenter;
-    }
-
-    public void apply(final Instrumentation instrumentation) {
-      if (instrumenter != null) {
-        System.setProperty("dd.benchmark.instrumentation", instrumenter);
-        AgentInstaller.installBytebuddyAgent(instrumentation);
-      }
-    }
-
-    public void validate(final String response) {
       if (response == null) {
         throw new RuntimeException("Empty response received");
       }
-      String expected = instrumenter == null ? "Hello!" : "Hello! [Transformed]";
+      final String expected = !transform ? "Hello!" : "Hello! [Transformed]";
       if (!expected.equals(response)) {
         throw new RuntimeException(
             String.format("Wrong response, expected '%s' but received '%s'", expected, response));

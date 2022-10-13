@@ -52,6 +52,8 @@ public interface CallSiteAdvice {
   enum StackDupMode {
     /** Create a 1-1 copy of the parameters */
     COPY,
+    /** Create a 1-1 copy of the parameters always using an array */
+    COPY_ARRAY,
     /** Copies the parameters in an array and prepends it */
     PREPEND_ARRAY,
     /** Copies the parameters in an array and appends it */
