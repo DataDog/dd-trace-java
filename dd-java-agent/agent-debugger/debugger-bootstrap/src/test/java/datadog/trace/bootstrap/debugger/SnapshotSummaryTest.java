@@ -54,8 +54,7 @@ public class SnapshotSummaryTest {
     exit.addLocals(new Snapshot.CapturedValue[] {CapturedValue.of("@return", "double", 2.0)});
     snapshot.setExit(exit);
     assertEquals(
-        "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c], arg4={foo=bar}): 2.0\n"
-            + "@return=2.0",
+        "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c], arg4={foo=bar}): 2.0",
         snapshot.getSummary());
   }
 
@@ -69,16 +68,9 @@ public class SnapshotSummaryTest {
           Snapshot.CapturedValue.of("arg2", "int", 42),
           Snapshot.CapturedValue.of("arg3", List.class.getName(), Arrays.asList("a", "b", "c"))
         });
-    entry.addLocals(
-        new Snapshot.CapturedValue[] {
-          Snapshot.CapturedValue.of("str", String.class.getName(), "this is a local string"),
-          Snapshot.CapturedValue.of("i", "int", 1001),
-          Snapshot.CapturedValue.of("list", List.class.getName(), Arrays.asList("1", "2", "3"))
-        });
     snapshot.setEntry(entry);
     assertEquals(
-        "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c])\n"
-            + "i=1001, list=[1, 2, 3], str=this is a local string",
+        "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c])",
         snapshot.getSummary());
 
     CapturedContext exit = new CapturedContext();
@@ -92,7 +84,7 @@ public class SnapshotSummaryTest {
     snapshot.setExit(exit);
     assertEquals(
         "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c]): 2.0\n"
-            + "@return=2.0, i=1001, list=[1, 2, 3], str=this is a local string",
+            + "i=1001, list=[1, 2, 3], str=this is a local string",
         snapshot.getSummary());
   }
 

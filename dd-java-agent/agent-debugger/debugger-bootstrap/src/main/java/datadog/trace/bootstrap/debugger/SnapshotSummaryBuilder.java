@@ -30,9 +30,6 @@ public class SnapshotSummaryBuilder {
     if (entry.getArguments() != null) {
       arguments = formatCapturedValues(entry.getArguments());
     }
-    if (entry.getLocals() != null) {
-      locals = formatCapturedValues(removeReturnFromLocals(entry.getLocals()));
-    }
   }
 
   public void addExit(Snapshot.CapturedContext exit) {
@@ -42,7 +39,7 @@ public class SnapshotSummaryBuilder {
     if (exit.getLocals() == null) {
       return;
     }
-    locals = formatCapturedValues(exit.getLocals());
+    locals = formatCapturedValues(removeReturnFromLocals(exit.getLocals()));
     CapturedValue capturedReturnValue = exit.getLocals().get("@return");
     if (capturedReturnValue != null) {
       returnValue = String.valueOf(capturedReturnValue.getValue());
@@ -57,7 +54,7 @@ public class SnapshotSummaryBuilder {
       arguments = formatCapturedValues(line.getArguments());
     }
     if (line.getLocals() != null) {
-      locals = formatCapturedValues(removeReturnFromLocals(line.getLocals()));
+      locals = formatCapturedValues(line.getLocals());
     }
   }
 
