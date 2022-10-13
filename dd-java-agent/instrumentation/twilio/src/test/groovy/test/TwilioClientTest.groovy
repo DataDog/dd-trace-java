@@ -27,12 +27,14 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class TwilioClientTest extends AgentTestRunner {
 
-  final static String ACCOUNT_SID = "abc"
+  // Made up Twilio Account IDs and Auth token
+  final static String SHORT_SID = "abc"
+  final static String LONG_SID = "AC0123456789abcdef0123456789abcdef"
   final static String AUTH_TOKEN = "efg"
 
   final static String MESSAGE_RESPONSE_BODY = """
     {
-      "account_sid": "AC14984e09e497506cf0d5eb59b1f6ace7",
+      "account_sid": "$LONG_SID",
       "api_version": "2010-04-01",
       "body": "Hello, World!",
       "date_created": "Thu, 30 Jul 2015 20:12:31 +0000",
@@ -48,10 +50,10 @@ class TwilioClientTest extends AgentTestRunner {
       "sid": "MMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
       "status": "sent",
       "subresource_uris": {
-        "media": "/2010-04-01/Accounts/AC14984e09e497506cf0d5eb59b1f6ace7/Messages/SMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Media.json"
+        "media": "/2010-04-01/Accounts/$LONG_SID/Messages/SMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Media.json"
       },
       "to": "+14155552345",
-      "uri": "/2010-04-01/Accounts/AC14984e09e497506cf0d5eb59b1f6ace7/Messages/SMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.json"
+      "uri": "/2010-04-01/Accounts/$LONG_SID/Messages/SMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.json"
     }
     """
 
@@ -102,7 +104,7 @@ class TwilioClientTest extends AgentTestRunner {
   TwilioRestClient twilioRestClient = Mock()
 
   def setupSpec() {
-    Twilio.init(ACCOUNT_SID, AUTH_TOKEN)
+    Twilio.init(SHORT_SID, AUTH_TOKEN)
   }
 
   def cleanup() {
@@ -151,7 +153,7 @@ class TwilioClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "twilio-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "twilio.type" "com.twilio.rest.api.v2010.account.Message"
-            "twilio.account" "AC14984e09e497506cf0d5eb59b1f6ace7"
+            "twilio.account" "$LONG_SID"
             "twilio.sid" "MMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
             "twilio.status" "sent"
             defaultTags()
@@ -239,7 +241,7 @@ class TwilioClientTest extends AgentTestRunner {
 
     TwilioRestClient realTwilioRestClient =
       new TwilioRestClient.Builder("username", "password")
-      .accountSid(ACCOUNT_SID)
+      .accountSid(SHORT_SID)
       .httpClient(networkHttpClient)
       .build()
 
@@ -277,7 +279,7 @@ class TwilioClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "twilio-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "twilio.type" "com.twilio.rest.api.v2010.account.Message"
-            "twilio.account" "AC14984e09e497506cf0d5eb59b1f6ace7"
+            "twilio.account" "$LONG_SID"
             "twilio.sid" "MMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
             "twilio.status" "sent"
             defaultTags()
@@ -346,7 +348,7 @@ class TwilioClientTest extends AgentTestRunner {
 
     TwilioRestClient realTwilioRestClient =
       new TwilioRestClient.Builder("username", "password")
-      .accountSid(ACCOUNT_SID)
+      .accountSid(SHORT_SID)
       .httpClient(networkHttpClient)
       .build()
 
@@ -383,7 +385,7 @@ class TwilioClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "twilio-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "twilio.type" "com.twilio.rest.api.v2010.account.Message"
-            "twilio.account" "AC14984e09e497506cf0d5eb59b1f6ace7"
+            "twilio.account" "$LONG_SID"
             "twilio.sid" "MMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
             "twilio.status" "sent"
             defaultTags()
@@ -469,7 +471,7 @@ class TwilioClientTest extends AgentTestRunner {
 
     TwilioRestClient realTwilioRestClient =
       new TwilioRestClient.Builder("username", "password")
-      .accountSid(ACCOUNT_SID)
+      .accountSid(SHORT_SID)
       .httpClient(networkHttpClient)
       .build()
 
@@ -513,7 +515,7 @@ class TwilioClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "twilio-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "twilio.type" "com.twilio.rest.api.v2010.account.Message"
-            "twilio.account" "AC14984e09e497506cf0d5eb59b1f6ace7"
+            "twilio.account" "$LONG_SID"
             "twilio.sid" "MMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
             "twilio.status" "sent"
             defaultTags()
@@ -530,7 +532,7 @@ class TwilioClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "twilio-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "twilio.type" "com.twilio.rest.api.v2010.account.Message"
-            "twilio.account" "AC14984e09e497506cf0d5eb59b1f6ace7"
+            "twilio.account" "$LONG_SID"
             "twilio.sid" "MMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
             "twilio.status" "sent"
             defaultTags()
@@ -661,7 +663,7 @@ class TwilioClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "twilio-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "twilio.type" "com.twilio.rest.api.v2010.account.Message"
-            "twilio.account" "AC14984e09e497506cf0d5eb59b1f6ace7"
+            "twilio.account" "$LONG_SID"
             "twilio.sid" "MMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
             "twilio.status" "sent"
             defaultTags()
@@ -722,7 +724,7 @@ class TwilioClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "twilio-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "twilio.type" "com.twilio.rest.api.v2010.account.Message"
-            "twilio.account" "AC14984e09e497506cf0d5eb59b1f6ace7"
+            "twilio.account" "$LONG_SID"
             "twilio.sid" "MMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
             "twilio.status" "sent"
             defaultTags()
@@ -739,7 +741,7 @@ class TwilioClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "twilio-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "twilio.type" "com.twilio.rest.api.v2010.account.Message"
-            "twilio.account" "AC14984e09e497506cf0d5eb59b1f6ace7"
+            "twilio.account" "$LONG_SID"
             "twilio.sid" "MMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
             "twilio.status" "sent"
             defaultTags()
