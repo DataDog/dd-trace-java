@@ -22,7 +22,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import okhttp3.HttpUrl;
 import okhttp3.mockwebserver.MockResponse;
@@ -255,23 +254,22 @@ public abstract class BaseIntegrationTest {
 
   protected static boolean logHasErrors(Path logFilePath, Function<String, Boolean> checker)
       throws IOException {
-    final AtomicBoolean hasErrors = new AtomicBoolean();
-    Files.lines(logFilePath)
-        .forEach(
-            it -> {
-              if (it.contains(" ERROR ")
-                  || it.contains("ASSERTION FAILED")
-                  || it.contains("Error:")) {
-                System.out.println(it);
-                hasErrors.set(true);
-              }
-              hasErrors.set(hasErrors.get() || checker.apply(it));
-            });
-    if (hasErrors.get()) {
+    long errorLines =
+        Files.lines(logFilePath)
+            .filter(
+                it ->
+                    it.contains(" ERROR ")
+                        || it.contains("ASSERTION FAILED")
+                        || it.contains("Error:")
+                        || checker.apply(it))
+            .peek(System.out::println)
+            .count();
+    boolean hasErrors = errorLines > 0;
+    if (hasErrors) {
       System.out.println(
           "Test application log is containing errors. See full run logs in " + logFilePath);
     }
-    return hasErrors.get();
+    return hasErrors;
   }
 
   private static class MockDispatcher extends okhttp3.mockwebserver.QueueDispatcher {
