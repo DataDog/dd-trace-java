@@ -51,10 +51,9 @@ public class TelemetrySystem {
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
     try {
       DependencyService dependencyService = createDependencyService(instrumentation);
-      RequestBuilder requestBuilder = new RequestBuilder(sco.agentUrl);
       TelemetryService telemetryService =
           new TelemetryServiceImpl(
-              requestBuilder,
+              new RequestBuilderSupplier(sco.agentUrl),
               SystemTimeSource.INSTANCE,
               Config.get().getTelemetryHeartbeatInterval());
       TELEMETRY_THREAD =
