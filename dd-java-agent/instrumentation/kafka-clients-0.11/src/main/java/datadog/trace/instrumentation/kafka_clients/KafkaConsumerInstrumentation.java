@@ -83,7 +83,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
             .and(isPublic())
             .and(named("spliterator"))
             .and(takesArguments(0))
-            .and(returns(Spliterator.class)),
+            .and(returns(named("java.util.Spliterator"))),
         KafkaConsumerInstrumentation.class.getName() + "$SpliteratorAdvice");
   }
 
