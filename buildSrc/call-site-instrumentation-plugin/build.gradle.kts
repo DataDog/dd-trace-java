@@ -33,6 +33,7 @@ dependencies {
 
   testImplementation("net.bytebuddy", "byte-buddy", "1.11.10")
   testImplementation("org.spockframework", "spock-core", "2.0-groovy-3.0")
+  testImplementation("org.objenesis", "objenesis", "3.0.1")
   testImplementation("org.codehaus.groovy", "groovy-all", "3.0.10")
   testImplementation("com.github.javaparser", "javaparser-symbol-solver-core", "3.24.4")
   testImplementation("javax.servlet", "javax.servlet-api", "3.0.1")
