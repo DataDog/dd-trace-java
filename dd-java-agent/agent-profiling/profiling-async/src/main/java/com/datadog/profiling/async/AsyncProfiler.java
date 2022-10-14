@@ -254,7 +254,11 @@ public final class AsyncProfiler {
     }
     if (profilingModes.contains(ProfilingMode.WALL)) {
       // wall profiling is enabled.
-      cmd.append(",wall=").append(getWallInterval()).append('m');
+      cmd.append(",wall=");
+      if (isCollapsingWallclock()) {
+        cmd.append('~'); // this prefix will turn on wall-clock collapsing feature
+      }
+      cmd.append(getWallInterval()).append('m');
       if (getWallFilterOnContext()) {
         cmd.append(",wallfilter");
       }
@@ -299,6 +303,12 @@ public final class AsyncProfiler {
     return configProvider.getBoolean(
         ProfilingConfig.PROFILING_ASYNC_WALL_FILTER_ON_CONTEXT,
         ProfilingConfig.PROFILING_ASYNC_WALL_FILTER_ON_CONTEXT_DEFAULT);
+  }
+
+  public boolean isCollapsingWallclock() {
+    return configProvider.getBoolean(
+        ProfilingConfig.PROFILING_ASYNC_WALL_COLLAPSE_SAMPLES,
+        ProfilingConfig.PROFILING_ASYNC_WALL_COLLAPSE_SAMPLES_DEFAULT);
   }
 
   private int getStackDepth() {
