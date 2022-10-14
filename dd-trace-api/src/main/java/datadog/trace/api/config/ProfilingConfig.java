@@ -72,6 +72,11 @@ public final class ProfilingConfig {
   public static final String PROFILING_ASYNC_WALL_FILTER_ON_CONTEXT =
       "profiling.async.wall.filter-on-context";
   public static final boolean PROFILING_ASYNC_WALL_FILTER_ON_CONTEXT_DEFAULT = true;
+
+  public static final String PROFILING_ASYNC_WALL_COLLAPSE_SAMPLES =
+      "profiling.async.wall.collapse.samples";
+  public static final boolean PROFILING_ASYNC_WALL_COLLAPSE_SAMPLES_DEFAULT = true;
+
   public static final String PROFILING_ASYNC_STACKDEPTH = "profiling.async.stackdepth";
   public static final int PROFILING_ASYNC_STACKDEPTH_DEFAULT = 512;
   public static final String PROFILING_ASYNC_CSTACK = "profiling.async.cstack";
