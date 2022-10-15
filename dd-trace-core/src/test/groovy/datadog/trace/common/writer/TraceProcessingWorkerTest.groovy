@@ -1,11 +1,8 @@
 package datadog.trace.common.writer
 
-import datadog.trace.api.StatsDClient
 import datadog.trace.core.DDSpan
 import datadog.trace.core.monitor.HealthMetrics
-import datadog.trace.core.monitor.MonitoringImpl
 import datadog.trace.test.util.DDSpecification
-import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.TimeUnit
@@ -19,9 +16,6 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE
 
 class TraceProcessingWorkerTest extends DDSpecification {
-
-  @Shared
-  MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
 
   def conditions = new PollingConditions(timeout: 5, initialDelay: 0, factor: 1.25)
 

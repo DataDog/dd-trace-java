@@ -82,6 +82,8 @@ public abstract class RemoteWriter implements Writer {
         final DDSpan root = trace.get(0);
         final int samplingPriority = root.context().getSamplingPriority();
         if (traceProcessingWorker.publish(root, samplingPriority, trace)) {
+          // TODO this must only count really published traces, but it's not true for traces sent to
+          // single span sampling worker
           healthMetrics.onPublish(trace, samplingPriority);
         } else {
           handleDroppedTrace("Trace written to overfilled buffer", trace, samplingPriority);
