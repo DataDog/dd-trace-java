@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.java.lang;
 
-import static java.lang.invoke.MethodType.methodType;
-
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
@@ -11,8 +9,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.api.iast.InvokeDynamicHelper;
 import datadog.trace.api.iast.InvokeDynamicHelperContainer;
 import datadog.trace.api.iast.RealCallThrowable;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -35,7 +31,9 @@ public class StringHelperContainer implements InvokeDynamicHelperContainer {
       Pattern.compile("%(\\d+\\$)?([-#+ 0,(\\<]*)?(\\d+)?(\\.\\d+)?([tT])?([a-zA-Z%])");
 
   /** @see String#format(String, Object...) */
-  @InvokeDynamicHelper(fallbackMethodHandleProvider = "onStringFormatFallback")
+  @InvokeDynamicHelper(
+      fallbackMethod =
+          "java/lang/String.format(Ljava/util/Locale;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;")
   public static String onStringFormat(
       @Nullable Locale l, @Nonnull String fmt, @Nullable Object[] args) {
     if (fmt == null) {
@@ -65,15 +63,6 @@ public class StringHelperContainer implements InvokeDynamicHelperContainer {
     } else {
       return onStringFormatFmtTainted(l, fmt, args, taintedObjects, toFmt);
     }
-  }
-
-  public static MethodHandle onStringFormatFallback()
-      throws NoSuchMethodException, IllegalAccessException {
-    return MethodHandles.lookup()
-        .findStatic(
-            String.class,
-            "format",
-            methodType(String.class, Locale.class, String.class, Object[].class));
   }
 
   private static String onStringFormatFmtTainted(

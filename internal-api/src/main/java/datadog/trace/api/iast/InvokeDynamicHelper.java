@@ -8,6 +8,6 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface InvokeDynamicHelper {
-  /* A static method on the same class taking 0 arguments and returning a MethodHandle */
-  String fallbackMethodHandleProvider() default "";
+  // in the form java/lang/String.format(Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;
+  String fallbackMethod() default "";
 }

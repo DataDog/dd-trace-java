@@ -68,29 +68,24 @@ class StringCallSiteTest extends IastAgentTestRunner {
     then:
     // exception doesn't escape though, and the original format call is made
     result == 'Hello World'
-
-    when:
-    runUnderIastTrace {
-      taintedObjects.taint(fmt, new Range(0, 5, src), new Range(4, 1, src))
-      StringHelperContainer.onStringFormat(null, fmt, 'World')
-    }
-
-    then:
-    thrown IllegalStateException
   }
 
-  void 'exception during the real call results in RealCallThrowable'() {
+  void 'exception during the real call results in RealCallThrowable and orig exception escaping'() {
     setup:
     String fmt = 'Hello %s'
     Formattable f = Mock()
 
     when:
-    StringHelperContainer.onStringFormat(null, fmt, f)
+    runUnderIastTrace {
+      TestStringSuite.stringFormat(null, fmt, f)
+    }
 
     then:
-    1 * f.formatTo(*_) >> { throw new RuntimeException('foo') }
-    RealCallThrowable rct = thrown RealCallThrowable
-    rct.cause.message == 'foo'
+    1 * f.formatTo(*_) >> {
+      throw new RuntimeException('foo')
+    }
+    RuntimeException rct = thrown RuntimeException
+    rct.message == 'foo'
   }
 
   private String run(String fmt, List objects) {

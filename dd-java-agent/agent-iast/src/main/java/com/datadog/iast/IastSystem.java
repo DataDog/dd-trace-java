@@ -15,6 +15,7 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.InvokeDynamicHelperContainer;
 import datadog.trace.api.iast.InvokeDynamicHelperRegistry;
 import datadog.trace.util.AgentTaskScheduler;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,8 +24,6 @@ import java.lang.invoke.MethodHandles;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.nio.charset.StandardCharsets;
 import java.util.function.Consumer;
-
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
