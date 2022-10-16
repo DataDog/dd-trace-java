@@ -27,14 +27,14 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
   private final AuxiliaryProfiler auxiliaryProfiler;
 
   OpenJdkOngoingRecording(
-      String recordingName, Map<String, String> settings, int maxSize, Duration maxAge) {
+      String recordingName, Map<String, String> settings, int maxSize, Duration maxAge, AuxiliaryProfiler auxilliaryProfiler) {
     log.debug("Creating new recording: {}", recordingName);
     recording = new Recording();
     recording.setName(recordingName);
     recording.setSettings(settings);
     recording.setMaxSize(maxSize);
     recording.setMaxAge(maxAge);
-    this.auxiliaryProfiler = AuxiliaryProfiler.getInstance();
+    this.auxiliaryProfiler = auxilliaryProfiler;
     if (auxiliaryProfiler.isEnabled()) {
       auxiliaryRecording = auxiliaryProfiler.start();
       if (auxiliaryRecording != null) {

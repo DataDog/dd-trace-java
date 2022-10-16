@@ -23,6 +23,7 @@ dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller-async')
   api project(':dd-java-agent:agent-profiling:profiling-controller-openjdk')
   api project(':dd-java-agent:agent-profiling:profiling-controller-oracle')
+  api project(':dd-java-agent:agent-bootstrap')
 }
 
 Project parent_project = project

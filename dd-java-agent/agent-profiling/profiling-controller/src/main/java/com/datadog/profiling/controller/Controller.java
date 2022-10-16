@@ -31,4 +31,6 @@ public interface Controller {
   @Nonnull
   OngoingRecording createRecording(@Nonnull String recordingName)
       throws UnsupportedEnvironmentException;
+
+  boolean isForceStartFirstSupported();
 }

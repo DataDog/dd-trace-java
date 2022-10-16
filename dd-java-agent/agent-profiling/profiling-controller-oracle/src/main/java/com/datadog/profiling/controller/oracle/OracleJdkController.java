@@ -58,4 +58,9 @@ public final class OracleJdkController implements Controller {
       throw new RuntimeException("Unable to create a new recording with name " + recordingName, e);
     }
   }
+
+  @Override
+  public boolean isForceStartFirstSupported() {
+    return false;
+  }
 }

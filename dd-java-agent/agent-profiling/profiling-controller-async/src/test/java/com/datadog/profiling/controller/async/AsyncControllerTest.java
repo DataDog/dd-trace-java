@@ -1,6 +1,5 @@
 package com.datadog.profiling.controller.async;
 
-import static com.datadog.profiling.controller.ProfilingSupport.*;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AUXILIARY_TYPE;
 import static org.junit.jupiter.api.Assertions.*;
 

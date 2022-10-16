@@ -34,6 +34,11 @@ public class TestAuxiliaryProfilerImplementation implements AuxiliaryImplementat
   }
 
   @Override
+  public boolean isStartInPremainSupported() {
+    return true;
+  }
+
+  @Override
   public Set<ProfilingMode> enabledModes() {
     return EnumSet.allOf(ProfilingMode.class);
   }

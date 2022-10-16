@@ -41,6 +41,7 @@ import datadog.trace.util.AgentTaskScheduler;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.AfterEach;
@@ -72,18 +73,19 @@ public class ProfilingSystemTest {
   private final AgentTaskScheduler scheduler = new AgentTaskScheduler(PROFILER_RECORDING_SCHEDULER);
 
   @Mock private ThreadLocalRandom threadLocalRandom;
-  @Mock private ConfigProvider configProvider;
   @Mock private Controller controller;
   @Mock private OngoingRecording recording;
   @Mock private RecordingData recordingData;
   @Mock private RecordingDataListener listener;
 
   private Appender<ILoggingEvent> mockedAppender;
+  private final ProfilingSystemConfig baseConfig = new ProfilingSystemConfig();
 
   @SuppressWarnings("unchecked")
   @BeforeEach
   public void setup() throws Exception {
     when(controller.createRecording(ProfilingSystem.RECORDING_NAME)).thenReturn(recording);
+    when(controller.isForceStartFirstSupported()).thenReturn(true);
     when(threadLocalRandom.nextInt(eq(1), anyInt())).thenReturn(1);
     when(recordingData.getEnd()).thenAnswer(mockInvocation -> Instant.now());
 
@@ -120,13 +122,13 @@ public class ProfilingSystemTest {
             new RuntimeException(new RuntimeException("com.oracle.jrockit:type=FlightRecorder")));
     final ProfilingSystem system =
         new ProfilingSystem(
-            configProvider,
+            baseConfig
+                .withSnapshotInterval(Duration.ofMillis(10))
+                .withStartupDelay(Duration.ZERO)
+                .withProfileStartup(true)
+                .withEnabled(EnumSet.allOf(ProfilingSystemConfig.Subsystem.class)),
             controller,
-            listener,
-            Duration.ofMillis(10),
-            Duration.ofMillis(5),
-            Duration.ofMillis(1),
-            true);
+            listener);
     system.start();
     assertLog(
         Level.WARN,
@@ -140,13 +142,13 @@ public class ProfilingSystemTest {
         .thenThrow(new RuntimeException(new RuntimeException()));
     final ProfilingSystem system =
         new ProfilingSystem(
-            configProvider,
+            baseConfig
+                .withSnapshotInterval(Duration.ofMillis(10))
+                .withStartupDelay(Duration.ZERO)
+                .withProfileStartup(true)
+                .withEnabled(EnumSet.allOf(ProfilingSystemConfig.Subsystem.class)),
             controller,
-            listener,
-            Duration.ofMillis(10),
-            Duration.ofMillis(5),
-            Duration.ofMillis(1),
-            true);
+            listener);
     assertThrows(RuntimeException.class, () -> system.start());
   }
 
@@ -157,13 +159,13 @@ public class ProfilingSystemTest {
         .thenThrow(new IllegalArgumentException());
     final ProfilingSystem system =
         new ProfilingSystem(
-            configProvider,
+            baseConfig
+                .withSnapshotInterval(Duration.ofMillis(10))
+                .withStartupDelay(Duration.ZERO)
+                .withProfileStartup(true)
+                .withEnabled(EnumSet.allOf(ProfilingSystemConfig.Subsystem.class)),
             controller,
-            listener,
-            Duration.ofMillis(10),
-            Duration.ofMillis(5),
-            Duration.ofMillis(1),
-            true);
+            listener);
     assertThrows(IllegalArgumentException.class, () -> system.start());
   }
 
@@ -171,13 +173,12 @@ public class ProfilingSystemTest {
   public void testShutdown() throws Exception {
     final ProfilingSystem system =
         new ProfilingSystem(
-            configProvider,
+            baseConfig
+                .withSnapshotInterval(Duration.ofMillis(10))
+                .withStartupDelay(Duration.ZERO)
+                .withEnabled(EnumSet.allOf(ProfilingSystemConfig.Subsystem.class)),
             controller,
             listener,
-            Duration.ofMillis(10),
-            Duration.ZERO,
-            Duration.ofMillis(300),
-            false,
             scheduler,
             threadLocalRandom);
     startProfilingSystem(system);
@@ -192,13 +193,12 @@ public class ProfilingSystemTest {
   public void testShutdownWithRunningProfilingRecording() throws Exception {
     final ProfilingSystem system =
         new ProfilingSystem(
-            configProvider,
+            baseConfig
+                .withSnapshotInterval(Duration.ofMillis(10))
+                .withStartupDelay(Duration.ZERO)
+                .withEnabled(EnumSet.allOf(ProfilingSystemConfig.Subsystem.class)),
             controller,
             listener,
-            Duration.ofMillis(10),
-            Duration.ZERO,
-            Duration.ofMillis(300),
-            false,
             scheduler,
             threadLocalRandom);
     startProfilingSystem(system);
@@ -214,15 +214,15 @@ public class ProfilingSystemTest {
     final ProfilingSystem system =
         spy(
             new ProfilingSystem(
-                configProvider,
+                baseConfig
+                    .withSnapshotInterval(Duration.ofMillis(10))
+                    .withStartupDelay(Duration.ZERO)
+                    .withEnabled(EnumSet.allOf(ProfilingSystemConfig.Subsystem.class)),
                 controller,
                 listener,
-                Duration.ofMillis(10),
-                Duration.ZERO,
-                Duration.ofMillis(300),
-                false,
                 scheduler,
-                threadLocalRandom));
+                threadLocalRandom)
+        );
     final ProfilingSystem.SnapshotRecording snapshotRecording =
         spy(system.createSnapshotRecording(Instant.now()));
 
@@ -240,13 +240,13 @@ public class ProfilingSystemTest {
   public void testForceEarlySTartup() throws Exception {
     final ProfilingSystem system =
         new ProfilingSystem(
-            configProvider,
+            baseConfig
+                .withSnapshotInterval(Duration.ofMillis(10))
+                .withStartupDelay(Duration.ZERO)
+                .withProfileStartup(true)
+                .withEnabled(EnumSet.allOf(ProfilingSystemConfig.Subsystem.class)),
             controller,
             listener,
-            Duration.ofMillis(10),
-            Duration.ZERO,
-            Duration.ofMillis(300),
-            true,
             scheduler,
             threadLocalRandom);
     system.start();
@@ -275,13 +275,12 @@ public class ProfilingSystemTest {
         .onNewData(any(), any(), anyBoolean());
     final ProfilingSystem system =
         new ProfilingSystem(
-            configProvider,
+            baseConfig
+                .withSnapshotInterval(Duration.ofMillis(10))
+                .withStartupDelay(Duration.ZERO)
+                .withEnabled(EnumSet.allOf(ProfilingSystemConfig.Subsystem.class)),
             controller,
             listener,
-            Duration.ofMillis(10),
-            Duration.ofMillis(5),
-            Duration.ofMillis(100),
-            false,
             scheduler,
             threadLocalRandom);
     startProfilingSystem(system);
@@ -295,13 +294,12 @@ public class ProfilingSystemTest {
   public void testCanShutDownWithoutStarting() throws ConfigurationException {
     final ProfilingSystem system =
         new ProfilingSystem(
-            configProvider,
+            baseConfig
+                .withSnapshotInterval(Duration.ofMillis(10))
+                .withStartupDelay(Duration.ofMillis(5))
+                .withEnabled(EnumSet.allOf(ProfilingSystemConfig.Subsystem.class)),
             controller,
             listener,
-            Duration.ofMillis(10),
-            Duration.ofMillis(5),
-            Duration.ofMillis(300),
-            false,
             scheduler,
             threadLocalRandom);
     system.shutdown();
@@ -312,13 +310,12 @@ public class ProfilingSystemTest {
   public void testDoesntSendDataIfNotStarted() throws Exception {
     final ProfilingSystem system =
         new ProfilingSystem(
-            configProvider,
+            baseConfig
+                .withSnapshotInterval(Duration.ofMillis(10))
+                .withStartupDelay(Duration.ofMillis(5))
+                .withEnabled(EnumSet.allOf(ProfilingSystemConfig.Subsystem.class)),
             controller,
-            listener,
-            Duration.ofMillis(10),
-            Duration.ofMillis(5),
-            Duration.ofMillis(1),
-            false);
+            listener);
     Thread.sleep(50);
     system.shutdown();
     verify(controller, never()).createRecording(any());
@@ -331,17 +328,31 @@ public class ProfilingSystemTest {
     when(recording.snapshot(any(), any())).thenReturn(recordingData);
     final ProfilingSystem system =
         new ProfilingSystem(
-            configProvider,
+            baseConfig
+                .withSnapshotInterval(Duration.ofMillis(10))
+                .withStartupDelay(Duration.ofMillis(5))
+                .withEnabled(EnumSet.allOf(ProfilingSystemConfig.Subsystem.class)),
             controller,
-            listener,
-            Duration.ofMillis(10),
-            Duration.ofMillis(5),
-            Duration.ofMillis(10),
-            false);
+            listener);
     startProfilingSystem(system);
     Thread.sleep(200);
     system.shutdown();
     verify(listener, atLeastOnce()).onNewData(CONTINUOUS, recordingData, false);
+  }
+
+  @Test
+  public void testProfilingSystemNegativeSnapshotInterval() {
+    assertThrows(
+        ConfigurationException.class,
+        () -> {
+          new ProfilingSystem(
+              baseConfig
+                  .withSnapshotInterval(Duration.ofMillis(-10))
+                  .withStartupDelay(Duration.ZERO)
+                  .withEnabled(EnumSet.allOf(ProfilingSystemConfig.Subsystem.class)),
+              controller,
+              listener);
+        });
   }
 
   @Test
@@ -350,45 +361,12 @@ public class ProfilingSystemTest {
         ConfigurationException.class,
         () -> {
           new ProfilingSystem(
-              configProvider,
+              baseConfig
+                  .withSnapshotInterval(Duration.ofMillis(10))
+                  .withStartupDelay(Duration.ofMillis(-5))
+                  .withEnabled(EnumSet.allOf(ProfilingSystemConfig.Subsystem.class)),
               controller,
-              listener,
-              Duration.ofMillis(-10),
-              Duration.ZERO,
-              Duration.ofMillis(200),
-              false);
-        });
-  }
-
-  @Test
-  public void testProfilingSystemNegativeStartupRandomRangeDelay() {
-    assertThrows(
-        ConfigurationException.class,
-        () -> {
-          new ProfilingSystem(
-              configProvider,
-              controller,
-              listener,
-              Duration.ofMillis(10),
-              Duration.ofMillis(-20),
-              Duration.ofMillis(200),
-              false);
-        });
-  }
-
-  @Test
-  public void testProfilingSystemNegativeUploadPeriod() {
-    assertThrows(
-        ConfigurationException.class,
-        () -> {
-          new ProfilingSystem(
-              configProvider,
-              controller,
-              listener,
-              Duration.ofMillis(10),
-              Duration.ofMillis(20),
-              Duration.ofMillis(-200),
-              false);
+              listener);
         });
   }
 
@@ -403,13 +381,12 @@ public class ProfilingSystemTest {
 
     final ProfilingSystem system =
         new ProfilingSystem(
-            configProvider,
+            baseConfig
+                .withSnapshotInterval(uploadPeriod)
+                .withStartupDelay(Duration.ofMillis(10))
+                .withEnabled(EnumSet.allOf(ProfilingSystemConfig.Subsystem.class)),
             controller,
             listener,
-            Duration.ofMillis(10),
-            Duration.ofMillis(5),
-            uploadPeriod,
-            false,
             scheduler,
             threadLocalRandom);
     startProfilingSystem(system);
@@ -432,13 +409,12 @@ public class ProfilingSystemTest {
 
     final ProfilingSystem system =
         new ProfilingSystem(
-            configProvider,
+            baseConfig
+                .withSnapshotInterval(uploadPeriod)
+                .withStartupDelay(Duration.ofMillis(10))
+                .withEnabled(EnumSet.allOf(ProfilingSystemConfig.Subsystem.class)),
             controller,
             listener,
-            Duration.ofMillis(10),
-            Duration.ofMillis(5),
-            uploadPeriod,
-            false,
             scheduler,
             threadLocalRandom);
     startProfilingSystem(system);
@@ -454,21 +430,20 @@ public class ProfilingSystemTest {
   @Test
   public void testRandomizedStartupDelay() throws ConfigurationException {
     final Duration startupDelay = Duration.ofMillis(100);
-    final Duration startupDelayRandomRange = Duration.ofMillis(500);
+    final Duration snapshotInterval = Duration.ofMillis(500);
     final Duration additionalRandomDelay = Duration.ofMillis(300);
 
-    when(threadLocalRandom.nextLong(startupDelayRandomRange.toMillis()))
+    when(threadLocalRandom.nextLong(snapshotInterval.toMillis()))
         .thenReturn(additionalRandomDelay.toMillis());
 
     final ProfilingSystem system =
         new ProfilingSystem(
-            configProvider,
+            baseConfig
+                .withSnapshotInterval(snapshotInterval)
+                .withStartupDelay(startupDelay)
+                .withEnabled(EnumSet.allOf(ProfilingSystemConfig.Subsystem.class)),
             controller,
             listener,
-            startupDelay,
-            startupDelayRandomRange,
-            Duration.ofMillis(100),
-            false,
             scheduler,
             threadLocalRandom);
 
@@ -483,13 +458,12 @@ public class ProfilingSystemTest {
 
     final ProfilingSystem system =
         new ProfilingSystem(
-            configProvider,
+            baseConfig
+                .withSnapshotInterval(Duration.ofMillis(100))
+                .withStartupDelay(startupDelay)
+                .withEnabled(EnumSet.allOf(ProfilingSystemConfig.Subsystem.class)),
             controller,
             listener,
-            startupDelay,
-            Duration.ZERO,
-            Duration.ofMillis(100),
-            false,
             scheduler,
             threadLocalRandom);
 
@@ -505,13 +479,12 @@ public class ProfilingSystemTest {
 
     final ProfilingSystem system =
         new ProfilingSystem(
-            configProvider,
+            baseConfig
+                .withSnapshotInterval(Duration.ofMillis(100))
+                .withStartupDelay(startupDelay)
+                .withEnabled(EnumSet.allOf(ProfilingSystemConfig.Subsystem.class)),
             controller,
             listener,
-            startupDelay,
-            Duration.ZERO,
-            Duration.ofMillis(100),
-            false,
             scheduler,
             threadLocalRandom);
 

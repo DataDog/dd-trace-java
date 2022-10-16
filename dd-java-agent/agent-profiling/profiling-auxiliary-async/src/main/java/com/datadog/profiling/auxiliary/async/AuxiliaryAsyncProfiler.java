@@ -83,6 +83,11 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
   }
 
   @Override
+  public boolean isStartInPremainSupported() {
+    return true;
+  }
+
+  @Override
   @Nullable
   public OngoingRecording start() {
     if (asyncProfiler != null) {

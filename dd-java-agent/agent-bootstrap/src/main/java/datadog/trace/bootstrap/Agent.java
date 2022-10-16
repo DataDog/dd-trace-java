@@ -34,6 +34,8 @@ import java.net.URL;
 import java.util.EnumSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -166,7 +168,7 @@ public class Agent {
         // multiple times
         // If early profiling is enabled then this call will start profiling.
         // If early profiling is disabled then later call will do this.
-        startProfilingAgent(true);
+        startProfilingAgent();
       } else {
         log.debug("Oracle JDK 8 detected. Delaying profiler initialization.");
         // Profiling can not run early on Oracle JDK 8 because it will cause JFR initialization
@@ -176,7 +178,7 @@ public class Agent {
             new Runnable() {
               @Override
               public void run() {
-                startProfilingAgent(false);
+                startProfilingAgent();
               }
             };
       }
@@ -255,9 +257,7 @@ public class Agent {
         log.debug("Custom logger detected. Delaying Profiling initialization.");
         registerLogManagerCallback(new StartProfilingAgentCallback());
       } else {
-        startProfilingAgent(false);
-        // only enable sampler when we know JFR is ready
-        ExceptionSampling.enableExceptionSampling();
+        startProfilingAgent();
       }
     }
   }
@@ -396,9 +396,9 @@ public class Agent {
 
     @Override
     public void execute() {
-      startProfilingAgent(false);
-      // only enable sampler when we know JFR is ready
-      ExceptionSampling.enableExceptionSampling();
+      startProfilingAgent();
+//      // only enable sampler when we know JFR is ready
+//      ExceptionSampling.enableExceptionSampling();
     }
   }
 
@@ -673,56 +673,63 @@ public class Agent {
         });
   }
 
-  private static void startProfilingAgent(final boolean isStartingFirst) {
+  private static AtomicInteger profilingAgentStatus = new AtomicInteger(0);
+
+  private static void startProfilingAgent() {
+    if (!profilingAgentStatus.compareAndSet(0, 2)) {
+      while (profilingAgentStatus.get() == 2);
+      return;
+    }
+
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
       Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
       final Class<?> profilingAgentClass =
           AGENT_CLASSLOADER.loadClass("com.datadog.profiling.agent.ProfilingAgent");
       final Method profilingInstallerMethod =
-          profilingAgentClass.getMethod("run", Boolean.TYPE, ClassLoader.class);
-      profilingInstallerMethod.invoke(null, isStartingFirst, AGENT_CLASSLOADER);
+          profilingAgentClass.getMethod("run", ClassLoader.class);
+      profilingInstallerMethod.invoke(null, AGENT_CLASSLOADER);
       /*
        * Install the tracer hooks only when not using 'early start'.
        * The 'early start' is happening so early that most of the infrastructure has not been set up yet.
        */
-      if (!isStartingFirst) {
-        log.debug("Scheduling scope event factory registration");
-        WithGlobalTracer.registerOrExecute(
-            new WithGlobalTracer.Callback() {
-              @Override
-              public void withTracer(Tracer tracer) {
-                try {
-                  if (Config.get().isProfilingLegacyTracingIntegrationEnabled()) {
-                    log.debug("Registering scope event factory");
-                    ScopeListener scopeListener =
-                        (ScopeListener)
-                            AGENT_CLASSLOADER
-                                .loadClass("datadog.trace.core.jfr.openjdk.ScopeEventFactory")
-                                .getDeclaredConstructor()
-                                .newInstance();
-                    tracer.addScopeListener(scopeListener);
-                    log.debug("Scope event factory {} has been registered", scopeListener);
-                  } else if (tracer instanceof AgentTracer.TracerAPI) {
-                    log.debug("Registering checkpointer");
-                    Checkpointer checkpointer =
-                        (Checkpointer)
-                            AGENT_CLASSLOADER
-                                .loadClass("datadog.trace.core.jfr.openjdk.JFRCheckpointer")
-                                .getDeclaredConstructor()
-                                .newInstance();
-                    ((AgentTracer.TracerAPI) tracer).registerCheckpointer(checkpointer);
-                    log.debug("Checkpointer {} has been registered", checkpointer);
-                  }
-                } catch (Throwable e) {
-                  if (e instanceof InvocationTargetException) {
-                    e = e.getCause();
-                  }
-                  log.debug("Profiling code hotspots are not available. {}", e.getMessage());
-                }
-              }
-            });
-      }
+//      if (!isInPremain) {
+//        log.debug("Scheduling scope event factory registration");
+//        WithGlobalTracer.registerOrExecute(
+//            new WithGlobalTracer.Callback() {
+//              @Override
+//              public void withTracer(Tracer tracer) {
+//                try {
+//                  if (Config.get().isProfilingLegacyTracingIntegrationEnabled()) {
+//                    log.debug("Registering scope event factory");
+//                    ScopeListener scopeListener =
+//                        (ScopeListener)
+//                            AGENT_CLASSLOADER
+//                                .loadClass("datadog.trace.core.jfr.openjdk.ScopeEventFactory")
+//                                .getDeclaredConstructor()
+//                                .newInstance();
+//                    tracer.addScopeListener(scopeListener);
+//                    log.debug("Scope event factory {} has been registered", scopeListener);
+//                  } else if (tracer instanceof AgentTracer.TracerAPI) {
+//                    log.debug("Registering checkpointer");
+//                    Checkpointer checkpointer =
+//                        (Checkpointer)
+//                            AGENT_CLASSLOADER
+//                                .loadClass("datadog.trace.core.jfr.openjdk.JFRCheckpointer")
+//                                .getDeclaredConstructor()
+//                                .newInstance();
+//                    ((AgentTracer.TracerAPI) tracer).registerCheckpointer(checkpointer);
+//                    log.debug("Checkpointer {} has been registered", checkpointer);
+//                  }
+//                } catch (Throwable e) {
+//                  if (e instanceof InvocationTargetException) {
+//                    e = e.getCause();
+//                  }
+//                  log.debug("Profiling code hotspots are not available. {}", e.getMessage());
+//                }
+//              }
+//            });
+//      }
     } catch (final ClassFormatError e) {
       /*
       Profiling is compiled for Java8. Loading it on Java7 results in ClassFormatError
@@ -733,6 +740,7 @@ public class Agent {
       log.error("Throwable thrown while starting profiling agent", ex);
     } finally {
       Thread.currentThread().setContextClassLoader(contextLoader);
+      profilingAgentStatus.compareAndSet(2, 1);
     }
   }
 

@@ -27,8 +27,6 @@ import org.slf4j.LoggerFactory;
 
 /** This is the implementation of the controller for Async. */
 public final class AsyncController implements Controller {
-  static final Duration RECORDING_MAX_AGE = Duration.ofMinutes(5);
-
   private static final Logger log = LoggerFactory.getLogger(AsyncController.class);
 
   private final AsyncProfiler asyncProfiler;
@@ -52,5 +50,10 @@ public final class AsyncController implements Controller {
   public AsyncOngoingRecording createRecording(final String recordingName)
       throws UnsupportedEnvironmentException {
     return new AsyncOngoingRecording(asyncProfiler, recordingName);
+  }
+
+  @Override
+  public boolean isForceStartFirstSupported() {
+    return true;
   }
 }

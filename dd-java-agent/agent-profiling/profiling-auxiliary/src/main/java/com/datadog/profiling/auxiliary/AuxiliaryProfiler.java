@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
  * The profiler implementations must extend {@linkplain AuxiliaryImplementation} interface and are
  * instantiated via an {@linkplain AuxiliaryImplementation.Provider} instance registered in {@code
  * META-INF/services}.<br>
- * The actual auxiliary implementaion is selected via setting the {@linkplain
+ * The actual auxiliary implementation is selected via setting the {@linkplain
  * ProfilingConfig#PROFILING_AUXILIARY_TYPE} configuration key to a value which is recognized by a
  * particular implementation provider.
  */
@@ -61,7 +61,7 @@ public final class AuxiliaryProfiler {
         break;
       }
     }
-    this.implementation = impl != null ? impl : AuxiliaryImplementation.NULL;
+    this.implementation = impl;
   }
 
   AuxiliaryProfiler(AuxiliaryImplementation impl) {
@@ -86,6 +86,10 @@ public final class AuxiliaryProfiler {
    */
   public boolean isEnabled() {
     return implementation.isAvailable();
+  }
+
+  public boolean isStartInPremainSupported() {
+    return implementation.isStartInPremainSupported();
   }
 
   /**

@@ -18,6 +18,7 @@ package com.datadog.profiling.controller.openjdk;
 import static com.datadog.profiling.controller.ProfilingSupport.*;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 
+import com.datadog.profiling.auxiliary.AuxiliaryProfiler;
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
@@ -34,6 +35,8 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+
 /**
  * This is the implementation of the controller for OpenJDK. It should work for JDK 11+ today, and
  * unmodified for JDK 8+ once JFR has been back-ported. The Oracle JDK implementation will be far
@@ -45,6 +48,8 @@ public final class OpenJdkController implements Controller {
   private static final Logger log = LoggerFactory.getLogger(OpenJdkController.class);
 
   private final Map<String, String> recordingSettings;
+  private final ConfigProvider configProvider;
+  private final AuxiliaryProfiler auxiliaryProfiler;
 
   /**
    * Main constructor for OpenJDK profiling controller.
@@ -59,6 +64,7 @@ public final class OpenJdkController implements Controller {
     Class.forName("jdk.jfr.Recording");
     Class.forName("jdk.jfr.FlightRecorder");
 
+    this.configProvider = configProvider;
     Map<String, String> recordingSettings;
 
     try {
@@ -138,23 +144,39 @@ public final class OpenJdkController implements Controller {
     }
 
     this.recordingSettings = Collections.unmodifiableMap(recordingSettings);
-
+    this.auxiliaryProfiler = AuxiliaryProfiler.getInstance();
     // Register periodic events
     AvailableProcessorCoresEvent.register();
   }
 
   int getMaxSize() {
-    return ConfigProvider.getInstance()
+    return configProvider
         .getInteger(
             ProfilingConfig.PROFILING_JFR_REPOSITORY_MAXSIZE,
             ProfilingConfig.PROFILING_JFR_REPOSITORY_MAXSIZE_DEFAULT);
   }
 
   @Override
-  public OpenJdkOngoingRecording createRecording(final String recordingName)
+  @Nonnull
+  public OpenJdkOngoingRecording createRecording(@Nonnull final String recordingName)
       throws UnsupportedEnvironmentException {
     return new OpenJdkOngoingRecording(
-        recordingName, recordingSettings, getMaxSize(), RECORDING_MAX_AGE);
+        recordingName, recordingSettings, getMaxSize(), RECORDING_MAX_AGE, auxiliaryProfiler);
+  }
+
+  @Override
+  public boolean isForceStartFirstSupported() {
+    // For 'start-first' we require JFR initialization in premain.
+    // There is a known bug in JVM which makes it crash if JFR is run before 'main' starts.
+    // See https://bugs.openjdk.java.net/browse/JDK-8227011 and
+    // https://bugs.openjdk.java.net/browse/JDK-8233197.
+    //
+    // Report as supported only on the fixed updates.
+    return auxiliaryProfiler.isStartInPremainSupported() &&
+        (Platform.isJavaVersionAtLeast(14) ||
+            (Platform.isJavaVersion(13) && Platform.isJavaVersionAtLeast(13, 0, 4)) ||
+            (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 8))
+        );
   }
 
   private static void disableEvent(Map<String, String> recordingSettings, String event) {

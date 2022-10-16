@@ -1003,7 +1003,7 @@ public class Config {
     traceSampleRate = configProvider.getDouble(TRACE_SAMPLE_RATE);
     traceRateLimit = configProvider.getInteger(TRACE_RATE_LIMIT, DEFAULT_TRACE_RATE_LIMIT);
 
-    profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT);
+    profilingEnabled = checkProfilingEnabled();
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
     profilingLegacyTracingIntegrationEnabled =
@@ -2709,6 +2709,17 @@ public class Config {
       ConfigCollector.get().put(name, value);
     }
     return value;
+  }
+
+  private boolean checkProfilingEnabled() {
+    String value = configProvider.getString(PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT).toLowerCase();
+    if (Boolean.parseBoolean(value)) {
+      return true;
+    }
+    if (value.equals("false") || value.equals("none")) {
+      return false;
+    }
+    return true;
   }
 
   // This has to be placed after all other static fields to give them a chance to initialize

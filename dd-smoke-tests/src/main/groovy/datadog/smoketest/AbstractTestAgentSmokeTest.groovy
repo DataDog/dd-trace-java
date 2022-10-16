@@ -35,19 +35,19 @@ abstract class AbstractTestAgentSmokeTest extends ProcessManager {
 
   @Shared
   String[] defaultJavaProperties = [
-    "${getMaxMemoryArgumentForFork()}",
-    "${getMinMemoryArgumentForFork()}",
-    "-javaagent:${shadowJarPath}",
-    "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
-    "-Ddd.trace.agent.port=${testAgentPort}",
-    "-Ddd.service.name=${SERVICE_NAME}",
-    "-Ddd.env=${ENV}",
-    "-Ddd.version=${VERSION}",
-    "-Ddd.profiling.enabled=false",
-    "-Ddd.${ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_RATE_LIMIT}=0",
-    "-Ddd.test.no.early.discovery=true",
-    "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
-    "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
+          "${getMaxMemoryArgumentForFork()}",
+          "${getMinMemoryArgumentForFork()}",
+          "-javaagent:${shadowJarPath}",
+          "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
+          "-Ddd.trace.agent.port=${testAgentPort}",
+          "-Ddd.service.name=${SERVICE_NAME}",
+          "-Ddd.env=${ENV}",
+          "-Ddd.version=${VERSION}",
+          "-Ddd.profiling.enabled=false",
+          "-Ddd.${ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_RATE_LIMIT}=0",
+          "-Ddd.test.no.early.discovery=true",
+          "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
+          "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
   ]
 
   @Shared

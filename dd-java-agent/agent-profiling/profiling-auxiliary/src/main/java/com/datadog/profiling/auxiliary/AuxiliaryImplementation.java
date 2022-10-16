@@ -20,6 +20,11 @@ public interface AuxiliaryImplementation {
         }
 
         @Override
+        public boolean isStartInPremainSupported() {
+          return true;
+        }
+
+        @Override
         public OngoingRecording start() {
           return null;
         }
@@ -67,6 +72,8 @@ public interface AuxiliaryImplementation {
    * @return {@literal true} if this implementation is available
    */
   boolean isAvailable();
+
+  boolean isStartInPremainSupported();
 
   /** @return a set of {@link ProfilingMode profiling modes} enabled for this implementation */
   @Nonnull

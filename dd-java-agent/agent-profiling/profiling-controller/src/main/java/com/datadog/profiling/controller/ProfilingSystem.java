@@ -18,7 +18,6 @@ package com.datadog.profiling.controller;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_RECORDING_SCHEDULER;
 
 import datadog.trace.api.profiling.ProfilingSnapshot;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.AgentTaskScheduler;
 import java.time.Duration;
 import java.time.Instant;
@@ -35,14 +34,12 @@ public final class ProfilingSystem {
   private static final long TERMINATION_TIMEOUT = 10;
 
   private final AgentTaskScheduler scheduler;
-  private final ConfigProvider configProvider;
+  private final ProfilingSystemConfig config;
   private final Controller controller;
   // For now only support one callback. Multiplex as needed.
   private final RecordingDataListener dataListener;
 
   private final Duration startupDelay;
-  private final Duration uploadPeriod;
-  private final boolean isStartingFirst;
 
   private OngoingRecording recording;
   private SnapshotRecording snapshotRecording;
@@ -53,86 +50,53 @@ public final class ProfilingSystem {
    *
    * @param controller implementation specific controller of profiling machinery
    * @param dataListener the listener for data being produced
-   * @param startupDelay delay before starting jfr
-   * @param startupDelayRandomRange randomization range for startup delay
-   * @param uploadPeriod how often to upload data
-   * @param isStartingFirst starting profiling before other tools
    * @throws ConfigurationException if the configuration information was bad.
    */
   public ProfilingSystem(
-      final ConfigProvider configProvider,
+      final ProfilingSystemConfig config,
       final Controller controller,
-      final RecordingDataListener dataListener,
-      final Duration startupDelay,
-      final Duration startupDelayRandomRange,
-      final Duration uploadPeriod,
-      final boolean isStartingFirst)
+      final RecordingDataListener dataListener)
       throws ConfigurationException {
     this(
-        configProvider,
+        config,
         controller,
         dataListener,
-        startupDelay,
-        startupDelayRandomRange,
-        uploadPeriod,
-        isStartingFirst,
         new AgentTaskScheduler(PROFILER_RECORDING_SCHEDULER),
         ThreadLocalRandom.current());
   }
 
   ProfilingSystem(
-      final ConfigProvider configProvider,
+      final ProfilingSystemConfig config,
       final Controller controller,
       final RecordingDataListener dataListener,
-      final Duration baseStartupDelay,
-      final Duration startupDelayRandomRange,
-      final Duration uploadPeriod,
-      final boolean isStartingFirst,
       final AgentTaskScheduler scheduler,
       final ThreadLocalRandom threadLocalRandom)
       throws ConfigurationException {
-    this.configProvider = configProvider;
+    this.config = config;
     this.controller = controller;
     this.dataListener = dataListener;
-    this.uploadPeriod = uploadPeriod;
-    this.isStartingFirst = isStartingFirst;
     this.scheduler = scheduler;
-
-    if (baseStartupDelay.isNegative()) {
-      throw new ConfigurationException("Startup delay must not be negative.");
-    }
-
-    if (startupDelayRandomRange.isNegative()) {
-      throw new ConfigurationException("Startup delay random range must not be negative.");
-    }
-
-    if (uploadPeriod.isNegative() || uploadPeriod.isZero()) {
-      throw new ConfigurationException("Upload period must be positive.");
-    }
 
     // Note: it is important to not keep reference to the threadLocalRandom beyond the
     // constructor
     // since it is expected to be thread local.
-    startupDelay = randomizeDuration(threadLocalRandom, baseStartupDelay, startupDelayRandomRange);
+    startupDelay = randomizeDuration(threadLocalRandom, config.getStartupDelay(), config.getSnapshotInterval());
   }
 
-  public final void start() {
+  public void start() {
     log.debug(
-        "Starting profiling system: startupDelay={}ms, uploadPeriod={}ms, isStartingFirst={}",
+        "Starting profiling system: startupDelay={}ms, snapshotInterval={}ms, profileStartup={}",
         startupDelay.toMillis(),
-        uploadPeriod.toMillis(),
-        isStartingFirst);
+        config.getSnapshotInterval().toMillis(),
+        config.isProfilingStartup());
 
-    if (isStartingFirst) {
-      startProfilingRecording();
+    boolean shouldProfileStartup = config.isProfilingStartup() && controller.isForceStartFirstSupported();
+    Runnable task = this::startProfilingRecording;
+    if (shouldProfileStartup) {
+      task.run();
     } else {
-      // Delay JFR initialization. This code is run from 'premain' and there is a known bug in JVM
-      // which makes it crash if JFR is run before 'main' starts.
-      // See https://bugs.openjdk.java.net/browse/JDK-8227011 and
-      // https://bugs.openjdk.java.net/browse/JDK-8233197.
       scheduler.schedule(
-          ProfilingSystem::startProfilingRecording,
-          this,
+          task,
           startupDelay.toMillis(),
           TimeUnit.MILLISECONDS);
     }
@@ -145,8 +109,8 @@ public final class ProfilingSystem {
       scheduler.scheduleAtFixedRate(
           SnapshotRecording::snapshot,
           snapshotRecording = createSnapshotRecording(now),
-          uploadPeriod.toMillis(),
-          uploadPeriod.toMillis(),
+          config.getSnapshotInterval().toMillis(),
+          config.getSnapshotInterval().toMillis(),
           TimeUnit.MILLISECONDS);
       started = true;
     } catch (Throwable t) {
@@ -216,8 +180,8 @@ public final class ProfilingSystem {
   }
 
   private static Duration randomizeDuration(
-      final ThreadLocalRandom random, final Duration duration, final Duration range) {
-    return duration.plus(Duration.ofMillis(random.nextLong(range.toMillis())));
+      final ThreadLocalRandom random, final Duration base, final Duration range) {
+    return base.plus(Duration.ofMillis(random.nextLong(range.toMillis())));
   }
 
   final class SnapshotRecording {

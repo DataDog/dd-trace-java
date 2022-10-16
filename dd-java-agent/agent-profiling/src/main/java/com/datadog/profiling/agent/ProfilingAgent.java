@@ -1,27 +1,28 @@
 package com.datadog.profiling.agent;
 
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST_DEFAULT;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import com.datadog.profiling.context.AsyncProfilerTracingContextTrackerFactory;
 import com.datadog.profiling.context.JfrTimestampPatch;
 import com.datadog.profiling.context.PerSpanTracingContextTrackerFactory;
-import com.datadog.profiling.controller.ConfigurationException;
-import com.datadog.profiling.controller.Controller;
-import com.datadog.profiling.controller.ControllerFactory;
-import com.datadog.profiling.controller.ProfilingSystem;
-import com.datadog.profiling.controller.UnsupportedEnvironmentException;
+import com.datadog.profiling.controller.*;
 import com.datadog.profiling.uploader.ProfileUploader;
+import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
+import datadog.trace.api.Tracer;
+import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.exceptions.ExceptionSampling;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
-import java.time.Duration;
+import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
+
+import datadog.trace.context.ScopeListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,27 +41,12 @@ public class ProfilingAgent {
    * Main entry point into profiling Note: this must be reentrant because we may want to start
    * profiling before any other tool, and then attempt to start it again at normal time
    */
-  public static synchronized void run(final boolean isStartingFirst, ClassLoader agentClasLoader)
+  public static synchronized void run(ClassLoader agentClasLoader)
       throws IllegalArgumentException, IOException {
     if (profiler == null) {
       final Config config = Config.get();
       final ConfigProvider configProvider = ConfigProvider.getInstance();
 
-      boolean startForceFirst =
-          configProvider.getBoolean(
-              PROFILING_START_FORCE_FIRST, PROFILING_START_FORCE_FIRST_DEFAULT);
-
-      if (!isStartForceFirstSafe()) {
-        log.debug(
-            "Starting profiling in premain can lead to crashes in this JDK. Delaying the startup.");
-        startForceFirst = false;
-      }
-
-      if (isStartingFirst && !startForceFirst) {
-        log.debug("Profiling: not starting first");
-        // early startup is disabled;
-        return;
-      }
       if (!config.isProfilingEnabled()) {
         log.debug("Profiling: disabled");
         return;
@@ -73,6 +59,40 @@ public class ProfilingAgent {
       if (Platform.isJavaVersionAtLeast(9)) {
         JfrTimestampPatch.execute(agentClasLoader);
       }
+      log.debug("Scheduling scope event factory registration");
+      WithGlobalTracer.registerOrExecute(
+          tracer -> {
+            try {
+              if (Config.get().isProfilingLegacyTracingIntegrationEnabled()) {
+                log.debug("Registering scope event factory");
+                ScopeListener scopeListener =
+                    (ScopeListener)
+                        ProfilingAgent.class.getClassLoader()
+                            .loadClass("datadog.trace.core.jfr.openjdk.ScopeEventFactory")
+                            .getDeclaredConstructor()
+                            .newInstance();
+                tracer.addScopeListener(scopeListener);
+                log.debug("Scope event factory {} has been registered", scopeListener);
+              } else if (tracer instanceof AgentTracer.TracerAPI) {
+                log.debug("Registering checkpointer");
+                Checkpointer checkpointer =
+                    (Checkpointer)
+                        ProfilingAgent.class.getClassLoader()
+                            .loadClass("datadog.trace.core.jfr.openjdk.JFRCheckpointer")
+                            .getDeclaredConstructor()
+                            .newInstance();
+                ((AgentTracer.TracerAPI) tracer).registerCheckpointer(checkpointer);
+                log.debug("Checkpointer {} has been registered", checkpointer);
+              }
+            } catch (Throwable e) {
+              if (e instanceof InvocationTargetException) {
+                e = e.getCause();
+              }
+              log.debug("Profiling code hotspots are not available. {}", e.getMessage());
+            }
+          }
+      );
+      ExceptionSampling.enableExceptionSampling();
 
       try {
         final Controller controller = ControllerFactory.createController(configProvider);
@@ -85,25 +105,14 @@ public class ProfilingAgent {
 
         uploader = new ProfileUploader(config, configProvider);
 
-        final Duration startupDelay = Duration.ofSeconds(config.getProfilingStartDelay());
-        final Duration uploadPeriod = Duration.ofSeconds(config.getProfilingUploadPeriod());
-
-        // Randomize startup delay for up to one upload period. Consider having separate setting for
-        // this in the future
-        final Duration startupDelayRandomRange = uploadPeriod;
-
+        ProfilingSystemConfig profilingConfig = new ProfilingSystemConfig(configProvider);
         profiler =
             new ProfilingSystem(
-                configProvider,
+                profilingConfig,
                 controller,
-                uploader::upload,
-                startupDelay,
-                startupDelayRandomRange,
-                uploadPeriod,
-                startForceFirst);
+                uploader::upload);
         profiler.start();
         log.debug("Profiling has started");
-
         try {
           /*
           Note: shutdown hooks are tricky because JVM holds reference for them forever preventing
@@ -123,12 +132,6 @@ public class ProfilingAgent {
         log.debug("Failed to initialize profiling agent!", e);
       }
     }
-  }
-
-  private static boolean isStartForceFirstSafe() {
-    return Platform.isJavaVersionAtLeast(14)
-        || (Platform.isJavaVersion(13) && Platform.isJavaVersionAtLeast(13, 0, 4))
-        || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 8));
   }
 
   public static void shutdown() {
