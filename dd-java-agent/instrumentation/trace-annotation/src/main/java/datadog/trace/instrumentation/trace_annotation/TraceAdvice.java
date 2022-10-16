@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.trace_annotation;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.trace_annotation.TraceDecorator.DECORATE;
 
 import datadog.trace.api.Trace;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -25,10 +24,11 @@ public class TraceAdvice {
 
     CharSequence resourceName = traceAnnotation == null ? null : traceAnnotation.resourceName();
     if (resourceName == null || resourceName.length() == 0) {
-      resourceName = DECORATE.spanNameForMethod(method);
+      // resourceName = DECORATE.spanNameForMethod(method);
+      resourceName = method.getDeclaringClass().getSimpleName() + "." + method.getName();
     }
     span.setResourceName(resourceName);
-    DECORATE.afterStart(span);
+    // DECORATE.afterStart(span);
 
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
@@ -38,8 +38,8 @@ public class TraceAdvice {
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void stopSpan(
       @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
-    DECORATE.onError(scope, throwable);
-    DECORATE.beforeFinish(scope);
+    // DECORATE.onError(scope, throwable);
+    // DECORATE.beforeFinish(scope);
     scope.close();
     scope.span().finish();
   }

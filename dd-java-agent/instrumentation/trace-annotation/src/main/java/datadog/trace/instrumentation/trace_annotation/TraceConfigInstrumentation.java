@@ -224,9 +224,9 @@ public class TraceConfigInstrumentation implements Instrumenter {
 
     @Override
     public String[] helperClassNames() {
-      return new String[] {
+      return new String[0]; /* {
         packageName + ".TraceDecorator",
-      };
+      }; */
     }
 
     @Override
