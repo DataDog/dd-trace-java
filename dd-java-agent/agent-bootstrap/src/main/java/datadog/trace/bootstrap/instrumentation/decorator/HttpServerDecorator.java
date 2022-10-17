@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
@@ -52,6 +51,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       Config.get().isRuleEnabled("URLAsResourceNameRule");
 
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
+
+  private final boolean traceClientIpResolverEnabled =
+      Config.get().isTraceClientIpResolverEnabled();
 
   protected abstract AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter();
 
@@ -114,19 +116,19 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       if (forwarded != null) {
         span.setTag(Tags.HTTP_FORWARDED, forwarded);
       }
-      String forwardedProto = context.getForwardedProto();
+      String forwardedProto = context.getXForwardedProto();
       if (forwardedProto != null) {
         span.setTag(Tags.HTTP_FORWARDED_PROTO, forwardedProto);
       }
-      String forwardedHost = context.getForwardedHost();
+      String forwardedHost = context.getXForwardedHost();
       if (forwardedHost != null) {
         span.setTag(Tags.HTTP_FORWARDED_HOST, forwardedHost);
       }
-      String forwardedIp = context.getForwardedIp();
+      String forwardedIp = context.getXForwardedFor();
       if (forwardedIp != null) {
         span.setTag(Tags.HTTP_FORWARDED_IP, forwardedIp);
       }
-      String forwardedPort = context.getForwardedPort();
+      String forwardedPort = context.getXForwardedPort();
       if (forwardedPort != null) {
         span.setTag(Tags.HTTP_FORWARDED_PORT, forwardedPort);
       }
@@ -149,8 +151,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           String path = encoded ? url.rawPath() : url.path();
 
           span.setTag(Tags.HTTP_URL, URIUtils.buildURL(url.scheme(), url.host(), url.port(), path));
-          if (context != null && context.getForwardedHost() != null) {
-            span.setTag(Tags.HTTP_HOSTNAME, context.getForwardedHost());
+          if (context != null && context.getXForwardedHost() != null) {
+            span.setTag(Tags.HTTP_HOSTNAME, context.getXForwardedHost());
           } else if (url.host() != null) {
             span.setTag(Tags.HTTP_HOSTNAME, url.host());
           }

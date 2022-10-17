@@ -143,46 +143,13 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     decorator.onRequest(this.span, conn, null, ctx)
 
     then:
-    _ * ctx.getForwarded() >> null
-    _ * ctx.getForwardedFor() >> null
-    _ * ctx.getForwardedProto() >> null
-    _ * ctx.getForwardedHost() >> null
-    _ * ctx.getForwardedIp() >> null
-    _ * ctx.getForwardedPort() >> null
-    _ * ctx.getXForwarded()
-    _ * ctx.getXForwardedFor() >> null
-    _ * ctx.getXClusterClientIp() >> null
-    _ * ctx.getXRealIp() >> null
-    _ * ctx.getClientIp() >> null
-    _ * ctx.getUserAgent() >> null
-    _ * ctx.getCustomIpHeader() >> null
-    _ * ctx.getTrueClientIp() >> null
-    _ * ctx.getVia() >> null
-    if (conn) {
-      1 * this.span.setTag(Tags.PEER_PORT, 555)
-      if (ipv4) {
-        1 * this.span.setTag(Tags.PEER_HOST_IPV4, "10.0.0.1")
-        1 * this.span.setTag(Tags.HTTP_CLIENT_IP, "10.0.0.1")
-      } else if (ipv4 != null) {
-        1 * this.span.setTag(Tags.PEER_HOST_IPV6, "3ffe:1900:4545:3:200:f8ff:fe21:67cf")
-        1 * this.span.setTag(Tags.HTTP_CLIENT_IP, "3ffe:1900:4545:3:200:f8ff:fe21:67cf")
-      }
-    }
-    _ * this.span.getRequestContext() >> null
-    0 * _
-
-    when:
-    decorator.onRequest(this.span, conn, null, ctx)
-
-    then:
     _ * ctx.getForwarded() >> "by=<identifier>;for=<identifier>;host=<host>;proto=<http|https>"
     _ * ctx.getForwardedFor() >> null
-    _ * ctx.getForwardedProto() >> "https"
-    _ * ctx.getForwardedHost() >> "somehost"
-    _ * ctx.getForwardedIp() >> (ipv4 ? "10.1.1.1, 192.168.1.1" : "0::1")
-    _ * ctx.getForwardedPort() >> "123"
+    _ * ctx.getXForwardedProto() >> "https"
+    _ * ctx.getXForwardedHost() >> "somehost"
+    _ * ctx.getXForwardedFor() >> conn?.ip
+    _ * ctx.getXForwardedPort() >> "123"
     _ * ctx.getXForwarded()
-    _ * ctx.getXForwardedFor() >> null
     _ * ctx.getXClusterClientIp() >> null
     _ * ctx.getXRealIp() >> null
     _ * ctx.getClientIp() >> null
@@ -193,21 +160,18 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     1 * this.span.setTag(Tags.HTTP_FORWARDED, "by=<identifier>;for=<identifier>;host=<host>;proto=<http|https>")
     1 * this.span.setTag(Tags.HTTP_FORWARDED_PROTO, "https")
     1 * this.span.setTag(Tags.HTTP_FORWARDED_HOST, "somehost")
-    if (ipv4) {
-      1 * this.span.setTag(Tags.HTTP_FORWARDED_IP, "10.1.1.1, 192.168.1.1")
-      1 * this.span.setTag(Tags.PEER_HOST_IPV4, "10.0.0.1")
-    } else if (conn?.ip) {
-      1 * this.span.setTag(Tags.HTTP_FORWARDED_IP, "0::1")
-      1 * this.span.setTag(Tags.PEER_HOST_IPV6, "3ffe:1900:4545:3:200:f8ff:fe21:67cf")
-    } else {
-      1 * this.span.setTag(Tags.HTTP_FORWARDED_IP, "0::1")
+    if (conn?.peerIp) {
+      1 * this.span.setTag(ipv4 ? Tags.PEER_HOST_IPV4 : Tags.PEER_HOST_IPV6, conn.peerIp)
+    }
+    if (conn?.ip) {
+      1 * this.span.setTag(Tags.HTTP_CLIENT_IP, conn.ip)
+      1 * this.span.setTag(Tags.HTTP_FORWARDED_IP, conn?.ip)
+    } else if (conn?.peerIp) {
+      1 * this.span.setTag(Tags.HTTP_CLIENT_IP, conn.peerIp)
     }
     1 * this.span.setTag(Tags.HTTP_FORWARDED_PORT, "123")
-    if (conn) {
-      1 * this.span.setTag(Tags.PEER_PORT, 555)
-      if (conn.ip) {
-        1 * this.span.setTag(Tags.HTTP_CLIENT_IP, conn.ip)
-      }
+    if (conn?.port) {
+      1 * this.span.setTag(Tags.PEER_PORT, conn.port)
     }
     1 * this.span.setTag(Tags.HTTP_USER_AGENT, "some-user-agent")
     _ * this.span.getRequestContext() >> null
@@ -216,8 +180,8 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     where:
     ipv4  | conn
     null  | null
-    null  | [ip: null, port: 555]
-    true  | [ip: "10.0.0.1", port: 555]
+    true  | [ip: null, peerIp: '127.0.0.1', port: 555]
+    true  | [ip: '10.0.0.1', port: 555]
     false | [ip: "3ffe:1900:4545:3:200:f8ff:fe21:67cf", port: 555]
   }
 
@@ -228,7 +192,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
     when:
     1 * ctx.getClientIp() >> headerIpAddr
-    decorator.onRequest(this.span, [ip: peerIpAddr], null, ctx)
+    decorator.onRequest(this.span, [peerIp: peerIpAddr], null, ctx)
 
     then:
     1 * this.span.setTag(Tags.HTTP_CLIENT_IP, result)
@@ -239,6 +203,36 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     '1.1.1.1'    | '127.0.0.1' | '1.1.1.1'
     '127.0.0.1'  | '8.8.8.8'   | '8.8.8.8'
     null         | '127.0.0.1' | '127.0.0.1'
+  }
+
+  void 'disabling header collection without custom header disables client ip reporting'() {
+    setup:
+    injectSysConfig('dd.trace.client-ip-header.disabled', 'true')
+
+    def ctx = Mock(AgentSpan.Context.Extracted)
+    def decorator = newDecorator()
+
+    when:
+    decorator.onRequest(this.span, [peerIp: '4.4.4.4'], null, ctx)
+
+    then:
+    0 * this.span.setTag(Tags.HTTP_CLIENT_IP, _)
+  }
+
+  void 'disabling header collection but enabling custom header enables client ip reporting'() {
+    setup:
+    injectSysConfig('dd.trace.client-ip-header.disabled', 'true')
+    injectSysConfig('dd.trace.client-ip-header', 'my-header')
+
+    def ctx = Mock(AgentSpan.Context.Extracted)
+    def decorator = newDecorator()
+
+    when:
+    decorator.onRequest(this.span, [peerIp: '4.4.4.4'], null, ctx)
+
+    then:
+    1 * ctx.getCustomIpHeader() >> '5.5.5.5'
+    1 * this.span.setTag(Tags.HTTP_CLIENT_IP, '5.5.5.5')
   }
 
   def "test onResponse"() {
@@ -330,7 +324,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
         @Override
         protected String peerHostIP(Map m) {
-          return m.ip
+          return m.peerIp
         }
 
         @Override

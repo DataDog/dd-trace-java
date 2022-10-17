@@ -229,8 +229,8 @@ class B3HttpExtractorTest extends DDSpecification {
     then:
     context != null
     context instanceof TagContext
-    context.forwardedIp == forwardedIp
-    context.forwardedPort == forwardedPort
+    context.XForwardedFor == forwardedIp
+    context.XForwardedPort == forwardedPort
 
     when:
     context = extractor.extract(fullCtx, ContextVisitors.stringValuesMap())
@@ -239,8 +239,8 @@ class B3HttpExtractorTest extends DDSpecification {
     context instanceof ExtractedContext
     context.traceId.toLong() == 1
     context.spanId.toLong() == 2
-    context.forwardedIp == forwardedIp
-    context.forwardedPort == forwardedPort
+    context.XForwardedFor == forwardedIp
+    context.XForwardedPort == forwardedPort
 
     where:
     forwardedIp = "1.2.3.4"

@@ -493,7 +493,7 @@ public class Config {
 
   private final boolean traceAnalyticsEnabled;
   private final String traceClientIpHeader;
-  private final boolean traceClientIpHeaderDisabled;
+  private final boolean defaultHeaderAndIpCollectionEnabled;
   private final boolean traceClientIpResolverEnabled;
 
   private final Map<String, String> traceSamplingServiceRules;
@@ -995,11 +995,40 @@ public class Config {
     }
     this.traceClientIpHeader = traceClientIpHeader;
 
-    this.traceClientIpHeaderDisabled =
-        configProvider.getBoolean(TRACE_CLIENT_IP_HEADER_DISABLED, false);
+    // The name of the setting (DD_TRACE_CLIENT_IP_HEADER_DISABLED) is misleading.
+    // * It mentions header (singular), but in reality it suppresses the collection of all the
+    // IP-forwarding
+    //   related headers, plus User-Agent.
+    // * It disables the determination of client ip address, even if this determination does not
+    //   use the headers (comes from the TCP peer IP address).
+    // * The name also does not follow the convention of naming options _enabled, rather than
+    // _disabled.
+    this.defaultHeaderAndIpCollectionEnabled =
+        !configProvider.getBoolean(TRACE_CLIENT_IP_HEADER_DISABLED, false);
 
-    this.traceClientIpResolverEnabled =
+    /* In principle, there is no logic incompatibility in not reporting the
+     * headers collected by default (forwarding-related headers plus
+     * user-agent), but to still run the IP address resolution for
+     * reporting it in the http.client_ip tag.
+     * However, it's been decided that DD_TRACE_CLIENT_IP_HEADER_DISABLED,
+     * when set to true, also disables the IP address resolution, in order to
+     * suppress the collection of all identifying information with one option.
+     */
+    boolean traceClientIpResolverEnabled =
         configProvider.getBoolean(TRACE_CLIENT_IP_RESOLVER_ENABLED, true);
+    if (traceClientIpResolverEnabled) {
+      if (!(defaultHeaderAndIpCollectionEnabled || this.traceClientIpHeader != null)) {
+        log.warn(
+            "The option {}=true has no effect when the option {}=true and no "
+                + "custom IP header is specified through {}. Set {}=false to suppress this message",
+            TRACE_CLIENT_IP_RESOLVER_ENABLED,
+            TRACE_CLIENT_IP_HEADER_DISABLED,
+            TRACE_CLIENT_IP_HEADER,
+            TRACE_CLIENT_IP_RESOLVER_ENABLED);
+        traceClientIpResolverEnabled = false;
+      }
+    }
+    this.traceClientIpResolverEnabled = traceClientIpResolverEnabled;
 
     traceSamplingServiceRules = configProvider.getMergedMap(TRACE_SAMPLING_SERVICE_RULES);
     traceSamplingOperationRules = configProvider.getMergedMap(TRACE_SAMPLING_OPERATION_RULES);
@@ -1694,8 +1723,8 @@ public class Config {
     return traceClientIpHeader;
   }
 
-  public boolean isTraceClientIpHeaderDisabled() {
-    return traceClientIpHeaderDisabled;
+  public boolean isDefaultHeaderAndIpCollectionEnabled() {
+    return defaultHeaderAndIpCollectionEnabled;
   }
 
   public boolean isTraceClientIpResolverEnabled() {

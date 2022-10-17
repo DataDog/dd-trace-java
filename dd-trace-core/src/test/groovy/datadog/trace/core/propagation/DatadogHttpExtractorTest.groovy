@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation
 
 import datadog.trace.api.DDId
+import datadog.trace.api.config.TracerConfig
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
@@ -16,7 +17,13 @@ import static datadog.trace.core.propagation.DatadogHttpCodec.TRACE_ID_KEY
 
 class DatadogHttpExtractorTest extends DDSpecification {
 
-  HttpCodec.Extractor extractor = DatadogHttpCodec.newExtractor(["SOME_HEADER": "some-tag"])
+  private HttpCodec.Extractor _extractor
+
+  private HttpCodec.Extractor getExtractor() {
+    _extractor ?: (
+      _extractor = DatadogHttpCodec.newExtractor(["SOME_HEADER": "some-tag"])
+      )
+  }
 
   def setup() {
     injectSysConfig(PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED, "true")
@@ -72,9 +79,10 @@ class DatadogHttpExtractorTest extends DDSpecification {
     }
 
     where:
-    headers                                                         | _
-    [SOME_HEADER: "my-interesting-info"]                            | _
-    [(ORIGIN_KEY): "my-origin", SOME_HEADER: "my-interesting-info"] | _
+    headers << [
+      [SOME_HEADER: "my-interesting-info"],
+      [(ORIGIN_KEY): "my-origin", SOME_HEADER: "my-interesting-info"],
+    ]
   }
 
   def "extract headers with forwarding"() {
@@ -109,14 +117,28 @@ class DatadogHttpExtractorTest extends DDSpecification {
   }
 
   def "extract headers with x-forwarding"() {
+    setup:
+    String forwardedIp = '1.2.3.4'
+    String forwardedPort = '1234'
+    def tagOnlyCtx = [
+      "X-Forwarded-For" : forwardedIp,
+      "X-Forwarded-Port": forwardedPort
+    ]
+    def fullCtx = [
+      (TRACE_ID_KEY.toUpperCase()): 1,
+      (SPAN_ID_KEY.toUpperCase()) : 2,
+      "x-forwarded-for"           : forwardedIp,
+      "x-forwarded-port"          : forwardedPort
+    ]
+
     when:
     TagContext context = extractor.extract(tagOnlyCtx, ContextVisitors.stringValuesMap())
 
     then:
     context != null
     context instanceof TagContext
-    context.forwardedIp == forwardedIp
-    context.forwardedPort == forwardedPort
+    context.XForwardedFor == forwardedIp
+    context.XForwardedPort == forwardedPort
 
     when:
     context = extractor.extract(fullCtx, ContextVisitors.stringValuesMap())
@@ -125,28 +147,47 @@ class DatadogHttpExtractorTest extends DDSpecification {
     context instanceof ExtractedContext
     context.traceId.toLong() == 1
     context.spanId.toLong() == 2
-    context.forwardedIp == forwardedIp
-    context.forwardedIp == forwardedIp
-    context.forwardedPort == forwardedPort
-
-    where:
-    forwardedIp = "1.2.3.4"
-    forwardedPort = "1234"
-    tagOnlyCtx = [
-      "X-Forwarded-For" : forwardedIp,
-      "X-Forwarded-Port": forwardedPort
-    ]
-    fullCtx = [
-      (TRACE_ID_KEY.toUpperCase()): 1,
-      (SPAN_ID_KEY.toUpperCase()) : 2,
-      "x-forwarded-for"           : forwardedIp,
-      "x-forwarded-port"          : forwardedPort
-    ]
+    context.XForwardedFor == forwardedIp
+    context.XForwardedPort == forwardedPort
   }
 
   def "extract empty headers returns null"() {
     expect:
     extractor.extract(["ignored-header": "ignored-value"], ContextVisitors.stringValuesMap()) == null
+  }
+
+  void 'extract headers with default header collection disabled returns null'() {
+    setup:
+    injectSysConfig(TracerConfig.TRACE_CLIENT_IP_HEADER_DISABLED, 'true')
+
+    def tagOnlyCtx = [
+      'X-Forwarded-For': '::1',
+      'User-agent': 'foo/bar',
+    ]
+
+    expect:
+    extractor.extract(tagOnlyCtx, ContextVisitors.stringValuesMap()) == null
+  }
+
+  void 'custom IP header collection works even with default header collection disabled'() {
+    setup:
+    injectSysConfig(TracerConfig.TRACE_CLIENT_IP_HEADER_DISABLED, 'true')
+    injectSysConfig(TracerConfig.TRACE_CLIENT_IP_HEADER, "my-header")
+
+    def tagOnlyCtx = [
+      'X-Forwarded-For': '::1',
+      'User-agent': 'foo/bar',
+      'My-Header': '8.8.8.8',
+    ]
+
+    when:
+    def ctx = extractor.extract(tagOnlyCtx, ContextVisitors.stringValuesMap())
+
+    then:
+    ctx != null
+    ctx.XForwardedFor == null
+    ctx.userAgent == null
+    ctx.customIpHeader == '8.8.8.8'
   }
 
   def "extract http headers with invalid non-numeric ID"() {
