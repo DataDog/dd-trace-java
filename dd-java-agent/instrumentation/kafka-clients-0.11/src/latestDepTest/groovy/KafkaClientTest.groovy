@@ -399,6 +399,152 @@ class KafkaClientTest extends AgentTestRunner {
     container?.stop()
   }
 
+  def "test records(TopicPartition) kafka consume Spliterator"() {
+    setup:
+
+    def kafkaPartition = 0
+    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
+    consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+    def consumer = new KafkaConsumer<String, String>(consumerProperties)
+
+    def producerProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer(producerProps)
+
+    consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, kafkaPartition)))
+
+    when:
+    List<String> messages = ["msg 1", "msg 2", "msg 3"]
+    for (msg in messages) {
+      producer.send(new ProducerRecord<Integer, String>(SHARED_TOPIC, kafkaPartition, null, msg))
+    }
+    then:
+    TEST_WRITER.waitForTraces(3)
+    def pollResult = KafkaTestUtils.getRecords(consumer)
+    def recs = pollResult.records(new TopicPartition(SHARED_TOPIC, kafkaPartition)).spliterator()
+
+    List<String> res = []
+    recs.tryAdvance({ msg -> res.add(msg.value()) })
+    recs.forEachRemaining({ msg -> res.add(msg.value()) })
+    res.size() == messages.size()
+    messages.toSet() == res.toSet()
+
+    then:
+    assertTraces(6) {
+      trace(1) {
+        span {
+          serviceName "kafka"
+          operationName "kafka.produce"
+          resourceName "Produce Topic $SHARED_TOPIC"
+          spanType "queue"
+          errored false
+          parent()
+          tags {
+            "$Tags.COMPONENT" "java-kafka"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            "$InstrumentationTags.PARTITION" { it >= 0 }
+            defaultTags(true)
+          }
+        }
+      }
+      trace(1) {
+        span {
+          serviceName "kafka"
+          operationName "kafka.produce"
+          resourceName "Produce Topic $SHARED_TOPIC"
+          spanType "queue"
+          errored false
+          parent()
+          tags {
+            "$Tags.COMPONENT" "java-kafka"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            "$InstrumentationTags.PARTITION" { it >= 0 }
+            defaultTags(true)
+          }
+        }
+      }
+      trace(1) {
+        span {
+          serviceName "kafka"
+          operationName "kafka.produce"
+          resourceName "Produce Topic $SHARED_TOPIC"
+          spanType "queue"
+          errored false
+          parent()
+          tags {
+            "$Tags.COMPONENT" "java-kafka"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            "$InstrumentationTags.PARTITION" { it >= 0 }
+            defaultTags(true)
+          }
+        }
+      }
+      trace(1) {
+        span {
+          serviceName "kafka"
+          operationName "kafka.consume"
+          resourceName "Consume Topic $SHARED_TOPIC"
+          spanType "queue"
+          errored false
+          childOf trace(0)[0]
+          tags {
+            "$Tags.COMPONENT" "java-kafka"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "$InstrumentationTags.PARTITION" { it >= 0 }
+            "$InstrumentationTags.OFFSET" 0
+            "$InstrumentationTags.CONSUMER_GROUP" "sender"
+            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
+            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+            defaultTags(true)
+          }
+        }
+      }
+      trace(1) {
+        span {
+          serviceName "kafka"
+          operationName "kafka.consume"
+          resourceName "Consume Topic $SHARED_TOPIC"
+          spanType "queue"
+          errored false
+          childOf trace(1)[0]
+          tags {
+            "$Tags.COMPONENT" "java-kafka"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "$InstrumentationTags.PARTITION" { it >= 0 }
+            "$InstrumentationTags.OFFSET" 1
+            "$InstrumentationTags.CONSUMER_GROUP" "sender"
+            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
+            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+            defaultTags(true)
+          }
+        }
+      }
+      trace(1) {
+        span {
+          serviceName "kafka"
+          operationName "kafka.consume"
+          resourceName "Consume Topic $SHARED_TOPIC"
+          spanType "queue"
+          errored false
+          childOf trace(2)[0]
+          tags {
+            "$Tags.COMPONENT" "java-kafka"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "$InstrumentationTags.PARTITION" { it >= 0 }
+            "$InstrumentationTags.OFFSET" 2
+            "$InstrumentationTags.CONSUMER_GROUP" "sender"
+            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
+            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+            defaultTags(true)
+          }
+        }
+      }
+    }
+
+    cleanup:
+    consumer.close()
+    producer.close()
+  }
+
   def "test records(TopicPartition) kafka consume"() {
     setup:
 
@@ -434,7 +580,7 @@ class KafkaClientTest extends AgentTestRunner {
     first.value() == greeting
     first.key() == null
 
-    assertTraces(2) {
+    assertTraces(8) {
       trace(1) {
         // PRODUCER span 0
         span {

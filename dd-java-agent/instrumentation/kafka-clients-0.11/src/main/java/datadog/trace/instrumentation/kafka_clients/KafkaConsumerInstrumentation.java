@@ -12,11 +12,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Spliterator;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -78,13 +78,15 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
             .and(takesArguments(0))
             .and(returns(Iterator.class)),
         KafkaConsumerInstrumentation.class.getName() + "$IteratorAdvice");
-    transformation.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(named("spliterator"))
-            .and(takesArguments(0))
-            .and(returns(named("java.util.Spliterator"))),
-        KafkaConsumerInstrumentation.class.getName() + "$SpliteratorAdvice");
+    if (Platform.isJavaVersionAtLeast(8)) {
+      transformation.applyAdvice(
+          isMethod()
+              .and(isPublic())
+              .and(named("spliterator"))
+              .and(takesArguments(0))
+              .and(returns(named("java.util.Spliterator"))),
+          TracingSpliterator.class.getName() + "$SpliteratorAdvice");
+    }
   }
 
   public static class IterableAdvice {
@@ -122,19 +124,6 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
       if (iterator != null) {
         String group = InstrumentationContext.get(ConsumerRecords.class, String.class).get(records);
         iterator = new TracingIterator(iterator, KAFKA_CONSUME, CONSUMER_DECORATE, group);
-      }
-    }
-  }
-
-  public static class SpliteratorAdvice {
-
-    public static void wrap(
-        @Advice.Return(readOnly = false) Spliterator<ConsumerRecord<?, ?>> spliterator,
-        @Advice.This ConsumerRecords records
-    ) {
-      if (spliterator != null) {
-        String group = InstrumentationContext.get(ConsumerRecords.class, String.class).get(records);
-        spliterator = new TracingSpliterator(spliterator, KAFKA_CONSUME, CONSUMER_DECORATE, group);
       }
     }
   }

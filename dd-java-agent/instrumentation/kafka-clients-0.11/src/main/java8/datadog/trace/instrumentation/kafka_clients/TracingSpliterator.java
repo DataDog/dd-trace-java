@@ -1,10 +1,15 @@
 package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
+import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.CONSUMER_DECORATE;
+import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_CONSUME;
 
+import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Spliterator;
 import java.util.function.Consumer;
+import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
 
 public class TracingSpliterator implements Spliterator<ConsumerRecord<?, ?>> {
   private final Spliterator<ConsumerRecord<?, ?>> delegateSpliterator;
@@ -61,5 +66,19 @@ public class TracingSpliterator implements Spliterator<ConsumerRecord<?, ?>> {
   @Override
   public int characteristics() {
     return this.delegateSpliterator.characteristics();
+  }
+
+  public static class SpliteratorAdvice {
+
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void wrap(
+        @Advice.Return(readOnly = false) Spliterator<ConsumerRecord<?, ?>> spliterator,
+        @Advice.This ConsumerRecords records
+    ) {
+      if (spliterator != null) {
+        String group = InstrumentationContext.get(ConsumerRecords.class, String.class).get(records);
+        spliterator = new TracingSpliterator(spliterator, KAFKA_CONSUME, CONSUMER_DECORATE, group);
+      }
+    }
   }
 }

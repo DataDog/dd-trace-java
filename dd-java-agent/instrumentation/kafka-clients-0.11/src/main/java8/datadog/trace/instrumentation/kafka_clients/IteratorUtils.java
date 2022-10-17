@@ -26,7 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class IteratorUtils {
-  private static final Logger log = LoggerFactory.getLogger(TracingIterator.class);
+  private static final Logger log = LoggerFactory.getLogger(IteratorUtils.class);
 
   public static void startNewRecordSpan(ConsumerRecord<?, ?> val, CharSequence operationName, String group, KafkaDecorator decorator) {
     try {
@@ -34,8 +34,8 @@ public class IteratorUtils {
       AgentSpan span, queueSpan = null;
       if (val != null) {
         if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
-          final Context spanContext = propagate().extract(val.headers(), GETTER);
-          long timeInQueueStart = GETTER.extractTimeInQueueStart(val.headers());
+          final Context spanContext = propagate().extract(val.headers(), TextMapExtractAdapter.GETTER);
+          long timeInQueueStart = TextMapExtractAdapter.GETTER.extractTimeInQueueStart(val.headers());
           if (timeInQueueStart == 0 || KAFKA_LEGACY_TRACING) {
             span = startSpan(operationName, spanContext);
           } else {
@@ -50,7 +50,7 @@ public class IteratorUtils {
             // spans are written out together by TraceStructureWriter when running in strict mode
           }
           PathwayContext pathwayContext =
-              propagate().extractBinaryPathwayContext(val.headers(), GETTER);
+              propagate().extractBinaryPathwayContext(val.headers(), TextMapExtractAdapter.GETTER);
           span.mergePathwayContext(pathwayContext);
 
           LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
