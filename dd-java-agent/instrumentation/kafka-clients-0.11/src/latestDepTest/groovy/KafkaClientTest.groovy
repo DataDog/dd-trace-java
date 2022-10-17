@@ -580,7 +580,7 @@ class KafkaClientTest extends AgentTestRunner {
     first.value() == greeting
     first.key() == null
 
-    assertTraces(8) {
+    assertTraces(2) {
       trace(1) {
         // PRODUCER span 0
         span {
