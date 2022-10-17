@@ -7,18 +7,21 @@ class SpringNativeWebmvcIntegrationTest extends AbstractServerSmokeTest {
   ProcessBuilder createProcessBuilder() {
     String springNativeExecutable = System.getProperty("datadog.smoketest.spring.native.executable")
 
-    println("Executable: "+springNativeExecutable)
-
     List<String> command = new ArrayList<>()
     command.add(springNativeExecutable)
-//    command.add(javaPath())
-//    command.addAll(defaultJavaProperties)
+    command.addAll(nativeJavaProperties())
     command.addAll((String[]) [
       "-Ddd.writer.type=MultiWriter:TraceStructureWriter:${output.getAbsolutePath()},DDAgentWriter",
       "--server.port=${httpPort}"
     ])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
+  }
+
+  List<String> nativeJavaProperties() {
+    return defaultJavaProperties
+      .findAll { it -> !it.startsWith('-javaagent:') }
+      .toList()
   }
 
   @Override
