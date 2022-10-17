@@ -1,12 +1,10 @@
-plugins {
-  id 'idea'
-}
-
 ext {
   minJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+
+description = 'Spring Boot 2.7 Webflux Smoke Tests.'
 
 dependencies {
   testImplementation project(':dd-smoke-tests')
@@ -14,11 +12,12 @@ dependencies {
 
 def appDir = "$projectDir/application"
 def appBuildDir = "$buildDir/application"
+
 // define the task that builds the quarkus project
-tasks.register('vertxBuild', Exec) {
+tasks.register('webfluxBuild', Exec) {
   workingDir "$appDir"
   environment += ["GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'"]
-  commandLine "$appDir/gradlew", "assemble", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archivePath}"
+  commandLine "$rootDir/gradlew", "bootJar", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archivePath}"
 
   outputs.cacheIf { true }
 
@@ -33,19 +32,19 @@ tasks.register('vertxBuild', Exec) {
   .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
-vertxBuild {
+webfluxBuild {
   dependsOn project(':dd-trace-api').tasks.named("jar")
 }
 
 tasks.named("compileTestGroovy").configure {
-  dependsOn 'vertxBuild'
+  dependsOn 'webfluxBuild'
   outputs.upToDateWhen {
-    !vertxBuild.didWork
+    !webfluxBuild.didWork
   }
 }
 
 tasks.withType(Test).configureEach {
-  jvmArgs "-Ddatadog.smoketest.vertx.uberJar.path=$appBuildDir/libs/vertx-3.9-1.0.0-SNAPSHOT-fat.jar"
+  jvmArgs "-Ddatadog.smoketest.webflux.uberJar.path=$appBuildDir/libs/webflux-2.7-smoketest-${version}.jar"
 }
 
 spotless {
@@ -55,11 +54,5 @@ spotless {
 
   groovyGradle {
     target '*.gradle', "**/*.gradle"
-  }
-}
-
-idea {
-  module {
-    excludeDirs += [file("$appDir")]
   }
 }
