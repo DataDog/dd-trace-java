@@ -18,8 +18,16 @@ tasks.register('springNativeBuild', Exec) {
     "GRAALVM_HOME": "/Users/bruce.bujon/.sdkman/candidates/java/22.2.r17-grl" // TODO Update CI script instead
   ]
   commandLine "$rootDir/gradlew", "nativeCompile", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PagentPath=${project(':dd-java-agent').tasks.jar.archivePath}"
+
+  outputs.cacheIf { true }
   outputs.dir(appBuildDir)
-  inputs.dir(appDir)
+    .withPropertyName("nativeApplication")
+
+  inputs.files(fileTree(appDir) {
+    include '**/*'
+    exclude '.gradle/**', 'build/**'
+  }).withPropertyName("application")
+    .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 springNativeBuild {
