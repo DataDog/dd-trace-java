@@ -11,7 +11,6 @@ import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_DELIVER;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_LEGACY_TRACING;
-import static datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter.GETTER;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.api.Config;
@@ -28,14 +27,20 @@ import org.slf4j.LoggerFactory;
 public class IteratorUtils {
   private static final Logger log = LoggerFactory.getLogger(IteratorUtils.class);
 
-  public static void startNewRecordSpan(ConsumerRecord<?, ?> val, CharSequence operationName, String group, KafkaDecorator decorator) {
+  public static void startNewRecordSpan(
+      ConsumerRecord<?, ?> val,
+      CharSequence operationName,
+      String group,
+      KafkaDecorator decorator) {
     try {
       closePrevious(true);
       AgentSpan span, queueSpan = null;
       if (val != null) {
         if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
-          final Context spanContext = propagate().extract(val.headers(), TextMapExtractAdapter.GETTER);
-          long timeInQueueStart = TextMapExtractAdapter.GETTER.extractTimeInQueueStart(val.headers());
+          final Context spanContext =
+              propagate().extract(val.headers(), TextMapExtractAdapter.GETTER);
+          long timeInQueueStart =
+              TextMapExtractAdapter.GETTER.extractTimeInQueueStart(val.headers());
           if (timeInQueueStart == 0 || KAFKA_LEGACY_TRACING) {
             span = startSpan(operationName, spanContext);
           } else {
