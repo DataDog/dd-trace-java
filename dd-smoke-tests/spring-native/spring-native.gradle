@@ -1,0 +1,48 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  testImplementation project(':dd-smoke-tests')
+}
+
+def appDir = "$projectDir/application"
+def appBuildDir = "$buildDir/application"
+// define the task that builds the Spring Native project
+tasks.register('springNativeBuild', Exec) {
+  workingDir "$appDir"
+  environment += [
+    "GRADLE_OPTS" : "-Dorg.gradle.jvmargs='-Xmx512M'",
+    "GRAALVM_HOME": "/Users/bruce.bujon/.sdkman/candidates/java/22.2.r17-grl" // TODO Update CI script instead
+  ]
+  commandLine "$rootDir/gradlew", "nativeCompile", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PagentPath=${project(':dd-java-agent').tasks.jar.archivePath}"
+  outputs.dir(appBuildDir)
+  inputs.dir(appDir)
+}
+
+springNativeBuild {
+  dependsOn project(':dd-java-agent').tasks.named("jar")
+}
+
+tasks.named("compileTestGroovy").configure {
+  dependsOn 'springNativeBuild'
+  outputs.upToDateWhen {
+    !springNativeBuild.didWork
+  }
+}
+
+tasks.withType(Test).configureEach {
+  jvmArgs "-Ddatadog.smoketest.spring.native.executable=$appBuildDir/native/nativeCompile/spring-native-smoketest"
+}
+
+spotless {
+  java {
+    target "**/*.java"
+  }
+
+  groovyGradle {
+    target '*.gradle', "**/*.gradle"
+  }
+}
