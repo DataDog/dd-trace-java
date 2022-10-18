@@ -140,9 +140,8 @@ public final class AsyncProfiler {
     }
     throw new UnsupportedEnvironmentException(
         String.format(
-            "Unable to instantiate async profiler for the detected environment: arch={}, os={}",
-            arch,
-            os));
+            "Unable to instantiate async profiler for the detected environment: arch=%s, os=%s",
+            arch, os));
   }
 
   void addCurrentThread() {
@@ -273,9 +272,6 @@ public final class AsyncProfiler {
         cmd.append('~'); // this prefix will turn on wall-clock collapsing feature
       }
       cmd.append(getWallInterval()).append('m');
-      if (getWallFilterOnContext()) {
-        cmd.append(",wallfilter");
-      }
     }
     if (profilingModes.contains(ProfilingMode.ALLOCATION)) {
       // allocation profiling is enabled
@@ -311,12 +307,6 @@ public final class AsyncProfiler {
     return configProvider.getInteger(
         ProfilingConfig.PROFILING_ASYNC_WALL_INTERVAL,
         ProfilingConfig.PROFILING_ASYNC_WALL_INTERVAL_DEFAULT);
-  }
-
-  public boolean getWallFilterOnContext() {
-    return configProvider.getBoolean(
-        ProfilingConfig.PROFILING_ASYNC_WALL_FILTER_ON_CONTEXT,
-        ProfilingConfig.PROFILING_ASYNC_WALL_FILTER_ON_CONTEXT_DEFAULT);
   }
 
   public boolean isCollapsingWallclock() {
