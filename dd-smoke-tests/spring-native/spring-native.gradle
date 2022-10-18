@@ -37,7 +37,7 @@ if (testJvm != null && testJvm.startsWith('GRAALVM')) {
       include '**/*'
       exclude '.gradle/**', 'build/**'
     }).withPropertyName("application")
-      .withPathSensitivity(PathSensitivity.RELATIVE)
+    .withPathSensitivity(PathSensitivity.RELATIVE)
   }
 
   springNativeBuild {
