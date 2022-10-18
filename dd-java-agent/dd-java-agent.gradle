@@ -32,6 +32,22 @@ ext.generalShadowJarConfig = {
 
   exclude '**/module-info.class'
 
+  // Shade third party dependencies behind a 'ddlib.' prefix
+  relocate 'cafe.', 'ddlib.cafe.'
+  relocate('com.', 'ddlib.com.') {
+    exclude 'com.datadog.**'
+    exclude 'com.datadoghq.**'
+  }
+  relocate 'io.', 'ddlib.io.'
+  relocate 'jnr.', 'ddlib.jnr.'
+  relocate 'net.', 'ddlib.net.'
+  relocate 'okhttp3.', 'ddlib.okhttp3.'
+  relocate 'okio.', 'ddlib.okio.'
+  relocate 'one.', 'ddlib.one.'
+  relocate('org.', 'ddlib.org.') {
+    exclude 'org.slf4j.**'
+    exclude 'org.datadog.**'
+  }
   // Prevents conflict with other SLF4J instances. Important for premain.
   relocate 'org.slf4j', 'datadog.slf4j'
   // rewrite dependencies calling Logger.getLogger
