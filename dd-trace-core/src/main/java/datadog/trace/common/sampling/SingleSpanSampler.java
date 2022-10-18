@@ -40,7 +40,10 @@ public interface SingleSpanSampler<T extends CoreSpan<T>> {
           return new RuleBasedSingleSpanSampler<>(rules);
         }
       } else if (spanSamplingRulesFileDefined) {
-        // TODO read rules from the file
+        SpanSamplingRules rules = SpanSamplingRules.deserializeFile(spanSamplingRulesFile);
+        if (rules != null) {
+          return new RuleBasedSingleSpanSampler<>(rules);
+        }
       }
 
       return null;

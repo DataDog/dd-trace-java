@@ -2,12 +2,17 @@ package datadog.trace.common.sampling;
 
 import com.squareup.moshi.FromJson;
 import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -123,23 +128,42 @@ public class SpanSamplingRules {
   public static SpanSamplingRules deserialize(String json) {
     try {
       List<Rule> rules = LIST_OF_RULES_ADAPTER.fromJson(json);
-      if (rules == null) {
-        return null;
-      }
-      List<Rule> notNullRules = new ArrayList<>(rules.size());
-      for (Rule rule : rules) {
-        if (rule != null) {
-          notNullRules.add(rule);
-        }
-      }
-      if (notNullRules.isEmpty()) {
-        return null;
-      }
-      return new SpanSamplingRules(notNullRules);
+      return filterOutNullRules(rules);
     } catch (Throwable ex) {
       log.error("Couldn't parse Span Sampling Rules from JSON", ex);
       return null;
     }
+  }
+
+  public static SpanSamplingRules deserializeFile(String jsonFile) {
+    try (JsonReader reader = JsonReader.of(Okio.buffer(Okio.source(new File(jsonFile))))) {
+      List<Rule> rules = LIST_OF_RULES_ADAPTER.fromJson(reader);
+      return filterOutNullRules(rules);
+    } catch (FileNotFoundException e) {
+      log.warn("Span sampling rules file {} doesn't exit", jsonFile);
+    } catch (IOException e) {
+      log.error("Couldn't read Span sampling rules file {}. Failed with {}", jsonFile, e);
+    } catch (Throwable ex) {
+      log.error(
+          "Couldn't parse Span Sampling Rules from JSON file {}. Failed with {}", jsonFile, ex);
+    }
+    return null;
+  }
+
+  private static SpanSamplingRules filterOutNullRules(List<Rule> rules) {
+    if (rules == null) {
+      return null;
+    }
+    List<Rule> notNullRules = new ArrayList<>(rules.size());
+    for (Rule rule : rules) {
+      if (rule != null) {
+        notNullRules.add(rule);
+      }
+    }
+    if (notNullRules.isEmpty()) {
+      return null;
+    }
+    return new SpanSamplingRules(notNullRules);
   }
 
   private static final class JsonRule {
