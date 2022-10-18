@@ -28,7 +28,7 @@ if (testJvm != null && testJvm.startsWith('GRAALVM')) {
       "JAVA_HOME": testJvmHome,
       "GRAALVM_HOME": testJvmHome
     ]
-    commandLine "$rootDir/gradlew", "nativeCompile", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PagentPath=${project(':dd-java-agent').tasks.jar.archivePath}"
+    commandLine "$rootDir/gradlew", "nativeCompile", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PagentPath=${project(':dd-java-agent').tasks.shadowJar.archivePath}"
 
     outputs.cacheIf { true }
     outputs.dir(appBuildDir)
@@ -42,7 +42,7 @@ if (testJvm != null && testJvm.startsWith('GRAALVM')) {
   }
 
   springNativeBuild {
-    dependsOn project(':dd-java-agent').tasks.named("jar")
+    dependsOn project(':dd-java-agent').tasks.named("shadowJar")
   }
 
   tasks.named("compileTestGroovy").configure {
