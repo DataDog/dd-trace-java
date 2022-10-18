@@ -170,6 +170,38 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     then:
     AppSecSystem.ACTIVE == false
 
+    when: 'switch back to enabled'
+    savedFeaturesListener.accept('config_key',
+      savedFeaturesDeserializer.deserialize('{"asm":{"enabled": true}}'.bytes),
+      ConfigurationChangesListener.PollingRateHinter.NOOP)
+
+    then: 'it is enabled again'
+    AppSecSystem.ACTIVE == true
+
+    when: 'asm are not set'
+    savedFeaturesListener.accept('config_key',
+      savedFeaturesDeserializer.deserialize('{}'.bytes),
+      ConfigurationChangesListener.PollingRateHinter.NOOP)
+
+    then: 'it is disabled (<not set> == false)'
+    AppSecSystem.ACTIVE == false
+
+    when: 'switch back to enabled'
+    savedFeaturesListener.accept('config_key',
+      savedFeaturesDeserializer.deserialize('{"asm":{"enabled": true}}'.bytes),
+      ConfigurationChangesListener.PollingRateHinter.NOOP)
+
+    then: 'it is enabled again'
+    AppSecSystem.ACTIVE == true
+
+    when: 'asm features are not set'
+    savedFeaturesListener.accept('config_key',
+      null,
+      ConfigurationChangesListener.PollingRateHinter.NOOP)
+
+    then: 'it is disabled (<not set> == false)'
+    AppSecSystem.ACTIVE == false
+
     cleanup:
     AppSecSystem.ACTIVE = true
   }
