@@ -60,6 +60,8 @@ public final class AsyncProfiler {
     } else {
       asyncProfiler = inferFromOsAndArch();
     }
+    // TODO enable/disable events by name (e.g. datadog.ExecutionSample), not flag, so configuration
+    //  can be consistent with JFR event control
     if (configProvider.getBoolean(
         ProfilingConfig.PROFILING_ASYNC_ALLOC_ENABLED,
         ProfilingConfig.PROFILING_ASYNC_ALLOC_ENABLED_DEFAULT)) {

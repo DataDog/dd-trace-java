@@ -40,6 +40,11 @@ import org.slf4j.LoggerFactory;
  * messier... ;)
  */
 public final class OpenJdkController implements Controller {
+
+  private static final String EXPLICITLY_DISABLED = "explicitly disabled by user";
+  private static final String EXPLICITLY_ENABLED = "explicitly enabled by user";
+  private static final String EXPENSIVE_ON_CURRENT_JVM =
+      "expensive on this version of the JVM (" + Platform.getRuntimeVersion() + ")";
   static final Duration RECORDING_MAX_AGE = Duration.ofMinutes(5);
 
   private static final Logger log = LoggerFactory.getLogger(OpenJdkController.class);
@@ -70,19 +75,19 @@ public final class OpenJdkController implements Controller {
     // Toggle settings based on JDK version
 
     if (!isOldObjectSampleAvailable()) {
-      disableEvent(recordingSettings, "jdk.OldObjectSample");
+      disableEvent(recordingSettings, "jdk.OldObjectSample", EXPENSIVE_ON_CURRENT_JVM);
     }
 
     if (!isObjectAllocationSampleAvailable()) {
-      disableEvent(recordingSettings, "jdk.ObjectAllocationSample");
+      disableEvent(recordingSettings, "jdk.ObjectAllocationSample", EXPENSIVE_ON_CURRENT_JVM);
     }
 
     if (!isNativeMethodSampleAvailable()) {
-      disableEvent(recordingSettings, "jdk.NativeMethodSample");
+      disableEvent(recordingSettings, "jdk.NativeMethodSample", EXPENSIVE_ON_CURRENT_JVM);
     }
 
     if (!isJavaVersionAtLeast(17)) {
-      disableEvent(recordingSettings, "jdk.ClassLoaderStatistics");
+      disableEvent(recordingSettings, "jdk.ClassLoaderStatistics", EXPENSIVE_ON_CURRENT_JVM);
     }
 
     // Toggle settings from override file
@@ -93,6 +98,22 @@ public final class OpenJdkController implements Controller {
               configProvider.getString(ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE)));
     } catch (final IOException e) {
       throw new ConfigurationException(e);
+    }
+
+    // Toggle settings from override args
+
+    String disabledEventsArgs = configProvider.getString(ProfilingConfig.PROFILING_DISABLED_EVENTS);
+    if (disabledEventsArgs != null && !disabledEventsArgs.isEmpty()) {
+      for (String disabledEvent : disabledEventsArgs.trim().split(",")) {
+        disableEvent(recordingSettings, disabledEvent, EXPLICITLY_DISABLED);
+      }
+    }
+
+    String enabledEventsArgs = configProvider.getString(ProfilingConfig.PROFILING_ENABLED_EVENTS);
+    if (enabledEventsArgs != null && !enabledEventsArgs.isEmpty()) {
+      for (String enabledEvent : enabledEventsArgs.trim().split(",")) {
+        enableEvent(recordingSettings, enabledEvent, EXPLICITLY_ENABLED);
+      }
     }
 
     // Toggle settings from config
@@ -157,13 +178,19 @@ public final class OpenJdkController implements Controller {
         recordingName, recordingSettings, getMaxSize(), RECORDING_MAX_AGE);
   }
 
-  private static void disableEvent(Map<String, String> recordingSettings, String event) {
+  private static void disableEvent(
+      Map<String, String> recordingSettings, String event, String reason) {
     String wasEnabled = recordingSettings.put(event + "#enabled", "false");
     if (Boolean.parseBoolean(wasEnabled)) {
-      log.debug(
-          "Disabling JFR event {} because it is expensive on the current version of the JVM ({}).",
-          event,
-          Platform.getRuntimeVersion());
+      log.debug("Disabling JFR event {} because it is {}.", event, reason);
+    }
+  }
+
+  private static void enableEvent(
+      Map<String, String> recordingSettings, String event, String reason) {
+    String wasEnabled = recordingSettings.put(event + "#enabled", "true");
+    if (!Boolean.parseBoolean(wasEnabled)) {
+      log.debug("Enabling JFR event {} because it is {}.", event, reason);
     }
   }
 
