@@ -145,6 +145,18 @@ public final class AsyncProfiler {
             os));
   }
 
+  void addCurrentThread() {
+    if (asyncProfiler != null) {
+      asyncProfiler.addThread(Thread.currentThread());
+    }
+  }
+
+  void removeCurrentThread() {
+    if (asyncProfiler != null) {
+      asyncProfiler.removeThread(Thread.currentThread());
+    }
+  }
+
   private static one.profiler.AsyncProfiler profilerForOsAndArch(
       OperatingSystem os, Arch arch, boolean musl) throws IOException {
     String libDir =

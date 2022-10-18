@@ -39,6 +39,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ContextThreadListener;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
@@ -963,6 +964,20 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public void addScopeListener(final ScopeListener listener) {
     if (scopeManager instanceof ContinuableScopeManager) {
       ((ContinuableScopeManager) scopeManager).addScopeListener(listener);
+    }
+  }
+
+  @Override
+  public void addThreadContextListener(ContextThreadListener listener) {
+    if (scopeManager instanceof ContinuableScopeManager) {
+      ((ContinuableScopeManager) scopeManager).addContextThreadListener(listener);
+    }
+  }
+
+  @Override
+  public void detach() {
+    if (scopeManager instanceof ContinuableScopeManager) {
+      ((ContinuableScopeManager) scopeManager).detach();
     }
   }
 

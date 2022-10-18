@@ -20,6 +20,7 @@ excludedClassesCoverage += [
   'datadog.trace.core.monitor.LoggingStatsDClient',
   'datadog.trace.core.PendingTraceBuffer.DelayingPendingTraceBuffer.FlushElement',
   'datadog.trace.core.StatusLogger',
+  'datadog.trace.core.scopemanager.ContinuableScopeManager.ScopeStackThreadLocal',
   'datadog.trace.core.scopemanager.ContinuableScopeManager.SingleContinuation',
   'datadog.trace.core.SpanCorrelationImpl',
   'datadog.trace.core.Base64Encoder',
