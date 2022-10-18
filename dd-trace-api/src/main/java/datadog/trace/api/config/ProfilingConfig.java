@@ -146,5 +146,8 @@ public final class ProfilingConfig {
   public static final String PROFILING_AGENTLESS = "profiling.agentless";
   public static final boolean PROFILING_AGENTLESS_DEFAULT = false;
 
+  public static final String PROFILING_DISABLED_EVENTS = "profiling.disabled.events";
+  public static final String PROFILING_ENABLED_EVENTS = "profiling.disabled.events";
+
   private ProfilingConfig() {}
 }
