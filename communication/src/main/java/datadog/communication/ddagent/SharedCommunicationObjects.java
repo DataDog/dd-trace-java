@@ -84,15 +84,7 @@ public class SharedCommunicationObjects {
     if (remoteConfigUrl != null) {
       configUrlSupplier = new FixedConfigUrlSupplier(remoteConfigUrl);
     } else {
-      createRemaining(config);
-      DDAgentFeaturesDiscovery fd = featuresDiscovery(config);
-      String configEndpoint = fd.getConfigEndpoint();
-      if (configEndpoint != null) {
-        remoteConfigUrl = featuresDiscovery.buildUrl(configEndpoint).toString();
-        configUrlSupplier = new FixedConfigUrlSupplier(remoteConfigUrl);
-      } else {
-        configUrlSupplier = new RetryConfigUrlSupplier(this.featuresDiscovery);
-      }
+      configUrlSupplier = new RetryDiscoveryConfigUrlSupplier(this, config);
     }
 
     return constructor.newInstance(
@@ -138,37 +130,51 @@ public class SharedCommunicationObjects {
     }
   }
 
-  private static final class RetryConfigUrlSupplier implements Supplier<String> {
-    private final DDAgentFeaturesDiscovery featuresDiscovery;
+  private static final class RetryDiscoveryConfigUrlSupplier implements Supplier<String> {
+
+    private final SharedCommunicationObjects sco;
+    private final Config config;
     private String configUrl;
     private long lastTry = System.currentTimeMillis();
     private long retryInterval = 5000;
 
-    private RetryConfigUrlSupplier(DDAgentFeaturesDiscovery featuresDiscovery) {
-      this.featuresDiscovery = featuresDiscovery;
+    private RetryDiscoveryConfigUrlSupplier(SharedCommunicationObjects sco, Config config) {
+      this.sco = sco;
+      this.config = config;
     }
 
     @Override
     public String get() {
+
       if (configUrl != null) {
+          return configUrl;
+      }
+
+      sco.createRemaining(config);
+      DDAgentFeaturesDiscovery fd = sco.featuresDiscovery(config);
+      String configEndpoint = fd.getConfigEndpoint();
+      if (configEndpoint != null) {
+        configUrl = fd.buildUrl(configEndpoint).toString();
         return configUrl;
       }
+
       long now = System.currentTimeMillis();
       long elapsed = now - lastTry;
       if (elapsed > retryInterval) {
-        this.featuresDiscovery.discover();
+        fd.discover();
         retryInterval = 60000;
       } else {
         return null;
       }
+
       lastTry = now;
-      String configEndpoint = this.featuresDiscovery.getConfigEndpoint();
-      if (configEndpoint == null) {
-        return null;
+      configEndpoint = fd.getConfigEndpoint();
+      if (configEndpoint != null) {
+        configUrl = fd.buildUrl(configEndpoint).toString();
+        return configUrl;
       }
 
-      this.configUrl = featuresDiscovery.buildUrl(configEndpoint).toString();
-      return this.configUrl;
+      return null;
     }
   }
 }
