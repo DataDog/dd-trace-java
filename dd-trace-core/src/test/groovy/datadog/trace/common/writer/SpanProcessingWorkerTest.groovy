@@ -16,13 +16,15 @@ class SpanProcessingWorkerTest extends DDSpecification {
     worker.start()
     DDSpan span1 = Mock(DDSpan)
     DDSpan span2 = Mock(DDSpan)
+    DDSpan span3 = Mock(DDSpan)
     singleSpanSampler.setSamplingPriority(span1) >> true
     singleSpanSampler.setSamplingPriority(span2) >> false
+    singleSpanSampler.setSamplingPriority(span3) >> true
 
     when:
-    worker.publish([span1, span2])
+    worker.publish([span1, span2, span3])
 
     then:
-    sampledSpanQueue.take() == [span1]
+    sampledSpanQueue.take() == [span1, span3]
   }
 }

@@ -30,6 +30,32 @@ public class SpanProcessingWorker implements AutoCloseable {
     return new SpanProcessingWorker(capacity, spanOutQueue, singleSpanSampler);
   }
 
+  public SpanProcessingWorker(
+      int capacity, Queue<Object> sampledSpansQueue, SingleSpanSampler singleSpanSampler) {
+    this.samplingHandler = new SamplingHandler();
+    this.samplingThread = newAgentThread(SPAN_PROCESSOR, samplingHandler);
+    this.spanInQueue = new MpscBlockingConsumerArrayQueue<>(capacity);
+    this.sampledSpansQueue = sampledSpansQueue;
+    this.singleSpanSampler = singleSpanSampler;
+  }
+
+  public void start() {
+    this.samplingThread.start();
+  }
+
+  @Override
+  public void close() {
+    samplingThread.interrupt();
+    try {
+      samplingThread.join(THREAD_JOIN_TIMOUT_MS);
+    } catch (InterruptedException ignored) {
+    }
+  }
+
+  public <T extends CoreSpan<T>> boolean publish(List<T> trace) {
+    return spanInQueue.offer(trace);
+  }
+
   private final class SamplingHandler implements Runnable, MessagePassingQueue.Consumer<Object> {
 
     @Override
@@ -61,14 +87,10 @@ public class SpanProcessingWorker implements AutoCloseable {
       if (event instanceof List) {
         List<DDSpan> trace = (List<DDSpan>) event;
         ArrayList<DDSpan> sampledSpans = new ArrayList<>(trace.size());
-        // TODO should we send unsampled spans to the secondaryPriority queue?
-        //        ArrayList<DDSpan> droppedSpans = new ArrayList<>(trace.size());
         for (DDSpan span : trace) {
           if (singleSpanSampler.setSamplingPriority(span)) {
             sampledSpans.add(span);
-            //          } else {
-            //            droppedSpans.add(span);
-          }
+          } // else ignore dropped spans
         }
         if (sampledSpans.size() > 0 && !sampledSpansQueue.offer(sampledSpans)) {
           // TODO should decrement sent traces and increment dropped traces/spans counters (see
@@ -85,31 +107,5 @@ public class SpanProcessingWorker implements AutoCloseable {
     public void accept(Object event) {
       onEvent(event);
     }
-  }
-
-  public SpanProcessingWorker(
-      int capacity, Queue<Object> sampledSpansQueue, SingleSpanSampler singleSpanSampler) {
-    this.samplingHandler = new SamplingHandler();
-    this.samplingThread = newAgentThread(SPAN_PROCESSOR, samplingHandler);
-    this.spanInQueue = new MpscBlockingConsumerArrayQueue<>(capacity);
-    this.sampledSpansQueue = sampledSpansQueue;
-    this.singleSpanSampler = singleSpanSampler;
-  }
-
-  public void start() {
-    this.samplingThread.start();
-  }
-
-  @Override
-  public void close() {
-    samplingThread.interrupt();
-    try {
-      samplingThread.join(THREAD_JOIN_TIMOUT_MS);
-    } catch (InterruptedException ignored) {
-    }
-  }
-
-  public <T extends CoreSpan<T>> boolean publish(List<T> trace) {
-    return spanInQueue.offer(trace);
   }
 }

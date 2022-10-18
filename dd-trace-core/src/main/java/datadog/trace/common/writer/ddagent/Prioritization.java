@@ -89,6 +89,7 @@ public enum Prioritization {
         case SAMPLER_DROP:
         case USER_DROP:
           if (spanProcessingWorker != null) {
+            // send dropped traces for single span sampling
             return spanProcessingWorker.publish(trace);
           }
           return secondary.offer(trace);
@@ -124,8 +125,8 @@ public enum Prioritization {
       switch (priority) {
         case SAMPLER_DROP:
         case USER_DROP:
-          // send dropped traces for single span sampling
           if (spanProcessingWorker != null) {
+            // send dropped traces for single span sampling
             return spanProcessingWorker.publish(trace);
           }
           return !droppingPolicy.active() && secondary.offer(trace);

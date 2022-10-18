@@ -35,7 +35,6 @@ public class TraceProcessingWorker implements AutoCloseable {
   private final PrioritizationStrategy prioritizationStrategy;
   private final MpscBlockingConsumerArrayQueue<Object> primaryQueue;
   private final MpscBlockingConsumerArrayQueue<Object> secondaryQueue;
-  private final MpscBlockingConsumerArrayQueue<Object> spanQueue;
   private final TraceSerializingHandler serializingHandler;
   private final Thread serializerThread;
   private final int capacity;
@@ -54,19 +53,13 @@ public class TraceProcessingWorker implements AutoCloseable {
     this.capacity = capacity;
     this.primaryQueue = createQueue(capacity);
     this.secondaryQueue = createQueue(capacity);
-    this.spanQueue = createQueue(capacity);
-    this.spanProcessingWorker = SpanProcessingWorker.build(capacity, spanQueue, singleSpanSampler);
+    this.spanProcessingWorker =
+        SpanProcessingWorker.build(capacity, secondaryQueue, singleSpanSampler);
     this.prioritizationStrategy =
         prioritization.create(primaryQueue, secondaryQueue, droppingPolicy, spanProcessingWorker);
     this.serializingHandler =
         new TraceSerializingHandler(
-            primaryQueue,
-            secondaryQueue,
-            spanQueue,
-            healthMetrics,
-            dispatcher,
-            flushInterval,
-            timeUnit);
+            primaryQueue, secondaryQueue, healthMetrics, dispatcher, flushInterval, timeUnit);
     this.serializerThread = newAgentThread(TRACE_PROCESSOR, serializingHandler);
   }
 
@@ -127,7 +120,6 @@ public class TraceProcessingWorker implements AutoCloseable {
 
     private final MpscBlockingConsumerArrayQueue<Object> primaryQueue;
     private final MpscBlockingConsumerArrayQueue<Object> secondaryQueue;
-    private final MpscBlockingConsumerArrayQueue<Object> spanQueue;
     private final HealthMetrics healthMetrics;
     private final long ticksRequiredToFlush;
     private final boolean doTimeFlush;
@@ -137,14 +129,12 @@ public class TraceProcessingWorker implements AutoCloseable {
     public TraceSerializingHandler(
         final MpscBlockingConsumerArrayQueue<Object> primaryQueue,
         final MpscBlockingConsumerArrayQueue<Object> secondaryQueue,
-        final MpscBlockingConsumerArrayQueue<Object> spanQueue,
         final HealthMetrics healthMetrics,
         final PayloadDispatcher payloadDispatcher,
         final long flushInterval,
         final TimeUnit timeUnit) {
       this.primaryQueue = primaryQueue;
       this.secondaryQueue = secondaryQueue;
-      this.spanQueue = spanQueue;
       this.healthMetrics = healthMetrics;
       this.doTimeFlush = flushInterval > 0;
       this.payloadDispatcher = payloadDispatcher;
@@ -193,7 +183,6 @@ public class TraceProcessingWorker implements AutoCloseable {
       Thread thread = Thread.currentThread();
       while (!thread.isInterrupted()) {
         consumeFromPrimaryQueue();
-        consumeFromSpanQueue();
         consumeFromSecondaryQueue();
         flushIfNecessary();
       }
@@ -206,14 +195,6 @@ public class TraceProcessingWorker implements AutoCloseable {
         // and then drain whatever's in the queue
         onEvent(event);
         consumeBatch(primaryQueue);
-      }
-    }
-
-    private void consumeFromSpanQueue() throws InterruptedException {
-      Object event = spanQueue.poll(100, MILLISECONDS);
-      if (null != event) {
-        onEvent(event);
-        consumeBatch(spanQueue);
       }
     }
 

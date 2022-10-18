@@ -101,9 +101,9 @@ class PrioritizationWithSpanProcessingWorkerTest extends DDSpecification {
     where:
     trace | priority     | primaryOffers | publish | singleSpanOffers
     []    | UNSET        | 1             | true    | 0
-    []    | SAMPLER_DROP | 0             | true    | 1 // TODO should we still send dropped traces for single span sampling when drop policy is active
+    []    | SAMPLER_DROP | 0             | true    | 1
     []    | SAMPLER_KEEP | 1             | true    | 0
-    []    | SAMPLER_DROP | 0             | true    | 1 // TODO see above
+    []    | SAMPLER_DROP | 0             | true    | 1
     []    | USER_KEEP    | 1             | true    | 0
   }
 
