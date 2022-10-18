@@ -25,6 +25,7 @@ if (testJvm != null && testJvm.startsWith('GRAALVM')) {
     workingDir "$appDir"
     environment += [
       "GRADLE_OPTS" : "-Dorg.gradle.jvmargs='-Xmx512M'",
+      "JAVA_HOME": testJvmHome,
       "GRAALVM_HOME": testJvmHome
     ]
     commandLine "$rootDir/gradlew", "nativeCompile", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PagentPath=${project(':dd-java-agent').tasks.jar.archivePath}"
