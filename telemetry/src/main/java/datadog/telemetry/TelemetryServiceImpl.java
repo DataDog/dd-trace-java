@@ -32,6 +32,7 @@ public class TelemetryServiceImpl implements TelemetryService {
   private final BlockingQueue<Dependency> dependencies = new LinkedBlockingQueue<>();
   private final BlockingQueue<Metric> metrics =
       new LinkedBlockingQueue<>(1024); // recommended capacity?
+  private final BlockingQueue<KeyValue> exceptions = new LinkedBlockingQueue<>();
 
   private final Queue<Request> queue = new ArrayBlockingQueue<>(16);
 
@@ -72,6 +73,11 @@ public class TelemetryServiceImpl implements TelemetryService {
       }
     }
     return true;
+  }
+
+  @Override
+  public boolean addException(KeyValue exception) {
+    return this.exceptions.offer(exception);
   }
 
   @Override
@@ -130,6 +136,9 @@ public class TelemetryServiceImpl implements TelemetryService {
                   RequestType.GENERATE_METRICS, payload.requestType(RequestType.GENERATE_METRICS));
       queue.offer(request);
     }
+
+    // New exceptions
+    // NEED HELP HERE
 
     // Heartbeat request if needed
     long curTime = this.timeSource.getCurrentTimeMillis();
