@@ -4,7 +4,6 @@ import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.uploader.BatchUploader;
-import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
@@ -45,23 +44,23 @@ public class DebuggerAgent {
     String agentUrl = config.getAgentUrl();
     boolean isSnapshotUploadThroughAgent = Objects.equals(finalDebuggerSnapshotUrl, agentUrl);
 
-    DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = sco.featuresDiscovery(config);
-    agentVersion = ddAgentFeaturesDiscovery.getVersion();
-
-    if (isSnapshotUploadThroughAgent && !ddAgentFeaturesDiscovery.supportsDebugger()) {
-      log.error(
-          "No endpoint detected to upload snapshots to from datadog agent at "
-              + agentUrl
-              + ". Consider upgrading the datadog agent.");
-      return;
-    }
-    if (ddAgentFeaturesDiscovery.getConfigEndpoint() == null) {
-      log.error(
-          "No endpoint detected to read probe config from datadog agent at "
-              + agentUrl
-              + ". Consider upgrading the datadog agent.");
-      return;
-    }
+    //    DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = sco.featuresDiscovery(config);
+    //    agentVersion = ddAgentFeaturesDiscovery.getVersion();
+    //
+    //    if (isSnapshotUploadThroughAgent && !ddAgentFeaturesDiscovery.supportsDebugger()) {
+    //      log.error(
+    //          "No endpoint detected to upload snapshots to from datadog agent at "
+    //              + agentUrl
+    //              + ". Consider upgrading the datadog agent.");
+    //      return;
+    //    }
+    //    if (ddAgentFeaturesDiscovery.getConfigEndpoint() == null) {
+    //      log.error(
+    //          "No endpoint detected to read probe config from datadog agent at "
+    //              + agentUrl
+    //              + ". Consider upgrading the datadog agent.");
+    //      return;
+    //    }
 
     sink = new DebuggerSink(config);
     sink.start();

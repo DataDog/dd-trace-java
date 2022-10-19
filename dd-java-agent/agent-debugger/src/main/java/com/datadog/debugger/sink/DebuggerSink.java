@@ -95,6 +95,7 @@ public class DebuggerSink implements DebuggerContext.Sink {
   }
 
   public void start() {
+    log.debug("DebuggerSink.start");
     if (uploadFlushInterval == 0) {
       flushIntervalScheduled =
           AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
@@ -125,9 +126,13 @@ public class DebuggerSink implements DebuggerContext.Sink {
 
   @Override
   public void addSnapshot(Snapshot snapshot) {
+    log.debug("addSnapshot");
     boolean added = snapshotSink.offer(snapshot);
     if (!added) {
       debuggerMetrics.count(PREFIX + "dropped.requests", 1);
+    }
+    if (scheduled == null) {
+      flush(null);
     }
   }
 
@@ -147,8 +152,10 @@ public class DebuggerSink implements DebuggerContext.Sink {
 
   // visible for testing
   void flush(DebuggerSink ignored) {
+    log.debug("flush snapshots");
     List<String> diagnostics = probeStatusSink.getSerializedDiagnostics();
     List<String> snapshots = snapshotSink.getSerializedSnapshots();
+    log.debug("snapshots: {}", snapshots.size());
     if (snapshots.size() + diagnostics.size() == 0) {
       return;
     }

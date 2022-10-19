@@ -767,10 +767,11 @@ public class Agent {
     if (!debuggerEnabled) {
       return;
     }
-    if (!remoteConfigEnabled) {
-      log.warn("Cannot enable Dynamic Instrumentation because Remote Configuration is not enabled");
-      return;
-    }
+    //    if (!remoteConfigEnabled) {
+    //      log.warn("Cannot enable Dynamic Instrumentation because Remote Configuration is not
+    // enabled");
+    //      return;
+    //    }
     startDebuggerAgent(inst, scoClass, sco);
   }
 

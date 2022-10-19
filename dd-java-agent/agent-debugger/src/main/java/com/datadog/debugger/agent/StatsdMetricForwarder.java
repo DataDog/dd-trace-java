@@ -1,7 +1,6 @@
 package com.datadog.debugger.agent;
 
 import com.timgroup.statsd.StatsDClientErrorHandler;
-import datadog.communication.monitor.DDAgentStatsDClientManager;
 import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -17,14 +16,14 @@ public class StatsdMetricForwarder
   private final StatsDClient statsd;
 
   public StatsdMetricForwarder(Config config) {
-    statsd =
-        DDAgentStatsDClientManager.statsDClientManager()
-            .statsDClient(
-                config.getJmxFetchStatsdHost(),
-                config.getJmxFetchStatsdPort(),
-                config.getDogStatsDNamedPipe(),
-                METRICPROBE_PREFIX,
-                new String[0]);
+    statsd = StatsDClient.NO_OP;
+    //        DDAgentStatsDClientManager.statsDClientManager()
+    //            .statsDClient(
+    //                config.getJmxFetchStatsdHost(),
+    //                config.getJmxFetchStatsdPort(),
+    //                config.getDogStatsDNamedPipe(),
+    //                METRICPROBE_PREFIX,
+    //                new String[0]);
   }
 
   @Override

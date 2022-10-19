@@ -166,6 +166,7 @@ public class AgentTaskScheduler implements Executor {
         if (!shutdown && worker == null) {
           prepareWorkQueue();
           try {
+            log.info("creating thread name={} callstack", agentThread, new RuntimeException());
             worker = newAgentThread(agentThread, new Worker());
             // register hook after worker is assigned, but before we start it
             Runtime.getRuntime().addShutdownHook(new ShutdownHook());

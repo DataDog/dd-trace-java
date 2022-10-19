@@ -133,6 +133,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
         log.info("No active definition for {}", fullyQualifiedClassName);
         return null;
       }
+      log.info("transform from", new RuntimeException());
       ClassNode classNode = parseClassFile(classFilePath, classfileBuffer);
       boolean transformed =
           performInstrumentation(loader, fullyQualifiedClassName, definitions, classNode);

@@ -167,15 +167,18 @@ public class Snapshot {
   }
 
   public void commit() {
+    LOG.debug("snapshot commit begin");
     if (!isCapturing()) {
       DebuggerContext.skipSnapshot(probe.id, DebuggerContext.SkipCause.CONDITION);
       for (ProbeDetails probeDetails : probe.additionalProbes) {
         DebuggerContext.skipSnapshot(probeDetails.id, DebuggerContext.SkipCause.CONDITION);
       }
+      LOG.debug("snapshot commit !isCapturing");
       return;
     }
     if (!ProbeRateLimiter.tryProbe(probe.id)) {
       DebuggerContext.skipSnapshot(probe.id, DebuggerContext.SkipCause.RATE);
+      LOG.debug("snapshot commit Ratelimit");
       return;
     }
     // generates id only when effectively committing

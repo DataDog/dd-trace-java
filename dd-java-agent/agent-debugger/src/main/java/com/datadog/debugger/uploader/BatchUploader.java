@@ -174,7 +174,8 @@ public class BatchUploader {
     }
     Request request = requestBuilder.build();
     log.debug("Sending request: {} CT: {}", request, request.body().contentType());
-    client.newCall(request).enqueue(responseCallback);
+    // client.newCall(request).enqueue(responseCallback);
+    client.newCall(request).execute();
     inflightRequests.register();
   }
 
