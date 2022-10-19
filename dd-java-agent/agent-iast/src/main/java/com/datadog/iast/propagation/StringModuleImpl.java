@@ -237,6 +237,75 @@ public class StringModuleImpl extends IastModuleBase implements StringModule {
     return s == null ? NULL_STR_LENGTH : s.length();
   }
 
+  @Override
+  public void onStringToUpperCase(@Nonnull String self, @Nullable String result) {
+    onStringCaseChanged(self, result);
+  }
+
+  @Override
+  public void onStringToLowerCase(@Nonnull String self, @Nullable String result) {
+    onStringCaseChanged(self, result);
+  }
+
+  @SuppressFBWarnings
+  public void onStringCaseChanged(@Nonnull String self, @Nullable String result) {
+    if (!canBeTainted(result)) {
+      return;
+    }
+    if (self == result) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject taintedSelf = taintedObjects.get(self);
+    if (taintedSelf == null) {
+      return;
+    }
+    final Range[] rangesSelf = taintedSelf.getRanges();
+    if (null == rangesSelf || rangesSelf.length == 0) {
+      return;
+    }
+    if (result.length() == self.length()) {
+      taintedObjects.taint(result, rangesSelf);
+      return;
+    }
+    if (result.length() >= self.length()) {
+      taintedObjects.taint(result, rangesSelf);
+    } // Pathological case where the string's length actually becomes smaller
+    else {
+      stringCaseChangedWithReducedSize(rangesSelf, taintedObjects, result);
+    }
+  }
+
+  private void stringCaseChangedWithReducedSize(
+      final Range[] rangesSelf, final TaintedObjects taintedObjects, @Nullable String result) {
+    int skippedRanges = 0;
+    Range adjustedRange = null;
+    for (int i = rangesSelf.length - 1; i >= 0; i--) {
+      Range currentRange = rangesSelf[i];
+      if (currentRange.getStart() >= result.length()) {
+        skippedRanges++;
+      } else if (currentRange.getStart() + currentRange.getLength() >= result.length()) {
+        adjustedRange =
+            new Range(
+                currentRange.getStart(),
+                result.length() - currentRange.getStart(),
+                currentRange.getSource());
+      }
+    }
+    Range[] newRanges = new Range[rangesSelf.length - skippedRanges];
+    for (int i = 0; i < newRanges.length; i++) {
+      newRanges[i] = rangesSelf[i];
+    }
+    if (null != adjustedRange) {
+      newRanges[newRanges.length - 1] = adjustedRange;
+    }
+    taintedObjects.taint(result, newRanges);
+  }
+
   /**
    * Iterates over the element and delimiter ranges (if necessary) to update them and calculate the
    * new pos value
