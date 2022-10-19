@@ -17,8 +17,8 @@ class PrioritizationWithSpanProcessingWorkerTest extends DDSpecification {
     setup:
     Queue<Object> primary = Mock(Queue)
     Queue<Object> secondary = Mock(Queue)
-    SpanProcessingWorker spanProcessingWorker = Mock(SpanProcessingWorker)
-    PrioritizationStrategy blocking = ENSURE_TRACE.create(primary, secondary, { false }, spanProcessingWorker)
+    Queue<Object> spanSampling = Mock(Queue)
+    PrioritizationStrategy blocking = ENSURE_TRACE.create(primary, secondary, spanSampling, { false })
 
     when:
     blocking.publish(Mock(DDSpan), priority, trace) == !singleSpanFull
@@ -26,7 +26,7 @@ class PrioritizationWithSpanProcessingWorkerTest extends DDSpecification {
     then:
     primaryOffers * primary.offer(trace) >> !primaryFull >> true
     0 * secondary.offer(trace) // expect no traces sent to the secondary queue
-    singleSpanOffers * spanProcessingWorker.publish(trace) >> !singleSpanFull
+    singleSpanOffers * spanSampling.offer(trace) >> !singleSpanFull
 
     where:
     trace | primaryFull | priority     | primaryOffers | singleSpanOffers | singleSpanFull
@@ -56,8 +56,8 @@ class PrioritizationWithSpanProcessingWorkerTest extends DDSpecification {
     setup:
     Queue<Object> primary = Mock(Queue)
     Queue<Object> secondary = Mock(Queue)
-    SpanProcessingWorker spanProcessingWorker = Mock(SpanProcessingWorker)
-    PrioritizationStrategy fastLane = FAST_LANE.create(primary, secondary, { false }, spanProcessingWorker)
+    Queue<Object> spanSampling = Mock(Queue)
+    PrioritizationStrategy fastLane = FAST_LANE.create(primary, secondary, spanSampling, { false })
 
     when:
     def published = fastLane.publish(Mock(DDSpan), priority, trace)
@@ -66,7 +66,7 @@ class PrioritizationWithSpanProcessingWorkerTest extends DDSpecification {
     published == publish
     primaryOffers * primary.offer(trace) >> true
     0 * secondary.offer(trace) >> true // expect no traces sent to the secondary queue
-    singleSpanOffers * spanProcessingWorker.publish(trace) >> !singleSpanFull
+    singleSpanOffers * spanSampling.offer(trace) >> !singleSpanFull
 
     where:
     trace | priority     | primaryOffers | singleSpanOffers | singleSpanFull | publish
@@ -86,8 +86,8 @@ class PrioritizationWithSpanProcessingWorkerTest extends DDSpecification {
     setup:
     Queue<Object> primary = Mock(Queue)
     Queue<Object> secondary = Mock(Queue)
-    SpanProcessingWorker spanProcessingWorker = Mock(SpanProcessingWorker)
-    PrioritizationStrategy drop = FAST_LANE.create(primary, secondary, { true }, spanProcessingWorker)
+    Queue<Object> spanSampling = Mock(Queue)
+    PrioritizationStrategy drop = FAST_LANE.create(primary, secondary, spanSampling, { true })
 
     when:
     boolean published = drop.publish(Mock(DDSpan), priority, trace)
@@ -96,7 +96,7 @@ class PrioritizationWithSpanProcessingWorkerTest extends DDSpecification {
     published == publish
     primaryOffers * primary.offer(trace) >> true
     0 * secondary.offer(trace)
-    singleSpanOffers * spanProcessingWorker.publish(trace) >> true
+    singleSpanOffers * spanSampling.offer(trace) >> true
 
     where:
     trace | priority     | primaryOffers | publish | singleSpanOffers
@@ -110,10 +110,8 @@ class PrioritizationWithSpanProcessingWorkerTest extends DDSpecification {
   def "drop strategy respects force keep" () {
     setup:
     Queue<Object> primary = Mock(Queue)
-    SpanProcessingWorker spanProcessingWorker = Mock(SpanProcessingWorker)
-    PrioritizationStrategy drop = strategy.create(primary, null, {
-      true
-    }, spanProcessingWorker)
+    Queue<Object> spanSampling = Mock(Queue)
+    PrioritizationStrategy drop = strategy.create(primary, null, spanSampling, { true })
     DDSpan root = Mock(DDSpan)
     List<DDSpan> trace = [root]
 
@@ -123,7 +121,7 @@ class PrioritizationWithSpanProcessingWorkerTest extends DDSpecification {
     then:
     1 * root.isForceKeep() >> forceKeep
     (forceKeep ? 1 : 0) * primary.offer(trace) >> true
-    (forceKeep ? 0 : 1) * spanProcessingWorker.publish(trace) >> !singleSpanFull
+    (forceKeep ? 0 : 1) * spanSampling.offer(trace) >> !singleSpanFull
     0 * _
 
     where:

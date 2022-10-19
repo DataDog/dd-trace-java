@@ -18,23 +18,23 @@ public class SpanProcessingWorker implements AutoCloseable {
 
   private final Thread samplingThread;
   private final SamplingHandler samplingHandler;
-  private final MpscBlockingConsumerArrayQueue<Object> spanInQueue;
+  private final MpscBlockingConsumerArrayQueue<Object> droppedTracesQueue;
   private final Queue<Object> sampledSpansQueue;
   private final SingleSpanSampler singleSpanSampler;
 
   public static SpanProcessingWorker build(
-      int capacity, Queue<Object> spanOutQueue, SingleSpanSampler singleSpanSampler) {
+      int capacity, Queue<Object> sampledSpansQueue, SingleSpanSampler singleSpanSampler) {
     if (singleSpanSampler == null) {
       return null;
     }
-    return new SpanProcessingWorker(capacity, spanOutQueue, singleSpanSampler);
+    return new SpanProcessingWorker(capacity, sampledSpansQueue, singleSpanSampler);
   }
 
-  public SpanProcessingWorker(
+  private SpanProcessingWorker(
       int capacity, Queue<Object> sampledSpansQueue, SingleSpanSampler singleSpanSampler) {
     this.samplingHandler = new SamplingHandler();
     this.samplingThread = newAgentThread(SPAN_PROCESSOR, samplingHandler);
-    this.spanInQueue = new MpscBlockingConsumerArrayQueue<>(capacity);
+    this.droppedTracesQueue = new MpscBlockingConsumerArrayQueue<>(capacity);
     this.sampledSpansQueue = sampledSpansQueue;
     this.singleSpanSampler = singleSpanSampler;
   }
@@ -53,7 +53,11 @@ public class SpanProcessingWorker implements AutoCloseable {
   }
 
   public <T extends CoreSpan<T>> boolean publish(List<T> trace) {
-    return spanInQueue.offer(trace);
+    return droppedTracesQueue.offer(trace);
+  }
+
+  public Queue<Object> getDroppedTracesQueue() {
+    return droppedTracesQueue;
   }
 
   private final class SamplingHandler implements Runnable, MessagePassingQueue.Consumer<Object> {
@@ -75,10 +79,10 @@ public class SpanProcessingWorker implements AutoCloseable {
     }
 
     private void consumeFromInputQueue() throws InterruptedException {
-      Object event = spanInQueue.poll(100, MILLISECONDS);
+      Object event = droppedTracesQueue.poll(100, MILLISECONDS);
       if (null != event) {
         onEvent(event);
-        consumeBatch(spanInQueue);
+        consumeBatch(droppedTracesQueue);
       }
     }
 

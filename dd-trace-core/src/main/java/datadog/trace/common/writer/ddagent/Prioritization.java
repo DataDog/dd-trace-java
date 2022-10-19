@@ -4,7 +4,6 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 
 import datadog.communication.ddagent.DroppingPolicy;
-import datadog.trace.common.writer.SpanProcessingWorker;
 import datadog.trace.core.CoreSpan;
 import java.util.List;
 import java.util.Queue;
@@ -17,9 +16,9 @@ public enum Prioritization {
     public PrioritizationStrategy create(
         final Queue<Object> primary,
         final Queue<Object> secondary,
-        DroppingPolicy neverUsed,
-        SpanProcessingWorker spanProcessingWorker) {
-      return new EnsureTraceStrategy(primary, secondary, spanProcessingWorker);
+        final Queue<Object> spanSampling,
+        DroppingPolicy neverUsed) {
+      return new EnsureTraceStrategy(primary, secondary, spanSampling);
     }
   },
   FAST_LANE {
@@ -27,17 +26,17 @@ public enum Prioritization {
     public PrioritizationStrategy create(
         final Queue<Object> primary,
         final Queue<Object> secondary,
-        DroppingPolicy droppingPolicy,
-        SpanProcessingWorker spanProcessingWorker) {
-      return new FastLaneStrategy(primary, secondary, droppingPolicy, spanProcessingWorker);
+        final Queue<Object> spanSampling,
+        DroppingPolicy droppingPolicy) {
+      return new FastLaneStrategy(primary, secondary, spanSampling, droppingPolicy);
     }
   };
 
   public abstract PrioritizationStrategy create(
       Queue<Object> primary,
       Queue<Object> secondary,
-      DroppingPolicy droppingPolicy,
-      SpanProcessingWorker spanProcessingWorker);
+      Queue<Object> spanSampling,
+      DroppingPolicy droppingPolicy);
 
   private abstract static class PrioritizationStrategyWithFlush implements PrioritizationStrategy {
 
@@ -72,15 +71,15 @@ public enum Prioritization {
   private static final class EnsureTraceStrategy extends PrioritizationStrategyWithFlush {
 
     private final Queue<Object> secondary;
-    private final SpanProcessingWorker spanProcessingWorker;
+    private final Queue<Object> spanSampling;
 
     private EnsureTraceStrategy(
         final Queue<Object> primary,
         final Queue<Object> secondary,
-        SpanProcessingWorker spanProcessingWorker) {
+        final Queue<Object> spanSampling) {
       super(primary);
       this.secondary = secondary;
-      this.spanProcessingWorker = spanProcessingWorker;
+      this.spanSampling = spanSampling;
     }
 
     @Override
@@ -88,9 +87,9 @@ public enum Prioritization {
       switch (priority) {
         case SAMPLER_DROP:
         case USER_DROP:
-          if (spanProcessingWorker != null) {
+          if (spanSampling != null) {
             // send dropped traces for single span sampling
-            return spanProcessingWorker.publish(trace);
+            return spanSampling.offer(trace);
           }
           return secondary.offer(trace);
         default:
@@ -103,18 +102,18 @@ public enum Prioritization {
   private static final class FastLaneStrategy extends PrioritizationStrategyWithFlush {
 
     private final Queue<Object> secondary;
+    private final Queue<Object> spanSampling;
     private final DroppingPolicy droppingPolicy;
-    private final SpanProcessingWorker spanProcessingWorker;
 
     private FastLaneStrategy(
         final Queue<Object> primary,
         final Queue<Object> secondary,
-        DroppingPolicy droppingPolicy,
-        SpanProcessingWorker spanProcessingWorker) {
+        final Queue<Object> spanSampling,
+        DroppingPolicy droppingPolicy) {
       super(primary);
       this.secondary = secondary;
+      this.spanSampling = spanSampling;
       this.droppingPolicy = droppingPolicy;
-      this.spanProcessingWorker = spanProcessingWorker;
     }
 
     @Override
@@ -125,9 +124,9 @@ public enum Prioritization {
       switch (priority) {
         case SAMPLER_DROP:
         case USER_DROP:
-          if (spanProcessingWorker != null) {
+          if (spanSampling != null) {
             // send dropped traces for single span sampling
-            return spanProcessingWorker.publish(trace);
+            return spanSampling.offer(trace);
           }
           return !droppingPolicy.active() && secondary.offer(trace);
         default:

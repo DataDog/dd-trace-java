@@ -14,6 +14,7 @@ import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.jctools.queues.MessagePassingQueue;
@@ -55,8 +56,10 @@ public class TraceProcessingWorker implements AutoCloseable {
     this.secondaryQueue = createQueue(capacity);
     this.spanProcessingWorker =
         SpanProcessingWorker.build(capacity, secondaryQueue, singleSpanSampler);
+    Queue<Object> droppedTracesQueue =
+        spanProcessingWorker == null ? null : spanProcessingWorker.getDroppedTracesQueue();
     this.prioritizationStrategy =
-        prioritization.create(primaryQueue, secondaryQueue, droppingPolicy, spanProcessingWorker);
+        prioritization.create(primaryQueue, secondaryQueue, droppedTracesQueue, droppingPolicy);
     this.serializingHandler =
         new TraceSerializingHandler(
             primaryQueue, secondaryQueue, healthMetrics, dispatcher, flushInterval, timeUnit);

@@ -20,7 +20,7 @@ class PrioritizationTest extends DDSpecification {
     setup:
     Queue<Object> primary = Mock(Queue)
     Queue<Object> secondary = Mock(Queue)
-    PrioritizationStrategy blocking = ENSURE_TRACE.create(primary, secondary, { false }, null)
+    PrioritizationStrategy blocking = ENSURE_TRACE.create(primary, secondary, null, { false })
 
     when:
     blocking.publish(Mock(DDSpan), priority, trace)
@@ -49,7 +49,7 @@ class PrioritizationTest extends DDSpecification {
     setup:
     Queue<Object> primary = Mock(Queue)
     Queue<Object> secondary = Mock(Queue)
-    PrioritizationStrategy fastLane = FAST_LANE.create(primary, secondary, { false }, null)
+    PrioritizationStrategy fastLane = FAST_LANE.create(primary, secondary, null, { false })
 
     when:
     fastLane.publish(Mock(DDSpan), priority, trace)
@@ -73,7 +73,7 @@ class PrioritizationTest extends DDSpecification {
     setup:
     Queue<Object> primary = Mock(Queue)
     Queue<Object> secondary = Mock(Queue)
-    PrioritizationStrategy drop = FAST_LANE.create(primary, secondary, { true }, null)
+    PrioritizationStrategy drop = FAST_LANE.create(primary, secondary, null, { true })
 
     when:
     boolean published = drop.publish(Mock(DDSpan), priority, trace)
@@ -98,7 +98,7 @@ class PrioritizationTest extends DDSpecification {
     setup:
     Queue<Object> primary = Mock(Queue)
     Queue<Object> secondary = Mock(Queue)
-    PrioritizationStrategy fastLane = strategy.create(primary, secondary, { false }, null)
+    PrioritizationStrategy fastLane = strategy.create(primary, secondary, null, { false })
     when:
     fastLane.flush(100, TimeUnit.MILLISECONDS)
     then:
@@ -112,9 +112,7 @@ class PrioritizationTest extends DDSpecification {
   def "drop strategy respects force keep" () {
     setup:
     Queue<Object> primary = Mock(Queue)
-    PrioritizationStrategy drop = strategy.create(primary, null, {
-      true
-    }, null)
+    PrioritizationStrategy drop = strategy.create(primary, null, null, { true })
     DDSpan root = Mock(DDSpan)
     List<DDSpan> trace = [root]
 
