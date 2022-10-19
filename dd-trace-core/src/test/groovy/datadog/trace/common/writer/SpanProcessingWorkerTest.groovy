@@ -8,7 +8,7 @@ import java.util.concurrent.LinkedBlockingDeque
 
 class SpanProcessingWorkerTest extends DDSpecification {
 
-  def "should send only sampled spans to the queue"() {
+  def "should send only sampled spans to the sampled span queue"() {
     setup:
     Queue<Object> sampledSpanQueue = new LinkedBlockingDeque<>(10)
     SingleSpanSampler singleSpanSampler = Mock(SingleSpanSampler)
