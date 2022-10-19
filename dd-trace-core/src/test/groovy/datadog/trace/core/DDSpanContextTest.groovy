@@ -213,7 +213,10 @@ class DDSpanContextTest extends DDCoreSpecification {
       .withServiceName("fakeService")
       .withResourceName("fakeResource")
       .start()
-    def context = span.context()
+    def context = span.context() as DDSpanContext
+
+    expect:
+    context.getSamplingPriority() == UNSET
 
     when:
     context.setSpanSamplingPriority(rate, limit)
@@ -222,6 +225,7 @@ class DDSpanContextTest extends DDCoreSpecification {
     context.getTag(SPAN_SAMPLING_MECHANISM_TAG) == SPAN_SAMPLING_RATE
     context.getTag(SPAN_SAMPLING_RULE_RATE_TAG) == rate
     context.getTag(SPAN_SAMPLING_MAX_PER_SECOND_TAG) == (limit == Integer.MAX_VALUE ? null : limit)
+    context.getSamplingPriority() == USER_KEEP
 
     where:
     rate | limit

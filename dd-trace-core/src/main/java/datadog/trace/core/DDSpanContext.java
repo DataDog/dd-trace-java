@@ -379,6 +379,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
 
   public void setSpanSamplingPriority(double rate, int limit) {
     synchronized (unsafeTags) {
+      forceKeepThisSpan();
       unsafeSetTag(SPAN_SAMPLING_MECHANISM_TAG, SamplingMechanism.SPAN_SAMPLING_RATE);
       unsafeSetTag(SPAN_SAMPLING_RULE_RATE_TAG, rate);
       if (limit != Integer.MAX_VALUE) {
