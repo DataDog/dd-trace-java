@@ -42,6 +42,8 @@
 1 java.*
 # allow exceptions for IAST. This is the only way to use existing infrastructure to detect the vulnerability without call site instrumentation.
 0 java.security.MessageDigest
+# allow thread exit instrumentation
+0 java.lang.Thread
 # allow exception profiling instrumentation
 0 java.lang.Throwable
 0 java.net.HttpURLConnection

@@ -60,6 +60,8 @@ public final class AsyncProfiler {
     } else {
       asyncProfiler = inferFromOsAndArch();
     }
+    // TODO enable/disable events by name (e.g. datadog.ExecutionSample), not flag, so configuration
+    //  can be consistent with JFR event control
     if (configProvider.getBoolean(
         ProfilingConfig.PROFILING_ASYNC_ALLOC_ENABLED,
         ProfilingConfig.PROFILING_ASYNC_ALLOC_ENABLED_DEFAULT)) {
@@ -141,6 +143,18 @@ public final class AsyncProfiler {
             "Unable to instantiate async profiler for the detected environment: arch={}, os={}",
             arch,
             os));
+  }
+
+  void addCurrentThread() {
+    if (asyncProfiler != null) {
+      asyncProfiler.addThread(Thread.currentThread());
+    }
+  }
+
+  void removeCurrentThread() {
+    if (asyncProfiler != null) {
+      asyncProfiler.removeThread(Thread.currentThread());
+    }
   }
 
   private static one.profiler.AsyncProfiler profilerForOsAndArch(
