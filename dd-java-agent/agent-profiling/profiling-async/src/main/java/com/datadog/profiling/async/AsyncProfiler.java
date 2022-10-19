@@ -137,6 +137,11 @@ public final class AsyncProfiler {
             os,
             t.getMessage());
       }
+      throw new UnsupportedEnvironmentException(
+          String.format(
+              "Unable to instantiate async profiler for the detected environment: arch=%s, os=%s",
+              arch, os),
+          t);
     }
     throw new UnsupportedEnvironmentException(
         String.format(
