@@ -35,6 +35,9 @@ public class Telemetry {
   @com.squareup.moshi.Json(name = "payload")
   private Payload payload;
 
+  @com.squareup.moshi.Json(name = "debug")
+  private boolean debug;
+
   /**
    * Get apiVersion
    *
@@ -165,6 +168,25 @@ public class Telemetry {
 
   public Telemetry requestType(RequestType requestType) {
     this.requestType = requestType;
+    return this;
+  }
+
+  /**
+   * Get debug
+   *
+   * @return debug
+   */
+  public boolean getDebug() {
+    return debug;
+  }
+
+  /** Set apiVersion */
+  public void setDebug(boolean debug) {
+    this.debug = debug;
+  }
+
+  public Telemetry debug(boolean debug) {
+    this.debug = debug;
     return this;
   }
 

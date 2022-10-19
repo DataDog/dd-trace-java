@@ -1,6 +1,7 @@
 package datadog.trace.logging.ddlogger
 
 import datadog.slf4j.impl.StaticMarkerBinder
+import datadog.trace.api.telemetry.LogCollector
 import datadog.trace.logging.LogLevel
 import datadog.trace.logging.LogValidatingSpecification
 import datadog.trace.logging.simplelogger.SLCompatFactory
@@ -369,5 +370,43 @@ class DDLoggerTest extends LogValidatingSpecification {
     level          | warn  | expectedLevel | expectedWarn
     LogLevel.TRACE | null  | "TRACE"       | "WARN"
     LogLevel.ERROR | "WRN" | "ERROR"       | "WRN"
+  }
+
+  def "test telemetry logging"(){
+    setup:
+    Properties props = new Properties()
+    props.setProperty(Keys.DEFAULT_LOG_LEVEL, LogLevel.DEBUG.toString())
+    props.setProperty(Keys.EMBED_EXCEPTION, "true")
+    def outputStream = new ByteArrayOutputStream()
+    def printStream = new PrintStream(outputStream, true)
+    def settings = new SLCompatSettings(props, null, printStream)
+    def factory = new SwitchableLogLevelFactory(new SLCompatFactory(props, settings))
+    def logger = new DDLogger(factory, "foo")
+    LogCollector.get().setEnabled(true)
+
+    when:
+    logger.debug(DDLogger.SEND_TELEMETRY, "regular message")
+    logger.debug(DDLogger.SEND_TELEMETRY, "format {} ", "C")
+    logger.debug(DDLogger.SEND_TELEMETRY, "format {} and {}", "A", "B")
+    logger.trace(DDLogger.SEND_TELEMETRY, "trace regular message")
+    logger.info(DDLogger.SEND_TELEMETRY, "info regular message")
+    logger.warn(DDLogger.SEND_TELEMETRY, "warn regular message")
+    logger.error(DDLogger.SEND_TELEMETRY, "error message")
+
+    try {
+      throw new IOException("wrong")
+    } catch(Exception exception) {
+      logVarargs(logger, LogLevel.DEBUG, "log {}", "some", exception)
+    }
+
+    then:
+    outputStream.toString().contains("regular message")
+    outputStream.toString().contains("format C")
+    outputStream.toString().contains("format A and B")
+    outputStream.toString().contains("DEBUG foo - log some more [exception:java.io.IOException: wrong")
+    !outputStream.toString().contains("trace  regular message")
+    !outputStream.toString().contains("info  regular message")
+    !outputStream.toString().contains("warn  regular message")
+
   }
 }

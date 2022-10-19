@@ -28,6 +28,21 @@ public abstract class StackUtils {
     return filter(exception, AbstractStackWalker::isNotDatadogTraceStackElement);
   }
 
+  public static <E extends Throwable> E filterPackagesIn(
+      final E throwable, final String[] packages) {
+    return filter(
+        throwable,
+        ste -> {
+          final String clazz = ste.getClassName();
+          for (String p : packages) {
+            if (clazz.startsWith(p)) {
+              return true;
+            }
+          }
+          return false;
+        });
+  }
+
   public static <E extends Throwable> E filterFirstDatadog(final E exception) {
     return filterFirst(exception, AbstractStackWalker::isNotDatadogTraceStackElement);
   }

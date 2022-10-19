@@ -1,5 +1,6 @@
 package datadog.trace.api
 
+import datadog.trace.api.telemetry.IntegrationsCollector
 import datadog.trace.test.util.DDSpecification
 
 class TelemetryCollectorsTest extends DDSpecification {

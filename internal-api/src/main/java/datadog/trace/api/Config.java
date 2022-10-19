@@ -64,7 +64,10 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SECURE_RANDOM;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_DEBUG_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
@@ -134,7 +137,10 @@ import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.SITE;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
+import static datadog.trace.api.config.GeneralConfig.TELEMETRY_DEBUG_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TELEMETRY_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL;
+import static datadog.trace.api.config.GeneralConfig.TELEMETRY_LOG_COLLECTION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_BUFFERING_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES;
@@ -600,6 +606,9 @@ public class Config {
 
   private final boolean iastDeduplicationEnabled;
 
+  private final boolean telemetryEnabled;
+  private final boolean telemetryDebugEnabled;
+  private final boolean telemetryLogCollectionEnabled;
   private final int telemetryHeartbeatInterval;
 
   private final boolean azureAppServices;
@@ -1123,6 +1132,15 @@ public class Config {
     crashTrackingAgentless =
         configProvider.getBoolean(CRASH_TRACKING_AGENTLESS, CRASH_TRACKING_AGENTLESS_DEFAULT);
     crashTrackingTags = configProvider.getMergedMap(CRASH_TRACKING_TAGS);
+
+    telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
+
+    telemetryDebugEnabled =
+        configProvider.getBoolean(TELEMETRY_DEBUG_ENABLED, DEFAULT_TELEMETRY_DEBUG_ENABLED);
+
+    telemetryLogCollectionEnabled =
+        configProvider.getBoolean(
+            TELEMETRY_LOG_COLLECTION_ENABLED, DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED);
 
     int telemetryInterval =
         configProvider.getInteger(
@@ -1807,6 +1825,14 @@ public class Config {
 
   public boolean isTelemetryEnabled() {
     return instrumenterConfig.isTelemetryEnabled();
+  }
+
+  public boolean isTelemetryDebugEnabled() {
+    return telemetryDebugEnabled;
+  }
+
+  public boolean isTelemetryLogCollectionEnabled() {
+    return telemetryLogCollectionEnabled;
   }
 
   public int getTelemetryHeartbeatInterval() {

@@ -98,9 +98,15 @@ excludedClassesBranchCoverage = [
   'datadog.trace.api.ProductActivationConfig',
   'datadog.trace.api.Config',
   'datadog.trace.util.stacktrace.HotSpotStackWalker',
-  'datadog.trace.util.stacktrace.StackWalkerFactory'
+  'datadog.trace.util.stacktrace.StackWalkerFactory',
+  'datadog.trace.api.telemetry.TelemetryLogEntry'
 ]
-excludedClassesInstructionCoverage = ['datadog.trace.util.stacktrace.StackWalkerFactory']
+excludedClassesInstructionCoverage = [
+  'datadog.trace.util.stacktrace.StackWalkerFactory',
+  'datadog.trace.api.telemetry.LogCollector.Holder',
+  'datadog.trace.api.telemetry.TelemetryLogEntry',
+  'datadog.trace.api.telemetry.IntegrationsCollector.Holder'
+]
 
 compileTestJava.dependsOn 'generateTestClassNameTries'
 

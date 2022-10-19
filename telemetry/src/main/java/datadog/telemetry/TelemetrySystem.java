@@ -5,7 +5,9 @@ import datadog.telemetry.dependency.DependencyPeriodicAction;
 import datadog.telemetry.dependency.DependencyService;
 import datadog.telemetry.dependency.DependencyServiceImpl;
 import datadog.telemetry.integration.IntegrationPeriodicAction;
+import datadog.telemetry.log.LogPeriodicAction;
 import datadog.trace.api.Config;
+import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.util.AgentThreadFactory;
 import java.lang.instrument.Instrumentation;
@@ -42,7 +44,9 @@ public class TelemetrySystem {
             okHttpClient,
             telemetryService,
             Arrays.asList(
-                new DependencyPeriodicAction(dependencyService), new IntegrationPeriodicAction()));
+                new DependencyPeriodicAction(dependencyService),
+                new IntegrationPeriodicAction(),
+                new LogPeriodicAction()));
     return AgentThreadFactory.newAgentThread(
         AgentThreadFactory.AgentThread.TELEMETRY, telemetryRunnable);
   }
@@ -58,6 +62,8 @@ public class TelemetrySystem {
             Config.get().getTelemetryHeartbeatInterval());
     TELEMETRY_THREAD =
         createTelemetryRunnable(telemetryService, sco.okHttpClient, dependencyService);
+    LogCollector.get().setEnabled(Config.get().isTelemetryLogCollectionEnabled());
+    LogCollector.get().setDebugEnabled(Config.get().isTelemetryDebugEnabled());
     TELEMETRY_THREAD.start();
   }
 

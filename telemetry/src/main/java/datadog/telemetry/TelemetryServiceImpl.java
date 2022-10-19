@@ -10,6 +10,7 @@ import datadog.telemetry.api.KeyValue;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.Payload;
 import datadog.telemetry.api.RequestType;
+import datadog.trace.api.telemetry.TelemetryLogEntry;
 import datadog.trace.api.time.TimeSource;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -25,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TelemetryServiceImpl implements TelemetryService {
+  private static final int MAX_ELEMENTS_PER_REQUEST = 100;
 
   private static final Logger log = LoggerFactory.getLogger(TelemetryServiceImpl.class);
 
@@ -36,6 +38,7 @@ public class TelemetryServiceImpl implements TelemetryService {
   private final BlockingQueue<Dependency> dependencies = new LinkedBlockingQueue<>();
   private final BlockingQueue<Metric> metrics =
       new LinkedBlockingQueue<>(1024); // recommended capacity?
+  private final BlockingQueue<TelemetryLogEntry> logEntries = new LinkedBlockingQueue<>(1024);
 
   private final Queue<Request> queue = new ArrayBlockingQueue<>(16);
 
@@ -76,6 +79,11 @@ public class TelemetryServiceImpl implements TelemetryService {
       }
     }
     return true;
+  }
+
+  @Override
+  public boolean addLogEntry(TelemetryLogEntry logEntry) {
+    return this.logEntries.offer(logEntry);
   }
 
   @Override
@@ -135,6 +143,16 @@ public class TelemetryServiceImpl implements TelemetryService {
       queue.offer(request);
     }
 
+    // New Log entries
+    if (!logEntries.isEmpty()) {
+      for (List<TelemetryLogEntry> payload = drainOrEmpty(logEntries, MAX_ELEMENTS_PER_REQUEST);
+          !payload.isEmpty();
+          payload = drainOrEmpty(logEntries, MAX_ELEMENTS_PER_REQUEST)) {
+        Request request = requestBuilderSupplier.get().logBuild(RequestType.LOGS, payload);
+        queue.offer(request);
+      }
+    }
+
     // Heartbeat request if needed
     long curTime = this.timeSource.getCurrentTimeMillis();
     if (!queue.isEmpty()) {
@@ -155,16 +173,26 @@ public class TelemetryServiceImpl implements TelemetryService {
   }
 
   private static <T> List<T> drainOrNull(BlockingQueue<T> srcQueue) {
-    return drainOrDefault(srcQueue, null);
+    return drainOrDefault(srcQueue, null, null);
   }
 
   private static <T> List<T> drainOrEmpty(BlockingQueue<T> srcQueue) {
-    return drainOrDefault(srcQueue, Collections.<T>emptyList());
+    return drainOrDefault(srcQueue, Collections.<T>emptyList(), null);
   }
 
-  private static <T> List<T> drainOrDefault(BlockingQueue<T> srcQueue, List<T> defaultList) {
+  private static <T> List<T> drainOrEmpty(BlockingQueue<T> srcQueue, int maxItems) {
+    return drainOrDefault(srcQueue, Collections.<T>emptyList(), maxItems);
+  }
+
+  private static <T> List<T> drainOrDefault(
+      BlockingQueue<T> srcQueue, List<T> defaultList, Integer maxItems) {
     List<T> list = new LinkedList<>();
-    int drained = srcQueue.drainTo(list);
+    int drained = 0;
+    if (null == maxItems) {
+      drained = srcQueue.drainTo(list);
+    } else {
+      drained = srcQueue.drainTo(list, maxItems);
+    }
     if (drained > 0) {
       return list;
     }

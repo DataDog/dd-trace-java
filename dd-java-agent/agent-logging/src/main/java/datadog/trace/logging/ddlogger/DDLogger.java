@@ -1,5 +1,6 @@
 package datadog.trace.logging.ddlogger;
 
+import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.logging.LogLevel;
 import datadog.trace.logging.LoggerHelper;
 import datadog.trace.logging.LoggerHelperFactory;
@@ -10,6 +11,7 @@ import org.slf4j.helpers.MessageFormatter;
 
 /** Implementation of org.slf4j.Logger. Delegates actual rendering to {@link LoggerHelper}. */
 public class DDLogger implements Logger {
+  public static Marker SEND_TELEMETRY = new TelemetryMarker("SEND_TELEMETRY");
 
   private final String name;
   private final LoggerHelper helper;
@@ -325,6 +327,7 @@ public class DDLogger implements Logger {
   }
 
   public void formatLog(LogLevel level, Marker marker, String format, Object arg) {
+    sendToTelemetry(null, level, marker, null, format, arg, null, null);
     if (!helper.enabled(level, marker)) {
       return;
     }
@@ -334,6 +337,7 @@ public class DDLogger implements Logger {
   }
 
   public void formatLog(LogLevel level, Marker marker, String format, Object arg1, Object arg2) {
+    sendToTelemetry(null, level, marker, null, format, arg1, arg2, null);
     if (!helper.enabled(level, marker)) {
       return;
     }
@@ -343,6 +347,7 @@ public class DDLogger implements Logger {
   }
 
   public void formatLog(LogLevel level, Marker marker, String format, Object... arguments) {
+    sendToTelemetry(null, level, marker, null, format, null, null, arguments);
     if (!helper.enabled(level, marker)) {
       return;
     }
@@ -352,6 +357,7 @@ public class DDLogger implements Logger {
   }
 
   private void log(LogLevel level, Marker marker, String msg, Throwable t) {
+    sendToTelemetry(msg, level, marker, t, null, null, null, null);
     if (!helper.enabled(level, marker)) {
       return;
     }
@@ -360,5 +366,25 @@ public class DDLogger implements Logger {
 
   private void alwaysLog(LogLevel level, Marker marker, String msg, Throwable t) {
     helper.log(level, marker, msg, t);
+  }
+
+  private void sendToTelemetry(
+      String msg,
+      LogLevel level,
+      Marker marker,
+      Throwable t,
+      String format,
+      Object arg1,
+      Object arg2,
+      Object[] args) {
+    if (LogCollector.get().isEnabled()) {
+      if (null != t || marker == DDLogger.SEND_TELEMETRY) {
+        if (level == LogLevel.WARN
+            || level == LogLevel.ERROR
+            || (level == LogLevel.DEBUG && LogCollector.get().isDebugEnabled())) {
+          LogCollector.get().addLogEntry(msg, level.toString(), t, format, arg1, arg2, args);
+        }
+      }
+    }
   }
 }

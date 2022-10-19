@@ -11,12 +11,15 @@ import datadog.communication.ddagent.TracerVersion;
 import datadog.telemetry.api.ApiVersion;
 import datadog.telemetry.api.Application;
 import datadog.telemetry.api.Host;
+import datadog.telemetry.api.LogTelemetry;
 import datadog.telemetry.api.Payload;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.api.Telemetry;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
+import datadog.trace.api.telemetry.TelemetryLogEntry;
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
@@ -41,17 +44,23 @@ public class RequestBuilder {
           .add(new NumberJsonAdapter())
           .build()
           .adapter(Telemetry.class);
+
+  private static final JsonAdapter<LogTelemetry> LOG_JSON_ADAPTER =
+      new Moshi.Builder()
+          .add(new PolymorphicAdapterFactory(Payload.class))
+          .build()
+          .adapter(LogTelemetry.class);
+
   private static final AtomicLong SEQ_ID = new AtomicLong();
 
   private final HttpUrl httpUrl;
   private final Application application;
   private final Host host;
   private final String runtimeId;
+  private static final Config config = Config.get();
 
   public RequestBuilder(HttpUrl httpUrl) {
     this.httpUrl = httpUrl.newBuilder().addPathSegments(API_ENDPOINT).build();
-
-    Config config = Config.get();
 
     this.runtimeId = config.getRuntimeId();
     this.application =
@@ -78,6 +87,32 @@ public class RequestBuilder {
             .containerId(containerInfo.getContainerId());
   }
 
+  // Special Telemetry Log Payload - no headers for payload request type
+  public Request logBuild(RequestType requestType, List<TelemetryLogEntry> payload) {
+    LogTelemetry telemetry =
+        new LogTelemetry()
+            .apiVersion(API_VERSION)
+            .requestType(requestType)
+            .tracerTime(System.currentTimeMillis() / 1000L)
+            .runtimeId(runtimeId)
+            .seqId(SEQ_ID.incrementAndGet())
+            .application(application)
+            .host(host)
+            .payload(payload)
+            .debug(config.isTelemetryDebugEnabled());
+
+    String json = LOG_JSON_ADAPTER.toJson(telemetry);
+    RequestBody body = RequestBody.create(JSON, json);
+
+    return new Request.Builder()
+        .url(httpUrl)
+        .addHeader("Content-Type", JSON.toString())
+        .addHeader("DD-Telemetry-Request-Type", requestType.toString())
+        .addHeader("DD-Telemetry-API-Version", API_VERSION.toString())
+        .post(body)
+        .build();
+  }
+
   public Request build(RequestType requestType) {
     return build(requestType, null);
   }
@@ -92,7 +127,8 @@ public class RequestBuilder {
             .seqId(SEQ_ID.incrementAndGet())
             .application(application)
             .host(host)
-            .payload(payload);
+            .payload(payload)
+            .debug(config.isTelemetryDebugEnabled());
 
     String json = JSON_ADAPTER.toJson(telemetry);
     RequestBody body = RequestBody.create(JSON, json);

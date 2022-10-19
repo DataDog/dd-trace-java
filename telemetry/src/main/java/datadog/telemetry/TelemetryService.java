@@ -3,6 +3,7 @@ package datadog.telemetry;
 import datadog.telemetry.api.Dependency;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.Metric;
+import datadog.trace.api.telemetry.TelemetryLogEntry;
 import java.util.Map;
 import java.util.Queue;
 import okhttp3.Request;
@@ -22,6 +23,8 @@ public interface TelemetryService {
   boolean addIntegration(Integration integration);
 
   boolean addMetric(Metric metric);
+
+  boolean addLogEntry(TelemetryLogEntry logEntry);
 
   Queue<Request> prepareRequests();
 

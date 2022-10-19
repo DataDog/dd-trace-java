@@ -17,6 +17,7 @@ ext {
     'datadog.telemetry.PolymorphicAdapterFactory.1',
     'datadog.telemetry.HostInfo',
     'datadog.telemetry.HostInfo.Os',
+    'datadog.telemetry.RequestBuilderSupplier',
   ]
   excludedClassesInstructionCoverage = []
 }
@@ -28,6 +29,7 @@ dependencies {
 
   compileOnly project(':dd-java-agent:agent-tooling')
   testImplementation project(':dd-java-agent:agent-tooling')
+  testImplementation project(':dd-java-agent:agent-logging')
 
   compileOnly project(':communication')
   testImplementation project(':communication')
