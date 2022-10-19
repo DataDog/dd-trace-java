@@ -11,7 +11,7 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 import static datadog.trace.common.writer.ddagent.Prioritization.ENSURE_TRACE
 import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE
 
-class PrioritizationWithSpanProcessingWorkerTest extends DDSpecification {
+class PrioritizationWithSpanSamplingWorkerTest extends DDSpecification {
 
   def "ensure trace strategy tries to send kept and unset priority traces to the primary queue until offer(..) is true, dropped traces to the span sampling queue"() {
     setup:

@@ -1,6 +1,6 @@
 package datadog.trace.common.writer;
 
-import static datadog.trace.util.AgentThreadFactory.AgentThread.SPAN_PROCESSOR;
+import static datadog.trace.util.AgentThreadFactory.AgentThread.SPAN_SAMPLING_PROCESSOR;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -13,46 +13,46 @@ import java.util.Queue;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 
-public class SpanProcessingWorker implements AutoCloseable {
+public class SpanSamplingWorker implements AutoCloseable {
 
-  private final Thread samplingThread;
+  private final Thread spanSamplingThread;
   private final SamplingHandler samplingHandler;
-  private final MpscBlockingConsumerArrayQueue<Object> droppedTracesQueue;
+  private final MpscBlockingConsumerArrayQueue<Object> spanSamplingQueue;
   private final Queue<Object> sampledSpansQueue;
   private final SingleSpanSampler singleSpanSampler;
 
-  public static SpanProcessingWorker build(
+  public static SpanSamplingWorker build(
       int capacity, Queue<Object> sampledSpansQueue, SingleSpanSampler singleSpanSampler) {
     if (singleSpanSampler == null) {
       return null;
     }
-    return new SpanProcessingWorker(capacity, sampledSpansQueue, singleSpanSampler);
+    return new SpanSamplingWorker(capacity, sampledSpansQueue, singleSpanSampler);
   }
 
-  private SpanProcessingWorker(
+  private SpanSamplingWorker(
       int capacity, Queue<Object> sampledSpansQueue, SingleSpanSampler singleSpanSampler) {
     this.samplingHandler = new SamplingHandler();
-    this.samplingThread = newAgentThread(SPAN_PROCESSOR, samplingHandler);
-    this.droppedTracesQueue = new MpscBlockingConsumerArrayQueue<>(capacity);
+    this.spanSamplingThread = newAgentThread(SPAN_SAMPLING_PROCESSOR, samplingHandler);
+    this.spanSamplingQueue = new MpscBlockingConsumerArrayQueue<>(capacity);
     this.sampledSpansQueue = sampledSpansQueue;
     this.singleSpanSampler = singleSpanSampler;
   }
 
   public void start() {
-    this.samplingThread.start();
+    this.spanSamplingThread.start();
   }
 
   @Override
   public void close() {
-    samplingThread.interrupt();
+    spanSamplingThread.interrupt();
     try {
-      samplingThread.join(THREAD_JOIN_TIMOUT_MS);
+      spanSamplingThread.join(THREAD_JOIN_TIMOUT_MS);
     } catch (InterruptedException ignored) {
     }
   }
 
-  public Queue<Object> getDroppedTracesQueue() {
-    return droppedTracesQueue;
+  public Queue<Object> getSpanSamplingQueue() {
+    return spanSamplingQueue;
   }
 
   private final class SamplingHandler implements Runnable, MessagePassingQueue.Consumer<Object> {
@@ -74,10 +74,10 @@ public class SpanProcessingWorker implements AutoCloseable {
     }
 
     private void consumeFromInputQueue() throws InterruptedException {
-      Object event = droppedTracesQueue.poll(100, MILLISECONDS);
+      Object event = spanSamplingQueue.poll(100, MILLISECONDS);
       if (null != event) {
         onEvent(event);
-        consumeBatch(droppedTracesQueue);
+        consumeBatch(spanSamplingQueue);
       }
     }
 

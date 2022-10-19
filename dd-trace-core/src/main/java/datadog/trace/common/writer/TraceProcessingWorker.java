@@ -40,7 +40,7 @@ public class TraceProcessingWorker implements AutoCloseable {
   private final Thread serializerThread;
   private final int capacity;
 
-  private final SpanProcessingWorker spanProcessingWorker;
+  private final SpanSamplingWorker spanSamplingWorker;
 
   public TraceProcessingWorker(
       final int capacity,
@@ -54,10 +54,9 @@ public class TraceProcessingWorker implements AutoCloseable {
     this.capacity = capacity;
     this.primaryQueue = createQueue(capacity);
     this.secondaryQueue = createQueue(capacity);
-    this.spanProcessingWorker =
-        SpanProcessingWorker.build(capacity, secondaryQueue, singleSpanSampler);
+    this.spanSamplingWorker = SpanSamplingWorker.build(capacity, secondaryQueue, singleSpanSampler);
     Queue<Object> droppedTracesQueue =
-        spanProcessingWorker == null ? null : spanProcessingWorker.getDroppedTracesQueue();
+        spanSamplingWorker == null ? null : spanSamplingWorker.getSpanSamplingQueue();
     this.prioritizationStrategy =
         prioritization.create(primaryQueue, secondaryQueue, droppedTracesQueue, droppingPolicy);
     this.serializingHandler =
@@ -68,8 +67,8 @@ public class TraceProcessingWorker implements AutoCloseable {
 
   public void start() {
     this.serializerThread.start();
-    if (spanProcessingWorker != null) {
-      spanProcessingWorker.start();
+    if (spanSamplingWorker != null) {
+      spanSamplingWorker.start();
     }
   }
 
@@ -90,8 +89,8 @@ public class TraceProcessingWorker implements AutoCloseable {
 
   @Override
   public void close() {
-    if (spanProcessingWorker != null) {
-      spanProcessingWorker.close();
+    if (spanSamplingWorker != null) {
+      spanSamplingWorker.close();
     }
     serializerThread.interrupt();
     try {
