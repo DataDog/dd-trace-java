@@ -6,7 +6,6 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.common.sampling.SingleSpanSampler;
-import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
 import java.util.ArrayList;
 import java.util.List;
@@ -50,10 +49,6 @@ public class SpanProcessingWorker implements AutoCloseable {
       samplingThread.join(THREAD_JOIN_TIMOUT_MS);
     } catch (InterruptedException ignored) {
     }
-  }
-
-  public <T extends CoreSpan<T>> boolean publish(List<T> trace) {
-    return droppedTracesQueue.offer(trace);
   }
 
   public Queue<Object> getDroppedTracesQueue() {

@@ -22,7 +22,7 @@ class SpanProcessingWorkerTest extends DDSpecification {
     singleSpanSampler.setSamplingPriority(span3) >> true
 
     when:
-    worker.publish([span1, span2, span3])
+    worker.getDroppedTracesQueue().offer([span1, span2, span3])
 
     then:
     sampledSpanQueue.take() == [span1, span3]
