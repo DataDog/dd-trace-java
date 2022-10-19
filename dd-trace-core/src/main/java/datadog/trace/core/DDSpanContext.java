@@ -49,6 +49,10 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
   public static final String SAMPLE_RATE_KEY = "_sample_rate";
 
+  public static final String SPAN_SAMPLING_MECHANISM_TAG = "_dd.span_sampling.mechanism";
+  public static final String SPAN_SAMPLING_RULE_RATE_TAG = "_dd.span_sampling.rule_rate";
+  public static final String SPAN_SAMPLING_MAX_PER_SECOND_TAG = "_dd.span_sampling.max_per_second";
+
   private static final DDCache<String, UTF8BytesString> THREAD_NAMES =
       DDCaches.newFixedSizeCache(256);
 
@@ -375,12 +379,10 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
 
   public void setSpanSamplingPriority(double rate, int limit) {
     synchronized (unsafeTags) {
-      // TODO extract tag name constants
-      // TODO do we need to check some condition here or simply set the tags without any checks?
-      unsafeSetTag("_dd.span_sampling.mechanism", SamplingMechanism.SPAN_SAMPLING_RATE);
-      unsafeSetTag("_dd.span_sampling.rule_rate", rate);
+      unsafeSetTag(SPAN_SAMPLING_MECHANISM_TAG, SamplingMechanism.SPAN_SAMPLING_RATE);
+      unsafeSetTag(SPAN_SAMPLING_RULE_RATE_TAG, rate);
       if (limit != Integer.MAX_VALUE) {
-        unsafeSetTag("_dd.span_sampling.max_per_second", limit);
+        unsafeSetTag(SPAN_SAMPLING_MAX_PER_SECOND_TAG, limit);
       }
     }
   }

@@ -21,6 +21,10 @@ import static datadog.trace.api.Checkpointer.CPU
 import static datadog.trace.api.Checkpointer.END
 import static datadog.trace.api.Checkpointer.SPAN
 import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
+import static datadog.trace.api.sampling.SamplingMechanism.SPAN_SAMPLING_RATE
+import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MAX_PER_SECOND_TAG
+import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG
+import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_RULE_RATE_TAG
 
 class DDSpanTest extends DDCoreSpecification {
 
@@ -477,5 +481,24 @@ class DDSpanTest extends DDCoreSpecification {
     child.isEmittingCheckpoints() == true // flag is reflected in children
     child.@emittingCheckpoints == 0 // but no value is stored in the field
     child.getTag(DDSpan.CHECKPOINTED_TAG) == null // child span does not get the tag set
+  }
+
+  def "set single span sampling tags"() {
+    setup:
+    def span = tracer.buildSpan("testSpan").start() as DDSpan
+
+    when:
+    span.setSpanSamplingPriority(rate, limit)
+
+    then:
+    span.getTag(SPAN_SAMPLING_MECHANISM_TAG) == SPAN_SAMPLING_RATE
+    span.getTag(SPAN_SAMPLING_RULE_RATE_TAG) == rate
+    span.getTag(SPAN_SAMPLING_MAX_PER_SECOND_TAG) == (limit == Integer.MAX_VALUE ? null : limit)
+
+    where:
+    rate | limit
+    1.0  | 10
+    0.5  | 100
+    0.25 | Integer.MAX_VALUE
   }
 }

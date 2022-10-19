@@ -9,6 +9,9 @@ import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
+import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG
+import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_RULE_RATE_TAG
+import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MAX_PER_SECOND_TAG
 
 class DDSpanContextTest extends DDCoreSpecification {
 
@@ -202,6 +205,29 @@ class DDSpanContextTest extends DDCoreSpecification {
     cleanup:
     current.finish()
     top.finish()
+  }
+
+  def "set single span sampling tags"() {
+    setup:
+    def span = tracer.buildSpan("fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .start()
+    def context = span.context()
+
+    when:
+    context.setSpanSamplingPriority(rate, limit)
+
+    then:
+    context.getTag(SPAN_SAMPLING_MECHANISM_TAG) == SPAN_SAMPLING_RATE
+    context.getTag(SPAN_SAMPLING_RULE_RATE_TAG) == rate
+    context.getTag(SPAN_SAMPLING_MAX_PER_SECOND_TAG) == (limit == Integer.MAX_VALUE ? null : limit)
+
+    where:
+    rate | limit
+    1.0  | 10
+    0.5  | 100
+    0.25 | Integer.MAX_VALUE
   }
 
   private static String dataTag(String tag) {
