@@ -1,5 +1,6 @@
 package foo.bar;
 
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,6 +13,32 @@ public class TestStringSuite {
     final String result = left.concat(right);
     LOGGER.debug("After string concat {}", result);
     return result;
+  }
+
+  public static String stringToUpperCase(String in, Locale locale) {
+    LOGGER.debug("Before string toUppercase {} ", in);
+    if (null == locale) {
+      final String result = in.toUpperCase();
+      LOGGER.debug("After string toUppercase {}", result);
+      return result;
+    } else {
+      final String result = in.toUpperCase(locale);
+      LOGGER.debug("After string toUppercase {}", result);
+      return result;
+    }
+  }
+
+  public static String stringToLowerCase(String in, Locale locale) {
+    LOGGER.debug("Before string toLowercase {} ", in);
+    if (null == locale) {
+      final String result = in.toLowerCase();
+      LOGGER.debug("After string toLowercase {}", result);
+      return result;
+    } else {
+      final String result = in.toLowerCase(locale);
+      LOGGER.debug("After string toLowercase {}", result);
+      return result;
+    }
   }
 
   public static String stringTrim(final String self) {

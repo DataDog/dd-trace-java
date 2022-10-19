@@ -420,6 +420,65 @@ public final class IastModuleImpl implements IastModule {
   }
 
   @Override
+  public void onStringToUpperCase(@Nullable String self, @Nullable String result) {
+    onStringCaseChanged(self, result);
+  }
+
+  @Override
+  public void onStringToLowerCase(@Nullable String self, @Nullable String result) {
+    onStringCaseChanged(self, result);
+  }
+
+  public void onStringCaseChanged(@Nullable String self, @Nullable String result) {
+    if (!canBeTainted(result)) {
+      return;
+    }
+    if (self == result) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject taintedSelf = taintedObjects.get(self);
+    if (taintedSelf == null) {
+      return;
+    }
+    final Range[] rangesSelf = taintedSelf.getRanges();
+    if (null == rangesSelf || rangesSelf.length == 0) {
+      return;
+    }
+    if (result.length() >= self.length()) {
+      taintedObjects.taint(result, rangesSelf);
+    } // Pathological case where the string's length actually becomes smaller
+    else {
+      int skippedRanges = 0;
+      Range adjustedRange = null;
+      for (int i = rangesSelf.length - 1; i >= 0; i--) {
+        Range currentRange = rangesSelf[i];
+        if (currentRange.getStart() >= result.length()) {
+          skippedRanges++;
+        } else if (currentRange.getStart() + currentRange.getStart() >= result.length()) {
+          adjustedRange =
+              new Range(
+                  currentRange.getStart(),
+                  result.length() - currentRange.getStart(),
+                  currentRange.getSource());
+        }
+      }
+      Range[] newRanges = new Range[rangesSelf.length - skippedRanges];
+      for (int i = 0; i < newRanges.length; i++) {
+        newRanges[i] = rangesSelf[i];
+      }
+      if (null != adjustedRange) {
+        newRanges[newRanges.length - 1] = adjustedRange;
+      }
+      taintedObjects.taint(result, newRanges);
+    }
+  }
+
+  @Override
   public void onDirContextSearch(String name, @Nonnull String filterExpr, Object[] filterArgs) {
     List<String> elements = null;
     if (canBeTaintedNullSafe(name)) {

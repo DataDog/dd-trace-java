@@ -51,6 +51,10 @@ public interface IastModule {
 
   void onPathTraversal(@Nonnull String first, @Nonnull String[] more);
 
+  void onStringToUpperCase(@Nullable String self, @Nullable String result);
+
+  void onStringToLowerCase(@Nullable String self, @Nullable String result);
+
   void onPathTraversal(@Nonnull URI uri);
 
   void onPathTraversal(@Nullable File parent, @Nonnull String child);

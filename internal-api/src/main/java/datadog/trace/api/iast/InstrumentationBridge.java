@@ -216,6 +216,26 @@ public abstract class InstrumentationBridge {
     }
   }
 
+  public static void onStringToUppercase(@Nullable String self, @Nullable String result) {
+    try {
+      if (MODULE != null) {
+        MODULE.onStringToUpperCase(self, result);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onStringToUppercase threw.", t);
+    }
+  }
+
+  public static void onStringToLowercase(String self, String result) {
+    try {
+      if (MODULE != null) {
+        MODULE.onStringToLowerCase(self, result);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onStringToLowerCase threw.", t);
+    }
+  }
+
   public static void onStringTrim(@Nullable String self, @Nullable String result) {
     try {
       if (MODULE != null) {
