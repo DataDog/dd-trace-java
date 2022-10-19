@@ -37,8 +37,12 @@ ext.generalShadowJarConfig = {
   relocate('com.', 'ddlib.com.') {
     exclude 'com.datadog.**'
     exclude 'com.datadoghq.**'
+    exclude 'com.kenai.**'          // Required for JNI calls
+    exclude 'com.oracle.jrockit.**' // Required for dynamic class loading
   }
-  relocate 'io.', 'ddlib.io.'
+  relocate('io.', 'ddlib.io.') {
+    exclude 'io.sqreen.**'
+  }
   relocate 'jnr.', 'ddlib.jnr.'
   relocate 'net.', 'ddlib.net.'
   relocate 'okhttp3.', 'ddlib.okhttp3.'
