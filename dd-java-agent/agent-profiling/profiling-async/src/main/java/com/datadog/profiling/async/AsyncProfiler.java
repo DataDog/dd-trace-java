@@ -272,6 +272,7 @@ public final class AsyncProfiler {
         cmd.append('~'); // this prefix will turn on wall-clock collapsing feature
       }
       cmd.append(getWallInterval()).append('m');
+      cmd.append(",filter=0");
     }
     if (profilingModes.contains(ProfilingMode.ALLOCATION)) {
       // allocation profiling is enabled
