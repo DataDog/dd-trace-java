@@ -21,6 +21,7 @@ import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ContextThreadListener;
 import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import datadog.trace.bootstrap.instrumentation.exceptions.ExceptionSampling;
 import datadog.trace.context.ScopeListener;
@@ -692,6 +693,19 @@ public class Agent {
             new WithGlobalTracer.Callback() {
               @Override
               public void withTracer(Tracer tracer) {
+                try {
+                  if (tracer instanceof AgentTracer.TracerAPI) {
+                    ContextThreadListener listener =
+                        (ContextThreadListener)
+                            AGENT_CLASSLOADER
+                                .loadClass("com.datadog.profiling.async.ContextThreadFilter")
+                                .getDeclaredConstructor()
+                                .newInstance();
+                    ((AgentTracer.TracerAPI) tracer).addThreadContextListener(listener);
+                  }
+                } catch (Throwable t) {
+                  log.debug("Profiling context labeling not available. {}", t.getMessage());
+                }
                 try {
                   if (Config.get().isProfilingLegacyTracingIntegrationEnabled()) {
                     log.debug("Registering scope event factory");

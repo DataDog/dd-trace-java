@@ -14,6 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
+import datadog.trace.bootstrap.instrumentation.api.ContextThreadListener;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.util.AgentTaskScheduler;
@@ -40,13 +41,7 @@ import org.slf4j.LoggerFactory;
 public final class ContinuableScopeManager implements AgentScopeManager {
 
   static final Logger log = LoggerFactory.getLogger(ContinuableScopeManager.class);
-  final ThreadLocal<ScopeStack> tlsScopeStack =
-      new ThreadLocal<ScopeStack>() {
-        @Override
-        protected final ScopeStack initialValue() {
-          return new ScopeStack();
-        }
-      };
+  final ScopeStackThreadLocal tlsScopeStack;
 
   static final long iterationKeepAlive =
       SECONDS.toMillis(Config.get().getScopeIterationKeepAlive());
@@ -73,6 +68,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     this.inheritAsyncPropagation = inheritAsyncPropagation;
     this.scopeListeners = new CopyOnWriteArrayList<>();
     this.extendedScopeListeners = new CopyOnWriteArrayList<>();
+    this.tlsScopeStack = new ScopeStackThreadLocal();
   }
 
   @Override
@@ -168,6 +164,10 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     }
   }
 
+  public void detach() {
+    tlsScopeStack.detach();
+  }
+
   @Override
   public AgentScope activateNext(final AgentSpan span) {
     ScopeStack scopeStack = scopeStack();
@@ -209,6 +209,10 @@ public final class ContinuableScopeManager implements AgentScopeManager {
   public AgentSpan activeSpan() {
     final ContinuableScope active = scopeStack().active();
     return active == null ? null : active.span;
+  }
+
+  public void addContextThreadListener(ContextThreadListener listener) {
+    tlsScopeStack.register(listener);
   }
 
   /** Attach a listener to scope activation events */
@@ -465,6 +469,35 @@ public final class ContinuableScopeManager implements AgentScopeManager {
       super.cleanup(scopeStack);
 
       continuation.cancelFromContinuedScopeClose();
+    }
+  }
+
+  static final class ScopeStackThreadLocal extends ThreadLocal<ScopeStack> {
+
+    private final List<ContextThreadListener> listeners = new CopyOnWriteArrayList<>();
+
+    public void register(ContextThreadListener listener) {
+      listeners.add(listener);
+    }
+
+    @Override
+    protected ScopeStack initialValue() {
+      for (ContextThreadListener listener : listeners) {
+        listener.onAttach();
+      }
+      return new ScopeStack();
+    }
+
+    @Override
+    public void remove() {
+      detach();
+      super.remove();
+    }
+
+    private void detach() {
+      for (ContextThreadListener listener : listeners) {
+        listener.onDetach();
+      }
     }
   }
 

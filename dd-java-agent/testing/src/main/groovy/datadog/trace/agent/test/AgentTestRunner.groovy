@@ -125,6 +125,11 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @Shared
   TimelineCheckpointer TEST_CHECKPOINTER = Spy(new TimelineCheckpointer())
 
+  // don't use mocks because it will break too many exhaustive interaction-verifying tests
+  @SuppressWarnings('PropertyName')
+  @Shared
+  TestContextThreadListener TEST_CONTEXT_THREAD_LISTENER = new TestContextThreadListener()
+
   @SuppressWarnings('PropertyName')
   @Shared
   TimelineTracingContextTracker TEST_TRACKER = Spy(TimelineTracingContextTracker.register())
@@ -209,6 +214,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       .dataStreamsCheckpointer(dataStreamsCheckpointer)
       .build())
     TEST_TRACER.registerCheckpointer(TEST_CHECKPOINTER)
+    TEST_TRACER.addThreadContextListener(TEST_CONTEXT_THREAD_LISTENER)
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
 
     enableAppSec()
