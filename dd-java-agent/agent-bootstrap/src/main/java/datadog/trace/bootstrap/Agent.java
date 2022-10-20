@@ -73,11 +73,11 @@ public class Agent {
     PROFILING("dd.profiling.enabled", false),
     APPSEC("dd.appsec.enabled", false),
     IAST("dd.iast.enabled", false),
-    REMOTE_CONFIG("dd.remote_config.enabled", false),
+    REMOTE_CONFIG("dd.remote_config.enabled", true),
     CWS("dd.cws.enabled", false),
     CIVISIBILITY("dd.civisibility.enabled", false),
     CIVISIBILITY_AGENTLESS("dd.civisibility.agentless.enabled", false),
-    TELEMETRY("dd.instrumentation.telemetry.enabled", false),
+    TELEMETRY("dd.instrumentation.telemetry.enabled", true),
     DEBUGGER("dd." + DEBUGGER_ENABLED, false);
 
     private final String systemProp;
