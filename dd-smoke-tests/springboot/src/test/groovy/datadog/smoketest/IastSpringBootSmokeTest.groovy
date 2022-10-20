@@ -2,6 +2,7 @@ package datadog.smoketest
 
 import datadog.trace.api.Platform
 import okhttp3.Request
+import okhttp3.Response
 import spock.lang.IgnoreIf
 
 @IgnoreIf({
@@ -106,9 +107,16 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     setup:
     String url = "http://localhost:${httpPort}/weakhash"
     def request = new Request.Builder().url(url).get().build()
+    Exception storedException = null
 
     when:
-    def response = client.newCall(request).execute()
+    Response response = null
+    try {
+      response = client.newCall(request).execute()
+    }
+    catch (Exception e) {
+      storedException = e
+    }
 
 
     then:
@@ -120,6 +128,7 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
         vulnerabilityFound = true
       }
     }
+    null == storedException
     vulnerabilityFound
   }
 }
