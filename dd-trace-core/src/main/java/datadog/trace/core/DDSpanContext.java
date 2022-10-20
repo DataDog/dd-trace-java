@@ -292,16 +292,16 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
 
   public void forceKeep() {
     // set trace level sampling priority
-    getRootSpanContextOrThis().forceKeepThisSpan();
+    getRootSpanContextOrThis().forceKeepThisSpan(SamplingMechanism.MANUAL);
   }
 
-  private void forceKeepThisSpan() {
+  private void forceKeepThisSpan(byte samplingMechanism) {
     // if the user really wants to keep this trace chunk, we will let them,
     // even if the old sampling priority and mechanism have already propagated
     if (SAMPLING_PRIORITY_UPDATER.getAndSet(this, PrioritySampling.USER_KEEP)
         == PrioritySampling.UNSET) {
       datadogTags.updateTraceSamplingPriority(
-          PrioritySampling.USER_KEEP, SamplingMechanism.MANUAL, serviceName);
+          PrioritySampling.USER_KEEP, samplingMechanism, serviceName);
     }
   }
 
@@ -379,7 +379,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
 
   public void setSpanSamplingPriority(double rate, int limit) {
     synchronized (unsafeTags) {
-      forceKeepThisSpan();
+      forceKeepThisSpan(SamplingMechanism.SPAN_SAMPLING_RATE);
       unsafeSetTag(SPAN_SAMPLING_MECHANISM_TAG, SamplingMechanism.SPAN_SAMPLING_RATE);
       unsafeSetTag(SPAN_SAMPLING_RULE_RATE_TAG, rate);
       if (limit != Integer.MAX_VALUE) {
