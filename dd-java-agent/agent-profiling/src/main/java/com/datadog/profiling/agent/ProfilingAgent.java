@@ -70,7 +70,7 @@ public class ProfilingAgent {
             "Profiling: API key doesn't match expected format, expected to get a 32 character hex string. Profiling is disabled.");
         return;
       }
-      if (Platform.isJavaVersionAtLeast(9)) {
+      if (Platform.isJavaVersionAtLeast(9) && Platform.hasJfr()) {
         JfrTimestampPatch.execute(agentClasLoader);
       }
 
