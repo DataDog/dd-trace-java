@@ -79,7 +79,7 @@ public class Agent {
     CWS("dd.cws.enabled", false),
     CIVISIBILITY("dd.civisibility.enabled", false),
     CIVISIBILITY_AGENTLESS("dd.civisibility.agentless.enabled", false),
-    TELEMETRY("dd.instrumentation.telemetry.enabled", false),
+    TELEMETRY("dd.instrumentation.telemetry.enabled", true),
     DEBUGGER("dd." + DEBUGGER_ENABLED, false);
 
     private final String systemProp;
@@ -120,7 +120,7 @@ public class Agent {
   private static boolean iastEnabled = false;
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
-  private static boolean telemetryEnabled = false;
+  private static boolean telemetryEnabled = true;
   private static boolean debuggerEnabled = false;
 
   public static void start(final Instrumentation inst, final URL agentJarURL) {
