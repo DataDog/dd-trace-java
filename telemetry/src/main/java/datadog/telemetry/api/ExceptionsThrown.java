@@ -5,7 +5,7 @@ import java.util.List;
 
 public class ExceptionsThrown extends Payload {
    
-  com.squareup.moshi.Json(name = "logs")
+  @com.squareup.moshi.Json(name = "logs")
   private List<Log> exceptions = new ArrayList<Log>();
 
   /**
