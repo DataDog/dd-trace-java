@@ -2,10 +2,12 @@ package datadog.telemetry;
 
 import datadog.telemetry.api.AppDependenciesLoaded;
 import datadog.telemetry.api.AppIntegrationsChange;
+import datadog.telemetry.api.ExceptionsThrown;
 import datadog.telemetry.api.AppStarted;
 import datadog.telemetry.api.Dependency;
 import datadog.telemetry.api.GenerateMetrics;
 import datadog.telemetry.api.Integration;
+import datadog.telemetry.api.Log;
 import datadog.telemetry.api.KeyValue;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.Payload;
@@ -32,7 +34,7 @@ public class TelemetryServiceImpl implements TelemetryService {
   private final BlockingQueue<Dependency> dependencies = new LinkedBlockingQueue<>();
   private final BlockingQueue<Metric> metrics =
       new LinkedBlockingQueue<>(1024); // recommended capacity?
-  private final BlockingQueue<KeyValue> exceptions = new LinkedBlockingQueue<>();
+  private final BlockingQueue<Log> exceptions = new LinkedBlockingQueue<>();
 
   private final Queue<Request> queue = new ArrayBlockingQueue<>(16);
 
@@ -76,7 +78,7 @@ public class TelemetryServiceImpl implements TelemetryService {
   }
 
   @Override
-  public boolean addException(KeyValue exception) {
+  public boolean addException(Log exception) {
     return this.exceptions.offer(exception);
   }
 
@@ -138,7 +140,19 @@ public class TelemetryServiceImpl implements TelemetryService {
     }
 
     // New exceptions
+    if (!exceptions.isEmpty()) { 
+      Payload payload = new ExceptionsThrown().exceptions(drainOrEmpty(exceptions));
+      Request request = 
+          requestBuilderSupplier
+              .get()
+              .build(
+                    RequestType.LOGS,
+                    payload.requestType(RequestType.LOGS));
+      queue.offer(request);
+
+    }
     // NEED HELP HERE
+
 
     // Heartbeat request if needed
     long curTime = this.timeSource.getCurrentTimeMillis();
