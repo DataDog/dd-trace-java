@@ -75,7 +75,7 @@ public class Agent {
     PROFILING("dd.profiling.enabled", false),
     APPSEC("dd.appsec.enabled", false),
     IAST("dd.iast.enabled", false),
-    REMOTE_CONFIG("dd.remote_config.enabled", false),
+    REMOTE_CONFIG("dd.remote_config.enabled", true),
     CWS("dd.cws.enabled", false),
     CIVISIBILITY("dd.civisibility.enabled", false),
     CIVISIBILITY_AGENTLESS("dd.civisibility.agentless.enabled", false),
@@ -116,7 +116,7 @@ public class Agent {
   private static boolean profilingEnabled = false;
   private static boolean appSecEnabled;
   private static boolean appSecFullyDisabled;
-  private static boolean remoteConfigEnabled;
+  private static boolean remoteConfigEnabled = true;
   private static boolean iastEnabled = false;
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
