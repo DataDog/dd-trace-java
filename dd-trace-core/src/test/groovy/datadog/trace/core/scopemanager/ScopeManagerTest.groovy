@@ -10,6 +10,7 @@ import datadog.trace.api.scopemanager.ExtendedScopeListener
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan
+import datadog.trace.bootstrap.instrumentation.api.ContextThreadListener
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.context.ScopeListener
@@ -21,6 +22,9 @@ import spock.lang.Retry
 import spock.lang.Shared
 
 import java.lang.ref.WeakReference
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
@@ -964,6 +968,38 @@ class ScopeManagerTest extends DDCoreSpecification {
     false               | true
     true                | false
     true                | true
+  }
+
+  def "context thread listener notified when scope activated on thread for the first time"() {
+    setup:
+    ContextThreadListener listener = Mock(ContextThreadListener)
+    scopeManager.addContextThreadListener(listener)
+    def numThreads = 5
+    ExecutorService executor = Executors.newFixedThreadPool(numThreads)
+
+    when:
+    AgentSpan span = tracer.buildSpan("foo").start()
+    def futures = new Future[20]
+    for (int i = 0; i < 20; i++) {
+      futures[i] = executor.submit({
+        AgentScope scope = tracer.activateSpan(span)
+        try {
+          Thread.sleep(100)
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt()
+        }
+        scope.close()
+      })
+    }
+    for (Future future : futures) {
+      future.get()
+    }
+    executor.shutdown()
+    executor.awaitTermination(10, TimeUnit.SECONDS)
+
+    then:
+    numThreads * listener.onAttach()
+    _ * _
   }
 
   boolean spanFinished(AgentSpan span) {
