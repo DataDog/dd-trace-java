@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.openjdk.jmc.common.item.Attribute.attr;
+import static org.openjdk.jmc.common.unit.UnitLookup.NUMBER;
 
 import com.datadog.profiling.testing.ProfilingTestUtils;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -42,9 +44,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 import org.openjdk.jmc.common.item.Aggregators;
-import org.openjdk.jmc.common.item.Attribute;
 import org.openjdk.jmc.common.item.IAttribute;
+import org.openjdk.jmc.common.item.IItem;
 import org.openjdk.jmc.common.item.IItemCollection;
+import org.openjdk.jmc.common.item.IItemIterable;
+import org.openjdk.jmc.common.item.IMemberAccessor;
 import org.openjdk.jmc.common.item.ItemFilters;
 import org.openjdk.jmc.common.unit.IQuantity;
 import org.openjdk.jmc.common.unit.QuantityConversionException;
@@ -83,6 +87,10 @@ class JFRBasedProfilingIntegrationTest {
           buildDirectory(),
           "reports",
           "testProcess." + JFRBasedProfilingIntegrationTest.class.getName());
+
+  public static final IAttribute<IQuantity> LOCAL_ROOT_SPAN_ID =
+      attr("localRootSpanId", "localRootSpanId", "localRootSpanId", NUMBER);
+  public static final IAttribute<IQuantity> SPAN_ID = attr("spanId", "spanId", "spanId", NUMBER);
 
   private MockWebServer profilingServer;
   private MockWebServer tracingServer;
@@ -268,6 +276,7 @@ class JFRBasedProfilingIntegrationTest {
 
       events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(rawJfr.get()));
       assertTrue(events.hasItems());
+      verifyDatadogEventsNotCorrupt(events);
       rangeStartAndEnd = getRangeStartAndEnd(events);
       // This nano-second compensates for the added nano second in
       // ProfilingSystem.SnapshotRecording.snapshot()
@@ -303,6 +312,31 @@ class JFRBasedProfilingIntegrationTest {
         targetProcess.destroyForcibly();
       }
       targetProcess = null;
+    }
+  }
+
+  private static void verifyDatadogEventsNotCorrupt(IItemCollection events) {
+    // if we emit any of these events during the test they mustn't have corrupted context
+    for (String eventName :
+        new String[] {
+          "datadog.ExecutionSample",
+          "datadog.MethodSample",
+          "datadog.ObjectAllocationInNewTLAB",
+          "datadog.ObjectAllocationOutsideTLAB",
+          "datadog.HeapLiveObject",
+          "datadog.JavaMonitorEnter"
+        }) {
+      for (IItemIterable event : events.apply(ItemFilters.type(eventName))) {
+        IMemberAccessor<IQuantity, IItem> rootSpanIdAccessor =
+            LOCAL_ROOT_SPAN_ID.getAccessor(event.getType());
+        IMemberAccessor<IQuantity, IItem> spanIdAccessor = SPAN_ID.getAccessor(event.getType());
+        for (IItem sample : event) {
+          long rootSpanId = rootSpanIdAccessor.getMember(sample).longValue();
+          assertTrue(rootSpanId >= 0, "rootSpanId must not be negative");
+          long spanId = spanIdAccessor.getMember(sample).longValue();
+          assertTrue(spanId >= 0, "spanId must not be negative");
+        }
+      }
     }
   }
 
@@ -504,8 +538,7 @@ class JFRBasedProfilingIntegrationTest {
       final IItemCollection scopeEvents = events.apply(ItemFilters.type("datadog.Scope"));
 
       assertTrue(scopeEvents.hasItems());
-      final IAttribute<IQuantity> cpuTimeAttr =
-          Attribute.attr("cpuTime", "cpuTime", UnitLookup.TIMESPAN);
+      final IAttribute<IQuantity> cpuTimeAttr = attr("cpuTime", "cpuTime", UnitLookup.TIMESPAN);
 
       // filter out scope events without CPU time data
       final IItemCollection filteredScopeEvents =
@@ -542,7 +575,7 @@ class JFRBasedProfilingIntegrationTest {
         events.apply(ItemFilters.type("datadog.AvailableProcessorCores"));
     assertTrue(availableProcessorsEvents.hasItems());
     final IAttribute<IQuantity> cpuCountAttr =
-        Attribute.attr("availableProcessorCores", "availableProcessorCores", UnitLookup.NUMBER);
+        attr("availableProcessorCores", "availableProcessorCores", NUMBER);
     final long val =
         ((IQuantity)
                 availableProcessorsEvents.getAggregate(
@@ -631,7 +664,8 @@ class JFRBasedProfilingIntegrationTest {
             "-Ddd.env=smoketest",
             "-Ddd.version=99",
             "-Ddd.profiling.enabled=true",
-            "-Ddd.profiling.auxiliary=async",
+            "-Ddd.profiling.async.enabled=true",
+            "-Ddd.profiling.tracing_context.enabled=true",
             "-Ddd.profiling.agentless=" + (apiKey != null),
             "-Ddd.profiling.start-delay=" + profilingStartDelaySecs,
             "-Ddd.profiling.upload.period=" + profilingUploadPeriodSecs,
