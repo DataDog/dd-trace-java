@@ -15,6 +15,7 @@ import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -42,7 +43,7 @@ public final class AsyncProfiler {
     try {
       instance = new AsyncProfiler();
     } catch (Throwable t) {
-      instance = new AsyncProfiler((Void) null);
+      instance = new AsyncProfiler((Void)null);
     }
     return instance;
   }
@@ -52,7 +53,7 @@ public final class AsyncProfiler {
     try {
       instance = new AsyncProfiler(configProvider);
     } catch (Throwable t) {
-      instance = new AsyncProfiler((Void) null);
+      instance = new AsyncProfiler((Void)null);
     }
     return instance;
   }
