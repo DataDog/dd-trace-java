@@ -21,6 +21,7 @@ import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import java.time.Instant;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +52,7 @@ public class AsyncOngoingRecording implements OngoingRecording {
   }
 
   @Override
-  public RecordingData snapshot(final Instant start, ProfilingSnapshot.Kind kind) {
+  public RecordingData snapshot(@Nonnull final Instant start, ProfilingSnapshot.Kind kind) {
     return recording.snapshot(start, kind);
   }
 

@@ -43,7 +43,7 @@ public final class AsyncProfiler {
     try {
       instance = new AsyncProfiler();
     } catch (Throwable t) {
-      instance = new AsyncProfiler((Void)null);
+      instance = new AsyncProfiler((Void) null);
     }
     return instance;
   }
@@ -53,7 +53,7 @@ public final class AsyncProfiler {
     try {
       instance = new AsyncProfiler(configProvider);
     } catch (Throwable t) {
-      instance = new AsyncProfiler((Void)null);
+      instance = new AsyncProfiler((Void) null);
     }
     return instance;
   }
@@ -221,6 +221,14 @@ public final class AsyncProfiler {
     return null;
   }
 
+  boolean snapshot(Path snapshotPath) {
+    if (asyncProfiler != null) {
+      log.debug("Creating JFR snapshot");
+      return asyncProfiler.dumpJfr(snapshotPath);
+    }
+    return false;
+  }
+
   /** A call-back from {@linkplain AsyncProfilerRecording#stop()} */
   void stopProfiler() {
     if (asyncProfiler != null) {
@@ -237,7 +245,7 @@ public final class AsyncProfiler {
   }
 
   public Set<ProfilingMode> enabledModes() {
-    return profilingModes;
+    return asyncProfiler != null ? profilingModes : Collections.emptySet();
   }
 
   public boolean isAvailable() {

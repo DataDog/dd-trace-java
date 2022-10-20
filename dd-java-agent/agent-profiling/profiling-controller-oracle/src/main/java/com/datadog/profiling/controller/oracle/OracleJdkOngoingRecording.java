@@ -58,7 +58,6 @@ public class OracleJdkOngoingRecording implements OngoingRecording {
   }
 
   @Override
-  @Nonnull
   public OracleJdkRecordingData snapshot(
       @Nonnull final Instant start, @Nonnull ProfilingSnapshot.Kind kind) {
     log.debug("Taking recording snapshot for time range {} - {}", start, Instant.now());

@@ -42,21 +42,28 @@ final class AsyncProfilerRecording implements OngoingRecording {
     return snapshot(start, ProfilingSnapshot.Kind.PERIODIC);
   }
 
-  @Nonnull
   @Override
   public RecordingData snapshot(@Nonnull Instant start, @Nonnull ProfilingSnapshot.Kind kind) {
-    profiler.stop(this);
-    RecordingData data = new AsyncProfilerRecordingData(recordingFile, start, Instant.now(), kind);
+    Path dump = null;
     try {
-      recordingFile = profiler.newRecording();
-    } catch (IOException | IllegalStateException e) {
+      dump = Files.createTempFile("dd-profiler-tmp-", ".jfr");
+      if (profiler.snapshot(dump)) {
+        return new AsyncProfilerRecordingData(dump, start, Instant.now(), kind);
+      }
+    } catch (IOException e) {
+      if (dump != null) {
+        try {
+          Files.deleteIfExists(dump);
+        } catch (IOException ignored) {
+        }
+      }
       if (log.isDebugEnabled()) {
-        log.warn("Unable to start async profiler recording", e);
+        log.warn("Unable to snapshot async profiler recording", e);
       } else {
-        log.warn("Unable to start async profiler recording: {}", e.getMessage());
+        log.warn("Unable to snapshot async profiler recording: {}", e.getMessage());
       }
     }
-    return data;
+    return null;
   }
 
   @Override
