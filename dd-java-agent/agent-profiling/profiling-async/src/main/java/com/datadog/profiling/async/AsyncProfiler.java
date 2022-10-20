@@ -29,15 +29,27 @@ public final class AsyncProfiler {
   public static final String TYPE = "async";
 
   private static final class Singleton {
-    private static final AsyncProfiler INSTANCE;
+    private static final AsyncProfiler INSTANCE = newInstance();
+  }
 
-    static {
-      try {
-        INSTANCE = new AsyncProfiler();
-      } catch (Throwable t) {
-        throw new RuntimeException(t);
-      }
+  static AsyncProfiler newInstance() {
+    AsyncProfiler instance = null;
+    try {
+      instance = new AsyncProfiler();
+    } catch (Throwable t) {
+      instance = new AsyncProfiler((Void) null);
     }
+    return instance;
+  }
+
+  static AsyncProfiler newInstance(ConfigProvider configProvider) {
+    AsyncProfiler instance = null;
+    try {
+      instance = new AsyncProfiler(configProvider);
+    } catch (Throwable t) {
+      instance = new AsyncProfiler((Void) null);
+    }
+    return instance;
   }
 
   private final long memleakIntervalDefault;
@@ -51,7 +63,13 @@ public final class AsyncProfiler {
     this(ConfigProvider.getInstance());
   }
 
-  AsyncProfiler(ConfigProvider configProvider) throws UnsupportedEnvironmentException {
+  private AsyncProfiler(Void dummy) {
+    this.configProvider = null;
+    this.asyncProfiler = null;
+    this.memleakIntervalDefault = 0L;
+  }
+
+  private AsyncProfiler(ConfigProvider configProvider) throws UnsupportedEnvironmentException {
     this.configProvider = configProvider;
     String libDir = configProvider.getString(ProfilingConfig.PROFILING_ASYNC_LIBPATH);
     if (libDir != null && Files.exists(Paths.get(libDir))) {
