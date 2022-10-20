@@ -7,6 +7,11 @@ plugins {
   id("com.github.johnrengelman.shadow") version "7.1.2"
 }
 
+java {
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+}
+
 spotless {
   java {
     toggleOffOn()

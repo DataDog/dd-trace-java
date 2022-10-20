@@ -12,6 +12,9 @@ class CallSiteInstrumentationPluginTest extends Specification {
       id 'call-site-instrumentation'
       id("com.diffplug.spotless") version "5.11.0"
     }
+    
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
 
     csi {
       suffix = 'CallSiteTest'
