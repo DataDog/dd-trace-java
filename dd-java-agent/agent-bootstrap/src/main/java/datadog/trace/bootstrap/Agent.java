@@ -15,6 +15,7 @@ import static datadog.trace.util.Strings.toEnvVar;
 
 import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
+import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.WithGlobalTracer;
@@ -377,6 +378,7 @@ public class Agent {
       }
 
       installDatadogTracer(scoClass, sco);
+      installContextThreadListener();
       maybeStartAppSec(scoClass, sco);
       maybeStartIast(scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
@@ -674,6 +676,29 @@ public class Agent {
         });
   }
 
+  /**
+   * Must be called after tracer is installed, but can't wait until the profiler is installed. {@see
+   * com.datadog.profiling.async.ContextThreadFilter} must not be modified to depend on JFR.
+   */
+  private static void installContextThreadListener() {
+    if (Config.get().isProfilingEnabled()) {
+      try {
+        Tracer tracer = GlobalTracer.get();
+        if (tracer instanceof AgentTracer.TracerAPI) {
+          ContextThreadListener listener =
+              (ContextThreadListener)
+                  AGENT_CLASSLOADER
+                      .loadClass("com.datadog.profiling.async.ContextThreadFilter")
+                      .getDeclaredConstructor()
+                      .newInstance();
+          ((AgentTracer.TracerAPI) tracer).addThreadContextListener(listener);
+        }
+      } catch (Throwable t) {
+        log.debug("Profiling context labeling not available. {}", t.getMessage());
+      }
+    }
+  }
+
   private static void startProfilingAgent(final boolean isStartingFirst) {
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
@@ -693,19 +718,6 @@ public class Agent {
             new WithGlobalTracer.Callback() {
               @Override
               public void withTracer(Tracer tracer) {
-                try {
-                  if (tracer instanceof AgentTracer.TracerAPI) {
-                    ContextThreadListener listener =
-                        (ContextThreadListener)
-                            AGENT_CLASSLOADER
-                                .loadClass("com.datadog.profiling.async.ContextThreadFilter")
-                                .getDeclaredConstructor()
-                                .newInstance();
-                    ((AgentTracer.TracerAPI) tracer).addThreadContextListener(listener);
-                  }
-                } catch (Throwable t) {
-                  log.debug("Profiling context labeling not available. {}", t.getMessage());
-                }
                 try {
                   if (Config.get().isProfilingLegacyTracingIntegrationEnabled()) {
                     log.debug("Registering scope event factory");
