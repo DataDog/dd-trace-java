@@ -2,7 +2,7 @@ package datadog.telemetry.exception;
 
 import datadog.telemetry.TelemetryRunnable;
 import datadog.telemetry.TelemetryService;
-import datadog.telemetry.api.KeyValue;
+import datadog.telemetry.api.Log;
 import datadog.trace.api.ExceptionsCollector;
 import java.util.Map;
 
@@ -15,8 +15,7 @@ public class ExceptionPeriodicAction implements TelemetryRunnable.TelemetryPerio
     for (Map.Entry<String, String> entry : exceptions.entrySet()) {
       String exceptionMsg = entry.getKey();
       String stackTrace = entry.getValue();
-      // service.addIntegration(new Integration().name(name).enabled(enabled));
-      service.addException(new KeyValue().name(exceptionMsg).value(stackTrace));
+      service.addException(new Log().message(exceptionMsg).stackTrace(stackTrace).level("ERROR"));
     }
   }
 }
