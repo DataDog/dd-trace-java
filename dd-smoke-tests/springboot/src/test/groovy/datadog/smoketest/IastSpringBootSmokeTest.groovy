@@ -107,17 +107,20 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     setup:
     String url = "http://localhost:${httpPort}/weakhash"
     def request = new Request.Builder().url(url).get().build()
-    Exception storedException = null
 
     when:
     Response response = null
     try {
+
       response = client.newCall(request).execute()
     }
     catch (Exception e) {
-      storedException = e
+      pintln 'exception while calling the server: ' + e.toString()
+      println 'Server log: '
+      checkLog {
+        println it
+      }
     }
-
 
     then:
     response.body().string().contains("MessageDigest.getInstance executed")
@@ -128,7 +131,6 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
         vulnerabilityFound = true
       }
     }
-    null == storedException
     vulnerabilityFound
   }
 }
