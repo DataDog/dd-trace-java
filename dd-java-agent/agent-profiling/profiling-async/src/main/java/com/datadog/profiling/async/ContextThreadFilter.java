@@ -4,8 +4,6 @@ import datadog.trace.bootstrap.instrumentation.api.ContextThreadListener;
 
 public class ContextThreadFilter implements ContextThreadListener {
 
-  private ContextThreadFilter() {}
-
   @Override
   public void onAttach() {
     AsyncProfiler.getInstance().addCurrentThread();
