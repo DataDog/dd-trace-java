@@ -1,7 +1,12 @@
 package com.datadog.profiling.controller;
 
+import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 /** Capture the profiler config first and allow emitting the setting events per each recording. */
 public abstract class ProfilerSettingsSupport {
@@ -19,6 +24,7 @@ public abstract class ProfilerSettingsSupport {
   protected final boolean checkpointsEnabled;
   protected final boolean endpointsEnabled;
   protected final String auxiliaryProfiler;
+  protected final String perfEventsParanoid;
 
   protected ProfilerSettingsSupport() {
     ConfigProvider configProvider = ConfigProvider.getInstance();
@@ -71,8 +77,23 @@ public abstract class ProfilerSettingsSupport {
         configProvider.getString(
             ProfilingConfig.PROFILING_AUXILIARY_TYPE,
             ProfilingConfig.PROFILING_AUXILIARY_TYPE_DEFAULT);
+    perfEventsParanoid = readPerfEventsParanoidSetting();
   }
 
   /** To be defined in controller specific way. Eg. one could emit JFR events. */
   public abstract void publish();
+
+  private static String readPerfEventsParanoidSetting() {
+    String value = "unknown";
+    if (Platform.isLinux()) {
+      Path perfEventsParanoid = Paths.get("/proc/sys/kernel/perf_event_paranoid");
+      try {
+        if (Files.exists(perfEventsParanoid)) {
+          value = new String(Files.readAllBytes(perfEventsParanoid), StandardCharsets.UTF_8).trim();
+        }
+      } catch (Exception ignore) {
+      }
+    }
+    return value;
+  }
 }
