@@ -118,6 +118,7 @@
 2 ch.qos.logback.*
 0 ch.qos.logback.classic.Logger
 0 ch.qos.logback.classic.spi.LoggingEvent*
+0 ch.qos.logback.core.pattern.PatternLayoutBase
 # We instrument this Runnable
 0 ch.qos.logback.core.AsyncAppenderBase$Worker
 2 com.beust.jcommander.*
