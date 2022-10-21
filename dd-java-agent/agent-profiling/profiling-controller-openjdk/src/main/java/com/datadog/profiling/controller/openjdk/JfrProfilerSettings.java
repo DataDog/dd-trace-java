@@ -31,6 +31,7 @@ final class JfrProfilerSettings extends ProfilerSettingsSupport {
       new ProfilerSettingEvent("Checkpoints", String.valueOf(checkpointsEnabled)).commit();
       new ProfilerSettingEvent("Endpoints", String.valueOf(endpointsEnabled)).commit();
       new ProfilerSettingEvent("Auxiliary Profiler", auxiliaryProfiler).commit();
+      new ProfilerSettingEvent("perf_events_paranoid", perfEventsParanoid).commit();
     }
   }
 }
