@@ -23,6 +23,11 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * It is currently assumed that this class can be initialised early so that async-profiler's thread
+ * filter captures all tracing activity, which means it must not be modified to depend on JFR, so
+ * that it can be installed before tracing starts.
+ */
 public final class AsyncProfiler {
   private static final Logger log = LoggerFactory.getLogger(AsyncProfiler.class);
 
