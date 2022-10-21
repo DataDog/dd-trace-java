@@ -1,5 +1,8 @@
 package datadog.trace.api.config;
 
+import datadog.trace.api.PropagationStyle;
+import java.util.BitSet;
+
 /**
  * A list of keys to be used in a Properties instance with dd-trace-ot's DDTracer as follows:
  *
@@ -46,6 +49,7 @@ public final class TracerConfig {
   public static final String TRACE_REPORT_HOSTNAME = "trace.report-hostname";
   public static final String TRACE_CLIENT_IP_HEADER = "trace.client-ip-header";
   public static final String TRACE_CLIENT_IP_RESOLVER_ENABLED = "trace.client-ip.resolver.enabled";
+  public static final String CLIENT_IP_ENABLED = "trace.client-ip.enabled";
   public static final String HEADER_TAGS = "trace.header.tags";
   public static final String REQUEST_HEADER_TAGS = "trace.request_header.tags";
   public static final String RESPONSE_HEADER_TAGS = "trace.response_header.tags";
@@ -70,8 +74,6 @@ public final class TracerConfig {
 
   public static final String ENABLE_TRACE_AGENT_V05 = "trace.agent.v0.5.enabled";
 
-  public static final String CLIENT_IP_ENABLED = "trace.client-ip.enabled";
-
   /**
    * Disables validation that prevents invalid combinations of sampling priority and sampling
    * mechanism on the set sampling priority calls. This check is enabled by default.
@@ -86,6 +88,32 @@ public final class TracerConfig {
   public static final String TRACE_X_DATADOG_TAGS_MAX_LENGTH = "trace.x-datadog-tags.max.length";
 
   public static final String CLOCK_SYNC_PERIOD = "trace.clock.sync.period";
+
+  static final String DEFAULT_AGENT_WRITER_TYPE = "DDAgentWriter";
+  static final boolean DEFAULT_PRIORITY_SAMPLING_ENABLED = true;
+  static final String DEFAULT_PRIORITY_SAMPLING_FORCE = null;
+  static final boolean DEFAULT_TRACE_ENABLED = true;
+  static final boolean DEFAULT_TRACE_RESOLVER_ENABLED = true;
+  static final boolean DEFAULT_TRACE_ANALYTICS_ENABLED = false;
+  static final int DEFAULT_TRACE_RATE_LIMIT = 100;
+  static final boolean DEFAULT_CLIENT_IP_ENABLED = false;
+  static final BitSet DEFAULT_HTTP_SERVER_ERROR_STATUSES;
+  static final BitSet DEFAULT_HTTP_CLIENT_ERROR_STATUSES;
+  static final int DEFAULT_SCOPE_DEPTH_LIMIT = 100;
+  static final int DEFAULT_SCOPE_ITERATION_KEEP_ALIVE = 10; // in seconds
+  static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
+  static final boolean DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED = false;
+  static final String DEFAULT_PROPAGATION_STYLE_EXTRACT = PropagationStyle.DATADOG.name();
+  static final String DEFAULT_PROPAGATION_STYLE_INJECT = PropagationStyle.DATADOG.name();
+  static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
+  static final int DEFAULT_CLOCK_SYNC_PERIOD = 30; // seconds
+
+  static {
+    DEFAULT_HTTP_SERVER_ERROR_STATUSES = new BitSet();
+    DEFAULT_HTTP_SERVER_ERROR_STATUSES.set(500, 600);
+    DEFAULT_HTTP_CLIENT_ERROR_STATUSES = new BitSet();
+    DEFAULT_HTTP_CLIENT_ERROR_STATUSES.set(400, 500);
+  }
 
   private TracerConfig() {}
 }

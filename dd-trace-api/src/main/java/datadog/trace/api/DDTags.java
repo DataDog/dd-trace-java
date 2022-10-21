@@ -29,12 +29,12 @@ public class DDTags {
   public static final String TRACE_START_TIME = "t0";
 
   /* Tags below are for internal use only. */
-  static final String INTERNAL_HOST_NAME = "_dd.hostname";
+  public static final String INTERNAL_HOST_NAME = "_dd.hostname";
   public static final String RUNTIME_ID_TAG = "runtime-id";
   public static final String RUNTIME_VERSION_TAG = "runtime_version";
-  static final String SERVICE = "service";
-  static final String SERVICE_TAG = SERVICE;
-  static final String HOST_TAG = "host";
+  public static final String SERVICE = "service";
+  public static final String SERVICE_TAG = SERVICE;
+  public static final String HOST_TAG = "host";
   public static final String LANGUAGE_TAG_KEY = "language";
   public static final String LANGUAGE_TAG_VALUE = "jvm";
   public static final String ORIGIN_KEY = "_dd.origin";

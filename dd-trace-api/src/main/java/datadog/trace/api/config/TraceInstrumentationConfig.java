@@ -1,5 +1,7 @@
 package datadog.trace.api.config;
 
+import java.util.BitSet;
+
 /**
  * These config options will only work with dd-java-agent, not with dd-trace-ot.
  *
@@ -91,6 +93,31 @@ public final class TraceInstrumentationConfig {
   public static final String RESOLVER_OUTLINE_POOL_SIZE = "resolver.outline.pool.size";
   public static final String RESOLVER_TYPE_POOL_SIZE = "resolver.type.pool.size";
   public static final String RESOLVER_USE_LOADCLASS = "resolver.use.loadclass";
+
+  static final boolean DEFAULT_INTEGRATIONS_ENABLED = true;
+  static final String DEFAULT_TRACE_ANNOTATIONS = null;
+  static final BitSet DEFAULT_GRPC_SERVER_ERROR_STATUSES;
+  static final BitSet DEFAULT_GRPC_CLIENT_ERROR_STATUSES;
+  static final boolean DEFAULT_LOGS_INJECTION_ENABLED = true;
+  static final String DEFAULT_TRACE_METHODS = null;
+  static final boolean DEFAULT_TRACE_EXECUTORS_ALL = false;
+  static final boolean DEFAULT_HTTP_SERVER_TAG_QUERY_STRING = true;
+  static final boolean DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING = true;
+  static final boolean DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING = false;
+  static final boolean DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN = false;
+  static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE = false;
+  static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX = false;
+  static final boolean DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION = true;
+  static final boolean DEFAULT_SERIALVERSIONUID_FIELD_INJECTION = true;
+  static final int DEFAULT_RESOLVER_OUTLINE_POOL_SIZE = 128;
+  static final int DEFAULT_RESOLVER_TYPE_POOL_SIZE = 64;
+
+  static {
+    DEFAULT_GRPC_SERVER_ERROR_STATUSES = new BitSet();
+    DEFAULT_GRPC_SERVER_ERROR_STATUSES.set(2, 17);
+    DEFAULT_GRPC_CLIENT_ERROR_STATUSES = new BitSet();
+    DEFAULT_GRPC_CLIENT_ERROR_STATUSES.set(1, 17);
+  }
 
   private TraceInstrumentationConfig() {}
 }

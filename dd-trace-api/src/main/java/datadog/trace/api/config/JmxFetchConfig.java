@@ -24,5 +24,9 @@ public final class JmxFetchConfig {
   public static final String JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT =
       "jmxfetch.multiple-runtime-services.limit";
 
+  static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
+  static final boolean DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED = false;
+  static final int DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT = 10;
+
   private JmxFetchConfig() {}
 }

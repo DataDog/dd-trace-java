@@ -57,5 +57,15 @@ public final class GeneralConfig {
   public static final String TELEMETRY_ENABLED = "instrumentation.telemetry.enabled";
   public static final String TELEMETRY_HEARTBEAT_INTERVAL = "telemetry.heartbeat.interval";
 
+  static final String DEFAULT_SITE = "datadoghq.com";
+  static final int DEFAULT_DOGSTATSD_START_DELAY = 15; // seconds
+  static final boolean DEFAULT_HEALTH_METRICS_ENABLED = true;
+  static final boolean DEFAULT_PERF_METRICS_ENABLED = false;
+  // No default constants for metrics statsd support -- falls back to jmxfetch values
+  static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
+  static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;
+  static final boolean DEFAULT_TELEMETRY_ENABLED = true;
+  static final int DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL = 60; // in seconds
+
   private GeneralConfig() {}
 }

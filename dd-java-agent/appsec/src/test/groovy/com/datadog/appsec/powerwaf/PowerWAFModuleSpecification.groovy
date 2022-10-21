@@ -27,9 +27,6 @@ import spock.lang.Unroll
 
 import java.util.concurrent.CountDownLatch
 
-import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP
-import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP
-
 class PowerWAFModuleSpecification extends DDSpecification {
   private static final DataBundle ATTACK_BUNDLE = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
   new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni/v0']))

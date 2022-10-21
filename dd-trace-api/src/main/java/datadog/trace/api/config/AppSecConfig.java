@@ -2,7 +2,6 @@ package datadog.trace.api.config;
 
 /** Constant with names of configuration options for appsec. */
 public final class AppSecConfig {
-
   public static final String APPSEC_ENABLED = "appsec.enabled";
   public static final String APPSEC_REPORTING_INBAND = "appsec.reporting.inband";
   public static final String APPSEC_RULES_FILE = "appsec.rules";
@@ -18,6 +17,11 @@ public final class AppSecConfig {
       "appsec.http.blocked.template.html";
   public static final String APPSEC_HTTP_BLOCKED_TEMPLATE_JSON =
       "appsec.http.blocked.template.json";
+
+  static final String DEFAULT_APPSEC_ENABLED = "inactive";
+  static final boolean DEFAULT_APPSEC_REPORTING_INBAND = false;
+  static final int DEFAULT_APPSEC_TRACE_RATE_LIMIT = 100;
+  static final boolean DEFAULT_APPSEC_WAF_METRICS = true;
 
   private AppSecConfig() {}
 }

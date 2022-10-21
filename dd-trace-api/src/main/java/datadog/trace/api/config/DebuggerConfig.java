@@ -22,5 +22,17 @@ public final class DebuggerConfig {
       "dynamic.instrumentation.instrument.the.world";
   public static final String DEBUGGER_EXCLUDE_FILE = "dynamic.instrumentation.exclude.file";
 
+  static final boolean DEFAULT_DEBUGGER_ENABLED = false;
+  static final int DEFAULT_DEBUGGER_UPLOAD_TIMEOUT = 30; // seconds
+  static final int DEFAULT_DEBUGGER_UPLOAD_FLUSH_INTERVAL = 0; // ms, 0 = dynamic
+  static final boolean DEFAULT_DEBUGGER_CLASSFILE_DUMP_ENABLED = false;
+  static final int DEFAULT_DEBUGGER_POLL_INTERVAL = 1; // seconds
+  static final int DEFAULT_DEBUGGER_DIAGNOSTICS_INTERVAL = 60 * 60; // seconds
+  static final boolean DEFAULT_DEBUGGER_METRICS_ENABLED = true;
+  static final int DEFAULT_DEBUGGER_UPLOAD_BATCH_SIZE = 100;
+  static final int DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE = 1024; // KiB
+  static final boolean DEFAULT_DEBUGGER_VERIFY_BYTECODE = false;
+  static final boolean DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD = false;
+
   private DebuggerConfig() {}
 }
