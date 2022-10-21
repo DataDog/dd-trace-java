@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation
 
 import datadog.trace.api.DDId
+import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
@@ -17,8 +18,17 @@ class B3HttpExtractorTest extends DDSpecification {
 
   HttpCodec.Extractor extractor = B3HttpCodec.newExtractor(["SOME_HEADER": "some-tag"])
 
-  def setup() {
+  boolean origAppSecActive
+
+  void setup() {
+    origAppSecActive = ActiveSubsystems.APPSEC_ACTIVE
+    ActiveSubsystems.APPSEC_ACTIVE = true
+
     injectSysConfig(PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED, "true")
+  }
+
+  void cleanup() {
+    ActiveSubsystems.APPSEC_ACTIVE = origAppSecActive
   }
 
   def "extract http headers"() {

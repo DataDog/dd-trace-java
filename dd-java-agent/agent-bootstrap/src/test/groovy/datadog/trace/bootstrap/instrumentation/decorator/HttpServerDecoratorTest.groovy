@@ -9,6 +9,7 @@ import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.InstrumentationGateway
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -27,6 +28,17 @@ import static datadog.trace.api.gateway.Events.EVENTS
 class HttpServerDecoratorTest extends ServerDecoratorTest {
 
   def span = Mock(AgentSpan)
+
+  boolean origAppSecActive
+
+  void setup() {
+    origAppSecActive = ActiveSubsystems.APPSEC_ACTIVE
+    ActiveSubsystems.APPSEC_ACTIVE = true
+  }
+
+  void cleanup() {
+    ActiveSubsystems.APPSEC_ACTIVE = origAppSecActive
+  }
 
   def "test onRequest"() {
     setup:
@@ -205,9 +217,9 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     null         | '127.0.0.1' | '127.0.0.1'
   }
 
-  void 'disabling header collection without custom header disables client ip reporting'() {
+  void 'disabling ip resolution disables header collection and ip address resolution'() {
     setup:
-    injectSysConfig('dd.trace.client-ip-header.disabled', 'true')
+    injectSysConfig('dd.trace.client-ip.resolver.enabled', 'false')
 
     def ctx = Mock(AgentSpan.Context.Extracted)
     def decorator = newDecorator()
@@ -216,12 +228,29 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     decorator.onRequest(this.span, [peerIp: '4.4.4.4'], null, ctx)
 
     then:
+    0 * ctx.getForwarded()
+    0 * span.setTag(Tags.HTTP_FORWARDED, _)
     0 * this.span.setTag(Tags.HTTP_CLIENT_IP, _)
   }
 
-  void 'disabling header collection but enabling custom header enables client ip reporting'() {
+  void 'disabling appsec disables header collection and ip address resolution'() {
     setup:
-    injectSysConfig('dd.trace.client-ip-header.disabled', 'true')
+    ActiveSubsystems.APPSEC_ACTIVE = false
+
+    def ctx = Mock(AgentSpan.Context.Extracted)
+    def decorator = newDecorator()
+
+    when:
+    decorator.onRequest(this.span, [peerIp: '4.4.4.4'], null, ctx)
+
+    then:
+    0 * ctx.getForwarded()
+    0 * span.setTag(Tags.HTTP_FORWARDED, _)
+    0 * this.span.setTag(Tags.HTTP_CLIENT_IP, _)
+  }
+
+  void 'client ip reporting with custom header'() {
+    setup:
     injectSysConfig('dd.trace.client-ip-header', 'my-header')
 
     def ctx = Mock(AgentSpan.Context.Extracted)

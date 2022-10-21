@@ -2,6 +2,7 @@ package datadog.trace.core.propagation
 
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.test.util.DDSpecification
@@ -12,8 +13,17 @@ class XRayHttpExtractorTest extends DDSpecification {
 
   HttpCodec.Extractor extractor = XRayHttpCodec.newExtractor(["SOME_HEADER": "some-tag"])
 
-  def setup() {
+  boolean origAppSecActive
+
+  void setup() {
+    origAppSecActive = ActiveSubsystems.APPSEC_ACTIVE
+    ActiveSubsystems.APPSEC_ACTIVE = true
+
     injectSysConfig(PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED, "true")
+  }
+
+  void cleanup() {
+    ActiveSubsystems.APPSEC_ACTIVE = origAppSecActive
   }
 
   def "extract http headers"() {

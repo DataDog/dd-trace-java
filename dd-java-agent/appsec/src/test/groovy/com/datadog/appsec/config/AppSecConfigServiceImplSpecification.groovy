@@ -102,7 +102,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     def initialRulesOverride
 
     when:
-    AppSecSystem.ACTIVE = false
+    AppSecSystem.active = false
     appSecConfigService.init()
     appSecConfigService.maybeSubscribeConfigPolling()
     def configurer = appSecConfigService.createAppSecModuleConfigurer()
@@ -160,7 +160,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     1 * wafDataListener.onNewSubconfig([[id: 'foo', type: '', data: []]], _)
     1 * wafRulesOverrideListener.onNewSubconfig([foo: false], _)
     0 * _._
-    AppSecSystem.ACTIVE == true
+    AppSecSystem.active == true
 
     when:
     savedFeaturesListener.accept('config_key',
@@ -168,7 +168,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       ConfigurationChangesListener.PollingRateHinter.NOOP)
 
     then:
-    AppSecSystem.ACTIVE == false
+    AppSecSystem.active == false
 
     when: 'switch back to enabled'
     savedFeaturesListener.accept('config_key',
@@ -176,7 +176,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       ConfigurationChangesListener.PollingRateHinter.NOOP)
 
     then: 'it is enabled again'
-    AppSecSystem.ACTIVE == true
+    AppSecSystem.active == true
 
     when: 'asm are not set'
     savedFeaturesListener.accept('config_key',
@@ -184,7 +184,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       ConfigurationChangesListener.PollingRateHinter.NOOP)
 
     then: 'it is disabled (<not set> == false)'
-    AppSecSystem.ACTIVE == false
+    AppSecSystem.active == false
 
     when: 'switch back to enabled'
     savedFeaturesListener.accept('config_key',
@@ -192,7 +192,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       ConfigurationChangesListener.PollingRateHinter.NOOP)
 
     then: 'it is enabled again'
-    AppSecSystem.ACTIVE == true
+    AppSecSystem.active == true
 
     when: 'asm features are not set'
     savedFeaturesListener.accept('config_key',
@@ -200,10 +200,10 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       ConfigurationChangesListener.PollingRateHinter.NOOP)
 
     then: 'it is disabled (<not set> == false)'
-    AppSecSystem.ACTIVE == false
+    AppSecSystem.active == false
 
     cleanup:
-    AppSecSystem.ACTIVE = true
+    AppSecSystem.active = true
   }
 
   void 'stopping appsec unsubscribes from the poller'() {

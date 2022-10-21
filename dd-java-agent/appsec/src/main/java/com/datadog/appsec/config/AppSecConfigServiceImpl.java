@@ -65,13 +65,13 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           }
           Map<String, Object> configMap = Collections.singletonMap("waf", newConfig);
           this.lastConfig.put("waf", newConfig);
-          if (AppSecSystem.ACTIVE) {
+          if (AppSecSystem.isActive()) {
             distributeSubConfigurations(configMap, reconfiguration);
             log.info(
                 "New AppSec configuration {} has been applied. Loaded {} rules. AppSec status: {}",
                 newConfig.getVersion(),
                 newConfig.getRules().size(),
-                AppSecSystem.ACTIVE ? "active" : "inactive");
+                AppSecSystem.isActive() ? "active" : "inactive");
           }
         });
     this.configurationPoller.addListener(
@@ -111,7 +111,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         (configKey, newConfig, hinter) -> {
           final boolean newState =
               newConfig != null && newConfig.asm != null && newConfig.asm.enabled;
-          if (AppSecSystem.ACTIVE != newState) {
+          if (AppSecSystem.isActive() != newState) {
             if (newState) {
               // Enforce applying waf rules if wasn't done before (lazy loading)
               AppSecConfig conf = (AppSecConfig) this.lastConfig.get("waf");
@@ -124,7 +124,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             }
 
             log.warn("AppSec {} (runtime)", newState ? "enabled" : "disabled");
-            AppSecSystem.ACTIVE = newState;
+            AppSecSystem.setActive(newState);
           }
         });
 

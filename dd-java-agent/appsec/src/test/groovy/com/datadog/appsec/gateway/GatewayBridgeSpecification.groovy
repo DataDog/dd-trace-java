@@ -94,7 +94,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void 'request_start returns null context if appsec is disabled'() {
     setup:
-    AppSecSystem.ACTIVE = false
+    AppSecSystem.active = false
 
     when:
     Flow<AppSecRequestContext> startFlow = requestStartedCB.get()
@@ -105,7 +105,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     0 * _._
 
     cleanup:
-    AppSecSystem.ACTIVE = true
+    AppSecSystem.active = true
   }
 
   void 'request_end closes context reports attacks and publishes event'() {

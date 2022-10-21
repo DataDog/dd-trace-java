@@ -2,6 +2,7 @@ package datadog.trace.core.propagation
 
 import datadog.trace.api.DDId
 import datadog.trace.api.config.TracerConfig
+import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
@@ -25,8 +26,17 @@ class DatadogHttpExtractorTest extends DDSpecification {
       )
   }
 
-  def setup() {
+  boolean origAppSecActive
+
+  void setup() {
+    origAppSecActive = ActiveSubsystems.APPSEC_ACTIVE
+    ActiveSubsystems.APPSEC_ACTIVE = true
+
     injectSysConfig(PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED, "true")
+  }
+
+  void cleanup() {
+    ActiveSubsystems.APPSEC_ACTIVE = origAppSecActive
   }
 
   def "extract http headers"() {
@@ -156,27 +166,48 @@ class DatadogHttpExtractorTest extends DDSpecification {
     extractor.extract(["ignored-header": "ignored-value"], ContextVisitors.stringValuesMap()) == null
   }
 
-  void 'extract headers with default header collection disabled returns null'() {
+  void 'extract headers with ip resolution disabled'() {
     setup:
-    injectSysConfig(TracerConfig.TRACE_CLIENT_IP_HEADER_DISABLED, 'true')
+    injectSysConfig(TracerConfig.TRACE_CLIENT_IP_RESOLVER_ENABLED, 'false')
 
     def tagOnlyCtx = [
       'X-Forwarded-For': '::1',
       'User-agent': 'foo/bar',
     ]
 
-    expect:
-    extractor.extract(tagOnlyCtx, ContextVisitors.stringValuesMap()) == null
+    when:
+    TagContext ctx = extractor.extract(tagOnlyCtx, ContextVisitors.stringValuesMap())
+
+    then:
+    ctx != null
+    ctx.XForwardedFor == null
+    ctx.userAgent == 'foo/bar'
   }
 
-  void 'custom IP header collection works even with default header collection disabled'() {
+
+  void 'extract headers with ip resolution disabled — appsec disabled variant'() {
     setup:
-    injectSysConfig(TracerConfig.TRACE_CLIENT_IP_HEADER_DISABLED, 'true')
-    injectSysConfig(TracerConfig.TRACE_CLIENT_IP_HEADER, "my-header")
+    ActiveSubsystems.APPSEC_ACTIVE = false
 
     def tagOnlyCtx = [
       'X-Forwarded-For': '::1',
       'User-agent': 'foo/bar',
+    ]
+
+    when:
+    TagContext ctx = extractor.extract(tagOnlyCtx, ContextVisitors.stringValuesMap())
+
+    then:
+    ctx != null
+    ctx.XForwardedFor == null
+  }
+
+  void 'custom IP header collection does not disable standard ip header collection'() {
+    setup:
+    injectSysConfig(TracerConfig.TRACE_CLIENT_IP_HEADER, "my-header")
+
+    def tagOnlyCtx = [
+      'X-Forwarded-For': '::1',
       'My-Header': '8.8.8.8',
     ]
 
@@ -185,8 +216,7 @@ class DatadogHttpExtractorTest extends DDSpecification {
 
     then:
     ctx != null
-    ctx.XForwardedFor == null
-    ctx.userAgent == null
+    ctx.XForwardedFor == '::1'
     ctx.customIpHeader == '8.8.8.8'
   }
 

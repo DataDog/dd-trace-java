@@ -20,6 +20,7 @@ import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import java.util.Collections;
@@ -29,7 +30,6 @@ import java.util.Map;
 public abstract class ContextInterpreter implements AgentPropagation.KeyClassifier {
 
   protected final Map<String, String> taggedHeaders;
-  protected final boolean defHeaderCollEnabled;
 
   protected DDId traceId;
   protected DDId spanId;
@@ -43,6 +43,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
 
   private TagContext.HttpHeaders httpHeaders;
   private final String customIpHeaderName;
+  private final boolean clientIpResolutionEnabled;
+  private boolean collectIpHeaders;
 
   protected static final boolean LOG_EXTRACT_HEADER_NAMES = Config.get().isLogExtractHeaderNames();
   private static final DDCache<String, String> CACHE = DDCaches.newFixedSizeCache(64);
@@ -54,7 +56,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected ContextInterpreter(Map<String, String> taggedHeaders, Config config) {
     this.taggedHeaders = taggedHeaders;
     this.customIpHeaderName = config.getTraceClientIpHeader();
-    this.defHeaderCollEnabled = config.isDefaultHeaderAndIpCollectionEnabled();
+    this.clientIpResolutionEnabled = config.isTraceClientIpResolverEnabled();
     reset();
   }
 
@@ -77,7 +79,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   }
 
   protected final boolean handledForwarding(String key, String value) {
-    if (value == null || !defHeaderCollEnabled) {
+    if (value == null || !collectIpHeaders) {
       return false;
     }
 
@@ -93,7 +95,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   }
 
   protected final boolean handledXForwarding(String key, String value) {
-    if (value == null && !defHeaderCollEnabled) {
+    if (value == null || !collectIpHeaders) {
       return false;
     }
 
@@ -121,7 +123,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   }
 
   protected final boolean handledUserAgent(String key, String value) {
-    if (value == null || !defHeaderCollEnabled || !USER_AGENT_KEY.equalsIgnoreCase(key)) {
+    if (value == null || !USER_AGENT_KEY.equalsIgnoreCase(key)) {
       return false;
     }
 
@@ -139,7 +141,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
       return true;
     }
 
-    if (value == null || !defHeaderCollEnabled) {
+    if (value == null || !collectIpHeaders) {
       return false;
     }
 
@@ -181,6 +183,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     baggage = Collections.emptyMap();
     valid = true;
     httpHeaders = null;
+    collectIpHeaders = this.clientIpResolutionEnabled && ActiveSubsystems.APPSEC_ACTIVE;
     return this;
   }
 
