@@ -27,11 +27,10 @@ public class ExceptionsCollector {
 
   private static final Queue<Exception> exceptions = new LinkedBlockingQueue<>();
 
-  public synchronized void update(Throwable e) {
+  public synchronized void addException(Throwable e) {
     Exception i = new Exception();
     i.exceptionString = e.getMessage();
     i.stackTrace = e.getStackTrace().toString();
-
     exceptions.offer(i);
   }
 

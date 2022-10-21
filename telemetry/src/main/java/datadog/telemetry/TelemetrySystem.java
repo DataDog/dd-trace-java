@@ -4,6 +4,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.telemetry.dependency.DependencyPeriodicAction;
 import datadog.telemetry.dependency.DependencyService;
 import datadog.telemetry.dependency.DependencyServiceImpl;
+import datadog.telemetry.exception.ExceptionPeriodicAction;
 import datadog.telemetry.integration.IntegrationPeriodicAction;
 import datadog.trace.api.Config;
 import datadog.trace.api.time.SystemTimeSource;
@@ -42,13 +43,15 @@ public class TelemetrySystem {
             okHttpClient,
             telemetryService,
             Arrays.asList(
-                new DependencyPeriodicAction(dependencyService), new IntegrationPeriodicAction()));
+                new DependencyPeriodicAction(dependencyService), new IntegrationPeriodicAction(),
+                new ExceptionPeriodicAction()));
     return AgentThreadFactory.newAgentThread(
         AgentThreadFactory.AgentThread.TELEMETRY, telemetryRunnable);
   }
 
   public static void startTelemetry(
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
+        System.out.print("STARTING TELEMETRY");
     try {
       DependencyService dependencyService = createDependencyService(instrumentation);
       TelemetryService telemetryService =
