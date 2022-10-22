@@ -897,6 +897,10 @@ public class Agent {
     String settingValue = System.getProperty(featureEnabledSysprop);
     if (settingValue == null) {
       settingValue = ddGetEnv(featureEnabledSysprop);
+      // TODO: We may want this behavior for the system property too.
+      if (settingValue != null && settingValue.isEmpty()) {
+        settingValue = null;
+      }
     }
 
     // defaults to inactive

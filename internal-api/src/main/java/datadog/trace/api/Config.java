@@ -1099,6 +1099,10 @@ public class Config {
     telemetryHeartbeatInterval = telemetryInterval;
 
     String appSecEnabled = configProvider.getString(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED);
+    if (appSecEnabled.isEmpty()) {
+      // ConfigProvider.getString currently doesn't fallback to default for empty strings.
+      appSecEnabled = DEFAULT_APPSEC_ENABLED;
+    }
     this.appSecEnabled = ProductActivationConfig.fromString(appSecEnabled);
     appSecReportingInband =
         configProvider.getBoolean(APPSEC_REPORTING_INBAND, DEFAULT_APPSEC_REPORTING_INBAND);
