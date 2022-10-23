@@ -87,6 +87,7 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     client.newCall(request).execute()
 
     then:
+    waitForTraceCount(1)
     Boolean foundEnabledTag = false
     checkLog {
       if (it.contains("_dd.iast.enabled=1")) {
