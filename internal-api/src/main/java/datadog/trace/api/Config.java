@@ -1098,10 +1098,16 @@ public class Config {
     }
     telemetryHeartbeatInterval = telemetryInterval;
 
-    String appSecEnabled = configProvider.getString(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED);
-    if (appSecEnabled.isEmpty()) {
-      // ConfigProvider.getString currently doesn't fallback to default for empty strings.
-      appSecEnabled = DEFAULT_APPSEC_ENABLED;
+    // ConfigProvider.getString currently doesn't fallback to default for empty strings. So we have
+    // special handling here until we have a general solution for empty string value fallback.
+    String appSecEnabled = configProvider.getString(APPSEC_ENABLED);
+    if (appSecEnabled == null || appSecEnabled.isEmpty()) {
+      appSecEnabled =
+          configProvider.getStringExcludingSource(
+              APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED, SystemPropertiesConfigSource.class);
+      if (appSecEnabled.isEmpty()) {
+        appSecEnabled = DEFAULT_APPSEC_ENABLED;
+      }
     }
     this.appSecEnabled = ProductActivationConfig.fromString(appSecEnabled);
     appSecReportingInband =

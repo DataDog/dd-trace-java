@@ -895,12 +895,10 @@ public class Agent {
     // must be kept in sync with logic from Config!
     final String featureEnabledSysprop = AgentFeature.APPSEC.systemProp;
     String settingValue = System.getProperty(featureEnabledSysprop);
+    settingValue = settingValue != null && settingValue.isEmpty() ? null : settingValue;
     if (settingValue == null) {
       settingValue = ddGetEnv(featureEnabledSysprop);
-      // TODO: We may want this behavior for the system property too.
-      if (settingValue != null && settingValue.isEmpty()) {
-        settingValue = null;
-      }
+      settingValue = settingValue != null && settingValue.isEmpty() ? null : settingValue;
     }
 
     // defaults to inactive

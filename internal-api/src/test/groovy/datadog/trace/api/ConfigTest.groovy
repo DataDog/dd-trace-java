@@ -2065,11 +2065,11 @@ class ConfigTest extends DDSpecification {
     ""         | null       | ProductActivationConfig.ENABLED_INACTIVE
     ""         | ""         | ProductActivationConfig.ENABLED_INACTIVE
     ""         | "inactive" | ProductActivationConfig.ENABLED_INACTIVE
-    ""         | "false"    | ProductActivationConfig.ENABLED_INACTIVE // FIXME: Should be FULLY_DISABLED?
-    ""         | "0"        | ProductActivationConfig.ENABLED_INACTIVE // FIXME: Should be FULLY_DISABLED?
-    ""         | "invalid"  | ProductActivationConfig.ENABLED_INACTIVE
-    ""         | "true"     | ProductActivationConfig.ENABLED_INACTIVE // FIXME: Should be FULLY_ENABLED?
-    ""         | "1"        | ProductActivationConfig.ENABLED_INACTIVE // FIXME: Should be FULLY_ENABLED?
+    ""         | "false"    | ProductActivationConfig.FULLY_DISABLED
+    ""         | "0"        | ProductActivationConfig.FULLY_DISABLED
+    ""         | "invalid"  | ProductActivationConfig.FULLY_DISABLED
+    ""         | "true"     | ProductActivationConfig.FULLY_ENABLED
+    ""         | "1"        | ProductActivationConfig.FULLY_ENABLED
     "inactive" | null       | ProductActivationConfig.ENABLED_INACTIVE
     "inactive" | ""         | ProductActivationConfig.ENABLED_INACTIVE
     "inactive" | "inactive" | ProductActivationConfig.ENABLED_INACTIVE
