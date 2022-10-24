@@ -24,8 +24,12 @@ final class CachedData {
     kotlin        : "1.3.72",
     coroutines    : "1.3.0",
     dogstatsd     : "4.0.0",
-    jnr_unixsocket: "0.28",
-    jnr_ffi       : '2.1.12', // dependency of jnr_unixsocket: update in tandem
+    // MAKE SURE YOU DONT COMMIT THESE MASTER 
+    // jnr_unixsocket: "0.28",
+    // jnr_ffi       : '2.1.12', // dependency of jnr_unixsocket: update in tandem
+    jnr_unixsocket: "0.38.17",
+    jnr_ffi       : '2.2.12', // dependency of jnr_unixsocket: update in tandem
+    // MARK
     commons       : "3.2",
     mockito       : '4.4.0',
     jctools       : '3.3.0',

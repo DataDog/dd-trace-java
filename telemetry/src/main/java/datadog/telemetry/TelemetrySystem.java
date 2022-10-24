@@ -51,7 +51,6 @@ public class TelemetrySystem {
 
   public static void startTelemetry(
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
-        System.out.print("STARTING TELEMETRY");
     try {
       DependencyService dependencyService = createDependencyService(instrumentation);
       TelemetryService telemetryService =

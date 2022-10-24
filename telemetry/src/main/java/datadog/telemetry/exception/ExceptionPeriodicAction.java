@@ -11,10 +11,10 @@ public class ExceptionPeriodicAction implements TelemetryRunnable.TelemetryPerio
   @Override
   public void doIteration(TelemetryService service) {
     Map<String, String> exceptions = ExceptionsCollector.get().drain();
-
     for (Map.Entry<String, String> entry : exceptions.entrySet()) {
       String exceptionMsg = entry.getKey();
       String stackTrace = entry.getValue();
+      System.out.println(exceptionMsg);
       service.addException(new Log().message(exceptionMsg).stackTrace(stackTrace).level("ERROR"));
     }
   }
