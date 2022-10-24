@@ -10,14 +10,14 @@ public class ContextThreadFilter implements ContextThreadListener {
 
   @Override
   public void onAttach() {
-    if (AsyncProfilerConfig.isAsyncProfilerEnabled()) {
+    if (AsyncProfilerConfig.isWallThreadFilterEnabled()) {
       AsyncProfiler.getInstance().addCurrentThread();
     }
   }
 
   @Override
   public void onDetach() {
-    if (AsyncProfilerConfig.isAsyncProfilerEnabled()) {
+    if (AsyncProfilerConfig.isWallThreadFilterEnabled()) {
       AsyncProfiler.getInstance().removeCurrentThread();
     }
   }
