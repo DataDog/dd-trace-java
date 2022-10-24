@@ -15,7 +15,7 @@ import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 /** AWS request execution interceptor */
 public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
-  static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
+  public static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
       new ExecutionAttribute<>("DatadogSpan");
 
   @Override
