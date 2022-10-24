@@ -48,8 +48,8 @@ public class PollerRequestFactory {
     this.runtimeId = getRuntimeId(config);
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
     this.apiKey = config.getApiKey();
-    this.env = config.getEnv();
-    this.ddVersion = config.getVersion();
+    this.env = TagsHelper.sanitize(config.getEnv());
+    this.ddVersion = TagsHelper.sanitize(config.getVersion());
     this.hostName = config.getHostName();
     // Semantic Versioning requires build separated with `+`
     this.tracerVersion = tracerVersion.replace('~', '+');
@@ -110,20 +110,28 @@ public class PollerRequestFactory {
       Collection<CachedTargetFile> cachedTargetFiles,
       long capabilities) {
     RemoteConfigRequest rcRequest =
-        RemoteConfigRequest.newRequest(
-            this.clientId,
-            this.runtimeId,
-            this.tracerVersion,
-            productNames,
-            this.serviceName,
-            this.env,
-            this.ddVersion,
-            buildRequestTags(),
-            clientState,
-            cachedTargetFiles,
-            capabilities);
-
+        buildRemoteConfigRequest(productNames, clientState, cachedTargetFiles, capabilities);
     return moshi.adapter(RemoteConfigRequest.class).toJson(rcRequest);
+  }
+
+  /** For testing purposes only. */
+  public RemoteConfigRequest buildRemoteConfigRequest(
+      Collection<String> productNames,
+      ClientState clientState,
+      Collection<CachedTargetFile> cachedTargetFiles,
+      long capabilities) {
+    return RemoteConfigRequest.newRequest(
+        this.clientId,
+        this.runtimeId,
+        this.tracerVersion,
+        productNames,
+        this.serviceName,
+        this.env,
+        this.ddVersion,
+        buildRequestTags(),
+        clientState,
+        cachedTargetFiles,
+        capabilities);
   }
 
   private List<String> buildRequestTags() {

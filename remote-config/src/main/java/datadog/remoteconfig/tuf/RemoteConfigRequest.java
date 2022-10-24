@@ -89,6 +89,10 @@ public class RemoteConfigRequest {
       this.capabilities = new byte[] {(byte) capabilities};
     }
 
+    public TracerInfo getTracerInfo() {
+      return this.tracerInfo;
+    }
+
     public static class ClientState {
       @Json(name = "root_version")
       public long rootVersion = 1L;
@@ -176,6 +180,18 @@ public class RemoteConfigRequest {
         this.serviceEnv = serviceEnv;
         this.serviceVersion = serviceVersion;
         this.tags = tags;
+      }
+
+      public String getServiceName() {
+        return this.serviceName;
+      }
+
+      public String getServiceEnv() {
+        return this.serviceEnv;
+      }
+
+      public String getServiceVersion() {
+        return this.serviceVersion;
       }
     }
 
