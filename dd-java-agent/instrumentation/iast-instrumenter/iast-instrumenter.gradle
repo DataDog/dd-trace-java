@@ -19,8 +19,4 @@ compileJava.dependsOn 'generateClassNameTries'
 packageSources.dependsOn 'generateClassNameTries'
 sourcesJar.dependsOn 'generateClassNameTries'
 
-spotless {
-  java {
-    target 'src/**/*.java'
-  }
-}
+

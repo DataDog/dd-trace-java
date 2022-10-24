@@ -111,7 +111,6 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     when:
     Response response = null
     try {
-
       response = client.newCall(request).execute()
     }
     catch (Exception e) {
