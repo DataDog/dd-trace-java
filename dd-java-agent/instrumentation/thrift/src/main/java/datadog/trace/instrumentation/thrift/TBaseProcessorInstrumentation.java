@@ -30,6 +30,11 @@ public class TBaseProcessorInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return T_BASE_PROCESSOR;
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named(T_BASE_PROCESSOR));
   }

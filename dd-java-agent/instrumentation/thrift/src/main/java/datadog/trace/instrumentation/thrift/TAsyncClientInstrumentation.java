@@ -19,8 +19,13 @@ public class TAsyncClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return TASYNC_CLIENT;
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return named(TASYNC_CLIENT);
+    return named(hierarchyMarkerType());
   }
 
   @Override

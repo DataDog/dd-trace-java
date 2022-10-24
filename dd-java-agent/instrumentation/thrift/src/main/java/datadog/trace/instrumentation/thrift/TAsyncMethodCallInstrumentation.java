@@ -20,8 +20,13 @@ public class TAsyncMethodCallInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return T_ASYNC_METHOD_CALL;
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named(T_ASYNC_METHOD_CALL));
+    return extendsClass(named(hierarchyMarkerType()));
   }
 
   @Override

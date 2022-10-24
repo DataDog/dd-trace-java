@@ -336,6 +336,4 @@ def setBuildFile(project) {
 }
 
 setBuildFile(rootProject)
-include 'dd-java-agent:instrumentation:thrift'
-findProject(':dd-java-agent:instrumentation:thrift')?.name = 'thrift'
 

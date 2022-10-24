@@ -3,12 +3,21 @@ package datadog.trace.instrumentation.thrift;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import org.apache.thrift.*;
 import org.apache.thrift.async.TAsyncMethodCall;
+import org.apache.thrift.protocol.TMultiplexedProtocol;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class ThriftConstants {
+
+  public static final Logger logger = LoggerFactory.getLogger(ThriftConstants.class);
   public static final CharSequence THRIFT = UTF8BytesString.create("thrift");
 
   public static final String INSTRUMENTATION_NAME = "thrift";
@@ -18,6 +27,7 @@ public class ThriftConstants {
   public static final String T_ASYNC_METHOD_CALL = "org.apache.thrift.async.TAsyncMethodCall";
   public static final String TSERVICE_CLIENT = "org.apache.thrift.TServiceClient";
   public static final String T_BASE_PROCESSOR = "org.apache.thrift.TBaseProcessor";
+  public static final String T_MULTIPLEXED_PROCESSOR = "org.apache.thrift.TMultiplexedProcessor";
   public static final String T_BASE_ASYNC_PROCESSOR = "org.apache.thrift.TBaseAsyncProcessor";
   public static final String T_SERVER = "org.apache.thrift.server.TServer";
 
@@ -27,8 +37,9 @@ public class ThriftConstants {
   public static final CharSequence THRIFT_CLIENT_COMPONENT = UTF8BytesString.create(INSTRUMENTATION_NAME_CLIENT);
   public static final CharSequence THRIFT_SERVER_COMPONENT = UTF8BytesString.create(INSTRUMENTATION_NAME_SERVER);
 
-  public static ThreadLocal<AbstractContext> CONTEXT_THREAD =  new ThreadLocal<>();
-  public static ThreadLocal<Boolean> CLIENT_INJECT_THREAD =  new ThreadLocal<>();
+  public static ThreadLocal<AbstractContext> CONTEXT_THREAD = new ThreadLocal<>();
+  public static ThreadLocal<Boolean> CLIENT_INJECT_THREAD = new ThreadLocal<>();
+  public static ConcurrentHashMap<TMultiplexedProcessor,Map<String, ProcessFunction>> TM_M = new ConcurrentHashMap<>();
 
   interface Tags {
     String ARGS = "args";
@@ -45,5 +56,33 @@ public class ThriftConstants {
     Field field = klass.getDeclaredField(name);
     field.setAccessible(true);
     return field.get(instance);
+  }
+
+  public static Map<String, ProcessFunction> getProcessMap(String serviceName, TProcessor processor) {
+    Map<String, ProcessFunction> hashMap = new HashMap<>();
+    if (processor instanceof TBaseProcessor) {
+      Map<String, ProcessFunction> processMapView = ((TBaseProcessor) processor).getProcessMapView();
+      processMapView.forEach((k, v) -> hashMap.put(serviceName + TMultiplexedProtocol.SEPARATOR + k, v));
+    } else if (processor instanceof TBaseAsyncProcessor) {
+      Map<String, ProcessFunction> processMapView = ((TBaseAsyncProcessor) processor).getProcessMapView();
+      processMapView.forEach((k, v) -> hashMap.put(serviceName + TMultiplexedProtocol.SEPARATOR + k, v));
+    } else {
+      logger.debug("Not support this processor:{}", processor.getClass().getName());
+    }
+    return hashMap;
+  }
+
+  public static Map<String, ProcessFunction> getProcessMap(TProcessor processor) {
+    Map<String, ProcessFunction> hashMap = new HashMap<>();
+    if (processor instanceof TBaseProcessor) {
+      Map<String, ProcessFunction> processMapView = ((TBaseProcessor) processor).getProcessMapView();
+      hashMap.putAll(processMapView);
+    } else if (processor instanceof TBaseAsyncProcessor) {
+      Map<String, ProcessFunction> processMapView = ((TBaseProcessor) processor).getProcessMapView();
+      hashMap.putAll(processMapView);
+    } else {
+      logger.debug("Not support this processor:{}", processor.getClass().getName());
+    }
+    return hashMap;
   }
 }

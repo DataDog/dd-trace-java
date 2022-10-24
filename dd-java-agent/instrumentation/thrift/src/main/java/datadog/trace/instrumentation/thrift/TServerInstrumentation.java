@@ -32,8 +32,13 @@ public class TServerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return T_SERVER;
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named(T_SERVER));
+    return extendsClass(named(hierarchyMarkerType()));
   }
 
   @Override

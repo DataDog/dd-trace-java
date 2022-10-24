@@ -8,7 +8,6 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.rocketmq.client.impl.producer.DefaultMQProducerImpl;
 import org.apache.rocketmq.client.producer.DefaultMQProducer;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
 @AutoService(Instrumenter.class)
@@ -21,14 +20,19 @@ public class RocketMqSendInstrumentation extends Instrumenter.Tracing
     super("rocketmq", "rocketmq-client");
   }
 
+//  @Override
+//  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+//    return hasClassesNamed(CLASS_NAME);
+//  }
+
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassesNamed(CLASS_NAME);
+  public String hierarchyMarkerType() {
+    return CLASS_NAME;
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return named(CLASS_NAME);
+    return named(hierarchyMarkerType());
   }
 
   @Override

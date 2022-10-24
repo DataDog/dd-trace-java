@@ -4,8 +4,6 @@ import org.apache.thrift.ProcessFunction;
 
 import java.util.Map;
 
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
-
 public class Context extends AbstractContext {
   private Map<String, ProcessFunction> processMapView;
 
@@ -15,7 +13,8 @@ public class Context extends AbstractContext {
 
   @Override
   public String getArguments() {
-    return processMapView.get(methodName).getEmptyArgsInstance().toString();
+    return
+        processMapView.get(methodName).getEmptyArgsInstance().toString();
   }
 
   @Override

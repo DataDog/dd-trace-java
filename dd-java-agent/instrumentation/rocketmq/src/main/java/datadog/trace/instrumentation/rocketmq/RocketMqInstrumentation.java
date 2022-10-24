@@ -9,7 +9,6 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
 import org.apache.rocketmq.client.impl.consumer.DefaultMQPushConsumerImpl;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
 @AutoService(Instrumenter.class)
@@ -23,13 +22,13 @@ public class RocketMqInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassesNamed(CLASS_NAME);
+  public String hierarchyMarkerType() {
+    return CLASS_NAME;
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return named(CLASS_NAME);
+    return named(hierarchyMarkerType());
   }
 
   @Override

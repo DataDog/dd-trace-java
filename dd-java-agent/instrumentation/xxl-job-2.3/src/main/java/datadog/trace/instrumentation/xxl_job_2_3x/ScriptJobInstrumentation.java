@@ -19,8 +19,13 @@ public class ScriptJobInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return JobConstants.HandleClassName.SCRIPT_CLASS;
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return named(JobConstants.HandleClassName.SCRIPT_CLASS);
+    return named(hierarchyMarkerType());
   }
 
   @Override

@@ -8,9 +8,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 import java.util.Map;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
@@ -28,8 +26,8 @@ public class DubboInstrumentation extends Instrumenter.Tracing
   public static final String CLASS_NAME = "org.apache.dubbo.monitor.support.MonitorFilter";
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return  hasClassesNamed(CLASS_NAME);
+  public String hierarchyMarkerType() {
+    return CLASS_NAME;
   }
 
   @Override

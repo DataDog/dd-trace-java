@@ -22,8 +22,13 @@ public class SimpleJobInstrumentation extends Instrumenter.Tracing
 
 
   @Override
+  public String hierarchyMarkerType() {
+    return JobConstants.HandleClassName.HANDLER_CLASS;
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(JobConstants.HandleClassName.HANDLER_CLASS))
+    return implementsInterface(named(hierarchyMarkerType()))
         .and(not(named(JobConstants.HandleClassName.METHOD_CLASS)))
         .and(not(named(JobConstants.HandleClassName.SCRIPT_CLASS)))
         .and(not(named(JobConstants.HandleClassName.GLUE_CLASS)))

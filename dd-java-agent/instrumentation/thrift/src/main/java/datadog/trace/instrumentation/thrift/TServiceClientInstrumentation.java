@@ -13,7 +13,6 @@ import org.apache.thrift.protocol.TProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
 import static datadog.trace.instrumentation.thrift.ThriftClientDecorator.CLIENT_DECORATOR;
@@ -28,8 +27,13 @@ public class TServiceClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return TSERVICE_CLIENT;
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named(TSERVICE_CLIENT));
+    return extendsClass(named(hierarchyMarkerType()));
   }
 
   @Override

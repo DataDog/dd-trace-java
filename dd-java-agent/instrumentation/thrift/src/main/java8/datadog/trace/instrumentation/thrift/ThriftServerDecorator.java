@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.thrift;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import org.apache.commons.codec.binary.StringUtils;
 
 import java.util.Map;
 import java.util.Optional;
@@ -38,7 +39,7 @@ public class ThriftServerDecorator extends ThriftBaseDecorator {
 //    AgentSpan span = startSpan(spanName(),parentContext,context.startTime);
     AgentSpan span = startSpan(spanName(),parentContext);
     withMethod(span, context.methodName);
-    withResource(span, context.getOperatorName());
+    withResource(span, Optional.ofNullable(context.getOperatorName()).isPresent()?context.getOperatorName():context.methodName);
     if (Optional.ofNullable(context.getArguments()).isPresent()) {
       span.setTag(ThriftConstants.Tags.ARGS, context.getArguments());
     }
