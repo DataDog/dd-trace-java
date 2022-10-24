@@ -25,6 +25,13 @@ public final class AsyncAfterTransmissionInterceptorCallingResponseHandlerInstru
         isMethod().and(named("onHeaders")), getClass().getName() + "$OnHeadersAdvice");
   }
 
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".TracingExecutionInterceptor", packageName + ".AwsSdkClientDecorator"
+    };
+  }
+
   public static class OnHeadersAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentSpan methodEnter(
