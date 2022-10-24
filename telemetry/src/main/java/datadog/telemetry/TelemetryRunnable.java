@@ -50,25 +50,35 @@ public class TelemetryRunnable implements Runnable {
       action.doIteration(this.telemetryService);
     }
 
-    this.telemetryService.addStartedRequest();
+    try {
+      this.telemetryService.addStartedRequest();
 
-    while (!Thread.interrupted()) {
-      try {
-        boolean success = mainLoopIteration();
-        if (success) {
-          successWait();
-        } else {
-          failureWait();
+      while (!Thread.interrupted()) {
+        try {
+          boolean success = mainLoopIteration();
+          if (success) {
+            successWait();
+          } else {
+            failureWait();
+          }
+        } catch (InterruptedException e) {
+          log.debug("Interrupted; finishing telemetry thread");
+          Thread.currentThread().interrupt();
         }
-      } catch (InterruptedException e) {
-        log.debug("Interrupted; finishing telemetry thread");
-        Thread.currentThread().interrupt();
+      }
+
+      log.debug("Sending APP_CLOSING telemetry event");
+      sendRequest(this.telemetryService.appClosingRequest());
+      log.debug("Telemetry thread finishing");
+    } catch (UnsatisfiedLinkError e) {
+      // TODO: update jnr_ffi and jnr_unixsocket to version that supports aarch64
+      final String arch = System.getProperty("os.arch").toLowerCase();
+      if (!arch.equals("x86") && !arch.equals("amd64")) {
+        log.error("Can't start telemetry. Unsupported architecture: '{}'", arch);
+      } else {
+        throw e;
       }
     }
-
-    log.debug("Sending APP_CLOSING telemetry event");
-    sendRequest(this.telemetryService.appClosingRequest());
-    log.debug("Telemetry thread finishing");
   }
 
   private boolean mainLoopIteration() throws InterruptedException {
