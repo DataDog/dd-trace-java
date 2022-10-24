@@ -2,6 +2,7 @@ package datadog.smoketest
 
 import datadog.trace.api.Platform
 import okhttp3.Request
+import okhttp3.Response
 import spock.lang.IgnoreIf
 
 @IgnoreIf({
