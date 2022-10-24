@@ -1,6 +1,7 @@
 import com.datadog.iast.IastAgentTestRunner
 import com.datadog.iast.model.VulnerabilityBatch
 import datadog.trace.core.DDSpan
+import foo.bar.IastJdbcCallSites
 import spock.lang.Shared
 
 import javax.sql.DataSource
@@ -44,7 +45,7 @@ class IastJDBCTest extends IastAgentTestRunner {
       String taintedString = 'SELECT id FROM TEST LIMIT 1'
       taintedObjects.taintInputString(taintedString, EMPTY_SOURCE)
 
-      connection.prepareStatement(taintedString).withCloseable { stmt ->
+      IastJdbcCallSites.prepareStatement(connection, taintedString).withCloseable { stmt ->
         stmt.executeQuery().withCloseable { rs ->
           if (rs.next()) {
             valueRead = rs.getInt(1)
@@ -73,7 +74,7 @@ class IastJDBCTest extends IastAgentTestRunner {
     def valueRead
     DDSpan span = runUnderIastTrace {
       String taintedString = 'SELECT id FROM TEST LIMIT 1'
-      connection.prepareStatement(taintedString).withCloseable { stmt ->
+      IastJdbcCallSites.prepareStatement(connection, taintedString).withCloseable { stmt ->
         stmt.executeQuery().withCloseable { rs ->
           if (rs.next()) {
             valueRead = rs.getInt(1)
@@ -96,7 +97,7 @@ class IastJDBCTest extends IastAgentTestRunner {
       taintedObjects.taintInputString(taintedString, EMPTY_SOURCE)
 
       connection.createStatement().withCloseable { stmt ->
-        stmt.executeQuery(taintedString).withCloseable { rs ->
+        IastJdbcCallSites.executeQuery(stmt, taintedString).withCloseable { rs ->
           if (rs.next()) {
             valueRead = rs.getInt(1)
           }

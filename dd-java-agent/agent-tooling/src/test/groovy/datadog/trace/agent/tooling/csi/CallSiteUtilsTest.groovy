@@ -115,6 +115,44 @@ class CallSiteUtilsTest extends DDSpecification {
     [forObject('PI = '), forDouble(3.14D), forChar((char) '?'), forBoolean(true)] | items + items
   }
 
+  void 'test dup with explicit indices for #items indices #indices'() {
+    setup:
+    final stack = buildStack(items)
+    final visitor = mockMethodVisitor(stack)
+
+    when:
+    CallSiteUtils.dup(visitor, items.collect { it.type } as Type[], indices as int[])
+
+    then:
+    final result = fromStack(stack)
+    result == items + expectedExtra
+
+    where:
+    items                                          | indices   | expectedExtra
+    [forInt(1), forByte(2 as byte)]                | [0]       | forInt(1) // 12|1
+    [forInt(1), forLong(2L)]                       | [0]       | forInt(1) // 12L|1
+    [forLong(1L), forInt(2)]                       | [0]       | forLong(1L) // 1L2|1L
+    [forLong(1L), forLong(2L)]                     | [0]       | forLong(1L) // 1L2|1L
+    [forInt(1), forInt(2), forInt(3)]              | [0]       | forInt(1) // 123|1
+    [forInt(1), forInt(2), forLong(3L)]            | [0]       | forInt(1) // 123L|1
+    [forLong(1L), forInt(2), forInt(3)]            | [0]       | forLong(1L) // 1L23|1L
+    [forInt(1), forInt(2), forInt(3)]              | [0, 1]    | [forInt(1), forInt(2)] // 123|12
+    [forInt(1), forInt(2), forLong(3L)]            | [0, 1]    | [forInt(1), forInt(2)] // 123L|12
+    [forLong(1L), forInt(2), forInt(3)]            | [0, 1]    | [forLong(1L), forInt(2)] // 1L23|1L2
+    [forInt(1), forInt(2), forInt(3)]              | [0, 2]    | [forInt(1), forInt(3)] // 123|13
+    [forInt(1), forInt(2), forLong(3L)]            | [0, 2]    | [forInt(1), forLong(3L)] // 123L|13L
+    [forLong(1), forInt(2), forInt(3)]             | [0, 2]    | [forLong(1L), forInt(3)] // 1L23|1L3
+    [forInt(1), forInt(2), forInt(3), forInt(4)]   | [0]       | forInt(1) // 1234|1
+    [forInt(1), forInt(2), forInt(3), forInt(4)]   | [0, 1]    | [forInt(1), forInt(2)] // 1234|12
+    [forInt(1), forInt(2), forInt(3), forInt(4)]   | [0, 2]    | [forInt(1), forInt(3)] // 1234|13
+    [forInt(1), forInt(2), forInt(3), forInt(4)]   | [0, 3]    | [forInt(1), forInt(4)] // 1234|14
+    [forInt(1), forInt(2), forInt(3), forInt(4)]   | [0, 1, 3] | [forInt(1), forInt(2), forInt(4)] // 1234|124
+    [forInt(1), forInt(2), forInt(3), forInt(4)]   | [0, 2, 3] | [forInt(1), forInt(3), forInt(4)] // 1234|134
+    // fallback cases
+    [forInt(1), forLong(2L), forInt(3), forInt(4)] | [0, 2, 3] | [forInt(1), forInt(3), forInt(4)]
+    [forInt(1), forInt(2), forInt(3)]              | [2, 2, 0] | [forInt(3), forInt(3), forInt(1)]
+  }
+
   def 'test stack dup with array before of #items'(final List<StackObject> items, final List<StackObject> expected) {
     setup:
     final stack = buildStack(items)

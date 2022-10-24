@@ -131,7 +131,8 @@ public class FreemarkerAdviceGenerator implements AdviceGenerator {
       arguments.put("className", getClassName(adviceClass));
       arguments.put("dynamicInvoke", spec.isInvokeDynamic());
       arguments.put("computeMaxStack", spec.isComputeMaxStack());
-      arguments.put("applyBody", getApplyMethodBody(spec));
+      boolean isInstanceMethod = !spec.isStaticPointcut();
+      arguments.put("applyBody", getApplyMethodBody(spec, isInstanceMethod));
       arguments.put("helperClassNames", getHelperClassNames(helperClasses));
       final MethodType pointcut = spec.getPointcut();
       arguments.put("type", pointcut.getOwner().getInternalName());
@@ -156,14 +157,15 @@ public class FreemarkerAdviceGenerator implements AdviceGenerator {
     return Arrays.stream(spec).map(Type::getClassName).collect(Collectors.toSet());
   }
 
-  private String getApplyMethodBody(@Nonnull final AdviceSpecification spec) {
+  private String getApplyMethodBody(
+      @Nonnull final AdviceSpecification spec, boolean instanceMethod) {
     final StringBuilder builder = new StringBuilder(APPLY_METHOD_BODY_BUFFER);
     if (spec instanceof BeforeSpecification) {
-      writeStackOperations(builder, spec);
+      writeStackOperations(builder, spec, instanceMethod);
       writeAdviceMethodCall(builder, spec);
       writeOriginalMethodCall(builder, spec);
     } else if (spec instanceof AfterSpecification) {
-      writeStackOperations(builder, spec);
+      writeStackOperations(builder, spec, instanceMethod);
       writeOriginalMethodCall(builder, spec);
       writeAdviceMethodCall(builder, spec);
     } else {
@@ -173,7 +175,9 @@ public class FreemarkerAdviceGenerator implements AdviceGenerator {
   }
 
   private void writeStackOperations(
-      @Nonnull final StringBuilder builder, @Nonnull final AdviceSpecification advice) {
+      @Nonnull final StringBuilder builder,
+      @Nonnull final AdviceSpecification advice,
+      boolean instanceMethod) {
     final AllArgsSpecification allArgsSpec = advice.findAllArguments();
     final String mode;
     if (allArgsSpec != null) {
@@ -181,13 +185,34 @@ public class FreemarkerAdviceGenerator implements AdviceGenerator {
     } else {
       mode = "COPY";
     }
-    builder.append(TAB).append(TAB).append("handler.");
-    if (advice.includeThis()) {
-      builder.append("dupInvoke(owner, descriptor");
+    if (advice.isPositionalArguments()) {
+      builder.append(TAB).append(TAB).append("int[] parameterIndices = new int[] {");
+      advice
+          .getArguments()
+          .forEachOrdered(argSpec -> builder.append(' ').append(argSpec.getIndex()).append(", "));
+      builder.append("};").append(LINE_END);
+
+      builder.append(TAB).append(TAB).append("handler.");
+      if (advice.includeThis()) {
+        builder.append("dupInvoke(owner, descriptor, parameterIndices");
+      } else {
+        builder.append("dupParameters(descriptor, parameterIndices");
+        if (instanceMethod) {
+          builder.append(", owner");
+        } else {
+          builder.append(", null");
+        }
+      }
+      builder.append(");").append(LINE_END);
     } else {
-      builder.append("dupParameters(descriptor");
+      builder.append(TAB).append(TAB).append("handler.");
+      if (advice.includeThis()) {
+        builder.append("dupInvoke(owner, descriptor");
+      } else {
+        builder.append("dupParameters(descriptor");
+      }
+      builder.append(", StackDupMode.").append(mode).append(");").append(LINE_END);
     }
-    builder.append(", StackDupMode.").append(mode).append(");").append(LINE_END);
   }
 
   private void writeOriginalMethodCall(

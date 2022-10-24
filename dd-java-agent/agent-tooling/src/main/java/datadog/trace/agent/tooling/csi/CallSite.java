@@ -82,7 +82,9 @@ public @interface CallSite {
 
   @Target(ElementType.PARAMETER)
   @Retention(RetentionPolicy.CLASS)
-  @interface Argument {}
+  @interface Argument {
+    int value() default -1;
+  }
 
   @Target(ElementType.PARAMETER)
   @Retention(RetentionPolicy.CLASS)

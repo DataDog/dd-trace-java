@@ -1,6 +1,5 @@
 package datadog.trace.plugin.csi.util;
 
-import java.util.Set;
 import java.util.function.Function;
 import org.objectweb.asm.Type;
 
@@ -259,15 +258,6 @@ public enum ErrorCode implements Function<Object[], String> {
       return String.format(
           "Call site parameters can't be annotated with @Argument for invoke dynamic instructions, found at index '%s'",
           index);
-    }
-  },
-
-  ADVICE_POINT_CUT_PARAMETERS_NOT_CONSUMED {
-    @SuppressWarnings("unchecked")
-    @Override
-    public String apply(final Object[] objects) {
-      final Set<Integer> index = (Set<Integer>) objects[0];
-      return String.format("Call site not consuming all '%s' required parameters", index);
     }
   },
 

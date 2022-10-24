@@ -10,8 +10,8 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-
 apply plugin: 'org.unbroken-dome.test-sets'
+apply plugin: 'call-site-instrumentation'
 
 testSets {
   oldH2Test {
@@ -89,4 +89,5 @@ tasks.named("latestDepJava11Test").configure {
 
 tasks.withType(Test).configureEach {
   usesService(testcontainersLimit)
+  jvmArgs += ['-Dnet.bytebuddy.dump=/tmp/aa']
 }

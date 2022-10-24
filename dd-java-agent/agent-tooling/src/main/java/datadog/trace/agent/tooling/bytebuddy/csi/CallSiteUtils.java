@@ -1,8 +1,17 @@
 package datadog.trace.agent.tooling.bytebuddy.csi;
 
 import static datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode.COPY;
+import static net.bytebuddy.jar.asm.Opcodes.DUP2_X1;
+import static net.bytebuddy.jar.asm.Opcodes.DUP2_X2;
+import static net.bytebuddy.jar.asm.Opcodes.DUP_X1;
+import static net.bytebuddy.jar.asm.Opcodes.DUP_X2;
+import static net.bytebuddy.jar.asm.Opcodes.POP;
+import static net.bytebuddy.jar.asm.Opcodes.POP2;
+import static net.bytebuddy.jar.asm.Opcodes.SWAP;
 
 import datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode;
+import java.util.HashMap;
+import java.util.Map;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
@@ -11,6 +20,7 @@ public abstract class CallSiteUtils {
 
   public static final String OBJET_TYPE = "java/lang/Object";
   private static final BoxingHandler[] BOX_HANDLERS = new BoxingHandler[Type.METHOD + 1];
+  private static final Map<String, int[]> STACK_MANIP_TABLE = new HashMap<>();
 
   static {
     BOX_HANDLERS[Type.BOOLEAN] = new JdkBoxingHandler("java/lang/Boolean", "Z", "booleanValue");
@@ -21,22 +31,45 @@ public abstract class CallSiteUtils {
     BOX_HANDLERS[Type.FLOAT] = new JdkBoxingHandler("java/lang/Float", "F", "floatValue");
     BOX_HANDLERS[Type.LONG] = new JdkBoxingHandler("java/lang/Long", "J", "longValue");
     BOX_HANDLERS[Type.DOUBLE] = new JdkBoxingHandler("java/lang/Double", "D", "doubleValue");
+
+    STACK_MANIP_TABLE.put("12|1", new int[] {SWAP, DUP_X1});
+    STACK_MANIP_TABLE.put("12L|1", new int[] {DUP2_X1, POP2, DUP_X2});
+    STACK_MANIP_TABLE.put("1L2|1L", new int[] {DUP_X2, POP, DUP2_X1});
+    STACK_MANIP_TABLE.put("1L2L|1L", new int[] {DUP2_X2, POP2, DUP2_X2});
+    STACK_MANIP_TABLE.put("123|1", new int[] {DUP2_X1, POP2, DUP_X2});
+    STACK_MANIP_TABLE.put("123L|1", new int[] {DUP2_X2, POP2, DUP2_X2, POP});
+    STACK_MANIP_TABLE.put("1L23|1L", new int[] {DUP2_X2, POP2, DUP2_X2});
+    STACK_MANIP_TABLE.put("123|12", new int[] {DUP_X2, POP, DUP2_X1});
+    STACK_MANIP_TABLE.put("123L|12", new int[] {DUP2_X2, POP2, DUP2_X2});
+    STACK_MANIP_TABLE.put(
+        "1L23|1L2", new int[] {DUP2_X2, POP2, DUP2_X2, DUP2_X2, POP2, DUP2_X2, POP});
+    STACK_MANIP_TABLE.put("123|13", new int[] {DUP2_X1, POP2, DUP_X2, SWAP, DUP_X1});
+    STACK_MANIP_TABLE.put(
+        "123L|13L", new int[] {DUP2_X2, POP2, DUP2_X2, POP, DUP_X2, POP, DUP2_X1});
+    STACK_MANIP_TABLE.put("1L23|1L3", new int[] {DUP2_X2, POP2, DUP2_X2, DUP2_X1, POP2, DUP_X2});
+    STACK_MANIP_TABLE.put("1234|1", new int[] {DUP2_X2, POP2, DUP2_X2, POP});
+    STACK_MANIP_TABLE.put("1234|12", new int[] {DUP2_X2, POP2, DUP2_X2});
+    STACK_MANIP_TABLE.put("1234|13", new int[] {SWAP, DUP2_X2, POP2, DUP2_X2, POP, SWAP, DUP_X2});
+    STACK_MANIP_TABLE.put("1234|14", new int[] {DUP2_X2, POP2, DUP2_X2, POP, SWAP, DUP_X1});
+    STACK_MANIP_TABLE.put("1234|124", new int[] {DUP2_X2, POP2, DUP2_X2, DUP2_X1, POP2, DUP_X2});
+    STACK_MANIP_TABLE.put(
+        "1234|134", new int[] {DUP2_X2, POP2, DUP2_X2, POP, DUP_X2, POP, DUP2_X1});
   }
 
   private CallSiteUtils() {}
 
   public static void swap(final MethodVisitor mv, final int secondToLastSize, final int lastSize) {
     if (secondToLastSize == 1 && lastSize == 1) {
-      mv.visitInsn(Opcodes.SWAP);
+      mv.visitInsn(SWAP);
     } else if (secondToLastSize == 2 && lastSize == 2) {
-      mv.visitInsn(Opcodes.DUP2_X2);
-      mv.visitInsn(Opcodes.POP2);
+      mv.visitInsn(DUP2_X2);
+      mv.visitInsn(POP2);
     } else if (lastSize == 1) {
-      mv.visitInsn(Opcodes.DUP_X2);
-      mv.visitInsn(Opcodes.POP);
+      mv.visitInsn(DUP_X2);
+      mv.visitInsn(POP);
     } else {
-      mv.visitInsn(Opcodes.DUP2_X1);
-      mv.visitInsn(Opcodes.POP2);
+      mv.visitInsn(DUP2_X1);
+      mv.visitInsn(POP2);
     }
   }
 
@@ -141,31 +174,84 @@ public abstract class CallSiteUtils {
     }
   }
 
+  public static void dup(MethodVisitor mv, Type[] argumentTypes, int[] indices) {
+    int[] opcodes = lookupParamDupOpcodes(argumentTypes, indices);
+    if (opcodes == null) {
+      pushArray(mv, argumentTypes.length, argumentTypes);
+      loadArray(mv, argumentTypes.length, argumentTypes);
+      loadArray(mv, argumentTypes, indices);
+      mv.visitInsn(POP); // pop out array
+    } else {
+      for (int opcode : opcodes) {
+        mv.visitInsn(opcode);
+      }
+    }
+  }
+
+  private static int[] lookupParamDupOpcodes(Type[] argumentTypes, int[] indices) {
+    if (indices.length == 0) {
+      return null;
+    }
+
+    // if we don't use index 0, we can reduce the stack manipulation to that
+    // of one where there are fewer arguments in the stack
+    int minIdx = Integer.MAX_VALUE;
+    for (int index : indices) {
+      minIdx = Math.min(minIdx, index);
+    }
+
+    // apply offset
+    for (int i = 0; i < indices.length; i++) {
+      indices[i] -= minIdx;
+    }
+    Type[] newArgumentTypes = new Type[argumentTypes.length - minIdx];
+    System.arraycopy(argumentTypes, minIdx, newArgumentTypes, 0, argumentTypes.length - minIdx);
+
+    StringBuilder sb = new StringBuilder();
+    for (int i = 0; i < newArgumentTypes.length; i++) {
+      sb.append(i + 1);
+      Type type = newArgumentTypes[i];
+      if (type == Type.LONG_TYPE || type == Type.DOUBLE_TYPE) {
+        sb.append('L');
+      }
+    }
+    sb.append('|');
+    for (int index : indices) {
+      Type type = argumentTypes[index];
+      sb.append(index + 1);
+      if (type == Type.LONG_TYPE || type == Type.DOUBLE_TYPE) {
+        sb.append('L');
+      }
+    }
+
+    return STACK_MANIP_TABLE.get(sb.toString());
+  }
+
   private static void dup3(final MethodVisitor mv) {
     mv.visitInsn(Opcodes.DUP);
-    mv.visitInsn(Opcodes.DUP2_X2);
-    mv.visitInsn(Opcodes.POP2);
-    mv.visitInsn(Opcodes.DUP2_X2);
-    mv.visitInsn(Opcodes.DUP2_X1);
-    mv.visitInsn(Opcodes.POP2);
+    mv.visitInsn(DUP2_X2);
+    mv.visitInsn(POP2);
+    mv.visitInsn(DUP2_X2);
+    mv.visitInsn(DUP2_X1);
+    mv.visitInsn(POP2);
   }
 
   private static void dup3_C1_C2(final MethodVisitor mv) {
-    mv.visitInsn(Opcodes.DUP2_X1);
-    mv.visitInsn(Opcodes.POP2);
+    mv.visitInsn(DUP2_X1);
+    mv.visitInsn(POP2);
     mv.visitInsn(Opcodes.DUP);
-    mv.visitInsn(Opcodes.DUP2_X2);
-    mv.visitInsn(Opcodes.POP2);
-    mv.visitInsn(Opcodes.DUP2_X1);
+    mv.visitInsn(DUP2_X2);
+    mv.visitInsn(POP2);
+    mv.visitInsn(DUP2_X1);
   }
 
   private static void dup4(final MethodVisitor mv) {
-    mv.visitInsn(Opcodes.DUP2_X2);
-    mv.visitInsn(Opcodes.POP2);
-    mv.visitInsn(Opcodes.DUP2_X2);
-    mv.visitInsn(Opcodes.DUP2_X2);
-    mv.visitInsn(Opcodes.POP2);
-    mv.visitInsn(Opcodes.DUP2_X2);
+    mv.visitInsn(DUP2_X2);
+    mv.visitInsn(POP2);
+    mv.visitInsn(DUP2_X2);
+    mv.visitInsn(DUP2_X2);
+    mv.visitInsn(POP2);
+    mv.visitInsn(DUP2_X2);
   }
 
   /**
@@ -180,7 +266,7 @@ public abstract class CallSiteUtils {
       case PREPEND_ARRAY:
         mv.visitInsn(Opcodes.DUP);
         loadArray(mv, arraySize, parameters);
-        mv.visitInsn(Opcodes.POP);
+        mv.visitInsn(POP);
         break;
       case APPEND_ARRAY:
         loadArray(mv, arraySize, parameters);
@@ -188,7 +274,7 @@ public abstract class CallSiteUtils {
       case COPY:
         loadArray(mv, arraySize, parameters);
         loadArray(mv, arraySize, parameters);
-        mv.visitInsn(Opcodes.POP);
+        mv.visitInsn(POP);
         break;
     }
   }
@@ -201,7 +287,7 @@ public abstract class CallSiteUtils {
       final Type param = parameters[i];
       final int stackObjectSize = param.getSize();
       // 1. duplicate the array
-      mv.visitInsn(stackObjectSize == 1 ? Opcodes.DUP_X1 : Opcodes.DUP_X2);
+      mv.visitInsn(stackObjectSize == 1 ? DUP_X1 : DUP_X2);
       swap(mv, stackObjectSize, 1); // [..., STACK_OBJECT, ARRAY]
       // 2. store the index in the array
       mv.visitIntInsn(Opcodes.BIPUSH, i);
@@ -215,21 +301,32 @@ public abstract class CallSiteUtils {
   private static void loadArray(
       final MethodVisitor mv, final int arraySize, final Type[] parameters) {
     for (int i = 0; i < arraySize; i++) {
-      final Type param = parameters[i];
-      final int stackObjectSize = param.getSize();
-      // 1. duplicate the array
-      mv.visitInsn(Opcodes.DUP);
-      // 2. load the element from the array
-      pushInteger(mv, i);
-      mv.visitInsn(Opcodes.AALOAD);
-      // 3. cast it to the proper value
-      if (!OBJET_TYPE.equals(param.getInternalName())) {
-        checkCast(mv, param);
-        unbox(mv, param);
-      }
-      // 4. move the array to the end of the stack
-      swap(mv, 1, stackObjectSize); // [..., ARRAY, STACK_OBJECT]
+      final Type type = parameters[i];
+      loadNthArgFromArray(mv, type, i);
     }
+  }
+
+  private static void loadArray(MethodVisitor mv, Type[] methodArgumentTypes, int[] indices) {
+    for (int idx : indices) {
+      final Type type = methodArgumentTypes[idx];
+      loadNthArgFromArray(mv, type, idx);
+    }
+  }
+
+  private static void loadNthArgFromArray(MethodVisitor mv, Type type, int argIdx) {
+    final int stackObjectSize = type.getSize();
+    // 1. duplicate the array
+    mv.visitInsn(Opcodes.DUP);
+    // 2. load the element from the array
+    pushInteger(mv, argIdx);
+    mv.visitInsn(Opcodes.AALOAD);
+    // 3. cast it to the proper value
+    if (!OBJET_TYPE.equals(type.getInternalName())) {
+      checkCast(mv, type);
+      unbox(mv, type);
+    }
+    // 4. move the array to the end of the stack
+    swap(mv, 1, stackObjectSize); // [..., ARRAY, STACK_OBJECT]
   }
 
   private static void checkCast(final MethodVisitor mv, final Type parameter) {
