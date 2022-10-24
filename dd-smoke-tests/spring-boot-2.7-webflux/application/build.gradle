@@ -1,0 +1,41 @@
+plugins {
+  id 'java'
+  id 'org.springframework.boot' version '2.7.4'
+  id 'io.spring.dependency-management' version '1.0.14.RELEASE'
+  id 'com.diffplug.spotless' version '5.12.5'
+  id 'pl.allegro.tech.build.axion-release' version '1.10.3'
+}
+
+java {
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+def sharedRootDir = "$rootDir/../../../"
+def sharedConfigDirectory = "$sharedRootDir/gradle"
+rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
+
+apply from: "$sharedConfigDirectory/repositories.gradle"
+apply from: "$sharedConfigDirectory/spotless.gradle"
+
+if (hasProperty('appBuildDir')) {
+  buildDir = property('appBuildDir')
+}
+
+scmVersion {
+  repository {
+    directory = project.rootProject.file(sharedRootDir)
+  }
+}
+apply from: "$sharedConfigDirectory/scm.gradle"
+
+version = scmVersion.version
+
+dependencies {
+  implementation 'org.springframework.boot:spring-boot-starter-webflux'
+  if (hasProperty('apiJar')) {
+    implementation files(property('apiJar'))
+  } else {
+    implementation "com.datadoghq:dd-trace-api:0.110.0"
+  }
+}

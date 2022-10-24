@@ -16,12 +16,14 @@
 package com.datadog.profiling.controller.openjdk;
 
 import static com.datadog.profiling.controller.ProfilingSupport.*;
+import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.controller.jfr.JfpUtils;
 import com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent;
+import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -38,6 +40,11 @@ import org.slf4j.LoggerFactory;
  * messier... ;)
  */
 public final class OpenJdkController implements Controller {
+
+  private static final String EXPLICITLY_DISABLED = "explicitly disabled by user";
+  private static final String EXPLICITLY_ENABLED = "explicitly enabled by user";
+  private static final String EXPENSIVE_ON_CURRENT_JVM =
+      "expensive on this version of the JVM (" + Platform.getRuntimeVersion() + ")";
   static final Duration RECORDING_MAX_AGE = Duration.ofMinutes(5);
 
   private static final Logger log = LoggerFactory.getLogger(OpenJdkController.class);
@@ -67,28 +74,20 @@ public final class OpenJdkController implements Controller {
 
     // Toggle settings based on JDK version
 
-    if (isOldObjectSampleEnabledInRecordingSettings(recordingSettings)
-        && !isOldObjectSampleAvailable()) {
-      log.debug(
-          "Inexpensive live object profiling is not supported for this JDK. "
-              + "Disabling OldObjectSample JFR event.");
-      recordingSettings.put("jdk.OldObjectSample#enabled", "false");
+    if (!isOldObjectSampleAvailable()) {
+      disableEvent(recordingSettings, "jdk.OldObjectSample", EXPENSIVE_ON_CURRENT_JVM);
     }
 
-    if (isObjectAllocationSampleEnabledInRecordingSettings(recordingSettings)
-        && !isObjectAllocationSampleAvailable()) {
-      log.debug(
-          "Inexpensive allocation profiling is not supported for this JDK. "
-              + "Disabling ObjectAllocationSample JFR event.");
-      recordingSettings.put("jdk.ObjectAllocationSample#enabled", "false");
+    if (!isObjectAllocationSampleAvailable()) {
+      disableEvent(recordingSettings, "jdk.ObjectAllocationSample", EXPENSIVE_ON_CURRENT_JVM);
     }
 
-    if (isNativeMethodSampleEnabledInRecordingSettings(recordingSettings)
-        && !isNativeMethodSampleAvailable()) {
-      log.debug(
-          "Inexpensive native profiling is not supported for this JDK. "
-              + "Disabling NativeMethodSample JFR event.");
-      recordingSettings.put("jdk.NativeMethodSample#enabled", "false");
+    if (!isNativeMethodSampleAvailable()) {
+      disableEvent(recordingSettings, "jdk.NativeMethodSample", EXPENSIVE_ON_CURRENT_JVM);
+    }
+
+    if (!isJavaVersionAtLeast(17)) {
+      disableEvent(recordingSettings, "jdk.ClassLoaderStatistics", EXPENSIVE_ON_CURRENT_JVM);
     }
 
     // Toggle settings from override file
@@ -101,45 +100,61 @@ public final class OpenJdkController implements Controller {
       throw new ConfigurationException(e);
     }
 
+    // Toggle settings from override args
+
+    String disabledEventsArgs = configProvider.getString(ProfilingConfig.PROFILING_DISABLED_EVENTS);
+    if (disabledEventsArgs != null && !disabledEventsArgs.isEmpty()) {
+      for (String disabledEvent : disabledEventsArgs.trim().split(",")) {
+        disableEvent(recordingSettings, disabledEvent, EXPLICITLY_DISABLED);
+      }
+    }
+
+    String enabledEventsArgs = configProvider.getString(ProfilingConfig.PROFILING_ENABLED_EVENTS);
+    if (enabledEventsArgs != null && !enabledEventsArgs.isEmpty()) {
+      for (String enabledEvent : enabledEventsArgs.trim().split(",")) {
+        enableEvent(recordingSettings, enabledEvent, EXPLICITLY_ENABLED);
+      }
+    }
+
     // Toggle settings from config
 
-    if (isOldObjectSampleEnabledInConfig(configProvider)) {
+    if (configProvider.getBoolean(
+        ProfilingConfig.PROFILING_HEAP_ENABLED, ProfilingConfig.PROFILING_HEAP_ENABLED_DEFAULT)) {
       log.debug("Enabling OldObjectSample JFR event with the config.");
       recordingSettings.put("jdk.OldObjectSample#enabled", "true");
     }
 
-    if (isObjectAllocationSampleEnabledInConfig(configProvider)) {
-      if (isObjectAllocationSampleAvailable()) {
-        // jdk.ObjectAllocationSample is available and enabled by default
-      } else {
+    if (configProvider.getBoolean(
+        ProfilingConfig.PROFILING_ALLOCATION_ENABLED, isObjectAllocationSampleAvailable())) {
+      // jdk.ObjectAllocationSample is available and enabled by default
+      if (!isObjectAllocationSampleAvailable()) {
         log.debug(
             "Enabling ObjectAllocationInNewTLAB and ObjectAllocationOutsideTLAB JFR events with the config.");
         recordingSettings.put("jdk.ObjectAllocationInNewTLAB#enabled", "true");
         recordingSettings.put("jdk.ObjectAllocationOutsideTLAB#enabled", "true");
       }
     } else {
+      // jdk.ObjectAllocationInNewTLAB and jdk.ObjectAllocationOutsideTLAB are disabled by default
       if (isObjectAllocationSampleAvailable()) {
         log.debug("Disabling ObjectAllocationSample JFR event with the config.");
         recordingSettings.put("jdk.ObjectAllocationSample#enabled", "false");
-      } else {
-        // jdk.ObjectAllocationInNewTLAB and jdk.ObjectAllocationOutsideTLAB are disabled by default
       }
     }
 
     // Warn users for expensive events
 
-    if (isOldObjectSampleEnabledInRecordingSettings(recordingSettings)
-        && !isOldObjectSampleAvailable()) {
+    if (!isOldObjectSampleAvailable()
+        && isEventEnabled(recordingSettings, "jdk.OldObjectSample#enabled")) {
       log.warn("Inexpensive heap profiling is not supported for this JDK but is enabled.");
     }
 
-    if (isObjectAllocationInNewTLABEnabledInRecordingSettings(recordingSettings)
-        || isObjectAllocationOutsideTLABEnabledInRecordingSettings(recordingSettings)) {
+    if (isEventEnabled(recordingSettings, "jdk.ObjectAllocationInNewTLAB")
+        || isEventEnabled(recordingSettings, "jdk.ObjectAllocationOutsideTLAB")) {
       log.warn("Inexpensive allocation profiling is not supported for this JDK but is enabled.");
     }
 
-    if (isNativeMethodSampleEnabledInRecordingSettings(recordingSettings)
-        && !isNativeMethodSampleAvailable()) {
+    if (!isNativeMethodSampleAvailable()
+        && isEventEnabled(recordingSettings, "jdk.NativeMethodSample")) {
       log.warn("Inexpensive native profiling is not supported for this JDK but is enabled.");
     }
 
@@ -163,46 +178,23 @@ public final class OpenJdkController implements Controller {
         recordingName, recordingSettings, getMaxSize(), RECORDING_MAX_AGE);
   }
 
-  // jdk.OldObjectSample
-
-  boolean isOldObjectSampleEnabledInConfig(ConfigProvider configProvider) {
-    return configProvider.getBoolean(
-        ProfilingConfig.PROFILING_HEAP_ENABLED, ProfilingConfig.PROFILING_HEAP_ENABLED_DEFAULT);
+  private static void disableEvent(
+      Map<String, String> recordingSettings, String event, String reason) {
+    String wasEnabled = recordingSettings.put(event + "#enabled", "false");
+    if (Boolean.parseBoolean(wasEnabled)) {
+      log.debug("Disabling JFR event {} because it is {}.", event, reason);
+    }
   }
 
-  boolean isOldObjectSampleEnabledInRecordingSettings(Map<String, String> recordingSettings) {
-    return Boolean.parseBoolean(recordingSettings.get("jdk.OldObjectSample#enabled"));
+  private static void enableEvent(
+      Map<String, String> recordingSettings, String event, String reason) {
+    String wasEnabled = recordingSettings.put(event + "#enabled", "true");
+    if (!Boolean.parseBoolean(wasEnabled)) {
+      log.debug("Enabling JFR event {} because it is {}.", event, reason);
+    }
   }
 
-  // jdk.ObjectAllocationSample
-
-  boolean isObjectAllocationSampleEnabledInConfig(ConfigProvider configProvider) {
-    return configProvider.getBoolean(
-        ProfilingConfig.PROFILING_ALLOCATION_ENABLED, isObjectAllocationSampleAvailable());
-  }
-
-  boolean isObjectAllocationSampleEnabledInRecordingSettings(
-      Map<String, String> recordingSettings) {
-    return Boolean.parseBoolean(recordingSettings.get("jdk.ObjectAllocationSample#enabled"));
-  }
-
-  // jdk.ObjectAllocationInNewTLAB
-
-  boolean isObjectAllocationInNewTLABEnabledInRecordingSettings(
-      Map<String, String> recordingSettings) {
-    return Boolean.parseBoolean(recordingSettings.get("jdk.ObjectAllocationInNewTLAB#enabled"));
-  }
-
-  // jdk.ObjectAllocationOutsideTLAB
-
-  boolean isObjectAllocationOutsideTLABEnabledInRecordingSettings(
-      Map<String, String> recordingSettings) {
-    return Boolean.parseBoolean(recordingSettings.get("jdk.ObjectAllocationOutsideTLAB#enabled"));
-  }
-
-  // jdk.NativeMethodSample
-
-  boolean isNativeMethodSampleEnabledInRecordingSettings(Map<String, String> recordingSettings) {
-    return Boolean.parseBoolean(recordingSettings.get("jdk.NativeMethodSample#enabled"));
+  private static boolean isEventEnabled(Map<String, String> recordingSettings, String event) {
+    return Boolean.parseBoolean(recordingSettings.get(event + "#enabled"));
   }
 }

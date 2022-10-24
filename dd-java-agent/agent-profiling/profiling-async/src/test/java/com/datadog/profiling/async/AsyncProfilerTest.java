@@ -27,7 +27,7 @@ class AsyncProfilerTest {
 
   @Test
   void test() throws Exception {
-    AsyncProfiler profiler = new AsyncProfiler(ConfigProvider.getInstance());
+    AsyncProfiler profiler = AsyncProfiler.newInstance(ConfigProvider.getInstance());
     if (!profiler.isAvailable()) {
       log.warn("Async Profiler not available. Skipping test.");
       return;
@@ -69,7 +69,12 @@ class AsyncProfilerTest {
     props.put(ProfilingConfig.PROFILING_ASYNC_ALLOC_ENABLED, Boolean.toString(alloc));
     props.put(ProfilingConfig.PROFILING_ASYNC_MEMLEAK_ENABLED, Boolean.toString(memleak));
 
-    AsyncProfiler profiler = new AsyncProfiler(ConfigProvider.withPropertiesOverride(props));
+    AsyncProfiler profiler =
+        AsyncProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
+    if (!profiler.isAvailable()) {
+      log.warn("Async Profiler not available. Skipping test.");
+      return;
+    }
 
     Path targetFile = Paths.get("/tmp/target.jfr");
     String cmd = profiler.cmdStartProfiling(targetFile);

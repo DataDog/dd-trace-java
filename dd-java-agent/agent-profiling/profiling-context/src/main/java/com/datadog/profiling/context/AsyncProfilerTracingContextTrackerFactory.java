@@ -16,11 +16,8 @@ public final class AsyncProfilerTracingContextTrackerFactory
             ProfilingConfig.PROFILING_ASYNC_ENABLED,
             ProfilingConfig.PROFILING_ASYNC_ENABLED_DEFAULT)
         && configProvider.getBoolean(
-            ProfilingConfig.PROFILING_ASYNC_WALL_ENABLED,
-            ProfilingConfig.PROFILING_ASYNC_WALL_ENABLED_DEFAULT)
-        && configProvider.getBoolean(
-            ProfilingConfig.PROFILING_ASYNC_WALL_FILTER_ON_CONTEXT,
-            ProfilingConfig.PROFILING_ASYNC_WALL_FILTER_ON_CONTEXT_DEFAULT);
+            ProfilingConfig.PROFILING_TRACING_CONTEXT_ENABLED,
+            ProfilingConfig.PROFILING_TRACING_CONTEXT_ENABLED_DEFAULT);
   }
 
   public static void register(ConfigProvider configProvider) {

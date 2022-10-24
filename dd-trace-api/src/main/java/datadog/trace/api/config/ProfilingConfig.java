@@ -69,9 +69,20 @@ public final class ProfilingConfig {
   public static final boolean PROFILING_ASYNC_WALL_ENABLED_DEFAULT = true;
   public static final String PROFILING_ASYNC_WALL_INTERVAL = "profiling.async.wall.interval.ms";
   public static final int PROFILING_ASYNC_WALL_INTERVAL_DEFAULT = 10;
-  public static final String PROFILING_ASYNC_WALL_FILTER_ON_CONTEXT =
-      "profiling.async.wall.filter-on-context";
-  public static final boolean PROFILING_ASYNC_WALL_FILTER_ON_CONTEXT_DEFAULT = true;
+
+  public static final String PROFILING_ASYNC_WALL_THREAD_FILTER_ENABLED =
+      "profiling.async.wall.thread.filter.enabled";
+
+  public static final boolean PROFILING_ASYNC_WALL_THREAD_FILTER_ENABLED_DEFAULT = true;
+
+  public static final String PROFILING_ASYNC_LOG_LEVEL = "profiling.async.loglevel";
+
+  public static final String PROFILING_ASYNC_LOG_LEVEL_DEFAULT = "NONE";
+
+  public static final String PROFILING_ASYNC_WALL_COLLAPSE_SAMPLES =
+      "profiling.async.wall.collapse.samples";
+  public static final boolean PROFILING_ASYNC_WALL_COLLAPSE_SAMPLES_DEFAULT = true;
+
   public static final String PROFILING_ASYNC_STACKDEPTH = "profiling.async.stackdepth";
   public static final int PROFILING_ASYNC_STACKDEPTH_DEFAULT = 512;
   public static final String PROFILING_ASYNC_CSTACK = "profiling.async.cstack";
@@ -140,6 +151,9 @@ public final class ProfilingConfig {
   // Not intended for production use
   public static final String PROFILING_AGENTLESS = "profiling.agentless";
   public static final boolean PROFILING_AGENTLESS_DEFAULT = false;
+
+  public static final String PROFILING_DISABLED_EVENTS = "profiling.disabled.events";
+  public static final String PROFILING_ENABLED_EVENTS = "profiling.disabled.events";
 
   private ProfilingConfig() {}
 }
