@@ -908,7 +908,7 @@ public class Agent {
   }
 
   private static String getNullIfEmpty(final String value) {
-    if (value != null && value.isEmpty()) {
+    if (value == null || value.isEmpty()) {
       return null;
     }
     return value;
