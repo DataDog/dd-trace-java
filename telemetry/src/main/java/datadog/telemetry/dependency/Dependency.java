@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
@@ -258,7 +259,7 @@ public final class Dependency {
   private static String parseGroupId(String bundleSymbolicName, String bundleName) {
     // Usually bundleSymbolicName contains bundleName at the end. Check this
 
-    // Bundle name can contains dash, so normalize it
+    // Bundle name can contain dash, so normalize it
     String normalizedBundleName = Strings.replace(bundleName, "-", ".");
 
     String bundleNameWithPrefix = "." + normalizedBundleName;
@@ -268,5 +269,11 @@ public final class Dependency {
     }
 
     return null;
+  }
+
+  // HashCode uses to determine/suppress duplicates when collecting Dependencies.
+  @Override
+  public int hashCode() {
+    return Objects.hash(name, version);
   }
 }

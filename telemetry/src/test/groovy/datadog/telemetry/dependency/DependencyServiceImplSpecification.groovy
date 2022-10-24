@@ -167,4 +167,30 @@ class DependencyServiceImplSpecification extends DepSpecification {
     then:
     depService.drainDeterminedDependencies().isEmpty()
   }
+
+  void 'ignore dependency duplicates'() {
+    setup:
+    File junitJar = getJar('junit-4.12.jar')
+    URL url = new File(junitJar.getAbsolutePath()).toURL()
+
+    when:
+    // First time loaded dependency - collect
+    depService.addURL(url)
+    depService.resolveOneDependency()
+
+    then:
+    def set = depService.drainDeterminedDependencies()
+    assertThat(set.size(), is(1))
+    assertThat(set.first().name, is('junit'))
+    assertThat(set.first().version, is('4.12'))
+
+    when:
+    // Second time loaded same dependency (should be ignored)
+    depService.addURL(url)
+    depService.resolveOneDependency()
+
+    then:
+    def dependencies = depService.drainDeterminedDependencies()
+    dependencies.isEmpty()
+  }
 }

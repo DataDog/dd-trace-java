@@ -9,6 +9,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -25,6 +27,7 @@ public class DependencyServiceImpl implements DependencyService, Runnable {
   private final DependencyResolverQueue resolverQueue = new DependencyResolverQueue();
 
   private final BlockingQueue<Dependency> newDependencies = new LinkedBlockingQueue<>();
+  private final Set<Integer> collectedDepsHashes = new HashSet<>();
 
   private AgentTaskScheduler.Scheduled<Runnable> scheduledTask;
 
@@ -38,8 +41,15 @@ public class DependencyServiceImpl implements DependencyService, Runnable {
     List<Dependency> dependencies = resolverQueue.pollDependency();
     if (!dependencies.isEmpty()) {
       for (Dependency dependency : dependencies) {
-        log.info("Resolved dependency {}", dependency.getName());
-        newDependencies.add(dependency);
+        int hash = dependency.hashCode();
+        if (collectedDepsHashes.contains(hash)) {
+          // Dependency were collected earlier ignore
+          continue;
+        }
+        log.debug("Resolved dependency {}:{}", dependency.getName(), dependency.getVersion());
+        if (newDependencies.add(dependency)) {
+          collectedDepsHashes.add(hash);
+        }
       }
     }
   }
