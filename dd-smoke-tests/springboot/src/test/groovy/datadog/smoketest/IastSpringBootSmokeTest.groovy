@@ -115,7 +115,6 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     }
     catch (Exception e) {
       pintln 'exception while calling the server: ' + e.toString()
-      println 'Server log: '
       checkLog {
         println it
       }
