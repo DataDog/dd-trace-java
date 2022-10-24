@@ -109,16 +109,7 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     def request = new Request.Builder().url(url).get().build()
 
     when:
-    Response response = null
-    try {
-      response = client.newCall(request).execute()
-    }
-    catch (Exception e) {
-      pintln 'exception while calling the server: ' + e.toString()
-      checkLog {
-        println it
-      }
-    }
+    Response response = client.newCall(request).execute()
 
     then:
     response.body().string().contains("MessageDigest.getInstance executed")
