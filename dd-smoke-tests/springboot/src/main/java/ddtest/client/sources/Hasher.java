@@ -1,9 +1,10 @@
 package ddtest.client.sources;
 
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 public class Hasher {
   public void executeHash() throws NoSuchAlgorithmException {
-    // MessageDigest.getInstance("MD5");
+    MessageDigest.getInstance("MD5");
   }
 }
