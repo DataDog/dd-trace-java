@@ -1,10 +1,11 @@
 package ddtest.client.sources;
 
-import java.security.MessageDigest;
+import datadog.smoketest.TestCallee;
 import java.security.NoSuchAlgorithmException;
 
 public class Hasher {
   public void executeHash() throws NoSuchAlgorithmException {
-    MessageDigest.getInstance("MD5");
+    // MessageDigest.getInstance("MD5");
+    TestCallee.staticCall("MD5");
   }
 }

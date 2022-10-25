@@ -3,8 +3,6 @@ package datadog.trace.instrumentation.java.security;
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.InstrumentationBridge;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 
 @CallSite(spi = IastAdvice.class)
 public class WeakHashInstrumentationCallSite {
@@ -17,22 +15,8 @@ public class WeakHashInstrumentationCallSite {
   }
    */
 
-  /*
-  @CallSite.After(
-      "java.security.MessageDigest java.security.MessageDigest.getInstance(java.lang.String)")
-  public static MessageDigest afterGetInstance(
-      @CallSite.Argument final String algo, @CallSite.Return final MessageDigest retValue) {
+  @CallSite.Before("java.lang.String datadog.smoketest.TestCallee.staticCall(java.lang.String)")
+  public static void beforeTestCallee(@CallSite.Argument final String algo) {
     InstrumentationBridge.onMessageDigestGetInstance(algo);
-    return retValue;
-  }
-
-   */
-
-  @CallSite.Around(
-      "java.security.MessageDigest java.security.MessageDigest.getInstance(java.lang.String)")
-  public static MessageDigest around(@CallSite.Argument final String algo)
-      throws NoSuchAlgorithmException {
-    InstrumentationBridge.onMessageDigestGetInstance(algo);
-    return MessageDigest.getInstance(algo);
   }
 }
