@@ -1,8 +1,11 @@
 package datadog.smoketest
 
 import datadog.trace.api.Platform
+import datadog.trace.api.function.Function
+import datadog.trace.test.agent.decoder.DecodedSpan
 import okhttp3.Request
 import spock.lang.IgnoreIf
+import spock.util.concurrent.PollingConditions
 
 @IgnoreIf({
   !Platform.isJavaVersionAtLeast(8)
@@ -15,13 +18,18 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
   }
 
   @Override
+  Closure decodedTracesCallback() {
+    return {} // force traces decoding
+  }
+
+  @Override
   ProcessBuilder createProcessBuilder() {
     String springBootShadowJar = System.getProperty("datadog.smoketest.springboot.shadowJar.path")
 
     List<String> command = new ArrayList<>()
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
-    command.addAll(["-Ddd.appsec.enabled=true", "-Ddd.iast.enabled=true", "-Ddd.iast-request-sampling=100"])
+    command.addAll(["-Ddd.iast.enabled=true", "-Ddd.iast.request-sampling=100"])
     command.addAll((String[]) ["-jar", springBootShadowJar, "--server.port=${httpPort}"])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
@@ -87,13 +95,10 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     client.newCall(request).execute()
 
     then:
-    waitForTraceCount(1)
-    Boolean foundEnabledTag = false
-    checkLog {
-      if (it.contains("_dd.iast.enabled=1")) {
-        foundEnabledTag = true
-      }
-    }
-    foundEnabledTag
+    waitForSpan(new PollingConditions(timeout: 5), hasMetric('_dd.iast.enabled', 1))
+  }
+
+  private static Function<DecodedSpan, Boolean> hasMetric(final String name, final Object value) {
+    return { span -> value == span.metrics.get(name) }
   }
 }
