@@ -210,6 +210,10 @@ public class ConfigurationPoller
 
   void sendRequest(Consumer<ResponseBody> responseBodyConsumer) throws IOException {
     try (Response response = fetchConfiguration()) {
+      if (response.code() == 404) {
+        log.debug("Remote configuration endpoint is disabled");
+        return;
+      }
       ResponseBody body = response.body();
       if (response.isSuccessful()) {
         if (body == null) {
