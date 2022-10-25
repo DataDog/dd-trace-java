@@ -55,12 +55,15 @@ public class ConfigurationPoller
 
   private final String keyId;
   private final Ed25519PublicKey key;
+  private final Config config;
+  private final String tracerVersion;
+  private final String containerId;
   private final OkHttpClient httpClient;
   private final RatelimitedLogger ratelimitedLogger;
+  private final Supplier<String> urlSupplier;
   private final PollerScheduler scheduler;
   private final long maxPayloadSize;
   private final boolean integrityChecks;
-  private final RemoteConfigResponse.Factory responseFactory;
 
   /** Map from product name to deserializer/listener. */
   private final Map<String, DeserializerAndListener<?>> listeners = new HashMap<>();
@@ -69,12 +72,16 @@ public class ConfigurationPoller
   private final ClientState nextClientState = new ClientState();
   private final Map<String /*cfg key*/, CachedTargetFile> cachedTargetFiles = new HashMap<>();
   private final AtomicInteger startCount = new AtomicInteger(0);
-  private final Moshi moshi;
-  private PollerRequestFactory requestFactory;
   private long capabilities;
-
   private Duration durationHint;
   private final Map<String /*cfg key*/, String /*error msg*/> collectedCfgErrors = new HashMap<>();
+
+  // Initialization of these is delayed until the remote config URL is available.
+  // See #initialize().
+  private Moshi moshi;
+  private PollerRequestFactory requestFactory;
+  private RemoteConfigResponse.Factory responseFactory;
+  private boolean fatalOnInitialization = false;
 
   public ConfigurationPoller(
       Config config,
@@ -99,6 +106,10 @@ public class ConfigurationPoller
       Supplier<String> urlSupplier,
       OkHttpClient httpClient,
       AgentTaskScheduler taskScheduler) {
+    this.config = config;
+    this.tracerVersion = tracerVersion;
+    this.containerId = containerId;
+    this.urlSupplier = urlSupplier;
     this.keyId = config.getRemoteConfigTargetsKeyId();
     String keyStr = config.getRemoteConfigTargetsKey();
     try {
@@ -113,14 +124,6 @@ public class ConfigurationPoller
         new RatelimitedLogger(log, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
     this.maxPayloadSize = config.getRemoteConfigMaxPayloadSizeBytes();
     this.integrityChecks = config.isRemoteConfigIntegrityCheckEnabled();
-    this.moshi =
-        new Moshi.Builder()
-            .add(Instant.class, new InstantJsonAdapter())
-            .add(ByteString.class, new RawJsonAdapter())
-            .build();
-    this.requestFactory =
-        new PollerRequestFactory(config, tracerVersion, containerId, urlSupplier, moshi);
-    this.responseFactory = new RemoteConfigResponse.Factory(moshi);
     this.httpClient = httpClient;
   }
 
@@ -175,6 +178,14 @@ public class ConfigurationPoller
     }
 
     if (!this.listeners.isEmpty()) {
+
+      if (!initialize()) {
+        // Do not log anything before initialization to avoid excessive verboseness when remote
+        // config is disabled in the agent. The urlSupplier will log failed attempts whenever it
+        // actually makes requests to feature discovery (at a higher polling interval).
+        return;
+      }
+
       try {
         sendRequest(this::handleAgentResponse);
       } catch (IOException | RuntimeException ex) {
@@ -183,11 +194,41 @@ public class ConfigurationPoller
             log,
             ex,
             "Failed to poll remote configuration from {}",
-            requestFactory.url != null
-                ? requestFactory.url.toString()
-                : "(no endpoint discovered yet)");
+            requestFactory.url.toString());
       }
     }
+  }
+
+  /** Tries to initialize remote config, and returns true if it is ready to run. */
+  private boolean initialize() {
+    if (fatalOnInitialization) {
+      return false;
+    }
+
+    if (requestFactory != null && responseFactory != null) {
+      return true;
+    }
+
+    final String url = urlSupplier.get();
+    if (url == null) {
+      return false;
+    }
+
+    try {
+      this.moshi =
+          new Moshi.Builder()
+              .add(Instant.class, new InstantJsonAdapter())
+              .add(ByteString.class, new RawJsonAdapter())
+              .build();
+      this.responseFactory = new RemoteConfigResponse.Factory(moshi);
+      this.requestFactory =
+          new PollerRequestFactory(config, tracerVersion, containerId, url, moshi);
+    } catch (Exception e) {
+      // We can't recover from this, so we'll not try to initialize again.
+      fatalOnInitialization = true;
+      log.error("Remote configuration poller initialization failed", e);
+    }
+    return true;
   }
 
   private Response fetchConfiguration() throws IOException {

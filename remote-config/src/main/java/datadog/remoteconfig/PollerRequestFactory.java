@@ -5,7 +5,6 @@ import datadog.remoteconfig.tuf.RemoteConfigRequest;
 import datadog.remoteconfig.tuf.RemoteConfigRequest.CachedTargetFile;
 import datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState;
 import datadog.trace.api.Config;
-import datadog.trace.api.function.Supplier;
 import datadog.trace.util.TagsHelper;
 import java.util.Arrays;
 import java.util.Collection;
@@ -36,15 +35,10 @@ public class PollerRequestFactory {
   private final String tracerVersion;
   private final String containerId;
   private final Moshi moshi;
-  private final Supplier<String> urlSupplier;
-  HttpUrl url;
+  final HttpUrl url;
 
   public PollerRequestFactory(
-      Config config,
-      String tracerVersion,
-      String containerId,
-      Supplier<String> urlProvider,
-      Moshi moshi) {
+      Config config, String tracerVersion, String containerId, String url, Moshi moshi) {
     this.runtimeId = getRuntimeId(config);
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
     this.apiKey = config.getApiKey();
@@ -54,7 +48,7 @@ public class PollerRequestFactory {
     // Semantic Versioning requires build separated with `+`
     this.tracerVersion = tracerVersion.replace('~', '+');
     this.containerId = containerId;
-    this.urlSupplier = urlProvider;
+    this.url = parseUrl(url);
     this.moshi = moshi;
   }
 
@@ -80,13 +74,6 @@ public class PollerRequestFactory {
       ClientState clientState,
       Collection<CachedTargetFile> cachedTargetFiles,
       long capabilities) {
-    if (this.url == null) {
-      String configUrl = this.urlSupplier.get();
-      if (configUrl == null) {
-        return null;
-      }
-      this.url = parseUrl(configUrl);
-    }
     Request.Builder requestBuilder = new Request.Builder().url(this.url).get();
     MediaType applicationJson = MediaType.parse("application/json");
     RequestBody requestBody =
