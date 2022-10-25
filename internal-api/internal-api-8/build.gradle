@@ -23,7 +23,10 @@ targetCompatibility = JavaVersion.VERSION_1_8
 minimumBranchCoverage = 0.8
 minimumInstructionCoverage = 0.8
 
-excludedClassesCoverage += ["datadog.trace.api.sampling.ConstantSampler"]
+excludedClassesCoverage += [
+  'datadog.trace.api.sampling.ConstantSampler',
+  'datadog.trace.bootstrap.instrumentation.api.java.lang.ProcessImplInstrumentationHelpers',
+]
 
 excludedClassesBranchCoverage = [
   'datadog.trace.util.stacktrace.HotSpotStackWalker',

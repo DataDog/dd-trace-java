@@ -42,6 +42,8 @@
 1 java.*
 # allow exception profiling instrumentation
 0 java.lang.Throwable
+# allow ProcessImpl instrumentation
+0 java.lang.ProcessImpl
 0 java.net.HttpURLConnection
 0 java.net.URL
 0 java.nio.DirectByteBuffer

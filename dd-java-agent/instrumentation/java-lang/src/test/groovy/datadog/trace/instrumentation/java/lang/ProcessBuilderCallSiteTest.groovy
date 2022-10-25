@@ -25,6 +25,7 @@ class ProcessBuilderCallSiteTest extends AgentTestRunner {
     then:
     thrown(IOException)
     1 * iastModule.onProcessBuilderStart(command)
+    _ * TEST_CHECKPOINTER._
     0 * _
   }
 }
