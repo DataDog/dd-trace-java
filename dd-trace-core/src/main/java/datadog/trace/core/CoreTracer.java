@@ -218,11 +218,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public void onFinish(AgentSpan span) {
-    spanCheckpointer.onFinish(span);
-  }
-
-  @Override
   public void onRootSpanFinished(AgentSpan root, boolean published) {
     spanCheckpointer.onRootSpanFinished(root, published);
   }

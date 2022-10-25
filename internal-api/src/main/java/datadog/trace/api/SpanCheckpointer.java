@@ -13,8 +13,6 @@ public interface SpanCheckpointer {
 
   void onFinishThreadMigration(AgentSpan span);
 
-  void onFinish(AgentSpan span);
-
   void onRootSpanStarted(AgentSpan root);
 
   void onRootSpanFinished(AgentSpan root, boolean published);

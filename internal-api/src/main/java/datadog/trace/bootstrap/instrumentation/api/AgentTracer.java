@@ -408,9 +408,6 @@ public class AgentTracer {
     public void onFinishThreadMigration(AgentSpan span) {}
 
     @Override
-    public void onFinish(AgentSpan span) {}
-
-    @Override
     public void onRootSpanFinished(AgentSpan root, boolean published) {}
 
     @Override

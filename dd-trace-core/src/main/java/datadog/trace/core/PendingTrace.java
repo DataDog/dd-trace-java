@@ -155,12 +155,6 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     PENDING_REFERENCE_COUNT.incrementAndGet(this);
   }
 
-  void onFinish(final DDSpan span) {
-    if (span.hasCheckpoints()) {
-      tracer.onFinish(span);
-    }
-  }
-
   PublishState onPublish(final DDSpan span) {
     finishedSpans.addFirst(span);
     // There is a benign race here where the span added above can get written out by a writer in

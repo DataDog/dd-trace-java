@@ -64,12 +64,6 @@ class SamplingCheckpointerTest extends DDSpecification {
     0 * _
 
     when:
-    sut.onFinish(span)
-    then:
-    checkpointCount * checkpointer.checkpoint(span, SPAN | END)
-    0 * _
-
-    when:
     sut.onRootSpanStarted(rootSpan)
     then:
     rootSpanCount * checkpointer.onRootSpanStarted(rootSpan)
