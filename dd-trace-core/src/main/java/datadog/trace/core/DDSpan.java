@@ -581,20 +581,6 @@ public class DDSpan
   }
 
   @Override
-  public void startThreadMigration() {
-    if (hasCheckpoints()) {
-      context.getTracer().onStartThreadMigration(this);
-    }
-  }
-
-  @Override
-  public void finishThreadMigration() {
-    if (hasCheckpoints()) {
-      context.getTracer().onFinishThreadMigration(this);
-    }
-  }
-
-  @Override
   public void startWork() {
     if (tracingContextTracker != null) {
       tracingContextTracker.activateContext();

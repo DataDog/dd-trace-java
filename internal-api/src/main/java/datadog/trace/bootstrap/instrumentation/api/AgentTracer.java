@@ -402,12 +402,6 @@ public class AgentTracer {
     public void onFinishWork(AgentSpan span) {}
 
     @Override
-    public void onStartThreadMigration(AgentSpan span) {}
-
-    @Override
-    public void onFinishThreadMigration(AgentSpan span) {}
-
-    @Override
     public void onRootSpanFinished(AgentSpan root, boolean published) {}
 
     @Override
@@ -558,12 +552,6 @@ public class AgentTracer {
     public boolean eligibleForDropping() {
       return true;
     }
-
-    @Override
-    public void startThreadMigration() {}
-
-    @Override
-    public void finishThreadMigration() {}
 
     @Override
     public void startWork() {}
@@ -750,11 +738,6 @@ public class AgentTracer {
     public void setAsyncPropagation(final boolean value) {}
 
     @Override
-    public boolean checkpointed() {
-      return false;
-    }
-
-    @Override
     public AgentScope.Continuation capture() {
       return NoopContinuation.INSTANCE;
     }
@@ -828,12 +811,6 @@ public class AgentTracer {
 
     @Override
     public void cancel() {}
-
-    @Override
-    public void migrate() {}
-
-    @Override
-    public void migrated() {}
 
     @Override
     public AgentSpan getSpan() {

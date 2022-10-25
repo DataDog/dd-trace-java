@@ -20,7 +20,6 @@ public class UndertowRunnableWrapper implements Runnable {
     this.runnable = runnable;
     this.exchange = exchange;
     this.continuation = continuation;
-    continuation.migrate();
   }
 
   @Override

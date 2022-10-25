@@ -326,8 +326,6 @@ class ScopeEventTest extends DDSpecification {
 
     when: "span goes through lifecycle without activation"
     AgentSpan span = tracer.startSpan("test", true)
-    span.startThreadMigration()
-    span.finishThreadMigration()
     span.setResourceName("foo")
     span.finish()
     then: "checkpoints emitted"

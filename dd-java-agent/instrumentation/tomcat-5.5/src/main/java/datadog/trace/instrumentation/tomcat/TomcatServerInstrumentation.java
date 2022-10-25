@@ -130,8 +130,6 @@ public final class TomcatServerInstrumentation extends Instrumenter.Tracing
       req.setAttribute(DD_SPAN_ATTRIBUTE, span);
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
       req.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
-      // request may be processed on any thread; signal thread migration
-      span.startThreadMigration();
       return scope;
     }
 

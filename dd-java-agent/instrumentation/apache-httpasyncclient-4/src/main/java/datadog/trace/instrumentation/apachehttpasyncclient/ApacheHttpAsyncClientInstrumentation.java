@@ -95,7 +95,6 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Tracing
       requestProducer = new DelegatingRequestProducer(clientSpan, requestProducer);
       futureCallback =
           new TraceContinuedFutureCallback(parentScope, clientSpan, context, futureCallback);
-      clientSpan.startThreadMigration();
 
       return clientSpan;
     }

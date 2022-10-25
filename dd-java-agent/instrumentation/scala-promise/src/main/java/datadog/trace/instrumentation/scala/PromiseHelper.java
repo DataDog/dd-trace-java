@@ -59,12 +59,6 @@ public class PromiseHelper {
       Failure<T> failure = (Failure<T>) resolved;
       return new Failure<>(failure.exception());
     }
-
-    if (null != span) {
-      // The span may be escaping via the context to other threads.
-      // Need to mark it for migration.
-      span.startThreadMigration();
-    }
     return resolved;
   }
 
@@ -115,9 +109,6 @@ public class PromiseHelper {
         return state;
       }
       AgentScope.Continuation continuation = captureSpan(span);
-      // Since the continuation was created from a Span that was marked for migration,
-      // we make sure that the continuation will be marked as migrated
-      continuation.migrated();
       AgentScope.Continuation existing = null;
       if (null != state) {
         existing = state.getAndResetContinuation();

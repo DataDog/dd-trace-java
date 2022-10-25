@@ -46,12 +46,6 @@ class SamplingCheckpointerTest extends DDSpecification {
     0 * _
 
     when:
-    sut.onStartThreadMigration(span)
-    then:
-    checkpointCount * checkpointer.checkpoint(span, THREAD_MIGRATION)
-    0 * _
-
-    when:
     sut.onFinishThreadMigration(span)
     then:
     checkpointCount * checkpointer.checkpoint(span, THREAD_MIGRATION | END)

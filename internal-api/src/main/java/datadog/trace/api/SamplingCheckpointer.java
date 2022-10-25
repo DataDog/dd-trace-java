@@ -2,7 +2,6 @@ package datadog.trace.api;
 
 import static datadog.trace.api.Checkpointer.CPU;
 import static datadog.trace.api.Checkpointer.END;
-import static datadog.trace.api.Checkpointer.THREAD_MIGRATION;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -60,16 +59,6 @@ public final class SamplingCheckpointer implements SpanCheckpointer {
   @Override
   public void onFinishWork(final AgentSpan span) {
     checkpoint(span, CPU | END);
-  }
-
-  @Override
-  public void onStartThreadMigration(final AgentSpan span) {
-    checkpoint(span, THREAD_MIGRATION);
-  }
-
-  @Override
-  public void onFinishThreadMigration(final AgentSpan span) {
-    checkpoint(span, THREAD_MIGRATION | END);
   }
 
   @Override
