@@ -25,7 +25,7 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     command.addAll(["-Ddd.appsec.enabled=true", "-Ddd.iast.enabled=true", "-Ddd.iast-request-sampling=100"])
     command.addAll([
       "-Ddd.appsec.enabled=true",
-      "-Ddd.iast.enabled=true",
+      "-Ddd.iast.enabled=false",
       "-Ddd.iast.request-sampling=100"
     ])
     command.addAll((String[]) ["-jar", springBootShadowJar, "--server.port=${httpPort}"])
