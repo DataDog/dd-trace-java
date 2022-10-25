@@ -183,6 +183,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OL
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_VERY_OLD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_OLD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_VERY_OLD;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_ASYNC_ALLOC_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_ASYNC_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
@@ -503,6 +505,8 @@ public class Config {
   private final boolean profilingEnabled;
   private final boolean profilingAgentless;
   private final boolean profilingLegacyTracingIntegrationEnabled;
+
+  private final boolean isAsyncProfilerEnabled;
   @Deprecated private final String profilingUrl;
   private final Map<String, String> profilingTags;
   private final int profilingStartDelay;
@@ -1009,6 +1013,8 @@ public class Config {
     profilingLegacyTracingIntegrationEnabled =
         configProvider.getBoolean(
             PROFILING_LEGACY_TRACING_INTEGRATION, PROFILING_LEGACY_TRACING_INTEGRATION_DEFAULT);
+    isAsyncProfilerEnabled =
+        configProvider.getBoolean(PROFILING_ASYNC_ENABLED, PROFILING_ASYNC_ALLOC_ENABLED_DEFAULT);
     profilingUrl = configProvider.getString(PROFILING_URL);
 
     if (tmpApiKey == null) {
@@ -1790,6 +1796,10 @@ public class Config {
 
   public boolean isProfilingLegacyTracingIntegrationEnabled() {
     return profilingLegacyTracingIntegrationEnabled;
+  }
+
+  public boolean isAsyncProfilerEnabled() {
+    return isAsyncProfilerEnabled;
   }
 
   public boolean isCrashTrackingAgentless() {
