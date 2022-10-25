@@ -10,11 +10,6 @@ import spock.lang.Shared
 import java.util.concurrent.CountDownLatch
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.api.Checkpointer.CPU
-import static datadog.trace.api.Checkpointer.END
-import static datadog.trace.api.Checkpointer.SPAN
-import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
 
 class CheckpointEmissionTest extends AgentTestRunner {
 
@@ -43,49 +38,6 @@ class CheckpointEmissionTest extends AgentTestRunner {
 
   def setupSpec() {
     client.start()
-  }
-
-  def "emit checkpoints"() {
-    when:
-    runUnderTrace("parent") {
-      executeRequest("GET", server.address, [:])
-    }
-    // note that the test http server is also traced and needs to be accounted for below
-    TEST_WRITER.waitForTraces(2)
-    then:
-    3 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    2 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
-    2 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
-    3 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    // the latest version will produce 2 extra calls to startTask and endTask
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    0 * _
-  }
-
-  def "emit checkpoints with callback"() {
-    when:
-    runUnderTrace("parent") {
-      executeRequest("GET", server.address, [:], {
-        runUnderTrace("child") {}
-      })
-    }
-    // note that the test http server is also traced and needs to be accounted for below
-    TEST_WRITER.waitForTraces(2)
-    then:
-    4 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    2 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
-    2 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    4 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    0 * _
   }
 
 

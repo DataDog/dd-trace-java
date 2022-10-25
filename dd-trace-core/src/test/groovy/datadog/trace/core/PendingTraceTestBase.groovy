@@ -2,7 +2,6 @@ package datadog.trace.core
 
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
-import datadog.trace.api.Checkpointer
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.test.DDCoreSpecification
 import org.slf4j.LoggerFactory
@@ -10,8 +9,6 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.api.Checkpointer.END
-import static datadog.trace.api.Checkpointer.SPAN
 import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_MIN_SPANS
 
 abstract class PendingTraceTestBase extends DDCoreSpecification {
@@ -266,26 +263,5 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     5           | 2000
     10          | 1000
     50          | 500
-  }
-
-  def "start and finish span emits checkpoints from PendingTrace"() {
-    // this test is kept close to pending trace despite not exercising
-    // its methods directly because this is where the reponsibility lies
-    // for emitting the checkpoints, and this is the least surprising place
-    // for a test to fail when modifying PendingTrace
-    setup:
-    Checkpointer checkpointer = Mock()
-    tracer.registerCheckpointer(checkpointer)
-
-    // unfortunately the span can't be
-    when:
-    def span = tracer.buildSpan("test").start()
-    then:
-    1 * checkpointer.checkpoint(_, SPAN)
-
-    when:
-    span.finish()
-    then:
-    1 * checkpointer.checkpoint(_, SPAN | END)
   }
 }
