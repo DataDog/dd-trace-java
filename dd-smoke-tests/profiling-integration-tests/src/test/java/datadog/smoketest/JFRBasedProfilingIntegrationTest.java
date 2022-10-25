@@ -227,8 +227,6 @@ class JFRBasedProfilingIntegrationTest {
       assertNotNull(requestTags.get("runtime-id"));
       assertEquals(InetAddress.getLocalHost().getHostName(), requestTags.get("host"));
 
-      dumpJfrRecording(rawJfr.get());
-
       assertFalse(logHasErrors(logFilePath));
       IItemCollection events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(rawJfr.get()));
       assertTrue(events.hasItems());
@@ -276,8 +274,6 @@ class JFRBasedProfilingIntegrationTest {
       assertTrue(
           period > 0 && period <= upperLimit,
           () -> "Upload period = " + period + "ms, expected (0, " + upperLimit + "]ms");
-
-      dumpJfrRecording(rawJfr.get());
 
       events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(rawJfr.get()));
       assertTrue(events.hasItems());
@@ -342,15 +338,6 @@ class JFRBasedProfilingIntegrationTest {
           assertTrue(spanId >= 0, "spanId must not be negative");
         }
       }
-    }
-  }
-
-  private void dumpJfrRecording(final byte[] byteData) {
-    try {
-      final Path dumpPath = Files.createTempFile("dd-dump-", ".jfr");
-      Files.write(dumpPath, byteData);
-      log.debug("Received profile stored at: {}", dumpPath.toAbsolutePath());
-    } catch (final IOException ignored) {
     }
   }
 
@@ -679,6 +666,7 @@ class JFRBasedProfilingIntegrationTest {
             "-Ddd.profiling.legacy.tracing.integration=" + legacyTracingIntegration,
             "-Ddd.profiling.endpoint.collection.enabled=" + endpointCollectionEnabled,
             "-Ddd.profiling.upload.timeout=" + PROFILING_UPLOAD_TIMEOUT_SECONDS,
+            "-Ddd.profiling.debug.dump_path=/tmp/dd-profiler",
             "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
             "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",
             "-XX:+IgnoreUnrecognizedVMOptions",
