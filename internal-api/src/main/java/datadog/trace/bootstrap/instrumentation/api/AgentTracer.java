@@ -396,9 +396,6 @@ public class AgentTracer {
     public void checkpoint(AgentSpan span, int flags) {}
 
     @Override
-    public void onStart(AgentSpan span) {}
-
-    @Override
     public void onStartWork(AgentSpan span) {}
 
     @Override

@@ -54,11 +54,6 @@ public final class SamplingCheckpointer implements SpanCheckpointer {
   }
 
   @Override
-  public void onStart(final AgentSpan span) {
-    checkpoint(span, SPAN);
-  }
-
-  @Override
   public void onStartWork(final AgentSpan span) {
     checkpoint(span, CPU);
   }

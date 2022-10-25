@@ -147,7 +147,6 @@ class PendingTraceBufferTest extends DDSpecification {
     then:
     _ * tracer.getPartialFlushMinSpans() >> 10
     _ * tracer.mapServiceName(_)
-    _ * tracer.onStart(_)
     _ * tracer.getTimeWithNanoTicks(_)
     _ * tracer.onFinish(_)
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
@@ -172,7 +171,6 @@ class PendingTraceBufferTest extends DDSpecification {
     buffer.queue.capacity() * bufferSpy.enqueue(_)
     _ * tracer.getPartialFlushMinSpans() >> 10
     _ * tracer.mapServiceName(_)
-    _ * tracer.onStart(_)
     _ * tracer.getTimeWithNanoTicks(_)
     _ * tracer.onFinish(_)
     _ * tracer.onStartWork(_)
@@ -189,7 +187,6 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * tracer.write({ it.size() == 1 })
     _ * tracer.getPartialFlushMinSpans() >> 10
     _ * tracer.mapServiceName(_)
-    1 * tracer.onStart(_)
     2 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onFinish(_)
     _ * tracer.onStartWork(_)
@@ -290,7 +287,6 @@ class PendingTraceBufferTest extends DDSpecification {
       childLatch.countDown()
     }
     _ * tracer.mapServiceName(_)
-    1 * tracer.onStart(_)
     2 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onFinish(_)
     0 * _
@@ -360,7 +356,6 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * tracer.write({ it.size() == 1 })
     1 * tracer.getPartialFlushMinSpans() >> 10000
     1 * tracer.mapServiceName(_)
-    1 * tracer.onStart(_)
     2 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onFinish(_)
     0 * _
@@ -376,7 +371,6 @@ class PendingTraceBufferTest extends DDSpecification {
     buffer.queue.capacity() * bufferSpy.enqueue(_)
     _ * tracer.getPartialFlushMinSpans() >> 10000
     _ * tracer.mapServiceName(_)
-    _ * tracer.onStart(_)
     _ * tracer.getTimeWithNanoTicks(_)
     _ * tracer.onFinish(_)
     _ * tracer.onStartWork(_)

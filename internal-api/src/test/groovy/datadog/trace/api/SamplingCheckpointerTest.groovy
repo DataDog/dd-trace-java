@@ -34,12 +34,6 @@ class SamplingCheckpointerTest extends DDSpecification {
     int rootSpanCount = register ? 1 : 0
 
     when:
-    sut.onStart(span)
-    then:
-    checkpointCount * checkpointer.checkpoint(span, SPAN)
-    0 * _
-
-    when:
     sut.onStartWork(span)
     then:
     checkpointCount * checkpointer.checkpoint(span, CPU)
