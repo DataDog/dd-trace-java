@@ -22,14 +22,17 @@ class AsyncProfilerRecordingTest {
 
   @BeforeEach
   void setup() throws Exception {
-    profiler = new AsyncProfiler(ConfigProvider.getInstance());
+    profiler = AsyncProfiler.newInstance(ConfigProvider.getInstance());
     log.info(
         "Async Profiler: available={}, active={}", profiler.isAvailable(), profiler.isActive());
-    Assume.assumeTrue(profiler.isAvailable());
-    Assume.assumeFalse(profiler.isActive());
+    if (profiler.isAvailable()) {
+      Assume.assumeFalse(profiler.isActive());
 
-    recording = (AsyncProfilerRecording) profiler.start();
-    Assume.assumeTrue(recording != null);
+      recording = (AsyncProfilerRecording) profiler.start();
+      Assume.assumeTrue(recording != null);
+    } else {
+      // async profiler not available
+    }
   }
 
   @AfterEach
@@ -43,6 +46,10 @@ class AsyncProfilerRecordingTest {
 
   @Test
   void testClose() throws Exception {
+    if (!profiler.isAvailable()) {
+      log.warn("Async Profiler not available. Skipping test.");
+      return;
+    }
     assertTrue(Files.exists(recording.getRecordingFile()));
     recording.close();
     assertFalse(Files.exists(recording.getRecordingFile()));
@@ -50,6 +57,10 @@ class AsyncProfilerRecordingTest {
 
   @Test
   void testStop() throws Exception {
+    if (!profiler.isAvailable()) {
+      log.warn("Async Profiler not available. Skipping test.");
+      return;
+    }
     RecordingData data = recording.stop();
     assertNotNull(data);
     assertTrue(Files.exists(recording.getRecordingFile()));
@@ -57,6 +68,10 @@ class AsyncProfilerRecordingTest {
 
   @Test
   void testSnapshot() throws Exception {
+    if (!profiler.isAvailable()) {
+      log.warn("Async Profiler not available. Skipping test.");
+      return;
+    }
     RecordingData data = recording.snapshot(Instant.now());
     assertNotNull(data);
     assertTrue(Files.exists(recording.getRecordingFile()));
