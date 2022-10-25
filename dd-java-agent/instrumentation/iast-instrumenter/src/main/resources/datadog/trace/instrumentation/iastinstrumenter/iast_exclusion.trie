@@ -12,6 +12,7 @@
 1 java.*
 1 javax.*
 1 jdk.*
+1 openj9.*
 1 org.omg.*
 1 org.w3c.*
 1 org.xml.*
