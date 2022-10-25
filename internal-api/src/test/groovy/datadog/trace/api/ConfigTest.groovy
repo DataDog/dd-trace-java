@@ -76,6 +76,7 @@ import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_ENABLED
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_INITIAL_POLL_INTERVAL
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_MAX_PAYLOAD_SIZE
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_HOST
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
@@ -168,6 +169,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "true")
     prop.setProperty(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "true")
     prop.setProperty(DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX, "true")
+    prop.setProperty(DB_CLIENT_HOST_SPLIT_BY_HOST, "true")
     prop.setProperty(SPLIT_BY_TAGS, "some.tag1,some.tag2,some.tag1")
     prop.setProperty(PARTIAL_FLUSH_MIN_SPANS, "15")
     prop.setProperty(TRACE_REPORT_HOSTNAME, "true")
@@ -251,6 +253,7 @@ class ConfigTest extends DDSpecification {
     config.httpClientSplitByDomain == true
     config.dbClientSplitByInstance == true
     config.dbClientSplitByInstanceTypeSuffix == true
+    config.dbClientSplitByHost == true
     config.splitByTags == ["some.tag1", "some.tag2"].toSet()
     config.partialFlushMinSpans == 15
     config.reportHostName == true
@@ -336,6 +339,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "true")
     System.setProperty(PREFIX + DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "true")
     System.setProperty(PREFIX + DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX, "true")
+    System.setProperty(PREFIX + DB_CLIENT_HOST_SPLIT_BY_HOST, "true")
     System.setProperty(PREFIX + SPLIT_BY_TAGS, "some.tag3, some.tag2, some.tag1")
     System.setProperty(PREFIX + PARTIAL_FLUSH_MIN_SPANS, "25")
     System.setProperty(PREFIX + TRACE_REPORT_HOSTNAME, "true")
@@ -419,6 +423,7 @@ class ConfigTest extends DDSpecification {
     config.httpClientSplitByDomain == true
     config.dbClientSplitByInstance == true
     config.dbClientSplitByInstanceTypeSuffix == true
+    config.dbClientSplitByHost == true
     config.splitByTags == ["some.tag3", "some.tag2", "some.tag1"].toSet()
     config.partialFlushMinSpans == 25
     config.reportHostName == true
@@ -549,6 +554,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + HTTP_CLIENT_ERROR_STATUSES, "1:1")
     System.setProperty(PREFIX + HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "invalid")
     System.setProperty(PREFIX + DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "invalid")
+    System.setProperty(PREFIX + DB_CLIENT_HOST_SPLIT_BY_HOST, "invalid")
     System.setProperty(PREFIX + PROPAGATION_STYLE_EXTRACT, "some garbage")
     System.setProperty(PREFIX + PROPAGATION_STYLE_INJECT, " ")
 
@@ -572,6 +578,7 @@ class ConfigTest extends DDSpecification {
     config.httpClientSplitByDomain == false
     config.dbClientSplitByInstance == false
     config.dbClientSplitByInstanceTypeSuffix == false
+    config.dbClientSplitByHost == false
     config.splitByTags == [].toSet()
     config.propagationStylesToExtract.toList() == [PropagationStyle.DATADOG]
     config.propagationStylesToInject.toList() == [PropagationStyle.DATADOG]
@@ -644,6 +651,7 @@ class ConfigTest extends DDSpecification {
     properties.setProperty(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "true")
     properties.setProperty(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "true")
     properties.setProperty(DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX, "true")
+    properties.setProperty(DB_CLIENT_HOST_SPLIT_BY_HOST, "true")
     properties.setProperty(PARTIAL_FLUSH_MIN_SPANS, "15")
     properties.setProperty(PROPAGATION_STYLE_EXTRACT, "B3 Datadog")
     properties.setProperty(PROPAGATION_STYLE_INJECT, "Datadog B3")
@@ -675,6 +683,7 @@ class ConfigTest extends DDSpecification {
     config.httpClientSplitByDomain == true
     config.dbClientSplitByInstance == true
     config.dbClientSplitByInstanceTypeSuffix == true
+    config.dbClientSplitByHost == true
     config.splitByTags == [].toSet()
     config.partialFlushMinSpans == 15
     config.propagationStylesToExtract.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]

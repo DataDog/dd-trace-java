@@ -4,6 +4,7 @@ import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_HOST
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX
 
@@ -35,8 +36,9 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
 
   def "test onConnection"() {
     setup:
-    injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
-    injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX, "$typeSuffix")
+    injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameByInstance")
+    injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX, "$instanceTypeSuffix")
+    injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_HOST, "$renameByHost")
     def decorator = newDecorator()
 
     when:
@@ -49,24 +51,34 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
       if (session.hostname != null) {
         1 * span.setTag(Tags.PEER_HOSTNAME, session.hostname)
       }
-      if (typeSuffix && renameService && session.instance) {
+      if (instanceTypeSuffix && renameByInstance && session.instance) {
         1 * span.setServiceName(session.instance + "-" + decorator.dbType())
-      } else if (renameService && session.instance) {
+      } else if (renameByInstance && session.instance) {
         1 * span.setServiceName(session.instance)
+      } else if (renameByHost) {
+        1 * span.setServiceName(session.hostname)
       }
     }
     0 * _
 
     where:
-    renameService | typeSuffix | session
-    false         | false      | null
-    true          | false      | [user: "test-user", hostname: "test-hostname"]
-    false         | false      | [instance: "test-instance", hostname: "test-hostname"]
-    true          | false      | [user: "test-user", instance: "test-instance"]
-    false         | true       | null
-    true          | true       | [user: "test-user", hostname: "test-hostname"]
-    false         | true       | [instance: "test-instance", hostname: "test-hostname"]
-    true          | true       | [user: "test-user", instance: "test-instance"]
+    renameByInstance | instanceTypeSuffix | renameByHost  | session
+    false            | false              | false         | null
+    true             | false              | false         | [user: "test-user", hostname: "test-hostname"]
+    false            | false              | false         | [instance: "test-instance", hostname: "test-hostname"]
+    true             | false              | false         | [user: "test-user", instance: "test-instance"]
+    false            | true               | false         | null
+    true             | true               | false         | [user: "test-user", hostname: "test-hostname"]
+    false            | true               | false         | [instance: "test-instance", hostname: "test-hostname"]
+    true             | true               | false         | [user: "test-user", instance: "test-instance"]
+    false            | false              | true          | null
+    true             | false              | true          | [user: "test-user", hostname: "test-hostname"]
+    false            | false              | true          | [instance: "test-instance", hostname: "test-hostname"]
+    true             | false              | true          | [user: "test-user", instance: "test-instance"]
+    false            | true               | true          | null
+    true             | true               | true          | [user: "test-user", hostname: "test-hostname"]
+    false            | true               | true          | [instance: "test-instance", hostname: "test-hostname"]
+    true             | true               | true          | [user: "test-user", instance: "test-instance"]
   }
 
   def "test onStatement"() {
