@@ -141,22 +141,17 @@ public class TelemetryServiceImpl implements TelemetryService {
 
     // New exceptions
     if (!exceptions.isEmpty()) { 
-      System.out.println("exceptions blcoking queue is not empty sending payload");
-      Payload payload = new ExceptionsThrown().exceptions(drainOrEmpty(exceptions));
+      List<Log> payload = drainOrEmpty(exceptions);
 
-      System.out.println(payload);
       Request request = 
           requestBuilderSupplier
               .get()
-              .build(
+              .logBuild(
                     RequestType.LOGS,
-                    payload.requestType(RequestType.LOGS));
+                    payload);
       System.out.println(request); 
-      System.out.println("offering to the queue now");
       queue.offer(request);
     }
-    // NEED HELP HERE
-
 
     // Heartbeat request if needed
     long curTime = this.timeSource.getCurrentTimeMillis();

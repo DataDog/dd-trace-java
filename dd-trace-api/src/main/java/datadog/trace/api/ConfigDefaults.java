@@ -132,6 +132,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_RESOLVER_TYPE_POOL_SIZE = 64;
 
   static final boolean DEFAULT_TELEMETRY_ENABLED = false;
+  static final boolean DEFAULT_TELEMETRY_DEBUG_ENABLED = false;
   static final int DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL = 60; // in seconds
 
   public static final int DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH = 512;

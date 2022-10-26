@@ -14,7 +14,6 @@ public class ExceptionPeriodicAction implements TelemetryRunnable.TelemetryPerio
     for (Map.Entry<String, String> entry : exceptions.entrySet()) {
       String exceptionMsg = entry.getKey();
       String stackTrace = entry.getValue();
-      System.out.println(exceptionMsg);
       service.addException(new Log().message(exceptionMsg).stackTrace(stackTrace).level("ERROR"));
     }
   }

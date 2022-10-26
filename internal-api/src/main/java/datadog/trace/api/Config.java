@@ -72,6 +72,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_DEBUG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
@@ -150,6 +151,7 @@ import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.SITE;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TELEMETRY_DEBUG_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_BUFFERING_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
@@ -635,6 +637,7 @@ public class Config {
   private final boolean iastDeduplicationEnabled;
 
   private final boolean telemetryEnabled;
+  private final boolean telemetryDebugEnabled;
   private final int telemetryHeartbeatInterval;
 
   private final boolean azureAppServices;
@@ -1087,6 +1090,9 @@ public class Config {
     crashTrackingTags = configProvider.getMergedMap(CRASH_TRACKING_TAGS);
 
     telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
+
+    telemetryDebugEnabled = configProvider.getBoolean(TELEMETRY_DEBUG_ENABLED, DEFAULT_TELEMETRY_DEBUG_ENABLED);
+
     int telemetryInterval =
         configProvider.getInteger(
             TELEMETRY_HEARTBEAT_INTERVAL, DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL);
@@ -1788,6 +1794,10 @@ public class Config {
 
   public boolean isTelemetryEnabled() {
     return telemetryEnabled;
+  }
+
+  public boolean isTelemetryDebugEnabled() { 
+    return telemetryDebugEnabled;
   }
 
   public int getTelemetryHeartbeatInterval() {
