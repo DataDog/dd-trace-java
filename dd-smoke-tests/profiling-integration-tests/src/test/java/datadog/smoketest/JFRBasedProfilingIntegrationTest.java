@@ -211,8 +211,13 @@ class JFRBasedProfilingIntegrationTest {
       assertNotNull(firstEndTime);
 
       final long duration = firstEndTime.toEpochMilli() - firstStartTime.toEpochMilli();
-      assertTrue(duration > TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS - 2));
-      assertTrue(duration < TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS + 2));
+      long delta = duration - TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS);
+      assertTrue(
+          duration > TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS - 4),
+          delta + "ms outside tolerance of upload period");
+      assertTrue(
+          duration < TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS + 4),
+          delta + "ms outside tolerance of upload period");
 
       final Map<String, String> requestTags =
           ProfilingTestUtils.parseTags(
