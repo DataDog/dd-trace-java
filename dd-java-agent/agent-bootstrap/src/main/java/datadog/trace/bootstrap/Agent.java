@@ -721,15 +721,11 @@ public class Agent {
                 try {
                   if (Config.get().isProfilingLegacyTracingIntegrationEnabled()) {
                     log.debug("Registering scope event factory");
-                    ScopeListener scopeListener =
-                        (ScopeListener)
-                            AGENT_CLASSLOADER
-                                .loadClass("datadog.trace.core.jfr.openjdk.ScopeEventFactory")
-                                .getDeclaredConstructor()
-                                .newInstance();
-                    tracer.addScopeListener(scopeListener);
-                    log.debug("Scope event factory {} has been registered", scopeListener);
+                    tracer.addScopeListener(
+                        createScopeListener("datadog.trace.core.jfr.openjdk.ScopeEventFactory"));
                   } else if (tracer instanceof AgentTracer.TracerAPI) {
+                    // TODO separate endpoint event tracking from checkpointer so checkpointing can
+                    //  be disabled whenever async-profiler is enabled
                     log.debug("Registering checkpointer");
                     Checkpointer checkpointer =
                         (Checkpointer)
@@ -739,6 +735,12 @@ public class Agent {
                                 .newInstance();
                     ((AgentTracer.TracerAPI) tracer).registerCheckpointer(checkpointer);
                     log.debug("Checkpointer {} has been registered", checkpointer);
+                  }
+                  if (Config.get().isAsyncProfilerEnabled()) {
+                    log.debug("Registering async-profiler scope listener");
+                    tracer.addScopeListener(
+                        createScopeListener(
+                            "com.datadog.profiling.context.AsyncProfilerScopeListener"));
                   }
                 } catch (Throwable e) {
                   if (e instanceof InvocationTargetException) {
@@ -760,6 +762,11 @@ public class Agent {
     } finally {
       Thread.currentThread().setContextClassLoader(contextLoader);
     }
+  }
+
+  private static ScopeListener createScopeListener(String className) throws Throwable {
+    return (ScopeListener)
+        AGENT_CLASSLOADER.loadClass(className).getDeclaredConstructor().newInstance();
   }
 
   private static void shutdownProfilingAgent(final boolean sync) {

@@ -1040,7 +1040,7 @@ class EventCountingExtendedListener implements ExtendedScopeListener {
   }
 
   @Override
-  void afterScopeActivated(DDId traceId, DDId spanId) {
+  void afterScopeActivated(DDId traceId, DDId localRootSpanId, DDId spanId) {
     synchronized (events) {
       events.add(ACTIVATE)
     }
