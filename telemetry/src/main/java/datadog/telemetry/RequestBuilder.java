@@ -59,7 +59,7 @@ private static final JsonAdapter<LogTelemetry> LOG_JSON_ADAPTER =
 
     //   this.httpUrl= new HttpUrl.Builder()  
     //       .scheme("https")
-    //       .host("all-http-intake.logs.datad0g.com")
+    //       .host("instrumentation-telemetry-intake.datad0g.com")
     //       .addPathSegments(STAGING_API_ENDPOINT)
     //       .build();
       
@@ -98,8 +98,6 @@ private static final JsonAdapter<LogTelemetry> LOG_JSON_ADAPTER =
             .containerId(containerInfo.getContainerId());
   }
 
- 
-
   // Special Telemetry Log Payload - no headers for payload request type
   public Request logBuild(RequestType requestType, List<Log>payload) {
     LogTelemetry telemetry =
@@ -117,18 +115,13 @@ private static final JsonAdapter<LogTelemetry> LOG_JSON_ADAPTER =
     String json = LOG_JSON_ADAPTER.toJson(telemetry);
     RequestBody body = RequestBody.create(JSON, json);
 
-    Request hi = new SafeRequestBuilder()
+    return new SafeRequestBuilder()
         .url(httpUrl)
-        .addHeader("User-Agent","")
         .addHeader("Content-Type", JSON.toString())
-        .addHeader("DD-API-KEY","YOUR-DD-API-KEY-HERE") 
         .addHeader("DD-Telemetry-Request-Type", requestType.toString())
         .addHeader("DD-Telemetry-API-Version", API_VERSION.toString())
         .post(body)
         .build();
-
-    System.out.println("This is complete request: " + hi);
-    return hi;
   }
   public Request build(RequestType requestType) {
     return build(requestType, null);
