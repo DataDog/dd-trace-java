@@ -58,7 +58,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     this.taggedHeaders = taggedHeaders;
     this.customIpHeaderName = config.getTraceClientIpHeader();
     this.clientIpResolutionEnabled = config.isTraceClientIpResolverEnabled();
-    this.clientIpWithoutAppSec = config.isClientIpWithoutAppSec();
+    this.clientIpWithoutAppSec = config.isClientIpEnabled();
     reset();
   }
 

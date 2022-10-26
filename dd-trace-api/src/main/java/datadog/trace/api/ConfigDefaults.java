@@ -60,7 +60,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
   static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
 
-  static final boolean DEFAULT_CLIENT_IP_WITHOUT_APPSEC = false;
+  static final boolean DEFAULT_CLIENT_IP_ENABLED = false;
 
   static final int DEFAULT_CLOCK_SYNC_PERIOD = 30; // seconds
 

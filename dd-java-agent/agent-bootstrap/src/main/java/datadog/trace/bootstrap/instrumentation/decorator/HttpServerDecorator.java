@@ -112,8 +112,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       final AgentSpan.Context.Extracted context) {
     Config config = Config.get();
     boolean clientIpResolverEnabled =
-        config.isClientIpWithoutAppSec()
-            || config.isTraceClientIpResolverEnabled() && ActiveSubsystems.APPSEC_ACTIVE;
+        config.isClientIpEnabled()
+            || traceClientIpResolverEnabled && ActiveSubsystems.APPSEC_ACTIVE;
 
     if (context != null) {
       if (clientIpResolverEnabled) {

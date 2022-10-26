@@ -23,7 +23,6 @@ import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
-import static datadog.trace.api.config.TracerConfig.CLIENT_IP_WITHOUT_APPSEC
 import static datadog.trace.api.gateway.Events.EVENTS
 
 class HttpServerDecoratorTest extends ServerDecoratorTest {
@@ -252,7 +251,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
   void 'disabling appsec but enabling client_ip_without_appsec enables header collection and ip address resolution'() {
     setup:
-    injectSysConfig(CLIENT_IP_WITHOUT_APPSEC, 'true')
+    injectSysConfig('dd.trace.client-ip.enabled', 'true')
     ActiveSubsystems.APPSEC_ACTIVE = false
 
     def ctx = Mock(AgentSpan.Context.Extracted)

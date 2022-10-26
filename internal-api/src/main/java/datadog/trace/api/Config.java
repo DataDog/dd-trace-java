@@ -10,7 +10,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_METRICS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_CLIENT_IP_WITHOUT_APPSEC;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CLIENT_IP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_TLS_REFRESH;
@@ -280,7 +280,7 @@ import static datadog.trace.api.config.TracerConfig.AGENT_NAMED_PIPE;
 import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY;
 import static datadog.trace.api.config.TracerConfig.AGENT_TIMEOUT;
 import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET;
-import static datadog.trace.api.config.TracerConfig.CLIENT_IP_WITHOUT_APPSEC;
+import static datadog.trace.api.config.TracerConfig.CLIENT_IP_ENABLED;
 import static datadog.trace.api.config.TracerConfig.CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS;
@@ -529,7 +529,7 @@ public class Config {
   private final boolean crashTrackingAgentless;
   private final Map<String, String> crashTrackingTags;
 
-  private final boolean clientIpWithoutAppSec;
+  private final boolean clientIpEnabled;
 
   private final ProductActivationConfig appSecEnabled;
   private final boolean appSecReportingInband;
@@ -1103,8 +1103,7 @@ public class Config {
     }
     telemetryHeartbeatInterval = telemetryInterval;
 
-    this.clientIpWithoutAppSec =
-        configProvider.getBoolean(CLIENT_IP_WITHOUT_APPSEC, DEFAULT_CLIENT_IP_WITHOUT_APPSEC);
+    this.clientIpEnabled = configProvider.getBoolean(CLIENT_IP_ENABLED, DEFAULT_CLIENT_IP_ENABLED);
 
     // ConfigProvider.getString currently doesn't fallback to default for empty strings. So we have
     // special handling here until we have a general solution for empty string value fallback.
@@ -1696,7 +1695,8 @@ public class Config {
     return traceClientIpHeader;
   }
 
-  // whether to collect headers and run the client ip resolution (requires appsec to be enabled too)
+  // whether to collect headers and run the client ip resolution (also requires appsec to be enabled
+  // or clientIpEnabled)
   public boolean isTraceClientIpResolverEnabled() {
     return traceClientIpResolverEnabled;
   }
@@ -1813,8 +1813,8 @@ public class Config {
     return telemetryHeartbeatInterval;
   }
 
-  public boolean isClientIpWithoutAppSec() {
-    return clientIpWithoutAppSec;
+  public boolean isClientIpEnabled() {
+    return clientIpEnabled;
   }
 
   public ProductActivationConfig getAppSecEnabledConfig() {
@@ -3109,8 +3109,8 @@ public class Config {
         + grpcClientErrorStatuses
         + ", configProvider="
         + configProvider
-        + ", clientIpWithoutAppSec="
-        + clientIpWithoutAppSec
+        + ", clientIpEnabled="
+        + clientIpEnabled
         + ", appSecEnabled="
         + appSecEnabled
         + ", appSecReportingInband="

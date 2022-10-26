@@ -70,7 +70,7 @@ public final class TracerConfig {
 
   public static final String ENABLE_TRACE_AGENT_V05 = "trace.agent.v0.5.enabled";
 
-  public static final String CLIENT_IP_WITHOUT_APPSEC = "trace.client-ip-without-appsec";
+  public static final String CLIENT_IP_ENABLED = "trace.client-ip.enabled";
 
   /**
    * Disables validation that prevents invalid combinations of sampling priority and sampling
