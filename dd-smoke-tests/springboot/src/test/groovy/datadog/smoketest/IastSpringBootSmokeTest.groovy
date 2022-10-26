@@ -21,7 +21,6 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     List<String> command = new ArrayList<>()
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
-    command.addAll(["-Ddd.appsec.enabled=true", "-Ddd.iast.enabled=true", "-Ddd.iast-request-sampling=100"])
     command.addAll([
       "-Ddd.appsec.enabled=true",
       "-Ddd.iast.enabled=true",
