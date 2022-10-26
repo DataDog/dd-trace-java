@@ -17,7 +17,6 @@ import com.datadog.appsec.util.StandardizedLogging;
 import com.google.auto.service.AutoService;
 import com.squareup.moshi.*;
 import datadog.trace.api.Config;
-import datadog.trace.api.ProductActivationConfig;
 import datadog.trace.api.gateway.Flow;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.Powerwaf;
@@ -163,18 +162,14 @@ public class PowerWAFModule implements AppSecModule {
 
     Optional<Object> initialConfig =
         appSecConfigService.addSubConfigListener("waf", this::applyConfig);
+    if (!initialConfig.isPresent()) {
+      throw new AppSecModuleActivationException("No initial config for WAF");
+    }
 
-    ProductActivationConfig appSecEnabledConfig = Config.get().getAppSecEnabledConfig();
-    if (appSecEnabledConfig == ProductActivationConfig.FULLY_ENABLED) {
-      if (!initialConfig.isPresent()) {
-        throw new AppSecModuleActivationException("No initial config for WAF");
-      }
-
-      try {
-        applyConfig(initialConfig.get(), AppSecModuleConfigurer.Reconfiguration.NOOP);
-      } catch (ClassCastException e) {
-        throw new AppSecModuleActivationException("Config expected to be AppSecConfig", e);
-      }
+    try {
+      applyConfig(initialConfig.get(), AppSecModuleConfigurer.Reconfiguration.NOOP);
+    } catch (ClassCastException e) {
+      throw new AppSecModuleActivationException("Config expected to be AppSecConfig", e);
     }
 
     appSecConfigService.addTraceSegmentPostProcessor(initReporter);
