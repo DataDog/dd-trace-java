@@ -44,6 +44,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   private TagContext.HttpHeaders httpHeaders;
   private final String customIpHeaderName;
   private final boolean clientIpResolutionEnabled;
+  private final boolean clientIpWithoutAppSec;
   private boolean collectIpHeaders;
 
   protected static final boolean LOG_EXTRACT_HEADER_NAMES = Config.get().isLogExtractHeaderNames();
@@ -57,6 +58,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     this.taggedHeaders = taggedHeaders;
     this.customIpHeaderName = config.getTraceClientIpHeader();
     this.clientIpResolutionEnabled = config.isTraceClientIpResolverEnabled();
+    this.clientIpWithoutAppSec = config.isClientIpWithoutAppSec();
     reset();
   }
 
@@ -183,7 +185,9 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     baggage = Collections.emptyMap();
     valid = true;
     httpHeaders = null;
-    collectIpHeaders = this.clientIpResolutionEnabled && ActiveSubsystems.APPSEC_ACTIVE;
+    collectIpHeaders =
+        this.clientIpWithoutAppSec
+            || this.clientIpResolutionEnabled && ActiveSubsystems.APPSEC_ACTIVE;
     return this;
   }
 

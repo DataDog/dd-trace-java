@@ -70,6 +70,8 @@ public final class TracerConfig {
 
   public static final String ENABLE_TRACE_AGENT_V05 = "trace.agent.v0.5.enabled";
 
+  public static final String CLIENT_IP_WITHOUT_APPSEC = "trace.client-ip-without-appsec";
+
   /**
    * Disables validation that prevents invalid combinations of sampling priority and sampling
    * mechanism on the set sampling priority calls. This check is enabled by default.

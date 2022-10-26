@@ -23,6 +23,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
+import static datadog.trace.api.config.TracerConfig.CLIENT_IP_WITHOUT_APPSEC
 import static datadog.trace.api.gateway.Events.EVENTS
 
 class HttpServerDecoratorTest extends ServerDecoratorTest {
@@ -247,6 +248,23 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     0 * ctx.getForwarded()
     0 * span.setTag(Tags.HTTP_FORWARDED, _)
     0 * this.span.setTag(Tags.HTTP_CLIENT_IP, _)
+  }
+
+  void 'disabling appsec but enabling client_ip_without_appsec enables header collection and ip address resolution'() {
+    setup:
+    injectSysConfig(CLIENT_IP_WITHOUT_APPSEC, 'true')
+    ActiveSubsystems.APPSEC_ACTIVE = false
+
+    def ctx = Mock(AgentSpan.Context.Extracted)
+    def decorator = newDecorator()
+
+    when:
+    decorator.onRequest(this.span, [peerIp: '4.4.4.4'], null, ctx)
+
+    then:
+    2 * ctx.getForwarded() >> 'for=2.3.4.5'
+    1 * this.span.setTag(Tags.HTTP_CLIENT_IP, '2.3.4.5')
+    1 * this.span.setTag(Tags.HTTP_FORWARDED, 'for=2.3.4.5')
   }
 
   void 'client ip reporting with custom header'() {
