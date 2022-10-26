@@ -23,70 +23,70 @@ class DDAgentStatsDClientTest extends DDSpecification {
     expect:
 
     client.incrementCounter(metricName, tags)
-    server.waitForMessage() == "$expectedMetricName:1|c|#$expectedTags"
+    server.waitForMessage().startsWith("$expectedMetricName:1|c|#$expectedTags")
 
     client.count(metricName, Integer.MIN_VALUE, tags)
-    server.waitForMessage() == "$expectedMetricName:-2147483648|c|#$expectedTags"
+    server.waitForMessage().startsWith("$expectedMetricName:-2147483648|c|#$expectedTags")
     client.count(metricName, Integer.MAX_VALUE, tags)
-    server.waitForMessage() == "$expectedMetricName:2147483647|c|#$expectedTags"
+    server.waitForMessage().startsWith("$expectedMetricName:2147483647|c|#$expectedTags")
     client.count(metricName, Long.MIN_VALUE, tags)
-    server.waitForMessage() == "$expectedMetricName:-9223372036854775808|c|#$expectedTags"
+    server.waitForMessage().startsWith("$expectedMetricName:-9223372036854775808|c|#$expectedTags")
     client.count(metricName, Long.MAX_VALUE, tags)
-    server.waitForMessage() == "$expectedMetricName:9223372036854775807|c|#$expectedTags"
+    server.waitForMessage().startsWith("$expectedMetricName:9223372036854775807|c|#$expectedTags")
 
     client.gauge(metricName, Integer.MIN_VALUE, tags)
-    server.waitForMessage() == "$expectedMetricName:-2147483648|g|#$expectedTags"
+    server.waitForMessage().startsWith("$expectedMetricName:-2147483648|g|#$expectedTags")
     client.gauge(metricName, Integer.MAX_VALUE, tags)
-    server.waitForMessage() == "$expectedMetricName:2147483647|g|#$expectedTags"
+    server.waitForMessage().startsWith("$expectedMetricName:2147483647|g|#$expectedTags")
     client.gauge(metricName, Long.MIN_VALUE, tags)
-    server.waitForMessage() == "$expectedMetricName:-9223372036854775808|g|#$expectedTags"
+    server.waitForMessage().startsWith("$expectedMetricName:-9223372036854775808|g|#$expectedTags")
     client.gauge(metricName, Long.MAX_VALUE, tags)
-    server.waitForMessage() == "$expectedMetricName:9223372036854775807|g|#$expectedTags"
+    server.waitForMessage().startsWith("$expectedMetricName:9223372036854775807|g|#$expectedTags")
 
     client.gauge(metricName, -Math.E, tags)
-    server.waitForMessage() == "$expectedMetricName:-2.718282|g|#$expectedTags"
+    server.waitForMessage().startsWith("$expectedMetricName:-2.718282|g|#$expectedTags")
     client.gauge(metricName, Math.PI, tags)
-    server.waitForMessage() == "$expectedMetricName:3.141593|g|#$expectedTags"
+    server.waitForMessage().startsWith("$expectedMetricName:3.141593|g|#$expectedTags")
 
     client.histogram(metricName, Integer.MIN_VALUE, tags)
-    server.waitForMessage() == "$expectedMetricName:-2147483648|h|#$expectedTags"
+    server.waitForMessage().startsWith("$expectedMetricName:-2147483648|h|#$expectedTags")
     client.histogram(metricName, Integer.MAX_VALUE, tags)
-    server.waitForMessage() == "$expectedMetricName:2147483647|h|#$expectedTags"
+    server.waitForMessage().startsWith("$expectedMetricName:2147483647|h|#$expectedTags")
     client.histogram(metricName, Long.MIN_VALUE, tags)
-    server.waitForMessage() == "$expectedMetricName:-9223372036854775808|h|#$expectedTags"
+    server.waitForMessage().startsWith("$expectedMetricName:-9223372036854775808|h|#$expectedTags")
     client.histogram(metricName, Long.MAX_VALUE, tags)
-    server.waitForMessage() == "$expectedMetricName:9223372036854775807|h|#$expectedTags"
+    server.waitForMessage().startsWith("$expectedMetricName:9223372036854775807|h|#$expectedTags")
 
     client.histogram(metricName, -Math.E, tags)
-    server.waitForMessage() == "$expectedMetricName:-2.718282|h|#$expectedTags"
+    server.waitForMessage().startsWith("$expectedMetricName:-2.718282|h|#$expectedTags")
     client.histogram(metricName, Math.PI, tags)
-    server.waitForMessage() == "$expectedMetricName:3.141593|h|#$expectedTags"
+    server.waitForMessage().startsWith("$expectedMetricName:3.141593|h|#$expectedTags")
 
     client.serviceCheck(checkName, "OK", null, tags)
-    server.waitForMessage() == "_sc|$expectedCheckName|0|#$expectedTags"
+    server.waitForMessage().startsWith("_sc|$expectedCheckName|0|#$expectedTags")
     client.serviceCheck(checkName, "WARN", null, tags)
-    server.waitForMessage() == "_sc|$expectedCheckName|1|#$expectedTags"
+    server.waitForMessage().startsWith("_sc|$expectedCheckName|1|#$expectedTags")
     client.serviceCheck(checkName, "WARNING", null, tags)
-    server.waitForMessage() == "_sc|$expectedCheckName|1|#$expectedTags"
+    server.waitForMessage().startsWith("_sc|$expectedCheckName|1|#$expectedTags")
     client.serviceCheck(checkName, "CRITICAL", null, tags)
-    server.waitForMessage() == "_sc|$expectedCheckName|2|#$expectedTags"
+    server.waitForMessage().startsWith("_sc|$expectedCheckName|2|#$expectedTags")
     client.serviceCheck(checkName, "ERROR", null, tags)
-    server.waitForMessage() == "_sc|$expectedCheckName|2|#$expectedTags"
+    server.waitForMessage().startsWith("_sc|$expectedCheckName|2|#$expectedTags")
     client.serviceCheck(checkName, "_UNKNOWN_", null, tags)
-    server.waitForMessage() == "_sc|$expectedCheckName|3|#$expectedTags"
+    server.waitForMessage().startsWith("_sc|$expectedCheckName|3|#$expectedTags")
 
     client.serviceCheck(checkName, "OK", "testing", tags)
-    server.waitForMessage() == "_sc|$expectedCheckName|0|#$expectedTags|m:testing"
+    server.waitForMessage().startsWith("_sc|$expectedCheckName|0|#$expectedTags|m:testing")
     client.serviceCheck(checkName, "WARN", "testing", tags)
-    server.waitForMessage() == "_sc|$expectedCheckName|1|#$expectedTags|m:testing"
+    server.waitForMessage().startsWith("_sc|$expectedCheckName|1|#$expectedTags|m:testing")
     client.serviceCheck(checkName, "WARNING", "testing", tags)
-    server.waitForMessage() == "_sc|$expectedCheckName|1|#$expectedTags|m:testing"
+    server.waitForMessage().startsWith("_sc|$expectedCheckName|1|#$expectedTags|m:testing")
     client.serviceCheck(checkName, "CRITICAL", "testing", tags)
-    server.waitForMessage() == "_sc|$expectedCheckName|2|#$expectedTags|m:testing"
+    server.waitForMessage().startsWith("_sc|$expectedCheckName|2|#$expectedTags|m:testing")
     client.serviceCheck(checkName, "ERROR", "testing", tags)
-    server.waitForMessage() == "_sc|$expectedCheckName|2|#$expectedTags|m:testing"
+    server.waitForMessage().startsWith("_sc|$expectedCheckName|2|#$expectedTags|m:testing")
     client.serviceCheck(checkName, "_UNKNOWN_", "testing", tags)
-    server.waitForMessage() == "_sc|$expectedCheckName|3|#$expectedTags|m:testing"
+    server.waitForMessage().startsWith("_sc|$expectedCheckName|3|#$expectedTags|m:testing")
 
     cleanup:
     client.close()
@@ -118,19 +118,19 @@ class DDAgentStatsDClientTest extends DDSpecification {
 
     expect:
     client1.incrementCounter(metricName, metricTags)
-    server.waitForMessage() == "test.metric:1|c|#jmx_domain:java.nio,type:BufferPool"
+    server.waitForMessage().startsWith("test.metric:1|c|#jmx_domain:java.nio,type:BufferPool")
     client1.close()
 
     client2.incrementCounter(metricName, metricTags)
-    server.waitForMessage() == "example.test.metric:1|c|#jmx_domain:java.nio,type:BufferPool"
+    server.waitForMessage().startsWith("example.test.metric:1|c|#jmx_domain:java.nio,type:BufferPool")
     client2.close()
 
     client3.incrementCounter(metricName, metricTags)
-    server.waitForMessage() == "test.metric:1|c|#jmx_domain:java.nio,type:BufferPool,lang:java,lang_version:1.8.0"
+    server.waitForMessage().startsWith("test.metric:1|c|#jmx_domain:java.nio,type:BufferPool,lang:java,lang_version:1.8.0")
     client3.close()
 
     client4.incrementCounter(metricName, metricTags)
-    server.waitForMessage() == "example.test.metric:1|c|#jmx_domain:java.nio,type:BufferPool,lang:java,lang_version:1.8.0"
+    server.waitForMessage().startsWith("example.test.metric:1|c|#jmx_domain:java.nio,type:BufferPool,lang:java,lang_version:1.8.0")
     client4.close()
 
     cleanup:
