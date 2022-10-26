@@ -28,7 +28,7 @@ class TimelineCheckpointer implements Checkpointer {
   }
 
   @Override
-  void onRootSpanWritten(AgentSpan rootSpan, boolean published, boolean checkpointsSampled) {
+  void onRootSpanFinished(AgentSpan rootSpan, boolean published) {
   }
 
   @Override
