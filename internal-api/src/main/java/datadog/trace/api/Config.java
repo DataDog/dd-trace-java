@@ -10,6 +10,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_METRICS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CLIENT_IP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_TLS_REFRESH;
@@ -279,6 +280,7 @@ import static datadog.trace.api.config.TracerConfig.AGENT_NAMED_PIPE;
 import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY;
 import static datadog.trace.api.config.TracerConfig.AGENT_TIMEOUT;
 import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET;
+import static datadog.trace.api.config.TracerConfig.CLIENT_IP_ENABLED;
 import static datadog.trace.api.config.TracerConfig.CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS;
@@ -307,7 +309,6 @@ import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL;
 import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER;
-import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER_DISABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_RESOLVER_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT;
@@ -493,7 +494,6 @@ public class Config {
 
   private final boolean traceAnalyticsEnabled;
   private final String traceClientIpHeader;
-  private final boolean traceClientIpHeaderDisabled;
   private final boolean traceClientIpResolverEnabled;
 
   private final Map<String, String> traceSamplingServiceRules;
@@ -528,6 +528,8 @@ public class Config {
 
   private final boolean crashTrackingAgentless;
   private final Map<String, String> crashTrackingTags;
+
+  private final boolean clientIpEnabled;
 
   private final ProductActivationConfig appSecEnabled;
   private final boolean appSecReportingInband;
@@ -995,9 +997,6 @@ public class Config {
     }
     this.traceClientIpHeader = traceClientIpHeader;
 
-    this.traceClientIpHeaderDisabled =
-        configProvider.getBoolean(TRACE_CLIENT_IP_HEADER_DISABLED, false);
-
     this.traceClientIpResolverEnabled =
         configProvider.getBoolean(TRACE_CLIENT_IP_RESOLVER_ENABLED, true);
 
@@ -1103,6 +1102,8 @@ public class Config {
       telemetryInterval = DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
     }
     telemetryHeartbeatInterval = telemetryInterval;
+
+    this.clientIpEnabled = configProvider.getBoolean(CLIENT_IP_ENABLED, DEFAULT_CLIENT_IP_ENABLED);
 
     // ConfigProvider.getString currently doesn't fallback to default for empty strings. So we have
     // special handling here until we have a general solution for empty string value fallback.
@@ -1694,10 +1695,8 @@ public class Config {
     return traceClientIpHeader;
   }
 
-  public boolean isTraceClientIpHeaderDisabled() {
-    return traceClientIpHeaderDisabled;
-  }
-
+  // whether to collect headers and run the client ip resolution (also requires appsec to be enabled
+  // or clientIpEnabled)
   public boolean isTraceClientIpResolverEnabled() {
     return traceClientIpResolverEnabled;
   }
@@ -1812,6 +1811,10 @@ public class Config {
 
   public int getTelemetryHeartbeatInterval() {
     return telemetryHeartbeatInterval;
+  }
+
+  public boolean isClientIpEnabled() {
+    return clientIpEnabled;
   }
 
   public ProductActivationConfig getAppSecEnabledConfig() {
@@ -3106,6 +3109,8 @@ public class Config {
         + grpcClientErrorStatuses
         + ", configProvider="
         + configProvider
+        + ", clientIpEnabled="
+        + clientIpEnabled
         + ", appSecEnabled="
         + appSecEnabled
         + ", appSecReportingInband="

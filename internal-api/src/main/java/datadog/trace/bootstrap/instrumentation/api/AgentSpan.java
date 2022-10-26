@@ -169,13 +169,11 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
     interface Extracted extends Context {
       String getForwarded();
 
-      String getForwardedProto();
+      String getXForwardedProto();
 
-      String getForwardedHost();
+      String getXForwardedHost();
 
-      String getForwardedIp();
-
-      String getForwardedPort();
+      String getXForwardedPort();
 
       String getForwardedFor();
 

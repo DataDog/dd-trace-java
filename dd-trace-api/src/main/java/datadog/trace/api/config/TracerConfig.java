@@ -45,7 +45,6 @@ public final class TracerConfig {
   public static final String TRACE_RATE_LIMIT = "trace.rate.limit";
   public static final String TRACE_REPORT_HOSTNAME = "trace.report-hostname";
   public static final String TRACE_CLIENT_IP_HEADER = "trace.client-ip-header";
-  public static final String TRACE_CLIENT_IP_HEADER_DISABLED = "trace.client-ip-header.disabled";
   public static final String TRACE_CLIENT_IP_RESOLVER_ENABLED = "trace.client-ip.resolver.enabled";
   public static final String HEADER_TAGS = "trace.header.tags";
   public static final String REQUEST_HEADER_TAGS = "trace.request_header.tags";
@@ -70,6 +69,8 @@ public final class TracerConfig {
   public static final String PROPAGATION_STYLE_INJECT = "propagation.style.inject";
 
   public static final String ENABLE_TRACE_AGENT_V05 = "trace.agent.v0.5.enabled";
+
+  public static final String CLIENT_IP_ENABLED = "trace.client-ip.enabled";
 
   /**
    * Disables validation that prevents invalid combinations of sampling priority and sampling

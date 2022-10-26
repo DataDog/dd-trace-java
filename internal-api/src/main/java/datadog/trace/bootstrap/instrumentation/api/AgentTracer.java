@@ -883,22 +883,17 @@ public class AgentTracer {
     }
 
     @Override
-    public String getForwardedProto() {
+    public String getXForwardedProto() {
       return null;
     }
 
     @Override
-    public String getForwardedHost() {
+    public String getXForwardedHost() {
       return null;
     }
 
     @Override
-    public String getForwardedIp() {
-      return null;
-    }
-
-    @Override
-    public String getForwardedPort() {
+    public String getXForwardedPort() {
       return null;
     }
 

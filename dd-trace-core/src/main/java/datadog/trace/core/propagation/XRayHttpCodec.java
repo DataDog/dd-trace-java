@@ -6,6 +6,7 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -125,7 +126,7 @@ class XRayHttpCodec {
   static class XRayContextInterpreter extends ContextInterpreter {
 
     private XRayContextInterpreter(Map<String, String> taggedHeaders) {
-      super(taggedHeaders);
+      super(taggedHeaders, Config.get());
     }
 
     @Override

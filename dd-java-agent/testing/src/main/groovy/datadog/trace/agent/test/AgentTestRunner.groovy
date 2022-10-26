@@ -23,6 +23,7 @@ import datadog.trace.api.WellKnownTags
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.api.time.TimeSource
+import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.common.metrics.EventListener
@@ -148,6 +149,8 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @Shared
   boolean isLatestDepTest = Boolean.getBoolean('test.dd.latestDepTest')
 
+  boolean originalAppSecRuntimeValue
+
   protected boolean isDataStreamsEnabled() {
     return false
   }
@@ -269,7 +272,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     injectSysConfig(TracerConfig.SCOPE_ITERATION_KEEP_ALIVE, "1") // don't let iteration spans linger
   }
 
-  def setup() {
+  void setup() {
     // re-register in case a new JVM is spawned
     TimelineTracingContextTracker.register()
 
@@ -296,6 +299,9 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     util.attachMock(STATS_D_CLIENT, this)
     util.attachMock(TEST_CHECKPOINTER, this)
     util.attachMock(TEST_TRACKER, this)
+
+    originalAppSecRuntimeValue = ActiveSubsystems.APPSEC_ACTIVE
+    ActiveSubsystems.APPSEC_ACTIVE = true
   }
 
   void cleanup() {
@@ -308,12 +314,14 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     TEST_TRACKER.print()
     TEST_CHECKPOINTER.throwOnInvalidSequence(TEST_SPANS)
+
+    ActiveSubsystems.APPSEC_ACTIVE = originalAppSecRuntimeValue
   }
 
   /** Override to clean up things after the agent is removed */
   protected void cleanupAfterAgent() {}
 
-  def cleanupSpec() {
+  void cleanupSpec() {
     TEST_TRACER?.close()
 
     if (null != activeTransformer) {
