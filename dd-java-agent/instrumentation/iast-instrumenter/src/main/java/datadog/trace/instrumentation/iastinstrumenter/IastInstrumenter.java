@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.iastinstrumenter;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteInstrumenter;
-import datadog.trace.api.Config;
 import datadog.trace.api.iast.IastAdvice;
 import java.util.Set;
 import net.bytebuddy.description.type.TypeDescription;
@@ -25,11 +24,6 @@ public class IastInstrumenter extends CallSiteInstrumenter
   @Override
   public boolean matches(final TypeDescription target) {
     return IastExclusionTrie.apply(target.getName()) != 1;
-  }
-
-  @Override
-  public boolean isEnabled() {
-    return Config.get().isIastEnabled();
   }
 
   @Override

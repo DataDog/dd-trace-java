@@ -5,7 +5,7 @@
 # Wildcard lines end with '.' or '$' and match any sub-packages/nested-classes
 
 # 0 = global allows
-# 1 = system-level ignores
+# 1 = Iast Instrumenter ignores
 
 # -------- JDK --------
 1 com.sun.*

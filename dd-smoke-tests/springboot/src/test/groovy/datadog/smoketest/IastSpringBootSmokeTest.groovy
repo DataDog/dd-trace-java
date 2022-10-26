@@ -2,7 +2,6 @@ package datadog.smoketest
 
 import datadog.trace.api.Platform
 import okhttp3.Request
-import okhttp3.Response
 import spock.lang.IgnoreIf
 
 @IgnoreIf({
@@ -111,7 +110,6 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     when:
     def response = client.newCall(request).execute()
 
-
     then:
     response.body().string().contains("MessageDigest.getInstance executed")
     Thread.sleep(100) //This is needed so we allow enough time for the log to be written
@@ -121,6 +119,7 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
         vulnerabilityFound = true
       }
     }
-    vulnerabilityFound
+
+    vulnerabilityFound == true
   }
 }
