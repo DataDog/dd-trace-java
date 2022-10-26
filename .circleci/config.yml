@@ -597,7 +597,9 @@ jobs:
 
       - run:
           name: Clone System Tests repo
-          command: git clone https://github.com/DataDog/system-tests.git
+          command: |
+            git clone https://github.com/DataDog/system-tests.git
+            git checkout robertomonteromiguel/system_tests_ci_visibility_integration
 
       - run:
           name: Copy jar file to system test binaries folder
@@ -616,6 +618,14 @@ jobs:
           command: |
             cd system-tests
             DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
+
+      - run:
+          name: Upload data to CI Visibility
+          command: |
+            cd system-tests
+            export DD_API_KEY=$DD_CI_API_KEY
+            export DD_APP_KEY=$DD_CI_APP_KEY
+            ./utils/scripts/upload_results_CI_visibility.sh dev java-tracer << pipeline.id >>-<< pipeline.number >>
 
       - store_artifacts:
           path: system-tests/logs
