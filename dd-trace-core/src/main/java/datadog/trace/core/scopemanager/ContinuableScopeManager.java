@@ -255,7 +255,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     /** Flag to propagate this scope across async boundaries. */
     private boolean isAsyncPropagating;
 
-    private byte flags;
+    private final byte flags;
 
     private short referenceCount = 1;
 
@@ -323,10 +323,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
         } catch (Exception e) {
           log.debug("ScopeListener threw exception in close()", e);
         }
-      }
-
-      if (!notifiedOnActivate()) {
-        return;
       }
 
       for (final ExtendedScopeListener listener : scopeManager.extendedScopeListeners) {
@@ -409,11 +405,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
         }
       }
 
-      if (span.eligibleForDropping()) {
-        return;
-      }
-      flags |= 0x80;
-
       for (final ExtendedScopeListener listener : scopeManager.extendedScopeListeners) {
         try {
           listener.afterScopeActivated(
@@ -427,10 +418,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     @Override
     public byte source() {
       return (byte) (flags & 0x7F);
-    }
-
-    private boolean notifiedOnActivate() {
-      return flags < 0;
     }
 
     @Override
