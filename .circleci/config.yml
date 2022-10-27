@@ -625,6 +625,7 @@ jobs:
             cd system-tests
             DD_API_KEY=$SYSTEM_TESTS_CI_API_KEY
             DD_APP_KEY=$SYSTEM_TESTS_CI_APP_KEY
+            ls
             utils/scripts/upload_results_CI_visibility.sh dev java-tracer << pipeline.id >>-<< pipeline.number >>
             utils/scripts/update_dashboard_CI_visibility.sh java-tracer << pipeline.id >>-<< pipeline.number >>
 
