@@ -635,6 +635,10 @@ jobs:
             echo "${DD_API_KEY}"
             echo "********NEXT APP KEY*********"
             echo "${DD_APP_KEY}"
+            echo "********ENV API KEY*********"
+            echo $SYSTEM_TESTS_CI_API_KEY
+            echo "********ENV APP KEY*********"
+            echo $SYSTEM_TESTS_CI_APP_KEY
             utils/scripts/upload_results_CI_visibility.sh dev java-tracer << pipeline.id >>-<< pipeline.number >>
             utils/scripts/update_dashboard_CI_visibility.sh java-tracer << pipeline.id >>-<< pipeline.number >>
           environment:
