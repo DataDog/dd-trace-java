@@ -446,6 +446,10 @@ jobs:
     <<: *tests
     resource_class: xlarge
 
+  huge_tests:
+    <<: *tests
+    resource_class: 2xlarge
+
   # The only way to do fan-in in CircleCI seems to have a proper job, so let's have one that
   # doesn't consume so many resources. The execution time for this including spin up seems to
   # be around 6 seconds.
@@ -711,7 +715,7 @@ build_test_jobs: &build_test_jobs
       matrix:
         <<: *profiling_test_matrix
 
-  - xlarge_tests:
+  - huge_tests:
       requires:
         - build
       name: z_test_<< matrix.testJvm >>_smoke
@@ -720,7 +724,7 @@ build_test_jobs: &build_test_jobs
       matrix:
         <<: *test_matrix
 
-  - xlarge_tests:
+  - huge_tests:
       requires:
         - build
       name: test_IBM11_smoke
@@ -728,7 +732,7 @@ build_test_jobs: &build_test_jobs
       stage: smoke
       testJvm: "IBM11"
 
-  - xlarge_tests:
+  - huge_tests:
       requires:
         - build
       name: test_IBM17_smoke
