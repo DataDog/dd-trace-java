@@ -643,14 +643,15 @@ jobs:
             echo $SYSTEM_TESTS_CI_API_KEY
             echo "********ENV APP KEY*********"
             echo $SYSTEM_TESTS_CI_APP_KEY
+           
+            echo "********DATADOG_API_KEY********"
+            echo $DATADOG_API_KEY
             echo "********LOS IF********"
-
             if [[ $DD_API_KEY == *b353 ]]; then  echo "La key es la mia"; else  echo "La key NO es la mia"; fi
             if [[ $DD_API_KEY == *7570 ]]: then  echo "La key es la OTRA"; else  echo "La key NO es la OTRA"; fi
             if [[ $DD_API_KEY == *025a ]]; then  echo "La key es la DATADOG"; else  echo "La key NO es la DATADOG"; fi
 
-            echo "********DATADOG_API_KEY********"
-            echo $DATADOG_API_KEY
+            
 
 
             utils/scripts/upload_results_CI_visibility.sh dev java-tracer << pipeline.id >>-<< pipeline.number >>
