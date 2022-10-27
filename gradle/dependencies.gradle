@@ -23,7 +23,7 @@ final class CachedData {
     truth         : "1.1.3",
     kotlin        : "1.3.72",
     coroutines    : "1.3.0",
-    dogstatsd     : "4.0.0",
+    dogstatsd     : "4.1.0",
     jnr_unixsocket: "0.28",
     jnr_ffi       : '2.1.12', // dependency of jnr_unixsocket: update in tandem
     commons       : "3.2",
