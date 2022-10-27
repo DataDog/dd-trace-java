@@ -371,11 +371,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
       isAsyncPropagating = value;
     }
 
-    @Override
-    public boolean checkpointed() {
-      return false;
-    }
-
     /**
      * The continuation returned must be closed or activated or the trace will not finish.
      *
@@ -461,11 +456,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
         final ContinuableScopeManager.Continuation continuation) {
       super(scopeManager, span, source, isAsyncPropagating);
       this.continuation = continuation;
-    }
-
-    @Override
-    public boolean checkpointed() {
-      return continuation.migrated;
     }
 
     @Override
@@ -607,7 +597,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     final AgentSpan spanUnderScope;
     final byte source;
     final AgentTrace trace;
-    protected volatile boolean migrated;
 
     public Continuation(
         ContinuableScopeManager scopeManager, AgentSpan spanUnderScope, byte source) {
@@ -646,9 +635,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     @Override
     public AgentScope activate() {
       if (USED.compareAndSet(this, 0, 1)) {
-        if (migrated) {
-          spanUnderScope.finishThreadMigration();
-        }
         return scopeManager.continueSpan(this, spanUnderScope, source);
       } else {
         log.debug(
@@ -664,17 +650,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
       } else {
         log.debug("Failed to close continuation {}. Already used.", this);
       }
-    }
-
-    @Override
-    public void migrate() {
-      this.migrated = true;
-      spanUnderScope.startThreadMigration();
-    }
-
-    @Override
-    public void migrated() {
-      this.migrated = true;
     }
 
     @Override
@@ -715,12 +690,9 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     private static final AtomicIntegerFieldUpdater<ConcurrentContinuation> COUNT =
         AtomicIntegerFieldUpdater.newUpdater(ConcurrentContinuation.class, "count");
 
-    private ConcurrentContinuation(
-        final ContinuableScopeManager scopeManager,
-        final AgentSpan spanUnderScope,
-        final byte source) {
+    public ConcurrentContinuation(
+        ContinuableScopeManager scopeManager, AgentSpan spanUnderScope, byte source) {
       super(scopeManager, spanUnderScope, source);
-      spanUnderScope.startThreadMigration();
     }
 
     private boolean tryActivate() {
@@ -752,7 +724,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     public AgentScope activate() {
       if (tryActivate()) {
         AgentScope scope = scopeManager.continueSpan(this, spanUnderScope, source);
-        spanUnderScope.finishThreadMigration();
         spanUnderScope.startWork();
         return scope;
       } else {
@@ -766,16 +737,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
         trace.cancelContinuation(this);
       }
       log.debug("t_id={} -> canceling continuation {}", spanUnderScope.getTraceId(), this);
-    }
-
-    @Override
-    public void migrate() {
-      // This has no meaning for a concurrent continuation
-    }
-
-    @Override
-    public void migrated() {
-      // This has no meaning for a concurrent continuation
     }
 
     @Override
@@ -852,7 +813,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
         } else if (NANOSECONDS.toMillis(rootScope.span.getStartTime()) < cutOff) {
           // mark scope as overdue to allow cleanup and avoid further spans being attached
           scopeStack.overdueRootScope = rootScope;
-          rootScope.span.finishThreadMigration();
           rootScope.span.finishWithEndToEnd();
           itr.remove();
         }

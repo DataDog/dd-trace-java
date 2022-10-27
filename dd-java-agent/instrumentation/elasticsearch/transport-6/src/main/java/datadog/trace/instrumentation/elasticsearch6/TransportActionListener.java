@@ -9,7 +9,6 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.IndicesRequest;
-import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.bulk.BulkShardResponse;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexResponse;
@@ -26,13 +25,11 @@ public class TransportActionListener<T extends ActionResponse> implements Action
 
   private final ActionListener<T> listener;
   private final AgentSpan span;
-  private final boolean migrateSpan;
 
   public TransportActionListener(
       final ActionRequest actionRequest, final ActionListener<T> listener, final AgentSpan span) {
     this.listener = listener;
     this.span = span;
-    this.migrateSpan = actionRequest instanceof PutMappingRequest;
     onRequest(actionRequest);
   }
 
@@ -53,16 +50,10 @@ public class TransportActionListener<T extends ActionResponse> implements Action
       span.setTag("elasticsearch.request.write.routing", req.routing());
       span.setTag("elasticsearch.request.write.version", req.version());
     }
-    if (migrateSpan) {
-      span.startThreadMigration();
-    }
   }
 
   @Override
   public void onResponse(final T response) {
-    if (migrateSpan) {
-      span.finishThreadMigration();
-    }
     if (response.remoteAddress() != null) {
       DECORATE.onPeerConnection(span, response.remoteAddress().address());
     }

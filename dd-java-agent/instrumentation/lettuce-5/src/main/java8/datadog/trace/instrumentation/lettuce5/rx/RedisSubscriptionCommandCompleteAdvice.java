@@ -11,19 +11,6 @@ import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Subscription;
 
 public class RedisSubscriptionCommandCompleteAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static void beforeComplete(
-      @Advice.This RedisCommand command, @Advice.FieldValue("completed") boolean completed) {
-
-    if (completed) {
-      return;
-    }
-
-    AgentSpan span = InstrumentationContext.get(RedisCommand.class, AgentSpan.class).get(command);
-    if (span != null) {
-      span.finishThreadMigration();
-    }
-  }
 
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void afterComplete(

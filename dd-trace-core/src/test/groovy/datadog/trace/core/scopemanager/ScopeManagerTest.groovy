@@ -31,7 +31,6 @@ import java.util.concurrent.atomic.AtomicReference
 
 import static datadog.trace.api.Checkpointer.CPU
 import static datadog.trace.api.Checkpointer.END
-import static datadog.trace.api.Checkpointer.SPAN
 import static datadog.trace.core.scopemanager.EVENT.ACTIVATE
 import static datadog.trace.core.scopemanager.EVENT.CLOSE
 import static datadog.trace.test.util.GCUtils.awaitGC
@@ -466,8 +465,6 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then:
     assertEvents([ACTIVATE, ACTIVATE])
-    2 * checkpointer.checkpoint(_, SPAN) // two spans started by test
-    1 * checkpointer.checkpoint(_, SPAN | END) // span ended by test
     _ * checkpointer.checkpoint(_, CPU)
     _ * checkpointer.checkpoint(_, CPU | END)
     1 * statsDClient.incrementCounter("scope.close.error")
@@ -479,7 +476,6 @@ class ScopeManagerTest extends DDCoreSpecification {
     secondScope.close()
 
     then:
-    1 * checkpointer.checkpoint(_, SPAN | END) // span ended by test
     _ * checkpointer.checkpoint(_, CPU)
     _ * checkpointer.checkpoint(_, CPU | END)
     1 * checkpointer.onRootSpanWritten(_, _, _)
@@ -509,7 +505,6 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeSpan() == firstSpan
     tracer.activeScope() == firstScope
     assertEvents([ACTIVATE])
-    1 * checkpointer.checkpoint(_, SPAN) // span started by test
     _ * checkpointer.checkpoint(_, CPU)
     _ * checkpointer.checkpoint(_, CPU | END)
     1 * checkpointer.onRootSpanStarted(_)
@@ -520,7 +515,6 @@ class ScopeManagerTest extends DDCoreSpecification {
     AgentScope secondScope = tracer.activateSpan(secondSpan)
 
     then:
-    1 * checkpointer.checkpoint(_, SPAN) // span started by test
     _ * checkpointer.checkpoint(_, CPU)
     _ * checkpointer.checkpoint(_, CPU | END)
     assertEvents([ACTIVATE, ACTIVATE])
@@ -534,7 +528,6 @@ class ScopeManagerTest extends DDCoreSpecification {
     AgentScope thirdScope = tracer.activateSpan(thirdSpan)
 
     then:
-    1 * checkpointer.checkpoint(_, SPAN) // span started by test
     _ * checkpointer.checkpoint(_, CPU)
     _ * checkpointer.checkpoint(_, CPU | END)
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
@@ -617,7 +610,6 @@ class ScopeManagerTest extends DDCoreSpecification {
     0 * _
 
     then:
-    1 * checkpointer.checkpoint(_, SPAN) // span started by test
     _ * checkpointer.checkpoint(_, CPU)
     _ * checkpointer.checkpoint(_, CPU | END)
     assertEvents([ACTIVATE, ACTIVATE])
@@ -640,7 +632,6 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then: 'Closing scope above multiple activated scope does not close it'
     assertEvents([ACTIVATE, ACTIVATE, CLOSE, ACTIVATE])
-    1 * checkpointer.checkpoint(_, SPAN | END) // span finished by test
     _ * checkpointer.checkpoint(_, _)
     _ * statsDClient.close()
     0 * _

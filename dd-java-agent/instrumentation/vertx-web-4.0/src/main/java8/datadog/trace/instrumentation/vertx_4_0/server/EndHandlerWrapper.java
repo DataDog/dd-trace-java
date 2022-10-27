@@ -25,7 +25,6 @@ public class EndHandlerWrapper implements Handler<Void> {
     AgentSpan parentSpan = routingContext.get(PARENT_SPAN_CONTEXT_KEY);
     String path = routingContext.get(ROUTE_CONTEXT_KEY);
     try {
-      span.finishThreadMigration();
       if (actual != null) {
         actual.handle(event);
       }

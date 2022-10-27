@@ -198,11 +198,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public void onStart(AgentSpan span) {
-    spanCheckpointer.onStart(span);
-  }
-
-  @Override
   public void onStartWork(AgentSpan span) {
     spanCheckpointer.onStartWork(span);
   }
@@ -210,21 +205,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public void onFinishWork(AgentSpan span) {
     spanCheckpointer.onFinishWork(span);
-  }
-
-  @Override
-  public void onStartThreadMigration(AgentSpan span) {
-    spanCheckpointer.onStartThreadMigration(span);
-  }
-
-  @Override
-  public void onFinishThreadMigration(AgentSpan span) {
-    spanCheckpointer.onFinishThreadMigration(span);
-  }
-
-  @Override
-  public void onFinish(AgentSpan span) {
-    spanCheckpointer.onFinish(span);
   }
 
   @Override

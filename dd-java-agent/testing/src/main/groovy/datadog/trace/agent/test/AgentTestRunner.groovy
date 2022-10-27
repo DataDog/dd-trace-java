@@ -14,7 +14,6 @@ import datadog.trace.agent.tooling.AgentInstaller
 import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
-import datadog.trace.api.Checkpointer
 import datadog.trace.api.Config
 import datadog.trace.api.DDId
 import datadog.trace.api.Platform
@@ -228,8 +227,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       agentSpan
     }
     TEST_CHECKPOINTER.checkpoint(_, _, _) >> { DDId traceId, DDId spanId, int flags ->
-      // We need to treat startSpan differently because of how we mock TEST_TRACER.startSpan
-      if (flags == Checkpointer.SPAN || TEST_SPANS.contains(spanId)) {
+      if (TEST_SPANS.contains(spanId)) {
         callRealMethod()
       }
     }
