@@ -138,29 +138,43 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     initialRulesOverride.present == false
 
     when:
+    // AppSec is INACTIVE - rules should not trigger subscriptions
     savedConfChangesListener.accept(
       'ignored config key',
       savedConfDeserializer.deserialize(
       '{"version": "2.0"}'.bytes), null)
-    savedWafDataChangesListener.accept(
-      'ignored config key',
-      savedWafDataDeserializer.deserialize('{"rules_data":[{"id":"foo","type":"","data":[]}]}'.bytes), null
-      )
-    savedWafRulesOverrideListener.accept(
-      'ignored config key',
-      savedWafRulesOverrideDeserializer.deserialize('{"rules_override": [{"id": "foo", "enabled":false}]}'.bytes), null
-      )
+
+    then:
+    0 * _._
+
+    when:
     savedFeaturesListener.accept(
       'ignored config key',
       savedFeaturesDeserializer.deserialize(
       '{"asm":{"enabled": true}}'.bytes), null)
 
     then:
+    0 * _._
+    AppSecSystem.active == true
+
+    when:
+    // AppSec is ACTIVE - rules trigger subscriptions
+    savedConfChangesListener.accept(
+      'ignored config key',
+      savedConfDeserializer.deserialize(
+      '{"version": "2.0"}'.bytes), null)
+    savedWafDataChangesListener.accept(
+      'ignored config key',
+      savedWafDataDeserializer.deserialize('{"rules_data":[{"id":"foo","type":"","data":[]}]}'.bytes), null)
+    savedWafRulesOverrideListener.accept(
+      'ignored config key',
+      savedWafRulesOverrideDeserializer.deserialize('{"rules_override": [{"id": "foo", "enabled":false}]}'.bytes), null)
+
+    then:
     1 * subconfigListener.onNewSubconfig(AppSecConfig.valueOf([version: '2.0']), _)
     1 * wafDataListener.onNewSubconfig([[id: 'foo', type: '', data: []]], _)
     1 * wafRulesOverrideListener.onNewSubconfig([foo: false], _)
     0 * _._
-    AppSecSystem.active == true
 
     when:
     savedFeaturesListener.accept('config_key',
