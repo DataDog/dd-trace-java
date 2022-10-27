@@ -18,6 +18,8 @@ import spock.lang.Subject
 
 import java.util.concurrent.TimeUnit
 
+import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.*
+
 class DDAgentWriterTest extends DDCoreSpecification {
 
   def discovery = Mock(DDAgentFeaturesDiscovery)
@@ -99,7 +101,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
     0 * _
   }
 
-  def "test writer.write"() {
+  def "test writer.write publish succeeds"() {
     setup:
     def trace = [dummyTracer.buildSpan("fakeOperation").start()]
 
@@ -107,17 +109,38 @@ class DDAgentWriterTest extends DDCoreSpecification {
     writer.write(trace)
 
     then: "monitor is notified of successful publication"
-    1 * worker.publish(_, _, trace) >> true
+    1 * worker.publish(_, _, trace) >> ENQUEUED_FOR_SERIALIZATION
     1 * monitor.onPublish(trace, _)
     0 * _
+  }
+
+  def "test writer.write publish for single span sampling"() {
+    setup:
+    def trace = [dummyTracer.buildSpan("fakeOperation").start()]
+
+    when: "publish succeeds"
+    writer.write(trace)
+
+    then: "monitor is notified of successful publication"
+    1 * worker.publish(_, _, trace) >> ENQUEUED_FOR_SINGLE_SPAN_SAMPLING
+    // shouldn't call monitor.onPublish
+    0 * _
+  }
+
+  def "test writer.write publish fails"() {
+    setup:
+    def trace = [dummyTracer.buildSpan("fakeOperation").start()]
 
     when: "publish fails"
     writer.write(trace)
 
     then: "monitor is notified of unsuccessful publication"
-    1 * worker.publish(_, _, trace) >> false
+    1 * worker.publish(_, _, trace) >> publishResult
     1 * monitor.onFailedPublish(_)
     0 * _
+
+    where:
+    publishResult << [DROPPED_BUFFER_OVERFLOW, DROPPED_BY_POLICY]
   }
 
   def "empty traces should be reported as failures"() {
@@ -158,8 +181,11 @@ class DDAgentWriterTest extends DDCoreSpecification {
     writer.write(trace)
 
     then:
-    1 * worker.publish(trace[0], PrioritySampling.SAMPLER_DROP, trace) >> false
+    1 * worker.publish(trace[0], PrioritySampling.SAMPLER_DROP, trace) >> publishResult
     1 * dispatcher.onDroppedTrace(trace.size())
+
+    where:
+    publishResult << [DROPPED_BY_POLICY, DROPPED_BUFFER_OVERFLOW]
   }
 
   def newSpan() {

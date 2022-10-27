@@ -7,35 +7,48 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscBlockingConsumerArrayQueue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SpanSamplingWorker implements AutoCloseable {
+
+  private static final Logger log = LoggerFactory.getLogger(SpanSamplingWorker.class);
 
   private final Thread spanSamplingThread;
   private final SamplingHandler samplingHandler;
   private final MpscBlockingConsumerArrayQueue<Object> spanSamplingQueue;
   private final Queue<Object> sampledSpansQueue;
   private final SingleSpanSampler singleSpanSampler;
+  private final HealthMetrics healthMetrics;
 
   public static SpanSamplingWorker build(
-      int capacity, Queue<Object> sampledSpansQueue, SingleSpanSampler singleSpanSampler) {
+      int capacity,
+      Queue<Object> sampledSpansQueue,
+      SingleSpanSampler singleSpanSampler,
+      HealthMetrics healthMetrics) {
     if (singleSpanSampler == null) {
       return null;
     }
-    return new SpanSamplingWorker(capacity, sampledSpansQueue, singleSpanSampler);
+    return new SpanSamplingWorker(capacity, sampledSpansQueue, singleSpanSampler, healthMetrics);
   }
 
   private SpanSamplingWorker(
-      int capacity, Queue<Object> sampledSpansQueue, SingleSpanSampler singleSpanSampler) {
+      int capacity,
+      Queue<Object> sampledSpansQueue,
+      SingleSpanSampler singleSpanSampler,
+      HealthMetrics healthMetrics) {
     this.samplingHandler = new SamplingHandler();
     this.spanSamplingThread = newAgentThread(SPAN_SAMPLING_PROCESSOR, samplingHandler);
     this.spanSamplingQueue = new MpscBlockingConsumerArrayQueue<>(capacity);
     this.sampledSpansQueue = sampledSpansQueue;
     this.singleSpanSampler = singleSpanSampler;
+    this.healthMetrics = healthMetrics;
   }
 
   public void start() {
@@ -91,9 +104,21 @@ public class SpanSamplingWorker implements AutoCloseable {
             sampledSpans.add(span);
           } // else ignore dropped spans
         }
-        if (sampledSpans.size() > 0 && !sampledSpansQueue.offer(sampledSpans)) {
-          // TODO should decrement sent traces and increment dropped traces/spans counters (see
-          // datadog.trace.common.writer.RemoteWriter.write)
+
+        int samplingPriority = trace.get(0).samplingPriority();
+        if (sampledSpans.size() == 0 || !sampledSpansQueue.offer(sampledSpans)) {
+          // dropped all spans or couldn't send sampled spans because the queue is full
+          healthMetrics.onFailedPublish(samplingPriority);
+          log.debug(
+              "{}. Counted but dropping trace: {}",
+              "Trace was empty or written to overfilled buffer",
+              trace);
+        } else if (sampledSpans.size() < trace.size()) {
+          // TODO partialTraces++
+          // TODO droppedSpans += trace.size() - sampledSpans.size()
+        } else {
+          // all spans are sampled, count as an entire published trace
+          healthMetrics.onPublish(sampledSpans, samplingPriority);
         }
       }
     }

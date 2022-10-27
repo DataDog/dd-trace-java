@@ -54,7 +54,8 @@ public class TraceProcessingWorker implements AutoCloseable {
     this.capacity = capacity;
     this.primaryQueue = createQueue(capacity);
     this.secondaryQueue = createQueue(capacity);
-    this.spanSamplingWorker = SpanSamplingWorker.build(capacity, secondaryQueue, singleSpanSampler);
+    this.spanSamplingWorker =
+        SpanSamplingWorker.build(capacity, secondaryQueue, singleSpanSampler, healthMetrics);
     Queue<Object> droppedTracesQueue =
         spanSamplingWorker == null ? null : spanSamplingWorker.getSpanSamplingQueue();
     this.prioritizationStrategy =
@@ -99,7 +100,7 @@ public class TraceProcessingWorker implements AutoCloseable {
     }
   }
 
-  public <T extends CoreSpan<T>> boolean publish(
+  public <T extends CoreSpan<T>> PrioritizationStrategy.PublishResult publish(
       T root, int samplingPriority, final List<T> trace) {
     return prioritizationStrategy.publish(root, samplingPriority, trace);
   }

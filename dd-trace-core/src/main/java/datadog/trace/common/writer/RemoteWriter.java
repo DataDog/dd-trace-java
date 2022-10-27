@@ -80,13 +80,19 @@ public abstract class RemoteWriter implements Writer {
         handleDroppedTrace("Trace was empty", trace);
       } else {
         final DDSpan root = trace.get(0);
-        final int samplingPriority = root.context().getSamplingPriority();
-        if (traceProcessingWorker.publish(root, samplingPriority, trace)) {
-          // TODO this must only count really published traces, but it's not true for traces sent to
-          // single span sampling worker
-          healthMetrics.onPublish(trace, samplingPriority);
-        } else {
-          handleDroppedTrace("Trace written to overfilled buffer", trace, samplingPriority);
+        final int samplingPriority = root.samplingPriority();
+        switch (traceProcessingWorker.publish(root, samplingPriority, trace)) {
+          case ENQUEUED_FOR_SERIALIZATION:
+            healthMetrics.onPublish(trace, samplingPriority);
+            break;
+          case ENQUEUED_FOR_SINGLE_SPAN_SAMPLING:
+            break;
+          case DROPPED_BY_POLICY:
+            handleDroppedTrace("Dropping policy is active", trace, samplingPriority);
+            break;
+          case DROPPED_BUFFER_OVERFLOW:
+            handleDroppedTrace("Trace written to overfilled buffer", trace, samplingPriority);
+            break;
         }
       }
     } else {

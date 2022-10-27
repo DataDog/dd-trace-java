@@ -1,6 +1,7 @@
 package datadog.trace.common.writer
 
 import datadog.trace.common.sampling.SingleSpanSampler
+import datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.DDSpan
 import datadog.trace.core.monitor.HealthMetrics
@@ -16,6 +17,7 @@ import static datadog.trace.api.sampling.PrioritySampling.UNSET
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE
+import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.*
 
 class TraceProcessingWorkerTest extends DDSpecification {
 
@@ -47,7 +49,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
 
     then: "heartbeat occurs automatically"
     conditions.eventually {
-      flushCount.get() > 0
+      assert flushCount.get() > 0
     }
 
     cleanup:
@@ -74,7 +76,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
 
     then: "heartbeat occurs automatically approximately once per second"
     timeConditions.eventually {
-      flushCount.get() > 1
+      assert flushCount.get() > 1
     }
 
     cleanup:
@@ -137,7 +139,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
 
     then: "the error is reported to the monitor"
     conditions.eventually {
-      1 == errorReported.get()
+      assert 1 == errorReported.get()
     }
 
     cleanup:
@@ -165,18 +167,18 @@ class TraceProcessingWorkerTest extends DDSpecification {
     when: "traces are submitted"
     int submitted = 0
     for (int i = 0; i < traceCount; ++i) {
-      submitted += worker.publish(Mock(DDSpan), priority, [Mock(DDSpan)]) ? 1 : 0
+      PublishResult publishResult = worker.publish(Mock(DDSpan), priority, [Mock(DDSpan)])
+      submitted += publishResult == ENQUEUED_FOR_SERIALIZATION ? 1 : 0
     }
 
     then: "traces are passed through unless rejected on submission"
     0 * healthMetrics.onFailedSerialize(_, _)
     conditions.eventually {
-      submitted == acceptedCount.get()
+      assert submitted == acceptedCount.get()
     }
 
     cleanup:
     worker.close()
-
 
     where:
     priority     | traceCount | strategy
@@ -200,7 +202,6 @@ class TraceProcessingWorkerTest extends DDSpecification {
     SAMPLER_KEEP | 100        | FAST_LANE
     USER_KEEP    | 100        | FAST_LANE
     UNSET        | 100        | FAST_LANE
-
   }
 
   def "flush of full queue after worker thread stopped will not flush but will return"() {

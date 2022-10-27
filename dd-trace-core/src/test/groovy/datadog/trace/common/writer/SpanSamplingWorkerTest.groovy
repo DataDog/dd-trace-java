@@ -2,6 +2,7 @@ package datadog.trace.common.writer
 
 import datadog.trace.common.sampling.SingleSpanSampler
 import datadog.trace.core.DDSpan
+import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.test.util.DDSpecification
 
 import java.util.concurrent.LinkedBlockingDeque
@@ -12,7 +13,8 @@ class SpanSamplingWorkerTest extends DDSpecification {
     setup:
     Queue<Object> sampledSpanQueue = new LinkedBlockingDeque<>(10)
     SingleSpanSampler singleSpanSampler = Mock(SingleSpanSampler)
-    SpanSamplingWorker worker = SpanSamplingWorker.build(10, sampledSpanQueue, singleSpanSampler)
+    HealthMetrics healthMetrics = Mock(HealthMetrics)
+    SpanSamplingWorker worker = SpanSamplingWorker.build(10, sampledSpanQueue, singleSpanSampler, healthMetrics)
     worker.start()
     DDSpan span1 = Mock(DDSpan)
     DDSpan span2 = Mock(DDSpan)

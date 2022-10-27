@@ -83,18 +83,23 @@ public enum Prioritization {
     }
 
     @Override
-    public <T extends CoreSpan<T>> boolean publish(T root, int priority, final List<T> trace) {
+    public <T extends CoreSpan<T>> PublishResult publish(
+        T root, int priority, final List<T> trace) {
       switch (priority) {
         case SAMPLER_DROP:
         case USER_DROP:
           if (spanSampling != null) {
             // send dropped traces for single span sampling
-            return spanSampling.offer(trace);
+            return spanSampling.offer(trace)
+                ? PublishResult.ENQUEUED_FOR_SINGLE_SPAN_SAMPLING
+                : PublishResult.DROPPED_BUFFER_OVERFLOW;
           }
-          return secondary.offer(trace);
+          return secondary.offer(trace)
+              ? PublishResult.ENQUEUED_FOR_SERIALIZATION
+              : PublishResult.DROPPED_BUFFER_OVERFLOW;
         default:
           blockingOffer(primary, trace);
-          return true;
+          return PublishResult.ENQUEUED_FOR_SERIALIZATION;
       }
     }
   }
@@ -117,20 +122,31 @@ public enum Prioritization {
     }
 
     @Override
-    public <T extends CoreSpan<T>> boolean publish(T root, int priority, List<T> trace) {
+    public <T extends CoreSpan<T>> PublishResult publish(T root, int priority, List<T> trace) {
       if (root.isForceKeep()) {
-        return primary.offer(trace);
+        return primary.offer(trace)
+            ? PublishResult.ENQUEUED_FOR_SERIALIZATION
+            : PublishResult.DROPPED_BUFFER_OVERFLOW;
       }
       switch (priority) {
         case SAMPLER_DROP:
         case USER_DROP:
           if (spanSampling != null) {
             // send dropped traces for single span sampling
-            return spanSampling.offer(trace);
+            return spanSampling.offer(trace)
+                ? PublishResult.ENQUEUED_FOR_SINGLE_SPAN_SAMPLING
+                : PublishResult.DROPPED_BUFFER_OVERFLOW;
           }
-          return !droppingPolicy.active() && secondary.offer(trace);
+          if (droppingPolicy.active()) {
+            return PublishResult.DROPPED_BY_POLICY;
+          }
+          return secondary.offer(trace)
+              ? PublishResult.ENQUEUED_FOR_SERIALIZATION
+              : PublishResult.DROPPED_BUFFER_OVERFLOW;
         default:
-          return primary.offer(trace);
+          return primary.offer(trace)
+              ? PublishResult.ENQUEUED_FOR_SERIALIZATION
+              : PublishResult.DROPPED_BUFFER_OVERFLOW;
       }
     }
   }
