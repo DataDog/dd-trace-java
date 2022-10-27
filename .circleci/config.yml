@@ -721,6 +721,7 @@ build_test_jobs: &build_test_jobs
       name: z_test_<< matrix.testJvm >>_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
       stage: smoke
+      maxWorkers: 8
       matrix:
         <<: *test_matrix
 
@@ -730,6 +731,7 @@ build_test_jobs: &build_test_jobs
       name: test_IBM11_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
       stage: smoke
+      maxWorkers: 8
       testJvm: "IBM11"
 
   - huge_tests:
@@ -738,15 +740,17 @@ build_test_jobs: &build_test_jobs
       name: test_IBM17_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
       stage: smoke
+      maxWorkers: 8
       testJvm: "IBM17"
 
 
-  - tests:
+  - huge_tests:
       requires:
         - build
       name: z_test_8_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
       stage: smoke
+      maxWorkers: 8
       testJvm: "8"
 
   - fan_in:

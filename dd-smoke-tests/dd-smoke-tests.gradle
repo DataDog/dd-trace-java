@@ -10,10 +10,6 @@ dependencies {
   api project(':utils:test-agent-utils:decoder')
 }
 
-def smokeTestLimit = gradle.sharedServices.registerIfAbsent("smokeTestLimit", BuildService) {
-  maxParallelUsages = 2
-}
-
 Project parent_project = project
 subprojects { Project subProj ->
   // Don't need javadoc task run for internal projects.
@@ -31,9 +27,6 @@ subprojects { Project subProj ->
 
     // The jar path for the test agent (taken from https://github.com/DataDog/dd-trace-test-agent )
     jvmArgs "-Ddatadog.smoketest.test.agent.dir=${project.getRootDir()}/dd-smoke-tests/src/main/resources/datadog.smoketest.test.agent.jar"
-
-    // Only one smoke test at a time
-    usesService(smokeTestLimit)
 
     // Make it so all smoke tests can be run with a single command.
     if (parent_project.hasProperty(subTask.name)) {
