@@ -2,7 +2,6 @@ package datadog.telemetry;
 
 import datadog.telemetry.api.AppDependenciesLoaded;
 import datadog.telemetry.api.AppIntegrationsChange;
-import datadog.telemetry.api.ExceptionsThrown;
 import datadog.telemetry.api.AppStarted;
 import datadog.telemetry.api.Dependency;
 import datadog.telemetry.api.GenerateMetrics;
@@ -142,14 +141,12 @@ public class TelemetryServiceImpl implements TelemetryService {
     // New exceptions
     if (!exceptions.isEmpty()) { 
       List<Log> payload = drainOrEmpty(exceptions);
-
       Request request = 
           requestBuilderSupplier
               .get()
               .logBuild(
                     RequestType.LOGS,
                     payload);
-      System.out.println(request); 
       queue.offer(request);
     }
 

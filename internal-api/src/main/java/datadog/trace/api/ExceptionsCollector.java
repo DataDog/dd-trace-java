@@ -5,6 +5,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 
 public class ExceptionsCollector {
 
@@ -17,12 +19,9 @@ public class ExceptionsCollector {
   }
 
   protected static class Exception {
-    // TODO: determine if exceptionString is ok as a unique exception identifier? 
+    // TODO: is exceptionString is ok as a unique exception identifier? It will be used as key in the map when drained
     public String exceptionString; 
     public String stackTrace;
-
-    // SHOULD I BE STORING EXCEPTION IN KEY VALUE INSTEAD?
-    // public Exception exception;
   }
 
   private static final Queue<Exception> exceptions = new LinkedBlockingQueue<>();
@@ -30,7 +29,14 @@ public class ExceptionsCollector {
   public synchronized void addException(Throwable e) {
     Exception i = new Exception();
     i.exceptionString = e.getMessage();
-    i.stackTrace = e.getStackTrace().toString();
+
+    StringWriter sw = new StringWriter();
+    PrintWriter pw = new PrintWriter(sw);
+
+    e.printStackTrace(pw);
+    String stackTrace = sw.toString();
+    i.stackTrace = stackTrace;
+
     exceptions.offer(i);
   }
 
