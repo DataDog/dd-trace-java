@@ -3,12 +3,16 @@ package com.datadog.iast.taint
 import com.datadog.iast.model.Range
 import datadog.trace.test.util.CircularBuffer
 import datadog.trace.test.util.DDSpecification
-import datadog.trace.test.util.GCUtils
 
 import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.Callable
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+
+import static datadog.trace.test.util.GCUtils.awaitGC
+import static java.util.concurrent.TimeUnit.SECONDS
 
 class TaintedMapTest extends DDSpecification {
 
@@ -70,19 +74,20 @@ class TaintedMapTest extends DDSpecification {
       assert map.get(o) == to
     }
     (1..iters).each {
-      (1..nObjectsPerIter).each {
+      final refs = (1..nObjectsPerIter).collect {
         final o = new Object()
         final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
         map.put(to)
+        return to
       }
-      GCUtils.awaitGC()
+      awaitCollected(refs)
     }
 
     then:
     !map.isFlat()
     final entries = map.toList()
     entries.size() <= nRetainedObjects + nObjectsPerIter
-    entries.findAll { it.get() != null}.size() == nRetainedObjects
+    entries.findAll { it.get() != null }.size() == nRetainedObjects
     objectBuffer.each { o ->
       final to = map.get(o)
       assert to != null
@@ -281,6 +286,7 @@ class TaintedMapTest extends DDSpecification {
     def futures = (1..nThreads).collect { thread ->
       executorService.submit({
         ->
+        final unreferenced = new ArrayList<TaintedObject>()
         final buffer = objectHolders.get(thread - 1)
         final tuples = new ArrayBlockingQueue<Tuple2<Object, TaintedObject>>(nObjectsPerThread)
         for (int i = 1; i <= nObjectsPerThread; i++) {
@@ -292,23 +298,34 @@ class TaintedMapTest extends DDSpecification {
         startLatch.await()
         for (int i = 1; i <= nObjectsPerThread; i++) {
           if (i % nBeforeWaitGC == 0) {
-            GCUtils.awaitGC()
+            awaitCollected(unreferenced)
           }
           def tuple = tuples.poll()
-          buffer.add(tuple.getFirst())
+          final previous = buffer.add(tuple.getFirst())
+          if (previous != null) {
+            final to = map.get(previous)
+            if (to != null) {
+              unreferenced.add(to)
+            }
+          }
           map.put(tuple.getSecond())
         }
         while (!tuples.isEmpty()) {
           def tuple = tuples.poll()
-          buffer.add(tuple.getFirst())
+          final previous = buffer.add(tuple.getFirst())
+          if (previous != null) {
+            final to = map.get(previous)
+            if (to != null) {
+              unreferenced.add(to)
+            }
+          }
           map.put(tuple.getSecond())
         }
-      } as Runnable)
+        return unreferenced
+      } as Callable<List<TaintedObject>>)
     }
-    futures.collect({
-      it.get()
-    })
-    GCUtils.awaitGC()
+    final unreferenced = futures.collectMany { it.get() }
+    awaitCollected(unreferenced)
 
     then: 'map is not in flat mode'
     !map.isFlat()
@@ -323,7 +340,7 @@ class TaintedMapTest extends DDSpecification {
     map.toList().findAll { it.get() != null }.size() >= nThreads * nRetainedObjectsPerThread * maxAcceptableLoss
 
     and: 'sanity check'
-    objectHolders.every {it.size() == nRetainedObjectsPerThread }
+    objectHolders.every { it.size() == nRetainedObjectsPerThread }
 
     and: 'all objects are as expected'
     for (final CircularBuffer<Object> objectHolder : objectHolders) {
@@ -334,5 +351,30 @@ class TaintedMapTest extends DDSpecification {
 
     cleanup:
     executorService?.shutdown()
+  }
+
+  private static void awaitCollected(final List<TaintedObject> objects, final long duration = 1, final TimeUnit unit = SECONDS) {
+    def attempts = 3
+    while (!objects.empty && attempts > 0) {
+      objects.removeAll { awaitCollected(it, duration, unit) }
+      attempts--
+    }
+    if (!objects.empty) {
+      // ok so once we got here ... the GC didn't want to collect our instances and not for the lack of trying,
+      // let's simulate the collection and keep on with our lives
+      objects.each {it.enqueue() }
+      objects.clear()
+    }
+  }
+
+  private static boolean awaitCollected(final TaintedObject to, final long duration, final TimeUnit unit) {
+    try {
+      if (to.get() != null) {
+        awaitGC(to, duration, unit)
+      }
+      return true
+    } catch (final Exception e) {
+      return false
+    }
   }
 }
