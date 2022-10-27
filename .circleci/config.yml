@@ -631,8 +631,10 @@ jobs:
             ls utils/scripts
             echo "*****************"
             git status
-            echo "*****************"
-            echo ""
+            echo "********NEXT API KEY*********"
+            echo "${DD_API_KEY}"
+            echo "********NEXT APP KEY*********"
+            echo "${DD_APP_KEY}"
             utils/scripts/upload_results_CI_visibility.sh dev java-tracer << pipeline.id >>-<< pipeline.number >>
             utils/scripts/update_dashboard_CI_visibility.sh java-tracer << pipeline.id >>-<< pipeline.number >>
           environment:
