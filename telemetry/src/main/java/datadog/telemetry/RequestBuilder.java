@@ -28,7 +28,6 @@ import org.slf4j.LoggerFactory;
 public class RequestBuilder {
 
   private static final String API_ENDPOINT = "telemetry/proxy/api/v2/apmtelemetry";
-  private static final String STAGING_API_ENDPOINT = "api/v2/apmtelemetry";
 
   private static final ApiVersion API_VERSION = ApiVersion.V1;
   private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
@@ -55,20 +54,6 @@ private static final JsonAdapter<LogTelemetry> LOG_JSON_ADAPTER =
   private final String runtimeId;
 
   public RequestBuilder(HttpUrl httpUrl) {
-    // if (Config.get().isTelemetryDebugEnabled()) { 
-
-    //   this.httpUrl= new HttpUrl.Builder()  
-    //       .scheme("https")
-    //       .host("instrumentation-telemetry-intake.datad0g.com")
-    //       .addPathSegments(STAGING_API_ENDPOINT)
-    //       .build();
-      
-    //   System.out.println("Staging Endpoint: " + this.httpUrl.toString());
-    // }
-    // else { 
-    //   this.httpUrl = httpUrl.newBuilder().addPathSegments(API_ENDPOINT).build();
-    // }
-
     this.httpUrl = httpUrl.newBuilder().addPathSegments(API_ENDPOINT).build();
 
     Config config = Config.get();
