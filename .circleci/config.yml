@@ -623,9 +623,10 @@ jobs:
           name: Upload data to CI Visibility
           command: |
             cd system-tests
-            export DD_API_KEY=$DD_CI_API_KEY
-            export DD_APP_KEY=$DD_CI_APP_KEY
-            ./utils/scripts/upload_results_CI_visibility.sh dev java-tracer << pipeline.id >>-<< pipeline.number >>
+            DD_API_KEY=$SYSTEM_TESTS_CI_API_KEY
+            DD_APP_KEY=$SYSTEM_TESTS_CI_APP_KEY
+            utils/scripts/upload_results_CI_visibility.sh dev java-tracer << pipeline.id >>-<< pipeline.number >>
+            utils/scripts/update_dashboard_CI_visibility.sh java-tracer << pipeline.id >>-<< pipeline.number >>
 
       - store_artifacts:
           path: system-tests/logs
