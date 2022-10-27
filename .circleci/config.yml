@@ -624,8 +624,8 @@ jobs:
           name: Upload data to CI Visibility
           command: |
             cd system-tests
-            DD_API_KEY=$SYSTEM_TESTS_CI_API_KEY
-            DD_APP_KEY=$SYSTEM_TESTS_CI_APP_KEY
+            export DD_API_KEY=$SYSTEM_TESTS_CI_API_KEY
+            export DD_APP_KEY=$SYSTEM_TESTS_CI_APP_KEY
             ls
             echo "*****************"
             ls utils/
