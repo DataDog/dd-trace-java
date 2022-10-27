@@ -65,22 +65,10 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           }
           Map<String, Object> configMap = Collections.singletonMap("waf", newConfig);
           this.lastConfig.put("waf", newConfig);
-          if (AppSecSystem.isActive()) {
-            distributeSubConfigurations(configMap, reconfiguration);
-
-            int numOfRules = 0;
-            String ver = newConfig.getVersion();
-            List<?> rules = newConfig.getRules();
-            if (rules != null) {
-              numOfRules = rules.size();
-            }
-
-            log.info(
-                "New AppSec configuration {} has been applied. Loaded {} rules. AppSec status: {}",
-                ver,
-                numOfRules,
-                AppSecSystem.isActive() ? "active" : "inactive");
-          }
+          distributeSubConfigurations(configMap, reconfiguration);
+          log.info(
+              "New AppSec configuration has been applied. AppSec status: {}",
+              AppSecSystem.isActive() ? "active" : "inactive");
         });
     this.configurationPoller.addListener(
         Product.ASM_DATA,
