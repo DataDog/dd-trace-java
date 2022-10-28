@@ -119,15 +119,21 @@ public class SpanSamplingWorker implements AutoCloseable {
         int samplingPriority = trace.get(0).samplingPriority();
         if (sampledSpans.size() == 0) {
           healthMetrics.onFailedPublish(samplingPriority);
-          log.debug("{}. Counted but dropping trace: {}", "Trace was empty", trace);
+          log.debug(
+              "Trace was empty after single span sampling. Counted but dropping trace: {}", trace);
         } else if (!sampledSpansQueue.offer(sampledSpans)) {
           // dropped all spans or couldn't send sampled spans because the queue is full
           healthMetrics.onFailedPublish(samplingPriority);
           log.debug(
-              "{}. Counted but dropping trace: {}", "Trace written to overfilled buffer", trace);
+              "Trace written to overfilled buffer after single span sampling. Counted but dropping trace: {}",
+              trace);
         } else if (sampledSpans.size() < trace.size()) {
-          // TODO partialTraces++
-          // TODO droppedSpans += trace.size() - sampledSpans.size()
+          int droppedSpans = trace.size() - sampledSpans.size();
+          healthMetrics.onPartialPublish(droppedSpans);
+          log.debug(
+              "Partial trace published after single span sampling. Original trace: {}. Published trace: {}",
+              trace,
+              sampledSpans);
         } else {
           // all spans are sampled, count as an entire published trace
           healthMetrics.onPublish(sampledSpans, samplingPriority);

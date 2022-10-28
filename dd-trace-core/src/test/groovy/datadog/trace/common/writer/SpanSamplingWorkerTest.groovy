@@ -8,6 +8,7 @@ import datadog.trace.test.util.DDSpecification
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingDeque
+import java.util.concurrent.TimeUnit
 
 class SpanSamplingWorkerTest extends DDSpecification {
 
@@ -106,6 +107,28 @@ class SpanSamplingWorkerTest extends DDSpecification {
     worker.close()
   }
 
+  def "ignore empty traces"() {
+    setup:
+    Queue<Object> sampledSpanQueue = new LinkedBlockingDeque<>(10)
+    SingleSpanSampler singleSpanSampler = Mock(SingleSpanSampler)
+    HealthMetrics healthMetrics = Mock(HealthMetrics)
+    SpanSamplingWorker worker = SpanSamplingWorker.build(10, sampledSpanQueue, singleSpanSampler, healthMetrics)
+    worker.start()
+
+    DDSpan span1 = Mock(DDSpan)
+    singleSpanSampler.setSamplingPriority(span1) >> true
+
+    when:
+    assert worker.getSpanSamplingQueue().offer([])
+    assert worker.getSpanSamplingQueue().offer([span1])
+
+    then:
+    sampledSpanQueue.take() == [span1]
+
+    cleanup:
+    worker.close()
+  }
+
   def "update dropped traces metric when no tracer's spans have been sampled"() {
     setup:
     Queue<Object> sampledSpanQueue = new LinkedBlockingDeque<>(10)
@@ -134,11 +157,12 @@ class SpanSamplingWorkerTest extends DDSpecification {
     assert queue.offer([span1, span2])
 
     then:
-    latch.await()
+    latch.await(10, TimeUnit.SECONDS)
 
     then:
     1 * healthMetrics.onFailedPublish(PrioritySampling.USER_DROP)
     0 * healthMetrics.onPublish(_, _)
+    0 * healthMetrics.onPartialPublish(_)
 
     cleanup:
     worker.close()
@@ -173,11 +197,12 @@ class SpanSamplingWorkerTest extends DDSpecification {
     assert queue.offer([span1, span2])
 
     then:
-    latch.await()
+    latch.await(10, TimeUnit.SECONDS)
 
     then:
     1 * healthMetrics.onFailedPublish(PrioritySampling.SAMPLER_DROP)
     0 * healthMetrics.onPublish(_, _)
+    0 * healthMetrics.onPartialPublish(_)
 
     cleanup:
     worker.close()
@@ -208,11 +233,41 @@ class SpanSamplingWorkerTest extends DDSpecification {
     then:
     1 * healthMetrics.onPublish([span1, span2], PrioritySampling.SAMPLER_DROP)
     0 * healthMetrics.onFailedPublish(_)
+    0 * healthMetrics.onPartialPublish(_)
 
     cleanup:
     worker.close()
   }
 
-  //TODO update partialTraces metric
-  //TODO update droppedSpans metric
+  def "update partial traces metric when some trace's spans have been dropped"() {
+    setup:
+    Queue<Object> sampledSpanQueue = new LinkedBlockingDeque<>(10)
+    SingleSpanSampler singleSpanSampler = Mock(SingleSpanSampler)
+    HealthMetrics healthMetrics = Mock(HealthMetrics)
+    SpanSamplingWorker worker = SpanSamplingWorker.build(10, sampledSpanQueue, singleSpanSampler, healthMetrics)
+    worker.start()
+
+    DDSpan span1 = Mock(DDSpan)
+    DDSpan span2 = Mock(DDSpan)
+    DDSpan span3 = Mock(DDSpan)
+    singleSpanSampler.setSamplingPriority(span1) >> false
+    singleSpanSampler.setSamplingPriority(span2) >> true
+    singleSpanSampler.setSamplingPriority(span3) >> false
+
+    def queue = worker.getSpanSamplingQueue()
+
+    when:
+    assert queue.offer([span1, span2, span3])
+
+    then:
+    sampledSpanQueue.take() == [span2]
+
+    then:
+    1 * healthMetrics.onPartialPublish(2)
+    0 * healthMetrics.onPublish(_, _)
+    0 * healthMetrics.onFailedPublish(_)
+
+    cleanup:
+    worker.close()
+  }
 }
