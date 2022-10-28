@@ -762,6 +762,9 @@ public class Agent {
               @Override
               public void withTracer(Tracer tracer) {
                 try {
+                  if (Platform.isOracleJDK8() || Platform.isJ9()) {
+                    return;
+                  }
                   Checkpointer checkpointer =
                       (Checkpointer)
                           AGENT_CLASSLOADER
