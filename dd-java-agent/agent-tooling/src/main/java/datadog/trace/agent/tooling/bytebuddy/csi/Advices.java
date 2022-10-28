@@ -7,6 +7,7 @@ import static datadog.trace.agent.tooling.csi.CallSiteAdvice.HasFlags.COMPUTE_MA
 import datadog.trace.agent.tooling.bytebuddy.ClassFileLocators;
 import datadog.trace.agent.tooling.csi.CallSiteAdvice;
 import datadog.trace.agent.tooling.csi.Pointcut;
+import datadog.trace.api.Platform;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -74,11 +75,21 @@ public class Advices {
     final Set<String> helperSet = new HashSet<>();
     int flags = 0;
     for (final CallSiteAdvice advice : advices) {
-      flags |= addAdvice(adviceMap, helperSet, advice);
+      if (applyAdvice(advice)) {
+        flags |= addAdvice(adviceMap, helperSet, advice);
+      }
     }
     return adviceMap.isEmpty()
         ? EMPTY
         : new Advices(adviceMap, helperSet.toArray(new String[0]), flags, introspector);
+  }
+
+  private static boolean applyAdvice(final CallSiteAdvice advice) {
+    if (advice instanceof CallSiteAdvice.HasMinJavaVersion) {
+      final int minJavaVersion = ((CallSiteAdvice.HasMinJavaVersion) advice).minJavaVersion();
+      return Platform.isJavaVersionAtLeast(minJavaVersion);
+    }
+    return true;
   }
 
   private static int addAdvice(

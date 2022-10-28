@@ -18,7 +18,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.stacktrace.StackWalker;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -222,6 +224,54 @@ public final class IastModuleImpl implements IastModule {
     taintedObjects.taint(result, to.getRanges());
   }
 
+  @Override
+  public void onStringConcatFactory(
+      @Nullable final String[] args,
+      @Nullable final String result,
+      @Nullable final String recipe,
+      @Nullable final Object[] constants,
+      @Nonnull final int[] recipeOffsets) {
+    if (!canBeTaintedNullSafe(result) || !canBeTaintedNullSafe(args)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final Map<Integer, Range[]> sourceRanges = new HashMap<>();
+    int rangeCount = 0;
+    for (int i = 0; i < args.length; i++) {
+      final TaintedObject to = getTainted(taintedObjects, args[i]);
+      if (to != null) {
+        final Range[] ranges = to.getRanges();
+        sourceRanges.put(i, ranges);
+        rangeCount += ranges.length;
+      }
+    }
+    if (rangeCount == 0) {
+      return;
+    }
+
+    final Range[] targetRanges = new Range[rangeCount];
+    int offset = 0, rangeIndex = 0;
+    for (int item : recipeOffsets) {
+      if (item < 0) {
+        offset += (-item);
+      } else {
+        final String argument = args[item];
+        final Range[] ranges = sourceRanges.get(item);
+        if (ranges != null) {
+          Ranges.copyShift(ranges, targetRanges, rangeIndex, offset);
+          rangeIndex += ranges.length;
+        }
+        offset += getToStringLength(argument);
+      }
+    }
+    taintedObjects.taint(result, targetRanges);
+  }
+
   private static Range[] getRanges(final TaintedObject taintedObject) {
     return taintedObject == null ? Ranges.EMPTY : taintedObject.getRanges();
   }
@@ -236,6 +286,22 @@ public final class IastModuleImpl implements IastModule {
 
   private static boolean canBeTaintedNullSafe(@Nullable final CharSequence s) {
     return s != null && canBeTainted(s);
+  }
+
+  private static boolean canBeTaintedNullSafe(@Nullable final CharSequence[] args) {
+    if (args == null || args.length == 0) {
+      return false;
+    }
+    for (final CharSequence item : args) {
+      if (canBeTaintedNullSafe(item)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static int getToStringLength(@Nullable final String s) {
+    return s == null ? NULL_STR_LENGTH : s.length();
   }
 
   private static Range[] mergeRanges(

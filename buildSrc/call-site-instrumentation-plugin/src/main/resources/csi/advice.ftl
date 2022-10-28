@@ -5,6 +5,7 @@
 </#if>
 <#assign customSpiClass = (spiPackageName != 'datadog.trace.agent.tooling.csi' && spiClassName != 'CallSiteAdvice')>
 <#assign hasHelpers = helperClassNames?size != 0>
+<#assign hasMinJavaVersion = (minJavaVersion >= 0)>
 import datadog.trace.agent.tooling.csi.CallSiteAdvice;
 import datadog.trace.agent.tooling.csi.Pointcut;
 import datadog.trace.agent.tooling.csi.<#if dynamicInvoke>InvokeDynamicAdvice<#else>InvokeAdvice</#if>;
@@ -14,7 +15,7 @@ import com.google.auto.service.AutoService;
 <#if customSpiPackage>import ${spiPackageName}.${spiClassName};</#if>
 
 @AutoService(${spiClassName}.class)
-public final class ${className} implements CallSiteAdvice, Pointcut, <#if dynamicInvoke>InvokeDynamicAdvice<#else>InvokeAdvice</#if><#if computeMaxStack>, CallSiteAdvice.HasFlags</#if><#if hasHelpers>, CallSiteAdvice.HasHelpers</#if><#if customSpiClass>, ${spiClassName}</#if> {
+public final class ${className} implements CallSiteAdvice, Pointcut, <#if dynamicInvoke>InvokeDynamicAdvice<#else>InvokeAdvice</#if><#if computeMaxStack>, CallSiteAdvice.HasFlags</#if><#if hasHelpers>, CallSiteAdvice.HasHelpers</#if><#if hasMinJavaVersion>, CallSiteAdvice.HasMinJavaVersion</#if><#if customSpiClass>, ${spiClassName}</#if> {
 
   @Override
   public Pointcut pointcut() {
@@ -58,6 +59,13 @@ ${applyBody}
 <#list helperClassNames as helper>      "${helper}"<#if helper?has_next>,</#if>
 </#list>
     };
+  }
+</#if>
+
+<#if hasMinJavaVersion>
+  @Override
+  public int minJavaVersion() {
+    return ${minJavaVersion};
   }
 </#if>
 }

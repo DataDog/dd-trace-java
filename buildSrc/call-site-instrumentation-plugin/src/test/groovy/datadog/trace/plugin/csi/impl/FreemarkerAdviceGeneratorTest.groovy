@@ -355,6 +355,34 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     advices.containsAll(['FreemarkerAdviceGeneratorTest$ArrayAdviceAfter0.java', 'FreemarkerAdviceGeneratorTest$ArrayAdviceAfter1.java'])
   }
 
+  @CallSite(minJavaVersion = 9)
+  class MinJavaVersionAdvice {
+    @CallSite.After('void java.net.URL.<init>(java.lang.String)')
+    static URL after(@CallSite.This final URL url, @CallSite.Argument final String spec) {
+      return url;
+    }
+  }
+
+  def 'test min java version advice'() {
+    setup:
+    final spec = buildClassSpecification(MinJavaVersionAdvice)
+    final generator = buildFreemarkerAdviceGenerator(buildDir)
+
+    when:
+    final result = generator.generate(spec)
+
+    then:
+    assertNoErrors(result)
+    final advice = findAdvice(result, 'after' )
+    assertNoErrors(advice)
+    final javaFile = new JavaParser().parse(advice.file).getResult().get()
+    final adviceClass = javaFile.getType(0)
+    final interfaces = adviceClass.asClassOrInterfaceDeclaration().implementedTypes.collect {it.name.asString() }
+    interfaces == ['CallSiteAdvice', 'Pointcut', 'InvokeAdvice', 'HasFlags', 'HasHelpers', 'HasMinJavaVersion']
+    final methods = groupMethods(adviceClass)
+    getStatements(methods['minJavaVersion']) == ['return 9;']
+  }
+
   private static List<String> getStatements(final MethodDeclaration method) {
     return method.body.get().statements.collect { it.toString() }
   }
