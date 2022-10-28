@@ -630,7 +630,7 @@ jobs:
             # Causes conflicts with DD_API_KEY and datadog-ci tool
             unset DATADOG_API_KEY
             echo "*************************"
-            echo $CIRCLE_BRANCH
+            echo "ESTO:: ${CIRCLE_BRANCH}"
             echo "-------------------------"
             utils/scripts/upload_results_CI_visibility.sh dev java-tracer << pipeline.id >>-<< pipeline.number >>
             utils/scripts/update_dashboard_CI_visibility.sh java-tracer << pipeline.id >>-<< pipeline.number >>
