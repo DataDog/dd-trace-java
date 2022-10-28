@@ -597,8 +597,7 @@ jobs:
 
       - run:
           name: Clone System Tests repo
-          command: |
-            git clone https://github.com/DataDog/system-tests.git
+          command: git clone https://github.com/DataDog/system-tests.git
 
       - run:
           name: Copy jar file to system test binaries folder
