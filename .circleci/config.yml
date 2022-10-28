@@ -624,35 +624,11 @@ jobs:
           name: Upload data to CI Visibility
           command: |
             cd system-tests
-            ls
-            echo "*****************"
-            ls utils/
-            echo "*****************"
-            ls utils/scripts
-            echo "*****************"
-            git status
-
             export DD_API_KEY=$SYSTEM_TESTS_CI_API_KEY
             export DD_APP_KEY=$SYSTEM_TESTS_CI_APP_KEY
 
-            echo "********NEXT API KEY*********"
-            echo "${DD_API_KEY}"
-            echo "********NEXT APP KEY*********"
-            echo "${DD_APP_KEY}"
-            echo "********ENV API KEY*********"
-            echo $SYSTEM_TESTS_CI_API_KEY
-            echo "********ENV APP KEY*********"
-            echo $SYSTEM_TESTS_CI_APP_KEY
-           
-            echo "********DATADOG_API_KEY********"
-            echo $DATADOG_API_KEY
-            echo "********LOS IF********"
-           
+            # Causes conflicts with DD_API_KEY and datadog-ci tool
             unset DATADOG_API_KEY
-
-            echo "********DATADOG_API_KEY_2********"
-            echo $DATADOG_API_KEY
-
 
             utils/scripts/upload_results_CI_visibility.sh dev java-tracer << pipeline.id >>-<< pipeline.number >>
             utils/scripts/update_dashboard_CI_visibility.sh java-tracer << pipeline.id >>-<< pipeline.number >>
