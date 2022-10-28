@@ -7,7 +7,7 @@ import org.eclipse.jetty.server.Response
 
 import javax.servlet.ServletOutputStream
 
-import static datadog.trace.api.gateway.Flow.Action.BlockingContentType.AUTO
+import static datadog.appsec.api.blocking.BlockingContentType.AUTO
 
 class JettyBlockingHelperSpecification extends DDSpecification {
   void 'block completes successfully'() {

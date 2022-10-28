@@ -1,4 +1,5 @@
 // Set properties before any plugins get loaded
+// asynchttpclient is not compatible with Java 11
 ext {
   maxJavaVersionForTests = JavaVersion.VERSION_1_8
 }

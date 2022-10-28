@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.undertow;
 
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -82,5 +83,11 @@ public class UndertowDecorator
   @Override
   protected int status(final HttpServerExchange exchange) {
     return exchange.getResponseCode();
+  }
+
+  @Override
+  protected BlockResponseFunction createBlockResponseFunction(
+      HttpServerExchange httpServerExchange, HttpServerExchange httpServerExchange1) {
+    return new UndertowBlockResponseFunction(httpServerExchange);
   }
 }

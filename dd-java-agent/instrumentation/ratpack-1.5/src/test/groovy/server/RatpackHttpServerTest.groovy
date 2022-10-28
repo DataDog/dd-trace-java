@@ -1,6 +1,6 @@
 package server
 
-
+import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
@@ -18,6 +18,7 @@ import ratpack.test.embed.EmbeddedApp
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -124,6 +125,14 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
           all {
             controller(ERROR) {
               context.response.status(ERROR.status).send(ERROR.body)
+            }
+          }
+        }
+        prefix(USER_BLOCK.relativeRawPath()) {
+          all {
+            controller(USER_BLOCK) {
+              Blocking.forUser('user-to-block').blockIfMatch()
+              context.response.status(SUCCESS.status).send('should never be reached')
             }
           }
         }

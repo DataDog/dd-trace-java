@@ -1,6 +1,9 @@
 package datadog.trace.agent.test.base
 
 import ch.qos.logback.classic.Level
+import datadog.appsec.api.blocking.Blocking
+import datadog.appsec.api.blocking.BlockingDetails
+import datadog.appsec.api.blocking.BlockingService
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
@@ -9,12 +12,15 @@ import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
+import datadog.appsec.api.blocking.BlockingContentType
+import datadog.trace.api.gateway.BlockResponseFunction
 import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.http.StoredBodySupplier
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
@@ -36,6 +42,7 @@ import spock.lang.Unroll
 import java.util.function.BiFunction
 import java.util.function.Function
 import java.util.function.Supplier
+import javax.annotation.Nonnull
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
@@ -55,6 +62,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
@@ -287,6 +295,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false
   }
 
+  boolean testUserBlocking() {
+    testBlocking()
+  }
+
   /** Tomcat 5.5 can't seem to handle the encoded URIs */
   boolean testEncodedPath() {
     true
@@ -317,6 +329,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     TIMEOUT("timeout", 500, null),
     TIMEOUT_ERROR("timeout_error", 500, null),
+
+    USER_BLOCK("user-block", 403, null),
 
     QUERY_PARAM("query?some=query", 200, "some=query"),
     QUERY_ENCODED_BOTH("encoded%20path%20query?some=is%20both", 200, "some=is both"),
@@ -1418,6 +1432,64 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
+  def 'user blocking'() {
+    setup:
+    BlockingService origBlockingService = Blocking.SERVICE
+    BlockingService bs = new BlockingService() {
+        @Override
+        BlockingDetails shouldBlockUser(@Nonnull String userId) {
+          userId == 'user-to-block' ? new BlockingDetails(403, BlockingContentType.JSON) : null
+        }
+
+        @Override
+        boolean tryCommitBlockingResponse(int statusCode, @Nonnull BlockingContentType type) {
+          RequestContext reqCtx = AgentTracer.get().activeSpan().requestContext
+          if (reqCtx == null) {
+            return false
+          }
+
+          BlockResponseFunction blockResponseFunction = reqCtx.blockResponseFunction
+          if (blockResponseFunction == null) {
+            throw new UnsupportedOperationException("Do not know how to commit blocking response for this server")
+          }
+          blockResponseFunction.tryCommitBlockingResponse(statusCode, type)
+        }
+      }
+    assumeTrue(testUserBlocking())
+    Blocking.blockingService = bs
+
+    def request = request(USER_BLOCK, 'GET', null)
+      .addHeader('Accept', 'application/json')
+      .build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.code() == USER_BLOCK.status
+    response.header('Content-type') =~ /(?i)\Aapplication\/json(?:;\s?charset=utf-8)?\z/
+    response.body().charStream().text.contains('"title": "You\'ve been blocked"')
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+    def trace = TEST_WRITER.get(0)
+
+    then: 'there is an error span'
+    trace.find { span ->
+      def errorMsg = span.getTag(DDTags.ERROR_MSG)
+      if (!errorMsg) {
+        return false
+      }
+      "Blocking user with id 'user-to-block'" in errorMsg
+    } != null
+
+    and: 'there is a span with status code 403'
+    trace.find { span ->
+      span.httpStatusCode == 403
+    } != null
+
+    cleanup:
+    Blocking.blockingService = origBlockingService
+  }
+
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
     def exception = endpoint == CUSTOM_EXCEPTION ? expectedCustomExceptionType() : expectedExceptionType()
     def errorMessage = endpoint?.body
@@ -1599,7 +1671,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
             @Override
             Flow.Action getAction() {
               new Flow.Action.RequestBlockingAction(418,
-                Flow.Action.BlockingContentType.valueOf(context.blockingContentType.toUpperCase(Locale.ROOT)))
+                BlockingContentType.valueOf(context.blockingContentType.toUpperCase(Locale.ROOT)))
             }
           }
       } else {

@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.undertow;
 
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
-import datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.util.AttachmentKey;
@@ -41,7 +40,7 @@ public class UndertowBlockingHandler implements HttpHandler {
       HeaderMap headers = xchg.getResponseHeaders();
       HeaderValues acceptHeaderValues = xchg.getRequestHeaders().get(Headers.ACCEPT);
       String acceptHeader = acceptHeaderValues != null ? acceptHeaderValues.peekLast() : null;
-      TemplateType type =
+      BlockingActionHelper.TemplateType type =
           BlockingActionHelper.determineTemplateType(rba.getBlockingContentType(), acceptHeader);
       byte[] template = BlockingActionHelper.getTemplate(type);
 

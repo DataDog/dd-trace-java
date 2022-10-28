@@ -1,3 +1,5 @@
+package datadog.trace.instrumentation.netty38
+
 import com.ning.http.client.AsyncCompletionHandler
 import com.ning.http.client.AsyncHttpClient
 import com.ning.http.client.AsyncHttpClientConfig

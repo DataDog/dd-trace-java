@@ -59,13 +59,14 @@ public final class HandlerInstrumentation extends Instrumenter.Tracing
       packageName + ".UndertowExtractAdapter$Request",
       packageName + ".UndertowExtractAdapter$Response",
       packageName + ".UndertowBlockingHandler",
+      packageName + ".UndertowBlockResponseFunction",
     };
   }
 
   public static class HandlerAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
     public static boolean onEnter(
-        @Advice.Argument(value = 0) HttpServerExchange exchange,
+        @Advice.Argument(value = 0) final HttpServerExchange exchange,
         @Advice.Local("agentScope") AgentScope scope) {
       // HttpHandler subclasses are chained so only the first one should create a span
       if (null != exchange.getAttachment(DD_HTTPSERVEREXCHANGE_DISPATCH)) {

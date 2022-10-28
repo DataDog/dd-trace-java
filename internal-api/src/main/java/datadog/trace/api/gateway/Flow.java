@@ -1,5 +1,7 @@
 package datadog.trace.api.gateway;
 
+import datadog.appsec.api.blocking.BlockingContentType;
+
 /**
  * The result of sending an event to a callback.
  *
@@ -21,12 +23,6 @@ public interface Flow<T> {
       public boolean isBlocking() {
         return false;
       }
-    }
-
-    enum BlockingContentType {
-      AUTO,
-      HTML,
-      JSON,
     }
 
     class RequestBlockingAction implements Action {

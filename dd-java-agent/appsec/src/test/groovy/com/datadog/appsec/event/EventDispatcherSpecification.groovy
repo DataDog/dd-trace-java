@@ -5,6 +5,7 @@ import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.gateway.AppSecRequestContext
+import datadog.appsec.api.blocking.BlockingContentType
 import datadog.trace.api.gateway.Flow
 import datadog.trace.test.util.DDSpecification
 
@@ -125,12 +126,12 @@ class EventDispatcherSpecification extends DDSpecification {
     then:
     1 * dataListener1.onDataAvailable(_ as Flow, ctx, _ as DataBundle, true) >> {
       ChangeableFlow flow = it.first()
-      flow.action = new Flow.Action.RequestBlockingAction(404, Flow.Action.BlockingContentType.AUTO)
+      flow.action = new Flow.Action.RequestBlockingAction(404, BlockingContentType.AUTO)
     }
     0 * dataListener2.onDataAvailable(_ as Flow, ctx, _ as DataBundle, _ as boolean)
     assert resultFlow.blocking
     assert resultFlow.action.statusCode == 404
-    assert resultFlow.action.blockingContentType == Flow.Action.BlockingContentType.AUTO
+    assert resultFlow.action.blockingContentType == BlockingContentType.AUTO
   }
 
   void 'non transient data publishing saves the bundle in the context'() {

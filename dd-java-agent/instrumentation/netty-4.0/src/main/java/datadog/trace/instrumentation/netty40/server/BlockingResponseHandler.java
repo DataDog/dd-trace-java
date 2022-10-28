@@ -2,11 +2,14 @@ package datadog.trace.instrumentation.netty40.server;
 
 import static io.netty.handler.codec.http.HttpHeaders.setContentLength;
 
+import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
+import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpRequest;
@@ -16,15 +19,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
-  private final Flow.Action.RequestBlockingAction rba;
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(BlockingResponseHandler.class);
+  public static final Logger log = LoggerFactory.getLogger(BlockingResponseHandler.class);
   private static volatile boolean HAS_WARNED;
+
+  private final int statusCode;
+  private final BlockingContentType bct;
 
   private boolean hasBlockedAlready;
 
+  public BlockingResponseHandler(int statusCode, BlockingContentType bct) {
+    this.statusCode = statusCode;
+    this.bct = bct;
+  }
+
   public BlockingResponseHandler(Flow.Action.RequestBlockingAction rba) {
-    this.rba = rba;
+    this.statusCode = rba.getStatusCode();
+    this.bct = rba.getBlockingContentType();
   }
 
   @Override
@@ -47,10 +57,10 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
 
     if (ctxForDownstream == null) {
       if (HAS_WARNED) {
-        LOGGER.debug(
+        log.debug(
             "Unable to block because HttpServerResponseTracingHandler was not found on the pipeline");
       } else {
-        LOGGER.warn(
+        log.warn(
             "Unable to block because HttpServerResponseTracingHandler was not found on the pipeline");
         HAS_WARNED = true;
       }
@@ -60,14 +70,14 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
 
     HttpRequest request = (HttpRequest) msg;
 
-    int httpCode = BlockingActionHelper.getHttpCode(rba.getStatusCode());
+    int httpCode = BlockingActionHelper.getHttpCode(statusCode);
     HttpResponseStatus httpResponseStatus = HttpResponseStatus.valueOf(httpCode);
     FullHttpResponse response =
         new DefaultFullHttpResponse(request.getProtocolVersion(), httpResponseStatus);
 
     String acceptHeader = request.headers().get("accept");
     BlockingActionHelper.TemplateType type =
-        BlockingActionHelper.determineTemplateType(rba.getBlockingContentType(), acceptHeader);
+        BlockingActionHelper.determineTemplateType(bct, acceptHeader);
     response
         .headers()
         .set("Content-type", BlockingActionHelper.getContentType(type))
@@ -80,23 +90,40 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
     this.hasBlockedAlready = true;
     ReferenceCountUtil.release(msg);
 
-    // unlike in netty 3.8, write starts in the handler before the one associated with ctx
-    // so add a dummy one that will be skipped. We do not want to start from the end of the
+    // write starts in the handler before the one associated with ctx
+    // so add one that will be skipped (but that will prevent any writes later coming from later
+    // handlers).
+    // We do not want to start from the end of the
     // pipeline because there is an increased risk of hitting duplex handlers that
     // expect to have seen a request before processing the response
     ctxForDownstream =
         ctxForDownstream
             .pipeline()
-            .addAfter(ctxForDownstream.name(), "noop", new ChannelOutboundHandlerAdapter())
-            .context("noop");
+            .addAfter(
+                ctxForDownstream.name(),
+                "ignore_all_writes_handler",
+                IgnoreAllWritesHandler.INSTANCE)
+            .context("ignore_all_writes_handler");
     ctxForDownstream
         .writeAndFlush(response)
         .addListener(
             fut -> {
               if (!fut.isSuccess()) {
-                LOGGER.warn("Write of blocking response failed", fut.cause());
+                log.warn("Write of blocking response failed", fut.cause());
               }
               ctx.channel().close();
             });
+  }
+
+  @ChannelHandler.Sharable
+  public static class IgnoreAllWritesHandler extends ChannelOutboundHandlerAdapter {
+    public static final IgnoreAllWritesHandler INSTANCE = new IgnoreAllWritesHandler();
+
+    @Override
+    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise)
+        throws Exception {
+      log.info("Ignored write of object {}", msg);
+      ReferenceCountUtil.release(msg);
+    }
   }
 }

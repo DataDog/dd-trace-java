@@ -18,6 +18,7 @@ import com.datadog.appsec.report.raw.events.*;
 import com.datadog.appsec.util.StandardizedLogging;
 import com.google.auto.service.AutoService;
 import com.squareup.moshi.*;
+import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.gateway.Flow;
@@ -454,10 +455,9 @@ public class PowerWAFModule implements AppSecModule {
         int statusCode =
             ((Number) actionInfo.parameters.getOrDefault("status_code", 403)).intValue();
         String contentType = (String) actionInfo.parameters.getOrDefault("type", "auto");
-        Flow.Action.BlockingContentType blockingContentType = Flow.Action.BlockingContentType.AUTO;
+        BlockingContentType blockingContentType = BlockingContentType.AUTO;
         try {
-          blockingContentType =
-              Flow.Action.BlockingContentType.valueOf(contentType.toUpperCase(Locale.ROOT));
+          blockingContentType = BlockingContentType.valueOf(contentType.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException iae) {
           log.warn("Unknown content type: {}; using auto", contentType);
         }

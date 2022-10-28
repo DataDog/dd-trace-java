@@ -1,3 +1,5 @@
+import datadog.appsec.api.blocking.Blocking
+import datadog.appsec.api.blocking.BlockingException
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import io.undertow.Handlers
@@ -104,6 +106,14 @@ class UndertowTest extends HttpServerTest<Undertow> {
         .addExactPath(EXCEPTION.getPath()) { exchange ->
           controller(EXCEPTION) {
             throw new Exception(EXCEPTION.body)
+          }
+        }
+        .addExactPath(USER_BLOCK.getPath()) { exchange ->
+          controller(USER_BLOCK) {
+            try {
+              Blocking.forUser('user-to-block').blockIfMatch()
+              exchange.getResponseSender().send('user not blocked')
+            } catch (BlockingException be) {}
           }
         }
         ).build()

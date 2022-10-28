@@ -11,4 +11,8 @@ public interface RequestContext extends Closeable {
   <T> T getData(RequestContextSlot slot);
 
   TraceSegment getTraceSegment();
+
+  void setBlockResponseFunction(BlockResponseFunction blockResponseFunction);
+
+  BlockResponseFunction getBlockResponseFunction();
 }

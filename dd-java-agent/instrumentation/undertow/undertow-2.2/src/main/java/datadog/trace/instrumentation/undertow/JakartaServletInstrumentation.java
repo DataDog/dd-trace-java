@@ -40,6 +40,8 @@ public final class JakartaServletInstrumentation extends Instrumenter.Tracing
     return new String[] {
       packageName + ".HttpServerExchangeURIDataAdapter",
       packageName + ".UndertowDecorator",
+      packageName + ".UndertowBlockingHandler",
+      packageName + ".UndertowBlockResponseFunction",
       packageName + ".UndertowExtractAdapter",
       packageName + ".UndertowExtractAdapter$Request",
       packageName + ".UndertowExtractAdapter$Response"

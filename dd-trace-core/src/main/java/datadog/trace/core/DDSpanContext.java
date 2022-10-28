@@ -9,6 +9,7 @@ import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.config.TracerConfig;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
@@ -134,6 +135,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
   private final PropagationTags propagationTags;
 
   private volatile PathwayContext pathwayContext;
+
+  private volatile BlockResponseFunction blockResponseFunction;
 
   public DDSpanContext(
       final DDTraceId traceId,
@@ -694,6 +697,16 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
   @Override
   public TraceSegment getTraceSegment() {
     return this;
+  }
+
+  @Override
+  public void setBlockResponseFunction(BlockResponseFunction blockResponseFunction) {
+    getTopContext().blockResponseFunction = blockResponseFunction;
+  }
+
+  @Override
+  public BlockResponseFunction getBlockResponseFunction() {
+    return getTopContext().blockResponseFunction;
   }
 
   public PropagationTags getPropagationTags() {
