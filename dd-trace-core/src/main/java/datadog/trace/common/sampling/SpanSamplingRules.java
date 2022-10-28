@@ -50,21 +50,19 @@ public class SpanSamplingRules {
     }
 
     public static Rule create(String service, String name, String sampleRate, String maxPerSecond) {
-      if (sampleRate == null) {
-        logError(service, name, null, maxPerSecond, "missing mandatory sample_rate");
-        return null;
-      }
-      Double sampleRateParsed = null;
-      try {
-        sampleRateParsed = Double.parseDouble(sampleRate);
-      } catch (NumberFormatException ex) {
-        logError(
-            service,
-            name,
-            sampleRate,
-            maxPerSecond,
-            "sample_rate must be a number between 0.0 and 1.0");
-        return null;
+      double sampleRateParsed = 1.0;
+      if (sampleRate != null) {
+        try {
+          sampleRateParsed = Double.parseDouble(sampleRate);
+        } catch (NumberFormatException ex) {
+          logError(
+              service,
+              name,
+              sampleRate,
+              maxPerSecond,
+              "sample_rate must be a number between 0.0 and 1.0");
+          return null;
+        }
       }
       Integer maxPerSecondParsed = null;
       if (maxPerSecond != null) {

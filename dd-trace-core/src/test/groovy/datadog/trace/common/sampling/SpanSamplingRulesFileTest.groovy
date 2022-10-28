@@ -64,7 +64,7 @@ class SpanSamplingRulesFileTest extends DDCoreSpecification {
     rules == null
 
     where:
-    rate << ["-0.1", "-11", "1.2", "100", null, "\"zero\"", "\"\""]
+    rate << ["-0.1", "-11", "1.2", "100", "\"zero\"", "\"\""]
   }
 
   def "Skip Span Sampling Rules with invalid max_per_second values"() {
@@ -77,7 +77,7 @@ class SpanSamplingRulesFileTest extends DDCoreSpecification {
     rules == null
 
     where:
-    limit << ["0", "-11", null, "\"zero\"", "\"\""]
+    limit << ["0", "-11", "\"zero\"", "\"\""]
   }
 
   def "Skip Span Sampling Rules when incorrect JSON provided"() {

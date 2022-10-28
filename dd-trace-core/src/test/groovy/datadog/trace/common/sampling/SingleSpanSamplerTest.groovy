@@ -25,11 +25,13 @@ class SingleSpanSamplerTest extends DDCoreSpecification {
 
     where:
     rules << [
+      // no rules provided
       null,
       "[]",
-      """[ {} ]""",
+      // invalid sample_rate must be between 0.0 and 1.0
       """[ { "service": "*", "name": "*", "sample_rate": 10.0 } ]""",
-      """[ { "service": "*", "name": "*" } ]""",
+      """[ { "service": "*", "name": "*", "sample_rate": "all" } ]""",
+      // invalid max_per_second value
       """[ { "service": "*", "name": "*", "sample_rate": 1.0, "max_per_second": "N/A" } ]"""
     ]
   }
@@ -52,7 +54,7 @@ class SingleSpanSamplerTest extends DDCoreSpecification {
     DDSpan span = tracer.buildSpan("operation")
       .withServiceName("service")
       .withTag("env", "bar")
-      .ignoreActiveSpan().start()
+      .ignoreActiveSpan().start() as DDSpan
 
     then:
     sampler.setSamplingPriority(span) == isFirstSampled
@@ -67,6 +69,7 @@ class SingleSpanSamplerTest extends DDCoreSpecification {
     """[ { "service": "*", "name": "*", "sample_rate": 1.0, "max_per_second": 10 } ]"""               | true           | SPAN_SAMPLING_RATE | 1.0          | 10
     """[ { "service": "ser*", "name": "oper*", "sample_rate": 1.0, "max_per_second": 15 } ]"""        | true           | SPAN_SAMPLING_RATE | 1.0          | 15
     """[ { "service": "?ervice", "name": "operati?n", "sample_rate": 1.0, "max_per_second": 10 } ]""" | true           | SPAN_SAMPLING_RATE | 1.0          | 10
+    """[ { "service": "service", "name": "operation", "sample_rate": 1.0, "max_per_second": 5 } ]"""  | true           | SPAN_SAMPLING_RATE | 1.0          | 5
     """[ { "service": "service-b", "name": "*", "sample_rate": 1.0, "max_per_second": 10 } ]"""       | false          | null               | null         | null
     """[ { "service": "*", "name": "*", "sample_rate": 0.0 } ]"""                                     | false          | null               | null         | null
     """[ { "service": "*", "name": "operation-b", "sample_rate": 0.5 } ]"""                           | false          | null               | null         | null
@@ -106,9 +109,12 @@ class SingleSpanSamplerTest extends DDCoreSpecification {
     """[ { "service": "*", "name": "*", "sample_rate": 1.0, "max_per_second": 1 } ]"""               | true           | false
     """[ { "service": "ser*", "name": "oper*", "sample_rate": 1.0, "max_per_second": 1 } ]"""        | true           | false
     """[ { "service": "?ervice", "name": "operati?n", "sample_rate": 1.0, "max_per_second": 1 } ]""" | true           | false
+    """[ { "service": "service", "name": "operation", "sample_rate": 1.0, "max_per_second": 1 } ]""" | true           | false
+    """[ { "service": "service", "max_per_second": 1 } ]"""                                          | true           | false
+    """[ { "name": "operation", "sample_rate": 1.0, "max_per_second": 1 } ]"""                       | true           | false
 
     """[ { "service": "*", "name": "*", "sample_rate": 1.0, "max_per_second": 2 } ]"""               | true           | true
-    """[ { "service": "ser*", "name": "oper*", "sample_rate": 1.0, "max_per_second": 2 } ]"""        | true           | true
+    """[ { "service": "ser*", "name": "oper*", "max_per_second": 2 } ]"""                            | true           | true
     """[ { "service": "?ervice", "name": "operati?n", "sample_rate": 1.0, "max_per_second": 2 } ]""" | true           | true
   }
 }
