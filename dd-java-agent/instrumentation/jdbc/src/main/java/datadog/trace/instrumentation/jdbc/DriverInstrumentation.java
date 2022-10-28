@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Map;
 import java.util.Properties;
 import net.bytebuddy.asm.Advice;
@@ -69,7 +70,20 @@ public final class DriverInstrumentation extends Instrumenter.Tracing
         // Exception was probably thrown.
         return;
       }
-      final DBInfo dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, props);
+      String urlToUse = url;
+      try {
+        urlToUse = connection.getMetaData().getURL();
+      } catch (final SQLException se) {
+        // ignore
+      }
+
+      try {
+        props.setProperty("user", connection.getMetaData().getUserName());
+      } catch (final SQLException se) {
+        // ignore
+      }
+
+      final DBInfo dbInfo = JDBCConnectionUrlParser.extractDBInfo(urlToUse, props);
       InstrumentationContext.get(Connection.class, DBInfo.class).put(connection, dbInfo);
     }
   }
