@@ -13,7 +13,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
 import java.sql.Connection;
-// import java.sql.SQLException;
 import java.util.Map;
 import java.util.Properties;
 import net.bytebuddy.asm.Advice;
