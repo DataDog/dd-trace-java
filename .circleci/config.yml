@@ -629,12 +629,16 @@ jobs:
 
             # Causes conflicts with DD_API_KEY and datadog-ci tool
             unset DATADOG_API_KEY
-            echo "*************************"
-            echo "ESTO:: ${CIRCLE_BRANCH}"
-            echo "-------------------------"
-            utils/scripts/upload_results_CI_visibility.sh dev java-tracer << pipeline.id >>-<< pipeline.number >>
-            utils/scripts/update_dashboard_CI_visibility.sh java-tracer << pipeline.id >>-<< pipeline.number >>
             
+            echo "Uploading results to CI Visibility"  
+            utils/scripts/upload_results_CI_visibility.sh dev java-tracer << pipeline.id >>-<< pipeline.number >>
+
+            if [[ $CIRCLE_BRANCH == "robertomonteromiguel/system_tests_ci_visibility_integration" ]]; then
+              echo "Updating dashboard from dd-trace-java main branch"
+              utils/scripts/update_dashboard_CI_visibility.sh java-tracer << pipeline.id >>-<< pipeline.number >>
+            else
+              echo "Skipping CI Visibility dashboard update due to it is not a main branch"
+            fi
 
       - store_artifacts:
           path: system-tests/logs
