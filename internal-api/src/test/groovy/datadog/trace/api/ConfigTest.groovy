@@ -1,5 +1,6 @@
 package datadog.trace.api
 
+import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.env.FixedCapturedEnvironment
 import datadog.trace.bootstrap.config.provider.ConfigConverter
 import datadog.trace.bootstrap.config.provider.ConfigProvider
@@ -7,8 +8,6 @@ import datadog.trace.test.util.DDSpecification
 import org.junit.Rule
 import spock.lang.Unroll
 
-import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
-import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.DDTags.HOST_TAG
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY
@@ -273,7 +272,7 @@ class ConfigTest extends DDSpecification {
     config.traceRateLimit == 200
 
     config.profilingEnabled == true
-    config.profilingUrl == "new url"
+    config.finalProfilingUrl == "new url"
     config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(),  (RUNTIME_VERSION_TAG): config.getRuntimeVersion(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingStartDelay == 1111
     config.profilingStartForceFirst == true
@@ -441,7 +440,7 @@ class ConfigTest extends DDSpecification {
     config.traceRateLimit == 200
 
     config.profilingEnabled == true
-    config.profilingUrl == "new url"
+    config.finalProfilingUrl == "new url"
     config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): config.getRuntimeVersion(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingStartDelay == 1111
     config.profilingStartForceFirst == true
@@ -1012,11 +1011,11 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceMapping == map
-    config.spanTags == map
+    config.mergedSpanTags == map
     config.requestHeaderTags == map
     config.responseHeaderTags == [:]
     propConfig.serviceMapping == map
-    propConfig.spanTags == map
+    propConfig.mergedSpanTags == map
     propConfig.requestHeaderTags == map
     propConfig.responseHeaderTags == [:]
 
@@ -1143,10 +1142,10 @@ class ConfigTest extends DDSpecification {
       assert propConfig.httpServerErrorStatuses == toBitSet(expected)
       assert propConfig.httpClientErrorStatuses == toBitSet(expected)
     } else {
-      assert config.httpServerErrorStatuses == DEFAULT_HTTP_SERVER_ERROR_STATUSES
-      assert config.httpClientErrorStatuses == DEFAULT_HTTP_CLIENT_ERROR_STATUSES
-      assert propConfig.httpServerErrorStatuses == DEFAULT_HTTP_SERVER_ERROR_STATUSES
-      assert propConfig.httpClientErrorStatuses == DEFAULT_HTTP_CLIENT_ERROR_STATUSES
+      assert config.httpServerErrorStatuses == TracerConfig.DEFAULT_HTTP_SERVER_ERROR_STATUSES
+      assert config.httpClientErrorStatuses == TracerConfig.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
+      assert propConfig.httpServerErrorStatuses == TracerConfig.DEFAULT_HTTP_SERVER_ERROR_STATUSES
+      assert propConfig.httpClientErrorStatuses == TracerConfig.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
     }
 
     where:
@@ -1176,7 +1175,7 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceMapping == map
-    config.spanTags == map
+    config.mergedSpanTags == map
     config.requestHeaderTags == map
 
     where:

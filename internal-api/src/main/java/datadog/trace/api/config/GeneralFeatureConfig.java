@@ -78,7 +78,7 @@ import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class GeneralFeatureConfig {
+public class GeneralFeatureConfig extends AbstractFeatureConfig {
   private static final Logger LOGGER = LoggerFactory.getLogger(GeneralFeatureConfig.class);
 
   private final long startTimeMillis;
@@ -128,6 +128,7 @@ public class GeneralFeatureConfig {
   private final int telemetryHeartbeatInterval;
 
   public GeneralFeatureConfig(ConfigProvider configProvider) {
+    super(configProvider);
     this.startTimeMillis = System.currentTimeMillis();
     this.runtimeId = generateRuntimeId(configProvider);
     this.runtimeVersion = System.getProperty("java.version", "unknown");
@@ -651,8 +652,9 @@ public class GeneralFeatureConfig {
 
   public Map<String, String> getMergedSpanTags() {
     // Do not include runtimeId into span tags: we only want that added to the root span
-    final Map<String, String> result = newHashMap(getGlobalTags().size() + this.spanTags.size());
-    result.putAll(getGlobalTags());
+    Map<String, String> globalTags = getGlobalTags();
+    final Map<String, String> result = newHashMap(globalTags.size() + this.spanTags.size());
+    result.putAll(globalTags);
     result.putAll(this.spanTags);
     return Collections.unmodifiableMap(result);
   }

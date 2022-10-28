@@ -16,6 +16,7 @@ import datadog.common.container.ContainerInfo;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.trace.api.Config;
+import datadog.trace.api.config.AbstractFeatureConfig;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -47,11 +48,26 @@ public class DebuggerAgentTest {
   final MockWebServer server = new MockWebServer();
   HttpUrl url;
 
-  private static void setFieldInConfig(Config config, String fieldName, Object value) {
+  private static <C extends AbstractFeatureConfig> void setFieldInConfig(
+      C config, String fieldName, Object value) {
     try {
       Field field = config.getClass().getDeclaredField(fieldName);
       field.setAccessible(true);
       field.set(config, value);
+    } catch (Throwable e) {
+      e.printStackTrace();
+    }
+  }
+
+  private static <C extends AbstractFeatureConfig> void setFieldInConfigGroup(
+      C config, String groupName, String fieldName, Object value) {
+    try {
+      Field groupField = config.getClass().getDeclaredField(groupName);
+      groupField.setAccessible(true);
+      Object group = groupField.get(config);
+      Field field = group.getClass().getDeclaredField(fieldName);
+      field.setAccessible(true);
+      field.set(group, value);
     } catch (Throwable e) {
       e.printStackTrace();
     }
@@ -71,7 +87,7 @@ public class DebuggerAgentTest {
   @BeforeEach
   public void setUp() {
     url = server.url(URL_PATH);
-    setFieldInConfig(Config.get(), "runtimeId", UUID.randomUUID().toString());
+    setFieldInConfig(Config.get().getGeneralConfig(), "runtimeId", UUID.randomUUID().toString());
   }
 
   @AfterEach
@@ -86,7 +102,7 @@ public class DebuggerAgentTest {
   @Test
   @EnabledOnJre({JAVA_8, JAVA_11})
   public void runDisabled() {
-    setFieldInConfig(Config.get(), "debuggerEnabled", false);
+    setFieldInConfig(Config.get().getDebuggerConfig(), "debuggerEnabled", false);
     URL probeDefinitionUrl = DebuggerAgentTest.class.getResource("/test_probe.json");
     System.setProperty("dd.dynamic.instrumentation.config-file", probeDefinitionUrl.getFile());
     DebuggerAgent.run(inst, new SharedCommunicationObjects());
@@ -99,13 +115,16 @@ public class DebuggerAgentTest {
   public void runEnabledWithDatadogAgent() throws InterruptedException, IOException {
     MockWebServer datadogAgentServer = new MockWebServer();
     HttpUrl datadogAgentUrl = datadogAgentServer.url(URL_PATH);
-    setFieldInConfig(Config.get(), "debuggerEnabled", true);
-    setFieldInConfig(Config.get(), "remoteConfigEnabled", true);
-    setFieldInConfig(Config.get(), "debuggerSnapshotUrl", datadogAgentUrl.toString());
-    setFieldInConfig(Config.get(), "agentUrl", datadogAgentUrl.toString());
-    setFieldInConfig(Config.get(), "agentHost", "localhost");
-    setFieldInConfig(Config.get(), "agentPort", datadogAgentServer.getPort());
-    setFieldInConfig(Config.get(), "debuggerMaxPayloadSize", 4096L);
+    setFieldInConfig(Config.get().getDebuggerConfig(), "debuggerEnabled", true);
+    setFieldInConfig(Config.get().getRemoteConfig(), "remoteConfigEnabled", true);
+    setFieldInConfig(
+        Config.get().getDebuggerConfig(), "debuggerSnapshotUrl", datadogAgentUrl.toString());
+    setFieldInConfigGroup(
+        Config.get().getTracerConfig(), "agentConfig", "url", datadogAgentUrl.toString());
+    setFieldInConfigGroup(Config.get().getTracerConfig(), "agentConfig", "host", "localhost");
+    setFieldInConfigGroup(
+        Config.get().getTracerConfig(), "agentConfig", "port", datadogAgentServer.getPort());
+    setFieldInConfig(Config.get().getDebuggerConfig(), "debuggerMaxPayloadSize", 4096L);
     setFieldInContainerInfo(ContainerInfo.get(), "containerId", "");
     String infoContent =
         "{\"endpoints\": [\"v0.4/traces\", \"debugger/v1/input\", \"v0.7/config\"] }";
@@ -139,10 +158,10 @@ public class DebuggerAgentTest {
   @Test
   @EnabledOnJre({JAVA_8, JAVA_11})
   public void runEnabledWithUnsupportedDatadogAgent() throws InterruptedException {
-    setFieldInConfig(Config.get(), "debuggerEnabled", true);
-    setFieldInConfig(Config.get(), "debuggerSnapshotUrl", url.toString());
-    setFieldInConfig(Config.get(), "agentUrl", url.toString());
-    setFieldInConfig(Config.get(), "debuggerMaxPayloadSize", 1024L);
+    setFieldInConfig(Config.get().getDebuggerConfig(), "debuggerEnabled", true);
+    setFieldInConfig(Config.get().getDebuggerConfig(), "debuggerSnapshotUrl", url.toString());
+    setFieldInConfigGroup(Config.get().getTracerConfig(), "agentConfig", "url", url.toString());
+    setFieldInConfig(Config.get().getDebuggerConfig(), "debuggerMaxPayloadSize", 1024L);
     String infoContent = "{\"endpoints\": [\"v0.4/traces\"]}";
     server.enqueue(new MockResponse().setResponseCode(200).setBody(infoContent));
     DebuggerAgent.run(inst, new SharedCommunicationObjects());
@@ -154,12 +173,13 @@ public class DebuggerAgentTest {
   public void readFromFile() throws URISyntaxException {
     URL res = getClass().getClassLoader().getResource("test_probe2.json");
     String probeDefinitionPath = Paths.get(res.toURI()).toFile().getAbsolutePath();
-    setFieldInConfig(Config.get(), "serviceName", "petclinic");
-    setFieldInConfig(Config.get(), "debuggerEnabled", true);
-    setFieldInConfig(Config.get(), "debuggerSnapshotUrl", url.toString());
-    setFieldInConfig(Config.get(), "agentUrl", url.toString());
-    setFieldInConfig(Config.get(), "debuggerMaxPayloadSize", 4096L);
-    setFieldInConfig(Config.get(), "debuggerProbeFileLocation", probeDefinitionPath);
+    setFieldInConfig(Config.get().getGeneralConfig(), "serviceName", "petclinic");
+    setFieldInConfig(Config.get().getDebuggerConfig(), "debuggerEnabled", true);
+    setFieldInConfig(Config.get().getDebuggerConfig(), "debuggerSnapshotUrl", url.toString());
+    setFieldInConfigGroup(Config.get().getTracerConfig(), "agentConfig", "url", url.toString());
+    setFieldInConfig(Config.get().getDebuggerConfig(), "debuggerMaxPayloadSize", 4096L);
+    setFieldInConfig(
+        Config.get().getDebuggerConfig(), "debuggerProbeFileLocation", probeDefinitionPath);
     String infoContent =
         "{\"endpoints\": [\"v0.4/traces\", \"debugger/v1/input\", \"v0.7/config\"] }";
     server.enqueue(new MockResponse().setResponseCode(200).setBody(infoContent));

@@ -284,7 +284,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
   }
 
   void 'disabling of key regex'() {
-    injectSysConfig(APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP, '')
+    injectSysConfig(datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP, '')
     setupWithStubConfigService()
     AppSecEvent100 event
 
@@ -309,7 +309,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
   }
 
   void 'redaction of values'() {
-    injectSysConfig(APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP, 'Arachni')
+    injectSysConfig(datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP, 'Arachni')
 
     setupWithStubConfigService()
     AppSecEvent100 event
