@@ -633,7 +633,7 @@ jobs:
             echo "Uploading results to CI Visibility"  
             utils/scripts/upload_results_CI_visibility.sh dev java-tracer << pipeline.id >>-<< pipeline.number >>
 
-            if [[ $CIRCLE_BRANCH == "robertomonteromiguel/system_tests_ci_visibility_integration" ]]; then
+            if [[ $CIRCLE_BRANCH == "master" ]]; then
               echo "Updating dashboard from dd-trace-java main branch"
               utils/scripts/update_dashboard_CI_visibility.sh java-tracer << pipeline.id >>-<< pipeline.number >>
             else
