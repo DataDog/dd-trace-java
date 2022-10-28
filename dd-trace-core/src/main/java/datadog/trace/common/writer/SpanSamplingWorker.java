@@ -38,7 +38,7 @@ public class SpanSamplingWorker implements AutoCloseable {
     return new SpanSamplingWorker(capacity, sampledSpansQueue, singleSpanSampler, healthMetrics);
   }
 
-  private SpanSamplingWorker(
+  protected SpanSamplingWorker(
       int capacity,
       Queue<Object> sampledSpansQueue,
       SingleSpanSampler singleSpanSampler,
@@ -66,6 +66,10 @@ public class SpanSamplingWorker implements AutoCloseable {
 
   public Queue<Object> getSpanSamplingQueue() {
     return spanSamplingQueue;
+  }
+
+  protected void afterOnEvent() {
+    // this method is used in tests only
   }
 
   private final class SamplingHandler implements Runnable, MessagePassingQueue.Consumer<Object> {
@@ -98,6 +102,13 @@ public class SpanSamplingWorker implements AutoCloseable {
     public void onEvent(Object event) {
       if (event instanceof List) {
         List<DDSpan> trace = (List<DDSpan>) event;
+
+        if (trace.isEmpty()) {
+          // protect against empty traces
+          log.warn("SingleSamplingWorker has received an empty trace.");
+          return;
+        }
+
         ArrayList<DDSpan> sampledSpans = new ArrayList<>(trace.size());
         for (DDSpan span : trace) {
           if (singleSpanSampler.setSamplingPriority(span)) {
@@ -106,13 +117,14 @@ public class SpanSamplingWorker implements AutoCloseable {
         }
 
         int samplingPriority = trace.get(0).samplingPriority();
-        if (sampledSpans.size() == 0 || !sampledSpansQueue.offer(sampledSpans)) {
+        if (sampledSpans.size() == 0) {
+          healthMetrics.onFailedPublish(samplingPriority);
+          log.debug("{}. Counted but dropping trace: {}", "Trace was empty", trace);
+        } else if (!sampledSpansQueue.offer(sampledSpans)) {
           // dropped all spans or couldn't send sampled spans because the queue is full
           healthMetrics.onFailedPublish(samplingPriority);
           log.debug(
-              "{}. Counted but dropping trace: {}",
-              "Trace was empty or written to overfilled buffer",
-              trace);
+              "{}. Counted but dropping trace: {}", "Trace written to overfilled buffer", trace);
         } else if (sampledSpans.size() < trace.size()) {
           // TODO partialTraces++
           // TODO droppedSpans += trace.size() - sampledSpans.size()
@@ -121,6 +133,7 @@ public class SpanSamplingWorker implements AutoCloseable {
           healthMetrics.onPublish(sampledSpans, samplingPriority);
         }
       }
+      afterOnEvent();
     }
 
     private void consumeBatch(MessagePassingQueue<Object> queue) {
