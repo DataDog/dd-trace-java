@@ -18,12 +18,21 @@ import net.bytebuddy.description.type.TypeList;
 final class TypeOutline extends WithName {
   private static final int ALLOWED_TYPE_MODIFIERS = 0x0000ffdf; // excludes ACC_SUPER
 
+  static final TypeList.Generic NO_TYPES = new TypeList.Generic.Empty();
+  static final AnnotationList NO_ANNOTATIONS = new AnnotationList.Empty();
+
+  private static final FieldList<FieldDescription.InDefinedShape> NO_FIELDS =
+      new FieldList.Empty<>();
+  private static final MethodList<MethodDescription.InDefinedShape> NO_METHODS =
+      new MethodList.Empty<>();
+
   private final int classFileVersion;
   private final int modifiers;
   private final String superName;
   private final String[] interfaces;
 
-  private final List<AnnotationDescription> declaredAnnotations = new ArrayList<>();
+  private List<AnnotationDescription> declaredAnnotations;
+
   private final List<FieldDescription.InDefinedShape> declaredFields = new ArrayList<>();
   private final List<MethodDescription.InDefinedShape> declaredMethods = new ArrayList<>();
 
@@ -50,6 +59,9 @@ final class TypeOutline extends WithName {
 
   @Override
   public TypeList.Generic getInterfaces() {
+    if (interfaces.length == 0) {
+      return NO_TYPES;
+    }
     List<Generic> outlines = new ArrayList<>(interfaces.length);
     for (final String iface : interfaces) {
       outlines.add(findType(iface.replace('/', '.')).asGenericType());
@@ -69,21 +81,26 @@ final class TypeOutline extends WithName {
 
   @Override
   public AnnotationList getDeclaredAnnotations() {
-    return new AnnotationList.Explicit(declaredAnnotations);
+    return null == declaredAnnotations
+        ? NO_ANNOTATIONS
+        : new AnnotationList.Explicit(declaredAnnotations);
   }
 
   @Override
   public FieldList<FieldDescription.InDefinedShape> getDeclaredFields() {
-    return new FieldList.Explicit<>(declaredFields);
+    return declaredFields.isEmpty() ? NO_FIELDS : new FieldList.Explicit<>(declaredFields);
   }
 
   @Override
   public MethodList<MethodDescription.InDefinedShape> getDeclaredMethods() {
-    return new MethodList.Explicit<>(declaredMethods);
+    return declaredMethods.isEmpty() ? NO_METHODS : new MethodList.Explicit<>(declaredMethods);
   }
 
   void declare(AnnotationDescription annotation) {
     if (null != annotation) {
+      if (null == declaredAnnotations) {
+        declaredAnnotations = new ArrayList<>();
+      }
       declaredAnnotations.add(annotation);
     }
   }

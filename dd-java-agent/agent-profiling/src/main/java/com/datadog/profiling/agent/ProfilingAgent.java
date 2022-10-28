@@ -4,7 +4,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIR
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST_DEFAULT;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
-import com.datadog.profiling.context.AsyncProfilerTracingContextTrackerFactory;
 import com.datadog.profiling.context.JfrTimestampPatch;
 import com.datadog.profiling.context.PerSpanTracingContextTrackerFactory;
 import com.datadog.profiling.controller.ConfigurationException;
@@ -70,16 +69,15 @@ public class ProfilingAgent {
             "Profiling: API key doesn't match expected format, expected to get a 32 character hex string. Profiling is disabled.");
         return;
       }
-      if (Platform.isJavaVersionAtLeast(9)) {
+      if (Platform.isJavaVersionAtLeast(9) && Platform.hasJfr()) {
         JfrTimestampPatch.execute(agentClasLoader);
       }
 
       try {
         final Controller controller = ControllerFactory.createController(configProvider);
 
-        if (AsyncProfilerTracingContextTrackerFactory.isEnabled(configProvider)) {
-          AsyncProfilerTracingContextTrackerFactory.register(configProvider);
-        } else if (PerSpanTracingContextTrackerFactory.isEnabled(configProvider)) {
+        if (!config.isAsyncProfilerEnabled()
+            && PerSpanTracingContextTrackerFactory.isEnabled(configProvider)) {
           PerSpanTracingContextTrackerFactory.register(configProvider);
         }
 

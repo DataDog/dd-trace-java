@@ -3,16 +3,16 @@ package datadog.smoketest;
 import static datadog.smoketest.ProcessBuilderHelper.buildDirectory;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 import com.datadog.debugger.agent.Configuration;
+import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.agent.SnapshotProbe;
-import com.datadog.debugger.sink.SnapshotSink;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
 import datadog.trace.bootstrap.debugger.Snapshot;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -23,7 +23,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import java.util.regex.Pattern;
 import okhttp3.HttpUrl;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -38,7 +37,6 @@ import org.slf4j.LoggerFactory;
 
 public abstract class BaseIntegrationTest {
   protected static final Logger LOG = LoggerFactory.getLogger(BaseIntegrationTest.class);
-  protected static final String SINGLE_EXPECTED_UPLOAD = "1";
   protected static final String PROBE_URL_PATH = "/v0.7/config";
   protected static final String SNAPSHOT_URL_PATH = "/debugger/v1/input";
   protected static final int REQUEST_WAIT_TIMEOUT = 10;
@@ -193,9 +191,10 @@ public abstract class BaseIntegrationTest {
     }
   }
 
-  protected JsonAdapter<List<SnapshotSink.IntakeRequest>> createAdapterForSnapshot() {
+  protected JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> createAdapterForSnapshot() {
     return MoshiHelper.createMoshiSnapshot()
-        .adapter(Types.newParameterizedType(List.class, SnapshotSink.IntakeRequest.class));
+        .adapter(
+            Types.newParameterizedType(List.class, JsonSnapshotSerializer.IntakeRequest.class));
   }
 
   protected void setCurrentConfiguration(Configuration configuration) {
@@ -224,7 +223,12 @@ public abstract class BaseIntegrationTest {
       Snapshot.CapturedContext context, String name, String typeName, String value) {
     Snapshot.CapturedValue capturedValue = context.getArguments().get(name);
     assertEquals(typeName, capturedValue.getType());
-    assertEquals(value, capturedValue.getValue());
+    Object objValue = capturedValue.getValue();
+    if (objValue.getClass().isArray()) {
+      assertEquals(value, Arrays.toString((Object[]) objValue));
+    } else {
+      assertEquals(value, String.valueOf(objValue));
+    }
   }
 
   protected void assertCaptureLocals(
@@ -234,24 +238,6 @@ public abstract class BaseIntegrationTest {
     assertEquals(value, localVar.getValue());
   }
 
-  protected void assertCaptureFields(
-      Snapshot.CapturedContext context, String name, String typeName, String value) {
-    Snapshot.CapturedValue field = context.getFields().get(name);
-    assertEquals(typeName, field.getType());
-    assertEquals(value, field.getValue());
-  }
-
-  protected void assertCaptureFieldsRegEx(
-      Snapshot.CapturedContext context, String name, String typeName, String regExValue) {
-    Snapshot.CapturedValue field = context.getFields().get(name);
-    assertEquals(typeName, field.getType());
-    assertTrue(field.getValue(), Pattern.matches(regExValue, field.getValue()));
-  }
-
-  protected void assertCaptureFieldCount(Snapshot.CapturedContext context, int expectedFieldCount) {
-    assertEquals(expectedFieldCount, context.getFields().size());
-  }
-
   protected void assertCaptureReturnValue(
       Snapshot.CapturedContext context, String typeName, String value) {
     Snapshot.CapturedValue returnValue = context.getLocals().get("@return");
@@ -259,24 +245,31 @@ public abstract class BaseIntegrationTest {
     assertEquals(value, returnValue.getValue());
   }
 
-  protected void assertCaptureReturnValueRegEx(
-      Snapshot.CapturedContext context, String typeName, String regex) {
-    Snapshot.CapturedValue returnValue = context.getLocals().get("@return");
-    assertEquals(typeName, returnValue.getType());
-    assertTrue(returnValue.getValue(), Pattern.matches(regex, returnValue.getValue()));
-  }
-
-  protected void assertCaptureThrowable(
-      Snapshot.CapturedContext context, String typeName, String message) {
-    Snapshot.CapturedThrowable throwable = context.getThrowable();
-    assertCaptureThrowable(throwable, typeName, message);
-  }
-
   protected void assertCaptureThrowable(
       Snapshot.CapturedThrowable throwable, String typeName, String message) {
     assertNotNull(throwable);
     assertEquals(typeName, throwable.getType());
     assertEquals(message, throwable.getMessage());
+  }
+
+  protected static boolean logHasErrors(Path logFilePath, Function<String, Boolean> checker)
+      throws IOException {
+    long errorLines =
+        Files.lines(logFilePath)
+            .filter(
+                it ->
+                    it.contains(" ERROR ")
+                        || it.contains("ASSERTION FAILED")
+                        || it.contains("Error:")
+                        || checker.apply(it))
+            .peek(System.out::println)
+            .count();
+    boolean hasErrors = errorLines > 0;
+    if (hasErrors) {
+      System.out.println(
+          "Test application log is containing errors. See full run logs in " + logFilePath);
+    }
+    return hasErrors;
   }
 
   private static class MockDispatcher extends okhttp3.mockwebserver.QueueDispatcher {

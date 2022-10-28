@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module xmlns="urn:jboss:module:1.0" name="commons-codec">
+  <resources>
+    <resource-root path="commons-codec.jar"/>
+  </resources>
+</module>

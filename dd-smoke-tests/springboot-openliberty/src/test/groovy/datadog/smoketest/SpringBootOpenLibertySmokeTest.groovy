@@ -25,6 +25,9 @@ class SpringBootOpenLibertySmokeTest extends AbstractServerSmokeTest {
     command.addAll((String[]) [
       "-Ddd.writer.type=MultiWriter:TraceStructureWriter:${output.getAbsolutePath()},DDAgentWriter",
       "-Ddd.jmxfetch.enabled=false",
+      "-Ddd.appsec.enabled=true",
+      "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
+      "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",
       "-jar",
       openLibertyShadowJar,
       "--server.port=${httpPort}"
@@ -68,12 +71,9 @@ class SpringBootOpenLibertySmokeTest extends AbstractServerSmokeTest {
   def "Test concurrent high load requests to Spring Boot running Open Liberty"() {
     def url = "http://localhost:${httpPort}/connect/0"
     def formBody = new FormBody.Builder()
-    def value = new StringBuilder(10_001 * 10)
-    for (int i = 0; i < 10000; i++) {
-      value.append("@@@@@@@@@@") // 10 chars
-    }
+    def value = "not too big!"
     for (int i = 0; i < 100; i++) {
-      formBody.add("test" + i, value.toString())
+      formBody.add("test" + i, value)
     }
     def request = new Request.Builder().url(url).post(formBody.build()).build()
 

@@ -59,4 +59,9 @@ abstract class AbstractOSGiSmokeTest extends AbstractSmokeTest {
     instrumentedMessageClient
     !logHasErrors
   }
+
+  @Override
+  def logLevel() {
+    return "debug"
+  }
 }

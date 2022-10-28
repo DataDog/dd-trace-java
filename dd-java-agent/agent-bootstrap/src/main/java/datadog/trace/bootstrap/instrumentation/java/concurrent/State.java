@@ -73,11 +73,4 @@ public final class State {
     CONTINUATION.compareAndSet(this, continuation, null);
     return continuation;
   }
-
-  public void startThreadMigration() {
-    AgentScope.Continuation continuation = CONTINUATION.get(this);
-    if (null != continuation) {
-      continuation.migrate();
-    }
-  }
 }

@@ -34,8 +34,6 @@ public class ResponseHandlerWrapper implements Handler<AsyncResult<Response>> {
       AgentScope scope = null;
       try {
         if (null != clientSpan) {
-          // need to 'resume' the span first
-          clientSpan.finishThreadMigration();
           clientSpan.finish();
         }
         if (null != parentContinuation) {

@@ -10,6 +10,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_METRICS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CLIENT_IP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_TLS_REFRESH;
@@ -183,6 +184,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OL
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_VERY_OLD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_OLD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_VERY_OLD;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_ASYNC_ALLOC_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_ASYNC_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
@@ -262,7 +265,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONU
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_CONTEXT_SERVICE_NAME;
-import static datadog.trace.api.config.TraceInstrumentationConfig.TEMP_JARS_CLEAN_ON_BOOT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE_FILE;
@@ -278,6 +280,7 @@ import static datadog.trace.api.config.TracerConfig.AGENT_NAMED_PIPE;
 import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY;
 import static datadog.trace.api.config.TracerConfig.AGENT_TIMEOUT;
 import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET;
+import static datadog.trace.api.config.TracerConfig.CLIENT_IP_ENABLED;
 import static datadog.trace.api.config.TracerConfig.CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS;
@@ -308,7 +311,6 @@ import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL;
 import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER;
-import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER_DISABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_RESOLVER_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT;
@@ -494,7 +496,6 @@ public class Config {
 
   private final boolean traceAnalyticsEnabled;
   private final String traceClientIpHeader;
-  private final boolean traceClientIpHeaderDisabled;
   private final boolean traceClientIpResolverEnabled;
 
   private final Map<String, String> traceSamplingServiceRules;
@@ -508,6 +509,8 @@ public class Config {
   private final boolean profilingEnabled;
   private final boolean profilingAgentless;
   private final boolean profilingLegacyTracingIntegrationEnabled;
+
+  private final boolean isAsyncProfilerEnabled;
   @Deprecated private final String profilingUrl;
   private final Map<String, String> profilingTags;
   private final int profilingStartDelay;
@@ -529,6 +532,8 @@ public class Config {
 
   private final boolean crashTrackingAgentless;
   private final Map<String, String> crashTrackingTags;
+
+  private final boolean clientIpEnabled;
 
   private final ProductActivationConfig appSecEnabled;
   private final boolean appSecReportingInband;
@@ -604,8 +609,6 @@ public class Config {
   private final boolean servletAsyncTimeoutError;
 
   private final int xDatadogTagsMaxLength;
-
-  private final boolean tempJarsCleanOnBoot;
 
   private final boolean traceAgentV05Enabled;
 
@@ -998,9 +1001,6 @@ public class Config {
     }
     this.traceClientIpHeader = traceClientIpHeader;
 
-    this.traceClientIpHeaderDisabled =
-        configProvider.getBoolean(TRACE_CLIENT_IP_HEADER_DISABLED, false);
-
     this.traceClientIpResolverEnabled =
         configProvider.getBoolean(TRACE_CLIENT_IP_RESOLVER_ENABLED, true);
 
@@ -1018,6 +1018,8 @@ public class Config {
     profilingLegacyTracingIntegrationEnabled =
         configProvider.getBoolean(
             PROFILING_LEGACY_TRACING_INTEGRATION, PROFILING_LEGACY_TRACING_INTEGRATION_DEFAULT);
+    isAsyncProfilerEnabled =
+        configProvider.getBoolean(PROFILING_ASYNC_ENABLED, PROFILING_ASYNC_ALLOC_ENABLED_DEFAULT);
     profilingUrl = configProvider.getString(PROFILING_URL);
 
     if (tmpApiKey == null) {
@@ -1107,7 +1109,19 @@ public class Config {
     }
     telemetryHeartbeatInterval = telemetryInterval;
 
-    String appSecEnabled = configProvider.getString(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED);
+    this.clientIpEnabled = configProvider.getBoolean(CLIENT_IP_ENABLED, DEFAULT_CLIENT_IP_ENABLED);
+
+    // ConfigProvider.getString currently doesn't fallback to default for empty strings. So we have
+    // special handling here until we have a general solution for empty string value fallback.
+    String appSecEnabled = configProvider.getString(APPSEC_ENABLED);
+    if (appSecEnabled == null || appSecEnabled.isEmpty()) {
+      appSecEnabled =
+          configProvider.getStringExcludingSource(
+              APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED, SystemPropertiesConfigSource.class);
+      if (appSecEnabled.isEmpty()) {
+        appSecEnabled = DEFAULT_APPSEC_ENABLED;
+      }
+    }
     this.appSecEnabled = ProductActivationConfig.fromString(appSecEnabled);
     appSecReportingInband =
         configProvider.getBoolean(APPSEC_REPORTING_INBAND, DEFAULT_APPSEC_REPORTING_INBAND);
@@ -1281,9 +1295,6 @@ public class Config {
             TRACE_X_DATADOG_TAGS_MAX_LENGTH, DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH);
 
     servletAsyncTimeoutError = configProvider.getBoolean(SERVLET_ASYNC_TIMEOUT_ERROR, true);
-
-    tempJarsCleanOnBoot =
-        configProvider.getBoolean(TEMP_JARS_CLEAN_ON_BOOT, false) && isWindowsOS();
 
     debugEnabled = isDebugMode();
 
@@ -1690,10 +1701,8 @@ public class Config {
     return traceClientIpHeader;
   }
 
-  public boolean isTraceClientIpHeaderDisabled() {
-    return traceClientIpHeaderDisabled;
-  }
-
+  // whether to collect headers and run the client ip resolution (also requires appsec to be enabled
+  // or clientIpEnabled)
   public boolean isTraceClientIpResolverEnabled() {
     return traceClientIpResolverEnabled;
   }
@@ -1802,6 +1811,10 @@ public class Config {
     return profilingLegacyTracingIntegrationEnabled;
   }
 
+  public boolean isAsyncProfilerEnabled() {
+    return isAsyncProfilerEnabled;
+  }
+
   public boolean isCrashTrackingAgentless() {
     return crashTrackingAgentless;
   }
@@ -1812,6 +1825,10 @@ public class Config {
 
   public int getTelemetryHeartbeatInterval() {
     return telemetryHeartbeatInterval;
+  }
+
+  public boolean isClientIpEnabled() {
+    return clientIpEnabled;
   }
 
   public ProductActivationConfig getAppSecEnabledConfig() {
@@ -2050,10 +2067,6 @@ public class Config {
 
   public boolean isServletAsyncTimeoutError() {
     return servletAsyncTimeoutError;
-  }
-
-  public boolean isTempJarsCleanOnBoot() {
-    return tempJarsCleanOnBoot;
   }
 
   public boolean isTraceAgentV05Enabled() {
@@ -3079,8 +3092,6 @@ public class Config {
         + servletAsyncTimeoutError
         + ", datadogTagsLimit="
         + xDatadogTagsMaxLength
-        + ", tempJarsCleanOnBoot="
-        + tempJarsCleanOnBoot
         + ", traceAgentV05Enabled="
         + traceAgentV05Enabled
         + ", debugEnabled="
@@ -3116,6 +3127,8 @@ public class Config {
         + grpcClientErrorStatuses
         + ", configProvider="
         + configProvider
+        + ", clientIpEnabled="
+        + clientIpEnabled
         + ", appSecEnabled="
         + appSecEnabled
         + ", appSecReportingInband="

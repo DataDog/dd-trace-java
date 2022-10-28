@@ -68,7 +68,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           distributeSubConfigurations(configMap, reconfiguration);
           log.info(
               "New AppSec configuration has been applied. AppSec status: {}",
-              AppSecSystem.ACTIVE ? "active" : "inactive");
+              AppSecSystem.isActive() ? "active" : "inactive");
         });
     this.configurationPoller.addListener(
         Product.ASM_DATA,
@@ -105,10 +105,12 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         Product.ASM_FEATURES,
         AppSecFeaturesDeserializer.INSTANCE,
         (configKey, newConfig, hinter) -> {
-          if (AppSecSystem.ACTIVE != newConfig.asm.enabled) {
-            log.warn("AppSec {} (runtime)", newConfig.asm.enabled ? "enabled" : "disabled");
+          final boolean newState =
+              newConfig != null && newConfig.asm != null && newConfig.asm.enabled;
+          if (AppSecSystem.isActive() != newState) {
+            log.warn("AppSec {} (runtime)", newState ? "enabled" : "disabled");
+            AppSecSystem.setActive(newState);
           }
-          AppSecSystem.ACTIVE = newConfig.asm.enabled;
         });
 
     this.configurationPoller.addCapabilities(

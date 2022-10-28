@@ -67,6 +67,11 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     return processBuilder
   }
 
+  @Override
+  def logLevel() {
+    return "debug"
+  }
+
   List additionalArguments() {
     return []
   }

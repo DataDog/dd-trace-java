@@ -1,6 +1,8 @@
 package datadog.trace.agent.tooling.bytebuddy.outline;
 
 import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.findDescriptor;
+import static datadog.trace.agent.tooling.bytebuddy.outline.TypeOutline.NO_ANNOTATIONS;
+import static datadog.trace.agent.tooling.bytebuddy.outline.TypeOutline.NO_TYPES;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,13 +19,16 @@ import net.bytebuddy.description.type.TypeList;
 final class MethodOutline extends MethodDescription.InDefinedShape.AbstractBase {
   private static final int ALLOWED_METHOD_MODIFIERS = 0x0000ffff;
 
+  private static final ParameterList<ParameterDescription.InDefinedShape> NO_PARAMETERS =
+      new ParameterList.Empty<>();
+
   private final TypeDescription declaringType;
 
   private final String descriptor;
   private final int modifiers;
   private final String name;
 
-  private final List<AnnotationDescription> declaredAnnotations = new ArrayList<>();
+  private List<AnnotationDescription> declaredAnnotations;
 
   MethodOutline(TypeDescription declaringType, int access, String name, String descriptor) {
     this.declaringType = declaringType;
@@ -44,9 +49,12 @@ final class MethodOutline extends MethodDescription.InDefinedShape.AbstractBase 
 
   @Override
   public ParameterList<ParameterDescription.InDefinedShape> getParameters() {
-    List<ParameterDescription.InDefinedShape> outlines = new ArrayList<>();
     int parameterCount = 0;
     int parameterStart = 1;
+    if (descriptor.charAt(parameterStart) == ')') {
+      return NO_PARAMETERS;
+    }
+    List<ParameterDescription.InDefinedShape> outlines = new ArrayList<>();
     while (descriptor.charAt(parameterStart) != ')') {
       int parameterEnd = parameterStart;
       while (descriptor.charAt(parameterEnd) == '[') {
@@ -78,7 +86,7 @@ final class MethodOutline extends MethodDescription.InDefinedShape.AbstractBase 
 
   @Override
   public TypeList.Generic getTypeVariables() {
-    return new TypeList.Generic.Empty();
+    return NO_TYPES;
   }
 
   @Override
@@ -88,16 +96,21 @@ final class MethodOutline extends MethodDescription.InDefinedShape.AbstractBase 
 
   @Override
   public AnnotationList getDeclaredAnnotations() {
-    return new AnnotationList.Explicit(declaredAnnotations);
+    return null == declaredAnnotations
+        ? NO_ANNOTATIONS
+        : new AnnotationList.Explicit(declaredAnnotations);
   }
 
   @Override
   public TypeList.Generic getExceptionTypes() {
-    return new TypeList.Generic.Empty();
+    return NO_TYPES;
   }
 
   void declare(AnnotationDescription annotation) {
     if (null != annotation) {
+      if (null == declaredAnnotations) {
+        declaredAnnotations = new ArrayList<>();
+      }
       declaredAnnotations.add(annotation);
     }
   }
@@ -140,7 +153,7 @@ final class MethodOutline extends MethodDescription.InDefinedShape.AbstractBase 
 
     @Override
     public AnnotationList getDeclaredAnnotations() {
-      return new AnnotationList.Empty();
+      return NO_ANNOTATIONS;
     }
   }
 }

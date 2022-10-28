@@ -33,7 +33,8 @@ public class MuzzleVersionScanPlugin {
   public static void assertInstrumentationMuzzled(
       final ClassLoader instrumentationLoader,
       final ClassLoader userClassLoader,
-      final boolean assertPass)
+      final boolean assertPass,
+      final String muzzleDirective)
       throws Exception {
     Iterable<Instrumenter> instrumenters = Instrumenters.load(instrumentationLoader);
     // muzzle validate all instrumenters
@@ -50,6 +51,12 @@ public class MuzzleVersionScanPlugin {
       }
       if (!(instrumenter instanceof Instrumenter.Default)) {
         // only default Instrumenters use muzzle. Skip custom instrumenters.
+        continue;
+      }
+
+      String directiveToTest = ((Instrumenter.Default) instrumenter).muzzleDirective();
+      if (null != directiveToTest && !directiveToTest.equals(muzzleDirective)) {
+        // instrumenter wants to validate against a different named directive
         continue;
       }
 

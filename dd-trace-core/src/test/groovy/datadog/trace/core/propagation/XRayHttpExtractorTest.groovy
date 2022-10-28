@@ -2,6 +2,7 @@ package datadog.trace.core.propagation
 
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.test.util.DDSpecification
@@ -12,8 +13,17 @@ class XRayHttpExtractorTest extends DDSpecification {
 
   HttpCodec.Extractor extractor = XRayHttpCodec.newExtractor(["SOME_HEADER": "some-tag"])
 
-  def setup() {
+  boolean origAppSecActive
+
+  void setup() {
+    origAppSecActive = ActiveSubsystems.APPSEC_ACTIVE
+    ActiveSubsystems.APPSEC_ACTIVE = true
+
     injectSysConfig(PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED, "true")
+  }
+
+  void cleanup() {
+    ActiveSubsystems.APPSEC_ACTIVE = origAppSecActive
   }
 
   def "extract http headers"() {
@@ -98,8 +108,8 @@ class XRayHttpExtractorTest extends DDSpecification {
     then:
     context != null
     context instanceof TagContext
-    context.forwardedIp == forwardedIp
-    context.forwardedPort == forwardedPort
+    context.XForwardedFor == forwardedIp
+    context.XForwardedPort == forwardedPort
 
     when:
     context = extractor.extract(fullCtx, ContextVisitors.stringValuesMap())
@@ -108,8 +118,8 @@ class XRayHttpExtractorTest extends DDSpecification {
     context instanceof ExtractedContext
     context.traceId.toLong() == 1
     context.spanId.toLong() == 2
-    context.forwardedIp == forwardedIp
-    context.forwardedPort == forwardedPort
+    context.XForwardedFor == forwardedIp
+    context.XForwardedPort == forwardedPort
 
     where:
     forwardedIp = "1.2.3.4"
@@ -125,12 +135,12 @@ class XRayHttpExtractorTest extends DDSpecification {
     ]
   }
 
-  def "extract empty headers returns null"() {
+  def "no context with empty headers"() {
     expect:
     extractor.extract(["ignored-header": "ignored-value"], ContextVisitors.stringValuesMap()) == null
   }
 
-  def "extract http headers with invalid non-numeric ID"() {
+  def "no context with invalid non-numeric ID"() {
     setup:
     def headers = [
       "x-amzn-trace-Id"  : "Root=1-00000000-00000000000000000traceId;Parent=0000000000spanId",
@@ -144,18 +154,32 @@ class XRayHttpExtractorTest extends DDSpecification {
     context == null
   }
 
-  def "extract http headers with non-Datadog X-Amzn-Trace-Id value"() {
+  def "no context with too large trace-id"() {
     setup:
     def headers = [
-      'X-Amzn-Trace-Id' : "Root=1-5759e988-bd862e3fe1be46a994272793;Parent=53995c3f42cd8ad8;Sampled=1"
+      'X-Amzn-Trace-Id' : "Root=1-5759e988-bd862e3fe1be46a994272793;Parent=53995c3f42cd8ad8"
     ]
-
 
     when:
     TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
 
     then:
     context == null
+  }
+
+  def "extract http headers with non-zero epoch"() {
+    setup:
+    def headers = [
+      'X-Amzn-Trace-Id' : "Root=1-5759e988-00000000e1be46a994272793;Parent=53995c3f42cd8ad8"
+    ]
+
+    when:
+    TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+
+    then:
+    context.traceId == DDId.fromHex("e1be46a994272793")
+    context.spanId == DDId.fromHex("53995c3f42cd8ad8")
+    context.origin == null
   }
 
   def "extract ids while retaining the original string"() {

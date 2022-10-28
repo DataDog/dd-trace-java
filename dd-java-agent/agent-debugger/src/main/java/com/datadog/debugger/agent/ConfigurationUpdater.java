@@ -3,11 +3,11 @@ package com.datadog.debugger.agent;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.util.ExceptionHelper;
-import com.datadog.debugger.util.TagsHelper;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.util.TagsHelper;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -106,7 +106,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
     currentConfiguration = newConfiguration;
 
     if (changes.hasProbeRelatedChanges()) {
-      log.debug("apply new probe configuration, changes: {}", changes);
+      log.info("Applying new probe configuration, changes: {}", changes);
       handleProbesChanges(changes);
     }
     if (changes.hasRateLimitRelatedChanged()) {
@@ -176,7 +176,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
 
     // ensures that we have at least re-transformed 1 class
     if (changedClasses.size() > 0) {
-      log.info("Re-transformation done.");
+      log.debug("Re-transformation done");
     }
   }
 

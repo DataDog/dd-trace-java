@@ -16,9 +16,8 @@ import com.datadog.debugger.agent.Where;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
-import datadog.trace.bootstrap.debugger.FieldExtractor;
+import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.Snapshot;
-import datadog.trace.bootstrap.debugger.ValueConverter;
 import java.util.ArrayList;
 import java.util.List;
 import org.objectweb.asm.Opcodes;
@@ -220,7 +219,7 @@ public final class MethodProbeInstrumentor extends Instrumentor {
     insnList.add(new InsnNode(Opcodes.DUP)); // stack: [snapshot, capturedcontext, capturedcontext]
     invokeConstructor(insnList, CAPTURE_CONTEXT_TYPE);
     collectArguments(insnList); // stack: [snapshot, capturedcontext]
-    collectFields(insnList); // stack: [snapshot, capturecontetx]
+    collectFields(insnList); // stack: [snapshot, capturedcontext]
     if (kind != Snapshot.Kind.UNHANDLED_EXCEPTION && kind != Snapshot.Kind.HANDLED_EXCEPTION) {
       /*
        * It makes no sense collecting local variables for exceptions - the ones contributing to the exception
@@ -682,19 +681,17 @@ public final class MethodProbeInstrumentor extends Instrumentor {
 
   private void addCapturedValueOf(InsnList insnList, SnapshotProbe.Capture capture) {
     if (capture == null) {
-      ldc(insnList, ValueConverter.DEFAULT_REFERENCE_DEPTH);
-      ldc(insnList, ValueConverter.DEFAULT_COLLECTION_SIZE);
-      ldc(insnList, ValueConverter.DEFAULT_LENGTH);
-      ldc(insnList, FieldExtractor.DEFAULT_FIELD_DEPTH);
-      ldc(insnList, FieldExtractor.DEFAULT_FIELD_COUNT);
+      ldc(insnList, Limits.DEFAULT_REFERENCE_DEPTH);
+      ldc(insnList, Limits.DEFAULT_COLLECTION_SIZE);
+      ldc(insnList, Limits.DEFAULT_LENGTH);
+      ldc(insnList, Limits.DEFAULT_FIELD_COUNT);
     } else {
       ldc(insnList, capture.getMaxReferenceDepth());
       ldc(insnList, capture.getMaxCollectionSize());
       ldc(insnList, capture.getMaxLength());
-      ldc(insnList, capture.getMaxFieldDepth());
       ldc(insnList, capture.getMaxFieldCount());
     }
-    // expected stack: [type_name, value, int, int, int, int, int]
+    // expected stack: [type_name, value, int, int, int, int]
     invokeStatic(
         insnList,
         CAPTURED_VALUE,
@@ -703,7 +700,6 @@ public final class MethodProbeInstrumentor extends Instrumentor {
         STRING_TYPE,
         STRING_TYPE,
         OBJECT_TYPE,
-        INT_TYPE,
         INT_TYPE,
         INT_TYPE,
         INT_TYPE,

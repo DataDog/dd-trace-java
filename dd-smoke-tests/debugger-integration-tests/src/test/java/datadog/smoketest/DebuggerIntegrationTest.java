@@ -6,12 +6,12 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.SnapshotProbe;
-import com.datadog.debugger.sink.SnapshotSink;
-import com.datadog.debugger.util.TagsHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.util.TagsHelper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,8 +20,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.DisplayName;
@@ -57,15 +55,14 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
     }
     List<String> commandParams = getDebuggerCommandParams();
     targetProcess =
-        ProcessBuilderHelper.createProcessBuilder(
-                classpath, commandParams, logFilePath, "App", SINGLE_EXPECTED_UPLOAD)
+        ProcessBuilderHelper.createProcessBuilder(classpath, commandParams, logFilePath, "App", "3")
             .start();
     RecordedRequest request = retrieveSnapshotRequest();
     assertNotNull(request);
     assertFalse(logHasErrors(logFilePath, it -> false));
     String bodyStr = request.getBody().readUtf8();
     LOG.info("got snapshot: {}", bodyStr);
-    JsonAdapter<List<SnapshotSink.IntakeRequest>> adapter = createAdapterForSnapshot();
+    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
     Snapshot snapshot = adapter.fromJson(bodyStr).get(0).getDebugger().getSnapshot();
     assertNotNull(snapshot);
   }
@@ -80,7 +77,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
             .where("DebuggerTestApplication", METHOD_NAME)
             .build();
     setCurrentConfiguration(createConfig(probe));
-    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, SINGLE_EXPECTED_UPLOAD).start();
+    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, "3").start();
 
     RecordedRequest request = retrieveSnapshotRequest();
     assertFalse(logHasErrors(logFilePath, it -> false));
@@ -129,10 +126,11 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
             .where("DebuggerTestApplication", METHOD_NAME)
             .build();
     setCurrentConfiguration(createConfig(probe));
-    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, SINGLE_EXPECTED_UPLOAD).start();
+    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, "3").start();
     RecordedRequest request = retrieveSnapshotRequest();
     assertNotNull(request);
     assertFalse(logHasErrors(logFilePath, it -> false));
+    Thread.sleep(10000);
   }
 
   @Test
@@ -145,17 +143,17 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
             .where("DebuggerTestApplication", METHOD_NAME)
             .build();
     setCurrentConfiguration(createConfig(probe));
-    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, SINGLE_EXPECTED_UPLOAD).start();
+    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, "3").start();
     RecordedRequest request = retrieveSnapshotRequest();
     assertNotNull(request);
     assertFalse(logHasErrors(logFilePath, it -> false));
     String bodyStr = request.getBody().readUtf8();
-    JsonAdapter<List<SnapshotSink.IntakeRequest>> adapter = createAdapterForSnapshot();
+    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
     System.out.println(bodyStr);
     Snapshot snapshot = adapter.fromJson(bodyStr).get(0).getDebugger().getSnapshot();
     assertEquals("123356536", snapshot.getProbe().getId());
     assertFullMethodCaptureArgs(snapshot.getCaptures().getEntry());
-    assertNull(snapshot.getCaptures().getEntry().getLocals());
+    assertEquals(0, snapshot.getCaptures().getEntry().getLocals().size());
     assertNull(snapshot.getCaptures().getEntry().getThrowable());
     assertNull(snapshot.getCaptures().getEntry().getFields());
     assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
@@ -170,8 +168,8 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   private void assertFullMethodCaptureArgs(Snapshot.CapturedContext context) {
-    if ("IBM Corporation".equals(Platform.getRuntimeVendor())) {
-      // skip for IBM as we cannot get local variable debug info.
+    if (Platform.isJ9()) {
+      // skip for J9/OpenJ9 as we cannot get local variable debug info.
       return;
     }
     assertCaptureArgs(context, "argInt", "int", "42");
@@ -205,11 +203,11 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
       RecordedRequest request = retrieveSnapshotRequest();
       assertNotNull(request);
       String bodyStr = request.getBody().readUtf8();
-      JsonAdapter<List<SnapshotSink.IntakeRequest>> adapter = createAdapterForSnapshot();
-      List<SnapshotSink.IntakeRequest> intakeRequests = adapter.fromJson(bodyStr);
+      JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
+      List<JsonSnapshotSerializer.IntakeRequest> intakeRequests = adapter.fromJson(bodyStr);
       snapshotCount += intakeRequests.size();
       System.out.println("received " + intakeRequests.size() + " snapshots");
-      for (SnapshotSink.IntakeRequest intakeRequest : intakeRequests) {
+      for (JsonSnapshotSerializer.IntakeRequest intakeRequest : intakeRequests) {
         Snapshot snapshot = intakeRequest.getDebugger().getSnapshot();
         probeIds.add(snapshot.getProbe().getId());
       }
@@ -219,27 +217,6 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
       assertTrue(probeIds.contains("12335653" + i));
     }
     assertFalse(logHasErrors(logFilePath, it -> false));
-  }
-
-  private static boolean logHasErrors(Path logFilePath, Function<String, Boolean> checker)
-      throws IOException {
-    final AtomicBoolean hasErrors = new AtomicBoolean();
-    Files.lines(logFilePath)
-        .forEach(
-            it -> {
-              if (it.contains(" ERROR ")
-                  || it.contains("ASSERTION FAILED")
-                  || it.contains("Error:")) {
-                System.out.println(it);
-                hasErrors.set(true);
-              }
-              hasErrors.set(hasErrors.get() || checker.apply(it));
-            });
-    if (hasErrors.get()) {
-      System.out.println(
-          "Test application log is containing errors. See full run logs in " + logFilePath);
-    }
-    return hasErrors.get();
   }
 
   private static void assertContainsLogLine(Path logFilePath, String containsLine)

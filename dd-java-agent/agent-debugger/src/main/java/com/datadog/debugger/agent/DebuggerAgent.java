@@ -35,14 +35,12 @@ public class DebuggerAgent {
 
   public static synchronized void run(
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
-
     Config config = Config.get();
-
     if (!config.isDebuggerEnabled()) {
       log.info("Debugger agent disabled");
       return;
     }
-
+    log.info("Starting Dynamic Instrumentation");
     String finalDebuggerSnapshotUrl = config.getFinalDebuggerSnapshotUrl();
     String agentUrl = config.getAgentUrl();
     boolean isSnapshotUploadThroughAgent = Objects.equals(finalDebuggerSnapshotUrl, agentUrl);
@@ -72,6 +70,7 @@ public class DebuggerAgent {
     StatsdMetricForwarder statsdMetricForwarder = new StatsdMetricForwarder(config);
     DebuggerContext.init(sink, configurationUpdater, statsdMetricForwarder);
     DebuggerContext.initClassFilter(new DenyListHelper(null)); // default hard coded deny list
+    DebuggerContext.initSnapshotSerializer(new JsonSnapshotSerializer());
     if (config.isDebuggerInstrumentTheWorld()) {
       setupInstrumentTheWorldTransformer(config, instrumentation, sink, statsdMetricForwarder);
     }

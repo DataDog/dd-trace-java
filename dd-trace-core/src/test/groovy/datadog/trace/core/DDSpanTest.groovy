@@ -3,13 +3,13 @@ package datadog.trace.core
 import datadog.trace.api.Checkpointer
 import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
+import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.common.sampling.RateByServiceSampler
-import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
@@ -19,8 +19,6 @@ import java.util.concurrent.TimeUnit
 
 import static datadog.trace.api.Checkpointer.CPU
 import static datadog.trace.api.Checkpointer.END
-import static datadog.trace.api.Checkpointer.SPAN
-import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
 import static datadog.trace.api.sampling.PrioritySampling.UNSET
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 import static datadog.trace.api.sampling.SamplingMechanism.SPAN_SAMPLING_RATE
@@ -411,32 +409,17 @@ class DDSpanTest extends DDCoreSpecification {
       false,
       datadogTagsFactory.empty())
 
-    def span = null
+    def span = DDSpan.create(1, context)
 
     when:
-    span = DDSpan.create(1, context)
+    span.startWork()
     then:
-    // can not assert against 'span' as this check seems to operate on 'span' value before it has been created
-    1 * checkpointer.checkpoint(_, SPAN)
-
-    when:
-    span.startThreadMigration()
-    then:
-    1 * checkpointer.checkpoint(span, THREAD_MIGRATION)
-    when:
-    span.finishThreadMigration()
-    then:
-    1 * checkpointer.checkpoint(span, THREAD_MIGRATION | END)
+    1 * checkpointer.checkpoint(span, CPU)
 
     when:
     span.finishWork()
     then:
     1 * checkpointer.checkpoint(span, CPU | END)
-
-    when:
-    span.finish()
-    then:
-    1 * checkpointer.checkpoint(span, SPAN | END)
   }
 
   def "broken pipe exception does not create error span"() {

@@ -30,7 +30,7 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
     userCP.each { userClassLoader.addClass(it) }
 
     expect:
-    MuzzleVersionScanPlugin.assertInstrumentationMuzzled(instrumentationLoader, userClassLoader, assertPass)
+    MuzzleVersionScanPlugin.assertInstrumentationMuzzled(instrumentationLoader, userClassLoader, assertPass, null)
 
     where:
     // spotless:off
@@ -55,7 +55,7 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
     def userClassLoader = new AddableClassLoader(TestInstrumentationClasses)
 
     when:
-    MuzzleVersionScanPlugin.assertInstrumentationMuzzled(instrumentationLoader, userClassLoader, true)
+    MuzzleVersionScanPlugin.assertInstrumentationMuzzled(instrumentationLoader, userClassLoader, true, null)
 
     then:
     def ex = thrown(RuntimeException)
@@ -76,7 +76,7 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
     def userClassLoader = new AddableClassLoader()
 
     expect:
-    MuzzleVersionScanPlugin.assertInstrumentationMuzzled(instrumentationLoader, userClassLoader, true)
+    MuzzleVersionScanPlugin.assertInstrumentationMuzzled(instrumentationLoader, userClassLoader, true, null)
     !helpers.findAll {
       userClassLoader.loadClass(it.name) != null
     }.isEmpty()
@@ -97,7 +97,7 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
     def userClassLoader = new AddableClassLoader()
 
     when:
-    MuzzleVersionScanPlugin.assertInstrumentationMuzzled(instrumentationLoader, userClassLoader, true)
+    MuzzleVersionScanPlugin.assertInstrumentationMuzzled(instrumentationLoader, userClassLoader, true, null)
 
     then:
     def ex = thrown(IllegalArgumentException)

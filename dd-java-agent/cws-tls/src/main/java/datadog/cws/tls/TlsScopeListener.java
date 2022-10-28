@@ -50,11 +50,11 @@ public class TlsScopeListener implements ExtendedScopeListener {
 
   @Override
   public void afterScopeActivated() {
-    afterScopeActivated(DDId.ZERO, DDId.ZERO);
+    afterScopeActivated(DDId.ZERO, DDId.ZERO, DDId.ZERO);
   }
 
   @Override
-  public void afterScopeActivated(DDId traceId, DDId spanId) {
+  public void afterScopeActivated(DDId traceId, DDId localRootSpanId, DDId spanId) {
     push(traceId, spanId);
   }
 

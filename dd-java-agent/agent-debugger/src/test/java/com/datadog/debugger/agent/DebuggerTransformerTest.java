@@ -17,10 +17,9 @@ import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
-import datadog.trace.bootstrap.debugger.FieldExtractor;
+import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.Snapshot;
-import datadog.trace.bootstrap.debugger.ValueConverter;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import java.io.BufferedReader;
@@ -191,6 +190,9 @@ public class DebuggerTransformerTest {
             new InputStreamReader(
                 DebuggerTransformerTest.class.getResourceAsStream("/TargetClass.ftlh")),
             cfg);
+    // TODO asserts are operating on 'toString()' which requires keeping the underlying object so we
+    // just disable serialization for now
+    DebuggerContext.initSnapshotSerializer(null);
   }
 
   @AfterEach
@@ -557,11 +559,10 @@ public class DebuggerTransformerTest {
     SnapshotProbe.Builder builder = SnapshotProbe.builder().probeId(UUID.randomUUID().toString());
     // add depth 1 field destructuring
     builder.capture(
-        ValueConverter.DEFAULT_REFERENCE_DEPTH,
-        ValueConverter.DEFAULT_COLLECTION_SIZE,
-        ValueConverter.DEFAULT_LENGTH,
-        1,
-        FieldExtractor.DEFAULT_FIELD_COUNT);
+        Limits.DEFAULT_REFERENCE_DEPTH,
+        Limits.DEFAULT_COLLECTION_SIZE,
+        Limits.DEFAULT_LENGTH,
+        Limits.DEFAULT_FIELD_COUNT);
     if (kind == InstrumentationKind.LINE) {
       // locate the specially marked line in the source code
       int line = findLine(sourceCode, LINE_PROBE_MARKER);

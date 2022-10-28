@@ -56,9 +56,7 @@ public class ListenableFutureInstrumentation extends Instrumenter.Tracing
         task = newTask;
         final ContextStore<Runnable, State> contextStore =
             InstrumentationContext.get(Runnable.class, State.class);
-        State state = ExecutorInstrumentationUtils.setupState(contextStore, newTask, scope);
-        state.startThreadMigration();
-        return state;
+        return ExecutorInstrumentationUtils.setupState(contextStore, newTask, scope);
       }
       return null;
     }

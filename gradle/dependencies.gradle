@@ -12,7 +12,7 @@ final class CachedData {
     spock         : "1.3-groovy-$spockGroovyVer",
     groovy        : groovyVer,
     junit4        : "4.13.2",
-    junit5        : "5.7.1",
+    junit5        : "5.8.1",
     logback       : "1.2.3",
     bytebuddy     : "1.12.17",
     scala         : "2.11.12",  // Last version to support Java 7 (2.12+ require Java 8+)
@@ -23,7 +23,7 @@ final class CachedData {
     truth         : "1.1.3",
     kotlin        : "1.3.72",
     coroutines    : "1.3.0",
-    dogstatsd     : "4.0.0",
+    dogstatsd     : "4.1.0",
     jnr_unixsocket: "0.28",
     jnr_ffi       : '2.1.12', // dependency of jnr_unixsocket: update in tandem
     commons       : "3.2",
@@ -33,7 +33,7 @@ final class CachedData {
     testcontainers: '1.17.3',
     jmc           : "8.1.0-SNAPSHOT",
     autoservice   : "1.0-rc7",
-    asyncprofiler : "2.8.3-DD-20221003",
+    asyncprofiler : "2.8.3-DD-20221024_1",
     asm           : "9.2"
   ]
 

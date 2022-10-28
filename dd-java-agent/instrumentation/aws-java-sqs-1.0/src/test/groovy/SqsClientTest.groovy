@@ -157,9 +157,8 @@ class SqsClientTest extends AgentTestRunner {
       }
     }
 
-    assert messages[0].attributes['AWSTraceHeader'] ==
-    "Root=1-00000000-00000000${sendSpan.traceId.toHexStringPadded(16)};" +
-    "Parent=${sendSpan.spanId.toHexStringPadded(16)};Sampled=1"
+    assert messages[0].attributes['AWSTraceHeader'] =~
+    /Root=1-[0-9a-f]{8}-00000000${sendSpan.traceId.toHexStringPadded(16)};Parent=${sendSpan.spanId.toHexStringPadded(16)};Sampled=1/
 
     cleanup:
     client.shutdown()
@@ -350,9 +349,8 @@ class SqsClientTest extends AgentTestRunner {
     }
 
     def expectedTraceProperty = 'X-Amzn-Trace-Id'.toLowerCase(Locale.ENGLISH).replace('-', '__dash__')
-    assert message.getStringProperty(expectedTraceProperty) ==
-    "Root=1-00000000-00000000${sendSpan.traceId.toHexStringPadded(16)};" +
-    "Parent=${sendSpan.spanId.toHexStringPadded(16)};Sampled=1"
+    assert message.getStringProperty(expectedTraceProperty) =~
+    /Root=1-[0-9a-f]{8}-00000000${sendSpan.traceId.toHexStringPadded(16)};Parent=${sendSpan.spanId.toHexStringPadded(16)};Sampled=1/
 
     cleanup:
     session.close()

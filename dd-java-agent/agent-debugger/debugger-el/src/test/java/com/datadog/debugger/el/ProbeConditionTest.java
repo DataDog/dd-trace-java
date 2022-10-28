@@ -87,6 +87,14 @@ public class ProbeConditionTest {
     assertNull(map.get(ProbeCondition.NONE));
   }
 
+  @Test
+  void testIncorrectSyntax() {
+    UnsupportedOperationException ex =
+        assertThrows(
+            UnsupportedOperationException.class, () -> load("/test_conditional_03_error.json"));
+    assertEquals("Unsupported operation 'gte'", ex.getMessage());
+  }
+
   private static ProbeCondition load(String resourcePath) throws IOException {
     InputStream input = ProbeConditionTest.class.getResourceAsStream(resourcePath);
     Moshi moshi =

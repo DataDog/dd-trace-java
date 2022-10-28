@@ -7,8 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
-import datadog.trace.bootstrap.debugger.FieldExtractor;
-import datadog.trace.bootstrap.debugger.ValueConverter;
+import datadog.trace.bootstrap.debugger.Limits;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
@@ -28,46 +27,40 @@ public class ConfigurationTest {
   @Test
   public void captureDeserialization() throws IOException {
     doCaptureDeserialization(
-        "{\"maxReferenceDepth\":3,\"maxCollectionSize\":123,\"maxLength\":242,\"maxFieldDepth\":7,\"maxFieldCount\":2}",
+        "{\"maxReferenceDepth\":3,\"maxCollectionSize\":123,\"maxLength\":242,\"maxFieldCount\":2}",
         3,
         123,
         242,
-        7,
         2);
     doCaptureDeserialization(
         "{\"maxReferenceDepth\":3}",
         3,
-        ValueConverter.DEFAULT_COLLECTION_SIZE,
-        ValueConverter.DEFAULT_LENGTH,
-        FieldExtractor.DEFAULT_FIELD_DEPTH,
-        ValueConverter.DEFAULT_FIELD_COUNT);
+        Limits.DEFAULT_COLLECTION_SIZE,
+        Limits.DEFAULT_LENGTH,
+        Limits.DEFAULT_FIELD_COUNT);
     doCaptureDeserialization(
         "{\"maxCollectionSize\":123}",
-        ValueConverter.DEFAULT_REFERENCE_DEPTH,
+        Limits.DEFAULT_REFERENCE_DEPTH,
         123,
-        ValueConverter.DEFAULT_LENGTH,
-        FieldExtractor.DEFAULT_FIELD_DEPTH,
-        ValueConverter.DEFAULT_FIELD_COUNT);
+        Limits.DEFAULT_LENGTH,
+        Limits.DEFAULT_FIELD_COUNT);
     doCaptureDeserialization(
         "{\"maxLength\":242}",
-        ValueConverter.DEFAULT_REFERENCE_DEPTH,
-        ValueConverter.DEFAULT_COLLECTION_SIZE,
+        Limits.DEFAULT_REFERENCE_DEPTH,
+        Limits.DEFAULT_COLLECTION_SIZE,
         242,
-        FieldExtractor.DEFAULT_FIELD_DEPTH,
-        ValueConverter.DEFAULT_FIELD_COUNT);
+        Limits.DEFAULT_FIELD_COUNT);
     doCaptureDeserialization(
         "{\"maxFieldDepth\":7}",
-        ValueConverter.DEFAULT_REFERENCE_DEPTH,
-        ValueConverter.DEFAULT_COLLECTION_SIZE,
-        ValueConverter.DEFAULT_LENGTH,
-        7,
-        ValueConverter.DEFAULT_FIELD_COUNT);
+        Limits.DEFAULT_REFERENCE_DEPTH,
+        Limits.DEFAULT_COLLECTION_SIZE,
+        Limits.DEFAULT_LENGTH,
+        Limits.DEFAULT_FIELD_COUNT);
     doCaptureDeserialization(
         "{\"maxFieldCount\":2}",
-        ValueConverter.DEFAULT_REFERENCE_DEPTH,
-        ValueConverter.DEFAULT_COLLECTION_SIZE,
-        ValueConverter.DEFAULT_LENGTH,
-        FieldExtractor.DEFAULT_FIELD_DEPTH,
+        Limits.DEFAULT_REFERENCE_DEPTH,
+        Limits.DEFAULT_COLLECTION_SIZE,
+        Limits.DEFAULT_LENGTH,
         2);
   }
 
@@ -76,7 +69,6 @@ public class ConfigurationTest {
       int expectedMaxRef,
       int expectedMaxCol,
       int expectedMaxLen,
-      int expectedMaxFieldDepth,
       int expectedMaxFieldCount)
       throws IOException {
     JsonAdapter<SnapshotProbe.Capture> adapter =
@@ -85,7 +77,6 @@ public class ConfigurationTest {
     assertEquals(expectedMaxRef, capture.getMaxReferenceDepth());
     assertEquals(expectedMaxCol, capture.getMaxCollectionSize());
     assertEquals(expectedMaxLen, capture.getMaxLength());
-    assertEquals(expectedMaxFieldDepth, capture.getMaxFieldDepth());
     assertEquals(expectedMaxFieldCount, capture.getMaxFieldCount());
   }
 
@@ -167,11 +158,10 @@ public class ConfigurationTest {
         .active(true)
         .where(typeName, methodName, signature)
         .capture(
-            ValueConverter.DEFAULT_REFERENCE_DEPTH,
-            ValueConverter.DEFAULT_COLLECTION_SIZE,
-            ValueConverter.DEFAULT_LENGTH,
-            FieldExtractor.DEFAULT_FIELD_DEPTH,
-            FieldExtractor.DEFAULT_FIELD_COUNT)
+            Limits.DEFAULT_REFERENCE_DEPTH,
+            Limits.DEFAULT_COLLECTION_SIZE,
+            Limits.DEFAULT_LENGTH,
+            Limits.DEFAULT_FIELD_COUNT)
         .tags("tag1:value1", "tag2:value2")
         .build();
   }

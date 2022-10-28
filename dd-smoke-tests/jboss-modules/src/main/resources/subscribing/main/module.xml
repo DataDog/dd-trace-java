@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module xmlns="urn:jboss:module:1.0" name="subscribing">
+  <resources>
+    <resource-root path="subscribing.jar"/>
+  </resources>
+  <dependencies>
+    <module name="messaging"/>
+  </dependencies>
+</module>

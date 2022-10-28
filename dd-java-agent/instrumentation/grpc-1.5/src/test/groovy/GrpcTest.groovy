@@ -3,8 +3,8 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDId
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Platform
-import datadog.trace.api.function.Function
 import datadog.trace.api.function.BiFunction
+import datadog.trace.api.function.Function
 import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.gateway.Flow
@@ -35,10 +35,6 @@ import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.api.Checkpointer.CPU
-import static datadog.trace.api.Checkpointer.END
-import static datadog.trace.api.Checkpointer.SPAN
-import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
 import static datadog.trace.api.gateway.Events.EVENTS
 
 abstract class GrpcTest extends AgentTestRunner {
@@ -68,10 +64,12 @@ abstract class GrpcTest extends AgentTestRunner {
     } as TriConsumer<RequestContext, String, String>)
     ig.registerCallback(EVENTS.requestHeaderDone(),{
       appSecHeaderDone = true
+      Flow.ResultFlow.empty()
     } as Function<RequestContext, Flow<Void>>)
     ig.registerCallback(EVENTS.grpcServerRequestMessage(), { reqCtx, obj ->
       collectedAppSecReqMsgs << obj
-    } as BiFunction<RequestContext, Object>)
+      Flow.ResultFlow.empty()
+    } as BiFunction<RequestContext, Object, Flow<Void>>)
   }
 
   def cleanup() {
@@ -185,15 +183,6 @@ abstract class GrpcTest extends AgentTestRunner {
         }
       }
     }
-    5 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    5 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
-    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    0 * TEST_CHECKPOINTER._
 
     and:
     def traceId = TEST_WRITER[0].traceId.first()
@@ -318,16 +307,6 @@ abstract class GrpcTest extends AgentTestRunner {
       }
     }
 
-    3 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    3 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
-    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    0 * TEST_CHECKPOINTER._
-
     cleanup:
     channel?.shutdownNow()?.awaitTermination(10, TimeUnit.SECONDS)
     server?.shutdownNow()?.awaitTermination()
@@ -416,16 +395,6 @@ abstract class GrpcTest extends AgentTestRunner {
         }
       }
     }
-
-    3 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    3 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
-    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    0 * TEST_CHECKPOINTER._
 
     cleanup:
     channel?.shutdownNow()?.awaitTermination(10, TimeUnit.SECONDS)

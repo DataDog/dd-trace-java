@@ -14,6 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
+import datadog.trace.bootstrap.instrumentation.api.ContextThreadListener;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.util.AgentTaskScheduler;
@@ -40,13 +41,7 @@ import org.slf4j.LoggerFactory;
 public final class ContinuableScopeManager implements AgentScopeManager {
 
   static final Logger log = LoggerFactory.getLogger(ContinuableScopeManager.class);
-  final ThreadLocal<ScopeStack> tlsScopeStack =
-      new ThreadLocal<ScopeStack>() {
-        @Override
-        protected final ScopeStack initialValue() {
-          return new ScopeStack();
-        }
-      };
+  final ScopeStackThreadLocal tlsScopeStack;
 
   static final long iterationKeepAlive =
       SECONDS.toMillis(Config.get().getScopeIterationKeepAlive());
@@ -73,6 +68,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     this.inheritAsyncPropagation = inheritAsyncPropagation;
     this.scopeListeners = new CopyOnWriteArrayList<>();
     this.extendedScopeListeners = new CopyOnWriteArrayList<>();
+    this.tlsScopeStack = new ScopeStackThreadLocal();
   }
 
   @Override
@@ -168,6 +164,10 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     }
   }
 
+  public void detach() {
+    tlsScopeStack.detach();
+  }
+
   @Override
   public AgentScope activateNext(final AgentSpan span) {
     ScopeStack scopeStack = scopeStack();
@@ -211,6 +211,10 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     return active == null ? null : active.span;
   }
 
+  public void addContextThreadListener(ContextThreadListener listener) {
+    tlsScopeStack.register(listener);
+  }
+
   /** Attach a listener to scope activation events */
   public void addScopeListener(final ScopeListener listener) {
     if (listener instanceof ExtendedScopeListener) {
@@ -232,7 +236,10 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     AgentSpan activeSpan = activeSpan();
     if (activeSpan != null && activeSpan != NoopAgentSpan.INSTANCE) {
       // Notify the listener about the currently active scope
-      listener.afterScopeActivated(activeSpan.getTraceId(), activeSpan.context().getSpanId());
+      listener.afterScopeActivated(
+          activeSpan.getTraceId(),
+          activeSpan.getLocalRootSpan().getSpanId(),
+          activeSpan.context().getSpanId());
     }
   }
 
@@ -248,7 +255,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     /** Flag to propagate this scope across async boundaries. */
     private boolean isAsyncPropagating;
 
-    private byte flags;
+    private final byte flags;
 
     private short referenceCount = 1;
 
@@ -318,10 +325,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
         }
       }
 
-      if (!notifiedOnActivate()) {
-        return;
-      }
-
       for (final ExtendedScopeListener listener : scopeManager.extendedScopeListeners) {
         try {
           listener.afterScopeClosed();
@@ -364,11 +367,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
       isAsyncPropagating = value;
     }
 
-    @Override
-    public boolean checkpointed() {
-      return false;
-    }
-
     /**
      * The continuation returned must be closed or activated or the trace will not finish.
      *
@@ -407,14 +405,10 @@ public final class ContinuableScopeManager implements AgentScopeManager {
         }
       }
 
-      if (span.eligibleForDropping()) {
-        return;
-      }
-      flags |= 0x80;
-
       for (final ExtendedScopeListener listener : scopeManager.extendedScopeListeners) {
         try {
-          listener.afterScopeActivated(span.getTraceId(), span.context().getSpanId());
+          listener.afterScopeActivated(
+              span.getTraceId(), span.getLocalRootSpan().getSpanId(), span.context().getSpanId());
         } catch (Throwable e) {
           log.debug("ExtendedScopeListener threw exception in afterActivated()", e);
         }
@@ -424,10 +418,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     @Override
     public byte source() {
       return (byte) (flags & 0x7F);
-    }
-
-    private boolean notifiedOnActivate() {
-      return flags < 0;
     }
 
     @Override
@@ -456,15 +446,39 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     }
 
     @Override
-    public boolean checkpointed() {
-      return continuation.migrated;
-    }
-
-    @Override
     void cleanup(final ScopeStack scopeStack) {
       super.cleanup(scopeStack);
 
       continuation.cancelFromContinuedScopeClose();
+    }
+  }
+
+  static final class ScopeStackThreadLocal extends ThreadLocal<ScopeStack> {
+
+    private final List<ContextThreadListener> listeners = new CopyOnWriteArrayList<>();
+
+    public void register(ContextThreadListener listener) {
+      listeners.add(listener);
+    }
+
+    @Override
+    protected ScopeStack initialValue() {
+      for (ContextThreadListener listener : listeners) {
+        listener.onAttach();
+      }
+      return new ScopeStack();
+    }
+
+    @Override
+    public void remove() {
+      detach();
+      super.remove();
+    }
+
+    private void detach() {
+      for (ContextThreadListener listener : listeners) {
+        listener.onDetach();
+      }
     }
   }
 
@@ -570,7 +584,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     final AgentSpan spanUnderScope;
     final byte source;
     final AgentTrace trace;
-    protected volatile boolean migrated;
 
     public Continuation(
         ContinuableScopeManager scopeManager, AgentSpan spanUnderScope, byte source) {
@@ -609,9 +622,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     @Override
     public AgentScope activate() {
       if (USED.compareAndSet(this, 0, 1)) {
-        if (migrated) {
-          spanUnderScope.finishThreadMigration();
-        }
         return scopeManager.continueSpan(this, spanUnderScope, source);
       } else {
         log.debug(
@@ -627,17 +637,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
       } else {
         log.debug("Failed to close continuation {}. Already used.", this);
       }
-    }
-
-    @Override
-    public void migrate() {
-      this.migrated = true;
-      spanUnderScope.startThreadMigration();
-    }
-
-    @Override
-    public void migrated() {
-      this.migrated = true;
     }
 
     @Override
@@ -678,12 +677,9 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     private static final AtomicIntegerFieldUpdater<ConcurrentContinuation> COUNT =
         AtomicIntegerFieldUpdater.newUpdater(ConcurrentContinuation.class, "count");
 
-    private ConcurrentContinuation(
-        final ContinuableScopeManager scopeManager,
-        final AgentSpan spanUnderScope,
-        final byte source) {
+    public ConcurrentContinuation(
+        ContinuableScopeManager scopeManager, AgentSpan spanUnderScope, byte source) {
       super(scopeManager, spanUnderScope, source);
-      spanUnderScope.startThreadMigration();
     }
 
     private boolean tryActivate() {
@@ -715,7 +711,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     public AgentScope activate() {
       if (tryActivate()) {
         AgentScope scope = scopeManager.continueSpan(this, spanUnderScope, source);
-        spanUnderScope.finishThreadMigration();
         spanUnderScope.startWork();
         return scope;
       } else {
@@ -729,16 +724,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
         trace.cancelContinuation(this);
       }
       log.debug("t_id={} -> canceling continuation {}", spanUnderScope.getTraceId(), this);
-    }
-
-    @Override
-    public void migrate() {
-      // This has no meaning for a concurrent continuation
-    }
-
-    @Override
-    public void migrated() {
-      // This has no meaning for a concurrent continuation
     }
 
     @Override
@@ -815,7 +800,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
         } else if (NANOSECONDS.toMillis(rootScope.span.getStartTime()) < cutOff) {
           // mark scope as overdue to allow cleanup and avoid further spans being attached
           scopeStack.overdueRootScope = rootScope;
-          rootScope.span.finishThreadMigration();
           rootScope.span.finishWithEndToEnd();
           itr.remove();
         }

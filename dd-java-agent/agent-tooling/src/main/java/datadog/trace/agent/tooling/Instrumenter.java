@@ -247,6 +247,11 @@ public interface Instrumenter {
       return null;
     }
 
+    /** Override this to validate against a specific named MuzzleDirective. */
+    public String muzzleDirective() {
+      return null;
+    }
+
     /** Override this to supply additional class-loader requirements. */
     public ElementMatcher<ClassLoader> classLoaderMatcher() {
       return ANY_CLASS_LOADER;

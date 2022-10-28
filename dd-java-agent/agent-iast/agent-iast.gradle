@@ -1,0 +1,78 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+  id 'me.champeau.jmh'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/version.gradle"
+
+dependencies {
+  api deps.slf4j
+  implementation project(':internal-api')
+  implementation project(':internal-api:internal-api-8')
+  implementation project(':internal-api:internal-api-9')
+  implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
+
+  testImplementation deps.bytebuddy
+  testImplementation project(':utils:test-utils')
+
+  jmh project(':utils:test-utils')
+}
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+shadowJar {
+  dependencies deps.excludeShared
+}
+
+jar {
+  archiveClassifier = 'unbundled'
+}
+
+ext {
+  minimumBranchCoverage = 0.6
+  minimumInstructionCoverage = 0.8
+  excludedClassesCoverage = [
+    // Avoid coverage measurement of model getters atm
+    'com.datadog.iast.model.Evidence',
+    'com.datadog.iast.model.Range',
+    'com.datadog.iast.model.Source',
+    'com.datadog.iast.model.Vulnerability',
+    // Small JsonAdapters with unimplemented fromJson
+    'com.datadog.iast.model.json.SourceTypeAdapter',
+    'com.datadog.iast.model.json.DDIdAdapter',
+  ]
+  excludedClassesBranchCoverage = []
+  excludedClassesInstructionCoverage = []
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+tasks.withType(Test).configureEach {
+  jvmArgs += ['-Ddd.iast.enabled=true']
+}
+def rootDir = project.rootDir
+spotless {
+  java {
+    target 'src/**/*.java'
+  }
+}
+
+Project parent_project = project
+subprojects { Project subProj ->
+  subProj.tasks.withType(Test).configureEach { subTask ->
+    onlyIf { !project.rootProject.hasProperty("skipIastTests") }
+
+    // Make it so all instrumentation subproject tests can be run with a single command.
+    if (parent_project.hasProperty(subTask.name)) {
+      parent_project.tasks.named(subTask.name).configure {
+        dependsOn(subTask)
+      }
+    }
+  }
+}
+
+jmh {
+  jmhVersion = '1.28'
+  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+}

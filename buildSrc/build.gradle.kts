@@ -14,6 +14,10 @@ gradlePlugin {
       id = "muzzle"
       implementationClass = "MuzzlePlugin"
     }
+    create("call-site-instrumentation-plugin") {
+      id = "call-site-instrumentation"
+      implementationClass = "CallSiteInstrumentationPlugin"
+    }
   }
 }
 
@@ -43,4 +47,5 @@ dependencies {
 
 tasks.test {
   useJUnitPlatform()
+  dependsOn(":call-site-instrumentation-plugin:build")
 }

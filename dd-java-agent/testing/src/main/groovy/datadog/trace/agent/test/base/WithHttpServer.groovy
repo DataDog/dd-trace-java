@@ -21,6 +21,7 @@ abstract class WithHttpServer<SERVER> extends AgentTestRunner {
   @Shared
   URI address = null
 
+
   HttpServer server() {
     return new DefaultHttpServer()
   }
@@ -63,7 +64,7 @@ abstract class WithHttpServer<SERVER> extends AgentTestRunner {
     println "$server started at: $address"
   }
 
-  def cleanupSpec() {
+  void cleanupSpec() {
     server.stop()
     println "$server stopped at: $address"
   }

@@ -60,6 +60,8 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
   static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
 
+  static final boolean DEFAULT_CLIENT_IP_ENABLED = false;
+
   static final int DEFAULT_CLOCK_SYNC_PERIOD = 30; // seconds
 
   static final boolean DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED = false;
@@ -92,7 +94,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED = false;
 
-  static final boolean DEFAULT_REMOTE_CONFIG_ENABLED = false;
+  static final boolean DEFAULT_REMOTE_CONFIG_ENABLED = true;
   static final boolean DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED = false;
   static final int DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE = 1024; // KiB
   static final int DEFAULT_REMOTE_CONFIG_INITIAL_POLL_INTERVAL = 5; // s
@@ -131,7 +133,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_RESOLVER_OUTLINE_POOL_SIZE = 128;
   static final int DEFAULT_RESOLVER_TYPE_POOL_SIZE = 64;
 
-  static final boolean DEFAULT_TELEMETRY_ENABLED = false;
+  static final boolean DEFAULT_TELEMETRY_ENABLED = true;
   static final int DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL = 60; // in seconds
 
   public static final int DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH = 512;

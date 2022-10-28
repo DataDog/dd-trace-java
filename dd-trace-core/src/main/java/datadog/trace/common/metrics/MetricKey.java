@@ -11,6 +11,7 @@ public final class MetricKey {
   private final UTF8BytesString operationName;
   private final UTF8BytesString type;
   private final int httpStatusCode;
+  private final boolean synthetics;
   private final int hash;
 
   public MetricKey(
@@ -18,20 +19,23 @@ public final class MetricKey {
       CharSequence service,
       CharSequence operationName,
       CharSequence type,
-      int httpStatusCode) {
+      int httpStatusCode,
+      boolean synthetics) {
     this.resource = null == resource ? EMPTY : UTF8BytesString.create(resource);
     this.service = null == service ? EMPTY : UTF8BytesString.create(service);
     this.operationName = null == operationName ? EMPTY : UTF8BytesString.create(operationName);
     this.type = null == type ? EMPTY : UTF8BytesString.create(type);
     this.httpStatusCode = httpStatusCode;
+    this.synthetics = synthetics;
     // unrolled polynomial hashcode which avoids allocating varargs
-    // the constants are 31^4, 31^3, 31^2, 31^1, 31^0
+    // the constants are 31^5, 31^4, 31^3, 31^2, 31^1, 31^0
     this.hash =
-        923521 * this.resource.hashCode()
-            + 29791 * this.service.hashCode()
-            + 961 * this.operationName.hashCode()
-            + 31 * this.type.hashCode()
-            + httpStatusCode;
+        28629151 * this.resource.hashCode()
+            + 923521 * this.service.hashCode()
+            + 29791 * this.operationName.hashCode()
+            + 961 * this.type.hashCode()
+            + 31 * httpStatusCode
+            + (this.synthetics ? 1 : 0);
   }
 
   public UTF8BytesString getResource() {
@@ -54,6 +58,10 @@ public final class MetricKey {
     return httpStatusCode;
   }
 
+  public boolean isSynthetics() {
+    return synthetics;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -62,6 +70,7 @@ public final class MetricKey {
     if ((o instanceof MetricKey)) {
       MetricKey metricKey = (MetricKey) o;
       return hash == metricKey.hash
+          && synthetics == metricKey.synthetics
           && httpStatusCode == metricKey.httpStatusCode
           && resource.equals(metricKey.resource)
           && service.equals(metricKey.service)

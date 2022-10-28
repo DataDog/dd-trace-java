@@ -1,6 +1,7 @@
 package com.datadog.debugger.agent;
 
 import datadog.trace.api.Config;
+import datadog.trace.util.TagsHelper;
 import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,8 +15,8 @@ public class EnvironmentAndVersionChecker {
   private final String version;
 
   public EnvironmentAndVersionChecker(Config config) {
-    environment = config.getEnv();
-    version = config.getVersion();
+    environment = TagsHelper.sanitize(config.getEnv());
+    version = TagsHelper.sanitize(config.getVersion());
   }
 
   public boolean isEnvAndVersionMatch(ProbeDefinition definition) {

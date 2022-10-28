@@ -4,8 +4,7 @@ import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.instrumentation.MethodProbeInstrumentor;
 import com.squareup.moshi.Json;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
-import datadog.trace.bootstrap.debugger.FieldExtractor;
-import datadog.trace.bootstrap.debugger.ValueConverter;
+import datadog.trace.bootstrap.debugger.Limits;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -18,26 +17,19 @@ public class SnapshotProbe extends ProbeDefinition {
 
   /** Stores capture limits */
   public static final class Capture {
-    private int maxReferenceDepth = ValueConverter.DEFAULT_REFERENCE_DEPTH;
-    private int maxCollectionSize = ValueConverter.DEFAULT_COLLECTION_SIZE;
-    private int maxLength = ValueConverter.DEFAULT_LENGTH;
-    private int maxFieldDepth = FieldExtractor.DEFAULT_FIELD_DEPTH;
-    private int maxFieldCount = ValueConverter.DEFAULT_FIELD_COUNT;
+    private int maxReferenceDepth = Limits.DEFAULT_REFERENCE_DEPTH;
+    private int maxCollectionSize = Limits.DEFAULT_COLLECTION_SIZE;
+    private int maxLength = Limits.DEFAULT_LENGTH;
+    private int maxFieldCount = Limits.DEFAULT_FIELD_COUNT;
 
     private Capture() {
       // for Moshi to assign default values
     }
 
-    public Capture(
-        int maxReferenceDepth,
-        int maxCollectionSize,
-        int maxLength,
-        int maxFieldDepth,
-        int maxFieldCount) {
+    public Capture(int maxReferenceDepth, int maxCollectionSize, int maxLength, int maxFieldCount) {
       this.maxReferenceDepth = maxReferenceDepth;
       this.maxCollectionSize = maxCollectionSize;
       this.maxLength = maxLength;
-      this.maxFieldDepth = maxFieldDepth;
       this.maxFieldCount = maxFieldCount;
     }
 
@@ -53,10 +45,6 @@ public class SnapshotProbe extends ProbeDefinition {
       return maxLength;
     }
 
-    public int getMaxFieldDepth() {
-      return maxFieldDepth;
-    }
-
     public int getMaxFieldCount() {
       return maxFieldCount;
     }
@@ -70,15 +58,13 @@ public class SnapshotProbe extends ProbeDefinition {
       return maxReferenceDepth == capture.maxReferenceDepth
           && maxCollectionSize == capture.maxCollectionSize
           && maxLength == capture.maxLength
-          && maxFieldDepth == capture.maxFieldDepth
           && maxFieldCount == capture.maxFieldCount;
     }
 
     @Generated
     @Override
     public int hashCode() {
-      return Objects.hash(
-          maxReferenceDepth, maxCollectionSize, maxLength, maxFieldDepth, maxFieldCount);
+      return Objects.hash(maxReferenceDepth, maxCollectionSize, maxLength, maxFieldCount);
     }
   }
 
@@ -256,14 +242,8 @@ public class SnapshotProbe extends ProbeDefinition {
     }
 
     public Builder capture(
-        int maxReferenceDepth,
-        int maxCollectionSize,
-        int maxLength,
-        int maxFieldDepth,
-        int maxFieldCount) {
-      return capture(
-          new Capture(
-              maxReferenceDepth, maxCollectionSize, maxLength, maxFieldDepth, maxFieldCount));
+        int maxReferenceDepth, int maxCollectionSize, int maxLength, int maxFieldCount) {
+      return capture(new Capture(maxReferenceDepth, maxCollectionSize, maxLength, maxFieldCount));
     }
 
     public Builder sampling(double rateLimit) {

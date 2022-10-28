@@ -14,7 +14,6 @@ import datadog.trace.agent.tooling.AgentInstaller
 import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
-import datadog.trace.api.Checkpointer
 import datadog.trace.api.Config
 import datadog.trace.api.DDId
 import datadog.trace.api.Platform
@@ -23,6 +22,7 @@ import datadog.trace.api.WellKnownTags
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.api.time.TimeSource
+import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.common.metrics.EventListener
@@ -125,6 +125,11 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @Shared
   TimelineCheckpointer TEST_CHECKPOINTER = Spy(new TimelineCheckpointer())
 
+  // don't use mocks because it will break too many exhaustive interaction-verifying tests
+  @SuppressWarnings('PropertyName')
+  @Shared
+  TestContextThreadListener TEST_CONTEXT_THREAD_LISTENER = new TestContextThreadListener()
+
   @SuppressWarnings('PropertyName')
   @Shared
   TimelineTracingContextTracker TEST_TRACKER = Spy(TimelineTracingContextTracker.register())
@@ -142,6 +147,8 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   @Shared
   boolean isLatestDepTest = Boolean.getBoolean('test.dd.latestDepTest')
+
+  boolean originalAppSecRuntimeValue
 
   protected boolean isDataStreamsEnabled() {
     return false
@@ -209,6 +216,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       .dataStreamsCheckpointer(dataStreamsCheckpointer)
       .build())
     TEST_TRACER.registerCheckpointer(TEST_CHECKPOINTER)
+    TEST_TRACER.addThreadContextListener(TEST_CONTEXT_THREAD_LISTENER)
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
 
     enableAppSec()
@@ -219,8 +227,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       agentSpan
     }
     TEST_CHECKPOINTER.checkpoint(_, _, _) >> { DDId traceId, DDId spanId, int flags ->
-      // We need to treat startSpan differently because of how we mock TEST_TRACER.startSpan
-      if (flags == Checkpointer.SPAN || TEST_SPANS.contains(spanId)) {
+      if (TEST_SPANS.contains(spanId)) {
         callRealMethod()
       }
     }
@@ -263,7 +270,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     injectSysConfig(TracerConfig.SCOPE_ITERATION_KEEP_ALIVE, "1") // don't let iteration spans linger
   }
 
-  def setup() {
+  void setup() {
     // re-register in case a new JVM is spawned
     TimelineTracingContextTracker.register()
 
@@ -290,6 +297,9 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     util.attachMock(STATS_D_CLIENT, this)
     util.attachMock(TEST_CHECKPOINTER, this)
     util.attachMock(TEST_TRACKER, this)
+
+    originalAppSecRuntimeValue = ActiveSubsystems.APPSEC_ACTIVE
+    ActiveSubsystems.APPSEC_ACTIVE = true
   }
 
   void cleanup() {
@@ -302,12 +312,14 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     TEST_TRACKER.print()
     TEST_CHECKPOINTER.throwOnInvalidSequence(TEST_SPANS)
+
+    ActiveSubsystems.APPSEC_ACTIVE = originalAppSecRuntimeValue
   }
 
   /** Override to clean up things after the agent is removed */
   protected void cleanupAfterAgent() {}
 
-  def cleanupSpec() {
+  void cleanupSpec() {
     TEST_TRACER?.close()
 
     if (null != activeTransformer) {

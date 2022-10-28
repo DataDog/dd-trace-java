@@ -191,6 +191,15 @@ public class AgentTracer {
     AgentSpan.Context notifyExtensionStart(Object event);
 
     void notifyExtensionEnd(AgentSpan span, boolean isError);
+
+    /**
+     * Registers a listener for notification when context is attached to and detached from a thread
+     *
+     * @param listener listener to context attachment/detachment
+     */
+    void addThreadContextListener(ContextThreadListener listener);
+
+    void detach();
   }
 
   public interface SpanBuilder {
@@ -387,22 +396,10 @@ public class AgentTracer {
     public void checkpoint(AgentSpan span, int flags) {}
 
     @Override
-    public void onStart(AgentSpan span) {}
-
-    @Override
     public void onStartWork(AgentSpan span) {}
 
     @Override
     public void onFinishWork(AgentSpan span) {}
-
-    @Override
-    public void onStartThreadMigration(AgentSpan span) {}
-
-    @Override
-    public void onFinishThreadMigration(AgentSpan span) {}
-
-    @Override
-    public void onFinish(AgentSpan span) {}
 
     @Override
     public void onRootSpanFinished(AgentSpan root, boolean published) {}
@@ -420,6 +417,12 @@ public class AgentTracer {
 
     @Override
     public void notifyExtensionEnd(AgentSpan span, boolean isError) {}
+
+    @Override
+    public void addThreadContextListener(ContextThreadListener listener) {}
+
+    @Override
+    public void detach() {}
   }
 
   public static final class NoopAgentSpan implements AgentSpan {
@@ -549,12 +552,6 @@ public class AgentTracer {
     public boolean eligibleForDropping() {
       return true;
     }
-
-    @Override
-    public void startThreadMigration() {}
-
-    @Override
-    public void finishThreadMigration() {}
 
     @Override
     public void startWork() {}
@@ -741,11 +738,6 @@ public class AgentTracer {
     public void setAsyncPropagation(final boolean value) {}
 
     @Override
-    public boolean checkpointed() {
-      return false;
-    }
-
-    @Override
     public AgentScope.Continuation capture() {
       return NoopContinuation.INSTANCE;
     }
@@ -821,12 +813,6 @@ public class AgentTracer {
     public void cancel() {}
 
     @Override
-    public void migrate() {}
-
-    @Override
-    public void migrated() {}
-
-    @Override
     public AgentSpan getSpan() {
       return NoopAgentSpan.INSTANCE;
     }
@@ -868,22 +854,17 @@ public class AgentTracer {
     }
 
     @Override
-    public String getForwardedProto() {
+    public String getXForwardedProto() {
       return null;
     }
 
     @Override
-    public String getForwardedHost() {
+    public String getXForwardedHost() {
       return null;
     }
 
     @Override
-    public String getForwardedIp() {
-      return null;
-    }
-
-    @Override
-    public String getForwardedPort() {
+    public String getXForwardedPort() {
       return null;
     }
 

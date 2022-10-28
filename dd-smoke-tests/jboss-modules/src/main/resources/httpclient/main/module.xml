@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module xmlns="urn:jboss:module:1.1" name="httpclient">
+  <resources>
+    <resource-root path="httpclient.jar"/>
+  </resources>
+  <dependencies>
+    <system>
+      <paths>
+        <path name="javax/net/ssl"/>
+        <path name="javax/naming"/>
+      </paths>
+    </system>
+    <module name="httpcore">
+      <exports>
+        <include path="org/apache/http"/>
+      </exports>
+    </module>
+    <module name="commons-codec"/>
+    <module name="commons-logging"/>
+  </dependencies>
+</module>

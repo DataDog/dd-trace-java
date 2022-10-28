@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module xmlns="urn:jboss:module:1.1" name="httpcore">
+  <resources>
+    <resource-root path="httpcore.jar"/>
+  </resources>
+  <dependencies>
+    <system>
+      <paths>
+        <path name="javax/net/ssl"/>
+      </paths>
+    </system>
+  </dependencies>
+</module>

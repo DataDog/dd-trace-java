@@ -146,12 +146,6 @@ public final class TestSpan implements AgentSpan {
   }
 
   @Override
-  public void startThreadMigration() {}
-
-  @Override
-  public void finishThreadMigration() {}
-
-  @Override
   public void startWork() {}
 
   @Override

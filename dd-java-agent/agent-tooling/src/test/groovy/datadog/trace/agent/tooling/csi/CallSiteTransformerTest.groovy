@@ -3,6 +3,7 @@ package datadog.trace.agent.tooling.csi
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteTransformer
 import datadog.trace.api.function.BiFunction
 import datadog.trace.api.function.Consumer
+import datadog.trace.api.function.TriFunction
 import net.bytebuddy.jar.asm.Opcodes
 import net.bytebuddy.jar.asm.Type
 import datadog.trace.agent.tooling.csi.CallSiteAdvice.MethodHandler
@@ -59,14 +60,14 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
     setup:
     final source = Type.getType(StringConcatExample)
     final target = renameType(source, 'Test')
-    final helperType = Type.getType(StringConcatHelper)
-    final helperMethod = Type.getType(StringConcatHelper.getDeclaredMethod('onConcat', String, String))
+    final helperType = Type.getType(InstrumentationHelper)
+    final helperMethod = Type.getType(InstrumentationHelper.getDeclaredMethod('onConcat', String, String))
     final pointcut = stringConcatPointcut()
     final callSite = mockInvokeAdvice(pointcut, COMPUTE_MAX_STACK, helperType.className)
     final advices = mockAdvices([callSite])
     final callSiteTransformer = new CallSiteTransformer(advices)
     final callbackArguments = new Object[2]
-    StringConcatHelper.callback = { args ->  System.arraycopy(args, 0, callbackArguments, 0, 2) }
+    InstrumentationHelper.callback = { args ->  System.arraycopy(args, 0, callbackArguments, 0, 2) }
 
     when:
     // spock exception handling should be toplevel so we do a custom try/catch check
@@ -103,14 +104,14 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
     setup:
     final source = Type.getType(StringConcatCategory2Example)
     final target = renameType(source, 'Test')
-    final helperType = Type.getType(StringConcatHelper)
-    final helperMethod = Type.getType(StringConcatHelper.getDeclaredMethod('onConcat', String, String))
+    final helperType = Type.getType(InstrumentationHelper)
+    final helperMethod = Type.getType(InstrumentationHelper.getDeclaredMethod('onConcat', String, String))
     final pointcut = stringConcatPointcut()
     final callSite = mockInvokeAdvice(pointcut, COMPUTE_MAX_STACK, helperType.className)
     final advices = mockAdvices([callSite])
     final callSiteTransformer = new CallSiteTransformer(advices)
     final callbackArguments = new Object[2]
-    StringConcatHelper.callback = { args ->  System.arraycopy(args, 0, callbackArguments, 0, 2) }
+    InstrumentationHelper.callback = { args ->  System.arraycopy(args, 0, callbackArguments, 0, 2) }
 
     when:
     final transformedClass = transformType(source, target, callSiteTransformer)
@@ -129,13 +130,52 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
     }
   }
 
-  static class StringConcatHelper {
+  def 'test stack based duplication with arrays'() {
+    setup:
+    final source = Type.getType(CallSiteWithArraysExample)
+    final target = renameType(source, 'Test')
+    final helperType = Type.getType(InstrumentationHelper)
+    final helperMethod = Type.getType(InstrumentationHelper.getDeclaredMethod('onInsert', StringBuilder, int, char[], int, int))
+    final pointcut = stringBuilderInsertPointcut()
+    final callSite = mockInvokeAdvice(pointcut, COMPUTE_MAX_STACK, helperType.className)
+    final advices = mockAdvices([callSite])
+    final callSiteTransformer = new CallSiteTransformer(advices)
+    final callbackArguments = new Object[4]
+    InstrumentationHelper.callback = { args -> System.arraycopy(args, 0, callbackArguments, 0, callbackArguments.length) }
+
+    when:
+    final transformedClass = transformType(source, target, callSiteTransformer)
+    final insert = loadType(target, transformedClass) as TriFunction<String, Integer, Integer, String>
+    final inserted = insert.apply('Hello World!', 6, 5)
+
+    then:
+    inserted == 'World'
+    callbackArguments[0] == 0
+    callbackArguments[1] == 'Hello World!'.toCharArray()
+    callbackArguments[2] == 6
+    callbackArguments[3] == 5
+    1 * callSite.apply(_ as MethodHandler, Opcodes.INVOKEVIRTUAL, pointcut.type(), pointcut.method(), pointcut.descriptor(), false) >> { params ->
+      final args = params as Object[]
+      final handler = args[0] as MethodHandler
+      handler.dupInvoke(pointcut.type(), pointcut.descriptor(), COPY)
+      handler.method(Opcodes.INVOKESTATIC, helperType.internalName, 'onInsert', helperMethod.descriptor, false)
+      handler.method(args[1] as int, args[2] as String, args[3] as String, args[4] as String, args[5] as Boolean)
+    }
+  }
+
+  static class InstrumentationHelper {
 
     private static Consumer<Object[]> callback = null // codenarc forces the lowercase name
 
     static void onConcat(final String first, final String second) {
       if (callback != null) {
         callback.accept([first, second] as Object[])
+      }
+    }
+
+    static void onInsert(final StringBuilder self, final int index, final char[] str, final int offset, final int length) {
+      if (callback != null) {
+        callback.accept([index, str, offset, length] as Object[])
       }
     }
   }

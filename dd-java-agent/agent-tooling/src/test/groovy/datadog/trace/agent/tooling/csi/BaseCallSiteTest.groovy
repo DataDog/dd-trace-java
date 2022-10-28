@@ -128,6 +128,10 @@ class BaseCallSiteTest extends DDSpecification {
     return buildPointcut(MessageDigest.getDeclaredMethod('getInstance', String))
   }
 
+  protected static Pointcut stringBuilderInsertPointcut() {
+    return buildPointcut(StringBuilder.getDeclaredMethod('insert', int, char[], int, int))
+  }
+
   protected static Pointcut stringConcatFactoryPointcut() {
     return buildPointcut(
       'java/lang/invoke/StringConcatFactory',

@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
@@ -14,6 +13,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -52,6 +52,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       Config.get().isRuleEnabled("URLAsResourceNameRule");
 
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
+
+  private final boolean traceClientIpResolverEnabled =
+      Config.get().isTraceClientIpResolverEnabled();
 
   protected abstract AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter();
 
@@ -108,27 +111,32 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       final REQUEST request,
       final AgentSpan.Context.Extracted context) {
     Config config = Config.get();
+    boolean clientIpResolverEnabled =
+        config.isClientIpEnabled()
+            || traceClientIpResolverEnabled && ActiveSubsystems.APPSEC_ACTIVE;
 
     if (context != null) {
-      String forwarded = context.getForwarded();
-      if (forwarded != null) {
-        span.setTag(Tags.HTTP_FORWARDED, forwarded);
-      }
-      String forwardedProto = context.getForwardedProto();
-      if (forwardedProto != null) {
-        span.setTag(Tags.HTTP_FORWARDED_PROTO, forwardedProto);
-      }
-      String forwardedHost = context.getForwardedHost();
-      if (forwardedHost != null) {
-        span.setTag(Tags.HTTP_FORWARDED_HOST, forwardedHost);
-      }
-      String forwardedIp = context.getForwardedIp();
-      if (forwardedIp != null) {
-        span.setTag(Tags.HTTP_FORWARDED_IP, forwardedIp);
-      }
-      String forwardedPort = context.getForwardedPort();
-      if (forwardedPort != null) {
-        span.setTag(Tags.HTTP_FORWARDED_PORT, forwardedPort);
+      if (clientIpResolverEnabled) {
+        String forwarded = context.getForwarded();
+        if (forwarded != null) {
+          span.setTag(Tags.HTTP_FORWARDED, forwarded);
+        }
+        String forwardedProto = context.getXForwardedProto();
+        if (forwardedProto != null) {
+          span.setTag(Tags.HTTP_FORWARDED_PROTO, forwardedProto);
+        }
+        String forwardedHost = context.getXForwardedHost();
+        if (forwardedHost != null) {
+          span.setTag(Tags.HTTP_FORWARDED_HOST, forwardedHost);
+        }
+        String forwardedIp = context.getXForwardedFor();
+        if (forwardedIp != null) {
+          span.setTag(Tags.HTTP_FORWARDED_IP, forwardedIp);
+        }
+        String forwardedPort = context.getXForwardedPort();
+        if (forwardedPort != null) {
+          span.setTag(Tags.HTTP_FORWARDED_PORT, forwardedPort);
+        }
       }
       String userAgent = context.getUserAgent();
       if (userAgent != null) {
@@ -149,8 +157,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           String path = encoded ? url.rawPath() : url.path();
 
           span.setTag(Tags.HTTP_URL, URIUtils.buildURL(url.scheme(), url.host(), url.port(), path));
-          if (context != null && context.getForwardedHost() != null) {
-            span.setTag(Tags.HTTP_HOSTNAME, context.getForwardedHost());
+          if (context != null && context.getXForwardedHost() != null) {
+            span.setTag(Tags.HTTP_HOSTNAME, context.getXForwardedHost());
           } else if (url.host() != null) {
             span.setTag(Tags.HTTP_HOSTNAME, url.host());
           }
@@ -176,21 +184,28 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
     }
 
-    String ip = null;
-    int port = UNSET_PORT;
+    String peerIp = null;
+    int peerPort = UNSET_PORT;
     if (connection != null) {
-      ip = peerHostIP(connection);
-      port = peerPort(connection);
+      peerIp = peerHostIP(connection);
+      peerPort = peerPort(connection);
     }
 
     String inferredAddressStr = null;
-    if (config.isTraceClientIpResolverEnabled()) {
-      InetAddress inferredAddress = ClientIpAddressResolver.resolve(context);
-      // As a fallback, if no IP was resolved, the peer IP address should be checked
-      // to see if it is public and used as the resolved IP if it is.
-      // If no public IP address, then a private IP address should reported as a fall back.
-      if (inferredAddress == null && ip != null) {
-        inferredAddress = ClientIpAddressResolver.parseIpAddress(ip);
+    if (clientIpResolverEnabled) {
+      InetAddress inferredAddress = ClientIpAddressResolver.resolve(context, span);
+      // the peer address should be used if:
+      // 1. the headers yield nothing, regardless of whether it is public or not
+      // 2. it is public and the headers yield a private address
+      if (peerIp != null) {
+        if (inferredAddress == null) {
+          inferredAddress = ClientIpAddressResolver.parseIpAddress(peerIp);
+        } else if (ClientIpAddressResolver.isIpAddrPrivate(inferredAddress)) {
+          InetAddress peerAddress = ClientIpAddressResolver.parseIpAddress(peerIp);
+          if (!ClientIpAddressResolver.isIpAddrPrivate(peerAddress)) {
+            inferredAddress = peerAddress;
+          }
+        }
       }
       if (inferredAddress != null) {
         inferredAddressStr = inferredAddress.getHostAddress();
@@ -198,15 +213,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
     }
 
-    if (ip != null) {
-      if (ip.indexOf(':') > 0) {
-        span.setTag(Tags.PEER_HOST_IPV6, ip);
+    if (peerIp != null) {
+      if (peerIp.indexOf(':') > 0) {
+        span.setTag(Tags.PEER_HOST_IPV6, peerIp);
       } else {
-        span.setTag(Tags.PEER_HOST_IPV4, ip);
+        span.setTag(Tags.PEER_HOST_IPV4, peerIp);
       }
     }
-    setPeerPort(span, port);
-    Flow<Void> flow = callIGCallbackAddressAndPort(span, ip, port, inferredAddressStr);
+    setPeerPort(span, peerPort);
+    Flow<Void> flow = callIGCallbackAddressAndPort(span, peerIp, peerPort, inferredAddressStr);
     if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
       span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
     }
