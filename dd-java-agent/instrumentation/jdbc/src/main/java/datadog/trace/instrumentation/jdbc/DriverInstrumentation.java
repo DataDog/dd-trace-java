@@ -71,17 +71,17 @@ public final class DriverInstrumentation extends Instrumenter.Tracing
         return;
       }
       String urlToUse = url;
-      try {
-        urlToUse = connection.getMetaData().getURL();
-      } catch (final SQLException se) {
-        // ignore
-      }
+      // try {
+      //   urlToUse = connection.getMetaData().getURL();
+      // } catch (final SQLException se) {
+      //   // ignore
+      // }
 
-      try {
-        props.setProperty("user", connection.getMetaData().getUserName());
-      } catch (final SQLException se) {
-        // ignore
-      }
+      // try {
+      //   props.setProperty("user", connection.getMetaData().getUserName());
+      // } catch (final SQLException se) {
+      //   // ignore
+      // }
 
       final DBInfo dbInfo = JDBCConnectionUrlParser.extractDBInfo(urlToUse, props);
       InstrumentationContext.get(Connection.class, DBInfo.class).put(connection, dbInfo);
