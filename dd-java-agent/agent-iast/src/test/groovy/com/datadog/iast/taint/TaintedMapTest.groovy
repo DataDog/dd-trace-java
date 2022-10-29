@@ -260,7 +260,7 @@ class TaintedMapTest extends DDSpecification {
 
   def 'multi-threaded put-intensive workflow with garbage collection interaction and under max size'() {
     given:
-    float maxAcceptableLoss = 0.999
+    float maxAcceptableLoss = 0.99
     float maxAcceptableLossPerThread = 0.9
     int nThreads = 16
     int nObjectsPerThread = (int) Math.floor(DefaultTaintedMap.DEFAULT_FLAT_MODE_THRESHOLD / nThreads) * 2
@@ -334,7 +334,7 @@ class TaintedMapTest extends DDSpecification {
     map.toList().size() <= nThreads * nRetainedObjectsPerThread * 2
 
     and: 'map does not contain extra objects'
-    map.toList().findAll { it.get() != null }.size() <= nThreads * nRetainedObjectsPerThread
+    map.toList().findAll { it.get() != null }.size() <= nThreads * nRetainedObjectsPerThread + nBeforeWaitGC
 
     and: 'map did not lose too many objects'
     map.toList().findAll { it.get() != null }.size() >= nThreads * nRetainedObjectsPerThread * maxAcceptableLoss
