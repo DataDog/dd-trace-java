@@ -17,7 +17,7 @@ public final class GlobPattern {
           sb.append('.');
           break;
         case '*':
-          sb.append(".+");
+          sb.append(".*");
           break;
         case '^':
         case '$':

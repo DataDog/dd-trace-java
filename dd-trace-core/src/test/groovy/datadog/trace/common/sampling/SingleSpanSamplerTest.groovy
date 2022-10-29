@@ -6,6 +6,7 @@ import datadog.trace.core.DDSpan
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES
+import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES_FILE
 import static datadog.trace.api.sampling.SamplingMechanism.SPAN_SAMPLING_RATE
 
 class SingleSpanSamplerTest extends DDCoreSpecification {
@@ -47,10 +48,6 @@ class SingleSpanSamplerTest extends DDCoreSpecification {
     when:
     SingleSpanSampler sampler = SingleSpanSampler.Builder.forConfig(Config.get(properties))
 
-    then:
-    sampler instanceof SingleSpanSampler
-
-    when:
     DDSpan span = tracer.buildSpan("operation")
       .withServiceName("service")
       .withTag("env", "bar")
@@ -86,19 +83,15 @@ class SingleSpanSamplerTest extends DDCoreSpecification {
     when:
     SingleSpanSampler sampler = SingleSpanSampler.Builder.forConfig(Config.get(properties))
 
-    then:
-    sampler instanceof SingleSpanSampler
-
-    when:
     DDSpan span1 = tracer.buildSpan("operation")
       .withServiceName("service")
       .withTag("env", "bar")
-      .ignoreActiveSpan().start()
+      .ignoreActiveSpan().start() as DDSpan
 
     DDSpan span2 = tracer.buildSpan("operation")
       .withServiceName("service")
       .withTag("env", "bar")
-      .ignoreActiveSpan().start()
+      .ignoreActiveSpan().start() as DDSpan
 
     then:
     sampler.setSamplingPriority(span1) == isFirstSampled
@@ -116,5 +109,62 @@ class SingleSpanSamplerTest extends DDCoreSpecification {
     """[ { "service": "*", "name": "*", "sample_rate": 1.0, "max_per_second": 2 } ]"""               | true           | true
     """[ { "service": "ser*", "name": "oper*", "max_per_second": 2 } ]"""                            | true           | true
     """[ { "service": "?ervice", "name": "operati?n", "sample_rate": 1.0, "max_per_second": 2 } ]""" | true           | true
+  }
+
+  def "Load rules from file"() {
+    given:
+    Properties properties = new Properties()
+    if (rules != null) {
+      def rulesFile = SpanSamplingRulesFileTest.createRulesFile(rules)
+      properties.setProperty(SPAN_SAMPLING_RULES_FILE, rulesFile)
+    }
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    when:
+    SingleSpanSampler sampler = SingleSpanSampler.Builder.forConfig(Config.get(properties))
+
+    DDSpan span1 = tracer.buildSpan("operation")
+      .withServiceName("service")
+      .withTag("env", "bar")
+      .ignoreActiveSpan().start() as DDSpan
+
+    then:
+    sampler.setSamplingPriority(span1)
+
+    where:
+    rules << ["""[ { "service": "*", "name": "op?ration*", "sample_rate": 1.0, "max_per_second": 1 } ]"""]
+  }
+
+  def "Prefer rules in env var over rules from file"() {
+    given:
+    Properties properties = new Properties()
+    properties.setProperty(SPAN_SAMPLING_RULES, envVarRules)
+    properties.setProperty(SPAN_SAMPLING_RULES_FILE, SpanSamplingRulesFileTest.createRulesFile(fileRules))
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    when:
+    SingleSpanSampler sampler = SingleSpanSampler.Builder.forConfig(Config.get(properties))
+
+    DDSpan span1 = tracer.buildSpan("operation")
+      .withServiceName("service")
+      .withTag("env", "bar")
+      .ignoreActiveSpan().start() as DDSpan
+
+    then:
+    sampler.setSamplingPriority(span1) == matched
+
+    where:
+    envVarRules                    | fileRules                      | matched
+    """[ { "sample_rate": 0 } ]""" | """[ { "sample_rate": 1 } ]""" | false
+    """[ { "sample_rate": 1 } ]""" | """[ { "sample_rate": 0 } ]""" | true
+  }
+
+  def "Throw NPE when passed list of rules is null"() {
+    when:
+    new SingleSpanSampler.RuleBasedSingleSpanSampler(null)
+
+    then:
+    final NullPointerException exception = thrown()
+    exception.getMessage() == "SpanSamplingRules can't be null."
   }
 }

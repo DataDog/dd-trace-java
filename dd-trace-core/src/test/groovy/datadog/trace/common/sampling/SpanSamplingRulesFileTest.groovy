@@ -7,7 +7,7 @@ import java.nio.file.Path
 
 class SpanSamplingRulesFileTest extends DDCoreSpecification {
 
-  def createRulesFile(String rules) {
+  static createRulesFile(String rules) {
     Path p = Files.createTempFile('single-span-sampling-rules', '.json')
     p.toFile() << rules
     return p.toString()
