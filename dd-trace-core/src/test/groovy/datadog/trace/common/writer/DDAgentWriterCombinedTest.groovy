@@ -627,8 +627,8 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     then:
     conditions.eventually {
       def totalTraces = 100 + 100
-      numPublished.get() == totalTraces
-      numRepSent.get() == totalTraces
+      assert numPublished.get() == totalTraces
+      assert numRepSent.get() == totalTraces
     }
 
     cleanup:
