@@ -627,7 +627,7 @@ jobs:
             # Causes conflicts with DD_API_KEY and datadog-ci tool
             unset DATADOG_API_KEY
             
-            echo "Uploading results to CI Visibility"  
+            echo "Uploading tests results to CI Visibility"  
             utils/scripts/upload_results_CI_visibility.sh dev java-tracer << pipeline.id >>-<< pipeline.number >>
 
             if [[ $CIRCLE_BRANCH == "master" ]]; then
