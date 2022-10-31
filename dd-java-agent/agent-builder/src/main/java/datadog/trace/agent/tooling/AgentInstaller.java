@@ -52,7 +52,8 @@ public class AgentInstaller {
      */
     if (Config.get().isTraceEnabled()
         || Config.get().isProfilingEnabled()
-        || Config.get().getAppSecEnabledConfig() != ProductActivationConfig.FULLY_DISABLED
+        || (Config.get().isTraceEnabled()
+            && Config.get().getAppSecEnabledConfig() != ProductActivationConfig.FULLY_DISABLED)
         || Config.get().isIastEnabled()
         || Config.get().isCiVisibilityEnabled()) {
       installBytebuddyAgent(inst, false, new AgentBuilder.Listener[0]);
@@ -195,10 +196,18 @@ public class AgentInstaller {
       enabledSystems.add(Instrumenter.TargetSystem.PROFILING);
     }
     if (cfg.getAppSecEnabledConfig() != ProductActivationConfig.FULLY_DISABLED) {
-      enabledSystems.add(Instrumenter.TargetSystem.APPSEC);
+      if (cfg.isTraceEnabled()) {
+        enabledSystems.add(Instrumenter.TargetSystem.APPSEC);
+      } else {
+        log.warn("Tracer is disabled, will not instrument AppSec");
+      }
     }
     if (cfg.isIastEnabled()) {
-      enabledSystems.add(Instrumenter.TargetSystem.IAST);
+      if (cfg.isTraceEnabled()) {
+        enabledSystems.add(Instrumenter.TargetSystem.IAST);
+      } else {
+        log.warn("Tracer is disabled, will not instrument IAST");
+      }
     }
     if (cfg.isCiVisibilityEnabled()) {
       enabledSystems.add(Instrumenter.TargetSystem.CIVISIBILITY);

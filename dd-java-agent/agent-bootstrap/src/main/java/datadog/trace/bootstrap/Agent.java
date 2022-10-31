@@ -578,7 +578,12 @@ public class Agent {
   }
 
   private static void maybeStartAppSec(Class<?> scoClass, Object o) {
-    if (!(appSecEnabled || (remoteConfigEnabled && !appSecFullyDisabled))) {
+    final boolean traceEnabled = Config.get().isTraceEnabled();
+    if (!(appSecEnabled || (remoteConfigEnabled && !appSecFullyDisabled && traceEnabled))) {
+      return;
+    }
+    if (!traceEnabled) {
+      log.warn("Tracer is disabled, cannot enable AppSec");
       return;
     }
 
@@ -609,6 +614,10 @@ public class Agent {
 
   private static void maybeStartIast(Class<?> scoClass, Object o) {
     if (iastEnabled) {
+      if (!Config.get().isTraceEnabled()) {
+        log.warn("Tracer is disabled, cannot enable IAST");
+        return;
+      }
       if (isJavaVersionAtLeast(8)) {
         try {
           SubscriptionService ss =
