@@ -47,6 +47,7 @@ public abstract class BaseIntegrationTest {
       "{\"endpoints\": [\"v0.4/traces\", \"debugger/v1/input\", \"v0.7/config\"]}";
   private static final MockResponse agentInfoResponse =
       new MockResponse().setResponseCode(200).setBody(INFO_CONTENT);
+  private static final MockResponse telemetryResponse = new MockResponse().setResponseCode(202);
 
   protected MockWebServer datadogAgentServer;
   private MockDispatcher probeMockDispatcher;
@@ -155,6 +156,10 @@ public abstract class BaseIntegrationTest {
   private MockResponse datadogAgentDispatch(RecordedRequest request) {
     if (request.getPath().equals("/info")) {
       return agentInfoResponse;
+    }
+    if (request.getPath().equals("telemetry/proxy/api/v2/apmtelemetry")) {
+      // Ack every telemetry request. This is needed if telemetry is enabled in the tests.
+      return telemetryResponse;
     }
     if (request.getPath().startsWith(SNAPSHOT_URL_PATH)) {
       return new MockResponse().setResponseCode(200);
