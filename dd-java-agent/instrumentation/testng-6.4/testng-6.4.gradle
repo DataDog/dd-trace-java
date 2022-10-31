@@ -12,10 +12,6 @@ muzzle {
   }
 }
 
-repositories {
-  jcenter() // only needed for muzzle
-}
-
 dependencies {
   compileOnly group: 'org.testng', name: 'testng', version: '6.4'
 
