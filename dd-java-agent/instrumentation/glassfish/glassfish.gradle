@@ -14,10 +14,6 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-repositories {
-  jcenter() // maven central has broken metadata right now
-}
-
 apply plugin: 'org.unbroken-dome.test-sets'
 
 testSets {

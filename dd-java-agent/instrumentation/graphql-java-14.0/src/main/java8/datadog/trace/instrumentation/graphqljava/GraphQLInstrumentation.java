@@ -42,8 +42,9 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
         return instrumentation;
       }
       instrumentationList.addAll(instrumentations);
+    } else {
+      instrumentationList.add(instrumentation);
     }
-    instrumentationList.add(instrumentation);
     instrumentationList.add(new GraphQLInstrumentation());
     return new ChainedInstrumentation(instrumentationList);
   }

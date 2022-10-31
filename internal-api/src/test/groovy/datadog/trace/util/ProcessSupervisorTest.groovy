@@ -58,8 +58,8 @@ class ProcessSupervisorTest extends DDSpecification {
     then:
     conditions.eventually {
       def process = processSupervisor.currentProcess
-      process != null
-      process.isAlive()
+      assert process != null
+      assert process.isAlive()
     }
 
     when:

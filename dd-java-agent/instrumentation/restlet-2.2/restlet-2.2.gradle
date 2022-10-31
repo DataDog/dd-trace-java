@@ -10,7 +10,11 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 
 repositories {
-  jcenter() // only place that has 'org.restlet.jse:org.restlet' publically accessible
+  maven {
+    // only place that has 'org.restlet.jse:org.restlet' publicly accessible
+    name 'talend-restlet'
+    url 'https://maven.restlet.talend.com/'
+  }
 }
 
 apply plugin: 'org.unbroken-dome.test-sets'

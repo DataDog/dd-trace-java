@@ -9,11 +9,8 @@ muzzle {
     group = 'org.testng'
     module = 'testng'
     versions = '[6.4,7.6)'
+    skipVersions += "6.13" // depends on non-existent jcommander-1.66
   }
-}
-
-repositories {
-  jcenter() // only needed for muzzle
 }
 
 dependencies {
