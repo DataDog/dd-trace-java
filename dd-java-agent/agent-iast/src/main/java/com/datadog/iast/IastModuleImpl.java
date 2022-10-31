@@ -18,7 +18,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.stacktrace.StackWalker;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import javax.annotation.Nonnull;
@@ -272,6 +274,71 @@ public final class IastModuleImpl implements IastModule {
     taintedObjects.taint(result, targetRanges);
   }
 
+  @Override
+  public void onRuntimeExec(@Nullable final String... cmdArray) {
+    if (!canBeTaintedNullSafe(cmdArray)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    checkCommandInjection(taintedObjects, Arrays.asList(cmdArray));
+  }
+
+  @Override
+  public void onProcessBuilderStart(@Nullable final List<String> command) {
+    if (!canBeTaintedNullSafe(command)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    checkCommandInjection(taintedObjects, command);
+  }
+
+  private void checkCommandInjection(
+      @Nonnull final TaintedObjects taintedObjects, @Nonnull final List<String> command) {
+    final Map<String, Range[]> taintedMap = new HashMap<>();
+    int rangeCount = fetchRanges(command, taintedObjects, taintedMap);
+    if (rangeCount == 0) {
+      return;
+    }
+    final AgentSpan span = AgentTracer.activeSpan();
+    if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
+      return;
+    }
+    final StringBuilder evidence = new StringBuilder();
+    final Range[] targetRanges = new Range[rangeCount];
+    int rangeIndex = 0;
+    for (int i = 0; i < command.size(); i++) {
+      if (i > 0) {
+        evidence.append(" ");
+      }
+      final String cmd = command.get(i);
+      final Range[] taintedRanges = taintedMap.get(cmd);
+      if (taintedRanges != null) {
+        Ranges.copyShift(taintedRanges, targetRanges, rangeIndex, evidence.length());
+        rangeIndex += taintedRanges.length;
+      }
+      evidence.append(cmd);
+    }
+    reporter.report(
+        span,
+        new Vulnerability(
+            VulnerabilityType.COMMAND_INJECTION,
+            Location.forSpanAndStack(span.getSpanId(), currentStack()),
+            new Evidence(evidence.toString(), targetRanges)));
+  }
+
+  // TODO this method needs to be refined to fetch the actual customer code class al line number
+  private StackTraceElement currentStack() {
+    return stackWalker.walk(stack -> stack.findFirst().get());
+  }
+
   private static Range[] getRanges(final TaintedObject taintedObject) {
     return taintedObject == null ? Ranges.EMPTY : taintedObject.getRanges();
   }
@@ -300,6 +367,18 @@ public final class IastModuleImpl implements IastModule {
     return false;
   }
 
+  private static boolean canBeTaintedNullSafe(@Nullable final List<? extends CharSequence> items) {
+    if (items == null) {
+      return false;
+    }
+    for (final CharSequence item : items) {
+      if (canBeTaintedNullSafe(item)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   private static int getToStringLength(@Nullable final String s) {
     return s == null ? NULL_STR_LENGTH : s.length();
   }
@@ -315,5 +394,24 @@ public final class IastModuleImpl implements IastModule {
       Ranges.copyShift(rangesRight, ranges, rangesLeft.length, offset);
     }
     return ranges;
+  }
+
+  private static <E extends CharSequence> int fetchRanges(
+      @Nullable final List<E> items,
+      @Nonnull final TaintedObjects to,
+      @Nonnull final Map<E, Range[]> map) {
+    if (items == null) {
+      return 0;
+    }
+    int result = 0;
+    for (final E item : items) {
+      final TaintedObject tainted = to.get(item);
+      if (tainted != null) {
+        final Range[] ranges = tainted.getRanges();
+        map.put(item, ranges);
+        result += ranges.length;
+      }
+    }
+    return result;
   }
 }
