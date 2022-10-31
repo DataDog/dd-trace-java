@@ -968,7 +968,14 @@ class ScopeManagerTest extends DDCoreSpecification {
     def numThreads = 5
     ExecutorService executor = Executors.newFixedThreadPool(numThreads)
 
-    when:
+    when: "usage of an instrumented executor results in scopestack initialisation but not scope creation"
+    executor.submit({
+      assert scopeManager.active() == null
+    }).get()
+    then: "the listener is not notified"
+    0 * listener.onAttach()
+
+    when: "scopes activate on threads"
     AgentSpan span = tracer.buildSpan("foo").start()
     def futures = new Future[20]
     for (int i = 0; i < 20; i++) {
@@ -985,12 +992,13 @@ class ScopeManagerTest extends DDCoreSpecification {
     for (Future future : futures) {
       future.get()
     }
-    executor.shutdown()
-    executor.awaitTermination(10, TimeUnit.SECONDS)
 
-    then:
+    then: "the first activation notifies the listener"
     numThreads * listener.onAttach()
     _ * _
+
+    cleanup:
+    executor.shutdown()
   }
 
   boolean spanFinished(AgentSpan span) {
