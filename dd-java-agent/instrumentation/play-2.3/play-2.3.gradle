@@ -26,7 +26,12 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 
 repositories {
-  jcenter() // only place that has 'com.typesafe.netty:netty-http-pipelining:1.1.2' publically accessible
+  mavenCentral()
+  // 'com.typesafe.netty:netty-http-pipelining:1.1.2' publically accessible
+  maven{
+    name = "typesafe-maven-release"
+    url = "https://repo.typesafe.com/typesafe/maven-releases"
+  }
 }
 
 apply from: "$rootDir/gradle/test-with-scala.gradle"

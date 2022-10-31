@@ -13,7 +13,7 @@ muzzle {
 }
 
 repositories {
-  jcenter() // only needed for muzzle
+  mavenCentral() // only needed for muzzle
 }
 
 dependencies {
