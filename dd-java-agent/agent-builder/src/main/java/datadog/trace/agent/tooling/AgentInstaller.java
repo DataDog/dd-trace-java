@@ -54,7 +54,8 @@ public class AgentInstaller {
         || Config.get().isProfilingEnabled()
         || Config.get().getAppSecEnabledConfig() != ProductActivationConfig.FULLY_DISABLED
         || Config.get().isIastEnabled()
-        || Config.get().isCiVisibilityEnabled()) {
+        || Config.get().isCiVisibilityEnabled()
+        || Config.get().isTelemetryEnabled()) {
       installBytebuddyAgent(inst, false, new AgentBuilder.Listener[0]);
       if (DEBUG) {
         log.debug("Class instrumentation installed");
