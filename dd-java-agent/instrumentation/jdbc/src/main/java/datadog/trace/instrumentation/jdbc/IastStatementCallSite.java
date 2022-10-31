@@ -23,7 +23,7 @@ public class IastStatementCallSite {
     @CallSite.Before(
         "long java.sql.Statement.executeLargeUpdate(java.lang.String, java.lang.String[])"),
   })
-  public static void beforeExecute(@CallSite.Argument String sql) {
+  public static void beforeExecute(@CallSite.Argument(0) String sql) {
     InstrumentationBridge.onJdbcQuery(sql);
   }
 }

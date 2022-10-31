@@ -89,5 +89,4 @@ tasks.named("latestDepJava11Test").configure {
 
 tasks.withType(Test).configureEach {
   usesService(testcontainersLimit)
-  jvmArgs += ['-Dnet.bytebuddy.dump=/tmp/aa']
 }

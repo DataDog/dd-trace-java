@@ -1,11 +1,14 @@
 import com.datadog.iast.IastAgentTestRunner
 import com.datadog.iast.model.VulnerabilityBatch
 import datadog.trace.core.DDSpan
-import foo.bar.IastJdbcCallSites
+import foo.bar.IastInstrumentedConnection
+import foo.bar.IastInstrumentedStatement
+
 import spock.lang.Shared
 
 import javax.sql.DataSource
 import java.sql.Connection
+import java.sql.Statement
 
 class IastJDBCTest extends IastAgentTestRunner {
   @Shared
@@ -44,8 +47,9 @@ class IastJDBCTest extends IastAgentTestRunner {
     DDSpan span = runUnderIastTrace {
       String taintedString = 'SELECT id FROM TEST LIMIT 1'
       taintedObjects.taintInputString(taintedString, EMPTY_SOURCE)
+      Connection constWrapper = new IastInstrumentedConnection(conn: connection)
 
-      IastJdbcCallSites.prepareStatement(connection, taintedString).withCloseable { stmt ->
+      constWrapper.prepareStatement(taintedString).withCloseable { stmt ->
         stmt.executeQuery().withCloseable { rs ->
           if (rs.next()) {
             valueRead = rs.getInt(1)
@@ -74,7 +78,8 @@ class IastJDBCTest extends IastAgentTestRunner {
     def valueRead
     DDSpan span = runUnderIastTrace {
       String taintedString = 'SELECT id FROM TEST LIMIT 1'
-      IastJdbcCallSites.prepareStatement(connection, taintedString).withCloseable { stmt ->
+      Connection conn = new IastInstrumentedConnection(conn: connection)
+      conn.prepareStatement(taintedString).withCloseable { stmt ->
         stmt.executeQuery().withCloseable { rs ->
           if (rs.next()) {
             valueRead = rs.getInt(1)
@@ -97,7 +102,8 @@ class IastJDBCTest extends IastAgentTestRunner {
       taintedObjects.taintInputString(taintedString, EMPTY_SOURCE)
 
       connection.createStatement().withCloseable { stmt ->
-        IastJdbcCallSites.executeQuery(stmt, taintedString).withCloseable { rs ->
+        Statement stmtWrapper = new IastInstrumentedStatement(stmt: stmt)
+        stmtWrapper.executeQuery(taintedString).withCloseable { rs ->
           if (rs.next()) {
             valueRead = rs.getInt(1)
           }
