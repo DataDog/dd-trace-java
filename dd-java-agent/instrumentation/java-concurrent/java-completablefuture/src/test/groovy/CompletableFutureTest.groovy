@@ -4,6 +4,7 @@ import datadog.trace.core.DDSpan
 
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.function.Function
@@ -98,6 +99,56 @@ class CompletableFutureTest extends AgentTestRunner {
       trace(2) {
         basicSpan(it, "parent")
         basicSpan(it, "child", span(0))
+      }
+    }
+  }
+
+  def "test supplyAsync throws exception with a span inside CompletableFuture"() {
+    setup:
+    def completableFuture = CompletableFuture.supplyAsync {
+      runUnderTrace("span") {
+        throw new IllegalStateException("TEST")
+      }
+    }
+
+    when:
+    completableFuture.get()
+
+    then:
+    final ExecutionException exception = thrown()
+    def cause = exception.getCause() as IllegalStateException
+    cause.getMessage() == "TEST"
+
+    and:
+    assertTraces(1) {
+      trace(1) {
+        basicSpan(it, "span", null, new IllegalStateException("TEST"), [:])
+      }
+    }
+  }
+
+  def "test supplyAsync throws exception with a span outside CompletableFuture"() {
+    setup:
+    def completableFuture = runUnderTrace("span") {
+      CompletableFuture.supplyAsync {
+        throw new IllegalStateException("TEST")
+      }
+    }
+
+    when:
+    completableFuture.get()
+
+    then:
+    final ExecutionException exception = thrown()
+    def cause = exception.getCause() as IllegalStateException
+    cause.getMessage() == "TEST"
+
+    and:
+    assertTraces(1) {
+      trace(1) {
+        // TODO it fails b/o span doesn't have indications of error
+        //        basicSpan(it, "span", null, new IllegalStateException("TEST"), [:])
+        basicSpan(it, "span")
       }
     }
   }

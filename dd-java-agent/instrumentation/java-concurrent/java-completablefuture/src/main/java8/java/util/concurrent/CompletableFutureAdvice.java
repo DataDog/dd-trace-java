@@ -36,6 +36,7 @@ public final class CompletableFutureAdvice {
         @Advice.Local("hadExecutor") boolean hadExecutor,
         @Advice.Local("wasClaimed") boolean wasClaimed,
         @Advice.Local("wasLive") boolean wasLive) {
+      //      System.out.println(">>>>>>>>>>>>>>");
       hadExecutor = zis.executor != null;
       wasClaimed = zis.getForkJoinTaskTag() == 1;
       wasLive = zis.isLive();
