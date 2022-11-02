@@ -18,6 +18,7 @@ import datadog.trace.util.FNV64Hash;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -45,6 +46,8 @@ public class DefaultPathwayContext implements PathwayContext {
   private long edgeStartNanoTicks;
   private long hash;
   private boolean started;
+  // used to detect and prevent loops in case of inaccurate / incomplete instrumentation
+  private final HashMap<Long, Long> history = new HashMap<Long, Long>();
 
   private static final Set<String> hashableTagKeys =
       new HashSet<String>(
@@ -109,7 +112,17 @@ public class DefaultPathwayContext implements PathwayContext {
         allTags.add(tag);
       }
 
-      long newHash = generatePathwayHash(pathwayHashBuilder, hash);
+      long nodeHash = generateNodeHash(pathwayHashBuilder);
+      // loop protection - a node should not be chosen as parent
+      // for an identical node within a single pathway context, as this
+      // will cause a `cardinality explosion` for hash / parentHash tag values
+      if (hash != 0 && history.containsKey(nodeHash)) {
+        hash = history.get(nodeHash);
+      } else {
+        history.put(nodeHash, hash);
+      }
+
+      long newHash = generatePathwayHash(nodeHash, hash);
 
       long pathwayLatencyNano = nanoTicks - pathwayStartNanoTicks;
       long edgeLatencyNano = nanoTicks - edgeStartNanoTicks;
@@ -316,7 +329,7 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   private static class PathwayHashBuilder {
-    private StringBuilder builder;
+    private final StringBuilder builder;
 
     public PathwayHashBuilder(WellKnownTags wellKnownTags) {
       builder = new StringBuilder();
@@ -342,9 +355,7 @@ public class DefaultPathwayContext implements PathwayContext {
     return pathwayHashBuilder.generateHash();
   }
 
-  private long generatePathwayHash(PathwayHashBuilder pathwayHashBuilder, long parentHash) {
-    long nodeHash = generateNodeHash(pathwayHashBuilder);
-
+  private long generatePathwayHash(long nodeHash, long parentHash) {
     lock.lock();
     try {
       outputBuffer.clear();
