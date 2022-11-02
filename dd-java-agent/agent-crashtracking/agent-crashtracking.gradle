@@ -10,6 +10,12 @@ apply from: "$rootDir/gradle/java.gradle"
 minimumBranchCoverage = 0.6
 minimumInstructionCoverage = 0.9
 
+evaluationDependsOn ':dd-java-agent'
+
+tasks.withType(Test).configureEach { subTask ->
+  dependsOn project(':dd-java-agent').tasks.named("shadowJar")
+}
+
 dependencies {
   implementation deps.slf4j
   implementation project(':communication')
