@@ -20,19 +20,18 @@ public class HostInfo {
   private static final Path PROC_HOSTNAME =
       FileSystems.getDefault().getPath("/proc/sys/kernel/hostname");
   private static final Path ETC_HOSTNAME = FileSystems.getDefault().getPath("/etc/hostname");
+
+  private static final Path PROC_VERSION = FileSystems.getDefault().getPath("/proc/version");
   private static final List<Path> HOSTNAME_FILES = Arrays.asList(PROC_HOSTNAME, ETC_HOSTNAME);
 
   private static final Logger log = LoggerFactory.getLogger(RequestBuilder.class);
 
   public static String getHostname() {
-    String hostname = Uname.UTS_NAME.nodename();
-
-    if (hostname == null) {
-      for (Path file : HOSTNAME_FILES) {
-        hostname = tryReadFile(file);
-        if (null != hostname) {
-          break;
-        }
+    String hostname = null;
+    for (Path file : HOSTNAME_FILES) {
+      hostname = tryReadFile(file);
+      if (null != hostname) {
+        break;
       }
     }
 
@@ -63,15 +62,28 @@ public class HostInfo {
   }
 
   public static String getKernelName() {
-    return Uname.UTS_NAME.sysname();
+    // In Linux, os.name == uname -s
+    return System.getProperty("os.name");
   }
 
   public static String getKernelRelease() {
-    return Uname.UTS_NAME.release();
+    // In Linux, os.version == uname -r
+    return System.getProperty("os.version");
   }
 
   public static String getKernelVersion() {
-    return Uname.UTS_NAME.version();
+    // This is not really equivalent to uname -v in Linux, it has some additional info at the end,
+    // like arch.
+    String version = tryReadFile(PROC_VERSION);
+    if (version != null) {
+      version = version.trim();
+      final int dashIdx = version.indexOf('#');
+      if (dashIdx > 0) {
+        version = version.substring(dashIdx);
+      }
+      return version;
+    }
+    return System.getProperty("os.version");
   }
 
   private static String getHostNameFromLocalHost() throws UnknownHostException {
