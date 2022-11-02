@@ -12,6 +12,9 @@ import net.bytebuddy.asm.Advice;
 public class ThrowableInstanceAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void onExit(@Advice.This final Throwable t) {
+    if (t.getClass().getName().endsWith(".ResourceLeakDetector$TraceRecord")) {
+      return;
+    }
     /*
      * This instrumentation handler is sensitive to any throwables thrown from its body -
      * it will go into infinite loop of trying to handle the new throwable instance and generating

@@ -83,7 +83,7 @@ public final class ConfigDefaults {
   public static final int DEFAULT_IAST_VULNERABILITIES_PER_REQUEST = 2;
   public static final int DEFAULT_IAST_REQUEST_SAMPLING = 30;
   static final Set<String> DEFAULT_IAST_WEAK_HASH_ALGORITHMS =
-      new HashSet<>(Arrays.asList("MD2", "MD5", "RIPEMD128", "MD4"));
+      new HashSet<>(Arrays.asList("SHA1", "SHA-1", "MD2", "MD5", "RIPEMD128", "MD4"));
   static final String DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS =
       "^(?:PBEWITH(?:HMACSHA(?:2(?:24ANDAES_(?:128|256)|56ANDAES_(?:128|256))|384ANDAES_(?:128|256)|512ANDAES_(?:128|256)|1ANDAES_(?:128|256))|SHA1AND(?:RC(?:2_(?:128|40)|4_(?:128|40))|DESEDE)|MD5AND(?:TRIPLEDES|DES))|DES(?:EDE(?:WRAP)?)?|BLOWFISH|ARCFOUR|RC2).*$";
 
@@ -92,7 +92,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED = false;
 
-  static final boolean DEFAULT_REMOTE_CONFIG_ENABLED = false;
+  static final boolean DEFAULT_REMOTE_CONFIG_ENABLED = true;
   static final boolean DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED = false;
   static final int DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE = 1024; // KiB
   static final int DEFAULT_REMOTE_CONFIG_INITIAL_POLL_INTERVAL = 5; // s
@@ -131,7 +131,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_RESOLVER_OUTLINE_POOL_SIZE = 128;
   static final int DEFAULT_RESOLVER_TYPE_POOL_SIZE = 64;
 
-  static final boolean DEFAULT_TELEMETRY_ENABLED = false;
+  static final boolean DEFAULT_TELEMETRY_ENABLED = true;
   static final int DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL = 60; // in seconds
 
   public static final int DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH = 512;

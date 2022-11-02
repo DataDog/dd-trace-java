@@ -8,10 +8,10 @@ import static org.junit.Assert.assertTrue;
 
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.SnapshotProbe;
-import com.datadog.debugger.util.TagsHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.util.TagsHelper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,8 +20,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.DisplayName;
@@ -170,8 +168,8 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   private void assertFullMethodCaptureArgs(Snapshot.CapturedContext context) {
-    if ("IBM Corporation".equals(Platform.getRuntimeVendor())) {
-      // skip for IBM as we cannot get local variable debug info.
+    if (Platform.isJ9()) {
+      // skip for J9/OpenJ9 as we cannot get local variable debug info.
       return;
     }
     assertCaptureArgs(context, "argInt", "int", "42");
@@ -219,27 +217,6 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
       assertTrue(probeIds.contains("12335653" + i));
     }
     assertFalse(logHasErrors(logFilePath, it -> false));
-  }
-
-  private static boolean logHasErrors(Path logFilePath, Function<String, Boolean> checker)
-      throws IOException {
-    final AtomicBoolean hasErrors = new AtomicBoolean();
-    Files.lines(logFilePath)
-        .forEach(
-            it -> {
-              if (it.contains(" ERROR ")
-                  || it.contains("ASSERTION FAILED")
-                  || it.contains("Error:")) {
-                System.out.println(it);
-                hasErrors.set(true);
-              }
-              hasErrors.set(hasErrors.get() || checker.apply(it));
-            });
-    if (hasErrors.get()) {
-      System.out.println(
-          "Test application log is containing errors. See full run logs in " + logFilePath);
-    }
-    return hasErrors.get();
   }
 
   private static void assertContainsLogLine(Path logFilePath, String containsLine)

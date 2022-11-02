@@ -15,12 +15,14 @@ import static datadog.trace.util.Strings.toEnvVar;
 
 import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
+import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ContextThreadListener;
 import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import datadog.trace.bootstrap.instrumentation.exceptions.ExceptionSampling;
 import datadog.trace.context.ScopeListener;
@@ -376,6 +378,7 @@ public class Agent {
       }
 
       installDatadogTracer(scoClass, sco);
+      installContextThreadListener();
       maybeStartAppSec(scoClass, sco);
       maybeStartIast(scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
@@ -673,6 +676,29 @@ public class Agent {
         });
   }
 
+  /**
+   * Must be called after tracer is installed, but can't wait until the profiler is installed. {@see
+   * com.datadog.profiling.async.ContextThreadFilter} must not be modified to depend on JFR.
+   */
+  private static void installContextThreadListener() {
+    if (Config.get().isProfilingEnabled()) {
+      try {
+        Tracer tracer = GlobalTracer.get();
+        if (tracer instanceof AgentTracer.TracerAPI) {
+          ContextThreadListener listener =
+              (ContextThreadListener)
+                  AGENT_CLASSLOADER
+                      .loadClass("com.datadog.profiling.async.ContextThreadFilter")
+                      .getDeclaredConstructor()
+                      .newInstance();
+          ((AgentTracer.TracerAPI) tracer).addThreadContextListener(listener);
+        }
+      } catch (Throwable t) {
+        log.debug("Profiling context labeling not available. {}", t.getMessage());
+      }
+    }
+  }
+
   private static void startProfilingAgent(final boolean isStartingFirst) {
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
@@ -868,9 +894,10 @@ public class Agent {
   private static boolean isAppSecFullyDisabled() {
     // must be kept in sync with logic from Config!
     final String featureEnabledSysprop = AgentFeature.APPSEC.systemProp;
-    String settingValue = System.getProperty(featureEnabledSysprop);
+    String settingValue = getNullIfEmpty(System.getProperty(featureEnabledSysprop));
     if (settingValue == null) {
-      settingValue = ddGetEnv(featureEnabledSysprop);
+      settingValue = getNullIfEmpty(ddGetEnv(featureEnabledSysprop));
+      settingValue = settingValue != null && settingValue.isEmpty() ? null : settingValue;
     }
 
     // defaults to inactive
@@ -878,6 +905,13 @@ public class Agent {
         || settingValue.equalsIgnoreCase("true")
         || settingValue.equalsIgnoreCase("1")
         || settingValue.equalsIgnoreCase("inactive"));
+  }
+
+  private static String getNullIfEmpty(final String value) {
+    if (value == null || value.isEmpty()) {
+      return null;
+    }
+    return value;
   }
 
   /** @return configured JMX start delay in seconds */

@@ -9,6 +9,7 @@ import datadog.telemetry.api.GenerateMetrics
 import datadog.telemetry.api.Integration
 import datadog.telemetry.api.Metric
 import datadog.telemetry.api.RequestType
+import datadog.trace.api.function.Supplier
 import datadog.trace.api.time.TimeSource
 import datadog.trace.test.util.DDSpecification
 import okhttp3.Request
@@ -21,8 +22,14 @@ class TelemetryServiceSpecification extends DDSpecification {
   RequestBuilder requestBuilder = Mock {
     build(_ as RequestType) >> REQUEST
   }
+  Supplier<RequestBuilder> requestBuilderSupplier = new Supplier<RequestBuilder>() {
+    @Override
+    RequestBuilder get() {
+      return requestBuilder
+    }
+  }
   TelemetryServiceImpl telemetryService =
-  new TelemetryServiceImpl(requestBuilder, timeSource, 1)
+  new TelemetryServiceImpl(requestBuilderSupplier, timeSource, 1)
 
   void 'heartbeat interval every 1 sec'() {
     // Time: 0 seconds - no packets yet

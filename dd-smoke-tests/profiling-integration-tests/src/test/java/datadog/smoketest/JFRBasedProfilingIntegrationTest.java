@@ -4,12 +4,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.openjdk.jmc.common.item.Attribute.attr;
+import static org.openjdk.jmc.common.unit.UnitLookup.NUMBER;
 
 import com.datadog.profiling.testing.ProfilingTestUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Multimap;
 import datadog.trace.api.Pair;
+import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import delight.fileupload.FileUpload;
 import java.io.ByteArrayInputStream;
@@ -33,15 +36,19 @@ import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.apache.commons.fileupload.FileItem;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 import org.openjdk.jmc.common.item.Aggregators;
-import org.openjdk.jmc.common.item.Attribute;
 import org.openjdk.jmc.common.item.IAttribute;
+import org.openjdk.jmc.common.item.IItem;
 import org.openjdk.jmc.common.item.IItemCollection;
+import org.openjdk.jmc.common.item.IItemIterable;
+import org.openjdk.jmc.common.item.IMemberAccessor;
 import org.openjdk.jmc.common.item.ItemFilters;
 import org.openjdk.jmc.common.unit.IQuantity;
 import org.openjdk.jmc.common.unit.QuantityConversionException;
@@ -50,8 +57,9 @@ import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class ProfilingIntegrationTest {
-  private static final Logger log = LoggerFactory.getLogger(ProfilingIntegrationTest.class);
+@DisabledIfSystemProperty(named = "java.vm.name", matches = ".*J9.*")
+class JFRBasedProfilingIntegrationTest {
+  private static final Logger log = LoggerFactory.getLogger(JFRBasedProfilingIntegrationTest.class);
   private static final Duration ONE_NANO = Duration.ofNanos(1);
 
   @FunctionalInterface
@@ -76,7 +84,13 @@ class ProfilingIntegrationTest {
 
   private static final Path LOG_FILE_BASE =
       Paths.get(
-          buildDirectory(), "reports", "testProcess." + ProfilingIntegrationTest.class.getName());
+          buildDirectory(),
+          "reports",
+          "testProcess." + JFRBasedProfilingIntegrationTest.class.getName());
+
+  public static final IAttribute<IQuantity> LOCAL_ROOT_SPAN_ID =
+      attr("localRootSpanId", "localRootSpanId", "localRootSpanId", NUMBER);
+  public static final IAttribute<IQuantity> SPAN_ID = attr("spanId", "spanId", "spanId", NUMBER);
 
   private MockWebServer profilingServer;
   private MockWebServer tracingServer;
@@ -163,6 +177,8 @@ class ProfilingIntegrationTest {
           createDefaultProcessBuilder(
                   jmxFetchDelay, legacyTracingIntegration, endpointCollectionEnabled, logFilePath)
               .start();
+
+      Assumptions.assumeFalse(Platform.isJ9());
 
       final RecordedRequest firstRequest = retrieveRequest();
 
@@ -260,6 +276,7 @@ class ProfilingIntegrationTest {
 
       events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(rawJfr.get()));
       assertTrue(events.hasItems());
+      verifyDatadogEventsNotCorrupt(events);
       rangeStartAndEnd = getRangeStartAndEnd(events);
       // This nano-second compensates for the added nano second in
       // ProfilingSystem.SnapshotRecording.snapshot()
@@ -295,6 +312,31 @@ class ProfilingIntegrationTest {
         targetProcess.destroyForcibly();
       }
       targetProcess = null;
+    }
+  }
+
+  private static void verifyDatadogEventsNotCorrupt(IItemCollection events) {
+    // if we emit any of these events during the test they mustn't have corrupted context
+    for (String eventName :
+        new String[] {
+          "datadog.ExecutionSample",
+          "datadog.MethodSample",
+          "datadog.ObjectAllocationInNewTLAB",
+          "datadog.ObjectAllocationOutsideTLAB",
+          "datadog.HeapLiveObject",
+          "datadog.JavaMonitorEnter"
+        }) {
+      for (IItemIterable event : events.apply(ItemFilters.type(eventName))) {
+        IMemberAccessor<IQuantity, IItem> rootSpanIdAccessor =
+            LOCAL_ROOT_SPAN_ID.getAccessor(event.getType());
+        IMemberAccessor<IQuantity, IItem> spanIdAccessor = SPAN_ID.getAccessor(event.getType());
+        for (IItem sample : event) {
+          long rootSpanId = rootSpanIdAccessor.getMember(sample).longValue();
+          assertTrue(rootSpanId >= 0, "rootSpanId must not be negative");
+          long spanId = spanIdAccessor.getMember(sample).longValue();
+          assertTrue(spanId >= 0, "spanId must not be negative");
+        }
+      }
     }
   }
 
@@ -496,8 +538,7 @@ class ProfilingIntegrationTest {
       final IItemCollection scopeEvents = events.apply(ItemFilters.type("datadog.Scope"));
 
       assertTrue(scopeEvents.hasItems());
-      final IAttribute<IQuantity> cpuTimeAttr =
-          Attribute.attr("cpuTime", "cpuTime", UnitLookup.TIMESPAN);
+      final IAttribute<IQuantity> cpuTimeAttr = attr("cpuTime", "cpuTime", UnitLookup.TIMESPAN);
 
       // filter out scope events without CPU time data
       final IItemCollection filteredScopeEvents =
@@ -534,7 +575,7 @@ class ProfilingIntegrationTest {
         events.apply(ItemFilters.type("datadog.AvailableProcessorCores"));
     assertTrue(availableProcessorsEvents.hasItems());
     final IAttribute<IQuantity> cpuCountAttr =
-        Attribute.attr("availableProcessorCores", "availableProcessorCores", UnitLookup.NUMBER);
+        attr("availableProcessorCores", "availableProcessorCores", NUMBER);
     final long val =
         ((IQuantity)
                 availableProcessorsEvents.getAggregate(
@@ -606,7 +647,10 @@ class ProfilingIntegrationTest {
       final int exitDelay,
       final Path logFilePath) {
     final String templateOverride =
-        ProfilingIntegrationTest.class.getClassLoader().getResource("overrides.jfp").getFile();
+        JFRBasedProfilingIntegrationTest.class
+            .getClassLoader()
+            .getResource("overrides.jfp")
+            .getFile();
 
     final List<String> command =
         Arrays.asList(
@@ -620,7 +664,8 @@ class ProfilingIntegrationTest {
             "-Ddd.env=smoketest",
             "-Ddd.version=99",
             "-Ddd.profiling.enabled=true",
-            "-Ddd.profiling.auxiliary=async",
+            "-Ddd.profiling.async.enabled=true",
+            "-Ddd.profiling.tracing_context.enabled=true",
             "-Ddd.profiling.agentless=" + (apiKey != null),
             "-Ddd.profiling.start-delay=" + profilingStartDelaySecs,
             "-Ddd.profiling.upload.period=" + profilingUploadPeriodSecs,

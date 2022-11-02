@@ -1,15 +1,16 @@
 package datadog.smoketest;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.SnapshotProbe;
-import com.datadog.debugger.util.TagsHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.agent.test.utils.PortUtils;
 import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.util.TagsHelper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -84,6 +85,8 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
     assertEquals("123356536", snapshot.getProbe().getId());
     assertTrue(Pattern.matches("\\d+", request.getTraceId()));
     assertTrue(Pattern.matches("\\d+", request.getSpanId()));
+    assertFalse(
+        logHasErrors(logFilePath, it -> it.contains("TypePool$Resolution$NoSuchTypeException")));
   }
 
   @Override

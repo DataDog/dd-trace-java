@@ -14,8 +14,7 @@ class AsyncProfilerTracingContextTrackerFactoryTest {
   void testTracingAvailable() {
     Properties props = new Properties();
     props.put(ProfilingConfig.PROFILING_ASYNC_ENABLED, Boolean.toString(true));
-    props.put(ProfilingConfig.PROFILING_ASYNC_WALL_ENABLED, Boolean.toString(true));
-    props.put(ProfilingConfig.PROFILING_ASYNC_WALL_FILTER_ON_CONTEXT, Boolean.toString(true));
+    props.put(ProfilingConfig.PROFILING_TRACING_CONTEXT_ENABLED, Boolean.toString(true));
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
     assertTrue(AsyncProfilerTracingContextTrackerFactory.isEnabled(configProvider));

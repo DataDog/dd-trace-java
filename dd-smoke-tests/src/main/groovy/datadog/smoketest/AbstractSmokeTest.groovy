@@ -1,6 +1,8 @@
 package datadog.smoketest
 
 import datadog.trace.agent.test.server.http.TestHttpServer
+import datadog.trace.api.function.Function
+import datadog.trace.test.agent.decoder.DecodedSpan
 import datadog.trace.test.agent.decoder.Decoder
 import datadog.trace.test.agent.decoder.DecodedMessage
 import datadog.trace.test.agent.decoder.DecodedTrace
@@ -88,7 +90,8 @@ abstract class AbstractSmokeTest extends ProcessManager {
     "-Ddd.profiling.start-delay=${PROFILING_START_DELAY_SECONDS}",
     "-Ddd.profiling.upload.period=${PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS}",
     "-Ddd.profiling.url=${getProfilingUrl()}",
-    "-Ddd.profiling.async.enabled=false",
+    "-Ddd.profiling.async.enabled=true",
+    "-Ddd.profiling.tracing_context.enabled=true",
     "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
     "-Dorg.slf4j.simpleLogger.defaultLogLevel=${logLevel()}"
   ]
@@ -132,6 +135,20 @@ abstract class AbstractSmokeTest extends ProcessManager {
       assert traceCount.get() >= count
     }
     traceCount.get()
+  }
+
+  void waitForTrace(final PollingConditions poll, final Function<DecodedTrace, Boolean> predicate) {
+    poll.eventually {
+      assert decodeTraces.find { predicate.apply(it) } != null
+    }
+  }
+
+  void waitForSpan(final PollingConditions poll, final Function<DecodedSpan, Boolean> predicate) {
+    waitForTrace(poll) { trace ->
+      trace.spans.find {
+        predicate.apply(it)
+      }
+    }
   }
 
   List<DecodedTrace> getTraces() {

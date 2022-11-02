@@ -1,17 +1,18 @@
 # Generates 'IastExclusionsTrie.java'
 
-# This file lists classes that are globally ignored for matching/transformation
+# This file lists classes that are globally ignored by the iast instrumenter
 # Use 0 to allow transformation of packages or classes beneath ignored packages
 # Wildcard lines end with '.' or '$' and match any sub-packages/nested-classes
 
 # 0 = global allows
-# 1 = system-level ignores
+# 1 = Iast Instrumenter ignores
 
 # -------- JDK --------
 1 com.sun.*
 1 java.*
 1 javax.*
 1 jdk.*
+1 openj9.*
 1 org.omg.*
 1 org.w3c.*
 1 org.xml.*
@@ -19,7 +20,6 @@
 
 # -------- Groovy --------
 1 groovy*
-1 groovyx.*
 1 org.groovy.*
 
 # -------- Scala --------
@@ -183,7 +183,6 @@
 1 tech.jhipster.*
 1 weblogic.*
 1 zipkin2.*
-
 
 # --------- testing ----------------
 

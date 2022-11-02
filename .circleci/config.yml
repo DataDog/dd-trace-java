@@ -217,7 +217,7 @@ jobs:
           name: Build Project
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2048M -Xms2048M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew clean compile shadowJar check -PskipTests
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
@@ -294,7 +294,7 @@ jobs:
           name: Build Project
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2048M -Xms2048M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew clean compile shadowJar check -PskipTests
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
@@ -345,9 +345,9 @@ jobs:
       testJvm:
         type: string
         default: ""
-      maxHeapSize:
+      maxDaemonHeapSize:
         type: string
-        default: "512M"
+        default: "2G"
       gradleParameters:
         type: string
         default: ""
@@ -398,7 +398,7 @@ jobs:
             fi
             
             MAVEN_OPTS="-Xms64M -Xmx512M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms<< parameters.maxHeapSize >> -Xmx<< parameters.maxHeapSize >> $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms<< parameters.maxDaemonHeapSize >> -Xmx<< parameters.maxDaemonHeapSize >> $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
             ./gradlew <<# parameters.gradleTarget >><< parameters.gradleTarget >>:<</ parameters.gradleTarget >><< parameters.testTask >> << parameters.gradleParameters >>
             <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
@@ -497,7 +497,7 @@ jobs:
           command: |
             mvn_local_repo=$(./mvnw help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
             rm -rf "${mvn_local_repo}/com/datadoghq"
-            export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2048M -Xms2048M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+            export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew publishToMavenLocal << pipeline.parameters.gradle_flags >> --max-workers=3
 
       - run:
@@ -550,7 +550,7 @@ jobs:
           name: Verify Muzzle
           command: >-
             SKIP_BUILDSCAN="true"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx950M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew `circleci tests split --split-by=timings workspace/build/muzzleTasks | xargs`
             << pipeline.parameters.gradle_flags >>
             --max-workers=4
@@ -628,7 +628,6 @@ build_test_jobs: &build_test_jobs
       requires:
         - build
       name: z_test_<< matrix.testJvm >>_base
-      maxHeapSize: "1940M"
       triggeredBy: *core_modules
       gradleParameters: "-PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipIastTests -PskipDebuggerTests"
       stage: core
@@ -640,7 +639,6 @@ build_test_jobs: &build_test_jobs
       requires:
         - build
       name: z_test_8_base
-      maxHeapSize: "1940M"
       triggeredBy: *core_modules
       gradleParameters: "-PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipIastTests -PskipDebuggerTests"
       testTask: test jacocoTestReport jacocoTestCoverageVerification
@@ -652,7 +650,6 @@ build_test_jobs: &build_test_jobs
       requires:
         - build
       name: z_test_<< matrix.testJvm >>_inst
-      maxHeapSize: "1940M"
       gradleTarget: ":dd-java-agent:instrumentation"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
@@ -664,7 +661,6 @@ build_test_jobs: &build_test_jobs
       requires:
         - build
       name: z_test_8_inst
-      maxHeapSize: "1940M"
       gradleTarget: ":dd-java-agent:instrumentation"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
@@ -676,7 +672,6 @@ build_test_jobs: &build_test_jobs
         - build
       name: test_8_inst_latest
       testTask: latestDepTest
-      maxHeapSize: "1940M"
       gradleTarget: ":dd-java-agent:instrumentation"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
@@ -689,7 +684,6 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 4
       gradleTarget: ":dd-java-agent:agent-profiling"
       triggeredBy: *profiling_modules
-      maxHeapSize: "1G"
       stage: profiling
       name: test_<< matrix.testJvm >>_profiling
       matrix:
@@ -702,7 +696,6 @@ build_test_jobs: &build_test_jobs
       name: test_<< matrix.testJvm >>_iast
       gradleTarget: ":dd-java-agent:agent-iast"
       triggeredBy: *iast_modules
-      maxHeapSize: "1G"
       stage: iast
       matrix:
         <<: *profiling_test_matrix
@@ -714,7 +707,6 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 4
       gradleTarget: ":dd-java-agent:agent-debugger"
       triggeredBy: *debugger_modules
-      maxHeapSize: "1G"
       stage: debugger
       matrix:
         <<: *profiling_test_matrix
@@ -724,17 +716,32 @@ build_test_jobs: &build_test_jobs
         - build
       name: z_test_<< matrix.testJvm >>_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
-      maxHeapSize: "1750M"
       stage: smoke
       matrix:
         <<: *test_matrix
+
+  - xlarge_tests:
+      requires:
+        - build
+      name: test_IBM11_smoke
+      gradleTarget: "stageMainDist :dd-smoke-test"
+      stage: smoke
+      testJvm: "IBM11"
+
+  - xlarge_tests:
+      requires:
+        - build
+      name: test_IBM17_smoke
+      gradleTarget: "stageMainDist :dd-smoke-test"
+      stage: smoke
+      testJvm: "IBM17"
+
 
   - tests:
       requires:
         - build
       name: z_test_8_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
-      maxHeapSize: "1750M"
       stage: smoke
       testJvm: "8"
 
@@ -826,8 +833,11 @@ build_test_jobs: &build_test_jobs
         - agent_integration_tests
         - test_7
         - test_8
+        - test_IBM8
         - test_11
+        - test_IBM11_smoke
         - test_17
+        - test_IBM17_smoke
         - test_ZULU8
         - profiling
         - iast

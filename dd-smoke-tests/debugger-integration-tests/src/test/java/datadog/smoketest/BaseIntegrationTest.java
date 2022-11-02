@@ -12,6 +12,7 @@ import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
 import datadog.trace.bootstrap.debugger.Snapshot;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -249,6 +250,26 @@ public abstract class BaseIntegrationTest {
     assertNotNull(throwable);
     assertEquals(typeName, throwable.getType());
     assertEquals(message, throwable.getMessage());
+  }
+
+  protected static boolean logHasErrors(Path logFilePath, Function<String, Boolean> checker)
+      throws IOException {
+    long errorLines =
+        Files.lines(logFilePath)
+            .filter(
+                it ->
+                    it.contains(" ERROR ")
+                        || it.contains("ASSERTION FAILED")
+                        || it.contains("Error:")
+                        || checker.apply(it))
+            .peek(System.out::println)
+            .count();
+    boolean hasErrors = errorLines > 0;
+    if (hasErrors) {
+      System.out.println(
+          "Test application log is containing errors. See full run logs in " + logFilePath);
+    }
+    return hasErrors;
   }
 
   private static class MockDispatcher extends okhttp3.mockwebserver.QueueDispatcher {
