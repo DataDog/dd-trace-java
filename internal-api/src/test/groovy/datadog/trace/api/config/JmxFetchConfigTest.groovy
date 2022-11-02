@@ -7,8 +7,6 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_METRICS_CONFIGS
 import static datadog.trace.api.ConfigTest.PREFIX
 
 class JmxFetchConfigTest extends DDSpecification {
-
-
   def "verify empty value list configs on tracer"() {
     setup:
     System.setProperty(PREFIX + JMX_FETCH_METRICS_CONFIGS, listString)
