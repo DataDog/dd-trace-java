@@ -240,7 +240,7 @@ public final class CodeHotspotsTest {
           JdkAttributes.EVENT_THREAD_NAME.getAccessor(items.getType());
       for (IItem item : items) {
         String threadName = threadNameAccessor.getMember(item);
-        if (!threadName.contains("Worker")) {
+        if (threadName == null || !threadName.contains("Worker")) {
           continue;
         }
         long spanId = spanIdAccessor.getMember(item).longValue();
