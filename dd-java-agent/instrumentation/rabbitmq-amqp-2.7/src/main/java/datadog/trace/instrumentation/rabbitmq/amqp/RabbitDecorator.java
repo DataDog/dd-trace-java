@@ -95,7 +95,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
         routingKey == null || routingKey.isEmpty()
             ? "<all>"
             : routingKey.startsWith("amq.gen-") ? "<generated>" : routingKey;
-    span.setResourceName("basic.publish " + exchangeName + " -> " + routing);
+    span.setResourceName(buildResourceName("basic.publish", exchangeName, routing));
     span.setTag(AMQP_EXCHANGE, exchange);
     span.setTag(AMQP_ROUTING_KEY, routingKey);
   }
@@ -147,6 +147,15 @@ public class RabbitDecorator extends MessagingClientDecorator {
       return "<generated>";
     }
     return queueName;
+  }
+
+  private String buildResourceName(
+      final String opName, final String exchangeName, final String routingKey) {
+    final String prefix = opName + " " + exchangeName;
+    if (Config.get().isRabbitRoutingKeyExcludedFromResourceName()) {
+      return prefix;
+    }
+    return prefix + " -> " + routingKey;
   }
 
   public TracedDelegatingConsumer wrapConsumer(String queue, Consumer consumer) {

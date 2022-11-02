@@ -101,6 +101,11 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
 
   abstract boolean splitByDestination()
 
+  boolean excludesRoutingKeyFromResource() {
+    false
+  }
+
+
   def "test rabbit publish/get"() {
     setup:
     String queueName
@@ -685,7 +690,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       trace,
       expectedServiceName(),
       "amqp.command",
-      resource,
+      excludesRoutingKeyFromResource() ? resource.replaceAll(" -> .*", "") : resource,
       distributedRootSpan,
       parentSpan,
       exception,
@@ -938,5 +943,36 @@ class RabbitMQLegacyTracingForkedTest extends RabbitMQTestBase {
   @Override
   boolean splitByDestination() {
     return false
+  }
+}
+
+@Requires({ jvm.java8Compatible })
+class RabbitMQRoutingKeyExcludedForkedTest extends RabbitMQTestBase {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.service", "RabbitMQRoutingKeyExcludedForkedTest")
+    injectSysConfig("dd.rabbit.exclude.routingkey.from.resource", "true")
+    injectSysConfig("dd.rabbit.legacy.tracing.enabled", "false")
+  }
+
+  @Override
+  String expectedServiceName() {
+    return "RabbitMQRoutingKeyExcludedForkedTest"
+  }
+
+  @Override
+  boolean hasQueueSpan() {
+    return true
+  }
+
+  @Override
+  boolean splitByDestination() {
+    return false
+  }
+
+  @Override
+  boolean excludesRoutingKeyFromResource() {
+    return true
   }
 }
