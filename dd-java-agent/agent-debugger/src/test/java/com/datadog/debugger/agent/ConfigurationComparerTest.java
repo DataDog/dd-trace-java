@@ -170,7 +170,6 @@ class ConfigurationComparerTest {
             Collections.emptyList(),
             new Configuration.FilterList(Arrays.asList("com.datadog"), Collections.emptyList()),
             null,
-            null,
             null);
     ConfigurationComparer configurationComparer =
         new ConfigurationComparer(empty, config, Collections.emptyMap());
@@ -197,7 +196,6 @@ class ConfigurationComparerTest {
             Collections.emptyList(),
             new Configuration.FilterList(Arrays.asList("com.datadog"), Collections.emptyList()),
             null,
-            null,
             null);
     ConfigurationComparer configurationComparer =
         new ConfigurationComparer(noFilterConfig, config, instrumentationResults);
@@ -211,7 +209,6 @@ class ConfigurationComparerTest {
             Collections.singletonList(probe),
             Collections.emptyList(),
             new Configuration.FilterList(Arrays.asList("com.datacat"), Collections.emptyList()),
-            null,
             null,
             null);
 
@@ -248,7 +245,6 @@ class ConfigurationComparerTest {
             Collections.emptyList(),
             null,
             new Configuration.FilterList(Arrays.asList("com.datadog"), Collections.emptyList()),
-            null,
             null);
     ConfigurationComparer configurationComparer =
         new ConfigurationComparer(noFilterConfig, config, instrumentationResults);
@@ -281,7 +277,6 @@ class ConfigurationComparerTest {
             Collections.emptyList(),
             null,
             new Configuration.FilterList(Arrays.asList("com.datadog"), Collections.emptyList()),
-            null,
             null);
     ConfigurationComparer configurationComparer =
         new ConfigurationComparer(empty, config, Collections.emptyMap());
