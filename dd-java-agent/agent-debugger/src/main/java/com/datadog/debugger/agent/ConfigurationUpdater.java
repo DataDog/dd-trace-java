@@ -147,8 +147,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
         metricProbes,
         configuration.getAllowList(),
         configuration.getDenyList(),
-        configuration.getSampling(),
-        configuration.getOpsConfig());
+        configuration.getSampling());
   }
 
   Collection<SnapshotProbe> mergeDuplicatedProbes(Collection<SnapshotProbe> probes) {
@@ -221,10 +220,9 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
           null,
           currentConfiguration.getAllowList(),
           currentConfiguration.getDenyList(),
-          currentConfiguration.getSampling(),
-          currentConfiguration.getOpsConfig());
+          currentConfiguration.getSampling());
     }
-    return new Configuration("ID", 0, null, null, null, null, null, null);
+    return new Configuration("ID", 0, null, null, null, null, null);
   }
 
   private void retransformClasses(List<Class<?>> classesToBeTransformed) {

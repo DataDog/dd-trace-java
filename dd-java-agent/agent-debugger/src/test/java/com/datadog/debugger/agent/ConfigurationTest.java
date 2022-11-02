@@ -95,7 +95,6 @@ public class ConfigurationTest {
         new Configuration.FilterList(
             Arrays.asList("java.security"), Arrays.asList("javax.security.auth.AuthPermission"));
     SnapshotProbe.Sampling globalSampling = new SnapshotProbe.Sampling(10.0);
-    Configuration.OpsConfiguration opsConfiguration = new Configuration.OpsConfiguration(10);
     Configuration config1 =
         new Configuration(
             "service1",
@@ -104,8 +103,7 @@ public class ConfigurationTest {
             Arrays.asList(metric1),
             allowList,
             denyList,
-            globalSampling,
-            opsConfiguration);
+            globalSampling);
     Configuration config2 =
         new Configuration(
             "service2",
@@ -114,8 +112,7 @@ public class ConfigurationTest {
             Arrays.asList(metric2),
             allowList,
             denyList,
-            globalSampling,
-            opsConfiguration);
+            globalSampling);
     List<Configuration> configs = new ArrayList<>(Arrays.asList(config1, config2));
     ParameterizedType type = Types.newParameterizedType(List.class, Configuration.class);
     JsonAdapter<List<Configuration>> adapter = MoshiHelper.createMoshiConfig().adapter(type);
