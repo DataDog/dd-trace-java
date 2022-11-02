@@ -105,6 +105,7 @@ public final class TracerConfig {
   static final boolean DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED = false;
   static final String DEFAULT_PROPAGATION_STYLE_EXTRACT = PropagationStyle.DATADOG.name();
   static final String DEFAULT_PROPAGATION_STYLE_INJECT = PropagationStyle.DATADOG.name();
+  static final float DEFAULT_ANALYTICS_SAMPLE_RATE = 1.0f;
   static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
   static final int DEFAULT_CLOCK_SYNC_PERIOD = 30; // seconds
 

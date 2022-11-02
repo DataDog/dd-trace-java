@@ -1,6 +1,5 @@
 package datadog.trace.api;
 
-import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 
@@ -979,19 +978,9 @@ public class Config {
     return this.crashTrackingConfig.getMergedCrashTrackingTags();
   }
 
-  /**
-   * Returns the sample rate for the specified instrumentation or {@link
-   * ConfigDefaults#DEFAULT_ANALYTICS_SAMPLE_RATE} if none specified.
-   */
+  /** Returns the sample rate for the specified instrumentation. */
   public float getInstrumentationAnalyticsSampleRate(final String... aliases) {
-    for (final String alias : aliases) {
-      final String configKey = alias + ".analytics.sample-rate";
-      final Float rate = configProvider.getFloat("trace." + configKey, configKey);
-      if (null != rate) {
-        return rate;
-      }
-    }
-    return DEFAULT_ANALYTICS_SAMPLE_RATE;
+    return this.tracerConfig.getInstrumentationAnalyticsSampleRate(aliases);
   }
 
   public String getFinalProfilingUrl() {

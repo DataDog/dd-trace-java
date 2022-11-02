@@ -1,12 +1,10 @@
 package datadog.trace.api
 
-import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.env.FixedCapturedEnvironment
 import datadog.trace.bootstrap.config.provider.ConfigConverter
 import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.test.util.DDSpecification
 import org.junit.Rule
-import spock.lang.Unroll
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.DDTags.HOST_TAG
@@ -110,7 +108,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LEN
 
 class ConfigTest extends DDSpecification {
 
-  static final String PREFIX = "dd."
+  public static final String PREFIX = "dd."
 
   @Rule
   public final FixedCapturedEnvironment fixedCapturedEnvironment = new FixedCapturedEnvironment()
@@ -120,7 +118,6 @@ class ConfigTest extends DDSpecification {
   private static final DD_TRACE_ENABLED_ENV = "DD_TRACE_ENABLED"
   private static final DD_WRITER_TYPE_ENV = "DD_WRITER_TYPE"
   private static final DD_PRIORITIZATION_TYPE_ENV = "DD_PRIORITIZATION_TYPE"
-  private static final DD_SERVICE_MAPPING_ENV = "DD_SERVICE_MAPPING"
   private static final DD_TAGS_ENV = "DD_TAGS"
   private static final DD_ENV_ENV = "DD_ENV"
   private static final DD_VERSION_ENV = "DD_VERSION"
@@ -778,155 +775,6 @@ class ConfigTest extends DDSpecification {
     config.serviceName == "what actually wants"
   }
 
-  def "verify integration config"() {
-    setup:
-    environmentVariables.set("DD_INTEGRATION_ORDER_ENABLED", "false")
-    environmentVariables.set("DD_INTEGRATION_TEST_ENV_ENABLED", "true")
-    environmentVariables.set("DD_INTEGRATION_DISABLED_ENV_ENABLED", "false")
-
-    System.setProperty("dd.integration.order.enabled", "true")
-    System.setProperty("dd.integration.test-prop.enabled", "true")
-    System.setProperty("dd.integration.disabled-prop.enabled", "false")
-
-    expect:
-    Config.get().isIntegrationEnabled(integrationNames, defaultEnabled) == expected
-
-    where:
-    // spotless:off
-    names                          | defaultEnabled | expected
-    []                             | true           | true
-    []                             | false          | false
-    ["invalid"]                    | true           | true
-    ["invalid"]                    | false          | false
-    ["test-prop"]                  | false          | true
-    ["test-env"]                   | false          | true
-    ["disabled-prop"]              | true           | false
-    ["disabled-env"]               | true           | false
-    ["other", "test-prop"]         | false          | true
-    ["other", "test-env"]          | false          | true
-    ["order"]                      | false          | true
-    ["test-prop", "disabled-prop"] | false          | true
-    ["disabled-env", "test-env"]   | false          | true
-    ["test-prop", "disabled-prop"] | true           | false
-    ["disabled-env", "test-env"]   | true           | false
-    // spotless:on
-
-    integrationNames = new TreeSet<>(names)
-  }
-
-  def "verify rule config #name"() {
-    setup:
-    environmentVariables.set("DD_TRACE_TEST_ENABLED", "true")
-    environmentVariables.set("DD_TRACE_TEST_ENV_ENABLED", "true")
-    environmentVariables.set("DD_TRACE_DISABLED_ENV_ENABLED", "false")
-
-    System.setProperty("dd.trace.test.enabled", "false")
-    System.setProperty("dd.trace.test-prop.enabled", "true")
-    System.setProperty("dd.trace.disabled-prop.enabled", "false")
-
-    expect:
-    Config.get().isRuleEnabled(name) == enabled
-
-    where:
-    // spotless:off
-    name            | enabled
-    ""              | true
-    "invalid"       | true
-    "test-prop"     | true
-    "Test-Prop"     | true
-    "test-env"      | true
-    "Test-Env"      | true
-    "test"          | false
-    "TEST"          | false
-    "disabled-prop" | false
-    "Disabled-Prop" | false
-    "disabled-env"  | false
-    "Disabled-Env"  | false
-    // spotless:on
-  }
-
-  def "verify integration jmxfetch config"() {
-    setup:
-    environmentVariables.set("DD_JMXFETCH_ORDER_ENABLED", "false")
-    environmentVariables.set("DD_JMXFETCH_TEST_ENV_ENABLED", "true")
-    environmentVariables.set("DD_JMXFETCH_DISABLED_ENV_ENABLED", "false")
-
-    System.setProperty("dd.jmxfetch.order.enabled", "true")
-    System.setProperty("dd.jmxfetch.test-prop.enabled", "true")
-    System.setProperty("dd.jmxfetch.disabled-prop.enabled", "false")
-
-    expect:
-    Config.get().isJmxFetchIntegrationEnabled(integrationNames, defaultEnabled) == expected
-
-    where:
-    // spotless:off
-    names                          | defaultEnabled | expected
-    []                             | true           | true
-    []                             | false          | false
-    ["invalid"]                    | true           | true
-    ["invalid"]                    | false          | false
-    ["test-prop"]                  | false          | true
-    ["test-env"]                   | false          | true
-    ["disabled-prop"]              | true           | false
-    ["disabled-env"]               | true           | false
-    ["other", "test-prop"]         | false          | true
-    ["other", "test-env"]          | false          | true
-    ["order"]                      | false          | true
-    ["test-prop", "disabled-prop"] | false          | true
-    ["disabled-env", "test-env"]   | false          | true
-    ["test-prop", "disabled-prop"] | true           | false
-    ["disabled-env", "test-env"]   | true           | false
-    // spotless:on
-
-    integrationNames = new TreeSet<>(names)
-  }
-
-  def "verify integration trace analytics config"() {
-    setup:
-    environmentVariables.set("DD_ORDER_ANALYTICS_ENABLED", "false")
-    environmentVariables.set("DD_TEST_ENV_ANALYTICS_ENABLED", "true")
-    environmentVariables.set("DD_DISABLED_ENV_ANALYTICS_ENABLED", "false")
-    // trace prefix form should take precedence over the old non-prefix form
-    environmentVariables.set("DD_ALIAS_ENV_ANALYTICS_ENABLED", "false")
-    environmentVariables.set("DD_TRACE_ALIAS_ENV_ANALYTICS_ENABLED", "true")
-
-    System.setProperty("dd.order.analytics.enabled", "true")
-    System.setProperty("dd.test-prop.analytics.enabled", "true")
-    System.setProperty("dd.disabled-prop.analytics.enabled", "false")
-    // trace prefix form should take precedence over the old non-prefix form
-    System.setProperty("dd.alias-prop.analytics.enabled", "false")
-    System.setProperty("dd.trace.alias-prop.analytics.enabled", "true")
-
-    expect:
-    Config.get().isTraceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled) == expected
-
-    where:
-    // spotless:off
-    names                           | defaultEnabled | expected
-    []                              | true           | true
-    []                              | false          | false
-    ["invalid"]                     | true           | true
-    ["invalid"]                     | false          | false
-    ["test-prop"]                   | false          | true
-    ["test-env"]                    | false          | true
-    ["disabled-prop"]               | true           | false
-    ["disabled-env"]                | true           | false
-    ["other", "test-prop"]          | false          | true
-    ["other", "test-env"]           | false          | true
-    ["order"]                       | false          | true
-    ["test-prop", "disabled-prop"]  | false          | true
-    ["disabled-env", "test-env"]    | false          | true
-    ["test-prop", "disabled-prop"]  | true           | false
-    ["disabled-env", "test-env"]    | true           | false
-    ["alias-prop", "disabled-prop"] | false          | true
-    ["disabled-env", "alias-env"]   | false          | true
-    ["alias-prop", "disabled-prop"] | true           | false
-    ["disabled-env", "alias-env"]   | true           | false
-    // spotless:on
-
-    integrationNames = new TreeSet<>(names)
-  }
-
   def "test getFloatSettingFromEnvironment(#name)"() {
     setup:
     environmentVariables.set("DD_ENV_ZERO_TEST", "0.0")
@@ -989,243 +837,6 @@ class ConfigTest extends DDSpecification {
     defaultValue = 10.0
   }
 
-  def "verify mapping configs on tracer for #mapString"() {
-    setup:
-    System.setProperty(PREFIX + HEADER_TAGS + ".legacy.parsing.enabled", "true")
-    System.setProperty(PREFIX + SERVICE_MAPPING, mapString)
-    System.setProperty(PREFIX + SPAN_TAGS, mapString)
-    System.setProperty(PREFIX + HEADER_TAGS, mapString)
-    System.setProperty(PREFIX + REQUEST_HEADER_TAGS, "rqh1")
-    System.setProperty(PREFIX + RESPONSE_HEADER_TAGS, "rsh1")
-    def props = new Properties()
-    props.setProperty(HEADER_TAGS + ".legacy.parsing.enabled", "true")
-    props.setProperty(SERVICE_MAPPING, mapString)
-    props.setProperty(SPAN_TAGS, mapString)
-    props.setProperty(HEADER_TAGS, mapString)
-    props.setProperty(PREFIX + REQUEST_HEADER_TAGS, "rqh1")
-    props.setProperty(PREFIX + RESPONSE_HEADER_TAGS, "rsh1")
-
-    when:
-    def config = new Config()
-    def propConfig = Config.get(props)
-
-    then:
-    config.serviceMapping == map
-    config.mergedSpanTags == map
-    config.requestHeaderTags == map
-    config.responseHeaderTags == [:]
-    propConfig.serviceMapping == map
-    propConfig.mergedSpanTags == map
-    propConfig.requestHeaderTags == map
-    propConfig.responseHeaderTags == [:]
-
-    where:
-    // spotless:off
-    mapString                                                     | map
-    "a:1, a:2, a:3"                                               | [a: "3"]
-    "a:b,c:d,e:"                                                  | [a: "b", c: "d"]
-    // space separated
-    "a:1  a:2  a:3"                                               | [a: "3"]
-    "a:b c:d e:"                                                  | [a: "b", c: "d"]
-    // More different string variants:
-    "a:"                                                          | [:]
-    "a:a;"                                                        | [a: "a;"]
-    "a:1, a:2, a:3"                                               | [a: "3"]
-    "a:1  a:2  a:3"                                               | [a: "3"]
-    "a:b,c:d,e:"                                                  | [a: "b", c: "d"]
-    "a:b c:d e:"                                                  | [a: "b", c: "d"]
-    "key 1!:va|ue_1,"                                             | ["key 1!": "va|ue_1"]
-    "key 1!:va|ue_1 "                                             | ["key 1!": "va|ue_1"]
-    " key1 :value1 ,\t key2:  value2"                             | [key1: "value1", key2: "value2"]
-    "a:b,c,d"                                                     | [:]
-    "a:b,c,d,k:v"                                                 | [:]
-    "key1 :value1  \t key2:  value2"                              | [key1: "value1", key2: "value2"]
-    "dyno:web.1 dynotype:web buildpackversion:dev appname:******" | ["dyno": "web.1", "dynotype": "web", "buildpackversion": "dev", "appname": "******"]
-    "is:val:id"                                                   | [is: "val:id"]
-    "a:b,is:val:id,x:y"                                           | [a: "b", is: "val:id", x: "y"]
-    "a:b:c:d"                                                     | [a: "b:c:d"]
-    // Invalid strings:
-    ""                                                            | [:]
-    "1"                                                           | [:]
-    "a"                                                           | [:]
-    "a,1"                                                         | [:]
-    "!a"                                                          | [:]
-    "    "                                                        | [:]
-    ",,,,"                                                        | [:]
-    ":,:,:,:,"                                                    | [:]
-    ": : : : "                                                    | [:]
-    "::::"                                                        | [:]
-    // spotless:on
-  }
-
-  def "verify mapping header tags on tracer for #mapString"() {
-    setup:
-    Map<String, String> rqMap = map.clone()
-    rqMap.put("rqh1", "http.request.headers.rqh1")
-    System.setProperty(PREFIX + HEADER_TAGS, mapString)
-    System.setProperty(PREFIX + REQUEST_HEADER_TAGS, "rqh1")
-    System.setProperty(PREFIX + RESPONSE_HEADER_TAGS, "rsh1")
-    Map<String, String> rsMap = map.collectEntries { k, v -> [k, v.replace("http.request.headers", "http.response.headers")] }
-    rsMap.put("rsh1", "http.response.headers.rsh1")
-    def props = new Properties()
-    props.setProperty(HEADER_TAGS, mapString)
-    props.setProperty(PREFIX + REQUEST_HEADER_TAGS, "rQh1")
-    props.setProperty(PREFIX + RESPONSE_HEADER_TAGS, "rsH1")
-
-    when:
-    def config = new Config()
-    def propConfig = Config.get(props)
-
-    then:
-    config.requestHeaderTags == rqMap
-    propConfig.requestHeaderTags == rqMap
-    config.responseHeaderTags == rsMap
-    propConfig.responseHeaderTags == rsMap
-
-    where:
-    // spotless:off
-    mapString                                                     | map
-    "a:one, a:two, a:three"                                       | [a: "three"]
-    "a:b,c:d,e:"                                                  | [a: "b", c: "d"]
-    // space separated
-    "a:one  a:two  a:three"                                       | [a: "three"]
-    "a:b c:d e:"                                                  | [a: "b", c: "d"]
-    // More different string variants:
-    "a:"                                                          | [:]
-    "a:a;"                                                        | [a: "a;"]
-    "a:one, a:two, a:three"                                       | [a: "three"]
-    "a:one  a:two  a:three"                                       | [a: "three"]
-    "a:b,c:d,e:"                                                  | [a: "b", c: "d"]
-    "a:b c:d e:"                                                  | [a: "b", c: "d"]
-    "key=1!:va|ue_1,"                                             | ["key=1!": "va|ue_1"]
-    "key=1!:va|ue_1 "                                             | ["key=1!": "va|ue_1"]
-    " kEy1 :vaLue1 ,\t keY2:  valUe2"                             | [key1: "vaLue1", key2: "valUe2"]
-    "a:b,c,D"                                                     | [a: "b", c: "http.request.headers.c", d: "http.request.headers.d"]
-    "a:b,C,d,k:v"                                                 | [a: "b", c: "http.request.headers.c", d: "http.request.headers.d", k: "v"]
-    "a b c:d "                                                    | [a: "http.request.headers.a", b: "http.request.headers.b", c: "d"]
-    "dyno:web.1 dynotype:web buildpackversion:dev appname:n*****" | ["dyno": "web.1", "dynotype": "web", "buildpackversion": "dev", "appname": "n*****"]
-    "A.1,B.1"                                                     | ["a.1": "http.request.headers.a_1", "b.1": "http.request.headers.b_1"]
-    "is:val:id"                                                   | [is: "val:id"]
-    "a:b,is:val:id,x:y"                                           | [a: "b", is: "val:id", x: "y"]
-    "a:b:c:d"                                                     | [a: "b:c:d"]
-    // Invalid strings:
-    ""                                                            | [:]
-    "1"                                                           | [:]
-    "a:1"                                                         | [:]
-    "a,1"                                                         | [:]
-    "!a"                                                          | [:]
-    "    "                                                        | [:]
-    ",,,,"                                                        | [:]
-    ":,:,:,:,"                                                    | [:]
-    ": : : : "                                                    | [:]
-    "::::"                                                        | [:]
-    "kEy1 :value1  \t keY2:  value2"                              | [:]
-    // spotless:on
-  }
-
-  def "verify integer range configs on tracer"() {
-    setup:
-    System.setProperty(PREFIX + HTTP_SERVER_ERROR_STATUSES, value)
-    System.setProperty(PREFIX + HTTP_CLIENT_ERROR_STATUSES, value)
-    def props = new Properties()
-    props.setProperty(HTTP_CLIENT_ERROR_STATUSES, value)
-    props.setProperty(HTTP_SERVER_ERROR_STATUSES, value)
-
-    when:
-    def config = new Config()
-    def propConfig = Config.get(props)
-
-    then:
-    if (expected) {
-      assert config.httpServerErrorStatuses == toBitSet(expected)
-      assert config.httpClientErrorStatuses == toBitSet(expected)
-      assert propConfig.httpServerErrorStatuses == toBitSet(expected)
-      assert propConfig.httpClientErrorStatuses == toBitSet(expected)
-    } else {
-      assert config.httpServerErrorStatuses == TracerConfig.DEFAULT_HTTP_SERVER_ERROR_STATUSES
-      assert config.httpClientErrorStatuses == TracerConfig.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
-      assert propConfig.httpServerErrorStatuses == TracerConfig.DEFAULT_HTTP_SERVER_ERROR_STATUSES
-      assert propConfig.httpClientErrorStatuses == TracerConfig.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
-    }
-
-    where:
-    value               | expected // null means default value
-    // spotless:off
-    "1"                 | null
-    "a"                 | null
-    ""                  | null
-    "1000"              | null
-    "100-200-300"       | null
-    "500"               | [500]
-    "100,999"           | [100, 999]
-    "999-888"           | 888..999
-    "400-403,405-407"   | [400, 401, 402, 403, 405, 406, 407]
-    " 400 - 403 , 405 " | [400, 401, 402, 403, 405]
-    // spotless:on
-  }
-
-  def "verify null value mapping configs on tracer"() {
-    setup:
-    environmentVariables.set(DD_SERVICE_MAPPING_ENV, mapString)
-    environmentVariables.set(DD_SPAN_TAGS_ENV, mapString)
-    environmentVariables.set(DD_HEADER_TAGS_ENV, mapString)
-
-    when:
-    def config = new Config()
-
-    then:
-    config.serviceMapping == map
-    config.mergedSpanTags == map
-    config.requestHeaderTags == map
-
-    where:
-    mapString | map
-    // spotless:off
-    null      | [:]
-    ""        | [:]
-    // spotless:on
-  }
-
-  def "verify empty value list configs on tracer"() {
-    setup:
-    System.setProperty(PREFIX + JMX_FETCH_METRICS_CONFIGS, listString)
-
-    when:
-    def config = new Config()
-
-    then:
-    config.jmxFetchMetricsConfigs == list
-
-    where:
-    // spotless:off
-    listString | list
-    ""         | []
-    // spotless:on
-  }
-
-  def "verify hostname not added to root span tags by default"() {
-    setup:
-    Properties properties = new Properties()
-
-    when:
-    def config = Config.get(properties)
-
-    then:
-    !config.localRootSpanTags.containsKey('_dd.hostname')
-  }
-
-  def "verify configuration to add hostname to root span tags"() {
-    setup:
-    Properties properties = new Properties()
-    properties.setProperty(TRACE_REPORT_HOSTNAME, 'true')
-
-    when:
-    def config = Config.get(properties)
-
-    then:
-    config.localRootSpanTags.containsKey('_dd.hostname')
-  }
-
   def "verify fallback to properties file"() {
     setup:
     System.setProperty(PREFIX + CONFIGURATION_FILE, "src/test/resources/dd-java-tracer.properties")
@@ -1284,46 +895,6 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == 'unnamed-java-app'
-  }
-
-  def "get analytics sample rate"() {
-    setup:
-    environmentVariables.set("DD_FOO_ANALYTICS_SAMPLE_RATE", "0.5")
-    environmentVariables.set("DD_BAR_ANALYTICS_SAMPLE_RATE", "0.9")
-    // trace prefix form should take precedence over the old non-prefix form
-    environmentVariables.set("DD_ALIAS_ENV_ANALYTICS_SAMPLE_RATE", "0.8")
-    environmentVariables.set("DD_TRACE_ALIAS_ENV_ANALYTICS_SAMPLE_RATE", "0.4")
-
-    System.setProperty("dd.baz.analytics.sample-rate", "0.7")
-    System.setProperty("dd.buzz.analytics.sample-rate", "0.3")
-    // trace prefix form should take precedence over the old non-prefix form
-    System.setProperty("dd.alias-prop.analytics.sample-rate", "0.1")
-    System.setProperty("dd.trace.alias-prop.analytics.sample-rate", "0.2")
-
-    when:
-    String[] array = services.toArray(new String[0])
-    def value = Config.get().getInstrumentationAnalyticsSampleRate(array)
-
-    then:
-    value == expected
-
-    where:
-    // spotless:off
-    services                | expected
-    ["foo"]                 | 0.5f
-    ["baz"]                 | 0.7f
-    ["doesnotexist"]        | 1.0f
-    ["doesnotexist", "foo"] | 0.5f
-    ["doesnotexist", "baz"] | 0.7f
-    ["foo", "bar"]          | 0.5f
-    ["bar", "foo"]          | 0.9f
-    ["baz", "buzz"]         | 0.7f
-    ["buzz", "baz"]         | 0.3f
-    ["foo", "baz"]          | 0.5f
-    ["baz", "foo"]          | 0.7f
-    ["alias-env", "baz"]    | 0.4f
-    ["alias-prop", "foo"]   | 0.2f
-    // spotless:on
   }
 
   def "verify api key loaded from file: #path"() {
@@ -1591,8 +1162,8 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.mergedSpanTags == ["env": "test_env", "version": "1.2.3"]
-    config.getWellKnownTags().getEnv() as String == "test_env"
-    config.getWellKnownTags().getVersion() as String == "1.2.3"
+    config.wellKnownTags.getEnv() as String == "test_env"
+    config.wellKnownTags.getVersion() as String == "1.2.3"
   }
 
   def "explicit DD_ENV and DD_VERSION overwrites dd.trace.global.tags"() {
@@ -1607,8 +1178,8 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.mergedSpanTags == ["version": "1.2.3", "env": "production-us", "other_tag": "test"]
-    config.getWellKnownTags().getEnv() as String == "production-us"
-    config.getWellKnownTags().getVersion() as String == "1.2.3"
+    config.wellKnownTags.getEnv() as String == "production-us"
+    config.wellKnownTags.getVersion() as String == "1.2.3"
   }
 
   def "merge env from dd.trace.global.tags and DD_VERSION"() {
@@ -1780,7 +1351,7 @@ class ConfigTest extends DDSpecification {
       'service.version': 'my-svc-vers']
   }
 
-  def "set servicenaem by DD_SERVICE"() {
+  def "set service name by DD_SERVICE"() {
     setup:
     environmentVariables.set("DD_SERVICE", "dd-service-env-var")
     System.setProperty(PREFIX + GLOBAL_TAGS, "service:service-tag-in-dd-trace-global-tags-java-property,service.version:my-svc-vers")
@@ -1809,61 +1380,6 @@ class ConfigTest extends DDSpecification {
 
     where:
     [serviceProperty, serviceName] << [[SERVICE, SERVICE_NAME], [DEFAULT_SERVICE_NAME, "my-service"]].combinations()
-  }
-
-  def "detect if agent is configured using default values"() {
-    setup:
-    if (host != null) {
-      System.setProperty(PREFIX + AGENT_HOST, host)
-    }
-    if (socket != null) {
-      System.setProperty(PREFIX + AGENT_UNIX_DOMAIN_SOCKET, socket)
-    }
-    if (port != null) {
-      System.setProperty(PREFIX + TRACE_AGENT_PORT, port)
-    }
-    if (legacyPort != null) {
-      System.setProperty(PREFIX + AGENT_PORT_LEGACY, legacyPort)
-    }
-
-    when:
-    def config = new Config()
-
-    then:
-    config.isAgentConfiguredUsingDefault() == configuredUsingDefault
-
-    when:
-    Properties properties = new Properties()
-    if (propertyHost != null) {
-      properties.setProperty(AGENT_HOST, propertyHost)
-    }
-    if (propertySocket != null) {
-      properties.setProperty(AGENT_UNIX_DOMAIN_SOCKET, propertySocket)
-    }
-    if (propertyPort != null) {
-      properties.setProperty(TRACE_AGENT_PORT, propertyPort)
-    }
-
-    def childConfig = new Config(ConfigProvider.withPropertiesOverride(properties))
-
-    then:
-    childConfig.isAgentConfiguredUsingDefault() == childConfiguredUsingDefault
-
-    where:
-    // spotless:off
-    host                              | socket    | port | legacyPort | propertyHost | propertySocket | propertyPort | configuredUsingDefault | childConfiguredUsingDefault
-    null                              | null      | null | null       | null         | null           | null         | true                   | true
-    "example"                         | null      | null | null       | null         | null           | null         | false                  | false
-    ConfigDefaults.DEFAULT_AGENT_HOST | null      | null | null       | null         | null           | null         | false                  | false
-    null                              | "example" | null | null       | null         | null           | null         | false                  | false
-    null                              | null      | "1"  | null       | null         | null           | null         | false                  | false
-    null                              | null      | null | "1"        | null         | null           | null         | false                  | false
-    "example"                         | "example" | null | null       | null         | null           | null         | false                  | false
-    null                              | null      | null | null       | "example"    | null           | null         | true                   | false
-    null                              | null      | null | null       | null         | "example"      | null         | true                   | false
-    null                              | null      | null | null       | null         | null           | "1"          | true                   | false
-    "example"                         | "example" | null | null       | "example"    | null           | null         | false                  | false
-    // spotless:on
   }
 
   // Static methods test:
@@ -2033,68 +1549,6 @@ class ConfigTest extends DDSpecification {
     def config = new Config()
     then:
     config.getMetricsIgnoredResources() == ["GET /healthcheck", "SELECT foo from bar"].toSet()
-  }
-
-  @Unroll
-  def "appsec state with sys = #sys env = #env"() {
-    setup:
-    if (sys != null) {
-      System.setProperty("dd.appsec.enabled", sys)
-    }
-    if (env != null) {
-      environmentVariables.set("DD_APPSEC_ENABLED", env)
-    }
-
-    when:
-    def config = new Config()
-
-    then:
-    config.getAppSecEnabledConfig() == res
-
-    where:
-    sys        | env        | res
-    null       | null       | ProductActivationConfig.ENABLED_INACTIVE
-    null       | ""         | ProductActivationConfig.ENABLED_INACTIVE
-    null       | "inactive" | ProductActivationConfig.ENABLED_INACTIVE
-    null       | "false"    | ProductActivationConfig.FULLY_DISABLED
-    null       | "0"        | ProductActivationConfig.FULLY_DISABLED
-    null       | "invalid"  | ProductActivationConfig.FULLY_DISABLED
-    null       | "true"     | ProductActivationConfig.FULLY_ENABLED
-    null       | "1"        | ProductActivationConfig.FULLY_ENABLED
-    ""         | null       | ProductActivationConfig.ENABLED_INACTIVE
-    ""         | ""         | ProductActivationConfig.ENABLED_INACTIVE
-    ""         | "inactive" | ProductActivationConfig.ENABLED_INACTIVE
-    ""         | "false"    | ProductActivationConfig.FULLY_DISABLED
-    ""         | "0"        | ProductActivationConfig.FULLY_DISABLED
-    ""         | "invalid"  | ProductActivationConfig.FULLY_DISABLED
-    ""         | "true"     | ProductActivationConfig.FULLY_ENABLED
-    ""         | "1"        | ProductActivationConfig.FULLY_ENABLED
-    "inactive" | null       | ProductActivationConfig.ENABLED_INACTIVE
-    "inactive" | ""         | ProductActivationConfig.ENABLED_INACTIVE
-    "inactive" | "inactive" | ProductActivationConfig.ENABLED_INACTIVE
-    "inactive" | "false"    | ProductActivationConfig.ENABLED_INACTIVE
-    "inactive" | "0"        | ProductActivationConfig.ENABLED_INACTIVE
-    "inactive" | "invalid"  | ProductActivationConfig.ENABLED_INACTIVE
-    "inactive" | "true"     | ProductActivationConfig.ENABLED_INACTIVE
-    "inactive" | "1"        | ProductActivationConfig.ENABLED_INACTIVE
-    "false"    | null       | ProductActivationConfig.FULLY_DISABLED
-    "false"    | ""         | ProductActivationConfig.FULLY_DISABLED
-    "false"    | "inactive" | ProductActivationConfig.FULLY_DISABLED
-    "false"    | "false"    | ProductActivationConfig.FULLY_DISABLED
-    "false"    | "0"        | ProductActivationConfig.FULLY_DISABLED
-    "false"    | "invalid"  | ProductActivationConfig.FULLY_DISABLED
-    "false"    | "true"     | ProductActivationConfig.FULLY_DISABLED
-    "false"    | "1"        | ProductActivationConfig.FULLY_DISABLED
-    "0"        | null       | ProductActivationConfig.FULLY_DISABLED
-    "true"     | null       | ProductActivationConfig.FULLY_ENABLED
-    "true"     | ""         | ProductActivationConfig.FULLY_ENABLED
-    "true"     | "inactive" | ProductActivationConfig.FULLY_ENABLED
-    "true"     | "false"    | ProductActivationConfig.FULLY_ENABLED
-    "true"     | "0"        | ProductActivationConfig.FULLY_ENABLED
-    "true"     | "invalid"  | ProductActivationConfig.FULLY_ENABLED
-    "true"     | "true"     | ProductActivationConfig.FULLY_ENABLED
-    "true"     | "1"        | ProductActivationConfig.FULLY_ENABLED
-    "1"        | null       | ProductActivationConfig.FULLY_ENABLED
   }
 
   static class ClassThrowsExceptionForValueOfMethod {

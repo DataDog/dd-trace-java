@@ -14,6 +14,7 @@ import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET;
 import static datadog.trace.api.config.TracerConfig.CLIENT_IP_ENABLED;
 import static datadog.trace.api.config.TracerConfig.CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.config.TracerConfig.DEFAULT_AGENT_WRITER_TYPE;
+import static datadog.trace.api.config.TracerConfig.DEFAULT_ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.config.TracerConfig.DEFAULT_CLIENT_IP_ENABLED;
 import static datadog.trace.api.config.TracerConfig.DEFAULT_CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.config.TracerConfig.DEFAULT_HTTP_CLIENT_ERROR_STATUSES;
@@ -464,6 +465,21 @@ public class TracerFeatureConfig extends AbstractFeatureConfig {
   public boolean isSamplingMechanismValidationDisabled() {
     return this.configProvider.getBoolean(
         TracerConfig.SAMPLING_MECHANISM_VALIDATION_DISABLED, false);
+  }
+
+  /**
+   * Returns the sample rate for the specified instrumentation or {@link
+   * TracerConfig#DEFAULT_ANALYTICS_SAMPLE_RATE} if none specified.
+   */
+  public float getInstrumentationAnalyticsSampleRate(final String... aliases) {
+    for (final String alias : aliases) {
+      final String configKey = alias + ".analytics.sample-rate";
+      final Float rate = configProvider.getFloat("trace." + configKey, configKey);
+      if (null != rate) {
+        return rate;
+      }
+    }
+    return DEFAULT_ANALYTICS_SAMPLE_RATE;
   }
 
   public boolean isTraceAgentV05Enabled() {
