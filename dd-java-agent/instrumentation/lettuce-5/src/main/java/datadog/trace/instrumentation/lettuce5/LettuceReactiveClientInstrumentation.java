@@ -90,9 +90,6 @@ public class LettuceReactiveClientInstrumentation extends Instrumenter.Tracing
     transformation.applyAdvice(
         isMethod().and(named("onNext")), packageName + ".rx.RedisSubscriptionAdvanceAdvice");
     transformation.applyAdvice(
-        isMethod().and(named("dispatchCommand")),
-        packageName + ".rx.RedisSubscriptionDispatchCommandAdvice");
-    transformation.applyAdvice(
         isMethod()
             .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
             .and(namedOneOf("complete", "cancel")),

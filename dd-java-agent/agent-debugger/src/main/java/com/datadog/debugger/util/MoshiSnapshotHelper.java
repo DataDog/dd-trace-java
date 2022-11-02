@@ -329,7 +329,8 @@ public class MoshiSnapshotHelper {
                 values.add(elementValue);
               }
               jsonReader.endArray();
-              if (type.equals(List.class.getName()) || type.equals(ArrayList.class.getName())) {
+              if (type.equals(List.class.getTypeName())
+                  || type.equals(ArrayList.class.getTypeName())) {
                 List<Object> list = new ArrayList<>();
                 for (Snapshot.CapturedValue cValue : values) {
                   list.add(cValue.getValue());
@@ -360,7 +361,8 @@ public class MoshiSnapshotHelper {
                 jsonReader.endArray();
               }
               jsonReader.endArray();
-              if (type.equals(Map.class.getName()) || type.equals(HashMap.class.getName())) {
+              if (type.equals(Map.class.getTypeName())
+                  || type.equals(HashMap.class.getTypeName())) {
                 Map<Object, Object> entries = new HashMap<>();
                 for (int i = 0; i < values.size(); i += 2) {
                   Object entryKey = values.get(i).getValue();
@@ -620,8 +622,8 @@ public class MoshiSnapshotHelper {
         jsonWriter.beginArray();
         Object keyObj = entry.getKey();
         Object valObj = entry.getValue();
-        serializeValue(jsonWriter, keyObj, keyObj.getClass().getName(), newLimits);
-        serializeValue(jsonWriter, valObj, valObj.getClass().getName(), newLimits);
+        serializeValue(jsonWriter, keyObj, keyObj.getClass().getTypeName(), newLimits);
+        serializeValue(jsonWriter, valObj, valObj.getClass().getTypeName(), newLimits);
         jsonWriter.endArray();
         i++;
       }
@@ -638,7 +640,7 @@ public class MoshiSnapshotHelper {
       Iterator<?> it = collection.iterator();
       while (i < maxSize && it.hasNext()) {
         Object val = it.next();
-        serializeValue(jsonWriter, val, val.getClass().getName(), newLimits);
+        serializeValue(jsonWriter, val, val.getClass().getTypeName(), newLimits);
         i++;
       }
       return new SerializationResult(colSize, maxSize == colSize);
@@ -654,7 +656,7 @@ public class MoshiSnapshotHelper {
         serializeValue(
             jsonWriter,
             val,
-            val != null ? val.getClass().getName() : "java.lang.Object",
+            val != null ? val.getClass().getTypeName() : "java.lang.Object",
             newLimits);
         i++;
       }

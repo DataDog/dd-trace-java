@@ -72,7 +72,6 @@ public final class AsyncHttpClientInstrumentation extends Instrumenter.Tracing
       propagate().inject(span, request, SETTER);
       InstrumentationContext.get(AsyncHandler.class, Pair.class)
           .put(handler, Pair.of(parentSpan, span));
-      span.startThreadMigration();
     }
   }
 }

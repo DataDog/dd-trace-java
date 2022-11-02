@@ -41,14 +41,6 @@ class Event {
 
   String getName() {
     switch (flags) {
-      case SPAN:
-        return "startSpan"
-      case SPAN | END:
-        return "endSpan"
-      case THREAD_MIGRATION:
-        return "suspend"
-      case THREAD_MIGRATION | END:
-        return "resume"
       case CPU | END:
         return "endTask"
       case CPU:

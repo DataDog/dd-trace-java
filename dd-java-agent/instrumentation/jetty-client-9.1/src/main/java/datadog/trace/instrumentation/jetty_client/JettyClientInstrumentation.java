@@ -85,7 +85,6 @@ public class JettyClientInstrumentation extends Instrumenter.Tracing
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       propagate().inject(span, request, SETTER);
-      span.startThreadMigration();
       return span;
     }
 

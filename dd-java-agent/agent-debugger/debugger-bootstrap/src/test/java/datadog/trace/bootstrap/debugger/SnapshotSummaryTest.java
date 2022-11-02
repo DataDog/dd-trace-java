@@ -40,10 +40,10 @@ public class SnapshotSummaryTest {
     argMap.put("foo", "bar");
     entry.addArguments(
         new Snapshot.CapturedValue[] {
-          Snapshot.CapturedValue.of("arg1", String.class.getName(), "this is a string"),
+          Snapshot.CapturedValue.of("arg1", String.class.getTypeName(), "this is a string"),
           Snapshot.CapturedValue.of("arg2", "int", 42),
-          Snapshot.CapturedValue.of("arg3", List.class.getName(), Arrays.asList("a", "b", "c")),
-          Snapshot.CapturedValue.of("arg4", Map.class.getName(), argMap)
+          Snapshot.CapturedValue.of("arg3", List.class.getTypeName(), Arrays.asList("a", "b", "c")),
+          Snapshot.CapturedValue.of("arg4", Map.class.getTypeName(), argMap)
         });
     snapshot.setEntry(entry);
     assertEquals(
@@ -64,9 +64,9 @@ public class SnapshotSummaryTest {
     CapturedContext entry = new CapturedContext();
     entry.addArguments(
         new Snapshot.CapturedValue[] {
-          Snapshot.CapturedValue.of("arg1", String.class.getName(), "this is a string"),
+          Snapshot.CapturedValue.of("arg1", String.class.getTypeName(), "this is a string"),
           Snapshot.CapturedValue.of("arg2", "int", 42),
-          Snapshot.CapturedValue.of("arg3", List.class.getName(), Arrays.asList("a", "b", "c"))
+          Snapshot.CapturedValue.of("arg3", List.class.getTypeName(), Arrays.asList("a", "b", "c"))
         });
     snapshot.setEntry(entry);
     assertEquals(
@@ -76,9 +76,9 @@ public class SnapshotSummaryTest {
     CapturedContext exit = new CapturedContext();
     exit.addLocals(
         new Snapshot.CapturedValue[] {
-          Snapshot.CapturedValue.of("str", String.class.getName(), "this is a local string"),
+          Snapshot.CapturedValue.of("str", String.class.getTypeName(), "this is a local string"),
           Snapshot.CapturedValue.of("i", "int", 1001),
-          Snapshot.CapturedValue.of("list", List.class.getName(), Arrays.asList("1", "2", "3")),
+          Snapshot.CapturedValue.of("list", List.class.getTypeName(), Arrays.asList("1", "2", "3")),
           CapturedValue.of("@return", "double", 2.0)
         });
     snapshot.setExit(exit);
@@ -103,13 +103,13 @@ public class SnapshotSummaryTest {
     CapturedContext lineCapture = new CapturedContext();
     lineCapture.addLocals(
         new Snapshot.CapturedValue[] {
-          Snapshot.CapturedValue.of("str", String.class.getName(), "this is a local string"),
+          Snapshot.CapturedValue.of("str", String.class.getTypeName(), "this is a local string"),
           Snapshot.CapturedValue.of("i", "int", 1001),
-          Snapshot.CapturedValue.of("list", List.class.getName(), Arrays.asList("1", "2", "3"))
+          Snapshot.CapturedValue.of("list", List.class.getTypeName(), Arrays.asList("1", "2", "3"))
         });
     lineCapture.addArguments(
         new Snapshot.CapturedValue[] {
-          Snapshot.CapturedValue.of("arg1", String.class.getName(), "this is a string"),
+          Snapshot.CapturedValue.of("arg1", String.class.getTypeName(), "this is a string"),
           Snapshot.CapturedValue.of("arg2", "int", 42),
         });
     snapshot.addLine(lineCapture, 23);
@@ -144,7 +144,7 @@ public class SnapshotSummaryTest {
     lineCapture.addLocals(new Snapshot.CapturedValue[] {});
     lineCapture.addArguments(
         new Snapshot.CapturedValue[] {
-          Snapshot.CapturedValue.of("arg1", String.class.getName(), "this is a string"),
+          Snapshot.CapturedValue.of("arg1", String.class.getTypeName(), "this is a string"),
           Snapshot.CapturedValue.of("arg2", "int", 42),
         });
     snapshot.addLine(lineCapture, 13);

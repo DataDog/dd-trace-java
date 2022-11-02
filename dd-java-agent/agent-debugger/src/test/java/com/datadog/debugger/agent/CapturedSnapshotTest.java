@@ -915,19 +915,20 @@ public class CapturedSnapshotTest {
     assertCaptureFields(
         snapshot.getCaptures().getEntry(),
         "strList",
-        "java.util.List",
+        "java.util.ArrayList",
         Arrays.asList("foo", "bar"));
     assertCaptureFields(
-        snapshot.getCaptures().getEntry(), "strMap", "java.util.Map", Collections.emptyMap());
+        snapshot.getCaptures().getEntry(), "strMap", "java.util.HashMap", Collections.emptyMap());
     assertCaptureFieldCount(snapshot.getCaptures().getReturn(), 5);
     assertCaptureFields(snapshot.getCaptures().getReturn(), "intValue", "int", "48");
     assertCaptureFields(snapshot.getCaptures().getReturn(), "doubleValue", "double", "3.14");
     assertCaptureFields(snapshot.getCaptures().getReturn(), "strValue", "java.lang.String", "done");
     assertCaptureFields(
-        snapshot.getCaptures().getReturn(), "strList", "java.util.List", "[foo, bar, done]");
+        snapshot.getCaptures().getReturn(), "strList", "java.util.ArrayList", "[foo, bar, done]");
     Map<Object, Object> expectedMap = new HashMap<>();
     expectedMap.put("foo", "bar");
-    assertCaptureFields(snapshot.getCaptures().getReturn(), "strMap", "java.util.Map", expectedMap);
+    assertCaptureFields(
+        snapshot.getCaptures().getReturn(), "strMap", "java.util.HashMap", expectedMap);
   }
 
   @Test
@@ -1108,6 +1109,22 @@ public class CapturedSnapshotTest {
     Assert.assertEquals(0, listener.snapshots.size());
   }
 
+  @Test
+  public void objectDynamicType() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot17";
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, "processWithArg", null));
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "2").get();
+    Assert.assertEquals(50, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertCaptureArgs(snapshot.getCaptures().getEntry(), "obj", "java.lang.Integer", "42");
+    assertCaptureFields(
+        snapshot.getCaptures().getEntry(), "objField", "java.lang.String", "foobar");
+    assertCaptureLocals(snapshot.getCaptures().getReturn(), "result", "java.lang.Integer", "50");
+    assertCaptureReturnValue(snapshot.getCaptures().getReturn(), "java.lang.Integer", "50");
+  }
+
   private DebuggerTransformerTest.TestSnapshotListener setupInstrumentTheWorldTransformer(
       String excludeFileName) {
     Config config = mock(Config.class);
@@ -1279,7 +1296,6 @@ public class CapturedSnapshotTest {
     Assert.assertEquals(typeName, field.getType());
     Map<Object, Object> map = getMap(field);
     Assert.assertEquals(expectedMap.size(), map.size());
-    Iterator<Map.Entry<Object, Object>> iterator = expectedMap.entrySet().iterator();
     for (Map.Entry<Object, Object> entry : map.entrySet()) {
       Assert.assertTrue(expectedMap.containsKey(entry.getKey()));
       Assert.assertEquals(expectedMap.get(entry.getKey()), entry.getValue());

@@ -139,12 +139,6 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
   boolean eligibleForDropping();
 
-  /** mark that the span has been captured in some task which will resume asynchronously. */
-  void startThreadMigration();
-
-  /** mark that the work associated with the span has resumed on a new thread */
-  void finishThreadMigration();
-
   void startWork();
 
   /** Mark the end of a task associated with the span */
@@ -169,13 +163,11 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
     interface Extracted extends Context {
       String getForwarded();
 
-      String getForwardedProto();
+      String getXForwardedProto();
 
-      String getForwardedHost();
+      String getXForwardedHost();
 
-      String getForwardedIp();
-
-      String getForwardedPort();
+      String getXForwardedPort();
 
       String getForwardedFor();
 

@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
@@ -14,6 +13,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -52,6 +52,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       Config.get().isRuleEnabled("URLAsResourceNameRule");
 
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
+
+  private final boolean traceClientIpResolverEnabled =
+      Config.get().isTraceClientIpResolverEnabled();
 
   protected abstract AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter();
 
@@ -108,27 +111,32 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       final REQUEST request,
       final AgentSpan.Context.Extracted context) {
     Config config = Config.get();
+    boolean clientIpResolverEnabled =
+        config.isClientIpEnabled()
+            || traceClientIpResolverEnabled && ActiveSubsystems.APPSEC_ACTIVE;
 
     if (context != null) {
-      String forwarded = context.getForwarded();
-      if (forwarded != null) {
-        span.setTag(Tags.HTTP_FORWARDED, forwarded);
-      }
-      String forwardedProto = context.getForwardedProto();
-      if (forwardedProto != null) {
-        span.setTag(Tags.HTTP_FORWARDED_PROTO, forwardedProto);
-      }
-      String forwardedHost = context.getForwardedHost();
-      if (forwardedHost != null) {
-        span.setTag(Tags.HTTP_FORWARDED_HOST, forwardedHost);
-      }
-      String forwardedIp = context.getForwardedIp();
-      if (forwardedIp != null) {
-        span.setTag(Tags.HTTP_FORWARDED_IP, forwardedIp);
-      }
-      String forwardedPort = context.getForwardedPort();
-      if (forwardedPort != null) {
-        span.setTag(Tags.HTTP_FORWARDED_PORT, forwardedPort);
+      if (clientIpResolverEnabled) {
+        String forwarded = context.getForwarded();
+        if (forwarded != null) {
+          span.setTag(Tags.HTTP_FORWARDED, forwarded);
+        }
+        String forwardedProto = context.getXForwardedProto();
+        if (forwardedProto != null) {
+          span.setTag(Tags.HTTP_FORWARDED_PROTO, forwardedProto);
+        }
+        String forwardedHost = context.getXForwardedHost();
+        if (forwardedHost != null) {
+          span.setTag(Tags.HTTP_FORWARDED_HOST, forwardedHost);
+        }
+        String forwardedIp = context.getXForwardedFor();
+        if (forwardedIp != null) {
+          span.setTag(Tags.HTTP_FORWARDED_IP, forwardedIp);
+        }
+        String forwardedPort = context.getXForwardedPort();
+        if (forwardedPort != null) {
+          span.setTag(Tags.HTTP_FORWARDED_PORT, forwardedPort);
+        }
       }
       String userAgent = context.getUserAgent();
       if (userAgent != null) {
@@ -149,8 +157,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           String path = encoded ? url.rawPath() : url.path();
 
           span.setTag(Tags.HTTP_URL, URIUtils.buildURL(url.scheme(), url.host(), url.port(), path));
-          if (context != null && context.getForwardedHost() != null) {
-            span.setTag(Tags.HTTP_HOSTNAME, context.getForwardedHost());
+          if (context != null && context.getXForwardedHost() != null) {
+            span.setTag(Tags.HTTP_HOSTNAME, context.getXForwardedHost());
           } else if (url.host() != null) {
             span.setTag(Tags.HTTP_HOSTNAME, url.host());
           }
@@ -184,7 +192,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
 
     String inferredAddressStr = null;
-    if (config.isTraceClientIpResolverEnabled()) {
+    if (clientIpResolverEnabled) {
       InetAddress inferredAddress = ClientIpAddressResolver.resolve(context, span);
       // the peer address should be used if:
       // 1. the headers yield nothing, regardless of whether it is public or not

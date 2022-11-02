@@ -26,7 +26,7 @@ public class HttpCodec {
   static final String X_FORWARDED_FOR_KEY = "x-forwarded-for";
   static final String X_FORWARDED_PORT_KEY = "x-forwarded-port";
 
-  // Headers which may contain real ip
+  // other headers which may contain real ip
   static final String CLIENT_IP_KEY = "client-ip";
   static final String TRUE_CLIENT_IP_KEY = "true-client-ip";
   static final String X_CLUSTER_CLIENT_IP_KEY = "x-cluster-client-ip";

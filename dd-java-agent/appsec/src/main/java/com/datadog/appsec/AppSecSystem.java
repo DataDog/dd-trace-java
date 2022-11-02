@@ -16,6 +16,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivationConfig;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.util.Strings;
 import java.util.Collections;
 import java.util.HashMap;
@@ -28,8 +29,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class AppSecSystem {
-
-  public static volatile boolean ACTIVE;
 
   private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
   private static final AtomicBoolean STARTED = new AtomicBoolean();
@@ -44,6 +43,7 @@ public class AppSecSystem {
       throw ase;
     } catch (RuntimeException | Error e) {
       StandardizedLogging.appSecStartupError(log, e);
+      setActive(false);
       throw new AbortStartupException(e);
     }
   }
@@ -57,7 +57,6 @@ public class AppSecSystem {
     }
     log.info("AppSec is starting ({})", appSecEnabledConfig);
 
-    ACTIVE = appSecEnabledConfig == ProductActivationConfig.FULLY_ENABLED;
     REPLACEABLE_EVENT_PRODUCER = new ReplaceableEventProducerService();
     EventDispatcher eventDispatcher = new EventDispatcher();
     REPLACEABLE_EVENT_PRODUCER.replaceEventProducerService(eventDispatcher);
@@ -82,6 +81,8 @@ public class AppSecSystem {
     loadModules(eventDispatcher);
     gatewayBridge.init();
 
+    setActive(appSecEnabledConfig == ProductActivationConfig.FULLY_ENABLED);
+
     APP_SEC_CONFIG_SERVICE.maybeSubscribeConfigPolling();
 
     STARTED.set(true);
@@ -100,6 +101,14 @@ public class AppSecSystem {
               appSecTraceRateLimit, SystemTimeSource.INSTANCE, () -> counter.increment(1));
     }
     return rateLimiter;
+  }
+
+  public static boolean isActive() {
+    return ActiveSubsystems.APPSEC_ACTIVE;
+  }
+
+  public static void setActive(boolean status) {
+    ActiveSubsystems.APPSEC_ACTIVE = status;
   }
 
   public static void stop() {

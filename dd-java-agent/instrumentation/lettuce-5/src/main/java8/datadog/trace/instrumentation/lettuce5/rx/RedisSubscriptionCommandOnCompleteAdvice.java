@@ -12,14 +12,6 @@ import org.reactivestreams.Subscription;
 
 /** Instrumentation for SubscriptionCommand in version 5.3.6 and later */
 public class RedisSubscriptionCommandOnCompleteAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static void beforeComplete(@Advice.This RedisCommand command) {
-
-    AgentSpan span = InstrumentationContext.get(RedisCommand.class, AgentSpan.class).get(command);
-    if (span != null) {
-      span.finishThreadMigration();
-    }
-  }
 
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void afterComplete(

@@ -69,8 +69,6 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
       AgentSpan span = DECORATE.startCall(method);
       if (null != span) {
         InstrumentationContext.get(ClientCall.class, AgentSpan.class).put(call, span);
-        // span is escaping via context - can be picked up by any thread
-        span.startThreadMigration();
       }
     }
   }
@@ -85,8 +83,6 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
       if (null != span) {
         propagate().inject(span, headers, SETTER);
         propagate().injectPathwayContext(span, headers, SETTER, CLIENT_PATHWAY_EDGE_TAGS);
-        // span has been retrieved from the context - resume
-        span.finishThreadMigration();
         return activateSpan(span);
       }
       return null;
@@ -115,8 +111,6 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
     public static void before(@Advice.This ClientCall<?, ?> call) {
       AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
       if (null != span) {
-        // span has been retrieved from the context - resume
-        span.finishThreadMigration();
         span.finish();
       }
     }
@@ -128,8 +122,6 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
       // could create a message span here for the request
       AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
       if (span != null) {
-        // span has been retrieved from the context - resume
-        span.finishThreadMigration();
         return activateSpan(span);
       }
       return null;
@@ -149,8 +141,6 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
         @Advice.This ClientCall<?, ?> call, @Advice.Argument(1) Status status) {
       AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
       if (null != span) {
-        // span has been retrieved from the context - resume
-        span.finishThreadMigration();
         DECORATE.onClose(span, status);
         span.finish();
       }

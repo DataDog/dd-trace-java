@@ -1,6 +1,5 @@
 package com.datadog.debugger.agent;
 
-import com.datadog.debugger.util.TagsHelper;
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
@@ -8,6 +7,7 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
+import datadog.trace.util.TagsHelper;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
@@ -262,7 +262,7 @@ public class ProbeStatus {
               probeId,
               Status.ERROR,
               new ProbeException(
-                  ex.getClass().getName(),
+                  ex.getClass().getTypeName(),
                   ex.getMessage(),
                   Arrays.stream(ex.getStackTrace())
                       .map(CapturedStackFrame::from)
@@ -283,7 +283,7 @@ public class ProbeStatus {
   public static class DiagnosticsFactory implements JsonAdapter.Factory {
     @Override
     public JsonAdapter<?> create(Type type, Set<? extends Annotation> set, Moshi moshi) {
-      if (type.getTypeName().equals(Diagnostics.class.getName())) {
+      if (type.getTypeName().equals(Diagnostics.class.getTypeName())) {
         JsonAdapter<Diagnostics> delegate = moshi.nextAdapter(this, type, set);
         return new DiagnosticsWrapperAdapter(delegate);
       }
