@@ -1,12 +1,29 @@
 package datadog.trace.agent.tooling.bytebuddy.csi;
 
 import static datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode.COPY;
+import static net.bytebuddy.jar.asm.Opcodes.AALOAD;
+import static net.bytebuddy.jar.asm.Opcodes.AASTORE;
+import static net.bytebuddy.jar.asm.Opcodes.ANEWARRAY;
+import static net.bytebuddy.jar.asm.Opcodes.BIPUSH;
+import static net.bytebuddy.jar.asm.Opcodes.CHECKCAST;
+import static net.bytebuddy.jar.asm.Opcodes.DUP;
+import static net.bytebuddy.jar.asm.Opcodes.DUP2;
 import static net.bytebuddy.jar.asm.Opcodes.DUP2_X1;
 import static net.bytebuddy.jar.asm.Opcodes.DUP2_X2;
 import static net.bytebuddy.jar.asm.Opcodes.DUP_X1;
 import static net.bytebuddy.jar.asm.Opcodes.DUP_X2;
+import static net.bytebuddy.jar.asm.Opcodes.ICONST_0;
+import static net.bytebuddy.jar.asm.Opcodes.ICONST_1;
+import static net.bytebuddy.jar.asm.Opcodes.ICONST_2;
+import static net.bytebuddy.jar.asm.Opcodes.ICONST_3;
+import static net.bytebuddy.jar.asm.Opcodes.ICONST_4;
+import static net.bytebuddy.jar.asm.Opcodes.ICONST_5;
+import static net.bytebuddy.jar.asm.Opcodes.ICONST_M1;
+import static net.bytebuddy.jar.asm.Opcodes.INVOKESTATIC;
+import static net.bytebuddy.jar.asm.Opcodes.INVOKEVIRTUAL;
 import static net.bytebuddy.jar.asm.Opcodes.POP;
 import static net.bytebuddy.jar.asm.Opcodes.POP2;
+import static net.bytebuddy.jar.asm.Opcodes.SIPUSH;
 import static net.bytebuddy.jar.asm.Opcodes.SWAP;
 
 import datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode;
@@ -76,33 +93,33 @@ public abstract class CallSiteUtils {
   public static void pushInteger(final MethodVisitor mv, final int value) {
     switch (value) {
       case -1:
-        mv.visitInsn(Opcodes.ICONST_M1);
+        mv.visitInsn(ICONST_M1);
         break;
       case 0:
-        mv.visitInsn(Opcodes.ICONST_0);
+        mv.visitInsn(ICONST_0);
         break;
       case 1:
-        mv.visitInsn(Opcodes.ICONST_1);
+        mv.visitInsn(ICONST_1);
         break;
       case 2:
-        mv.visitInsn(Opcodes.ICONST_2);
+        mv.visitInsn(ICONST_2);
         break;
       case 3:
-        mv.visitInsn(Opcodes.ICONST_3);
+        mv.visitInsn(ICONST_3);
         break;
       case 4:
-        mv.visitInsn(Opcodes.ICONST_4);
+        mv.visitInsn(ICONST_4);
         break;
       case 5:
-        mv.visitInsn(Opcodes.ICONST_5);
+        mv.visitInsn(ICONST_5);
         break;
       default:
         if (value < Short.MIN_VALUE || value > Short.MAX_VALUE) {
           mv.visitLdcInsn(value);
         } else if (value < Byte.MIN_VALUE || value > Byte.MAX_VALUE) {
-          mv.visitIntInsn(Opcodes.SIPUSH, value);
+          mv.visitIntInsn(SIPUSH, value);
         } else {
-          mv.visitIntInsn(Opcodes.BIPUSH, value);
+          mv.visitIntInsn(BIPUSH, value);
         }
         break;
     }
@@ -114,15 +131,15 @@ public abstract class CallSiteUtils {
       return;
     }
     pushInteger(mv, constants.length);
-    mv.visitTypeInsn(Opcodes.ANEWARRAY, OBJET_TYPE);
+    mv.visitTypeInsn(ANEWARRAY, OBJET_TYPE);
     for (int i = 0; i < constants.length; i++) {
       final Object constant = constants[i];
       if (constant != null) {
-        mv.visitInsn(Opcodes.DUP);
+        mv.visitInsn(DUP);
         pushInteger(mv, i);
         mv.visitLdcInsn(constant);
         box(mv, Type.getType(constant.getClass()));
-        mv.visitInsn(Opcodes.AASTORE);
+        mv.visitInsn(AASTORE);
       }
     }
   }
@@ -148,10 +165,10 @@ public abstract class CallSiteUtils {
       case 0:
         break;
       case 1:
-        mv.visitInsn(Opcodes.DUP);
+        mv.visitInsn(DUP);
         break;
       case 2:
-        mv.visitInsn(Opcodes.DUP2);
+        mv.visitInsn(DUP2);
         break;
       case 3:
         if (parameters.length == 3 || parameters[0].getSize() == 2) {
@@ -228,7 +245,7 @@ public abstract class CallSiteUtils {
   }
 
   private static void dup3(final MethodVisitor mv) {
-    mv.visitInsn(Opcodes.DUP);
+    mv.visitInsn(DUP);
     mv.visitInsn(DUP2_X2);
     mv.visitInsn(POP2);
     mv.visitInsn(DUP2_X2);
@@ -239,7 +256,7 @@ public abstract class CallSiteUtils {
   private static void dup3_C1_C2(final MethodVisitor mv) {
     mv.visitInsn(DUP2_X1);
     mv.visitInsn(POP2);
-    mv.visitInsn(Opcodes.DUP);
+    mv.visitInsn(DUP);
     mv.visitInsn(DUP2_X2);
     mv.visitInsn(POP2);
     mv.visitInsn(DUP2_X1);
@@ -264,7 +281,7 @@ public abstract class CallSiteUtils {
     pushArray(mv, arraySize, parameters);
     switch (mode) {
       case PREPEND_ARRAY:
-        mv.visitInsn(Opcodes.DUP);
+        mv.visitInsn(DUP);
         loadArray(mv, arraySize, parameters);
         mv.visitInsn(POP);
         break;
@@ -282,7 +299,7 @@ public abstract class CallSiteUtils {
   private static void pushArray(
       final MethodVisitor mv, final int arraySize, final Type[] parameters) {
     pushInteger(mv, arraySize);
-    mv.visitTypeInsn(Opcodes.ANEWARRAY, OBJET_TYPE);
+    mv.visitTypeInsn(ANEWARRAY, OBJET_TYPE);
     for (int i = parameters.length - 1; i >= 0; i--) {
       final Type param = parameters[i];
       final int stackObjectSize = param.getSize();
@@ -290,11 +307,11 @@ public abstract class CallSiteUtils {
       mv.visitInsn(stackObjectSize == 1 ? DUP_X1 : DUP_X2);
       swap(mv, stackObjectSize, 1); // [..., STACK_OBJECT, ARRAY]
       // 2. store the index in the array
-      mv.visitIntInsn(Opcodes.BIPUSH, i);
+      mv.visitIntInsn(BIPUSH, i);
       swap(mv, stackObjectSize, 1); // [..., STACK_OBJECT, INDEX]
       // 3. add the element to the array
       box(mv, param);
-      mv.visitInsn(Opcodes.AASTORE);
+      mv.visitInsn(AASTORE);
     }
   }
 
@@ -316,10 +333,10 @@ public abstract class CallSiteUtils {
   private static void loadNthArgFromArray(MethodVisitor mv, Type type, int argIdx) {
     final int stackObjectSize = type.getSize();
     // 1. duplicate the array
-    mv.visitInsn(Opcodes.DUP);
+    mv.visitInsn(DUP);
     // 2. load the element from the array
     pushInteger(mv, argIdx);
-    mv.visitInsn(Opcodes.AALOAD);
+    mv.visitInsn(AALOAD);
     // 3. cast it to the proper value
     if (!OBJET_TYPE.equals(type.getInternalName())) {
       checkCast(mv, type);
@@ -331,11 +348,11 @@ public abstract class CallSiteUtils {
 
   private static void checkCast(final MethodVisitor mv, final Type parameter) {
     if (parameter.getSort() == Type.OBJECT || parameter.getSort() == Type.ARRAY) {
-      mv.visitTypeInsn(Opcodes.CHECKCAST, parameter.getInternalName());
+      mv.visitTypeInsn(CHECKCAST, parameter.getInternalName());
     } else {
       final BoxingHandler handler = BOX_HANDLERS[parameter.getSort()];
       if (handler != null) {
-        mv.visitTypeInsn(Opcodes.CHECKCAST, handler.getBoxedType());
+        mv.visitTypeInsn(CHECKCAST, handler.getBoxedType());
       } else {
         throw new IllegalArgumentException("Invalid type for 'CHECKCAST' operation: " + parameter);
       }
@@ -391,12 +408,12 @@ public abstract class CallSiteUtils {
 
     @Override
     public void box(final MethodVisitor mv) {
-      mv.visitMethodInsn(Opcodes.INVOKESTATIC, boxedType, boxMethod, boxDescriptor, false);
+      mv.visitMethodInsn(INVOKESTATIC, boxedType, boxMethod, boxDescriptor, false);
     }
 
     @Override
     public void unbox(final MethodVisitor mv) {
-      mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, boxedType, unboxMethod, unboxDescriptor, false);
+      mv.visitMethodInsn(INVOKEVIRTUAL, boxedType, unboxMethod, unboxDescriptor, false);
     }
 
     @Override
