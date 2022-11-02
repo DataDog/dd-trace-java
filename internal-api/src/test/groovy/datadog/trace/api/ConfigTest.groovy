@@ -90,8 +90,6 @@ import static datadog.trace.api.config.TracerConfig.PRIORITIZATION_TYPE
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_EXTRACT
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_INJECT
-import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS
-import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING
 import static datadog.trace.api.config.TracerConfig.SPAN_TAGS
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
