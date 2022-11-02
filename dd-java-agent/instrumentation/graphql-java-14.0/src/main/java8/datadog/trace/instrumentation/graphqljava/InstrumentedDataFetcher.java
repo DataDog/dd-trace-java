@@ -11,6 +11,8 @@ import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
 import graphql.schema.GraphQLNamedType;
 import graphql.schema.GraphQLOutputType;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 public class InstrumentedDataFetcher implements DataFetcher<Object> {
   private final DataFetcher<?> dataFetcher;
@@ -41,7 +43,18 @@ public class InstrumentedDataFetcher implements DataFetcher<Object> {
         fieldSpan.setTag("graphql.type", typeName);
       }
       try (AgentScope scope = activateSpan(fieldSpan)) {
-        return dataFetcher.get(environment);
+        Object result = dataFetcher.get(environment);
+        if (result instanceof CompletableFuture) {
+          return ((CompletableFuture<?>) result)
+              .whenComplete(
+                  (r, e) -> {
+                    if (e instanceof CompletionException) {
+                      CompletionException ce = (CompletionException) e;
+                      DECORATE.onError(fieldSpan, ce.getCause());
+                    }
+                  });
+        }
+        return result;
       } catch (Exception e) {
         fieldSpan.addThrowable(e);
         throw e;

@@ -116,18 +116,6 @@ class GraphQLAsyncTest extends AgentTestRunner {
           }
         }
         span {
-          operationName "getBookById"
-          resourceName "book"
-          childOf(span(3))
-          spanType null
-          errored false
-          measured false
-          tags {
-            "$Tags.COMPONENT" "trace"
-            defaultTags()
-          }
-        }
-        span {
           operationName "graphql.field"
           resourceName "graphql.field"
           childOf(span(0))
@@ -137,6 +125,18 @@ class GraphQLAsyncTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "graphql-java"
             "graphql.type" "Book"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "getBookById"
+          resourceName "book"
+          childOf(span(2))
+          spanType null
+          errored false
+          measured false
+          tags {
+            "$Tags.COMPONENT" "trace"
             defaultTags()
           }
         }
@@ -210,15 +210,14 @@ class GraphQLAsyncTest extends AgentTestRunner {
           resourceName "graphql.field"
           childOf(span(0))
           spanType DDSpanTypes.GRAPHQL
-          // TODO this span is not marked as errored when async fetcher is in use
-          //          errored true
+          errored true
           measured true
           tags {
             "$Tags.COMPONENT" "graphql-java"
             "graphql.type" "String"
-            //            "error.type" "java.lang.IllegalStateException"
-            //            "error.msg" "TEST"
-            //            "error.stack" String
+            "error.type" "java.lang.IllegalStateException"
+            "error.msg" "TEST"
+            "error.stack" String
             defaultTags()
           }
         }
