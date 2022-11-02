@@ -1,6 +1,7 @@
 package datadog.trace.api.iast;
 
 import java.util.List;
+import java.util.Locale;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -85,6 +86,16 @@ public abstract class InstrumentationBridge {
     }
   }
 
+  public static void onStringConstructor(CharSequence param, String result) {
+    try {
+      if (MODULE != null) {
+        MODULE.onStringConstructor(param, result);
+      }
+    } catch (Throwable t) {
+      onUnexpectedException("Callback for onStringConstructor has thrown", t);
+    }
+  }
+
   public static void onStringBuilderInit(
       @Nonnull final StringBuilder self, @Nullable final CharSequence param) {
     try {
@@ -152,6 +163,20 @@ public abstract class InstrumentationBridge {
     } catch (final Throwable t) {
       onUnexpectedException("Callback for onProcessBuilderStart threw.", t);
     }
+  }
+
+  public static String onStringFormat(Locale l, String fmt, Object[] args) {
+    try {
+      if (MODULE != null) {
+        return MODULE.onStringFormat(l, fmt, args);
+      }
+    } catch (RealCallThrowable t) {
+      t.rethrow();
+    } catch (Throwable t) {
+      onUnexpectedException("Callback for onStringBuilderToString threw.", t);
+      return String.format(l, fmt, args);
+    }
+    return null; // unreachable
   }
 
   private static void onUnexpectedException(final String message, final Throwable error) {
