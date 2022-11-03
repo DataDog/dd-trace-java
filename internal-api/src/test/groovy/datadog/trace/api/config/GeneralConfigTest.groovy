@@ -44,7 +44,7 @@ class GeneralConfigTest extends DDSpecification {
     config.dogStatsDNamedPipe == null
     config.dogStatsDStartDelay == DEFAULT_DOGSTATSD_START_DELAY
     config.dogStatsDPath == null
-    config.dogStatsDArgs == Collections.emptyList()
+    config.dogStatsDArgs == []
   }
 
   def "check overridden config values for DogStatsD"() {
@@ -61,6 +61,6 @@ class GeneralConfigTest extends DDSpecification {
     config.dogStatsDNamedPipe == "/var/pipe"
     config.dogStatsDStartDelay == 30
     config.dogStatsDPath == "/usr/lib/dogstatd"
-    config.dogStatsDArgs == List.of("start")
+    config.dogStatsDArgs == ["start"]
   }
 }

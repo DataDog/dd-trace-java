@@ -48,7 +48,7 @@ class IastConfigTest extends DDSpecification {
     def config = new Config()
 
     then:
-    config.iastWeakHashAlgorithms == Set.of("MD2", "MD4")
+    config.iastWeakHashAlgorithms == ["MD2", "MD4"] as Set
     config.iastWeakCipherAlgorithms.pattern() == weekCypherAlgorithms
     !config.iastDeduplicationEnabled
     config.iastEnabled

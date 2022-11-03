@@ -27,7 +27,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_P
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES
 import static datadog.trace.api.config.TracerConfig.DEFAULT_TRACE_ENABLED
-import static java.util.Collections.emptyList
 
 class TraceInstrumentationConfigTest extends DDSpecification {
   def "check default config values"() {
@@ -43,12 +42,12 @@ class TraceInstrumentationConfigTest extends DDSpecification {
     config.logsMDCTagsInjectionEnabled
     config.traceMethods == DEFAULT_TRACE_METHODS
     config.traceExecutorsAll == DEFAULT_TRACE_EXECUTORS_ALL
-    config.traceExecutors == emptyList()
-    config.traceThreadPoolExecutorsExclude == Set.<String>of()
-    config.excludedClasses == emptyList()
+    config.traceExecutors == []
+    config.traceThreadPoolExecutorsExclude == [] as Set
+    config.excludedClasses == []
     config.excludedClassesFile == null
-    config.excludedClassLoaders == Set.<String>of()
-    config.excludedCodeSources == emptyList()
+    config.excludedClassLoaders == [] as Set
+    config.excludedCodeSources == []
     config.httpServerTagQueryString == DEFAULT_HTTP_SERVER_TAG_QUERY_STRING
     config.httpServerRawQueryString
     !config.httpServerRawResource
@@ -76,8 +75,8 @@ class TraceInstrumentationConfigTest extends DDSpecification {
     config.rootContextServiceName == DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME
     config.runtimeContextFieldInjection == DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION
     config.serialVersionUIDFieldInjection == DEFAULT_SERIALVERSIONUID_FIELD_INJECTION
-    config.grpcIgnoredInboundMethods == Set.<String>of()
-    config.grpcIgnoredOutboundMethods == Set.<String>of()
+    config.grpcIgnoredInboundMethods == [] as Set
+    config.grpcIgnoredOutboundMethods == [] as Set
     !config.grpcServerTrimPackageResource
     config.grpcServerErrorStatuses == DEFAULT_GRPC_SERVER_ERROR_STATUSES
     config.grpcClientErrorStatuses == DEFAULT_GRPC_CLIENT_ERROR_STATUSES

@@ -36,9 +36,9 @@ class TracerConfigTest extends DDSpecification {
     def config = new Config()
 
     then:
-    config.noProxyHosts == Set.<String>of()
+    config.noProxyHosts == [] as Set
     config.traceAgentPath == null
-    config.traceAgentArgs == List.of()
+    config.traceAgentArgs == []
     config.prioritySamplingForce == DEFAULT_PRIORITY_SAMPLING_FORCE
     config.traceAnalyticsEnabled == DEFAULT_TRACE_ANALYTICS_ENABLED
     config.traceClientIpHeader == null
