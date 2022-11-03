@@ -216,7 +216,7 @@ public abstract class BaseIntegrationTest {
       Collection<SnapshotProbe> snapshotProbes,
       Configuration.FilterList allowList,
       Configuration.FilterList denyList) {
-    return new Configuration(getAppId(), 2, snapshotProbes, null, allowList, denyList, null, null);
+    return new Configuration(getAppId(), 2, snapshotProbes, null, allowList, denyList, null);
   }
 
   protected void assertCaptureArgs(
