@@ -144,14 +144,14 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["topic:$SHARED_TOPIC".toString(), "type:internal"]
-        edgeTags.size() == 2
+        edgeTags == ["topic:$SHARED_TOPIC".toString(), "type:kafka", "direction:out"]
+        edgeTags.size() == 3
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["group:sender", "partition:" + received.partition(), "topic:$SHARED_TOPIC".toString(), "type:kafka"]
-        edgeTags.size() == 4
+        edgeTags == ["group:sender", "partition:" + received.partition(), "topic:$SHARED_TOPIC".toString(), "type:kafka", "direction:in"]
+        edgeTags.size() == 5
       }
     }
 
@@ -242,14 +242,14 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["topic:$SHARED_TOPIC".toString(), "type:internal"]
-        edgeTags.size() == 2
+        edgeTags == ["topic:$SHARED_TOPIC".toString(), "type:kafka", "direction:out"]
+        edgeTags.size() == 3
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["group:sender", "partition:" + received.partition(), "topic:$SHARED_TOPIC".toString(), "type:kafka"]
-        edgeTags.size() == 4
+        edgeTags == ["group:sender", "partition:" + received.partition(), "topic:$SHARED_TOPIC".toString(), "type:kafka", "direction:in"]
+        edgeTags.size() == 5
       }
     }
 

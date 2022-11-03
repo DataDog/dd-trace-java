@@ -24,6 +24,13 @@ public class TagsProcessor {
   private static final DDCache<String, String> TYPE_TAG_CACHE = DDCaches.newFixedSizeCache(32);
   private static final Function<String, String> TYPE_TAG_PREFIX = new StringPrefix("type:");
 
+  public static final String DIRECTION_TAG = "direction";
+  // service centric direction - data flowing into the service
+  public static final String DIRECTION_IN = "in";
+  // service centric direction - data flowing out of the service
+  public static final String DIRECTION_OUT = "out";
+  private static final DDCache<String, String> DIRECTION_TAG_CACHE = DDCaches.newFixedSizeCache(32);
+  private static final Function<String, String> DIRECTION_TAG_PREFIX = new StringPrefix("direction:");
   public static final String TOPIC_TAG = "topic";
   private static final DDCache<String, String> TOPIC_TAG_CACHE = DDCaches.newFixedSizeCache(32);
   private static final Function<String, String> TOPIC_TAG_PREFIX = new StringPrefix("topic:");
@@ -52,6 +59,7 @@ public class TagsProcessor {
   private static Map<String, DDCache<String, String>> createTagToCacheMap() {
     Map<String, DDCache<String, String>> result = new HashMap<String, DDCache<String, String>>();
     result.put(TYPE_TAG, TYPE_TAG_CACHE);
+    result.put(DIRECTION_TAG, DIRECTION_TAG_CACHE);
     result.put(TOPIC_TAG, TOPIC_TAG_CACHE);
     result.put(PARTITION_TAG, PARTITION_TAG_CACHE);
     result.put(GROUP_TAG, GROUP_TAG_CACHE);
@@ -63,6 +71,7 @@ public class TagsProcessor {
   private static Map<String, Function<String, String>> createTagToPrefixMap() {
     Map<String, Function<String, String>> result = new HashMap<String, Function<String, String>>();
     result.put(TYPE_TAG, TYPE_TAG_PREFIX);
+    result.put(DIRECTION_TAG, DIRECTION_TAG_PREFIX);
     result.put(TOPIC_TAG, TOPIC_TAG_PREFIX);
     result.put(PARTITION_TAG, PARTITION_TAG_PREFIX);
     result.put(GROUP_TAG, GROUP_TAG_PREFIX);
