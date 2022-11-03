@@ -1,8 +1,8 @@
 package datadog.trace.api;
 
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -12,8 +12,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ConfigCollector extends ConcurrentHashMap<String, Object> {
 
-  public static final Set<String> CONFIG_FILTER_LIST =
-      new TreeSet<>(
+  private static final Set<String> CONFIG_FILTER_LIST =
+      new HashSet<>(
           Arrays.asList("DD_API_KEY", "dd.api-key", "dd.profiling.api-key", "dd.profiling.apikey"));
 
   private static class Holder {
