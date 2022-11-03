@@ -30,7 +30,8 @@ public class TagsProcessor {
   // service centric direction - data flowing out of the service
   public static final String DIRECTION_OUT = "out";
   private static final DDCache<String, String> DIRECTION_TAG_CACHE = DDCaches.newFixedSizeCache(32);
-  private static final Function<String, String> DIRECTION_TAG_PREFIX = new StringPrefix("direction:");
+  private static final Function<String, String> DIRECTION_TAG_PREFIX =
+      new StringPrefix("direction:");
   public static final String TOPIC_TAG = "topic";
   private static final DDCache<String, String> TOPIC_TAG_CACHE = DDCaches.newFixedSizeCache(32);
   private static final Function<String, String> TOPIC_TAG_PREFIX = new StringPrefix("topic:");
