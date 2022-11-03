@@ -4,6 +4,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.GROUP_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.PARTITION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
@@ -245,6 +247,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         sortedTags.put(PARTITION_TAG, String.valueOf(record.partition()));
         sortedTags.put(TOPIC_TAG, record.topic());
         sortedTags.put(TYPE_TAG, "kafka");
+        sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
         AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
       } else {
         span = startSpan(KAFKA_CONSUME, null);
@@ -311,6 +314,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         sortedTags.put(PARTITION_TAG, String.valueOf(record.partition()));
         sortedTags.put(TOPIC_TAG, record.topic());
         sortedTags.put(TYPE_TAG, "kafka");
+        sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
         AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
       } else {
         span = startSpan(KAFKA_CONSUME, null);

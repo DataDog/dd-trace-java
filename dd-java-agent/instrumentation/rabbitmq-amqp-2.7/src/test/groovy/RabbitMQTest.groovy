@@ -146,14 +146,14 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["exchange:" + exchangeName, "has_routing_key:true", "type:internal"]
-        edgeTags.size() == 3
+        edgeTags == ["exchange:" + exchangeName, "has_routing_key:true", "type:rabbitmq", "direction:out"]
+        edgeTags.size() == 4
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["topic:" + queueName, "type:rabbitmq"]
-        edgeTags.size() == 2
+        edgeTags == ["topic:" + queueName, "type:rabbitmq", "direction:in"]
+        edgeTags.size() == 3
       }
     }
 
@@ -200,14 +200,14 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["exchange:", "has_routing_key:true", "type:internal"]
-        edgeTags.size() == 3
+        edgeTags == ["exchange:", "has_routing_key:true", "type:rabbitmq", "direction:out"]
+        edgeTags.size() == 4
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["topic:" + queueName, "type:rabbitmq"]
-        edgeTags.size() == 2
+        edgeTags == ["topic:" + queueName, "type:rabbitmq", "direction:in"]
+        edgeTags.size() == 3
       }
     }
   }
@@ -297,15 +297,15 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       List<StatsGroup> producerPoints = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
       producerPoints.each { producerPoint ->
         verifyAll(producerPoint) {
-          edgeTags == ["exchange:" + exchangeName, "has_routing_key:false", "type:internal"]
-          edgeTags.size() == 3
+          edgeTags == ["exchange:" + exchangeName, "has_routing_key:false", "type:rabbitmq", "direction:out"]
+          edgeTags.size() == 4
         }
       }
 
       StatsGroup consumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == producerPoints.get(0).hash }
       verifyAll(consumerPoint) {
-        edgeTags == ["topic:" + queueName, "type:rabbitmq"]
-        edgeTags.size() == 2
+        edgeTags == ["topic:" + queueName, "type:rabbitmq", "direction:in"]
+        edgeTags.size() == 3
       }
     }
 
@@ -389,14 +389,14 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["exchange:" + exchangeName, "has_routing_key:false", "type:internal"]
-        edgeTags.size() == 3
+        edgeTags == ["exchange:" + exchangeName, "has_routing_key:false", "type:rabbitmq", "direction:out"]
+        edgeTags.size() == 4
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["topic:" + queueName, "type:rabbitmq"]
-        edgeTags.size() == 2
+        edgeTags == ["topic:" + queueName, "type:rabbitmq", "direction:in"]
+        edgeTags.size() == 3
       }
     }
 
@@ -474,14 +474,14 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(["exchange:", "has_routing_key:true", "type:internal"])
-        edgeTags.size() == 3
+        edgeTags.containsAll(["exchange:", "has_routing_key:true", "type:rabbitmq", "direction:out"])
+        edgeTags.size() == 4
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["topic:some-routing-queue", "type:rabbitmq"]
-        edgeTags.size() == 2
+        edgeTags == ["topic:some-routing-queue", "type:rabbitmq", "direction:in"]
+        edgeTags.size() == 3
       }
     }
   }
@@ -558,14 +558,14 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled() && !noParent) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["exchange:" + exchangeName, "has_routing_key:true", "type:internal"]
-        edgeTags.size() == 3
+        edgeTags == ["exchange:" + exchangeName, "has_routing_key:true", "type:rabbitmq", "direction:out"]
+        edgeTags.size() == 4
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["topic:" + queueName, "type:rabbitmq"]
-        edgeTags.size() == 2
+        edgeTags == ["topic:" + queueName, "type:rabbitmq", "direction:in"]
+        edgeTags.size() == 3
       }
     }
 
@@ -651,14 +651,14 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled() && !noParent) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["exchange:" + exchangeName, "has_routing_key:true", "type:internal"]
-        edgeTags.size() == 3
+        edgeTags == ["exchange:" + exchangeName, "has_routing_key:true", "type:rabbitmq", "direction:out"]
+        edgeTags.size() == 4
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["topic:" + queueName, "type:rabbitmq"]
-        edgeTags.size() == 2
+        edgeTags == ["topic:" + queueName, "type:rabbitmq", "direction:in"]
+        edgeTags.size() == 3
       }
     }
 
