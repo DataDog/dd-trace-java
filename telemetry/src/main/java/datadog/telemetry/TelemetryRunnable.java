@@ -126,6 +126,8 @@ public class TelemetryRunnable implements Runnable {
           "Telemetry Intake Service responded with: " + response.code() + " " + response.message());
       return false;
     }
+
+    log.info("Telemetry message sent successfully");
     return true;
   }
 
