@@ -15,7 +15,7 @@ import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 /** AWS request execution interceptor */
 public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
-  static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
+  public static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
       new ExecutionAttribute<>("DatadogSpan");
 
   @Override
@@ -47,7 +47,6 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     // doesn't provide a way to run code in the same thread after transmission has been scheduled.
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
-    scope.span().startThreadMigration();
   }
 
   @Override
@@ -55,7 +54,6 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       final Context.AfterExecution context, final ExecutionAttributes executionAttributes) {
     final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
     if (span != null) {
-      span.finishThreadMigration();
       executionAttributes.putAttribute(SPAN_ATTRIBUTE, null);
       // Call onResponse on both types of responses:
       DECORATE.onResponse(span, context.response());

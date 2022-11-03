@@ -6,8 +6,6 @@ import datadog.trace.test.util.DDSpecification
 
 import static datadog.trace.api.Checkpointer.CPU
 import static datadog.trace.api.Checkpointer.END
-import static datadog.trace.api.Checkpointer.SPAN
-import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
 
 class SamplingCheckpointerTest extends DDSpecification {
 
@@ -34,12 +32,6 @@ class SamplingCheckpointerTest extends DDSpecification {
     int rootSpanCount = register ? 1 : 0
 
     when:
-    sut.onStart(span)
-    then:
-    checkpointCount * checkpointer.checkpoint(span, SPAN)
-    0 * _
-
-    when:
     sut.onStartWork(span)
     then:
     checkpointCount * checkpointer.checkpoint(span, CPU)
@@ -52,27 +44,9 @@ class SamplingCheckpointerTest extends DDSpecification {
     0 * _
 
     when:
-    sut.onStartThreadMigration(span)
+    sut.checkpoint(span, CPU)
     then:
-    checkpointCount * checkpointer.checkpoint(span, THREAD_MIGRATION)
-    0 * _
-
-    when:
-    sut.onFinishThreadMigration(span)
-    then:
-    checkpointCount * checkpointer.checkpoint(span, THREAD_MIGRATION | END)
-    0 * _
-
-    when:
-    sut.checkpoint(span, CPU | SPAN)
-    then:
-    checkpointCount * checkpointer.checkpoint(span, CPU | SPAN)
-    0 * _
-
-    when:
-    sut.onFinish(span)
-    then:
-    checkpointCount * checkpointer.checkpoint(span, SPAN | END)
+    checkpointCount * checkpointer.checkpoint(span, CPU)
     0 * _
 
     when:

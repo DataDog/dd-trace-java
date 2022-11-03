@@ -2,6 +2,7 @@ package datadog.trace.core.propagation;
 
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -123,7 +124,7 @@ class HaystackHttpCodec {
     private static final int IGNORE = -1;
 
     private HaystackContextInterpreter(Map<String, String> taggedHeaders) {
-      super(taggedHeaders);
+      super(taggedHeaders, Config.get());
     }
 
     @Override

@@ -48,9 +48,6 @@ class TraceUtils {
     DECORATOR.afterStart(span)
 
     AgentScope scope = activateSpan(span)
-    if (async) {
-      span.startThreadMigration()
-    }
     scope.setAsyncPropagation(true)
 
     try {

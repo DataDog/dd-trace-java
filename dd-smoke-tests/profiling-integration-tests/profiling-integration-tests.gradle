@@ -23,6 +23,10 @@ jar {
 
 dependencies {
   implementation project(':dd-trace-api')
+  api project(':dd-trace-ot')
+  api project(':internal-api')  // Used for Consumer backport. Remove when Java 8 is available
+  // https://mvnrepository.com/artifact/org.apache.commons/commons-math3
+  implementation 'org.apache.commons:commons-math3:3.6.1'
 
   testImplementation project(':dd-smoke-tests')
   testImplementation project(':dd-java-agent:agent-profiling:profiling-testing')
@@ -35,4 +39,13 @@ dependencies {
 tasks.withType(Test).configureEach {
   dependsOn "shadowJar"
   jvmArgs "-Ddatadog.smoketest.profiling.shadowJar.path=${tasks.shadowJar.archivePath}"
+}
+
+shadowJar {
+  include {
+    return it.directory || it.path.endsWith('.jar') ||
+      it.path.startsWith('io/opentracing') ||
+      it.path.startsWith('datadog/smoketest') ||
+      it.path.startsWith("org/apache/commons")
+  }
 }

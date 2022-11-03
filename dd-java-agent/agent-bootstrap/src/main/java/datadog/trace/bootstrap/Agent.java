@@ -721,15 +721,11 @@ public class Agent {
                 try {
                   if (Config.get().isProfilingLegacyTracingIntegrationEnabled()) {
                     log.debug("Registering scope event factory");
-                    ScopeListener scopeListener =
-                        (ScopeListener)
-                            AGENT_CLASSLOADER
-                                .loadClass("datadog.trace.core.jfr.openjdk.ScopeEventFactory")
-                                .getDeclaredConstructor()
-                                .newInstance();
-                    tracer.addScopeListener(scopeListener);
-                    log.debug("Scope event factory {} has been registered", scopeListener);
+                    tracer.addScopeListener(
+                        createScopeListener("datadog.trace.core.jfr.openjdk.ScopeEventFactory"));
                   } else if (tracer instanceof AgentTracer.TracerAPI) {
+                    // TODO separate endpoint event tracking from checkpointer so checkpointing can
+                    //  be disabled whenever async-profiler is enabled
                     log.debug("Registering checkpointer");
                     Checkpointer checkpointer =
                         (Checkpointer)
@@ -739,6 +735,12 @@ public class Agent {
                                 .newInstance();
                     ((AgentTracer.TracerAPI) tracer).registerCheckpointer(checkpointer);
                     log.debug("Checkpointer {} has been registered", checkpointer);
+                  }
+                  if (Config.get().isAsyncProfilerEnabled()) {
+                    log.debug("Registering async-profiler scope listener");
+                    tracer.addScopeListener(
+                        createScopeListener(
+                            "com.datadog.profiling.context.AsyncProfilerScopeListener"));
                   }
                 } catch (Throwable e) {
                   if (e instanceof InvocationTargetException) {
@@ -760,6 +762,11 @@ public class Agent {
     } finally {
       Thread.currentThread().setContextClassLoader(contextLoader);
     }
+  }
+
+  private static ScopeListener createScopeListener(String className) throws Throwable {
+    return (ScopeListener)
+        AGENT_CLASSLOADER.loadClass(className).getDeclaredConstructor().newInstance();
   }
 
   private static void shutdownProfilingAgent(final boolean sync) {
@@ -894,9 +901,10 @@ public class Agent {
   private static boolean isAppSecFullyDisabled() {
     // must be kept in sync with logic from Config!
     final String featureEnabledSysprop = AgentFeature.APPSEC.systemProp;
-    String settingValue = System.getProperty(featureEnabledSysprop);
+    String settingValue = getNullIfEmpty(System.getProperty(featureEnabledSysprop));
     if (settingValue == null) {
-      settingValue = ddGetEnv(featureEnabledSysprop);
+      settingValue = getNullIfEmpty(ddGetEnv(featureEnabledSysprop));
+      settingValue = settingValue != null && settingValue.isEmpty() ? null : settingValue;
     }
 
     // defaults to inactive
@@ -904,6 +912,13 @@ public class Agent {
         || settingValue.equalsIgnoreCase("true")
         || settingValue.equalsIgnoreCase("1")
         || settingValue.equalsIgnoreCase("inactive"));
+  }
+
+  private static String getNullIfEmpty(final String value) {
+    if (value == null || value.isEmpty()) {
+      return null;
+    }
+    return value;
   }
 
   /** @return configured JMX start delay in seconds */

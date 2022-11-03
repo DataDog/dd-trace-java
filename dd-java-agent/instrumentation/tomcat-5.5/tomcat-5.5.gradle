@@ -33,10 +33,6 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-repositories {
-  jcenter() // only needed for muzzle
-}
-
 apply plugin: 'org.unbroken-dome.test-sets'
 
 testSets {

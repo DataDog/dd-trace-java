@@ -81,7 +81,7 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_ASYNC_WALL_COLLAPSE_SAMPLES =
       "profiling.async.wall.collapse.samples";
-  public static final boolean PROFILING_ASYNC_WALL_COLLAPSE_SAMPLES_DEFAULT = true;
+  public static final boolean PROFILING_ASYNC_WALL_COLLAPSE_SAMPLES_DEFAULT = false;
 
   public static final String PROFILING_ASYNC_STACKDEPTH = "profiling.async.stackdepth";
   public static final int PROFILING_ASYNC_STACKDEPTH_DEFAULT = 512;
@@ -154,6 +154,8 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_DISABLED_EVENTS = "profiling.disabled.events";
   public static final String PROFILING_ENABLED_EVENTS = "profiling.disabled.events";
+
+  public static final String PROFILING_DEBUG_DUMP_PATH = "profiling.debug.dump_path";
 
   private ProfilingConfig() {}
 }

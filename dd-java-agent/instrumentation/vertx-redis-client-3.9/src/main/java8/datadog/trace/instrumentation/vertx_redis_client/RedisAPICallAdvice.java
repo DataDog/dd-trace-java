@@ -111,10 +111,6 @@ public class RedisAPICallAdvice {
     The potential racy condition when the handler may be added to an already finished task is handled
     by RedisAPIImplSendAdvice.
     */
-    // 'suspend' the span such that it can be later safely retrieved from the context
-    clientSpan.startThreadMigration();
-    // and immediately activate it
-    clientSpan.finishThreadMigration();
     scope = activateSpan(clientSpan, true);
     ResponseHandlerWrapper respHandler =
         new ResponseHandlerWrapper(handler, clientSpan, parentContinuation);

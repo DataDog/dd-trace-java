@@ -59,7 +59,7 @@ profiling_test_matrix: &profiling_test_matrix
     testJvm: [ "8", "ZULU8", "ORACLE8", "11", "ZULU11", "17" ]
 
 agent_integration_tests_modules: &agent_integration_tests_modules "dd-trace-core|communication|internal-api|utils"
-core_modules: &core_modules "dd-trace-core|communication|internal-api|telemetry|utils|dd-java-agent/agent-bootstrap|dd-java-agent/agent-installer|dd-java-agent/agent-tooling|dd-java-agent/agent-builder|dd-java-agent/agent-appsec"
+core_modules: &core_modules "dd-trace-core|communication|internal-api|telemetry|utils|dd-java-agent/agent-bootstrap|dd-java-agent/agent-installer|dd-java-agent/agent-tooling|dd-java-agent/agent-builder|dd-java-agent/appsec"
 instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation|dd-java-agent/agent-tooling|dd-java-agent/agent-installer|dd-java-agent/agent-builder|dd-java-agent/agent-bootstrap|dd-java-agent/appsec|dd-trace-core|dd-trace-api|internal-api"
 iast_modules: &iast_modules "dd-java-agent/agent-iast|internal-api|utils/test-utils"
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
@@ -446,6 +446,10 @@ jobs:
     <<: *tests
     resource_class: xlarge
 
+  huge_tests:
+    <<: *tests
+    resource_class: 2xlarge
+
   # The only way to do fan-in in CircleCI seems to have a proper job, so let's have one that
   # doesn't consume so many resources. The execution time for this including spin up seems to
   # be around 6 seconds.
@@ -711,38 +715,42 @@ build_test_jobs: &build_test_jobs
       matrix:
         <<: *profiling_test_matrix
 
-  - xlarge_tests:
+  - huge_tests:
       requires:
         - build
       name: z_test_<< matrix.testJvm >>_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
       stage: smoke
+      maxWorkers: 8
       matrix:
         <<: *test_matrix
 
-  - xlarge_tests:
+  - huge_tests:
       requires:
         - build
       name: test_IBM11_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
       stage: smoke
+      maxWorkers: 8
       testJvm: "IBM11"
 
-  - xlarge_tests:
+  - huge_tests:
       requires:
         - build
       name: test_IBM17_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
       stage: smoke
+      maxWorkers: 8
       testJvm: "IBM17"
 
 
-  - tests:
+  - huge_tests:
       requires:
         - build
       name: z_test_8_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
       stage: smoke
+      maxWorkers: 8
       testJvm: "8"
 
   - fan_in:

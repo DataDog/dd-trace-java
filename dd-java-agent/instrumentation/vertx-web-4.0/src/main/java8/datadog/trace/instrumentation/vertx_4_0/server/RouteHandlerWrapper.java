@@ -35,15 +35,10 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
 
       span = startSpan(INSTRUMENTATION_NAME);
       routingContext.put(HANDLER_SPAN_CONTEXT_KEY, span);
-      // span is stored in the context and the span related work may proceed on any thread
-      span.startThreadMigration();
 
       routingContext.response().endHandler(new EndHandlerWrapper(routingContext));
       DECORATE.afterStart(span);
       span.setResourceName(DECORATE.className(actual.getClass()));
-    } else {
-      // the span was retrieved from the context in 'suspended' state - need to be resumed
-      span.finishThreadMigration();
     }
 
     updateRoutingContextWithRoute(routingContext);

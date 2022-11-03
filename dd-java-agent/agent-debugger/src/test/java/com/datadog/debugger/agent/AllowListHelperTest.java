@@ -20,7 +20,7 @@ public class AllowListHelperTest {
   public void simple() {
     AllowListHelper allowListHelper =
         create(Arrays.asList("com.datadog"), Arrays.asList("java.util.HashMap"));
-    Assert.assertTrue(allowListHelper.isAllowed(AllowListHelper.class.getName()));
+    Assert.assertTrue(allowListHelper.isAllowed(AllowListHelper.class.getTypeName()));
     Assert.assertTrue(allowListHelper.isAllowed("java.util.HashMap"));
     Assert.assertFalse(allowListHelper.isAllowed("org.junit.jupiter.api.Test"));
     Assert.assertFalse(allowListHelper.isAllowed("java.util.ArrayList"));

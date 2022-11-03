@@ -17,7 +17,6 @@ public class CurrentEventHelper {
       final PrivilegedEvent event, ContextStore<EventContext, AgentSpan> contextStore) {
     final AgentScope currentScope = currentEventScope.get();
     if (null != currentScope) {
-      currentScope.span().startThreadMigration();
       currentScope.close();
     }
     AgentScope newScope = null;
@@ -27,7 +26,6 @@ public class CurrentEventHelper {
         AgentSpan span = contextStore.get(eventContext);
         if (null != span) {
           newScope = activateSpan(span);
-          newScope.span().finishThreadMigration();
         }
       }
     }

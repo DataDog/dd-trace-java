@@ -169,10 +169,12 @@ public class SharedCommunicationObjects {
       lastTry = now;
       String configEndpoint = sco.featuresDiscovery.getConfigEndpoint();
       if (configEndpoint == null) {
+        log.debug("Remote config endpoint not found");
         return null;
       }
 
       this.configUrl = sco.featuresDiscovery.buildUrl(configEndpoint).toString();
+      log.info("Found remote config endpoint: {}", this.configUrl);
       return this.configUrl;
     }
   }

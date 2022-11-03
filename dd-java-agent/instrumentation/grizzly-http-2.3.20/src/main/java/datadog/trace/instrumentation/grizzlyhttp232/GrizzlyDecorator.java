@@ -78,7 +78,6 @@ public class GrizzlyDecorator
       FilterChainContext ctx, HttpResponsePacket responsePacket) {
     AgentSpan span = (AgentSpan) ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE);
     if (null != span) {
-      span.finishThreadMigration();
       DECORATE.onResponse(span, responsePacket);
     }
   }
@@ -112,7 +111,6 @@ public class GrizzlyDecorator
     ctx.getAttributes().setAttribute(DD_RESPONSE_ATTRIBUTE, httpResponse);
     DECORATE.onRequest(span, httpRequest, httpRequest, context);
     scope.close();
-    span.startThreadMigration();
   }
 
   public static void onFilterChainFail(FilterChainContext ctx, Throwable throwable) {

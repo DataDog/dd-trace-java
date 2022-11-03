@@ -8,7 +8,7 @@
 "isNull":true
 \},
 "notCapturedField":\{
-"type":"java.lang.management.OperatingSystemMXBean",
+"type":"com.sun.management.internal.OperatingSystemImpl",
 "fields":
 \{
 "containerMetrics":

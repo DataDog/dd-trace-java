@@ -85,7 +85,7 @@ public class GatewayBridge {
     subscriptionService.registerCallback(
         events.requestStarted(),
         () -> {
-          if (!AppSecSystem.ACTIVE) {
+          if (!AppSecSystem.isActive()) {
             return RequestContextSupplier.EMPTY;
           }
 

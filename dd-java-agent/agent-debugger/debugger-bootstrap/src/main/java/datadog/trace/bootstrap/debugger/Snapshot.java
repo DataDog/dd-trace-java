@@ -774,6 +774,7 @@ public class Snapshot {
     public static final CapturedValue UNDEFINED = CapturedValue.of(null, Values.UNDEFINED_OBJECT);
 
     private String name;
+    private final String declaredType;
     private final String type;
     private Object value;
     private String strValue;
@@ -783,13 +784,17 @@ public class Snapshot {
 
     private CapturedValue(
         String name,
-        String type,
+        String declaredType,
         Object value,
         Limits limits,
         Map<String, CapturedValue> fields,
         String notCapturedReason) {
       this.name = name;
-      this.type = type;
+      this.declaredType = declaredType;
+      this.type =
+          value != null && !isPrimitive(declaredType)
+              ? value.getClass().getTypeName()
+              : declaredType;
       this.value = value;
       this.fields = fields == null ? Collections.emptyMap() : fields;
       this.limits = limits;
@@ -802,6 +807,10 @@ public class Snapshot {
 
     public String getName() {
       return name;
+    }
+
+    public String getDeclaredType() {
+      return declaredType;
     }
 
     public String getType() {
@@ -832,12 +841,12 @@ public class Snapshot {
       this.name = name;
     }
 
-    public static Snapshot.CapturedValue of(String type, Object value) {
-      return build(null, type, value, Limits.DEFAULT, null);
+    public static Snapshot.CapturedValue of(String declaredType, Object value) {
+      return build(null, declaredType, value, Limits.DEFAULT, null);
     }
 
-    public static Snapshot.CapturedValue of(String name, String type, Object value) {
-      return build(name, type, value, Limits.DEFAULT, null);
+    public static Snapshot.CapturedValue of(String name, String declaredType, Object value) {
+      return build(name, declaredType, value, Limits.DEFAULT, null);
     }
 
     public Snapshot.CapturedValue derive(String name, String type, Object value) {
@@ -846,7 +855,7 @@ public class Snapshot {
 
     public static Snapshot.CapturedValue of(
         String name,
-        String type,
+        String declaredType,
         Object value,
         int maxReferenceDepth,
         int maxCollectionSize,
@@ -854,7 +863,7 @@ public class Snapshot {
         int maxFieldCount) {
       return build(
           name,
-          type,
+          declaredType,
           value,
           new Limits(maxReferenceDepth, maxCollectionSize, maxLength, maxFieldCount),
           null);
@@ -881,9 +890,10 @@ public class Snapshot {
     }
 
     private static CapturedValue build(
-        String name, String type, Object value, Limits limits, String notCapturedReason) {
+        String name, String declaredType, Object value, Limits limits, String notCapturedReason) {
       CapturedValue val =
-          new CapturedValue(name, type, value, limits, Collections.emptyMap(), notCapturedReason);
+          new CapturedValue(
+              name, declaredType, value, limits, Collections.emptyMap(), notCapturedReason);
       return val;
     }
 
@@ -899,13 +909,31 @@ public class Snapshot {
       }
     }
 
+    private static boolean isPrimitive(String type) {
+      if (type == null) {
+        return false;
+      }
+      switch (type) {
+        case "byte":
+        case "short":
+        case "char":
+        case "int":
+        case "long":
+        case "boolean":
+        case "float":
+        case "double":
+          return true;
+      }
+      return false;
+    }
+
     @Override
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
       CapturedValue that = (CapturedValue) o;
       return Objects.equals(name, that.name)
-          && Objects.equals(type, that.type)
+          && Objects.equals(declaredType, that.declaredType)
           && Objects.equals(value, that.value)
           && Objects.equals(fields, that.fields)
           && Objects.equals(notCapturedReason, that.notCapturedReason);
@@ -913,7 +941,7 @@ public class Snapshot {
 
     @Override
     public int hashCode() {
-      return Objects.hash(name, type, value, fields, notCapturedReason);
+      return Objects.hash(name, declaredType, value, fields, notCapturedReason);
     }
 
     @Override
@@ -923,7 +951,7 @@ public class Snapshot {
           + name
           + '\''
           + ", type='"
-          + type
+          + declaredType
           + '\''
           + ", value='"
           + value
@@ -990,7 +1018,7 @@ public class Snapshot {
 
     public CapturedThrowable(Throwable throwable) {
       this(
-          throwable.getClass().getName(),
+          throwable.getClass().getTypeName(),
           throwable.getLocalizedMessage(),
           captureFrames(throwable.getStackTrace()));
     }
