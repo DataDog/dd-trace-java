@@ -68,6 +68,9 @@ public final class TagsHelper {
   }
 
   public static String concatTags(String... tags) {
+    if (tags == null || tags.length == 0) {
+      return "";
+    }
     StringBuilder sb = new StringBuilder();
     for (String tag : tags) {
       sb.append(tag);
