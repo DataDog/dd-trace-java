@@ -510,7 +510,7 @@ public class DebuggerTransformerTest {
     for (Snapshot snapshot : listener.snapshots) {
       List<CapturedStackFrame> stackTrace = snapshot.getStack();
       assertNotNull(stackTrace);
-      assertFalse(stackTrace.get(0).getFunction().contains(Snapshot.class.getName()));
+      assertFalse(stackTrace.get(0).getFunction().contains(Snapshot.class.getTypeName()));
 
       assertEquals(probe.getId(), snapshot.getProbe().getId());
     }

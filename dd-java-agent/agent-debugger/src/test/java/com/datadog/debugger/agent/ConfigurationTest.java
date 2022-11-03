@@ -128,6 +128,7 @@ public class ConfigurationTest {
     List<Configuration> configs = adapter.fromJson(buffer);
     assertEquals(2, configs.size());
     Configuration config0 = configs.get(0);
+    assertEquals(10.0, config0.getSampling().getSnapshotsPerSecond(), 0.1);
     assertEquals("service1", config0.getId());
     assertEquals(1, config0.getSnapshotProbes().size());
     SnapshotProbe snapshotProbe1 = config0.getSnapshotProbes().iterator().next();
@@ -136,6 +137,7 @@ public class ConfigurationTest {
     assertEquals(2, snapshotProbe1.getTags().length);
     assertEquals("tag1:value1", snapshotProbe1.getTags()[0].toString());
     assertEquals("tag2:value2", snapshotProbe1.getTags()[1].toString());
+    assertEquals(42.0, snapshotProbe1.getSampling().getSnapshotsPerSecond(), 0.1);
     Configuration config1 = configs.get(1);
     assertEquals("service2", config1.getId());
     assertEquals(1, config1.getSnapshotProbes().size());
@@ -163,6 +165,7 @@ public class ConfigurationTest {
             Limits.DEFAULT_LENGTH,
             Limits.DEFAULT_FIELD_COUNT)
         .tags("tag1:value1", "tag2:value2")
+        .sampling(42.0)
         .build();
   }
 

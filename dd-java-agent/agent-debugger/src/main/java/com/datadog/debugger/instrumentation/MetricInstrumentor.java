@@ -106,7 +106,7 @@ public class MetricInstrumentor extends Instrumentor {
         ldc(insnList, literal); // stack [long]
       } else {
         reportError(
-            "Unsupported literal: " + literal + " type: " + literal.getClass().getName() + ".");
+            "Unsupported literal: " + literal + " type: " + literal.getClass().getTypeName() + ".");
         return EMPTY_INSN_LIST;
       }
     } else {
