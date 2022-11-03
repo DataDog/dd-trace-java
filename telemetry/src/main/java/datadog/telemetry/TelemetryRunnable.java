@@ -1,5 +1,6 @@
 package datadog.telemetry;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.ConfigCollector;
 import java.io.IOException;
 import java.util.List;
@@ -44,6 +45,9 @@ public class TelemetryRunnable implements Runnable {
 
   @Override
   public void run() {
+    // Ensure that Config has been initialized, so ConfigCollector can collect all settings first.
+    Config.get();
+
     log.debug("Adding APP_STARTED telemetry event");
     this.telemetryService.addConfiguration(ConfigCollector.get());
     for (TelemetryPeriodicAction action : this.actions) {
