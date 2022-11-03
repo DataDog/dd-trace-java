@@ -19,7 +19,7 @@ class HostInfoTest extends Specification {
     final osName = HostInfo.getOsName()
 
     then:
-    ["Linux", "Windows", "Darwin"].contains(osName)
+    ["Linux", "Windows", "Darwin", "Mac OS X"].contains(osName)
   }
 
   void 'getOsVersion'() {
@@ -36,7 +36,13 @@ class HostInfoTest extends Specification {
 
     expect:
     HostInfo.getHostname() == 'uname -n'.execute().text.trim()
-    HostInfo.getOsName() == 'uname -s'.execute().text.trim()
+    if (Platform.isMac()) {
+      // uname -s will return Darwin, while JVM properties will have Mac OS X
+      ['Mac OS X', 'uname -s'.execute().text.trim()].contains(HostInfo.getOsName())
+    }
+    else {
+      HostInfo.getOsName() == 'uname -s'.execute().text.trim()
+    }
     HostInfo.getKernelName() == 'uname -s'.execute().text.trim()
     HostInfo.getKernelRelease() == 'uname -r'.execute().text.trim()
     if (Platform.isMac()) {
