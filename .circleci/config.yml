@@ -52,7 +52,7 @@ build_cache_paths: &build_cache_paths
 
 test_matrix: &test_matrix
   parameters:
-    testJvm: [ "IBM8", "ZULU8", "ORACLE8", "11", "ZULU11", "17" ]
+    testJvm: [ "IBM8", "SEMERU8", "ZULU8", "ORACLE8", "11", "ZULU11", "17" ]
 
 profiling_test_matrix: &profiling_test_matrix
   parameters:
