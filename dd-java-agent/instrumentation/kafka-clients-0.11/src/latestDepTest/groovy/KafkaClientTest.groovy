@@ -173,7 +173,13 @@ class KafkaClientTest extends AgentTestRunner {
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["group:sender", "partition:" + received.partition(), "topic:$SHARED_TOPIC".toString(), "type:kafka", "direction:in"]
+        edgeTags == [
+          "group:sender",
+          "partition:" + received.partition(),
+          "topic:$SHARED_TOPIC".toString(),
+          "type:kafka",
+          "direction:in"
+        ]
         edgeTags.size() == 5
       }
     }
@@ -294,7 +300,13 @@ class KafkaClientTest extends AgentTestRunner {
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["group:sender", "partition:" + received.partition(), "topic:$SHARED_TOPIC".toString(), "type:kafka", "direction:in"]
+        edgeTags == [
+          "group:sender",
+          "partition:" + received.partition(),
+          "topic:$SHARED_TOPIC".toString(),
+          "type:kafka",
+          "direction:in"
+        ]
         edgeTags.size() == 5
       }
     }
@@ -877,7 +889,13 @@ class KafkaClientTest extends AgentTestRunner {
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["group:sender", "partition:" + partition, "topic:$SHARED_TOPIC".toString(), "type:kafka", "direction:in"]
+        edgeTags == [
+          "group:sender",
+          "partition:" + partition,
+          "topic:$SHARED_TOPIC".toString(),
+          "type:kafka",
+          "direction:in"
+        ]
         edgeTags.size() == 5
       }
     }
