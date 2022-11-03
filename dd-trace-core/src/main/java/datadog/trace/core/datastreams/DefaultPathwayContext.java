@@ -51,6 +51,7 @@ public class DefaultPathwayContext implements PathwayContext {
           Arrays.asList(
               TagsProcessor.GROUP_TAG,
               TagsProcessor.TYPE_TAG,
+              TagsProcessor.DIRECTION_TAG,
               TagsProcessor.TOPIC_TAG,
               TagsProcessor.EXCHANGE_TAG));
 
@@ -316,7 +317,7 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   private static class PathwayHashBuilder {
-    private StringBuilder builder;
+    private final StringBuilder builder;
 
     public PathwayHashBuilder(WellKnownTags wellKnownTags) {
       builder = new StringBuilder();
