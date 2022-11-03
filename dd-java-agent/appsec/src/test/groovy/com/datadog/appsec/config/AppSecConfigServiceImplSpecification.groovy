@@ -13,6 +13,8 @@ import java.nio.file.Path
 
 class AppSecConfigServiceImplSpecification extends DDSpecification {
 
+  static final long CAPABILITIES_FLAGS = 14
+
   ConfigurationPoller poller = Mock()
   def config = Mock(Class.forName('datadog.trace.api.Config'))
   AppSecModuleConfigurer.Reconfiguration reconf = Mock()
@@ -30,8 +32,12 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     appSecConfigService.maybeSubscribeConfigPolling()
 
     then:
+    1 * poller.addCapabilities(CAPABILITIES_FLAGS)
     1 * poller.addListener(Product.ASM_DD, _, _)
     1 * poller.addListener(Product.ASM_FEATURES, _, _)
+    1 * poller.addListener(Product.ASM_DATA, _, _)
+    1 * poller.addListener(Product.ASM, _, _)
+    0 * _
   }
 
   void 'can load from a different location'() {
@@ -45,6 +51,9 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     then:
     1 * config.getAppSecRulesFile() >> (p as String)
+    0 * _
+
+    and:
     def expected = AppSecConfig.valueOf([version: '2.0', rules: []])
     def actual = appSecConfigService.createAppSecModuleConfigurer().addSubConfigListener('waf', listener).get()
     actual == expected
@@ -57,6 +66,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     then:
     1 * config.getAppSecRulesFile() >> '/file/that/does/not/exist'
     thrown AbortStartupException
+    0 * _
   }
 
   void 'aborts if alt config file is not valid json'() {
@@ -70,6 +80,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     then:
     1 * config.getAppSecRulesFile() >> (p as String)
     thrown AbortStartupException
+    0 * _
   }
 
   void 'provides initial subconfiguration upon subscription'() {
@@ -131,8 +142,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       savedFeaturesListener = it[2]
       true
     }
-    1 * poller.addCapabilities(14L)
-    0 * _._
+    1 * poller.addCapabilities(CAPABILITIES_FLAGS)
+    0 * _
     initialWafConfig.get() != null
     initialWafData.present == false
     initialRulesOverride.present == false
@@ -159,16 +170,17 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     1 * subconfigListener.onNewSubconfig(AppSecConfig.valueOf([version: '2.0']), _)
     1 * wafDataListener.onNewSubconfig([[id: 'foo', type: '', data: []]], _)
     1 * wafRulesOverrideListener.onNewSubconfig([foo: false], _)
-    0 * _._
-    AppSecSystem.active == true
+    0 * _
+    AppSecSystem.isActive()
 
-    when:
+    when: 'appsec is disabled'
     savedFeaturesListener.accept('config_key',
       savedFeaturesDeserializer.deserialize('{"asm":{"enabled": false}}'.bytes),
       ConfigurationChangesListener.PollingRateHinter.NOOP)
 
     then:
-    AppSecSystem.active == false
+    !AppSecSystem.isActive()
+    0 * _
 
     when: 'switch back to enabled'
     savedFeaturesListener.accept('config_key',
@@ -176,7 +188,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       ConfigurationChangesListener.PollingRateHinter.NOOP)
 
     then: 'it is enabled again'
-    AppSecSystem.active == true
+    AppSecSystem.isActive()
+    0 * _
 
     when: 'asm are not set'
     savedFeaturesListener.accept('config_key',
@@ -184,7 +197,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       ConfigurationChangesListener.PollingRateHinter.NOOP)
 
     then: 'it is disabled (<not set> == false)'
-    AppSecSystem.active == false
+    !AppSecSystem.isActive()
+    0 * _
 
     when: 'switch back to enabled'
     savedFeaturesListener.accept('config_key',
@@ -192,7 +206,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       ConfigurationChangesListener.PollingRateHinter.NOOP)
 
     then: 'it is enabled again'
-    AppSecSystem.active == true
+    AppSecSystem.isActive()
+    0 * _
 
     when: 'asm features are not set'
     savedFeaturesListener.accept('config_key',
@@ -200,7 +215,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       ConfigurationChangesListener.PollingRateHinter.NOOP)
 
     then: 'it is disabled (<not set> == false)'
-    AppSecSystem.active == false
+    !AppSecSystem.isActive()
+    0 * _
 
     cleanup:
     AppSecSystem.active = true
@@ -215,9 +231,10 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     poller = null
 
     then:
-    1 * poller.removeCapabilities(14)
+    1 * poller.removeCapabilities(CAPABILITIES_FLAGS)
     4 * poller.removeListener(_)
     1 * poller.stop()
+    0 * _
   }
 
   void 'error in one listener does not prevent others from running'() {
@@ -241,6 +258,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       savedConfChangesListener = it[2]
       true
     }
+    _ * config._
 
     when:
     savedConfChangesListener.accept(
@@ -250,6 +268,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     then:
     appSecConfigService.lastConfig['waf'].@version == '1.1'
+    0 * _
   }
 
   void 'config should not be created'() {
