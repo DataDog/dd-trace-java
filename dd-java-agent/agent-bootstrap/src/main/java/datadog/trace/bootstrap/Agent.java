@@ -16,6 +16,7 @@ import static datadog.trace.util.Strings.toEnvVar;
 import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
+import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.WithGlobalTracer;
@@ -500,6 +501,8 @@ public class Agent {
     if (jmxStarting.getAndSet(true)) {
       return; // another thread is already in startJmx
     }
+    // crash uploader initialization relies on JMX being available
+    initializeCrashUploader();
     if (jmxFetchEnabled) {
       startJmxFetch();
     }
@@ -643,6 +646,19 @@ public class Agent {
       startTelemetry.invoke(null, inst, sco);
     } catch (final Throwable ex) {
       log.warn("Unable start telemetry: {}", ex);
+    }
+  }
+
+  private static void initializeCrashUploader() {
+    if (Platform.isJ9()) {
+      // TODO currently crash tracking is supported only for HotSpot based JVMs
+      return;
+    }
+    try {
+      Class<?> clz = AGENT_CLASSLOADER.loadClass("com.datadog.crashtracking.ScriptInitializer");
+      clz.getMethod("initialize").invoke(null);
+    } catch (Throwable t) {
+      log.debug("Unable to initialize crash uploader", t);
     }
   }
 
