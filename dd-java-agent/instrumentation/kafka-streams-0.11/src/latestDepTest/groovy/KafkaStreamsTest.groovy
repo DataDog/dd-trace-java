@@ -219,7 +219,13 @@ class KafkaStreamsTest extends AgentTestRunner {
 
       StatsGroup kafkaStreamsConsumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == originProducerPoint.hash }
       verifyAll(kafkaStreamsConsumerPoint) {
-        edgeTags == ["group:test-application", "partition:0", "topic:$STREAM_PENDING".toString(), "type:kafka", "direction:in"]
+        edgeTags == [
+          "group:test-application",
+          "partition:0",
+          "topic:$STREAM_PENDING".toString(),
+          "type:kafka",
+          "direction:in"
+        ]
         edgeTags.size() == 5
       }
 
