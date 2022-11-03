@@ -366,6 +366,7 @@ public class PowerWAFModule implements AppSecModule {
       super(ctxAndAddresses.get().addressesOfInterest, Priority.DEFAULT);
     }
 
+
     @Override
     public void onDataAvailable(
         ChangeableFlow flow, AppSecRequestContext reqCtx, DataBundle newData, boolean isTransient) {
