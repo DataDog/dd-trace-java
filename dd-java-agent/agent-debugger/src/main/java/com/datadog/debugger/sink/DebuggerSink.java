@@ -1,7 +1,6 @@
 package com.datadog.debugger.sink;
 
 import com.datadog.debugger.agent.DebuggerAgent;
-import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.trace.api.Config;
@@ -10,6 +9,7 @@ import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.AgentTaskScheduler;
+import datadog.trace.util.TagsHelper;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -82,16 +82,16 @@ public class DebuggerSink implements DebuggerContext.Sink {
       ProbeStatusSink probeStatusSink,
       SnapshotSink snapshotSink) {
     this.batchUploader = batchUploader;
-    tags = buildTags(config);
+    tags = getDefaultTagsMergedWithGlobalTags(config);
     this.debuggerMetrics = debuggerMetrics;
     this.probeStatusSink = probeStatusSink;
     this.snapshotSink = snapshotSink;
     this.uploadFlushInterval = config.getDebuggerUploadFlushInterval();
   }
 
-  private static String buildTags(Config config) {
+  private static String getDefaultTagsMergedWithGlobalTags(Config config) {
     String debuggerTags =
-        JsonSnapshotSerializer.IntakeRequest.concatTags(
+        TagsHelper.concatTags(
             "env:" + config.getEnv(),
             "version:" + config.getVersion(),
             "debugger_version:" + DDTraceCoreInfo.VERSION,
