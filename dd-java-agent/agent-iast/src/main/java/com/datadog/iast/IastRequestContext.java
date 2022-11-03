@@ -2,6 +2,7 @@ package com.datadog.iast;
 
 import com.datadog.iast.model.VulnerabilityBatch;
 import com.datadog.iast.overhead.OverheadContext;
+import com.datadog.iast.overhead.OverheadController;
 import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
@@ -17,11 +18,21 @@ public class IastRequestContext {
   private final TaintedObjects taintedObjects;
   private final OverheadContext overheadContext;
 
-  public IastRequestContext() {
+  private final OverheadController overheadController;
+  private final Reporter reporter;
+
+  public IastRequestContext(final OverheadController overheadController, final Reporter reporter) {
     this.vulnerabilityBatch = new VulnerabilityBatch();
     this.spanDataIsSet = new AtomicBoolean(false);
     this.overheadContext = new OverheadContext();
     this.taintedObjects = new TaintedObjects();
+    this.overheadController = overheadController;
+    this.reporter = reporter;
+  }
+
+  // for testing
+  public IastRequestContext() {
+    this(new OverheadController(), new Reporter());
   }
 
   public VulnerabilityBatch getVulnerabilityBatch() {
@@ -38,6 +49,14 @@ public class IastRequestContext {
 
   public TaintedObjects getTaintedObjects() {
     return taintedObjects;
+  }
+
+  public OverheadController getOverheadController() {
+    return overheadController;
+  }
+
+  public Reporter getReporter() {
+    return reporter;
   }
 
   @Nullable

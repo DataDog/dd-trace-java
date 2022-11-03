@@ -4,7 +4,7 @@ import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
-import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.instrumentation.java.lang.StringBuilderHelperContainer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -59,10 +59,10 @@ public class StringBuilderBatchBenchmark
     final StringBuilder builder = new StringBuilder();
     for (final String string : context.strings) {
       builder.append(string);
-      InstrumentationBridge.onStringBuilderAppend(builder, string);
+      StringBuilderHelperContainer.onStringBuilderAppend(builder, string);
     }
     final String result = builder.toString();
-    InstrumentationBridge.onStringBuilderToString(builder, result);
+    StringBuilderHelperContainer.onStringBuilderToString(builder, result);
     return result;
   }
 
@@ -72,10 +72,10 @@ public class StringBuilderBatchBenchmark
     final StringBuilder builder = new StringBuilder();
     for (final String string : context.strings) {
       builder.append(string);
-      InstrumentationBridge.onStringBuilderAppend(builder, string);
+      StringBuilderHelperContainer.onStringBuilderAppend(builder, string);
     }
     final String result = builder.toString();
-    InstrumentationBridge.onStringBuilderToString(builder, result);
+    StringBuilderHelperContainer.onStringBuilderToString(builder, result);
     return result;
   }
 

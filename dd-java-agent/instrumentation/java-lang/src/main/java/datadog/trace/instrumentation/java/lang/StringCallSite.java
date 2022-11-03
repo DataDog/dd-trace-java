@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.java.lang;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
-import datadog.trace.api.iast.InstrumentationBridge;
 import java.util.Locale;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -16,7 +15,7 @@ public class StringCallSite {
       @CallSite.This @Nonnull final String self,
       @CallSite.Argument @Nullable final String param,
       @CallSite.Return @Nonnull final String result) {
-    InstrumentationBridge.onStringConcat(self, param, result);
+    StringHelperContainer.onStringConcat(self, param, result);
     return result;
   }
 
@@ -28,13 +27,13 @@ public class StringCallSite {
       })
   public static String afterConstructor(
       @CallSite.This final String self, @CallSite.Argument final CharSequence param) {
-    InstrumentationBridge.onStringConstructor(param, self);
+    StringHelperContainer.onStringConstructor(param, self);
     return self;
   }
 
   @CallSite.Around("java.lang.String java.lang.String.format(java.lang.String,java.lang.Object[])")
   public static String format(@CallSite.Argument String fmt, @CallSite.Argument Object[] args) {
-    return InstrumentationBridge.onStringFormat(null, fmt, args);
+    return StringHelperContainer.onStringFormat(null, fmt, args);
   }
 
   @CallSite.Around(
@@ -43,6 +42,6 @@ public class StringCallSite {
       @CallSite.Argument Locale l,
       @CallSite.Argument String fmt,
       @CallSite.Argument Object[] args) {
-    return InstrumentationBridge.onStringFormat(l, fmt, args);
+    return StringHelperContainer.onStringFormat(l, fmt, args);
   }
 }

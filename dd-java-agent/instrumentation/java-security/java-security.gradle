@@ -15,11 +15,16 @@ testSets {
   }
 }
 
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
 tasks.withType(Test).configureEach {
   jvmArgs += ['-Ddd.iast.enabled=true']
 }
 
 dependencies {
+  compileOnly(project(':dd-java-agent:agent-iast'))
+  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
   testImplementation project(':dd-java-agent:agent-iast')
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
   testImplementation group: 'org.bouncycastle', name: 'bcprov-jdk15on', version: '1.70'

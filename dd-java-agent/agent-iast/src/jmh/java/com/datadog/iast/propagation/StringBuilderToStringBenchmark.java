@@ -2,7 +2,7 @@ package com.datadog.iast.propagation;
 
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
-import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.instrumentation.java.lang.StringHelperContainer;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 
@@ -31,7 +31,7 @@ public class StringBuilderToStringBenchmark
   public String iastDisabled() {
     final StringBuilder self = context.notTaintedBuilder;
     final String result = self.toString();
-    InstrumentationBridge.onStringBuilderToString(self, result);
+    StringHelperContainer.onStringBuilderToString(self, result);
     return result;
   }
 
@@ -40,7 +40,7 @@ public class StringBuilderToStringBenchmark
   public String notTainted() {
     final StringBuilder self = context.notTaintedBuilder;
     final String result = self.toString();
-    InstrumentationBridge.onStringBuilderToString(self, result);
+    StringHelperContainer.onStringBuilderToString(self, result);
     return result;
   }
 
@@ -49,7 +49,7 @@ public class StringBuilderToStringBenchmark
   public String tainted() {
     final StringBuilder self = context.taintedBuilder;
     final String result = self.toString();
-    InstrumentationBridge.onStringBuilderToString(self, result);
+    StringHelperContainer.onStringBuilderToString(self, result);
     return result;
   }
 

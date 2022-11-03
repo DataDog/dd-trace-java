@@ -2,7 +2,7 @@ package com.datadog.iast.propagation;
 
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
-import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.instrumentation.java.lang.StringHelperContainer;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 
@@ -30,7 +30,7 @@ public class StringConcatBenchmark extends AbstractBenchmark<StringConcatBenchma
     final String self = context.notTainted;
     final String param = context.notTainted;
     final String result = self.concat(param);
-    InstrumentationBridge.onStringConcat(self, param, result);
+    StringHelperContainer.onStringConcat(self, param, result);
     return result;
   }
 
@@ -40,7 +40,7 @@ public class StringConcatBenchmark extends AbstractBenchmark<StringConcatBenchma
     final String self = context.notTainted;
     final String param = context.notTainted;
     final String result = self.concat(param);
-    InstrumentationBridge.onStringConcat(self, param, result);
+    StringHelperContainer.onStringConcat(self, param, result);
     return result;
   }
 
@@ -50,7 +50,7 @@ public class StringConcatBenchmark extends AbstractBenchmark<StringConcatBenchma
     final String self = context.notTainted;
     final String param = context.tainted;
     final String result = self.concat(param);
-    InstrumentationBridge.onStringConcat(self, param, result);
+    StringHelperContainer.onStringConcat(self, param, result);
     return result;
   }
 
@@ -60,7 +60,7 @@ public class StringConcatBenchmark extends AbstractBenchmark<StringConcatBenchma
     final String self = context.tainted;
     final String param = context.notTainted;
     final String result = self.concat(param);
-    InstrumentationBridge.onStringConcat(self, param, result);
+    StringHelperContainer.onStringConcat(self, param, result);
     return result;
   }
 
@@ -70,7 +70,7 @@ public class StringConcatBenchmark extends AbstractBenchmark<StringConcatBenchma
     final String self = context.tainted;
     final String param = context.tainted;
     final String result = self.concat(param);
-    InstrumentationBridge.onStringConcat(self, param, result);
+    StringHelperContainer.onStringConcat(self, param, result);
     return result;
   }
 

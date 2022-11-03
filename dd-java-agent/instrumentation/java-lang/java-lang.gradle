@@ -1,3 +1,7 @@
+plugins {
+  id 'java-test-fixtures'
+}
+
 muzzle {
   pass {
     coreJdk()
@@ -15,9 +19,16 @@ testSets {
   }
 }
 
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
 dependencies {
+  compileOnly(project(':dd-java-agent:agent-iast'))
+  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
   testRuntimeClasspath project(':dd-java-agent:instrumentation:iast-instrumenter')
 }
+
+
 
 tasks.compileTestJava.configure {
   setJavaVersion(it, 8)
