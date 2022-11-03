@@ -1,5 +1,6 @@
 package datadog.telemetry
 
+import datadog.trace.api.Platform
 import org.junit.Assume
 import spock.lang.Specification
 
@@ -38,7 +39,13 @@ class HostInfoTest extends Specification {
     HostInfo.getOsName() == 'uname -s'.execute().text.trim()
     HostInfo.getKernelName() == 'uname -s'.execute().text.trim()
     HostInfo.getKernelRelease() == 'uname -r'.execute().text.trim()
-    // Ideally, this would be equal, but for now, we'll compromise to startWith.
-    'uname -v'.execute().text.trim().startsWith(HostInfo.getKernelVersion())
+    if (Platform.isMac()) {
+      // No /proc in macOS
+      HostInfo.getKernelVersion() == ''
+    }
+    else {
+      // Ideally, this would be equal, but for now, we'll compromise to startWith.
+      'uname -v'.execute().text.trim().startsWith(HostInfo.getKernelVersion())
+    }
   }
 }
