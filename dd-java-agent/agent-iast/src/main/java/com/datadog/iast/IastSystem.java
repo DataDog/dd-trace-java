@@ -35,6 +35,7 @@ public class IastSystem {
     InstrumentationBridge.registerIastModule(iastModule);
     registerRequestStartedCallback(ss, overheadController);
     registerRequestEndedCallback(ss, overheadController);
+    log.debug("IAST started");
   }
 
   private static void registerRequestStartedCallback(
