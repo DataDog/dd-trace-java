@@ -38,18 +38,20 @@ class HostInfoTest extends Specification {
     HostInfo.getHostname() == 'uname -n'.execute().text.trim()
     if (Platform.isMac()) {
       // uname -s will return Darwin, while JVM properties will have Mac OS X
-      ['Mac OS X', 'uname -s'.execute().text.trim()].contains(HostInfo.getOsName())
-    }
-    else {
-      HostInfo.getOsName() == 'uname -s'.execute().text.trim()
-    }
-    HostInfo.getKernelName() == 'uname -s'.execute().text.trim()
-    HostInfo.getKernelRelease() == 'uname -r'.execute().text.trim()
-    if (Platform.isMac()) {
+      def osNames = ['Mac OS X', 'uname -s'.execute().text.trim()]
+      osNames.contains(HostInfo.getOsName())
+      osNames.contains(HostInfo.getKernelName())
+
+      // uname -r will return X.Y.Z version, while JVM will report just X.Y
+      'uname -r'.execute().text.trim().startsWith(HostInfo.getKernelRelease())
+
       // No /proc in macOS
       HostInfo.getKernelVersion() == ''
     }
     else {
+      HostInfo.getOsName() == 'uname -s'.execute().text.trim()
+      HostInfo.getKernelName() == 'uname -s'.execute().text.trim()
+      HostInfo.getKernelRelease() == 'uname -r'.execute().text.trim()
       // Ideally, this would be equal, but for now, we'll compromise to startWith.
       'uname -v'.execute().text.trim().startsWith(HostInfo.getKernelVersion())
     }
