@@ -5,9 +5,19 @@ import datadog.trace.api.ConfigDefaults
 import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.test.util.DDSpecification
 
+import static datadog.trace.api.ConfigTest.DD_HEADER_TAGS_ENV
+import static datadog.trace.api.ConfigTest.DD_SPAN_TAGS_ENV
+import static datadog.trace.api.ConfigTest.PREFIX
+import static datadog.trace.api.ConfigTest.toBitSet
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST
 import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY
 import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET
+import static datadog.trace.api.config.TracerConfig.DEFAULT_CLIENT_IP_ENABLED
+import static datadog.trace.api.config.TracerConfig.DEFAULT_PRIORITY_SAMPLING_FORCE
+import static datadog.trace.api.config.TracerConfig.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED
+import static datadog.trace.api.config.TracerConfig.DEFAULT_SCOPE_DEPTH_LIMIT
+import static datadog.trace.api.config.TracerConfig.DEFAULT_SCOPE_ITERATION_KEEP_ALIVE
+import static datadog.trace.api.config.TracerConfig.DEFAULT_TRACE_ANALYTICS_ENABLED
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.config.TracerConfig.HTTP_SERVER_ERROR_STATUSES
@@ -15,16 +25,33 @@ import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING
 import static datadog.trace.api.config.TracerConfig.SPAN_TAGS
-import static datadog.trace.api.ConfigTest.PREFIX
-import static datadog.trace.api.ConfigTest.DD_SPAN_TAGS_ENV
-import static datadog.trace.api.ConfigTest.DD_HEADER_TAGS_ENV
-import static datadog.trace.api.ConfigTest.toBitSet
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT
-
 
 class TracerConfigTest extends DDSpecification {
 
   private static final DD_SERVICE_MAPPING_ENV = "DD_SERVICE_MAPPING"
+
+  def "check default config values"() {
+    when:
+    def config = new Config()
+
+    then:
+    config.noProxyHosts == Set.<String>of()
+    config.traceAgentPath == null
+    config.traceAgentArgs == List.of()
+    config.prioritySamplingForce == DEFAULT_PRIORITY_SAMPLING_FORCE
+    config.traceAnalyticsEnabled == DEFAULT_TRACE_ANALYTICS_ENABLED
+    config.traceClientIpHeader == null
+    config.traceClientIpResolverEnabled
+    config.clientIpEnabled == DEFAULT_CLIENT_IP_ENABLED
+    config.traceSamplingRules == null
+    config.scopeDepthLimit == DEFAULT_SCOPE_DEPTH_LIMIT
+    !config.scopeStrictMode
+    config.scopeInheritAsyncPropagation
+    config.scopeIterationKeepAlive == DEFAULT_SCOPE_ITERATION_KEEP_ALIVE
+    !config.traceStrictWritesEnabled
+    config.logExtractHeaderNames == DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED
+  }
 
   def "verify mapping configs on tracer for #mapString"() {
     setup:
