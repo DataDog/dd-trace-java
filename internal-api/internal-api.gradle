@@ -13,6 +13,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.StatsDClient",
   "datadog.trace.api.NoOpStatsDClient",
   "datadog.trace.api.TraceSegment.NoOp",
+  "datadog.trace.api.config.TraceInstrumentationFeatureConfig.StaticConfig.Singleton",
   "datadog.trace.api.intake.TrackType",
   "datadog.trace.api.gateway.Events.ET",
   "datadog.trace.api.profiling.ProfilingSnapshot.Kind",

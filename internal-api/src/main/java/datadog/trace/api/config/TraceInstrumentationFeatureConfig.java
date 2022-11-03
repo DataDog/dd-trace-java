@@ -334,6 +334,10 @@ public class TraceInstrumentationFeatureConfig extends AbstractFeatureConfig {
     return null != topic && this.kafkaClientPropagationDisabledTopics.contains(topic);
   }
 
+  public boolean isKafkaClientBase64DecodingEnabled() {
+    return this.kafkaClientBase64DecodingEnabled;
+  }
+
   public boolean isJmsPropagationEnabled() {
     return this.jmsPropagationEnabled;
   }
@@ -342,10 +346,6 @@ public class TraceInstrumentationFeatureConfig extends AbstractFeatureConfig {
     return null != queueOrTopic
         && (this.jmsPropagationDisabledQueues.contains(queueOrTopic)
             || this.jmsPropagationDisabledTopics.contains(queueOrTopic));
-  }
-
-  public boolean isKafkaClientBase64DecodingEnabled() {
-    return this.kafkaClientBase64DecodingEnabled;
   }
 
   public boolean isRabbitPropagationEnabled() {

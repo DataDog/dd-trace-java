@@ -3,7 +3,173 @@ package datadog.trace.api.config
 import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME
+import static datadog.trace.api.config.TraceInstrumentationConfig.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE
+import static datadog.trace.api.config.TraceInstrumentationConfig.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX
+import static datadog.trace.api.config.TraceInstrumentationConfig.DEFAULT_GRPC_CLIENT_ERROR_STATUSES
+import static datadog.trace.api.config.TraceInstrumentationConfig.DEFAULT_GRPC_SERVER_ERROR_STATUSES
+import static datadog.trace.api.config.TraceInstrumentationConfig.DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN
+import static datadog.trace.api.config.TraceInstrumentationConfig.DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING
+import static datadog.trace.api.config.TraceInstrumentationConfig.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING
+import static datadog.trace.api.config.TraceInstrumentationConfig.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING
+import static datadog.trace.api.config.TraceInstrumentationConfig.DEFAULT_INTEGRATIONS_ENABLED
+import static datadog.trace.api.config.TraceInstrumentationConfig.DEFAULT_LOGS_INJECTION_ENABLED
+import static datadog.trace.api.config.TraceInstrumentationConfig.DEFAULT_RESOLVER_OUTLINE_POOL_SIZE
+import static datadog.trace.api.config.TraceInstrumentationConfig.DEFAULT_RESOLVER_TYPE_POOL_SIZE
+import static datadog.trace.api.config.TraceInstrumentationConfig.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION
+import static datadog.trace.api.config.TraceInstrumentationConfig.DEFAULT_SERIALVERSIONUID_FIELD_INJECTION
+import static datadog.trace.api.config.TraceInstrumentationConfig.DEFAULT_TRACE_ANNOTATIONS
+import static datadog.trace.api.config.TraceInstrumentationConfig.DEFAULT_TRACE_EXECUTORS_ALL
+import static datadog.trace.api.config.TraceInstrumentationConfig.DEFAULT_TRACE_METHODS
+import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES
+import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS
+import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS
+import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES
+import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES
+import static datadog.trace.api.config.TracerConfig.DEFAULT_TRACE_ENABLED
+import static java.util.Collections.emptyList
+
 class TraceInstrumentationConfigTest extends DDSpecification {
+  def "check default config values"() {
+    when:
+    def config = new Config()
+
+    then:
+    config.traceEnabled == DEFAULT_TRACE_ENABLED
+    config.integrationsEnabled == DEFAULT_INTEGRATIONS_ENABLED
+    !config.integrationSynapseLegacyOperationName
+    config.traceAnnotations == DEFAULT_TRACE_ANNOTATIONS
+    config.logsInjectionEnabled == DEFAULT_LOGS_INJECTION_ENABLED
+    config.logsMDCTagsInjectionEnabled
+    config.traceMethods == DEFAULT_TRACE_METHODS
+    config.traceExecutorsAll == DEFAULT_TRACE_EXECUTORS_ALL
+    config.traceExecutors == emptyList()
+    config.traceThreadPoolExecutorsExclude == Set.<String>of()
+    config.excludedClasses == emptyList()
+    config.excludedClassesFile == null
+    config.excludedClassLoaders == Set.<String>of()
+    config.excludedCodeSources == emptyList()
+    config.httpServerTagQueryString == DEFAULT_HTTP_SERVER_TAG_QUERY_STRING
+    config.httpServerRawQueryString
+    !config.httpServerRawResource
+    config.httpServerRouteBasedNaming == DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING
+    config.httpClientTagQueryString == DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING
+    config.httpClientSplitByDomain == DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN
+    config.dbClientSplitByInstance == DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE
+    config.dbClientSplitByInstanceTypeSuffix == DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX
+    config.awsPropagationEnabled
+    config.sqsPropagationEnabled
+    config.kafkaClientPropagationEnabled
+    !config.kafkaClientBase64DecodingEnabled
+    config.jmsPropagationEnabled
+    config.rabbitPropagationEnabled
+    !config.messageBrokerSplitByDestination
+    !config.hystrixTagsEnabled
+    !config.hystrixMeasuredEnabled
+    !config.igniteCacheIncludeKeys
+    config.obfuscationQueryRegexp == null
+    !config.playReportHttpStatus
+    !config.servletPrincipalEnabled
+    config.servletAsyncTimeoutError
+    config.jdbcPreparedStatementClassName == ""
+    config.jdbcConnectionClassName == ""
+    config.rootContextServiceName == DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME
+    config.runtimeContextFieldInjection == DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION
+    config.serialVersionUIDFieldInjection == DEFAULT_SERIALVERSIONUID_FIELD_INJECTION
+    config.grpcIgnoredInboundMethods == Set.<String>of()
+    config.grpcIgnoredOutboundMethods == Set.<String>of()
+    !config.grpcServerTrimPackageResource
+    config.grpcServerErrorStatuses == DEFAULT_GRPC_SERVER_ERROR_STATUSES
+    config.grpcClientErrorStatuses == DEFAULT_GRPC_CLIENT_ERROR_STATUSES
+    config.resolverOutlinePoolEnabled
+    config.resolverOutlinePoolSize == DEFAULT_RESOLVER_OUTLINE_POOL_SIZE
+    config.resolverTypePoolSize == DEFAULT_RESOLVER_TYPE_POOL_SIZE
+    config.resolverUseLoadClassEnabled
+  }
+
+  def "check kafka propagation for topic"() {
+    when:
+    Properties properties = new Properties()
+    properties.put(KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS, property)
+    def config = Config.get(properties)
+
+    then:
+    config.isKafkaClientPropagationDisabledForTopic(topic) == expected
+
+    where:
+    // spotless:off
+    property                  |  topic      | expected
+    ""                        | "topic1"    | false
+    "topic1,topic2"           | "topic1"    | true
+    "topic1,topic2"           | "topic3"    | false
+    ""                        | null        | false
+    "topic1,topic2"           | null        | false
+    // spotless:on
+  }
+
+  def "check JMS propagation for destination"() {
+    when:
+    Properties properties = new Properties()
+    properties.put(JMS_PROPAGATION_DISABLED_TOPICS, disabledTopics)
+    properties.put(JMS_PROPAGATION_DISABLED_QUEUES, disabledQueues)
+    def config = Config.get(properties)
+
+    then:
+    config.isJmsPropagationDisabledForDestination(destination) == expected
+
+    where:
+    // spotless:off
+    disabledTopics     | disabledQueues      |  destination      | expected
+    ""                 | ""                  | "topic1"          | false
+    ""                 | ""                  | "queue1"          | false
+    ""                 | ""                  | null              | false
+    "topic1,topic2"    | ""                  | "topic1"          | true
+    "topic1,topic2"    | ""                  | "topic3"          | false
+    "topic1,topic2"    | ""                  | "queue1"          | false
+    "topic1,topic2"    | ""                  | null              | false
+    ""                 | "queue1,queue2"     | "topic1"          | false
+    ""                 | "queue1,queue2"     | "queue1"          | true
+    ""                 | "queue1,queue2"     | "queue3"          | false
+    ""                 | "queue1,queue2"     | null              | false
+    "topic1,topic2"    | "queue1,queue2"     | "topic1"          | true
+    "topic1,topic2"    | "queue1,queue2"     | "topic3"          | false
+    "topic1,topic2"    | "queue1,queue2"     | "queue1"          | true
+    "topic1,topic2"    | "queue1,queue2"     | "queue3"          | false
+    "topic1,topic2"    | "queue1,queue2"     | null              | false
+    // spotless:on
+  }
+
+  def "check RabbitMQ propagation for destination"() {
+    when:
+    Properties properties = new Properties()
+    properties.put(RABBIT_PROPAGATION_DISABLED_EXCHANGES, disabledExchanges)
+    properties.put(RABBIT_PROPAGATION_DISABLED_QUEUES, disabledQueues)
+    def config = Config.get(properties)
+
+    then:
+    config.isRabbitPropagationDisabledForDestination(destination) == expected
+
+    where:
+    // spotless:off
+    disabledExchanges     | disabledQueues      |  destination      | expected
+    ""                    | ""                  | "exchange1"       | false
+    ""                    | ""                  | "queue1"          | false
+    ""                    | ""                  | null              | false
+    "exchange1,exchange2" | ""                  | "exchange1"       | true
+    "exchange1,exchange2" | ""                  | "exchange3"       | false
+    "exchange1,exchange2" | ""                  | "queue1"          | false
+    "exchange1,exchange2" | ""                  | null              | false
+    ""                    | "queue1,queue2"     | "exchange1"       | false
+    ""                    | "queue1,queue2"     | "queue1"          | true
+    ""                    | "queue1,queue2"     | "queue3"          | false
+    ""                    | "queue1,queue2"     | null              | false
+    "exchange1,exchange2" | "queue1,queue2"     | "exchange1"       | true
+    "exchange1,exchange2" | "queue1,queue2"     | "exchange3"       | false
+    "exchange1,exchange2" | "queue1,queue2"     | "queue1"          | true
+    "exchange1,exchange2" | "queue1,queue2"     | "queue3"          | false
+    "exchange1,exchange2" | "queue1,queue2"     | null              | false
+    // spotless:on
+  }
 
   def "verify integration config"() {
     setup:
@@ -38,7 +204,7 @@ class TraceInstrumentationConfigTest extends DDSpecification {
     ["disabled-env", "test-env"]   | true           | false
     // spotless:on
 
-    integrationNames = new TreeSet<>(names)
+    integrationNames = new TreeSet<String>(names)
   }
 
   def "verify rule config #name"() {
@@ -104,7 +270,7 @@ class TraceInstrumentationConfigTest extends DDSpecification {
     ["disabled-env", "test-env"]   | true           | false
     // spotless:on
 
-    integrationNames = new TreeSet<>(names)
+    integrationNames = new TreeSet<String>(names)
   }
 
   def "verify integration trace analytics config"() {
@@ -150,6 +316,6 @@ class TraceInstrumentationConfigTest extends DDSpecification {
     ["disabled-env", "alias-env"]   | true           | false
     // spotless:on
 
-    integrationNames = new TreeSet<>(names)
+    integrationNames = new TreeSet<String>(names)
   }
 }
