@@ -65,10 +65,22 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           }
           Map<String, Object> configMap = Collections.singletonMap("waf", newConfig);
           this.lastConfig.put("waf", newConfig);
-          distributeSubConfigurations(configMap, reconfiguration);
-          log.info(
-              "New AppSec configuration has been applied. AppSec status: {}",
-              AppSecSystem.isActive() ? "active" : "inactive");
+          if (AppSecSystem.isActive()) {
+            distributeSubConfigurations(configMap, reconfiguration);
+
+            int numOfRules = 0;
+            String ver = newConfig.getVersion();
+            List<?> rules = newConfig.getRules();
+            if (rules != null) {
+              numOfRules = rules.size();
+            }
+
+            log.info(
+                "New AppSec configuration {} has been applied. Loaded {} rules. AppSec status: {}",
+                ver,
+                numOfRules,
+                AppSecSystem.isActive() ? "active" : "inactive");
+          }
         });
     this.configurationPoller.addListener(
         Product.ASM_DATA,
@@ -110,6 +122,11 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           if (AppSecSystem.isActive() != newState) {
             log.warn("AppSec {} (runtime)", newState ? "enabled" : "disabled");
             AppSecSystem.setActive(newState);
+            if (AppSecSystem.isActive()) {
+              // On remote activation, we need to re-distribute the last known configuration.
+              // This may trigger initializations, including PowerWAF if it was lazy loaded.
+              distributeSubConfigurations(lastConfig, reconfiguration);
+            }
           }
         });
 
