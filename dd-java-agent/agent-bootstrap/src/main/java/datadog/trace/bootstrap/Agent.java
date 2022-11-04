@@ -624,14 +624,15 @@ public class Agent {
   private static boolean isSupportedAppSecArch() {
     final String arch = System.getProperty("os.arch");
     if (Platform.isWindows()) {
-      return "amd64".equals(arch) || "x86_64".equals(arch) || "x86".equals(arch);
+      // TODO: Windows bindings need to be built for x86
+      return "amd64".equals(arch) || "x86_64".equals(arch);
     } else if (Platform.isMac()) {
       return "amd64".equals(arch) || "x86_64".equals(arch) || "aarch64".equals(arch);
     } else if (Platform.isLinux()) {
       return "amd64".equals(arch) || "x86_64".equals(arch) || "aarch64".equals(arch);
     }
-    // Still return true in other if unexpected cases, and we'll handle loading errors during AppSec
-    // startup.
+    // Still return true in other if unexpected cases (e.g. SunOS), and we'll handle loading errors
+    // during AppSec startup.
     return true;
   }
 
