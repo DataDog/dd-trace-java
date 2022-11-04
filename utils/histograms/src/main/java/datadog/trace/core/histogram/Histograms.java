@@ -2,7 +2,6 @@ package datadog.trace.core.histogram;
 
 import datadog.trace.api.Platform;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import java.lang.reflect.InvocationTargetException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,30 +21,13 @@ public final class Histograms {
 
   HistogramFactory newFactory() {
     if (loadStub) {
-      return load("datadog.trace.core.histogram.StubHistogram");
-    }
-    return load("datadog.trace.core.histogram.DDSketchHistogramFactory");
-  }
-
-  /**
-   * Load reflectively to ensure that DDSketch is never loaded on JDK7
-   *
-   * @return a histogram factory
-   */
-  public static HistogramFactory newHistogramFactory() {
-    return INSTANCE.newFactory();
-  }
-
-  private static HistogramFactory load(String name) {
-    try {
-      return (HistogramFactory) Class.forName(name).getConstructor().newInstance();
-    } catch (InstantiationException
-        | InvocationTargetException
-        | NoSuchMethodException
-        | IllegalAccessException
-        | ClassNotFoundException e) {
-      log.debug("Failed to load {}", name, e);
       return new StubHistogram();
     }
+    return new DDSketchHistogramFactory();
+  }
+
+  /** @return a histogram factory */
+  public static HistogramFactory newHistogramFactory() {
+    return INSTANCE.newFactory();
   }
 }
