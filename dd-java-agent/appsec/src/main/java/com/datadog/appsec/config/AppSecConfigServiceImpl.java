@@ -122,9 +122,11 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           if (AppSecSystem.isActive() != newState) {
             log.warn("AppSec {} (runtime)", newState ? "enabled" : "disabled");
             AppSecSystem.setActive(newState);
-            // On remote activation, we need to re-distribute the last known configuration.
-            // This may trigger initializations, including PowerWAF if it was lazy loaded.
-            distributeSubConfigurations(lastConfig, reconfiguration);
+            if (AppSecSystem.isActive()) {
+              // On remote activation, we need to re-distribute the last known configuration.
+              // This may trigger initializations, including PowerWAF if it was lazy loaded.
+              distributeSubConfigurations(lastConfig, reconfiguration);
+            }
           }
         });
 

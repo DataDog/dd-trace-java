@@ -142,7 +142,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     savedConfChangesListener.accept(
       'ignored config key',
       savedConfDeserializer.deserialize(
-      '{"version": "2.0"}'.bytes), null)
+      '{"version": "1.0"}'.bytes), null)
 
     then:
     0 * _._
@@ -154,6 +154,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       '{"asm":{"enabled": true}}'.bytes), null)
 
     then:
+    1 * subconfigListener.onNewSubconfig(AppSecConfig.valueOf([version: '1.0']), _)
     0 * _._
     AppSecSystem.active == true
 
@@ -182,6 +183,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       ConfigurationChangesListener.PollingRateHinter.NOOP)
 
     then:
+    0 * _._
     AppSecSystem.active == false
 
     when: 'switch back to enabled'
