@@ -31,6 +31,11 @@ public class WebApplicationContextInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  protected boolean defaultEnabled() {
+    return false;
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named("org.springframework.context.support.AbstractApplicationContext"))
         .and(implementsInterface(named(hierarchyMarkerType())));

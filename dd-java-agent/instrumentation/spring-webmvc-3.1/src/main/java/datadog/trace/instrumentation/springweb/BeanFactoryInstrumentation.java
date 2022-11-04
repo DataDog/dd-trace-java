@@ -35,6 +35,11 @@ public class BeanFactoryInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  protected boolean defaultEnabled() {
+    return false;
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named(hierarchyMarkerType()));
   }
