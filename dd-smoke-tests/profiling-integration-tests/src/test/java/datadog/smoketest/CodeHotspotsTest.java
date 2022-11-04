@@ -280,6 +280,6 @@ public final class CodeHotspotsTest {
     System.out.println("  P99     : " + p99.getResult());
 
     // FIXME flaky in CI
-    // assertTrue(coverage >= minCoverage, "Expected coverage: " + coverage + " >= " + minCoverage);
+    assertTrue(coverage >= minCoverage, "Expected coverage: " + coverage + " >= " + minCoverage);
   }
 }
