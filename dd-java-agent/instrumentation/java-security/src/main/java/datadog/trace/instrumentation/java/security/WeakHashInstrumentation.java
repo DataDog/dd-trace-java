@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Config;
 import datadog.trace.api.iast.InstrumentationBridge;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatchers;
@@ -14,8 +13,6 @@ import net.bytebuddy.matcher.ElementMatchers;
 @AutoService(Instrumenter.class)
 public class WeakHashInstrumentation extends Instrumenter.Iast
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
-
-  private static final Config config = Config.get();
 
   public WeakHashInstrumentation() {
     super("weakhash");
