@@ -21,6 +21,8 @@ import io.grpc.MethodDescriptor;
 import io.grpc.Status;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
+
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
@@ -29,6 +31,16 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
 
   public ClientCallImplInstrumentation() {
     super("grpc", "grpc-client");
+  }
+
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    return false;
+  }
+
+  @Override
+  public boolean isEnabled() {
+    return false;
   }
 
   @Override
@@ -43,13 +55,13 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Capture");
-    transformation.applyAdvice(named("start").and(isMethod()), getClass().getName() + "$Start");
-    transformation.applyAdvice(named("cancel").and(isMethod()), getClass().getName() + "$Cancel");
-    transformation.applyAdvice(
-        named("sendMessage").and(isMethod()), getClass().getName() + "$SendMessage");
-    transformation.applyAdvice(
-        named("closeObserver").and(takesArguments(3)), getClass().getName() + "$CloseObserver");
+//    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Capture");
+//    transformation.applyAdvice(named("start").and(isMethod()), getClass().getName() + "$Start");
+//    transformation.applyAdvice(named("cancel").and(isMethod()), getClass().getName() + "$Cancel");
+//    transformation.applyAdvice(
+//        named("sendMessage").and(isMethod()), getClass().getName() + "$SendMessage");
+//    transformation.applyAdvice(
+//        named("closeObserver").and(takesArguments(3)), getClass().getName() + "$CloseObserver");
   }
 
   @Override

@@ -1,0 +1,16 @@
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'idea'
+
+dependencies {
+  compileOnly group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '1.120.24'
+  compileOnly("org.springframework.cloud:spring-cloud-gcp-starter-pubsub:1.2.8.RELEASE")
+}
+
+//muzzle {
+//  pass {
+//    group = 'pubsub'
+//    module = 'pubsub'
+//    versions = '[1.0.0,)'
+//  }
+//}
+//

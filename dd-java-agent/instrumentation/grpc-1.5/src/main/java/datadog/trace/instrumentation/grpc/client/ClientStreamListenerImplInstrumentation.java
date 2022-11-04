@@ -18,6 +18,8 @@ import io.grpc.Status;
 import io.grpc.internal.ClientStreamListener;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
+
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
@@ -50,17 +52,26 @@ public class ClientStreamListenerImplInstrumentation extends Instrumenter.Tracin
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
-    transformation.applyAdvice(
-        named("exceptionThrown")
-            .and(takesArgument(0, named("io.grpc.Status")))
-            .and(takesArguments(1)),
-        getClass().getName() + "$ExceptionThrown");
-    transformation.applyAdvice(
-        namedOneOf("messageRead", "messagesAvailable"), getClass().getName() + "$RecordActivity");
-    transformation.applyAdvice(named("headersRead"), getClass().getName() + "$RecordHeaders");
+//    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
+//    transformation.applyAdvice(
+//        named("exceptionThrown")
+//            .and(takesArgument(0, named("io.grpc.Status")))
+//            .and(takesArguments(1)),
+//        getClass().getName() + "$ExceptionThrown");
+//    transformation.applyAdvice(
+//        namedOneOf("messageRead", "messagesAvailable"), getClass().getName() + "$RecordActivity");
+//    transformation.applyAdvice(named("headersRead"), getClass().getName() + "$RecordHeaders");
   }
 
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    return false;
+  }
+
+  @Override
+  public boolean isEnabled() {
+    return false;
+  }
   public static final class Construct {
     @Advice.OnMethodExit
     public static void capture(@Advice.This ClientStreamListener listener) {

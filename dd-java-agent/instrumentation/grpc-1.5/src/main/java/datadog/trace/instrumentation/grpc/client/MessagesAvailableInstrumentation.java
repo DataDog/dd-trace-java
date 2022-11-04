@@ -18,6 +18,8 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
+
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
@@ -52,10 +54,19 @@ public final class MessagesAvailableInstrumentation extends Instrumenter.Tracing
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Capture");
-    transformation.applyAdvice(named("runInContext"), getClass().getName() + "$ReceiveMessages");
+//    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Capture");
+//    transformation.applyAdvice(named("runInContext"), getClass().getName() + "$ReceiveMessages");
   }
 
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    return false;
+  }
+
+  @Override
+  public boolean isEnabled() {
+    return false;
+  }
   public static final class Capture {
     @Advice.OnMethodExit
     public static void capture(@Advice.This Runnable task) {
