@@ -9,6 +9,7 @@ import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
 import datadog.trace.api.Config;
 import datadog.trace.api.IntegrationsCollector;
+import datadog.trace.api.Platform;
 import datadog.trace.api.ProductActivationConfig;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -166,7 +167,7 @@ public class AgentInstaller {
       log.debug("Installed {} instrumenter(s)", installedCount);
     }
 
-    if (Config.get().isTelemetryEnabled()) {
+    if (!Platform.isIsNativeImageBuilder() && Config.get().isTelemetryEnabled()) {
       InstrumenterState.setObserver(
           new InstrumenterState.Observer() {
             @Override
@@ -185,6 +186,9 @@ public class AgentInstaller {
   }
 
   private static Set<Instrumenter.TargetSystem> getEnabledSystems() {
+    if (Platform.isIsNativeImageBuilder()) {
+      return EnumSet.of(Instrumenter.TargetSystem.TRACING);
+    }
     EnumSet<Instrumenter.TargetSystem> enabledSystems =
         EnumSet.noneOf(Instrumenter.TargetSystem.class);
     Config cfg = Config.get();
