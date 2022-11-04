@@ -254,7 +254,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_
 import static datadog.trace.api.config.TraceInstrumentationConfig.MESSAGE_BROKER_SPLIT_BY_DESTINATION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.OBFUSCATION_QUERY_STRING_REGEXP;
 import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HTTP_STATUS;
-import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_EXCLUDE_ROUTINGKEY_FROM_RESOURCE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_INCLUDE_ROUTINGKEY_IN_RESOURCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_OUTLINE_POOL_ENABLED;
@@ -590,7 +590,7 @@ public class Config {
   private final Set<String> rabbitPropagationDisabledQueues;
   private final Set<String> rabbitPropagationDisabledExchanges;
 
-  private final boolean rabbitRoutingKeyExcludedFromResourceName;
+  private final boolean rabbitIncludeRoutingKeyInResource;
 
   private final boolean messageBrokerSplitByDestination;
 
@@ -1259,8 +1259,8 @@ public class Config {
         tryMakeImmutableSet(configProvider.getList(RABBIT_PROPAGATION_DISABLED_QUEUES));
     rabbitPropagationDisabledExchanges =
         tryMakeImmutableSet(configProvider.getList(RABBIT_PROPAGATION_DISABLED_EXCHANGES));
-    rabbitRoutingKeyExcludedFromResourceName =
-        configProvider.getBoolean(RABBIT_EXCLUDE_ROUTINGKEY_FROM_RESOURCE, false);
+    rabbitIncludeRoutingKeyInResource =
+        configProvider.getBoolean(RABBIT_INCLUDE_ROUTINGKEY_IN_RESOURCE, true);
 
     messageBrokerSplitByDestination =
         configProvider.getBoolean(MESSAGE_BROKER_SPLIT_BY_DESTINATION, false);
@@ -2024,8 +2024,8 @@ public class Config {
             || rabbitPropagationDisabledExchanges.contains(queueOrExchange));
   }
 
-  public boolean isRabbitRoutingKeyExcludedFromResourceName() {
-    return rabbitRoutingKeyExcludedFromResourceName;
+  public boolean isRabbitIncludeRoutingKeyInResource() {
+    return rabbitIncludeRoutingKeyInResource;
   }
 
   public boolean isMessageBrokerSplitByDestination() {

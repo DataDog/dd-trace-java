@@ -952,7 +952,7 @@ class RabbitMQRoutingKeyExcludedForkedTest extends RabbitMQTestBase {
   void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("dd.service", "RabbitMQRoutingKeyExcludedForkedTest")
-    injectSysConfig("dd.rabbit.exclude.routingkey.from.resource", "true")
+    injectSysConfig("dd.rabbit.include.routingkey.in.resource", "false")
     injectSysConfig("dd.rabbit.legacy.tracing.enabled", "false")
   }
 

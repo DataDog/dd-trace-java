@@ -151,11 +151,16 @@ public class RabbitDecorator extends MessagingClientDecorator {
 
   private String buildResourceName(
       final String opName, final String exchangeName, final String routingKey) {
-    final String prefix = opName + " " + exchangeName;
-    if (Config.get().isRabbitRoutingKeyExcludedFromResourceName()) {
-      return prefix;
+    // pre-size to the worst case length
+    final StringBuilder prefix =
+        new StringBuilder(opName.length() + exchangeName.length() + routingKey.length() + 5)
+            .append(opName)
+            .append(" ")
+            .append(exchangeName);
+    if (Config.get().isRabbitIncludeRoutingKeyInResource()) {
+      prefix.append(" -> ").append(routingKey);
     }
-    return prefix + " -> " + routingKey;
+    return prefix.toString();
   }
 
   public TracedDelegatingConsumer wrapConsumer(String queue, Consumer consumer) {
