@@ -153,6 +153,17 @@ public class Agent {
       }
     }
 
+    if (Platform.isJ9()) {
+      log.debug("OpenJ9 detected, dd.appsec.enabled will default to false");
+      setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
+    } else if (!isSupportedAppSecArch()) {
+      log.debug(
+          "OS and architecture ({}/{}) not supported by AppSec, dd.appsec.enabled will default to false",
+          System.getProperty("os.name"),
+          System.getProperty("os.arch"));
+      setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
+    }
+
     jmxFetchEnabled = isFeatureEnabled(AgentFeature.JMXFETCH);
     profilingEnabled = isFeatureEnabled(AgentFeature.PROFILING);
     iastEnabled = isFeatureEnabled(AgentFeature.IAST);
@@ -608,6 +619,21 @@ public class Agent {
     } catch (final Throwable ex) {
       log.warn("Not starting AppSec subsystem: {}", ex.getMessage());
     }
+  }
+
+  private static boolean isSupportedAppSecArch() {
+    final String arch = System.getProperty("os.arch");
+    if (Platform.isWindows()) {
+      // TODO: Windows bindings need to be built for x86
+      return "amd64".equals(arch) || "x86_64".equals(arch);
+    } else if (Platform.isMac()) {
+      return "amd64".equals(arch) || "x86_64".equals(arch) || "aarch64".equals(arch);
+    } else if (Platform.isLinux()) {
+      return "amd64".equals(arch) || "x86_64".equals(arch) || "aarch64".equals(arch);
+    }
+    // Still return true in other if unexpected cases (e.g. SunOS), and we'll handle loading errors
+    // during AppSec startup.
+    return true;
   }
 
   private static void maybeStartIast(Class<?> scoClass, Object o) {
