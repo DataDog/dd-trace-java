@@ -38,7 +38,7 @@ public final class MessageReceiverWrapper implements MessageReceiver {
 
     DECORATE.afterStart(span);
 
-    activateNext(span);
+    activateSpan(span);
 
     try {
       this.delegate.receiveMessage(message, consumer);
