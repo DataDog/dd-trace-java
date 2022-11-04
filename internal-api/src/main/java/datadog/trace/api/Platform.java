@@ -9,14 +9,37 @@ public final class Platform {
   private static final Version JAVA_VERSION = parseJavaVersion(System.getProperty("java.version"));
   private static final JvmRuntime RUNTIME = new JvmRuntime();
 
+  private static final boolean HAS_JFR = checkJfr();
+  private static final boolean IS_NATIVE_IMAGE_BUILDER = checkIsNativeImageBuilder();
+
   public static boolean hasJfr() {
-    /* Check only for the open-sources JFR implementation.
-     * If it is ever needed to support also the closed sourced JDK 8 version the check should be
-     * enhanced.
-     * Need this custom check because ClassLoaderMatchers.hasClassNamed() does not support bootstrap class loader yet.
-     * Note: the downside of this is that we load some JFR classes at startup.
-     */
-    return ClassLoader.getSystemClassLoader().getResource("jdk/jfr/Event.class") != null;
+    return HAS_JFR;
+  }
+
+  public static boolean isIsNativeImageBuilder() {
+    return IS_NATIVE_IMAGE_BUILDER;
+  }
+
+  private static boolean checkJfr() {
+    try {
+      /* Check only for the open-sources JFR implementation.
+       * If it is ever needed to support also the closed sourced JDK 8 version the check should be
+       * enhanced.
+       * Need this custom check because ClassLoaderMatchers.hasClassNamed() does not support bootstrap class loader yet.
+       * Note: the downside of this is that we load some JFR classes at startup.
+       */
+      return ClassLoader.getSystemClassLoader().getResource("jdk/jfr/Event.class") != null;
+    } catch (Throwable e) {
+      return false;
+    }
+  }
+
+  private static boolean checkIsNativeImageBuilder() {
+    try {
+      return "org.graalvm.nativeimage.builder".equals(System.getProperty("jdk.module.main"));
+    } catch (Throwable e) {
+      return false;
+    }
   }
 
   /* The method splits java version string by digits. Delimiters are: dot, underscore and plus */
