@@ -575,6 +575,17 @@ jobs:
 
       - display_memory_usage
 
+  macos-tests:
+    macos:
+      xcode: 14.1.0
+    steps:
+      - setup_code
+      - run:
+          name: Run tests
+          command: >-
+            ./gradlew test jacocoTestReport jacocoTestCoverageVerification -PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipIastTests -PskipDebuggerTests
+            --continue
+
   system-tests:
     machine:
       # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
@@ -834,6 +845,10 @@ build_test_jobs: &build_test_jobs
             - master
             - project/*
             - release/*
+
+  - macos-tests:
+      requires:
+        - build
 
   - system-tests:
       requires:
