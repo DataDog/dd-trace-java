@@ -19,7 +19,7 @@ class HostInfoTest extends Specification {
     final osName = HostInfo.getOsName()
 
     then:
-    ["Linux", "Windows", "Darwin", "Mac OS X"].contains(osName)
+    ["Linux", "Windows", "Darwin"].contains(osName)
   }
 
   void 'getOsVersion'() {
@@ -36,12 +36,9 @@ class HostInfoTest extends Specification {
 
     expect:
     HostInfo.getHostname() == 'uname -n'.execute().text.trim()
+    HostInfo.getOsName() == 'uname -s'.execute().text.trim()
+    HostInfo.getKernelName() == 'uname -s'.execute().text.trim()
     if (Platform.isMac()) {
-      // uname -s will return Darwin, while JVM properties will have Mac OS X
-      def osNames = ['Mac OS X', 'uname -s'.execute().text.trim()]
-      osNames.contains(HostInfo.getOsName())
-      osNames.contains(HostInfo.getKernelName())
-
       // uname -r will return X.Y.Z version, while JVM will report just X.Y
       'uname -r'.execute().text.trim().startsWith(HostInfo.getKernelRelease())
 
@@ -49,8 +46,6 @@ class HostInfoTest extends Specification {
       HostInfo.getKernelVersion() == ''
     }
     else {
-      HostInfo.getOsName() == 'uname -s'.execute().text.trim()
-      HostInfo.getKernelName() == 'uname -s'.execute().text.trim()
       HostInfo.getKernelRelease() == 'uname -r'.execute().text.trim()
       // Ideally, this would be equal, but for now, we'll compromise to startWith.
       'uname -v'.execute().text.trim().startsWith(HostInfo.getKernelVersion())

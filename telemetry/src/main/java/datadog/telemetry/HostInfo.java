@@ -1,5 +1,6 @@
 package datadog.telemetry;
 
+import datadog.trace.api.Platform;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -26,7 +27,16 @@ public class HostInfo {
 
   private static final Logger log = LoggerFactory.getLogger(RequestBuilder.class);
 
+  private static String hostname;
+  private static String osName;
+  private static String osVersion;
+  private static String kernelRelease;
+  private static String kernelVersion;
+
   public static String getHostname() {
+    if (hostname != null) {
+      return hostname;
+    }
     String hostname = null;
     for (Path file : HOSTNAME_FILES) {
       hostname = tryReadFile(file);
@@ -50,40 +60,58 @@ public class HostInfo {
       hostname = "";
     }
 
+    HostInfo.hostname = hostname;
     return hostname;
   }
 
   public static String getOsName() {
-    return System.getProperty("os.name");
+    if (osName == null) {
+      if (Platform.isMac()) {
+        // os.name == Mac OS X, while uanme -s == Darwin. We'll hardcode it to Darwin.
+        osName = "Darwin";
+      } else {
+        osName = System.getProperty("os.name");
+      }
+    }
+    return osName;
   }
 
   public static String getOsVersion() {
-    return Os.getOsVersion();
+    if (osVersion == null) {
+      osVersion = Os.getOsVersion();
+    }
+    return osVersion;
   }
 
   public static String getKernelName() {
-    // In Linux, os.name == uname -s
-    return System.getProperty("os.name");
+    return getOsName();
   }
 
   public static String getKernelRelease() {
-    // In Linux, os.version == uname -r
-    return System.getProperty("os.version");
+    if (kernelRelease == null) {
+      // In Linux, os.version == uname -r
+      kernelRelease = System.getProperty("os.version");
+    }
+    return kernelRelease;
   }
 
   public static String getKernelVersion() {
-    // This is not really equivalent to uname -v in Linux, it has some additional info at the end,
-    // like arch.
-    String version = tryReadFile(PROC_VERSION);
-    if (version != null) {
-      version = version.trim();
-      final int dashIdx = version.indexOf('#');
-      if (dashIdx > 0) {
-        version = version.substring(dashIdx);
+    if (kernelVersion == null) {
+      // This is not really equivalent to uname -v in Linux, it has some additional info at the end,
+      // like arch.
+      String version = tryReadFile(PROC_VERSION);
+      if (version != null) {
+        version = version.trim();
+        final int dashIdx = version.indexOf('#');
+        if (dashIdx > 0) {
+          version = version.substring(dashIdx);
+        }
+        kernelVersion = version;
+      } else {
+        kernelVersion = System.getProperty("os.version");
       }
-      return version;
     }
-    return System.getProperty("os.version");
+    return kernelVersion;
   }
 
   private static String getHostNameFromLocalHost() throws UnknownHostException {
