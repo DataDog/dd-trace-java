@@ -126,6 +126,11 @@ public class Agent {
   public static void start(final Instrumentation inst, final URL agentJarURL) {
     createAgentClassloader(agentJarURL);
 
+    if (Platform.isIsNativeImageBuilder()) {
+      startDatadogAgent(inst);
+      return;
+    }
+
     // Retro-compatibility for the old way to configure CI Visibility
     if ("true".equals(ddGetProperty("dd.integration.junit.enabled"))
         || "true".equals(ddGetProperty("dd.integration.testng.enabled"))) {
