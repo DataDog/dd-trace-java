@@ -1,0 +1,160 @@
+================================================================================
+Available Java Versions for Linux 64bit
+================================================================================
+ Vendor        | Use | Version      | Dist    | Status     | Identifier
+--------------------------------------------------------------------------------
+ Corretto      |     | 19           | amzn    |            | 19-amzn             
+               |     | 19.0.1       | amzn    |            | 19.0.1-amzn         
+               |     | 17.0.5       | amzn    |            | 17.0.5-amzn         
+               |     | 17.0.4       | amzn    |            | 17.0.4-amzn         
+               |     | 11.0.17      | amzn    |            | 11.0.17-amzn        
+               |     | 11.0.16      | amzn    |            | 11.0.16-amzn        
+               |     | 8.0.352      | amzn    |            | 8.0.352-amzn        
+               |     | 8.0.342      | amzn    |            | 8.0.342-amzn        
+ Dragonwell    |     | 17.0.4       | albba   |            | 17.0.4-albba        
+               |     | 11.0.16      | albba   |            | 11.0.16-albba       
+               |     | 8.0.345      | albba   |            | 8.0.345-albba       
+ Gluon         |     | 22.1.0.1.r17 | gln     |            | 22.1.0.1.r17-gln    
+               |     | 22.1.0.1.r11 | gln     |            | 22.1.0.1.r11-gln    
+ GraalVM       |     | 22.3.r19     | grl     |            | 22.3.r19-grl        
+               |     | 22.3.r17     | grl     |            | 22.3.r17-grl        
+               |     | 22.3.r11     | grl     |            | 22.3.r11-grl        
+               |     | 22.2.r17     | grl     |            | 22.2.r17-grl        
+               |     | 22.2.r11     | grl     |            | 22.2.r11-grl        
+               |     | 22.1.0.r17   | grl     |            | 22.1.0.r17-grl      
+               |     | 22.1.0.r11   | grl     |            | 22.1.0.r11-grl      
+               |     | 22.0.0.2.r17 | grl     |            | 22.0.0.2.r17-grl    
+               |     | 22.0.0.2.r11 | grl     |            | 22.0.0.2.r11-grl    
+               |     | 21.3.3.r17   | grl     |            | 21.3.3.r17-grl      
+               |     | 21.3.3.r11   | grl     |            | 21.3.3.r11-grl      
+               |     | 21.3.3.1.r17 | grl     |            | 21.3.3.1.r17-grl    
+               |     | 21.3.3.1.r11 | grl     |            | 21.3.3.1.r11-grl    
+               |     | 21.3.2.r17   | grl     |            | 21.3.2.r17-grl      
+               |     | 21.3.2.r11   | grl     |            | 21.3.2.r11-grl      
+               |     | 21.3.1.r8    | grl     |            | 21.3.1.r8-grl       
+               |     | 21.2.0.r8    | grl     |            | 21.2.0.r8-grl       
+               |     | 21.1.0.r8    | grl     |            | 21.1.0.r8-grl       
+               |     | 20.3.6.r11   | grl     |            | 20.3.6.r11-grl      
+               |     | 20.3.3.r8    | grl     |            | 20.3.3.r8-grl       
+               |     | 20.3.2.r8    | grl     |            | 20.3.2.r8-grl       
+               |     | 19.3.6.r11   | grl     |            | 19.3.6.r11-grl      
+               |     | 19.3.6.r8    | grl     |            | 19.3.6.r8-grl       
+ Java.net      |     | 20.ea.21     | open    |            | 20.ea.21-open       
+               |     | 20.ea.20     | open    |            | 20.ea.20-open       
+               |     | 20.ea.19     | open    |            | 20.ea.19-open       
+               |     | 19           | open    |            | 19-open             
+               |     | 19.ea.1.pma  | open    |            | 19.ea.1.pma-open    
+               |     | 19.0.1       | open    |            | 19.0.1-open         
+               |     | 11.0.12      | open    | installed  | 11.0.12-open        
+               |     | 11.0.2       | open    |            | 11.0.2-open         
+               |     | 8.0.302      | open    | installed  | 8.0.302-open        
+               |     | 8.0.282      | open    |            | 8.0.282-open        
+               |     | 8.0.265      | open    |            | 8.0.265-open        
+ Liberica      |     | 19.fx        | librca  |            | 19.fx-librca        
+               |     | 19.0.1.fx    | librca  |            | 19.0.1.fx-librca    
+               |     | 19.0.1       | librca  |            | 19.0.1-librca       
+               |     | 19           | librca  |            | 19-librca           
+               |     | 17.0.5.fx    | librca  |            | 17.0.5.fx-librca    
+               |     | 17.0.5       | librca  |            | 17.0.5-librca       
+               |     | 17.0.4.1.fx  | librca  |            | 17.0.4.1.fx-librca  
+               |     | 17.0.4.1     | librca  |            | 17.0.4.1-librca     
+               |     | 11.0.17.fx   | librca  |            | 11.0.17.fx-librca   
+               |     | 11.0.17      | librca  |            | 11.0.17-librca      
+               |     | 11.0.16.1.fx | librca  |            | 11.0.16.1.fx-librca 
+               |     | 11.0.16.1    | librca  |            | 11.0.16.1-librca    
+               |     | 8.0.352.fx   | librca  |            | 8.0.352.fx-librca   
+               |     | 8.0.352      | librca  |            | 8.0.352-librca      
+               |     | 8.0.345.fx   | librca  |            | 8.0.345.fx-librca   
+               |     | 8.0.345      | librca  |            | 8.0.345-librca      
+               |     | 8.0.332.fx   | librca  |            | 8.0.332.fx-librca   
+ Liberica NIK  |     | 22.3.r17.ea  | nik     |            | 22.3.r17.ea-nik     
+               |     | 22.2.r17     | nik     |            | 22.2.r17-nik        
+               |     | 22.2.r11     | nik     |            | 22.2.r11-nik        
+               |     | 22.1.r17     | nik     |            | 22.1.r17-nik        
+               |     | 22.1.r11     | nik     |            | 22.1.r11-nik        
+               |     | 22.0.0.2.r17 | nik     |            | 22.0.0.2.r17-nik    
+               |     | 22.0.0.2.r11 | nik     |            | 22.0.0.2.r11-nik    
+               |     | 21.3.3.r17   | nik     |            | 21.3.3.r17-nik      
+               |     | 21.3.3.r11   | nik     |            | 21.3.3.r11-nik      
+               |     | 21.3.2.r17   | nik     |            | 21.3.2.r17-nik      
+               |     | 21.3.2.r11   | nik     |            | 21.3.2.r11-nik      
+               |     | 21.2         | nik     |            | 21.2-nik            
+               |     | 21.1         | nik     |            | 21.1-nik            
+               |     | 21.0.0.2.r11 | nik     |            | 21.0.0.2.r11-nik    
+               |     | 21.0.0.2     | nik     |            | 21.0.0.2-nik        
+ Mandrel       |     | 22.3.0.1.r17 | mandrel |            | 22.3.0.1.r17-mandrel
+               |     | 22.2.r17     | mandrel |            | 22.2.r17-mandrel    
+               |     | 22.2.r11     | mandrel |            | 22.2.r11-mandrel    
+               |     | 22.1.0.0.r17 | mandrel |            | 22.1.0.0.r17-mandrel
+               |     | 22.1.0.0.r11 | mandrel |            | 22.1.0.0.r11-mandrel
+               |     | 22.0.0.2.r17 | mandrel |            | 22.0.0.2.r17-mandrel
+               |     | 22.0.0.2.r11 | mandrel |            | 22.0.0.2.r11-mandrel
+               |     | 21.3.3.r17   | mandrel |            | 21.3.3.r17-mandrel  
+               |     | 21.3.3.r11   | mandrel |            | 21.3.3.r11-mandrel  
+               |     | 21.3.2.0.r17 | mandrel |            | 21.3.2.0.r17-mandrel
+               |     | 21.3.2.0.r11 | mandrel |            | 21.3.2.0.r11-mandrel
+               |     | 21.3.1.1.r17 | mandrel |            | 21.3.1.1.r17-mandrel
+               |     | 21.3.1.1.r11 | mandrel |            | 21.3.1.1.r11-mandrel
+               |     | 21.3.1.0.r17 | mandrel |            | 21.3.1.0.r17-mandrel
+               |     | 21.3.1.0.r11 | mandrel |            | 21.3.1.0.r11-mandrel
+               |     | 21.3.0.0     | mandrel |            | 21.3.0.0-mandrel    
+               |     | 21.2.0.2     | mandrel |            | 21.2.0.2-mandrel    
+               |     | 20.3.3.0     | mandrel |            | 20.3.3.0-mandrel    
+ Microsoft     |     | 17.0.5       | ms      |            | 17.0.5-ms           
+               |     | 17.0.4.1     | ms      |            | 17.0.4.1-ms         
+               |     | 11.0.17      | ms      |            | 11.0.17-ms          
+               |     | 11.0.16.1    | ms      |            | 11.0.16.1-ms        
+ Oracle        |     | 19.0.1       | oracle  |            | 19.0.1-oracle       
+               |     | 19           | oracle  |            | 19-oracle           
+               |     | 17.0.5       | oracle  |            | 17.0.5-oracle       
+               |     | 17.0.4       | oracle  |            | 17.0.4-oracle       
+ SapMachine    |     | 19           | sapmchn |            | 19-sapmchn          
+               |     | 19.0.1       | sapmchn |            | 19.0.1-sapmchn      
+               |     | 17.0.5       | sapmchn |            | 17.0.5-sapmchn      
+               |     | 17.0.4.1     | sapmchn |            | 17.0.4.1-sapmchn    
+               |     | 11.0.17      | sapmchn |            | 11.0.17-sapmchn     
+               |     | 11.0.16.1    | sapmchn |            | 11.0.16.1-sapmchn   
+ Semeru        |     | 18.0.2       | sem     |            | 18.0.2-sem          
+               |     | 17.0.4.1     | sem     |            | 17.0.4.1-sem        
+               | >>> | 11.0.16.1    | sem     | installed  | 11.0.16.1-sem       
+               |     | 8.0.345      | sem     |            | 8.0.345-sem         
+ Temurin       |     | 19           | tem     |            | 19-tem              
+               |     | 19.0.1       | tem     |            | 19.0.1-tem          
+               |     | 17.0.5       | tem     |            | 17.0.5-tem          
+               |     | 17.0.4.1     | tem     |            | 17.0.4.1-tem        
+               |     | 17.0.3       | tem     | local only | 17.0.3-tem          
+               |     | 11.0.17      | tem     |            | 11.0.17-tem         
+               |     | 11.0.16.1    | tem     |            | 11.0.16.1-tem       
+               |     | 8.0.352      | tem     |            | 8.0.352-tem         
+               |     | 8.0.345      | tem     |            | 8.0.345-tem         
+ Trava         |     | 11.0.15      | trava   |            | 11.0.15-trava       
+               |     | 11.0.9       | trava   |            | 11.0.9-trava        
+               |     | 8.0.282      | trava   |            | 8.0.282-trava       
+               |     | 8.0.232      | trava   |            | 8.0.232-trava       
+ Zulu          |     | 19           | zulu    |            | 19-zulu             
+               |     | 19.fx        | zulu    |            | 19.fx-zulu          
+               |     | 19.0.1       | zulu    |            | 19.0.1-zulu         
+               |     | 19.0.1.fx    | zulu    |            | 19.0.1.fx-zulu      
+               |     | 17.0.5       | zulu    |            | 17.0.5-zulu         
+               |     | 17.0.5.fx    | zulu    |            | 17.0.5.fx-zulu      
+               |     | 17.0.4.1     | zulu    |            | 17.0.4.1-zulu       
+               |     | 17.0.4.1.fx  | zulu    |            | 17.0.4.1.fx-zulu    
+               |     | 11.0.17      | zulu    |            | 11.0.17-zulu        
+               |     | 11.0.17.fx   | zulu    |            | 11.0.17.fx-zulu     
+               |     | 11.0.16.1    | zulu    |            | 11.0.16.1-zulu      
+               |     | 11.0.16.1.fx | zulu    |            | 11.0.16.1.fx-zulu   
+               |     | 8.0.352      | zulu    |            | 8.0.352-zulu        
+               |     | 8.0.352.fx   | zulu    |            | 8.0.352.fx-zulu     
+               |     | 8.0.345      | zulu    |            | 8.0.345-zulu        
+               |     | 8.0.345.fx   | zulu    |            | 8.0.345.fx-zulu     
+               |     | 7.0.352      | zulu    |            | 7.0.352-zulu        
+               |     | 6.0.119      | zulu    |            | 6.0.119-zulu        
+================================================================================
+Omit Identifier to install default version 17.0.5-tem:
+    $ sdk install java
+Use TAB completion to discover available versions
+    $ sdk install java [TAB]
+Or install a specific version by Identifier:
+    $ sdk install java 17.0.5-tem
+Hit Q to exit this list view
+================================================================================
