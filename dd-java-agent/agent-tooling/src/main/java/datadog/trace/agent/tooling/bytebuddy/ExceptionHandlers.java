@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.ExceptionLogger;
 import net.bytebuddy.ClassFileVersion;
 import net.bytebuddy.asm.Advice.ExceptionHandler;
@@ -33,7 +34,8 @@ public class ExceptionHandlers {
             @Override
             public Size apply(final MethodVisitor mv, final Implementation.Context context) {
               final String name = context.getInstrumentedType().getName();
-              final boolean exitOnFailure = Config.get().isInternalExitOnFailure();
+              final boolean exitOnFailure =
+                  !Platform.isIsNativeImageBuilder() && Config.get().isInternalExitOnFailure();
               final String logMethod = exitOnFailure ? "error" : "debug";
 
               // Writes the following bytecode if exitOnFailure is false:

@@ -19,7 +19,7 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.ShouldInjectFieldsRawMatche
 import datadog.trace.agent.tooling.bytebuddy.matcher.SingleTypeMatcher;
 import datadog.trace.agent.tooling.context.FieldBackedContextInjector;
 import datadog.trace.agent.tooling.context.FieldBackedContextRequestRewriter;
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
 import java.util.HashMap;
@@ -65,7 +65,7 @@ public class AgentTransformerBuilder
   }
 
   public ResettableClassFileTransformer installOn(Instrumentation instrumentation) {
-    if (Config.get().isRuntimeContextFieldInjection()) {
+    if (InstrumenterConfig.get().isRuntimeContextFieldInjection()) {
       applyContextStoreInjection();
     }
 

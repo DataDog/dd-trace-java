@@ -8,6 +8,7 @@ import datadog.trace.agent.tooling.bytebuddy.DDOutlinePoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.IntegrationsCollector;
 import datadog.trace.api.Platform;
 import datadog.trace.api.ProductActivationConfig;
@@ -51,7 +52,8 @@ public class AgentInstaller {
      * be enabled independently we need to install the agent when either of them
      * is active.
      */
-    if (Config.get().isTraceEnabled()
+    if (Platform.isIsNativeImageBuilder()
+        || Config.get().isTraceEnabled()
         || Config.get().isProfilingEnabled()
         || Config.get().getAppSecEnabledConfig() != ProductActivationConfig.FULLY_DISABLED
         || Config.get().isIastEnabled()
@@ -77,7 +79,7 @@ public class AgentInstaller {
       final AgentBuilder.Listener... listeners) {
     Utils.setInstrumentation(inst);
 
-    if (Config.get().isResolverOutlinePoolEnabled()) {
+    if (InstrumenterConfig.get().isResolverOutlinePoolEnabled()) {
       DDOutlinePoolStrategy.registerTypePoolFacade();
     } else {
       DDCachingPoolStrategy.registerAsSupplier();

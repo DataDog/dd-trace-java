@@ -8,7 +8,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOU
 class ConfigProviderTest extends DDSpecification {
 
   @Shared
-  ConfigProvider configProvider = ConfigProvider.createDefault()
+  ConfigProvider configProvider = ConfigProvider.newInstance(false)
 
   def "properties take precedence over env vars for ordered map"() {
     setup:

@@ -22,11 +22,6 @@ public class SqsJmsMessageInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return super.defaultEnabled() && Config.get().isSqsPropagationEnabled();
-  }
-
-  @Override
   public String instrumentedType() {
     return "com.amazon.sqs.javamessaging.message.SQSMessage";
   }
@@ -43,13 +38,15 @@ public class SqsJmsMessageInstrumentation extends Instrumenter.Tracing
     public static void onExit(
         @Advice.Argument(2) Message sqsMessage, @Advice.FieldValue("properties") Map properties)
         throws JMSException {
-      Map<String, String> systemAttributes = sqsMessage.getAttributes();
-      if (null != systemAttributes) {
-        String awsTraceHeader = systemAttributes.get("AWSTraceHeader");
-        if (null != awsTraceHeader && !awsTraceHeader.isEmpty()) {
-          properties.put(
-              "x__dash__amzn__dash__trace__dash__id", // X-Amzn-Trace-Id, encoded for JMS
-              new SQSMessage.JMSMessagePropertyValue(awsTraceHeader, STRING));
+      if (Config.get().isSqsPropagationEnabled()) {
+        Map<String, String> systemAttributes = sqsMessage.getAttributes();
+        if (null != systemAttributes) {
+          String awsTraceHeader = systemAttributes.get("AWSTraceHeader");
+          if (null != awsTraceHeader && !awsTraceHeader.isEmpty()) {
+            properties.put(
+                "x__dash__amzn__dash__trace__dash__id", // X-Amzn-Trace-Id, encoded for JMS
+                new SQSMessage.JMSMessagePropertyValue(awsTraceHeader, STRING));
+          }
         }
       }
     }

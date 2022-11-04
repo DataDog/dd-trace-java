@@ -14,6 +14,7 @@ import datadog.trace.agent.tooling.log.UnionMap;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -37,7 +38,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
 
   @Override
   protected boolean defaultEnabled() {
-    return Config.get().isLogsInjectionEnabled();
+    return InstrumenterConfig.get().isLogsInjectionEnabled();
   }
 
   @Override
@@ -511,7 +512,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
         @Advice.Return(typing = Assigner.Typing.DYNAMIC, readOnly = false)
             Map<String, String> mdc) {
 
-      if (mdc instanceof UnionMap) {
+      if (mdc instanceof UnionMap || Platform.isIsNativeImageBuilder()) {
         return;
       }
 
@@ -548,15 +549,13 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
       }
 
       try {
-        if (!Platform.isIsNativeImageBuilder() && !(GlobalTracer.get() instanceof CoreTracer)) {
-          System.err.println("======== INSTALLING TRACER");
+        if (!(GlobalTracer.get() instanceof CoreTracer)) {
           CoreTracer tracer =
               CoreTracer.builder()
                   .sharedCommunicationObjects(new SharedCommunicationObjects())
                   .build();
           GlobalTracer.registerIfAbsent(tracer);
           AgentTracer.registerIfAbsent(tracer);
-          System.err.println("======== INSTALLED TRACER");
         }
       } catch (Throwable e) {
         e.printStackTrace();

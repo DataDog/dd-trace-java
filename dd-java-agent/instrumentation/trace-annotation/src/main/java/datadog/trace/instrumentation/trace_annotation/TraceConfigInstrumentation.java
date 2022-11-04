@@ -16,6 +16,8 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.Platform;
 import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Collections;
@@ -77,7 +79,9 @@ public class TraceConfigInstrumentation implements Instrumenter {
   @SuppressForbidden
   public TraceConfigInstrumentation() {
     final String configString =
-        Config.get().getTraceMethods() == null ? null : Config.get().getTraceMethods().trim();
+        InstrumenterConfig.get().getTraceMethods() == null
+            ? null
+            : InstrumenterConfig.get().getTraceMethods().trim();
     if (configString == null || configString.isEmpty()) {
       classMethodsToTrace = Collections.emptyMap();
     } else {
@@ -207,7 +211,9 @@ public class TraceConfigInstrumentation implements Instrumenter {
           "trace-config",
           "trace-config_"
               + className
-              + (!Config.get().isDebugEnabled() ? "" : "[" + Strings.join(",", methodNames) + "]"));
+              + (Platform.isIsNativeImageBuilder() || !Config.get().isDebugEnabled()
+                  ? ""
+                  : "[" + Strings.join(",", methodNames) + "]"));
       this.className = className;
       this.methodNames = methodNames;
     }

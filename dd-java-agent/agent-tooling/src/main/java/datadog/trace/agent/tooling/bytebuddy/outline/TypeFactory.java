@@ -8,7 +8,7 @@ import static net.bytebuddy.dynamic.loading.ClassLoadingStrategy.BOOTSTRAP_LOADE
 import datadog.trace.agent.tooling.bytebuddy.ClassFileLocators;
 import datadog.trace.agent.tooling.bytebuddy.TypeInfoCache;
 import datadog.trace.agent.tooling.bytebuddy.TypeInfoCache.SharedTypeInfo;
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.function.Function;
@@ -47,7 +47,8 @@ final class TypeFactory {
         }
       };
 
-  private static final boolean fallBackToLoadClass = Config.get().isResolverUseLoadClassEnabled();
+  private static final boolean fallBackToLoadClass =
+      InstrumenterConfig.get().isResolverUseLoadClassEnabled();
 
   private static final Map<String, TypeDescription> primitiveDescriptorTypes = new HashMap<>();
 
@@ -88,10 +89,10 @@ final class TypeFactory {
   private static final TypeParser fullTypeParser = new FullTypeParser();
 
   private static final TypeInfoCache<TypeDescription> outlineTypes =
-      new TypeInfoCache<>(Config.get().getResolverOutlinePoolSize());
+      new TypeInfoCache<>(InstrumenterConfig.get().getResolverOutlinePoolSize());
 
   private static final TypeInfoCache<TypeDescription> fullTypes =
-      new TypeInfoCache<>(Config.get().getResolverTypePoolSize());
+      new TypeInfoCache<>(InstrumenterConfig.get().getResolverTypePoolSize());
 
   /** Small local cache to help deduplicate lookups when matching/transforming. */
   private final DDCache<String, LazyType> deferredTypes = DDCaches.newFixedSizeCache(16);

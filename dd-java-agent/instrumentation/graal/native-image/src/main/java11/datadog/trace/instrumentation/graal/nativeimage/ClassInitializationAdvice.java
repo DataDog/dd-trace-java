@@ -11,7 +11,7 @@ public class ClassInitializationAdvice {
         "datadog.trace.api.env.CapturedEnvironment", "");
     classInitializationSupport.initializeAtBuildTime("datadog.trace.api.ConfigDefaults", "");
     classInitializationSupport.initializeAtBuildTime("datadog.trace.api.InstrumenterConfig", "");
-    classInitializationSupport.initializeAtBuildTime("datadog.trace.api.Platform", "");
+    classInitializationSupport.rerunInitialization("datadog.trace.api.Platform", "");
     classInitializationSupport.initializeAtBuildTime("datadog.trace.api.GlobalTracer", "");
     classInitializationSupport.initializeAtBuildTime(
         "datadog.trace.bootstrap.config.provider.ConfigConverter", "");

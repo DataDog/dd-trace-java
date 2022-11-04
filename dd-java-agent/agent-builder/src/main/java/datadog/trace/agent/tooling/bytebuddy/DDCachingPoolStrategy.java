@@ -5,7 +5,7 @@ import static datadog.trace.bootstrap.AgentClassLoading.LOCATING_CLASS;
 
 import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
 import datadog.trace.agent.tooling.WeakCaches;
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.WeakCache;
 import java.lang.ref.WeakReference;
@@ -52,7 +52,7 @@ public final class DDCachingPoolStrategy
 
   static final int CONCURRENCY_LEVEL = 8;
   static final int LOADER_CAPACITY = 64;
-  static final int TYPE_CAPACITY = Config.get().getResolverTypePoolSize();
+  static final int TYPE_CAPACITY = InstrumenterConfig.get().getResolverTypePoolSize();
 
   static final int BOOTSTRAP_HASH = 7236344; // Just a random number
 
@@ -65,7 +65,7 @@ public final class DDCachingPoolStrategy
       };
 
   public static final DDCachingPoolStrategy INSTANCE =
-      new DDCachingPoolStrategy(Config.get().isResolverUseLoadClassEnabled());
+      new DDCachingPoolStrategy(InstrumenterConfig.get().isResolverUseLoadClassEnabled());
 
   public static void registerAsSupplier() {
     SharedTypePools.registerIfAbsent(INSTANCE);

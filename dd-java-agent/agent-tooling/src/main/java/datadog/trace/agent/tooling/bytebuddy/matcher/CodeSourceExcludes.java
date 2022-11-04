@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.function.Function;
@@ -17,7 +17,7 @@ import java.util.List;
 public class CodeSourceExcludes {
   private CodeSourceExcludes() {}
 
-  private static final List<String> excludes = Config.get().getExcludedCodeSources();
+  private static final List<String> excludes = InstrumenterConfig.get().getExcludedCodeSources();
 
   private static final DDCache<String, Boolean> excludedCodeSources;
 
