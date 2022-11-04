@@ -67,8 +67,9 @@ class InstrumentPlugin implements Plugin<Project> {
           compileTask.destinationDirectory = rawClassesDir.asFile
 
           byteBuddyTask.classPath.from((project.configurations.findByName('instrumentationMuzzle') ?: []) +
-            project.configurations.compileClasspath.findAll { it.name != 'previous-compilation-data.bin' } +
-            compileTask.destinationDirectory)
+            project.configurations.compileClasspath.findAll {
+              it.name != 'previous-compilation-data.bin' && !it.name.endsWith(".gz")
+            } + compileTask.destinationDirectory)
 
           byteBuddyTask.transformation {
             it.plugin = InstrumentLoader
