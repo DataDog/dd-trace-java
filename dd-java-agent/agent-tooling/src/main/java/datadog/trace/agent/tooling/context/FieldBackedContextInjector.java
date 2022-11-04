@@ -4,7 +4,7 @@ import static datadog.trace.agent.tooling.context.ShouldInjectFieldsState.hasInj
 import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
 import static datadog.trace.util.Strings.getInternalName;
 
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.FieldBackedContextStores;
@@ -67,7 +67,8 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
   /** Keeps track of injection requests for the class being transformed by the current thread. */
   static final ThreadLocal<BitSet> INJECTED_STORE_IDS = new ThreadLocal<>();
 
-  final boolean serialVersionUIDFieldInjection = Config.get().isSerialVersionUIDFieldInjection();
+  final boolean serialVersionUIDFieldInjection =
+      InstrumenterConfig.get().isSerialVersionUIDFieldInjection();
 
   final String keyClassName;
   final String contextClassName;
