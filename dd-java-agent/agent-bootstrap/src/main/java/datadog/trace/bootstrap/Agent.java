@@ -158,7 +158,7 @@ public class Agent {
       setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
     } else if (!isSupportedAppSecArch()) {
       log.debug(
-          "OS and architecture (({})/{}) not supported by AppSec, dd.appsec.enabled will default to false",
+          "OS and architecture ({}/{}) not supported by AppSec, dd.appsec.enabled will default to false",
           System.getProperty("os.name"),
           System.getProperty("os.arch"));
       setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
