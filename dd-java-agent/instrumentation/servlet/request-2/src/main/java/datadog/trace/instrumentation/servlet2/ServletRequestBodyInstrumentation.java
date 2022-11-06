@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.servlet2;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedNoneOf;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -63,7 +64,11 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
+    return implementsInterface(named(hierarchyMarkerType()))
+        .and(
+            namedNoneOf( // ignore wrappers that ship with servlet-api
+                "javax.servlet.ServletRequestWrapper",
+                "javax.servlet.http.HttpServletRequestWrapper"));
   }
 
   @Override
