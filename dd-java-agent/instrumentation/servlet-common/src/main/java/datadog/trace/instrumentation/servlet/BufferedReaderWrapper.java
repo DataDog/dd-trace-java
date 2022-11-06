@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.servlet.http;
+package datadog.trace.instrumentation.servlet;
 
 import datadog.trace.api.http.StoredCharBody;
 import java.io.BufferedReader;
