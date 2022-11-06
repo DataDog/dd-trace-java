@@ -13,6 +13,7 @@ import datadog.trace.api.IntegrationsCollector;
 import datadog.trace.api.ProductActivationConfig;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
+import datadog.trace.util.AgentTaskScheduler;
 import java.lang.instrument.Instrumentation;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -20,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
@@ -59,6 +61,14 @@ public class AgentInstaller {
       installBytebuddyAgent(inst, false, new AgentBuilder.Listener[0]);
       if (DEBUG) {
         log.debug("Class instrumentation installed");
+      }
+      int poolCleaningInterval = InstrumenterConfig.get().getResolverResetInterval();
+      if (poolCleaningInterval > 0) {
+        AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
+            SharedTypePools::clear,
+            poolCleaningInterval,
+            Math.max(poolCleaningInterval, 10),
+            TimeUnit.SECONDS);
       }
     } else if (DEBUG) {
       log.debug("There are not any enabled subsystems, not installing instrumentations.");

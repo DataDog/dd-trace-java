@@ -3,6 +3,7 @@ package datadog.trace.api;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_OUTLINE_POOL_SIZE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_TYPE_POOL_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_INJECTION;
@@ -16,6 +17,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_OUTLINE_POOL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_OUTLINE_POOL_SIZE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_TYPE_POOL_SIZE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
@@ -61,6 +63,7 @@ public class InstrumenterConfig {
   private final int resolverOutlinePoolSize;
   private final int resolverTypePoolSize;
   private final boolean resolverUseLoadClassEnabled;
+  private final int resolverResetInterval;
 
   private final boolean runtimeContextFieldInjection;
   private final boolean serialVersionUIDFieldInjection;
@@ -104,6 +107,8 @@ public class InstrumenterConfig {
     resolverTypePoolSize =
         configProvider.getInteger(RESOLVER_TYPE_POOL_SIZE, DEFAULT_RESOLVER_TYPE_POOL_SIZE);
     resolverUseLoadClassEnabled = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
+    resolverResetInterval =
+        configProvider.getInteger(RESOLVER_RESET_INTERVAL, DEFAULT_RESOLVER_RESET_INTERVAL);
 
     runtimeContextFieldInjection =
         configProvider.getBoolean(
@@ -189,6 +194,10 @@ public class InstrumenterConfig {
     return resolverUseLoadClassEnabled;
   }
 
+  public int getResolverResetInterval() {
+    return resolverResetInterval;
+  }
+
   public boolean isRuntimeContextFieldInjection() {
     return runtimeContextFieldInjection;
   }
@@ -260,6 +269,8 @@ public class InstrumenterConfig {
         + resolverTypePoolSize
         + ", resolverUseLoadClassEnabled="
         + resolverUseLoadClassEnabled
+        + ", resolverResetInterval="
+        + resolverResetInterval
         + ", runtimeContextFieldInjection="
         + runtimeContextFieldInjection
         + ", serialVersionUIDFieldInjection="
