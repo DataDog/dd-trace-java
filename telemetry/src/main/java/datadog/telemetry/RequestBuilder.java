@@ -30,11 +30,8 @@ public class RequestBuilder {
 
   private static final Logger log = LoggerFactory.getLogger(RequestBuilder.class);
 
-  private static final JsonAdapter<Telemetry> JSON_ADAPTER =
-      new Moshi.Builder()
-          .add(new PolymorphicAdapterFactory(Payload.class))
-          .build()
-          .adapter(Telemetry.class);
+  private final JsonAdapter<Telemetry> JSON_ADAPTER;
+
   private static final AtomicLong SEQ_ID = new AtomicLong();
 
   private final HttpUrl httpUrl;
@@ -43,6 +40,14 @@ public class RequestBuilder {
   private final String runtimeId;
 
   public RequestBuilder(HttpUrl httpUrl) {
+
+    // May throw AccessControlException when using SecurityManager
+    JSON_ADAPTER =
+        new Moshi.Builder()
+            .add(new PolymorphicAdapterFactory(Payload.class))
+            .build()
+            .adapter(Telemetry.class);
+
     this.httpUrl = httpUrl.newBuilder().addPathSegments(API_ENDPOINT).build();
 
     Config config = Config.get();

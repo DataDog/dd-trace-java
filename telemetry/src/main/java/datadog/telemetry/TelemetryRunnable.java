@@ -3,6 +3,7 @@ package datadog.telemetry;
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigCollector;
 import java.io.IOException;
+import java.security.AccessControlException;
 import java.util.List;
 import java.util.Queue;
 import okhttp3.OkHttpClient;
@@ -54,24 +55,29 @@ public class TelemetryRunnable implements Runnable {
       action.doIteration(this.telemetryService);
     }
 
-    this.telemetryService.addStartedRequest();
+    try {
+      this.telemetryService.addStartedRequest();
 
-    while (!Thread.interrupted()) {
-      try {
-        boolean success = mainLoopIteration();
-        if (success) {
-          successWait();
-        } else {
-          failureWait();
+      while (!Thread.interrupted()) {
+        try {
+          boolean success = mainLoopIteration();
+          if (success) {
+            successWait();
+          } else {
+            failureWait();
+          }
+        } catch (InterruptedException e) {
+          log.debug("Interrupted; finishing telemetry thread");
+          Thread.currentThread().interrupt();
         }
-      } catch (InterruptedException e) {
-        log.debug("Interrupted; finishing telemetry thread");
-        Thread.currentThread().interrupt();
       }
-    }
 
-    log.debug("Sending APP_CLOSING telemetry event");
-    sendRequest(this.telemetryService.appClosingRequest());
+      log.debug("Sending APP_CLOSING telemetry event");
+      sendRequest(this.telemetryService.appClosingRequest());
+
+    } catch (AccessControlException e) {
+      log.warn("Unable to send telemetry", e);
+    }
     log.debug("Telemetry thread finishing");
   }
 
