@@ -52,6 +52,7 @@ public final class IastModuleImpl implements IastModule {
     this.overheadController = overheadController;
   }
 
+  @Override
   public void onCipherAlgorithm(@Nullable final String algorithm) {
     if (algorithm == null) {
       return;
@@ -76,6 +77,7 @@ public final class IastModuleImpl implements IastModule {
     reporter.report(span, vulnerability);
   }
 
+  @Override
   public void onHashingAlgorithm(@Nullable final String algorithm) {
     if (algorithm == null) {
       return;
@@ -452,8 +454,7 @@ public final class IastModuleImpl implements IastModule {
             new Evidence(evidence.toString(), targetRanges)));
   }
 
-  private static StackTraceElement findValidPackageForVulnerability(
-      Stream<StackTraceElement> stream) {
+  static StackTraceElement findValidPackageForVulnerability(Stream<StackTraceElement> stream) {
     final StackTraceElement[] first = new StackTraceElement[1];
     return stream
         .filter(
@@ -461,7 +462,7 @@ public final class IastModuleImpl implements IastModule {
               if (first[0] == null) {
                 first[0] = stack;
               }
-              return IastExclusionTrie.apply(stack.getClassName()) != 1;
+              return IastExclusionTrie.apply(stack.getClassName()) < 1;
             })
         .findFirst()
         .orElse(first[0]);
