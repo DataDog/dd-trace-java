@@ -13,12 +13,13 @@ import org.slf4j.LoggerFactory;
 class LocationsCollectingTransformer implements ClassFileTransformer {
   private static final Logger log = LoggerFactory.getLogger(LocationsCollectingTransformer.class);
 
-  private static URL agentURL = null;
+  private static String agentUrl = null;
 
   static {
     try {
-      agentURL =
+      final URL agentUrlObj =
           LocationsCollectingTransformer.class.getProtectionDomain().getCodeSource().getLocation();
+      agentUrl = agentUrlObj == null ? null : agentUrlObj.toString();
     } catch (Throwable ex) {
       log.error("Error getting agent URL");
     }
@@ -57,7 +58,7 @@ class LocationsCollectingTransformer implements ClassFileTransformer {
       return null;
     }
 
-    if (location.equals(agentURL)) {
+    if (location.toString().equals(agentUrl)) {
       return null;
     }
 
