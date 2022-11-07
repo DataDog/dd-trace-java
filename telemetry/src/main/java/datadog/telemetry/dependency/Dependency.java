@@ -4,7 +4,6 @@ import datadog.trace.util.Strings;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.UndeclaredThrowableException;
 import java.math.BigInteger;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
@@ -31,6 +30,19 @@ public final class Dependency {
       Pattern.compile("(.+)-(\\d[^/-]+(?:-(?:\\w+))*)?\\.jar$");
 
   private static final byte[] buf = new byte[8192];
+
+  private static final MessageDigest md;
+
+  static {
+    MessageDigest digest = null;
+    try {
+      digest = MessageDigest.getInstance("SHA-1");
+    } catch (NoSuchAlgorithmException e) {
+      // should not happen
+      log.error("Unable to create cipher", e);
+    }
+    md = digest;
+  }
 
   private final String name;
   private final String version;
@@ -136,7 +148,7 @@ public final class Dependency {
     String artifactId;
     String groupId = null;
     String version;
-    String hash;
+    String hash = null;
 
     // Guess from manifest
     String bundleSymbolicName = null;
@@ -219,18 +231,14 @@ public final class Dependency {
       name = artifactId;
     }
 
-    // Compute hash for all dependencies that has no pom
-    // No reliable version calculate hash and use any version
-    MessageDigest md;
-    try {
-      md = MessageDigest.getInstance("SHA-1");
-    } catch (NoSuchAlgorithmException e) {
-      // should not happen
-      throw new UndeclaredThrowableException(e);
+    if (md != null) {
+      // Compute hash for all dependencies that has no pom
+      // No reliable version calculate hash and use any version
+      md.reset();
+      is = new DigestInputStream(is, md);
+      while (is.read(buf, 0, buf.length) > 0) {}
+      hash = String.format("%040X", new BigInteger(1, md.digest()));
     }
-    is = new DigestInputStream(is, md);
-    while (is.read(buf, 0, buf.length) > 0) {}
-    hash = String.format("%040X", new BigInteger(1, md.digest()));
 
     return new Dependency(name, version, source, hash);
   }
