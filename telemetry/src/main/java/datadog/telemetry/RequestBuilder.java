@@ -1,7 +1,6 @@
 package datadog.telemetry;
 
 import com.squareup.moshi.JsonAdapter;
-import com.squareup.moshi.Moshi;
 import datadog.common.container.ContainerInfo;
 import datadog.communication.ddagent.TracerVersion;
 import datadog.communication.http.SafeRequestBuilder;
@@ -29,20 +28,16 @@ public class RequestBuilder {
   private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
   private static final Logger log = LoggerFactory.getLogger(RequestBuilder.class);
-
-  private static final JsonAdapter<Telemetry> JSON_ADAPTER =
-      new Moshi.Builder()
-          .add(new PolymorphicAdapterFactory(Payload.class))
-          .build()
-          .adapter(Telemetry.class);
   private static final AtomicLong SEQ_ID = new AtomicLong();
 
+  private final JsonAdapter<Telemetry> jsonAdapter;
   private final HttpUrl httpUrl;
   private final Application application;
   private final Host host;
   private final String runtimeId;
 
-  public RequestBuilder(HttpUrl httpUrl) {
+  public RequestBuilder(final JsonAdapter<Telemetry> jsonAdapter, final HttpUrl httpUrl) {
+    this.jsonAdapter = jsonAdapter;
     this.httpUrl = httpUrl.newBuilder().addPathSegments(API_ENDPOINT).build();
 
     Config config = Config.get();
@@ -88,7 +83,7 @@ public class RequestBuilder {
             .host(host)
             .payload(payload);
 
-    String json = JSON_ADAPTER.toJson(telemetry);
+    String json = jsonAdapter.toJson(telemetry);
     RequestBody body = RequestBody.create(JSON, json);
 
     return new SafeRequestBuilder()

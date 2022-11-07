@@ -1,6 +1,13 @@
 package datadog.telemetry;
 
+import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.Moshi;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.telemetry.api.AppDependenciesLoaded;
+import datadog.telemetry.api.AppIntegrationsChange;
+import datadog.telemetry.api.AppStarted;
+import datadog.telemetry.api.Payload;
+import datadog.telemetry.api.Telemetry;
 import datadog.telemetry.dependency.DependencyPeriodicAction;
 import datadog.telemetry.dependency.DependencyService;
 import datadog.telemetry.dependency.DependencyServiceImpl;
@@ -49,10 +56,24 @@ public class TelemetrySystem {
 
   public static void startTelemetry(
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
+
+    // Eager initialization of Moshi: this prevents failing initialization if a SecurityManager is
+    // set in main.
+    // If it fails for any other reason, we better fail early and avoid starting telemetry.
+    final Moshi moshi =
+        new Moshi.Builder().add(new PolymorphicAdapterFactory(Payload.class)).build();
+    // Ensure that each Payload adapter is initialized.
+    moshi.adapter(AppStarted.class);
+    // FIXME: GenerateMetrics serializer needs to be fixed.
+    // moshi.adapter(GenerateMetrics.class);
+    moshi.adapter(AppDependenciesLoaded.class);
+    moshi.adapter(AppIntegrationsChange.class);
+    final JsonAdapter<Telemetry> jsonAdapter = moshi.adapter(Telemetry.class);
+
     DependencyService dependencyService = createDependencyService(instrumentation);
     TelemetryService telemetryService =
         new TelemetryServiceImpl(
-            new RequestBuilderSupplier(sco.agentUrl),
+            new RequestBuilderSupplier(jsonAdapter, sco.agentUrl),
             SystemTimeSource.INSTANCE,
             Config.get().getTelemetryHeartbeatInterval());
     TELEMETRY_THREAD =

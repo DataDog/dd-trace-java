@@ -671,7 +671,7 @@ public class Agent {
           telemetrySystem.getMethod("startTelemetry", Instrumentation.class, scoClass);
       startTelemetry.invoke(null, inst, sco);
     } catch (final Throwable ex) {
-      log.warn("Unable start telemetry: {}", ex);
+      log.warn("Unable start telemetry", ex);
     }
   }
 
