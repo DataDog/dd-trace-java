@@ -1192,7 +1192,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + CONFIGURATION_FILE, "src/test/resources/dd-java-tracer.properties")
 
     when:
-    def config = new Config()
+    def config = new Config(ConfigProvider.newInstance(false)) // force re-evaluation of sources
 
     then:
     config.configFileStatus == "src/test/resources/dd-java-tracer.properties"
@@ -1205,7 +1205,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + SERVICE_NAME, "set-in-system")
 
     when:
-    def config = new Config()
+    def config = new Config(ConfigProvider.newInstance(false)) // force re-evaluation of sources
 
     then:
     config.configFileStatus == "src/test/resources/dd-java-tracer.properties"
@@ -1218,7 +1218,7 @@ class ConfigTest extends DDSpecification {
     environmentVariables.set("DD_SERVICE_NAME", "set-in-env")
 
     when:
-    def config = new Config()
+    def config = new Config(ConfigProvider.newInstance(false)) // force re-evaluation of sources
 
     then:
     config.configFileStatus == "src/test/resources/dd-java-tracer.properties"

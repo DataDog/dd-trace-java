@@ -11,7 +11,7 @@ class AzureAppServicesTagsTest extends DDSpecification {
     injectEnvConfig("WEBSITE_INSTANCE_ID", "someOtherValue", false)
 
     when:
-    def config = new Config()
+    def config = Config.get()
 
     then:
     !config.localRootSpanTags.keySet().any { it.startsWith("aas")}
@@ -23,7 +23,7 @@ class AzureAppServicesTagsTest extends DDSpecification {
     injectEnvConfig("WEBSITE_OWNER_NAME", "8c500027-5f00-400e-8f00-60000000000f+apm-dotnet-EastUSwebspace", false)
 
     when:
-    def config = new Config()
+    def config = Config.get()
 
     then:
     config.localRootSpanTags["aas.subscription.id"] == "8c500027-5f00-400e-8f00-60000000000f"
@@ -37,7 +37,7 @@ class AzureAppServicesTagsTest extends DDSpecification {
     injectEnvConfig("WEBSITE_SITE_NAME", "site", false)
 
     when:
-    def config = new Config()
+    def config = Config.get()
 
     then:
     config.localRootSpanTags["aas.resource.id"] == "/subscriptions/8c500027-5f00-400e-8f00-60000000000f/resourcegroups/group/providers/microsoft.web/sites/site"
@@ -48,7 +48,7 @@ class AzureAppServicesTagsTest extends DDSpecification {
     injectSysConfig(GeneralConfig.AZURE_APP_SERVICES, "true")
 
     when:
-    def config = new Config()
+    def config = Config.get()
 
     then:
     config.localRootSpanTags["aas.environment.instance_id"] == "unknown"
@@ -67,7 +67,7 @@ class AzureAppServicesTagsTest extends DDSpecification {
     injectEnvConfig("DD_AAS_JAVA_EXTENSION_VERSION", "99", false)
 
     when:
-    def config = new Config()
+    def config = Config.get()
 
     then:
     config.localRootSpanTags["aas.environment.instance_id"] == "someInstance"
