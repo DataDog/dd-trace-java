@@ -7,6 +7,7 @@ import java.net.JarURLConnection;
 import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
+import java.security.AccessControlException;
 import java.util.Collections;
 import java.util.List;
 import java.util.jar.Attributes;
@@ -43,6 +44,8 @@ public class DependencyResolver {
           dependencies = Collections.singletonList(dependency);
         }
       }
+    } catch (AccessControlException e) {
+      log.debug("Failed to determine dependency for uri (AccessControlException)");
     } catch (RuntimeException rte) {
       log.warn("Failed to determine dependency for uri {}", uri, rte);
     }

@@ -121,13 +121,17 @@ public class HostInfo {
 
   private static String tryReadFile(Path file) {
     String content = null;
-    if (Files.isRegularFile(file)) {
-      try {
-        byte[] bytes = Files.readAllBytes(file);
-        content = new String(bytes, StandardCharsets.ISO_8859_1);
-      } catch (IOException | AccessControlException e) {
-        log.debug("Could not read {}", file, e);
+    try {
+      if (Files.isRegularFile(file)) {
+        try {
+          byte[] bytes = Files.readAllBytes(file);
+          content = new String(bytes, StandardCharsets.ISO_8859_1);
+        } catch (IOException e) {
+          log.debug("Could not read {}", file, e);
+        }
       }
+    } catch (AccessControlException e) {
+      log.debug("Could not read {}", file, e);
     }
     return content;
   }
@@ -138,29 +142,33 @@ public class HostInfo {
     private static final Path OS_RELEASE_PATH = Paths.get("/etc/os-release");
 
     public static String getOsVersion() {
-      if (Files.isRegularFile(OS_RELEASE_PATH)) {
-        String name = null;
-        String version = null;
-        try {
-          List<String> lines = Files.readAllLines(OS_RELEASE_PATH, StandardCharsets.ISO_8859_1);
-          for (String l : lines) {
-            Matcher matcher = OS_RELEASE_PATTERN.matcher(l);
-            if (!matcher.matches()) {
-              continue;
+      try {
+        if (Files.isRegularFile(OS_RELEASE_PATH)) {
+          String name = null;
+          String version = null;
+          try {
+            List<String> lines = Files.readAllLines(OS_RELEASE_PATH, StandardCharsets.ISO_8859_1);
+            for (String l : lines) {
+              Matcher matcher = OS_RELEASE_PATTERN.matcher(l);
+              if (!matcher.matches()) {
+                continue;
+              }
+              String nameGroup = matcher.group("name");
+              if ("NAME".equals(nameGroup)) {
+                name = matcher.group("value");
+              } else if ("VERSION".equals(nameGroup)) {
+                version = matcher.group("value");
+              }
             }
-            String nameGroup = matcher.group("name");
-            if ("NAME".equals(nameGroup)) {
-              name = matcher.group("value");
-            } else if ("VERSION".equals(nameGroup)) {
-              version = matcher.group("value");
-            }
+          } catch (IOException e) {
+            log.debug("Could not read {}", OS_RELEASE_PATH, e);
           }
-        } catch (IOException | AccessControlException e) {
-          log.debug("Could not read {}", OS_RELEASE_PATH, e);
+          if (name != null && version != null) {
+            return name + " " + version;
+          }
         }
-        if (name != null && version != null) {
-          return name + " " + version;
-        }
+      } catch (AccessControlException e) {
+        log.debug("Could not read {} (AccessControlException)", OS_RELEASE_PATH);
       }
       return System.getProperty("os.version");
     }
