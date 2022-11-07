@@ -62,7 +62,6 @@ public final class CrashUploader {
       MediaType.parse("application/octet-stream");
 
   private final Config config;
-  private final ConfigProvider configProvider;
 
   private final OkHttpClient telemetryClient;
   private final HttpUrl telemetryUrl;
@@ -70,12 +69,11 @@ public final class CrashUploader {
   private final String tags;
 
   public CrashUploader() {
-    this(Config.get(), ConfigProvider.getInstance());
+    this(Config.get());
   }
 
-  CrashUploader(final Config config, final ConfigProvider configProvider) {
+  CrashUploader(final Config config) {
     this.config = config;
-    this.configProvider = configProvider;
 
     telemetryUrl = HttpUrl.get(config.getFinalCrashTrackingTelemetryUrl());
     agentless = config.isCrashTrackingAgentless();
@@ -88,6 +86,8 @@ public final class CrashUploader {
     }
     // Comma separated tags string for V2.4 format
     tags = tagsToString(tagsMap);
+
+    ConfigProvider configProvider = config.configProvider();
 
     telemetryClient =
         OkHttpUtils.buildHttpClient(

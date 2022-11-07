@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 
 public final class ConfigProvider {
   private static final class Singleton {
-    private static final ConfigProvider INSTANCE = ConfigProvider.createDefault();
+    private static final ConfigProvider INSTANCE = ConfigProvider.newInstance(true);
   }
 
   private static final Logger log = LoggerFactory.getLogger(ConfigProvider.class);
@@ -259,10 +259,6 @@ public final class ConfigProvider {
 
   public static ConfigProvider getInstance() {
     return Singleton.INSTANCE;
-  }
-
-  public static ConfigProvider createDefault() {
-    return newInstance(true);
   }
 
   public static ConfigProvider newInstance(boolean collectConfig) {

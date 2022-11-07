@@ -605,7 +605,7 @@ public class Config {
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
-    this(ConfigProvider.getInstance());
+    this(InstrumenterConfig.get().configProvider()); // share config provider by default
   }
 
   private Config(final ConfigProvider configProvider) {
@@ -1260,6 +1260,10 @@ public class Config {
     }
 
     log.debug("New instance: {}", this);
+  }
+
+  public ConfigProvider configProvider() {
+    return configProvider;
   }
 
   public long getStartTimeMillis() {

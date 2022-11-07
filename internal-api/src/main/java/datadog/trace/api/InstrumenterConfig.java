@@ -71,10 +71,8 @@ public class InstrumenterConfig {
   private final boolean internalExitOnFailure;
 
   private InstrumenterConfig() {
-    this.configProvider =
-        Platform.isIsNativeImageBuilder()
-            ? ConfigProvider.newInstance(false)
-            : ConfigProvider.getInstance();
+    boolean collectConfig = !Platform.isIsNativeImageBuilder();
+    configProvider = ConfigProvider.newInstance(collectConfig);
 
     integrationsEnabled =
         configProvider.getBoolean(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
@@ -115,6 +113,10 @@ public class InstrumenterConfig {
     traceMethods = configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS);
 
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
+  }
+
+  public ConfigProvider configProvider() {
+    return configProvider;
   }
 
   public boolean isIntegrationsEnabled() {
