@@ -9,6 +9,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.AccessControlException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -124,7 +125,7 @@ public class HostInfo {
       try {
         byte[] bytes = Files.readAllBytes(file);
         content = new String(bytes, StandardCharsets.ISO_8859_1);
-      } catch (IOException e) {
+      } catch (IOException | AccessControlException e) {
         log.debug("Could not read {}", file, e);
       }
     }
@@ -154,7 +155,8 @@ public class HostInfo {
               version = matcher.group("value");
             }
           }
-        } catch (IOException e) {
+        } catch (IOException | AccessControlException e) {
+          log.debug("Could not read {}", OS_RELEASE_PATH, e);
         }
         if (name != null && version != null) {
           return name + " " + version;
