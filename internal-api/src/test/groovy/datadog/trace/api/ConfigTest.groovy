@@ -2058,6 +2058,11 @@ class ConfigTest extends DDSpecification {
     "1"        | null       | ProductActivationConfig.FULLY_ENABLED
   }
 
+  def "default config and instrumenterconfig share same provider"() {
+    expect:
+    Config.get().configProvider() == InstrumenterConfig.get().configProvider()
+  }
+
   static class ClassThrowsExceptionForValueOfMethod {
     static ClassThrowsExceptionForValueOfMethod valueOf(String ignored) {
       throw new Throwable()
