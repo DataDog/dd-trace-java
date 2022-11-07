@@ -28,7 +28,6 @@ import java.io.BufferedReader;
 import java.nio.charset.Charset;
 import java.util.function.BiFunction;
 import javax.servlet.ServletInputStream;
-import javax.servlet.ServletRequest;
 import javax.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -58,16 +57,14 @@ public class Servlet31RequestBodyInstrumentation extends Instrumenter.AppSec
 
   @Override
   public String hierarchyMarkerType() {
-    return "javax.servlet.ServletRequest";
+    return "javax.servlet.http.HttpServletRequest";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
-        .and(
-            namedNoneOf( // ignore wrappers that ship with servlet-api
-                "javax.servlet.ServletRequestWrapper",
-                "javax.servlet.http.HttpServletRequestWrapper"));
+        // ignore wrappers that ship with servlet-api
+        .and(namedNoneOf("javax.servlet.http.HttpServletRequestWrapper"));
   }
 
   @Override
@@ -100,14 +97,13 @@ public class Servlet31RequestBodyInstrumentation extends Instrumenter.AppSec
   static class HttpServletGetInputStreamAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(
-        @Advice.This final ServletRequest thiz,
+        @Advice.This final HttpServletRequest req,
         @Advice.Return(readOnly = false) ServletInputStream is,
         @ActiveRequestContext RequestContext reqCtx) {
-      if (!(thiz instanceof HttpServletRequest) || is == null) {
+      if (is == null) {
         return;
       }
 
-      HttpServletRequest req = (HttpServletRequest) thiz;
       Object alreadyWrapped = req.getAttribute("datadog.wrapped_request_body");
       if (alreadyWrapped != null || is instanceof Servlet31InputStreamWrapper) {
         return;
@@ -146,10 +142,8 @@ public class Servlet31RequestBodyInstrumentation extends Instrumenter.AppSec
 
       StoredByteBody storedByteBody =
           new StoredByteBody(reqCtx, requestStartCb, requestEndedCb, charset, lengthHint);
-      Servlet31InputStreamWrapper servletInputStreamWrapper =
-          new Servlet31InputStreamWrapper(is, storedByteBody);
 
-      is = servletInputStreamWrapper;
+      is = new Servlet31InputStreamWrapper(is, storedByteBody);
     }
   }
 
@@ -158,9 +152,9 @@ public class Servlet31RequestBodyInstrumentation extends Instrumenter.AppSec
   static class HttpServletGetReaderAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(
-        @Advice.This final ServletRequest thiz,
+        @Advice.This final HttpServletRequest req,
         @Advice.Return(readOnly = false) BufferedReader reader) {
-      if (!(thiz instanceof HttpServletRequest) || reader == null) {
+      if (reader == null) {
         return;
       }
 
@@ -168,7 +162,6 @@ public class Servlet31RequestBodyInstrumentation extends Instrumenter.AppSec
       if (agentSpan == null) {
         return;
       }
-      HttpServletRequest req = (HttpServletRequest) thiz;
       Object alreadyWrapped = req.getAttribute("datadog.wrapped_request_body");
       if (alreadyWrapped != null || reader instanceof BufferedReaderWrapper) {
         return;
@@ -200,6 +193,7 @@ public class Servlet31RequestBodyInstrumentation extends Instrumenter.AppSec
 
       StoredCharBody storedCharBody =
           new StoredCharBody(requestContext, requestStartCb, requestEndedCb, lengthHint);
+
       reader = new BufferedReaderWrapper(reader, storedCharBody);
     }
   }
