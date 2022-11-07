@@ -7,6 +7,7 @@ import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.util.AttachmentKey;
 import io.undertow.util.HeaderMap;
+import io.undertow.util.HeaderValues;
 import io.undertow.util.Headers;
 import java.nio.ByteBuffer;
 import org.slf4j.Logger;
@@ -38,7 +39,8 @@ public class UndertowBlockingHandler implements HttpHandler {
     try {
       xchg.setStatusCode(BlockingActionHelper.getHttpCode(rba.getStatusCode()));
       HeaderMap headers = xchg.getResponseHeaders();
-      String acceptHeader = xchg.getRequestHeaders().get(Headers.ACCEPT).peekLast();
+      HeaderValues acceptHeaderValues = xchg.getRequestHeaders().get(Headers.ACCEPT);
+      String acceptHeader = acceptHeaderValues != null ? acceptHeaderValues.peekLast() : null;
       TemplateType type =
           BlockingActionHelper.determineTemplateType(rba.getBlockingContentType(), acceptHeader);
       byte[] template = BlockingActionHelper.getTemplate(type);
