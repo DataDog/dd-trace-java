@@ -48,10 +48,10 @@ ext.generalShadowJarConfig = {
   relocate 'okhttp3.', 'ddlib.okhttp3.'
   relocate 'okio.', 'ddlib.okio.'
   relocate 'one.', 'ddlib.one.'
-  relocate('org.', 'ddlib.org.') {
-    exclude 'org.slf4j.**'
-    exclude 'org.datadog.**'
-  }
+  relocate 'org.glassfish.', 'ddlib.org.glassfish.'
+  relocate 'org.yaml.snakeyaml.', 'ddlib.org.yaml.snakeyaml.'
+  relocate 'org.jctools.', 'ddlib.org.jctools.'
+  relocate 'org.objectweb.asm.', 'ddlib.org.objectweb.asm.'
   // Prevents conflict with other SLF4J instances. Important for premain.
   relocate 'org.slf4j', 'datadog.slf4j'
   // rewrite dependencies calling Logger.getLogger
