@@ -18,14 +18,18 @@ import static net.bytebuddy.description.modifier.FieldManifestation.VOLATILE
 import static net.bytebuddy.description.modifier.Ownership.STATIC
 import static net.bytebuddy.description.modifier.Visibility.PUBLIC
 import static net.bytebuddy.matcher.ElementMatchers.named
+import static net.bytebuddy.matcher.ElementMatchers.namedOneOf
 import static net.bytebuddy.matcher.ElementMatchers.none
 
 @SuppressForbidden
 abstract class DDSpecification extends Specification {
   private static final CHECK_TIMEOUT_MS = 3000
 
+  static final String INST_CONFIG = "datadog.trace.api.InstrumenterConfig"
   static final String CONFIG = "datadog.trace.api.Config"
 
+  private static Field instConfigInstanceField
+  private static Constructor instConfigConstructor
   private static Field configInstanceField
   private static Constructor configConstructor
 
@@ -65,7 +69,7 @@ abstract class DDSpecification extends Specification {
         new AgentBuilder.LocationStrategy.Simple(
         ClassFileLocator.ForClassLoader.ofSystemLoader()))
         .ignore(none()) // Allow transforming bootstrap classes
-        .type(named(CONFIG))
+        .type(namedOneOf(INST_CONFIG, CONFIG))
         .transform { builder, typeDescription, classLoader, module, pd ->
           builder
             .field(named("INSTANCE"))
@@ -74,13 +78,18 @@ abstract class DDSpecification extends Specification {
         .with(new ConfigInstrumentationFailedListener())
         .installOn(instrumentation)
 
+      Class instConfigClass = Class.forName(INST_CONFIG)
+      instConfigInstanceField = instConfigClass.getDeclaredField("INSTANCE")
+      instConfigConstructor = instConfigClass.getDeclaredConstructor()
+      instConfigConstructor.setAccessible(true)
       Class configClass = Class.forName(CONFIG)
       configInstanceField = configClass.getDeclaredField("INSTANCE")
       configConstructor = configClass.getDeclaredConstructor()
       configConstructor.setAccessible(true)
+
       isConfigInstanceModifiable = true
     } catch (ClassNotFoundException e) {
-      if (e.getMessage() == CONFIG) {
+      if (e.getMessage() == INST_CONFIG || e.getMessage() == CONFIG) {
         println("Config class not found in this classloader. Not transforming it")
       } else {
         configModificationFailed = true
@@ -238,20 +247,27 @@ abstract class DDSpecification extends Specification {
   synchronized static void rebuildConfig() {
     checkConfigTransformation()
 
+    def newInstConfig = instConfigConstructor.newInstance()
+    instConfigInstanceField.set(null, newInstConfig)
     def newConfig = configConstructor.newInstance()
     configInstanceField.set(null, newConfig)
   }
 
   private static void checkConfigTransformation() {
     // Ensure the class was re-transformed properly in DDSpecification.makeConfigInstanceModifiable()
-
     assert isConfigInstanceModifiable
-    assert configInstanceField != null
+    assert instConfigConstructor != null
+    checkWritable(instConfigInstanceField)
     assert configConstructor != null
-    assert Modifier.isPublic(configInstanceField.getModifiers())
-    assert Modifier.isStatic(configInstanceField.getModifiers())
-    assert Modifier.isVolatile(configInstanceField.getModifiers())
-    assert !Modifier.isFinal(configInstanceField.getModifiers())
+    checkWritable(configInstanceField)
+  }
+
+  private static void checkWritable(Field field) {
+    assert field != null
+    assert Modifier.isPublic(field.getModifiers())
+    assert Modifier.isStatic(field.getModifiers())
+    assert Modifier.isVolatile(field.getModifiers())
+    assert !Modifier.isFinal(field.getModifiers())
   }
 }
 
