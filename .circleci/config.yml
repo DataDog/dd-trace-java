@@ -672,7 +672,7 @@ jobs:
           destination: logs_java_<< parameters.weblog-variant >>_dev.tar.gz
 
 build_test_jobs: &build_test_jobs
-  - build
+    #- build
 
   #- xlarge_tests:
     #    requires:
@@ -855,9 +855,9 @@ build_test_jobs: &build_test_jobs
     #          - project/*
     #          - release/*
 
-  - macos-tests:
-      requires:
-        - build
+    - macos-tests
+      #    requires:
+    #      - build
 
   #- system-tests:
   #    requires:
