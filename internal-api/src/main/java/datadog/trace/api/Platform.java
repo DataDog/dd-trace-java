@@ -16,7 +16,7 @@ public final class Platform {
     return HAS_JFR;
   }
 
-  public static boolean isIsNativeImageBuilder() {
+  public static boolean isNativeImageBuilder() {
     return IS_NATIVE_IMAGE_BUILDER;
   }
 

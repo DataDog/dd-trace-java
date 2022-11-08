@@ -71,7 +71,7 @@ public class InstrumenterConfig {
   private final boolean internalExitOnFailure;
 
   private InstrumenterConfig() {
-    boolean collectConfig = !Platform.isIsNativeImageBuilder();
+    boolean collectConfig = !Platform.isNativeImageBuilder();
     configProvider = ConfigProvider.newInstance(collectConfig);
 
     integrationsEnabled =
