@@ -580,8 +580,9 @@ jobs:
       xcode: 14.1.0
     environment:
       HOMEBREW_NO_AUTO_UPDATE: 1
-      #JAVA_HOME: /Library/Java/JavaVirtualMachines/temurin-8.jdk/Contents/Home
+      JAVA_HOME: /Library/Java/JavaVirtualMachines/temurin-8.jdk/Contents/Home
       JAVA_8_HOME: /Library/Java/JavaVirtualMachines/temurin-8.jdk/Contents/Home
+      JAVA_11_HOME: /Library/Java/JavaVirtualMachines/adoptopenjdk-11.jdk/Contents/Home
     steps:
       - run:
           name: Install JDK 8
