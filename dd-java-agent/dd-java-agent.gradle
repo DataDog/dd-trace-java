@@ -32,23 +32,32 @@ ext.generalShadowJarConfig = {
 
   exclude '**/module-info.class'
 
-  // Shade third party dependencies behind a 'ddlib.' prefix
-  relocate 'cafe.', 'ddlib.cafe.'
-  relocate 'com.blogspot.mydailyjava.weaklockfree', 'ddlib.com.blogspot.mydailyjava.weaklockfree'
-  relocate 'com.fasterxml.jackson', 'ddlib.com.fasterxml.jackson'
-  relocate 'com.google.re2j', 'ddlib.com.google.re2j'
-  relocate 'com.googlecode.concurrentlinkedhashmap', 'ddlib.com.googlecode.concurrentlinkedhashmap'
-  relocate 'com.squareup.moshi', 'ddlib.com.squareup.moshi'
-  relocate 'com.timgroup.statsd', 'ddlib.com.timgroup.statsd'
-  relocate 'io.vertx.redis', 'ddlib.io.vertx.redis'
-  relocate 'jnr.', 'ddlib.jnr.'
-  relocate 'net.', 'ddlib.net.'
-  relocate 'okhttp3.', 'ddlib.okhttp3.'
-  relocate 'okio.', 'ddlib.okio.'
-  relocate 'org.glassfish', 'ddlib.org.glassfish'
-  relocate 'org.yaml.snakeyaml', 'ddlib.org.yaml.snakeyaml'
-  relocate 'org.jctools', 'ddlib.org.jctools'
-  relocate 'org.objectweb.asm', 'ddlib.org.objectweb.asm'
+  /*
+   * Shade third party dependencies behind a 'ddlib.' prefix.
+   * (short package names have a leading dot (.) to prevent unexpected renaming)
+   */
+  [
+    'cafe.',
+    'com.blogspot.mydailyjava.weaklockfree',
+    'cafe.',
+    'com.blogspot.mydailyjava.weaklockfree',
+    'com.fasterxml.jackson',
+    'com.google.re2j',
+    'com.googlecode.concurrentlinkedhashmap',
+    'com.squareup.moshi',
+    'com.timgroup.statsd',
+    'io.vertx.redis',
+    'jnr.',
+    'net.',
+    'okhttp3.',
+    'okio.',
+    'org.glassfish',
+    'org.yaml.snakeyaml',
+    'org.jctools',
+    'org.objectweb.asm',
+  ].forEach {
+    relocate it, 'ddlib.' + it
+  }
 
   // Prevents conflict with other SLF4J instances. Important for premain.
   relocate 'org.slf4j', 'datadog.slf4j'
