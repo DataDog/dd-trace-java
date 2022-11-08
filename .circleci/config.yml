@@ -580,7 +580,7 @@ jobs:
       xcode: 14.1.0
     environment:
       HOMEBREW_NO_AUTO_UPDATE: 1
-      JAVA_HOME: /Library/Java/JavaVirtualMachines/temurin-8.jdk/Contents/Home
+      #JAVA_HOME: /Library/Java/JavaVirtualMachines/temurin-8.jdk/Contents/Home
       JAVA_8_HOME: /Library/Java/JavaVirtualMachines/temurin-8.jdk/Contents/Home
     steps:
       - run:
@@ -590,6 +590,7 @@ jobs:
             brew install --cask temurin8
             /usr/libexec/java_home -v 1.8
             command -v java
+            java -XshowSettings -version
             #ls $(brew --prefix temurin8)
             #ls $(brew --prefix temurin8)/libexec/openjdk.jdk
       - setup_code
