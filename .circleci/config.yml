@@ -578,7 +578,16 @@ jobs:
   macos-tests:
     macos:
       xcode: 14.1.0
+    environment:
+      HOMEBREW_NO_AUTO_UPDATE: 1
     steps:
+      - run:
+          name: Install JDK 8
+          command: |
+            brew tap caskroom/versions
+            brew install --cask temurin8
+            ls $(brew --prefix temurin8)
+            ls $(brew --prefix temurin8)/libexec/openjdk.jdk
       - setup_code
       - run:
           name: Run tests
