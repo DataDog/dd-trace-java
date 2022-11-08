@@ -24,8 +24,10 @@ public class ContainerInfo {
   private static final Logger log = LoggerFactory.getLogger(ContainerInfo.class);
 
   private static final Path CGROUP_DEFAULT_PROCFILE = Paths.get("/proc/self/cgroup");
+  // The second part is the PCF/Garden regexp. We assume no suffix ($) to avoid matching pod UIDs
+  // See https://github.com/DataDog/datadog-agent/blob/7.40.x/pkg/util/cgroups/reader.go#L50
   private static final String UUID_REGEX =
-      "[0-9a-f]{8}[-_][0-9a-f]{4}[-_][0-9a-f]{4}[-_][0-9a-f]{4}[-_][0-9a-f]{12}";
+      "[0-9a-f]{8}[-_][0-9a-f]{4}[-_][0-9a-f]{4}[-_][0-9a-f]{4}[-_][0-9a-f]{12}|[0-9a-f]{8}(?:-[0-9a-f]{4}){4}$";
   private static final String CONTAINER_REGEX = "[0-9a-f]{64}";
   private static final String TASK_REGEX = "[0-9a-f]{32}-\\d+";
   private static final Pattern LINE_PATTERN = Pattern.compile("(\\d+):([^:]*):(.+)$");
