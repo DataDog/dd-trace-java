@@ -212,7 +212,7 @@ public class PowerWAFModule implements AppSecModule {
 
   private void applyConfig(Object config_, AppSecModuleConfigurer.Reconfiguration reconf)
       throws AppSecModuleActivationException {
-    log.info("Configuring WAF");
+    log.debug("Configuring WAF");
 
     AppSecConfig config = (AppSecConfig) config_;
 
@@ -346,7 +346,6 @@ public class PowerWAFModule implements AppSecModule {
   @Override
   public Collection<DataSubscription> getDataSubscriptions() {
     if (this.ctxAndAddresses.get() == null) {
-      log.warn("No subscriptions provided because module is not configured");
       return Collections.emptyList();
     }
     return singletonList(new PowerWAFDataCallback());
