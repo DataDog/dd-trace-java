@@ -1,7 +1,7 @@
 version: 2.1
 
 defaults: &defaults
-  working_directory: ~/dd-trace-java
+  #working_directory: ~/dd-trace-java
   docker:
     - image: &default_container datadog/dd-trace-java-docker-build:latest
 
@@ -22,15 +22,15 @@ dependency_cache_keys: &dependency_cache_keys
 dependency_cache_paths: &dependency_cache_paths
   paths:
     # Cached dependencies and wrappers for gradle
-    - ~/.gradle
+    - .gradle
     # Cached dependencies for maven
-    - ~/.m2
+    - .m2
     # Cached launchers and compilers for sbt
-    - ~/.sbt
+    - .sbt
     # Cached dependencies for sbt handled by ivy
-    - ~/.ivy2
+    - .ivy2
     # Cached dependencies for sbt handled by coursier
-    - ~/.cache/coursier
+    - .cache/coursier
 
 build_cache_keys: &build_cache_keys
   keys:
@@ -45,10 +45,10 @@ build_cache_paths: &build_cache_paths
   paths:
     # Gradle version specific cache for incremental builds. Needs to match version in
     # gradle/wrapper/gradle-wrapper.properties
-    - ~/.gradle/caches/7.5.47-20220929220000+0000
+    - .gradle/caches/7.5.47-20220929220000+0000
     # Save the downloaded distribution. Needs to match version in
     # gradle/wrapper/gradle-wrapper.properties
-    - ~/.gradle/wrapper/dists/gradle-7.5.47-all
+    - .gradle/wrapper/dists/gradle-7.5.47-all
 
 test_matrix: &test_matrix
   parameters:
