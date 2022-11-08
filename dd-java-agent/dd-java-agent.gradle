@@ -50,6 +50,7 @@ ext.generalShadowJarConfig = {
   relocate 'org.yaml.snakeyaml', 'ddlib.org.yaml.snakeyaml'
   relocate 'org.jctools', 'ddlib.org.jctools'
   relocate 'org.objectweb.asm', 'ddlib.org.objectweb.asm'
+
   // Prevents conflict with other SLF4J instances. Important for premain.
   relocate 'org.slf4j', 'datadog.slf4j'
   // rewrite dependencies calling Logger.getLogger
