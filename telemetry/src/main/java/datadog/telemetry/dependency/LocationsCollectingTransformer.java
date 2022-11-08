@@ -19,6 +19,7 @@ class LocationsCollectingTransformer implements ClassFileTransformer {
 
   public LocationsCollectingTransformer(DependencyServiceImpl dependencyService) {
     this.dependencyService = dependencyService;
+    seenDomains.add(LocationsCollectingTransformer.class.getProtectionDomain());
   }
 
   @Override
