@@ -584,7 +584,7 @@ jobs:
       - run:
           name: Install JDK 8
           command: |
-            brew tap caskroom/versions
+            brew tap homebrew/cask-versions
             brew install --cask temurin8
             ls $(brew --prefix temurin8)
             ls $(brew --prefix temurin8)/libexec/openjdk.jdk
