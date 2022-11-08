@@ -589,6 +589,7 @@ jobs:
             brew tap homebrew/cask-versions
             brew install --cask temurin8
             /usr/libexec/java_home -v 1.8
+            command -v java
             #ls $(brew --prefix temurin8)
             #ls $(brew --prefix temurin8)/libexec/openjdk.jdk
       - setup_code
