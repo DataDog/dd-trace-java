@@ -207,11 +207,11 @@ jobs:
     steps:
       - setup_code
 
-      - restore_cache:
-          <<: *dependency_cache_keys
-
-      - restore_cache:
-          <<: *build_cache_keys
+#      - restore_cache:
+#          <<: *dependency_cache_keys
+#
+#      - restore_cache:
+#          <<: *build_cache_keys
 
       - run:
           name: Build Project
@@ -277,9 +277,9 @@ jobs:
       #          <<: *dependency_cache_paths
 
       # Save the small build cache
-      - save_cache:
-          key: dd-trace-java-build-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
-          <<: *build_cache_paths
+#      - save_cache:
+#          key: dd-trace-java-build-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+#          <<: *build_cache_paths
 
       - display_memory_usage
 
@@ -648,228 +648,228 @@ jobs:
 build_test_jobs: &build_test_jobs
   - build
 
-  - xlarge_tests:
-      requires:
-        - build
-      name: z_test_<< matrix.testJvm >>_base
-      triggeredBy: *core_modules
-      gradleParameters: "-PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipIastTests -PskipDebuggerTests"
-      stage: core
-      maxWorkers: 6
-      matrix:
-        <<: *test_matrix
-
-  - xlarge_tests:
-      requires:
-        - build
-      name: z_test_8_base
-      triggeredBy: *core_modules
-      gradleParameters: "-PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipIastTests -PskipDebuggerTests"
-      testTask: test jacocoTestReport jacocoTestCoverageVerification
-      stage: core
-      maxWorkers: 6
-      testJvm: "8"
-
-  - xlarge_tests:
-      requires:
-        - build
-      name: z_test_<< matrix.testJvm >>_inst
-      gradleTarget: ":dd-java-agent:instrumentation"
-      triggeredBy: *instrumentation_modules
-      stage: instrumentation
-      maxWorkers: 8
-      matrix:
-        <<: *test_matrix
-
-  - xlarge_tests:
-      requires:
-        - build
-      name: z_test_8_inst
-      gradleTarget: ":dd-java-agent:instrumentation"
-      triggeredBy: *instrumentation_modules
-      stage: instrumentation
-      maxWorkers: 8
-      testJvm: "8"
-
-  - xlarge_tests:
-      requires:
-        - build
-      name: test_8_inst_latest
-      testTask: latestDepTest
-      gradleTarget: ":dd-java-agent:instrumentation"
-      triggeredBy: *instrumentation_modules
-      stage: instrumentation
-      maxWorkers: 8
-      testJvm: "8"
-
-  - tests:
-      requires:
-        - build
-      maxWorkers: 4
-      gradleTarget: ":dd-java-agent:agent-profiling"
-      triggeredBy: *profiling_modules
-      stage: profiling
-      name: test_<< matrix.testJvm >>_profiling
-      matrix:
-        <<: *profiling_test_matrix
-
-  - tests:
-      requires:
-        - build
-      maxWorkers: 4
-      name: test_<< matrix.testJvm >>_iast
-      gradleTarget: ":dd-java-agent:agent-iast"
-      triggeredBy: *iast_modules
-      stage: iast
-      matrix:
-        <<: *profiling_test_matrix
-
-  - tests:
-      requires:
-        - build
-      name: test_<< matrix.testJvm >>_debugger
-      maxWorkers: 4
-      gradleTarget: ":dd-java-agent:agent-debugger"
-      triggeredBy: *debugger_modules
-      stage: debugger
-      matrix:
-        <<: *profiling_test_matrix
-
-  - huge_tests:
-      requires:
-        - build
-      name: z_test_<< matrix.testJvm >>_smoke
-      gradleTarget: "stageMainDist :dd-smoke-test"
-      stage: smoke
-      maxWorkers: 8
-      matrix:
-        <<: *test_matrix
-
-  - huge_tests:
-      requires:
-        - build
-      name: test_IBM11_smoke
-      gradleTarget: "stageMainDist :dd-smoke-test"
-      stage: smoke
-      maxWorkers: 8
-      testJvm: "IBM11"
-
-  - huge_tests:
-      requires:
-        - build
-      name: test_IBM17_smoke
-      gradleTarget: "stageMainDist :dd-smoke-test"
-      stage: smoke
-      maxWorkers: 8
-      testJvm: "IBM17"
-
-
-  - huge_tests:
-      requires:
-        - build
-      name: z_test_8_smoke
-      gradleTarget: "stageMainDist :dd-smoke-test"
-      stage: smoke
-      maxWorkers: 8
-      testJvm: "8"
-
-  - fan_in:
-      requires:
-        - z_test_<< matrix.testJvm >>_base
-        - z_test_<< matrix.testJvm >>_inst
-        - z_test_<< matrix.testJvm >>_smoke
-      name: test_<< matrix.testJvm >>
-      stage: tracing
-      matrix:
-        <<: *test_matrix
-
-  - fan_in:
-      requires:
-        - z_test_8_base
-        - z_test_8_inst
-        - z_test_8_smoke
-      name: test_8
-      stage: tracing
-      testJvm: "8"
-
-  - agent_integration_tests:
-      requires:
-        - build
-      triggeredBy: *agent_integration_tests_modules
-      testTask: traceAgentTest
-      testJvm: "8"
+#  - xlarge_tests:
+#      requires:
+#        - build
+#      name: z_test_<< matrix.testJvm >>_base
+#      triggeredBy: *core_modules
+#      gradleParameters: "-PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipIastTests -PskipDebuggerTests"
+#      stage: core
+#      maxWorkers: 6
+#      matrix:
+#        <<: *test_matrix
+#
+#  - xlarge_tests:
+#      requires:
+#        - build
+#      name: z_test_8_base
+#      triggeredBy: *core_modules
+#      gradleParameters: "-PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipIastTests -PskipDebuggerTests"
+#      testTask: test jacocoTestReport jacocoTestCoverageVerification
+#      stage: core
+#      maxWorkers: 6
+#      testJvm: "8"
+#
+#  - xlarge_tests:
+#      requires:
+#        - build
+#      name: z_test_<< matrix.testJvm >>_inst
+#      gradleTarget: ":dd-java-agent:instrumentation"
+#      triggeredBy: *instrumentation_modules
+#      stage: instrumentation
+#      maxWorkers: 8
+#      matrix:
+#        <<: *test_matrix
+#
+#  - xlarge_tests:
+#      requires:
+#        - build
+#      name: z_test_8_inst
+#      gradleTarget: ":dd-java-agent:instrumentation"
+#      triggeredBy: *instrumentation_modules
+#      stage: instrumentation
+#      maxWorkers: 8
+#      testJvm: "8"
+#
+#  - xlarge_tests:
+#      requires:
+#        - build
+#      name: test_8_inst_latest
+#      testTask: latestDepTest
+#      gradleTarget: ":dd-java-agent:instrumentation"
+#      triggeredBy: *instrumentation_modules
+#      stage: instrumentation
+#      maxWorkers: 8
+#      testJvm: "8"
+#
+#  - tests:
+#      requires:
+#        - build
+#      maxWorkers: 4
+#      gradleTarget: ":dd-java-agent:agent-profiling"
+#      triggeredBy: *profiling_modules
+#      stage: profiling
+#      name: test_<< matrix.testJvm >>_profiling
+#      matrix:
+#        <<: *profiling_test_matrix
+#
+#  - tests:
+#      requires:
+#        - build
+#      maxWorkers: 4
+#      name: test_<< matrix.testJvm >>_iast
+#      gradleTarget: ":dd-java-agent:agent-iast"
+#      triggeredBy: *iast_modules
+#      stage: iast
+#      matrix:
+#        <<: *profiling_test_matrix
+#
+#  - tests:
+#      requires:
+#        - build
+#      name: test_<< matrix.testJvm >>_debugger
+#      maxWorkers: 4
+#      gradleTarget: ":dd-java-agent:agent-debugger"
+#      triggeredBy: *debugger_modules
+#      stage: debugger
+#      matrix:
+#        <<: *profiling_test_matrix
+#
+#  - huge_tests:
+#      requires:
+#        - build
+#      name: z_test_<< matrix.testJvm >>_smoke
+#      gradleTarget: "stageMainDist :dd-smoke-test"
+#      stage: smoke
+#      maxWorkers: 8
+#      matrix:
+#        <<: *test_matrix
+#
+#  - huge_tests:
+#      requires:
+#        - build
+#      name: test_IBM11_smoke
+#      gradleTarget: "stageMainDist :dd-smoke-test"
+#      stage: smoke
+#      maxWorkers: 8
+#      testJvm: "IBM11"
+#
+#  - huge_tests:
+#      requires:
+#        - build
+#      name: test_IBM17_smoke
+#      gradleTarget: "stageMainDist :dd-smoke-test"
+#      stage: smoke
+#      maxWorkers: 8
+#      testJvm: "IBM17"
+#
+#
+#  - huge_tests:
+#      requires:
+#        - build
+#      name: z_test_8_smoke
+#      gradleTarget: "stageMainDist :dd-smoke-test"
+#      stage: smoke
+#      maxWorkers: 8
+#      testJvm: "8"
+#
+#  - fan_in:
+#      requires:
+#        - z_test_<< matrix.testJvm >>_base
+#        - z_test_<< matrix.testJvm >>_inst
+#        - z_test_<< matrix.testJvm >>_smoke
+#      name: test_<< matrix.testJvm >>
+#      stage: tracing
+#      matrix:
+#        <<: *test_matrix
+#
+#  - fan_in:
+#      requires:
+#        - z_test_8_base
+#        - z_test_8_inst
+#        - z_test_8_smoke
+#      name: test_8
+#      stage: tracing
+#      testJvm: "8"
+#
+#  - agent_integration_tests:
+#      requires:
+#        - build
+#      triggeredBy: *agent_integration_tests_modules
+#      testTask: traceAgentTest
+#      testJvm: "8"
 
   - test_published_artifacts:
       requires:
         - build
 
-  - muzzle:
-      requires:
-        - build
-      filters:
-        branches:
-          ignore:
-            - master
-            - project/*
-            - release/*
-
-  - system-tests:
-      requires:
-        - build
-
-  - fan_in:
-      requires:
-        - test_published_artifacts
-        - test_8_profiling
-        - test_ORACLE8_profiling
-        - test_ZULU8_profiling
-        - test_ZULU11_profiling
-        - test_11_profiling
-        - test_17_profiling
-      name: profiling
-      stage: profiling
-
-  - fan_in:
-      requires:
-        - test_published_artifacts
-        - test_8_debugger
-        - test_ORACLE8_debugger
-        - test_ZULU8_debugger
-        - test_ZULU11_debugger
-        - test_11_debugger
-        - test_17_debugger
-      name: debugger
-      stage: debugger
-
-  - fan_in:
-      requires:
-        - test_published_artifacts
-        - test_8_iast
-        - test_ORACLE8_iast
-        - test_ZULU8_iast
-        - test_ZULU11_iast
-        - test_11_iast
-        - test_17_iast
-      name: iast
-      stage: iast
+#  - muzzle:
+#      requires:
+#        - build
+#      filters:
+#        branches:
+#          ignore:
+#            - master
+#            - project/*
+#            - release/*
+#
+#  - system-tests:
+#      requires:
+#        - build
+#
+#  - fan_in:
+#      requires:
+#        - test_published_artifacts
+#        - test_8_profiling
+#        - test_ORACLE8_profiling
+#        - test_ZULU8_profiling
+#        - test_ZULU11_profiling
+#        - test_11_profiling
+#        - test_17_profiling
+#      name: profiling
+#      stage: profiling
+#
+#  - fan_in:
+#      requires:
+#        - test_published_artifacts
+#        - test_8_debugger
+#        - test_ORACLE8_debugger
+#        - test_ZULU8_debugger
+#        - test_ZULU11_debugger
+#        - test_11_debugger
+#        - test_17_debugger
+#      name: debugger
+#      stage: debugger
+#
+#  - fan_in:
+#      requires:
+#        - test_published_artifacts
+#        - test_8_iast
+#        - test_ORACLE8_iast
+#        - test_ZULU8_iast
+#        - test_ZULU11_iast
+#        - test_11_iast
+#        - test_17_iast
+#      name: iast
+#      stage: iast
 
   # This job requires all the jobs needed for a successful build, so github only needs to enforce this one
   # and it will be simpler to require different JVM versions for different branches and old releases
   - fan_in:
       requires:
         - test_published_artifacts
-        - agent_integration_tests
-        - test_7
-        - test_8
-        - test_IBM8
-        - test_11
-        - test_IBM11_smoke
-        - test_17
-        - test_IBM17_smoke
-        - test_ZULU8
-        - profiling
-        - iast
-        - debugger
+#        - agent_integration_tests
+#        - test_7
+#        - test_8
+#        - test_IBM8
+#        - test_11
+#        - test_IBM11_smoke
+#        - test_17
+#        - test_IBM17_smoke
+#        - test_ZULU8
+#        - profiling
+#        - iast
+#        - debugger
       name: required
       stage: required
 
