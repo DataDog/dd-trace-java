@@ -3,6 +3,8 @@
 "return":\{
 "arguments":\{
 "this":\{
+"type":"java.lang.String",
+"fields":\{
 "normalNullField":\{
 "type":"java.lang.String",
 "isNull":true
@@ -30,6 +32,7 @@
 "normalValuedField":\{
 "type":"java.lang.String",
 "value":"foobar"
+\}
 \}
 \}
 \},

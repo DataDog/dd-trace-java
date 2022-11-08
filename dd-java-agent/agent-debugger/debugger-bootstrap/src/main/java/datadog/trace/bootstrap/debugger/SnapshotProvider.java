@@ -16,6 +16,6 @@ public final class SnapshotProvider {
       LOG.info("Cannot resolve the probe: {}", uuid);
       probeDetails = Snapshot.ProbeDetails.UNKNOWN;
     }
-    return new Snapshot(Thread.currentThread(), probeDetails);
+    return new Snapshot(Thread.currentThread(), probeDetails, callingClass.getTypeName());
   }
 }
