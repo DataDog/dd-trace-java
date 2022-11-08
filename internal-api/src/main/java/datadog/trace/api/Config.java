@@ -2941,8 +2941,6 @@ public class Config {
         + grpcServerErrorStatuses
         + ", grpcClientErrorStatuses="
         + grpcClientErrorStatuses
-        + ", configProvider="
-        + configProvider
         + ", clientIpEnabled="
         + clientIpEnabled
         + ", appSecReportingInband="

@@ -50,7 +50,7 @@ public class AgentStrategies {
   private static final TypeStrategy TYPE_STRATEGY;
 
   static {
-    if (InstrumenterConfig.get().isResolverOutlinePoolEnabled()) {
+    if (InstrumenterConfig.get().isResolverOutliningEnabled()) {
       POOL_STRATEGY = DDOutlinePoolStrategy.INSTANCE;
       BUFFER_STRATEGY = DDOutlineTypeStrategy.INSTANCE;
       TYPE_STRATEGY = DDOutlineTypeStrategy.INSTANCE;

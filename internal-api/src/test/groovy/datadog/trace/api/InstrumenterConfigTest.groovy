@@ -39,4 +39,32 @@ class InstrumenterConfigTest extends DDSpecification {
 
     integrationNames = new TreeSet<>(names)
   }
+
+  def "valid resolver presets"() {
+    setup:
+    injectSysConfig("resolver.cache.config", preset)
+
+    expect:
+    InstrumenterConfig.get().resolverOutliningEnabled == outlining
+
+    where:
+    // spotless:off
+    preset    | outlining
+    'LARGE'   | true
+    'SMALL'   | true
+    'DEFAULT' | true
+    'LEGACY'  | false
+    // spotless:on
+  }
+
+  def "invalid resolver presets"() {
+    setup:
+    injectSysConfig("resolver.cache.config", preset)
+
+    expect:
+    InstrumenterConfig.get().resolverOutliningEnabled
+
+    where:
+    preset << ['INVALID', '']
+  }
 }
