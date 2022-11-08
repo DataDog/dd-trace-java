@@ -174,7 +174,7 @@ public class SharedCommunicationObjects {
       }
 
       this.configUrl = sco.featuresDiscovery.buildUrl(configEndpoint).toString();
-      log.info("Found remote config endpoint: {}", this.configUrl);
+      log.debug("Found remote config endpoint: {}", this.configUrl);
       return this.configUrl;
     }
   }

@@ -120,7 +120,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           final boolean newState =
               newConfig != null && newConfig.asm != null && newConfig.asm.enabled;
           if (AppSecSystem.isActive() != newState) {
-            log.warn("AppSec {} (runtime)", newState ? "enabled" : "disabled");
+            log.info("AppSec {} (runtime)", newState ? "enabled" : "disabled");
             AppSecSystem.setActive(newState);
             if (AppSecSystem.isActive()) {
               // On remote activation, we need to re-distribute the last known configuration.

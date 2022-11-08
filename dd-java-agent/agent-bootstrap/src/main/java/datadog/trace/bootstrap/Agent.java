@@ -450,7 +450,7 @@ public class Agent {
       }
       Class<?> pollerCls = AGENT_CLASSLOADER.loadClass("datadog.remoteconfig.ConfigurationPoller");
       Method startMethod = pollerCls.getMethod("start");
-      log.info("Starting remote config poller");
+      log.debug("Starting remote config poller");
       startMethod.invoke(poller);
     } catch (Exception e) {
       log.error("Error starting remote config", e);
