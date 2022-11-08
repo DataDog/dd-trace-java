@@ -1,7 +1,7 @@
 version: 2.1
 
 defaults: &defaults
-  #working_directory: ~/dd-trace-java
+  working_directory: ~/dd-trace-java
   docker:
     - image: &default_container datadog/dd-trace-java-docker-build:latest
 
@@ -33,6 +33,7 @@ dependency_cache_paths: &dependency_cache_paths
     - .cache/coursier
 
 build_cache_keys: &build_cache_keys
+  working_directory: ~/
   keys:
     # Dependent steps will find this cache
     - dd-trace-java-build-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
@@ -42,6 +43,7 @@ build_cache_keys: &build_cache_keys
     - dd-trace-java-build-v1-master-{{ checksum "_circle_ci_cache_base_id" }}-
 
 build_cache_paths: &build_cache_paths
+  working_directory: ~/
   paths:
     # Gradle version specific cache for incremental builds. Needs to match version in
     # gradle/wrapper/gradle-wrapper.properties
@@ -682,7 +684,7 @@ jobs:
           destination: logs_java_<< parameters.weblog-variant >>_dev.tar.gz
 
 build_test_jobs: &build_test_jobs
-    #- build
+  - build
 
   #- xlarge_tests:
     #    requires:
@@ -865,9 +867,9 @@ build_test_jobs: &build_test_jobs
     #          - project/*
     #          - release/*
 
-    - macos-tests
-      #    requires:
-    #      - build
+  - macos-tests:
+      requires:
+        - build
 
   #- system-tests:
   #    requires:
