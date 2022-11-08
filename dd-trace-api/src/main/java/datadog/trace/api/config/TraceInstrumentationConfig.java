@@ -63,6 +63,9 @@ public final class TraceInstrumentationConfig {
   public static final String RABBIT_PROPAGATION_DISABLED_EXCHANGES =
       "rabbit.propagation.disabled.exchanges";
 
+  public static final String RABBIT_INCLUDE_ROUTINGKEY_IN_RESOURCE =
+      "rabbit.include.routingkey.in.resource";
+
   public static final String MESSAGE_BROKER_SPLIT_BY_DESTINATION =
       "message.broker.split-by-destination";
 
