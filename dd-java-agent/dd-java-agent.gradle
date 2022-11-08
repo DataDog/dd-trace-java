@@ -45,7 +45,6 @@ ext.generalShadowJarConfig = {
   relocate 'net.', 'ddlib.net.'
   relocate 'okhttp3.', 'ddlib.okhttp3.'
   relocate 'okio.', 'ddlib.okio.'
-  relocate 'one.', 'ddlib.one.'
   relocate 'org.glassfish', 'ddlib.org.glassfish'
   relocate 'org.yaml.snakeyaml', 'ddlib.org.yaml.snakeyaml'
   relocate 'org.jctools', 'ddlib.org.jctools'
