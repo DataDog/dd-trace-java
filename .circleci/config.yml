@@ -595,6 +595,10 @@ jobs:
             #ls $(brew --prefix temurin8)
             #ls $(brew --prefix temurin8)/libexec/openjdk.jdk
       - setup_code
+      - restore_cache:
+          <<: *dependency_cache_keys
+      - restore_cache:
+          <<: *build_cache_keys
       - run:
           name: Run tests
           command: >-
