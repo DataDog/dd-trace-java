@@ -28,8 +28,9 @@ spotless {
     toggleOffOn()
     // same as kotlin, but for .gradle.kts files (defaults to '*.gradle.kts')
     target '*.gradle.kts'
-    ktfmt()
-    ktlint().userData(['indent_size': '2', 'continuation_indent_size': '2'])
+    // ktfmt('0.40').kotlinlangStyle() // needs Java 11+
+    // Newer versions do not work well with the older version of kotlin in this build
+    ktlint('0.41.0').userData(['indent_size': '2', 'continuation_indent_size': '2'])
   }
 
   if (project.plugins.hasPlugin('groovy')) {
@@ -47,15 +48,7 @@ spotless {
   if (project.plugins.hasPlugin('scala')) {
     scala {
       toggleOffOn()
-      scalafmt("2.0.1").configFile(configPath + '/enforcement/spotless-scalafmt.conf')
-    }
-  }
-
-  if (project.plugins.hasPlugin('kotlin')) {
-    kotlin {
-      toggleOffOn()
-      //    ktfmt() // Requires newer version of java
-      ktlint().userData(['indent_size': '2', 'continuation_indent_size': '2'])
+      scalafmt("2.7.5").configFile(configPath + '/enforcement/spotless-scalafmt.conf')
     }
   }
 
@@ -67,6 +60,8 @@ spotless {
     endWithNewline()
   }
 }
+
+apply from: "$configPath/spotless/spotless-kotlin.gradle"
 
 tasks.register('formatCode') {
   dependsOn 'spotlessApply'

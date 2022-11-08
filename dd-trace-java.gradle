@@ -1,21 +1,12 @@
-buildscript {
-  configurations.classpath {
-    resolutionStrategy {
-      // both axion-release and spotless use jgit, use the axion-release version
-      force 'org.eclipse.jgit:org.eclipse.jgit:5.12.0.202106070339-r'
-    }
-  }
-}
-
 plugins {
   id 'com.github.ben-manes.versions' version '0.27.0'
 
-  id "com.diffplug.spotless" version "5.17.1"
+  id "com.diffplug.spotless" version "6.11.0"
   id 'com.github.spotbugs' version '4.6.0'
   id "de.thetaphi.forbiddenapis" version "3.2"
 
   id 'org.unbroken-dome.test-sets' version '4.0.0'
-  id 'pl.allegro.tech.build.axion-release' version '1.13.6'
+  id 'pl.allegro.tech.build.axion-release' version '1.14.2'
   id 'io.github.gradle-nexus.publish-plugin' version '1.0.0'
 
   id "com.github.johnrengelman.shadow" version "7.1.2" apply false
