@@ -1,14 +1,15 @@
 package com.datadog.debugger.agent;
 
-import static com.datadog.debugger.agent.MetricProbe.MetricKind.COUNT;
-import static com.datadog.debugger.agent.MetricProbe.MetricKind.GAUGE;
-import static com.datadog.debugger.agent.MetricProbe.MetricKind.HISTOGRAM;
+import static com.datadog.debugger.probe.MetricProbe.MetricKind.COUNT;
+import static com.datadog.debugger.probe.MetricProbe.MetricKind.GAUGE;
+import static com.datadog.debugger.probe.MetricProbe.MetricKind.HISTOGRAM;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.instrumentation.InsnListValue;
+import com.datadog.debugger.probe.MetricProbe;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;

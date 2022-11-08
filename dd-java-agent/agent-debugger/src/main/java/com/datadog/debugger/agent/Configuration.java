@@ -1,5 +1,8 @@
 package com.datadog.debugger.agent;
 
+import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SnapshotProbe;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;

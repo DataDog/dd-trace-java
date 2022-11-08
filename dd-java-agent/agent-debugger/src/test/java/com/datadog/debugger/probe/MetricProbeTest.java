@@ -1,4 +1,4 @@
-package com.datadog.debugger.agent;
+package com.datadog.debugger.probe;
 
 import com.datadog.debugger.el.ValueScript;
 import org.junit.Assert;

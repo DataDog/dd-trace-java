@@ -7,7 +7,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
-import com.datadog.debugger.agent.SnapshotProbe;
+import com.datadog.debugger.probe.SnapshotProbe;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.debugger.Snapshot;

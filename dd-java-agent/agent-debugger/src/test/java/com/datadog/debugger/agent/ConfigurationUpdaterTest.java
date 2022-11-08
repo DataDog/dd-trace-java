@@ -11,6 +11,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SnapshotProbe;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import datadog.trace.api.Config;
@@ -399,7 +402,7 @@ public class ConfigurationUpdaterTest {
     assertEquals(HashMap.class, allValues.get(2)); // for removing instrumentation
     Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
     Assertions.assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(probe1.id));
+    assertTrue(appliedDefinitions.containsKey(probe1.getId()));
   }
 
   @Test
@@ -443,7 +446,7 @@ public class ConfigurationUpdaterTest {
     assertEquals(String.class, allValues.get(1));
     Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
     Assertions.assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(probe1.id));
+    assertTrue(appliedDefinitions.containsKey(probe1.getId()));
   }
 
   @Test
@@ -610,7 +613,7 @@ public class ConfigurationUpdaterTest {
     assertEquals(HashMap.class, allValues.get(2)); // for removing instrumentation
     Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
     assertEquals(1, appliedDefinitions.size());
-    assertTrue(appliedDefinitions.containsKey(metricProbe1.id));
+    assertTrue(appliedDefinitions.containsKey(metricProbe1.getId()));
   }
 
   @Test

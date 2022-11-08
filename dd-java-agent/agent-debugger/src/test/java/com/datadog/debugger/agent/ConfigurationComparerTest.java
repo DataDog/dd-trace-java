@@ -4,6 +4,8 @@ import static com.datadog.debugger.agent.Trie.reverseStr;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SnapshotProbe;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
