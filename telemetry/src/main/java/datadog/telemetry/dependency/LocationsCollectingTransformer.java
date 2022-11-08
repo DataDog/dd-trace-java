@@ -13,18 +13,6 @@ import org.slf4j.LoggerFactory;
 class LocationsCollectingTransformer implements ClassFileTransformer {
   private static final Logger log = LoggerFactory.getLogger(LocationsCollectingTransformer.class);
 
-  private static String agentUrl = null;
-
-  static {
-    try {
-      final URL agentUrlObj =
-          LocationsCollectingTransformer.class.getProtectionDomain().getCodeSource().getLocation();
-      agentUrl = agentUrlObj == null ? null : agentUrlObj.toString();
-    } catch (Throwable ex) {
-      log.error("Error getting agent URL");
-    }
-  }
-
   private final DependencyServiceImpl dependencyService;
   private final Set<ProtectionDomain> seenDomains =
       Collections.newSetFromMap(new WeakHashMap<ProtectionDomain, Boolean>());
@@ -56,10 +44,6 @@ class LocationsCollectingTransformer implements ClassFileTransformer {
 
     URL location = codeSource.getLocation();
     if (location == null) {
-      return null;
-    }
-
-    if (location.toString().equals(agentUrl)) {
       return null;
     }
 
