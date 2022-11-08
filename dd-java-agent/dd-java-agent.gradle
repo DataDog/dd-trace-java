@@ -34,11 +34,9 @@ ext.generalShadowJarConfig = {
 
   /*
    * Shade third party dependencies behind a 'ddlib.' prefix.
-   * (short package names have a leading dot (.) to prevent unexpected renaming)
+   * (short package names have a trailing dot (.) to prevent unexpected renaming)
    */
   [
-    'cafe.',
-    'com.blogspot.mydailyjava.weaklockfree',
     'cafe.',
     'com.blogspot.mydailyjava.weaklockfree',
     'com.fasterxml.jackson',
