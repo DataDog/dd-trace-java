@@ -20,7 +20,7 @@ public class SamplingMechanism {
   /** User-defined target; reserved for future use */
   public static final byte REMOTE_USER_RATE = 6;
   /** Span Sampling Rate (single span sampled on account of a span sampling rule) */
-  public static final byte SPAN_SAMPLING_RATE = 7;
+  public static final byte SPAN_SAMPLING_RATE = 8;
 
   public static boolean validateWithSamplingPriority(int mechanism, int priority) {
     switch (mechanism) {
