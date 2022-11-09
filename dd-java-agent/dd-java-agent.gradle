@@ -30,6 +30,9 @@ targetCompatibility = JavaVersion.VERSION_1_7
 ext.generalShadowJarConfig = {
   mergeServiceFiles()
 
+  exclude '**/META-INF/maven/'
+  exclude '**/META-INF/proguard/'
+  exclude '**/META-INF/*.kotlin_module'
   exclude '**/module-info.class'
 
   /*

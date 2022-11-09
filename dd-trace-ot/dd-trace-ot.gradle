@@ -101,7 +101,9 @@ shadowJar {
     exclude('datadog.trace.api.*')
     exclude('datadog.trace.context.*')
   }
-  exclude('META-INF/maven/**')
+  exclude('META-INF/maven/')
+  exclude('META-INF/proguard/')
+  exclude('/META-INF/*.kotlin_module')
 }
 
 jmh {
