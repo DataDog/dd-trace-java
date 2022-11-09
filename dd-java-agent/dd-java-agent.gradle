@@ -32,6 +32,31 @@ ext.generalShadowJarConfig = {
 
   exclude '**/module-info.class'
 
+  /*
+   * Shade third party dependencies behind a 'ddlib.' prefix.
+   * (short package names have a trailing dot (.) to prevent unexpected renaming)
+   */
+  [
+    'cafe.',
+    'com.blogspot.mydailyjava.weaklockfree',
+    'com.fasterxml.jackson',
+    'com.google.re2j',
+    'com.googlecode.concurrentlinkedhashmap',
+    'com.squareup.moshi',
+    'com.timgroup.statsd',
+    'io.vertx.redis',
+    'jnr.',
+    'net.',
+    'okhttp3.',
+    'okio.',
+    'org.glassfish',
+    'org.yaml.snakeyaml',
+    'org.jctools',
+    'org.objectweb.asm',
+  ].forEach {
+    relocate it, 'ddlib.' + it
+  }
+
   // Prevents conflict with other SLF4J instances. Important for premain.
   relocate 'org.slf4j', 'datadog.slf4j'
   // rewrite dependencies calling Logger.getLogger
