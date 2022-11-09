@@ -54,14 +54,17 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@dc7b9719a96d48369863986a06765841d7ea23f6 # 2.0.0
-        with:
+        with: 
           install: true
           config-inline: |
             [worker.oci]
               max-parallelism = 1
  
       - name: DEBUG WORKSPACE
-        run: ls dd-java-agent/build/libs/
+        run: ls dd-java-agent/
+
+      - name: DEBUG WORKSPACE2
+        run: ls dd-java-agent/build
 
       - name: Copy Java agent
         run: cp dd-java-agent/build/libs/dd-java-agent-*.jar system-tests/binaries/dd-java-agent.jar
