@@ -1,4 +1,4 @@
-package com.datadog.debugger.agent;
+package com.datadog.debugger.probe;
 
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;

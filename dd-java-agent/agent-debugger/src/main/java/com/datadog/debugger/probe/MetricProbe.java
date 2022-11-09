@@ -1,5 +1,6 @@
-package com.datadog.debugger.agent;
+package com.datadog.debugger.probe;
 
+import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.instrumentation.MetricInstrumentor;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;

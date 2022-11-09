@@ -2,6 +2,9 @@ package com.datadog.debugger.agent;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SnapshotProbe;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;

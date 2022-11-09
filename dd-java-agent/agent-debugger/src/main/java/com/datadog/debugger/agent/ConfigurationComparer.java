@@ -4,6 +4,7 @@ import static com.datadog.debugger.agent.Trie.reverseStr;
 import static com.datadog.debugger.agent.TypeNameHelper.extractSimpleName;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.probe.ProbeDefinition;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;

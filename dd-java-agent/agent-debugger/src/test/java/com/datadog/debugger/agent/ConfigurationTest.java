@@ -1,9 +1,11 @@
 package com.datadog.debugger.agent;
 
-import static com.datadog.debugger.agent.MetricProbe.MetricKind.COUNT;
-import static com.datadog.debugger.agent.MetricProbe.MetricKind.GAUGE;
+import static com.datadog.debugger.probe.MetricProbe.MetricKind.COUNT;
+import static com.datadog.debugger.probe.MetricProbe.MetricKind.GAUGE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.SnapshotProbe;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;

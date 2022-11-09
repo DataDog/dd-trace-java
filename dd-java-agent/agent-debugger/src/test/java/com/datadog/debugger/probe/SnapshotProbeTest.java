@@ -1,4 +1,4 @@
-package com.datadog.debugger.agent;
+package com.datadog.debugger.probe;
 
 import org.junit.Assert;
 import org.junit.jupiter.api.Test;

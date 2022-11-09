@@ -1,6 +1,10 @@
 package com.datadog.debugger.agent;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SnapshotProbe;
+import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.api.Config;
@@ -281,7 +285,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
   private Snapshot.ProbeDetails convertToProbeDetails(
       SnapshotProbe probe, Snapshot.ProbeLocation location) {
     return new Snapshot.ProbeDetails(
-        probe.id,
+        probe.getId(),
         location,
         probe.getProbeCondition(),
         probe.concatTags(),
