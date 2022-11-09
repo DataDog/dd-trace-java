@@ -67,7 +67,7 @@ jobs:
         run: ls dd-java-agent/
 
       - name: Build dd-java-agent.jar
-        run: JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 ./gradlew clean build shadowJar --build-cache --parallel --no-daemon --max-workers=8 -x dd-smoke-tests
+        run: JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 ./gradlew clean build shadowJar --build-cache --parallel --no-daemon --max-workers=8 -x test
 
       - name: DEBUG WORKSPACE 1
         run: ls dd-java-agent/
