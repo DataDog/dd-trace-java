@@ -1,6 +1,5 @@
 package com.datadog.debugger.agent;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -53,44 +52,6 @@ public class Configuration {
     }
   }
 
-  /** Stores operational configuration */
-  public static class OpsConfiguration {
-    private final long pollInterval;
-
-    public OpsConfiguration(long pollInterval) {
-      this.pollInterval = pollInterval;
-    }
-
-    public long getPollInterval() {
-      return pollInterval;
-    }
-
-    public Duration getPollIntervalDuration() {
-      return Duration.ofSeconds(pollInterval);
-    }
-
-    @Generated
-    @Override
-    public String toString() {
-      return "OperationConfiguration{" + "pollInterval=" + pollInterval + '}';
-    }
-
-    @Generated
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-      OpsConfiguration other = (OpsConfiguration) o;
-      return Objects.equals(pollInterval, other.pollInterval);
-    }
-
-    @Generated
-    @Override
-    public int hashCode() {
-      return Objects.hash(pollInterval);
-    }
-  }
-
   private final String id;
   private final long orgId;
   private final Collection<SnapshotProbe> snapshotProbes;
@@ -98,10 +59,9 @@ public class Configuration {
   private final FilterList allowList;
   private final FilterList denyList;
   private final SnapshotProbe.Sampling sampling;
-  private final OpsConfiguration opsConfig;
 
   public Configuration(String id, long orgId, Collection<SnapshotProbe> snapshotProbes) {
-    this(id, orgId, snapshotProbes, null, null, null, null, null);
+    this(id, orgId, snapshotProbes, null, null, null, null);
   }
 
   public Configuration(
@@ -109,7 +69,7 @@ public class Configuration {
       long orgId,
       Collection<SnapshotProbe> snapshotProbes,
       Collection<MetricProbe> metricProbes) {
-    this(id, orgId, snapshotProbes, metricProbes, null, null, null, null);
+    this(id, orgId, snapshotProbes, metricProbes, null, null, null);
   }
 
   public Configuration(
@@ -119,8 +79,7 @@ public class Configuration {
       Collection<MetricProbe> metricProbes,
       FilterList allowList,
       FilterList denyList,
-      SnapshotProbe.Sampling sampling,
-      OpsConfiguration opsConfig) {
+      SnapshotProbe.Sampling sampling) {
     this.id = id;
     this.orgId = orgId;
     this.snapshotProbes = snapshotProbes;
@@ -128,7 +87,6 @@ public class Configuration {
     this.allowList = allowList;
     this.denyList = denyList;
     this.sampling = sampling;
-    this.opsConfig = opsConfig;
   }
 
   public String getId() {
@@ -157,10 +115,6 @@ public class Configuration {
 
   public SnapshotProbe.Sampling getSampling() {
     return sampling;
-  }
-
-  public OpsConfiguration getOpsConfig() {
-    return opsConfig;
   }
 
   public Collection<ProbeDefinition> getDefinitions() {
@@ -193,8 +147,6 @@ public class Configuration {
         + denyList
         + ", sampling="
         + sampling
-        + ", opsConfig="
-        + opsConfig
         + '}';
   }
 
@@ -210,14 +162,12 @@ public class Configuration {
         && Objects.equals(metricProbes, that.metricProbes)
         && Objects.equals(allowList, that.allowList)
         && Objects.equals(denyList, that.denyList)
-        && Objects.equals(sampling, that.sampling)
-        && Objects.equals(opsConfig, that.opsConfig);
+        && Objects.equals(sampling, that.sampling);
   }
 
   @Generated
   @Override
   public int hashCode() {
-    return Objects.hash(
-        id, orgId, snapshotProbes, metricProbes, allowList, denyList, sampling, opsConfig);
+    return Objects.hash(id, orgId, snapshotProbes, metricProbes, allowList, denyList, sampling);
   }
 }

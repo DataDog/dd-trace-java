@@ -116,7 +116,7 @@ public interface AppSecConfig {
 
     @Override
     public String getVersion() {
-      return null;
+      return version;
     }
 
     @Override

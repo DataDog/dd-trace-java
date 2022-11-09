@@ -10,12 +10,16 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import com.ibm.ws.webcontainer.srt.SRTServletRequest;
+import com.ibm.ws.webcontainer.srt.SRTServletResponse;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
 import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
@@ -39,6 +43,7 @@ public final class LibertyServerInstrumentation extends Instrumenter.Tracing
       packageName + ".HttpServletExtractAdapter$Response",
       packageName + ".LibertyDecorator",
       packageName + ".RequestURIDataAdapter",
+      "datadog.trace.instrumentation.servlet.ServletBlockingHelper",
     };
   }
 
@@ -55,9 +60,12 @@ public final class LibertyServerInstrumentation extends Instrumenter.Tracing
 
   public static class HandleRequestAdvice {
 
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.Argument(value = 0) ServletRequest req) {
-      if (!(req instanceof SRTServletRequest)) return null;
+    @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
+    public static boolean /* skip */ onEnter(
+        @Advice.Local("agentScope") AgentScope scope,
+        @Advice.Argument(0) ServletRequest req,
+        @Advice.Argument(1) ServletResponse resp) {
+      if (!(req instanceof SRTServletRequest)) return false;
       SRTServletRequest request = (SRTServletRequest) req;
 
       // if we try to get an attribute that doesn't exist open liberty might complain with an
@@ -65,7 +73,8 @@ public final class LibertyServerInstrumentation extends Instrumenter.Tracing
       try {
         Object existingSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
         if (existingSpan instanceof AgentSpan) {
-          return activateSpan((AgentSpan) existingSpan);
+          scope = activateSpan((AgentSpan) existingSpan);
+          return false;
         }
       } catch (NullPointerException e) {
       }
@@ -76,17 +85,25 @@ public final class LibertyServerInstrumentation extends Instrumenter.Tracing
 
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request, request, extractedContext);
-      final AgentScope scope = activateSpan(span);
+      scope = activateSpan(span);
       scope.setAsyncPropagation(true);
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);
       request.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
       request.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
-      return scope;
+
+      Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
+      if (rba != null) {
+        ServletBlockingHelper.commitBlockingResponse(request, (SRTServletResponse) resp, rba);
+        return true; // skip method body
+      }
+
+      return false;
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void closeScope(
-        @Advice.Enter final AgentScope scope, @Advice.Argument(value = 0) ServletRequest req) {
+        @Advice.Local("agentScope") final AgentScope scope,
+        @Advice.Argument(value = 0) ServletRequest req) {
       if (!(req instanceof SRTServletRequest)) return;
       SRTServletRequest request = (SRTServletRequest) req;
 
