@@ -64,7 +64,7 @@ jobs:
         run: ls
 
       - name: Copy Java agent
-        run: cp build/libs/dd-java-agent.jar system-tests/binaries/
+        run: cp dd-java-agent/build/libs/dd-java-agent.jar system-tests/binaries/
 
       - name: Build test images
         run: ./system-tests/lib-injection/run.sh build-test-app-image push-test-app-image build-and-push-init-image
