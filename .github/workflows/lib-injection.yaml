@@ -68,7 +68,7 @@ jobs:
 
       - name: Build dd-java-agent.jar
 #        run: JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 ./gradlew clean build shadowJar --build-cache --parallel --no-daemon --max-workers=8 -x test -x jacocoTestCoverageVerification
-        run: JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 ./gradlew dd-java-agent:shadowJar --build-cache --parallel --no-daemon --max-workers=8
+        run: JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 ./gradlew dd-java-agent:build dd-java-agent:shadowJar --build-cache --parallel --no-daemon --max-workers=8
 
       - name: DEBUG WORKSPACE 1
         run: ls 
