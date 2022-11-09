@@ -3,19 +3,19 @@ package test
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.IastModule
 import datadog.trace.api.iast.InstrumentationBridge
+import foo.bar.TestSuite
 
-import javax.crypto.Cipher
 import java.security.NoSuchAlgorithmException
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class WeakCipherTest  extends AgentTestRunner {
+class WeakCipherTest extends AgentTestRunner {
 
   def "unavailable cipher algorithm"() {
 
     when:
     runUnderTrace("WeakHashingRootSpan") {
-      Cipher.getInstance("SHA-XXX")
+      new TestSuite().getCipherInstance("SHA-XXX")
     }
 
     then:
@@ -28,7 +28,7 @@ class WeakCipherTest  extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    Cipher.getInstance("DES")
+    new TestSuite().getCipherInstance("DES")
 
     then:
     1 * module.onCipherAlgorithm(_)
@@ -40,7 +40,7 @@ class WeakCipherTest  extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    Cipher.getInstance(null)
+    new TestSuite().getCipherInstance(null)
 
     then:
     thrown NoSuchAlgorithmException
