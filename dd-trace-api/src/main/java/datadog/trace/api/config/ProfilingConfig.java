@@ -66,23 +66,13 @@ public final class ProfilingConfig {
   public static final String PROFILING_ASYNC_CPU_INTERVAL = "profiling.async.cpu.interval.ms";
   public static final int PROFILING_ASYNC_CPU_INTERVAL_DEFAULT = 10;
   public static final String PROFILING_ASYNC_WALL_ENABLED = "profiling.async.wall.enabled";
-  public static final boolean PROFILING_ASYNC_WALL_ENABLED_DEFAULT = true;
+  public static final boolean PROFILING_ASYNC_WALL_ENABLED_DEFAULT = false;
   public static final String PROFILING_ASYNC_WALL_INTERVAL = "profiling.async.wall.interval.ms";
   public static final int PROFILING_ASYNC_WALL_INTERVAL_DEFAULT = 10;
-
-  public static final String PROFILING_ASYNC_WALL_THREAD_FILTER_ENABLED =
-      "profiling.async.wall.thread.filter.enabled";
-
-  public static final boolean PROFILING_ASYNC_WALL_THREAD_FILTER_ENABLED_DEFAULT = true;
 
   public static final String PROFILING_ASYNC_LOG_LEVEL = "profiling.async.loglevel";
 
   public static final String PROFILING_ASYNC_LOG_LEVEL_DEFAULT = "NONE";
-
-  public static final String PROFILING_ASYNC_WALL_COLLAPSE_SAMPLES =
-      "profiling.async.wall.collapse.samples";
-  public static final boolean PROFILING_ASYNC_WALL_COLLAPSE_SAMPLES_DEFAULT = false;
-
   public static final String PROFILING_ASYNC_STACKDEPTH = "profiling.async.stackdepth";
   public static final int PROFILING_ASYNC_STACKDEPTH_DEFAULT = 512;
   public static final String PROFILING_ASYNC_CSTACK = "profiling.async.cstack";
@@ -96,7 +86,7 @@ public final class ProfilingConfig {
   public static final int PROFILING_ASYNC_MEMLEAK_CAPACITY_DEFAULT = 1024;
   public static final String PROFILING_TRACING_CONTEXT_ENABLED =
       "profiling.tracing_context.enabled";
-  public static final boolean PROFILING_TRACING_CONTEXT_ENABLED_DEFAULT = false;
+  public static final boolean PROFILING_TRACING_CONTEXT_ENABLED_DEFAULT = true;
   public static final String PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_SEC =
       "profiling.tracing_context.tracker.inactive.seconds";
   public static final int PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_DEFAULT = 90;
