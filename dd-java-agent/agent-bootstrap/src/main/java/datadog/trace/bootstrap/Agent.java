@@ -15,6 +15,7 @@ import static datadog.trace.util.Strings.toEnvVar;
 
 import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
+import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
@@ -760,21 +761,26 @@ public class Agent {
             new WithGlobalTracer.Callback() {
               @Override
               public void withTracer(Tracer tracer) {
+                log.debug("Initializing profiler tracer integrations");
                 try {
+                  if (Platform.isOracleJDK8() || Platform.isJ9()) {
+                    return;
+                  }
+                  Checkpointer checkpointer =
+                      (Checkpointer)
+                          AGENT_CLASSLOADER
+                              .loadClass("datadog.trace.core.jfr.openjdk.JFRCheckpointer")
+                              .getDeclaredConstructor()
+                              .newInstance();
+                  ((AgentTracer.TracerAPI) tracer)
+                      .registerCheckpointer((EndpointCheckpointer) checkpointer);
                   if (Config.get().isProfilingLegacyTracingIntegrationEnabled()) {
                     log.debug("Registering scope event factory");
                     tracer.addScopeListener(
                         createScopeListener("datadog.trace.core.jfr.openjdk.ScopeEventFactory"));
-                  } else if (tracer instanceof AgentTracer.TracerAPI) {
-                    // TODO separate endpoint event tracking from checkpointer so checkpointing can
-                    //  be disabled whenever async-profiler is enabled
+                  } else {
+                    // TODO remove this
                     log.debug("Registering checkpointer");
-                    Checkpointer checkpointer =
-                        (Checkpointer)
-                            AGENT_CLASSLOADER
-                                .loadClass("datadog.trace.core.jfr.openjdk.JFRCheckpointer")
-                                .getDeclaredConstructor()
-                                .newInstance();
                     ((AgentTracer.TracerAPI) tracer).registerCheckpointer(checkpointer);
                     log.debug("Checkpointer {} has been registered", checkpointer);
                   }

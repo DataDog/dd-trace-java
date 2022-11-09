@@ -216,10 +216,11 @@ public class JFRCheckpointer implements Checkpointer, ProfilingListener<Profilin
   }
 
   @Override
-  public final void onRootSpanWritten(
-      final AgentSpan rootSpan, final boolean published, final boolean checkpointsSampled) {
+  public final void onRootSpanFinished(final AgentSpan rootSpan, final boolean published) {
     if (isEndpointCollectionEnabled) {
       if (rootSpan instanceof DDSpan) {
+        final Boolean emittingCheckpoints = rootSpan.isEmittingCheckpoints();
+        boolean checkpointsSampled = emittingCheckpoints != null && emittingCheckpoints;
         DDSpan span = (DDSpan) rootSpan;
         EndpointTracker tracker = span.getEndpointTracker();
         if (tracker != null) {

@@ -408,7 +408,7 @@ class JFRBasedProfilingIntegrationTest {
             */
             final long ts = System.nanoTime();
             while (!checkLogLines(
-                logFilePath, line -> line.contains("Registering scope event factory"))) {
+                logFilePath, line -> line.contains("Initializing profiler tracer integrations"))) {
               Thread.sleep(500);
               // Wait at most 30 seconds
               if (System.nanoTime() - ts > 30_000_000_000L) {

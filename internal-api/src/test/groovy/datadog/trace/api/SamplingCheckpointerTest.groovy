@@ -12,9 +12,11 @@ class SamplingCheckpointerTest extends DDSpecification {
   def "test sampling and fallback"() {
     setup:
     Checkpointer checkpointer = Mock()
+    EndpointCheckpointer rootSpanCheckpointer = Mock()
     SamplingCheckpointer sut = SamplingCheckpointer.create()
     if (register) {
       sut.register(checkpointer)
+      sut.register(rootSpanCheckpointer)
     }
     DDId localRootSpanId = DDId.from(1)
     DDId spanId = DDId.from(2)
@@ -52,17 +54,17 @@ class SamplingCheckpointerTest extends DDSpecification {
     when:
     sut.onRootSpanStarted(rootSpan)
     then:
-    rootSpanCount * checkpointer.onRootSpanStarted(rootSpan)
+    rootSpanCount * rootSpanCheckpointer.onRootSpanStarted(rootSpan)
 
     when:
     sut.onRootSpanFinished(rootSpan, true)
     then:
-    rootSpanCount * checkpointer.onRootSpanWritten(rootSpan, true, emitCheckpoints)
+    rootSpanCount * rootSpanCheckpointer.onRootSpanFinished(rootSpan, true)
 
     when:
     sut.onRootSpanFinished(rootSpan, false)
     then:
-    rootSpanCount * checkpointer.onRootSpanWritten(rootSpan, false, emitCheckpoints)
+    rootSpanCount * rootSpanCheckpointer.onRootSpanFinished(rootSpan, false)
 
     where:
     drop  | register | emitCheckpoints

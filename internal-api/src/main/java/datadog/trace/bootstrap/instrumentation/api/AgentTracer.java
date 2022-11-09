@@ -4,6 +4,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 
 import datadog.trace.api.Checkpointer;
 import datadog.trace.api.DDId;
+import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.PropagationStyle;
 import datadog.trace.api.SpanCheckpointer;
 import datadog.trace.api.function.Consumer;
@@ -178,7 +179,15 @@ public class AgentTracer {
      *
      * @param checkpointer
      */
+    @Deprecated(/* forRemoval = true */ )
     void registerCheckpointer(Checkpointer checkpointer);
+
+    /**
+     * Registers the checkpointer
+     *
+     * @param checkpointer
+     */
+    void registerCheckpointer(EndpointCheckpointer checkpointer);
 
     SubscriptionService getSubscriptionService(RequestContextSlot slot);
 
@@ -335,6 +344,9 @@ public class AgentTracer {
 
     @Override
     public void registerCheckpointer(Checkpointer checkpointer) {}
+
+    @Override
+    public void registerCheckpointer(EndpointCheckpointer checkpointer) {}
 
     @Override
     public SubscriptionService getSubscriptionService(RequestContextSlot slot) {
