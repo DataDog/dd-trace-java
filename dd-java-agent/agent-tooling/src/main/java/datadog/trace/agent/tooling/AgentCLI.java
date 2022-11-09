@@ -70,11 +70,11 @@ public final class AgentCLI {
     for (String arg : args) {
       try {
         files.add(new FileInputStream(arg));
+        new CrashUploader().upload(files);
       } catch (FileNotFoundException | SecurityException e) {
         log.error("Failed to open {}", arg, e);
+        System.exit(1);
       }
     }
-
-    new CrashUploader().upload(files);
   }
 }

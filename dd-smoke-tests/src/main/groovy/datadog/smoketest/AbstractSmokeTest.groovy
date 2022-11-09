@@ -138,6 +138,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
   }
 
   void waitForTrace(final PollingConditions poll, final Function<DecodedTrace, Boolean> predicate) {
+    assert decode != null // override decodedTracesCallback to avoid this and enable trace decoding
     poll.eventually {
       assert decodeTraces.find { predicate.apply(it) } != null
     }

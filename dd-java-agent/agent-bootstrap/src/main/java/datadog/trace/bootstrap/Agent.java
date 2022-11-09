@@ -16,6 +16,7 @@ import static datadog.trace.util.Strings.toEnvVar;
 import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
+import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.WithGlobalTracer;
@@ -74,11 +75,11 @@ public class Agent {
     PROFILING("dd.profiling.enabled", false),
     APPSEC("dd.appsec.enabled", false),
     IAST("dd.iast.enabled", false),
-    REMOTE_CONFIG("dd.remote_config.enabled", false),
+    REMOTE_CONFIG("dd.remote_config.enabled", true),
     CWS("dd.cws.enabled", false),
     CIVISIBILITY("dd.civisibility.enabled", false),
     CIVISIBILITY_AGENTLESS("dd.civisibility.agentless.enabled", false),
-    TELEMETRY("dd.instrumentation.telemetry.enabled", false),
+    TELEMETRY("dd.instrumentation.telemetry.enabled", true),
     DEBUGGER("dd." + DEBUGGER_ENABLED, false);
 
     private final String systemProp;
@@ -115,11 +116,11 @@ public class Agent {
   private static boolean profilingEnabled = false;
   private static boolean appSecEnabled;
   private static boolean appSecFullyDisabled;
-  private static boolean remoteConfigEnabled;
+  private static boolean remoteConfigEnabled = true;
   private static boolean iastEnabled = false;
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
-  private static boolean telemetryEnabled = false;
+  private static boolean telemetryEnabled = true;
   private static boolean debuggerEnabled = false;
 
   public static void start(final Instrumentation inst, final URL agentJarURL) {
@@ -150,6 +151,17 @@ public class Agent {
       if (ciVisibilityAgentlessEnabled) {
         setSystemPropertyDefault("dd.writer.type", WriterConstants.DD_INTAKE_WRITER_TYPE);
       }
+    }
+
+    if (Platform.isJ9()) {
+      log.debug("OpenJ9 detected, dd.appsec.enabled will default to false");
+      setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
+    } else if (!isSupportedAppSecArch()) {
+      log.debug(
+          "OS and architecture ({}/{}) not supported by AppSec, dd.appsec.enabled will default to false",
+          System.getProperty("os.name"),
+          System.getProperty("os.arch"));
+      setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
     }
 
     jmxFetchEnabled = isFeatureEnabled(AgentFeature.JMXFETCH);
@@ -438,7 +450,7 @@ public class Agent {
       }
       Class<?> pollerCls = AGENT_CLASSLOADER.loadClass("datadog.remoteconfig.ConfigurationPoller");
       Method startMethod = pollerCls.getMethod("start");
-      log.info("Starting remote config poller");
+      log.debug("Starting remote config poller");
       startMethod.invoke(poller);
     } catch (Exception e) {
       log.error("Error starting remote config", e);
@@ -500,6 +512,8 @@ public class Agent {
     if (jmxStarting.getAndSet(true)) {
       return; // another thread is already in startJmx
     }
+    // crash uploader initialization relies on JMX being available
+    initializeCrashUploader();
     if (jmxFetchEnabled) {
       startJmxFetch();
     }
@@ -607,6 +621,21 @@ public class Agent {
     }
   }
 
+  private static boolean isSupportedAppSecArch() {
+    final String arch = System.getProperty("os.arch");
+    if (Platform.isWindows()) {
+      // TODO: Windows bindings need to be built for x86
+      return "amd64".equals(arch) || "x86_64".equals(arch);
+    } else if (Platform.isMac()) {
+      return "amd64".equals(arch) || "x86_64".equals(arch) || "aarch64".equals(arch);
+    } else if (Platform.isLinux()) {
+      return "amd64".equals(arch) || "x86_64".equals(arch) || "aarch64".equals(arch);
+    }
+    // Still return true in other if unexpected cases (e.g. SunOS), and we'll handle loading errors
+    // during AppSec startup.
+    return true;
+  }
+
   private static void maybeStartIast(Class<?> scoClass, Object o) {
     if (iastEnabled) {
       if (isJavaVersionAtLeast(8)) {
@@ -643,6 +672,19 @@ public class Agent {
       startTelemetry.invoke(null, inst, sco);
     } catch (final Throwable ex) {
       log.warn("Unable start telemetry: {}", ex);
+    }
+  }
+
+  private static void initializeCrashUploader() {
+    if (Platform.isJ9()) {
+      // TODO currently crash tracking is supported only for HotSpot based JVMs
+      return;
+    }
+    try {
+      Class<?> clz = AGENT_CLASSLOADER.loadClass("com.datadog.crashtracking.ScriptInitializer");
+      clz.getMethod("initialize").invoke(null);
+    } catch (Throwable t) {
+      log.debug("Unable to initialize crash uploader", t);
     }
   }
 

@@ -53,7 +53,12 @@ public class RequestFinishInstrumentation extends Instrumenter.Tracing
       // this should be a servlet response
       if (resp instanceof SRTServletResponse) {
         SRTServletResponse httpResp = (SRTServletResponse) resp;
-        Object spanObj = req.getAttribute(DD_SPAN_ATTRIBUTE);
+        Object spanObj = null;
+        try {
+          spanObj = req.getAttribute(DD_SPAN_ATTRIBUTE);
+        } catch (NullPointerException e) {
+          // OpenLiberty will throw NPE on getAttribute if the response has already been closed.
+        }
 
         if (spanObj instanceof AgentSpan) {
           req.setAttribute(DD_SPAN_ATTRIBUTE, null);

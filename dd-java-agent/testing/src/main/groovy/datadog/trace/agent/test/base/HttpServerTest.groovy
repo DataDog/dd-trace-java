@@ -1061,7 +1061,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
-  def 'test blocking of request'() {
+  def 'test blocking of request with auto and accept=#acceptHeader'(boolean expectedJson, String acceptHeader) {
     // Note: this does not actually test that the handler for SUCCESS is never called,
     //       only that the response is the expected one (insofar as invoking the handler
     //       does not result in another span being created)
@@ -1069,15 +1069,23 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assumeTrue(testBlocking())
 
     def request = request(SUCCESS, 'GET', null)
-      .addHeader(IG_BLOCK_HEADER, 'auto')
-      .addHeader('Accept', 'text/html;q=0.9, application/json;q=0.8')
-      .build()
+      .addHeader(IG_BLOCK_HEADER, 'auto').with {
+        if (acceptHeader) {
+          it.addHeader('Accept', 'text/html;q=0.9, application/json;q=0.8')
+        }
+        it.build()
+      }
     def response = client.newCall(request).execute()
 
     expect:
     response.code() == 418
-    response.header('Content-type') =~ /(?i)\Atext\/html;\s?charset=utf-8\z/
-    response.body().charStream().text.contains("<title>You've been blocked</title>")
+    if (expectedJson) {
+      response.header('Content-type') =~ /(?i)\Aapplication\/json(?:;\s?charset=utf-8)?\z/
+      response.body().charStream().text.contains('"title": "You\'ve been blocked"')
+    } else {
+      response.header('Content-type') =~ /(?i)\Atext\/html;\s?charset=utf-8\z/
+      response.body().charStream().text.contains("<title>You've been blocked</title>")
+    }
 
     when:
     TEST_WRITER.waitForTraces(1)
@@ -1086,6 +1094,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     then:
     trace.size() == 1
     trace[0].tags['http.status_code'] == 418
+
+    where:
+    expectedJson | acceptHeader
+    true         | null
+    false        | 'text/html;q=0.9, application/json;q=0.8'
+    true         | 'text/html;q=0.8, application/json;q=0.9'
   }
 
   def 'test blocking of request with json response'() {
