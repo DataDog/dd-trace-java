@@ -56,12 +56,18 @@ jobs:
           config-inline: |
             [worker.oci]
               max-parallelism = 1
+
+      - name: DEBUG WORKSPACE -1
+        run: ls 
+
+      - name: DEBUG WORKSPACE -2
+        run: pwd 
  
       - name: DEBUG WORKSPACE 0
         run: ls dd-java-agent/
 
       - name: Build dd-java-agent.jar
-        run: JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 ./gradlew clean shadowJar --parallel --no-daemon --max-workers=8
+        run: JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 ./gradlew clean build shadowJar
 
       - name: DEBUG WORKSPACE 1
         run: ls dd-java-agent/
