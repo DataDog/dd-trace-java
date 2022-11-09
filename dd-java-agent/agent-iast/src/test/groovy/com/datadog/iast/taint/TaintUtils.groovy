@@ -76,6 +76,17 @@ class TaintUtils {
     return resultString
   }
 
+  static StringBuilder addFromTaintFormat(final TaintedObjects tos, final StringBuilder sb) {
+    final String s = sb.toString()
+    final ranges = fromTaintFormat(s)
+    if (ranges == null || ranges.length == 0) {
+      return sb
+    }
+    final result = new StringBuilder(getStringFromTaintFormat(s))
+    tos.taint(result, ranges)
+    return result
+  }
+
   static Range toRange(List<Integer> lst) {
     toRange(lst.get(0), lst.get(1))
   }
