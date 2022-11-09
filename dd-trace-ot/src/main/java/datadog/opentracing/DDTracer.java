@@ -326,9 +326,9 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
 
     // Check if the tracer is already installed by the agent
     // Unable to use "instanceof" because of class renaming
-    if ((writer == null
-            || writer.getClass().getName().equals("datadog.trace.common.writer.DDAgentWriter"))
-        && GlobalTracer.get().getClass().getName().equals("datadog.trace.agent.core.CoreTracer")) {
+    String expectedName =
+        "avoid_rewrite.datadog.trace.agent.core.CoreTracer".substring("avoid_rewrite.".length());
+    if (GlobalTracer.get().getClass().getName().equals(expectedName)) {
       log.error(
           "Datadog Tracer already installed by `dd-java-agent`. NOTE: Manually creating the tracer while using `dd-java-agent` is not supported");
       throw new IllegalStateException("Datadog Tracer already installed");

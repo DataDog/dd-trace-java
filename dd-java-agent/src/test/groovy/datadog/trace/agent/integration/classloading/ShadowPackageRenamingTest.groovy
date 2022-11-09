@@ -14,17 +14,27 @@ class ShadowPackageRenamingTest extends Specification {
       .loadClass("datadog.trace.agent.tooling.AgentInstaller")
     final URL userOkio =
       BufferedSink.getProtectionDomain().getCodeSource().getLocation()
-    final URL agentOkioDep =
-      ddClass
-      .getClassLoader()
-      .loadClass("okio.BufferedSink")
-      .getProtectionDomain()
-      .getCodeSource()
-      .getLocation()
     final URL agentSource =
       ddClass.getProtectionDomain().getCodeSource().getLocation()
 
-    expect:
+    when: "trying to load shaded class from its default FQDN with agent classloader"
+    ddClass
+      .getClassLoader()
+      .loadClass(BufferedSink.canonicalName)
+
+    then: "class must not be found"
+    thrown(ClassNotFoundException)
+
+    when: "trying to load shaded class with shading prefix with agent classloader"
+    final URL agentOkioDep =
+      ddClass
+      .getClassLoader()
+      .loadClass("ddlib.okio.BufferedSink")
+      .getProtectionDomain()
+      .getCodeSource()
+      .getLocation()
+
+    then: "shaded class must be found from the agent jar"
     agentSource.getFile() =~ ".*/dd-java-agent/build/libs/dd-java-agent-.*.jar"
     agentSource.getProtocol() == "file"
     agentSource == agentOkioDep

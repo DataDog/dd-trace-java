@@ -16,6 +16,9 @@ configurations {
   sharedShadowInclude
 }
 
+sourceCompatibility = JavaVersion.VERSION_1_7
+targetCompatibility = JavaVersion.VERSION_1_7
+
 /*
  * 7 shadow jars are created
  * - The main "dd-java-agent" jar that also has the bootstrap project
@@ -27,7 +30,35 @@ configurations {
 ext.generalShadowJarConfig = {
   mergeServiceFiles()
 
+  exclude '**/META-INF/maven/'
+  exclude '**/META-INF/proguard/'
+  exclude '**/META-INF/*.kotlin_module'
   exclude '**/module-info.class'
+
+  /*
+   * Shade third party dependencies behind a 'ddlib.' prefix.
+   * (short package names have a trailing dot (.) to prevent unexpected renaming)
+   */
+  [
+    'cafe.',
+    'com.blogspot.mydailyjava.weaklockfree',
+    'com.fasterxml.jackson',
+    'com.google.re2j',
+    'com.googlecode.concurrentlinkedhashmap',
+    'com.squareup.moshi',
+    'com.timgroup.statsd',
+    'io.vertx.redis',
+    'jnr.',
+    'net.',
+    'okhttp3.',
+    'okio.',
+    'org.glassfish',
+    'org.yaml.snakeyaml',
+    'org.jctools',
+    'org.objectweb.asm',
+  ].forEach {
+    relocate it, 'ddlib.' + it
+  }
 
   // Prevents conflict with other SLF4J instances. Important for premain.
   relocate 'org.slf4j', 'datadog.slf4j'
@@ -236,7 +267,7 @@ tasks.register('checkAgentJarSize').configure {
   doLast {
     // Arbitrary limit to prevent unintentional increases to the agent jar size
     // Raise or lower as required
-    def megs = (project.rootProject.hasProperty("agentIncludeCwsTls") && agentIncludeCwsTls) ? 21 : 19
+    def megs = (project.rootProject.hasProperty("agentIncludeCwsTls") && agentIncludeCwsTls) ? 22 : 20
     assert shadowJar.archiveFile.get().getAsFile().length() <= megs * 1024 * 1024
   }
 
