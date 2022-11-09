@@ -71,13 +71,13 @@ jobs:
         run: JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 ./gradlew assemble --build-cache --parallel --no-daemon --max-workers=8
 
       - name: DEBUG WORKSPACE 1
-        run: ls dd-java-agent/
+        run: ls 
 
       - name: DEBUG WORKSPACE 2
-        run: ls dd-java-agent/build/
+        run: ls dd-java-agent/
 
       - name: Copy Java agent
-        run: cp dd-java-agent/build/libs/dd-java-agent-*.jar system-tests/binaries/dd-java-agent.jar
+        run: cp build/libs/dd-java-agent-*.jar system-tests/binaries/dd-java-agent.jar
 
       - name: Build test images
         run: ./system-tests/lib-injection/run.sh build-test-app-image push-test-app-image build-and-push-init-image
