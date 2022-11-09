@@ -324,12 +324,3 @@ include ':dd-java-agent:benchmark-integration'
 include ':dd-java-agent:benchmark-integration:jetty-perftest'
 include ':dd-java-agent:benchmark-integration:play-perftest'
 
-def setBuildFile(project) {
-  project.buildFileName = "${project.name}.gradle"
-  project.children.each {
-    setBuildFile(it)
-  }
-}
-
-setBuildFile(rootProject)
-
