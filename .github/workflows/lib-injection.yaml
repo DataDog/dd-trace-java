@@ -67,10 +67,10 @@ jobs:
         run: ls dd-java-agent/
 
       - name: Build dd-java-agent.jar
-        run: JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 ./gradlew dd-java-agent:build
+        run: JAVA_HOME=$JAVA_HOME_11_X64 ./gradlew dd-java-agent:build
 
       - name: ShadowJar dd-java-agent.jar
-        run: JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 ./gradlew dd-java-agent:shadowJar
+        run: JAVA_HOME=$JAVA_HOME_11_X64 ./gradlew dd-java-agent:shadowJar
 
 
       - name: DEBUG WORKSPACE 1
