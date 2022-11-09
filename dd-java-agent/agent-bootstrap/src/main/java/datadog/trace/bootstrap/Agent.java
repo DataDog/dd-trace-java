@@ -761,6 +761,7 @@ public class Agent {
             new WithGlobalTracer.Callback() {
               @Override
               public void withTracer(Tracer tracer) {
+                log.debug("Initializing profiler tracer integrations");
                 try {
                   if (Platform.isOracleJDK8() || Platform.isJ9()) {
                     return;
