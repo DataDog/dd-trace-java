@@ -2,7 +2,6 @@ import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -18,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
+import java.util.concurrent.TimeUnit
 
 @SuppressFBWarnings("NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE")
 class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
