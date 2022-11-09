@@ -9,37 +9,46 @@ on:
       - master
 
 jobs:
-  test-app-image-build:
+
+  injection-tests-java:
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    strategy:
+      matrix:
+        lib-injection-connection: [ 'network','uds']
+        lib-injection-use-admission-controller: ['', 'use-admission-controller']
+      fail-fast: false
+    env:
+      TEST_LIBRARY: java
+      LIBRARY_INJECTION_CONNECTION: ${{ matrix.lib-injection-connection }}
+      LIBRARY_INJECTION_ADMISSION_CONTROLLER: ${{ matrix.lib-injection-admission-controller }}
+      LIBRARY_INJECTION_INIT_IMAGE: ghcr.io/datadog/system-tests/dd-lib-java-init:${{ github.sha }}
+      LIBRARY_INJECTION_TEST_APP_IMAGE: ghcr.io/datadog/system-tests/dd-lib-java-init-test-app:${{ github.sha }}
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # 2.3.4
+      - name: Checkout dd-trace-java
+        uses: actions/checkout@v3
+
+      - name: Build dd-java-agent.jar
+        run: JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 ./gradlew clean shadowJar --build-cache --parallel --no-daemon --max-workers=8
+
+      - name: Checkout system tests
+        uses: actions/checkout@v3
+        with:
+          repository: 'DataDog/system-tests'
+           ref: 'robertomonteromiguel/lib_injection_integration'
+          path: './system-tests'
 
       - name: Log in to the Container registry
-        uses: docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b # 2.0.0
+        uses: docker/login-action@v2 # TODO Change for commit sha
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build app image
-        run: |
-          JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 \
-          ./lib-injection/run.sh build-test-app-image push-test-app-image
-
-  lib-injection-image-build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # 2.3.4
-
-      - name: Log in to the Container registry
-        uses: docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b # 2.0.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
+    #  - name: Load library binary (TODO)
+    #    run: ./utils/scripts/load-binary.sh java
       - name: Set up QEMU
         uses: docker/setup-qemu-action@8b122486cedac8393e77aa9734c3528886e4a1a8 # 2.0.0
 
@@ -50,56 +59,18 @@ jobs:
           config-inline: |
             [worker.oci]
               max-parallelism = 1
+ 
+      - name: DEBUG WORKSPACE
+        run: ls
 
-      - name: Build dd-java-agent.jar
-        run: JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 ./gradlew clean shadowJar --build-cache --parallel --no-daemon --max-workers=8
+      - name: Copy Java agent
+        run: cp build/libs/dd-java-agent.jar system-tests/binaries/
 
-      - name: Build injection image
-        run: |
-          ./lib-injection/run.sh build-and-push-init-image
-
-  system-tests:
-    needs:
-      - lib-injection-image-build
-      - test-app-image-build
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        lib-injection-enabled: ['lib-injection-enabled']
-        lib-injection-connection: ['network', 'uds']
-        lib-injection-use-admission-controller: ['', 'use-admission-controller']
-    env:
-      TEST_LIBRARY: java
-      DD_API_KEY: ${{ secrets.DD_API_KEY }}
-      LIBRARY_INJECTION_CONNECTION: ${{ matrix.lib-injection-connection }}
-      LIBRARY_INJECTION_ADMISSION_CONTROLLER: ${{ matrix.lib-injection-admission-controller }}
-      LIBRARY_INJECTION_INIT_IMAGE: ghcr.io/datadog/dd-trace-java/dd-lib-java-init:${{ github.sha }}
-      LIBRARY_INJECTION_TEST_APP_IMAGE: ghcr.io/datadog/dd-trace-java/dd-lib-java-init-test-app:${{ github.sha }}
-
-    steps:
-      - name: Checkout system tests
-        uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # 2.3.4
-        with:
-          repository: 'DataDog/system-tests'
-
-      - name: Checkout dd-trace-java
-        uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # 2.3.4
-        with:
-          path: 'binaries/dd-trace-java'
+      - name: Build test images
+        run: ./system-tests/lib-injection/run.sh build-test-app-image push-test-app-image build-and-push-init-image
 
       - name: Build
-        run: ./lib-injection/build.sh
+        run: ./system-tests/lib-injection/build.sh
 
       - name: Run
-        run: ./lib-injection/run-lib-injection.sh
-
-      - name: Compress artifact
-        if: ${{ always() }}
-        run: tar -czvf artifact.tar.gz $(ls | grep logs) || true
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2
-        if: ${{ always() }}
-        with:
-          name: logs
-          path: artifact.tar.gz
+        run: ./system-tests/lib-injection/run-lib-injection.sh
