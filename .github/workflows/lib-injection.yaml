@@ -57,34 +57,6 @@ jobs:
             [worker.oci]
               max-parallelism = 1
 
-      - name: DEBUG WORKSPACE -1
-        run: ls 
-
-      - name: DEBUG WORKSPACE -3
-        run: pwd 
- 
-      - name: DEBUG WORKSPACE 0
-        run: ls dd-java-agent/
-
-      - name: Build dd-java-agent.jar
-        run: JAVA_HOME=$JAVA_HOME_11_X64 ./gradlew dd-java-agent:build
-
-      - name: ShadowJar dd-java-agent.jar
-        run: JAVA_HOME=$JAVA_HOME_11_X64 ./gradlew dd-java-agent:shadowJar
-
-
-      - name: DEBUG WORKSPACE 1
-        run: ls 
-
-      - name: DEBUG WORKSPACE 15
-        run: ls build/
-
-      - name: DEBUG WORKSPACE 2
-        run: ls dd-java-agent/
-
-      - name: Copy Java agent
-        run: cp dd-java-agent/build/libs/dd-java-agent-*.jar system-tests/binaries/dd-java-agent.jar
-
       - name: Build test images
         run: ./system-tests/lib-injection/run.sh build-test-app-image push-test-app-image build-and-push-init-image
 
