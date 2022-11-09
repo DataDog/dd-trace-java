@@ -763,6 +763,12 @@ public class Agent {
               public void withTracer(Tracer tracer) {
                 log.debug("Initializing profiler tracer integrations");
                 try {
+                  if (Config.get().isAsyncProfilerEnabled()) {
+                    log.debug("Registering async-profiler scope listener");
+                    tracer.addScopeListener(
+                        createScopeListener(
+                            "com.datadog.profiling.context.AsyncProfilerScopeListener"));
+                  }
                   if (Platform.isOracleJDK8() || Platform.isJ9()) {
                     return;
                   }
@@ -774,21 +780,17 @@ public class Agent {
                               .newInstance();
                   ((AgentTracer.TracerAPI) tracer)
                       .registerCheckpointer((EndpointCheckpointer) checkpointer);
-                  if (Config.get().isProfilingLegacyTracingIntegrationEnabled()) {
-                    log.debug("Registering scope event factory");
-                    tracer.addScopeListener(
-                        createScopeListener("datadog.trace.core.jfr.openjdk.ScopeEventFactory"));
-                  } else {
-                    // TODO remove this
-                    log.debug("Registering checkpointer");
-                    ((AgentTracer.TracerAPI) tracer).registerCheckpointer(checkpointer);
-                    log.debug("Checkpointer {} has been registered", checkpointer);
-                  }
-                  if (Config.get().isAsyncProfilerEnabled()) {
-                    log.debug("Registering async-profiler scope listener");
-                    tracer.addScopeListener(
-                        createScopeListener(
-                            "com.datadog.profiling.context.AsyncProfilerScopeListener"));
+                  if (!Config.get().isAsyncProfilerEnabled()) {
+                    if (Config.get().isProfilingLegacyTracingIntegrationEnabled()) {
+                      log.debug("Registering scope event factory");
+                      tracer.addScopeListener(
+                          createScopeListener("datadog.trace.core.jfr.openjdk.ScopeEventFactory"));
+                    } else {
+                      // TODO remove this
+                      log.debug("Registering checkpointer");
+                      ((AgentTracer.TracerAPI) tracer).registerCheckpointer(checkpointer);
+                      log.debug("Checkpointer {} has been registered", checkpointer);
+                    }
                   }
                 } catch (Throwable e) {
                   if (e instanceof InvocationTargetException) {
