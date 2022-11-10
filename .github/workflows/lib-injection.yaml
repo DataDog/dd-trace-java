@@ -61,7 +61,7 @@ jobs:
         run: |
           cd system-tests   
           ./lib-injection/run.sh build-test-app-image push-test-app-image build-and-push-init-image  
-          ./system-tests/lib-injection/build.sh
+          ./lib-injection/build.sh
  
       - name: Run injection tests
         run: ./lib-injection/run-lib-injection.sh
