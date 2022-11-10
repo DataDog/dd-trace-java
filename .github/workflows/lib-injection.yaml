@@ -65,6 +65,8 @@ jobs:
           cp workspace/dd-java-agent/build/libs/dd-java-agent-*.jar system-tests/binaries/
           echo "binaries...."
           ls system-tests/binaries/
+          rm system-tests/binaries/*-sources.jar
+          rm system-tests/binaries/*-javadoc.jar
           mv system-tests/binaries/*.jar system-tests/binaries/dd-java-agent.jar
 
       - name: Build images
