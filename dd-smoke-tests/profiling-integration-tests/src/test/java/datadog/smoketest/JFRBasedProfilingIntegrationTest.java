@@ -25,8 +25,10 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
@@ -573,6 +575,29 @@ class JFRBasedProfilingIntegrationTest {
       // Check endpoint events
       final IItemCollection endpointEvents = events.apply(ItemFilters.type("datadog.Endpoint"));
       assertEquals(expectEndpointEvents, endpointEvents.hasItems());
+      if (asyncProfilerEnabled) {
+        IItemCollection executionSamples =
+            events.apply(ItemFilters.type("datadog.ExecutionSample"));
+        Set<Long> rootSpanIds = new HashSet<>();
+        for (IItemIterable executionSampleEvents : executionSamples) {
+          IMemberAccessor<IQuantity, IItem> rootSpanIdAccessor =
+              LOCAL_ROOT_SPAN_ID.getAccessor(executionSampleEvents.getType());
+          for (IItem executionSample : executionSampleEvents) {
+            rootSpanIds.add(rootSpanIdAccessor.getMember(executionSample).longValue());
+          }
+        }
+        int matches = 0;
+        for (IItemIterable event : endpointEvents) {
+          IMemberAccessor<IQuantity, IItem> rootSpanIdAccessor =
+              LOCAL_ROOT_SPAN_ID.getAccessor(event.getType());
+          for (IItem item : event) {
+            long rootSpanId = rootSpanIdAccessor.getMember(item).longValue();
+            matches += rootSpanIds.contains(rootSpanId) ? 1 : 0;
+          }
+        }
+        // we expect a rough correspondence between these events
+        assertTrue(matches > 0);
+      }
     }
     if (asyncProfilerEnabled) {
       verifyDatadogEventsNotCorrupt(events);
