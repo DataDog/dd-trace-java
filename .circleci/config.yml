@@ -260,7 +260,8 @@ jobs:
           condition:
             matches:
               pattern: "^(master|project/.+)$"
-              value: << pipeline.git.branch >>
+              # DEBUG << pipeline.git.branch >>
+              value: master
           steps:
             - save_cache:
                 key: dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
