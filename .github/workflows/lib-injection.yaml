@@ -13,6 +13,7 @@ jobs:
   injection-tests-java:
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       packages: write
     strategy:
       matrix:
