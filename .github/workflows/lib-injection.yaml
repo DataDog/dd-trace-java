@@ -53,7 +53,7 @@ jobs:
         uses: docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b # 2.0.0
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
+          username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build images
