@@ -70,10 +70,10 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
       System.out.println("--------------SetStringAdvice----------------");
       System.out.println("--------------" + index + "----------------");
       System.out.println("--------------" + arg + "----------------");
-      int depth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);
-      if (depth > 0) {
-        return;
-      }
+//      int depth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);
+//      if (depth > 0) {
+//        return;
+//      }
       try {
         ContextStore<Statement, DBQueryInfo> contextStore = InstrumentationContext.get(Statement.class, DBQueryInfo.class);
         if (contextStore == null) {
@@ -108,10 +108,10 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.This final Statement statement) {
-      int depth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);
-      if (depth > 0) {
-        return null;
-      }
+//      int depth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);
+//      if (depth > 0) {
+//        return null;
+//      }
       System.out.println("---------into-------PreparedStatementAdvice-------------------------");
       try {
         Connection connection = statement.getConnection();
