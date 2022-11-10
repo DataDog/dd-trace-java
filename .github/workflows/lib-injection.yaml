@@ -58,10 +58,10 @@ jobs:
               max-parallelism = 1
 
       - name: Build test images
-        run: ./system-tests/lib-injection/run.sh build-test-app-image push-test-app-image build-and-push-init-image
-
-      - name: Build
-        run: ./system-tests/lib-injection/build.sh
-
-      - name: Run
-        run: ./system-tests/lib-injection/run-lib-injection.sh
+        run: |
+              cd system-tests
+             ./lib-injection/run.sh build-test-app-image push-test-app-image build-and-push-init-image
+             ./system-tests/lib-injection/build.sh
+             
+      - name: Run injection tests
+        run: ./lib-injection/run-lib-injection.sh
