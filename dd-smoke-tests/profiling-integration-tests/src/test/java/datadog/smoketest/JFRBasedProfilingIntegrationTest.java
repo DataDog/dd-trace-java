@@ -138,7 +138,9 @@ class JFRBasedProfilingIntegrationTest {
   @DisplayName("Test continuous recording - no jmx delay")
   public void testContinuousRecording_no_jmx_delay(final TestInfo testInfo) throws Exception {
     testWithRetry(
-        () -> testContinuousRecording(0, LEGACY_TRACING_INTEGRATION, ENDPOINT_COLLECTION_ENABLED),
+        () ->
+            testContinuousRecording(
+                0, LEGACY_TRACING_INTEGRATION, ENDPOINT_COLLECTION_ENABLED, false),
         testInfo,
         5);
   }
@@ -147,7 +149,9 @@ class JFRBasedProfilingIntegrationTest {
   @DisplayName("Test continuous recording - 1 sec jmx delay")
   public void testContinuousRecording(final TestInfo testInfo) throws Exception {
     testWithRetry(
-        () -> testContinuousRecording(1, LEGACY_TRACING_INTEGRATION, ENDPOINT_COLLECTION_ENABLED),
+        () ->
+            testContinuousRecording(
+                1, LEGACY_TRACING_INTEGRATION, ENDPOINT_COLLECTION_ENABLED, false),
         testInfo,
         5);
   }
@@ -156,26 +160,37 @@ class JFRBasedProfilingIntegrationTest {
   @DisplayName("Test continuous recording - checkpoint events")
   public void testContinuousRecordingCheckpointEvents(final TestInfo testInfo) throws Exception {
     testWithRetry(
-        () -> testContinuousRecording(0, false, ENDPOINT_COLLECTION_ENABLED), testInfo, 5);
+        () -> testContinuousRecording(0, false, ENDPOINT_COLLECTION_ENABLED, false), testInfo, 5);
+  }
+
+  @Test
+  @DisplayName("Test continuous recording - async-profiler")
+  public void testContinuousRecordingAsyncProfiler(final TestInfo testInfo) throws Exception {
+    testWithRetry(() -> testContinuousRecording(0, false, true, true), testInfo, 5);
   }
 
   @Test
   @DisplayName("Test continuous recording - checkpoint events, endpoint events disabled")
   public void testContinuousRecordingCheckpointEventsNoEndpointCollection(final TestInfo testInfo)
       throws Exception {
-    testWithRetry(() -> testContinuousRecording(0, false, false), testInfo, 5);
+    testWithRetry(() -> testContinuousRecording(0, false, false, false), testInfo, 5);
   }
 
   private void testContinuousRecording(
       final int jmxFetchDelay,
       final boolean legacyTracingIntegration,
-      final boolean endpointCollectionEnabled)
+      final boolean endpointCollectionEnabled,
+      final boolean asyncProfilerEnabled)
       throws Exception {
     final ObjectMapper mapper = new ObjectMapper();
     try {
       targetProcess =
           createDefaultProcessBuilder(
-                  jmxFetchDelay, legacyTracingIntegration, endpointCollectionEnabled, logFilePath)
+                  jmxFetchDelay,
+                  legacyTracingIntegration,
+                  endpointCollectionEnabled,
+                  asyncProfilerEnabled,
+                  logFilePath)
               .start();
 
       Assumptions.assumeFalse(Platform.isJ9());
@@ -306,7 +321,8 @@ class JFRBasedProfilingIntegrationTest {
       // Only non-Oracle JDK 8+ JVMs support custom DD events
       if (!System.getProperty("java.vendor").contains("Oracle")
           || !System.getProperty("java.version").contains("1.8")) {
-        assertRecordingEvents(events, legacyTracingIntegration, endpointCollectionEnabled);
+        assertRecordingEvents(
+            events, legacyTracingIntegration, endpointCollectionEnabled, asyncProfilerEnabled);
       }
     } finally {
       if (targetProcess != null) {
@@ -396,6 +412,7 @@ class JFRBasedProfilingIntegrationTest {
                         PROFILING_UPLOAD_PERIOD_SECONDS,
                         LEGACY_TRACING_INTEGRATION,
                         ENDPOINT_COLLECTION_ENABLED,
+                        false,
                         exitDelay,
                         logFilePath)
                     .start();
@@ -452,6 +469,7 @@ class JFRBasedProfilingIntegrationTest {
                         PROFILING_UPLOAD_PERIOD_SECONDS,
                         LEGACY_TRACING_INTEGRATION,
                         ENDPOINT_COLLECTION_ENABLED,
+                        false,
                         duration,
                         logFilePath)
                     .start();
@@ -523,9 +541,10 @@ class JFRBasedProfilingIntegrationTest {
   private void assertRecordingEvents(
       final IItemCollection events,
       final boolean legacyTracingIntegration,
-      final boolean expectEndpointEvents) {
+      final boolean expectEndpointEvents,
+      final boolean asyncProfilerEnabled) {
 
-    if (legacyTracingIntegration) {
+    if (!asyncProfilerEnabled && legacyTracingIntegration) {
       // Check scope events
       final IItemCollection scopeEvents = events.apply(ItemFilters.type("datadog.Scope"));
 
@@ -545,13 +564,18 @@ class JFRBasedProfilingIntegrationTest {
                           Aggregators.min("datadog.Scope", cpuTimeAttr)))
                   .longValue()
               >= 10_000L);
-    } else {
+    } else if (!asyncProfilerEnabled) {
       // Check checkpoint events
       final IItemCollection checkpointEvents = events.apply(ItemFilters.type("datadog.Checkpoint"));
       assertTrue(checkpointEvents.hasItems());
+    }
+    if (expectEndpointEvents) {
       // Check endpoint events
       final IItemCollection endpointEvents = events.apply(ItemFilters.type("datadog.Endpoint"));
       assertEquals(expectEndpointEvents, endpointEvents.hasItems());
+    }
+    if (asyncProfilerEnabled) {
+      verifyDatadogEventsNotCorrupt(events);
     }
 
     // check exception events
@@ -593,6 +617,7 @@ class JFRBasedProfilingIntegrationTest {
       final int jmxFetchDelay,
       final boolean legacyTracingIntegration,
       final boolean endpointCollectionEnabled,
+      final boolean asyncProfilerEnabled,
       final Path logFilePath) {
     return createProcessBuilder(
         VALID_API_KEY,
@@ -601,6 +626,7 @@ class JFRBasedProfilingIntegrationTest {
         PROFILING_UPLOAD_PERIOD_SECONDS,
         legacyTracingIntegration,
         endpointCollectionEnabled,
+        asyncProfilerEnabled,
         0,
         logFilePath);
   }
@@ -612,6 +638,7 @@ class JFRBasedProfilingIntegrationTest {
       final int profilingUploadPeriodSecs,
       final boolean legacyTracingIntegration,
       final boolean endpointCollectionEnabled,
+      final boolean asyncProfilerEnabled,
       final int exitDelay,
       final Path logFilePath) {
     return createProcessBuilder(
@@ -623,6 +650,7 @@ class JFRBasedProfilingIntegrationTest {
         profilingUploadPeriodSecs,
         legacyTracingIntegration,
         endpointCollectionEnabled,
+        asyncProfilerEnabled,
         exitDelay,
         logFilePath);
   }
@@ -636,6 +664,7 @@ class JFRBasedProfilingIntegrationTest {
       final int profilingUploadPeriodSecs,
       final boolean legacyTracingIntegration,
       final boolean endpointCollectionEnabled,
+      final boolean asyncProfilerEnabled,
       final int exitDelay,
       final Path logFilePath) {
     final String templateOverride =
@@ -656,8 +685,7 @@ class JFRBasedProfilingIntegrationTest {
             "-Ddd.env=smoketest",
             "-Ddd.version=99",
             "-Ddd.profiling.enabled=true",
-            "-Ddd.profiling.async.enabled=true",
-            "-Ddd.profiling.tracing_context.enabled=true",
+            "-Ddd.profiling.async.enabled=" + asyncProfilerEnabled,
             "-Ddd.profiling.agentless=" + (apiKey != null),
             "-Ddd.profiling.start-delay=" + profilingStartDelaySecs,
             "-Ddd.profiling.upload.period=" + profilingUploadPeriodSecs,
