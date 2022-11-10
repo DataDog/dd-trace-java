@@ -177,7 +177,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       span.setTag(DB_OPERATION, info.getOperation());
       String originSlq = info.getOriginSql().toString();
       if (!originSlq.equals("")) {
-      /*  Map<Integer, String> map = info.getVals();
+        Map<Integer, String> map = info.getVals();
         //将keySet放入list
         ArrayList<Integer> list = new ArrayList<>(map.keySet());
         //调用sort方法并重写比较器进行升/降序
@@ -200,7 +200,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
           originSlq = originSlq.replaceFirst("\\?", value);
         }
 
-        span.setTag("sql.params", params.toString());*/
+        span.setTag("sql.params", params.toString());
         span.setTag("db.sql.origin", originSlq);
       }
     } else {

@@ -41,7 +41,7 @@ public final class DBQueryInfo {
 
   private final UTF8BytesString operation;
   private final UTF8BytesString sql;
-  private final Map<Integer, String> vals;
+  private Map<Integer, String> vals;
   private UTF8BytesString originSql;
 
   public boolean SqlObfuscation = Config.get().getJdbcSqlObfuscation();
@@ -63,11 +63,11 @@ public final class DBQueryInfo {
   }
 
   public Map<Integer, String> getVals() {
-    return this.vals;
+    return vals;
   }
 
   public void setVal(int index, String val) {
-    this.vals.put(index, val);
+    vals.put(index, val);
   }
 
   public UTF8BytesString getSql() {
