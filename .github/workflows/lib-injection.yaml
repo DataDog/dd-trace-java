@@ -59,15 +59,13 @@ jobs:
 
       - name: Build and copy java agent
         run: |
-          echo "Current root directory"
-          ls
           JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 ./gradlew dd-java-agent:build dd-java-agent:shadowJar
           echo "Current root directory 2"
           ls
           echo "Current dd-java-agent"
           ls dd-java-agent/ 
           echo "Copy java agent"
-          cp dd-java-agent/build/libs/dd-java-agent-*.jar system-tests/binaries/dd-java-agent.jar
+          cp workspace/dd-java-agent/build/libs/dd-java-agent-*.jar system-tests/binaries/dd-java-agent.jar
 
       - name: Build images
         run: |
