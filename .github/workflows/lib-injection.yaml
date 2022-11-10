@@ -60,9 +60,11 @@ jobs:
           echo "Current root directory 2"
           ls
           echo "Current dd-java-agent"
-          ls workspace/dd-java-agent/ 
+          ls workspace/dd-java-agent/build/libs 
           echo "Copy java agent"
           cp workspace/dd-java-agent/build/libs/dd-java-agent-*.jar system-tests/binaries/
+          echo "binaries...."
+          ls system-tests/binaries/
           mv system-tests/binaries/*.jar system-tests/binaries/dd-java-agent.jar
 
       - name: Build images
