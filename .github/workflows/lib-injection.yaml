@@ -56,8 +56,6 @@ jobs:
           config-inline: |
             [worker.oci]
               max-parallelism = 1
-
-          
       - name: Build test images
         run: |
               cd system-tests
