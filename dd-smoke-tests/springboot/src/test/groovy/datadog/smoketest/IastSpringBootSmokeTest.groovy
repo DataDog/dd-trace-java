@@ -1,8 +1,11 @@
 package datadog.smoketest
 
 import datadog.trace.api.Platform
+import datadog.trace.api.function.Function
+import datadog.trace.test.agent.decoder.DecodedSpan
 import okhttp3.Request
 import spock.lang.IgnoreIf
+import spock.util.concurrent.PollingConditions
 
 @IgnoreIf({
   !Platform.isJavaVersionAtLeast(8)
@@ -115,7 +118,6 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     waitForSpan(new PollingConditions(timeout: 5), hasVulnerability("WEAK_HASH"))
   }
 
-  @Timeout(1000)
   def "getParameter taints string"() {
     setup:
     String url = "http://localhost:${httpPort}/getparameter?param=A"
