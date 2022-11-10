@@ -438,7 +438,7 @@ public class Agent {
   }
 
   private static void maybeStartRemoteConfig(Class<?> scoClass, Object sco) {
-    if (!remoteConfigEnabled || !isJavaVersionAtLeast(8)) {
+    if (!remoteConfigEnabled) {
       return;
     }
 
@@ -597,11 +597,6 @@ public class Agent {
       return;
     }
 
-    if (!isJavaVersionAtLeast(8)) {
-      log.warn("AppSec System requires Java 8 or later to run");
-      return;
-    }
-
     try {
       SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC);
       startAppSec(ss, scoClass, o);
@@ -639,16 +634,11 @@ public class Agent {
 
   private static void maybeStartIast(Class<?> scoClass, Object o) {
     if (iastEnabled) {
-      if (isJavaVersionAtLeast(8)) {
-        try {
-          SubscriptionService ss =
-              AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST);
-          startIast(ss, scoClass, o);
-        } catch (Exception e) {
-          log.error("Error starting IAST subsystem", e);
-        }
-      } else {
-        log.warn("IAST subsystem requires Java 8 or later to run");
+      try {
+        SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST);
+        startIast(ss, scoClass, o);
+      } catch (Exception e) {
+        log.error("Error starting IAST subsystem", e);
       }
     }
   }
