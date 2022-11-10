@@ -57,7 +57,7 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
         nameStartsWith("execute").and(takesArguments(0)).and(isPublic()),
         AbstractPreparedStatementInstrumentation.class.getName() + "$PreparedStatementAdvice");
     transformation.applyAdvice(
-        nameStartsWith("setString").and(takesArguments(2)).and(isPublic()),
+        nameStartsWith("set").and(takesArguments(2)).and(isPublic()),
         AbstractPreparedStatementInstrumentation.class.getName() + "$SetStringAdvice");
   }
 
@@ -69,12 +69,15 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
         @Advice.This final PreparedStatement statement) {
       int index = 0;
       String arg = "";
-      if (args.length == 2) {
-        if (args[0] instanceof Integer) {
-          index = (Integer) args[0];
-        }
-        arg = (args[1]).toString();
+      if (args.length != 2) {
+        return;
       }
+
+      if (args[0] instanceof Integer) {
+        index = (Integer) args[0];
+      }
+      arg = (args[1]).toString();
+
       System.out.println("-------------into-----------------");
       System.out.println("--------------SetStringAdvice----------------");
       System.out.println("--------------" + index + "----------------");
