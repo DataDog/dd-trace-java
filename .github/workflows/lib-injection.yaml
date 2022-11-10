@@ -39,9 +39,6 @@ jobs:
           ref: 'robertomonteromiguel/lib_injection_integration'
           path: './system-tests'
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@8b122486cedac8393e77aa9734c3528886e4a1a8 # 2.0.0
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@dc7b9719a96d48369863986a06765841d7ea23f6 # 2.0.0
         with: 
@@ -63,9 +60,10 @@ jobs:
           echo "Current root directory 2"
           ls
           echo "Current dd-java-agent"
-          ls dd-java-agent/ 
+          ls workspace/dd-java-agent/ 
           echo "Copy java agent"
-          cp workspace/dd-java-agent/build/libs/dd-java-agent-*.jar system-tests/binaries/dd-java-agent.jar
+          cp workspace/dd-java-agent/build/libs/dd-java-agent-*.jar system-tests/binaries/
+          mv system-tests/binaries/*.jar system-tests/binaries/dd-java-agent.jar
 
       - name: Build images
         run: |
