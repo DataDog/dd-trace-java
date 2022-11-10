@@ -37,8 +37,6 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
     super(instrumentationName, additionalNames);
   }
 
-  public static boolean SqlObfuscation = Config.get().getJdbcSqlObfuscation();
-
   @Override
   public String[] helperClassNames() {
     return new String[]{
@@ -69,9 +67,6 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
     public static void StartSetString(
         @Advice.Argument(0) final int index, @Advice.Argument(1) final String arg,
         @Advice.This final PreparedStatement statement) {
-      if (!SqlObfuscation) {
-        return;
-      }
       System.out.println("-------------into-----------------");
       System.out.println("--------------SetStringAdvice----------------");
       System.out.println("--------------" + index + "----------------");
