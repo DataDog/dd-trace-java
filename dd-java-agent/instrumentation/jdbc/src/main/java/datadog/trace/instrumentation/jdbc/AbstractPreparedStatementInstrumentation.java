@@ -78,33 +78,21 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
       }
       arg = (args[1]).toString();
 
-      System.out.println("-------------into-----------------");
-      System.out.println("--------------SetStringAdvice----------------");
-      System.out.println("--------------" + index + "----------------");
-      System.out.println("--------------" + arg + "----------------");
-//      int depth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);
-//      if (depth > 0) {
-//        return;
-//      }
 
       try {
         ContextStore<Statement, DBQueryInfo> contextStore = InstrumentationContext.get(Statement.class, DBQueryInfo.class);
         if (contextStore == null) {
-          System.out.println("------------------(contextStore == null)--------------------------------");
           return;
         }
 
         DBQueryInfo queryInfo = contextStore.get(statement);
         if (null == queryInfo) {
           logMissingQueryInfo(statement);
-          System.out.println("------------------MissingQueryInfo--------------------------------");
           return;
         }
         queryInfo.setVal(index, arg);
         contextStore.put(statement, queryInfo);
-        System.out.println("----------------------------put---------out-------------");
       } catch (SQLException e) {
-        System.out.println("----------------------------put error----------------------" + e);
         return;
       }
     }
@@ -112,7 +100,6 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.Thrown final Throwable throwable) {
-      System.out.println("---------------------OnMethodExit---------");
     }
   }
 
@@ -120,11 +107,7 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.This final Statement statement) {
-//      int depth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);
-//      if (depth > 0) {
-//        return null;
-//      }
-      System.out.println("---------into-------PreparedStatementAdvice-------------------------");
+
       try {
         Connection connection = statement.getConnection();
         DBQueryInfo queryInfo =

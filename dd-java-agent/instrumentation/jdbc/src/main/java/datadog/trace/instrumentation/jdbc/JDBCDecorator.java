@@ -179,7 +179,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       if (!originSlq.equals("")) {
         Map<Integer, String> map = info.getVals();
         for (int key : map.keySet()) {
-          System.out.println("Key: " + key + " Value: " + map.get(key));
           span.setTag("sql.params.index_" + key, map.get(key));
         }
 
