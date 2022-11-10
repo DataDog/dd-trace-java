@@ -9,10 +9,11 @@ import datadog.telemetry.api.GenerateMetrics
 import datadog.telemetry.api.Integration
 import datadog.telemetry.api.Metric
 import datadog.telemetry.api.RequestType
-import datadog.trace.api.function.Supplier
 import datadog.trace.api.time.TimeSource
 import datadog.trace.test.util.DDSpecification
 import okhttp3.Request
+
+import java.util.function.Supplier
 
 class TelemetryServiceSpecification extends DDSpecification {
   private static final Request REQUEST = new Request.Builder()

@@ -9,7 +9,6 @@ import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -20,6 +19,7 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 import org.glassfish.grizzly.http.util.Parameters;
 

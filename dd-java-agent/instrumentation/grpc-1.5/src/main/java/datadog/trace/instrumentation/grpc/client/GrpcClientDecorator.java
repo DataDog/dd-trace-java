@@ -5,7 +5,6 @@ import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.GenericClassValue;
-import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -15,6 +14,7 @@ import io.grpc.Status;
 import java.util.BitSet;
 import java.util.LinkedHashMap;
 import java.util.Set;
+import java.util.function.Function;
 
 public class GrpcClientDecorator extends ClientDecorator {
   public static final CharSequence GRPC_CLIENT = UTF8BytesString.create("grpc.client");
@@ -37,8 +37,8 @@ public class GrpcClientDecorator extends ClientDecorator {
 
   private static final ClassValue<UTF8BytesString> MESSAGE_TYPES =
       GenericClassValue.of(
+          // User inner class for predictable name for Instrumenter.Default.helperClassNames()
           new Function<Class<?>, UTF8BytesString>() {
-
             @Override
             public UTF8BytesString apply(Class<?> input) {
               return UTF8BytesString.create(input.getName());

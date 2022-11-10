@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap;
 
-import datadog.trace.api.function.Function;
+import java.util.function.Function;
 
 public interface WeakCache<K, V> {
   V getIfPresent(final K key);

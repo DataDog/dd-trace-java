@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 
 import datadog.trace.api.Config;
 import datadog.trace.api.GenericClassValue;
-import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import java.util.Set;
@@ -29,15 +28,12 @@ public final class TPEHelper {
 
   private static final ClassValue<Boolean> WRAP =
       GenericClassValue.of(
-          new Function<Class<?>, Boolean>() {
-            @Override
-            public Boolean apply(Class<?> input) {
-              String className = input.getName();
-              // We should always wrap anonymous lambda classes since we can't inject fields into
-              // them, and they can never be anything more than a _pure_ Runnable. They have '/' in
-              // their class name which is not allowed in 'normal' classes.
-              return className.indexOf('/', className.lastIndexOf('.')) > 0;
-            }
+          input -> {
+            String className = input.getName();
+            // We should always wrap anonymous lambda classes since we can't inject fields into
+            // them, and they can never be anything more than a _pure_ Runnable. They have '/' in
+            // their class name which is not allowed in 'normal' classes.
+            return className.indexOf('/', className.lastIndexOf('.')) > 0;
           });
 
   static {

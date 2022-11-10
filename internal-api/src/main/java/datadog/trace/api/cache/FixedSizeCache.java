@@ -1,8 +1,8 @@
 package datadog.trace.api.cache;
 
 import datadog.trace.api.Pair;
-import datadog.trace.api.function.Function;
 import java.util.Arrays;
+import java.util.function.Function;
 
 /**
  * This is a fixed size cache that only has one operation <code>computeIfAbsent</code>, that is used

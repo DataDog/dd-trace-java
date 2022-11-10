@@ -1,5 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.function.BiFunction
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
@@ -15,6 +14,7 @@ import org.glassfish.grizzly.http.io.NIOInputStream
 import org.glassfish.grizzly.memory.ByteBufferWrapper
 
 import java.nio.ByteBuffer
+import java.util.function.BiFunction
 
 import static datadog.trace.api.gateway.Events.EVENTS
 

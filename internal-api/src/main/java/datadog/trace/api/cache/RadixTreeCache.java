@@ -1,8 +1,8 @@
 package datadog.trace.api.cache;
 
-import datadog.trace.api.function.IntFunction;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.concurrent.atomic.AtomicReferenceArray;
+import java.util.function.IntFunction;
 
 /** Sparse cache of values associated with a small integer */
 public final class RadixTreeCache<T> {

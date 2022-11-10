@@ -3,7 +3,6 @@ package datadog.trace.agent.tooling.bytebuddy.matcher;
 import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.function.Function;
 import java.net.URL;
 import java.security.CodeSource;
 import java.security.ProtectionDomain;
@@ -38,16 +37,13 @@ public class CodeSourceExcludes {
         return null != location
             && excludedCodeSources.computeIfAbsent(
                 location.getPath(),
-                new Function<String, Boolean>() {
-                  @Override
-                  public Boolean apply(String path) {
-                    for (String name : excludes) {
-                      if (path.contains(name)) {
-                        return true;
-                      }
+                path -> {
+                  for (String name : excludes) {
+                    if (path.contains(name)) {
+                      return true;
                     }
-                    return false;
                   }
+                  return false;
                 });
       }
     }
