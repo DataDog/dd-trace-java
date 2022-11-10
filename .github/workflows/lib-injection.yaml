@@ -58,7 +58,10 @@ jobs:
               max-parallelism = 1
 
       - name: Test echo
-        run: echo "HOLA"          
+        run: echo "HOLA"  
+      - name: Build injection image
+        run: |
+          echo "Tututu"       
       - name: Build test images
         run: |
               cd system-tests
