@@ -795,6 +795,7 @@ public class CapturedSnapshotTest {
             null,
             null,
             null,
+            null,
             new SnapshotProbe.Sampling(1));
     DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, config);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
