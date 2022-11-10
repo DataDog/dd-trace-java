@@ -56,7 +56,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build image
+      - name: Build images
         run: |
           cd system-tests   
           ./lib-injection/run.sh build-test-app-image push-test-app-image build-and-push-init-image  
