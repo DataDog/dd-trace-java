@@ -64,4 +64,6 @@ jobs:
           ./lib-injection/build.sh
  
       - name: Run injection tests
-        run: ./lib-injection/run-lib-injection.sh
+        run: |
+          cd system-tests   
+          ./lib-injection/run-lib-injection.sh
