@@ -37,15 +37,6 @@ jobs:
           ref: 'robertomonteromiguel/lib_injection_integration'
           path: './system-tests'
 
-      - name: Log in to the Container registry
-        uses: docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b # 2.0.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-    #  - name: Load library binary (TODO?)
-    #    run: ./utils/scripts/load-binary.sh java
       - name: Set up QEMU
         uses: docker/setup-qemu-action@8b122486cedac8393e77aa9734c3528886e4a1a8 # 2.0.0
 
@@ -56,12 +47,23 @@ jobs:
           config-inline: |
             [worker.oci]
               max-parallelism = 1
+              
+      - name: Log in to the Container registry
+        uses: docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b # 2.0.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build injection image
+    #  - name: Load library binary (TODO?)
+    #    run: ./utils/scripts/load-binary.sh java
+
+
+      - name: Build image
         run: |
           cd system-tests   
           ./lib-injection/run.sh build-test-app-image push-test-app-image build-and-push-init-image  
           ./system-tests/lib-injection/build.sh
  
-      - name: Run injection tests
+       - name: Run injection tests
         run: ./lib-injection/run-lib-injection.sh
