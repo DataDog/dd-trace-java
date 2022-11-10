@@ -16,9 +16,7 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
 
@@ -179,13 +177,32 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       span.setTag(DB_OPERATION, info.getOperation());
       String originSlq = info.getOriginSql().toString();
       if (!originSlq.equals("")) {
-        //  span.setTag("db.sql.origin", originSlq);
-        span.setTag("db.sql.origin", info.getOriginSql());
         Map<Integer, String> map = info.getVals();
-        for (int key : map.keySet()) {
-          System.out.println("Key: " + key + " Value: " + map.get(key));
-          span.setTag("set_index_" + key, map.get(key));
+        //将keySet放入list
+        ArrayList<Integer> list = new ArrayList<>(map.keySet());
+        //调用sort方法并重写比较器进行升/降序
+        Collections.sort(list, new Comparator<Integer>() {
+          @Override
+          public int compare(Integer o1, Integer o2) {
+            return o1 > o2 ? 1 : -1;
+          }
+        });
+
+        Iterator<Integer> iterator = list.iterator();
+        StringBuilder params = new StringBuilder();
+        while ((iterator.hasNext())) {
+          Integer key = iterator.next();
+          String value = map.get(key);
+          System.out.print(key + "=" + value + ",");
+
+          System.out.println("Key: " + key + " Value: " + value);
+          params.append(value).append(", ");
+          originSlq = originSlq.replaceFirst("\\?", value);
         }
+
+        span.setTag("sql.params", params.toString());
+        span.setTag("db.sql.origin", originSlq);
+
       }
     } else {
       span.setResourceName(DB_QUERY);

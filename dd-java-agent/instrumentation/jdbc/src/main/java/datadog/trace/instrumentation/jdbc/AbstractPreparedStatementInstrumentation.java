@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -35,6 +36,8 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
       String instrumentationName, String... additionalNames) {
     super(instrumentationName, additionalNames);
   }
+
+  public static boolean SqlObfuscation = Config.get().getJdbcSqlObfuscation();
 
   @Override
   public String[] helperClassNames() {
@@ -66,6 +69,9 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
     public static void StartSetString(
         @Advice.Argument(0) final int index, @Advice.Argument(1) final String arg,
         @Advice.This final PreparedStatement statement) {
+      if (!SqlObfuscation) {
+        return;
+      }
       System.out.println("-------------into-----------------");
       System.out.println("--------------SetStringAdvice----------------");
       System.out.println("--------------" + index + "----------------");
@@ -74,6 +80,7 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
 //      if (depth > 0) {
 //        return;
 //      }
+
       try {
         ContextStore<Statement, DBQueryInfo> contextStore = InstrumentationContext.get(Statement.class, DBQueryInfo.class);
         if (contextStore == null) {
@@ -94,13 +101,12 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
         System.out.println("----------------------------put error----------------------" + e);
         return;
       }
-
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.Thrown final Throwable throwable) {
-      System.out.println("-------------into--------OnMethodExit---------");
+      System.out.println("---------------------OnMethodExit---------");
     }
   }
 
