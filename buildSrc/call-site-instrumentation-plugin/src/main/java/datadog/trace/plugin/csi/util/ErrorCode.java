@@ -382,6 +382,13 @@ public enum ErrorCode implements Function<Object[], String> {
     }
   },
 
+  CALL_SITE_SPI_FEATURE_WITHOUT_DEFAULT {
+    @Override
+    public String apply(final Object[] objects) {
+      return "Feature flag '%s' does not have a default";
+    }
+  },
+
   // Others
 
   UNCAUGHT_ERROR {

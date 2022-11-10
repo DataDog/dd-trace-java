@@ -11,7 +11,12 @@ import java.security.Provider
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class WeakCipherTest extends AgentTestRunner {
+class WeakCipherForkedTest extends AgentTestRunner {
+
+  @Override
+  protected void configurePreAgent() {
+    injectSysConfig("iast.weak-cipher.enabled", "true")
+  }
 
   def "unavailable cipher algorithm"() {
 

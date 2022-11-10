@@ -88,6 +88,8 @@ public class FreemarkerAdviceGenerator implements AdviceGenerator {
                 generateAdviceJavaFile(
                     spec.getSpi(),
                     spec.getMinJavaVersion(),
+                    spec.getFeatureFlag(),
+                    spec.getFeatureFlagDefault(),
                     spec.getHelpers(),
                     advice,
                     classNameToType(className)));
@@ -109,6 +111,8 @@ public class FreemarkerAdviceGenerator implements AdviceGenerator {
   private AdviceResult generateAdviceJavaFile(
       @Nonnull final Type spiClass,
       final int minJavaVersion,
+      final String featureFlag,
+      final Boolean featureFlagDefault,
       @Nonnull final Type[] helperClasses,
       @Nonnull final AdviceSpecification spec,
       @Nonnull final Type adviceClass) {
@@ -134,6 +138,9 @@ public class FreemarkerAdviceGenerator implements AdviceGenerator {
       boolean isInstanceMethod = !spec.isStaticPointcut();
       arguments.put("applyBody", getApplyMethodBody(spec, isInstanceMethod));
       arguments.put("helperClassNames", getHelperClassNames(helperClasses));
+      arguments.put("hasFeatureFlag", null != featureFlag && featureFlag.length() > 0);
+      arguments.put("featureFlag", featureFlag);
+      arguments.put("featureFlagDefault", featureFlagDefault);
       final MethodType pointcut = spec.getPointcut();
       arguments.put("type", pointcut.getOwner().getInternalName());
       arguments.put("method", pointcut.getMethodName());

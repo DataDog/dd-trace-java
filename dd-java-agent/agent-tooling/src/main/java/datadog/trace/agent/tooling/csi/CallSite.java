@@ -19,6 +19,10 @@ public @interface CallSite {
   /** Minimum JRE version that this call site supports */
   int minJavaVersion() default -1;
 
+  String featureFlag() default "";
+
+  boolean featureFlagDefault() default false;
+
   /** Helper classes for the advice */
   Class<?>[] helpers() default {};
 

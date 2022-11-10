@@ -90,6 +90,8 @@ public final class ConfigDefaults {
       "^(?:PBEWITH(?:HMACSHA(?:2(?:24ANDAES_(?:128|256)|56ANDAES_(?:128|256))|384ANDAES_(?:128|256)|512ANDAES_(?:128|256)|1ANDAES_(?:128|256))|SHA1AND(?:RC(?:2_(?:128|40)|4_(?:128|40))|DESEDE)|MD5AND(?:TRIPLEDES|DES))|DES(?:EDE(?:WRAP)?)?|BLOWFISH|ARCFOUR|RC2).*$";
 
   static final boolean DEFAULT_IAST_DEDUPLICATION_ENABLED = true;
+  public static final boolean DEFAULT_IAST_WEAK_HASH_ENABLED = true;
+  public static final boolean DEFAULT_IAST_WEAK_CIPHER_ENABLED = true;
 
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED = false;

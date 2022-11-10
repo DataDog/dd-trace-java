@@ -31,6 +31,9 @@ public class CallSiteSpecification implements Validatable {
   private final List<AdviceSpecification> advices;
   private final Type spi;
   private final int minJavaVersion;
+  private final String featureFlag;
+  private final Boolean featureFlagDefault;
+
   private final Type[] helpers;
 
   public CallSiteSpecification(
@@ -38,11 +41,15 @@ public class CallSiteSpecification implements Validatable {
       @Nonnull final List<AdviceSpecification> advices,
       @Nonnull final Type spi,
       final int minJavaVersion,
+      final String featureFlag,
+      final Boolean featureFlagDefault,
       @Nonnull final Set<Type> helpers) {
     this.clazz = clazz;
     this.advices = advices;
     this.spi = spi;
     this.minJavaVersion = minJavaVersion;
+    this.featureFlag = featureFlag;
+    this.featureFlagDefault = featureFlagDefault;
     this.helpers = helpers.toArray(new Type[0]);
   }
 
@@ -60,6 +67,10 @@ public class CallSiteSpecification implements Validatable {
           }
         }
       }
+      if (null != featureFlag && featureFlag.length() > 0 && null == featureFlagDefault) {
+        context.addError(ErrorCode.CALL_SITE_SPI_FEATURE_WITHOUT_DEFAULT);
+      }
+
     } catch (ResolutionException e) {
       e.getErrors().forEach(context::addError);
     }
@@ -78,6 +89,14 @@ public class CallSiteSpecification implements Validatable {
 
   public int getMinJavaVersion() {
     return minJavaVersion;
+  }
+
+  public String getFeatureFlag() {
+    return featureFlag;
+  }
+
+  public Boolean getFeatureFlagDefault() {
+    return featureFlagDefault;
   }
 
   public Type[] getHelpers() {

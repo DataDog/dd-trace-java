@@ -89,6 +89,11 @@ public class Advices {
       final int minJavaVersion = ((CallSiteAdvice.HasMinJavaVersion) advice).minJavaVersion();
       return Platform.isJavaVersionAtLeast(minJavaVersion);
     }
+    if (advice instanceof CallSiteAdvice.HasFeatureFlag) {
+      if (!((CallSiteAdvice.HasFeatureFlag) advice).featureFlag()) {
+        return false;
+      }
+    }
     return true;
   }
 

@@ -13,9 +13,12 @@ import net.bytebuddy.jar.asm.Opcodes;
 <#if dynamicInvoke>import net.bytebuddy.jar.asm.Handle;</#if>
 import com.google.auto.service.AutoService;
 <#if customSpiPackage>import ${spiPackageName}.${spiClassName};</#if>
+<#if hasFeatureFlag>import datadog.trace.api.Config;</#if>
 
 @AutoService(${spiClassName}.class)
-public final class ${className} implements CallSiteAdvice, Pointcut, <#if dynamicInvoke>InvokeDynamicAdvice<#else>InvokeAdvice</#if><#if computeMaxStack>, CallSiteAdvice.HasFlags</#if><#if hasHelpers>, CallSiteAdvice.HasHelpers</#if><#if hasMinJavaVersion>, CallSiteAdvice.HasMinJavaVersion</#if><#if customSpiClass>, ${spiClassName}</#if> {
+public final class ${className} implements CallSiteAdvice, Pointcut, <#if dynamicInvoke>InvokeDynamicAdvice<#else>InvokeAdvice</#if><#if computeMaxStack>, CallSiteAdvice.HasFlags</#if><#if hasHelpers>, CallSiteAdvice.HasHelpers</#if><#if hasMinJavaVersion>, CallSiteAdvice.HasMinJavaVersion</#if><#if hasFeatureFlag>, CallSiteAdvice.HasFeatureFlag</#if><#if customSpiClass>, ${spiClassName}</#if> {
+
+  <#if hasFeatureFlag>boolean featureFlag = Config.get().isEnabled(${featureFlagDefault?c}, "${featureFlag}", "");</#if>
 
   @Override
   public Pointcut pointcut() {
@@ -66,6 +69,13 @@ ${applyBody}
   @Override
   public int minJavaVersion() {
     return ${minJavaVersion};
+  }
+</#if>
+
+<#if hasFeatureFlag>
+  @Override
+  public boolean featureFlag(){
+    return featureFlag;
   }
 </#if>
 }

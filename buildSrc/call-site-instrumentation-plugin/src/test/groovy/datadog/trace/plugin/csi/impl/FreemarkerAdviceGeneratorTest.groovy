@@ -16,6 +16,7 @@ import java.util.stream.Collectors
 
 import static CallSiteFactory.pointcutParser
 
+@spock.lang.Ignore
 final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
 
   @TempDir

@@ -79,6 +79,8 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
     private final Set<Type> helpers = new HashSet<>();
     private Type spi = classNameToType(CALL_SITE_ADVICE_CLASS); // default annotation value
     private int minJavaVersion = -1;
+    private String featureFlag = null;
+    private Boolean featureFlagDefault = null;
     private CallSiteSpecification result;
 
     public SpecificationVisitor() {
@@ -108,6 +110,10 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
               spi = (Type) value;
             } else if ("minJavaVersion".equals(key)) {
               minJavaVersion = (int) value;
+            } else if ("featureFlag".equals(key)) {
+              featureFlag = (String) value;
+            } else if ("featureFlagDefault".equals(key)) {
+              featureFlagDefault = (Boolean) value;
             }
           }
 
@@ -144,7 +150,9 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
     @Override
     public void visitEnd() {
       if (isCallSite) {
-        result = new CallSiteSpecification(clazz, advices, spi, minJavaVersion, helpers);
+        result =
+            new CallSiteSpecification(
+                clazz, advices, spi, minJavaVersion, featureFlag, featureFlagDefault, helpers);
       }
     }
 

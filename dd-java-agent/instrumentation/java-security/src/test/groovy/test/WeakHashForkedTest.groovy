@@ -11,10 +11,9 @@ import java.security.Provider
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class WeakHashTest extends AgentTestRunner {
+class WeakHashForkedTest extends AgentTestRunner {
 
   def "unavailable hash algorithm"() {
-
     when:
     runUnderTrace("WeakHashingRootSpan") {
       new TestSuite().getMessageDigestInstance("SHA-XXX")

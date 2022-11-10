@@ -1,12 +1,18 @@
 package datadog.trace.instrumentation.java.security;
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_CIPHER_ENABLED;
+
 import datadog.trace.agent.tooling.csi.CallSite;
+import datadog.trace.api.config.IastConfig;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.sink.WeakCipherModule;
 import java.security.Provider;
 
-@CallSite(spi = IastAdvice.class)
+@CallSite(
+    spi = IastAdvice.class,
+    featureFlag = IastConfig.IAST_WEAK_CIPHER_ENABLED,
+    featureFlagDefault = DEFAULT_IAST_WEAK_CIPHER_ENABLED)
 public class WeakCipherInstrumentationCallSite {
 
   @CallSite.Before("javax.crypto.Cipher javax.crypto.Cipher.getInstance(java.lang.String)")

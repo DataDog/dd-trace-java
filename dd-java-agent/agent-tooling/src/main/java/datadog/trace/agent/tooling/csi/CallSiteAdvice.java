@@ -20,6 +20,10 @@ public interface CallSiteAdvice {
     int minJavaVersion();
   }
 
+  interface HasFeatureFlag {
+    boolean featureFlag();
+  }
+
   /** Interface to isolate advices from ASM */
   interface MethodHandler {
 
