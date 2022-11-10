@@ -58,7 +58,7 @@ public abstract class InstrumentationBridge {
         MODULE.onParameterName(parameterName);
       }
     } catch (final Throwable t) {
-      onUnexpectedException("Callback for onHash threw.", t);
+      onUnexpectedException("Callback for onParameterName threw.", t);
     }
   }
 
