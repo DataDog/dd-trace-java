@@ -59,7 +59,6 @@ jobs:
 
       - name: Build injection image
         run: |
-          echo "Tututu" 
           cd system-tests   
           ./lib-injection/run.sh build-test-app-image push-test-app-image build-and-push-init-image  
           ./system-tests/lib-injection/build.sh
