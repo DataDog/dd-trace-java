@@ -178,29 +178,11 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       String originSlq = info.getOriginSql().toString();
       if (!originSlq.equals("")) {
         Map<Integer, String> map = info.getVals();
-        //将keySet放入list
-        ArrayList<Integer> list = new ArrayList<>(map.keySet());
-        //调用sort方法并重写比较器进行升/降序
-        Collections.sort(list, new Comparator<Integer>() {
-          @Override
-          public int compare(Integer o1, Integer o2) {
-            return o1 > o2 ? 1 : -1;
-          }
-        });
-
-        Iterator<Integer> iterator = list.iterator();
-        StringBuilder params = new StringBuilder();
-        while ((iterator.hasNext())) {
-          Integer key = iterator.next();
-          String value = map.get(key);
-          System.out.print(key + "=" + value + ",");
-
-          System.out.println("Key: " + key + " Value: " + value);
-          params.append(value).append(", ");
-          originSlq = originSlq.replaceFirst("\\?", value);
+        for (int key : map.keySet()) {
+          System.out.println("Key: " + key + " Value: " + map.get(key));
+          span.setTag("sql.params.index_" + key, map.get(key));
         }
 
-        span.setTag("sql.params", params.toString());
         span.setTag("db.sql.origin", originSlq);
       }
     } else {
