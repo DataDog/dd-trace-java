@@ -17,6 +17,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
@@ -62,7 +63,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[] {"jdbc"};
+    return new String[]{"jdbc"};
   }
 
   @Override
@@ -180,6 +181,11 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       if (!originSlq.equals("")) {
         //  span.setTag("db.sql.origin", originSlq);
         span.setTag("db.sql.origin", info.getOriginSql());
+        Map<Integer, String> map = info.getVals();
+        for (int key : map.keySet()) {
+          System.out.println("Key: " + key + " Value: " + map.get(key));
+          span.setTag("set_index_" + key, map.get(key));
+        }
       }
     } else {
       span.setResourceName(DB_QUERY);

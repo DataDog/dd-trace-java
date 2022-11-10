@@ -12,16 +12,20 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
+
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Map;
+
 import net.bytebuddy.asm.Advice;
 
 public abstract class AbstractPreparedStatementInstrumentation extends Instrumenter.Tracing
@@ -34,8 +38,8 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JDBCDecorator",
+    return new String[]{
+        packageName + ".JDBCDecorator",
     };
   }
 
@@ -52,6 +56,52 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
     transformation.applyAdvice(
         nameStartsWith("execute").and(takesArguments(0)).and(isPublic()),
         AbstractPreparedStatementInstrumentation.class.getName() + "$PreparedStatementAdvice");
+    transformation.applyAdvice(
+        nameStartsWith("setString").and(takesArguments(2)).and(isPublic()),
+        AbstractPreparedStatementInstrumentation.class.getName() + "$SetStringAdvice");
+  }
+
+  public static class SetStringAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void StartSetString(
+        @Advice.Argument(0) final int index, @Advice.Argument(1) final String arg,
+        @Advice.This final PreparedStatement statement) {
+      System.out.println("-------------into-----------------");
+      System.out.println("--------------SetStringAdvice----------------");
+      System.out.println("--------------" + index + "----------------");
+      System.out.println("--------------" + arg + "----------------");
+      int depth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);
+      if (depth > 0) {
+        return;
+      }
+      try {
+        ContextStore<Statement, DBQueryInfo> contextStore = InstrumentationContext.get(Statement.class, DBQueryInfo.class);
+        if (contextStore == null) {
+          System.out.println("------------------(contextStore == null)--------------------------------");
+          return;
+        }
+
+        DBQueryInfo queryInfo = contextStore.get(statement);
+        if (null == queryInfo) {
+          logMissingQueryInfo(statement);
+          System.out.println("------------------MissingQueryInfo--------------------------------");
+          return;
+        }
+        queryInfo.setVal(index, arg);
+        contextStore.put(statement, queryInfo);
+        System.out.println("----------------------------put---------out-------------");
+      } catch (SQLException e) {
+        System.out.println("----------------------------put error----------------------" + e);
+        return;
+      }
+
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void stopSpan(
+        @Advice.Thrown final Throwable throwable) {
+      System.out.println("-------------into--------OnMethodExit---------");
+    }
   }
 
   public static class PreparedStatementAdvice {
@@ -62,6 +112,7 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
       if (depth > 0) {
         return null;
       }
+      System.out.println("---------into-------PreparedStatementAdvice-------------------------");
       try {
         Connection connection = statement.getConnection();
         DBQueryInfo queryInfo =
