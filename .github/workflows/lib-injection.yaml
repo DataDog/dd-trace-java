@@ -44,7 +44,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-    #  - name: Load library binary (TODO)
+    #  - name: Load library binary (TODO?)
     #    run: ./utils/scripts/load-binary.sh java
       - name: Set up QEMU
         uses: docker/setup-qemu-action@8b122486cedac8393e77aa9734c3528886e4a1a8 # 2.0.0
