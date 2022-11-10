@@ -27,6 +27,7 @@ jobs:
       LIBRARY_INJECTION_TEST_APP_IMAGE: ghcr.io/datadog/system-tests/dd-lib-java-init-test-app:${{ github.sha }}
 
     steps:
+
       - name: Checkout dd-trace-java
         uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # 2.3.4
 
@@ -47,7 +48,7 @@ jobs:
           config-inline: |
             [worker.oci]
               max-parallelism = 1
-              
+
       - name: Log in to the Container registry
         uses: docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b # 2.0.0
         with:
@@ -55,15 +56,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-    #  - name: Load library binary (TODO?)
-    #    run: ./utils/scripts/load-binary.sh java
-
-
       - name: Build image
         run: |
           cd system-tests   
           ./lib-injection/run.sh build-test-app-image push-test-app-image build-and-push-init-image  
           ./system-tests/lib-injection/build.sh
  
-       - name: Run injection tests
+      - name: Run injection tests
         run: ./lib-injection/run-lib-injection.sh
