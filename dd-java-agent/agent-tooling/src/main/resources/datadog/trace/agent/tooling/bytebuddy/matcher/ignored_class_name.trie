@@ -248,6 +248,7 @@
 2 org.springframework.validation.*
 2 org.springframework.web.*
 0 org.springframework.web.context.request.async.*
+0 org.springframework.web.context.request.*
 0 org.springframework.web.context.support.AbstractRefreshableWebApplicationContext
 0 org.springframework.web.context.support.GenericWebApplicationContext
 0 org.springframework.web.context.support.XmlWebApplicationContext

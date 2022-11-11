@@ -52,6 +52,26 @@ public abstract class InstrumentationBridge {
     }
   }
 
+  public static void onParameterName(final String parameterName) {
+    try {
+      if (MODULE != null) {
+        MODULE.onParameterName(parameterName);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onParameterName threw.", t);
+    }
+  }
+
+  public static void onParameterValue(final String paramName, final String paramValue) {
+    try {
+      if (MODULE != null) {
+        MODULE.onParameterValue(paramName, paramValue);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onParameterValue threw.", t);
+    }
+  }
+
   private static void onUnexpectedException(final String message, final Throwable error) {
     LOG.warn(message, error);
   }
