@@ -2,6 +2,9 @@ package com.datadog.debugger.agent;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SnapshotProbe;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -54,7 +57,7 @@ public class TransformerDefinitionMatcherTest {
         matcher.match(
             null,
             getClassPath(String.class),
-            String.class.getName(),
+            String.class.getTypeName(),
             getClassFileBytes(String.class));
     assertEquals(1, probeDefinitions.size());
     assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());

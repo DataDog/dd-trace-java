@@ -2,12 +2,12 @@ package com.datadog.debugger.instrumentation;
 
 import static com.datadog.debugger.instrumentation.Types.*;
 
-import com.datadog.debugger.agent.MetricProbe;
-import com.datadog.debugger.agent.ProbeDefinition;
-import com.datadog.debugger.agent.Where;
 import com.datadog.debugger.el.InvalidValueException;
 import com.datadog.debugger.el.Literal;
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.Where;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
@@ -106,7 +106,7 @@ public class MetricInstrumentor extends Instrumentor {
         ldc(insnList, literal); // stack [long]
       } else {
         reportError(
-            "Unsupported literal: " + literal + " type: " + literal.getClass().getName() + ".");
+            "Unsupported literal: " + literal + " type: " + literal.getClass().getTypeName() + ".");
         return EMPTY_INSN_LIST;
       }
     } else {

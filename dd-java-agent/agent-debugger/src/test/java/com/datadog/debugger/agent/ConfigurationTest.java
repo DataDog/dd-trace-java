@@ -1,9 +1,11 @@
 package com.datadog.debugger.agent;
 
-import static com.datadog.debugger.agent.MetricProbe.MetricKind.COUNT;
-import static com.datadog.debugger.agent.MetricProbe.MetricKind.GAUGE;
+import static com.datadog.debugger.probe.MetricProbe.MetricKind.COUNT;
+import static com.datadog.debugger.probe.MetricProbe.MetricKind.GAUGE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.SnapshotProbe;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
@@ -95,7 +97,6 @@ public class ConfigurationTest {
         new Configuration.FilterList(
             Arrays.asList("java.security"), Arrays.asList("javax.security.auth.AuthPermission"));
     SnapshotProbe.Sampling globalSampling = new SnapshotProbe.Sampling(10.0);
-    Configuration.OpsConfiguration opsConfiguration = new Configuration.OpsConfiguration(10);
     Configuration config1 =
         new Configuration(
             "service1",
@@ -104,8 +105,7 @@ public class ConfigurationTest {
             Arrays.asList(metric1),
             allowList,
             denyList,
-            globalSampling,
-            opsConfiguration);
+            globalSampling);
     Configuration config2 =
         new Configuration(
             "service2",
@@ -114,8 +114,7 @@ public class ConfigurationTest {
             Arrays.asList(metric2),
             allowList,
             denyList,
-            globalSampling,
-            opsConfiguration);
+            globalSampling);
     List<Configuration> configs = new ArrayList<>(Arrays.asList(config1, config2));
     ParameterizedType type = Types.newParameterizedType(List.class, Configuration.class);
     JsonAdapter<List<Configuration>> adapter = MoshiHelper.createMoshiConfig().adapter(type);
@@ -128,6 +127,7 @@ public class ConfigurationTest {
     List<Configuration> configs = adapter.fromJson(buffer);
     assertEquals(2, configs.size());
     Configuration config0 = configs.get(0);
+    assertEquals(10.0, config0.getSampling().getSnapshotsPerSecond(), 0.1);
     assertEquals("service1", config0.getId());
     assertEquals(1, config0.getSnapshotProbes().size());
     SnapshotProbe snapshotProbe1 = config0.getSnapshotProbes().iterator().next();
@@ -136,6 +136,7 @@ public class ConfigurationTest {
     assertEquals(2, snapshotProbe1.getTags().length);
     assertEquals("tag1:value1", snapshotProbe1.getTags()[0].toString());
     assertEquals("tag2:value2", snapshotProbe1.getTags()[1].toString());
+    assertEquals(42.0, snapshotProbe1.getSampling().getSnapshotsPerSecond(), 0.1);
     Configuration config1 = configs.get(1);
     assertEquals("service2", config1.getId());
     assertEquals(1, config1.getSnapshotProbes().size());
@@ -163,6 +164,7 @@ public class ConfigurationTest {
             Limits.DEFAULT_LENGTH,
             Limits.DEFAULT_FIELD_COUNT)
         .tags("tag1:value1", "tag2:value2")
+        .sampling(42.0)
         .build();
   }
 

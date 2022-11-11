@@ -24,6 +24,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class JFRCheckpointer implements Checkpointer, ProfilingListener<ProfilingSnapshot> {
+
+  // FIXME - remove this when async-profiler is GA and checkpoints have been removed
+  private final boolean isAsyncProfilerEnabled;
+
   private static final Logger log = LoggerFactory.getLogger(JFRCheckpointer.class);
 
   static class SamplerConfig {
@@ -136,6 +140,11 @@ public class JFRCheckpointer implements Checkpointer, ProfilingListener<Profilin
         configProvider.getBoolean(
             ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED,
             ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT);
+
+    isAsyncProfilerEnabled =
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_ASYNC_ENABLED,
+            ProfilingConfig.PROFILING_ASYNC_ENABLED_DEFAULT);
   }
 
   @Override
@@ -216,10 +225,12 @@ public class JFRCheckpointer implements Checkpointer, ProfilingListener<Profilin
   }
 
   @Override
-  public final void onRootSpanWritten(
-      final AgentSpan rootSpan, final boolean published, final boolean checkpointsSampled) {
+  public final void onRootSpanFinished(final AgentSpan rootSpan, final boolean published) {
     if (isEndpointCollectionEnabled) {
       if (rootSpan instanceof DDSpan) {
+        Boolean emittingCheckpoints = rootSpan.isEmittingCheckpoints();
+        boolean checkpointsSampled =
+            isAsyncProfilerEnabled || (emittingCheckpoints != null && emittingCheckpoints);
         DDSpan span = (DDSpan) rootSpan;
         EndpointTracker tracker = span.getEndpointTracker();
         if (tracker != null) {

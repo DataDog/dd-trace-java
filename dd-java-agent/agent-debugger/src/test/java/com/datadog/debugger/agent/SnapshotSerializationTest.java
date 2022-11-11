@@ -57,8 +57,7 @@ public class SnapshotSerializationTest {
   @Test
   public void roundTripProbeLocation() throws IOException {
     JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
-    Snapshot snapshot =
-        new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
+    Snapshot snapshot = createSnapshot();
     String buffer = adapter.toJson(snapshot);
 
     Snapshot deserializedSnapshot = adapter.fromJson(buffer);
@@ -73,23 +72,21 @@ public class SnapshotSerializationTest {
   @EnabledOnJre(JRE.JAVA_17)
   public void roundTripCapturedValue() throws IOException, URISyntaxException {
     JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
-    Snapshot snapshot =
-        new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
-    Snapshot.Captures captures = snapshot.getCaptures();
+    Snapshot snapshot = createSnapshot();
     Snapshot.CapturedContext context = new Snapshot.CapturedContext();
     Snapshot.CapturedValue normalValuedField =
-        Snapshot.CapturedValue.of("normalValuedField", String.class.getName(), "foobar");
+        Snapshot.CapturedValue.of("normalValuedField", String.class.getTypeName(), "foobar");
     Snapshot.CapturedValue normalNullField =
-        Snapshot.CapturedValue.of("normalNullField", String.class.getName(), null);
+        Snapshot.CapturedValue.of("normalNullField", String.class.getTypeName(), null);
     // this object generates InaccessibleObjectException since JDK16 when extracting its fields
     Snapshot.CapturedValue notCapturedField =
         Snapshot.CapturedValue.of(
             "notCapturedField",
-            OperatingSystemMXBean.class.getName(),
+            OperatingSystemMXBean.class.getTypeName(),
             ManagementFactory.getOperatingSystemMXBean());
     context.addFields(
         new Snapshot.CapturedValue[] {normalValuedField, normalNullField, notCapturedField});
-    captures.setReturn(context);
+    snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
     String snapshotRegex =
         getFixtureContent(SINK_FIXTURE_PREFIX + "/snapshotCapturedValueRegex.txt");
@@ -101,11 +98,11 @@ public class SnapshotSerializationTest {
     Assert.assertEquals(3, fields.size());
     normalValuedField = fields.get("normalValuedField");
     Assert.assertEquals("foobar", normalValuedField.getValue());
-    Assert.assertEquals(String.class.getName(), normalValuedField.getType());
+    Assert.assertEquals(String.class.getTypeName(), normalValuedField.getType());
     Assert.assertNull(normalValuedField.getNotCapturedReason());
     normalNullField = fields.get("normalNullField");
     Assert.assertNull(normalNullField.getValue());
-    Assert.assertEquals(String.class.getName(), normalNullField.getType());
+    Assert.assertEquals(String.class.getTypeName(), normalNullField.getType());
     Assert.assertNull(normalNullField.getNotCapturedReason());
     notCapturedField = fields.get("notCapturedField");
     Map<String, Snapshot.CapturedValue> notCapturedFields =
@@ -133,12 +130,11 @@ public class SnapshotSerializationTest {
   @Test
   public void roundTripCaughtException() throws IOException {
     JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
-    Snapshot snapshot =
-        new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
+    Snapshot snapshot = createSnapshot();
     Snapshot.Captures captures = snapshot.getCaptures();
     captures.addCaughtException(
         new Snapshot.CapturedThrowable(
-            IllegalArgumentException.class.getName(),
+            IllegalArgumentException.class.getTypeName(),
             "illegal argument",
             Arrays.asList(
                 new CapturedStackFrame("f1", 12),
@@ -158,18 +154,17 @@ public class SnapshotSerializationTest {
   @Test
   public void roundtripEntryReturn() throws IOException {
     JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
-    Snapshot snapshot =
-        new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
+    Snapshot snapshot = createSnapshot();
     Snapshot.Captures captures = snapshot.getCaptures();
     Snapshot.CapturedContext entryCapturedContext = new Snapshot.CapturedContext();
     entryCapturedContext.addFields(
         new Snapshot.CapturedValue[] {Snapshot.CapturedValue.of("fieldInt", "int", "42")});
-    captures.setEntry(entryCapturedContext);
+    snapshot.setEntry(entryCapturedContext);
     Snapshot.CapturedContext exitCapturedContext = new Snapshot.CapturedContext();
     exitCapturedContext.addFields(
         new Snapshot.CapturedValue[] {Snapshot.CapturedValue.of("fieldInt", "int", "42")});
-    exitCapturedContext.addReturn(Snapshot.CapturedValue.of(String.class.getName(), "foo"));
-    captures.setReturn(exitCapturedContext);
+    exitCapturedContext.addReturn(Snapshot.CapturedValue.of(String.class.getTypeName(), "foo"));
+    snapshot.setExit(exitCapturedContext);
     String buffer = adapter.toJson(snapshot);
     System.out.println(buffer);
     Snapshot deserializedSnapshot = adapter.fromJson(buffer);
@@ -186,8 +181,7 @@ public class SnapshotSerializationTest {
   @Test
   public void roundtripLines() throws IOException {
     JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
-    Snapshot snapshot =
-        new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
+    Snapshot snapshot = createSnapshot();
     Snapshot.Captures captures = snapshot.getCaptures();
     Snapshot.CapturedContext lineCapturedContext = new Snapshot.CapturedContext();
     lineCapturedContext.addFields(
@@ -228,14 +222,12 @@ public class SnapshotSerializationTest {
   @Test
   public void primitives() throws IOException {
     JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
-    Snapshot snapshot =
-        new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
-    Snapshot.Captures captures = snapshot.getCaptures();
+    Snapshot snapshot = createSnapshot();
     Snapshot.CapturedContext context = new Snapshot.CapturedContext();
     Snapshot.CapturedValue objField =
         capturedValueDepth("objField", "Class", new AllPrimitives(), 3);
     context.addFields(new Snapshot.CapturedValue[] {objField});
-    captures.setReturn(context);
+    snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
     System.out.println(buffer);
     Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);
@@ -243,7 +235,8 @@ public class SnapshotSerializationTest {
     Map<String, Object> returnJson = (Map<String, Object>) capturesJson.get(RETURN);
     Map<String, Object> arguments = (Map<String, Object>) returnJson.get(ARGUMENTS);
     Map<String, Object> thisArg = (Map<String, Object>) arguments.get(THIS);
-    Map<String, Object> objFieldJson = (Map<String, Object>) thisArg.get("objField");
+    Map<String, Object> thisFields = (Map<String, Object>) thisArg.get(FIELDS);
+    Map<String, Object> objFieldJson = (Map<String, Object>) thisFields.get("objField");
     Map<String, Object> objFieldFields = (Map<String, Object>) objFieldJson.get(FIELDS);
     assertPrimitiveValue(objFieldFields, "l", "long", "42000000000");
     assertPrimitiveValue(objFieldFields, "i", "int", "42000");
@@ -258,15 +251,13 @@ public class SnapshotSerializationTest {
   @Test
   public void objectArray() throws IOException {
     JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
-    Snapshot snapshot =
-        new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
-    Snapshot.Captures captures = snapshot.getCaptures();
+    Snapshot snapshot = createSnapshot();
     Snapshot.CapturedContext context = new Snapshot.CapturedContext();
     Snapshot.CapturedValue localObjArray =
         capturedValueDepth(
-            "localObjArray", Object[].class.getName(), new Object[] {"foo", null, 42}, 3);
+            "localObjArray", Object[].class.getTypeName(), new Object[] {"foo", null, 42}, 3);
     context.addLocals(new Snapshot.CapturedValue[] {localObjArray});
-    captures.setReturn(context);
+    snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
     System.out.println(buffer);
     Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);
@@ -283,14 +274,13 @@ public class SnapshotSerializationTest {
   @Test
   public void fieldObjectArray() throws IOException {
     JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
-    Snapshot snapshot =
-        new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
-    Snapshot.Captures captures = snapshot.getCaptures();
+    Snapshot snapshot = createSnapshot();
     Snapshot.CapturedContext context = new Snapshot.CapturedContext();
     Snapshot.CapturedValue localObj =
-        capturedValueDepth("localObj", ObjetArrayClass.class.getName(), new ObjetArrayClass(), 3);
+        capturedValueDepth(
+            "localObj", ObjetArrayClass.class.getTypeName(), new ObjetArrayClass(), 3);
     context.addLocals(new Snapshot.CapturedValue[] {localObj});
-    captures.setReturn(context);
+    snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
     System.out.println(buffer);
     Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);
@@ -320,15 +310,13 @@ public class SnapshotSerializationTest {
   @Test
   public void fieldPrimitiveArray() throws IOException {
     JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
-    Snapshot snapshot =
-        new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
-    Snapshot.Captures captures = snapshot.getCaptures();
+    Snapshot snapshot = createSnapshot();
     Snapshot.CapturedContext context = new Snapshot.CapturedContext();
     Snapshot.CapturedValue localObj =
         capturedValueDepth(
-            "localObj", PrimitiveArrayClass.class.getName(), new PrimitiveArrayClass(), 3);
+            "localObj", PrimitiveArrayClass.class.getTypeName(), new PrimitiveArrayClass(), 3);
     context.addLocals(new Snapshot.CapturedValue[] {localObj});
-    captures.setReturn(context);
+    snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
     System.out.println(buffer);
     Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);
@@ -352,16 +340,17 @@ public class SnapshotSerializationTest {
     Map<String, Object> returnJson = doRefDepth(0);
     Map<String, Object> arguments = (Map<String, Object>) returnJson.get(ARGUMENTS);
     Map<String, Object> thisArg = (Map<String, Object>) arguments.get(THIS);
-    assertPrimitiveValue(thisArg, "strField", String.class.getName(), "foo");
-    assertPrimitiveValue(thisArg, "nullField", ComplexClass.class.getName(), null);
-    assertPrimitiveValue(thisArg, "intField", "int", "42");
-    assertNotCaptured(thisArg, "objField", ComplexClass.class.getName(), DEPTH_REASON);
-    assertPrimitiveValue(arguments, "strArg", String.class.getName(), null);
+    Map<String, Object> thisFields = (Map<String, Object>) thisArg.get(FIELDS);
+    assertPrimitiveValue(thisFields, "strField", String.class.getTypeName(), "foo");
+    assertPrimitiveValue(thisFields, "nullField", ComplexClass.class.getTypeName(), null);
+    assertPrimitiveValue(thisFields, "intField", "int", "42");
+    assertNotCaptured(thisFields, "objField", ComplexClass.class.getTypeName(), DEPTH_REASON);
+    assertPrimitiveValue(arguments, "strArg", String.class.getTypeName(), null);
     assertPrimitiveValue(arguments, "intArg", "int", "0");
-    assertPrimitiveValue(arguments, "objArg", ComplexClass.class.getName(), null);
+    assertPrimitiveValue(arguments, "objArg", ComplexClass.class.getTypeName(), null);
     Map<String, Object> locals = (Map<String, Object>) returnJson.get(LOCALS);
     assertPrimitiveValue(locals, "intLocal", "int", "42");
-    assertNotCaptured(locals, "objLocal", ComplexClass.class.getName(), DEPTH_REASON);
+    assertNotCaptured(locals, "objLocal", ComplexClass.class.getTypeName(), DEPTH_REASON);
   }
 
   @Test
@@ -369,37 +358,38 @@ public class SnapshotSerializationTest {
     Map<String, Object> returnJson = doRefDepth(1);
     Map<String, Object> arguments = (Map<String, Object>) returnJson.get(ARGUMENTS);
     Map<String, Object> thisArg = (Map<String, Object>) arguments.get(THIS);
-    assertPrimitiveValue(thisArg, "strField", String.class.getName(), "foo");
-    assertPrimitiveValue(thisArg, "nullField", ComplexClass.class.getName(), null);
-    assertPrimitiveValue(thisArg, "intField", "int", "42");
-    Map<String, Object> objField = (Map<String, Object>) thisArg.get("objField");
-    Assert.assertEquals(ComplexClass.class.getName(), objField.get("type"));
+    Map<String, Object> thisFields = (Map<String, Object>) thisArg.get(FIELDS);
+    assertPrimitiveValue(thisFields, "strField", String.class.getTypeName(), "foo");
+    assertPrimitiveValue(thisFields, "nullField", ComplexClass.class.getTypeName(), null);
+    assertPrimitiveValue(thisFields, "intField", "int", "42");
+    Map<String, Object> objField = (Map<String, Object>) thisFields.get("objField");
+    Assert.assertEquals(ComplexClass.class.getTypeName(), objField.get("type"));
     Map<String, Object> objFieldFields = (Map<String, Object>) objField.get(FIELDS);
     assertPrimitiveValue(objFieldFields, "complexIntField", "int", "21");
-    assertPrimitiveValue(objFieldFields, "complexStrField", String.class.getName(), "bar");
+    assertPrimitiveValue(objFieldFields, "complexStrField", String.class.getTypeName(), "bar");
     assertNotCaptured(
-        objFieldFields, "complexObjField", AnotherClass.class.getName(), DEPTH_REASON);
+        objFieldFields, "complexObjField", AnotherClass.class.getTypeName(), DEPTH_REASON);
     assertNotCaptured(
-        objFieldFields, "complexObjField", AnotherClass.class.getName(), DEPTH_REASON);
+        objFieldFields, "complexObjField", AnotherClass.class.getTypeName(), DEPTH_REASON);
     assertNotCaptured(
         objFieldFields,
         "this$0",
         "com.datadog.debugger.agent.SnapshotSerializationTest",
         DEPTH_REASON);
-    assertPrimitiveValue(arguments, "strArg", String.class.getName(), null);
+    assertPrimitiveValue(arguments, "strArg", String.class.getTypeName(), null);
     assertPrimitiveValue(arguments, "intArg", "int", "0");
-    assertPrimitiveValue(arguments, "objArg", ComplexClass.class.getName(), null);
+    assertPrimitiveValue(arguments, "objArg", ComplexClass.class.getTypeName(), null);
     Map<String, Object> locals = (Map<String, Object>) returnJson.get(LOCALS);
     assertPrimitiveValue(locals, "intLocal", "int", "42");
     Map<String, Object> objLocal = (Map<String, Object>) locals.get("objLocal");
-    Assert.assertEquals(ComplexClass.class.getName(), objLocal.get(TYPE));
+    Assert.assertEquals(ComplexClass.class.getTypeName(), objLocal.get(TYPE));
     Map<String, Object> objLocalFields = (Map<String, Object>) objLocal.get(FIELDS);
     assertPrimitiveValue(objLocalFields, "complexIntField", "int", "21");
-    assertPrimitiveValue(objLocalFields, "complexStrField", String.class.getName(), "bar");
+    assertPrimitiveValue(objLocalFields, "complexStrField", String.class.getTypeName(), "bar");
     assertNotCaptured(
-        objLocalFields, "complexObjField", AnotherClass.class.getName(), DEPTH_REASON);
+        objLocalFields, "complexObjField", AnotherClass.class.getTypeName(), DEPTH_REASON);
     assertNotCaptured(
-        objLocalFields, "complexObjField", AnotherClass.class.getName(), DEPTH_REASON);
+        objLocalFields, "complexObjField", AnotherClass.class.getTypeName(), DEPTH_REASON);
     assertNotCaptured(
         objLocalFields,
         "this$0",
@@ -412,44 +402,45 @@ public class SnapshotSerializationTest {
     Map<String, Object> returnJson = doRefDepth(2);
     Map<String, Object> arguments = (Map<String, Object>) returnJson.get(ARGUMENTS);
     Map<String, Object> thisArg = (Map<String, Object>) arguments.get(THIS);
-    assertPrimitiveValue(thisArg, "strField", String.class.getName(), "foo");
-    assertPrimitiveValue(thisArg, "nullField", ComplexClass.class.getName(), null);
-    assertPrimitiveValue(thisArg, "intField", "int", "42");
-    Map<String, Object> objField = (Map<String, Object>) thisArg.get("objField");
-    Assert.assertEquals(ComplexClass.class.getName(), objField.get(TYPE));
+    Map<String, Object> thisFields = (Map<String, Object>) thisArg.get(FIELDS);
+    assertPrimitiveValue(thisFields, "strField", String.class.getTypeName(), "foo");
+    assertPrimitiveValue(thisFields, "nullField", ComplexClass.class.getTypeName(), null);
+    assertPrimitiveValue(thisFields, "intField", "int", "42");
+    Map<String, Object> objField = (Map<String, Object>) thisFields.get("objField");
+    Assert.assertEquals(ComplexClass.class.getTypeName(), objField.get(TYPE));
     Map<String, Object> objFieldFields = (Map<String, Object>) objField.get(FIELDS);
     assertPrimitiveValue(objFieldFields, "complexIntField", "int", "21");
-    assertPrimitiveValue(objFieldFields, "complexStrField", String.class.getName(), "bar");
+    assertPrimitiveValue(objFieldFields, "complexStrField", String.class.getTypeName(), "bar");
     Map<String, Object> complexObjField =
         (Map<String, Object>) objFieldFields.get("complexObjField");
-    Assert.assertEquals(AnotherClass.class.getName(), complexObjField.get(TYPE));
+    Assert.assertEquals(AnotherClass.class.getTypeName(), complexObjField.get(TYPE));
     Map<String, Object> complexObjFieldFields = (Map<String, Object>) complexObjField.get(FIELDS);
     assertPrimitiveValue(complexObjFieldFields, "anotherIntField", "int", "11");
     assertPrimitiveValue(
-        complexObjFieldFields, "anotherStrField", String.class.getName(), "foobar");
+        complexObjFieldFields, "anotherStrField", String.class.getTypeName(), "foobar");
     assertNotCaptured(
         complexObjFieldFields,
         "this$0",
         "com.datadog.debugger.agent.SnapshotSerializationTest",
         DEPTH_REASON);
-    assertPrimitiveValue(arguments, "strArg", String.class.getName(), null);
+    assertPrimitiveValue(arguments, "strArg", String.class.getTypeName(), null);
     assertPrimitiveValue(arguments, "intArg", "int", "0");
-    assertPrimitiveValue(arguments, "objArg", ComplexClass.class.getName(), null);
+    assertPrimitiveValue(arguments, "objArg", ComplexClass.class.getTypeName(), null);
     Map<String, Object> locals = (Map<String, Object>) returnJson.get(LOCALS);
     assertPrimitiveValue(locals, "intLocal", "int", "42");
     Map<String, Object> objLocal = (Map<String, Object>) locals.get("objLocal");
-    Assert.assertEquals(ComplexClass.class.getName(), objLocal.get("type"));
+    Assert.assertEquals(ComplexClass.class.getTypeName(), objLocal.get("type"));
     Map<String, Object> objLocalFields = (Map<String, Object>) objLocal.get(FIELDS);
     assertPrimitiveValue(objLocalFields, "complexIntField", "int", "21");
-    assertPrimitiveValue(objLocalFields, "complexStrField", String.class.getName(), "bar");
+    assertPrimitiveValue(objLocalFields, "complexStrField", String.class.getTypeName(), "bar");
     Map<String, Object> localComplexObjField =
         (Map<String, Object>) objLocalFields.get("complexObjField");
-    Assert.assertEquals(AnotherClass.class.getName(), localComplexObjField.get(TYPE));
+    Assert.assertEquals(AnotherClass.class.getTypeName(), localComplexObjField.get(TYPE));
     Map<String, Object> localComplexObjFieldFields =
         (Map<String, Object>) localComplexObjField.get(FIELDS);
     assertPrimitiveValue(localComplexObjFieldFields, "anotherIntField", "int", "11");
     assertPrimitiveValue(
-        localComplexObjFieldFields, "anotherStrField", String.class.getName(), "foobar");
+        localComplexObjFieldFields, "anotherStrField", String.class.getTypeName(), "foobar");
     assertNotCaptured(
         localComplexObjFieldFields,
         "this$0",
@@ -472,13 +463,15 @@ public class SnapshotSerializationTest {
     Map<String, Object> thisArg = doCollectionSize(0);
     assertNotCaptured(thisArg, "intArrayField", "int[]", COLLECTION_SIZE_REASON);
     Assert.assertEquals(0, getNbElements(thisArg, "intArrayField"));
-    assertNotCaptured(thisArg, "strArrayField", String[].class.getName(), COLLECTION_SIZE_REASON);
+    assertNotCaptured(
+        thisArg, "strArrayField", String[].class.getTypeName(), COLLECTION_SIZE_REASON);
     Assert.assertEquals(0, getNbElements(thisArg, "strArrayField"));
-    assertNotCaptured(thisArg, "objArrayField", Object[].class.getName(), COLLECTION_SIZE_REASON);
+    assertNotCaptured(
+        thisArg, "objArrayField", Object[].class.getTypeName(), COLLECTION_SIZE_REASON);
     Assert.assertEquals(0, getNbElements(thisArg, "objArrayField"));
-    assertNotCaptured(thisArg, "listField", List.class.getName(), COLLECTION_SIZE_REASON);
+    assertNotCaptured(thisArg, "listField", ArrayList.class.getTypeName(), COLLECTION_SIZE_REASON);
     Assert.assertEquals(0, getNbElements(thisArg, "listField"));
-    assertNotCaptured(thisArg, "mapField", Map.class.getName(), COLLECTION_SIZE_REASON);
+    assertNotCaptured(thisArg, "mapField", HashMap.class.getTypeName(), COLLECTION_SIZE_REASON);
     Assert.assertEquals(0, getNbEntries(thisArg, "mapField"));
   }
 
@@ -488,19 +481,21 @@ public class SnapshotSerializationTest {
     assertNotCaptured(thisArg, "intArrayField", "int[]", COLLECTION_SIZE_REASON);
     Assert.assertEquals(3, getNbElements(thisArg, "intArrayField"));
     assertArrayItem(thisArg, "intArrayField", "0", "1", "2");
-    assertNotCaptured(thisArg, "strArrayField", String[].class.getName(), COLLECTION_SIZE_REASON);
+    assertNotCaptured(
+        thisArg, "strArrayField", String[].class.getTypeName(), COLLECTION_SIZE_REASON);
     Assert.assertEquals(3, getNbElements(thisArg, "strArrayField"));
     assertArrayItem(thisArg, "strArrayField", "foo0", "foo1", "foo2");
-    assertNotCaptured(thisArg, "objArrayField", Object[].class.getName(), COLLECTION_SIZE_REASON);
+    assertNotCaptured(
+        thisArg, "objArrayField", Object[].class.getTypeName(), COLLECTION_SIZE_REASON);
     Assert.assertEquals(3, getNbElements(thisArg, "objArrayField"));
     List<Object> objArrayElements = getArrayElements(thisArg, "objArrayField");
-    assertComplexClass(objArrayElements.get(0), ComplexClass.class.getName());
-    assertComplexClass(objArrayElements.get(1), ComplexClass.class.getName());
-    assertComplexClass(objArrayElements.get(2), ComplexClass.class.getName());
-    assertNotCaptured(thisArg, "listField", List.class.getName(), COLLECTION_SIZE_REASON);
+    assertComplexClass(objArrayElements.get(0), ComplexClass.class.getTypeName());
+    assertComplexClass(objArrayElements.get(1), ComplexClass.class.getTypeName());
+    assertComplexClass(objArrayElements.get(2), ComplexClass.class.getTypeName());
+    assertNotCaptured(thisArg, "listField", ArrayList.class.getTypeName(), COLLECTION_SIZE_REASON);
     Assert.assertEquals(3, getNbElements(thisArg, "listField"));
     assertArrayItem(thisArg, "listField", "foo0", "foo1", "foo2");
-    assertNotCaptured(thisArg, "mapField", Map.class.getName(), COLLECTION_SIZE_REASON);
+    assertNotCaptured(thisArg, "mapField", HashMap.class.getTypeName(), COLLECTION_SIZE_REASON);
     Assert.assertEquals(3, getNbEntries(thisArg, "mapField"));
   }
 
@@ -510,7 +505,7 @@ public class SnapshotSerializationTest {
     assertNotCaptured(thisArg, "intArrayField", "int[]", null);
     Assert.assertEquals(10, getNbElements(thisArg, "intArrayField"));
     assertArrayItem(thisArg, "intArrayField", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
-    assertNotCaptured(thisArg, "strArrayField", String[].class.getName(), null);
+    assertNotCaptured(thisArg, "strArrayField", String[].class.getTypeName(), null);
     Assert.assertEquals(10, getNbElements(thisArg, "strArrayField"));
     assertArrayItem(
         thisArg,
@@ -525,13 +520,13 @@ public class SnapshotSerializationTest {
         "foo7",
         "foo8",
         "foo9");
-    assertNotCaptured(thisArg, "objArrayField", Object[].class.getName(), null);
+    assertNotCaptured(thisArg, "objArrayField", Object[].class.getTypeName(), null);
     Assert.assertEquals(10, getNbElements(thisArg, "objArrayField"));
     List<Object> objArrayElements = getArrayElements(thisArg, "objArrayField");
-    assertComplexClass(objArrayElements.get(0), ComplexClass.class.getName());
-    assertComplexClass(objArrayElements.get(4), ComplexClass.class.getName());
-    assertComplexClass(objArrayElements.get(9), ComplexClass.class.getName());
-    assertNotCaptured(thisArg, "listField", List.class.getName(), null);
+    assertComplexClass(objArrayElements.get(0), ComplexClass.class.getTypeName());
+    assertComplexClass(objArrayElements.get(4), ComplexClass.class.getTypeName());
+    assertComplexClass(objArrayElements.get(9), ComplexClass.class.getTypeName());
+    assertNotCaptured(thisArg, "listField", ArrayList.class.getTypeName(), null);
     Assert.assertEquals(10, getNbElements(thisArg, "listField"));
     assertArrayItem(
         thisArg,
@@ -546,7 +541,7 @@ public class SnapshotSerializationTest {
         "foo7",
         "foo8",
         "foo9");
-    assertNotCaptured(thisArg, "mapField", Map.class.getName(), null);
+    assertNotCaptured(thisArg, "mapField", HashMap.class.getTypeName(), null);
     Assert.assertEquals(10, getNbEntries(thisArg, "mapField"));
     assertMapItems(
         thisArg,
@@ -584,7 +579,7 @@ public class SnapshotSerializationTest {
   @Test
   public void map0() throws IOException {
     Map<String, Object> thisArg = doMapSize(0);
-    assertNotCaptured(thisArg, "strMap", HashMap.class.getName(), COLLECTION_SIZE_REASON);
+    assertNotCaptured(thisArg, "strMap", HashMap.class.getTypeName(), COLLECTION_SIZE_REASON);
     assertMapItems(thisArg, "strMap");
     assertSize(thisArg, "strMap", "10");
   }
@@ -592,7 +587,7 @@ public class SnapshotSerializationTest {
   @Test
   public void map3() throws IOException {
     Map<String, Object> thisArg = doMapSize(3);
-    assertNotCaptured(thisArg, "strMap", HashMap.class.getName(), COLLECTION_SIZE_REASON);
+    assertNotCaptured(thisArg, "strMap", HashMap.class.getTypeName(), COLLECTION_SIZE_REASON);
     Map<String, Object> field = (Map<String, Object>) thisArg.get("strMap");
     List<Object> entries = (List<Object>) field.get(ENTRIES);
     Assert.assertEquals(3, entries.size());
@@ -602,7 +597,7 @@ public class SnapshotSerializationTest {
   @Test
   public void map100() throws IOException {
     Map<String, Object> thisArg = doMapSize(100);
-    assertNotCaptured(thisArg, "strMap", HashMap.class.getName(), null);
+    assertNotCaptured(thisArg, "strMap", HashMap.class.getTypeName(), null);
     assertMapItems(
         thisArg, "strMap", "foo0", "bar0", "foo1", "bar1", "foo2", "bar2", "foo3", "bar3", "foo4",
         "bar4", "foo5", "bar5", "foo6", "bar6", "foo7", "bar7", "foo8", "bar8", "foo9", "bar9");
@@ -620,24 +615,24 @@ public class SnapshotSerializationTest {
   @Test
   public void length0() throws IOException {
     Map<String, Object> thisArg = doLength(0);
-    assertPrimitiveValue(thisArg, "strField", String.class.getName(), "");
-    assertTruncated(thisArg, "strField", String.class.getName(), "true");
+    assertPrimitiveValue(thisArg, "strField", String.class.getTypeName(), "");
+    assertTruncated(thisArg, "strField", String.class.getTypeName(), "true");
     assertSize(thisArg, "strField", "10");
   }
 
   @Test
   public void length3() throws IOException {
     Map<String, Object> thisArg = doLength(3);
-    assertPrimitiveValue(thisArg, "strField", String.class.getName(), "012");
-    assertTruncated(thisArg, "strField", String.class.getName(), "true");
+    assertPrimitiveValue(thisArg, "strField", String.class.getTypeName(), "012");
+    assertTruncated(thisArg, "strField", String.class.getTypeName(), "true");
     assertSize(thisArg, "strField", "10");
   }
 
   @Test
   public void length255() throws IOException {
     Map<String, Object> thisArg = doLength(255);
-    assertPrimitiveValue(thisArg, "strField", String.class.getName(), "0123456789");
-    assertTruncated(thisArg, "strField", String.class.getName(), "null");
+    assertPrimitiveValue(thisArg, "strField", String.class.getTypeName(), "0123456789");
+    assertTruncated(thisArg, "strField", String.class.getTypeName(), "null");
     assertSize(thisArg, "strField", "null"); // no size field if no truncation
   }
 
@@ -768,42 +763,39 @@ public class SnapshotSerializationTest {
     Map<String, Object> capturesJson = (Map<String, Object>) json.get(CAPTURES);
     Map<String, Object> returnJson = (Map<String, Object>) capturesJson.get(RETURN);
     Map<String, Object> arguments = (Map<String, Object>) returnJson.get(ARGUMENTS);
-    return (Map<String, Object>) arguments.get(THIS);
+    Map<String, Object> thisArg = (Map<String, Object>) arguments.get(THIS);
+    return (Map<String, Object>) thisArg.get(FIELDS);
   }
 
   private Snapshot createSnapshotForRefDepth(int maxRefDepth) {
-    Snapshot snapshot =
-        new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
-    Snapshot.Captures captures = snapshot.getCaptures();
+    Snapshot snapshot = createSnapshot();
     Snapshot.CapturedContext context = new Snapshot.CapturedContext();
     Snapshot.CapturedValue intField = capturedValueDepth("intField", "int", 42, maxRefDepth);
     Snapshot.CapturedValue strField =
-        capturedValueDepth("strField", String.class.getName(), "foo", maxRefDepth);
+        capturedValueDepth("strField", String.class.getTypeName(), "foo", maxRefDepth);
     Snapshot.CapturedValue objField =
         capturedValueDepth(
-            "objField", ComplexClass.class.getName(), new ComplexClass(), maxRefDepth);
+            "objField", ComplexClass.class.getTypeName(), new ComplexClass(), maxRefDepth);
     Snapshot.CapturedValue nullField =
-        capturedValueDepth("nullField", ComplexClass.class.getName(), null, maxRefDepth);
+        capturedValueDepth("nullField", ComplexClass.class.getTypeName(), null, maxRefDepth);
     context.addFields(new Snapshot.CapturedValue[] {intField, strField, objField, nullField});
     Snapshot.CapturedValue intArg = capturedValueDepth("intArg", "int", 0, maxRefDepth);
     Snapshot.CapturedValue strArg =
-        capturedValueDepth("strArg", String.class.getName(), null, maxRefDepth);
+        capturedValueDepth("strArg", String.class.getTypeName(), null, maxRefDepth);
     Snapshot.CapturedValue objArg =
-        capturedValueDepth("objArg", ComplexClass.class.getName(), null, maxRefDepth);
+        capturedValueDepth("objArg", ComplexClass.class.getTypeName(), null, maxRefDepth);
     context.addArguments(new Snapshot.CapturedValue[] {intArg, strArg, objArg});
     Snapshot.CapturedValue intLocal = capturedValueDepth("intLocal", "int", 42, maxRefDepth);
     Snapshot.CapturedValue objLocal =
         capturedValueDepth(
-            "objLocal", ComplexClass.class.getName(), new ComplexClass(), maxRefDepth);
+            "objLocal", ComplexClass.class.getTypeName(), new ComplexClass(), maxRefDepth);
     context.addLocals(new Snapshot.CapturedValue[] {intLocal, objLocal});
-    captures.setReturn(context);
+    snapshot.setExit(context);
     return snapshot;
   }
 
   private Snapshot createSnapshotForCollectionSize(int maxColSize) {
-    Snapshot snapshot =
-        new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
-    Snapshot.Captures captures = snapshot.getCaptures();
+    Snapshot snapshot = createSnapshot();
     Snapshot.CapturedContext context = new Snapshot.CapturedContext();
     Snapshot.CapturedValue intArrayField =
         capturedValueColSize(
@@ -811,7 +803,7 @@ public class SnapshotSerializationTest {
     Snapshot.CapturedValue strArrayField =
         capturedValueColSize(
             "strArrayField",
-            String[].class.getName(),
+            String[].class.getTypeName(),
             new String[] {
               "foo0", "foo1", "foo2", "foo3", "foo4", "foo5", "foo6", "foo7", "foo8", "foo9"
             },
@@ -819,7 +811,7 @@ public class SnapshotSerializationTest {
     Snapshot.CapturedValue objArrayField =
         capturedValueColSize(
             "objArrayField",
-            Object[].class.getName(),
+            Object[].class.getTypeName(),
             new Object[] {
               new ComplexClass(),
               new ComplexClass(),
@@ -836,7 +828,7 @@ public class SnapshotSerializationTest {
     Snapshot.CapturedValue listField =
         capturedValueColSize(
             "listField",
-            List.class.getName(),
+            List.class.getTypeName(),
             new ArrayList<>(
                 Arrays.asList(
                     "foo0", "foo1", "foo2", "foo3", "foo4", "foo5", "foo6", "foo7", "foo8",
@@ -854,19 +846,17 @@ public class SnapshotSerializationTest {
     mapObj.put("foo8", "bar8");
     mapObj.put("foo9", "bar9");
     Snapshot.CapturedValue mapField =
-        capturedValueColSize("mapField", Map.class.getName(), mapObj, maxColSize);
+        capturedValueColSize("mapField", Map.class.getTypeName(), mapObj, maxColSize);
     context.addFields(
         new Snapshot.CapturedValue[] {
           intArrayField, strArrayField, objArrayField, listField, mapField
         });
-    captures.setReturn(context);
+    snapshot.setExit(context);
     return snapshot;
   }
 
   private Snapshot createSnapshotForMapSize(int maxColSize) {
-    Snapshot snapshot =
-        new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
-    Snapshot.Captures captures = snapshot.getCaptures();
+    Snapshot snapshot = createSnapshot();
     Snapshot.CapturedContext context = new Snapshot.CapturedContext();
     HashMap<String, String> strMap = new HashMap<>();
     strMap.put("foo0", "bar0");
@@ -882,40 +872,36 @@ public class SnapshotSerializationTest {
     Snapshot.CapturedValue map =
         Snapshot.CapturedValue.of(
             "strMap",
-            strMap.getClass().getName(),
+            strMap.getClass().getTypeName(),
             strMap,
             Limits.DEFAULT_REFERENCE_DEPTH,
             maxColSize,
             Limits.DEFAULT_LENGTH,
             Limits.DEFAULT_FIELD_COUNT);
     context.addFields(new Snapshot.CapturedValue[] {map});
-    captures.setReturn(context);
+    snapshot.setExit(context);
     return snapshot;
   }
 
   private Snapshot createSnapshotForLength(int maxLength) {
-    Snapshot snapshot =
-        new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
-    Snapshot.Captures captures = snapshot.getCaptures();
+    Snapshot snapshot = createSnapshot();
     Snapshot.CapturedContext context = new Snapshot.CapturedContext();
     Snapshot.CapturedValue strField =
         Snapshot.CapturedValue.of(
             "strField",
-            String.class.getName(),
+            String.class.getTypeName(),
             "0123456789",
             Limits.DEFAULT_REFERENCE_DEPTH,
             Limits.DEFAULT_COLLECTION_SIZE,
             maxLength,
             Limits.DEFAULT_FIELD_COUNT);
     context.addFields(new Snapshot.CapturedValue[] {strField});
-    captures.setReturn(context);
+    snapshot.setExit(context);
     return snapshot;
   }
 
   private Snapshot createSnapshotForFieldCount(int maxFieldCount) {
-    Snapshot snapshot =
-        new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
-    Snapshot.Captures captures = snapshot.getCaptures();
+    Snapshot snapshot = createSnapshot();
     Snapshot.CapturedContext context = new Snapshot.CapturedContext();
     context.setLimits(
         Limits.DEFAULT_REFERENCE_DEPTH,
@@ -924,14 +910,14 @@ public class SnapshotSerializationTest {
         maxFieldCount);
     Snapshot.CapturedValue intField = capturedValueDepth("intField", "int", 42, maxFieldCount);
     Snapshot.CapturedValue strField =
-        capturedValueDepth("strField", String.class.getName(), "foo", maxFieldCount);
+        capturedValueDepth("strField", String.class.getTypeName(), "foo", maxFieldCount);
     Snapshot.CapturedValue objField =
         capturedValueDepth(
-            "objField", ComplexClass.class.getName(), new ComplexClass(), maxFieldCount);
+            "objField", ComplexClass.class.getTypeName(), new ComplexClass(), maxFieldCount);
     Snapshot.CapturedValue nullField =
-        capturedValueDepth("nullField", ComplexClass.class.getName(), null, maxFieldCount);
+        capturedValueDepth("nullField", ComplexClass.class.getTypeName(), null, maxFieldCount);
     context.addFields(new Snapshot.CapturedValue[] {intField, strField, objField, nullField});
-    captures.setReturn(context);
+    snapshot.setExit(context);
     return snapshot;
   }
 
@@ -976,5 +962,12 @@ public class SnapshotSerializationTest {
     Assert.assertNull(capturedStackFrame.getFileName());
     Assert.assertEquals(methodName, capturedStackFrame.getFunction());
     Assert.assertEquals(lineNumber, capturedStackFrame.getLineNumber());
+  }
+
+  private Snapshot createSnapshot() {
+    return new Snapshot(
+        Thread.currentThread(),
+        new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+        String.class.getTypeName());
   }
 }

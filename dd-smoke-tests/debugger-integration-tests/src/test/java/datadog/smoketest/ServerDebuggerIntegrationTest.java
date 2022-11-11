@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.ProbeStatus;
-import com.datadog.debugger.agent.SnapshotProbe;
+import com.datadog.debugger.probe.SnapshotProbe;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.util.TagsHelper;

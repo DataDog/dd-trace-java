@@ -1,10 +1,10 @@
 package com.datadog.debugger.util;
 
-import com.datadog.debugger.agent.ProbeDefinition;
 import com.datadog.debugger.agent.ProbeStatus;
-import com.datadog.debugger.agent.Where;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.ValueScript;
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.Where;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;

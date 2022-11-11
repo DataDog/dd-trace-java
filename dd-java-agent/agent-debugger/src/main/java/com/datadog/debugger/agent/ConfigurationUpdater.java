@@ -1,6 +1,10 @@
 package com.datadog.debugger.agent;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SnapshotProbe;
+import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.api.Config;
@@ -147,8 +151,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
         metricProbes,
         configuration.getAllowList(),
         configuration.getDenyList(),
-        configuration.getSampling(),
-        configuration.getOpsConfig());
+        configuration.getSampling());
   }
 
   Collection<SnapshotProbe> mergeDuplicatedProbes(Collection<SnapshotProbe> probes) {
@@ -221,10 +224,9 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
           null,
           currentConfiguration.getAllowList(),
           currentConfiguration.getDenyList(),
-          currentConfiguration.getSampling(),
-          currentConfiguration.getOpsConfig());
+          currentConfiguration.getSampling());
     }
-    return new Configuration("ID", 0, null, null, null, null, null, null);
+    return new Configuration("ID", 0, null, null, null, null, null);
   }
 
   private void retransformClasses(List<Class<?>> classesToBeTransformed) {
@@ -283,7 +285,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
   private Snapshot.ProbeDetails convertToProbeDetails(
       SnapshotProbe probe, Snapshot.ProbeLocation location) {
     return new Snapshot.ProbeDetails(
-        probe.id,
+        probe.getId(),
         location,
         probe.getProbeCondition(),
         probe.concatTags(),

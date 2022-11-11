@@ -35,11 +35,12 @@ public class Snapshot {
   private final String language;
   private final transient CapturedThread thread;
   private final transient Set<String> capturingProbeIds = new HashSet<>();
+  private final transient String thisClassName;
   private String traceId; // trace_id
   private String spanId; // span_id
   private final transient SnapshotSummaryBuilder summaryBuilder;
 
-  public Snapshot(java.lang.Thread thread, ProbeDetails probe) {
+  public Snapshot(java.lang.Thread thread, ProbeDetails probe, String thisClassName) {
     this.startTs = System.nanoTime();
     this.version = VERSION;
     this.timestamp = System.currentTimeMillis();
@@ -47,6 +48,7 @@ public class Snapshot {
     this.language = LANGUAGE;
     this.thread = new CapturedThread(thread);
     this.probe = probe;
+    this.thisClassName = thisClassName;
     this.summaryBuilder = new SnapshotSummaryBuilder(probe);
     addCapturingProbeId(probe);
   }
@@ -61,6 +63,7 @@ public class Snapshot {
       Snapshot.ProbeDetails probeDetails,
       String language,
       Snapshot.CapturedThread thread,
+      String thisClassName,
       String traceId,
       String spanId) {
     this.startTs = System.nanoTime();
@@ -75,6 +78,7 @@ public class Snapshot {
     this.thread = thread;
     this.traceId = traceId;
     this.spanId = spanId;
+    this.thisClassName = thisClassName;
     this.summaryBuilder = new SnapshotSummaryBuilder(probeDetails);
     addCapturingProbeId(probe);
   }
@@ -87,6 +91,7 @@ public class Snapshot {
 
   public void setEntry(CapturedContext context) {
     summaryBuilder.addEntry(context);
+    context.setThisClassName(thisClassName);
     if (checkCapture(context)) {
       captures.setEntry(context);
     }
@@ -96,6 +101,7 @@ public class Snapshot {
     duration = System.nanoTime() - startTs;
     context.addExtension(ValueReferences.DURATION_EXTENSION_NAME, duration);
     summaryBuilder.addExit(context);
+    context.setThisClassName(thisClassName);
     if (checkCapture(context)) {
       captures.setReturn(context);
     }
@@ -103,6 +109,7 @@ public class Snapshot {
 
   public void addLine(CapturedContext context, int line) {
     summaryBuilder.addLine(context);
+    context.setThisClassName(thisClassName);
     if (checkCapture(context)) {
       captures.addLine(line, context);
     }
@@ -213,6 +220,7 @@ public class Snapshot {
         new ProbeDetails(probeId, probe.location, probe.script, probe.tags),
         language,
         thread,
+        thisClassName,
         traceId,
         spanId);
   }
@@ -518,6 +526,7 @@ public class Snapshot {
     private CapturedThrowable throwable;
     private Map<String, CapturedValue> fields;
     private Limits limits = Limits.DEFAULT;
+    private String thisClassName;
 
     public CapturedContext() {}
 
@@ -702,6 +711,10 @@ public class Snapshot {
       this.limits = new Limits(maxReferenceDepth, maxCollectionSize, maxLength, maxFieldCount);
     }
 
+    public void setThisClassName(String thisClassName) {
+      this.thisClassName = thisClassName;
+    }
+
     public Map<String, CapturedValue> getArguments() {
       return arguments;
     }
@@ -720,6 +733,10 @@ public class Snapshot {
 
     public Limits getLimits() {
       return limits;
+    }
+
+    public String getThisClassName() {
+      return thisClassName;
     }
 
     /**
@@ -774,6 +791,7 @@ public class Snapshot {
     public static final CapturedValue UNDEFINED = CapturedValue.of(null, Values.UNDEFINED_OBJECT);
 
     private String name;
+    private final String declaredType;
     private final String type;
     private Object value;
     private String strValue;
@@ -783,13 +801,17 @@ public class Snapshot {
 
     private CapturedValue(
         String name,
-        String type,
+        String declaredType,
         Object value,
         Limits limits,
         Map<String, CapturedValue> fields,
         String notCapturedReason) {
       this.name = name;
-      this.type = type;
+      this.declaredType = declaredType;
+      this.type =
+          value != null && !isPrimitive(declaredType)
+              ? value.getClass().getTypeName()
+              : declaredType;
       this.value = value;
       this.fields = fields == null ? Collections.emptyMap() : fields;
       this.limits = limits;
@@ -802,6 +824,10 @@ public class Snapshot {
 
     public String getName() {
       return name;
+    }
+
+    public String getDeclaredType() {
+      return declaredType;
     }
 
     public String getType() {
@@ -832,12 +858,12 @@ public class Snapshot {
       this.name = name;
     }
 
-    public static Snapshot.CapturedValue of(String type, Object value) {
-      return build(null, type, value, Limits.DEFAULT, null);
+    public static Snapshot.CapturedValue of(String declaredType, Object value) {
+      return build(null, declaredType, value, Limits.DEFAULT, null);
     }
 
-    public static Snapshot.CapturedValue of(String name, String type, Object value) {
-      return build(name, type, value, Limits.DEFAULT, null);
+    public static Snapshot.CapturedValue of(String name, String declaredType, Object value) {
+      return build(name, declaredType, value, Limits.DEFAULT, null);
     }
 
     public Snapshot.CapturedValue derive(String name, String type, Object value) {
@@ -846,7 +872,7 @@ public class Snapshot {
 
     public static Snapshot.CapturedValue of(
         String name,
-        String type,
+        String declaredType,
         Object value,
         int maxReferenceDepth,
         int maxCollectionSize,
@@ -854,7 +880,7 @@ public class Snapshot {
         int maxFieldCount) {
       return build(
           name,
-          type,
+          declaredType,
           value,
           new Limits(maxReferenceDepth, maxCollectionSize, maxLength, maxFieldCount),
           null);
@@ -881,9 +907,10 @@ public class Snapshot {
     }
 
     private static CapturedValue build(
-        String name, String type, Object value, Limits limits, String notCapturedReason) {
+        String name, String declaredType, Object value, Limits limits, String notCapturedReason) {
       CapturedValue val =
-          new CapturedValue(name, type, value, limits, Collections.emptyMap(), notCapturedReason);
+          new CapturedValue(
+              name, declaredType, value, limits, Collections.emptyMap(), notCapturedReason);
       return val;
     }
 
@@ -899,13 +926,31 @@ public class Snapshot {
       }
     }
 
+    private static boolean isPrimitive(String type) {
+      if (type == null) {
+        return false;
+      }
+      switch (type) {
+        case "byte":
+        case "short":
+        case "char":
+        case "int":
+        case "long":
+        case "boolean":
+        case "float":
+        case "double":
+          return true;
+      }
+      return false;
+    }
+
     @Override
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
       CapturedValue that = (CapturedValue) o;
       return Objects.equals(name, that.name)
-          && Objects.equals(type, that.type)
+          && Objects.equals(declaredType, that.declaredType)
           && Objects.equals(value, that.value)
           && Objects.equals(fields, that.fields)
           && Objects.equals(notCapturedReason, that.notCapturedReason);
@@ -913,7 +958,7 @@ public class Snapshot {
 
     @Override
     public int hashCode() {
-      return Objects.hash(name, type, value, fields, notCapturedReason);
+      return Objects.hash(name, declaredType, value, fields, notCapturedReason);
     }
 
     @Override
@@ -923,7 +968,7 @@ public class Snapshot {
           + name
           + '\''
           + ", type='"
-          + type
+          + declaredType
           + '\''
           + ", value='"
           + value
@@ -990,7 +1035,7 @@ public class Snapshot {
 
     public CapturedThrowable(Throwable throwable) {
       this(
-          throwable.getClass().getName(),
+          throwable.getClass().getTypeName(),
           throwable.getLocalizedMessage(),
           captureFrames(throwable.getStackTrace()));
     }

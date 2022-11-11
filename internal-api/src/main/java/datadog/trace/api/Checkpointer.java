@@ -2,7 +2,7 @@ package datadog.trace.api;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
-public interface Checkpointer {
+public interface Checkpointer extends EndpointCheckpointer {
 
   /**
    * Modifier tag to make an event an end event. The LSB is chosen to allow for good varint
@@ -23,20 +23,4 @@ public interface Checkpointer {
    * @param flags a description of the event
    */
   void checkpoint(AgentSpan span, int flags);
-
-  /**
-   * Callback to be called when a root span is written (together with the trace)
-   *
-   * @param rootSpan the local root span of the trace
-   * @param published {@literal true} the trace and root span published
-   * @param checkpointsSampled {@literal true} the checkpoints were sampled
-   */
-  void onRootSpanWritten(AgentSpan rootSpan, boolean published, boolean checkpointsSampled);
-
-  /**
-   * Callback to be called when a root span is started
-   *
-   * @param rootSpan the local root span of the trace
-   */
-  void onRootSpanStarted(AgentSpan rootSpan);
 }

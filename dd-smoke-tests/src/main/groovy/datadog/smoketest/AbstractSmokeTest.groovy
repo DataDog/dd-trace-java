@@ -91,7 +91,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
     "-Ddd.profiling.upload.period=${PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS}",
     "-Ddd.profiling.url=${getProfilingUrl()}",
     "-Ddd.profiling.async.enabled=true",
-    "-Ddd.profiling.tracing_context.enabled=true",
+    "-Ddd.profiling.async.wall.enabled=true",
     "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
     "-Dorg.slf4j.simpleLogger.defaultLogLevel=${logLevel()}"
   ]
@@ -138,6 +138,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
   }
 
   void waitForTrace(final PollingConditions poll, final Function<DecodedTrace, Boolean> predicate) {
+    assert decode != null // override decodedTracesCallback to avoid this and enable trace decoding
     poll.eventually {
       assert decodeTraces.find { predicate.apply(it) } != null
     }

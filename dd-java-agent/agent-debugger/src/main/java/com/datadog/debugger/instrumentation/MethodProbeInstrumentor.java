@@ -11,8 +11,8 @@ import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
 import static com.datadog.debugger.instrumentation.Types.THROWABLE_TYPE;
 import static org.objectweb.asm.Type.INT_TYPE;
 
-import com.datadog.debugger.agent.SnapshotProbe;
-import com.datadog.debugger.agent.Where;
+import com.datadog.debugger.probe.SnapshotProbe;
+import com.datadog.debugger.probe.Where;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;

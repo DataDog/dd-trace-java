@@ -145,15 +145,6 @@ public class JsonSnapshotSerializer implements DebuggerContext.SnapshotSerialize
       this.timestamp = debugger.snapshot.getTimestamp();
     }
 
-    public static String concatTags(String... tags) {
-      StringBuilder sb = new StringBuilder();
-      for (String tag : tags) {
-        sb.append(tag);
-        sb.append(",");
-      }
-      return sb.substring(0, sb.length() - 1); // Remove last comma
-    }
-
     public String getService() {
       return service;
     }

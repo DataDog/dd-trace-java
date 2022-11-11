@@ -16,8 +16,9 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 public class SnapshotSummaryTest {
+  private static final String CLASS_NAME = "com.datadog.debugger.SomeClass";
   private static final ProbeLocation PROBE_LOCATION =
-      new ProbeLocation("com.datadog.debugger.SomeClass", "someMethod", null, null);
+      new ProbeLocation(CLASS_NAME, "someMethod", null, null);
   private static final ProbeDetails PROBE_DETAILS =
       new ProbeDetails(UUID.randomUUID().toString(), PROBE_LOCATION);
 
@@ -28,22 +29,22 @@ public class SnapshotSummaryTest {
 
   @Test
   public void testSummaryEmptySnapshot() {
-    Snapshot snapshot = new Snapshot(Thread.currentThread(), PROBE_DETAILS);
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), PROBE_DETAILS, CLASS_NAME);
     assertEquals("SomeClass.someMethod()", snapshot.getSummary());
   }
 
   @Test
   public void testSummaryEntryExitSnapshot() {
-    Snapshot snapshot = new Snapshot(Thread.currentThread(), PROBE_DETAILS);
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), PROBE_DETAILS, CLASS_NAME);
     CapturedContext entry = new CapturedContext();
     HashMap<String, String> argMap = new HashMap<>();
     argMap.put("foo", "bar");
     entry.addArguments(
         new Snapshot.CapturedValue[] {
-          Snapshot.CapturedValue.of("arg1", String.class.getName(), "this is a string"),
+          Snapshot.CapturedValue.of("arg1", String.class.getTypeName(), "this is a string"),
           Snapshot.CapturedValue.of("arg2", "int", 42),
-          Snapshot.CapturedValue.of("arg3", List.class.getName(), Arrays.asList("a", "b", "c")),
-          Snapshot.CapturedValue.of("arg4", Map.class.getName(), argMap)
+          Snapshot.CapturedValue.of("arg3", List.class.getTypeName(), Arrays.asList("a", "b", "c")),
+          Snapshot.CapturedValue.of("arg4", Map.class.getTypeName(), argMap)
         });
     snapshot.setEntry(entry);
     assertEquals(
@@ -60,13 +61,13 @@ public class SnapshotSummaryTest {
 
   @Test
   public void testSummaryEntryExitSnapshotWithLocalVars() {
-    Snapshot snapshot = new Snapshot(Thread.currentThread(), PROBE_DETAILS);
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), PROBE_DETAILS, CLASS_NAME);
     CapturedContext entry = new CapturedContext();
     entry.addArguments(
         new Snapshot.CapturedValue[] {
-          Snapshot.CapturedValue.of("arg1", String.class.getName(), "this is a string"),
+          Snapshot.CapturedValue.of("arg1", String.class.getTypeName(), "this is a string"),
           Snapshot.CapturedValue.of("arg2", "int", 42),
-          Snapshot.CapturedValue.of("arg3", List.class.getName(), Arrays.asList("a", "b", "c"))
+          Snapshot.CapturedValue.of("arg3", List.class.getTypeName(), Arrays.asList("a", "b", "c"))
         });
     snapshot.setEntry(entry);
     assertEquals(
@@ -76,9 +77,9 @@ public class SnapshotSummaryTest {
     CapturedContext exit = new CapturedContext();
     exit.addLocals(
         new Snapshot.CapturedValue[] {
-          Snapshot.CapturedValue.of("str", String.class.getName(), "this is a local string"),
+          Snapshot.CapturedValue.of("str", String.class.getTypeName(), "this is a local string"),
           Snapshot.CapturedValue.of("i", "int", 1001),
-          Snapshot.CapturedValue.of("list", List.class.getName(), Arrays.asList("1", "2", "3")),
+          Snapshot.CapturedValue.of("list", List.class.getTypeName(), Arrays.asList("1", "2", "3")),
           CapturedValue.of("@return", "double", 2.0)
         });
     snapshot.setExit(exit);
@@ -90,7 +91,7 @@ public class SnapshotSummaryTest {
 
   @Test
   public void testSummaryLineSnapshot() {
-    Snapshot snapshot = new Snapshot(Thread.currentThread(), PROBE_DETAILS);
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), PROBE_DETAILS, CLASS_NAME);
     StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
     // top frame is actually getStackTrace, we want the test method
     StackTraceElement topFrame = stackTrace[1];
@@ -103,13 +104,13 @@ public class SnapshotSummaryTest {
     CapturedContext lineCapture = new CapturedContext();
     lineCapture.addLocals(
         new Snapshot.CapturedValue[] {
-          Snapshot.CapturedValue.of("str", String.class.getName(), "this is a local string"),
+          Snapshot.CapturedValue.of("str", String.class.getTypeName(), "this is a local string"),
           Snapshot.CapturedValue.of("i", "int", 1001),
-          Snapshot.CapturedValue.of("list", List.class.getName(), Arrays.asList("1", "2", "3"))
+          Snapshot.CapturedValue.of("list", List.class.getTypeName(), Arrays.asList("1", "2", "3"))
         });
     lineCapture.addArguments(
         new Snapshot.CapturedValue[] {
-          Snapshot.CapturedValue.of("arg1", String.class.getName(), "this is a string"),
+          Snapshot.CapturedValue.of("arg1", String.class.getTypeName(), "this is a string"),
           Snapshot.CapturedValue.of("arg2", "int", 42),
         });
     snapshot.addLine(lineCapture, 23);
@@ -138,13 +139,14 @@ public class SnapshotSummaryTest {
     ProbeLocation location =
         new ProbeLocation(null, null, "SomeFile", Collections.singletonList("13"));
     // if the line probe had a stacktrace we would use the method information from the stacktrace
-    Snapshot snapshot = new Snapshot(Thread.currentThread(), new ProbeDetails("id", location));
+    Snapshot snapshot =
+        new Snapshot(Thread.currentThread(), new ProbeDetails("id", location), CLASS_NAME);
 
     CapturedContext lineCapture = new CapturedContext();
     lineCapture.addLocals(new Snapshot.CapturedValue[] {});
     lineCapture.addArguments(
         new Snapshot.CapturedValue[] {
-          Snapshot.CapturedValue.of("arg1", String.class.getName(), "this is a string"),
+          Snapshot.CapturedValue.of("arg1", String.class.getTypeName(), "this is a string"),
           Snapshot.CapturedValue.of("arg2", "int", 42),
         });
     snapshot.addLine(lineCapture, 13);

@@ -5,8 +5,8 @@ import java.net.URL;
 import java.security.CodeSource;
 import java.security.ProtectionDomain;
 import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.Set;
+import java.util.WeakHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,10 +15,11 @@ class LocationsCollectingTransformer implements ClassFileTransformer {
 
   private final DependencyServiceImpl dependencyService;
   private final Set<ProtectionDomain> seenDomains =
-      Collections.newSetFromMap(new IdentityHashMap<ProtectionDomain, Boolean>());
+      Collections.newSetFromMap(new WeakHashMap<ProtectionDomain, Boolean>());
 
   public LocationsCollectingTransformer(DependencyServiceImpl dependencyService) {
     this.dependencyService = dependencyService;
+    seenDomains.add(LocationsCollectingTransformer.class.getProtectionDomain());
   }
 
   @Override
@@ -34,6 +35,7 @@ class LocationsCollectingTransformer implements ClassFileTransformer {
     if (!seenDomains.add(protectionDomain)) {
       return null;
     }
+    log.debug("Saw new protection domain: {}", protectionDomain);
 
     CodeSource codeSource = protectionDomain.getCodeSource();
     if (codeSource == null) {

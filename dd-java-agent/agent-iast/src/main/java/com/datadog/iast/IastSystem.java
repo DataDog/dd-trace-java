@@ -1,6 +1,7 @@
 package com.datadog.iast;
 
 import com.datadog.iast.overhead.OverheadController;
+import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.function.Supplier;
@@ -28,6 +29,7 @@ public class IastSystem {
     }
     log.debug("IAST is starting");
 
+    TaintedObjects.setDebug(config.isIastTaintTrackingDebugEnabled());
     final Reporter reporter = new Reporter(config);
     final OverheadController overheadController =
         new OverheadController(config, AgentTaskScheduler.INSTANCE);
@@ -35,6 +37,7 @@ public class IastSystem {
     InstrumentationBridge.registerIastModule(iastModule);
     registerRequestStartedCallback(ss, overheadController);
     registerRequestEndedCallback(ss, overheadController);
+    log.debug("IAST started");
   }
 
   private static void registerRequestStartedCallback(

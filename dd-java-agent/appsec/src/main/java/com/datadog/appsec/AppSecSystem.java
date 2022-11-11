@@ -55,7 +55,7 @@ public class AppSecSystem {
       log.debug("AppSec: disabled");
       return;
     }
-    log.info("AppSec is starting ({})", appSecEnabledConfig);
+    log.debug("AppSec is starting ({})", appSecEnabledConfig);
 
     REPLACEABLE_EVENT_PRODUCER = new ReplaceableEventProducerService();
     EventDispatcher eventDispatcher = new EventDispatcher();
@@ -88,7 +88,7 @@ public class AppSecSystem {
     STARTED.set(true);
 
     String startedAppSecModules = Strings.join(", ", STARTED_MODULES_INFO.values());
-    log.info("AppSec has started with {}", startedAppSecModules);
+    log.info("AppSec is {} with {}", appSecEnabledConfig, startedAppSecModules);
   }
 
   private static RateLimiter getRateLimiter(Config config, Monitoring monitoring) {
