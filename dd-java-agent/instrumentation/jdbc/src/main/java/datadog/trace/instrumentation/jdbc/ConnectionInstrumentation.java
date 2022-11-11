@@ -66,7 +66,8 @@ public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
     "org.apache.calcite.avatica.AvaticaConnection",
     "oadd.org.apache.calcite.avatica.AvaticaConnection",
     // jtds (for SQL Server and Sybase)
-    "net.sourceforge.jtds.jdbc.JtdsConnection",
+    "net.sourceforge.jtds.jdbc.ConnectionJDBC2", // 1.2
+    "net.sourceforge.jtds.jdbc.JtdsConnection", // 1.3
     // SAP HANA in-memory DB
     "com.sap.db.jdbc.ConnectionSapDB",
     // aws-mysql-jdbc
