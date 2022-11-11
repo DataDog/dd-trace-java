@@ -1,7 +1,8 @@
 package datadog.trace.agent.test.checkpoints
 
 import datadog.trace.api.Checkpointer
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.profiling.TracingContextTracker
 import datadog.trace.api.profiling.TracingContextTrackerFactory
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -67,7 +68,7 @@ class TimelineTracingContextTracker implements TracingContextTracker {
     return FACTORY.tracker
   }
 
-  private final ConcurrentHashMap<DDId, List<Event>> spanEvents = new ConcurrentHashMap<>()
+  private final ConcurrentHashMap<DDSpanId, List<Event>> spanEvents = new ConcurrentHashMap<>()
   private final ConcurrentHashMap<Thread, List<Event>> threadEvents = new ConcurrentHashMap<>()
   private final List<Event> orderedEvents = new CopyOnWriteArrayList<>()
 
@@ -78,8 +79,8 @@ class TimelineTracingContextTracker implements TracingContextTracker {
 
   void activateContext(AgentSpan span) {
     Thread currentThread = Thread.currentThread()
-    DDId traceId = span != null ? span.traceId : DDId.ZERO
-    DDId spanId = span != null ? span.spanId : DDId.ZERO
+    DDTraceId traceId = span != null ? span.traceId : DDTraceId.ZERO
+    DDSpanId spanId = span != null ? span.spanId : DDSpanId.ZERO
     Event event = new Event(Checkpointer.CPU, traceId, spanId, currentThread)
     orderedEvents.add(event)
     spanEvents.putIfAbsent(spanId, new CopyOnWriteArrayList<Event>())
@@ -95,8 +96,8 @@ class TimelineTracingContextTracker implements TracingContextTracker {
 
   void deactivateContext(AgentSpan span) {
     Thread currentThread = Thread.currentThread()
-    DDId traceId = span != null ? span.traceId : DDId.ZERO
-    DDId spanId = span != null ? span.spanId : DDId.ZERO
+    DDTraceId traceId = span != null ? span.traceId : DDTraceId.ZERO
+    DDSpanId spanId = span != null ? span.spanId : DDSpanId.ZERO
     Event event = new Event(Checkpointer.CPU | Checkpointer.END, traceId, spanId, currentThread)
     orderedEvents.add(event)
     spanEvents.putIfAbsent(spanId, new CopyOnWriteArrayList<Event>())

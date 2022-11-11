@@ -3,7 +3,8 @@ package datadog.trace.common.writer
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.monitor.Monitoring
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
@@ -425,9 +426,9 @@ class DDAgentApiTest extends DDCoreSpecification {
   DDSpan buildSpan(long timestamp, String tag, String value, DatadogTags datadogTags) {
     def tracer = tracerBuilder().writer(new ListWriter()).build()
     def context = new DDSpanContext(
-      DDId.from(1),
-      DDId.from(1),
-      DDId.ZERO,
+      DDTraceId.from(1),
+      DDSpanId.from(1),
+      DDSpanId.ZERO,
       null,
       "fakeService",
       "fakeOperation",
@@ -438,7 +439,7 @@ class DDAgentApiTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDId.from(1)),
+      tracer.pendingTraceFactory.create(DDTraceId.from(1)),
       null,
       null,
       NoopPathwayContext.INSTANCE,

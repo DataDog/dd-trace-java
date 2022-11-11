@@ -7,8 +7,9 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
 import java.util.Map;
@@ -170,10 +171,10 @@ class DatadogHttpCodec {
           if (null != firstValue) {
             switch (classification) {
               case TRACE_ID:
-                traceId = DDId.from(firstValue);
+                traceId = DDTraceId.from(firstValue);
                 break;
               case SPAN_ID:
-                spanId = DDId.from(firstValue);
+                spanId = DDSpanId.from(firstValue);
                 break;
               case ORIGIN:
                 origin = firstValue;

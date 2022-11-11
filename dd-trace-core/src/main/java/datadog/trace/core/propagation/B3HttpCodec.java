@@ -3,7 +3,8 @@ package datadog.trace.core.propagation;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
@@ -118,9 +119,10 @@ class B3HttpCodec {
         char first = Character.toLowerCase(key.charAt(0));
         switch (first) {
           case 'x':
-            if ((traceId == null || traceId == DDId.ZERO) && TRACE_ID_KEY.equalsIgnoreCase(key)) {
+            if ((traceId == null || traceId == DDTraceId.ZERO)
+                && TRACE_ID_KEY.equalsIgnoreCase(key)) {
               classification = TRACE_ID;
-            } else if ((spanId == null || spanId == DDId.ZERO)
+            } else if ((spanId == null || spanId == DDSpanId.ZERO)
                 && SPAN_ID_KEY.equalsIgnoreCase(key)) {
               classification = SPAN_ID;
             } else if (samplingPriority == defaultSamplingPriority()
@@ -225,7 +227,7 @@ class B3HttpCodec {
     }
 
     private void setSpanId(final String sId) {
-      spanId = DDId.fromHexWithOriginal(sId);
+      spanId = DDSpanId.fromHexWithOriginal(sId);
       if (tags.isEmpty()) {
         tags = new TreeMap<>();
       }
@@ -236,10 +238,10 @@ class B3HttpCodec {
       final int length = tId.length();
       if (length > 32) {
         log.debug("Header {} exceeded max length of 32: {}", TRACE_ID_KEY, tId);
-        traceId = DDId.ZERO;
+        traceId = DDTraceId.ZERO;
         return true;
       } else {
-        traceId = DDId.fromHexTruncatedWithOriginal(tId);
+        traceId = DDTraceId.fromHexTruncatedWithOriginal(tId);
       }
       if (tags.isEmpty()) {
         tags = new TreeMap<>();

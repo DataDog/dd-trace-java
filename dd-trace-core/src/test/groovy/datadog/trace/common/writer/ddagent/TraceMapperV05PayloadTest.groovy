@@ -3,8 +3,9 @@ package datadog.trace.common.writer.ddagent
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.Payload
 import datadog.trace.common.writer.TraceGenerator
@@ -39,9 +40,9 @@ class TraceMapperV05PayloadTest extends DDSpecification {
       UUID.randomUUID().toString(),
       UUID.randomUUID().toString(),
       UUID.randomUUID().toString(),
-      DDId.ZERO,
-      DDId.ZERO,
-      DDId.ZERO,
+      DDTraceId.ZERO,
+      DDSpanId.ZERO,
+      DDSpanId.ZERO,
       10000,
       100,
       0,

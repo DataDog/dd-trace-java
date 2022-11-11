@@ -3,15 +3,15 @@ package com.datadog.iast.model.json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
 import java.io.IOException;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class DDIdAdapter extends JsonAdapter<DDId> {
+public class DDSpanIdAdapter extends JsonAdapter<DDSpanId> {
 
   @Override
-  public void toJson(@Nonnull final JsonWriter writer, final @Nullable DDId value)
+  public void toJson(@Nonnull final JsonWriter writer, final @Nullable DDSpanId value)
       throws IOException {
     if (value == null) {
       writer.nullValue();
@@ -22,7 +22,7 @@ public class DDIdAdapter extends JsonAdapter<DDId> {
 
   @Nullable
   @Override
-  public DDId fromJson(@Nonnull final JsonReader reader) throws IOException {
-    throw new UnsupportedOperationException("DDId deserialization is not supported");
+  public DDSpanId fromJson(@Nonnull final JsonReader reader) throws IOException {
+    throw new UnsupportedOperationException("DDSpanId deserialization is not supported");
   }
 }

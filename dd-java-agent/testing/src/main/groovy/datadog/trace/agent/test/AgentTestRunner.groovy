@@ -15,7 +15,8 @@ import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
 import datadog.trace.api.Config
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.Platform
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.WellKnownTags
@@ -136,7 +137,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   @SuppressWarnings('PropertyName')
   @Shared
-  Set<DDId> TEST_SPANS = Sets.newHashSet()
+  Set<DDSpanId> TEST_SPANS = Sets.newHashSet()
 
   @SuppressWarnings('PropertyName')
   @Shared
@@ -226,7 +227,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       TEST_SPANS.add(agentSpan.spanId)
       agentSpan
     }
-    TEST_CHECKPOINTER.checkpoint(_, _, _) >> { DDId traceId, DDId spanId, int flags ->
+    TEST_CHECKPOINTER.checkpoint(_, _, _) >> { DDTraceId traceId, DDSpanId spanId, int flags ->
       if (TEST_SPANS.contains(spanId)) {
         callRealMethod()
       }

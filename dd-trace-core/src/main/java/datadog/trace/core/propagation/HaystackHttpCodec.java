@@ -3,7 +3,8 @@ package datadog.trace.core.propagation;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
@@ -63,19 +64,20 @@ class HaystackHttpCodec {
             getBaggageItemIgnoreCase(context.getBaggageItems(), HAYSTACK_TRACE_ID_BAGGAGE_KEY);
         String injectedTraceId;
         if (originalHaystackTraceId != null
-            && convertUUIDToBigInt(originalHaystackTraceId).equals(context.getTraceId())) {
+            && DDTraceId.fromHex(convertUUIDToHexString(originalHaystackTraceId))
+                .equals(context.getTraceId())) {
           injectedTraceId = originalHaystackTraceId;
         } else {
-          injectedTraceId = convertBigIntToUUID(context.getTraceId());
+          injectedTraceId = convertLongToUUID(context.getTraceId().toLong());
         }
         setter.set(carrier, TRACE_ID_KEY, injectedTraceId);
         context.setTag(HAYSTACK_TRACE_ID_BAGGAGE_KEY, injectedTraceId);
         setter.set(
             carrier, DD_TRACE_ID_BAGGAGE_KEY, HttpCodec.encode(context.getTraceId().toString()));
-        setter.set(carrier, SPAN_ID_KEY, convertBigIntToUUID(context.getSpanId()));
+        setter.set(carrier, SPAN_ID_KEY, convertLongToUUID(context.getSpanId().toLong()));
         setter.set(
             carrier, DD_SPAN_ID_BAGGAGE_KEY, HttpCodec.encode(context.getSpanId().toString()));
-        setter.set(carrier, PARENT_ID_KEY, convertBigIntToUUID(context.getParentId()));
+        setter.set(carrier, PARENT_ID_KEY, convertLongToUUID(context.getParentId().toLong()));
         setter.set(
             carrier, DD_PARENT_ID_BAGGAGE_KEY, HttpCodec.encode(context.getParentId().toString()));
 
@@ -194,11 +196,11 @@ class HaystackHttpCodec {
           if (null != firstValue) {
             switch (classification) {
               case TRACE_ID:
-                traceId = convertUUIDToBigInt(value);
+                traceId = DDTraceId.fromHex(convertUUIDToHexString(value));
                 addBaggageItem(HAYSTACK_TRACE_ID_BAGGAGE_KEY, value);
                 break;
               case SPAN_ID:
-                spanId = convertUUIDToBigInt(value);
+                spanId = DDSpanId.fromHex(convertUUIDToHexString(value));
                 addBaggageItem(HAYSTACK_SPAN_ID_BAGGAGE_KEY, value);
                 break;
               case PARENT_ID:
@@ -245,18 +247,18 @@ class HaystackHttpCodec {
     }
   }
 
-  private static String convertBigIntToUUID(DDId id) {
+  private static String convertLongToUUID(long id) {
     // This is not a true/real UUID, as we don't care about the version and variant markers
     //  the creation is just taking the least significant bits and doing static most significant
     // ones.
     //  this is done for the purpose of being able to maintain cardinality and idempotence of the
     // conversion
-    String idHex = String.format("%016x", id.toLong());
+    String idHex = String.format("%016x", id);
     return DATADOG + "-" + idHex.substring(0, 4) + "-" + idHex.substring(4);
   }
 
   @SuppressForbidden
-  private static DDId convertUUIDToBigInt(String value) {
+  private static String convertUUIDToHexString(String value) {
     try {
       if (value.contains("-")) {
         String[] strings = value.split("-");
@@ -264,16 +266,16 @@ class HaystackHttpCodec {
         // significant one.
         if (strings.length == 5) {
           String idHex = strings[3] + strings[4];
-          return DDId.fromHex(idHex);
+          return idHex;
         }
         throw new NumberFormatException("Invalid UUID format: " + value);
       } else {
         // This could be a regular hex id without separators
         int length = value.length();
         if (length == 32) {
-          return DDId.fromHex(value.substring(16));
+          return value.substring(16);
         } else {
-          return DDId.fromHex(value);
+          return value;
         }
       }
     } catch (final Exception e) {

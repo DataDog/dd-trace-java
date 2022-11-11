@@ -3,7 +3,8 @@ package datadog.trace.bootstrap.instrumentation.api;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 
 import datadog.trace.api.Checkpointer;
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.PropagationStyle;
 import datadog.trace.api.SpanCheckpointer;
@@ -443,13 +444,13 @@ public class AgentTracer {
     private NoopAgentSpan() {}
 
     @Override
-    public DDId getTraceId() {
-      return DDId.ZERO;
+    public DDTraceId getTraceId() {
+      return DDTraceId.ZERO;
     }
 
     @Override
-    public DDId getSpanId() {
-      return DDId.ZERO;
+    public DDSpanId getSpanId() {
+      return DDSpanId.ZERO;
     }
 
     @Override
@@ -836,13 +837,13 @@ public class AgentTracer {
     private NoopContext() {}
 
     @Override
-    public DDId getTraceId() {
-      return DDId.ZERO;
+    public DDTraceId getTraceId() {
+      return DDTraceId.ZERO;
     }
 
     @Override
-    public DDId getSpanId() {
-      return DDId.ZERO;
+    public DDSpanId getSpanId() {
+      return DDSpanId.ZERO;
     }
 
     @Override

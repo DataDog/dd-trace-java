@@ -1,6 +1,6 @@
 import com.google.common.util.concurrent.MoreExecutors
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Platform
 import datadog.trace.api.function.TriConsumer
@@ -467,7 +467,7 @@ abstract class GrpcTest extends AgentTestRunner {
           operationName "grpc.server"
           resourceName "example.Greeter/Ignore"
           spanType DDSpanTypes.RPC
-          parentDDId DDId.ZERO
+          parentDDSpanId DDSpanId.ZERO
           errored false
           measured true
           tags {

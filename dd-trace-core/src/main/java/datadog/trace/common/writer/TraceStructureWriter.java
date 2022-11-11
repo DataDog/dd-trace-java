@@ -1,6 +1,7 @@
 package datadog.trace.common.writer;
 
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.core.DDSpan;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -82,9 +83,9 @@ public class TraceStructureWriter implements Writer {
     if (trace.isEmpty()) {
       output("[]", null, null);
     } else {
-      DDId traceId = trace.get(0).getTraceId();
-      DDId rootSpanId = trace.get(0).getSpanId();
-      Map<DDId, Node> nodesById = new HashMap<>();
+      DDTraceId traceId = trace.get(0).getTraceId();
+      DDSpanId rootSpanId = trace.get(0).getSpanId();
+      Map<DDSpanId, Node> nodesById = new HashMap<>();
       // index the tree
       for (DDSpan span : trace) {
         if (span.getLocalRootSpan() == span) {
@@ -138,7 +139,7 @@ public class TraceStructureWriter implements Writer {
     }
   }
 
-  private void output(String trace, DDId traceId, DDId rootSpanId) {
+  private void output(String trace, DDTraceId traceId, DDSpanId rootSpanId) {
     out.println(trace);
     if (debugLog && log.isDebugEnabled()) {
       StringBuilder start = new StringBuilder();

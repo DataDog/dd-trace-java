@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
@@ -8,9 +9,9 @@ import java.util.Map;
 
 public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
-  DDId getTraceId();
+  DDTraceId getTraceId();
 
-  DDId getSpanId();
+  DDSpanId getSpanId();
 
   @Override
   AgentSpan setTag(String key, boolean value);
@@ -150,9 +151,9 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   void mergePathwayContext(PathwayContext pathwayContext);
 
   interface Context {
-    DDId getTraceId();
+    DDTraceId getTraceId();
 
-    DDId getSpanId();
+    DDSpanId getSpanId();
 
     AgentTrace getTrace();
 

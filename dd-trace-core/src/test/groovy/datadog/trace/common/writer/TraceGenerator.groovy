@@ -1,7 +1,8 @@
 package datadog.trace.common.writer
 
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
@@ -85,9 +86,9 @@ class TraceGenerator {
       "service-" + random.nextInt(lowCardinality ? 1 : 10),
       "operation-" + random.nextInt(lowCardinality ? 1 : 100),
       UTF8BytesString.create("resource-" + random.nextInt(lowCardinality ? 1 : 100)),
-      DDId.from(traceId),
-      IdGenerationStrategy.RANDOM.generate(),
-      DDId.ZERO,
+      DDTraceId.from(traceId),
+      IdGenerationStrategy.RANDOM.generateSpanId(),
+      DDSpanId.ZERO,
       TimeUnit.MILLISECONDS.toNanos(System.currentTimeMillis()),
       random.nextLong(500, 10_000_000),
       random.nextInt(2),
@@ -123,9 +124,9 @@ class TraceGenerator {
     private final CharSequence serviceName
     private final CharSequence operationName
     private final CharSequence resourceName
-    private final DDId traceId
-    private final DDId spanId
-    private final DDId parentId
+    private final DDTraceId traceId
+    private final DDSpanId spanId
+    private final DDSpanId parentId
     private final long start
     private final long duration
     private final int error
@@ -139,9 +140,9 @@ class TraceGenerator {
     String serviceName,
     String operationName,
     CharSequence resourceName,
-    DDId traceId,
-    DDId spanId,
-    DDId parentId,
+    DDTraceId traceId,
+    DDSpanId spanId,
+    DDSpanId parentId,
     long start,
     long duration,
     int error,
@@ -191,17 +192,17 @@ class TraceGenerator {
     }
 
     @Override
-    DDId getTraceId() {
+    DDTraceId getTraceId() {
       return traceId
     }
 
     @Override
-    DDId getSpanId() {
+    DDSpanId getSpanId() {
       return spanId
     }
 
     @Override
-    DDId getParentId() {
+    DDSpanId getParentId() {
       return parentId
     }
 

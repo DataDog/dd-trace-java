@@ -1,7 +1,9 @@
 package datadog.trace.core.propagation
 
 import datadog.trace.api.Config
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
+
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
@@ -22,8 +24,8 @@ class HttpInjectorTest extends DDCoreSpecification {
     }
     HttpCodec.Injector injector = HttpCodec.createInjector(config)
 
-    def traceId = DDId.ONE
-    def spanId = DDId.from(2)
+    def traceId = DDTraceId.ONE
+    def spanId = DDSpanId.from(2)
 
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()
@@ -31,7 +33,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       new DDSpanContext(
       traceId,
       spanId,
-      DDId.ZERO,
+      DDSpanId.ZERO,
       null,
       "fakeService",
       "fakeOperation",
@@ -42,7 +44,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDId.ONE),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,
@@ -98,8 +100,8 @@ class HttpInjectorTest extends DDCoreSpecification {
 
   def "inject http headers using #style"() {
     setup:
-    def traceId = DDId.ONE
-    def spanId = DDId.from(2)
+    def traceId = DDTraceId.ONE
+    def spanId = DDSpanId.from(2)
 
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()
@@ -107,7 +109,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       new DDSpanContext(
       traceId,
       spanId,
-      DDId.ZERO,
+      DDSpanId.ZERO,
       null,
       "fakeService",
       "fakeOperation",
@@ -118,7 +120,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDId.ONE),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,

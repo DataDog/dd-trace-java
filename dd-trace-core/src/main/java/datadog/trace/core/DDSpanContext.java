@@ -3,8 +3,9 @@ package datadog.trace.core;
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
 import datadog.trace.api.TraceSegment;
 import datadog.trace.api.cache.DDCache;
@@ -61,9 +62,9 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
   private volatile Map<String, String> baggageItems;
 
   // Not Shared with other span contexts
-  private final DDId traceId;
-  private final DDId spanId;
-  private final DDId parentId;
+  private final DDTraceId traceId;
+  private final DDSpanId spanId;
+  private final DDSpanId parentId;
 
   private final String parentServiceName;
 
@@ -124,9 +125,9 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
   private volatile PathwayContext pathwayContext;
 
   public DDSpanContext(
-      final DDId traceId,
-      final DDId spanId,
-      final DDId parentId,
+      final DDTraceId traceId,
+      final DDSpanId spanId,
+      final DDSpanId parentId,
       final CharSequence parentServiceName,
       final String serviceName,
       final CharSequence operationName,
@@ -194,16 +195,16 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
   }
 
   @Override
-  public DDId getTraceId() {
+  public DDTraceId getTraceId() {
     return traceId;
   }
 
-  public DDId getParentId() {
+  public DDSpanId getParentId() {
     return parentId;
   }
 
   @Override
-  public DDId getSpanId() {
+  public DDSpanId getSpanId() {
     return spanId;
   }
 

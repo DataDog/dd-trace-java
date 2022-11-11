@@ -10,8 +10,9 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.profiling.TracingContextTracker;
@@ -350,7 +351,7 @@ public class DDSpan
    * @return true if root, false otherwise
    */
   public final boolean isRootSpan() {
-    return DDId.ZERO.equals(context.getParentId());
+    return DDSpanId.ZERO.equals(context.getParentId());
   }
 
   @Override
@@ -664,17 +665,17 @@ public class DDSpan
   }
 
   @Override
-  public DDId getTraceId() {
+  public DDTraceId getTraceId() {
     return context.getTraceId();
   }
 
   @Override
-  public DDId getSpanId() {
+  public DDSpanId getSpanId() {
     return context.getSpanId();
   }
 
   @Override
-  public DDId getParentId() {
+  public DDSpanId getParentId() {
     return context.getParentId();
   }
 

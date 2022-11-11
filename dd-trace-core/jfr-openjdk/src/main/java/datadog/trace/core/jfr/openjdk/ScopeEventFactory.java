@@ -1,6 +1,7 @@
 package datadog.trace.core.jfr.openjdk;
 
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -28,11 +29,11 @@ public class ScopeEventFactory implements ExtendedScopeListener {
 
   @Override
   public void afterScopeActivated() {
-    afterScopeActivated(DDId.ZERO, DDId.ZERO, DDId.ZERO);
+    afterScopeActivated(DDTraceId.ZERO, DDSpanId.ZERO, DDSpanId.ZERO);
   }
 
   @Override
-  public void afterScopeActivated(DDId traceId, DDId localRootSpanId, DDId spanId) {
+  public void afterScopeActivated(DDTraceId traceId, DDSpanId localRootSpanId, DDSpanId spanId) {
     Deque<ScopeEvent> stack = scopeEventStack.get();
 
     ScopeEvent top = stack.peek();

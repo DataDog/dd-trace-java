@@ -16,7 +16,8 @@ import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
 import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.Platform;
@@ -559,7 +560,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    *
    * @return a PendingTrace
    */
-  PendingTrace createTrace(DDId id) {
+  PendingTrace createTrace(DDTraceId id) {
     return pendingTraceFactory.create(id);
   }
 
@@ -1201,9 +1202,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
      * @return the context
      */
     private DDSpanContext buildSpanContext() {
-      final DDId traceId;
-      final DDId spanId = idGenerationStrategy.generate();
-      final DDId parentSpanId;
+      final DDTraceId traceId;
+      final DDSpanId spanId = idGenerationStrategy.generateSpanId();
+      final DDSpanId parentSpanId;
       final Map<String, String> baggage;
       final PendingTrace parentTrace;
       final int samplingPriority;
@@ -1274,8 +1275,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           datadogTags = extractedContext.getDatadogTags();
         } else {
           // Start a new trace
-          traceId = IdGenerationStrategy.RANDOM.generate();
-          parentSpanId = DDId.ZERO;
+          traceId = IdGenerationStrategy.RANDOM.generateTraceId();
+          parentSpanId = DDSpanId.ZERO;
           samplingPriority = PrioritySampling.UNSET;
           endToEndStartTime = 0;
           baggage = null;

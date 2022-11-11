@@ -1,6 +1,7 @@
 package datadog.trace.agent.test.asserts
 
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.core.DDSpan
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
@@ -99,24 +100,24 @@ class SpanAssert {
   }
 
   def parent() {
-    assert span.parentId == DDId.ZERO
+    assert span.parentId == DDSpanId.ZERO
     checked.parentId = true
   }
 
-  def parentId(BigInteger parentId) {
-    parentDDId(parentId != null ? DDId.from("$parentId") : null)
+  def parentSpanId(BigInteger parentId) {
+    parentDDSpanId(parentId != null ? DDSpanId.from("$parentId") : null)
   }
 
-  def parentDDId(DDId parentId) {
+  def parentDDSpanId(DDSpanId parentId) {
     assert span.parentId == parentId
     checked.parentId = true
   }
 
   def traceId(BigInteger traceId) {
-    traceDDId(traceId != null ? DDId.from("$traceId") : null)
+    traceDDTraceId(traceId != null ? DDTraceId.from("$traceId") : null)
   }
 
-  def traceDDId(DDId traceId) {
+  def traceDDTraceId(DDTraceId traceId) {
     assert span.traceId == traceId
     checked.traceId = true
   }

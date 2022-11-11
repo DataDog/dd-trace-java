@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
 import java.util.Collections;
 import java.util.Map;
 
@@ -156,13 +157,13 @@ public class TagContext implements AgentSpan.Context.Extracted {
   }
 
   @Override
-  public DDId getTraceId() {
-    return DDId.ZERO;
+  public DDTraceId getTraceId() {
+    return DDTraceId.ZERO;
   }
 
   @Override
-  public DDId getSpanId() {
-    return DDId.ZERO;
+  public DDSpanId getSpanId() {
+    return DDSpanId.ZERO;
   }
 
   @Override

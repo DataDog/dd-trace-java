@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation
 
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.TagContext
@@ -62,8 +63,8 @@ class DatadogHttpExtractorTest extends DDSpecification {
     final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
 
     then:
-    context.traceId == DDId.from(traceId)
-    context.spanId == DDId.from(spanId)
+    context.traceId == DDTraceId.from(traceId)
+    context.spanId == DDSpanId.from(spanId)
     context.baggage == ["k1": "v1", "k2": "v2"]
     context.tags == ["some-tag": "my-interesting-info"]
     context.samplingPriority == samplingPriority
@@ -295,10 +296,10 @@ class DatadogHttpExtractorTest extends DDSpecification {
     "-1"                  | "1"                   | null            | null
     "1"                   | "-1"                  | null            | null
     "0"                   | "1"                   | null            | null
-    "1"                   | "0"                   | DDId.ONE        | DDId.ZERO
-    "$TRACE_ID_MAX"       | "1"                   | DDId.MAX        | DDId.ONE
+    "1"                   | "0"                   | DDTraceId.ONE   | DDSpanId.ZERO
+    "$TRACE_ID_MAX"       | "1"                   | DDTraceId.MAX   | DDSpanId.ONE
     "${TRACE_ID_MAX + 1}" | "1"                   | null            | null
-    "1"                   | "$TRACE_ID_MAX"       | DDId.ONE        | DDId.MAX
+    "1"                   | "$TRACE_ID_MAX"       | DDTraceId.ONE   | DDSpanId.MAX
     "1"                   | "${TRACE_ID_MAX + 1}" | null            | null
   }
 
@@ -318,8 +319,8 @@ class DatadogHttpExtractorTest extends DDSpecification {
     final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
 
     then:
-    context.traceId == DDId.from(traceId)
-    context.spanId == DDId.from(spanId)
+    context.traceId == DDTraceId.from(traceId)
+    context.spanId == DDSpanId.from(spanId)
     context.baggage == ["k1": "v1", "k2": "v2"]
     context.tags == ["some-tag": "my-interesting-info"]
     context.endToEndStartTime == endToEndStartTime * 1000000L
