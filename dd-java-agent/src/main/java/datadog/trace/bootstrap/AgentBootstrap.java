@@ -197,6 +197,7 @@ public final class AgentBootstrap {
   private static List<String> getVMArgumentsThroughReflection() {
     try {
       // Try Oracle-based
+      // IBM Semeru Runtime 1.8.0_345-b01 will throw UnsatisfiedLinkError here.
       final Class<?> managementFactoryHelperClass =
           Class.forName("sun.management.ManagementFactoryHelper");
 
@@ -217,7 +218,7 @@ public final class AgentBootstrap {
 
       return (List<String>) vmManagementClass.getMethod("getVmArguments").invoke(vmManagement);
 
-    } catch (final ReflectiveOperationException e) {
+    } catch (final ReflectiveOperationException | UnsatisfiedLinkError e) {
       try { // Try IBM-based.
         final Class<?> VMClass = Class.forName("com.ibm.oti.vm.VM");
         final String[] argArray = (String[]) VMClass.getMethod("getVMArgs").invoke(null);
