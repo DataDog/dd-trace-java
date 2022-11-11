@@ -144,6 +144,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final Monitoring performanceMonitoring;
   private final Recording traceWriteTimer;
   private final IdGenerationStrategy idGenerationStrategy;
+  private final boolean isSecureRandom;
   private final PendingTrace.Factory pendingTraceFactory;
   private final SamplingCheckpointer spanCheckpointer;
   private final DataStreamsCheckpointer dataStreamsCheckpointer;
@@ -443,6 +444,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         null == idGenerationStrategy
             ? Config.get().getIdGenerationStrategy()
             : idGenerationStrategy;
+    this.isSecureRandom = Config.get().isSecureRandom();
 
     if (statsDClient != null) {
       this.statsDClient = statsDClient;
@@ -1288,7 +1290,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           datadogTags = extractedContext.getDatadogTags();
         } else {
           // Start a new trace
-          traceId = IdGenerationStrategy.RANDOM.generate();
+          traceId =
+              isSecureRandom
+                  ? IdGenerationStrategy.RANDOM.generateSecure()
+                  : IdGenerationStrategy.RANDOM.generate();
           parentSpanId = DDId.ZERO;
           samplingPriority = PrioritySampling.UNSET;
           endToEndStartTime = 0;

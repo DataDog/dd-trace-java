@@ -68,6 +68,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_TYPE_POOL_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_ITERATION_KEEP_ALIVE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SECURE_RANDOM;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME;
@@ -301,6 +302,7 @@ import static datadog.trace.api.config.TracerConfig.SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.config.TracerConfig.SCOPE_INHERIT_ASYNC_PROPAGATION;
 import static datadog.trace.api.config.TracerConfig.SCOPE_ITERATION_KEEP_ALIVE;
 import static datadog.trace.api.config.TracerConfig.SCOPE_STRICT_MODE;
+import static datadog.trace.api.config.TracerConfig.SECURE_RANDOM;
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.SPAN_TAGS;
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
@@ -616,6 +618,8 @@ public class Config {
 
   private final IdGenerationStrategy idGenerationStrategy;
 
+  private final boolean secureRandom;
+
   private final boolean internalExitOnFailure;
 
   private final boolean resolverOutlinePoolEnabled;
@@ -721,6 +725,13 @@ public class Config {
       log.warn(
           "*** you are using an unsupported id generation strategy {} - this can impact correctness of traces",
           idGenerationStrategy);
+    }
+
+    String lambdaInitType = getEnv("AWS_LAMBDA_INITIALIZATION_TYPE");
+    if (lambdaInitType != null && lambdaInitType.equals("snap-start")) {
+      secureRandom = true;
+    } else {
+      secureRandom = configProvider.getBoolean(SECURE_RANDOM, DEFAULT_SECURE_RANDOM);
     }
 
     String agentHostFromEnvironment = null;
@@ -2110,6 +2121,10 @@ public class Config {
 
   public IdGenerationStrategy getIdGenerationStrategy() {
     return idGenerationStrategy;
+  }
+
+  public boolean isSecureRandom() {
+    return secureRandom;
   }
 
   public boolean isInternalExitOnFailure() {

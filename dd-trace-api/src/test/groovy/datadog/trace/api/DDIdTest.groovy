@@ -124,6 +124,21 @@ class DDIdTest extends DDSpecification {
     idGenerator << IdGenerationStrategy.values()
   }
 
+  def "generate secure random id with #idGenerator"() {
+    when:
+    final ddid = idGenerator.generateSecure()
+
+    then:
+    !ddid.equals(null)
+    !ddid.equals("foo")
+    ddid != DDId.ZERO
+    ddid.equals(ddid)
+    ddid.hashCode() == (int) (ddid.toLong() ^ (ddid.toLong() >>> 32))
+
+    where:
+    idGenerator << IdGenerationStrategy.values()
+  }
+
   def "convert ids from/to hex String while keeping the original"() {
     when:
     final ddid = DDId.fromHexWithOriginal(hexId)
