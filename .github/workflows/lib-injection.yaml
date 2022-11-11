@@ -24,8 +24,8 @@ jobs:
       TEST_LIBRARY: java
       LIBRARY_INJECTION_CONNECTION: ${{ matrix.lib-injection-connection }}
       LIBRARY_INJECTION_ADMISSION_CONTROLLER: ${{ matrix.lib-injection-admission-controller }}
-      LIBRARY_INJECTION_INIT_IMAGE: ghcr.io/datadog/system-tests/dd-lib-java-init:${{ github.sha }}
-      LIBRARY_INJECTION_TEST_APP_IMAGE: ghcr.io/datadog/system-tests/dd-lib-java-init-test-app:${{ github.sha }}
+      DOCKER_REGISTRY_IMAGES_PATH: ghcr.io/datadog/system-tests
+      DOCKER_IMAGE_TAG: ${{ github.sha }}
 
     steps:
 
