@@ -13,7 +13,7 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
 import java.sql.Connection;
-import java.sql.SQLException;
+import java.sql.DatabaseMetaData;
 import java.util.Map;
 import java.util.Properties;
 import net.bytebuddy.asm.Advice;
@@ -70,20 +70,27 @@ public final class DriverInstrumentation extends Instrumenter.Tracing
         // Exception was probably thrown.
         return;
       }
-      String urlToUse = url;
+      String connectionUrl = url;
+      Properties connectionProps = props;
       try {
-        urlToUse = connection.getMetaData().getURL();
-      } catch (final SQLException se) {
-        // ignore
+        DatabaseMetaData metaData = connection.getMetaData();
+        connectionUrl = metaData.getURL();
+        if (null != connectionUrl && !connectionUrl.equals(url)) {
+          // connection url was updated, check to see if user has also changed
+          String connectionUser = metaData.getUserName();
+          if (null != connectionUser
+              && (null == props || !connectionUser.equals(props.get("user")))) {
+            // merge updated user with original properties
+            connectionProps = new Properties(props);
+            connectionProps.put("user", connectionUser);
+          }
+        } else {
+          connectionUrl = url; // fallback in case updated url is null
+        }
+      } catch (Throwable ignored) {
+        // use original values
       }
-
-      try {
-        props.setProperty("user", connection.getMetaData().getUserName());
-      } catch (final SQLException se) {
-        // ignore
-      }
-
-      final DBInfo dbInfo = JDBCConnectionUrlParser.extractDBInfo(urlToUse, props);
+      DBInfo dbInfo = JDBCConnectionUrlParser.extractDBInfo(connectionUrl, connectionProps);
       InstrumentationContext.get(Connection.class, DBInfo.class).put(connection, dbInfo);
     }
   }
