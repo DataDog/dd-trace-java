@@ -107,6 +107,8 @@ public final class IastModuleImpl implements IastModule {
     }
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     taintedObjects.taintInputString(
+        paramName, new Source(SourceType.REQUEST_PARAMETER_NAME, paramName, null));
+    taintedObjects.taintInputString(
         paramValue, new Source(SourceType.REQUEST_PARAMETER_VALUE, paramName, paramValue));
   }
 

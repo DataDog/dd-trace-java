@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.servlet.request;
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.InstrumentationBridge;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
 import javax.servlet.ServletRequest;
 
@@ -36,10 +38,13 @@ public class ServletRequestCallSite {
   })
   public static Enumeration afterGetParameterNames(
       @CallSite.This final ServletRequest self, @CallSite.Return final Enumeration enumeration) {
+    ArrayList<String> parameterNames = new ArrayList<>();
     while (enumeration.hasMoreElements()) {
-      InstrumentationBridge.onParameterName((String) enumeration.nextElement());
+      String paramName = (String) enumeration.nextElement();
+      InstrumentationBridge.onParameterName(paramName);
+      parameterNames.add(paramName);
     }
-    return self.getParameterNames();
+    return Collections.enumeration(parameterNames);
   }
 
   @CallSite.AfterArray({
