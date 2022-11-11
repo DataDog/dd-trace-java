@@ -79,7 +79,7 @@ public final class DriverInstrumentation extends Instrumenter.Tracing
           // connection url was updated, check to see if user has also changed
           String connectionUser = metaData.getUserName();
           if (null != connectionUser
-              && (null == props || !connectionUser.equals(props.get("user")))) {
+              && (null == props || !connectionUser.equalsIgnoreCase(props.getProperty("user")))) {
             // merge updated user with original properties
             connectionProps = new Properties(props);
             connectionProps.put("user", connectionUser);
