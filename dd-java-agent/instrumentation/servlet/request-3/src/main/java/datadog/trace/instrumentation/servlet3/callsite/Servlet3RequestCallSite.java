@@ -18,6 +18,7 @@ public class Servlet3RequestCallSite {
   public static java.util.Map<java.lang.String, java.lang.String[]> aroundGetParameterMap(
       @CallSite.This final ServletRequest self, @CallSite.Return final Map<String, String[]> map) {
     for (Map.Entry<String, String[]> entry : map.entrySet()) {
+      InstrumentationBridge.onParameterName(entry.getKey());
       for (String value : entry.getValue()) {
         InstrumentationBridge.onParameterValue(entry.getKey(), value);
       }
