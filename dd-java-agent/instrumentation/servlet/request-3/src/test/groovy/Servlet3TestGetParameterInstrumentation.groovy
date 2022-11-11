@@ -41,5 +41,6 @@ class Servlet3TestGetParameterInstrumentation extends AgentTestRunner {
     returnedMap.get("param1")[0] == "value1"
     returnedMap.get("param1")[1] == "value2"
     2 * iastModule.onParameterValue(_,_)
+    1 * iastModule.onParameterName(_)
   }
 }
