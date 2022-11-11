@@ -235,10 +235,6 @@ public final class Platform {
         && !RUNTIME.name.contains("OpenJDK");
   }
 
-  public static boolean isSemeru() {
-    return RUNTIME.name.contains("Semeru");
-  }
-
   public static boolean isJ9() {
     return System.getProperty("java.vm.name").contains("J9");
   }
