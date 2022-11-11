@@ -18,29 +18,49 @@ public final class SamplingCheckpointer implements SpanCheckpointer {
    * @return a new, pre-configured instance
    */
   public static SamplingCheckpointer create() {
-    return new SamplingCheckpointer(NoOpCheckpointer.NO_OP);
+    return new SamplingCheckpointer(NoOpCheckpointer.NO_OP, NoOpCheckpointer.NO_OP);
   }
 
   private static final Logger log = LoggerFactory.getLogger(SamplingCheckpointer.class);
 
-  private static final AtomicReferenceFieldUpdater<SamplingCheckpointer, Checkpointer> CAS =
-      AtomicReferenceFieldUpdater.newUpdater(
-          SamplingCheckpointer.class, Checkpointer.class, "checkpointer");
+  private static final AtomicReferenceFieldUpdater<SamplingCheckpointer, Checkpointer>
+      CHECKPOINTER =
+          AtomicReferenceFieldUpdater.newUpdater(
+              SamplingCheckpointer.class, Checkpointer.class, "checkpointer");
+  private static final AtomicReferenceFieldUpdater<SamplingCheckpointer, EndpointCheckpointer>
+      ROOT_SPAN_CHECKPOINTER =
+          AtomicReferenceFieldUpdater.newUpdater(
+              SamplingCheckpointer.class, EndpointCheckpointer.class, "endpointCheckpointer");
 
-  private volatile Checkpointer checkpointer;
+  @Deprecated(/*forRemoval = true*/ ) private volatile Checkpointer checkpointer;
+  private volatile EndpointCheckpointer endpointCheckpointer;
 
-  public SamplingCheckpointer(final Checkpointer checkpointer) {
+  public SamplingCheckpointer(
+      Checkpointer checkpointer, EndpointCheckpointer endpointCheckpointer) {
     this.checkpointer = checkpointer;
+    this.endpointCheckpointer = endpointCheckpointer;
   }
 
+  @Deprecated(/*forRemoval = true*/ )
   public void register(final Checkpointer checkpointer) {
-    if (!CAS.compareAndSet(this, NoOpCheckpointer.NO_OP, checkpointer)) {
+    if (!CHECKPOINTER.compareAndSet(this, NoOpCheckpointer.NO_OP, checkpointer)) {
       log.debug(
           "failed to register checkpointer {} - {} already registered",
           checkpointer.getClass(),
           this.checkpointer.getClass());
     } else {
       log.debug("Registered checkpointer implementation: {}", checkpointer);
+    }
+  }
+
+  public void register(EndpointCheckpointer endpointCheckpointer) {
+    if (!ROOT_SPAN_CHECKPOINTER.compareAndSet(this, NoOpCheckpointer.NO_OP, endpointCheckpointer)) {
+      log.debug(
+          "failed to register root span checkpointer {} - {} already registered",
+          endpointCheckpointer.getClass(),
+          this.endpointCheckpointer.getClass());
+    } else {
+      log.debug("Registered root span checkpointer implementation: {}", endpointCheckpointer);
     }
   }
 
@@ -63,17 +83,15 @@ public final class SamplingCheckpointer implements SpanCheckpointer {
 
   @Override
   public void onRootSpanFinished(final AgentSpan rootSpan, final boolean published) {
-    final Boolean emittingCheckpoints = rootSpan.isEmittingCheckpoints();
-    checkpointer.onRootSpanWritten(
-        rootSpan, published, emittingCheckpoints != null && emittingCheckpoints);
+    endpointCheckpointer.onRootSpanFinished(rootSpan, published);
   }
 
   @Override
   public void onRootSpanStarted(AgentSpan root) {
-    checkpointer.onRootSpanStarted(root);
+    endpointCheckpointer.onRootSpanStarted(root);
   }
 
-  private static final class NoOpCheckpointer implements Checkpointer {
+  private static final class NoOpCheckpointer implements Checkpointer, EndpointCheckpointer {
 
     static final NoOpCheckpointer NO_OP = new NoOpCheckpointer();
 
@@ -81,8 +99,7 @@ public final class SamplingCheckpointer implements SpanCheckpointer {
     public void checkpoint(final AgentSpan span, final int flags) {}
 
     @Override
-    public void onRootSpanWritten(
-        final AgentSpan rootSpan, final boolean published, final boolean checkpointsSampled) {}
+    public void onRootSpanFinished(final AgentSpan rootSpan, final boolean published) {}
 
     @Override
     public void onRootSpanStarted(AgentSpan rootSpan) {}

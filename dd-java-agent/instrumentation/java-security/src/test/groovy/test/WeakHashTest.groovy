@@ -3,19 +3,19 @@ package test
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.IastModule
 import datadog.trace.api.iast.InstrumentationBridge
+import foo.bar.TestSuite
 
-import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class WeakHashTest  extends AgentTestRunner {
+class WeakHashTest extends AgentTestRunner {
 
   def "unavailable hash algorithm"() {
 
     when:
     runUnderTrace("WeakHashingRootSpan") {
-      MessageDigest.getInstance("SHA-XXX")
+      new TestSuite().getMessageDigestInstance("SHA-XXX")
     }
 
     then:
@@ -28,7 +28,7 @@ class WeakHashTest  extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    MessageDigest.getInstance("MD2")
+    new TestSuite().getMessageDigestInstance("MD2")
 
     then:
     1 * module.onHashingAlgorithm("MD2")

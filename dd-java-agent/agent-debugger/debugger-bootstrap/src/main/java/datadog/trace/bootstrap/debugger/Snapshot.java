@@ -35,11 +35,12 @@ public class Snapshot {
   private final String language;
   private final transient CapturedThread thread;
   private final transient Set<String> capturingProbeIds = new HashSet<>();
+  private final transient String thisClassName;
   private String traceId; // trace_id
   private String spanId; // span_id
   private final transient SnapshotSummaryBuilder summaryBuilder;
 
-  public Snapshot(java.lang.Thread thread, ProbeDetails probe) {
+  public Snapshot(java.lang.Thread thread, ProbeDetails probe, String thisClassName) {
     this.startTs = System.nanoTime();
     this.version = VERSION;
     this.timestamp = System.currentTimeMillis();
@@ -47,6 +48,7 @@ public class Snapshot {
     this.language = LANGUAGE;
     this.thread = new CapturedThread(thread);
     this.probe = probe;
+    this.thisClassName = thisClassName;
     this.summaryBuilder = new SnapshotSummaryBuilder(probe);
     addCapturingProbeId(probe);
   }
@@ -61,6 +63,7 @@ public class Snapshot {
       Snapshot.ProbeDetails probeDetails,
       String language,
       Snapshot.CapturedThread thread,
+      String thisClassName,
       String traceId,
       String spanId) {
     this.startTs = System.nanoTime();
@@ -75,6 +78,7 @@ public class Snapshot {
     this.thread = thread;
     this.traceId = traceId;
     this.spanId = spanId;
+    this.thisClassName = thisClassName;
     this.summaryBuilder = new SnapshotSummaryBuilder(probeDetails);
     addCapturingProbeId(probe);
   }
@@ -87,6 +91,7 @@ public class Snapshot {
 
   public void setEntry(CapturedContext context) {
     summaryBuilder.addEntry(context);
+    context.setThisClassName(thisClassName);
     if (checkCapture(context)) {
       captures.setEntry(context);
     }
@@ -96,6 +101,7 @@ public class Snapshot {
     duration = System.nanoTime() - startTs;
     context.addExtension(ValueReferences.DURATION_EXTENSION_NAME, duration);
     summaryBuilder.addExit(context);
+    context.setThisClassName(thisClassName);
     if (checkCapture(context)) {
       captures.setReturn(context);
     }
@@ -103,6 +109,7 @@ public class Snapshot {
 
   public void addLine(CapturedContext context, int line) {
     summaryBuilder.addLine(context);
+    context.setThisClassName(thisClassName);
     if (checkCapture(context)) {
       captures.addLine(line, context);
     }
@@ -213,6 +220,7 @@ public class Snapshot {
         new ProbeDetails(probeId, probe.location, probe.script, probe.tags),
         language,
         thread,
+        thisClassName,
         traceId,
         spanId);
   }
@@ -518,6 +526,7 @@ public class Snapshot {
     private CapturedThrowable throwable;
     private Map<String, CapturedValue> fields;
     private Limits limits = Limits.DEFAULT;
+    private String thisClassName;
 
     public CapturedContext() {}
 
@@ -702,6 +711,10 @@ public class Snapshot {
       this.limits = new Limits(maxReferenceDepth, maxCollectionSize, maxLength, maxFieldCount);
     }
 
+    public void setThisClassName(String thisClassName) {
+      this.thisClassName = thisClassName;
+    }
+
     public Map<String, CapturedValue> getArguments() {
       return arguments;
     }
@@ -720,6 +733,10 @@ public class Snapshot {
 
     public Limits getLimits() {
       return limits;
+    }
+
+    public String getThisClassName() {
+      return thisClassName;
     }
 
     /**

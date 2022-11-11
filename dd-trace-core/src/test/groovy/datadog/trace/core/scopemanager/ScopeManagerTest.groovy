@@ -3,6 +3,7 @@ package datadog.trace.core.scopemanager
 import datadog.trace.agent.test.utils.ThreadUtils
 import datadog.trace.api.Checkpointer
 import datadog.trace.api.DDId
+import datadog.trace.api.EndpointCheckpointer
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.interceptor.TraceInterceptor
@@ -53,13 +54,16 @@ class ScopeManagerTest extends DDCoreSpecification {
   EventCountingListener eventCountingListener
   EventCountingExtendedListener eventCountingExtendedListener
   Checkpointer checkpointer
+  EndpointCheckpointer rootSpanCheckpointer
 
   def setup() {
     checkpointer = Mock()
+    rootSpanCheckpointer = Mock()
     writer = new ListWriter()
     statsDClient = Mock()
     tracer = tracerBuilder().writer(writer).statsDClient(statsDClient).build()
     tracer.registerCheckpointer(checkpointer)
+    tracer.registerCheckpointer(rootSpanCheckpointer)
     scopeManager = tracer.scopeManager
     eventCountingListener = new EventCountingListener()
     scopeManager.addScopeListener(eventCountingListener)
@@ -468,7 +472,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     _ * checkpointer.checkpoint(_, CPU)
     _ * checkpointer.checkpoint(_, CPU | END)
     1 * statsDClient.incrementCounter("scope.close.error")
-    1 * checkpointer.onRootSpanStarted(_)
+    1 * rootSpanCheckpointer.onRootSpanStarted(_)
     0 * _
 
     when:
@@ -478,7 +482,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     _ * checkpointer.checkpoint(_, CPU)
     _ * checkpointer.checkpoint(_, CPU | END)
-    1 * checkpointer.onRootSpanWritten(_, _, _)
+    1 * rootSpanCheckpointer.onRootSpanFinished(_, _)
     _ * statsDClient.close()
     assertEvents([ACTIVATE, ACTIVATE, CLOSE, CLOSE])
     0 * _
@@ -507,7 +511,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     assertEvents([ACTIVATE])
     _ * checkpointer.checkpoint(_, CPU)
     _ * checkpointer.checkpoint(_, CPU | END)
-    1 * checkpointer.onRootSpanStarted(_)
+    1 * rootSpanCheckpointer.onRootSpanStarted(_)
     0 * _
 
     when:

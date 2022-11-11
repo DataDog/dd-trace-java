@@ -17,6 +17,7 @@ import datadog.communication.monitor.Recording;
 import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
+import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.Platform;
 import datadog.trace.api.PropagationStyle;
@@ -963,6 +964,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void registerCheckpointer(Checkpointer checkpointer) {
+    this.spanCheckpointer.register(checkpointer);
+  }
+
+  @Override
+  public void registerCheckpointer(EndpointCheckpointer checkpointer) {
     this.spanCheckpointer.register(checkpointer);
   }
 

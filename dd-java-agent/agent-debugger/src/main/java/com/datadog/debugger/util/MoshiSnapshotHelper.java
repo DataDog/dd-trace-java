@@ -185,7 +185,7 @@ public class MoshiSnapshotHelper {
               String argName = jsonReader.peekJson().nextName();
               if ("this".equals(argName)) {
                 jsonReader.nextName(); // consume "this"
-                capturedContext.addFields(fromJsonCapturedValues(jsonReader));
+                fromJsonFields(jsonReader, capturedContext);
                 continue;
               }
               argName = jsonReader.nextName();
@@ -210,6 +210,29 @@ public class MoshiSnapshotHelper {
       }
       jsonReader.endObject();
       return capturedContext;
+    }
+
+    private void fromJsonFields(JsonReader jsonReader, Snapshot.CapturedContext capturedContext)
+        throws IOException {
+      jsonReader.beginObject();
+      while (jsonReader.hasNext()) {
+        String name = jsonReader.nextName();
+        switch (name) {
+          case TYPE:
+            {
+              jsonReader.nextString();
+              break;
+            }
+          case FIELDS:
+            {
+              capturedContext.addFields(fromJsonCapturedValues(jsonReader));
+              break;
+            }
+          default:
+            throw new IllegalArgumentException("Unknown field name for 'this' object: " + name);
+        }
+      }
+      jsonReader.endObject();
     }
 
     private Snapshot.CapturedValue[] fromJsonCapturedValues(JsonReader jsonReader)
@@ -243,7 +266,12 @@ public class MoshiSnapshotHelper {
       if (capturedContext.getFields() != null && !capturedContext.getFields().isEmpty()) {
         jsonWriter.name(THIS);
         jsonWriter.beginObject();
+        jsonWriter.name(TYPE);
+        jsonWriter.value(capturedContext.getThisClassName());
+        jsonWriter.name(FIELDS);
+        jsonWriter.beginObject();
         toJsonCapturedValues(jsonWriter, capturedContext.getFields(), capturedContext.getLimits());
+        jsonWriter.endObject();
         jsonWriter.endObject();
       }
       toJsonCapturedValues(jsonWriter, capturedContext.getArguments(), capturedContext.getLimits());

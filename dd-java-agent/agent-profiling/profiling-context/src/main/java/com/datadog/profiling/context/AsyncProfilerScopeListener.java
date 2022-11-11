@@ -14,7 +14,7 @@ public class AsyncProfilerScopeListener implements ExtendedScopeListener {
   @Override
   public void afterScopeActivated(DDId traceId, DDId localRootSpanId, DDId spanId) {
     if (ASYNC_PROFILER.isAvailable()) {
-      ASYNC_PROFILER.setContext(localRootSpanId.toLong(), spanId.toLong());
+      ASYNC_PROFILER.setContext(spanId.toLong(), localRootSpanId.toLong());
     }
   }
 
