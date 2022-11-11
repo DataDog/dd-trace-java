@@ -197,8 +197,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPL
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCLUDE_AGENT_THREADS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HOTSPOTS_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_LEGACY_TRACING_INTEGRATION;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_LEGACY_TRACING_INTEGRATION_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_HOST;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PASSWORD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT;
@@ -506,7 +504,6 @@ public class Config {
 
   private final boolean profilingEnabled;
   private final boolean profilingAgentless;
-  private final boolean profilingLegacyTracingIntegrationEnabled;
 
   private final boolean isAsyncProfilerEnabled;
   @Deprecated private final String profilingUrl;
@@ -1025,9 +1022,6 @@ public class Config {
     profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT);
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
-    profilingLegacyTracingIntegrationEnabled =
-        configProvider.getBoolean(
-            PROFILING_LEGACY_TRACING_INTEGRATION, PROFILING_LEGACY_TRACING_INTEGRATION_DEFAULT);
     isAsyncProfilerEnabled =
         configProvider.getBoolean(PROFILING_ASYNC_ENABLED, PROFILING_ASYNC_ALLOC_ENABLED_DEFAULT);
     profilingUrl = configProvider.getString(PROFILING_URL);
@@ -1814,10 +1808,6 @@ public class Config {
 
   public boolean isProfilingUploadSummaryOn413Enabled() {
     return profilingUploadSummaryOn413Enabled;
-  }
-
-  public boolean isProfilingLegacyTracingIntegrationEnabled() {
-    return profilingLegacyTracingIntegrationEnabled;
   }
 
   public boolean isAsyncProfilerEnabled() {

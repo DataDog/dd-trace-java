@@ -1,6 +1,4 @@
 import datadog.trace.agent.test.base.HttpClientTest
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.instrumentation.jaxrs.JaxRsClientDecorator
 import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl
 import org.glassfish.jersey.client.ClientConfig
@@ -24,7 +22,6 @@ import java.util.concurrent.TimeUnit
 abstract class JaxRsClientAsyncTest extends HttpClientTest {
   @Override
   def setup() {
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(CheckpointValidationMode.INTERVALS)
   }
 
   @Override
@@ -131,8 +128,5 @@ class CxfClientAsyncTest extends JaxRsClientAsyncTest {
 
   @Override
   def setup() {
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }

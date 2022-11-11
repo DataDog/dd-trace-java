@@ -220,7 +220,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
         try {
           latch.await()
           def spans = (1..spanCount).collect {
-            tracer.startSpan("child", rootSpan.context(), true)
+            tracer.startSpan("child", rootSpan.context())
           }
           spans.each {
             it.finish()

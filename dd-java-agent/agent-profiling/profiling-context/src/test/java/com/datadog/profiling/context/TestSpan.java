@@ -295,17 +295,4 @@ public final class TestSpan implements AgentSpan {
   public byte getResourceNamePriority() {
     return Byte.MAX_VALUE;
   }
-
-  @Override
-  public void setEmittingCheckpoints(boolean value) {}
-
-  @Override
-  public Boolean isEmittingCheckpoints() {
-    return Boolean.FALSE;
-  }
-
-  @Override
-  public boolean hasCheckpoints() {
-    return false;
-  }
 }

@@ -1,6 +1,5 @@
 package datadog.trace.agent.test.checkpoints
 
-import datadog.trace.api.Checkpointer
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.profiling.TracingContextTracker
@@ -68,7 +67,7 @@ class TimelineTracingContextTracker implements TracingContextTracker {
     return FACTORY.tracker
   }
 
-  private final ConcurrentHashMap<DDSpanId, List<Event>> spanEvents = new ConcurrentHashMap<>()
+  private final ConcurrentHashMap<Long, List<Event>> spanEvents = new ConcurrentHashMap<>()
   private final ConcurrentHashMap<Thread, List<Event>> threadEvents = new ConcurrentHashMap<>()
   private final List<Event> orderedEvents = new CopyOnWriteArrayList<>()
 
@@ -81,7 +80,7 @@ class TimelineTracingContextTracker implements TracingContextTracker {
     Thread currentThread = Thread.currentThread()
     DDTraceId traceId = span != null ? span.traceId : DDTraceId.ZERO
     long spanId = span != null ? span.spanId : DDSpanId.ZERO
-    Event event = new Event(Checkpointer.CPU, traceId, spanId, currentThread)
+    Event event = new Event(true, traceId, spanId, currentThread)
     orderedEvents.add(event)
     spanEvents.putIfAbsent(spanId, new CopyOnWriteArrayList<Event>())
     threadEvents.putIfAbsent(currentThread, new CopyOnWriteArrayList<Event>())
@@ -98,7 +97,7 @@ class TimelineTracingContextTracker implements TracingContextTracker {
     Thread currentThread = Thread.currentThread()
     DDTraceId traceId = span != null ? span.traceId : DDTraceId.ZERO
     long spanId = span != null ? span.spanId : DDSpanId.ZERO
-    Event event = new Event(Checkpointer.CPU | Checkpointer.END, traceId, spanId, currentThread)
+    Event event = new Event(false, traceId, spanId, currentThread)
     orderedEvents.add(event)
     spanEvents.putIfAbsent(spanId, new CopyOnWriteArrayList<Event>())
     threadEvents.putIfAbsent(currentThread, new CopyOnWriteArrayList<Event>())

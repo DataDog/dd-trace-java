@@ -192,8 +192,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
     if (queueStartMillis != 0) {
       queueStartMillis = Math.min(spanStartMillis, queueStartMillis);
       queueSpan =
-          startSpan(
-              AMQP_DELIVER, parentContext, TimeUnit.MILLISECONDS.toMicros(queueStartMillis), false);
+          startSpan(AMQP_DELIVER, parentContext, TimeUnit.MILLISECONDS.toMicros(queueStartMillis));
       BROKER_DECORATE.afterStart(queueSpan);
       BROKER_DECORATE.onTimeInQueue(queueSpan, queue, body);
       parentContext = queueSpan.context();

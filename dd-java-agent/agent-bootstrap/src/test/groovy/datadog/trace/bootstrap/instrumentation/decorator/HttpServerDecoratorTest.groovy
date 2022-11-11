@@ -409,7 +409,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       getRequestContext() >> reqCtxt
     }
     def mTracer = Mock(TracerAPI) {
-      startSpan(_, _, _) >> mSpan
+      startSpan(_, _) >> mSpan
       getCallbackProvider(RequestContextSlot.APPSEC) >> cbpAppSec
       getCallbackProvider(RequestContextSlot.IAST) >> CallbackProvider.CallbackProviderNoop.INSTANCE
     }

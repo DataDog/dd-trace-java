@@ -25,7 +25,7 @@ class HttpResourceDecoratorTest extends DDSpecification {
 
   def "test that resource name is not changed"() {
     given:
-    AgentSpan span = tracer.startSpan("test", true)
+    AgentSpan span = tracer.startSpan("test")
 
     when:
     def scope = AgentTracer.activateSpan(span)
@@ -39,7 +39,7 @@ class HttpResourceDecoratorTest extends DDSpecification {
 
   def "still uses the simple normalizer by default"() {
     given:
-    AgentSpan span = tracer.startSpan("test", true)
+    AgentSpan span = tracer.startSpan("test")
     String method = "GET"
     String path = "/asdf/1234"
 
@@ -54,7 +54,7 @@ class HttpResourceDecoratorTest extends DDSpecification {
     setup:
     injectSysConfig(TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING, "/asdf/*:/test")
 
-    AgentSpan span = tracer.startSpan("test", true)
+    AgentSpan span = tracer.startSpan("test")
     String method = "GET"
     String path = "/asdf/1234"
 
@@ -69,7 +69,7 @@ class HttpResourceDecoratorTest extends DDSpecification {
     setup:
     injectSysConfig(TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING, "/asdf/*:/test")
 
-    AgentSpan span = tracer.startSpan("test", true)
+    AgentSpan span = tracer.startSpan("test")
     String method = "GET"
     String path = "/unknown/1234"
 
@@ -85,7 +85,7 @@ class HttpResourceDecoratorTest extends DDSpecification {
     injectSysConfig(TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING, "/a/*:/test")
     injectSysConfig("trace.URLAsResourceNameRule.enabled", "false")
 
-    AgentSpan span = tracer.startSpan("test", true)
+    AgentSpan span = tracer.startSpan("test")
     String method = "GET"
     String path = "/unknown/1234"
 
