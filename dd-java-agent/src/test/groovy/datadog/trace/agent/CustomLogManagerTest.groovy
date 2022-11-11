@@ -1,9 +1,7 @@
 package datadog.trace.agent
 
 import datadog.trace.agent.test.IntegrationTestUtils
-import datadog.trace.api.Platform
 import jvmbootstraptest.LogManagerSetter
-import spock.lang.IgnoreIf
 import spock.lang.Specification
 import spock.lang.Timeout
 
@@ -45,7 +43,6 @@ class CustomLogManagerTest extends Specification {
       , true) == 0
   }
 
-  @IgnoreIf({ Platform.isJavaVersion(8) && Platform.isSemeru() })
   def "agent services startup is delayed with java.util.logging.manager sysprop"() {
     expect:
     IntegrationTestUtils.runOnSeparateJvm(LogManagerSetter.getName()
@@ -78,7 +75,6 @@ class CustomLogManagerTest extends Specification {
       , true) == 0
   }
 
-  @IgnoreIf({ Platform.isJavaVersion(8) && Platform.isSemeru() })
   def "agent services startup delayed with JBOSS_HOME environment variable"() {
     expect:
     IntegrationTestUtils.runOnSeparateJvm(LogManagerSetter.getName()
