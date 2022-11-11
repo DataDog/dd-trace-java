@@ -3,6 +3,8 @@ package datadog.telemetry;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.common.container.ContainerInfo;
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
+import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.ddagent.TracerVersion;
 import datadog.telemetry.api.ApiVersion;
 import datadog.telemetry.api.Application;
@@ -22,8 +24,7 @@ import org.slf4j.LoggerFactory;
 
 public class RequestBuilder {
 
-  private static final String API_ENDPOINT = "telemetry/proxy/api/v2/apmtelemetry";
-
+  private static final String API_ENDPOINT = "/api/v2/apmtelemetry";
   private static final ApiVersion API_VERSION = ApiVersion.V1;
   private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
@@ -41,10 +42,12 @@ public class RequestBuilder {
   private final Host host;
   private final String runtimeId;
 
-  public RequestBuilder(HttpUrl httpUrl) {
-    this.httpUrl = httpUrl.newBuilder().addPathSegments(API_ENDPOINT).build();
-
+  public RequestBuilder(SharedCommunicationObjects sco) {
     Config config = Config.get();
+
+    DDAgentFeaturesDiscovery featuresDiscovery = sco.featuresDiscovery(Config.get());
+    String baseUrl = featuresDiscovery.getTelemetryEndpoint();
+    this.httpUrl = featuresDiscovery.buildUrl(baseUrl + API_ENDPOINT);
 
     this.runtimeId = config.getRuntimeId();
     this.application =

@@ -1,5 +1,7 @@
 package datadog.telemetry
 
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.telemetry.api.AppStarted
 import datadog.telemetry.api.Dependency
 import datadog.telemetry.api.DependencyType
@@ -13,7 +15,16 @@ import okhttp3.RequestBody
 import okio.Buffer
 
 class RequestBuilderSpecification extends DDSpecification {
-  RequestBuilder reqBuilder = new RequestBuilder(HttpUrl.get('https://example.com'))
+
+  DDAgentFeaturesDiscovery fd = Mock {
+    buildUrl(_) >> HttpUrl.get('https://example.com')
+  }
+
+  SharedCommunicationObjects sco = Mock {
+    featuresDiscovery(_) >> fd
+  }
+
+  RequestBuilder reqBuilder = new RequestBuilder(sco)
 
   private final static JsonSlurper SLURPER = new JsonSlurper()
 
@@ -79,5 +90,24 @@ class RequestBuilderSpecification extends DDSpecification {
         version == '1.2.3'
       }
     }
+  }
+
+  void 'request builder supplier'() {
+    RequestBuilderSupplier supplier = new RequestBuilderSupplier(sco);
+
+    when:
+    RequestBuilder reqBuilder1 = supplier.get()
+    Request req1 = reqBuilder1.build(RequestType.APP_CLOSING)
+
+    then:
+    req1
+
+    when:
+    RequestBuilder reqBuilder2 = supplier.get()
+    Request req2 = reqBuilder2.build(RequestType.APP_CLOSING)
+
+    then:
+    req1.method() == req2.method()
+    req1.url() == req2.url()
   }
 }

@@ -15,9 +15,11 @@ req_types = [
   'generate-metrics'
 ]
 
+
 def print_line():
     cur_time = datetime.now().strftime('%H:%M:%S')
     print(f'\n\033[0;32m══[{cur_time}]════════════════════════════════════════════════\033[0m')
+
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
@@ -25,9 +27,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         print(self.headers)
         self.send_response(HTTPStatus.OK)
         self.end_headers()
+
     def do_POST(self):
         print_line()
         headers = str(self.headers)
+        print(f'\033[0;96mhttp://{self.headers.get("host")}{self.path}')
         for type in req_types:
           headers = headers.replace(type, f'\033[0;33m{type}\033[1;30m')
         print(f'\033[1;30m{headers}\033[0m')
@@ -41,6 +45,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             print(body)
             #print(f'\033[0;33m{body}\033[0m')
             #self.wfile.write(b'Hello world')
+
     def log_message(self, format, *args):
         return
 

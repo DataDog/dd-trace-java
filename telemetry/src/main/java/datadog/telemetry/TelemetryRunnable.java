@@ -23,6 +23,8 @@ public class TelemetryRunnable implements Runnable {
   private final List<TelemetryPeriodicAction> actions;
   private final ThreadSleeper sleeper;
 
+  private boolean lastRequestSuccess;
+
   private int consecutiveFailures;
 
   public TelemetryRunnable(
@@ -126,12 +128,26 @@ public class TelemetryRunnable implements Runnable {
     }
 
     if (response.code() != 202) {
-      log.warn(
-          "Telemetry Intake Service responded with: " + response.code() + " " + response.message());
+      String msg =
+          "Telemetry Intake Service responded with: " + response.code() + " " + response.message();
+      if (lastRequestSuccess) {
+        log.warn(msg);
+      } else {
+        log.debug(msg);
+      }
+      lastRequestSuccess = false;
+
+      // Reached max limit of attempts
+      if (consecutiveFailures > BACKOFF_MAX_EXPONENT) {
+        //  Drop queue
+        telemetryService.prepareRequests().clear();
+      }
+
       return false;
     }
 
     log.debug("Telemetry message sent successfully");
+    lastRequestSuccess = true;
     return true;
   }
 

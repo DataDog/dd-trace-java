@@ -1,20 +1,20 @@
 package datadog.telemetry;
 
+import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.function.Supplier;
-import okhttp3.HttpUrl;
 
 class RequestBuilderSupplier implements Supplier<RequestBuilder> {
-  private final HttpUrl httpUrl;
+  private final SharedCommunicationObjects sco;
   private RequestBuilder requestBuilder;
 
-  RequestBuilderSupplier(HttpUrl httpUrl) {
-    this.httpUrl = httpUrl;
+  RequestBuilderSupplier(SharedCommunicationObjects sco) {
+    this.sco = sco;
   }
 
   @Override
   public RequestBuilder get() {
     if (requestBuilder == null) {
-      requestBuilder = new RequestBuilder(httpUrl);
+      requestBuilder = new RequestBuilder(sco);
     }
     return requestBuilder;
   }
