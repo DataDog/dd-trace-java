@@ -5,6 +5,7 @@ import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.communication.ddagent.DroppingPolicy;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
@@ -23,32 +24,42 @@ public class SpanSamplingWorker implements AutoCloseable {
   private final Thread spanSamplingThread;
   private final SamplingHandler samplingHandler;
   private final MpscBlockingConsumerArrayQueue<Object> spanSamplingQueue;
-  private final Queue<Object> sampledSpansQueue;
+  private final Queue<Object> primaryQueue;
+  private final Queue<Object> secondaryQueue;
   private final SingleSpanSampler singleSpanSampler;
   private final HealthMetrics healthMetrics;
 
+  private final DroppingPolicy droppingPolicy;
+
   public static SpanSamplingWorker build(
       int capacity,
-      Queue<Object> sampledSpansQueue,
+      Queue<Object> primaryQueue,
+      Queue<Object> secondaryQueue,
       SingleSpanSampler singleSpanSampler,
-      HealthMetrics healthMetrics) {
+      HealthMetrics healthMetrics,
+      DroppingPolicy droppingPolicy) {
     if (singleSpanSampler == null) {
       return null;
     }
-    return new SpanSamplingWorker(capacity, sampledSpansQueue, singleSpanSampler, healthMetrics);
+    return new SpanSamplingWorker(
+        capacity, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, droppingPolicy);
   }
 
   protected SpanSamplingWorker(
       int capacity,
-      Queue<Object> sampledSpansQueue,
+      Queue<Object> primaryQueue,
+      Queue<Object> secondaryQueue,
       SingleSpanSampler singleSpanSampler,
-      HealthMetrics healthMetrics) {
+      HealthMetrics healthMetrics,
+      DroppingPolicy droppingPolicy) {
     this.samplingHandler = new SamplingHandler();
     this.spanSamplingThread = newAgentThread(SPAN_SAMPLING_PROCESSOR, samplingHandler);
     this.spanSamplingQueue = new MpscBlockingConsumerArrayQueue<>(capacity);
-    this.sampledSpansQueue = sampledSpansQueue;
+    this.primaryQueue = primaryQueue;
+    this.secondaryQueue = secondaryQueue;
     this.singleSpanSampler = singleSpanSampler;
     this.healthMetrics = healthMetrics;
+    this.droppingPolicy = droppingPolicy;
   }
 
   public void start() {
@@ -110,36 +121,41 @@ public class SpanSamplingWorker implements AutoCloseable {
         }
 
         ArrayList<DDSpan> sampledSpans = new ArrayList<>(trace.size());
+        ArrayList<DDSpan> unsampledSpans = new ArrayList<>(trace.size());
         for (DDSpan span : trace) {
           if (singleSpanSampler.setSamplingPriority(span)) {
             sampledSpans.add(span);
-          } // else ignore dropped spans
+          } else {
+            unsampledSpans.add(span);
+          }
         }
 
         int samplingPriority = trace.get(0).samplingPriority();
-        if (sampledSpans.size() == 0) {
+        if (sampledSpans.size() > 0 && !primaryQueue.offer(sampledSpans)) {
+          // couldn't send sampled spans because the queue is full, count entire trace as dropped
           healthMetrics.onFailedPublish(samplingPriority);
           log.debug(
-              "Trace was empty after single span sampling. Counted but dropping trace: {}", trace);
-        } else if (!sampledSpansQueue.offer(sampledSpans)) {
-          // dropped all spans or couldn't send sampled spans because the queue is full
-          healthMetrics.onFailedPublish(samplingPriority);
-          log.debug(
-              "Trace written to overfilled buffer after single span sampling. Counted but dropping trace: {}",
+              "Sampled spans written to overfilled buffer after single span sampling. Counted but dropping trace: {}",
               trace);
-        } else if (sampledSpans.size() < trace.size()) {
-          int droppedSpans = trace.size() - sampledSpans.size();
-          healthMetrics.onPartialPublish(droppedSpans);
-          log.debug(
-              "Partial trace published after single span sampling. Original trace: {}. Published trace: {}",
-              trace,
-              sampledSpans);
+        } else if (unsampledSpans.size() > 0
+            && (droppingPolicy.active() || !secondaryQueue.offer(unsampledSpans))) {
+          if (sampledSpans.isEmpty()) {
+            // dropped all spans because none of the spans sampled
+            healthMetrics.onFailedPublish(samplingPriority);
+            log.debug(
+                "Trace is empty after single span sampling. Counted but dropping trace: {}", trace);
+          } else {
+            healthMetrics.onPartialPublish(sampledSpans.size());
+            log.debug(
+                "Unsampled spans dropped after single span sampling because Dropping Policy is active or the queue is full. Counted partial trace: {}",
+                sampledSpans);
+          }
         } else {
-          // all spans are sampled, count as an entire published trace
-          healthMetrics.onPublish(sampledSpans, samplingPriority);
+          // published all sampled and unsampled spans
+          healthMetrics.onPublish(trace, samplingPriority);
         }
+        afterOnEvent();
       }
-      afterOnEvent();
     }
 
     private void consumeBatch(MessagePassingQueue<Object> queue) {

@@ -225,7 +225,8 @@ class TraceProcessingWorkerTest extends DDSpecification {
     !flushed
   }
 
-  def "send unsampled traces to the SpanProcessingWorker and expect only sampled spans dispatched"() {
+  def "send unsampled traces to the SpanProcessingWorker and expect only sampled spans dispatched when dropping policy is active"() {
+    // TODO maybe add a test case for when dropping policy is inactive?
     setup:
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     AtomicInteger acceptedCount = new AtomicInteger()
@@ -248,7 +249,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
           return false
         }
       }
-    TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics, countingDispatcher, { false }, FAST_LANE, 100, TimeUnit.SECONDS, singleSpanSampler)
+    TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics, countingDispatcher, { true }, FAST_LANE, 100, TimeUnit.SECONDS, singleSpanSampler)
     worker.start()
 
     when: "traces are submitted"
