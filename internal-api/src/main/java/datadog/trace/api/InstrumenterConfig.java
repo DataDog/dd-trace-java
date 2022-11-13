@@ -71,8 +71,11 @@ public class InstrumenterConfig {
   private final boolean internalExitOnFailure;
 
   private InstrumenterConfig() {
-    boolean collectConfig = !Platform.isNativeImageBuilder();
-    configProvider = ConfigProvider.newInstance(collectConfig);
+    this(ConfigProvider.createDefault());
+  }
+
+  private InstrumenterConfig(ConfigProvider configProvider) {
+    this.configProvider = configProvider;
 
     integrationsEnabled =
         configProvider.getBoolean(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
@@ -113,10 +116,6 @@ public class InstrumenterConfig {
     traceMethods = configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS);
 
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
-  }
-
-  public ConfigProvider configProvider() {
-    return configProvider;
   }
 
   public boolean isIntegrationsEnabled() {
@@ -218,7 +217,11 @@ public class InstrumenterConfig {
 
   // This has to be placed after all other static fields to give them a chance to initialize
   @SuppressFBWarnings("SI_INSTANCE_BEFORE_FINALS_ASSIGNED")
-  private static final InstrumenterConfig INSTANCE = new InstrumenterConfig();
+  private static final InstrumenterConfig INSTANCE =
+      new InstrumenterConfig(
+          Platform.isNativeImageBuilder()
+              ? ConfigProvider.withoutCollector()
+              : ConfigProvider.getInstance());
 
   public static InstrumenterConfig get() {
     return INSTANCE;

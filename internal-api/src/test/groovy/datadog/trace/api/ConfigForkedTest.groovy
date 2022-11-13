@@ -13,7 +13,7 @@ class ConfigForkedTest extends Specification {
     System.setProperty(PREFIX + RUNTIME_ID_ENABLED, "false")
 
     when:
-    def config = Config.get()
+    def config = new Config()
     then:
     config.runtimeId == ""
   }

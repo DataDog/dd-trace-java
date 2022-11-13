@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 
 public final class ConfigProvider {
   private static final class Singleton {
-    private static final ConfigProvider INSTANCE = ConfigProvider.newInstance(true);
+    private static final ConfigProvider INSTANCE = ConfigProvider.createDefault();
   }
 
   private static final Logger log = LoggerFactory.getLogger(ConfigProvider.class);
@@ -29,6 +29,10 @@ public final class ConfigProvider {
   private final boolean collectConfig;
 
   private final ConfigProvider.Source[] sources;
+
+  private ConfigProvider(ConfigProvider.Source... sources) {
+    this(true, sources);
+  }
 
   private ConfigProvider(boolean collectConfig, ConfigProvider.Source... sources) {
     this.collectConfig = collectConfig;
@@ -261,20 +265,38 @@ public final class ConfigProvider {
     return Singleton.INSTANCE;
   }
 
-  public static ConfigProvider newInstance(boolean collectConfig) {
+  public static ConfigProvider createDefault() {
     Properties configProperties =
         loadConfigurationFile(
-            new ConfigProvider(
-                collectConfig, new SystemPropertiesConfigSource(), new EnvironmentConfigSource()));
+            new ConfigProvider(new SystemPropertiesConfigSource(), new EnvironmentConfigSource()));
     if (configProperties.isEmpty()) {
       return new ConfigProvider(
-          collectConfig,
           new SystemPropertiesConfigSource(),
           new EnvironmentConfigSource(),
           new CapturedEnvironmentConfigSource());
     } else {
       return new ConfigProvider(
-          collectConfig,
+          new SystemPropertiesConfigSource(),
+          new EnvironmentConfigSource(),
+          new PropertiesConfigSource(configProperties, true),
+          new CapturedEnvironmentConfigSource());
+    }
+  }
+
+  public static ConfigProvider withoutCollector() {
+    Properties configProperties =
+        loadConfigurationFile(
+            new ConfigProvider(
+                false, new SystemPropertiesConfigSource(), new EnvironmentConfigSource()));
+    if (configProperties.isEmpty()) {
+      return new ConfigProvider(
+          false,
+          new SystemPropertiesConfigSource(),
+          new EnvironmentConfigSource(),
+          new CapturedEnvironmentConfigSource());
+    } else {
+      return new ConfigProvider(
+          false,
           new SystemPropertiesConfigSource(),
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
@@ -287,20 +309,17 @@ public final class ConfigProvider {
     Properties configProperties =
         loadConfigurationFile(
             new ConfigProvider(
-                true,
                 new SystemPropertiesConfigSource(),
                 new EnvironmentConfigSource(),
                 providedConfigSource));
     if (configProperties.isEmpty()) {
       return new ConfigProvider(
-          true,
           new SystemPropertiesConfigSource(),
           new EnvironmentConfigSource(),
           providedConfigSource,
           new CapturedEnvironmentConfigSource());
     } else {
       return new ConfigProvider(
-          true,
           providedConfigSource,
           new SystemPropertiesConfigSource(),
           new EnvironmentConfigSource(),

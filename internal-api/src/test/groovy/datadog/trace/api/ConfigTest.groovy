@@ -1192,7 +1192,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + CONFIGURATION_FILE, "src/test/resources/dd-java-tracer.properties")
 
     when:
-    def config = new Config(ConfigProvider.newInstance(false)) // force re-evaluation of sources
+    def config = new Config()
 
     then:
     config.configFileStatus == "src/test/resources/dd-java-tracer.properties"
@@ -1205,7 +1205,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + SERVICE_NAME, "set-in-system")
 
     when:
-    def config = new Config(ConfigProvider.newInstance(false)) // force re-evaluation of sources
+    def config = new Config()
 
     then:
     config.configFileStatus == "src/test/resources/dd-java-tracer.properties"
@@ -1218,7 +1218,7 @@ class ConfigTest extends DDSpecification {
     environmentVariables.set("DD_SERVICE_NAME", "set-in-env")
 
     when:
-    def config = new Config(ConfigProvider.newInstance(false)) // force re-evaluation of sources
+    def config = new Config()
 
     then:
     config.configFileStatus == "src/test/resources/dd-java-tracer.properties"
@@ -2056,11 +2056,6 @@ class ConfigTest extends DDSpecification {
     "true"     | "true"     | ProductActivationConfig.FULLY_ENABLED
     "true"     | "1"        | ProductActivationConfig.FULLY_ENABLED
     "1"        | null       | ProductActivationConfig.FULLY_ENABLED
-  }
-
-  def "default config and instrumenterconfig share same provider"() {
-    expect:
-    Config.get().configProvider() == InstrumenterConfig.get().configProvider()
   }
 
   static class ClassThrowsExceptionForValueOfMethod {

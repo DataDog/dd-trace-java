@@ -80,7 +80,7 @@ class CoreTracerTest extends DDCoreSpecification {
     }
 
     when:
-    def constantTags = CoreTracer.generateConstantTags(Config.get())
+    def constantTags = CoreTracer.generateConstantTags(new Config())
 
     then:
     constantTags.size() == expectedSize

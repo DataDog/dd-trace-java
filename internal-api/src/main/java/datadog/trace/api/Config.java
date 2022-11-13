@@ -605,7 +605,7 @@ public class Config {
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
-    this(InstrumenterConfig.get().configProvider()); // share config provider by default
+    this(ConfigProvider.createDefault());
   }
 
   private Config(final ConfigProvider configProvider) {
@@ -2563,7 +2563,7 @@ public class Config {
 
   // This has to be placed after all other static fields to give them a chance to initialize
   @SuppressFBWarnings("SI_INSTANCE_BEFORE_FINALS_ASSIGNED")
-  private static final Config INSTANCE = new Config();
+  private static final Config INSTANCE = new Config(ConfigProvider.getInstance());
 
   public static Config get() {
     return INSTANCE;
