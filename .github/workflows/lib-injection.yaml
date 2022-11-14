@@ -64,7 +64,7 @@ jobs:
           rm system-tests/binaries/*-javadoc.jar
           mv system-tests/binaries/*.jar system-tests/binaries/dd-java-agent.jar
 
-      - name: Build images
+      - name: Build and push images
         run: |
           cd system-tests   
           ./lib-injection/run.sh build-and-push-test-app-image build-and-push-init-image  
