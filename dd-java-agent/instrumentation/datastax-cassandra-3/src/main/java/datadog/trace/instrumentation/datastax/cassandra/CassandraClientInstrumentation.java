@@ -31,7 +31,6 @@ public class CassandraClientInstrumentation extends Instrumenter.Tracing
       packageName + ".CassandraClientDecorator",
       packageName + ".TracingSession",
       packageName + ".TracingSession$1",
-      packageName + ".TracingSession$2",
     };
   }
 
