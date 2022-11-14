@@ -6,6 +6,7 @@ muzzle {
     module = "tomcat-jasper"
     // range [7.0.0,7.0.19) and version 8.0.9 missing from maven
     versions = "[7.0.19,8.0.9),(8.0.9,10)"
+    skipVersions += '9.0.69' // broken sync to maven central
   }
 }
 
