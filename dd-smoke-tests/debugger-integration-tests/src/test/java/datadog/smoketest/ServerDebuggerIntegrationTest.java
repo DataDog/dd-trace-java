@@ -225,7 +225,7 @@ public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
     statuses.put(diagnostics.getStatus(), diagnostics);
     Assert.assertTrue(statuses.containsKey(ProbeStatus.Status.RECEIVED));
     Assert.assertEquals(
-        "Cannot find datadog/smoketest/debugger/ServerDebuggerTestApplication::unknownMethodName",
+        "Cannot find method datadog/smoketest/debugger/ServerDebuggerTestApplication::unknownMethodName",
         statuses.get(ProbeStatus.Status.ERROR).getException().getMessage());
   }
 
