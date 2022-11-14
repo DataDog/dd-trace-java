@@ -13,6 +13,7 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.assertj.core.api.ThrowableAssert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -89,7 +90,13 @@ public class InstrumentationGatewayTest {
     // check event with registered callback
     assertThat(cbp.getCallback(events.requestStarted())).isEqualTo(callback);
     // check that we can't overwrite the callback
-    assertThatThrownBy(() -> ss.registerCallback(events.requestStarted(), callback))
+    assertThatThrownBy(
+            new ThrowableAssert.ThrowingCallable() {
+              @Override
+              public void call() throws Throwable {
+                ss.registerCallback(events.requestStarted(), callback);
+              }
+            })
         .isInstanceOf(IllegalStateException.class)
         .hasMessageStartingWith("Trying to overwrite existing callback ")
         .hasMessageContaining(events.requestStarted().toString());
