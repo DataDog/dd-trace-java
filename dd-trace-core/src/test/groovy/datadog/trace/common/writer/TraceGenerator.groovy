@@ -35,6 +35,8 @@ class TraceGenerator {
     return trace
   }
 
+  private static final IdGenerationStrategy ID_GENERATION_STRATEGY = IdGenerationStrategy.fromName("RANDOM")
+
   private static CoreSpan randomSpan(long traceId, boolean lowCardinality) {
     ThreadLocalRandom random = ThreadLocalRandom.current()
     Map<String, String> baggage = new HashMap<>()
@@ -87,7 +89,7 @@ class TraceGenerator {
       "operation-" + random.nextInt(lowCardinality ? 1 : 100),
       UTF8BytesString.create("resource-" + random.nextInt(lowCardinality ? 1 : 100)),
       DDTraceId.from(traceId),
-      IdGenerationStrategy.RANDOM.generateSpanId(),
+      ID_GENERATION_STRATEGY.generateSpanId(),
       DDSpanId.ZERO,
       TimeUnit.MILLISECONDS.toNanos(System.currentTimeMillis()),
       random.nextLong(500, 10_000_000),

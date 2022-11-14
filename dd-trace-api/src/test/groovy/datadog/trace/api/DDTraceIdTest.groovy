@@ -111,7 +111,8 @@ class DDTraceIdTest extends DDSpecification {
 
   def "generate id with #idGenerator"() {
     when:
-    final ddid = idGenerator.generateTraceId()
+    final strategy = IdGenerationStrategy.fromName(strategyName)
+    final ddid = strategy != null ? strategy.generateTraceId() : DDTraceId.ONE
 
     then:
     !ddid.equals(null)
@@ -121,7 +122,8 @@ class DDTraceIdTest extends DDSpecification {
     ddid.hashCode() == (int) (ddid.toLong() ^ (ddid.toLong() >>> 32))
 
     where:
-    idGenerator << IdGenerationStrategy.values()
+    // Add an unknown strategy for code coverage
+    strategyName << ["RANDOM", "SEQUENTIAL", "UNKNOWN"]
   }
 
   def "convert ids from/to hex String and truncate to 64 bits while keeping the original"() {

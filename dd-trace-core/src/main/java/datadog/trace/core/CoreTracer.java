@@ -1275,7 +1275,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           datadogTags = extractedContext.getDatadogTags();
         } else {
           // Start a new trace
-          traceId = IdGenerationStrategy.RANDOM.generateTraceId();
+          traceId = idGenerationStrategy.generateTraceId();
           parentSpanId = DDSpanId.ZERO;
           samplingPriority = PrioritySampling.UNSET;
           endToEndStartTime = 0;

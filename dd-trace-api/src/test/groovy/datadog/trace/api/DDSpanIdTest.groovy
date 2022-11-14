@@ -88,12 +88,12 @@ class DDSpanIdTest extends DDSpecification {
 
   def "generate id with #idGenerator"() {
     when:
-    final long spanId = idGenerator.generateSpanId()
+    final long spanId = IdGenerationStrategy.fromName(strategyName).generateSpanId()
 
     then:
     spanId != 0
 
     where:
-    idGenerator << IdGenerationStrategy.values()
+    strategyName << ["RANDOM", "SEQUENTIAL"]
   }
 }
