@@ -364,7 +364,6 @@ public class InstrumentationGatewayTest {
       implements Supplier<Flow<D>>,
           BiConsumer<RequestContext, T>,
           TriConsumer<RequestContext, T, T>,
-          //          Function<RequestContext, Flow<Void>>,
           BiFunction<RequestContext, T, Flow<Void>>,
           TriFunction<RequestContext, T, T, Flow<Void>> {
 
@@ -457,12 +456,6 @@ public class InstrumentationGatewayTest {
           this.count++;
           throw new IllegalArgumentException();
         };
-
-    //    @Override
-    //    public Flow<Void> apply(RequestContext input) {
-    //      count++;
-    //      throw new IllegalArgumentException();
-    //    }
 
     @Override
     public Flow<Void> apply(RequestContext requestContext, T arg) {
