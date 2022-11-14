@@ -1,5 +1,7 @@
 package datadog.telemetry;
 
+import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.telemetry.api.RequestType;
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigCollector;
 import java.io.IOException;
@@ -27,22 +29,28 @@ public class TelemetryRunnable implements Runnable {
 
   private int consecutiveFailures;
 
+  private final DiscoveryRequestBuilderSupplier discoveryRequestBuilderSupplier;
+
+  private boolean agentFailure = false;
+  private boolean httpFailure = false;
+
   public TelemetryRunnable(
-      OkHttpClient okHttpClient,
+      SharedCommunicationObjects sco,
       TelemetryService telemetryService,
       List<TelemetryPeriodicAction> actions) {
-    this(okHttpClient, telemetryService, actions, new ThreadSleeperImpl());
+    this(sco, telemetryService, actions, new ThreadSleeperImpl());
   }
 
   TelemetryRunnable(
-      OkHttpClient okHttpClient,
+      SharedCommunicationObjects sco,
       TelemetryService telemetryService,
       List<TelemetryPeriodicAction> actions,
       ThreadSleeper sleeper) {
-    this.okHttpClient = okHttpClient;
+    this.okHttpClient = sco.okHttpClient;
     this.telemetryService = telemetryService;
     this.actions = actions;
     this.sleeper = sleeper;
+    this.discoveryRequestBuilderSupplier = new DiscoveryRequestBuilderSupplier(sco, Config.get());
   }
 
   @Override
@@ -60,11 +68,18 @@ public class TelemetryRunnable implements Runnable {
 
     while (!Thread.interrupted()) {
       try {
-        boolean success = mainLoopIteration();
-        if (success) {
-          successWait();
-        } else {
-          failureWait();
+        RequestStatus status = mainLoopIteration();
+        switch (status) {
+          case SUCCESS:
+          case NOTING_TO_SEND:
+            successWait();
+            break;
+          case NOT_SUPPORTED_ERROR:
+            agentFailureWait();
+            break;
+          case HTTP_ERROR:
+            httpFailureWait();
+            break;
         }
       } catch (InterruptedException e) {
         log.debug("Interrupted; finishing telemetry thread");
@@ -73,30 +88,35 @@ public class TelemetryRunnable implements Runnable {
     }
 
     log.debug("Sending APP_CLOSING telemetry event");
-    sendRequest(this.telemetryService.appClosingRequest());
+    // Instantly send APP_CLOSING event if possible
+    RequestBuilder requestBuilder = discoveryRequestBuilderSupplier.get();
+    if (requestBuilder != null) {
+      Request request = requestBuilder.build(RequestType.APP_CLOSING, null);
+      sendRequest(request);
+    }
     log.debug("Telemetry thread finishing");
   }
 
-  private boolean mainLoopIteration() throws InterruptedException {
+  private RequestStatus mainLoopIteration() throws InterruptedException {
     for (TelemetryPeriodicAction action : this.actions) {
       action.doIteration(this.telemetryService);
     }
 
-    Queue<Request> queue = telemetryService.prepareRequests();
-    Request request;
-    while ((request = queue.peek()) != null) {
-      if (!sendRequest(request)) {
-        return false;
-      }
-      // remove request from queue, in case of success submitting
-      // we are the only consumer, so this is guaranteed to be the same we peeked
-      queue.poll();
+    Queue<TelemetryData> queue = telemetryService.prepareRequests();
+    if (queue.isEmpty()) {
+      return RequestStatus.NOTING_TO_SEND;
     }
-    return true;
+
+    return sendTelemetry(queue);
   }
 
   private void successWait() {
     consecutiveFailures = 0;
+    if (agentFailure) {
+      log.info("Discovered DD Agent with supported telemetry");
+    }
+    agentFailure = false;
+    httpFailure = false;
     int waitMs = telemetryService.getHeartbeatInterval();
 
     // Wait between iterations no longer than 10 seconds
@@ -105,17 +125,65 @@ public class TelemetryRunnable implements Runnable {
     sleeper.sleep(waitMs);
   }
 
-  private void failureWait() {
+  private void agentFailureWait() {
+    long waitSeconds = 2 * 60; // 2 minutes
+    if (!agentFailure) {
+      log.warn(
+          "Unable to locate DD Agent with supported telemetry. We will lookup every {} sec.",
+          waitSeconds);
+      agentFailure = true;
+    }
+
+    sleeper.sleep(waitSeconds * 1000);
+  }
+
+  private void httpFailureWait() {
     consecutiveFailures++;
     double waitSeconds =
         BACKOFF_INITIAL
             * Math.pow(
                 BACKOFF_BASE, Math.min((double) consecutiveFailures - 1, BACKOFF_MAX_EXPONENT));
-    log.warn(
-        "Last attempt to send telemetry failed; will retry in {} seconds (num failures: {})",
-        waitSeconds,
-        consecutiveFailures);
+
+    if (!httpFailure) {
+      httpFailure = true;
+    }
+
+    // Reached max limit of attempts
+    if (consecutiveFailures > BACKOFF_MAX_EXPONENT) {
+      log.warn("Unable to send telemetry, giving up and drop telemetry. We will try later");
+      // Too many failures - giving up and drop queue
+      telemetryService.prepareRequests().clear();
+      // Try re-discover DD Agent
+      discoveryRequestBuilderSupplier.needRediscover();
+      consecutiveFailures = 0;
+    } else {
+      log.warn(
+          "Last attempt to send telemetry failed; will retry in {} seconds (num failures: {})",
+          waitSeconds,
+          consecutiveFailures);
+    }
     sleeper.sleep((long) (waitSeconds * 1000L));
+  }
+
+  private RequestStatus sendTelemetry(Queue<TelemetryData> queue) {
+    RequestBuilder requestBuilder = discoveryRequestBuilderSupplier.get();
+    if (requestBuilder == null) {
+      // No telemetry endpoint - drop queue
+      queue.clear();
+      return RequestStatus.NOT_SUPPORTED_ERROR;
+    }
+
+    TelemetryData data;
+    while ((data = queue.peek()) != null) {
+      Request request = requestBuilder.build(data.getRequestType(), data.getPayload());
+      if (!sendRequest(request)) {
+        return RequestStatus.HTTP_ERROR;
+      }
+      // remove request from queue, in case of success submitting
+      // we are the only consumer, so this is guaranteed to be the same we peeked
+      queue.poll();
+    }
+    return RequestStatus.SUCCESS;
   }
 
   private boolean sendRequest(Request request) {
@@ -123,25 +191,26 @@ public class TelemetryRunnable implements Runnable {
     try {
       response = okHttpClient.newCall(request).execute();
     } catch (IOException e) {
-      log.warn("IOException on HTTP request to Telemetry Intake Service", e);
+      if (!httpFailure) {
+        // To prevent spamming - log exception only first time
+        log.warn("IOException on HTTP request to Telemetry Intake Service", e);
+      }
       return false;
     }
 
     if (response.code() != 202) {
       String msg =
-          "Telemetry Intake Service responded with: " + response.code() + " " + response.message();
+          "Unexpected response from Telemetry Intake Service: "
+              + response.code()
+              + " "
+              + response.message();
       if (lastRequestSuccess) {
         log.warn(msg);
       } else {
         log.debug(msg);
       }
       lastRequestSuccess = false;
-
-      // Reached max limit of attempts
-      if (consecutiveFailures > BACKOFF_MAX_EXPONENT) {
-        //  Drop queue
-        telemetryService.prepareRequests().clear();
-      }
+      discoveryRequestBuilderSupplier.needRediscover();
 
       return false;
     }

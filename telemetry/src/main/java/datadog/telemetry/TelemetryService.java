@@ -5,14 +5,13 @@ import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.Metric;
 import java.util.Map;
 import java.util.Queue;
-import okhttp3.Request;
 
 public interface TelemetryService {
 
   // Special telemetry requests
   void addStartedRequest();
 
-  Request appClosingRequest();
+  TelemetryData appClosingRequest();
 
   // Data for periodic telemetry requests
   boolean addConfiguration(Map<String, Object> configuration);
@@ -23,7 +22,7 @@ public interface TelemetryService {
 
   boolean addMetric(Metric metric);
 
-  Queue<Request> prepareRequests();
+  Queue<TelemetryData> prepareRequests();
 
   int getHeartbeatInterval();
 }

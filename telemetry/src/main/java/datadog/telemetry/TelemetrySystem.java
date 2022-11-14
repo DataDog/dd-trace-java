@@ -10,7 +10,6 @@ import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.util.AgentThreadFactory;
 import java.lang.instrument.Instrumentation;
 import java.util.Arrays;
-import okhttp3.OkHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,12 +33,12 @@ public class TelemetrySystem {
 
   static Thread createTelemetryRunnable(
       TelemetryService telemetryService,
-      OkHttpClient okHttpClient,
+      SharedCommunicationObjects sco,
       DependencyService dependencyService) {
     DEPENDENCY_SERVICE = dependencyService;
     TelemetryRunnable telemetryRunnable =
         new TelemetryRunnable(
-            okHttpClient,
+            sco,
             telemetryService,
             Arrays.asList(
                 new DependencyPeriodicAction(dependencyService), new IntegrationPeriodicAction()));
@@ -52,11 +51,8 @@ public class TelemetrySystem {
     DependencyService dependencyService = createDependencyService(instrumentation);
     TelemetryService telemetryService =
         new TelemetryServiceImpl(
-            new RequestBuilderSupplier(sco),
-            SystemTimeSource.INSTANCE,
-            Config.get().getTelemetryHeartbeatInterval());
-    TELEMETRY_THREAD =
-        createTelemetryRunnable(telemetryService, sco.okHttpClient, dependencyService);
+            SystemTimeSource.INSTANCE, Config.get().getTelemetryHeartbeatInterval());
+    TELEMETRY_THREAD = createTelemetryRunnable(telemetryService, sco, dependencyService);
     TELEMETRY_THREAD.start();
   }
 

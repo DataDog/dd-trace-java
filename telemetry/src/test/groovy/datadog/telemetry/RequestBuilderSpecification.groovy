@@ -91,23 +91,4 @@ class RequestBuilderSpecification extends DDSpecification {
       }
     }
   }
-
-  void 'request builder supplier'() {
-    RequestBuilderSupplier supplier = new RequestBuilderSupplier(sco);
-
-    when:
-    RequestBuilder reqBuilder1 = supplier.get()
-    Request req1 = reqBuilder1.build(RequestType.APP_CLOSING)
-
-    then:
-    req1
-
-    when:
-    RequestBuilder reqBuilder2 = supplier.get()
-    Request req2 = reqBuilder2.build(RequestType.APP_CLOSING)
-
-    then:
-    req1.method() == req2.method()
-    req1.url() == req2.url()
-  }
 }

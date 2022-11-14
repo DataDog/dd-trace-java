@@ -203,6 +203,9 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       if (endpoints.contains(TELEMETRY_ENDPOINT)
           || endpoints.contains("/" + TELEMETRY_ENDPOINT + "/")) {
         telemetryEndpoint = TELEMETRY_ENDPOINT;
+      } else {
+        // If agent terminated we need to clean endpoint in case of re-discovery
+        telemetryEndpoint = null;
       }
 
       String foundDatastreamsEndpoint = null;
