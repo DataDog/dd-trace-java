@@ -21,7 +21,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.util.AgentThreadFactory;
-
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -50,10 +49,7 @@ public class TracingSession implements Session {
 
   @Override
   public ListenableFuture<Session> initAsync() {
-    return Futures.transform(
-        session.initAsync(),
-        TracingSession::new,
-        directExecutor());
+    return Futures.transform(session.initAsync(), TracingSession::new, directExecutor());
   }
 
   @Override

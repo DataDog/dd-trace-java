@@ -7,21 +7,10 @@ import java.util.function.IntFunction;
 /** Sparse cache of values associated with a small integer */
 public final class RadixTreeCache<T> {
 
-  private static final IntFunction<Integer> AUTOBOX =
-      new IntFunction<Integer>() {
-        @Override
-        public Integer apply(int value) {
-          return value;
-        }
-      };
+  private static final IntFunction<Integer> AUTOBOX = value -> value;
 
   private static final IntFunction<UTF8BytesString> TO_STRING =
-      new IntFunction<UTF8BytesString>() {
-        @Override
-        public UTF8BytesString apply(int value) {
-          return UTF8BytesString.create(Integer.toString(value));
-        }
-      };
+      value -> UTF8BytesString.create(Integer.toString(value));
 
   public static final int UNSET_STATUS = 0;
   // should cover range [0, 512) to cover all standard HTTP statuses

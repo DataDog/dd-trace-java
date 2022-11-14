@@ -164,13 +164,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final TagInterceptor tagInterceptor;
 
   private final SortedSet<TraceInterceptor> interceptors =
-      new ConcurrentSkipListSet<>(
-          new Comparator<TraceInterceptor>() {
-            @Override
-            public int compare(final TraceInterceptor o1, final TraceInterceptor o2) {
-              return Integer.compare(o1.priority(), o2.priority());
-            }
-          });
+      new ConcurrentSkipListSet<>(Comparator.comparingInt(TraceInterceptor::priority));
 
   private final HttpCodec.Injector injector;
   private final HttpCodec.Extractor extractor;

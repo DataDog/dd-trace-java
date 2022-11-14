@@ -63,14 +63,7 @@ public class StoredBodyFactories {
   }
 
   public static Flow<Void> maybeDeliverBodyInOneGo(final String str, RequestContext reqCtx) {
-    return maybeDeliverBodyInOneGo(
-        new Supplier<CharSequence>() {
-          @Override
-          public CharSequence get() {
-            return str;
-          }
-        },
-        reqCtx);
+    return maybeDeliverBodyInOneGo(() -> str, reqCtx);
   }
 
   public static class ConstantBodySupplier implements StoredBodySupplier {

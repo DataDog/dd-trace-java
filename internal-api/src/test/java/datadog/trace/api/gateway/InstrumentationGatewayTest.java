@@ -13,7 +13,6 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import org.assertj.core.api.ThrowableAssert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -90,13 +89,7 @@ public class InstrumentationGatewayTest {
     // check event with registered callback
     assertThat(cbp.getCallback(events.requestStarted())).isEqualTo(callback);
     // check that we can't overwrite the callback
-    assertThatThrownBy(
-            new ThrowableAssert.ThrowingCallable() {
-              @Override
-              public void call() throws Throwable {
-                ss.registerCallback(events.requestStarted(), callback);
-              }
-            })
+    assertThatThrownBy(() -> ss.registerCallback(events.requestStarted(), callback))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageStartingWith("Trying to overwrite existing callback ")
         .hasMessageContaining(events.requestStarted().toString());
@@ -257,14 +250,11 @@ public class InstrumentationGatewayTest {
     SubscriptionService ssIast = gateway.getSubscriptionService(RequestContextSlot.IAST);
     final int[] count = new int[1];
     BiFunction<RequestContext, IGSpanInfo, Flow<Void>> cb =
-        new BiFunction<RequestContext, IGSpanInfo, Flow<Void>>() {
-          @Override
-          public Flow<Void> apply(RequestContext requestContext, IGSpanInfo igSpanInfo) {
-            assertThat(requestContext).isSameAs(callback.ctxt);
-            assertThat(igSpanInfo).isSameAs(AgentTracer.NoopAgentSpan.INSTANCE);
-            count[0]++;
-            return new Flow.ResultFlow<>(null);
-          }
+        (requestContext, igSpanInfo) -> {
+          assertThat(requestContext).isSameAs(callback.ctxt);
+          assertThat(igSpanInfo).isSameAs(AgentTracer.NoopAgentSpan.INSTANCE);
+          count[0]++;
+          return new Flow.ResultFlow<>(null);
         };
     ss.registerCallback(events.requestEnded(), cb);
     ssIast.registerCallback(events.requestEnded(), cb);
@@ -400,33 +390,23 @@ public class InstrumentationGatewayTest {
     }
 
     public TriFunction<RequestContext, String, Short, Flow<Void>> asClientSocketAddress() {
-      return new TriFunction<RequestContext, String, Short, Flow<Void>>() {
-        @Override
-        public Flow<Void> apply(RequestContext requestContext, String s, Short aShort) {
-          count++;
-          return flow;
-        }
+      return (requestContext, s, aShort) -> {
+        count++;
+        return flow;
       };
     }
 
     public BiFunction<RequestContext, StoredBodySupplier, Void> asRequestBodyStart() {
-      return new BiFunction<RequestContext, StoredBodySupplier, Void>() {
-        @Override
-        public Void apply(RequestContext requestContext, StoredBodySupplier storedBodySupplier) {
-          count++;
-          return null;
-        }
+      return (requestContext, storedBodySupplier) -> {
+        count++;
+        return null;
       };
     }
 
     public BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> asRequestBodyDone() {
-      return new BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>() {
-        @Override
-        public Flow<Void> apply(
-            RequestContext requestContext, StoredBodySupplier storedBodySupplier) {
-          count++;
-          return new Flow.ResultFlow<>(null);
-        }
+      return (requestContext, storedBodySupplier) -> {
+        count++;
+        return new Flow.ResultFlow<>(null);
       };
     }
 
@@ -482,43 +462,30 @@ public class InstrumentationGatewayTest {
     }
 
     public TriFunction<RequestContext, String, Short, Flow<Void>> asClientSocketAddress() {
-      return new TriFunction<RequestContext, String, Short, Flow<Void>>() {
-        @Override
-        public Flow<Void> apply(RequestContext requestContext, String s, Short aShort) {
-          count++;
-          throw new IllegalArgumentException();
-        }
+      return (requestContext, s, aShort) -> {
+        count++;
+        throw new IllegalArgumentException();
       };
     }
 
     public BiFunction<RequestContext, String, Flow<Void>> asInferredClientAddress() {
-      return new BiFunction<RequestContext, String, Flow<Void>>() {
-        @Override
-        public Flow<Void> apply(RequestContext requestContext, String s) {
-          count++;
-          throw new IllegalArgumentException();
-        }
+      return (requestContext, s) -> {
+        count++;
+        throw new IllegalArgumentException();
       };
     }
 
     public BiFunction<RequestContext, StoredBodySupplier, Void> asRequestBodyStart() {
-      return new BiFunction<RequestContext, StoredBodySupplier, Void>() {
-        @Override
-        public Void apply(RequestContext requestContext, StoredBodySupplier storedBodySupplier) {
-          count++;
-          throw new IllegalArgumentException();
-        }
+      return (requestContext, storedBodySupplier) -> {
+        count++;
+        throw new IllegalArgumentException();
       };
     }
 
     public BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> asRequestBodyDone() {
-      return new BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>() {
-        @Override
-        public Flow<Void> apply(
-            RequestContext requestContext, StoredBodySupplier storedBodySupplier) {
-          count++;
-          throw new IllegalArgumentException();
-        }
+      return (requestContext, storedBodySupplier) -> {
+        count++;
+        throw new IllegalArgumentException();
       };
     }
 
