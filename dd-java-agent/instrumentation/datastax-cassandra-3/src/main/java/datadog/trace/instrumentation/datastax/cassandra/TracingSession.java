@@ -16,12 +16,12 @@ import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.ResultSetFuture;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.Statement;
-import com.google.common.base.Function;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.util.AgentThreadFactory;
+
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -52,12 +52,7 @@ public class TracingSession implements Session {
   public ListenableFuture<Session> initAsync() {
     return Futures.transform(
         session.initAsync(),
-        new Function<Session, Session>() {
-          @Override
-          public Session apply(final Session session) {
-            return new TracingSession(session);
-          }
-        },
+        TracingSession::new,
         directExecutor());
   }
 

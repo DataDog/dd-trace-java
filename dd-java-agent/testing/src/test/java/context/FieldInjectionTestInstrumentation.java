@@ -142,13 +142,7 @@ public class FieldInjectionTestInstrumentation extends Instrumenter.Tracing
   }
 
   public static class Context {
-    public static final ContextStore.Factory<Context> FACTORY =
-        new ContextStore.Factory<Context>() {
-          @Override
-          public Context create() {
-            return new Context();
-          }
-        };
+    public static final ContextStore.Factory<Context> FACTORY = Context::new;
 
     int count = 0;
   }

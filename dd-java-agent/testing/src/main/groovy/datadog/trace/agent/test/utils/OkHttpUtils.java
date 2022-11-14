@@ -1,13 +1,14 @@
 package datadog.trace.agent.test.utils;
 
 import datadog.trace.agent.test.server.http.TestHttpServer;
-import java.net.ProxySelector;
-import java.util.concurrent.TimeUnit;
 import okhttp3.OkHttpClient;
 import okhttp3.logging.HttpLoggingInterceptor;
 import okhttp3.logging.HttpLoggingInterceptor.Level;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.net.ProxySelector;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This class was moved from groovy to java because groovy kept trying to introspect on the
@@ -22,13 +23,7 @@ public class OkHttpUtils {
   }
 
   private static final HttpLoggingInterceptor LOGGING_INTERCEPTOR =
-      new HttpLoggingInterceptor(
-          new HttpLoggingInterceptor.Logger() {
-            @Override
-            public void log(final String message) {
-              CLIENT_LOGGER.debug(message);
-            }
-          });
+      new HttpLoggingInterceptor(CLIENT_LOGGER::debug);
 
   static {
     LOGGING_INTERCEPTOR.setLevel(Level.BASIC);

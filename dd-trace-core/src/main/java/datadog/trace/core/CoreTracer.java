@@ -66,6 +66,9 @@ import datadog.trace.lambda.LambdaHandler;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.InvocationTargetException;
@@ -81,8 +84,6 @@ import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.SortedSet;
 import java.util.concurrent.ConcurrentSkipListSet;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Main entrypoint into the tracer implementation. In addition to implementing
@@ -508,12 +509,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     // (using milliseconds granularity.) This avoids a fleet of traced applications starting at the
     // same time from sending metrics in sync.
     AgentTaskScheduler.INSTANCE.scheduleWithJitter(
-        new AgentTaskScheduler.Task<MetricsAggregator>() {
-          @Override
-          public void run(MetricsAggregator target) {
-            target.start();
-          }
-        },
+        MetricsAggregator::start,
         metricsAggregator,
         1,
         SECONDS);
