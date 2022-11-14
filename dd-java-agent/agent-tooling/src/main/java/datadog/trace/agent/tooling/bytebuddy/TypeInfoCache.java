@@ -7,7 +7,6 @@ import java.lang.ref.WeakReference;
 import java.net.URL;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentMap;
-import java.util.function.Function;
 
 /** Shares type information using a single cache across multiple classloaders. */
 public final class TypeInfoCache<T> {
@@ -49,13 +48,11 @@ public final class TypeInfoCache<T> {
   private static LoaderId loaderId(ClassLoader loader) {
     return BOOTSTRAP_LOADER == loader
         ? BOOTSTRAP_LOADER_ID
-        : loaderIds.computeIfAbsent(loader, newLoaderId);
+        : loaderIds.computeIfAbsent(loader, LoaderId::new);
   }
 
   static final ClassLoader BOOTSTRAP_LOADER = null;
   static final LoaderId BOOTSTRAP_LOADER_ID = null;
-
-  private static final Function<ClassLoader, LoaderId> newLoaderId = LoaderId::new;
 
   private static final WeakCache<ClassLoader, LoaderId> loaderIds = WeakCaches.newWeakCache(64);
 
