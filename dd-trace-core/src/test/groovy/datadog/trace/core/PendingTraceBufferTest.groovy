@@ -390,7 +390,7 @@ class PendingTraceBufferTest extends DDSpecification {
   static DDSpan newSpanOf(PendingTrace trace, int samplingPriority) {
     def context = new DDSpanContext(
       trace.traceId,
-      DDSpanId.from(1),
+      1,
       DDSpanId.ZERO,
       null,
       "fakeService",
@@ -415,7 +415,7 @@ class PendingTraceBufferTest extends DDSpecification {
     def trace = parent.context().trace
     def context = new DDSpanContext(
       trace.traceId,
-      DDSpanId.from(2),
+      2,
       parent.context().spanId,
       null,
       "fakeService",

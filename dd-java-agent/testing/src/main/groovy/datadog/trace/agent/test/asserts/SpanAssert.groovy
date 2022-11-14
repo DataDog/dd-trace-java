@@ -105,19 +105,16 @@ class SpanAssert {
   }
 
   def parentSpanId(BigInteger parentId) {
-    parentDDSpanId(parentId != null ? DDSpanId.from("$parentId") : null)
-  }
-
-  def parentDDSpanId(DDSpanId parentId) {
-    assert span.parentId == parentId
+    long id = parentId == null ? 0 : DDSpanId.from("$parentId")
+    assert span.parentId == id
     checked.parentId = true
   }
 
   def traceId(BigInteger traceId) {
-    traceDDTraceId(traceId != null ? DDTraceId.from("$traceId") : null)
+    traceDDId(traceId != null ? DDTraceId.from("$traceId") : null)
   }
 
-  def traceDDTraceId(DDTraceId traceId) {
+  def traceDDId(DDTraceId traceId) {
     assert span.traceId == traceId
     checked.traceId = true
   }

@@ -733,8 +733,8 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
     def trace = Mock(PendingTrace)
     trace.getTracer() >> tracer
     return new DDSpanContext(
-      DDTraceId.from(1),
-      DDSpanId.from(1),
+      DDTraceId.ONE,
+      1,
       DDSpanId.ZERO,
       "",
       "",

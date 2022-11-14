@@ -20,13 +20,11 @@ public class TlsScopeListener implements ExtendedScopeListener {
     this.tls = tls;
   }
 
-  void push(DDTraceId traceId, DDSpanId spanId) {
+  void push(DDTraceId traceId, long spanId) {
     Deque<Span> stack = spanStack.get();
 
     Span top = stack.peek();
-    if (top == null
-        || top.getTraceId().toLong() != traceId.toLong()
-        || top.getSpanId().toLong() != spanId.toLong()) {
+    if (top == null || top.getTraceId().toLong() != traceId.toLong() || top.getSpanId() != spanId) {
 
       Span span = new Span(traceId, spanId);
       stack.push(span);
@@ -55,7 +53,7 @@ public class TlsScopeListener implements ExtendedScopeListener {
   }
 
   @Override
-  public void afterScopeActivated(DDTraceId traceId, DDSpanId localRootSpanId, DDSpanId spanId) {
+  public void afterScopeActivated(DDTraceId traceId, long localRootSpanId, long spanId) {
     push(traceId, spanId);
   }
 

@@ -36,14 +36,14 @@ public class PendingTraceWrite {
             .writer(new BlackholeWriter(blackhole, counters, tokens))
             .strictTraceWrites(false)
             .build();
-    DDTraceId traceId = DDTraceId.from(1);
+    DDTraceId traceId = DDTraceId.ONE;
     trace = tracer.createTrace(traceId);
     root =
         DDSpan.create(
             System.currentTimeMillis() * 1000,
             new DDSpanContext(
                 traceId,
-                DDSpanId.from(2),
+                2,
                 DDSpanId.ZERO,
                 null,
                 "service",
@@ -66,8 +66,8 @@ public class PendingTraceWrite {
             System.currentTimeMillis() * 1000,
             new DDSpanContext(
                 traceId,
-                DDSpanId.from(3),
-                DDSpanId.from(2),
+                3,
+                2,
                 null,
                 "service",
                 "operation",

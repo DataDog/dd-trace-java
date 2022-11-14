@@ -297,7 +297,7 @@ class DatadogHttpExtractorTest extends DDSpecification {
     "1"                   | "-1"                  | null            | null
     "0"                   | "1"                   | null            | null
     "1"                   | "0"                   | DDTraceId.ONE   | DDSpanId.ZERO
-    "$TRACE_ID_MAX"       | "1"                   | DDTraceId.MAX   | DDSpanId.ONE
+    "$TRACE_ID_MAX"       | "1"                   | DDTraceId.MAX   | 1
     "${TRACE_ID_MAX + 1}" | "1"                   | null            | null
     "1"                   | "$TRACE_ID_MAX"       | DDTraceId.ONE   | DDSpanId.MAX
     "1"                   | "${TRACE_ID_MAX + 1}" | null            | null

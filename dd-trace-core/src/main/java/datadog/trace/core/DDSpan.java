@@ -351,7 +351,7 @@ public class DDSpan
    * @return true if root, false otherwise
    */
   public final boolean isRootSpan() {
-    return DDSpanId.ZERO.equals(context.getParentId());
+    return context.getParentId() == DDSpanId.ZERO;
   }
 
   @Override
@@ -378,7 +378,6 @@ public class DDSpan
   public boolean isSameTrace(final AgentSpan otherSpan) {
     // FIXME [API] AgentSpan or AgentSpan.Context should have a "getTraceId()" type method
     if (otherSpan instanceof DDSpan) {
-      // minor optimization to avoid BigInteger.toString()
       return getTraceId().equals(otherSpan.getTraceId());
     }
 
@@ -670,12 +669,12 @@ public class DDSpan
   }
 
   @Override
-  public DDSpanId getSpanId() {
+  public long getSpanId() {
     return context.getSpanId();
   }
 
   @Override
-  public DDSpanId getParentId() {
+  public long getParentId() {
     return context.getParentId();
   }
 

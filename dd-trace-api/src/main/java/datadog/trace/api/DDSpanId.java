@@ -1,91 +1,70 @@
 package datadog.trace.api;
 
-/** Class encapsulating the unsigned 64 bit id used for Span ids. */
-public class DDSpanId extends DDId {
+/** Class with methods for working with the unsigned 64 bit id used for Span ids. */
+public final class DDSpanId {
 
-  public static final DDSpanId ZERO = new DDSpanId(0, "0");
-  public static final DDSpanId MAX = new DDSpanId(-1, "18446744073709551615"); // All bits set
+  // Don't allow instances
+  private DDSpanId() {}
 
-  // Convenience constant used from tests
-  public static final DDSpanId ONE = DDSpanId.from(1);
+  /** The ZERO span id is not allowed and means no span. */
+  public static final long ZERO = 0;
 
-  /**
-   * Create a new {@code DDSpanId} from the given {@code long} interpreted as the bits of the
-   * unsigned 64 bit id. This means that values larger than Long.MAX_VALUE will be represented as
-   * negative numbers.
-   *
-   * @param id long representing the bits of the unsigned 64 bit id
-   * @return DDSpanId
-   */
-  public static DDSpanId from(long id) {
-    return DDSpanId.create(id, null);
-  }
+  // All bits set, only used from tests
+  public static final long MAX = -1;
 
   /**
-   * Create a new {@code DDSpanId} from the given {@code String} representation of the unsigned 64
-   * bit id.
+   * Parse the span id from the given {@code String} representation of the unsigned 64 bit id.
    *
    * @param s String of unsigned 64 bit id
-   * @return DDSpanId
+   * @return long
    * @throws NumberFormatException
    */
-  public static DDSpanId from(String s) throws NumberFormatException {
-    return DDSpanId.create(parseUnsignedLong(s), s);
+  public static long from(String s) throws NumberFormatException {
+    return DDId.parseUnsignedLong(s);
   }
 
   /**
-   * Create a new {@code DDSpanId} from the given {@code String} hex representation of the unsigned
-   * 64 bit id.
+   * Parse the span id from the given {@code String} hex representation of the unsigned 64 bit id.
    *
    * @param s String in hex of unsigned 64 bit id
-   * @return DDSpanId
+   * @return long
    * @throws NumberFormatException
    */
-  public static DDSpanId fromHex(String s) throws NumberFormatException {
-    return DDSpanId.create(parseUnsignedLongHex(s), null);
+  public static long fromHex(String s) throws NumberFormatException {
+    return DDId.parseUnsignedLongHex(s);
   }
 
   /**
-   * Create a new {@code DDSpanId} from the given {@code String} hex representation of the unsigned
-   * 64 bit id, while retalining the original {@code String} representation for use in headers.
+   * Returns the decimal string representation of the unsigned 64 bit id. The {@code String} will
+   * NOT be cached.
    *
-   * @param s String in hex of unsigned 64 bit id
-   * @return DDSpanId
-   * @throws NumberFormatException
+   * @param id the long 64 bit id to generate a String for
+   * @return decimal string
    */
-  public static DDSpanId fromHexWithOriginal(String s) throws NumberFormatException {
-    return new DDIdOriginal(parseUnsignedLongHex(s), s);
+  public static String toString(long id) {
+    // TODO Cache here? https://github.com/DataDog/dd-trace-java/issues/4236
+    return Long.toUnsignedString(id);
   }
 
-  private static DDSpanId create(long id, String str) {
-    if (id == 0) return ZERO;
-    if (id == -1) return MAX;
-    return new DDSpanId(id, str);
+  /**
+   * Returns the no zero padded hex representation, in lower case, of the unsigned 64 bit id. The
+   * hex {@code String} will NOT be cached.
+   *
+   * @return non zero padded hex String
+   */
+  public static String toHexString(long id) {
+    // TODO Cache here? https://github.com/DataDog/dd-trace-java/issues/4236
+    return Long.toHexString(id);
   }
 
-  private DDSpanId(long id, String str) {
-    super(id, str);
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (!(o instanceof DDSpanId)) return false;
-    DDSpanId ddId = (DDSpanId) o;
-    return this.id == ddId.id;
-  }
-
-  private static final class DDIdOriginal extends DDSpanId {
-    private final String original;
-
-    private DDIdOriginal(long id, String original) {
-      super(id, null);
-      this.original = original;
-    }
-
-    @Override
-    public String toHexStringOrOriginal() {
-      return this.original;
-    }
+  /**
+   * Returns the zero padded hex representation, in lower case, of the unsigned 64 bit id. The size
+   * will be rounded up to 16 characters. The hex {@code String} will NOT be cached.
+   *
+   * @return zero padded hex String
+   */
+  public static String toHexStringPadded(long id) {
+    // TODO Cache here? https://github.com/DataDog/dd-trace-java/issues/4236
+    return DDId.toHexStringPadded(id, 16);
   }
 }

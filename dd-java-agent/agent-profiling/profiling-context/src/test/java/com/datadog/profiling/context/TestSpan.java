@@ -29,7 +29,7 @@ public final class TestSpan implements AgentSpan {
   }
 
   @Override
-  public DDSpanId getSpanId() {
+  public long getSpanId() {
     return DDSpanId.ZERO;
   }
 

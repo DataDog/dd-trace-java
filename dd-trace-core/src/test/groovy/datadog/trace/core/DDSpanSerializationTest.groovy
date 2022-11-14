@@ -60,7 +60,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
           if (next == MessageFormat.UINT64) {
             assert spanId == DDSpanId.from("${unpacker.unpackBigInteger()}")
           } else {
-            assert spanId == DDSpanId.from(unpacker.unpackLong())
+            assert spanId == unpacker.unpackLong()
           }
           break
         default:
@@ -126,7 +126,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
           if (next == MessageFormat.UINT64) {
             assert spanId == DDSpanId.from("${unpacker.unpackBigInteger()}")
           } else {
-            assert spanId == DDSpanId.from(unpacker.unpackLong())
+            assert spanId == unpacker.unpackLong()
           }
           break
         default:
@@ -153,7 +153,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     def tracer = tracerBuilder().writer(writer).build()
     def context = new DDSpanContext(
       DDTraceId.ONE,
-      DDSpanId.ONE,
+      1,
       DDSpanId.ZERO,
       null,
       "fakeService",
@@ -224,7 +224,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     def tracer = tracerBuilder().writer(writer).build()
     def context = new DDSpanContext(
       DDTraceId.ONE,
-      DDSpanId.ONE,
+      1,
       DDSpanId.ZERO,
       null,
       "fakeService",
@@ -302,7 +302,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     }
   }
 
-  def createContext(String spanType, CoreTracer tracer, DDTraceId traceId, DDSpanId spanId) {
+  def createContext(String spanType, CoreTracer tracer, DDTraceId traceId, long spanId) {
     DDSpanContext ctx = new DDSpanContext(
       traceId,
       spanId,

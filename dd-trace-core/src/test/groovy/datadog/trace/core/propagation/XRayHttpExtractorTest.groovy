@@ -197,17 +197,17 @@ class XRayHttpExtractorTest extends DDSpecification {
       assert context.traceId == expectedTraceId
       assert context.traceId.toHexStringOrOriginal() == traceId.padLeft(16, '0')
       assert context.spanId == expectedSpanId
-      assert context.spanId.toHexStringOrOriginal() == spanId.padLeft(16, '0')
+      assert DDSpanId.toHexStringPadded(context.spanId) == spanId.padLeft(16, '0')
     } else {
       assert context == null
     }
 
     where:
-    traceId            | spanId             | expectedTraceId                  | expectedSpanId
-    "00001"            | "00001"            | DDTraceId.ONE                         | DDSpanId.ONE
+    traceId            | spanId             | expectedTraceId                       | expectedSpanId
+    "00001"            | "00001"            | DDTraceId.ONE                         | 1
     "463ac35c9f6413ad" | "463ac35c9f6413ad" | DDTraceId.from("5060571933882717101") | DDSpanId.from("5060571933882717101")
-    "48485a3953bb6124" | "1"                | DDTraceId.from("5208512171318403364") | DDSpanId.ONE
-    "f" * 16           | "1"                | DDTraceId.MAX                         | DDSpanId.ONE
+    "48485a3953bb6124" | "1"                | DDTraceId.from("5208512171318403364") | 1
+    "f" * 16           | "1"                | DDTraceId.MAX                         | 1
     "1"                | "f" * 16           | DDTraceId.ONE                         | DDSpanId.MAX
   }
 

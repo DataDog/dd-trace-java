@@ -14,7 +14,7 @@ import groovy.transform.stc.SimpleType
 import java.util.regex.Pattern
 
 class TagsAssert {
-  private final DDSpanId spanParentId
+  private final long spanParentId
   private final Map<String, Object> tags
   private final Set<String> assertedTags = new TreeSet<>()
 

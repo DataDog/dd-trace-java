@@ -227,7 +227,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       TEST_SPANS.add(agentSpan.spanId)
       agentSpan
     }
-    TEST_CHECKPOINTER.checkpoint(_, _, _) >> { DDTraceId traceId, DDSpanId spanId, int flags ->
+    TEST_CHECKPOINTER.checkpoint(_, _, _) >> { DDTraceId traceId, long spanId, int flags ->
       if (TEST_SPANS.contains(spanId)) {
         callRealMethod()
       }

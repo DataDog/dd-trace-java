@@ -33,7 +33,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected final Map<String, String> taggedHeaders;
 
   protected DDTraceId traceId;
-  protected DDSpanId spanId;
+  protected long spanId;
   protected int samplingPriority;
   protected Map<String, String> tags;
   protected Map<String, String> baggage;

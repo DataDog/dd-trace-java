@@ -67,12 +67,12 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   }
 
   @Override
-  DDSpanId getSpanId() {
+  long getSpanId() {
     return DDSpanId.ZERO
   }
 
   @Override
-  DDSpanId getParentId() {
+  long getParentId() {
     return DDSpanId.ZERO
   }
 

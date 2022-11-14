@@ -11,8 +11,8 @@ public enum IdGenerationStrategy {
     }
 
     @Override
-    public DDSpanId generateSpanId() {
-      return DDSpanId.from(ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE));
+    public long generateSpanId() {
+      return ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
     }
   },
   SEQUENTIAL {
@@ -24,12 +24,12 @@ public enum IdGenerationStrategy {
     }
 
     @Override
-    public DDSpanId generateSpanId() {
-      return DDSpanId.from(id.incrementAndGet());
+    public long generateSpanId() {
+      return id.incrementAndGet();
     }
   };
 
   public abstract DDTraceId generateTraceId();
 
-  public abstract DDSpanId generateSpanId();
+  public abstract long generateSpanId();
 }

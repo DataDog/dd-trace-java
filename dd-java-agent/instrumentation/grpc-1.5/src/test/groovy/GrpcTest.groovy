@@ -467,7 +467,7 @@ abstract class GrpcTest extends AgentTestRunner {
           operationName "grpc.server"
           resourceName "example.Greeter/Ignore"
           spanType DDSpanTypes.RPC
-          parentDDSpanId DDSpanId.ZERO
+          parentSpanId DDSpanId.ZERO
           errored false
           measured true
           tags {

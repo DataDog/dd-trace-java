@@ -449,7 +449,7 @@ public class AgentTracer {
     }
 
     @Override
-    public DDSpanId getSpanId() {
+    public long getSpanId() {
       return DDSpanId.ZERO;
     }
 
@@ -842,7 +842,7 @@ public class AgentTracer {
     }
 
     @Override
-    public DDSpanId getSpanId() {
+    public long getSpanId() {
       return DDSpanId.ZERO;
     }
 

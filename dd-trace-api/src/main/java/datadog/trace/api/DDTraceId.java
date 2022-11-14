@@ -1,10 +1,17 @@
 package datadog.trace.api;
 
-/** Class encapsulating the unsigned 64 bit id used for Trace ids. */
-public class DDTraceId extends DDId {
+/**
+ * Class encapsulating the unsigned 64 bit id used for Traceids.
+ *
+ * <p>It contains generation of new ids, parsing, and to string for both decimal and hex
+ * representations. The decimal string representation is either kept from parsing, or generated on
+ * demand and cached.
+ */
+public class DDTraceId {
 
-  public static final DDTraceId ZERO = new DDTraceId(0, "0");
-  public static final DDTraceId MAX = new DDTraceId(-1, "18446744073709551615"); // All bits set
+  public static final DDTraceId ZERO = new DDTraceId(0, "0", null);
+  public static final DDTraceId MAX =
+      new DDTraceId(-1, "18446744073709551615", null); // All bits set
 
   // Convenience constant used from tests
   public static final DDTraceId ONE = DDTraceId.from(1);
@@ -30,7 +37,7 @@ public class DDTraceId extends DDId {
    * @throws NumberFormatException
    */
   public static DDTraceId from(String s) throws NumberFormatException {
-    return DDTraceId.create(parseUnsignedLong(s), s);
+    return DDTraceId.create(DDId.parseUnsignedLong(s), s);
   }
 
   /**
@@ -42,7 +49,7 @@ public class DDTraceId extends DDId {
    * @throws NumberFormatException
    */
   public static DDTraceId fromHex(String s) throws NumberFormatException {
-    return DDTraceId.create(parseUnsignedLongHex(s), null);
+    return DDTraceId.create(DDId.parseUnsignedLongHex(s), null);
   }
 
   /**
@@ -61,17 +68,23 @@ public class DDTraceId extends DDId {
 
     int len = s.length();
     int trimmed = Math.min(s.length(), 16);
-    return new DDIdOriginal(parseUnsignedLongHex(s, len - trimmed, trimmed), s);
+    return new DDTraceId(DDId.parseUnsignedLongHex(s, len - trimmed, trimmed), null, s);
   }
 
   private static DDTraceId create(long id, String str) {
     if (id == 0) return ZERO;
     if (id == -1) return MAX;
-    return new DDTraceId(id, str);
+    return new DDTraceId(id, str, null);
   }
 
-  private DDTraceId(long id, String str) {
-    super(id, str);
+  private final long id;
+  private String str; // cache for string representation
+  private String hex; //
+
+  private DDTraceId(long id, String str, String original) {
+    this.id = id;
+    this.str = str;
+    this.hex = original;
   }
 
   @Override
@@ -82,17 +95,74 @@ public class DDTraceId extends DDId {
     return this.id == ddId.id;
   }
 
-  private static final class DDIdOriginal extends DDTraceId {
-    private final String original;
+  @Override
+  public int hashCode() {
+    long id = this.id;
+    return (int) (id ^ (id >>> 32));
+  }
 
-    private DDIdOriginal(long id, String original) {
-      super(id, null);
-      this.original = original;
+  /**
+   * Returns the decimal string representation of the unsigned 64 bit id. The {@code String} will be
+   * cached.
+   *
+   * @return decimal string
+   */
+  @Override
+  public String toString() {
+    String s = this.str;
+    // This race condition is intentional and benign.
+    // The worst that can happen is that an identical value is produced and written into the field.
+    if (s == null) {
+      this.str = s = Long.toUnsignedString(this.id);
     }
+    return s;
+  }
 
-    @Override
-    public String toHexStringOrOriginal() {
-      return this.original;
+  /**
+   * Returns the no zero padded hex representation, in lower case, of the unsigned 64 bit id. The
+   * hex {@code String} will NOT be cached.
+   *
+   * @return non zero padded hex String
+   */
+  public String toHexString() {
+    // TODO use the cached String and trim it if necessary
+    return Long.toHexString(this.id);
+  }
+
+  /**
+   * Returns the zero padded hex representation, in lower case, of the unsigned 64 bit id. The size
+   * will be rounded up to 16 or 32 characters. The hex {@code String} will NOT be cached.
+   *
+   * @param size the size in characters of the 0 padded String (rounded up to 16 or 32)
+   * @return zero padded hex String
+   */
+  public String toHexStringPadded(int size) {
+    // TODO use the cached String and pad it if necessary
+    return DDId.toHexStringPadded(this.id, size);
+  }
+
+  /**
+   * Returns the no zero padded hex representation, in lower case, of the unsigned 64 bit id, or the
+   * original {@code String} used to create this {@code DDId}. The hex {@code String} will NOT be
+   * cached.
+   *
+   * @return non zero padded hex String
+   */
+  public String toHexStringOrOriginal() {
+    String h = this.hex;
+    if (h == null) {
+      this.hex = h = this.toHexString();
     }
+    return h;
+  }
+
+  /**
+   * Returns the id as a long representing the bits of the unsigned 64 bit id. This means that
+   * values larger than Long.MAX_VALUE will be represented as negative numbers.
+   *
+   * @return long value representing the bits of the unsigned 64 bit id.
+   */
+  public long toLong() {
+    return this.id;
   }
 }

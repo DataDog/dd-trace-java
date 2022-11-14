@@ -426,8 +426,8 @@ class DDAgentApiTest extends DDCoreSpecification {
   DDSpan buildSpan(long timestamp, String tag, String value, DatadogTags datadogTags) {
     def tracer = tracerBuilder().writer(new ListWriter()).build()
     def context = new DDSpanContext(
-      DDTraceId.from(1),
-      DDSpanId.from(1),
+      DDTraceId.ONE,
+      1,
       DDSpanId.ZERO,
       null,
       "fakeService",
@@ -439,7 +439,7 @@ class DDAgentApiTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDTraceId.from(1)),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,

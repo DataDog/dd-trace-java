@@ -1,8 +1,8 @@
 package datadog.trace.core
 
 import datadog.trace.api.Checkpointer
-import datadog.trace.api.DDTags
 import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.sampling.PrioritySampling
@@ -271,7 +271,7 @@ class DDSpanTest extends DDCoreSpecification {
     where:
     extractedContext                                                                                                                          | _
     new TagContext("some-origin", [:])                                                                                                        | _
-    new ExtractedContext(DDTraceId.ONE, DDSpanId.from(2), PrioritySampling.SAMPLER_DROP, "some-origin", 0, [:], [:], null, datadogTagsFactory.empty()) | _
+    new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, "some-origin", 0, [:], [:], null, datadogTagsFactory.empty()) | _
   }
 
   def "isRootSpan() in and not in the context of distributed tracing"() {
@@ -290,7 +290,7 @@ class DDSpanTest extends DDCoreSpecification {
     where:
     extractedContext                                                                                                                          | isTraceRootSpan
     null                                                                                                                                      | true
-    new ExtractedContext(DDTraceId.from(123), DDSpanId.from(456), PrioritySampling.SAMPLER_KEEP, "789", 0, [:], [:], null, datadogTagsFactory.empty()) | false
+    new ExtractedContext(DDTraceId.from(123), 456, PrioritySampling.SAMPLER_KEEP, "789", 0, [:], [:], null, datadogTagsFactory.empty()) | false
   }
 
   def "getApplicationRootSpan() in and not in the context of distributed tracing"() {
@@ -312,7 +312,7 @@ class DDSpanTest extends DDCoreSpecification {
     where:
     extractedContext                                                                                                                          | isTraceRootSpan
     null                                                                                                                                      | true
-    new ExtractedContext(DDTraceId.from(123), DDSpanId.from(456), PrioritySampling.SAMPLER_KEEP, "789", 0, [:], [:], null, datadogTagsFactory.empty()) | false
+    new ExtractedContext(DDTraceId.from(123), 456, PrioritySampling.SAMPLER_KEEP, "789", 0, [:], [:], null, datadogTagsFactory.empty()) | false
   }
 
   def 'publishing of root span closes the request context data'() {
@@ -345,8 +345,8 @@ class DDSpanTest extends DDCoreSpecification {
     when:
     DDSpanContext context =
       new DDSpanContext(
-      DDTraceId.from(1),
-      DDSpanId.from(1),
+      DDTraceId.ONE,
+      1,
       DDSpanId.ZERO,
       parentServiceName,
       "fakeService",
@@ -384,8 +384,8 @@ class DDSpanTest extends DDCoreSpecification {
     def datadogTagsFactory = tracer.getDatadogTagsFactory()
     DDSpanContext context =
       new DDSpanContext(
-      DDTraceId.from(1),
-      DDSpanId.from(1),
+      DDTraceId.ONE,
+      1,
       DDSpanId.ZERO,
       null,
       "fakeService",

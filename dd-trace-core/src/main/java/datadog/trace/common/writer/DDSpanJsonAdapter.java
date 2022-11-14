@@ -100,12 +100,12 @@ class DDSpanJsonAdapter extends JsonAdapter<DDSpan> {
     }
   }
 
-  private void writeSpanId(final com.squareup.moshi.JsonWriter writer, final DDSpanId id)
+  private void writeSpanId(final com.squareup.moshi.JsonWriter writer, final long id)
       throws IOException {
     if (hexIds) {
-      writer.value(id.toHexString());
+      writer.value(DDSpanId.toHexString(id));
     } else {
-      writer.value(id.toLong());
+      writer.value(id);
     }
   }
 }

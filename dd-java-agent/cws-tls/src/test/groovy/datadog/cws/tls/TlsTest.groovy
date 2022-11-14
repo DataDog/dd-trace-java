@@ -13,23 +13,23 @@ class TlsTest extends DDSpecification {
 
     AgentSpan parent = Stub(AgentSpan)
     parent.getTraceId() >> DDTraceId.from(11L)
-    parent.getSpanId() >> DDSpanId.from(12L)
+    parent.getSpanId() >> 12L
 
     AgentSpan span = Stub(AgentSpan)
     span.getTraceId() >> DDTraceId.from(21L)
-    span.getSpanId() >> DDSpanId.from(22L)
+    span.getSpanId() >> 22L
 
     when:
-    listener.afterScopeActivated(DDTraceId.from(11L), DDSpanId.ZERO, DDSpanId.from(12L))
-    listener.afterScopeActivated(DDTraceId.from(21L), DDSpanId.ZERO, DDSpanId.from(22L))
+    listener.afterScopeActivated(DDTraceId.from(11L), DDSpanId.ZERO, 12L)
+    listener.afterScopeActivated(DDTraceId.from(21L), DDSpanId.ZERO, 22L)
     then:
     tls.getTraceId() == DDTraceId.from(21L)
-    tls.getSpanId() == DDSpanId.from(22L)
+    tls.getSpanId() == 22L
 
     when:
     listener.afterScopeClosed()
     then:
     tls.getTraceId() == DDTraceId.from(11L)
-    tls.getSpanId() == DDSpanId.from(12L)
+    tls.getSpanId() == 12L
   }
 }

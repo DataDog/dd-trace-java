@@ -1,5 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.interceptor.MutableSpan
@@ -136,11 +135,11 @@ class OpenTelemetryTest extends AgentTestRunner {
     setup:
     def builder = tracer.spanBuilder("some name")
     if (parentId) {
-      def ctx = new ExtractedContext(DDTraceId.ONE, DDSpanId.from(parentId), SAMPLER_DROP, null, 0, [:], [:], null, DatadogTags.factory().empty())
+      def ctx = new ExtractedContext(DDTraceId.ONE, parentId, SAMPLER_DROP, null, 0, [:], [:], null, DatadogTags.factory().empty())
       builder.setParent(tracer.converter.toSpanContext(ctx))
     }
     if (linkId) {
-      def ctx = new ExtractedContext(DDTraceId.ONE, DDSpanId.from(linkId), SAMPLER_DROP, null, 0, [:], [:], null, DatadogTags.factory().empty())
+      def ctx = new ExtractedContext(DDTraceId.ONE, linkId, SAMPLER_DROP, null, 0, [:], [:], null, DatadogTags.factory().empty())
       builder.addLink(tracer.converter.toSpanContext(ctx))
     }
     def result = builder.startSpan()
@@ -158,8 +157,8 @@ class OpenTelemetryTest extends AgentTestRunner {
       trace(1) {
         span {
           if (expectedId) {
-            traceDDTraceId(DDTraceId.ONE)
-            parentDDSpanId(DDSpanId.from(expectedId))
+            traceDDId(DDTraceId.ONE)
+            parentSpanId(expectedId)
           } else {
             parent()
           }

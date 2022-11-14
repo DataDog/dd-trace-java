@@ -160,9 +160,9 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
 
   def "should link to parent span"() {
     setup:
-    final DDSpanId spanId = DDSpanId.ONE
+    final long spanId = 1
     final DDTraceId traceId = DDTraceId.ONE
-    final DDSpanId expectedParentId = spanId
+    final long expectedParentId = spanId
 
     final DDSpanContext mockedContext = Mock()
     1 * mockedContext.getTraceId() >> traceId
@@ -193,7 +193,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     final AgentScope parent = tracer.activateSpan(noopParent ?
       AgentTracer.NoopAgentSpan.INSTANCE : tracer.buildSpan("parent").withServiceName("service").start())
 
-    final DDSpanId expectedParentId = noopParent ? DDSpanId.ZERO : parent.span().context().getSpanId()
+    final long expectedParentId = noopParent ? DDSpanId.ZERO : parent.span().context().getSpanId()
 
     final String expectedName = "fakeName"
 
@@ -327,8 +327,8 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
 
     where:
     extractedContext | _
-    new ExtractedContext(DDTraceId.ONE, DDSpanId.from(2), PrioritySampling.SAMPLER_DROP, null, 0, [:], [:], null, DatadogTags.factory().fromHeaderValue("_dd.p.dm=934086a686-4,_dd.p.anytag=value"))                 | _
-    new ExtractedContext(DDTraceId.from(3), DDSpanId.from(4), PrioritySampling.SAMPLER_KEEP, "some-origin", 0, ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"], null, DatadogTags.factory().empty()) | _
+    new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, null, 0, [:], [:], null, DatadogTags.factory().fromHeaderValue("_dd.p.dm=934086a686-4,_dd.p.anytag=value"))                 | _
+    new ExtractedContext(DDTraceId.from(3), 4, PrioritySampling.SAMPLER_KEEP, "some-origin", 0, ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"], null, DatadogTags.factory().empty()) | _
   }
 
   def "TagContext should populate default span details"() {

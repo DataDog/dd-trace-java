@@ -18,7 +18,7 @@ class TimelineCheckpointer implements Checkpointer {
   @Override
   void checkpoint(AgentSpan span, int flags) {
     Thread currentThread = Thread.currentThread()
-    DDSpanId spanId = span.getSpanId()
+    long spanId = span.getSpanId()
     DDTraceId traceId = span.getTraceId()
     Event event = new Event(flags, traceId, spanId, currentThread)
     orderedEvents.add(event)

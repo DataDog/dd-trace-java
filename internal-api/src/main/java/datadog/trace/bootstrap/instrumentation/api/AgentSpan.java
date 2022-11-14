@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
@@ -11,7 +10,7 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
   DDTraceId getTraceId();
 
-  DDSpanId getSpanId();
+  long getSpanId();
 
   @Override
   AgentSpan setTag(String key, boolean value);
@@ -153,7 +152,7 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   interface Context {
     DDTraceId getTraceId();
 
-    DDSpanId getSpanId();
+    long getSpanId();
 
     AgentTrace getTrace();
 

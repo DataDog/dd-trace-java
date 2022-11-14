@@ -47,7 +47,7 @@ class B3HttpCodec {
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
       try {
         final String injectedTraceId = context.getTraceId().toHexStringOrOriginal();
-        final String injectedSpanId = context.getSpanId().toHexStringOrOriginal();
+        final String injectedSpanId = DDSpanId.toHexString(context.getSpanId());
         setter.set(carrier, TRACE_ID_KEY, injectedTraceId);
         setter.set(carrier, SPAN_ID_KEY, injectedSpanId);
 
@@ -122,8 +122,7 @@ class B3HttpCodec {
             if ((traceId == null || traceId == DDTraceId.ZERO)
                 && TRACE_ID_KEY.equalsIgnoreCase(key)) {
               classification = TRACE_ID;
-            } else if ((spanId == null || spanId == DDSpanId.ZERO)
-                && SPAN_ID_KEY.equalsIgnoreCase(key)) {
+            } else if ((spanId == DDSpanId.ZERO) && SPAN_ID_KEY.equalsIgnoreCase(key)) {
               classification = SPAN_ID;
             } else if (samplingPriority == defaultSamplingPriority()
                 && SAMPLING_PRIORITY_KEY.equalsIgnoreCase(key)) {
@@ -227,7 +226,7 @@ class B3HttpCodec {
     }
 
     private void setSpanId(final String sId) {
-      spanId = DDSpanId.fromHexWithOriginal(sId);
+      spanId = DDSpanId.fromHex(sId);
       if (tags.isEmpty()) {
         tags = new TreeMap<>();
       }

@@ -116,8 +116,8 @@ class B3HttpInjectorTest extends DDCoreSpecification {
 
     then:
     1 * carrier.put(TRACE_ID_KEY, traceId)
-    1 * carrier.put(SPAN_ID_KEY, spanId)
-    1 * carrier.put(B3_KEY, traceId + "-" + spanId)
+    1 * carrier.put(SPAN_ID_KEY, trimmed(spanId))
+    1 * carrier.put(B3_KEY, traceId + "-" + trimmed(spanId))
     0 * _
 
     cleanup:
@@ -132,5 +132,17 @@ class B3HttpInjectorTest extends DDCoreSpecification {
     "a" * 16 + "f" * 16                | "1"
     "1"                                | "f" * 16
     "1"                                | "000" + "f" * 16
+  }
+
+  String trimmed(String hex) {
+    int length = hex.length()
+    int i = 0
+    while (i < length  && hex.charAt(i) == '0') {
+      i++
+    }
+    if (i == length) {
+      return "0"
+    }
+    return hex.substring(i, length)
   }
 }

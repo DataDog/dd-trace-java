@@ -162,7 +162,7 @@ public class TagContext implements AgentSpan.Context.Extracted {
   }
 
   @Override
-  public DDSpanId getSpanId() {
+  public long getSpanId() {
     return DDSpanId.ZERO;
   }
 

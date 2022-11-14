@@ -1,27 +1,25 @@
 package com.datadog.iast.model;
 
-import datadog.trace.api.DDSpanId;
-
 public final class Location {
 
   private final String path;
 
   private final int line;
 
-  private final DDSpanId spanId;
+  private final Long spanId;
 
-  private Location(final DDSpanId spanId, final String path, final int line) {
-    this.spanId = spanId;
+  private Location(final long spanId, final String path, final int line) {
+    this.spanId = spanId == 0 ? null : spanId;
     this.path = path;
     this.line = line;
   }
 
-  public static Location forSpanAndStack(final DDSpanId spanId, final StackTraceElement stack) {
+  public static Location forSpanAndStack(final long spanId, final StackTraceElement stack) {
     return new Location(spanId, stack.getClassName(), stack.getLineNumber());
   }
 
-  public DDSpanId getSpanId() {
-    return spanId;
+  public long getSpanId() {
+    return spanId == null ? 0 : spanId;
   }
 
   public String getPath() {

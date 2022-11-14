@@ -169,8 +169,8 @@ class DDAgentWriterTest extends DDCoreSpecification {
     PendingTrace trace = Mock(PendingTrace)
     trace.getTracer() >> tracer
     def context = new DDSpanContext(
-      DDTraceId.from(1),
-      DDSpanId.from(1),
+      DDTraceId.ONE,
+      1,
       DDSpanId.ZERO,
       null,
       "",

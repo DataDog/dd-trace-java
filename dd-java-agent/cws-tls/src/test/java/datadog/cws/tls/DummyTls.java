@@ -1,21 +1,20 @@
 package datadog.cws.tls;
 
-import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 
 class DummyTls implements Tls {
 
   private DDTraceId traceId;
-  private DDSpanId spanId;
+  private long spanId;
 
   @Override
-  public void registerSpan(DDTraceId traceId, DDSpanId spanId) {
+  public void registerSpan(DDTraceId traceId, long spanId) {
     this.traceId = traceId;
     this.spanId = spanId;
   }
 
   @Override
-  public DDSpanId getSpanId() {
+  public long getSpanId() {
     return spanId;
   }
 

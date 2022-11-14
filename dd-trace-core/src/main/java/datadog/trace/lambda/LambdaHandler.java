@@ -124,7 +124,7 @@ public class LambdaHandler {
             .url(EXTENSION_BASE_URL + END_INVOCATION)
             .addHeader(DATADOG_META_LANG, "java")
             .addHeader(DATADOG_TRACE_ID, span.getTraceId().toString())
-            .addHeader(DATADOG_SPAN_ID, span.getSpanId().toString())
+            .addHeader(DATADOG_SPAN_ID, DDSpanId.toString(span.getSpanId()))
             .addHeader(DATADOG_SAMPLING_PRIORITY, span.getSamplingPriority().toString())
             .addHeader(DATADOG_META_LANG, "java")
             .post(body);

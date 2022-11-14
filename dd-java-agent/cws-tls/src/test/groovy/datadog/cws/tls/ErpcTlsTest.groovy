@@ -2,7 +2,6 @@ package datadog.cws.tls
 
 import com.sun.jna.Native
 
-import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.test.util.DDSpecification
 
@@ -13,14 +12,14 @@ class ErpcTlsTest extends DDSpecification {
 
     when:
     DDTraceId traceId = DDTraceId.from(789L)
-    DDSpanId spanId = DDSpanId.from(456L)
+    long spanId = 456L
     tls.registerSpan(123, traceId, spanId)
 
     then:
     tls.getTraceId(123) == traceId
     tls.getSpanId(123) == spanId
     tls.getTraceId(222) ==  DDTraceId.from(0L)
-    tls.getSpanId(111) == DDSpanId.from(0L)
+    tls.getSpanId(111) == 0L
   }
 
   def "register tls"(){

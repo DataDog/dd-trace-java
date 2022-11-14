@@ -74,12 +74,16 @@ class HaystackHttpCodec {
         context.setTag(HAYSTACK_TRACE_ID_BAGGAGE_KEY, injectedTraceId);
         setter.set(
             carrier, DD_TRACE_ID_BAGGAGE_KEY, HttpCodec.encode(context.getTraceId().toString()));
-        setter.set(carrier, SPAN_ID_KEY, convertLongToUUID(context.getSpanId().toLong()));
+        setter.set(carrier, SPAN_ID_KEY, convertLongToUUID(context.getSpanId()));
         setter.set(
-            carrier, DD_SPAN_ID_BAGGAGE_KEY, HttpCodec.encode(context.getSpanId().toString()));
-        setter.set(carrier, PARENT_ID_KEY, convertLongToUUID(context.getParentId().toLong()));
+            carrier,
+            DD_SPAN_ID_BAGGAGE_KEY,
+            HttpCodec.encode(DDSpanId.toString(context.getSpanId())));
+        setter.set(carrier, PARENT_ID_KEY, convertLongToUUID(context.getParentId()));
         setter.set(
-            carrier, DD_PARENT_ID_BAGGAGE_KEY, HttpCodec.encode(context.getParentId().toString()));
+            carrier,
+            DD_PARENT_ID_BAGGAGE_KEY,
+            HttpCodec.encode(DDSpanId.toString(context.getParentId())));
 
         for (final Map.Entry<String, String> entry : context.baggageItems()) {
           setter.set(

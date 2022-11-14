@@ -118,8 +118,8 @@ class TraceGenerator {
     private final CharSequence operationName
     private final CharSequence resourceName
     private final DDTraceId traceId
-    private final DDSpanId spanId
-    private final DDSpanId parentId
+    private final long spanId
+    private final long parentId
     private final long start
     private final long duration
     private final int error
@@ -132,8 +132,8 @@ class TraceGenerator {
     String operationName,
     CharSequence resourceName,
     DDTraceId traceId,
-    DDSpanId spanId,
-    DDSpanId parentId,
+    long spanId,
+    long parentId,
     long start,
     long duration,
     int error,
@@ -182,12 +182,12 @@ class TraceGenerator {
     }
 
     @Override
-    DDSpanId getSpanId() {
+    long getSpanId() {
       return spanId
     }
 
     @Override
-    DDSpanId getParentId() {
+    long getParentId() {
       return parentId
     }
 

@@ -93,7 +93,7 @@ class HaystackHttpExtractorTest extends DDSpecification {
     then:
     context instanceof ExtractedContext
     context.traceId.toLong() == 1
-    context.spanId.toLong() == 2
+    context.spanId == 2
     context.forwarded == "for=$forwardedIp:$forwardedPort"
 
     where:
@@ -125,7 +125,7 @@ class HaystackHttpExtractorTest extends DDSpecification {
     then:
     context instanceof ExtractedContext
     context.traceId.toLong() == 1
-    context.spanId.toLong() == 2
+    context.spanId == 2
     context.XForwardedFor == forwardedIp
     context.XForwardedPort == forwardedPort
 
@@ -224,14 +224,14 @@ class HaystackHttpExtractorTest extends DDSpecification {
     "-1"                                   | "1"                                    | null                                | DDSpanId.ZERO
     "1"                                    | "-1"                                   | null                                | DDSpanId.ZERO
     "0"                                    | "1"                                    | null                                | DDSpanId.ZERO
-    "00001"                                | "00001"                                | DDTraceId.ONE                       | DDSpanId.ONE
-    "463ac35c9f6413ad"                     | "463ac35c9f6413ad"                     | DDTraceId.from(5060571933882717101) | DDSpanId.from(5060571933882717101)
-    "463ac35c9f6413ad48485a3953bb6124"     | "1"                                    | DDTraceId.from(5208512171318403364) | DDSpanId.ONE
-    "44617461-646f-6721-463a-c35c9f6413ad" | "44617461-646f-6721-463a-c35c9f6413ad" | DDTraceId.from(5060571933882717101) | DDSpanId.from(5060571933882717101)
-    "f" * 16                               | "1"                                    | DDTraceId.MAX                       | DDSpanId.ONE
-    "a" * 16 + "f" * 16                    | "1"                                    | DDTraceId.MAX                       | DDSpanId.ONE
-    "1" + "f" * 32                         | "1"                                    | null                                | DDSpanId.ONE
-    "0" + "f" * 32                         | "1"                                    | null                                | DDSpanId.ONE
+    "00001"                                | "00001"                                | DDTraceId.ONE                       | 1
+    "463ac35c9f6413ad"                     | "463ac35c9f6413ad"                     | DDTraceId.from(5060571933882717101) | 5060571933882717101
+    "463ac35c9f6413ad48485a3953bb6124"     | "1"                                    | DDTraceId.from(5208512171318403364) | 1
+    "44617461-646f-6721-463a-c35c9f6413ad" | "44617461-646f-6721-463a-c35c9f6413ad" | DDTraceId.from(5060571933882717101) | 5060571933882717101
+    "f" * 16                               | "1"                                    | DDTraceId.MAX                       | 1
+    "a" * 16 + "f" * 16                    | "1"                                    | DDTraceId.MAX                       | 1
+    "1" + "f" * 32                         | "1"                                    | null                                | 1
+    "0" + "f" * 32                         | "1"                                    | null                                | 1
     "1"                                    | "f" * 16                               | DDTraceId.ONE                       | DDSpanId.MAX
     "1"                                    | "1" + "f" * 16                         | null                                | DDSpanId.ZERO
     "1"                                    | "000" + "f" * 16                       | DDTraceId.ONE                       | DDSpanId.MAX

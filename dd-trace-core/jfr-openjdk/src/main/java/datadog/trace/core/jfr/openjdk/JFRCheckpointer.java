@@ -215,8 +215,7 @@ public class JFRCheckpointer implements Checkpointer, ProfilingListener<Profilin
 
   void emitCheckpoint(final AgentSpan span, final int flags) {
     final AgentSpan rootSpan = span.getLocalRootSpan();
-    new CheckpointEvent(rootSpan.getSpanId().toLong(), span.getSpanId().toLong(), flags & MASK)
-        .commit();
+    new CheckpointEvent(rootSpan.getSpanId(), span.getSpanId(), flags & MASK).commit();
     emitted.increment();
   }
 

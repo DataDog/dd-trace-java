@@ -80,7 +80,7 @@ class TimelineTracingContextTracker implements TracingContextTracker {
   void activateContext(AgentSpan span) {
     Thread currentThread = Thread.currentThread()
     DDTraceId traceId = span != null ? span.traceId : DDTraceId.ZERO
-    DDSpanId spanId = span != null ? span.spanId : DDSpanId.ZERO
+    long spanId = span != null ? span.spanId : DDSpanId.ZERO
     Event event = new Event(Checkpointer.CPU, traceId, spanId, currentThread)
     orderedEvents.add(event)
     spanEvents.putIfAbsent(spanId, new CopyOnWriteArrayList<Event>())
@@ -97,7 +97,7 @@ class TimelineTracingContextTracker implements TracingContextTracker {
   void deactivateContext(AgentSpan span) {
     Thread currentThread = Thread.currentThread()
     DDTraceId traceId = span != null ? span.traceId : DDTraceId.ZERO
-    DDSpanId spanId = span != null ? span.spanId : DDSpanId.ZERO
+    long spanId = span != null ? span.spanId : DDSpanId.ZERO
     Event event = new Event(Checkpointer.CPU | Checkpointer.END, traceId, spanId, currentThread)
     orderedEvents.add(event)
     spanEvents.putIfAbsent(spanId, new CopyOnWriteArrayList<Event>())

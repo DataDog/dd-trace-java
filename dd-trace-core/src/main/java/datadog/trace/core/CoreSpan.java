@@ -1,6 +1,5 @@
 package datadog.trace.core;
 
-import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 
 public interface CoreSpan<T extends CoreSpan<T>> {
@@ -15,9 +14,9 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   DDTraceId getTraceId();
 
-  DDSpanId getSpanId();
+  long getSpanId();
 
-  DDSpanId getParentId();
+  long getParentId();
 
   long getStartTime();
 

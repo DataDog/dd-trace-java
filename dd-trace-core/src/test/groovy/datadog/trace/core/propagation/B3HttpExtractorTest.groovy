@@ -54,7 +54,7 @@ class B3HttpExtractorTest extends DDSpecification {
     context.baggage == [:]
     context.tags == [
       "b3.traceid": context.traceId.toHexStringOrOriginal(),
-      "b3.spanid" : context.spanId.toHexStringOrOriginal(),
+      "b3.spanid" : DDSpanId.toHexString(context.spanId),
       "some-tag"  : "my-interesting-info"
     ]
     context.samplingPriority == expectedSamplingPriority
@@ -92,7 +92,7 @@ class B3HttpExtractorTest extends DDSpecification {
     context.baggage == [:]
     context.tags == [
       "b3.traceid": context.traceId.toHexStringOrOriginal(),
-      "b3.spanid" : context.spanId.toHexStringOrOriginal(),
+      "b3.spanid" : DDSpanId.toHexString(context.spanId),
       "some-tag"  : "my-interesting-info"
     ]
     context.samplingPriority == expectedSamplingPriority
@@ -133,7 +133,7 @@ class B3HttpExtractorTest extends DDSpecification {
     context.baggage == [:]
     context.tags == [
       "b3.traceid": context.traceId.toHexStringOrOriginal(),
-      "b3.spanid" : context.spanId.toHexStringOrOriginal(),
+      "b3.spanid" : DDSpanId.toHexString(context.spanId),
       "some-tag"  : "my-interesting-info"
     ]
     context.samplingPriority == expectedSamplingPriority
@@ -165,9 +165,9 @@ class B3HttpExtractorTest extends DDSpecification {
     if (expectedTraceId) {
       assert context instanceof ExtractedContext
       assert context.traceId == expectedTraceId
-      assert context.spanId == expectedSpanId
+      assert context.spanId == (expectedSpanId == null ? 0 : expectedSpanId)
       assert context.tags["b3.traceid"] == expectedTraceId.toHexStringOrOriginal()
-      assert context.tags["b3.spanid"] == expectedSpanId.toHexStringOrOriginal()
+      assert context.tags["b3.spanid"] == (expectedSpanId == null ? null : DDSpanId.toHexString(expectedSpanId))
     } else {
       assert context == null || (context instanceof TagContext && !(context instanceof ExtractedContext))
     }
@@ -177,16 +177,15 @@ class B3HttpExtractorTest extends DDSpecification {
     "-1"                               | "1"                | null                                                                       | null
     "1"                                | "-1"               | null                                                                       | null
     "0"                                | "1"                | null                                                                       | null
-    "00001"                            | "00001"            | DDTraceId.fromHexTruncatedWithOriginal("00001")                            | DDSpanId.fromHexWithOriginal("00001")
+    "00001"                            | "1"                | DDTraceId.fromHexTruncatedWithOriginal("00001")                            | DDSpanId.fromHex("00001")
     "463ac35c9f6413ad"                 | "463ac35c9f6413ad" | DDTraceId.from("5060571933882717101")                                      | DDSpanId.from("5060571933882717101")
-    "463ac35c9f6413ad48485a3953bb6124" | "1"                | DDTraceId.fromHexTruncatedWithOriginal("463ac35c9f6413ad48485a3953bb6124") | DDSpanId.ONE
-    "f" * 16                           | "1"                | DDTraceId.MAX                                                              | DDSpanId.ONE
-    "a" * 16 + "f" * 16                | "1"                | DDTraceId.fromHexTruncatedWithOriginal("a" * 16 + "f" * 16)                | DDSpanId.ONE
+    "463ac35c9f6413ad48485a3953bb6124" | "1"                | DDTraceId.fromHexTruncatedWithOriginal("463ac35c9f6413ad48485a3953bb6124") | 1
+    "f" * 16                           | "1"                | DDTraceId.MAX                                                              | 1
+    "a" * 16 + "f" * 16                | "1"                | DDTraceId.fromHexTruncatedWithOriginal("a" * 16 + "f" * 16)                | 1
     "1" + "f" * 32                     | "1"                | null                                                                       | null
     "0" + "f" * 32                     | "1"                | null                                                                       | null
     "1"                                | "f" * 16           | DDTraceId.ONE                                                              | DDSpanId.MAX
     "1"                                | "1" + "f" * 16     | null                                                                       | null
-    "1"                                | "000" + "f" * 16   | DDTraceId.ONE                                                              | DDSpanId.fromHexWithOriginal("000" + "f" * 16)
   }
 
   def "extract header tags with no propagation"() {
@@ -319,20 +318,32 @@ class B3HttpExtractorTest extends DDSpecification {
       assert context.traceId == expectedTraceId
       assert context.traceId.toHexStringOrOriginal() == traceId
       assert context.spanId == expectedSpanId
-      assert context.spanId.toHexStringOrOriginal() == spanId
+      assert DDSpanId.toHexString(context.spanId) == trimmed(spanId)
     } else {
       assert context == null
     }
 
     where:
     traceId                            | spanId             | expectedTraceId                       | expectedSpanId
-    "00001"                            | "00001"            | DDTraceId.ONE                         | DDSpanId.ONE
+    "00001"                            | "00001"            | DDTraceId.ONE                         | 1
     "463ac35c9f6413ad"                 | "463ac35c9f6413ad" | DDTraceId.from("5060571933882717101") | DDSpanId.from("5060571933882717101")
-    "463ac35c9f6413ad48485a3953bb6124" | "1"                | DDTraceId.from("5208512171318403364") | DDSpanId.ONE
-    "f" * 16                           | "1"                | DDTraceId.MAX                         | DDSpanId.ONE
-    "a" * 16 + "f" * 16                | "1"                | DDTraceId.MAX                         | DDSpanId.ONE
+    "463ac35c9f6413ad48485a3953bb6124" | "1"                | DDTraceId.from("5208512171318403364") | 1
+    "f" * 16                           | "1"                | DDTraceId.MAX                         | 1
+    "a" * 16 + "f" * 16                | "1"                | DDTraceId.MAX                         | 1
     "1"                                | "f" * 16           | DDTraceId.ONE                         | DDSpanId.MAX
     "1"                                | "000" + "f" * 16   | DDTraceId.ONE                         | DDSpanId.MAX
+  }
+
+  String trimmed(String hex) {
+    int length = hex.length()
+    int i = 0
+    while (i < length  && hex.charAt(i) == '0') {
+      i++
+    }
+    if (i == length) {
+      return "0"
+    }
+    return hex.substring(i, length)
   }
 
   def "extract common http headers"() {

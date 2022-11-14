@@ -71,7 +71,7 @@ class XRayHttpCodec {
               .append(TRACE_ID_PADDING)
               .append(context.getTraceId().toHexStringPadded(16))
               .append(';' + PARENT_PREFIX)
-              .append(context.getSpanId().toHexStringPadded(16));
+              .append(DDSpanId.toHexStringPadded(context.getSpanId()));
 
       if (context.lockSamplingPriority()) {
         buf.append(';' + SAMPLED_PREFIX)
@@ -206,9 +206,8 @@ class XRayHttpCodec {
                       part.substring(ROOT_PREAMBLE + TRACE_ID_PADDING.length()));
             }
           } else if (part.startsWith(PARENT_PREFIX)) {
-            if (interpreter.spanId == null || interpreter.spanId == DDSpanId.ZERO) {
-              interpreter.spanId =
-                  DDSpanId.fromHexWithOriginal(part.substring(PARENT_PREFIX.length()));
+            if (interpreter.spanId == DDSpanId.ZERO) {
+              interpreter.spanId = DDSpanId.fromHex(part.substring(PARENT_PREFIX.length()));
             }
           } else if (part.startsWith(SAMPLED_PREFIX)) {
             if (interpreter.samplingPriority == PrioritySampling.UNSET) {

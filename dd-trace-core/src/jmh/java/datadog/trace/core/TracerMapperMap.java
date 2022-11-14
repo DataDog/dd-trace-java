@@ -101,7 +101,7 @@ public class TracerMapperMap {
         System.currentTimeMillis() * 1000,
         new DDSpanContext(
             traceId,
-            DDSpanId.from(1000 + iter),
+            1000 + iter,
             DDSpanId.ZERO,
             null,
             "service",

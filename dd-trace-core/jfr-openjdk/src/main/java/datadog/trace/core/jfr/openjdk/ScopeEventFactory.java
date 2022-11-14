@@ -33,13 +33,13 @@ public class ScopeEventFactory implements ExtendedScopeListener {
   }
 
   @Override
-  public void afterScopeActivated(DDTraceId traceId, DDSpanId localRootSpanId, DDSpanId spanId) {
+  public void afterScopeActivated(DDTraceId traceId, long localRootSpanId, long spanId) {
     Deque<ScopeEvent> stack = scopeEventStack.get();
 
     ScopeEvent top = stack.peek();
 
     long traceIdNum = traceId.toLong();
-    long spanIdNum = spanId.toLong();
+    long spanIdNum = spanId;
 
     if (top == null || top.getTraceId() != traceIdNum || top.getSpanId() != spanIdNum) {
       ScopeEvent event = new ScopeEvent(traceIdNum, spanIdNum, threadCpuTimeProvider);

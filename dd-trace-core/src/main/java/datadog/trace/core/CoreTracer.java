@@ -918,7 +918,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public String getSpanId() {
     final AgentSpan activeSpan = activeSpan();
     if (activeSpan instanceof DDSpan) {
-      return ((DDSpan) activeSpan).getSpanId().toString();
+      return DDSpanId.toString(activeSpan.getSpanId());
     }
     return "0";
   }
@@ -1203,8 +1203,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
      */
     private DDSpanContext buildSpanContext() {
       final DDTraceId traceId;
-      final DDSpanId spanId = idGenerationStrategy.generateSpanId();
-      final DDSpanId parentSpanId;
+      final long spanId = idGenerationStrategy.generateSpanId();
+      final long parentSpanId;
       final Map<String, String> baggage;
       final PendingTrace parentTrace;
       final int samplingPriority;

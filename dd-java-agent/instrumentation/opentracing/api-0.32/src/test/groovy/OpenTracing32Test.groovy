@@ -50,7 +50,7 @@ class OpenTracing32Test extends AgentTestRunner {
         .withTag("boolean", true)
     }
     if (addReference) {
-      def ctx = new ExtractedContext(DDTraceId.ONE, DDSpanId.from(2), SAMPLER_DROP, null, 0, [:], [:], null, DatadogTags.factory().empty())
+      def ctx = new ExtractedContext(DDTraceId.ONE, 2, SAMPLER_DROP, null, 0, [:], [:], null, DatadogTags.factory().empty())
       builder.addReference(addReference, tracer.tracer.converter.toSpanContext(ctx))
     }
     def result = builder.start()
@@ -86,7 +86,7 @@ class OpenTracing32Test extends AgentTestRunner {
       trace(1) {
         span {
           if ([References.CHILD_OF, References.FOLLOWS_FROM].contains(addReference)) {
-            parentDDSpanId(DDSpanId.from(2))
+            parentSpanId(2)
           } else {
             parent()
           }

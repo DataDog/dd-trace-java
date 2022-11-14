@@ -25,7 +25,7 @@ class HttpInjectorTest extends DDCoreSpecification {
     HttpCodec.Injector injector = HttpCodec.createInjector(config)
 
     def traceId = DDTraceId.ONE
-    def spanId = DDSpanId.from(2)
+    def spanId = 2
 
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()
@@ -101,7 +101,7 @@ class HttpInjectorTest extends DDCoreSpecification {
   def "inject http headers using #style"() {
     setup:
     def traceId = DDTraceId.ONE
-    def spanId = DDSpanId.from(2)
+    def spanId = 2
 
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()

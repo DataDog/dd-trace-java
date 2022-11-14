@@ -18,8 +18,8 @@ class SamplingCheckpointerTest extends DDSpecification {
       sut.register(checkpointer)
       sut.register(rootSpanCheckpointer)
     }
-    DDSpanId localRootSpanId = DDSpanId.from(1)
-    DDSpanId spanId = DDSpanId.from(2)
+    long localRootSpanId = 1
+    long spanId = 2
     String resource = "foo"
     AgentSpan rootSpan = Stub(AgentSpan)
     rootSpan.getSpanId() >> localRootSpanId
