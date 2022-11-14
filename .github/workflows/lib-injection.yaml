@@ -70,7 +70,7 @@ jobs:
           ./lib-injection/run.sh build-and-push-test-app-image build-and-push-init-image  
           ./lib-injection/build.sh
  
-      - name: Run injection tests
+      - name: Run lib injection tests
         run: |
           cd system-tests   
           ./lib-injection/run-lib-injection.sh
