@@ -111,7 +111,11 @@ public final class InstrumenterState {
   private static AtomicLongArray classLoaderState(ClassLoader classLoader) {
     return classLoaderStates.computeIfAbsent(
         null != classLoader ? classLoader : Utils.getBootstrapProxy(),
-        input -> new AtomicLongArray(defaultState));
+        InstrumenterState::buildClassLoaderState);
+  }
+
+  private static AtomicLongArray buildClassLoaderState(ClassLoader classLoader) {
+    return new AtomicLongArray(defaultState);
   }
 
   private static int currentState(AtomicLongArray state, int bitIndex) {
