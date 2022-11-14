@@ -37,7 +37,7 @@ public class GrpcClientDecorator extends ClientDecorator {
 
   private static final ClassValue<UTF8BytesString> MESSAGE_TYPES =
       GenericClassValue.of(
-          // User inner class for predictable name for Instrumenter.Default.helperClassNames()
+          // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
           new Function<Class<?>, UTF8BytesString>() {
             @Override
             public UTF8BytesString apply(Class<?> input) {

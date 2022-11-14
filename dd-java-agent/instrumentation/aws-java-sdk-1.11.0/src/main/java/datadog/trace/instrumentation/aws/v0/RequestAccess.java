@@ -9,7 +9,7 @@ import java.util.function.Function;
 final class RequestAccess {
   private static final ClassValue<RequestAccess> REQUEST_ACCESS =
       GenericClassValue.of(
-          // User inner class for predictable name for Instrumenter.Default.helperClassNames()
+          // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
           new Function<Class<?>, RequestAccess>() {
             @Override
             public RequestAccess apply(final Class<?> requestType) {

@@ -36,7 +36,7 @@ public class GrpcServerDecorator extends ServerDecorator {
   public static final GrpcServerDecorator DECORATE = new GrpcServerDecorator();
 
   private static final Function<String, String> NORMALIZE =
-      // User inner class for predictable name for Instrumenter.Default.helperClassNames()
+      // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
       new Function<String, String>() {
         @Override
         public String apply(String fullName) {

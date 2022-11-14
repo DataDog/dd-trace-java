@@ -17,7 +17,7 @@ public final class IgniteQueryInfo {
       DDCaches.newFixedSizeCache(512);
 
   private static final Function<Pair<String, String>, IgniteQueryInfo> NORMALIZE =
-      // User inner class for predictable name for Instrumenter.Default.helperClassNames()
+      // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
       new Function<Pair<String, String>, IgniteQueryInfo>() {
         @Override
         public IgniteQueryInfo apply(Pair<String, String> Pair) {

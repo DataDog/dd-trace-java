@@ -17,7 +17,7 @@ public final class ModuleLinkageHelper {
   public static URL getResource(final Module module, final String resourceName) {
     return searchDirectDependencies(
         module,
-        // User inner class for predictable name for Instrumenter.Default.helperClassNames()
+        // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
         new Function<Module, URL>() {
           @Override
           public URL apply(Module input) {
@@ -31,7 +31,7 @@ public final class ModuleLinkageHelper {
   public static Class<?> loadClass(final Module module, final String className) {
     return searchDirectDependencies(
         module,
-        // User inner class for predictable name for Instrumenter.Default.helperClassNames()
+        // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
         new Function<Module, Class<?>>() {
           @Override
           public Class<?> apply(Module input) {

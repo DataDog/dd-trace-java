@@ -29,7 +29,7 @@ public class DistributedObjectDecorator extends ClientDecorator {
       DDCaches.newFixedSizeCache(64);
 
   private static final Function<Pair<String, String>, String> COMPUTE_QUALIFIED_NAME =
-      // User inner class for predictable name for Instrumenter.Default.helperClassNames()
+      // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
       new Function<Pair<String, String>, String>() {
         @Override
         public String apply(Pair<String, String> input) {
