@@ -12,7 +12,6 @@ import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.net.URL;
 import java.net.URLConnection;
-import java.util.function.Function;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.dynamic.ClassFileLocator.Resolution;
 import net.bytebuddy.utility.StreamDrainer;
@@ -23,9 +22,6 @@ import net.bytebuddy.utility.StreamDrainer;
  * cannot find the desired resource, check up the classloader hierarchy until a resource is found.
  */
 public final class ClassFileLocators {
-  private static final Function<ClassLoader, DDClassFileLocator> NEW_CLASS_FILE_LOCATOR =
-      DDClassFileLocator::new;
-
   private static final WeakCache<ClassLoader, DDClassFileLocator> classFileLocators =
       WeakCaches.newWeakCache(64);
 
@@ -46,7 +42,7 @@ public final class ClassFileLocators {
 
   public static ClassFileLocator classFileLocator(final ClassLoader classLoader) {
     return null != classLoader
-        ? classFileLocators.computeIfAbsent(classLoader, NEW_CLASS_FILE_LOCATOR)
+        ? classFileLocators.computeIfAbsent(classLoader, DDClassFileLocator::new)
         : bootClassFileLocator;
   }
 

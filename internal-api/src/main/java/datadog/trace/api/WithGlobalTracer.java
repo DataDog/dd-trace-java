@@ -16,13 +16,7 @@ public class WithGlobalTracer {
    * the tracer is already installed.
    */
   public static void registerOrExecute(final Callback callback) {
-    GlobalTracer.registerInstallationCallback(
-        new GlobalTracer.Callback() {
-          @Override
-          public void installed(Tracer tracer) {
-            callback.withTracer(tracer);
-          }
-        });
+    GlobalTracer.registerInstallationCallback(callback::withTracer);
   }
 
   public interface Callback {

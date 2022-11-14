@@ -9,13 +9,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 public final class State {
 
-  public static ContextStore.Factory<State> FACTORY =
-      new ContextStore.Factory<State>() {
-        @Override
-        public State create() {
-          return new State();
-        }
-      };
+  public static ContextStore.Factory<State> FACTORY = State::new;
 
   private static final AtomicReferenceFieldUpdater<State, AgentScope.Continuation> CONTINUATION =
       AtomicReferenceFieldUpdater.newUpdater(

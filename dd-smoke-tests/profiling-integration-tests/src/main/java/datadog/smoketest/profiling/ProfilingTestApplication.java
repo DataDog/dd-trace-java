@@ -64,28 +64,22 @@ public class ProfilingTestApplication {
 
     final Thread threadA =
         new Thread(
-            new Runnable() {
-              @Override
-              public void run() {
-                synchronized (lockA) {
-                  phaser.arriveAndAwaitAdvance(); // sync such as cross-order locking is provoked
-                  synchronized (lockB) {
-                    phaser.arriveAndDeregister(); // virtually unreachable
-                  }
+            () -> {
+              synchronized (lockA) {
+                phaser.arriveAndAwaitAdvance(); // sync such as cross-order locking is provoked
+                synchronized (lockB) {
+                  phaser.arriveAndDeregister(); // virtually unreachable
                 }
               }
             },
             "monitor-thread-A");
     final Thread threadB =
         new Thread(
-            new Runnable() {
-              @Override
-              public void run() {
-                synchronized (lockB) {
-                  phaser.arriveAndAwaitAdvance(); // sync such as cross-order locking is provoked
-                  synchronized (lockA) {
-                    phaser.arriveAndDeregister(); // virtually unreachable
-                  }
+            () -> {
+              synchronized (lockB) {
+                phaser.arriveAndAwaitAdvance(); // sync such as cross-order locking is provoked
+                synchronized (lockA) {
+                  phaser.arriveAndDeregister(); // virtually unreachable
                 }
               }
             },
@@ -96,15 +90,12 @@ public class ProfilingTestApplication {
     final CountDownLatch latch = new CountDownLatch(1);
     Thread main =
         new Thread(
-            new Runnable() {
-              @Override
-              public void run() {
-                threadA.start();
-                threadB.start();
-                phaser.arriveAndAwaitAdvance(); // enter deadlock
-                phaser.arriveAndAwaitAdvance(); // unreachable if deadlock is present
-                latch.countDown();
-              }
+            () -> {
+              threadA.start();
+              threadB.start();
+              phaser.arriveAndAwaitAdvance(); // enter deadlock
+              phaser.arriveAndAwaitAdvance(); // unreachable if deadlock is present
+              latch.countDown();
             },
             "main-monitor-thread");
     main.setDaemon(true);

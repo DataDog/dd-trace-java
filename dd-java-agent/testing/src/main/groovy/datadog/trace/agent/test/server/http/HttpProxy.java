@@ -15,7 +15,6 @@ import java.util.Collection;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -34,13 +33,10 @@ public final class HttpProxy implements Closeable {
     port = serverSocket.getLocalPort();
     executorService =
         Executors.newCachedThreadPool(
-            new ThreadFactory() {
-              @Override
-              public Thread newThread(Runnable r) {
-                final Thread thread = new Thread(null, r, "Http Proxy: " + port);
-                thread.setDaemon(true);
-                return thread;
-              }
+            r -> {
+              final Thread thread = new Thread(null, r, "Http Proxy: " + port);
+              thread.setDaemon(true);
+              return thread;
             });
     executorService.execute(new SocketAcceptor());
     System.out.println("Started proxy server " + this + " on port " + port);

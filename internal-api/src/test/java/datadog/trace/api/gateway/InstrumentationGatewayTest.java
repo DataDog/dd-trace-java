@@ -136,37 +136,37 @@ public class InstrumentationGatewayTest {
     assertThat(cbp.getCallback(events.requestStarted()).get().getResult()).isEqualTo(context);
     ss.registerCallback(events.requestEnded(), callback);
     assertThat(cbp.getCallback(events.requestEnded()).apply(null, null)).isEqualTo(flow);
-    ss.registerCallback(events.requestHeader(), this.callback);
+    ss.registerCallback(events.requestHeader(), callback);
     cbp.getCallback(events.requestHeader()).accept(null, null, null);
-    ss.registerCallback(events.requestHeaderDone(), this.callback.function);
+    ss.registerCallback(events.requestHeaderDone(), callback.function);
     assertThat(cbp.getCallback(events.requestHeaderDone()).apply(null)).isEqualTo(flow);
-    ss.registerCallback(events.requestMethodUriRaw(), this.callback);
+    ss.registerCallback(events.requestMethodUriRaw(), callback);
     assertThat(cbp.getCallback(events.requestMethodUriRaw()).apply(null, null, null))
         .isEqualTo(flow);
-    ss.registerCallback(events.requestPathParams(), this.callback);
+    ss.registerCallback(events.requestPathParams(), callback);
     assertThat(cbp.getCallback(events.requestPathParams()).apply(null, null)).isEqualTo(flow);
-    ss.registerCallback(events.requestClientSocketAddress(), this.callback.asClientSocketAddress());
+    ss.registerCallback(events.requestClientSocketAddress(), callback.asClientSocketAddress());
     assertThat(cbp.getCallback(events.requestClientSocketAddress()).apply(null, null, null))
         .isEqualTo(flow);
-    ss.registerCallback(events.requestInferredClientAddress(), this.callback);
+    ss.registerCallback(events.requestInferredClientAddress(), callback);
     assertThat(cbp.getCallback(events.requestInferredClientAddress()).apply(null, null))
         .isEqualTo(flow);
-    ss.registerCallback(events.requestBodyStart(), this.callback.asRequestBodyStart());
+    ss.registerCallback(events.requestBodyStart(), callback.asRequestBodyStart());
     assertThat(cbp.getCallback(events.requestBodyStart()).apply(null, null)).isNull();
-    ss.registerCallback(events.requestBodyDone(), this.callback.asRequestBodyDone());
+    ss.registerCallback(events.requestBodyDone(), callback.asRequestBodyDone());
     assertThat(cbp.getCallback(events.requestBodyDone()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
-    ss.registerCallback(events.requestBodyProcessed(), this.callback);
+    ss.registerCallback(events.requestBodyProcessed(), callback);
     assertThat(cbp.getCallback(events.requestBodyProcessed()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
-    ss.registerCallback(events.grpcServerRequestMessage(), this.callback);
+    ss.registerCallback(events.grpcServerRequestMessage(), callback);
     assertThat(cbp.getCallback(events.grpcServerRequestMessage()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
-    ss.registerCallback(events.responseStarted(), this.callback);
+    ss.registerCallback(events.responseStarted(), callback);
     cbp.getCallback(events.responseStarted()).apply(null, null);
-    ss.registerCallback(events.responseHeader(), this.callback);
+    ss.registerCallback(events.responseHeader(), callback);
     cbp.getCallback(events.responseHeader()).accept(null, null, null);
-    ss.registerCallback(events.responseHeaderDone(), this.callback.function);
+    ss.registerCallback(events.responseHeaderDone(), callback.function);
     cbp.getCallback(events.responseHeaderDone()).apply(null);
     assertThat(this.callback.count).isEqualTo(Events.MAX_EVENTS);
   }
@@ -257,14 +257,11 @@ public class InstrumentationGatewayTest {
     SubscriptionService ssIast = gateway.getSubscriptionService(RequestContextSlot.IAST);
     final int[] count = new int[1];
     BiFunction<RequestContext, IGSpanInfo, Flow<Void>> cb =
-        new BiFunction<RequestContext, IGSpanInfo, Flow<Void>>() {
-          @Override
-          public Flow<Void> apply(RequestContext requestContext, IGSpanInfo igSpanInfo) {
-            assertThat(requestContext).isSameAs(callback.ctxt);
-            assertThat(igSpanInfo).isSameAs(AgentTracer.NoopAgentSpan.INSTANCE);
-            count[0]++;
-            return new Flow.ResultFlow<>(null);
-          }
+        (requestContext, igSpanInfo) -> {
+          assertThat(requestContext).isSameAs(callback.ctxt);
+          assertThat(igSpanInfo).isSameAs(AgentTracer.NoopAgentSpan.INSTANCE);
+          count[0]++;
+          return new Flow.ResultFlow<>(null);
         };
     ss.registerCallback(events.requestEnded(), cb);
     ssIast.registerCallback(events.requestEnded(), cb);
@@ -364,7 +361,6 @@ public class InstrumentationGatewayTest {
       implements Supplier<Flow<D>>,
           BiConsumer<RequestContext, T>,
           TriConsumer<RequestContext, T, T>,
-          //          Function<RequestContext, Flow<Void>>,
           BiFunction<RequestContext, T, Flow<Void>>,
           TriFunction<RequestContext, T, T, Flow<Void>> {
 
@@ -401,33 +397,23 @@ public class InstrumentationGatewayTest {
     }
 
     public TriFunction<RequestContext, String, Short, Flow<Void>> asClientSocketAddress() {
-      return new TriFunction<RequestContext, String, Short, Flow<Void>>() {
-        @Override
-        public Flow<Void> apply(RequestContext requestContext, String s, Short aShort) {
-          count++;
-          return flow;
-        }
+      return (requestContext, s, aShort) -> {
+        count++;
+        return flow;
       };
     }
 
     public BiFunction<RequestContext, StoredBodySupplier, Void> asRequestBodyStart() {
-      return new BiFunction<RequestContext, StoredBodySupplier, Void>() {
-        @Override
-        public Void apply(RequestContext requestContext, StoredBodySupplier storedBodySupplier) {
-          count++;
-          return null;
-        }
+      return (requestContext, storedBodySupplier) -> {
+        count++;
+        return null;
       };
     }
 
     public BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> asRequestBodyDone() {
-      return new BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>() {
-        @Override
-        public Flow<Void> apply(
-            RequestContext requestContext, StoredBodySupplier storedBodySupplier) {
-          count++;
-          return new Flow.ResultFlow<>(null);
-        }
+      return (requestContext, storedBodySupplier) -> {
+        count++;
+        return new Flow.ResultFlow<>(null);
       };
     }
 
@@ -458,12 +444,6 @@ public class InstrumentationGatewayTest {
           throw new IllegalArgumentException();
         };
 
-    //    @Override
-    //    public Flow<Void> apply(RequestContext input) {
-    //      count++;
-    //      throw new IllegalArgumentException();
-    //    }
-
     @Override
     public Flow<Void> apply(RequestContext requestContext, T arg) {
       count++;
@@ -489,43 +469,30 @@ public class InstrumentationGatewayTest {
     }
 
     public TriFunction<RequestContext, String, Short, Flow<Void>> asClientSocketAddress() {
-      return new TriFunction<RequestContext, String, Short, Flow<Void>>() {
-        @Override
-        public Flow<Void> apply(RequestContext requestContext, String s, Short aShort) {
-          count++;
-          throw new IllegalArgumentException();
-        }
+      return (requestContext, s, aShort) -> {
+        count++;
+        throw new IllegalArgumentException();
       };
     }
 
     public BiFunction<RequestContext, String, Flow<Void>> asInferredClientAddress() {
-      return new BiFunction<RequestContext, String, Flow<Void>>() {
-        @Override
-        public Flow<Void> apply(RequestContext requestContext, String s) {
-          count++;
-          throw new IllegalArgumentException();
-        }
+      return (requestContext, s) -> {
+        count++;
+        throw new IllegalArgumentException();
       };
     }
 
     public BiFunction<RequestContext, StoredBodySupplier, Void> asRequestBodyStart() {
-      return new BiFunction<RequestContext, StoredBodySupplier, Void>() {
-        @Override
-        public Void apply(RequestContext requestContext, StoredBodySupplier storedBodySupplier) {
-          count++;
-          throw new IllegalArgumentException();
-        }
+      return (requestContext, storedBodySupplier) -> {
+        count++;
+        throw new IllegalArgumentException();
       };
     }
 
     public BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> asRequestBodyDone() {
-      return new BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>() {
-        @Override
-        public Flow<Void> apply(
-            RequestContext requestContext, StoredBodySupplier storedBodySupplier) {
-          count++;
-          throw new IllegalArgumentException();
-        }
+      return (requestContext, storedBodySupplier) -> {
+        count++;
+        throw new IllegalArgumentException();
       };
     }
 

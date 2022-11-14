@@ -53,7 +53,7 @@ public final class BundleWiringHelper {
   public static URL getResource(final Bundle origin, final String resourceName) {
     return searchDirectWires(
         (BundleWiring) origin.adapt(BundleWiring.class),
-        // User inner class for predictable name for Instrumenter.Default.helperClassNames()
+        // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
         new Function<BundleWiring, URL>() {
           @Override
           public URL apply(final BundleWiring wiring) {
@@ -67,7 +67,7 @@ public final class BundleWiringHelper {
   public static Class<?> loadClass(final Bundle origin, final String className) {
     return searchDirectWires(
         (BundleWiring) origin.adapt(BundleWiring.class),
-        // User inner class for predictable name for Instrumenter.Default.helperClassNames()
+        // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
         new Function<BundleWiring, Class<?>>() {
           @Override
           public Class<?> apply(final BundleWiring wiring) {

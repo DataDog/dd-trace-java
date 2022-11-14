@@ -164,13 +164,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final TagInterceptor tagInterceptor;
 
   private final SortedSet<TraceInterceptor> interceptors =
-      new ConcurrentSkipListSet<>(
-          new Comparator<TraceInterceptor>() {
-            @Override
-            public int compare(final TraceInterceptor o1, final TraceInterceptor o2) {
-              return Integer.compare(o1.priority(), o2.priority());
-            }
-          });
+      new ConcurrentSkipListSet<>(Comparator.comparingInt(TraceInterceptor::priority));
 
   private final HttpCodec.Injector injector;
   private final HttpCodec.Extractor extractor;
@@ -508,15 +502,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     // (using milliseconds granularity.) This avoids a fleet of traced applications starting at the
     // same time from sending metrics in sync.
     AgentTaskScheduler.INSTANCE.scheduleWithJitter(
-        new AgentTaskScheduler.Task<MetricsAggregator>() {
-          @Override
-          public void run(MetricsAggregator target) {
-            target.start();
-          }
-        },
-        metricsAggregator,
-        1,
-        SECONDS);
+        MetricsAggregator::start, metricsAggregator, 1, SECONDS);
 
     if (dataStreamsCheckpointer == null) {
       this.dataStreamsCheckpointer =
