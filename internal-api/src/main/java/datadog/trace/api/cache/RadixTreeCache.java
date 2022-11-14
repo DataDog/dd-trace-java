@@ -6,9 +6,6 @@ import java.util.function.IntFunction;
 
 /** Sparse cache of values associated with a small integer */
 public final class RadixTreeCache<T> {
-
-  private static final IntFunction<Integer> AUTOBOX = value -> value;
-
   private static final IntFunction<UTF8BytesString> TO_STRING =
       value -> UTF8BytesString.create(Integer.toString(value));
 
@@ -23,7 +20,7 @@ public final class RadixTreeCache<T> {
   public static final int UNSET_PORT = 0;
   // should cover range [0, 2^16)
   public static final RadixTreeCache<Integer> PORTS =
-      new RadixTreeCache<>(256, 256, AUTOBOX, 80, 443, 8080);
+      new RadixTreeCache<>(256, 256, Integer::valueOf, 80, 443, 8080);
 
   private final int level1;
   private final int level2;
