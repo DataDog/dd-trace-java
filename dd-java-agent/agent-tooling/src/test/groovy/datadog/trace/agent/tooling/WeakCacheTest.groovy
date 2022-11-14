@@ -1,7 +1,8 @@
 package datadog.trace.agent.tooling
 
-import datadog.trace.api.function.Function
 import datadog.trace.test.util.DDSpecification
+
+import java.util.function.Function
 
 class WeakCacheTest extends DDSpecification {
   def supplier = new CounterSupplier()

@@ -3,8 +3,6 @@ package com.datadog.iast;
 import com.datadog.iast.overhead.OverheadController;
 import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.Config;
-import datadog.trace.api.function.BiFunction;
-import datadog.trace.api.function.Supplier;
 import datadog.trace.api.gateway.EventType;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
@@ -14,6 +12,8 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.iast.IastModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.util.AgentTaskScheduler;
+import java.util.function.BiFunction;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

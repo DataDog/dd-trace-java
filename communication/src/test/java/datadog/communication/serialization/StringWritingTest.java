@@ -25,17 +25,7 @@ public class StringWritingTest {
 
   private static final Map<CharSequence, byte[]> MEMOISATION = new HashMap<>();
   private static final EncodingCache CACHE =
-      new EncodingCache() {
-        @Override
-        public byte[] encode(CharSequence s) {
-          byte[] utf8 = MEMOISATION.get(s);
-          if (utf8 == null) {
-            utf8 = ((String) s).getBytes(StandardCharsets.UTF_8);
-            MEMOISATION.put(s, utf8);
-          }
-          return utf8;
-        }
-      };
+      s -> MEMOISATION.computeIfAbsent(s, s1 -> ((String) s1).getBytes(StandardCharsets.UTF_8));
 
   private final List<Map<String, String>> maps;
   private static final int TEN_KB = 10 << 10;
@@ -141,23 +131,9 @@ public class StringWritingTest {
   public void testSerialiseTextMapWithCache() {
     MsgPackWriter packer =
         new MsgPackWriter(
-            new FlushingBuffer(
-                TEN_KB,
-                new ByteBufferConsumer() {
-                  @Override
-                  public void accept(int messageCount, ByteBuffer buffer) {
-                    testBufferContents(buffer);
-                  }
-                }));
+            new FlushingBuffer(TEN_KB, (messageCount, buffer) -> testBufferContents(buffer)));
     for (Map<String, String> map : maps) {
-      packer.format(
-          map,
-          new Mapper<Map<String, String>>() {
-            @Override
-            public void map(Map<String, String> m, Writable p) {
-              p.writeMap(m, CACHE);
-            }
-          });
+      packer.format(map, (m, p) -> p.writeMap(m, CACHE));
     }
     packer.flush();
   }
@@ -166,23 +142,9 @@ public class StringWritingTest {
   public void testSerialiseTextMapWithoutCache() {
     MsgPackWriter packer =
         new MsgPackWriter(
-            new FlushingBuffer(
-                TEN_KB,
-                new ByteBufferConsumer() {
-                  @Override
-                  public void accept(int messageCount, ByteBuffer buffer) {
-                    testBufferContents(buffer);
-                  }
-                }));
+            new FlushingBuffer(TEN_KB, (messageCount, buffer) -> testBufferContents(buffer)));
     for (Map<String, String> map : maps) {
-      packer.format(
-          map,
-          new Mapper<Map<String, String>>() {
-            @Override
-            public void map(Map<String, String> m, Writable p) {
-              p.writeMap(m, NO_CACHE);
-            }
-          });
+      packer.format(map, (m, p) -> p.writeMap(m, NO_CACHE));
     }
     packer.flush();
   }

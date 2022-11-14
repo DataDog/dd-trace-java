@@ -1,11 +1,14 @@
 package datadog.trace.api.gateway;
 
-import datadog.trace.api.function.*;
-import datadog.trace.api.function.Function;
+import datadog.trace.api.function.TriConsumer;
+import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 /** All known {@code EventType} that the {@code InstrumentationGateway} can handle. */
 public final class Events<D> {

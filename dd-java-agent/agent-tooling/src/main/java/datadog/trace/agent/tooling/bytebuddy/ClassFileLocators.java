@@ -6,13 +6,13 @@ import static datadog.trace.util.Strings.getResourceName;
 import datadog.trace.agent.tooling.Utils;
 import datadog.trace.agent.tooling.WeakCaches;
 import datadog.trace.api.Config;
-import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.WeakCache;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.function.Function;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.dynamic.ClassFileLocator.Resolution;
 import net.bytebuddy.utility.StreamDrainer;
@@ -24,12 +24,7 @@ import net.bytebuddy.utility.StreamDrainer;
  */
 public final class ClassFileLocators {
   private static final Function<ClassLoader, DDClassFileLocator> NEW_CLASS_FILE_LOCATOR =
-      new Function<ClassLoader, DDClassFileLocator>() {
-        @Override
-        public DDClassFileLocator apply(ClassLoader input) {
-          return new DDClassFileLocator(input);
-        }
-      };
+      DDClassFileLocator::new;
 
   private static final WeakCache<ClassLoader, DDClassFileLocator> classFileLocators =
       WeakCaches.newWeakCache(64);

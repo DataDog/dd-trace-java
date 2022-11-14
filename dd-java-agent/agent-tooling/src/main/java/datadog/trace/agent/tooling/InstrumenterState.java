@@ -1,9 +1,9 @@
 package datadog.trace.agent.tooling;
 
-import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.WeakCache;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLongArray;
+import java.util.function.Function;
 
 /** Tracks {@link Instrumenter} state, such as where it was applied and where it was blocked. */
 public final class InstrumenterState {
@@ -32,12 +32,7 @@ public final class InstrumenterState {
       WeakCaches.newWeakCache(64);
 
   private static final Function<ClassLoader, AtomicLongArray> buildClassLoaderState =
-      new Function<ClassLoader, AtomicLongArray>() {
-        @Override
-        public AtomicLongArray apply(ClassLoader input) {
-          return new AtomicLongArray(defaultState);
-        }
-      };
+      input -> new AtomicLongArray(defaultState);
 
   private static Observer observer;
 

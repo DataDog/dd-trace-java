@@ -2,7 +2,6 @@ package datadog.trace.agent.test.checkpoints
 
 import datadog.trace.api.Checkpointer
 import datadog.trace.api.DDId
-import datadog.trace.api.function.ToIntFunction
 import datadog.trace.api.profiling.TracingContextTracker
 import datadog.trace.api.profiling.TracingContextTrackerFactory
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -10,6 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.function.ToIntFunction
 
 class TimelineTracingContextTracker implements TracingContextTracker {
   static class TimelineTracingContextTrackerFactory implements TracingContextTrackerFactory.Implementation {

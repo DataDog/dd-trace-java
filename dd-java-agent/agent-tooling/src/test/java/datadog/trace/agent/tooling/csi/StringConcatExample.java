@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling.csi;
 
-import datadog.trace.api.function.BiFunction;
+import java.util.function.BiFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

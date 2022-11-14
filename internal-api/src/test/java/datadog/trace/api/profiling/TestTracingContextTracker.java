@@ -1,7 +1,7 @@
 package datadog.trace.api.profiling;
 
-import datadog.trace.api.function.ToIntFunction;
 import java.nio.ByteBuffer;
+import java.util.function.ToIntFunction;
 
 final class TestTracingContextTracker implements TracingContextTracker {
   @Override

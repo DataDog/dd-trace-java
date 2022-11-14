@@ -1,11 +1,12 @@
 package datadog.smoketest
 
 import datadog.trace.api.Platform
-import datadog.trace.api.function.Function
 import datadog.trace.test.agent.decoder.DecodedSpan
 import okhttp3.Request
 import spock.lang.IgnoreIf
 import spock.util.concurrent.PollingConditions
+
+import java.util.function.Function
 
 @IgnoreIf({
   !Platform.isJavaVersionAtLeast(8)

@@ -6,8 +6,8 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.function.*;
-import datadog.trace.api.function.Function;
+import datadog.trace.api.function.TriConsumer;
+import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
@@ -28,6 +28,9 @@ import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpAddressRes
 import java.net.InetAddress;
 import java.util.BitSet;
 import java.util.Map;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -455,8 +458,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   private static final class ResponseHeaderTagClassifier implements AgentPropagation.KeyClassifier {
-    static final ResponseHeaderTagClassifier create(
-        AgentSpan span, Map<String, String> headerTags) {
+    static ResponseHeaderTagClassifier create(AgentSpan span, Map<String, String> headerTags) {
       if (span == null || headerTags == null || headerTags.isEmpty()) {
         return null;
       }

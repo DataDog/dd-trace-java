@@ -3,9 +3,6 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDId
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Platform
-import datadog.trace.api.function.BiFunction
-import datadog.trace.api.function.Function
-import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
@@ -32,6 +29,9 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.TimeUnit
+import java.util.function.BiFunction
+import java.util.function.Function
+import java.util.function.Supplier
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace

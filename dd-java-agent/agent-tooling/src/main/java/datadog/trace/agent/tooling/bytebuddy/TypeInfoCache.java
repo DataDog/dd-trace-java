@@ -2,12 +2,12 @@ package datadog.trace.agent.tooling.bytebuddy;
 
 import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
 import datadog.trace.agent.tooling.WeakCaches;
-import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.WeakCache;
 import java.lang.ref.WeakReference;
 import java.net.URL;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Function;
 
 /** Shares type information using a single cache across multiple classloaders. */
 public final class TypeInfoCache<T> {
@@ -55,13 +55,7 @@ public final class TypeInfoCache<T> {
   static final ClassLoader BOOTSTRAP_LOADER = null;
   static final LoaderId BOOTSTRAP_LOADER_ID = null;
 
-  private static final Function<ClassLoader, LoaderId> newLoaderId =
-      new Function<ClassLoader, LoaderId>() {
-        @Override
-        public LoaderId apply(ClassLoader input) {
-          return new LoaderId(input);
-        }
-      };
+  private static final Function<ClassLoader, LoaderId> newLoaderId = LoaderId::new;
 
   private static final WeakCache<ClassLoader, LoaderId> loaderIds = WeakCaches.newWeakCache(64);
 

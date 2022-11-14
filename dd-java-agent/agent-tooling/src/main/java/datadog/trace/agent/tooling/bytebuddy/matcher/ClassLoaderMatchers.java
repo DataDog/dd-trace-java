@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.any;
 import datadog.trace.agent.tooling.WeakCaches;
 import datadog.trace.api.Config;
 import datadog.trace.api.Tracer;
-import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.PatchLogger;
 import datadog.trace.bootstrap.WeakCache;
 import datadog.trace.util.Strings;
@@ -15,6 +14,7 @@ import java.util.BitSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -157,12 +157,7 @@ public final class ClassLoaderMatchers {
 
   /** Function that generates a has-class mask for a given class-loader. */
   static final Function<ClassLoader, BitSet> buildHasClassMask =
-      new Function<ClassLoader, BitSet>() {
-        @Override
-        public BitSet apply(ClassLoader input) {
-          return buildHasClassMask(input);
-        }
-      };
+      ClassLoaderMatchers::buildHasClassMask;
 
   static BitSet buildHasClassMask(ClassLoader cl) {
     PROBING_CLASSLOADER.begin();

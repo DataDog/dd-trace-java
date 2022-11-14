@@ -7,7 +7,6 @@ import datadog.trace.api.DDId;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.PropagationStyle;
 import datadog.trace.api.SpanCheckpointer;
-import datadog.trace.api.function.Consumer;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -21,6 +20,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 
 public class AgentTracer {
 
