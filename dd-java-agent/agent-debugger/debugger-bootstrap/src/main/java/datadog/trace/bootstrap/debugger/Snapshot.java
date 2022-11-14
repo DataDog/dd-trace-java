@@ -181,9 +181,12 @@ public class Snapshot {
       }
       return;
     }
-    if (!ProbeRateLimiter.tryProbe(probe.id)) {
-      DebuggerContext.skipSnapshot(probe.id, DebuggerContext.SkipCause.RATE);
-      return;
+    // only rate limit if a condition is defined
+    if (probe.getScript() != null) {
+      if (!ProbeRateLimiter.tryProbe(probe.id)) {
+        DebuggerContext.skipSnapshot(probe.id, DebuggerContext.SkipCause.RATE);
+        return;
+      }
     }
     // generates id only when effectively committing
     this.id = UUID.randomUUID().toString();
