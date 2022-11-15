@@ -241,6 +241,19 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     span.getTag(IG_PATH_PARAMS_TAG) == [var:['a=x,y;a=z', [a:['x', 'y', 'z']]]]
   }
 
+  def 'path is extract when preHandle fails'() {
+    setup:
+    def request = request(PATH_PARAM, 'GET', null).header("fail", "true").build()
+
+    when:
+    def response = client.newCall(request).execute()
+    TEST_WRITER.waitForTraces(1)
+    DDSpan span = TEST_WRITER.flatten().find {operationName == "servlet.response"}
+
+    then:
+    span.getResourceName() == "GET " + testPathParam()
+  }
+
   boolean hasResponseSpan(ServerEndpoint endpoint) {
     return endpoint == REDIRECT || endpoint == NOT_FOUND || endpoint == LOGIN
   }
