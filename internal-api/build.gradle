@@ -16,6 +16,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.intake.TrackType",
   "datadog.trace.api.gateway.Events.ET",
   "datadog.trace.api.profiling.ProfilingSnapshot.Kind",
+  "datadog.trace.api.WithGlobalTracer.1",
   // an enum
   "datadog.trace.api.sampling.AdaptiveSampler",
   // this one is covered by tests in internal-api-8 together with AdaptiveSampler8

@@ -13,8 +13,8 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
-import datadog.trace.context.ScopeListener;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -147,6 +147,13 @@ public class AgentTracer {
     void close();
 
     void flush();
+
+    /**
+     * Attach a scope listener to the global scope manager
+     *
+     * @param listener listener to attach
+     */
+    void addScopeListener(ScopeListener listener);
 
     /**
      * Registers the checkpointer
