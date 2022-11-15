@@ -53,7 +53,18 @@ public final class AgentBootstrap {
       final URL agentJarURL = installAgentJar(inst);
       System.out.println("--------args--------");
       System.out.println(agentArgs);
-
+      String[] split = agentArgs.split(",");
+      for (int i = 0; i < split.length; i++) {
+        String[] strings = split[i].split("=");
+        if (strings.length != 2) {
+          continue;
+        }
+        String envStr = strings[0].replace('.', '_').replace('-', '_').toUpperCase();
+        if (System.getProperty(strings[0]) == null && System.getenv(envStr) == null) {
+          System.out.println("set " + strings[0] + " = " + strings[1]);
+          System.setProperty(strings[0], strings[1]);
+        }
+      }
       final Class<?> agentClass =
           ClassLoader.getSystemClassLoader().loadClass("datadog.trace.bootstrap.Agent");
 
