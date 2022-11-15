@@ -1,5 +1,7 @@
 package datadog.trace.util;
 
+import datadog.trace.api.ExceptionsCollector;
+
 import java.util.concurrent.ThreadFactory;
 import org.slf4j.LoggerFactory;
 
@@ -80,6 +82,7 @@ public final class AgentThreadFactory implements ThreadFactory {
         new Thread.UncaughtExceptionHandler() {
           @Override
           public void uncaughtException(final Thread thread, final Throwable e) {
+            ExceptionsCollector.get().addException(e);
             LoggerFactory.getLogger(runnable.getClass())
                 .error("Uncaught exception in {}", agentThread.threadName, e);
           }
