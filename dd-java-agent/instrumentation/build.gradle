@@ -90,8 +90,12 @@ subprojects { Project subProj ->
     }
   }
 
-  parent_project.dependencies {
-    implementation project(subProj.getPath())
+  def path = subProj.getPath()
+  // don't include the redis RequestImpl stub
+  if (!path.equals(':dd-java-agent:instrumentation:vertx-redis-client-3.9:stubs')) {
+    parent_project.dependencies {
+      implementation project(path)
+    }
   }
 }
 
@@ -107,4 +111,3 @@ tasks.named('shadowJar').configure {
   duplicatesStrategy = DuplicatesStrategy.FAIL
   dependencies deps.excludeShared
 }
-
