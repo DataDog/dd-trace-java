@@ -72,7 +72,7 @@ public final class IastModuleImpl implements IastModule {
     Vulnerability vulnerability =
         new Vulnerability(
             VulnerabilityType.WEAK_CIPHER,
-            Location.forSpanAndStack(span.getSpanId(), stackTraceElement),
+            Location.forSpanAndStack(spanId(span), stackTraceElement),
             new Evidence(algorithm));
     reporter.report(span, vulnerability);
   }
@@ -97,7 +97,7 @@ public final class IastModuleImpl implements IastModule {
     Vulnerability vulnerability =
         new Vulnerability(
             VulnerabilityType.WEAK_HASH,
-            Location.forSpanAndStack(span.getSpanId(), stackTraceElement),
+            Location.forSpanAndStack(spanId(span), stackTraceElement),
             new Evidence(algorithm));
     reporter.report(span, vulnerability);
   }
@@ -526,5 +526,9 @@ public final class IastModuleImpl implements IastModule {
       Ranges.copyShift(rangesRight, ranges, rangesLeft.length, offset);
     }
     return ranges;
+  }
+
+  private static long spanId(@Nullable final AgentSpan span) {
+    return span == null ? 0 : span.getSpanId();
   }
 }

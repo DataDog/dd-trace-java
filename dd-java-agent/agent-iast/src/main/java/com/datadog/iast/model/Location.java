@@ -6,7 +6,7 @@ public final class Location {
 
   private final int line;
 
-  private final Long spanId;
+  private Long spanId;
 
   private Location(final long spanId, final String path, final int line) {
     this.spanId = spanId == 0 ? null : spanId;
@@ -28,5 +28,9 @@ public final class Location {
 
   public int getLine() {
     return line;
+  }
+
+  public void updateSpan(final long spanId) {
+    this.spanId = spanId;
   }
 }
