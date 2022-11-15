@@ -51,5 +51,5 @@ public abstract class IdGenerationStrategy {
     public long generateSpanId() {
       return id.incrementAndGet();
     }
-  };
+  }
 }
