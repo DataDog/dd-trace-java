@@ -1,18 +1,17 @@
 package datadog.trace.agent.test.checkpoints
 
-import static datadog.trace.api.Checkpointer.*
-import datadog.trace.api.DDId
+import datadog.trace.api.DDTraceId
 
 class Event {
   private static final boolean DUMP_STACKTRACES = Boolean.parseBoolean(System.getProperty("dd.checkpoints.dump.stacktraces", "false"))
-  private final int flags
-  private final DDId traceId
-  private final DDId spanId
+  private final boolean begin
+  private final DDTraceId traceId
+  private final long spanId
   private final Thread thread
   private final StackTraceElement[] stackTrace
 
-  Event(int flags, DDId traceId, DDId spanId, Thread thread) {
-    this.flags = flags
+  Event(boolean begin, DDTraceId traceId, long spanId, Thread thread) {
+    this.begin = begin
     this.traceId = traceId
     this.spanId = spanId
     this.thread = thread
@@ -22,8 +21,7 @@ class Event {
       def strace = thread.stackTrace
       for (int i = 0; i < strace.length; i++) {
         def frame = strace[i]
-        if (frame.className == "datadog.trace.api.SamplingCheckpointer" || frame.className == "datadog.trace.agent.test.checkpoints.TimelineTracingContextTracker") {
-          // this is SamplingCheckpointer.checkpoint()
+        if (frame.className == "datadog.trace.agent.test.checkpoints.TimelineTracingContextTracker") {
           // the interesting information is in the next frame
           idx = i + 1
           break
@@ -40,25 +38,14 @@ class Event {
   }
 
   String getName() {
-    switch (flags) {
-      case CPU | END:
-        return "endTask"
-      case CPU:
-        return "startTask"
-      default:
-        return "unknown"
-    }
+    return begin ? "startTask" : "endTask"
   }
 
-  int getFlags() {
-    return flags
-  }
-
-  DDId getTraceId() {
+  DDTraceId getTraceId() {
     return traceId
   }
 
-  DDId getSpanId() {
+  long getSpanId() {
     return spanId
   }
 

@@ -1,11 +1,8 @@
 import com.google.common.util.concurrent.MoreExecutors
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Platform
-import datadog.trace.api.function.BiFunction
-import datadog.trace.api.function.Function
-import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
@@ -32,6 +29,9 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.TimeUnit
+import java.util.function.BiFunction
+import java.util.function.Function
+import java.util.function.Supplier
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -78,9 +78,6 @@ abstract class GrpcTest extends AgentTestRunner {
 
   def "test request-response"() {
     setup:
-    //    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-    //      CheckpointValidationMode.INTERVALS,
-    //      CheckpointValidationMode.THREAD_SEQUENCE)
 
     ExecutorService responseExecutor = Executors.newSingleThreadExecutor()
     BindableService greeter = new GreeterGrpc.GreeterImplBase() {
@@ -467,7 +464,7 @@ abstract class GrpcTest extends AgentTestRunner {
           operationName "grpc.server"
           resourceName "example.Greeter/Ignore"
           spanType DDSpanTypes.RPC
-          parentDDId DDId.ZERO
+          parentSpanId DDSpanId.ZERO
           errored false
           measured true
           tags {

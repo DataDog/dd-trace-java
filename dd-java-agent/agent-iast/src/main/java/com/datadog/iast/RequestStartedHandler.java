@@ -1,8 +1,8 @@
 package com.datadog.iast;
 
 import com.datadog.iast.overhead.OverheadController;
-import datadog.trace.api.function.Supplier;
 import datadog.trace.api.gateway.Flow;
+import java.util.function.Supplier;
 
 public class RequestStartedHandler implements Supplier<Flow<Object>> {
 

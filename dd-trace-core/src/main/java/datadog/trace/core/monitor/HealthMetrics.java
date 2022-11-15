@@ -8,13 +8,13 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.cache.RadixTreeCache;
-import datadog.trace.api.function.IntFunction;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.DDSpan;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.IntFunction;
 import org.jctools.counters.CountersFactory;
 import org.jctools.counters.FixedSizeStripedLongCounter;
 
@@ -33,12 +33,7 @@ import org.jctools.counters.FixedSizeStripedLongCounter;
 public class HealthMetrics implements AutoCloseable {
 
   private static final IntFunction<String[]> STATUS_TAGS =
-      new IntFunction<String[]>() {
-        @Override
-        public String[] apply(int httpStatus) {
-          return new String[] {"status:" + httpStatus};
-        }
-      };
+      httpStatus -> new String[] {"status:" + httpStatus};
 
   private static final String[] NO_TAGS = new String[0];
   private final RadixTreeCache<String[]> statusTagsCache =

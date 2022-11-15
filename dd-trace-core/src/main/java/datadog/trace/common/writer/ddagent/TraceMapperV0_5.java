@@ -64,9 +64,9 @@ public final class TraceMapperV0_5 implements TraceMapper {
       /* 4  */
       writable.writeLong(span.getTraceId().toLong());
       /* 5  */
-      writable.writeLong(span.getSpanId().toLong());
+      writable.writeLong(span.getSpanId());
       /* 6  */
-      writable.writeLong(span.getParentId().toLong());
+      writable.writeLong(span.getParentId());
       /* 7  */
       writable.writeLong(span.getStartTime());
       /* 8  */

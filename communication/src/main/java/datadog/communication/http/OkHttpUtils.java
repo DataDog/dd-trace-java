@@ -17,7 +17,6 @@ import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import okhttp3.Authenticator;
 import okhttp3.ConnectionPool;
 import okhttp3.ConnectionSpec;
 import okhttp3.Credentials;
@@ -27,8 +26,6 @@ import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
-import okhttp3.Response;
-import okhttp3.Route;
 import okio.BufferedSink;
 import okio.GzipSink;
 import okio.Okio;
@@ -149,18 +146,15 @@ public final class OkHttpUtils {
       builder.proxy(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, proxyPort)));
       if (proxyUsername != null) {
         builder.proxyAuthenticator(
-            new Authenticator() {
-              @Override
-              public Request authenticate(final Route route, final Response response) {
-                final String credential =
-                    Credentials.basic(proxyUsername, proxyPassword == null ? "" : proxyPassword);
+            (route, response) -> {
+              final String credential =
+                  Credentials.basic(proxyUsername, proxyPassword == null ? "" : proxyPassword);
 
-                return response
-                    .request()
-                    .newBuilder()
-                    .header("Proxy-Authorization", credential)
-                    .build();
-              }
+              return response
+                  .request()
+                  .newBuilder()
+                  .header("Proxy-Authorization", credential)
+                  .build();
             });
       }
     }

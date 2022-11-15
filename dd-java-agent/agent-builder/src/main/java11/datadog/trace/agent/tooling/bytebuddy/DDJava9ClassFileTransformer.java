@@ -15,14 +15,7 @@ import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
 public final class DDJava9ClassFileTransformer
     extends ResettableClassFileTransformer.WithDelegation {
 
-  public static final TransformerDecorator DECORATOR =
-      new TransformerDecorator() {
-        @Override
-        public ResettableClassFileTransformer decorate(
-            final ResettableClassFileTransformer classFileTransformer) {
-          return new DDJava9ClassFileTransformer(classFileTransformer);
-        }
-      };
+  public static final TransformerDecorator DECORATOR = DDJava9ClassFileTransformer::new;
 
   public DDJava9ClassFileTransformer(final ResettableClassFileTransformer classFileTransformer) {
     super(classFileTransformer);

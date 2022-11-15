@@ -166,8 +166,9 @@
 1 org.renjin.*
 1 org.slf4j.*
 1 org.springdoc.*
-1 org.springframework.*
 # https://github.com/spring-projects/spring-petclinic
+1 org.springframework.*
+0 org.springframework.web.context.request.*
 0 org.springframework.samples.*
 1 org.synchronoss.*
 1 org.terracotta.*

@@ -1,8 +1,10 @@
 package com.datadog.iast.taint
 
 import com.datadog.iast.model.Range
+import datadog.trace.api.Platform
 import datadog.trace.test.util.CircularBuffer
 import datadog.trace.test.util.DDSpecification
+import spock.lang.IgnoreIf
 
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.Callable
@@ -174,6 +176,7 @@ class TaintedMapTest extends DDSpecification {
     presentObjects >= DefaultTaintedMap.DEFAULT_FLAT_MODE_THRESHOLD * 0.9
   }
 
+  @IgnoreIf({ Platform.isJ9() })
   def 'single-threaded put-intensive workflow with garbage collection interaction and over max size'() {
     given:
     int nTotalObjects = DefaultTaintedMap.DEFAULT_FLAT_MODE_THRESHOLD * 4

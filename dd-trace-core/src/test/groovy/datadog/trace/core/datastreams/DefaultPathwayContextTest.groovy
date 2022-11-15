@@ -1,13 +1,14 @@
 package datadog.trace.core.datastreams
 
 import datadog.trace.api.WellKnownTags
-import datadog.trace.api.function.Consumer
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint
 import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Requires
+
+import java.util.function.Consumer
 
 import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG
 import static java.util.concurrent.TimeUnit.MILLISECONDS

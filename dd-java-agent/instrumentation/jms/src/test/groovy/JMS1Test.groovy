@@ -579,7 +579,7 @@ class JMS1Test extends AgentTestRunner {
         producerTrace(it, jmsResourceName)
         trace(1) {
           span {
-            parentId(0 as BigInteger)
+            parentSpanId(0 as BigInteger)
             serviceName "jms"
             operationName "jms.consume"
             resourceName "Consumed from $jmsResourceName"
@@ -632,7 +632,7 @@ class JMS1Test extends AgentTestRunner {
         producerTrace(it, jmsResourceName)
         trace(1) {
           span {
-            parentId(0 as BigInteger)
+            parentSpanId(0 as BigInteger)
             serviceName "jms"
             operationName "jms.consume"
             resourceName "Consumed from $jmsResourceName"
@@ -692,7 +692,7 @@ class JMS1Test extends AgentTestRunner {
         producerTrace(it, jmsResourceName)
         trace(1) {
           span {
-            parentId(0 as BigInteger)
+            parentSpanId(0 as BigInteger)
             serviceName "jms"
             operationName "jms.consume"
             resourceName "Consumed from $jmsResourceName"

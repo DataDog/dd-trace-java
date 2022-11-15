@@ -1,7 +1,7 @@
 package datadog.trace.core
 
-import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
+import datadog.trace.api.DDTraceId
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
@@ -173,7 +173,7 @@ class DDSpanContextTest extends DDCoreSpecification {
 
   def "set TraceSegment tags and data on correct span"() {
     setup:
-    def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), SAMPLER_KEEP, "789", 0, [:], [:], null, tracer.getDatadogTagsFactory().empty())
+    def extracted = new ExtractedContext(DDTraceId.from(123), 456, SAMPLER_KEEP, "789", 0, [:], [:], null, tracer.getDatadogTagsFactory().empty())
     .withRequestContextDataAppSec("dummy")
 
     def top = tracer.buildSpan("top").asChildOf((AgentSpan.Context) extracted).start()

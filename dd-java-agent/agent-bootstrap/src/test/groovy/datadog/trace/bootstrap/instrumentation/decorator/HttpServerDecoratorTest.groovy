@@ -1,8 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.api.DDTags
-import datadog.trace.api.function.Function
-import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.gateway.CallbackProvider
 import datadog.trace.api.gateway.Flow
@@ -19,6 +17,9 @@ import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter
+
+import java.util.function.Function
+import java.util.function.Supplier
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
@@ -408,7 +409,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       getRequestContext() >> reqCtxt
     }
     def mTracer = Mock(TracerAPI) {
-      startSpan(_, _, _) >> mSpan
+      startSpan(_, _) >> mSpan
       getCallbackProvider(RequestContextSlot.APPSEC) >> cbpAppSec
       getCallbackProvider(RequestContextSlot.IAST) >> CallbackProvider.CallbackProviderNoop.INSTANCE
     }

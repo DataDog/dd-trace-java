@@ -76,4 +76,54 @@ class InstrumentationBridgeTest extends DDSpecification {
     1 * module.onCipherAlgorithm(_) >> { throw new Error('Boom!!!') }
     noExceptionThrown()
   }
+
+  def "bridge calls module when onParameterName"() {
+    setup:
+    final module = Mock(IastModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    InstrumentationBridge.onParameterName('AES')
+
+    then:
+    1 * module.onParameterName('AES')
+  }
+
+  def "bridge calls module when onParameterValue"() {
+    setup:
+    final module = Mock(IastModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    InstrumentationBridge.onParameterValue('KEY','AES')
+
+    then:
+    1 * module.onParameterValue('KEY','AES')
+  }
+
+  def "bridge calls don't leak exceptions when onParameterName"() {
+    setup:
+    final module = Mock(IastModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    InstrumentationBridge.onParameterName("Pepito")
+
+    then:
+    1 * module.onParameterName(_) >> { throw new Error('Boom!!!') }
+    noExceptionThrown()
+  }
+
+  def "bridge calls don't leak exceptions when onParameterValue"() {
+    setup:
+    final module = Mock(IastModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    InstrumentationBridge.onParameterValue("pepito", "juanito")
+
+    then:
+    1 * module.onParameterValue(_, _) >> { throw new Error('Boom!!!') }
+    noExceptionThrown()
+  }
 }

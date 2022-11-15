@@ -14,7 +14,6 @@ import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.Product
 import datadog.trace.api.Config
 import datadog.trace.api.TraceSegment
-import datadog.trace.api.function.BiFunction
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
@@ -26,6 +25,7 @@ import okhttp3.OkHttpClient
 
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.function.BiFunction
 
 import static datadog.trace.api.gateway.Events.EVENTS
 

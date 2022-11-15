@@ -1,4 +1,3 @@
-import datadog.trace.api.function.BiFunction
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
@@ -12,6 +11,7 @@ import spock.lang.Specification
 import javax.servlet.ServletInputStream
 import java.nio.CharBuffer
 import java.nio.charset.Charset
+import java.util.function.BiFunction
 
 /* Forked to avoid having this test load boot classes into the system
  * classloader and then failing other tests that run under SpockRunner

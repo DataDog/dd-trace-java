@@ -1,6 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
 import datadog.trace.api.Platform
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -50,7 +48,6 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
   @Ignore("Repeatedly fails with the wrong parent span https://github.com/DataDog/dd-trace-java/issues/3865")
   def "test kafka produce and consume with streams in-between"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(CheckpointValidationMode.INTERVALS)
     def config = new Properties()
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
     config.putAll(senderProps)

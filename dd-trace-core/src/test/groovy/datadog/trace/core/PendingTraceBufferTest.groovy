@@ -2,7 +2,8 @@ package datadog.trace.core
 
 import datadog.communication.monitor.Monitoring
 import datadog.trace.SamplingPriorityMetadataChecker
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.time.SystemTimeSource
@@ -66,7 +67,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
   def "continuation buffers root"() {
     setup:
-    def trace = factory.create(DDId.ONE)
+    def trace = factory.create(DDTraceId.ONE)
     def span = newSpanOf(trace)
 
     expect:
@@ -82,8 +83,6 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * bufferSpy.enqueue(trace)
     _ * tracer.getPartialFlushMinSpans() >> 10
     1 * tracer.getTimeWithNanoTicks(_)
-    1 * tracer.onStartWork(span)
-    1 * tracer.onFinishWork(span)
     0 * _
 
     when:
@@ -99,7 +98,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
   def "unfinished child buffers root"() {
     setup:
-    def trace = factory.create(DDId.ONE)
+    def trace = factory.create(DDTraceId.ONE)
     def parent = newSpanOf(trace)
     def child = newSpanOf(parent)
 
@@ -132,7 +131,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
   def "priority sampling is always sent"() {
     setup:
-    def parent = addContinuation(newSpanOf(factory.create(DDId.ONE), PrioritySampling.USER_KEEP))
+    def parent = addContinuation(newSpanOf(factory.create(DDTraceId.ONE), PrioritySampling.USER_KEEP))
     def metadataChecker = new SamplingPriorityMetadataChecker()
 
     when: "Fill the buffer - Only children - Priority taken from root"
@@ -159,7 +158,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
     when: "Fill the buffer"
     for (i in  1..buffer.queue.capacity()) {
-      addContinuation(newSpanOf(factory.create(DDId.ONE))).finish()
+      addContinuation(newSpanOf(factory.create(DDTraceId.ONE))).finish()
     }
 
     then:
@@ -168,12 +167,10 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * tracer.getPartialFlushMinSpans() >> 10
     _ * tracer.mapServiceName(_)
     _ * tracer.getTimeWithNanoTicks(_)
-    _ * tracer.onStartWork(_)
-    _ * tracer.onFinishWork(_)
     0 * _
 
     when:
-    def pendingTrace = factory.create(DDId.ONE)
+    def pendingTrace = factory.create(DDTraceId.ONE)
     addContinuation(newSpanOf(pendingTrace)).finish()
 
     then:
@@ -183,8 +180,6 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * tracer.getPartialFlushMinSpans() >> 10
     _ * tracer.mapServiceName(_)
     2 * tracer.getTimeWithNanoTicks(_)
-    _ * tracer.onStartWork(_)
-    _ * tracer.onFinishWork(_)
     0 * _
     pendingTrace.isEnqueued == 0
   }
@@ -193,7 +188,7 @@ class PendingTraceBufferTest extends DDSpecification {
     setup:
     def latch = new CountDownLatch(1)
 
-    def trace = factory.create(DDId.ONE)
+    def trace = factory.create(DDTraceId.ONE)
     def parent = addContinuation(newSpanOf(trace))
     TraceScope.Continuation continuation = continuations[0]
 
@@ -244,7 +239,7 @@ class PendingTraceBufferTest extends DDSpecification {
     def parentLatch = new CountDownLatch(1)
     def childLatch = new CountDownLatch(1)
 
-    def trace = factory.create(DDId.ONE)
+    def trace = factory.create(DDTraceId.ONE)
     def parent = newSpanOf(trace)
 
     when:
@@ -335,7 +330,7 @@ class PendingTraceBufferTest extends DDSpecification {
     // Don't start the buffer thread
 
     when: "finish the root span"
-    def pendingTrace = factory.create(DDId.ONE)
+    def pendingTrace = factory.create(DDTraceId.ONE)
     def span = newSpanOf(pendingTrace)
     span.finish()
 
@@ -362,8 +357,6 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * tracer.getPartialFlushMinSpans() >> 10000
     _ * tracer.mapServiceName(_)
     _ * tracer.getTimeWithNanoTicks(_)
-    _ * tracer.onStartWork(_)
-    _ * tracer.onFinishWork(_)
     0 * _
 
     when: "process the buffer"
@@ -389,8 +382,8 @@ class PendingTraceBufferTest extends DDSpecification {
   static DDSpan newSpanOf(PendingTrace trace, int samplingPriority) {
     def context = new DDSpanContext(
       trace.traceId,
-      DDId.from(1),
-      DDId.ZERO,
+      1,
+      DDSpanId.ZERO,
       null,
       "fakeService",
       "fakeOperation",
@@ -414,7 +407,7 @@ class PendingTraceBufferTest extends DDSpecification {
     def trace = parent.context().trace
     def context = new DDSpanContext(
       trace.traceId,
-      DDId.from(2),
+      2,
       parent.context().spanId,
       null,
       "fakeService",

@@ -99,7 +99,7 @@ public class CapturedSnapshotTest {
     int result = Reflect.on(testClass).call("main", "2").get();
     Assert.assertEquals(2, result);
     Assert.assertEquals(
-        "Cannot find CapturedSnapshot01::foobar",
+        "Cannot find method CapturedSnapshot01::foobar",
         listener.errors.get(PROBE_ID).get(0).getMessage());
   }
 
@@ -112,7 +112,8 @@ public class CapturedSnapshotTest {
     int result = Reflect.on(testClass).call("main", "2").get();
     Assert.assertEquals(2, result);
     Assert.assertEquals(
-        "Cannot find CapturedSnapshot01:L42", listener.errors.get(PROBE_ID).get(0).getMessage());
+        "No executable code was found at CapturedSnapshot01:L42",
+        listener.errors.get(PROBE_ID).get(0).getMessage());
   }
 
   @Test

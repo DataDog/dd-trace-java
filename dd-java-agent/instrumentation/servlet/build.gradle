@@ -13,9 +13,11 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'call-site-instrumentation'
 
 dependencies {
   compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.3'
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 
   testImplementation group: 'javax.servlet', name: 'servlet-api', version: '2.3'
 

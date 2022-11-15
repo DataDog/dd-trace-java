@@ -6,7 +6,6 @@ import static datadog.trace.util.Strings.getResourceName;
 import datadog.trace.agent.tooling.Utils;
 import datadog.trace.agent.tooling.WeakCaches;
 import datadog.trace.api.Config;
-import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.WeakCache;
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,14 +22,6 @@ import net.bytebuddy.utility.StreamDrainer;
  * cannot find the desired resource, check up the classloader hierarchy until a resource is found.
  */
 public final class ClassFileLocators {
-  private static final Function<ClassLoader, DDClassFileLocator> NEW_CLASS_FILE_LOCATOR =
-      new Function<ClassLoader, DDClassFileLocator>() {
-        @Override
-        public DDClassFileLocator apply(ClassLoader input) {
-          return new DDClassFileLocator(input);
-        }
-      };
-
   private static final WeakCache<ClassLoader, DDClassFileLocator> classFileLocators =
       WeakCaches.newWeakCache(64);
 
@@ -51,7 +42,7 @@ public final class ClassFileLocators {
 
   public static ClassFileLocator classFileLocator(final ClassLoader classLoader) {
     return null != classLoader
-        ? classFileLocators.computeIfAbsent(classLoader, NEW_CLASS_FILE_LOCATOR)
+        ? classFileLocators.computeIfAbsent(classLoader, DDClassFileLocator::new)
         : bootClassFileLocator;
   }
 

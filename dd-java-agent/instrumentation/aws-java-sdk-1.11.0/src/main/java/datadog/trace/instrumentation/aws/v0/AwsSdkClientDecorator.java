@@ -6,11 +6,11 @@ import com.amazonaws.Request;
 import com.amazonaws.Response;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.QualifiedClassNameCache;
-import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response> {

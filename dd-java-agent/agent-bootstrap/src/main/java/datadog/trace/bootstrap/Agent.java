@@ -13,7 +13,6 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static datadog.trace.util.Strings.getResourceName;
 import static datadog.trace.util.Strings.toEnvVar;
 
-import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.GlobalTracer;
@@ -23,11 +22,12 @@ import datadog.trace.api.Tracer;
 import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ContextThreadListener;
 import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import datadog.trace.bootstrap.instrumentation.exceptions.ExceptionSampling;
-import datadog.trace.context.ScopeListener;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import java.lang.instrument.Instrumentation;
@@ -438,7 +438,7 @@ public class Agent {
   }
 
   private static void maybeStartRemoteConfig(Class<?> scoClass, Object sco) {
-    if (!remoteConfigEnabled || !isJavaVersionAtLeast(8)) {
+    if (!remoteConfigEnabled) {
       return;
     }
 
@@ -597,11 +597,6 @@ public class Agent {
       return;
     }
 
-    if (!isJavaVersionAtLeast(8)) {
-      log.warn("AppSec System requires Java 8 or later to run");
-      return;
-    }
-
     try {
       SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC);
       startAppSec(ss, scoClass, o);
@@ -639,16 +634,11 @@ public class Agent {
 
   private static void maybeStartIast(Class<?> scoClass, Object o) {
     if (iastEnabled) {
-      if (isJavaVersionAtLeast(8)) {
-        try {
-          SubscriptionService ss =
-              AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST);
-          startIast(ss, scoClass, o);
-        } catch (Exception e) {
-          log.error("Error starting IAST subsystem", e);
-        }
-      } else {
-        log.warn("IAST subsystem requires Java 8 or later to run");
+      try {
+        SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST);
+        startIast(ss, scoClass, o);
+      } catch (Exception e) {
+        log.error("Error starting IAST subsystem", e);
       }
     }
   }
@@ -672,7 +662,7 @@ public class Agent {
           telemetrySystem.getMethod("startTelemetry", Instrumentation.class, scoClass);
       startTelemetry.invoke(null, inst, sco);
     } catch (final Throwable ex) {
-      log.warn("Unable start telemetry: {}", ex);
+      log.warn("Unable start telemetry", ex);
     }
   }
 
@@ -698,7 +688,7 @@ public class Agent {
     WithGlobalTracer.registerOrExecute(
         new WithGlobalTracer.Callback() {
           @Override
-          public void withTracer(Tracer tracer) {
+          public void withTracer(TracerAPI tracer) {
             log.debug("Registering CWS scope tracker");
             try {
               ScopeListener scopeListener =
@@ -727,14 +717,14 @@ public class Agent {
     if (Config.get().isProfilingEnabled()) {
       try {
         Tracer tracer = GlobalTracer.get();
-        if (tracer instanceof AgentTracer.TracerAPI) {
+        if (tracer instanceof TracerAPI) {
           ContextThreadListener listener =
               (ContextThreadListener)
                   AGENT_CLASSLOADER
                       .loadClass("com.datadog.profiling.async.ContextThreadFilter")
                       .getDeclaredConstructor()
                       .newInstance();
-          ((AgentTracer.TracerAPI) tracer).addThreadContextListener(listener);
+          ((TracerAPI) tracer).addThreadContextListener(listener);
         }
       } catch (Throwable t) {
         log.debug("Profiling context labeling not available. {}", t.getMessage());
@@ -760,7 +750,7 @@ public class Agent {
         WithGlobalTracer.registerOrExecute(
             new WithGlobalTracer.Callback() {
               @Override
-              public void withTracer(Tracer tracer) {
+              public void withTracer(TracerAPI tracer) {
                 log.debug("Initializing profiler tracer integrations");
                 try {
                   if (Config.get().isAsyncProfilerEnabled()) {
@@ -772,25 +762,17 @@ public class Agent {
                   if (Platform.isOracleJDK8() || Platform.isJ9()) {
                     return;
                   }
-                  Checkpointer checkpointer =
-                      (Checkpointer)
+                  EndpointCheckpointer endpointCheckpointer =
+                      (EndpointCheckpointer)
                           AGENT_CLASSLOADER
                               .loadClass("datadog.trace.core.jfr.openjdk.JFRCheckpointer")
                               .getDeclaredConstructor()
                               .newInstance();
-                  ((AgentTracer.TracerAPI) tracer)
-                      .registerCheckpointer((EndpointCheckpointer) checkpointer);
+                  tracer.registerCheckpointer(endpointCheckpointer);
                   if (!Config.get().isAsyncProfilerEnabled()) {
-                    if (Config.get().isProfilingLegacyTracingIntegrationEnabled()) {
-                      log.debug("Registering scope event factory");
-                      tracer.addScopeListener(
-                          createScopeListener("datadog.trace.core.jfr.openjdk.ScopeEventFactory"));
-                    } else {
-                      // TODO remove this
-                      log.debug("Registering checkpointer");
-                      ((AgentTracer.TracerAPI) tracer).registerCheckpointer(checkpointer);
-                      log.debug("Checkpointer {} has been registered", checkpointer);
-                    }
+                    log.debug("Registering scope event factory");
+                    tracer.addScopeListener(
+                        createScopeListener("datadog.trace.core.jfr.openjdk.ScopeEventFactory"));
                   }
                 } catch (Throwable e) {
                   if (e instanceof InvocationTargetException) {

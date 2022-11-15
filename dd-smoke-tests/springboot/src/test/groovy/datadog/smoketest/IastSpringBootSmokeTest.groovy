@@ -1,11 +1,12 @@
 package datadog.smoketest
 
 import datadog.trace.api.Platform
-import datadog.trace.api.function.Function
 import datadog.trace.test.agent.decoder.DecodedSpan
 import okhttp3.Request
 import spock.lang.IgnoreIf
 import spock.util.concurrent.PollingConditions
+
+import java.util.function.Function
 
 @IgnoreIf({
   !Platform.isJavaVersionAtLeast(8)
@@ -29,7 +30,11 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     List<String> command = new ArrayList<>()
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
-    command.addAll(["-Ddd.iast.enabled=true", "-Ddd.iast.request-sampling=100"])
+    command.addAll([
+      "-Ddd.iast.enabled=true",
+      "-Ddd.iast.request-sampling=100",
+      "-Ddd.iast.taint-tracking.debug.enabled=true"
+    ])
     command.addAll((String[]) ["-jar", springBootShadowJar, "--server.port=${httpPort}"])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
@@ -116,5 +121,26 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
 
     then:
     waitForSpan(new PollingConditions(timeout: 5), hasVulnerability("WEAK_HASH"))
+  }
+
+  def "getParameter taints string"() {
+    setup:
+    String url = "http://localhost:${httpPort}/getparameter?param=A"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    def responseBodyStr = response.body().string()
+    responseBodyStr != null
+    responseBodyStr.contains("Param is: A")
+    Boolean foundTaintedString = false
+    checkLog {
+      if (it.contains("TaintInputString")) {
+        foundTaintedString = true
+      }
+    }
+    foundTaintedString
   }
 }

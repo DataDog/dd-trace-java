@@ -11,11 +11,11 @@ import datadog.trace.agent.tooling.bytebuddy.TypeInfoCache.SharedTypeInfo;
 import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.function.Function;
 import java.io.Serializable;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.jar.asm.Type;
@@ -39,13 +39,7 @@ final class TypeFactory {
   private static final Logger log = LoggerFactory.getLogger(TypeFactory.class);
 
   /** Maintain a reusable type factory for each thread involved in class-loading. */
-  static final ThreadLocal<TypeFactory> typeFactory =
-      new ThreadLocal<TypeFactory>() {
-        @Override
-        protected TypeFactory initialValue() {
-          return new TypeFactory();
-        }
-      };
+  static final ThreadLocal<TypeFactory> typeFactory = ThreadLocal.withInitial(TypeFactory::new);
 
   private static final boolean fallBackToLoadClass = Config.get().isResolverUseLoadClassEnabled();
 
@@ -96,13 +90,7 @@ final class TypeFactory {
   /** Small local cache to help deduplicate lookups when matching/transforming. */
   private final DDCache<String, LazyType> deferredTypes = DDCaches.newFixedSizeCache(16);
 
-  private final Function<String, LazyType> deferType =
-      new Function<String, LazyType>() {
-        @Override
-        public LazyType apply(String input) {
-          return new LazyType(input);
-        }
-      };
+  private final Function<String, LazyType> deferType = LazyType::new;
 
   boolean installing = true;
 

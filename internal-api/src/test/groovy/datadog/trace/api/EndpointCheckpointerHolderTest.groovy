@@ -4,22 +4,17 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.test.util.DDSpecification
 
-import static datadog.trace.api.Checkpointer.CPU
-import static datadog.trace.api.Checkpointer.END
-
-class SamplingCheckpointerTest extends DDSpecification {
+class EndpointCheckpointerHolderTest extends DDSpecification {
 
   def "test sampling and fallback"() {
     setup:
-    Checkpointer checkpointer = Mock()
     EndpointCheckpointer rootSpanCheckpointer = Mock()
-    SamplingCheckpointer sut = SamplingCheckpointer.create()
+    EndpointCheckpointerHolder sut = EndpointCheckpointerHolder.create()
     if (register) {
-      sut.register(checkpointer)
       sut.register(rootSpanCheckpointer)
     }
-    DDId localRootSpanId = DDId.from(1)
-    DDId spanId = DDId.from(2)
+    long localRootSpanId = 1
+    long spanId = 2
     String resource = "foo"
     AgentSpan rootSpan = Stub(AgentSpan)
     rootSpan.getSpanId() >> localRootSpanId
@@ -30,26 +25,7 @@ class SamplingCheckpointerTest extends DDSpecification {
     span.getSpanId() >> spanId
     span.getLocalRootSpan() >> rootSpan
     span.eligibleForDropping() >> drop
-    int checkpointCount = register ? drop ? 0 : 1 : 0
     int rootSpanCount = register ? 1 : 0
-
-    when:
-    sut.onStartWork(span)
-    then:
-    checkpointCount * checkpointer.checkpoint(span, CPU)
-    0 * _
-
-    when:
-    sut.onFinishWork(span)
-    then:
-    checkpointCount * checkpointer.checkpoint(span, CPU | END)
-    0 * _
-
-    when:
-    sut.checkpoint(span, CPU)
-    then:
-    checkpointCount * checkpointer.checkpoint(span, CPU)
-    0 * _
 
     when:
     sut.onRootSpanStarted(rootSpan)
