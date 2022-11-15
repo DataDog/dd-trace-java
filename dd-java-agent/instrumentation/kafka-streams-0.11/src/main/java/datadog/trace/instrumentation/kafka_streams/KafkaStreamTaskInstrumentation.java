@@ -222,8 +222,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           span = startSpan(KAFKA_CONSUME, extractedContext);
         } else {
           queueSpan =
-              startSpan(
-                  KAFKA_DELIVER, extractedContext, MILLISECONDS.toMicros(timeInQueueStart), false);
+              startSpan(KAFKA_DELIVER, extractedContext, MILLISECONDS.toMicros(timeInQueueStart));
           BROKER_DECORATE.afterStart(queueSpan);
           BROKER_DECORATE.onTimeInQueue(queueSpan, record);
           span = startSpan(KAFKA_CONSUME, queueSpan.context());
@@ -288,8 +287,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           span = startSpan(KAFKA_CONSUME, extractedContext);
         } else {
           queueSpan =
-              startSpan(
-                  KAFKA_DELIVER, extractedContext, MILLISECONDS.toMicros(timeInQueueStart), false);
+              startSpan(KAFKA_DELIVER, extractedContext, MILLISECONDS.toMicros(timeInQueueStart));
           BROKER_DECORATE.afterStart(queueSpan);
           BROKER_DECORATE.onTimeInQueue(queueSpan, record);
           span = startSpan(KAFKA_CONSUME, queueSpan.context());

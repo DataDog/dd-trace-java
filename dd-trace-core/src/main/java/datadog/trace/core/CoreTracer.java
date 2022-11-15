@@ -14,15 +14,14 @@ import datadog.communication.ddagent.ExternalAgentLauncher;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
-import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
+import datadog.trace.api.EndpointCheckpointerHolder;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.Platform;
 import datadog.trace.api.PropagationStyle;
-import datadog.trace.api.SamplingCheckpointer;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -146,7 +145,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final Recording traceWriteTimer;
   private final IdGenerationStrategy idGenerationStrategy;
   private final PendingTrace.Factory pendingTraceFactory;
-  private final SamplingCheckpointer spanCheckpointer;
+  private final EndpointCheckpointerHolder endpointCheckpointer;
   private final DataStreamsCheckpointer dataStreamsCheckpointer;
   private final ExternalAgentLauncher externalAgentLauncher;
   private boolean disableSamplingMechanismValidation;
@@ -189,28 +188,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public void checkpoint(AgentSpan span, int flags) {
-    spanCheckpointer.checkpoint(span, flags);
-  }
-
-  @Override
-  public void onStartWork(AgentSpan span) {
-    spanCheckpointer.onStartWork(span);
-  }
-
-  @Override
-  public void onFinishWork(AgentSpan span) {
-    spanCheckpointer.onFinishWork(span);
-  }
-
-  @Override
   public void onRootSpanFinished(AgentSpan root, boolean published) {
-    spanCheckpointer.onRootSpanFinished(root, published);
+    endpointCheckpointer.onRootSpanFinished(root, published);
   }
 
   @Override
   public void onRootSpanStarted(AgentSpan root) {
-    spanCheckpointer.onRootSpanStarted(root);
+    endpointCheckpointer.onRootSpanStarted(root);
   }
 
   public static class CoreTracerBuilder {
@@ -425,7 +409,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.clockSyncPeriod = Math.max(1_000_000L, SECONDS.toNanos(config.getClockSyncPeriod()));
     this.lastSyncTicks = startNanoTicks;
 
-    this.spanCheckpointer = SamplingCheckpointer.create();
+    this.endpointCheckpointer = EndpointCheckpointerHolder.create();
     this.serviceName = serviceName;
     this.sampler = sampler;
     this.injector = injector;
@@ -615,49 +599,28 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public AgentSpan startSpan(final CharSequence spanName, boolean emitCheckpoint) {
-    AgentTracer.SpanBuilder builder = buildSpan(spanName);
-    if (!emitCheckpoint) {
-      builder = builder.suppressCheckpoints();
-    }
-    return builder.start();
+  public AgentSpan startSpan(final CharSequence spanName) {
+    return buildSpan(spanName).start();
+  }
+
+  @Override
+  public AgentSpan startSpan(final CharSequence spanName, final long startTimeMicros) {
+    return buildSpan(spanName).withStartTimestamp(startTimeMicros).start();
+  }
+
+  @Override
+  public AgentSpan startSpan(final CharSequence spanName, final AgentSpan.Context parent) {
+    return buildSpan(spanName).ignoreActiveSpan().asChildOf(parent).start();
   }
 
   @Override
   public AgentSpan startSpan(
-      final CharSequence spanName, final long startTimeMicros, boolean emitCheckpoint) {
-    AgentTracer.SpanBuilder builder = buildSpan(spanName).withStartTimestamp(startTimeMicros);
-    if (!emitCheckpoint) {
-      builder = builder.suppressCheckpoints();
-    }
-    return builder.start();
-  }
-
-  @Override
-  public AgentSpan startSpan(
-      final CharSequence spanName, final AgentSpan.Context parent, boolean emitCheckpoint) {
-    AgentTracer.SpanBuilder builder = buildSpan(spanName).ignoreActiveSpan().asChildOf(parent);
-    if (!emitCheckpoint) {
-      builder = builder.suppressCheckpoints();
-    }
-    return builder.start();
-  }
-
-  @Override
-  public AgentSpan startSpan(
-      final CharSequence spanName,
-      final AgentSpan.Context parent,
-      final long startTimeMicros,
-      boolean emitCheckpoint) {
-    AgentTracer.SpanBuilder builder =
-        buildSpan(spanName)
-            .ignoreActiveSpan()
-            .asChildOf(parent)
-            .withStartTimestamp(startTimeMicros);
-    if (!emitCheckpoint) {
-      builder = builder.suppressCheckpoints();
-    }
-    return builder.start();
+      final CharSequence spanName, final AgentSpan.Context parent, final long startTimeMicros) {
+    return buildSpan(spanName)
+        .ignoreActiveSpan()
+        .asChildOf(parent)
+        .withStartTimestamp(startTimeMicros)
+        .start();
   }
 
   public AgentScope activateSpan(final AgentSpan span) {
@@ -950,13 +913,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public void registerCheckpointer(Checkpointer checkpointer) {
-    this.spanCheckpointer.register(checkpointer);
-  }
-
-  @Override
-  public void registerCheckpointer(EndpointCheckpointer checkpointer) {
-    this.spanCheckpointer.register(checkpointer);
+  public void registerCheckpointer(EndpointCheckpointer implementation) {
+    this.endpointCheckpointer.register(implementation);
   }
 
   @Override
@@ -1091,7 +1049,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private boolean errorFlag;
     private CharSequence spanType;
     private boolean ignoreScope = false;
-    private boolean emitCheckpoints = true;
 
     CoreSpanBuilder(final CharSequence operationName, CoreTracer tracer) {
       this.operationName = operationName;
@@ -1105,7 +1062,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     private DDSpan buildSpan() {
-      DDSpan span = DDSpan.create(timestampMicro, buildSpanContext(), emitCheckpoints);
+      DDSpan span = DDSpan.create(timestampMicro, buildSpanContext());
       if (span.isLocalRootSpan()) {
         tracer.onRootSpanStarted(span);
       }
@@ -1159,12 +1116,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     @Override
     public CoreSpanBuilder withSpanType(final CharSequence spanType) {
       this.spanType = spanType;
-      return this;
-    }
-
-    @Override
-    public AgentTracer.SpanBuilder suppressCheckpoints() {
-      this.emitCheckpoints = false;
       return this;
     }
 

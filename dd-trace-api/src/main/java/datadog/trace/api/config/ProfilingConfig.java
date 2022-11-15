@@ -113,20 +113,8 @@ public final class ProfilingConfig {
   public static final String PROFILING_TRACING_CONTEXT_MAX_SPANS =
       "profiling.tracing_context.inflight_spans.max";
   public static final int PROFILING_TRACING_CONTEXT_MAX_SPANS_DEFAULT = 1_000_000;
-
-  public static final String PROFILING_LEGACY_TRACING_INTEGRATION =
-      "profiling.legacy.tracing.integration";
-  public static final boolean PROFILING_LEGACY_TRACING_INTEGRATION_DEFAULT = true;
   public static final String PROFILING_CHECKPOINTS_RECORD_CPU_TIME =
       "profiling.checkpoints.record.cpu.time";
-  public static final String PROFILING_CHECKPOINTS_SAMPLER_RATE_LIMIT =
-      "profiling.checkpoints.sampler.rate-limit";
-  public static final int PROFILING_CHECKPOINTS_SAMPLER_RATE_LIMIT_DEFAULT = 100000;
-  public static final String PROFILING_CHECKPOINTS_SAMPLER_WINDOW_MS =
-      "profiling.checkpoints.sampler.sliding-window.ms";
-  public static final int PROFILING_CHECKPOINTS_SAMPLER_WINDOW_MS_DEFAULT = 5000;
-  public static final String PROFILING_CHECKPOINTS_SAMPLER_LIMIT = "profiling.checkpoints.limit";
-  public static final int PROFILING_CHECKPOINTS_SAMPLER_LIMIT_DEFAULT = 500_000;
   public static final String PROFILING_ENDPOINT_COLLECTION_ENABLED =
       "profiling.endpoint.collection.enabled";
   public static final boolean PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT = true;

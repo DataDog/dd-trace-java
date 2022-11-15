@@ -1,9 +1,7 @@
 package datadog.trace.core.jfr.openjdk
 
 import datadog.trace.api.GlobalTracer
-import datadog.trace.api.EndpointCheckpointer
 import datadog.trace.api.config.ProfilingConfig
-import datadog.trace.api.sampling.ConstantSampler
 import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -323,12 +321,11 @@ class ScopeEventTest extends DDSpecification {
     SystemAccess.enableJmx()
     def recording = JfrHelper.startRecording()
     def configProvider = ConfigProvider.getInstance()
-    def jfrCheckpointer = new JFRCheckpointer(new ConstantSampler(true), JFRCheckpointer.getSamplerConfiguration(configProvider), configProvider)
+    def jfrCheckpointer = new JFRCheckpointer(configProvider)
     tracer.registerCheckpointer(jfrCheckpointer)
-    tracer.registerCheckpointer((EndpointCheckpointer) jfrCheckpointer)
 
     when: "span goes through lifecycle without activation"
-    AgentSpan span = tracer.startSpan("test", true)
+    AgentSpan span = tracer.startSpan("test")
     span.setResourceName("foo")
     span.finish()
     then: "checkpoints emitted"

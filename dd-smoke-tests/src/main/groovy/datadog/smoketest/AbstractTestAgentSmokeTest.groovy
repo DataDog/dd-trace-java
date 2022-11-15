@@ -2,7 +2,6 @@ package datadog.smoketest
 
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.PortUtils
-import datadog.trace.api.config.ProfilingConfig
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -44,7 +43,6 @@ abstract class AbstractTestAgentSmokeTest extends ProcessManager {
     "-Ddd.env=${ENV}",
     "-Ddd.version=${VERSION}",
     "-Ddd.profiling.enabled=false",
-    "-Ddd.${ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_RATE_LIMIT}=0",
     "-Ddd.test.no.early.discovery=true",
     "-Ddd.trace.client-ip.enabled=true",
     // The mock agent cannot cope with feature discovery or remote config requests.

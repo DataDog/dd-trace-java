@@ -13,7 +13,6 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static datadog.trace.util.Strings.getResourceName;
 import static datadog.trace.util.Strings.toEnvVar;
 
-import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.GlobalTracer;
@@ -762,25 +761,17 @@ public class Agent {
                   if (Platform.isOracleJDK8() || Platform.isJ9()) {
                     return;
                   }
-                  Checkpointer checkpointer =
-                      (Checkpointer)
+                  EndpointCheckpointer endpointCheckpointer =
+                      (EndpointCheckpointer)
                           AGENT_CLASSLOADER
                               .loadClass("datadog.trace.core.jfr.openjdk.JFRCheckpointer")
                               .getDeclaredConstructor()
                               .newInstance();
-                  ((AgentTracer.TracerAPI) tracer)
-                      .registerCheckpointer((EndpointCheckpointer) checkpointer);
+                  ((AgentTracer.TracerAPI) tracer).registerCheckpointer(endpointCheckpointer);
                   if (!Config.get().isAsyncProfilerEnabled()) {
-                    if (Config.get().isProfilingLegacyTracingIntegrationEnabled()) {
-                      log.debug("Registering scope event factory");
-                      tracer.addScopeListener(
-                          createScopeListener("datadog.trace.core.jfr.openjdk.ScopeEventFactory"));
-                    } else {
-                      // TODO remove this
-                      log.debug("Registering checkpointer");
-                      ((AgentTracer.TracerAPI) tracer).registerCheckpointer(checkpointer);
-                      log.debug("Checkpointer {} has been registered", checkpointer);
-                    }
+                    log.debug("Registering scope event factory");
+                    tracer.addScopeListener(
+                        createScopeListener("datadog.trace.core.jfr.openjdk.ScopeEventFactory"));
                   }
                 } catch (Throwable e) {
                   if (e instanceof InvocationTargetException) {
