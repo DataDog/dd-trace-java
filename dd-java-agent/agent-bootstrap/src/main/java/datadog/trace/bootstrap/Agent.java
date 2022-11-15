@@ -263,6 +263,12 @@ public class Agent {
         ExceptionSampling.enableExceptionSampling();
       }
     }
+    System.out.println("-------------------------------------------------------");
+    System.out.println(Config.get().getAgentUrl());
+    System.out.println(Config.get().getServiceName());
+    System.out.println(Config.get().getEnv());
+    System.out.println(Config.get().getTraceAgentArgs());
+    System.out.println("-------------------------------------------------------");
   }
 
   public static void shutdown(final boolean sync) {
