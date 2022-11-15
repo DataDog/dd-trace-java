@@ -35,4 +35,6 @@ public class InternalSpanTypes {
   public static final CharSequence GRAPHQL = UTF8BytesString.create(DDSpanTypes.GRAPHQL);
 
   public static final CharSequence TEST = UTF8BytesString.create(DDSpanTypes.TEST);
+
+  public static final CharSequence IAST = UTF8BytesString.create(DDSpanTypes.IAST);
 }

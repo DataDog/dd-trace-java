@@ -7,13 +7,21 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.TraceSegment;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /** Reports IAST vulnerabilities. */
 public class Reporter {
+
+  private static final CharSequence NEW_SPAN_TYPE = "iast.vulnerability";
 
   private final Predicate<Vulnerability> duplicated;
 
@@ -29,10 +37,22 @@ public class Reporter {
     this.duplicated = duplicate;
   }
 
-  public void report(final AgentSpan span, final Vulnerability vulnerability) {
+  public void report(@Nullable final AgentSpan span, @Nonnull final Vulnerability vulnerability) {
     if (span == null) {
-      return;
+      final AgentSpan newSpan = startNewSpan();
+      try (final AgentScope ignored = AgentTracer.activateSpan(newSpan)) {
+        vulnerability.getLocation().updateSpan(newSpan.getSpanId());
+        reportVulnerability(newSpan, vulnerability);
+      } finally {
+        newSpan.finish();
+      }
+    } else {
+      reportVulnerability(span, vulnerability);
     }
+  }
+
+  private void reportVulnerability(
+      @Nonnull final AgentSpan span, @Nonnull final Vulnerability vulnerability) {
     final RequestContext reqCtx = span.getRequestContext();
     if (reqCtx == null) {
       return;
@@ -54,6 +74,13 @@ public class Reporter {
       // are kept.
       segment.setTagTop(DDTags.MANUAL_KEEP, true);
     }
+  }
+
+  private AgentSpan startNewSpan() {
+    final AgentSpan.Context tagContext =
+        new TagContext().withRequestContextDataIast(new IastRequestContext());
+    return AgentTracer.startSpan(NEW_SPAN_TYPE, tagContext, false)
+        .setSpanType(InternalSpanTypes.IAST);
   }
 
   /**

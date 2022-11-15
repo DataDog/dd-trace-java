@@ -8,9 +8,15 @@ import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.TraceSegment
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
+import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.test.util.DDSpecification
 import groovy.json.JsonSlurper
+import spock.lang.Shared
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -19,6 +25,13 @@ import java.util.concurrent.TimeUnit
 import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED
 
 class ReporterTest extends DDSpecification {
+
+  @Shared
+  protected static final TracerAPI ORIGINAL_TRACER = AgentTracer.get()
+
+  def cleanup() {
+    AgentTracer.forceRegister(ORIGINAL_TRACER)
+  }
 
   void 'basic vulnerability reporting'() {
     given:
@@ -127,10 +140,17 @@ class ReporterTest extends DDSpecification {
     0 * _
   }
 
-  void 'null span does not throw'() {
+  void 'null span creates a new one before reporting'() {
     given:
-    final Reporter reporter = new Reporter()
-    final span = null
+    final tracerAPI = Mock(TracerAPI)
+    AgentTracer.forceRegister(tracerAPI)
+    final spanId = 12345L
+    final span = Mock(AgentSpan)
+    final scope = Mock(AgentScope)
+    final ctx = new IastRequestContext()
+    final reqCtx = Stub(RequestContext)
+    reqCtx.getData(RequestContextSlot.IAST) >> ctx
+    final reporter = new Reporter()
     final v = new Vulnerability(
       VulnerabilityType.WEAK_HASH,
       Location.forSpanAndStack(0, new StackTraceElement("foo", "foo", "foo", 1)),
@@ -138,10 +158,18 @@ class ReporterTest extends DDSpecification {
       )
 
     when:
-    reporter.report(span, v)
+    reporter.report(null, v)
+    v.getLocation().getSpanId() == spanId
 
     then:
     noExceptionThrown()
+    1 * tracerAPI.startSpan('iast.vulnerability', _ as AgentSpan.Context, false) >> span
+    1 * tracerAPI.activateSpan(span, ScopeSource.MANUAL) >> scope
+    1 * span.getSpanId() >> spanId
+    1 * span.getRequestContext() >> reqCtx
+    1 * span.setSpanType(InternalSpanTypes.IAST) >> span
+    1 * span.finish()
+    1 * scope.close()
     0 * _
   }
 
@@ -150,7 +178,7 @@ class ReporterTest extends DDSpecification {
     final Reporter reporter = new Reporter()
     final span = Mock(AgentSpan)
     span.getRequestContext() >> null
-    span.getSpanId() >> null
+    span.getSpanId() >> 12345L
     final v = new Vulnerability(
       VulnerabilityType.WEAK_HASH,
       Location.forSpanAndStack(0, new StackTraceElement("foo", "foo", "foo", 1)),
