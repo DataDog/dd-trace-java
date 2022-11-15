@@ -836,8 +836,7 @@ public class Agent {
    * @return true if we should
    */
   private static boolean isDebugMode() {
-    return true;
-/*    final String tracerDebugLevelSysprop = "dd.trace.debug";
+    final String tracerDebugLevelSysprop = "dd.trace.debug";
     final String tracerDebugLevelProp = System.getProperty(tracerDebugLevelSysprop);
 
     if (tracerDebugLevelProp != null) {
@@ -849,7 +848,7 @@ public class Agent {
     if (tracerDebugLevelEnv != null) {
       return Boolean.parseBoolean(tracerDebugLevelEnv);
     }
-    return false;*/
+    return false;
   }
 
   /**
