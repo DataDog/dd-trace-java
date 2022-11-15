@@ -10,7 +10,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.Writer;
-import datadog.trace.context.ScopeListener;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.propagation.ExtractedContext;
@@ -427,11 +426,6 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
   @Override
   public boolean addTraceInterceptor(final TraceInterceptor traceInterceptor) {
     return tracer.addTraceInterceptor(traceInterceptor);
-  }
-
-  @Override
-  public void addScopeListener(final ScopeListener listener) {
-    tracer.addScopeListener(listener);
   }
 
   @Override

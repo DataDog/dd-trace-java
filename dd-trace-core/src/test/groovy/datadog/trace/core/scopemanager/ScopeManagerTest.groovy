@@ -13,7 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan
 import datadog.trace.bootstrap.instrumentation.api.ContextThreadListener
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.context.ScopeListener
+import datadog.trace.api.scopemanager.ScopeListener
 import datadog.trace.context.TraceScope
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan

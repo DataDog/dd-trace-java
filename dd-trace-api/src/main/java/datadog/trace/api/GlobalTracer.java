@@ -1,7 +1,6 @@
 package datadog.trace.api;
 
 import datadog.trace.api.interceptor.TraceInterceptor;
-import datadog.trace.context.ScopeListener;
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -28,9 +27,6 @@ public class GlobalTracer {
         public boolean addTraceInterceptor(TraceInterceptor traceInterceptor) {
           return false;
         }
-
-        @Override
-        public void addScopeListener(ScopeListener listener) {}
       };
 
   private static final Collection<Callback> installationCallbacks = new ArrayList<>();

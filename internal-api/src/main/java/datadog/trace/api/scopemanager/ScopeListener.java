@@ -1,4 +1,4 @@
-package datadog.trace.context;
+package datadog.trace.api.scopemanager;
 
 /** Hooks for scope activation */
 public interface ScopeListener {
