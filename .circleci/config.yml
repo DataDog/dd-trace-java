@@ -577,6 +577,10 @@ jobs:
       # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
       image: ubuntu-2004:current
     resource_class: large
+    strategy:
+      matrix:  
+        weblog-variant: ['spring-boot', 'spring-boot-jetty', 'spring-boot-openliberty', 'jersey-grizzly2', 'resteasy-netty3','ratpack', 'vertx3']
+      fail-fast: false
     steps:
 
       - setup_code
