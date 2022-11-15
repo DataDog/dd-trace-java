@@ -101,7 +101,7 @@ public class DefaultDataStreamsCheckpointer
   @Override
   public void start() {
     if (features.getDataStreamsEndpoint() == null) {
-      features.discover();
+      features.discoverIfOutdated();
     }
 
     if (features.supportsDataStreams()) {
@@ -248,7 +248,7 @@ public class DefaultDataStreamsCheckpointer
   private void checkFeatures() {
     boolean oldValue = supportsDataStreams;
 
-    features.discover();
+    features.discoverIfOutdated();
     supportsDataStreams = features.supportsDataStreams();
     if (oldValue && !supportsDataStreams) {
       log.info("Disabling data streams reporting because it is not supported by the agent");
