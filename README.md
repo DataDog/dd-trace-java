@@ -2,9 +2,9 @@
 
 # Datadog Java APM
 
-![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/datadog/dd-trace-java)
-![GitHub all releases](https://img.shields.io/github/downloads/datadog/dd-trace-java/total)
-![GitHub](https://img.shields.io/github/license/datadog/dd-trace-java)
+[![GitHub latest release](https://img.shields.io/github/v/release/datadog/dd-trace-java)](https://github.com/DataDog/dd-trace-java/releases/latest/)
+[![GitHub all releases](https://img.shields.io/github/downloads/datadog/dd-trace-java/total)](https://github.com/DataDog/dd-trace-java/releases)
+[![GitHub](https://img.shields.io/github/license/datadog/dd-trace-java)](/LICENSE)
 
 
 This repository contains `dd-trace-java`, Datadog's APM client Java library.
