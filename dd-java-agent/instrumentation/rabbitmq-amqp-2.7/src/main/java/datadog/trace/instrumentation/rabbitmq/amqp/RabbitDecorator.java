@@ -196,9 +196,9 @@ public class RabbitDecorator extends MessagingClientDecorator {
           propagate().extractPathwayContext(headers, ContextVisitors.objectValuesMap());
       span.mergePathwayContext(pathwayContext);
       LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+      sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
       sortedTags.put(TOPIC_TAG, queue);
       sortedTags.put(TYPE_TAG, "rabbitmq");
-      sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
       AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
     }
 

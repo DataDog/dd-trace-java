@@ -93,12 +93,12 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
           && Config.get().isKafkaClientPropagationEnabled()
           && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+        sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
         if (record.partition() != null) {
           sortedTags.put(PARTITION_TAG, record.partition().toString());
         }
         sortedTags.put(TOPIC_TAG, record.topic());
         sortedTags.put(TYPE_TAG, "kafka");
-        sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
         try {
           propagate().inject(span, record.headers(), SETTER);
           propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, sortedTags);

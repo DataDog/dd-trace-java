@@ -186,11 +186,11 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
         }
         propagate().inject(span, headers, SETTER);
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+        sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
         sortedTags.put(EXCHANGE_TAG, exchange);
         sortedTags.put(
             HAS_ROUTING_KEY_TAG, routingKey == null || routingKey.equals("") ? "false" : "true");
         sortedTags.put(TYPE_TAG, "rabbitmq");
-        sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
         propagate().injectPathwayContext(span, headers, SETTER, sortedTags);
         props =
             new AMQP.BasicProperties(

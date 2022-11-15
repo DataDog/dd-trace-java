@@ -91,11 +91,11 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           span.mergePathwayContext(pathwayContext);
 
           LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+          sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
           sortedTags.put(GROUP_TAG, group);
           sortedTags.put(PARTITION_TAG, String.valueOf(val.partition()));
           sortedTags.put(TOPIC_TAG, val.topic());
           sortedTags.put(TYPE_TAG, "kafka");
-          sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
           AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
         } else {
           span = startSpan(operationName, null);

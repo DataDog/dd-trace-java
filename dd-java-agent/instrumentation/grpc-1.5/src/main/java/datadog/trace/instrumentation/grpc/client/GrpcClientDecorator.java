@@ -25,8 +25,8 @@ public class GrpcClientDecorator extends ClientDecorator {
 
   private static final LinkedHashMap<String, String> createClientPathwaySortedTags() {
     LinkedHashMap<String, String> result = new LinkedHashMap<>();
-    result.put(TYPE_TAG, "grpc");
     result.put(DIRECTION_TAG, DIRECTION_OUT);
+    result.put(TYPE_TAG, "grpc");
     return result;
   }
 

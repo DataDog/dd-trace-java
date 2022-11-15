@@ -237,6 +237,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, SR_GETTER);
         span.mergePathwayContext(pathwayContext);
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+        sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
         if (streamTaskContext != null) {
           String applicationId = streamTaskContext.getApplicationId();
           if (applicationId != null) {
@@ -247,7 +248,6 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         sortedTags.put(PARTITION_TAG, String.valueOf(record.partition()));
         sortedTags.put(TOPIC_TAG, record.topic());
         sortedTags.put(TYPE_TAG, "kafka");
-        sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
         AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
       } else {
         span = startSpan(KAFKA_CONSUME, null);
@@ -304,6 +304,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, PR_GETTER);
         span.mergePathwayContext(pathwayContext);
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+        sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
         if (streamTaskContext != null) {
           String applicationId = streamTaskContext.getApplicationId();
           if (applicationId != null) {
@@ -314,7 +315,6 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         sortedTags.put(PARTITION_TAG, String.valueOf(record.partition()));
         sortedTags.put(TOPIC_TAG, record.topic());
         sortedTags.put(TYPE_TAG, "kafka");
-        sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
         AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
       } else {
         span = startSpan(KAFKA_CONSUME, null);
