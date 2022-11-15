@@ -3,7 +3,8 @@ package datadog.trace.core
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.common.writer.ListWriter
@@ -23,7 +24,9 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     setup:
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()
-    def context = createContext(spanType, tracer, value)
+    def traceId = DDTraceId.from(value)
+    def spanId = DDSpanId.from(value)
+    def context = createContext(spanType, tracer, traceId, spanId)
     def span = DDSpan.create(0, context)
     CaptureBuffer capture = new CaptureBuffer()
     def packer = new MsgPackWriter(new FlushingBuffer(1024, capture))
@@ -43,13 +46,21 @@ class DDSpanSerializationTest extends DDCoreSpecification {
 
       switch (key) {
         case "trace_id":
+          MessageFormat next = unpacker.nextFormat
+          assert next.valueType == ValueType.INTEGER
+          if (next == MessageFormat.UINT64) {
+            assert traceId == DDTraceId.from("${unpacker.unpackBigInteger()}")
+          } else {
+            assert traceId == DDTraceId.from(unpacker.unpackLong())
+          }
+          break
         case "span_id":
           MessageFormat next = unpacker.nextFormat
           assert next.valueType == ValueType.INTEGER
           if (next == MessageFormat.UINT64) {
-            assert value == DDId.from("${unpacker.unpackBigInteger()}")
+            assert spanId == DDSpanId.from("${unpacker.unpackBigInteger()}")
           } else {
-            assert value == DDId.from(unpacker.unpackLong())
+            assert spanId == unpacker.unpackLong()
           }
           break
         default:
@@ -61,20 +72,22 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     tracer.close()
 
     where:
-    value                                                           | spanType
-    DDId.ZERO                                                       | null
-    DDId.ONE                                                        | "some-type"
-    DDId.from("8223372036854775807")                                | null
-    DDId.from("${BigInteger.valueOf(Long.MAX_VALUE).subtract(1G)}") | "some-type"
-    DDId.from("${BigInteger.valueOf(Long.MAX_VALUE).add(1G)}")      | null
-    DDId.from("${2G.pow(64).subtract(1G)}")                         | "some-type"
+    value                                                | spanType
+    "0"                                                  | null
+    "1"                                                  | "some-type"
+    "8223372036854775807"                                | null
+    "${BigInteger.valueOf(Long.MAX_VALUE).subtract(1G)}" | "some-type"
+    "${BigInteger.valueOf(Long.MAX_VALUE).add(1G)}"      | null
+    "${2G.pow(64).subtract(1G)}"                         | "some-type"
   }
 
   def "serialize trace with id #value as int v0.5"() {
     setup:
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()
-    def context = createContext(spanType, tracer, value)
+    def traceId = DDTraceId.from(value)
+    def spanId = DDSpanId.from(value)
+    def context = createContext(spanType, tracer, traceId, spanId)
     def span = DDSpan.create(0, context)
     CaptureBuffer capture = new CaptureBuffer()
     def packer = new MsgPackWriter(new FlushingBuffer(1024, capture))
@@ -99,13 +112,21 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     for (int i = 0; i < size; i++) {
       switch (i) {
         case 3:
+          MessageFormat next = unpacker.nextFormat
+          assert next.valueType == ValueType.INTEGER
+          if (next == MessageFormat.UINT64) {
+            assert traceId == DDTraceId.from("${unpacker.unpackBigInteger()}")
+          } else {
+            assert traceId == DDTraceId.from(unpacker.unpackLong())
+          }
+          break
         case 4:
           MessageFormat next = unpacker.nextFormat
           assert next.valueType == ValueType.INTEGER
           if (next == MessageFormat.UINT64) {
-            assert value == DDId.from("${unpacker.unpackBigInteger()}")
+            assert spanId == DDSpanId.from("${unpacker.unpackBigInteger()}")
           } else {
-            assert value == DDId.from(unpacker.unpackLong())
+            assert spanId == unpacker.unpackLong()
           }
           break
         default:
@@ -117,13 +138,13 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     tracer.close()
 
     where:
-    value                                                           | spanType
-    DDId.ZERO                                                       | null
-    DDId.ONE                                                        | "some-type"
-    DDId.from("8223372036854775807")                                | null
-    DDId.from("${BigInteger.valueOf(Long.MAX_VALUE).subtract(1G)}") | "some-type"
-    DDId.from("${BigInteger.valueOf(Long.MAX_VALUE).add(1G)}")      | null
-    DDId.from("${2G.pow(64).subtract(1G)}")                         | "some-type"
+    value                                                    | spanType
+    "0"                                                      | null
+    "1"                                                      | "some-type"
+    "8223372036854775807"                                    | null
+    "${BigInteger.valueOf(Long.MAX_VALUE).subtract(1G)}"     | "some-type"
+    "${BigInteger.valueOf(Long.MAX_VALUE).add(1G)}"          | null
+    "${2G.pow(64).subtract(1G)}"                             | "some-type"
   }
 
   def "serialize trace with baggage and tags correctly v0.4"() {
@@ -131,9 +152,9 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()
     def context = new DDSpanContext(
-      DDId.ONE,
-      DDId.ONE,
-      DDId.ZERO,
+      DDTraceId.ONE,
+      1,
+      DDSpanId.ZERO,
       null,
       "fakeService",
       "fakeOperation",
@@ -144,7 +165,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       false,
       null,
       tags.size(),
-      tracer.pendingTraceFactory.create(DDId.ONE),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,
@@ -202,9 +223,9 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()
     def context = new DDSpanContext(
-      DDId.ONE,
-      DDId.ONE,
-      DDId.ZERO,
+      DDTraceId.ONE,
+      1,
+      DDSpanId.ZERO,
       null,
       "fakeService",
       "fakeOperation",
@@ -215,7 +236,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       false,
       null,
       tags.size(),
-      tracer.pendingTraceFactory.create(DDId.ONE),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,
@@ -281,11 +302,11 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     }
   }
 
-  def createContext(String spanType, CoreTracer tracer, DDId value) {
+  def createContext(String spanType, CoreTracer tracer, DDTraceId traceId, long spanId) {
     DDSpanContext ctx = new DDSpanContext(
-      value,
-      value,
-      DDId.ZERO,
+      traceId,
+      spanId,
+      DDSpanId.ZERO,
       null,
       "fakeService",
       "fakeOperation",
@@ -296,7 +317,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       false,
       spanType,
       1,
-      tracer.pendingTraceFactory.create(DDId.ONE),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,

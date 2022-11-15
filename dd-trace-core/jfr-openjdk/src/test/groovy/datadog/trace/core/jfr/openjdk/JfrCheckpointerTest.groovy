@@ -1,6 +1,5 @@
 package datadog.trace.core.jfr.openjdk
 
-import datadog.trace.api.DDId
 import datadog.trace.api.config.ProfilingConfig
 import datadog.trace.api.sampling.AdaptiveSampler
 import datadog.trace.bootstrap.config.provider.ConfigProvider
@@ -101,8 +100,8 @@ class JfrCheckpointerTest extends DDSpecification {
   private static spanId = 1L
 
   def mockSpan(def checkpointed, def dropping = false, def resource = "foo") {
-    DDId localRootSpanId = DDId.from(localRootSpanId++)
-    DDId spanId = DDId.from(spanId++)
+    long localRootSpanId = localRootSpanId++
+    long spanId = spanId++
 
     def localRootSpan = Mock(AgentSpan)
     localRootSpan.getSpanId() >> localRootSpanId

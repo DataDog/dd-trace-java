@@ -2,7 +2,7 @@ package datadog.trace.core.scopemanager
 
 import datadog.trace.agent.test.utils.ThreadUtils
 import datadog.trace.api.Checkpointer
-import datadog.trace.api.DDId
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.EndpointCheckpointer
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.interceptor.MutableSpan
@@ -1043,7 +1043,7 @@ class EventCountingExtendedListener implements ExtendedScopeListener {
   }
 
   @Override
-  void afterScopeActivated(DDId traceId, DDId localRootSpanId, DDId spanId) {
+  void afterScopeActivated(DDTraceId traceId, long localRootSpanId, long spanId) {
     synchronized (events) {
       events.add(ACTIVATE)
     }

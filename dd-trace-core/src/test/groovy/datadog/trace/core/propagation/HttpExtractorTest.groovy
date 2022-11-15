@@ -1,7 +1,8 @@
 package datadog.trace.core.propagation
 
 import datadog.trace.api.Config
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
 import datadog.trace.test.util.DDSpecification
@@ -51,8 +52,8 @@ class HttpExtractorTest extends DDSpecification {
       if (expectedTraceId == null) {
         assert context == null
       } else {
-        assert context.traceId == DDId.from(expectedTraceId)
-        assert context.spanId == DDId.from(expectedSpanId)
+        assert context.traceId == DDTraceId.from(expectedTraceId)
+        assert context.spanId == DDSpanId.from(expectedSpanId)
       }
     }
 

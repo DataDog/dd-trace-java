@@ -335,9 +335,9 @@ class ScopeEventTest extends DDSpecification {
     def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Checkpoint", "datadog.Endpoint"])
     events.size() == 1
     events.each {
-      assert it.getLong("localRootSpanId") == span.getLocalRootSpan().getSpanId().toLong()
+      assert it.getLong("localRootSpanId") == span.getLocalRootSpan().getSpanId()
       if (it.eventType.name == "datadog.Checkpoint") {
-        assert it.getLong("spanId") == span.getSpanId().toLong()
+        assert it.getLong("spanId") == span.getSpanId()
       } else {
         it.getString("endpoint") == "foo"
       }

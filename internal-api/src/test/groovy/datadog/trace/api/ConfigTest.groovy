@@ -17,8 +17,6 @@ import static datadog.trace.api.DDTags.RUNTIME_ID_TAG
 import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG
 import static datadog.trace.api.DDTags.SERVICE
 import static datadog.trace.api.DDTags.SERVICE_TAG
-import static datadog.trace.api.IdGenerationStrategy.RANDOM
-import static datadog.trace.api.IdGenerationStrategy.SEQUENTIAL
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED
@@ -233,7 +231,7 @@ class ConfigTest extends DDSpecification {
     config.apiKey == "new api key" // we can still override via internal properties object
     config.site == "new site"
     config.serviceName == "something else"
-    config.idGenerationStrategy == SEQUENTIAL
+    config.idGenerationStrategy.class.name.endsWith('$Sequential')
     config.traceEnabled == false
     config.writerType == "LoggingWriter"
     config.agentHost == "somehost"
@@ -1970,7 +1968,7 @@ class ConfigTest extends DDSpecification {
     Config config = Config.get(prop)
 
     then:
-    config.idGenerationStrategy == RANDOM
+    config.idGenerationStrategy.class.name.endsWith('$Random')
   }
 
   def "DD_RUNTIME_METRICS_ENABLED=false disables all metrics"() {

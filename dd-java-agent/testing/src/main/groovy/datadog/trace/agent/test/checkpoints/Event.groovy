@@ -1,17 +1,18 @@
 package datadog.trace.agent.test.checkpoints
 
+import datadog.trace.api.DDTraceId
+
 import static datadog.trace.api.Checkpointer.*
-import datadog.trace.api.DDId
 
 class Event {
   private static final boolean DUMP_STACKTRACES = Boolean.parseBoolean(System.getProperty("dd.checkpoints.dump.stacktraces", "false"))
   private final int flags
-  private final DDId traceId
-  private final DDId spanId
+  private final DDTraceId traceId
+  private final long spanId
   private final Thread thread
   private final StackTraceElement[] stackTrace
 
-  Event(int flags, DDId traceId, DDId spanId, Thread thread) {
+  Event(int flags, DDTraceId traceId, long spanId, Thread thread) {
     this.flags = flags
     this.traceId = traceId
     this.spanId = spanId
@@ -54,11 +55,11 @@ class Event {
     return flags
   }
 
-  DDId getTraceId() {
+  DDTraceId getTraceId() {
     return traceId
   }
 
-  DDId getSpanId() {
+  long getSpanId() {
     return spanId
   }
 

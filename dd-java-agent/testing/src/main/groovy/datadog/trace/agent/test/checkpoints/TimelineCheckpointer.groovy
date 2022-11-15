@@ -1,7 +1,8 @@
 package datadog.trace.agent.test.checkpoints
 
 import datadog.trace.api.Checkpointer
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
 import java.nio.charset.StandardCharsets
@@ -10,15 +11,15 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 class TimelineCheckpointer implements Checkpointer {
 
-  private final ConcurrentHashMap<DDId, List<Event>> spanEvents = new ConcurrentHashMap<>()
+  private final ConcurrentHashMap<DDSpanId, List<Event>> spanEvents = new ConcurrentHashMap<>()
   private final ConcurrentHashMap<Thread, List<Event>> threadEvents = new ConcurrentHashMap<>()
   private final List<Event> orderedEvents = new CopyOnWriteArrayList<>()
 
   @Override
   void checkpoint(AgentSpan span, int flags) {
     Thread currentThread = Thread.currentThread()
-    DDId spanId = span.getSpanId()
-    DDId traceId = span.getTraceId()
+    long spanId = span.getSpanId()
+    DDTraceId traceId = span.getTraceId()
     Event event = new Event(flags, traceId, spanId, currentThread)
     orderedEvents.add(event)
     spanEvents.putIfAbsent(spanId, new CopyOnWriteArrayList<Event>())
@@ -34,7 +35,7 @@ class TimelineCheckpointer implements Checkpointer {
   @Override
   void onRootSpanStarted(AgentSpan rootSpan) {}
 
-  void throwOnInvalidSequence(Collection<DDId> trackedSpanIds) {
+  void throwOnInvalidSequence(Collection<DDSpanId> trackedSpanIds) {
     String charset = StandardCharsets.UTF_8.name()
     ByteArrayOutputStream baostream = new ByteArrayOutputStream()
     PrintStream out = new PrintStream(baostream, false, charset)

@@ -10,8 +10,9 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.profiling.TracingContextTracker;
@@ -350,7 +351,7 @@ public class DDSpan
    * @return true if root, false otherwise
    */
   public final boolean isRootSpan() {
-    return DDId.ZERO.equals(context.getParentId());
+    return context.getParentId() == DDSpanId.ZERO;
   }
 
   @Override
@@ -377,7 +378,6 @@ public class DDSpan
   public boolean isSameTrace(final AgentSpan otherSpan) {
     // FIXME [API] AgentSpan or AgentSpan.Context should have a "getTraceId()" type method
     if (otherSpan instanceof DDSpan) {
-      // minor optimization to avoid BigInteger.toString()
       return getTraceId().equals(otherSpan.getTraceId());
     }
 
@@ -664,17 +664,17 @@ public class DDSpan
   }
 
   @Override
-  public DDId getTraceId() {
+  public DDTraceId getTraceId() {
     return context.getTraceId();
   }
 
   @Override
-  public DDId getSpanId() {
+  public long getSpanId() {
     return context.getSpanId();
   }
 
   @Override
-  public DDId getParentId() {
+  public long getParentId() {
     return context.getParentId();
   }
 

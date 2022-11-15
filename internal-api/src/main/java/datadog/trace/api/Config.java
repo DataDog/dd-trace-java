@@ -94,7 +94,6 @@ import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
 import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
-import static datadog.trace.api.IdGenerationStrategy.RANDOM;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
@@ -718,13 +717,24 @@ public class Config {
         configProvider.getBoolean(INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME, false);
     writerType = configProvider.getString(WRITER_TYPE, DEFAULT_AGENT_WRITER_TYPE);
 
-    idGenerationStrategy =
-        configProvider.getEnum(ID_GENERATION_STRATEGY, IdGenerationStrategy.class, RANDOM);
-    if (idGenerationStrategy != RANDOM) {
+    String strategyName = configProvider.getString(ID_GENERATION_STRATEGY);
+    if (strategyName == null) {
+      strategyName = "RANDOM";
+    }
+    IdGenerationStrategy strategy = IdGenerationStrategy.fromName(strategyName);
+    if (strategy == null) {
+      log.warn(
+          "*** you are trying to use an unknown id generation strategy {} - falling back to RANDOM",
+          strategyName);
+      strategyName = "RANDOM";
+      strategy = IdGenerationStrategy.fromName(strategyName);
+    }
+    if (!strategyName.equals("RANDOM")) {
       log.warn(
           "*** you are using an unsupported id generation strategy {} - this can impact correctness of traces",
-          idGenerationStrategy);
+          strategyName);
     }
+    idGenerationStrategy = strategy;
 
     String agentHostFromEnvironment = null;
     int agentPortFromEnvironment = -1;

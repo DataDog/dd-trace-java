@@ -1,6 +1,7 @@
 package datadog.trace.common.writer;
 
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.core.DDSpan;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -80,11 +81,11 @@ public class TraceStructureWriter implements Writer {
   @Override
   public void write(List<DDSpan> trace) {
     if (trace.isEmpty()) {
-      output("[]", null, null);
+      output("[]", null, DDSpanId.ZERO);
     } else {
-      DDId traceId = trace.get(0).getTraceId();
-      DDId rootSpanId = trace.get(0).getSpanId();
-      Map<DDId, Node> nodesById = new HashMap<>();
+      DDTraceId traceId = trace.get(0).getTraceId();
+      long rootSpanId = trace.get(0).getSpanId();
+      Map<Long, Node> nodesById = new HashMap<>();
       // index the tree
       for (DDSpan span : trace) {
         if (span.getLocalRootSpan() == span) {
@@ -111,7 +112,7 @@ public class TraceStructureWriter implements Writer {
           }
           return;
         }
-        if (!rootSpanId.equals(span.getSpanId())) {
+        if (rootSpanId != span.getSpanId()) {
           Node parent = nodesById.get(span.getParentId());
           if (null == parent) {
             String message =
@@ -138,18 +139,18 @@ public class TraceStructureWriter implements Writer {
     }
   }
 
-  private void output(String trace, DDId traceId, DDId rootSpanId) {
+  private void output(String trace, DDTraceId traceId, long rootSpanId) {
     out.println(trace);
     if (debugLog && log.isDebugEnabled()) {
       StringBuilder start = new StringBuilder();
       if (traceId != null) {
         start.append("t_id=").append(traceId);
       }
-      if (rootSpanId != null) {
+      if (rootSpanId != DDSpanId.ZERO) {
         if (start.length() > 0) {
           start.append(", ");
         }
-        start.append("s_id=").append(rootSpanId);
+        start.append("s_id=").append(DDSpanId.toString(rootSpanId));
       }
       if (start.length() > 0) {
         start.append(" -> ");

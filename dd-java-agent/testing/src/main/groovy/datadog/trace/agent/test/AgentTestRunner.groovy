@@ -15,7 +15,9 @@ import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
 import datadog.trace.api.Config
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
+import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.api.Platform
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.WellKnownTags
@@ -60,7 +62,6 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
-import static datadog.trace.api.IdGenerationStrategy.SEQUENTIAL
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
 import static net.bytebuddy.matcher.ElementMatchers.named
 import static net.bytebuddy.matcher.ElementMatchers.none
@@ -136,7 +137,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   @SuppressWarnings('PropertyName')
   @Shared
-  Set<DDId> TEST_SPANS = Sets.newHashSet()
+  Set<DDSpanId> TEST_SPANS = Sets.newHashSet()
 
   @SuppressWarnings('PropertyName')
   @Shared
@@ -210,7 +211,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       Spy(
       CoreTracer.builder()
       .writer(TEST_WRITER)
-      .idGenerationStrategy(SEQUENTIAL)
+      .idGenerationStrategy(IdGenerationStrategy.fromName("SEQUENTIAL"))
       .statsDClient(STATS_D_CLIENT)
       .strictTraceWrites(useStrictTraceWrites())
       .dataStreamsCheckpointer(dataStreamsCheckpointer)
@@ -226,7 +227,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       TEST_SPANS.add(agentSpan.spanId)
       agentSpan
     }
-    TEST_CHECKPOINTER.checkpoint(_, _, _) >> { DDId traceId, DDId spanId, int flags ->
+    TEST_CHECKPOINTER.checkpoint(_, _, _) >> { DDTraceId traceId, long spanId, int flags ->
       if (TEST_SPANS.contains(spanId)) {
         callRealMethod()
       }
