@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -50,9 +51,12 @@ public final class AgentBootstrap {
   public static void agentmain(final String agentArgs, final Instrumentation inst) {
     try {
       final URL agentJarURL = installAgentJar(inst);
+      System.out.println("--------args--------");
+      System.out.println(agentArgs);
 
       final Class<?> agentClass =
           ClassLoader.getSystemClassLoader().loadClass("datadog.trace.bootstrap.Agent");
+
       if (agentClass.getClassLoader() != null) {
         throw new IllegalStateException("DD Java Agent NOT added to bootstrap classpath.");
       }
@@ -176,8 +180,8 @@ public final class AgentBootstrap {
     final URL manifestUrl = new URL("jar:" + jarUrl + "!/META-INF/MANIFEST.MF");
     final String mainClassLine = "Main-Class: " + thisClass.getCanonicalName();
     try (final BufferedReader reader =
-        new BufferedReader(
-            new InputStreamReader(manifestUrl.openStream(), StandardCharsets.UTF_8))) {
+             new BufferedReader(
+                 new InputStreamReader(manifestUrl.openStream(), StandardCharsets.UTF_8))) {
       String line;
       while ((line = reader.readLine()) != null) {
         if (line.equals(mainClassLine)) {

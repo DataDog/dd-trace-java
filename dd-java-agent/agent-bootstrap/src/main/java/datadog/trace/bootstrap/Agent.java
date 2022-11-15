@@ -26,6 +26,7 @@ import datadog.trace.bootstrap.instrumentation.exceptions.ExceptionSampling;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
+
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -34,6 +35,7 @@ import java.net.URL;
 import java.util.EnumSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -122,7 +124,7 @@ public class Agent {
 
   public static void start(final Instrumentation inst, final URL agentJarURL) {
     createAgentClassloader(agentJarURL);
-
+    System.out.println("-------------------start-------------------");
     // Retro-compatibility for the old way to configure CI Visibility
     if ("true".equals(ddGetProperty("dd.integration.junit.enabled"))
         || "true".equals(ddGetProperty("dd.integration.testng.enabled"))) {
@@ -368,10 +370,10 @@ public class Agent {
             AGENT_CLASSLOADER.loadClass("datadog.communication.ddagent.SharedCommunicationObjects");
         sco = scoClass.getConstructor().newInstance();
       } catch (ClassNotFoundException
-          | NoSuchMethodException
-          | InstantiationException
-          | IllegalAccessException
-          | InvocationTargetException e) {
+               | NoSuchMethodException
+               | InstantiationException
+               | IllegalAccessException
+               | InvocationTargetException e) {
         throw new UndeclaredThrowableException(e);
       }
 
@@ -526,15 +528,17 @@ public class Agent {
       final Method registerMethod = deadlockFactoryClass.getMethod("registerEvents");
       registerMethod.invoke(null);
     } catch (final NoClassDefFoundError
-        | ClassNotFoundException
-        | UnsupportedClassVersionError ignored) {
+                   | ClassNotFoundException
+                   | UnsupportedClassVersionError ignored) {
       log.debug("JMX deadlock detection not supported");
     } catch (final Throwable ex) {
       log.error("Unable to initialize JMX thread deadlock detector", ex);
     }
   }
 
-  /** Enable JMX based system access provider once it is safe to touch JMX */
+  /**
+   * Enable JMX based system access provider once it is safe to touch JMX
+   */
   private static synchronized void initializeJmxSystemAccessProvider(
       final ClassLoader classLoader) {
     if (log.isDebugEnabled()) {
@@ -831,7 +835,8 @@ public class Agent {
    * @return true if we should
    */
   private static boolean isDebugMode() {
-    final String tracerDebugLevelSysprop = "dd.trace.debug";
+    return true;
+/*    final String tracerDebugLevelSysprop = "dd.trace.debug";
     final String tracerDebugLevelProp = System.getProperty(tracerDebugLevelSysprop);
 
     if (tracerDebugLevelProp != null) {
@@ -843,10 +848,12 @@ public class Agent {
     if (tracerDebugLevelEnv != null) {
       return Boolean.parseBoolean(tracerDebugLevelEnv);
     }
-    return false;
+    return false;*/
   }
 
-  /** @return {@code true} if the agent feature is enabled */
+  /**
+   * @return {@code true} if the agent feature is enabled
+   */
   private static boolean isFeatureEnabled(AgentFeature feature) {
     // must be kept in sync with logic from Config!
     final String featureEnabledSysprop = feature.getSystemProp();
@@ -864,7 +871,9 @@ public class Agent {
     }
   }
 
-  /** @see datadog.trace.api.ProductActivationConfig#fromString(String) */
+  /**
+   * @see datadog.trace.api.ProductActivationConfig#fromString(String)
+   */
   private static boolean isAppSecFullyDisabled() {
     // must be kept in sync with logic from Config!
     final String featureEnabledSysprop = AgentFeature.APPSEC.systemProp;
@@ -880,7 +889,9 @@ public class Agent {
         || settingValue.equalsIgnoreCase("inactive"));
   }
 
-  /** @return configured JMX start delay in seconds */
+  /**
+   * @return configured JMX start delay in seconds
+   */
   private static int getJmxStartDelay() {
     String startDelay = ddGetProperty("dd.dogstatsd.start-delay");
     if (startDelay == null) {
@@ -972,7 +983,9 @@ public class Agent {
     return false;
   }
 
-  /** Looks for the "dd." system property first then the "DD_" environment variable equivalent. */
+  /**
+   * Looks for the "dd." system property first then the "DD_" environment variable equivalent.
+   */
   private static String ddGetProperty(final String sysProp) {
     String value = System.getProperty(sysProp);
     if (null == value) {
@@ -981,7 +994,9 @@ public class Agent {
     return value;
   }
 
-  /** Looks for the "DD_" environment variable equivalent of the given "dd." system property. */
+  /**
+   * Looks for the "DD_" environment variable equivalent of the given "dd." system property.
+   */
   private static String ddGetEnv(final String sysProp) {
     return System.getenv(toEnvVar(sysProp));
   }
