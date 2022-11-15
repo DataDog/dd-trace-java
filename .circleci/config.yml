@@ -620,12 +620,11 @@ jobs:
           name: Build
           command: |
             cd system-tests
-            ./build.sh java
+            ./build.sh java --weblog-variant << parameters.weblog-variant >> 
 
       - run:
           name: Run
           command: |
-            export weblog-variant=<< parameters.weblog-variant >> 
             cd system-tests
             DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
 
