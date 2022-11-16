@@ -17,6 +17,10 @@ dependencies {
   testImplementation project(':utils:test-utils')
 
   jmh project(':utils:test-utils')
+  jmh project(':dd-trace-core')
+  jmh project(':dd-java-agent:agent-builder')
+  jmh project(':dd-java-agent:instrumentation:iast-instrumenter')
+  jmh project(':dd-java-agent:instrumentation:java-lang')
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_8
