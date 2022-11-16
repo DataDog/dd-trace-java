@@ -188,7 +188,7 @@ public final class Dependency {
       artifactId = bundleSymbolicName;
     } else if (isValidArtifactId(bundleName)) {
       artifactId = bundleName;
-    } else if (isValidArtifactId(implementationVersion)) {
+    } else if (isValidArtifactId(implementationTitle)) {
       artifactId = implementationTitle;
     } else if (fileNameArtifact != null) {
       artifactId = fileNameArtifact;
