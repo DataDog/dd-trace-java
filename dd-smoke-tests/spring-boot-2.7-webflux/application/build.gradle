@@ -22,7 +22,7 @@ if (hasProperty('appBuildDir')) {
   buildDir = property('appBuildDir')
 }
 
-version = "0.1.0-SNAPSHOT"
+version = ""
 
 dependencies {
   implementation 'org.springframework.boot:spring-boot-starter-webflux'

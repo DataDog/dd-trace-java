@@ -42,7 +42,7 @@ tasks.named("compileTestGroovy").configure {
 }
 
 tasks.withType(Test).configureEach {
-  jvmArgs "-Ddatadog.smoketest.quarkus.uberJar.path=$appBuildDir/quarkus-smoketest-0.1.0-SNAPSHOT-runner.jar"
+  jvmArgs "-Ddatadog.smoketest.quarkus.uberJar.path=$appBuildDir/quarkus-smoketest--runner.jar"
 }
 
 spotless {
