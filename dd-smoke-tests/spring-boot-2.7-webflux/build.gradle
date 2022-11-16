@@ -44,7 +44,7 @@ tasks.named("compileTestGroovy").configure {
 }
 
 tasks.withType(Test).configureEach {
-  jvmArgs "-Ddatadog.smoketest.webflux.uberJar.path=$appBuildDir/libs/webflux-2.7-smoketest-${version}.jar"
+  jvmArgs "-Ddatadog.smoketest.webflux.uberJar.path=$appBuildDir/libs/webflux-2.7-smoketest-0.1.0-SNAPSHOT.jar"
 }
 
 spotless {

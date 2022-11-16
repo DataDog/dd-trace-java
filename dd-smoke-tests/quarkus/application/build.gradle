@@ -16,14 +16,7 @@ if (hasProperty('appBuildDir')) {
   buildDir = property('appBuildDir')
 }
 
-scmVersion {
-  repository {
-    directory = project.rootProject.file(sharedRootDir)
-  }
-}
-apply from: "$sharedConfigDirectory/scm.gradle"
-
-version = scmVersion.version
+version = "0.1.0-SNAPSHOT"
 
 dependencies {
   implementation enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}")
