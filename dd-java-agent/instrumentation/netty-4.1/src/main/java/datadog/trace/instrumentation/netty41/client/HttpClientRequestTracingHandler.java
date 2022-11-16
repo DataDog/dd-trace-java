@@ -16,6 +16,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.PropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
@@ -73,6 +74,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
       } else if (Config.get().isAwsPropagationEnabled()) {
         propagate().inject(span, request.headers(), SETTER, PropagationStyle.XRAY);
       }
+      propagate().injectPathwayContext(span, request.headers(), SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
 
       ctx.channel().attr(SPAN_ATTRIBUTE_KEY).set(span);
 

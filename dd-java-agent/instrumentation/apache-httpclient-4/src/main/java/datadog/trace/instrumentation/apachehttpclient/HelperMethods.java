@@ -12,6 +12,7 @@ import datadog.trace.api.PropagationStyle;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpUriRequest;
@@ -31,6 +32,7 @@ public class HelperMethods {
     } else if (Config.get().isAwsPropagationEnabled()) {
       propagate().inject(span, request, SETTER, PropagationStyle.XRAY);
     }
+    propagate().injectPathwayContext(span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
     return scope;
   }
 

@@ -9,12 +9,14 @@ import static datadog.trace.instrumentation.okhttp3.RequestBuilderInjectAdapter.
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.io.IOException;
 import okhttp3.Interceptor;
 import okhttp3.Request;
 import okhttp3.Response;
 
-public class TracingInterceptor implements Interceptor {
+public class
+TracingInterceptor implements Interceptor {
   @Override
   public Response intercept(final Chain chain) throws IOException {
     if (chain.request().header("Datadog-Meta-Lang") != null) {
@@ -29,6 +31,7 @@ public class TracingInterceptor implements Interceptor {
 
       final Request.Builder requestBuilder = chain.request().newBuilder();
       propagate().inject(span, requestBuilder, SETTER);
+      propagate().injectPathwayContext(span, requestBuilder, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
 
       final Response response;
       try {
