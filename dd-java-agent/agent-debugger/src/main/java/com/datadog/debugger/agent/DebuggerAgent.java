@@ -83,7 +83,7 @@ public class DebuggerAgent {
       return;
     }
 
-    configurationPoller = (ConfigurationPoller) sco.configurationPoller(config);
+    configurationPoller = sco.configurationPoller(config);
     if (configurationPoller != null) {
       subscribeConfigurationPoller(configurationUpdater);
 

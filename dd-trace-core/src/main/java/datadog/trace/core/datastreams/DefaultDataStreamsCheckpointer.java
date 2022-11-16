@@ -178,16 +178,9 @@ public class DefaultDataStreamsCheckpointer
             break;
           } else if (supportsDataStreams) {
             Long bucket = currentBucket(statsPoint.getTimestampNanos());
-
-            // FIXME computeIfAbsent() is not available because Java 7
-            // No easy way to have Java 8 in core even though datastreams monitoring is 8+ from
-            // DDSketch
-            StatsBucket statsBucket = timeToBucket.get(bucket);
-            if (statsBucket == null) {
-              statsBucket = new StatsBucket(bucket, bucketDurationNanos);
-              timeToBucket.put(bucket, statsBucket);
-            }
-
+            StatsBucket statsBucket =
+                timeToBucket.computeIfAbsent(
+                    bucket, startTime -> new StatsBucket(startTime, bucketDurationNanos));
             statsBucket.addPoint(statsPoint);
           }
         } catch (InterruptedException e) {

@@ -61,7 +61,7 @@ public class AppSecSystem {
     EventDispatcher eventDispatcher = new EventDispatcher();
     REPLACEABLE_EVENT_PRODUCER.replaceEventProducerService(eventDispatcher);
 
-    ConfigurationPoller configurationPoller = (ConfigurationPoller) sco.configurationPoller(config);
+    ConfigurationPoller configurationPoller = sco.configurationPoller(config);
     // may throw and abort startup
     APP_SEC_CONFIG_SERVICE =
         new AppSecConfigServiceImpl(
