@@ -32,6 +32,17 @@ public abstract class IdGenerationStrategy {
   public abstract long generateSpanId();
 
   static final class Random extends IdGenerationStrategy {
+    static DDTraceId secureRandomTraceId;
+
+    static {
+      try {
+        SecureRandom secureRandom = SecureRandom.getInstanceStrong();
+        secureRandomTraceId = DDTraceId.from(secureRandom.nextLong());
+      } catch (NoSuchAlgorithmException e) {
+        secureRandomTraceId = null;
+      }
+    }
+
     @Override
     public DDTraceId generateTraceId() {
       return DDTraceId.from(ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE));
@@ -39,12 +50,10 @@ public abstract class IdGenerationStrategy {
 
     @Override
     public DDTraceId generateSecureTraceId() {
-      try {
-        SecureRandom secureRandom = SecureRandom.getInstanceStrong();
-        return DDTraceId.from(secureRandom.nextLong());
-      } catch (NoSuchAlgorithmException e) {
-        return generateTraceId();
+      if (secureRandomTraceId != null) {
+        return secureRandomTraceId;
       }
+      return generateTraceId();
     }
 
     @Override
