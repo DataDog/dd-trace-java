@@ -22,11 +22,12 @@ import datadog.trace.api.Tracer;
 import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ContextThreadListener;
 import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import datadog.trace.bootstrap.instrumentation.exceptions.ExceptionSampling;
-import datadog.trace.context.ScopeListener;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import java.lang.instrument.Instrumentation;
@@ -687,7 +688,7 @@ public class Agent {
     WithGlobalTracer.registerOrExecute(
         new WithGlobalTracer.Callback() {
           @Override
-          public void withTracer(Tracer tracer) {
+          public void withTracer(TracerAPI tracer) {
             log.debug("Registering CWS scope tracker");
             try {
               ScopeListener scopeListener =
@@ -716,14 +717,14 @@ public class Agent {
     if (Config.get().isProfilingEnabled()) {
       try {
         Tracer tracer = GlobalTracer.get();
-        if (tracer instanceof AgentTracer.TracerAPI) {
+        if (tracer instanceof TracerAPI) {
           ContextThreadListener listener =
               (ContextThreadListener)
                   AGENT_CLASSLOADER
                       .loadClass("com.datadog.profiling.async.ContextThreadFilter")
                       .getDeclaredConstructor()
                       .newInstance();
-          ((AgentTracer.TracerAPI) tracer).addThreadContextListener(listener);
+          ((TracerAPI) tracer).addThreadContextListener(listener);
         }
       } catch (Throwable t) {
         log.debug("Profiling context labeling not available. {}", t.getMessage());
@@ -749,7 +750,7 @@ public class Agent {
         WithGlobalTracer.registerOrExecute(
             new WithGlobalTracer.Callback() {
               @Override
-              public void withTracer(Tracer tracer) {
+              public void withTracer(TracerAPI tracer) {
                 log.debug("Initializing profiler tracer integrations");
                 try {
                   if (Config.get().isAsyncProfilerEnabled()) {
@@ -767,7 +768,7 @@ public class Agent {
                               .loadClass("datadog.trace.core.jfr.openjdk.JFRCheckpointer")
                               .getDeclaredConstructor()
                               .newInstance();
-                  ((AgentTracer.TracerAPI) tracer).registerCheckpointer(endpointCheckpointer);
+                  tracer.registerCheckpointer(endpointCheckpointer);
                   if (!Config.get().isAsyncProfilerEnabled()) {
                     log.debug("Registering scope event factory");
                     tracer.addScopeListener(
