@@ -194,13 +194,13 @@ abstract class GrpcTest extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(["type:grpc", "direction:out"])
+        edgeTags.containsAll(["direction:out", "type:grpc"])
         edgeTags.size() == 2
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags.containsAll(["type:grpc", "direction:in"])
+        edgeTags.containsAll(["direction:in", "type:grpc"])
         edgeTags.size() == 2
       }
     }

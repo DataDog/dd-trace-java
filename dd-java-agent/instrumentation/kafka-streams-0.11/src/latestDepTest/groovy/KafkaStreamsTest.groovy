@@ -213,31 +213,31 @@ class KafkaStreamsTest extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup originProducerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(originProducerPoint) {
-        edgeTags == ["topic:$STREAM_PENDING", "type:kafka", "direction:out"]
+        edgeTags == ["direction:out", "topic:$STREAM_PENDING", "type:kafka"]
         edgeTags.size() == 3
       }
 
       StatsGroup kafkaStreamsConsumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == originProducerPoint.hash }
       verifyAll(kafkaStreamsConsumerPoint) {
         edgeTags == [
+          "direction:in",
           "group:test-application",
           "partition:0",
           "topic:$STREAM_PENDING".toString(),
-          "type:kafka",
-          "direction:in"
+          "type:kafka"
         ]
         edgeTags.size() == 5
       }
 
       StatsGroup kafkaStreamsProducerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == kafkaStreamsConsumerPoint.hash }
       verifyAll(kafkaStreamsProducerPoint) {
-        edgeTags == ["topic:$STREAM_PROCESSED", "type:kafka", "direction:out"]
+        edgeTags == ["direction:out", "topic:$STREAM_PROCESSED", "type:kafka"]
         edgeTags.size() == 3
       }
 
       StatsGroup finalConsumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == kafkaStreamsProducerPoint.hash }
       verifyAll(finalConsumerPoint) {
-        edgeTags == ["group:sender", "partition:0", "topic:$STREAM_PROCESSED".toString(), "type:kafka", "direction:in"]
+        edgeTags == ["direction:in", "group:sender", "partition:0", "topic:$STREAM_PROCESSED".toString(), "type:kafka"]
         edgeTags.size() == 5
       }
     }
