@@ -648,6 +648,12 @@ jobs:
 build_test_jobs: &build_test_jobs
   - build
 
+  - approve_build_clean_cache:
+      type: approval
+  - build_clean_cache:
+      requires:
+        - approve_build_clean_cache
+
   - xlarge_tests:
       requires:
         - build
