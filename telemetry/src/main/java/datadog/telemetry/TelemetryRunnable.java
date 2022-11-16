@@ -131,7 +131,7 @@ public class TelemetryRunnable implements Runnable {
       return false;
     }
 
-    log.info("Telemetry message sent successfully");
+    log.debug("Telemetry message sent successfully");
     return true;
   }
 

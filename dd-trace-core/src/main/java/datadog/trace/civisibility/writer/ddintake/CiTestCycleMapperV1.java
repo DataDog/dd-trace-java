@@ -99,10 +99,10 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       writable.writeLong(span.getTraceId().toLong());
       /* 5  */
       writable.writeUTF8(SPAN_ID);
-      writable.writeLong(span.getSpanId().toLong());
+      writable.writeLong(span.getSpanId());
       /* 6  */
       writable.writeUTF8(PARENT_ID);
-      writable.writeLong(span.getParentId().toLong());
+      writable.writeLong(span.getParentId());
       /* 7  */
       writable.writeUTF8(START);
       writable.writeLong(span.getStartTime());

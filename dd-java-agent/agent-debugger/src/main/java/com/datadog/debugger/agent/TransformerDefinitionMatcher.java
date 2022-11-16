@@ -2,6 +2,7 @@ package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.agent.Trie.reverseStr;
 
+import com.datadog.debugger.probe.ProbeDefinition;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;

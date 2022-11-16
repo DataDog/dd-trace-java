@@ -1,9 +1,9 @@
 package org.jboss.modules;
 
-import datadog.trace.api.function.Function;
 import java.net.URL;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * {@link Module} helper that searches a module's linked dependencies to see if they have access to
@@ -17,26 +17,28 @@ public final class ModuleLinkageHelper {
   public static URL getResource(final Module module, final String resourceName) {
     return searchDirectDependencies(
         module,
+        // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
         new Function<Module, URL>() {
           @Override
           public URL apply(Module input) {
             return input.getResource(resourceName);
           }
         },
-        new HashSet<ModuleIdentifier>());
+        new HashSet<>());
   }
 
   /** Delegates the class-load request to any modules linked as dependencies. */
   public static Class<?> loadClass(final Module module, final String className) {
     return searchDirectDependencies(
         module,
+        // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
         new Function<Module, Class<?>>() {
           @Override
           public Class<?> apply(Module input) {
             return input.loadModuleClass(className, false);
           }
         },
-        new HashSet<ModuleIdentifier>());
+        new HashSet<>());
   }
 
   /** Searches a module's direct (module) dependencies. */

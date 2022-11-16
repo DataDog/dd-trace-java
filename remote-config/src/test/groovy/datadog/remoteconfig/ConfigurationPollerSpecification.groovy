@@ -7,7 +7,6 @@ import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.JsonCanonicalizer
 import datadog.remoteconfig.Product
 import datadog.trace.api.Config
-import datadog.trace.api.function.Supplier
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.AgentTaskScheduler
 import groovy.json.JsonOutput
@@ -28,6 +27,7 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 import java.time.Duration
 import java.util.concurrent.TimeUnit
+import java.util.function.Supplier
 
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState.ConfigState.APPLY_STATE_ERROR
 

@@ -15,6 +15,9 @@ import static utils.TestHelper.getFixtureContent;
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SnapshotProbe;
+import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.MoshiSnapshotHelper;
 import com.squareup.moshi.JsonAdapter;
@@ -96,7 +99,7 @@ public class CapturedSnapshotTest {
     int result = Reflect.on(testClass).call("main", "2").get();
     Assert.assertEquals(2, result);
     Assert.assertEquals(
-        "Cannot find CapturedSnapshot01::foobar",
+        "Cannot find method CapturedSnapshot01::foobar",
         listener.errors.get(PROBE_ID).get(0).getMessage());
   }
 
@@ -104,12 +107,13 @@ public class CapturedSnapshotTest {
   public void lineNotFound() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".java", "42"));
+        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".java", 42));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "2").get();
     Assert.assertEquals(2, result);
     Assert.assertEquals(
-        "Cannot find CapturedSnapshot01:L42", listener.errors.get(PROBE_ID).get(0).getMessage());
+        "No executable code was found at CapturedSnapshot01:L42",
+        listener.errors.get(PROBE_ID).get(0).getMessage());
   }
 
   @Test
@@ -368,7 +372,7 @@ public class CapturedSnapshotTest {
   public void sourceFileProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot03";
     DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".java", "4"));
+        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".java", 4));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "").get();
     Assert.assertEquals(48, result);
@@ -385,7 +389,7 @@ public class CapturedSnapshotTest {
   public void simpleSourceFileProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot10";
     DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, "CapturedSnapshot10.java", "11"));
+        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, "CapturedSnapshot10.java", 11));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "2").get();
     Assert.assertEquals(2, result);
@@ -405,7 +409,7 @@ public class CapturedSnapshotTest {
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(
             CLASS_NAME,
-            createSourceFileProbe(PROBE_ID, "src/main/java/" + DIR_CLASS_NAME + ".java", "11"));
+            createSourceFileProbe(PROBE_ID, "src/main/java/" + DIR_CLASS_NAME + ".java", 11));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "2").get();
     Assert.assertEquals(2, result);
@@ -425,7 +429,7 @@ public class CapturedSnapshotTest {
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(
             "com.datadog.debugger.TopLevel01",
-            createSourceFileProbe(PROBE_ID, "src/main/java/" + DIR_CLASS_NAME + ".java", "21"));
+            createSourceFileProbe(PROBE_ID, "src/main/java/" + DIR_CLASS_NAME + ".java", 21));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assert.assertEquals(42 * 42, result);
@@ -446,7 +450,7 @@ public class CapturedSnapshotTest {
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(
             CLASS_NAME,
-            createSourceFileProbe(PROBE_ID1, "src/main/java/" + DIR_CLASS_NAME + ".java", "10"),
+            createSourceFileProbe(PROBE_ID1, "src/main/java/" + DIR_CLASS_NAME + ".java", 10),
             createProbe(PROBE_ID2, CLASS_NAME, "main", null));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "2").get();
@@ -474,7 +478,7 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "CapturedSnapshot101";
     final String FILE_NAME = CLASS_NAME + ".scala";
     DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, FILE_NAME, "3"));
+        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, FILE_NAME, 3));
     String source = getFixtureContent("/" + FILE_NAME);
     Class<?> testClass = ScalaHelper.compileAndLoad(source, CLASS_NAME, FILE_NAME);
     int result = Reflect.on(testClass).call("main", "").get();
@@ -492,7 +496,7 @@ public class CapturedSnapshotTest {
   public void sourceFileProbeGroovy() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot201";
     DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".groovy", "4"));
+        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".groovy", 4));
     String source = getFixtureContent("/" + CLASS_NAME + ".groovy");
     GroovyClassLoader groovyClassLoader = new GroovyClassLoader();
     Class<?> testClass = groovyClassLoader.parseClass(source);
@@ -511,7 +515,7 @@ public class CapturedSnapshotTest {
   public void sourceFileProbeKotlin() {
     final String CLASS_NAME = "CapturedSnapshot301";
     DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".kt", "4"));
+        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".kt", 4));
     URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
     Assert.assertNotNull(resource);
     List<File> filesToDelete = new ArrayList<>();
@@ -759,15 +763,13 @@ public class CapturedSnapshotTest {
   public void rateLimitSnapshot() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     SnapshotProbe snapshotProbe =
-        new SnapshotProbe(
-            LANGUAGE,
-            PROBE_ID,
-            true,
-            null,
-            new Where(CLASS_NAME, "main", "int (java.lang.String)", new String[] {"8"}, null),
-            ProbeCondition.NONE,
-            null,
-            new SnapshotProbe.Sampling(1));
+        new SnapshotProbe.Builder()
+            .language(LANGUAGE)
+            .probeId(PROBE_ID)
+            .active(true)
+            .where(CLASS_NAME, "main", "int (java.lang.String)", "8")
+            .sampling(new SnapshotProbe.Sampling(1))
+            .build();
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(CLASS_NAME, snapshotProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -1231,11 +1233,11 @@ public class CapturedSnapshotTest {
             location,
             probe.getProbeCondition(),
             probe.concatTags(),
-            probe.additionalProbes.stream()
+            probe.getAdditionalProbes().stream()
                 .map(
                     (ProbeDefinition relatedProbe) ->
                         new Snapshot.ProbeDetails(
-                            relatedProbe.id,
+                            relatedProbe.getId(),
                             location,
                             ((SnapshotProbe) relatedProbe).getProbeCondition(),
                             ((SnapshotProbe) relatedProbe).concatTags()))
@@ -1450,17 +1452,13 @@ public class CapturedSnapshotTest {
         .sampling(new SnapshotProbe.Sampling(100));
   }
 
-  private static SnapshotProbe createSourceFileProbe(
-      String id, String sourceFile, String... lines) {
-    return new SnapshotProbe(
-        LANGUAGE,
-        id,
-        true,
-        null,
-        new Where(null, null, null, lines, sourceFile),
-        ProbeCondition.NONE,
-        null,
-        null);
+  private static SnapshotProbe createSourceFileProbe(String id, String sourceFile, int line) {
+    return new SnapshotProbe.Builder()
+        .language(LANGUAGE)
+        .probeId(id)
+        .active(true)
+        .where(null, null, null, line, sourceFile)
+        .build();
   }
 
   static class KotlinHelper {

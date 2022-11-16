@@ -49,7 +49,7 @@ public class FieldInjectionTestInstrumentation extends Instrumenter.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {getClass().getName() + "$Context", getClass().getName() + "$Context$1"};
+    return new String[] {getClass().getName() + "$Context"};
   }
 
   @Override
@@ -90,7 +90,7 @@ public class FieldInjectionTestInstrumentation extends Instrumenter.Tracing
         @Advice.This final KeyClass thiz, @Advice.Return(readOnly = false) int contextCount) {
       final ContextStore<KeyClass, Context> contextStore =
           InstrumentationContext.get(KeyClass.class, Context.class);
-      final Context context = contextStore.putIfAbsent(thiz, Context.FACTORY);
+      final Context context = contextStore.putIfAbsent(thiz, Context::new);
       contextCount = ++context.count;
     }
   }
@@ -142,14 +142,6 @@ public class FieldInjectionTestInstrumentation extends Instrumenter.Tracing
   }
 
   public static class Context {
-    public static final ContextStore.Factory<Context> FACTORY =
-        new ContextStore.Factory<Context>() {
-          @Override
-          public Context create() {
-            return new Context();
-          }
-        };
-
     int count = 0;
   }
 

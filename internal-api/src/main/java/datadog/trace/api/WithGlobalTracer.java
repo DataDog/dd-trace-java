@@ -1,5 +1,9 @@
 package datadog.trace.api;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Internal API for registering callbacks that will execute as soon as there is a global tracer
  * installed, or immediately if the global tracer is already installed.
@@ -9,6 +13,8 @@ package datadog.trace.api;
  * writing the only code doing it is the various MDC log injection instrumentations.
  */
 public class WithGlobalTracer {
+  private static final Logger log = LoggerFactory.getLogger(WithGlobalTracer.class);
+
   private WithGlobalTracer() {}
 
   /**
@@ -20,12 +26,16 @@ public class WithGlobalTracer {
         new GlobalTracer.Callback() {
           @Override
           public void installed(Tracer tracer) {
-            callback.withTracer(tracer);
+            if (tracer instanceof TracerAPI) {
+              callback.withTracer((TracerAPI) tracer);
+            } else {
+              log.warn("Unsupported tracer type {}", tracer.getClass().getName());
+            }
           }
         });
   }
 
   public interface Callback {
-    void withTracer(Tracer tracer);
+    void withTracer(TracerAPI tracer);
   }
 }

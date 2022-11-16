@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation
 
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 
 import static datadog.trace.api.sampling.PrioritySampling.*
@@ -27,9 +28,9 @@ class B3HttpInjectorTest extends DDCoreSpecification {
     def tracer = tracerBuilder().writer(writer).build()
     final DDSpanContext mockedContext =
       new DDSpanContext(
-      DDId.from("$traceId"),
-      DDId.from("$spanId"),
-      DDId.ZERO,
+      DDTraceId.from("$traceId"),
+      DDSpanId.from("$spanId"),
+      DDSpanId.ZERO,
       null,
       "fakeService",
       "fakeOperation",
@@ -40,7 +41,7 @@ class B3HttpInjectorTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDId.ONE),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,
@@ -91,7 +92,7 @@ class B3HttpInjectorTest extends DDCoreSpecification {
       new DDSpanContext(
       context.traceId,
       context.spanId,
-      DDId.ZERO,
+      DDSpanId.ZERO,
       null,
       "fakeService",
       "fakeOperation",
@@ -102,7 +103,7 @@ class B3HttpInjectorTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDId.ONE),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,
@@ -115,8 +116,8 @@ class B3HttpInjectorTest extends DDCoreSpecification {
 
     then:
     1 * carrier.put(TRACE_ID_KEY, traceId)
-    1 * carrier.put(SPAN_ID_KEY, spanId)
-    1 * carrier.put(B3_KEY, traceId + "-" + spanId)
+    1 * carrier.put(SPAN_ID_KEY, trimmed(spanId))
+    1 * carrier.put(B3_KEY, traceId + "-" + trimmed(spanId))
     0 * _
 
     cleanup:
@@ -131,5 +132,17 @@ class B3HttpInjectorTest extends DDCoreSpecification {
     "a" * 16 + "f" * 16                | "1"
     "1"                                | "f" * 16
     "1"                                | "000" + "f" * 16
+  }
+
+  String trimmed(String hex) {
+    int length = hex.length()
+    int i = 0
+    while (i < length  && hex.charAt(i) == '0') {
+      i++
+    }
+    if (i == length) {
+      return "0"
+    }
+    return hex.substring(i, length)
   }
 }

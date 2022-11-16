@@ -1,22 +1,22 @@
 package datadog.cws.tls;
 
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDTraceId;
 
 final class Span {
 
-  private final DDId traceId;
-  private final DDId spanId;
+  private final DDTraceId traceId;
+  private final long spanId;
 
-  Span(DDId traceId, DDId spanId) {
+  Span(DDTraceId traceId, long spanId) {
     this.traceId = traceId;
     this.spanId = spanId;
   }
 
-  DDId getTraceId() {
+  DDTraceId getTraceId() {
     return traceId;
   }
 
-  DDId getSpanId() {
+  long getSpanId() {
     return spanId;
   }
 }

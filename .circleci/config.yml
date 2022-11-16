@@ -52,7 +52,7 @@ build_cache_paths: &build_cache_paths
 
 test_matrix: &test_matrix
   parameters:
-    testJvm: [ "7", "IBM8", "ZULU8", "ORACLE8", "11", "ZULU11", "17" ]
+    testJvm: [ "IBM8", "SEMERU8", "ZULU8", "ORACLE8", "11", "ZULU11", "17" ]
 
 profiling_test_matrix: &profiling_test_matrix
   parameters:
@@ -509,7 +509,7 @@ jobs:
           command: |
             cd test-published-dependencies
             export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx512M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew check --max-workers=3
+            ./gradlew check --info --max-workers=3
 
       - run:
           name: Collect Reports
@@ -620,6 +620,26 @@ jobs:
           command: |
             cd system-tests
             DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
+
+      - run:
+          name: Upload data to CI Visibility
+          command: |
+            cd system-tests
+            export DD_API_KEY=$SYSTEM_TESTS_CI_API_KEY
+            export DD_APP_KEY=$SYSTEM_TESTS_CI_APP_KEY
+
+            # Causes conflicts with DD_API_KEY and datadog-ci tool
+            unset DATADOG_API_KEY
+            
+            echo "Uploading tests results to CI Visibility"  
+            utils/scripts/upload_results_CI_visibility.sh dev java-tracer << pipeline.id >>-<< pipeline.number >>
+
+            if [[ $CIRCLE_BRANCH == "master" ]]; then
+              echo "Updating dashboard from dd-trace-java main branch"
+              utils/scripts/update_dashboard_CI_visibility.sh java-tracer << pipeline.id >>-<< pipeline.number >>
+            else
+              echo "Skipping CI Visibility dashboard update due to it is not a main branch"
+            fi
 
       - store_artifacts:
           path: system-tests/logs
@@ -839,7 +859,6 @@ build_test_jobs: &build_test_jobs
       requires:
         - test_published_artifacts
         - agent_integration_tests
-        - test_7
         - test_8
         - test_IBM8
         - test_11

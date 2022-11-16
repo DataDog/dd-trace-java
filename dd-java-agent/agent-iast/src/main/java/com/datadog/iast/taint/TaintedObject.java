@@ -11,7 +11,7 @@ import javax.annotation.Nullable;
 public class TaintedObject extends WeakReference<Object> {
   final int positiveHashCode;
   TaintedObject next;
-  private final Range[] ranges;
+  private Range[] ranges;
 
   public TaintedObject(
       final @Nonnull Object obj,
@@ -29,5 +29,9 @@ public class TaintedObject extends WeakReference<Object> {
   @Nonnull
   public Range[] getRanges() {
     return ranges;
+  }
+
+  public void setRanges(@Nonnull final Range[] ranges) {
+    this.ranges = ranges;
   }
 }

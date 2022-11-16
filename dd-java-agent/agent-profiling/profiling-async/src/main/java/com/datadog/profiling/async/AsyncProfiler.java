@@ -295,14 +295,7 @@ public final class AsyncProfiler {
     }
     if (profilingModes.contains(ProfilingMode.WALL)) {
       // wall profiling is enabled.
-      cmd.append(",wall=");
-      if (isCollapsingWallclock()) {
-        cmd.append('~'); // this prefix will turn on wall-clock collapsing feature
-      }
-      cmd.append(getWallInterval()).append('m');
-      if (AsyncProfilerConfig.isWallThreadFilterEnabled()) {
-        cmd.append(",filter=0");
-      }
+      cmd.append(",wall=~").append(getWallInterval()).append('m').append(",filter=0");
       cmd.append(",loglevel=").append(AsyncProfilerConfig.getLogLevel());
     }
     if (profilingModes.contains(ProfilingMode.ALLOCATION)) {
@@ -339,12 +332,6 @@ public final class AsyncProfiler {
     return configProvider.getInteger(
         ProfilingConfig.PROFILING_ASYNC_WALL_INTERVAL,
         ProfilingConfig.PROFILING_ASYNC_WALL_INTERVAL_DEFAULT);
-  }
-
-  public boolean isCollapsingWallclock() {
-    return configProvider.getBoolean(
-        ProfilingConfig.PROFILING_ASYNC_WALL_COLLAPSE_SAMPLES,
-        ProfilingConfig.PROFILING_ASYNC_WALL_COLLAPSE_SAMPLES_DEFAULT);
   }
 
   private int getStackDepth() {

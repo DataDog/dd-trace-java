@@ -42,6 +42,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DEDUPLICATION_ENABLE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONCURRENT_REQUESTS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REQUEST_SAMPLING;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_TAINT_TRACKING_DEBUG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_VULNERABILITIES_PER_REQUEST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS;
@@ -93,7 +94,6 @@ import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
 import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
-import static datadog.trace.api.IdGenerationStrategy.RANDOM;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
@@ -162,6 +162,7 @@ import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_MAX_CONCURRENT_REQUESTS;
 import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING;
+import static datadog.trace.api.config.IastConfig.IAST_TAINT_TRAKING_DEBUG_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_VULNERABILITIES_PER_REQUEST;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_HASH_ALGORITHMS;
@@ -196,8 +197,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPL
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCLUDE_AGENT_THREADS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HOTSPOTS_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_LEGACY_TRACING_INTEGRATION;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_LEGACY_TRACING_INTEGRATION_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_HOST;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PASSWORD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT;
@@ -254,6 +253,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_
 import static datadog.trace.api.config.TraceInstrumentationConfig.MESSAGE_BROKER_SPLIT_BY_DESTINATION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.OBFUSCATION_QUERY_STRING_REGEXP;
 import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HTTP_STATUS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_INCLUDE_ROUTINGKEY_IN_RESOURCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_OUTLINE_POOL_ENABLED;
@@ -504,7 +504,6 @@ public class Config {
 
   private final boolean profilingEnabled;
   private final boolean profilingAgentless;
-  private final boolean profilingLegacyTracingIntegrationEnabled;
 
   private final boolean isAsyncProfilerEnabled;
   @Deprecated private final String profilingUrl;
@@ -547,6 +546,7 @@ public class Config {
   private final int iastMaxConcurrentRequests;
   private final int iastVulnerabilitiesPerRequest;
   private final float iastRequestSampling;
+  private final boolean iastTaintTrackingDebugEnabled;
 
   private final boolean ciVisibilityEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -588,6 +588,8 @@ public class Config {
   private final boolean rabbitPropagationEnabled;
   private final Set<String> rabbitPropagationDisabledQueues;
   private final Set<String> rabbitPropagationDisabledExchanges;
+
+  private final boolean rabbitIncludeRoutingKeyInResource;
 
   private final boolean messageBrokerSplitByDestination;
 
@@ -712,13 +714,24 @@ public class Config {
         configProvider.getBoolean(INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME, false);
     writerType = configProvider.getString(WRITER_TYPE, DEFAULT_AGENT_WRITER_TYPE);
 
-    idGenerationStrategy =
-        configProvider.getEnum(ID_GENERATION_STRATEGY, IdGenerationStrategy.class, RANDOM);
-    if (idGenerationStrategy != RANDOM) {
+    String strategyName = configProvider.getString(ID_GENERATION_STRATEGY);
+    if (strategyName == null) {
+      strategyName = "RANDOM";
+    }
+    IdGenerationStrategy strategy = IdGenerationStrategy.fromName(strategyName);
+    if (strategy == null) {
+      log.warn(
+          "*** you are trying to use an unknown id generation strategy {} - falling back to RANDOM",
+          strategyName);
+      strategyName = "RANDOM";
+      strategy = IdGenerationStrategy.fromName(strategyName);
+    }
+    if (!strategyName.equals("RANDOM")) {
       log.warn(
           "*** you are using an unsupported id generation strategy {} - this can impact correctness of traces",
-          idGenerationStrategy);
+          strategyName);
     }
+    idGenerationStrategy = strategy;
 
     String agentHostFromEnvironment = null;
     int agentPortFromEnvironment = -1;
@@ -1009,9 +1022,6 @@ public class Config {
     profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT);
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
-    profilingLegacyTracingIntegrationEnabled =
-        configProvider.getBoolean(
-            PROFILING_LEGACY_TRACING_INTEGRATION, PROFILING_LEGACY_TRACING_INTEGRATION_DEFAULT);
     isAsyncProfilerEnabled =
         configProvider.getBoolean(PROFILING_ASYNC_ENABLED, PROFILING_ASYNC_ALLOC_ENABLED_DEFAULT);
     profilingUrl = configProvider.getString(PROFILING_URL);
@@ -1141,6 +1151,11 @@ public class Config {
         configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, null);
 
     iastEnabled = configProvider.getBoolean(IAST_ENABLED, DEFAULT_IAST_ENABLED);
+
+    iastTaintTrackingDebugEnabled =
+        configProvider.getBoolean(
+            IAST_TAINT_TRAKING_DEBUG_ENABLED, DEFAULT_IAST_TAINT_TRACKING_DEBUG_ENABLED);
+
     iastMaxConcurrentRequests =
         configProvider.getInteger(
             IAST_MAX_CONCURRENT_REQUESTS, DEFAULT_IAST_MAX_CONCURRENT_REQUESTS);
@@ -1256,6 +1271,8 @@ public class Config {
         tryMakeImmutableSet(configProvider.getList(RABBIT_PROPAGATION_DISABLED_QUEUES));
     rabbitPropagationDisabledExchanges =
         tryMakeImmutableSet(configProvider.getList(RABBIT_PROPAGATION_DISABLED_EXCHANGES));
+    rabbitIncludeRoutingKeyInResource =
+        configProvider.getBoolean(RABBIT_INCLUDE_ROUTINGKEY_IN_RESOURCE, true);
 
     messageBrokerSplitByDestination =
         configProvider.getBoolean(MESSAGE_BROKER_SPLIT_BY_DESTINATION, false);
@@ -1793,10 +1810,6 @@ public class Config {
     return profilingUploadSummaryOn413Enabled;
   }
 
-  public boolean isProfilingLegacyTracingIntegrationEnabled() {
-    return profilingLegacyTracingIntegrationEnabled;
-  }
-
   public boolean isAsyncProfilerEnabled() {
     return isAsyncProfilerEnabled;
   }
@@ -1859,6 +1872,10 @@ public class Config {
 
   public boolean isIastEnabled() {
     return iastEnabled;
+  }
+
+  public boolean isIastTaintTrackingDebugEnabled() {
+    return iastTaintTrackingDebugEnabled;
   }
 
   public int getIastMaxConcurrentRequests() {
@@ -2017,6 +2034,10 @@ public class Config {
     return null != queueOrExchange
         && (rabbitPropagationDisabledQueues.contains(queueOrExchange)
             || rabbitPropagationDisabledExchanges.contains(queueOrExchange));
+  }
+
+  public boolean isRabbitIncludeRoutingKeyInResource() {
+    return rabbitIncludeRoutingKeyInResource;
   }
 
   public boolean isMessageBrokerSplitByDestination() {

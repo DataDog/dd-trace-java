@@ -77,8 +77,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
             span = startSpan(operationName, spanContext);
           } else {
             queueSpan =
-                startSpan(
-                    KAFKA_DELIVER, spanContext, MILLISECONDS.toMicros(timeInQueueStart), false);
+                startSpan(KAFKA_DELIVER, spanContext, MILLISECONDS.toMicros(timeInQueueStart));
             BROKER_DECORATE.afterStart(queueSpan);
             BROKER_DECORATE.onTimeInQueue(queueSpan, val);
             span = startSpan(operationName, queueSpan.context());

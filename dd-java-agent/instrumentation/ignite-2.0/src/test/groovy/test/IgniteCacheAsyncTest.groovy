@@ -1,7 +1,5 @@
 package test
 
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.core.DDSpan
 import org.apache.ignite.IgniteCache
 import spock.lang.Shared
@@ -29,9 +27,6 @@ class IgniteCacheAsyncTest extends AbstractIgniteTest {
 
   def "put command"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
 
@@ -54,9 +49,6 @@ class IgniteCacheAsyncTest extends AbstractIgniteTest {
 
   def "size command"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     cache.put("foo", "bar")

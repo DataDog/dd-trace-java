@@ -12,8 +12,6 @@ import org.apache.ignite.spi.discovery.tcp.TcpDiscoverySpi
 import org.apache.ignite.spi.discovery.tcp.ipfinder.vm.TcpDiscoveryVmIpFinder
 import spock.lang.Shared
 
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import javax.cache.CacheException
 import java.util.concurrent.TimeUnit
 
@@ -110,9 +108,6 @@ class IgniteCacheFailureTest extends AgentTestRunner {
 
   def "server down async"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     igniteServer.close()
 

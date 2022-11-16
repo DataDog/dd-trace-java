@@ -44,13 +44,11 @@ final class SmokeTestUtils {
                     + cpuSamplerIntervalMs
                     + "ms",
                 "-Ddd." + ProfilingConfig.PROFILING_ASYNC_WALL_ENABLED + "=true",
-                "-Ddd." + ProfilingConfig.PROFILING_ASYNC_WALL_THREAD_FILTER_ENABLED + "=true",
                 "-Ddd."
                     + ProfilingConfig.PROFILING_ASYNC_WALL_INTERVAL
                     + "="
                     + wallSamplerIntervalMs
                     + "ms",
-                "-Ddd." + ProfilingConfig.PROFILING_ASYNC_WALL_COLLAPSE_SAMPLES + "=false",
                 "-Ddd." + ProfilingConfig.PROFILING_ASYNC_LOG_LEVEL + "=debug",
                 "-Ddd.profiling.agentless=false",
                 "-Ddd.profiling.start-delay=" + profilingStartDelaySecs,

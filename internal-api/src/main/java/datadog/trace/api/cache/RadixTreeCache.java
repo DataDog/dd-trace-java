@@ -1,27 +1,13 @@
 package datadog.trace.api.cache;
 
-import datadog.trace.api.function.IntFunction;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.concurrent.atomic.AtomicReferenceArray;
+import java.util.function.IntFunction;
 
 /** Sparse cache of values associated with a small integer */
 public final class RadixTreeCache<T> {
-
-  private static final IntFunction<Integer> AUTOBOX =
-      new IntFunction<Integer>() {
-        @Override
-        public Integer apply(int value) {
-          return value;
-        }
-      };
-
   private static final IntFunction<UTF8BytesString> TO_STRING =
-      new IntFunction<UTF8BytesString>() {
-        @Override
-        public UTF8BytesString apply(int value) {
-          return UTF8BytesString.create(Integer.toString(value));
-        }
-      };
+      value -> UTF8BytesString.create(Integer.toString(value));
 
   public static final int UNSET_STATUS = 0;
   // should cover range [0, 512) to cover all standard HTTP statuses
@@ -34,7 +20,7 @@ public final class RadixTreeCache<T> {
   public static final int UNSET_PORT = 0;
   // should cover range [0, 2^16)
   public static final RadixTreeCache<Integer> PORTS =
-      new RadixTreeCache<>(256, 256, AUTOBOX, 80, 443, 8080);
+      new RadixTreeCache<>(256, 256, Integer::valueOf, 80, 443, 8080);
 
   private final int level1;
   private final int level2;

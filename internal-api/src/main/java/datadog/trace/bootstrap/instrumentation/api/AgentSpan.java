@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
@@ -8,9 +8,9 @@ import java.util.Map;
 
 public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
-  DDId getTraceId();
+  DDTraceId getTraceId();
 
-  DDId getSpanId();
+  long getSpanId();
 
   @Override
   AgentSpan setTag(String key, boolean value);
@@ -53,22 +53,6 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   AgentSpan setErrorMessage(String errorMessage);
 
   AgentSpan addThrowable(Throwable throwable);
-
-  /**
-   * Sets the span checkpoint emission state
-   *
-   * @param value {@literal true} to enable checkpoint emission, {@literal false} otherwise
-   */
-  void setEmittingCheckpoints(boolean value);
-
-  /**
-   * Checks the span checkpoint emission state
-   *
-   * @return a {@literal true/false} value or {@literal null} if the state needs to be set yet
-   */
-  Boolean isEmittingCheckpoints();
-
-  boolean hasCheckpoints();
 
   @Override
   AgentSpan getLocalRootSpan();
@@ -150,9 +134,9 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   void mergePathwayContext(PathwayContext pathwayContext);
 
   interface Context {
-    DDId getTraceId();
+    DDTraceId getTraceId();
 
-    DDId getSpanId();
+    long getSpanId();
 
     AgentTrace getTrace();
 

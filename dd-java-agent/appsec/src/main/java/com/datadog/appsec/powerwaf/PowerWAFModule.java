@@ -17,6 +17,7 @@ import com.datadog.appsec.util.StandardizedLogging;
 import com.google.auto.service.AutoService;
 import com.squareup.moshi.*;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProductActivationConfig;
 import datadog.trace.api.gateway.Flow;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.Powerwaf;
@@ -162,14 +163,18 @@ public class PowerWAFModule implements AppSecModule {
 
     Optional<Object> initialConfig =
         appSecConfigService.addSubConfigListener("waf", this::applyConfig);
-    if (!initialConfig.isPresent()) {
-      throw new AppSecModuleActivationException("No initial config for WAF");
-    }
 
-    try {
-      applyConfig(initialConfig.get(), AppSecModuleConfigurer.Reconfiguration.NOOP);
-    } catch (ClassCastException e) {
-      throw new AppSecModuleActivationException("Config expected to be AppSecConfig", e);
+    ProductActivationConfig appSecEnabledConfig = Config.get().getAppSecEnabledConfig();
+    if (appSecEnabledConfig == ProductActivationConfig.FULLY_ENABLED) {
+      if (!initialConfig.isPresent()) {
+        throw new AppSecModuleActivationException("No initial config for WAF");
+      }
+
+      try {
+        applyConfig(initialConfig.get(), AppSecModuleConfigurer.Reconfiguration.NOOP);
+      } catch (ClassCastException e) {
+        throw new AppSecModuleActivationException("Config expected to be AppSecConfig", e);
+      }
     }
 
     appSecConfigService.addTraceSegmentPostProcessor(initReporter);
@@ -207,7 +212,7 @@ public class PowerWAFModule implements AppSecModule {
 
   private void applyConfig(Object config_, AppSecModuleConfigurer.Reconfiguration reconf)
       throws AppSecModuleActivationException {
-    log.info("Configuring WAF");
+    log.debug("Configuring WAF");
 
     AppSecConfig config = (AppSecConfig) config_;
 
@@ -341,7 +346,6 @@ public class PowerWAFModule implements AppSecModule {
   @Override
   public Collection<DataSubscription> getDataSubscriptions() {
     if (this.ctxAndAddresses.get() == null) {
-      log.warn("No subscriptions provided because module is not configured");
       return Collections.emptyList();
     }
     return singletonList(new PowerWAFDataCallback());
