@@ -1,5 +1,6 @@
 package datadog.telemetry
 
+import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.trace.test.util.DDSpecification
 import okhttp3.Call
 import okhttp3.OkHttpClient
@@ -17,13 +18,17 @@ class TelemetryRunnableSpecification extends DDSpecification {
 
   Call call = Mock()
 
-  OkHttpClient okHttpClient = Mock()
+  OkHttpClient okHttp = Mock()
   TelemetryRunnable.ThreadSleeper sleeper = Mock()
   TelemetryServiceImpl telemetryService = Mock {
     getHeartbeatInterval() >> 10000
   }
+  SharedCommunicationObjects sco = Mock {
+    okHttpClient >> okHttp
+  }
+
   TelemetryRunnable.TelemetryPeriodicAction periodicAction = Mock()
-  TelemetryRunnable runnable = new TelemetryRunnable(okHttpClient, telemetryService, [periodicAction], sleeper)
+  TelemetryRunnable runnable = new TelemetryRunnable(sco, telemetryService, [periodicAction], sleeper)
   Thread t = new Thread(runnable)
 
   void cleanup() {

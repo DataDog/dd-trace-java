@@ -40,7 +40,8 @@ public class RequestBuilder {
   private final Host host;
   private final String runtimeId;
 
-  public RequestBuilder(HttpUrl httpUrl, Config config) {
+  public RequestBuilder(HttpUrl httpUrl) {
+    Config config = Config.get();
     this.httpUrl = httpUrl;
     this.runtimeId = config.getRuntimeId();
     this.application =

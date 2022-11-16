@@ -25,8 +25,6 @@ public class TelemetryRunnable implements Runnable {
   private final List<TelemetryPeriodicAction> actions;
   private final ThreadSleeper sleeper;
 
-  private boolean lastRequestSuccess;
-
   private int consecutiveFailures;
 
   private final DiscoveryRequestBuilderSupplier discoveryRequestBuilderSupplier;
@@ -50,7 +48,7 @@ public class TelemetryRunnable implements Runnable {
     this.telemetryService = telemetryService;
     this.actions = actions;
     this.sleeper = sleeper;
-    this.discoveryRequestBuilderSupplier = new DiscoveryRequestBuilderSupplier(sco, Config.get());
+    this.discoveryRequestBuilderSupplier = new DiscoveryRequestBuilderSupplier(sco);
   }
 
   @Override
@@ -187,9 +185,19 @@ public class TelemetryRunnable implements Runnable {
   }
 
   private boolean sendRequest(Request request) {
-    Response response;
-    try {
-      response = okHttpClient.newCall(request).execute();
+    try (Response response = okHttpClient.newCall(request).execute()) {
+      if (response.code() != 202) {
+        if (!httpFailure) {
+          String msg =
+              "Unexpected response from Telemetry Intake Service: "
+                  + response.code()
+                  + " "
+                  + response.message();
+          log.warn(msg);
+        }
+        discoveryRequestBuilderSupplier.needRediscover();
+        return false;
+      }
     } catch (IOException e) {
       if (!httpFailure) {
         // To prevent spamming - log exception only first time
@@ -198,25 +206,7 @@ public class TelemetryRunnable implements Runnable {
       return false;
     }
 
-    if (response.code() != 202) {
-      String msg =
-          "Unexpected response from Telemetry Intake Service: "
-              + response.code()
-              + " "
-              + response.message();
-      if (lastRequestSuccess) {
-        log.warn(msg);
-      } else {
-        log.debug(msg);
-      }
-      lastRequestSuccess = false;
-      discoveryRequestBuilderSupplier.needRediscover();
-
-      return false;
-    }
-
     log.debug("Telemetry message sent successfully");
-    lastRequestSuccess = true;
     return true;
   }
 

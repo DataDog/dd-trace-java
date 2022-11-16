@@ -13,12 +13,10 @@ public class DiscoveryRequestBuilderSupplier implements Supplier<RequestBuilder>
   private static final Logger log = LoggerFactory.getLogger(DiscoveryRequestBuilderSupplier.class);
   private RequestBuilder requestBuilder;
   private final SharedCommunicationObjects sco;
-  private final Config config;
   private DDAgentFeaturesDiscovery featuresDiscovery;
 
-  DiscoveryRequestBuilderSupplier(final SharedCommunicationObjects sco, final Config config) {
+  DiscoveryRequestBuilderSupplier(final SharedCommunicationObjects sco) {
     this.sco = sco;
-    this.config = config;
   }
 
   @Override
@@ -29,7 +27,7 @@ public class DiscoveryRequestBuilderSupplier implements Supplier<RequestBuilder>
 
     if (featuresDiscovery == null) {
       // Note that feature discovery initialization also runs discovery on its first call.
-      featuresDiscovery = sco.featuresDiscovery(config);
+      featuresDiscovery = sco.featuresDiscovery(Config.get());
     } else {
       // Feature discovery might have run elsewhere. In that case, we don't need another call.
       if (featuresDiscovery.getTelemetryEndpoint() == null) {
@@ -49,7 +47,7 @@ public class DiscoveryRequestBuilderSupplier implements Supplier<RequestBuilder>
       return null;
     }
 
-    requestBuilder = new RequestBuilder(httpUrl, config);
+    requestBuilder = new RequestBuilder(httpUrl);
     return requestBuilder;
   }
 

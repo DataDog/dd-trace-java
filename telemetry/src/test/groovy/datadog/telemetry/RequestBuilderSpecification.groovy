@@ -24,7 +24,7 @@ class RequestBuilderSpecification extends DDSpecification {
     featuresDiscovery(_) >> fd
   }
 
-  RequestBuilder reqBuilder = new RequestBuilder(sco)
+  RequestBuilder reqBuilder = new RequestBuilder(fd.buildUrl('/endpoint/'))
 
   private final static JsonSlurper SLURPER = new JsonSlurper()
 
