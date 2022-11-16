@@ -74,7 +74,7 @@ parameters:
   global_pattern:
     # Pattern for files that should always trigger a test jobs
     type: string
-    default: "^dd-trace-java.gradle$|^settings.gradle$|^gradle.properties$|^buildSrc/|^gradle/"
+    default: "^dd-trace-java.gradle$|^settings.gradle$|^gradle.properties$|^buildSrc/|^gradle/|.circleci"
 
 commands:
   setup_code:
