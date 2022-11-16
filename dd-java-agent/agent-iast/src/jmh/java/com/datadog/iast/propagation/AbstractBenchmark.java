@@ -12,7 +12,6 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.core.CoreTracer;
@@ -62,9 +61,8 @@ public abstract class AbstractBenchmark<C extends AbstractBenchmark.BenchmarkCon
     if (Config.get().isIastEnabled()) {
       tagContext.withRequestContextDataIast(context.getIastContext());
     }
-    final AgentTracer.TracerAPI tracer = AgentTracer.get();
-    span = tracer.startSpan("benchmark", tagContext, true);
-    scope = tracer.activateSpan(span, ScopeSource.INSTRUMENTATION);
+    span = AgentTracer.startSpan("benchmark", tagContext);
+    scope = AgentTracer.activateSpan(span);
   }
 
   @TearDown(Level.Iteration)
