@@ -289,6 +289,7 @@ class MuzzlePlugin implements Plugin<Project> {
 
     return filterAndLimitVersions(allRangeResult, muzzleDirective.skipVersions).collect { version ->
       final MuzzleDirective inverseDirective = new MuzzleDirective()
+      inverseDirective.name = muzzleDirective.name
       inverseDirective.group = muzzleDirective.group
       inverseDirective.module = muzzleDirective.module
       inverseDirective.versions = "$version"
