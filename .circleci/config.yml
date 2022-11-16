@@ -650,7 +650,7 @@ jobs:
 
       - store_artifacts:
           path: system-tests/logs
-          destination: system-tests.tar.gz
+          destination: logs_java_<< parameters.weblog-variant >>_dev.tar.gz
 
 build_test_jobs: &build_test_jobs
   - build
