@@ -40,9 +40,9 @@ public abstract class HttpServletExtractAdapter<T> implements AgentPropagation.C
     public static final Response GETTER = new Response();
 
     @Override
-    Enumeration<String> getHeaderNames(HttpServletResponse request) {
+    Enumeration<String> getHeaderNames(HttpServletResponse response) {
       try {
-        return Collections.enumeration(request.getHeaderNames());
+        return Collections.enumeration(response.getHeaderNames());
       } catch (NullPointerException e) {
         // SRTServletResponse#getHeaderNames() will throw NPE if called after response close.
         return Collections.emptyEnumeration();
