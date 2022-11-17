@@ -12,6 +12,8 @@ public class OTWithAgentApplication {
   public static void main(final String[] args) throws InterruptedException {
     final Tracer tracer = GlobalTracer.get();
 
+    ApiVerification.verifyInterceptors(datadog.trace.api.GlobalTracer.get());
+
     final Span span = tracer.buildSpan("someOperation").start();
     try (final Scope scope = tracer.activateSpan(span)) {
       span.setTag(DDTags.SERVICE_NAME, "someService");
