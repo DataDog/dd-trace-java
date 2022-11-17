@@ -3,9 +3,7 @@ package datadog.trace.instrumentation.aws.v0;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.DECORATE;
 import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.SCOPE_CONTEXT_KEY;
-import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.Request;
@@ -42,7 +40,7 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        isMethod().and(not(isAbstract())).and(named("doExecute")),
+        isMethod().and(named("doExecute")),
         AWSHttpClientInstrumentation.class.getName() + "$HttpClientAdvice");
   }
 
@@ -85,7 +83,7 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing
     @Override
     public void adviceTransformations(AdviceTransformation transformation) {
       transformation.applyAdvice(
-          isMethod().and(not(isAbstract())).and(named("doExecute")),
+          isMethod().and(named("doExecute")),
           RequestExecutorInstrumentation.class.getName() + "$RequestExecutorAdvice");
     }
 
