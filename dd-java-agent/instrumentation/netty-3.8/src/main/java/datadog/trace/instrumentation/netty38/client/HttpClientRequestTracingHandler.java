@@ -61,7 +61,9 @@ public class HttpClientRequestTracingHandler extends SimpleChannelDownstreamHand
       decorate.onPeerConnection(span, (InetSocketAddress) ctx.getChannel().getRemoteAddress());
 
       propagate().inject(span, request.headers(), SETTER);
-      propagate().injectPathwayContext(span, request.headers(), SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+      propagate()
+          .injectPathwayContext(
+              span, request.headers(), SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
 
       channelTraceContext.setClientSpan(span);
 

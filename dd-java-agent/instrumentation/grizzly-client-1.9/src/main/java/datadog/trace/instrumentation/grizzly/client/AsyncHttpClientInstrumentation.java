@@ -71,7 +71,9 @@ public final class AsyncHttpClientInstrumentation extends Instrumenter.Tracing
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       propagate().inject(span, request, SETTER);
-      propagate().injectPathwayContext(span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+      propagate()
+          .injectPathwayContext(
+              span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
       InstrumentationContext.get(AsyncHandler.class, Pair.class)
           .put(handler, Pair.of(parentSpan, span));
     }

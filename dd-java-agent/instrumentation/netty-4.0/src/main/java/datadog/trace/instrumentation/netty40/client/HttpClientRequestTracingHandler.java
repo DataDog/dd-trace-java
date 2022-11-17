@@ -74,7 +74,9 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
       } else if (Config.get().isAwsPropagationEnabled()) {
         propagate().inject(span, request.headers(), SETTER, PropagationStyle.XRAY);
       }
-      propagate().injectPathwayContext(span, request.headers(), SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+      propagate()
+          .injectPathwayContext(
+              span, request.headers(), SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
 
       ctx.channel().attr(SPAN_ATTRIBUTE_KEY).set(span);
 

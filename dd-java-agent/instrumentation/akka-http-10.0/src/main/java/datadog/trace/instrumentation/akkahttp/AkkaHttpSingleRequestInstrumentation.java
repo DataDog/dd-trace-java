@@ -78,7 +78,9 @@ public final class AkkaHttpSingleRequestInstrumentation extends Instrumenter.Tra
 
       if (request != null) {
         propagate().inject(span, request, headers);
-        propagate().injectPathwayContext(span, request, headers, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+        propagate()
+            .injectPathwayContext(
+                span, request, headers, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
         // Request is immutable, so we have to assign new value once we update headers
         request = headers.getRequest();
       }

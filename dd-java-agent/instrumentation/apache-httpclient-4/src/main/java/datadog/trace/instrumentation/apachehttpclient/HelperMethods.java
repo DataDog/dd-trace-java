@@ -32,7 +32,8 @@ public class HelperMethods {
     } else if (Config.get().isAwsPropagationEnabled()) {
       propagate().inject(span, request, SETTER, PropagationStyle.XRAY);
     }
-    propagate().injectPathwayContext(span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+    propagate()
+        .injectPathwayContext(span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
     return scope;
   }
 

@@ -73,7 +73,9 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing
           final AgentSpan span = state.start(thiz);
           if (!connected) {
             propagate().inject(span, thiz, SETTER);
-            propagate().injectPathwayContext(span, thiz, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+            propagate()
+                .injectPathwayContext(
+                    span, thiz, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
           }
         }
         return state;

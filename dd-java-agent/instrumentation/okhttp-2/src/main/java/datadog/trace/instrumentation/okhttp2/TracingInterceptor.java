@@ -27,7 +27,9 @@ public class TracingInterceptor implements Interceptor {
 
       final Request.Builder requestBuilder = chain.request().newBuilder();
       propagate().inject(span, requestBuilder, SETTER);
-      propagate().injectPathwayContext(span, requestBuilder, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+      propagate()
+          .injectPathwayContext(
+              span, requestBuilder, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
 
       final Response response;
       try {
