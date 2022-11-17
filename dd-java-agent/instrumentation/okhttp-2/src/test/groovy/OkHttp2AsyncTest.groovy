@@ -7,6 +7,7 @@ import com.squareup.okhttp.Response
 import com.squareup.okhttp.internal.http.HttpMethod
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import sun.security.x509.OtherName
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
@@ -42,6 +43,7 @@ class OkHttp2AsyncTest extends OkHttp2Test {
 
         void onFailure(Request req, IOException e) {
           exRef.set(e)
+          callback?.call()
           latch.countDown()
         }
       })
@@ -55,17 +57,19 @@ class OkHttp2AsyncTest extends OkHttp2Test {
   def "callbacks should carry context" () {
 
     when:
-    def captured = AgentTracer.noopSpan()
+    def capturedSpanName = new AtomicReference<CharSequence>("missing")
     try {
       TraceUtils.runUnderTrace("parent", {
-        doRequest(method, url, ["Datadog-Meta-Lang": "java"], "", { captured = AgentTracer.activeSpan() })
+        doRequest(method, url, ["Datadog-Meta-Lang": "java"], "", {
+          capturedSpanName.set(AgentTracer.activeSpan().getOperationName().toString())
+        })
       })
     } catch (Exception e) {
       assert error == true
     }
 
     then:
-    "parent".contentEquals(captured.getOperationName())
+    "parent" == capturedSpanName.get()
 
     where:
     url                                 | error
