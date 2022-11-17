@@ -17,13 +17,14 @@ import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
-import java.util.function.ObjIntConsumer;
+import java.util.function.Consumer;
 import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -371,6 +372,8 @@ public class MoshiSnapshotHelper {
                 } else {
                   value = values.stream().map(Snapshot.CapturedValue::getValue).toArray();
                 }
+              } else if (type.equals("java.util.Collections$EmptyList")) {
+                value = Collections.emptyList();
               } else {
                 throw new RuntimeException("Cannot deserialize type: " + type);
               }
@@ -588,12 +591,19 @@ public class MoshiSnapshotHelper {
               try {
                 jsonWriter.name(field.getName());
                 Limits newLimits = Limits.decDepthLimits(maxDepth, limits);
+                String typeName;
+                if (isPrimitive(field.getType().getTypeName())) {
+                  typeName = field.getType().getTypeName();
+                } else {
+                  typeName =
+                      val != null ? val.getClass().getTypeName() : field.getType().getTypeName();
+                }
                 serializeValue(
                     jsonWriter,
                     val instanceof Snapshot.CapturedValue
                         ? ((Snapshot.CapturedValue) val).getValue()
                         : val,
-                    field.getType().getTypeName(),
+                    typeName,
                     newLimits);
               } catch (IOException ex) {
                 LOG.debug("Exception when extracting field={}", field.getName(), ex);
@@ -619,8 +629,8 @@ public class MoshiSnapshotHelper {
                 LOG.debug("Error during serializing reason for failed field extraction", e);
               }
             };
-        ObjIntConsumer<Field> maxFieldCount =
-            (field, maxCount) -> {
+        Consumer<Field> maxFieldCount =
+            (field) -> {
               try {
                 jsonWriter.name(NOT_CAPTURED_REASON);
                 jsonWriter.value(FIELD_COUNT_REASON);

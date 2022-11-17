@@ -62,7 +62,7 @@ public class ELIntegrationSanityTest {
                   limits.maxFieldCount));
         },
         (e, field) -> {},
-        (field, value) -> {});
+        (field) -> {});
 
     capturedContext.addFields(flds.toArray(new Snapshot.CapturedValue[0]));
 
