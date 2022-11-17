@@ -36,7 +36,7 @@ class SqsClientTest extends AgentTestRunner {
   @Shared
   def credentialsProvider = new AWSStaticCredentialsProvider(new AnonymousAWSCredentials())
   @Shared
-  def server = SQSRestServerBuilder.withInterface("localhost").start()
+  def server = SQSRestServerBuilder.withInterface("localhost").withDynamicPort().start()
   @Shared
   def address = server.waitUntilStarted().localAddress()
   @Shared

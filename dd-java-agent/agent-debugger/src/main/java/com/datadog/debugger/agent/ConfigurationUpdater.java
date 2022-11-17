@@ -1,6 +1,7 @@
 package com.datadog.debugger.agent;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SnapshotProbe;
@@ -33,6 +34,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
 
   public static final int MAX_ALLOWED_PROBES = 100;
   public static final int MAX_ALLOWED_METRIC_PROBES = 100;
+  public static final int MAX_ALLOWED_LOG_PROBES = 100;
 
   public interface TransformerSupplier {
     DebuggerTransformer supply(
@@ -84,19 +86,15 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
         applyNewConfiguration(createEmptyConfiguration());
         return;
       }
-
       // handle mismatched configurations
       if (!configuration.getId().equals(serviceName)) {
         log.debug(
             "got debugConfig.serviceName = {}, ignoring configuration", configuration.getId());
         return;
       }
-
       // apply new configuration
       Configuration newConfiguration = applyConfigurationFilters(configuration);
       applyNewConfiguration(newConfiguration);
-      return;
-
     } catch (RuntimeException e) {
       ExceptionHelper.logException(log, e, "Error during accepting new debugger configuration:");
       throw e;
@@ -106,9 +104,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
   private void applyNewConfiguration(Configuration newConfiguration) {
     ConfigurationComparer changes =
         new ConfigurationComparer(currentConfiguration, newConfiguration, instrumentationResults);
-
     currentConfiguration = newConfiguration;
-
     if (changes.hasProbeRelatedChanges()) {
       log.info("Applying new probe configuration, changes: {}", changes);
       handleProbesChanges(changes);
@@ -119,10 +115,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
   }
 
   private Configuration applyConfigurationFilters(Configuration configuration) {
-    Configuration newConfiguration = configuration;
-
     Collection<SnapshotProbe> probes = configuration.getSnapshotProbes();
-
     if (probes != null) {
       probes =
           probes.stream()
@@ -132,9 +125,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
               .collect(Collectors.toList());
       probes = mergeDuplicatedProbes(probes);
     }
-
     Collection<MetricProbe> metricProbes = configuration.getMetricProbes();
-
     if (metricProbes != null) {
       metricProbes =
           metricProbes.stream()
@@ -143,12 +134,21 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
               .limit(MAX_ALLOWED_METRIC_PROBES)
               .collect(Collectors.toList());
     }
-
+    Collection<LogProbe> logProbes = configuration.getLogProbes();
+    if (logProbes != null) {
+      logProbes =
+          logProbes.stream()
+              .filter(LogProbe::isActive)
+              .filter(envAndVersionCheck::isEnvAndVersionMatch)
+              .limit(MAX_ALLOWED_LOG_PROBES)
+              .collect(Collectors.toList());
+    }
     return new Configuration(
         configuration.getId(),
         configuration.getOrgId(),
         probes,
         metricProbes,
+        logProbes,
         configuration.getAllowList(),
         configuration.getDenyList(),
         configuration.getSampling());
@@ -170,13 +170,12 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
     storeDebuggerDefinitions(changes);
     installNewDefinitions();
     reportReceived(changes);
-
-    if (!changes.hasChangedClasses()) return;
-
+    if (!changes.hasChangedClasses()) {
+      return;
+    }
     List<Class<?>> changedClasses =
         changes.getAllLoadedChangedClasses(instrumentation.getAllLoadedClasses());
     retransformClasses(changedClasses);
-
     // ensures that we have at least re-transformed 1 class
     if (changedClasses.size() > 0) {
       log.debug("Re-transformation done");
@@ -222,11 +221,12 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
           currentConfiguration.getOrgId(),
           null,
           null,
+          null,
           currentConfiguration.getAllowList(),
           currentConfiguration.getDenyList(),
           currentConfiguration.getSampling());
     }
-    return new Configuration("ID", 0, null, null, null, null, null);
+    return new Configuration("ID", 0, null, null, null, null, null, null);
   }
 
   private void retransformClasses(List<Class<?>> classesToBeTransformed) {
@@ -269,14 +269,11 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
     String method = definition.getWhere().getMethodName();
     String file = definition.getWhere().getSourceFile();
     String[] probeLines = definition.getWhere().getLines();
-
     InstrumentationResult result = instrumentationResults.get(definition.getId());
-
     if (result != null) {
       type = result.getTypeName();
       method = result.getMethodName();
     }
-
     List<String> lines = probeLines != null ? Arrays.asList(probeLines) : null;
     return convertToProbeDetails(
         (SnapshotProbe) definition, new Snapshot.ProbeLocation(type, method, file, lines));

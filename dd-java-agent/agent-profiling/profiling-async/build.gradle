@@ -17,6 +17,8 @@ excludedClassesCoverage += [
   // enums with no additional functionality
   'com.datadog.profiling.controller.async.Arch',
   'com.datadog.profiling.controller.async.OperatingSystem',
+  'com.datadog.profiling.async.ContextThreadFilter',
+  'com.datadog.profiling.async.AsyncProfilerConfig',
   // --
   'com.datadog.profiling.async.AsyncProfiler.Singleton',
   // although it is quite well covered jacoco complains about branch coverage due to exception handlers

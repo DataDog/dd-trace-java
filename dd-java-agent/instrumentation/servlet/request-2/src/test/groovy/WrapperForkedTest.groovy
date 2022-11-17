@@ -4,8 +4,8 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.api.http.StoredByteBody
 import datadog.trace.api.http.StoredCharBody
-import datadog.trace.instrumentation.servlet.http.BufferedReaderWrapper
-import datadog.trace.instrumentation.servlet.http.ServletInputStreamWrapper
+import datadog.trace.instrumentation.servlet.BufferedReaderWrapper
+import datadog.trace.instrumentation.servlet2.ServletInputStreamWrapper
 import spock.lang.Specification
 
 import javax.servlet.ServletInputStream

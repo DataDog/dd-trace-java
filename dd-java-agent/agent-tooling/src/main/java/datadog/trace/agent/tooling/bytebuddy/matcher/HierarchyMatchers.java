@@ -39,6 +39,10 @@ public final class HierarchyMatchers {
     return SUPPLIER.declaresMethod(matcher);
   }
 
+  public static ElementMatcher.Junction<TypeDescription> abstractClass() {
+    return SUPPLIER.abstractClass();
+  }
+
   public static ElementMatcher.Junction<TypeDescription> extendsClass(
       ElementMatcher.Junction<? super TypeDescription> matcher) {
     return SUPPLIER.extendsClass(matcher);
@@ -107,6 +111,8 @@ public final class HierarchyMatchers {
     ElementMatcher.Junction<TypeDescription> declaresMethod(
         ElementMatcher.Junction<? super MethodDescription> matcher);
 
+    ElementMatcher.Junction<TypeDescription> abstractClass();
+
     ElementMatcher.Junction<TypeDescription> extendsClass(
         ElementMatcher.Junction<? super TypeDescription> matcher);
 
@@ -148,6 +154,12 @@ public final class HierarchyMatchers {
       public ElementMatcher.Junction<TypeDescription> declaresMethod(
           ElementMatcher.Junction<? super MethodDescription> matcher) {
         return ElementMatchers.declaresMethod(matcher);
+      }
+
+      @Override
+      @SuppressForbidden
+      public ElementMatcher.Junction<TypeDescription> abstractClass() {
+        return ElementMatchers.isAbstract();
       }
 
       @Override

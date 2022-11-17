@@ -19,4 +19,6 @@ net.bytebuddy.matcher.ElementMatchers#declaresAnnotation(net.bytebuddy.matcher.E
 net.bytebuddy.matcher.ElementMatchers#isAnnotatedWith(net.bytebuddy.matcher.ElementMatcher)
 net.bytebuddy.matcher.ElementMatchers#inheritsAnnotation(net.bytebuddy.matcher.ElementMatcher)
 net.bytebuddy.matcher.ElementMatchers#hasAnnotation(net.bytebuddy.matcher.ElementMatcher)
+net.bytebuddy.matcher.ElementMatchers#isInterface()
+net.bytebuddy.matcher.ElementMatchers#isAbstract()
 

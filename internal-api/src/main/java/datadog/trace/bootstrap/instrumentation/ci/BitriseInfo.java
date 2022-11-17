@@ -19,6 +19,10 @@ class BitriseInfo extends CIProviderInfo {
   public static final String BITRISE_GIT_BRANCH = "BITRISE_GIT_BRANCH";
   public static final String BITRISE_GIT_TAG = "BITRISE_GIT_TAG";
   public static final String BITRISE_GIT_MESSAGE = "BITRISE_GIT_MESSAGE";
+  public static final String BITRISE_GIT_AUTHOR_NAME = "GIT_CLONE_COMMIT_AUTHOR_NAME";
+  public static final String BITRISE_GIT_AUTHOR_EMAIL = "GIT_CLONE_COMMIT_AUTHOR_EMAIL";
+  public static final String BITRISE_GIT_COMMITER_NAME = "GIT_CLONE_COMMIT_COMMITER_NAME";
+  public static final String BITRISE_GIT_COMMITER_EMAIL = "GIT_CLONE_COMMIT_COMMITER_EMAIL";
 
   @Override
   protected GitInfo buildCIGitInfo() {
@@ -29,8 +33,11 @@ class BitriseInfo extends CIProviderInfo {
         gitTag,
         new CommitInfo(
             buildGitCommit(),
-            PersonInfo.NOOP,
-            PersonInfo.NOOP,
+            new PersonInfo(
+                System.getenv(BITRISE_GIT_AUTHOR_NAME), System.getenv(BITRISE_GIT_AUTHOR_EMAIL)),
+            new PersonInfo(
+                System.getenv(BITRISE_GIT_COMMITER_NAME),
+                System.getenv(BITRISE_GIT_COMMITER_EMAIL)),
             System.getenv(BITRISE_GIT_MESSAGE)));
   }
 

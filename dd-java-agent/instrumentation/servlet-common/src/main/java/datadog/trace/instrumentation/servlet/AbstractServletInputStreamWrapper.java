@@ -1,14 +1,14 @@
-package datadog.trace.instrumentation.servlet.http;
+package datadog.trace.instrumentation.servlet;
 
 import datadog.trace.api.http.StoredByteBody;
 import java.io.IOException;
 import javax.servlet.ServletInputStream;
 
-public class ServletInputStreamWrapper extends ServletInputStream {
-  public final ServletInputStream is;
-  final StoredByteBody storedByteBody;
+public abstract class AbstractServletInputStreamWrapper extends ServletInputStream {
+  protected final ServletInputStream is;
+  private final StoredByteBody storedByteBody;
 
-  public ServletInputStreamWrapper(ServletInputStream is, StoredByteBody storedByteBody) {
+  public AbstractServletInputStreamWrapper(ServletInputStream is, StoredByteBody storedByteBody) {
     this.is = is;
     this.storedByteBody = storedByteBody;
   }
