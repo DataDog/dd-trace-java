@@ -92,8 +92,3 @@ tasks.build {
 tasks.test {
   useJUnitPlatform()
 }
-
-project.afterEvaluate {
-  val build = tasks.findByPath("build")
-  build!!.setDependsOn(build.dependsOn - listOf(tasks.findByPath("check"), "check").toSet())
-}
