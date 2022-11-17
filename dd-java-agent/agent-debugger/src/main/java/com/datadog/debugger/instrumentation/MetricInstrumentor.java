@@ -295,9 +295,9 @@ public class MetricInstrumentor extends Instrumentor {
         return null;
       }
       int counter = 0;
-      int slot = isStatic ? 0 : 1;
+      int argIdx = isStatic ? 0 : 1;
       for (Type argType : argTypes) {
-        String currentArgName = argumentNames[slot];
+        String currentArgName = arguments[argIdx].name;
         if (currentArgName == null) {
           // if argument names are not resolved correctly let's assign p+arg_index
           currentArgName = "p" + counter;
@@ -310,12 +310,12 @@ public class MetricInstrumentor extends Instrumentor {
                     head, argType.getClassName(), expectedType.getClassName()));
             return null;
           }
-          VarInsnNode varInsnNode = new VarInsnNode(argType.getOpcode(Opcodes.ILOAD), slot);
+          VarInsnNode varInsnNode = new VarInsnNode(argType.getOpcode(Opcodes.ILOAD), arguments[argIdx].slotIdx);
           insnList.add(varInsnNode);
           convertIfRequired(argType, expectedType, insnList);
           return argType;
         }
-        slot += argType.getSize();
+        argIdx++;
       }
       reportError("Cannot resolve argument " + head);
       return null;

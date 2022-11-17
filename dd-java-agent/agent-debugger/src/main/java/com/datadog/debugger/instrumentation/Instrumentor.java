@@ -34,7 +34,7 @@ public class Instrumentor {
   protected final LabelNode methodEnterLabel;
   protected int localVarBaseOffset;
   protected int argOffset = 0;
-  protected final String[] argumentNames;
+  protected final ArgumentInfo[] arguments;
 
   public Instrumentor(
       ProbeDefinition definition,
@@ -55,29 +55,43 @@ public class Instrumentor {
     for (Type t : argTypes) {
       argOffset += t.getSize();
     }
-    argumentNames = extractArgumentNames(argTypes);
+    arguments = extractArgumentInfos(argTypes);
   }
 
-  private String[] extractArgumentNames(Type[] argTypes) {
-    String[] argumentNames = new String[argOffset];
+  private ArgumentInfo[] extractArgumentInfos(Type[] argTypes) {
+    int maxArgs = argTypes.length + (isStatic ? 0 : 1);
+    ArgumentInfo[] argumentInfos = new ArgumentInfo[maxArgs];
+    /*
+    if (methodNode.parameters != null && !methodNode.parameters.isEmpty()) {
+      // since JDK8
+      int baseIdx = 0;
+      if (!isStatic) {
+        baseIdx = 1;
+        argumentNames[0] = "this";
+      }
+      for (int i = 0; i < methodNode.parameters.size(); i++) {
+        argumentNames[baseIdx + i] = methodNode.parameters.get(i).name;
+      }
+    } else
+    */
     if (methodNode.localVariables != null && !methodNode.localVariables.isEmpty()) {
-      localVarBaseOffset =
-          methodNode.localVariables.stream().mapToInt(v -> v.index).min().orElse(0);
-      for (LocalVariableNode localVariableNode : methodNode.localVariables) {
-        int idx = localVariableNode.index - localVarBaseOffset;
-        if (idx < argOffset) {
-          argumentNames[idx] = localVariableNode.name;
-        }
+      for (int i = 0; i < maxArgs && i < methodNode.localVariables.size(); i++) {
+        LocalVariableNode localVariableNode = methodNode.localVariables.get(i);
+        argumentInfos[i] = new ArgumentInfo(localVariableNode.name, localVariableNode.index, localVariableNode.desc);
       }
     } else {
-      int slot = isStatic ? 0 : 1;
+      int slot = 0;
+      if (!isStatic) {
+        slot = 1;
+        argumentInfos[0] = new ArgumentInfo("this", 0, classNode.name);
+      }
       int index = 0;
       for (Type t : argTypes) {
-        argumentNames[slot] = "p" + (index++);
+        argumentInfos[slot] = new ArgumentInfo("p" + (index++), slot, t.getClassName());
         slot += t.getSize();
       }
     }
-    return argumentNames;
+    return argumentInfos;
   }
 
   private LabelNode insertMethodEnterLabel() {
@@ -166,5 +180,17 @@ public class Instrumentor {
 
   protected void reportWarning(String message) {
     diagnostics.add(new DiagnosticMessage(Kind.WARN, message));
+  }
+
+  static class ArgumentInfo {
+    final String name;
+    final int slotIdx;
+    final String desc;
+
+    public ArgumentInfo(String name, int slotIdx, String desc) {
+      this.name = name;
+      this.slotIdx = slotIdx;
+      this.desc = desc;
+    }
   }
 }

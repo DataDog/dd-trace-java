@@ -290,9 +290,9 @@ public final class MethodProbeInstrumentor extends Instrumentor {
             Opcodes.ANEWARRAY,
             CAPTURED_VALUE.getInternalName())); // stack: [capturedcontext, capture, array]
     int counter = 0;
-    int slot = isStatic ? 0 : 1;
+    int argIdx = isStatic ? 0 : 1;
     for (Type argType : argTypes) {
-      String currentArgName = argumentNames[slot];
+      String currentArgName = arguments[argIdx].name;
       if (currentArgName == null) {
         // if argument names are not resolved correctly let's assign p+arg_index
         currentArgName = "p" + counter;
@@ -310,7 +310,7 @@ public final class MethodProbeInstrumentor extends Instrumentor {
       insnList.add(
           new VarInsnNode(
               argType.getOpcode(Opcodes.ILOAD),
-              slot)); // stack: [capturedcontext, capturedcontext, array, array, int, string,
+              arguments[argIdx].slotIdx)); // stack: [capturedcontext, capturedcontext, array, array, int, string,
       // type_name, arg]
       tryBox(
           argType,
@@ -322,7 +322,7 @@ public final class MethodProbeInstrumentor extends Instrumentor {
       // typed_value]
       insnList.add(
           new InsnNode(Opcodes.AASTORE)); // stack: [capturedcontext, capturedcontext, array]
-      slot += argType.getSize();
+      argIdx++;
     }
     invokeVirtual(
         insnList,

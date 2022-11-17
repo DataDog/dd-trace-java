@@ -11,6 +11,7 @@ import static utils.InstrumentationTestHelper.compile;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import static utils.InstrumentationTestHelper.loadClass;
 import static utils.TestHelper.getFixtureContent;
+import static utils.TestHelper.getFixturePath;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
@@ -1067,6 +1068,17 @@ public class CapturedSnapshotTest {
         installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, "empty", null));
     Map<String, byte[]> classFileBuffers = compile(CLASS_NAME, SourceCompiler.DebugInfo.NONE);
     Class<?> testClass = loadClass(CLASS_NAME, classFileBuffers);
+    int result = Reflect.on(testClass).call("main", "2").get();
+    Assert.assertEquals(48, result);
+    assertOneSnapshot(listener);
+  }
+
+  @Test
+  public void tracedMethod() throws Exception {
+    final String CLASS_NAME = "org.springframework.samples.petclinic.vet.VetController";
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, "processWithArg", null));
+    Class<?> testClass = loadClass(CLASS_NAME, getFixturePath("/com/datadog/debugger/classfiles/VetController_traced_method.class"));
     int result = Reflect.on(testClass).call("main", "2").get();
     Assert.assertEquals(48, result);
     assertOneSnapshot(listener);

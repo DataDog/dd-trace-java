@@ -9,4 +9,8 @@ public class TestHelper {
   public static String getFixtureContent(String fixture) throws IOException, URISyntaxException {
     return new String(Files.readAllBytes(Paths.get(TestHelper.class.getResource(fixture).toURI())));
   }
+
+  public static String getFixturePath(String fixture) throws URISyntaxException {
+    return TestHelper.class.getResource(fixture).toURI().getPath();
+  }
 }
