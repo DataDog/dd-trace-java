@@ -29,16 +29,19 @@ public class CallSiteSpecification implements Validatable {
   private final Type clazz;
   private final List<AdviceSpecification> advices;
   private final Type spi;
+  private final int minJavaVersion;
   private final Type[] helpers;
 
   public CallSiteSpecification(
       @Nonnull final Type clazz,
       @Nonnull final List<AdviceSpecification> advices,
       @Nonnull final Type spi,
+      final int minJavaVersion,
       @Nonnull final Set<Type> helpers) {
     this.clazz = clazz;
     this.advices = advices;
     this.spi = spi;
+    this.minJavaVersion = minJavaVersion;
     this.helpers = helpers.toArray(new Type[0]);
   }
 
@@ -70,6 +73,10 @@ public class CallSiteSpecification implements Validatable {
 
   public Type getSpi() {
     return spi;
+  }
+
+  public int getMinJavaVersion() {
+    return minJavaVersion;
   }
 
   public Type[] getHelpers() {
