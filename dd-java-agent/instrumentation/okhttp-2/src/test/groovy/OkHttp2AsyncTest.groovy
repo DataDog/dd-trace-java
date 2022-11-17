@@ -7,7 +7,6 @@ import com.squareup.okhttp.Response
 import com.squareup.okhttp.internal.http.HttpMethod
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
-import sun.security.x509.OtherName
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
