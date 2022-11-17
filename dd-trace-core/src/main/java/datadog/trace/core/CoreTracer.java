@@ -854,6 +854,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
   }
 
+  @SuppressWarnings("unchecked")
   void setSamplingPriorityIfNecessary(final DDSpan rootSpan) {
     // There's a race where multiple threads can see PrioritySampling.UNSET here
     // This check skips potential complex sampling priority logic when we know its redundant
