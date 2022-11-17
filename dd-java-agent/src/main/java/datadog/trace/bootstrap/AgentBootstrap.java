@@ -51,7 +51,8 @@ public final class AgentBootstrap {
   public static void agentmain(final String agentArgs, final Instrumentation inst) {
     try {
       final URL agentJarURL = installAgentJar(inst);
-      if (null != agentArgs && !agentArgs.equals("")) {
+      System.out.println(agentArgs);
+      if (agentArgs != null && !agentArgs.equals("")) {
         String[] split = agentArgs.split(",");
         for (int i = 0; i < split.length; i++) {
           String[] strings = split[i].split("=");
