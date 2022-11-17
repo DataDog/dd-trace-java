@@ -6,8 +6,8 @@ muzzle {
   pass {
     group = 'org.springframework'
     module = 'spring-context'
-    versions = "[3.1.0.RELEASE,]"
-    assertInverse = true
+    versions = "[3.1.0.RELEASE,6)"
+    // assertInverse = true
   }
 }
 
