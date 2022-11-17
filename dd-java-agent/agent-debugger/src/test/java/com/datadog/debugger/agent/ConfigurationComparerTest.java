@@ -170,6 +170,7 @@ class ConfigurationComparerTest {
             ORG_ID,
             Collections.emptyList(),
             Collections.emptyList(),
+            Collections.emptyList(),
             new Configuration.FilterList(Arrays.asList("com.datadog"), Collections.emptyList()),
             null,
             null);
@@ -196,6 +197,7 @@ class ConfigurationComparerTest {
             ORG_ID,
             Collections.singletonList(probe),
             Collections.emptyList(),
+            Collections.emptyList(),
             new Configuration.FilterList(Arrays.asList("com.datadog"), Collections.emptyList()),
             null,
             null);
@@ -209,6 +211,7 @@ class ConfigurationComparerTest {
             SERVICE_NAME,
             ORG_ID,
             Collections.singletonList(probe),
+            Collections.emptyList(),
             Collections.emptyList(),
             new Configuration.FilterList(Arrays.asList("com.datacat"), Collections.emptyList()),
             null,
@@ -245,6 +248,7 @@ class ConfigurationComparerTest {
             ORG_ID,
             Collections.singletonList(probe),
             Collections.emptyList(),
+            Collections.emptyList(),
             null,
             new Configuration.FilterList(Arrays.asList("com.datadog"), Collections.emptyList()),
             null);
@@ -276,6 +280,7 @@ class ConfigurationComparerTest {
             SERVICE_NAME,
             ORG_ID,
             Collections.singletonList(probe),
+            Collections.emptyList(),
             Collections.emptyList(),
             null,
             new Configuration.FilterList(Arrays.asList("com.datadog"), Collections.emptyList()),
