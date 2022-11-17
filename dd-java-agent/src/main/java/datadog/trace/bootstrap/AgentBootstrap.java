@@ -51,16 +51,18 @@ public final class AgentBootstrap {
   public static void agentmain(final String agentArgs, final Instrumentation inst) {
     try {
       final URL agentJarURL = installAgentJar(inst);
-      String[] split = agentArgs.split(",");
-      for (int i = 0; i < split.length; i++) {
-        String[] strings = split[i].split("=");
-        if (strings.length != 2) {
-          continue;
-        }
-        String envStr = strings[0].replace('.', '_').replace('-', '_').toUpperCase();
-        if (System.getProperty(strings[0]) == null && System.getenv(envStr) == null) {
-          System.out.println("set " + strings[0] + " = " + strings[1]);
-          System.setProperty(strings[0], strings[1]);
+      if (null != agentArgs && !agentArgs.equals("")) {
+        String[] split = agentArgs.split(",");
+        for (int i = 0; i < split.length; i++) {
+          String[] strings = split[i].split("=");
+          if (strings.length != 2) {
+            continue;
+          }
+          String envStr = strings[0].replace('.', '_').replace('-', '_').toUpperCase();
+          if (System.getProperty(strings[0]) == null && System.getenv(envStr) == null) {
+            System.out.println("set " + strings[0] + " = " + strings[1]);
+            System.setProperty(strings[0], strings[1]);
+          }
         }
       }
       final Class<?> agentClass =
