@@ -273,4 +273,40 @@ class InstrumentationBridgeTest extends DDSpecification {
     1 * module.onStringBuilderToString(_, _) >> { throw new Error('Boom!!!') }
     noExceptionThrown()
   }
+
+  def "bridge calls module when a when a string concat factory call is detected"() {
+    setup:
+    final module = Mock(IastModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    InstrumentationBridge.onStringConcatFactory('Hello World!', ['Hello ', 'World!'] as String[], "\u0001\u0001", ["a", "b"] as Object[], [0, 1] as int[])
+
+    then:
+    1 * module.onStringConcatFactory('Hello World!', ['Hello ', 'World!'] as String[],  "\u0001\u0001", ["a", "b"] as Object[], [0, 1] as int[])
+  }
+
+  def "bridge calls don't fail with null module when a string concat factory call is detected"() {
+    setup:
+    InstrumentationBridge.registerIastModule(null)
+
+    when:
+    InstrumentationBridge.onStringConcatFactory('Hello World!', ['Hello ', 'World!'] as String[], "\u0001\u0001", [] as Object[], [0, 1] as int[])
+
+    then:
+    noExceptionThrown()
+  }
+
+  def "bridge calls don't leak exceptions when a string concat factory call is detected"() {
+    setup:
+    final module = Mock(IastModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    InstrumentationBridge.onStringConcatFactory('Hello World!', ['Hello ', 'World!'] as String[], "\u0001\u0001", [] as Object[], [0, 1] as int[])
+
+    then:
+    1 * module.onStringConcatFactory(_, _, _, _, _) >> { throw new Error('Boom!!!') }
+    noExceptionThrown()
+  }
 }

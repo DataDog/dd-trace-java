@@ -68,3 +68,37 @@
 | StringBuilderBatchBenchmark.iastEnabled   | 100           | 0            | ss   | 15000 | 3.426 | 0.028 | us/op |
 | StringBuilderBatchBenchmark.iastEnabled   | 100           | 50           | ss   | 15000 | 6.676 | 0.275 | us/op |
 | StringBuilderBatchBenchmark.iastEnabled   | 100           | 100          | ss   | 15000 | 7.539 | 0.164 | us/op |
+
+### StringConcatFactory
+
+#### makeConcatWithConstants()
+
+| Benchmark                                  | Mode | Cnt   | Score   | Error   | Units |
+|--------------------------------------------|------|-------|---------|---------|-------|
+| StringConcatFactoryBenchmark.baseline      | ss   | 15000 | 43.840  | ± 2.497 | ns/op |
+| StringConcatFactoryBenchmark.iastDisabled  | ss   | 15000 | 49.183  | ± 1.504 | ns/op |
+| StringConcatFactoryBenchmark.notTainted    | ss   | 15000 | 81.634  | ± 3.864 | ns/op |
+| StringConcatFactoryBenchmark.firstTainted  | ss   | 15000 | 235.579 | ± 6.860 | ns/op |
+| StringConcatFactoryBenchmark.secondTainted | ss   | 15000 | 212.314 | ± 8.576 | ns/op |
+| StringConcatFactoryBenchmark.bothTainted   | ss   | 15000 | 272.908 | ± 8.209 | ns/op |
+
+| Benchmark                                      | (stringCount) | (taintedPct) | Mode | Cnt   | Score | Error   | Units |
+|------------------------------------------------|---------------|--------------|------|-------|-------|---------|-------|
+| StringConcatFactoryBatchBenchmark.baseline     |  10           |   0          | ss   | 15000 | 0.501 | ± 0.050 | us/op |
+| StringConcatFactoryBatchBenchmark.baseline     |  10           |  50          | ss   | 15000 | 0.442 | ± 0.008 | us/op |
+| StringConcatFactoryBatchBenchmark.baseline     |  10           | 100          | ss   | 15000 | 0.548 | ± 0.012 | us/op |
+| StringConcatFactoryBatchBenchmark.iastDisabled |  10           |   0          | ss   | 15000 | 0.558 | ± 0.012 | us/op |
+| StringConcatFactoryBatchBenchmark.iastDisabled |  10           |  50          | ss   | 15000 | 0.526 | ± 0.011 | us/op |
+| StringConcatFactoryBatchBenchmark.iastDisabled |  10           | 100          | ss   | 15000 | 0.553 | ± 0.011 | us/op |
+| StringConcatFactoryBatchBenchmark.iastEnabled  |  10           |   0          | ss   | 15000 | 0.580 | ± 0.011 | us/op |
+| StringConcatFactoryBatchBenchmark.iastEnabled  |  10           |  50          | ss   | 15000 | 0.940 | ± 0.015 | us/op |
+| StringConcatFactoryBatchBenchmark.iastEnabled  |  10           | 100          | ss   | 15000 | 0.979 | ± 0.013 | us/op |
+| StringConcatFactoryBatchBenchmark.baseline     | 100           |   0          | ss   | 15000 | 3.420 | ± 0.033 | us/op |
+| StringConcatFactoryBatchBenchmark.baseline     | 100           |  50          | ss   | 15000 | 3.538 | ± 0.038 | us/op |
+| StringConcatFactoryBatchBenchmark.baseline     | 100           | 100          | ss   | 15000 | 3.416 | ± 0.035 | us/op |
+| StringConcatFactoryBatchBenchmark.iastDisabled | 100           |   0          | ss   | 15000 | 3.453 | ± 0.033 | us/op |
+| StringConcatFactoryBatchBenchmark.iastDisabled | 100           |  50          | ss   | 15000 | 3.393 | ± 0.032 | us/op |
+| StringConcatFactoryBatchBenchmark.iastDisabled | 100           | 100          | ss   | 15000 | 3.460 | ± 0.034 | us/op |
+| StringConcatFactoryBatchBenchmark.iastEnabled  | 100           |   0          | ss   | 15000 | 4.096 | ± 0.167 | us/op |
+| StringConcatFactoryBatchBenchmark.iastEnabled  | 100           |  50          | ss   | 15000 | 6.170 | ± 0.062 | us/op |
+| StringConcatFactoryBatchBenchmark.iastEnabled  | 100           | 100          | ss   | 15000 | 7.436 | ± 0.069 | us/op |

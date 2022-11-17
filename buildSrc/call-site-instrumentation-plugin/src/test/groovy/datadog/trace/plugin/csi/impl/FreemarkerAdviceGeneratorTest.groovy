@@ -195,7 +195,7 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     final adviceClass = javaFile.getType(0)
     adviceClass.name.asString().endsWith(InvokeDynamicAfterAdvice.simpleName + 'After')
     final interfaces = adviceClass.asClassOrInterfaceDeclaration().implementedTypes.collect {it.name.asString() }
-    interfaces == ['CallSiteAdvice', 'Pointcut', 'InvokeDynamicAdvice', 'HasFlags', 'HasHelpers']
+    interfaces == ['CallSiteAdvice', 'Pointcut', 'InvokeDynamicAdvice', 'HasFlags', 'HasHelpers', 'HasMinJavaVersion']
     final methods = groupMethods(adviceClass)
     getStatements(methods['pointcut']) == ['return this;']
     getStatements(methods['type']) == ['return "java/lang/invoke/StringConcatFactory";']
@@ -246,7 +246,7 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     final adviceClass = javaFile.getType(0)
     adviceClass.name.asString().endsWith(InvokeDynamicAroundAdvice.simpleName + 'Around')
     final interfaces = adviceClass.asClassOrInterfaceDeclaration().implementedTypes.collect {it.name.asString() }
-    interfaces == ['CallSiteAdvice', 'Pointcut', 'InvokeDynamicAdvice', 'HasHelpers']
+    interfaces == ['CallSiteAdvice', 'Pointcut', 'InvokeDynamicAdvice', 'HasHelpers', 'HasMinJavaVersion']
     final methods = groupMethods(adviceClass)
     getStatements(methods['pointcut']) == ['return this;']
     getStatements(methods['type']) == ['return "java/lang/invoke/StringConcatFactory";']
@@ -292,7 +292,7 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     final adviceClass = javaFile.getType(0)
     adviceClass.name.asString().endsWith(InvokeDynamicWithConstantsAdvice.simpleName + 'After')
     final interfaces = adviceClass.asClassOrInterfaceDeclaration().implementedTypes.collect {it.name.asString() }
-    interfaces == ['CallSiteAdvice', 'Pointcut', 'InvokeDynamicAdvice', 'HasFlags', 'HasHelpers']
+    interfaces == ['CallSiteAdvice', 'Pointcut', 'InvokeDynamicAdvice', 'HasFlags', 'HasHelpers', 'HasMinJavaVersion']
     final methods = groupMethods(adviceClass)
     getStatements(methods['pointcut']) == ['return this;']
     getStatements(methods['type']) == ['return "java/lang/invoke/StringConcatFactory";']
@@ -353,6 +353,34 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     assertNoErrors(result)
     final advices = result.advices.map { it.file.name }.collect(Collectors.toList())
     advices.containsAll(['FreemarkerAdviceGeneratorTest$ArrayAdviceAfter0.java', 'FreemarkerAdviceGeneratorTest$ArrayAdviceAfter1.java'])
+  }
+
+  @CallSite(minJavaVersion = 9)
+  class MinJavaVersionAdvice {
+    @CallSite.After('void java.net.URL.<init>(java.lang.String)')
+    static URL after(@CallSite.This final URL url, @CallSite.Argument final String spec) {
+      return url;
+    }
+  }
+
+  def 'test min java version advice'() {
+    setup:
+    final spec = buildClassSpecification(MinJavaVersionAdvice)
+    final generator = buildFreemarkerAdviceGenerator(buildDir)
+
+    when:
+    final result = generator.generate(spec)
+
+    then:
+    assertNoErrors(result)
+    final advice = findAdvice(result, 'after' )
+    assertNoErrors(advice)
+    final javaFile = new JavaParser().parse(advice.file).getResult().get()
+    final adviceClass = javaFile.getType(0)
+    final interfaces = adviceClass.asClassOrInterfaceDeclaration().implementedTypes.collect {it.name.asString() }
+    interfaces == ['CallSiteAdvice', 'Pointcut', 'InvokeAdvice', 'HasFlags', 'HasHelpers', 'HasMinJavaVersion']
+    final methods = groupMethods(adviceClass)
+    getStatements(methods['minJavaVersion']) == ['return 9;']
   }
 
   private static List<String> getStatements(final MethodDeclaration method) {

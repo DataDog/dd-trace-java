@@ -28,4 +28,11 @@ public interface IastModule {
   void onStringBuilderAppend(@Nonnull StringBuilder builder, @Nullable CharSequence param);
 
   void onStringBuilderToString(@Nonnull StringBuilder builder, @Nonnull String result);
+
+  void onStringConcatFactory(
+      @Nullable String result,
+      @Nullable String[] args,
+      @Nullable String recipe,
+      @Nullable Object[] dynamicConstants,
+      @Nonnull int[] recipeOffsets);
 }

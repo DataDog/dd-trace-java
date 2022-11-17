@@ -117,6 +117,22 @@ public abstract class InstrumentationBridge {
     }
   }
 
+  public static String onStringConcatFactory(
+      final String result,
+      final String[] arguments,
+      final String recipe,
+      final Object[] constants,
+      final int[] recipeOffsets) {
+    try {
+      if (MODULE != null) {
+        MODULE.onStringConcatFactory(result, arguments, recipe, constants, recipeOffsets);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onStringConcatFactory threw.", t);
+    }
+    return result;
+  }
+
   private static void onUnexpectedException(final String message, final Throwable error) {
     LOG.warn(message, error);
   }

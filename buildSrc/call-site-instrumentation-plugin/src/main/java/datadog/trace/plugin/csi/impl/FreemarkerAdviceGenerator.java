@@ -86,7 +86,11 @@ public class FreemarkerAdviceGenerator implements AdviceGenerator {
                     unique ? "" : i);
             result.addAdvice(
                 generateAdviceJavaFile(
-                    spec.getSpi(), spec.getHelpers(), advice, classNameToType(className)));
+                    spec.getSpi(),
+                    spec.getMinJavaVersion(),
+                    spec.getHelpers(),
+                    advice,
+                    classNameToType(className)));
           }
         }
       }
@@ -104,6 +108,7 @@ public class FreemarkerAdviceGenerator implements AdviceGenerator {
 
   private AdviceResult generateAdviceJavaFile(
       @Nonnull final Type spiClass,
+      final int minJavaVersion,
       @Nonnull final Type[] helperClasses,
       @Nonnull final AdviceSpecification spec,
       @Nonnull final Type adviceClass) {
@@ -121,6 +126,7 @@ public class FreemarkerAdviceGenerator implements AdviceGenerator {
       final Map<String, Object> arguments = new HashMap<>();
       arguments.put("spiPackageName", getPackageName(spiClass));
       arguments.put("spiClassName", getClassName(spiClass, false));
+      arguments.put("minJavaVersion", getMinJavaVersion(minJavaVersion, spec));
       arguments.put("packageName", getPackageName(adviceClass));
       arguments.put("className", getClassName(adviceClass));
       arguments.put("dynamicInvoke", spec.isInvokeDynamic());
@@ -137,6 +143,13 @@ public class FreemarkerAdviceGenerator implements AdviceGenerator {
       handleThrowable(result, e);
     }
     return result;
+  }
+
+  private int getMinJavaVersion(final int defaultMinJavaVersion, AdviceSpecification spec) {
+    if (defaultMinJavaVersion >= 0) {
+      return defaultMinJavaVersion;
+    }
+    return spec.invokeDynamic ? 9 : defaultMinJavaVersion;
   }
 
   private Set<String> getHelperClassNames(final Type[] spec) {
