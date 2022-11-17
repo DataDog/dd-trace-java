@@ -51,17 +51,19 @@ class OkHttp3AsyncTest extends OkHttp3Test {
   def "callbacks should carry context" () {
 
     when:
-    def captured = AgentTracer.noopSpan()
+    def capturedSpanName = new AtomicReference<>("missing")
     try {
       TraceUtils.runUnderTrace("parent", {
-        doRequest(method, url, ["Datadog-Meta-Lang": "java"], "", { captured = AgentTracer.activeSpan() })
+        doRequest(method, url, ["Datadog-Meta-Lang": "java"], "", {
+          capturedSpanName.set(AgentTracer.activeSpan().getOperationName().toString())
+        })
       })
     } catch (Exception e) {
       assert error == true
     }
 
     then:
-    "parent".contentEquals(captured.getOperationName())
+    "parent" == capturedSpanName.get()
 
     where:
     url                                 | error
