@@ -4,7 +4,6 @@ import com.datadog.iast.model.Source
 import com.datadog.iast.model.SourceType
 import com.datadog.iast.taint.TaintedObjects
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.function.Supplier
 import datadog.trace.api.gateway.CallbackProvider
 import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
@@ -14,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.core.DDSpan
+import java.util.function.Supplier
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
 
