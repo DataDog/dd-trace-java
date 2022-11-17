@@ -1,6 +1,6 @@
 package datadog.trace.core.datastreams;
 
-import datadog.trace.core.histogram.Histogram;
+import com.datadoghq.sketch.ddsketch.DDSketch;
 import datadog.trace.core.histogram.Histograms;
 import java.util.List;
 
@@ -10,8 +10,8 @@ public class StatsGroup {
   private final List<String> edgeTags;
   private final long hash;
   private final long parentHash;
-  private final Histogram pathwayLatency;
-  private final Histogram edgeLatency;
+  private final DDSketch pathwayLatency;
+  private final DDSketch edgeLatency;
 
   public StatsGroup(List<String> edgeTags, long hash, long parentHash) {
     this.edgeTags = edgeTags;
@@ -38,11 +38,11 @@ public class StatsGroup {
     return parentHash;
   }
 
-  public Histogram getPathwayLatency() {
+  public DDSketch getPathwayLatency() {
     return pathwayLatency;
   }
 
-  public Histogram getEdgeLatency() {
+  public DDSketch getEdgeLatency() {
     return edgeLatency;
   }
 

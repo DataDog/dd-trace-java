@@ -4,9 +4,9 @@ import static datadog.trace.core.monitor.Utils.mergeTags;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import com.datadoghq.sketch.ddsketch.DDSketch;
 import datadog.communication.monitor.Recording;
 import datadog.trace.api.StatsDClient;
-import datadog.trace.core.histogram.Histogram;
 import datadog.trace.core.histogram.Histograms;
 
 /**
@@ -23,7 +23,7 @@ public class Timer extends Recording {
 
   private final String name;
   private final StatsDClient statsd;
-  private final Histogram histogram;
+  private final DDSketch histogram;
   private final long flushAfterNanos;
 
   private final String[] p50Tags;
@@ -76,9 +76,15 @@ public class Timer extends Recording {
 
   @Override
   public void flush() {
-    statsd.gauge(name, histogram.valueAtQuantile(0.50), p50Tags);
-    statsd.gauge(name, histogram.valueAtQuantile(0.99), p99Tags);
-    statsd.gauge(name, histogram.max(), maxTags);
+    if (histogram.isEmpty()) {
+      statsd.gauge(name, 0D, p50Tags);
+      statsd.gauge(name, 0D, p99Tags);
+      statsd.gauge(name, 0D, maxTags);
+    } else {
+      statsd.gauge(name, histogram.getValueAtQuantile(0.50), p50Tags);
+      statsd.gauge(name, histogram.getValueAtQuantile(0.99), p99Tags);
+      statsd.gauge(name, histogram.getMaxValue(), maxTags);
+    }
     histogram.clear();
   }
 }

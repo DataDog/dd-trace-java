@@ -1,16 +1,15 @@
+package datadog.trace.core.histogram
+
 import com.datadoghq.sketch.ddsketch.DDSketchProtoBinding
 import com.datadoghq.sketch.ddsketch.proto.DDSketch
 import com.datadoghq.sketch.ddsketch.store.CollapsingLowestDenseStore
-import datadog.trace.core.histogram.DDSketchHistogram
-import datadog.trace.core.histogram.Histogram
-import datadog.trace.core.histogram.Histograms
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
 import java.nio.ByteBuffer
 import java.util.concurrent.ThreadLocalRandom
 
-class DDSketchHistogramTest extends DDSpecification {
+class HistogramsTest extends DDSpecification {
 
   @Shared
   SplittableRandom seededRandom = new SplittableRandom(0)
@@ -39,7 +38,7 @@ class DDSketchHistogramTest extends DDSpecification {
 
   def "test quantiles have 1% relative error"() {
     setup:
-    Histogram histogram = Histograms.newHistogram()
+    def histogram = Histograms.newHistogram()
     long[] data = sortedRandomData(size) {
       scenario(params)
     }
@@ -53,9 +52,9 @@ class DDSketchHistogramTest extends DDSpecification {
 
     when: "perform serialization round trip"
     ByteBuffer buffer = histogram.serialize()
-    Histogram newHistogram = new DDSketchHistogram(DDSketchProtoBinding.fromProto({
+    def newHistogram = DDSketchProtoBinding.fromProto({
       new CollapsingLowestDenseStore(1024)
-    }, DDSketch.parseFrom(buffer.array())))
+    }, DDSketch.parseFrom(buffer.array()))
 
     then: "quantiles accurate afterwards"
     validateQuantiles(newHistogram, data)
@@ -80,7 +79,7 @@ class DDSketchHistogramTest extends DDSpecification {
 
   def "test serialization of empty histogram after clear"() {
     setup:
-    Histogram histogram = Histograms.newHistogram()
+    def histogram = Histograms.newHistogram()
     when: "add values to sketch and clear"
     histogram.accept(1)
     histogram.accept(2)
@@ -88,9 +87,9 @@ class DDSketchHistogramTest extends DDSpecification {
     histogram.clear()
     ByteBuffer serialized = histogram.serialize()
     then: "serialization succeeds and produces correct histogram"
-    ByteBuffer buffer = new DDSketchHistogram(DDSketchProtoBinding.fromProto({
+    ByteBuffer buffer = DDSketchProtoBinding.fromProto({
       new CollapsingLowestDenseStore(1024)
-    }, DDSketch.parseFrom(serialized.array()))).serialize()
+    }, DDSketch.parseFrom(serialized.array())).serialize()
     buffer == serialized
 
     when: "add more values to sketch"
@@ -107,9 +106,9 @@ class DDSketchHistogramTest extends DDSpecification {
     (int)sketch.getMaxValue() == 3
   }
 
-  def validateQuantiles(Histogram histogram, long[] data) {
+  def validateQuantiles(def histogram, long[] data) {
     for (double quantile : quantiles) {
-      double relativeError = relativeError(histogram.valueAtQuantile(quantile), empiricalQuantile(data, quantile))
+      double relativeError = relativeError(histogram.getValueAtQuantile(quantile), empiricalQuantile(data, quantile))
       assert relativeError < 0.01
     }
     true
