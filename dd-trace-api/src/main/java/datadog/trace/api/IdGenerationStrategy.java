@@ -20,6 +20,8 @@ public abstract class IdGenerationStrategy {
         return new Random();
       case "SEQUENTIAL":
         return new Sequential();
+      case "SECURE_RANDOM":
+        return new SRandom();
       default:
         return null;
     }
@@ -27,33 +29,12 @@ public abstract class IdGenerationStrategy {
 
   public abstract DDTraceId generateTraceId();
 
-  public abstract DDTraceId generateSecureTraceId();
-
   public abstract long generateSpanId();
 
   static final class Random extends IdGenerationStrategy {
-    static DDTraceId secureRandomTraceId;
-
-    static {
-      try {
-        SecureRandom secureRandom = SecureRandom.getInstanceStrong();
-        secureRandomTraceId = DDTraceId.from(secureRandom.nextLong());
-      } catch (NoSuchAlgorithmException e) {
-        secureRandomTraceId = null;
-      }
-    }
-
     @Override
     public DDTraceId generateTraceId() {
       return DDTraceId.from(ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE));
-    }
-
-    @Override
-    public DDTraceId generateSecureTraceId() {
-      if (secureRandomTraceId != null) {
-        return secureRandomTraceId;
-      }
-      return generateTraceId();
     }
 
     @Override
@@ -71,13 +52,40 @@ public abstract class IdGenerationStrategy {
     }
 
     @Override
-    public DDTraceId generateSecureTraceId() {
-      return DDTraceId.from(id.incrementAndGet());
+    public long generateSpanId() {
+      return id.incrementAndGet();
+    }
+  }
+
+  static final class SRandom extends IdGenerationStrategy {
+    static DDTraceId secureRandomTraceId;
+    static long secureRandomSpanId;
+
+    static {
+      try {
+        SecureRandom secureRandom = SecureRandom.getInstanceStrong();
+        secureRandomTraceId = DDTraceId.from(secureRandom.nextLong());
+        secureRandomSpanId = secureRandom.nextLong();
+      } catch (NoSuchAlgorithmException e) {
+        secureRandomTraceId = null;
+        secureRandomSpanId = 0;
+      }
+    }
+
+    @Override
+    public DDTraceId generateTraceId() {
+      if (secureRandomTraceId != null) {
+        return secureRandomTraceId;
+      }
+      return DDTraceId.from(ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE));
     }
 
     @Override
     public long generateSpanId() {
-      return id.incrementAndGet();
+      if (secureRandomSpanId != 0) {
+        return secureRandomSpanId;
+      }
+      return ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
     }
   }
 }

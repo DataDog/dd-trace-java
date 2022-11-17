@@ -718,7 +718,17 @@ public class Config {
         configProvider.getBoolean(INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME, false);
     writerType = configProvider.getString(WRITER_TYPE, DEFAULT_AGENT_WRITER_TYPE);
 
+    String lambdaInitType = getEnv("AWS_LAMBDA_INITIALIZATION_TYPE");
+    if (lambdaInitType != null && lambdaInitType.equals("snap-start")) {
+      secureRandom = true;
+    } else {
+      secureRandom = configProvider.getBoolean(SECURE_RANDOM, DEFAULT_SECURE_RANDOM);
+    }
+
     String strategyName = configProvider.getString(ID_GENERATION_STRATEGY);
+    if (secureRandom) {
+      strategyName = "SECURE_RANDOM";
+    }
     if (strategyName == null) {
       strategyName = "RANDOM";
     }
@@ -730,19 +740,12 @@ public class Config {
       strategyName = "RANDOM";
       strategy = IdGenerationStrategy.fromName(strategyName);
     }
-    if (!strategyName.equals("RANDOM")) {
+    if (!strategyName.equals("RANDOM") || !strategyName.equals("SECURE_RANDOM")) {
       log.warn(
           "*** you are using an unsupported id generation strategy {} - this can impact correctness of traces",
           strategyName);
     }
     idGenerationStrategy = strategy;
-
-    String lambdaInitType = getEnv("AWS_LAMBDA_INITIALIZATION_TYPE");
-    if (lambdaInitType != null && lambdaInitType.equals("snap-start")) {
-      secureRandom = true;
-    } else {
-      secureRandom = configProvider.getBoolean(SECURE_RANDOM, DEFAULT_SECURE_RANDOM);
-    }
 
     String agentHostFromEnvironment = null;
     int agentPortFromEnvironment = -1;
@@ -2133,10 +2136,6 @@ public class Config {
 
   public IdGenerationStrategy getIdGenerationStrategy() {
     return idGenerationStrategy;
-  }
-
-  public boolean isSecureRandom() {
-    return secureRandom;
   }
 
   public boolean isInternalExitOnFailure() {
