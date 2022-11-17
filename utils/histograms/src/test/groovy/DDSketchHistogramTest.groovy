@@ -39,7 +39,7 @@ class DDSketchHistogramTest extends DDSpecification {
 
   def "test quantiles have 1% relative error"() {
     setup:
-    Histogram histogram = Histograms.newHistogramFactory().newHistogram()
+    Histogram histogram = Histograms.newHistogram()
     long[] data = sortedRandomData(size) {
       scenario(params)
     }
@@ -80,7 +80,7 @@ class DDSketchHistogramTest extends DDSpecification {
 
   def "test serialization of empty histogram after clear"() {
     setup:
-    Histogram histogram = Histograms.newHistogramFactory().newHistogram()
+    Histogram histogram = Histograms.newHistogram()
     when: "add values to sketch and clear"
     histogram.accept(1)
     histogram.accept(2)

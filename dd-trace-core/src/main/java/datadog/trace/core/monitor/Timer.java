@@ -37,7 +37,7 @@ public class Timer extends Recording {
     this.name = name;
     this.statsd = statsd;
     this.flushAfterNanos = flushAfterNanos;
-    this.histogram = Histograms.newHistogramFactory().newHistogram();
+    this.histogram = Histograms.newHistogram();
     this.p50Tags = mergeTags(P_50, tags);
     this.p99Tags = mergeTags(P_99, tags);
     this.maxTags = mergeTags(MAX, tags);
