@@ -653,7 +653,7 @@ build_test_jobs: &build_test_jobs
         - build
       name: z_test_<< matrix.testJvm >>_base
       triggeredBy: *core_modules
-      gradleParameters: "-PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipIastTests -PskipDebuggerTests"
+      gradleParameters: "-PskipInstTests -PskipSmokeTests"
       stage: core
       maxWorkers: 6
       matrix:
@@ -664,7 +664,7 @@ build_test_jobs: &build_test_jobs
         - build
       name: z_test_8_base
       triggeredBy: *core_modules
-      gradleParameters: "-PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipIastTests -PskipDebuggerTests"
+      gradleParameters: "-PskipInstTests -PskipSmokeTests"
       testTask: test jacocoTestReport jacocoTestCoverageVerification
       stage: core
       maxWorkers: 6
