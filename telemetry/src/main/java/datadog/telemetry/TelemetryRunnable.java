@@ -69,7 +69,7 @@ public class TelemetryRunnable implements Runnable {
         RequestStatus status = mainLoopIteration();
         switch (status) {
           case SUCCESS:
-          case NOTING_TO_SEND:
+          case NOTHING_TO_SEND:
             successWait();
             break;
           case NOT_SUPPORTED_ERROR:
@@ -102,7 +102,7 @@ public class TelemetryRunnable implements Runnable {
 
     Queue<TelemetryData> queue = telemetryService.prepareRequests();
     if (queue.isEmpty()) {
-      return RequestStatus.NOTING_TO_SEND;
+      return RequestStatus.NOTHING_TO_SEND;
     }
 
     return sendTelemetry(queue);

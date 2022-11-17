@@ -43,7 +43,7 @@ public class DiscoveryRequestBuilderSupplier implements Supplier<RequestBuilder>
 
     HttpUrl httpUrl = featuresDiscovery.buildUrl(telemetryEndpoint + RequestBuilder.API_ENDPOINT);
     if (httpUrl == null) {
-      log.debug("Unable Telemetry httpUrl");
+      log.debug("Unable to build Telemetry httpUrl for '{}{}'", telemetryEndpoint, RequestBuilder.API_ENDPOINT);
       return null;
     }
 
