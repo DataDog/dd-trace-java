@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.grpc.server;
 
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 
 import datadog.trace.api.Config;
@@ -27,6 +29,7 @@ public class GrpcServerDecorator extends ServerDecorator {
 
   private static final LinkedHashMap<String, String> createServerPathwaySortedTags() {
     LinkedHashMap<String, String> result = new LinkedHashMap<>();
+    result.put(DIRECTION_TAG, DIRECTION_IN);
     result.put(TYPE_TAG, "grpc");
     return result;
   }

@@ -8,6 +8,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.EXCHANGE_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.HAS_ROUTING_KEY_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
@@ -184,10 +186,11 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
         }
         propagate().inject(span, headers, SETTER);
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+        sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
         sortedTags.put(EXCHANGE_TAG, exchange);
         sortedTags.put(
             HAS_ROUTING_KEY_TAG, routingKey == null || routingKey.equals("") ? "false" : "true");
-        sortedTags.put(TYPE_TAG, "internal");
+        sortedTags.put(TYPE_TAG, "rabbitmq");
         propagate().injectPathwayContext(span, headers, SETTER, sortedTags);
         props =
             new AMQP.BasicProperties(

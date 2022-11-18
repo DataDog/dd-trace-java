@@ -13,8 +13,12 @@ import okhttp3.RequestBody
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.context.embedded.EmbeddedWebApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
+import org.springframework.web.servlet.handler.HandlerInterceptorAdapter
 import org.springframework.web.servlet.view.RedirectView
 import spock.lang.Shared
+
+import javax.servlet.http.HttpServletRequest
+import javax.servlet.http.HttpServletResponse
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
@@ -239,6 +243,28 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     response.code() == MATRIX_PARAM.status
     response.body().string() == MATRIX_PARAM.body
     span.getTag(IG_PATH_PARAMS_TAG) == [var:['a=x,y;a=z', [a:['x', 'y', 'z']]]]
+  }
+
+  def 'path is extract when preHandle fails'() {
+    setup:
+    def request = request(PATH_PARAM, 'GET', null).header("fail", "true").build()
+    context.getBeanFactory().registerSingleton("testHandler", new HandlerInterceptorAdapter() {
+        @Override
+        boolean preHandle(HttpServletRequest req, HttpServletResponse response, Object handler) throws Exception {
+          if ("true".equalsIgnoreCase(req.getHeader("fail"))) {
+            throw new RuntimeException("Stop here")
+          }
+          return true
+        }
+      })
+
+    when:
+    client.newCall(request).execute()
+    TEST_WRITER.waitForTraces(1)
+    DDSpan span = TEST_WRITER.flatten().find {"servlet.request".contentEquals(it.operationName)}
+
+    then:
+    span.getResourceName().toString() == "GET " + testPathParam()
   }
 
   boolean hasResponseSpan(ServerEndpoint endpoint) {

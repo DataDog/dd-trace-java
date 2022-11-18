@@ -1,11 +1,12 @@
 package datadog.trace.instrumentation.springweb;
 
+import java.util.HashMap;
+import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
-import org.springframework.web.servlet.HandlerMapping;
 
 class PathMatchingHttpServletRequestWrapper extends HttpServletRequestWrapper {
-  private Object bestMatchingPattern;
+  private final Map<String, Object> localAttributes = new HashMap<>();
 
   public PathMatchingHttpServletRequestWrapper(HttpServletRequest request) {
     super(request);
@@ -13,23 +14,20 @@ class PathMatchingHttpServletRequestWrapper extends HttpServletRequestWrapper {
 
   @Override
   public Object getAttribute(String name) {
-    if (name.equals(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE)) {
-      return bestMatchingPattern;
+    final Object ret = localAttributes.get(name);
+    if (ret == null) {
+      return super.getAttribute(name);
     }
-    return super.getAttribute(name);
+    return ret;
   }
 
   @Override
   public void setAttribute(String name, Object o) {
-    if (name.equals(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE)) {
-      bestMatchingPattern = o;
-    }
+    localAttributes.put(name, o);
   }
 
   @Override
   public void removeAttribute(String name) {
-    if (name.equals(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE)) {
-      bestMatchingPattern = null;
-    }
+    localAttributes.remove(name);
   }
 }
