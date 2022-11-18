@@ -10,7 +10,7 @@ muzzle {
   pass {
     group = 'org.springframework.data'
     module = 'spring-data-commons'
-    versions = "[1.8.0.RELEASE,]"
+    versions = "[1.8.0.RELEASE,3)"
     extraDependency "org.springframework:spring-aop:1.2"
     assertInverse = true
   }
@@ -53,7 +53,7 @@ dependencies {
   latestDepTestImplementation group: 'org.springframework', name: 'spring-test', version: '5.+'
   latestDepTestImplementation group: 'org.springframework', name: 'spring-context', version: '5.+'
 
-  latestDepTestImplementation group: 'org.springframework.data', name: 'spring-data-commons', version: '+'
+  latestDepTestImplementation group: 'org.springframework.data', name: 'spring-data-commons', version: '2.+'
   latestDepTestImplementation group: 'org.springframework.data', name: 'spring-data-jpa', version: '2.3.+'
 }
 
