@@ -226,7 +226,6 @@ class TraceProcessingWorkerTest extends DDSpecification {
   }
 
   def "send unsampled traces to the SpanProcessingWorker and expect only sampled spans dispatched when dropping policy is active"() {
-    // TODO maybe add a test case for when dropping policy is inactive?
     setup:
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     AtomicInteger acceptedCount = new AtomicInteger()
@@ -295,6 +294,82 @@ class TraceProcessingWorkerTest extends DDSpecification {
     USER_KEEP    | 2          | 2              | 6             | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
     SAMPLER_KEEP | 2          | 2              | 8             | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
     USER_KEEP    | 2          | 2              | 10            | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_KEEP | 10         | 10             | 10            | 0                  | [Mock(DDSpan)]
+    USER_KEEP    | 10         | 10             | 20            | 0                  | [Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_KEEP | 10         | 10             | 30            | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_KEEP    | 10         | 10             | 40            | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_KEEP | 10         | 10             | 50            | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+  }
+
+  def "send unsampled traces to the SpanProcessingWorker and expect all spans dispatched when dropping policy is inactive"() {
+    setup:
+    HealthMetrics healthMetrics = Mock(HealthMetrics)
+    AtomicInteger chunksCount = new AtomicInteger()
+    AtomicInteger spansCount = new AtomicInteger()
+    PayloadDispatcher countingDispatcher = Mock(PayloadDispatcher)
+    countingDispatcher.addTrace(_) >> {
+      List trace = it[0]
+      spansCount.getAndAdd(trace.size())
+      chunksCount.getAndIncrement()
+    }
+    AtomicInteger sampledSpansCount = new AtomicInteger()
+    SingleSpanSampler singleSpanSampler = new SingleSpanSampler() {
+        int counter = 0
+        boolean setSamplingPriority(CoreSpan span) {
+          if (counter++ % 2 == 0) {
+            sampledSpansCount.incrementAndGet()
+            return true
+          }
+          // drop every other trace span
+          return false
+        }
+      }
+    TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics, countingDispatcher, { false }, FAST_LANE, 100, TimeUnit.SECONDS, singleSpanSampler)
+    worker.start()
+
+    when: "traces are submitted"
+    for (int i = 0; i < traceCount; ++i) {
+      worker.publish(trace.get(0), priority, trace)
+    }
+
+    then: "traces are passed through unless rejected on submission"
+    conditions.eventually {
+      assert expectedChunks == chunksCount.get()
+      assert expectedSpans == spansCount.get()
+      assert sampledSingleSpans == sampledSpansCount.get()
+    }
+
+    cleanup:
+    worker.close()
+
+    where:
+    priority     | traceCount | expectedChunks | expectedSpans | sampledSingleSpans | trace
+    SAMPLER_DROP | 1          | 1              | 1             | 1                  | [Mock(DDSpan)]
+    USER_DROP    | 1          | 2              | 2             | 1                  | [Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_DROP | 1          | 2              | 3             | 2                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_DROP    | 1          | 2              | 4             | 2                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_DROP | 1          | 2              | 5             | 3                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_DROP    | 2          | 2              | 2*1           | 1                  | [Mock(DDSpan)]
+    SAMPLER_DROP | 2          | 2*2            | 2*2           | 2                  | [Mock(DDSpan), Mock(DDSpan)]
+    USER_DROP    | 2          | 2*2            | 2*3           | 3                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_DROP | 2          | 2*2            | 2*4           | 4                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_DROP    | 2          | 2*2            | 2*5           | 5                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_DROP    | 10         | 10             | 10            | 10/2*1             | [Mock(DDSpan)]
+    SAMPLER_DROP | 10         | 10*2           | 20            | 10/2*2             | [Mock(DDSpan), Mock(DDSpan)]
+    USER_DROP    | 10         | 10*2           | 30            | 10/2*3             | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_DROP | 10         | 10*2           | 40            | 10/2*4             | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_DROP    | 10         | 10*2           | 50            | 10/2*5             | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    // do not dispatch kept traces to the single span sampler
+    SAMPLER_KEEP | 1          | 1              | 1             | 0                  | [Mock(DDSpan)]
+    USER_KEEP    | 1          | 1              | 2             | 0                  | [Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_KEEP | 1          | 1              | 3             | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_KEEP    | 1          | 1              | 4             | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_KEEP | 1          | 1              | 5             | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_KEEP    | 2          | 2              | 2*1           | 0                  | [Mock(DDSpan)]
+    SAMPLER_KEEP | 2          | 2              | 2*2           | 0                  | [Mock(DDSpan), Mock(DDSpan)]
+    USER_KEEP    | 2          | 2              | 2*3           | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    SAMPLER_KEEP | 2          | 2              | 2*4           | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
+    USER_KEEP    | 2          | 2              | 2*5           | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
     SAMPLER_KEEP | 10         | 10             | 10            | 0                  | [Mock(DDSpan)]
     USER_KEEP    | 10         | 10             | 20            | 0                  | [Mock(DDSpan), Mock(DDSpan)]
     SAMPLER_KEEP | 10         | 10             | 30            | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
