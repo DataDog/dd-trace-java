@@ -359,7 +359,8 @@ public class MoshiSnapshotHelper {
               }
               jsonReader.endArray();
               if (type.equals(List.class.getTypeName())
-                  || type.equals(ArrayList.class.getTypeName())) {
+                  || type.equals(ArrayList.class.getTypeName())
+                  || type.equals("java.util.Collections$UnmodifiableRandomAccessList")) {
                 List<Object> list = new ArrayList<>();
                 for (Snapshot.CapturedValue cValue : values) {
                   list.add(cValue.getValue());
@@ -621,7 +622,7 @@ public class MoshiSnapshotHelper {
                 jsonWriter.name(fieldName);
                 jsonWriter.beginObject();
                 jsonWriter.name(TYPE);
-                jsonWriter.value(field.getType().getName());
+                jsonWriter.value(field.getType().getTypeName());
                 jsonWriter.name(NOT_CAPTURED_REASON);
                 jsonWriter.value(ex.toString());
                 jsonWriter.endObject();
