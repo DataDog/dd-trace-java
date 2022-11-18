@@ -170,7 +170,7 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
       invokeDynamic = true
     )
     static String after(@CallSite.AllArguments final Object[] arguments, @CallSite.Return final String result) {
-      return result;
+      result
     }
   }
 

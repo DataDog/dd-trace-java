@@ -52,6 +52,8 @@ dependencies {
   testImplementation "org.testcontainers:mysql:${versions.testcontainers}"
   testImplementation "org.testcontainers:postgresql:${versions.testcontainers}"
 
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+
   // Test pre jdk 1.6 H2
   oldH2TestImplementation(group: 'com.h2database', name: 'h2') {
     version {

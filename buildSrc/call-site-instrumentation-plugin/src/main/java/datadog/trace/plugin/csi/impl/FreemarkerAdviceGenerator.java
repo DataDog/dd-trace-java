@@ -185,7 +185,7 @@ public class FreemarkerAdviceGenerator implements AdviceGenerator {
     } else {
       mode = "COPY";
     }
-    if (advice.isPositionalArguments()) {
+    if (allArgsSpec == null && advice.isPositionalArguments()) {
       builder.append(TAB).append(TAB).append("int[] parameterIndices = new int[] {");
       advice
           .getArguments()
