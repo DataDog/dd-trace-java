@@ -1,5 +1,5 @@
 
-// This environment variable can hold a comma-separated list of environment variable names that will be passed to tests.
+// This environment variable can hold a space-separated list of environment variable names that will be passed to tests.
 final passEnvKey = "PASS_ENV"
 
 // List of environment variables that are always passed to tests.
@@ -18,7 +18,7 @@ def passEnv = [
 
 def customPassEnv = System.getenv(passEnvKey)
 if (customPassEnv != null && !customPassEnv.trim().isEmpty()) {
-  passEnv += ystem.getenv(passEnvKey).split(",").collect { it.trim() }
+  passEnv += ystem.getenv(passEnvKey).split(" ").collect { it.trim() }
 }
 
 tasks.withType(Test).configureEach {
