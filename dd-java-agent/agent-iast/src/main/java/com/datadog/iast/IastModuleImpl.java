@@ -1,6 +1,7 @@
 package com.datadog.iast;
 
 import static com.datadog.iast.taint.Ranges.rangesProviderFor;
+import static java.util.Arrays.asList;
 
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Location;
@@ -23,6 +24,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
 import datadog.trace.util.stacktrace.StackWalker;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
+import java.io.File;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -322,6 +327,90 @@ public final class IastModuleImpl implements IastModule {
     final TaintedObjects to = ctx.getTaintedObjects();
     final RangesProvider<String> rangesProvider = Ranges.rangesProviderFor(to, command);
     checkInjection(VulnerabilityType.COMMAND_INJECTION, rangesProvider);
+  }
+
+  @Override
+  public void onPathTraversal(final @Nonnull String path) {
+    if (!canBeTainted(path)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects to = ctx.getTaintedObjects();
+    final RangesProvider<String> rangesProvider = rangesProviderFor(to, path);
+    checkInjection(VulnerabilityType.PATH_TRAVERSAL, rangesProvider);
+  }
+
+  @Override
+  public void onPathTraversal(final @Nullable String parent, final @Nonnull String child) {
+    if (!canBeTaintedNullSafe(parent) && !canBeTainted(child)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects to = ctx.getTaintedObjects();
+    final RangesProvider<String> rangeProvider;
+    if (parent == null) {
+      rangeProvider = rangesProviderFor(to, child);
+    } else {
+      rangeProvider = rangesProviderFor(to, asList(parent, child));
+    }
+    checkInjection(VulnerabilityType.PATH_TRAVERSAL, rangeProvider);
+  }
+
+  @Override
+  public void onPathTraversal(final @Nonnull String first, final @Nonnull String[] more) {
+    if (!canBeTainted(first) && !canBeTainted(more)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects to = ctx.getTaintedObjects();
+    final RangesProvider<String> rangeProvider;
+    if (more.length == 0) {
+      rangeProvider = rangesProviderFor(to, first);
+    } else {
+      final List<String> items = new ArrayList<>(more.length + 1);
+      items.add(first);
+      Collections.addAll(items, more);
+      rangeProvider = rangesProviderFor(to, items);
+    }
+    checkInjection(VulnerabilityType.PATH_TRAVERSAL, rangeProvider);
+  }
+
+  @Override
+  public void onPathTraversal(final @Nonnull URI uri) {
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects to = ctx.getTaintedObjects();
+    checkInjection(VulnerabilityType.PATH_TRAVERSAL, rangesProviderFor(to, uri));
+  }
+
+  @Override
+  public void onPathTraversal(final @Nullable File parent, final @Nonnull String child) {
+    if (!canBeTainted(child)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects to = ctx.getTaintedObjects();
+    final RangesProvider<?> rangeProvider;
+    if (parent == null) {
+      rangeProvider = rangesProviderFor(to, child);
+    } else {
+      rangeProvider = rangesProviderFor(to, asList(parent, child));
+    }
+    checkInjection(VulnerabilityType.PATH_TRAVERSAL, rangeProvider);
   }
 
   private <E> void checkInjection(

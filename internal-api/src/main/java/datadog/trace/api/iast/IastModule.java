@@ -1,5 +1,7 @@
 package datadog.trace.api.iast;
 
+import java.io.File;
+import java.net.URI;
 import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -42,4 +44,14 @@ public interface IastModule {
   void onRuntimeExec(@Nonnull String... command);
 
   void onProcessBuilderStart(@Nonnull List<String> command);
+
+  void onPathTraversal(@Nonnull String path);
+
+  void onPathTraversal(@Nullable String parent, @Nonnull String child);
+
+  void onPathTraversal(@Nonnull String first, @Nonnull String[] more);
+
+  void onPathTraversal(@Nonnull URI uri);
+
+  void onPathTraversal(@Nullable File parent, @Nonnull String child);
 }

@@ -160,6 +160,42 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     waitForSpan(new PollingConditions(timeout: 5), hasVulnerability("COMMAND_INJECTION"))
   }
 
+  def "path traversal is present with file"() {
+    setup:
+    final url = "http://localhost:${httpPort}/path_traversal/file?path=test"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    waitForSpan(new PollingConditions(timeout: 5), hasVulnerability("PATH_TRAVERSAL"))
+  }
+
+  def "path traversal is present with paths"() {
+    setup:
+    final url = "http://localhost:${httpPort}/path_traversal/paths?path=test"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    waitForSpan(new PollingConditions(timeout: 5), hasVulnerability("PATH_TRAVERSAL"))
+  }
+
+  def "path traversal is present with path"() {
+    setup:
+    final url = "http://localhost:${httpPort}/path_traversal/path?path=test"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    waitForSpan(new PollingConditions(timeout: 5), hasVulnerability("PATH_TRAVERSAL"))
+  }
+
   private static Function<DecodedSpan, Boolean> hasMetric(final String name, final Object value) {
     return { span -> value == span.metrics.get(name) }
   }
