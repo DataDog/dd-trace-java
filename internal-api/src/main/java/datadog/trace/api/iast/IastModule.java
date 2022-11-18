@@ -1,5 +1,6 @@
 package datadog.trace.api.iast;
 
+import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -37,4 +38,8 @@ public interface IastModule {
       @Nullable String recipe,
       @Nullable Object[] dynamicConstants,
       @Nonnull int[] recipeOffsets);
+
+  void onRuntimeExec(@Nonnull String... command);
+
+  void onProcessBuilderStart(@Nonnull List<String> command);
 }

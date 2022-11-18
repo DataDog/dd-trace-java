@@ -103,14 +103,6 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     waitForSpan(new PollingConditions(timeout: 5), hasMetric('_dd.iast.enabled', 1))
   }
 
-  private static Function<DecodedSpan, Boolean> hasMetric(final String name, final Object value) {
-    return { span -> value == span.metrics.get(name) }
-  }
-
-  private static Function<DecodedSpan, Boolean> hasVulnerability(final String vulnerabilityName) {
-    return { span -> span.toString().contains(vulnerabilityName) }
-  }
-
   def "weak hash vulnerability is present"() {
     setup:
     String url = "http://localhost:${httpPort}/weakhash"
@@ -142,5 +134,37 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
       }
     }
     foundTaintedString
+  }
+
+  def "command injection is present with runtime"() {
+    setup:
+    final url = "http://localhost:${httpPort}/cmdi/runtime?cmd=ls"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    waitForSpan(new PollingConditions(timeout: 5), hasVulnerability("COMMAND_INJECTION"))
+  }
+
+  def "command injection is present with process builder"() {
+    setup:
+    final url = "http://localhost:${httpPort}/cmdi/process_builder?cmd=ls"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    waitForSpan(new PollingConditions(timeout: 5), hasVulnerability("COMMAND_INJECTION"))
+  }
+
+  private static Function<DecodedSpan, Boolean> hasMetric(final String name, final Object value) {
+    return { span -> value == span.metrics.get(name) }
+  }
+
+  private static Function<DecodedSpan, Boolean> hasVulnerability(final String vulnerabilityName) {
+    return { span -> span.toString().contains(vulnerabilityName) }
   }
 }

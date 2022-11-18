@@ -308,4 +308,76 @@ class InstrumentationBridgeTest extends DDSpecification {
     1 * module.onStringConcatFactory(_, _, _, _, _) >> { throw new Error('Boom!!!') }
     noExceptionThrown()
   }
+
+  def "bridge calls module when a when a runtime exec call is detected"() {
+    setup:
+    final module = Mock(IastModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    InstrumentationBridge.onRuntimeExec('ls', '-lah')
+
+    then:
+    1 * module.onRuntimeExec('ls', '-lah')
+  }
+
+  def "bridge calls don't fail with null module when a runtime exec call is detected"() {
+    setup:
+    InstrumentationBridge.registerIastModule(null)
+
+    when:
+    InstrumentationBridge.onRuntimeExec('ls', '-lah')
+
+    then:
+    noExceptionThrown()
+  }
+
+  def "bridge calls don't leak exceptions when a runtime exec call is detected"() {
+    setup:
+    final module = Mock(IastModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    InstrumentationBridge.onRuntimeExec('ls', '-lah')
+
+    then:
+    1 * module.onRuntimeExec(_) >> { throw new Error('Boom!!!') }
+    noExceptionThrown()
+  }
+
+  def "bridge calls module when a when a process builder start call is detected"() {
+    setup:
+    final module = Mock(IastModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    InstrumentationBridge.onProcessBuilderStart(['ls', '-lah'])
+
+    then:
+    1 * module.onProcessBuilderStart(['ls', '-lah'])
+  }
+
+  def "bridge calls don't fail with null module when a process builder start call is detected"() {
+    setup:
+    InstrumentationBridge.registerIastModule(null)
+
+    when:
+    InstrumentationBridge.onProcessBuilderStart(['ls', '-lah'])
+
+    then:
+    noExceptionThrown()
+  }
+
+  def "bridge calls don't leak exceptions when a process builder start call is detected"() {
+    setup:
+    final module = Mock(IastModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    InstrumentationBridge.onProcessBuilderStart(['ls', '-lah'])
+
+    then:
+    1 * module.onProcessBuilderStart(_) >> { throw new Error('Boom!!!') }
+    noExceptionThrown()
+  }
 }
