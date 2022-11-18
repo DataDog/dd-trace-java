@@ -46,7 +46,7 @@ class IastAgentTestRunner extends AgentTestRunner {
 
     def iastCtx = reqStartCb.get().result
     def ddctx = new TagContext().withRequestContextDataIast(iastCtx)
-    AgentSpan span = TEST_TRACER.startSpan("test-iast-span", ddctx, false)
+    AgentSpan span = TEST_TRACER.startSpan("test-iast-span", ddctx)
     try {
       AgentTracer.activateSpan(span).withCloseable cl
     } finally {
