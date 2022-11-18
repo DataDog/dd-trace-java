@@ -16,6 +16,10 @@ public interface CallSiteAdvice {
     int flags();
   }
 
+  interface HasMinJavaVersion {
+    int minJavaVersion();
+  }
+
   /** Interface to isolate advices from ASM */
   interface MethodHandler {
 

@@ -1,13 +1,14 @@
 package datadog.trace.core.datastreams
 
 import datadog.trace.api.WellKnownTags
-import datadog.trace.api.function.Consumer
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint
 import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Requires
+
+import java.util.function.Consumer
 
 import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG
 import static java.util.concurrent.TimeUnit.MILLISECONDS
@@ -104,7 +105,10 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     with(pointConsumer.points[2]) {
       edgeTags == ["group:group", "topic:topic", "type:kafka"]
       edgeTags.size() == 3
-      parentHash == pointConsumer.points[1].hash
+      // this point should have the first point as parent,
+      // as the loop protection will reset the parent if two identical
+      // points (same hash for tag values) are about to form a hierarchy
+      parentHash == pointConsumer.points[0].hash
       hash != 0
       pathwayLatencyNano == 55
       edgeLatencyNano == 30

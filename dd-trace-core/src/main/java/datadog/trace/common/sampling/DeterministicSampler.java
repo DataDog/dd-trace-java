@@ -1,6 +1,5 @@
 package datadog.trace.common.sampling;
 
-import datadog.trace.api.DDId;
 import datadog.trace.core.CoreSpan;
 
 /**
@@ -17,8 +16,8 @@ public abstract class DeterministicSampler<T extends CoreSpan<T>> implements Rat
     }
 
     @Override
-    protected DDId getSamplingId(T span) {
-      return span.getTraceId();
+    protected long getSamplingId(T span) {
+      return span.getTraceId().toLong();
     }
   }
 
@@ -30,7 +29,7 @@ public abstract class DeterministicSampler<T extends CoreSpan<T>> implements Rat
     }
 
     @Override
-    protected DDId getSamplingId(T span) {
+    protected long getSamplingId(T span) {
       return span.getSpanId();
     }
   }
@@ -48,10 +47,10 @@ public abstract class DeterministicSampler<T extends CoreSpan<T>> implements Rat
   @Override
   public boolean sample(final T span) {
     // unsigned 64 bit comparison with cutoff
-    return getSamplingId(span).toLong() * KNUTH_FACTOR + Long.MIN_VALUE < cutoff(rate);
+    return getSamplingId(span) * KNUTH_FACTOR + Long.MIN_VALUE < cutoff(rate);
   }
 
-  protected abstract DDId getSamplingId(T span);
+  protected abstract long getSamplingId(T span);
 
   @Override
   public double getSampleRate() {

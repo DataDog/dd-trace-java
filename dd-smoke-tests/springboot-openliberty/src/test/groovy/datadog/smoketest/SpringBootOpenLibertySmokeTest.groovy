@@ -1,13 +1,16 @@
 package datadog.smoketest
 
 import datadog.trace.agent.test.utils.ThreadUtils
+import datadog.trace.api.Platform
 import okhttp3.FormBody
 import okhttp3.Request
 import spock.lang.Requires
 import spock.lang.Shared
 
+import java.util.stream.Collectors
+
 // This test currently fails on IBM JVMs
-@Requires({ !System.getProperty("java.vm.name").contains("IBM J9 VM") })
+@Requires({ !Platform.isJ9() })
 class SpringBootOpenLibertySmokeTest extends AbstractServerSmokeTest {
 
   @Shared
@@ -21,19 +24,25 @@ class SpringBootOpenLibertySmokeTest extends AbstractServerSmokeTest {
     List<String> command = new ArrayList<>()
     command.add(javaPath())
 
-    command.addAll(defaultJavaProperties)
-    command.addAll((String[]) [
+    command.addAll((String[]) ["-jar", openLibertyShadowJar, "--server.port=${httpPort}"])
+
+    List<String> envParams = new ArrayList<>()
+    envParams.addAll(defaultJavaProperties)
+    envParams.addAll(
       "-Ddd.writer.type=MultiWriter:TraceStructureWriter:${output.getAbsolutePath()},DDAgentWriter",
       "-Ddd.jmxfetch.enabled=false",
       "-Ddd.appsec.enabled=true",
       "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
       "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",
-      "-jar",
-      openLibertyShadowJar,
-      "--server.port=${httpPort}"
-    ])
+      "-Ddd.iast.enabled=true", "-Ddd.iast.request-sampling=100"
+      )
+
+
+    String javaToolOptions = envParams.stream().collect(Collectors.joining(" "))
+
 
     ProcessBuilder processBuilder = new ProcessBuilder(command)
+    processBuilder.environment().put("JAVA_TOOL_OPTIONS", javaToolOptions)
     processBuilder.directory(new File(buildDirectory))
     return processBuilder
   }
@@ -86,6 +95,6 @@ class SpringBootOpenLibertySmokeTest extends AbstractServerSmokeTest {
       assert response.code() == 200
     })
 
-    waitForTraceCount(totalInvocations) ==  totalInvocations
+    waitForTraceCount(totalInvocations) == totalInvocations
   }
 }

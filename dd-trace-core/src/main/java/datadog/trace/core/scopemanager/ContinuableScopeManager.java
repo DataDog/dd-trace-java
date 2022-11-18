@@ -8,6 +8,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
+import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -16,7 +17,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ContextThreadListener;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
-import datadog.trace.context.ScopeListener;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.ArrayDeque;
 import java.util.Iterator;
@@ -463,10 +463,15 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
     @Override
     protected ScopeStack initialValue() {
-      for (ContextThreadListener listener : listeners) {
-        listener.onAttach();
-      }
-      return new ScopeStack();
+      return new ScopeStack(
+          new Runnable() {
+            @Override
+            public void run() {
+              for (ContextThreadListener listener : listeners) {
+                listener.onAttach();
+              }
+            }
+          });
     }
 
     @Override
@@ -487,12 +492,19 @@ public final class ContinuableScopeManager implements AgentScopeManager {
    * cleanup() is called to ensure the invariant
    */
   static final class ScopeStack {
+
+    private final Runnable onFirstUsage;
+    private boolean used = false;
     private final ArrayDeque<ContinuableScope> stack = new ArrayDeque<>(); // previous scopes
 
     ContinuableScope top; // current scope
 
     // set by background task when a root iteration scope remains unclosed for too long
     volatile ContinuableScope overdueRootScope;
+
+    ScopeStack(Runnable onFirstUsage) {
+      this.onFirstUsage = onFirstUsage;
+    }
 
     ContinuableScope active() {
       // avoid attaching further spans to the root scope when it's been marked as overdue
@@ -524,6 +536,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
     /** Marks a new scope as current, pushing the previous onto the stack */
     void push(final ContinuableScope scope) {
+      notifyOnFirstPush();
       if (top != null) {
         stack.push(top);
       }
@@ -571,6 +584,13 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     void clear() {
       stack.clear();
       top = null;
+    }
+
+    private void notifyOnFirstPush() {
+      if (!used) {
+        used = true;
+        onFirstUsage.run();
+      }
     }
   }
 

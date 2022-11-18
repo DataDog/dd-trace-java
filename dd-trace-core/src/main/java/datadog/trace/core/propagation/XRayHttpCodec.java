@@ -7,8 +7,9 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
@@ -70,7 +71,7 @@ class XRayHttpCodec {
               .append(TRACE_ID_PADDING)
               .append(context.getTraceId().toHexStringPadded(16))
               .append(';' + PARENT_PREFIX)
-              .append(context.getSpanId().toHexStringPadded(16));
+              .append(DDSpanId.toHexStringPadded(context.getSpanId()));
 
       if (context.lockSamplingPriority()) {
         buf.append(';' + SAMPLED_PREFIX)
@@ -199,14 +200,14 @@ class XRayHttpCodec {
           }
           String part = value.substring(startPart, endPart).trim();
           if (part.startsWith(ROOT_PREFIX)) {
-            if (interpreter.traceId == null || interpreter.traceId == DDId.ZERO) {
+            if (interpreter.traceId == null || interpreter.traceId == DDTraceId.ZERO) {
               interpreter.traceId =
-                  DDId.fromHexWithOriginal(
+                  DDTraceId.fromHexTruncatedWithOriginal(
                       part.substring(ROOT_PREAMBLE + TRACE_ID_PADDING.length()));
             }
           } else if (part.startsWith(PARENT_PREFIX)) {
-            if (interpreter.spanId == null || interpreter.spanId == DDId.ZERO) {
-              interpreter.spanId = DDId.fromHexWithOriginal(part.substring(PARENT_PREFIX.length()));
+            if (interpreter.spanId == DDSpanId.ZERO) {
+              interpreter.spanId = DDSpanId.fromHex(part.substring(PARENT_PREFIX.length()));
             }
           } else if (part.startsWith(SAMPLED_PREFIX)) {
             if (interpreter.samplingPriority == PrioritySampling.UNSET) {

@@ -3,12 +3,14 @@
 "return":\{
 "arguments":\{
 "this":\{
+"type":"java.lang.String",
+"fields":\{
 "normalNullField":\{
 "type":"java.lang.String",
 "isNull":true
 \},
 "notCapturedField":\{
-"type":"java.lang.management.OperatingSystemMXBean",
+"type":"com.sun.management.internal.OperatingSystemImpl",
 "fields":
 \{
 "containerMetrics":
@@ -30,6 +32,7 @@
 "normalValuedField":\{
 "type":"java.lang.String",
 "value":"foobar"
+\}
 \}
 \}
 \},

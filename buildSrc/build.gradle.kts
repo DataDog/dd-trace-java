@@ -1,7 +1,7 @@
 plugins {
   groovy
   `java-gradle-plugin`
-  id("com.diffplug.spotless") version "5.11.0"
+  id("com.diffplug.spotless") version "6.11.0"
 }
 
 gradlePlugin {
@@ -31,7 +31,7 @@ dependencies {
   implementation(gradleApi())
   implementation(localGroovy())
 
-  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.12.17")
+  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.12.18")
 
   implementation("org.eclipse.aether", "aether-connector-basic", "1.1.0")
   implementation("org.eclipse.aether", "aether-transport-http", "1.1.0")

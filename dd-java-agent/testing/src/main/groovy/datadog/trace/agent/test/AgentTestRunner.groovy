@@ -6,7 +6,7 @@ import ch.qos.logback.classic.util.ContextInitializer
 import com.google.common.collect.Sets
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.agent.test.checkpoints.TimelineCheckpointer
+import datadog.trace.agent.test.checkpoints.TestEndpointCheckpointer
 import datadog.trace.agent.test.checkpoints.TimelineTracingContextTracker
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
 import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter
@@ -15,7 +15,8 @@ import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
 import datadog.trace.api.Config
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.api.Platform
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.WellKnownTags
@@ -60,7 +61,6 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
-import static datadog.trace.api.IdGenerationStrategy.SEQUENTIAL
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
 import static net.bytebuddy.matcher.ElementMatchers.named
 import static net.bytebuddy.matcher.ElementMatchers.none
@@ -123,7 +123,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   @SuppressWarnings('PropertyName')
   @Shared
-  TimelineCheckpointer TEST_CHECKPOINTER = Spy(new TimelineCheckpointer())
+  TestEndpointCheckpointer TEST_CHECKPOINTER = Spy(new TestEndpointCheckpointer())
 
   // don't use mocks because it will break too many exhaustive interaction-verifying tests
   @SuppressWarnings('PropertyName')
@@ -136,7 +136,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   @SuppressWarnings('PropertyName')
   @Shared
-  Set<DDId> TEST_SPANS = Sets.newHashSet()
+  Set<DDSpanId> TEST_SPANS = Sets.newHashSet()
 
   @SuppressWarnings('PropertyName')
   @Shared
@@ -210,7 +210,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       Spy(
       CoreTracer.builder()
       .writer(TEST_WRITER)
-      .idGenerationStrategy(SEQUENTIAL)
+      .idGenerationStrategy(IdGenerationStrategy.fromName("SEQUENTIAL"))
       .statsDClient(STATS_D_CLIENT)
       .strictTraceWrites(useStrictTraceWrites())
       .dataStreamsCheckpointer(dataStreamsCheckpointer)
@@ -225,11 +225,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       def agentSpan = callRealMethod()
       TEST_SPANS.add(agentSpan.spanId)
       agentSpan
-    }
-    TEST_CHECKPOINTER.checkpoint(_, _, _) >> { DDId traceId, DDId spanId, int flags ->
-      if (TEST_SPANS.contains(spanId)) {
-        callRealMethod()
-      }
     }
 
     assert ServiceLoader.load(Instrumenter, AgentTestRunner.getClassLoader())
@@ -288,7 +283,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     println "Starting test: ${getSpecificationContext().getCurrentIteration().getName()}"
     TEST_TRACER.flush()
     TEST_SPANS.clear()
-    TEST_CHECKPOINTER.clear()
     TEST_TRACKER.clear()
     TEST_WRITER.start()
     TEST_DATA_STREAMS_WRITER.clear()
@@ -311,7 +305,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
 
     TEST_TRACKER.print()
-    TEST_CHECKPOINTER.throwOnInvalidSequence(TEST_SPANS)
 
     ActiveSubsystems.APPSEC_ACTIVE = originalAppSecRuntimeValue
   }

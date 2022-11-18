@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.vertx_4_0.server;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
-import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -11,6 +10,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.vertx.core.json.JsonObject;
+import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 
 class RoutingContextJsonAdvice {

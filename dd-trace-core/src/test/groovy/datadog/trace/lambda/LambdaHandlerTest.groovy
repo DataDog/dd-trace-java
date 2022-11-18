@@ -1,9 +1,10 @@
 package datadog.trace.lambda
 
 import datadog.trace.api.Config
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.core.propagation.DatadogTags
 import datadog.trace.core.test.DDCoreSpecification
-import datadog.trace.api.DDId
 import datadog.trace.core.DDSpan
 import com.amazonaws.services.lambda.runtime.events.SQSEvent
 import com.amazonaws.services.lambda.runtime.events.SNSEvent
@@ -105,8 +106,8 @@ class LambdaHandlerTest extends DDCoreSpecification {
     }
     LambdaHandler.setExtensionBaseUrl(server.address.toString())
     DDSpan span = Mock(DDSpan) {
-      getTraceId() >> DDId.from("1234")
-      getSpanId() >> DDId.from("5678")
+      getTraceId() >> DDTraceId.from("1234")
+      getSpanId() >> DDSpanId.from("5678")
       getSamplingPriority() >> 2
     }
 
@@ -142,8 +143,8 @@ class LambdaHandlerTest extends DDCoreSpecification {
     }
     LambdaHandler.setExtensionBaseUrl(server.address.toString())
     DDSpan span = Mock(DDSpan) {
-      getTraceId() >> DDId.from("1234")
-      getSpanId() >> DDId.from("5678")
+      getTraceId() >> DDTraceId.from("1234")
+      getSpanId() >> DDSpanId.from("5678")
       getSamplingPriority() >> 2
     }
 

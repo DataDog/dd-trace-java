@@ -74,7 +74,7 @@ public final class FilterCollectionExpression implements ValueExpression<Collect
       }
       return new MapValue(filtered);
     }
-    log.warn("Unsupported collection type {}", collectionValue.getValue().getClass().getName());
+    log.warn("Unsupported collection type {}", collectionValue.getValue().getClass().getTypeName());
     return CollectionValue.UNDEFINED;
   }
 }

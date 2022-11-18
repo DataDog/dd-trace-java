@@ -1,5 +1,7 @@
 package com.datadog.debugger.agent;
 
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SnapshotProbe;
 import datadog.trace.api.Config;
 import datadog.trace.util.TagsHelper;
 import java.util.Arrays;

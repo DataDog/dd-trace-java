@@ -91,6 +91,16 @@ public class IntPackingTest {
     };
   }
 
+  private static long[] random(int size) {
+    long[] random = new long[size];
+    for (int i = 0; i < random.length; ++i) {
+      // yeah, JDK7...
+      int signum = ThreadLocalRandom.current().nextBoolean() ? 1 : -1;
+      random[i] = signum * ThreadLocalRandom.current().nextLong(0, Long.MAX_VALUE);
+    }
+    return random;
+  }
+
   @Test
   public void packLongs() {
     ByteBuffer buffer = ByteBuffer.allocate(input.length * 9 + 10);
@@ -98,29 +108,19 @@ public class IntPackingTest {
         new MsgPackWriter(
             newBuffer(
                 input.length * 9 + 10,
-                new ByteBufferConsumer() {
-                  @Override
-                  public void accept(int messageCount, ByteBuffer buffy) {
-                    try {
-                      MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                      assertEquals(1, messageCount);
-                      assertEquals(input.length, unpacker.unpackArrayHeader());
-                      for (long i : input) {
-                        assertEquals(i, unpacker.unpackLong());
-                      }
-                    } catch (IOException e) {
-                      Assert.fail(e.getMessage());
+                (messageCount, buffy) -> {
+                  try {
+                    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
+                    assertEquals(1, messageCount);
+                    assertEquals(input.length, unpacker.unpackArrayHeader());
+                    for (long i : input) {
+                      assertEquals(i, unpacker.unpackLong());
                     }
+                  } catch (IOException e) {
+                    Assert.fail(e.getMessage());
                   }
                 }));
-    messageFormatter.format(
-        input,
-        new Mapper<long[]>() {
-          @Override
-          public void map(long[] x, Writable w) {
-            w.writeObject(x, null);
-          }
-        });
+    messageFormatter.format(input, (x, w) -> w.writeObject(x, null));
     messageFormatter.flush();
   }
 
@@ -134,41 +134,21 @@ public class IntPackingTest {
         new MsgPackWriter(
             newBuffer(
                 input.length * 5 + 10,
-                new ByteBufferConsumer() {
-                  @Override
-                  public void accept(int messageCount, ByteBuffer buffy) {
-                    try {
-                      MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                      assertEquals(1, messageCount);
-                      assertEquals(asInts.length, unpacker.unpackArrayHeader());
-                      for (int i : asInts) {
-                        assertEquals(i, unpacker.unpackInt());
-                      }
-                    } catch (IOException e) {
-                      Assert.fail(e.getMessage());
+                (messageCount, buffy) -> {
+                  try {
+                    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
+                    assertEquals(1, messageCount);
+                    assertEquals(asInts.length, unpacker.unpackArrayHeader());
+                    for (int i : asInts) {
+                      assertEquals(i, unpacker.unpackInt());
                     }
+                  } catch (IOException e) {
+                    Assert.fail(e.getMessage());
                   }
                 }));
 
-    messageFormatter.format(
-        asInts,
-        new Mapper<int[]>() {
-          @Override
-          public void map(int[] x, Writable w) {
-            w.writeObject(x, null);
-          }
-        });
+    messageFormatter.format(asInts, (x, w) -> w.writeObject(x, null));
     messageFormatter.flush();
-  }
-
-  private static long[] random(int size) {
-    long[] random = new long[size];
-    for (int i = 0; i < random.length; ++i) {
-      // yeah, JDK7...
-      int signum = ThreadLocalRandom.current().nextBoolean() ? 1 : -1;
-      random[i] = signum * ThreadLocalRandom.current().nextLong(0, Long.MAX_VALUE);
-    }
-    return random;
   }
 
   private StreamingBuffer newBuffer(int capacity, ByteBufferConsumer consumer) {

@@ -10,7 +10,7 @@ import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
 import datadog.cws.erpc.Erpc;
 import datadog.cws.erpc.Request;
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDTraceId;
 
 /**
  * This class is as a thread local storage.
@@ -120,33 +120,33 @@ public class ErpcTls implements Tls {
     return getSpanIdOffset(threadId) + Native.LONG_SIZE;
   }
 
-  public void registerSpan(int threadId, DDId traceId, DDId spanId) {
+  public void registerSpan(int threadId, DDTraceId traceId, long spanId) {
     long spanIdOffset = getSpanIdOffset(threadId);
     long traceIdOffset = getTraceIdOffset(threadId);
 
-    tls.setLong(spanIdOffset, spanId.toLong());
+    tls.setLong(spanIdOffset, spanId);
     tls.setLong(traceIdOffset, traceId.toLong());
   }
 
-  public void registerSpan(DDId traceId, DDId spanId) {
+  public void registerSpan(DDTraceId traceId, long spanId) {
     registerSpan(getTID(), traceId, spanId);
   }
 
-  public DDId getSpanId(int threadId) {
+  public long getSpanId(int threadId) {
     long offset = getSpanIdOffset(threadId);
-    return DDId.from(tls.getLong(offset));
+    return tls.getLong(offset);
   }
 
-  public DDId getSpanId() {
+  public long getSpanId() {
     return getSpanId(getTID());
   }
 
-  public DDId getTraceId(int threadId) {
+  public DDTraceId getTraceId(int threadId) {
     long offset = getTraceIdOffset(threadId);
-    return DDId.from(tls.getLong(offset));
+    return DDTraceId.from(tls.getLong(offset));
   }
 
-  public DDId getTraceId() {
+  public DDTraceId getTraceId() {
     return getTraceId(getTID());
   }
 }

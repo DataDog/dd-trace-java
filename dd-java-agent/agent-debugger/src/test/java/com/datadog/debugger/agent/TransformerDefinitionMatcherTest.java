@@ -1,14 +1,18 @@
 package com.datadog.debugger.agent;
 
+import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SnapshotProbe;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -20,8 +24,7 @@ public class TransformerDefinitionMatcherTest {
 
   @Test
   public void empty() {
-    TransformerDefinitionMatcher matcher =
-        createMatcher(Collections.emptyList(), Collections.emptyList());
+    TransformerDefinitionMatcher matcher = createMatcher(emptyList(), emptyList(), emptyList());
     assertTrue(matcher.isEmpty());
   }
 
@@ -29,7 +32,7 @@ public class TransformerDefinitionMatcherTest {
   public void fullQualifiedClassName() {
     SnapshotProbe probe = createProbe(PROBE_ID1, "java.lang.String", "indexOf");
     TransformerDefinitionMatcher matcher =
-        createMatcher(Arrays.asList(probe), Collections.emptyList());
+        createMatcher(Arrays.asList(probe), emptyList(), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(1, probeDefinitions.size());
     assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());
@@ -39,7 +42,7 @@ public class TransformerDefinitionMatcherTest {
   public void simpleClassName() {
     SnapshotProbe probe = createProbe(PROBE_ID1, "String", "indexOf");
     TransformerDefinitionMatcher matcher =
-        createMatcher(Arrays.asList(probe), Collections.emptyList());
+        createMatcher(Arrays.asList(probe), emptyList(), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(1, probeDefinitions.size());
     assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());
@@ -49,12 +52,12 @@ public class TransformerDefinitionMatcherTest {
   public void simpleClassNameNoClassRedefined() {
     SnapshotProbe probe = createProbe(PROBE_ID1, "String", "indexOf");
     TransformerDefinitionMatcher matcher =
-        createMatcher(Arrays.asList(probe), Collections.emptyList());
+        createMatcher(Arrays.asList(probe), emptyList(), emptyList());
     List<ProbeDefinition> probeDefinitions =
         matcher.match(
             null,
             getClassPath(String.class),
-            String.class.getName(),
+            String.class.getTypeName(),
             getClassFileBytes(String.class));
     assertEquals(1, probeDefinitions.size());
     assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());
@@ -64,7 +67,7 @@ public class TransformerDefinitionMatcherTest {
   public void sourceFileFullFileName() {
     SnapshotProbe probe = createProbe(PROBE_ID1, "src/main/java/java/lang/String.java", 23);
     TransformerDefinitionMatcher matcher =
-        createMatcher(Arrays.asList(probe), Collections.emptyList());
+        createMatcher(Arrays.asList(probe), emptyList(), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(1, probeDefinitions.size());
     assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());
@@ -75,7 +78,7 @@ public class TransformerDefinitionMatcherTest {
     SnapshotProbe probe =
         createProbe(PROBE_ID1, "/home/user/project/src/main/java/java/lang/String.java", 23);
     TransformerDefinitionMatcher matcher =
-        createMatcher(Arrays.asList(probe), Collections.emptyList());
+        createMatcher(Arrays.asList(probe), emptyList(), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(1, probeDefinitions.size());
     assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());
@@ -85,7 +88,7 @@ public class TransformerDefinitionMatcherTest {
   public void sourceFileSimpleFileName() {
     SnapshotProbe probe = createProbe(PROBE_ID1, "String.java", 23);
     TransformerDefinitionMatcher matcher =
-        createMatcher(Arrays.asList(probe), Collections.emptyList());
+        createMatcher(Arrays.asList(probe), emptyList(), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(1, probeDefinitions.size());
     assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());
@@ -96,7 +99,7 @@ public class TransformerDefinitionMatcherTest {
     SnapshotProbe probe1 = createProbe(PROBE_ID1, "java.lang.String", "indexOf");
     SnapshotProbe probe2 = createProbe(PROBE_ID2, "java.lang.String", "substring");
     TransformerDefinitionMatcher matcher =
-        createMatcher(Arrays.asList(probe1, probe2), Collections.emptyList());
+        createMatcher(Arrays.asList(probe1, probe2), emptyList(), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(2, probeDefinitions.size());
     assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());
@@ -108,7 +111,7 @@ public class TransformerDefinitionMatcherTest {
     SnapshotProbe probe1 = createProbe(PROBE_ID1, "String", "indexOf");
     SnapshotProbe probe2 = createProbe(PROBE_ID2, "String", "substring");
     TransformerDefinitionMatcher matcher =
-        createMatcher(Arrays.asList(probe1, probe2), Collections.emptyList());
+        createMatcher(Arrays.asList(probe1, probe2), emptyList(), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(2, probeDefinitions.size());
     assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());
@@ -120,7 +123,7 @@ public class TransformerDefinitionMatcherTest {
     SnapshotProbe probe1 = createProbe(PROBE_ID1, "src/main/java/java/lang/String.java", 23);
     SnapshotProbe probe2 = createProbe(PROBE_ID2, "src/main/java/java/lang/String.java", 42);
     TransformerDefinitionMatcher matcher =
-        createMatcher(Arrays.asList(probe1, probe2), Collections.emptyList());
+        createMatcher(Arrays.asList(probe1, probe2), emptyList(), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(2, probeDefinitions.size());
     assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());
@@ -132,7 +135,7 @@ public class TransformerDefinitionMatcherTest {
     SnapshotProbe probe1 = createProbe(PROBE_ID1, "java.lang.String", "indexOf");
     SnapshotProbe probe2 = createProbe(PROBE_ID2, "String", "substring");
     TransformerDefinitionMatcher matcher =
-        createMatcher(Arrays.asList(probe1, probe2), Collections.emptyList());
+        createMatcher(Arrays.asList(probe1, probe2), emptyList(), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(2, probeDefinitions.size());
     assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());
@@ -144,7 +147,7 @@ public class TransformerDefinitionMatcherTest {
     SnapshotProbe probe1 = createProbe(PROBE_ID1, "java.lang.String", "indexOf");
     MetricProbe probe2 = createMetric(PROBE_ID2, "String", "substring");
     TransformerDefinitionMatcher matcher =
-        createMatcher(Arrays.asList(probe1), Arrays.asList(probe2));
+        createMatcher(Arrays.asList(probe1), Arrays.asList(probe2), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(2, probeDefinitions.size());
     assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());
@@ -155,15 +158,17 @@ public class TransformerDefinitionMatcherTest {
   public void partialSimpleNameShouldNotMatch() {
     SnapshotProbe probe1 = createProbe(PROBE_ID1, "SuperString.java", 11);
     TransformerDefinitionMatcher matcher =
-        createMatcher(Arrays.asList(probe1), Collections.emptyList());
+        createMatcher(Arrays.asList(probe1), emptyList(), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(0, probeDefinitions.size());
   }
 
   private TransformerDefinitionMatcher createMatcher(
-      Collection<SnapshotProbe> snapshotProbes, Collection<MetricProbe> metricProbes) {
+      Collection<SnapshotProbe> snapshotProbes,
+      Collection<MetricProbe> metricProbes,
+      Collection<LogProbe> logProbes) {
     return new TransformerDefinitionMatcher(
-        new Configuration(SERVICE_NAME, ORG_ID, snapshotProbes, metricProbes));
+        new Configuration(SERVICE_NAME, ORG_ID, snapshotProbes, metricProbes, logProbes));
   }
 
   private static List<ProbeDefinition> match(TransformerDefinitionMatcher matcher, Class<?> clazz) {

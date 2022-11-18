@@ -2,11 +2,11 @@ package datadog.trace.instrumentation.osgi43;
 
 import static org.osgi.framework.wiring.BundleRevision.PACKAGE_NAMESPACE;
 
-import datadog.trace.api.function.Function;
 import java.net.URL;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.wiring.BundleRevision;
 import org.osgi.framework.wiring.BundleWire;
@@ -53,6 +53,7 @@ public final class BundleWiringHelper {
   public static URL getResource(final Bundle origin, final String resourceName) {
     return searchDirectWires(
         (BundleWiring) origin.adapt(BundleWiring.class),
+        // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
         new Function<BundleWiring, URL>() {
           @Override
           public URL apply(final BundleWiring wiring) {
@@ -66,6 +67,7 @@ public final class BundleWiringHelper {
   public static Class<?> loadClass(final Bundle origin, final String className) {
     return searchDirectWires(
         (BundleWiring) origin.adapt(BundleWiring.class),
+        // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
         new Function<BundleWiring, Class<?>>() {
           @Override
           public Class<?> apply(final BundleWiring wiring) {

@@ -4,14 +4,13 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_PORT;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.LOGGING_WRITER_TYPE;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.Functions;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.function.Function;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 
 public final class DDAgentStatsDClientManager implements StatsDClientManager {
   private static final DDAgentStatsDClientManager INSTANCE = new DDAgentStatsDClientManager();
@@ -45,8 +44,8 @@ public final class DDAgentStatsDClientManager implements StatsDClientManager {
       final String namedPipe,
       final String namespace,
       final String[] constantTags) {
-    Function<String, String> nameMapping = Functions.<String>zero();
-    Function<String[], String[]> tagMapping = Functions.<String[]>zero();
+    Function<String, String> nameMapping = Function.identity();
+    Function<String[], String[]> tagMapping = Function.identity();
 
     if (null != namespace) {
       nameMapping = new NameResolver(namespace);
@@ -124,15 +123,12 @@ public final class DDAgentStatsDClientManager implements StatsDClientManager {
     public TagCombiner(final String[] constantTags) {
       this.packedTags = pack(constantTags);
       this.tagsInserter =
-          new Function<String[], String[]>() {
-            @Override
-            public String[] apply(final String[] tags) {
-              // extend per-call array by one to add the pre-packed constant tags
-              String[] result = new String[tags.length + 1];
-              System.arraycopy(tags, 0, result, 1, tags.length);
-              result[0] = packedTags[0];
-              return result;
-            }
+          tags -> {
+            // extend per-call array by one to add the pre-packed constant tags
+            String[] result = new String[tags.length + 1];
+            System.arraycopy(tags, 0, result, 1, tags.length);
+            result[0] = packedTags[0];
+            return result;
           };
     }
 

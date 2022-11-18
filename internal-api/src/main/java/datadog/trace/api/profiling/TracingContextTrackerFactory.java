@@ -48,7 +48,7 @@ public final class TracingContextTrackerFactory {
   }
 
   public static boolean isTrackingAvailable() {
-    // return true if a non-dummy implementatin has been registered
+    // return true if a non-dummy implementation has been registered
     return INSTANCE.implementation != Implementation.EMPTY;
   }
 

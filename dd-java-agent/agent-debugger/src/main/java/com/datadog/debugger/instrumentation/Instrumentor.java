@@ -1,7 +1,7 @@
 package com.datadog.debugger.instrumentation;
 
-import com.datadog.debugger.agent.ProbeDefinition;
-import com.datadog.debugger.agent.Where;
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.Where;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage.Kind;
 import java.util.List;

@@ -16,6 +16,13 @@ public final class SnapshotProvider {
       LOG.info("Cannot resolve the probe: {}", uuid);
       probeDetails = Snapshot.ProbeDetails.UNKNOWN;
     }
-    return new Snapshot(Thread.currentThread(), probeDetails);
+    // only rate limit if no condition are defined
+    if (probeDetails.getScript() == null) {
+      if (!ProbeRateLimiter.tryProbe(probeDetails.getId())) {
+        DebuggerContext.skipSnapshot(probeDetails.getId(), DebuggerContext.SkipCause.RATE);
+        return null;
+      }
+    }
+    return new Snapshot(Thread.currentThread(), probeDetails, callingClass.getTypeName());
   }
 }

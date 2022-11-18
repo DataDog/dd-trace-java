@@ -7,7 +7,7 @@ import static org.junit.Assert.assertNotNull;
 import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.ProbeStatus;
-import com.datadog.debugger.agent.SnapshotProbe;
+import com.datadog.debugger.probe.SnapshotProbe;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
@@ -47,6 +47,7 @@ public abstract class BaseIntegrationTest {
       "{\"endpoints\": [\"v0.4/traces\", \"debugger/v1/input\", \"v0.7/config\"]}";
   private static final MockResponse agentInfoResponse =
       new MockResponse().setResponseCode(200).setBody(INFO_CONTENT);
+  private static final MockResponse telemetryResponse = new MockResponse().setResponseCode(202);
 
   protected MockWebServer datadogAgentServer;
   private MockDispatcher probeMockDispatcher;
@@ -105,7 +106,7 @@ public abstract class BaseIntegrationTest {
             "-Ddd.jmxfetch.start-delay=0",
             "-Ddd.jmxfetch.enabled=false",
             "-Ddd.dynamic.instrumentation.enabled=true",
-            "-Ddd.remote_config.enabled=true",
+            // "-Ddd.remote_config.enabled=true", // default
             "-Ddd.remote_config.initial.poll.interval=1",
             /*"-Ddd.remote_config.integrity_check.enabled=false",
             "-Ddd.dynamic.instrumentation.probe.url=http://localhost:"
@@ -155,6 +156,10 @@ public abstract class BaseIntegrationTest {
   private MockResponse datadogAgentDispatch(RecordedRequest request) {
     if (request.getPath().equals("/info")) {
       return agentInfoResponse;
+    }
+    if (request.getPath().equals("telemetry/proxy/api/v2/apmtelemetry")) {
+      // Ack every telemetry request. This is needed if telemetry is enabled in the tests.
+      return telemetryResponse;
     }
     if (request.getPath().startsWith(SNAPSHOT_URL_PATH)) {
       return new MockResponse().setResponseCode(200);
@@ -216,7 +221,7 @@ public abstract class BaseIntegrationTest {
       Collection<SnapshotProbe> snapshotProbes,
       Configuration.FilterList allowList,
       Configuration.FilterList denyList) {
-    return new Configuration(getAppId(), 2, snapshotProbes, null, allowList, denyList, null, null);
+    return new Configuration(getAppId(), 2, snapshotProbes, null, null, allowList, denyList, null);
   }
 
   protected void assertCaptureArgs(

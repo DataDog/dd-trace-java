@@ -3,11 +3,11 @@ package datadog.trace.api
 import constructors.InaccessibleConstructor
 import constructors.NoDefaultConstructor
 import constructors.ThrowingConstructor
-import datadog.trace.api.function.Function
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.test.util.DDSpecification
 
 import java.util.concurrent.ConcurrentHashMap
+import java.util.function.Function
 
 class FunctionsTest extends DDSpecification {
 
@@ -22,6 +22,29 @@ class FunctionsTest extends DDSpecification {
     new Functions.ToString<String>() | "xYz" | "xYz"
   }
 
+  def "test prefix function"() {
+    when:
+    def prefix = new Functions.Prefix("test.")
+    def output = prefix.apply(input)
+    then:
+    output == UTF8BytesString.create(expected)
+    where:
+    input | expected
+    "" | "test."
+    "value" | "test.value"
+  }
+
+  def "test suffix function"() {
+    when:
+    def suffix = new Functions.Suffix(".test")
+    def output = suffix.apply(input)
+    then:
+    output == UTF8BytesString.create(expected)
+    where:
+    input | expected
+    "" | ".test"
+    "value" | "value.test"
+  }
 
   def "test join strings"() {
     when:
@@ -29,11 +52,11 @@ class FunctionsTest extends DDSpecification {
     then:
     String.valueOf(output) == expected
     where:
-    fn                                             | left | right | expected
-    Functions.PrefixJoin.of("~", Functions.zero()) | "x"  | "y"   | "x~y"
-    Functions.PrefixJoin.of("~")                   | "x"  | "y"   | "x~y"
-    Functions.SuffixJoin.of("~", Functions.zero()) | "x"  | "y"   | "x~y"
-    Functions.SuffixJoin.of("~")                   | "x"  | "y"   | "x~y"
+    fn                                                | left | right | expected
+    Functions.PrefixJoin.of("~", Function.identity()) | "x" | "y" | "x~y"
+    Functions.PrefixJoin.of("~")                      | "x"  | "y"   | "x~y"
+    Functions.SuffixJoin.of("~", Function.identity()) | "x"  | "y"   | "x~y"
+    Functions.SuffixJoin.of("~")                      | "x"  | "y"   | "x~y"
   }
 
   def "test encode UTF8" () {

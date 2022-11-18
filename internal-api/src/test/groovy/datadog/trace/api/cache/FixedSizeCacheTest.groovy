@@ -1,13 +1,12 @@
 package datadog.trace.api.cache
 
-
-import datadog.trace.api.function.Function
 import datadog.trace.test.util.DDSpecification
 import spock.util.concurrent.AsyncConditions
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.function.Function
 
 class FixedSizeCacheTest extends DDSpecification {
   def "fixed size should store and retrieve values"() {

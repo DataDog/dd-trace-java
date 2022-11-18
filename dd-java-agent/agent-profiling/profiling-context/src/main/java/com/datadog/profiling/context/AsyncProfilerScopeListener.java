@@ -1,7 +1,7 @@
 package com.datadog.profiling.context;
 
 import com.datadog.profiling.async.AsyncProfiler;
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
 
 public class AsyncProfilerScopeListener implements ExtendedScopeListener {
@@ -12,9 +12,9 @@ public class AsyncProfilerScopeListener implements ExtendedScopeListener {
   public void afterScopeActivated() {}
 
   @Override
-  public void afterScopeActivated(DDId traceId, DDId localRootSpanId, DDId spanId) {
+  public void afterScopeActivated(DDTraceId traceId, long localRootSpanId, long spanId) {
     if (ASYNC_PROFILER.isAvailable()) {
-      ASYNC_PROFILER.setContext(localRootSpanId.toLong(), spanId.toLong());
+      ASYNC_PROFILER.setContext(spanId, localRootSpanId);
     }
   }
 

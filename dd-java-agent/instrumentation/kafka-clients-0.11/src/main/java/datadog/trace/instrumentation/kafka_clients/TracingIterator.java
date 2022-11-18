@@ -4,6 +4,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNe
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.GROUP_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.PARTITION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
@@ -75,8 +77,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
             span = startSpan(operationName, spanContext);
           } else {
             queueSpan =
-                startSpan(
-                    KAFKA_DELIVER, spanContext, MILLISECONDS.toMicros(timeInQueueStart), false);
+                startSpan(KAFKA_DELIVER, spanContext, MILLISECONDS.toMicros(timeInQueueStart));
             BROKER_DECORATE.afterStart(queueSpan);
             BROKER_DECORATE.onTimeInQueue(queueSpan, val);
             span = startSpan(operationName, queueSpan.context());
@@ -89,6 +90,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           span.mergePathwayContext(pathwayContext);
 
           LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+          sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
           sortedTags.put(GROUP_TAG, group);
           sortedTags.put(PARTITION_TAG, String.valueOf(val.partition()));
           sortedTags.put(TOPIC_TAG, val.topic());

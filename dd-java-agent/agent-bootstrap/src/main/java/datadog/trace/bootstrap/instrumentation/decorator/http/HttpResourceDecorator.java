@@ -4,12 +4,12 @@ import datadog.trace.api.Config;
 import datadog.trace.api.Pair;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import java.util.function.Function;
 
 public class HttpResourceDecorator {
   public static final HttpResourceDecorator HTTP_RESOURCE_DECORATOR = new HttpResourceDecorator();
@@ -18,15 +18,12 @@ public class HttpResourceDecorator {
 
   private static final Function<Pair<CharSequence, CharSequence>, UTF8BytesString>
       RESOURCE_NAME_JOINER =
-          new Function<Pair<CharSequence, CharSequence>, UTF8BytesString>() {
-            @Override
-            public UTF8BytesString apply(Pair<CharSequence, CharSequence> input) {
-              if (input.getLeft() == null) {
-                return UTF8BytesString.create(input.getRight());
-              }
-              return UTF8BytesString.create(
-                  input.getLeft().toString().toUpperCase() + " " + input.getRight());
+          input -> {
+            if (input.getLeft() == null) {
+              return UTF8BytesString.create(input.getRight());
             }
+            return UTF8BytesString.create(
+                input.getLeft().toString().toUpperCase() + " " + input.getRight());
           };
 
   private static final DDCache<Pair<CharSequence, CharSequence>, CharSequence> RESOURCE_NAME_CACHE =

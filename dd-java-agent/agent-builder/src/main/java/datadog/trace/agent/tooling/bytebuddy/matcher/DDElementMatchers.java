@@ -40,6 +40,12 @@ public class DDElementMatchers implements HierarchyMatchers.Supplier {
   }
 
   @Override
+  @SuppressForbidden
+  public ElementMatcher.Junction<TypeDescription> abstractClass() {
+    return ElementMatchers.isAbstract();
+  }
+
+  @Override
   public ElementMatcher.Junction<TypeDescription> extendsClass(
       ElementMatcher.Junction<? super TypeDescription> matcher) {
     return new SafeHasSuperTypeMatcher<>(matcher, false, true, false);

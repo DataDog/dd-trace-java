@@ -1,6 +1,6 @@
 package datadog.telemetry;
 
-import datadog.trace.api.function.Supplier;
+import java.util.function.Supplier;
 import okhttp3.HttpUrl;
 
 class RequestBuilderSupplier implements Supplier<RequestBuilder> {

@@ -6,10 +6,10 @@ import datadog.communication.http.OkHttpUtils;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
-import datadog.trace.api.function.Supplier;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import org.slf4j.Logger;
@@ -174,7 +174,7 @@ public class SharedCommunicationObjects {
       }
 
       this.configUrl = sco.featuresDiscovery.buildUrl(configEndpoint).toString();
-      log.info("Found remote config endpoint: {}", this.configUrl);
+      log.debug("Found remote config endpoint: {}", this.configUrl);
       return this.configUrl;
     }
   }

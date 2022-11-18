@@ -4,6 +4,8 @@ import static com.datadog.debugger.agent.Trie.reverseStr;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SnapshotProbe;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -168,8 +170,8 @@ class ConfigurationComparerTest {
             ORG_ID,
             Collections.emptyList(),
             Collections.emptyList(),
+            Collections.emptyList(),
             new Configuration.FilterList(Arrays.asList("com.datadog"), Collections.emptyList()),
-            null,
             null,
             null);
     ConfigurationComparer configurationComparer =
@@ -195,8 +197,8 @@ class ConfigurationComparerTest {
             ORG_ID,
             Collections.singletonList(probe),
             Collections.emptyList(),
+            Collections.emptyList(),
             new Configuration.FilterList(Arrays.asList("com.datadog"), Collections.emptyList()),
-            null,
             null,
             null);
     ConfigurationComparer configurationComparer =
@@ -210,8 +212,8 @@ class ConfigurationComparerTest {
             ORG_ID,
             Collections.singletonList(probe),
             Collections.emptyList(),
+            Collections.emptyList(),
             new Configuration.FilterList(Arrays.asList("com.datacat"), Collections.emptyList()),
-            null,
             null,
             null);
 
@@ -246,9 +248,9 @@ class ConfigurationComparerTest {
             ORG_ID,
             Collections.singletonList(probe),
             Collections.emptyList(),
+            Collections.emptyList(),
             null,
             new Configuration.FilterList(Arrays.asList("com.datadog"), Collections.emptyList()),
-            null,
             null);
     ConfigurationComparer configurationComparer =
         new ConfigurationComparer(noFilterConfig, config, instrumentationResults);
@@ -279,9 +281,9 @@ class ConfigurationComparerTest {
             ORG_ID,
             Collections.singletonList(probe),
             Collections.emptyList(),
+            Collections.emptyList(),
             null,
             new Configuration.FilterList(Arrays.asList("com.datadog"), Collections.emptyList()),
-            null,
             null);
     ConfigurationComparer configurationComparer =
         new ConfigurationComparer(empty, config, Collections.emptyMap());

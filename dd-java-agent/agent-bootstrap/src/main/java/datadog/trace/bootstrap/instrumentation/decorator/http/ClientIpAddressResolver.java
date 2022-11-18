@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.decorator.http;
 
-import datadog.trace.api.function.Function;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.http.utils.IPAddressUtil;
@@ -9,6 +8,7 @@ import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -1,6 +1,8 @@
 package com.datadog.debugger.agent;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SnapshotProbe;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
@@ -45,8 +47,8 @@ import org.slf4j.LoggerFactory;
  */
 public class DebuggerTransformer implements ClassFileTransformer {
   private static final Logger log = LoggerFactory.getLogger(DebuggerTransformer.class);
-  private static final String CANNOT_FIND_METHOD = "Cannot find %s::%s";
-  private static final String CANNOT_FIND_LINE = "Cannot find %s:L%s";
+  private static final String CANNOT_FIND_METHOD = "Cannot find method %s::%s";
+  private static final String CANNOT_FIND_LINE = "No executable code was found at %s:L%s";
 
   private final Config config;
   private final TransformerDefinitionMatcher definitonMatcher;
@@ -401,7 +403,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       return InstrumentationResult.Status.ERROR;
     }
     if (classLoader != null
-        && classLoader.getClass().getName().equals("sun.reflect.DelegatingClassLoader")) {
+        && classLoader.getClass().getTypeName().equals("sun.reflect.DelegatingClassLoader")) {
       // This classloader is used when using reflection. This is a special classloader known
       // by the JVM with special behavior. it cannot load other classes inside it (e.i. no
       // delegation to parent classloader).

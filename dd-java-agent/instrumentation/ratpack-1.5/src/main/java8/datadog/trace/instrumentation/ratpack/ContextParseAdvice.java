@@ -4,12 +4,12 @@ import static datadog.trace.api.gateway.Events.EVENTS;
 
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
-import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 import ratpack.form.Form;
 

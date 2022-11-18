@@ -5,11 +5,8 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
-import datadog.trace.api.function.Function
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
-import datadog.trace.api.function.BiFunction
-import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
 import datadog.trace.api.gateway.Events
@@ -33,6 +30,10 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import spock.lang.Shared
 import spock.lang.Unroll
+
+import java.util.function.BiFunction
+import java.util.function.Function
+import java.util.function.Supplier
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
@@ -63,8 +64,8 @@ import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 import static org.junit.Assume.assumeTrue
 
 @Unroll
@@ -1061,7 +1062,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
-  def 'test blocking of request'() {
+  def 'test blocking of request with auto and accept=#acceptHeader'(boolean expectedJson, String acceptHeader) {
     // Note: this does not actually test that the handler for SUCCESS is never called,
     //       only that the response is the expected one (insofar as invoking the handler
     //       does not result in another span being created)
@@ -1069,15 +1070,23 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assumeTrue(testBlocking())
 
     def request = request(SUCCESS, 'GET', null)
-      .addHeader(IG_BLOCK_HEADER, 'auto')
-      .addHeader('Accept', 'text/html;q=0.9, application/json;q=0.8')
-      .build()
+      .addHeader(IG_BLOCK_HEADER, 'auto').with {
+        if (acceptHeader) {
+          it.addHeader('Accept', 'text/html;q=0.9, application/json;q=0.8')
+        }
+        it.build()
+      }
     def response = client.newCall(request).execute()
 
     expect:
     response.code() == 418
-    response.header('Content-type') =~ /(?i)\Atext\/html;\s?charset=utf-8\z/
-    response.body().charStream().text.contains("<title>You've been blocked</title>")
+    if (expectedJson) {
+      response.header('Content-type') =~ /(?i)\Aapplication\/json(?:;\s?charset=utf-8)?\z/
+      response.body().charStream().text.contains('"title": "You\'ve been blocked"')
+    } else {
+      response.header('Content-type') =~ /(?i)\Atext\/html;\s?charset=utf-8\z/
+      response.body().charStream().text.contains("<title>You've been blocked</title>")
+    }
 
     when:
     TEST_WRITER.waitForTraces(1)
@@ -1086,6 +1095,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     then:
     trace.size() == 1
     trace[0].tags['http.status_code'] == 418
+
+    where:
+    expectedJson | acceptHeader
+    true         | null
+    false        | 'text/html;q=0.9, application/json;q=0.8'
+    true         | 'text/html;q=0.8, application/json;q=0.9'
   }
 
   def 'test blocking of request with json response'() {
@@ -1173,7 +1188,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       errored expectedErrored(endpoint)
       if (parentID != null) {
         traceId traceID
-        parentId parentID
+        parentSpanId parentID
       } else {
         parent()
       }

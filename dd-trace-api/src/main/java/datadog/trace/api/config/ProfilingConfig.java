@@ -66,23 +66,13 @@ public final class ProfilingConfig {
   public static final String PROFILING_ASYNC_CPU_INTERVAL = "profiling.async.cpu.interval.ms";
   public static final int PROFILING_ASYNC_CPU_INTERVAL_DEFAULT = 10;
   public static final String PROFILING_ASYNC_WALL_ENABLED = "profiling.async.wall.enabled";
-  public static final boolean PROFILING_ASYNC_WALL_ENABLED_DEFAULT = true;
+  public static final boolean PROFILING_ASYNC_WALL_ENABLED_DEFAULT = false;
   public static final String PROFILING_ASYNC_WALL_INTERVAL = "profiling.async.wall.interval.ms";
   public static final int PROFILING_ASYNC_WALL_INTERVAL_DEFAULT = 10;
-
-  public static final String PROFILING_ASYNC_WALL_THREAD_FILTER_ENABLED =
-      "profiling.async.wall.thread.filter.enabled";
-
-  public static final boolean PROFILING_ASYNC_WALL_THREAD_FILTER_ENABLED_DEFAULT = true;
 
   public static final String PROFILING_ASYNC_LOG_LEVEL = "profiling.async.loglevel";
 
   public static final String PROFILING_ASYNC_LOG_LEVEL_DEFAULT = "NONE";
-
-  public static final String PROFILING_ASYNC_WALL_COLLAPSE_SAMPLES =
-      "profiling.async.wall.collapse.samples";
-  public static final boolean PROFILING_ASYNC_WALL_COLLAPSE_SAMPLES_DEFAULT = true;
-
   public static final String PROFILING_ASYNC_STACKDEPTH = "profiling.async.stackdepth";
   public static final int PROFILING_ASYNC_STACKDEPTH_DEFAULT = 512;
   public static final String PROFILING_ASYNC_CSTACK = "profiling.async.cstack";
@@ -96,7 +86,7 @@ public final class ProfilingConfig {
   public static final int PROFILING_ASYNC_MEMLEAK_CAPACITY_DEFAULT = 1024;
   public static final String PROFILING_TRACING_CONTEXT_ENABLED =
       "profiling.tracing_context.enabled";
-  public static final boolean PROFILING_TRACING_CONTEXT_ENABLED_DEFAULT = false;
+  public static final boolean PROFILING_TRACING_CONTEXT_ENABLED_DEFAULT = true;
   public static final String PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_SEC =
       "profiling.tracing_context.tracker.inactive.seconds";
   public static final int PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_DEFAULT = 90;
@@ -123,20 +113,8 @@ public final class ProfilingConfig {
   public static final String PROFILING_TRACING_CONTEXT_MAX_SPANS =
       "profiling.tracing_context.inflight_spans.max";
   public static final int PROFILING_TRACING_CONTEXT_MAX_SPANS_DEFAULT = 1_000_000;
-
-  public static final String PROFILING_LEGACY_TRACING_INTEGRATION =
-      "profiling.legacy.tracing.integration";
-  public static final boolean PROFILING_LEGACY_TRACING_INTEGRATION_DEFAULT = true;
   public static final String PROFILING_CHECKPOINTS_RECORD_CPU_TIME =
       "profiling.checkpoints.record.cpu.time";
-  public static final String PROFILING_CHECKPOINTS_SAMPLER_RATE_LIMIT =
-      "profiling.checkpoints.sampler.rate-limit";
-  public static final int PROFILING_CHECKPOINTS_SAMPLER_RATE_LIMIT_DEFAULT = 100000;
-  public static final String PROFILING_CHECKPOINTS_SAMPLER_WINDOW_MS =
-      "profiling.checkpoints.sampler.sliding-window.ms";
-  public static final int PROFILING_CHECKPOINTS_SAMPLER_WINDOW_MS_DEFAULT = 5000;
-  public static final String PROFILING_CHECKPOINTS_SAMPLER_LIMIT = "profiling.checkpoints.limit";
-  public static final int PROFILING_CHECKPOINTS_SAMPLER_LIMIT_DEFAULT = 500_000;
   public static final String PROFILING_ENDPOINT_COLLECTION_ENABLED =
       "profiling.endpoint.collection.enabled";
   public static final boolean PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT = true;
@@ -154,6 +132,8 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_DISABLED_EVENTS = "profiling.disabled.events";
   public static final String PROFILING_ENABLED_EVENTS = "profiling.disabled.events";
+
+  public static final String PROFILING_DEBUG_DUMP_PATH = "profiling.debug.dump_path";
 
   private ProfilingConfig() {}
 }

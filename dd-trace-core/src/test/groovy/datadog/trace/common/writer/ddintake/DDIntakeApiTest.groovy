@@ -5,7 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.intake.TrackType
 import datadog.trace.api.sampling.PrioritySampling
@@ -208,9 +209,9 @@ class DDIntakeApiTest extends DDCoreSpecification {
     def tracer = tracerBuilder().writer(new ListWriter()).build()
 
     def context = new DDSpanContext(
-      DDId.from(1),
-      DDId.from(1),
-      DDId.ZERO,
+      DDTraceId.ONE,
+      1,
+      DDSpanId.ZERO,
       null,
       "fakeService",
       "fakeOperation",
@@ -221,7 +222,7 @@ class DDIntakeApiTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDId.from(1)),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
       null,
       null,
       AgentTracer.NoopPathwayContext.INSTANCE,

@@ -46,9 +46,9 @@ public final class ExceptionProfiling {
       long localRootSpanId = 0;
       AgentSpan activeSpan = AgentTracer.activeSpan();
       if (activeSpan != null) {
-        spanId = activeSpan.getSpanId().toLong();
+        spanId = activeSpan.getSpanId();
         AgentSpan rootSpan = activeSpan.getLocalRootSpan();
-        localRootSpanId = rootSpan == null ? spanId : rootSpan.getSpanId().toLong();
+        localRootSpanId = rootSpan == null ? spanId : rootSpan.getSpanId();
       }
       return new ExceptionSampleEvent(t, sampled, firstHit, localRootSpanId, spanId);
     }

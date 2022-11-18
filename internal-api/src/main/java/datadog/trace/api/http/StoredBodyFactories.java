@@ -2,8 +2,6 @@ package datadog.trace.api.http;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 
-import datadog.trace.api.function.BiFunction;
-import datadog.trace.api.function.Supplier;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -11,6 +9,8 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.nio.charset.Charset;
+import java.util.function.BiFunction;
+import java.util.function.Supplier;
 
 public class StoredBodyFactories {
   private StoredBodyFactories() {}
@@ -63,14 +63,7 @@ public class StoredBodyFactories {
   }
 
   public static Flow<Void> maybeDeliverBodyInOneGo(final String str, RequestContext reqCtx) {
-    return maybeDeliverBodyInOneGo(
-        new Supplier<CharSequence>() {
-          @Override
-          public CharSequence get() {
-            return str;
-          }
-        },
-        reqCtx);
+    return maybeDeliverBodyInOneGo(() -> str, reqCtx);
   }
 
   public static class ConstantBodySupplier implements StoredBodySupplier {

@@ -91,6 +91,23 @@ class DependencyResolverSpecification extends DepSpecification {
       hash: '1C1C8E5547A54F593B97584D45F3636F479B9498')
   }
 
+  void 'guess artifact name from implementationTitle'() {
+    when:
+    File jar = getJar("jakarta.inject-2.6.1.jar")
+
+    JarFile file = new JarFile(jar)
+    Manifest manifest = file.manifest
+    String source = jar.name
+    Dependency dep = Dependency.guessFallbackNoPom(manifest, source, new FileInputStream(jar))
+
+    then:
+    dep != null
+    dep.name == 'jakarta.inject'
+    dep.version == '2.6.1'
+    dep.hash == '29BBEDD4A914066F24257A78B73249900B33C656'
+    dep.source == 'jakarta.inject-2.6.1.jar'
+  }
+
   void 'guess artifact name from jar'() {
     when:
     File jar = getJar("freemarker-2.3.27-incubating.jar")

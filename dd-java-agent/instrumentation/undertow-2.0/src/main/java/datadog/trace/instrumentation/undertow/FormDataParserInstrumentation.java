@@ -12,7 +12,6 @@ import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -20,6 +19,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.handlers.form.FormData;
+import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)

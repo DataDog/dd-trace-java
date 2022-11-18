@@ -1,5 +1,3 @@
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import com.couchbase.client.java.AsyncCluster
 import com.couchbase.client.java.CouchbaseAsyncCluster
 import com.couchbase.client.java.document.JsonDocument
@@ -25,9 +23,6 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
 
   def "test hasBucket #type"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def hasBucket = new BlockingVariable<Boolean>(TIMEOUT)
 
@@ -65,9 +60,6 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
 
   def "test upsert #type"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     JsonObject content = JsonObject.create().put("hello", "world")
     def inserted = new BlockingVariable<JsonDocument>(TIMEOUT)
@@ -105,9 +97,6 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
 
   def "test upsert and get #type"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     JsonObject content = JsonObject.create().put("hello", "world")
     def inserted = new BlockingVariable<JsonDocument>(TIMEOUT)
@@ -156,9 +145,6 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
 
   def "test query"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     // Only couchbase buckets support queries.
     CouchbaseEnvironment environment = envBuilder(bucketCouchbase).build()

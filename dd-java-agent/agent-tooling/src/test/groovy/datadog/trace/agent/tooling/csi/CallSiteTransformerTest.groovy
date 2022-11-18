@@ -1,13 +1,14 @@
 package datadog.trace.agent.tooling.csi
 
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteTransformer
-import datadog.trace.api.function.BiFunction
-import datadog.trace.api.function.Consumer
+import datadog.trace.agent.tooling.csi.CallSiteAdvice.MethodHandler
 import datadog.trace.api.function.TriFunction
 import net.bytebuddy.jar.asm.Opcodes
 import net.bytebuddy.jar.asm.Type
-import datadog.trace.agent.tooling.csi.CallSiteAdvice.MethodHandler
 import org.spockframework.runtime.ConditionNotSatisfiedError
+
+import java.util.function.BiFunction
+import java.util.function.Consumer
 
 import static datadog.trace.agent.tooling.csi.CallSiteAdvice.HasFlags.COMPUTE_MAX_STACK
 import static datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode.COPY

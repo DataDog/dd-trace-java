@@ -7,6 +7,7 @@ import com.amazonaws.client.builder.AwsClientBuilder
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.utils.TraceUtils
+import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
@@ -35,7 +36,7 @@ class SqsClientTest extends AgentTestRunner {
   @Shared
   def credentialsProvider = new AWSStaticCredentialsProvider(new AnonymousAWSCredentials())
   @Shared
-  def server = SQSRestServerBuilder.withInterface("localhost").start()
+  def server = SQSRestServerBuilder.withInterface("localhost").withDynamicPort().start()
   @Shared
   def address = server.waitUntilStarted().localAddress()
   @Shared
@@ -158,7 +159,7 @@ class SqsClientTest extends AgentTestRunner {
     }
 
     assert messages[0].attributes['AWSTraceHeader'] =~
-    /Root=1-[0-9a-f]{8}-00000000${sendSpan.traceId.toHexStringPadded(16)};Parent=${sendSpan.spanId.toHexStringPadded(16)};Sampled=1/
+    /Root=1-[0-9a-f]{8}-00000000${sendSpan.traceId.toHexStringPadded(16)};Parent=${DDSpanId.toHexStringPadded(sendSpan.spanId)};Sampled=1/
 
     cleanup:
     client.shutdown()
@@ -350,7 +351,7 @@ class SqsClientTest extends AgentTestRunner {
 
     def expectedTraceProperty = 'X-Amzn-Trace-Id'.toLowerCase(Locale.ENGLISH).replace('-', '__dash__')
     assert message.getStringProperty(expectedTraceProperty) =~
-    /Root=1-[0-9a-f]{8}-00000000${sendSpan.traceId.toHexStringPadded(16)};Parent=${sendSpan.spanId.toHexStringPadded(16)};Sampled=1/
+    /Root=1-[0-9a-f]{8}-00000000${sendSpan.traceId.toHexStringPadded(16)};Parent=${DDSpanId.toHexStringPadded(sendSpan.spanId)};Sampled=1/
 
     cleanup:
     session.close()

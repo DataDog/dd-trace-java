@@ -17,8 +17,12 @@ public final class Ranges {
 
   public static void copyShift(
       final @Nonnull Range[] src, final @Nonnull Range[] dst, final int dstPos, final int shift) {
-    for (int iSrc = 0, iDst = dstPos; iSrc < src.length; iSrc++, iDst++) {
-      dst[iDst] = src[iSrc].shift(shift);
+    if (shift == 0) {
+      System.arraycopy(src, 0, dst, dstPos, src.length);
+    } else {
+      for (int iSrc = 0, iDst = dstPos; iSrc < src.length; iSrc++, iDst++) {
+        dst[iDst] = src[iSrc].shift(shift);
+      }
     }
   }
 }

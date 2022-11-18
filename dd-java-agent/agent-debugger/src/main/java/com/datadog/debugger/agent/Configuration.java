@@ -1,6 +1,9 @@
 package com.datadog.debugger.agent;
 
-import java.time.Duration;
+import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SnapshotProbe;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -53,52 +56,14 @@ public class Configuration {
     }
   }
 
-  /** Stores operational configuration */
-  public static class OpsConfiguration {
-    private final long pollInterval;
-
-    public OpsConfiguration(long pollInterval) {
-      this.pollInterval = pollInterval;
-    }
-
-    public long getPollInterval() {
-      return pollInterval;
-    }
-
-    public Duration getPollIntervalDuration() {
-      return Duration.ofSeconds(pollInterval);
-    }
-
-    @Generated
-    @Override
-    public String toString() {
-      return "OperationConfiguration{" + "pollInterval=" + pollInterval + '}';
-    }
-
-    @Generated
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-      OpsConfiguration other = (OpsConfiguration) o;
-      return Objects.equals(pollInterval, other.pollInterval);
-    }
-
-    @Generated
-    @Override
-    public int hashCode() {
-      return Objects.hash(pollInterval);
-    }
-  }
-
   private final String id;
   private final long orgId;
   private final Collection<SnapshotProbe> snapshotProbes;
   private final Collection<MetricProbe> metricProbes;
+  private final Collection<LogProbe> logProbes;
   private final FilterList allowList;
   private final FilterList denyList;
   private final SnapshotProbe.Sampling sampling;
-  private final OpsConfiguration opsConfig;
 
   public Configuration(String id, long orgId, Collection<SnapshotProbe> snapshotProbes) {
     this(id, orgId, snapshotProbes, null, null, null, null, null);
@@ -108,8 +73,9 @@ public class Configuration {
       String id,
       long orgId,
       Collection<SnapshotProbe> snapshotProbes,
-      Collection<MetricProbe> metricProbes) {
-    this(id, orgId, snapshotProbes, metricProbes, null, null, null, null);
+      Collection<MetricProbe> metricProbes,
+      Collection<LogProbe> logProbes) {
+    this(id, orgId, snapshotProbes, metricProbes, logProbes, null, null, null);
   }
 
   public Configuration(
@@ -117,18 +83,18 @@ public class Configuration {
       long orgId,
       Collection<SnapshotProbe> snapshotProbes,
       Collection<MetricProbe> metricProbes,
+      Collection<LogProbe> logProbes,
       FilterList allowList,
       FilterList denyList,
-      SnapshotProbe.Sampling sampling,
-      OpsConfiguration opsConfig) {
+      SnapshotProbe.Sampling sampling) {
     this.id = id;
     this.orgId = orgId;
     this.snapshotProbes = snapshotProbes;
     this.metricProbes = metricProbes;
+    this.logProbes = logProbes;
     this.allowList = allowList;
     this.denyList = denyList;
     this.sampling = sampling;
-    this.opsConfig = opsConfig;
   }
 
   public String getId() {
@@ -147,6 +113,10 @@ public class Configuration {
     return metricProbes;
   }
 
+  public Collection<LogProbe> getLogProbes() {
+    return logProbes;
+  }
+
   public FilterList getAllowList() {
     return allowList;
   }
@@ -159,10 +129,6 @@ public class Configuration {
     return sampling;
   }
 
-  public OpsConfiguration getOpsConfig() {
-    return opsConfig;
-  }
-
   public Collection<ProbeDefinition> getDefinitions() {
     Collection<ProbeDefinition> result = new ArrayList<>();
     if (snapshotProbes != null) {
@@ -170,6 +136,9 @@ public class Configuration {
     }
     if (metricProbes != null) {
       result.addAll(metricProbes);
+    }
+    if (logProbes != null) {
+      result.addAll(logProbes);
     }
     return result;
   }
@@ -187,14 +156,14 @@ public class Configuration {
         + snapshotProbes
         + ", metricProbes="
         + metricProbes
+        + ", logProbes="
+        + logProbes
         + ", allowList="
         + allowList
         + ", denyList="
         + denyList
         + ", sampling="
         + sampling
-        + ", opsConfig="
-        + opsConfig
         + '}';
   }
 
@@ -208,16 +177,16 @@ public class Configuration {
         && Objects.equals(id, that.id)
         && Objects.equals(snapshotProbes, that.snapshotProbes)
         && Objects.equals(metricProbes, that.metricProbes)
+        && Objects.equals(logProbes, that.logProbes)
         && Objects.equals(allowList, that.allowList)
         && Objects.equals(denyList, that.denyList)
-        && Objects.equals(sampling, that.sampling)
-        && Objects.equals(opsConfig, that.opsConfig);
+        && Objects.equals(sampling, that.sampling);
   }
 
   @Generated
   @Override
   public int hashCode() {
     return Objects.hash(
-        id, orgId, snapshotProbes, metricProbes, allowList, denyList, sampling, opsConfig);
+        id, orgId, snapshotProbes, metricProbes, logProbes, allowList, denyList, sampling);
   }
 }

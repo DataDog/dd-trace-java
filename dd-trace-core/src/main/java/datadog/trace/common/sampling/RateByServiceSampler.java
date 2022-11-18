@@ -2,13 +2,13 @@ package datadog.trace.common.sampling;
 
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.function.Function;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.common.writer.RemoteResponseListener;
 import datadog.trace.core.CoreSpan;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,7 +75,7 @@ public class RateByServiceSampler<T extends CoreSpan<T>>
         if (entry.getValue() != null) {
           updatedServiceRates.put(
               EnvAndService.fromString(entry.getKey()),
-              RateByServiceSampler.<T>createRateSampler(entry.getValue().doubleValue()));
+              RateByServiceSampler.createRateSampler(entry.getValue().doubleValue()));
         }
       }
       serviceRates = new RateSamplersByEnvAndService<>(updatedServiceRates);
@@ -102,7 +102,7 @@ public class RateByServiceSampler<T extends CoreSpan<T>>
     private final Map<EnvAndService, RateSampler<T>> serviceRates;
 
     RateSamplersByEnvAndService() {
-      this(new HashMap<EnvAndService, RateSampler<T>>(0));
+      this(new HashMap<>(0));
     }
 
     RateSamplersByEnvAndService(Map<EnvAndService, RateSampler<T>> serviceRates) {

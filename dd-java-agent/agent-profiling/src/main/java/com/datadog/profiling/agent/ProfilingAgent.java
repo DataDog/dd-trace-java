@@ -10,13 +10,21 @@ import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.ControllerFactory;
 import com.datadog.profiling.controller.ProfilingSystem;
+import com.datadog.profiling.controller.RecordingData;
+import com.datadog.profiling.controller.RecordingDataListener;
+import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.uploader.ProfileUploader;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
+import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
@@ -34,6 +42,42 @@ public class ProfilingAgent {
 
   private static volatile ProfilingSystem profiler;
   private static volatile ProfileUploader uploader;
+
+  private static class DataDumper implements RecordingDataListener {
+    private final Path path;
+
+    DataDumper(Path path) {
+      if (Files.notExists(path)) {
+        try {
+          Files.createDirectories(path);
+        } catch (IOException e) {
+          log.warn("Unable to crate the debug profile dump directory", e);
+          this.path = null;
+          return;
+        }
+      }
+      if (!Files.isDirectory(path)) {
+        log.warn("Profiler debug dump path must be an existing directory");
+        this.path = null;
+      } else {
+        this.path = path;
+      }
+    }
+
+    @Override
+    public void onNewData(RecordingType type, RecordingData data, boolean handleSynchronously) {
+      if (path == null) {
+        return;
+      }
+      try {
+        Path tmp = Files.createTempFile(path, "dd-profiler-debug-", ".jfr");
+        Files.copy(data.getStream(), tmp, StandardCopyOption.REPLACE_EXISTING);
+        log.debug("Debug profile stored as {}", tmp);
+      } catch (IOException e) {
+        log.debug("Unable to write debug profile dump", e);
+      }
+    }
+  }
 
   /**
    * Main entry point into profiling Note: this must be reentrant because we may want to start
@@ -81,6 +125,9 @@ public class ProfilingAgent {
           PerSpanTracingContextTrackerFactory.register(configProvider);
         }
 
+        String dumpPath = configProvider.getString(ProfilingConfig.PROFILING_DEBUG_DUMP_PATH);
+        DataDumper dumper = dumpPath != null ? new DataDumper(Paths.get(dumpPath)) : null;
+
         uploader = new ProfileUploader(config, configProvider);
 
         final Duration startupDelay = Duration.ofSeconds(config.getProfilingStartDelay());
@@ -94,7 +141,12 @@ public class ProfilingAgent {
             new ProfilingSystem(
                 configProvider,
                 controller,
-                uploader::upload,
+                dumper == null
+                    ? uploader::upload
+                    : (type, data, sync) -> {
+                      dumper.onNewData(type, data, sync);
+                      uploader.upload(type, data, sync);
+                    },
                 startupDelay,
                 startupDelayRandomRange,
                 uploadPeriod,

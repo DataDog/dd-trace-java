@@ -2,7 +2,7 @@ package datadog.communication.monitor;
 
 import com.timgroup.statsd.ServiceCheck;
 import datadog.trace.api.StatsDClient;
-import datadog.trace.api.function.Function;
+import java.util.function.Function;
 
 final class DDAgentStatsDClient implements StatsDClient {
   private final DDAgentStatsDConnection connection;
