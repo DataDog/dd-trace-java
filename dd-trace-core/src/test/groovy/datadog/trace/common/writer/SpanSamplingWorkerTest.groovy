@@ -187,7 +187,7 @@ class SpanSamplingWorkerTest extends DDSpecification {
     worker.close()
   }
 
-  def "update dropped traces metric when queue is full"() {
+  def "update dropped traces metric when primaryQueue is full"() {
     setup:
     Queue<Object> primaryQueue = new LinkedBlockingDeque<>(1)
     Queue<Object> secondaryQueue = new LinkedBlockingDeque<>(10)
@@ -266,7 +266,7 @@ class SpanSamplingWorkerTest extends DDSpecification {
     worker.close()
   }
 
-  def "update partial traces metric when some trace's spans have been dropped"() {
+  def "update partial traces metric when some trace's spans have been dropped and sent to secondaryQueue"() {
     setup:
     Queue<Object> primaryQueue = new LinkedBlockingDeque<>(10)
     Queue<Object> secondaryQueue = new LinkedBlockingDeque<>(10)
@@ -301,6 +301,95 @@ class SpanSamplingWorkerTest extends DDSpecification {
     worker.close()
   }
 
-  // TODO test when droppingPolicy is active
-  // TODO test when secondaryQueue is full
+  def "update partial traces metric when some trace's spans have been dropped and secondaryQueue is full or droppingPolicy is active"() {
+    setup:
+    Queue<Object> primaryQueue = new LinkedBlockingDeque<>(10)
+    Queue<Object> secondaryQueue = new LinkedBlockingDeque<>(secondaryQueueIsFull ? 1 : 10)
+    if (secondaryQueueIsFull) {
+      // occupy the entire queue
+      secondaryQueue.offer([])
+    }
+    SingleSpanSampler singleSpanSampler = Mock(SingleSpanSampler)
+    HealthMetrics healthMetrics = Mock(HealthMetrics)
+    SpanSamplingWorker worker = new SpanSamplingWorker(10, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, { droppingPolicy })
+    worker.start()
+
+    DDSpan span1 = Mock(DDSpan)
+    DDSpan span2 = Mock(DDSpan)
+    span1.samplingPriority() >> PrioritySampling.SAMPLER_DROP
+    singleSpanSampler.setSamplingPriority(span1) >> false
+    singleSpanSampler.setSamplingPriority(span2) >> true
+
+    def queue = worker.getSpanSamplingQueue()
+
+    when:
+    assert queue.offer([span1, span2])
+
+    then:
+    primaryQueue.take() == [span2]
+
+    then:
+    1 * healthMetrics.onPartialPublish(1)
+    0 * healthMetrics.onFailedPublish(_)
+    0 * healthMetrics.onPublish(_, _)
+
+    cleanup:
+    worker.close()
+
+    where:
+    droppingPolicy | secondaryQueueIsFull
+    true           | false
+    false          | true
+    true           | true
+  }
+
+  def "update FailedPublish metric when all trace's spans have been dropped and secondaryQueue is full or droppingPolicy is active"() {
+    setup:
+    Queue<Object> primaryQueue = new LinkedBlockingDeque<>(10)
+    Queue<Object> secondaryQueue = new LinkedBlockingDeque<>(secondaryQueueIsFull ? 1 : 10)
+    if (secondaryQueueIsFull) {
+      // occupy the entire queue
+      secondaryQueue.offer([])
+    }
+    SingleSpanSampler singleSpanSampler = Mock(SingleSpanSampler)
+    HealthMetrics healthMetrics = Mock(HealthMetrics)
+    int expectedTraces = 1
+    CountDownLatch latch = new CountDownLatch(expectedTraces)
+    SpanSamplingWorker worker = new SpanSamplingWorker(10, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, { droppingPolicy }) {
+      @Override
+      protected void afterOnEvent() {
+        latch.countDown()
+      }
+    }
+    worker.start()
+
+    DDSpan span1 = Mock(DDSpan)
+    DDSpan span2 = Mock(DDSpan)
+    span1.samplingPriority() >> PrioritySampling.SAMPLER_DROP
+    singleSpanSampler.setSamplingPriority(span1) >> false
+    singleSpanSampler.setSamplingPriority(span2) >> false
+
+    def queue = worker.getSpanSamplingQueue()
+
+    when:
+    assert queue.offer([span1, span2])
+
+    then:
+    latch.await(10, TimeUnit.SECONDS)
+
+    then:
+    1 * healthMetrics.onFailedPublish(PrioritySampling.SAMPLER_DROP)
+    0 * healthMetrics.onPartialPublish(_)
+    0 * healthMetrics.onPublish(_, _)
+
+    cleanup:
+    worker.close()
+
+    where:
+    droppingPolicy | secondaryQueueIsFull
+    true           | false
+    false          | true
+    true           | true
+  }
+
 }
