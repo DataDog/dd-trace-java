@@ -4,7 +4,6 @@ on:
     branches:
       - master
       - 'release/*'
-      - 'releases/*'
   pull_request:
     branches:
       - master
