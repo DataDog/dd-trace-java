@@ -123,7 +123,7 @@ class DDTraceIdTest extends DDSpecification {
 
     where:
     // Add an unknown strategy for code coverage
-    strategyName << ["RANDOM", "SEQUENTIAL", "UNKNOWN"]
+    strategyName << ["RANDOM", "SEQUENTIAL", "SECURE_RANDOM", "UNKNOWN"]
   }
 
   def "convert ids from/to hex String and truncate to 64 bits while keeping the original"() {

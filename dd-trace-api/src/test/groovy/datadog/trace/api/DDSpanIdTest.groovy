@@ -94,6 +94,6 @@ class DDSpanIdTest extends DDSpecification {
     spanId != 0
 
     where:
-    strategyName << ["RANDOM", "SEQUENTIAL"]
+    strategyName << ["RANDOM", "SEQUENTIAL", "SECURE_RANDOM"]
   }
 }
