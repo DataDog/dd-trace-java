@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.directbytebuffer;
 
-import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
@@ -10,11 +12,11 @@ import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 
 @AutoService(Instrumenter.class)
-public final class DirectByteBufferInstrumentation extends Instrumenter.Profiling
+public final class ByteBufferInstrumentation extends Instrumenter.Profiling
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
 
-  public DirectByteBufferInstrumentation() {
-    super("jni", "directallocation");
+  public ByteBufferInstrumentation() {
+    super("allocatedirect", "directallocation");
   }
 
   @Override
@@ -29,16 +31,17 @@ public final class DirectByteBufferInstrumentation extends Instrumenter.Profilin
 
   @Override
   public String instrumentedType() {
-    return "java.nio.DirectByteBuffer";
+    return "java.nio.ByteBuffer";
   }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        isConstructor()
-            .and(takesArgument(0, long.class))
-            .and(takesArgument(1, int.class))
-            .and(takesArguments(2)),
-        packageName + ".NewDirectByteBufferAdvice");
+        isMethod()
+            .and(named("allocateDirect"))
+            .and(isStatic())
+            .and(takesArgument(0, int.class))
+            .and(takesArguments(1)),
+        packageName + ".AllocateDirectAdvice");
   }
 }

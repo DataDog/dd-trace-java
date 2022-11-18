@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 import jdk.jfr.FlightRecorder
 import jdk.jfr.Recording
 import jdk.jfr.consumer.RecordingFile
@@ -18,7 +19,8 @@ class DirectAllocationTrackingTest extends AgentTestRunner {
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("dd.profiling.enabled", "true")
-    injectSysConfig("dd.integration.directbytebuffer.enabled", "true")
+    injectSysConfig("dd.integration.mmap.enabled", "true")
+    injectSysConfig("dd.integration.allocatedirect.enabled", "true")
   }
 
   def "test track memory mapped file"() {
@@ -35,7 +37,9 @@ class DirectAllocationTrackingTest extends AgentTestRunner {
 
     then:
     directAllocations.size() == 1
-    directAllocations.get(0).getInt("capacity") == 20
+    directAllocations.get(0).getLong("allocated") == 20
+    directAllocations.get(0).getString("source") == "MMAP"
+    directAllocations.get(0).getString("allocatingClass") == "org.codehaus.groovy.runtime.callsite.PlainObjectMetaMethodSite"
 
     cleanup:
     recording.close()
@@ -50,7 +54,9 @@ class DirectAllocationTrackingTest extends AgentTestRunner {
 
     then:
     directAllocations.size() == 1
-    directAllocations.get(0).getInt("capacity") == 10
+    directAllocations.get(0).getLong("allocated") == 10
+    directAllocations.get(0).getString("source") == "ALLOCATE_DIRECT"
+    directAllocations.get(0).getString("allocatingClass") == "java_nio_ByteBuffer\$allocateDirect"
 
     cleanup:
     recording.close()
@@ -66,7 +72,7 @@ class DirectAllocationTrackingTest extends AgentTestRunner {
 
     then:
     directAllocations.size() == 1
-    directAllocations.get(0).getInt("capacity") == 10
+    directAllocations.get(0).getLong("allocated") == 10
 
     cleanup:
     recording.close()
@@ -80,14 +86,16 @@ class DirectAllocationTrackingTest extends AgentTestRunner {
     stream.transferTo(new FileOutputStream(output))
     return RecordingFile.readAllEvents(output.toPath())
       .stream()
-      .filter({ it.getEventType().name.equals("datadog.DirectAllocationEvent")})
+      .filter({ it.getEventType().name.equals("datadog.DirectAllocationSample")})
       .collect(Collectors.toList())
   }
 
   def setupRecording() {
     recording = new Recording()
-    recording.enable("datadog.DirectAllocationEvent")
+    recording.enable("datadog.DirectAllocationSample")
+    recording.enable("datadog.DirectAllocationTotal")
     recording.start()
     start = Instant.now()
+    InstrumentationBasedProfiling.enableInstrumentationBasedProfiling()
   }
 }
