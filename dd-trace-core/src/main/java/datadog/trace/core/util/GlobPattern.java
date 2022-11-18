@@ -4,7 +4,18 @@ import java.util.regex.Pattern;
 
 public final class GlobPattern {
 
-  public static String globToRegex(String globPattern) {
+  public static Pattern globToRegexPattern(String globPattern) {
+    if (globPattern == null) {
+      return null;
+    }
+    String regex = globToRegex(globPattern);
+    if (regex == null) {
+      return null;
+    }
+    return Pattern.compile(regex);
+  }
+
+  private static String globToRegex(String globPattern) {
     if ("*".equals(globPattern)) {
       return null;
     }
@@ -39,17 +50,6 @@ public final class GlobPattern {
     }
     sb.append('$');
     return sb.toString();
-  }
-
-  public static Pattern globToRegexPattern(String globPattern) {
-    if (globPattern == null) {
-      return null;
-    }
-    String regex = globToRegex(globPattern);
-    if (regex == null) {
-      return null;
-    }
-    return Pattern.compile(regex);
   }
 
   private GlobPattern() {}
