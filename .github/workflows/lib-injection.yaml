@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - master
+      - 'release/*'
       - 'releases/*'
   pull_request:
     branches:
