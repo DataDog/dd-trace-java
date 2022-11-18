@@ -740,7 +740,7 @@ public class Config {
       strategyName = "RANDOM";
       strategy = IdGenerationStrategy.fromName(strategyName);
     }
-    if (!strategyName.equals("RANDOM") || !strategyName.equals("SECURE_RANDOM")) {
+    if (!strategyName.equals("RANDOM") && !strategyName.equals("SECURE_RANDOM")) {
       log.warn(
           "*** you are using an unsupported id generation strategy {} - this can impact correctness of traces",
           strategyName);
