@@ -39,8 +39,10 @@ abstract class PlaySmokeTest extends AbstractServerSmokeTest {
     if (runningPid.exists()) {
       runningPid.delete()
     }
+    def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
+    def command = isWindows ? 'main.bat' : 'main'
     ProcessBuilder processBuilder =
-      new ProcessBuilder("${playDirectory}/bin/main")
+      new ProcessBuilder("${playDirectory}/bin/${command}")
     processBuilder.directory(playDirectory)
     processBuilder.environment().put("JAVA_OPTS",
       defaultJavaProperties.join(" ")
