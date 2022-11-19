@@ -24,6 +24,7 @@ import org.objectweb.asm.tree.MethodNode;
 public class Instrumentor {
   protected static final String CONSTRUCTOR_NAME = "<init>";
 
+  protected final ProbeDefinition definition;
   protected final ClassLoader classLoader;
   protected final ClassNode classNode;
   protected final MethodNode methodNode;
@@ -33,7 +34,7 @@ public class Instrumentor {
   protected final LineMap lineMap = new LineMap();
   protected final LabelNode methodEnterLabel;
   protected int localVarBaseOffset;
-  protected int argOffset = 0;
+  protected int argOffset;
   protected final String[] argumentNames;
 
   public Instrumentor(
@@ -42,6 +43,7 @@ public class Instrumentor {
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics) {
+    this.definition = definition;
     this.classLoader = classLoader;
     this.classNode = classNode;
     this.methodNode = methodNode;

@@ -29,7 +29,7 @@ import org.junit.Assert;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-public class ProbeMetricsOnDemandTest {
+public class MetricProbesInstrumentationTest {
   private static final String LANGUAGE = "java";
   private static final String METRIC_ID = "beae1807-f3b0-4ea8-a74f-826790c5e6f8";
   private static final String METRIC_ID1 = "beae1807-f3b0-4ea8-a74f-826790c5e6f6";

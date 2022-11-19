@@ -11,6 +11,7 @@ import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
 import static com.datadog.debugger.instrumentation.Types.THROWABLE_TYPE;
 import static org.objectweb.asm.Type.INT_TYPE;
 
+import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.SnapshotProbe;
 import com.datadog.debugger.probe.Where;
 import datadog.trace.api.Config;
@@ -39,20 +40,33 @@ import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
 /** Handles generating instrumentation for snapshot method & line probes */
-public final class MethodProbeInstrumentor extends Instrumentor {
-  private final SnapshotProbe probe;
+public final class SnapshotInstrumentor extends Instrumentor {
+  private final SnapshotProbe.Capture capture;
+  private final LogProbe logProbe;
   private final LabelNode snapshotInitLabel = new LabelNode();
   private int snapshotVar = -1;
   private LabelNode returnHandlerLabel = null;
 
-  public MethodProbeInstrumentor(
-      SnapshotProbe probe,
+  public SnapshotInstrumentor(
+      SnapshotProbe snapshotProbe,
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics) {
-    super(probe, classLoader, classNode, methodNode, diagnostics);
-    this.probe = probe;
+    super(snapshotProbe, classLoader, classNode, methodNode, diagnostics);
+    this.capture = snapshotProbe.getCapture();
+    this.logProbe = null;
+  }
+
+  public SnapshotInstrumentor(
+      LogProbe logProbe,
+      ClassLoader classLoader,
+      ClassNode classNode,
+      MethodNode methodNode,
+      List<DiagnosticMessage> diagnostics) {
+    super(logProbe, classLoader, classNode, methodNode, diagnostics);
+    this.capture = null;
+    this.logProbe = logProbe;
   }
 
   public void instrument() {
@@ -107,7 +121,7 @@ public final class MethodProbeInstrumentor extends Instrumentor {
   }
 
   private void addLineCaptures(LineMap lineMap) {
-    Where.SourceLine[] targetLines = probe.getWhere().getSourceLines();
+    Where.SourceLine[] targetLines = definition.getWhere().getSourceLines();
     if (targetLines == null) {
       // no line capture to perform
       return;
@@ -194,6 +208,10 @@ public final class MethodProbeInstrumentor extends Instrumentor {
   }
 
   private void instrumentTryCatchHandlers() {
+    if (logProbe != null) {
+      // do not instrument try/catch for log probe
+      return;
+    }
     for (TryCatchBlockNode tryCatchBlockNode : methodNode.tryCatchBlocks) {
       methodNode.instructions.insert(
           tryCatchBlockNode.handler,
@@ -317,8 +335,7 @@ public final class MethodProbeInstrumentor extends Instrumentor {
           insnList); // stack: [capturedcontext, capturedcontext, array, array, int, type_name,
       // object]
       addCapturedValueOf(
-          insnList,
-          probe.getCapture()); // stack: [capturedcontext, capturedcontext, array, array, int,
+          insnList, capture); // stack: [capturedcontext, capturedcontext, array, array, int,
       // typed_value]
       insnList.add(
           new InsnNode(Opcodes.AASTORE)); // stack: [capturedcontext, capturedcontext, array]
@@ -393,8 +410,7 @@ public final class MethodProbeInstrumentor extends Instrumentor {
           varType, insnList); // stack: [capturedcontext, capturedcontext, array, array, int, name,
       // type_name, object]
       addCapturedValueOf(
-          insnList,
-          probe.getCapture()); // stack: [capturedcontext, capturedcontext, array, array, int,
+          insnList, capture); // stack: [capturedcontext, capturedcontext, array, array, int,
       // typed_value]
       insnList.add(
           new InsnNode(Opcodes.AASTORE)); // stack: [capturedcontext, capturedcontext, array]
@@ -457,8 +473,7 @@ public final class MethodProbeInstrumentor extends Instrumentor {
         insnList); // stack: [ret_value, snapshot, capturedcontext, capturedcontext, null,
     // type_name, ret_value]
     addCapturedValueOf(
-        insnList,
-        probe.getCapture()); // stack: [ret_value, snapshot, capturedcontext, capturedcontext,
+        insnList, capture); // stack: [ret_value, snapshot, capturedcontext, capturedcontext,
     // typed_value]
     invokeVirtual(
         insnList,
@@ -628,8 +643,7 @@ public final class MethodProbeInstrumentor extends Instrumentor {
           insnList); // stack: [capturedcontext, capturedcontext, array, array, int, type_name,
       // object]
       addCapturedValueOf(
-          insnList,
-          probe.getCapture()); // stack: [capturedcontext, capturedcontext, array, array, int,
+          insnList, capture); // stack: [capturedcontext, capturedcontext, array, array, int,
       // typed_value]
       insnList.add(
           new InsnNode(Opcodes.AASTORE)); // stack: [capturedcontext, capturedcontext, array]
@@ -661,7 +675,7 @@ public final class MethodProbeInstrumentor extends Instrumentor {
   private void getSnapshot(InsnList insnList) {
     if (snapshotVar == -1) {
       snapshotVar = newVar(SNAPSHOT_TYPE);
-      ldc(insnList, probe.getId());
+      ldc(insnList, definition.getId());
       ldc(insnList, Type.getObjectType(classNode.name));
       invokeStatic(
           insnList, SNAPSHOTPROVIDER_TYPE, "newSnapshot", SNAPSHOT_TYPE, STRING_TYPE, CLASS_TYPE);
