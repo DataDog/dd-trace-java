@@ -26,9 +26,16 @@ public final class ConfigProvider {
 
   private static final Logger log = LoggerFactory.getLogger(ConfigProvider.class);
 
-  protected final ConfigProvider.Source[] sources;
+  private final boolean collectConfig;
+
+  private final ConfigProvider.Source[] sources;
 
   private ConfigProvider(ConfigProvider.Source... sources) {
+    this(true, sources);
+  }
+
+  private ConfigProvider(boolean collectConfig, ConfigProvider.Source... sources) {
+    this.collectConfig = collectConfig;
     this.sources = sources;
   }
 
@@ -154,7 +161,9 @@ public final class ConfigProvider {
         continue;
       }
       if (value != null) {
-        ConfigCollector.get().put(key, value);
+        if (collectConfig) {
+          ConfigCollector.get().put(key, value);
+        }
         return value;
       }
     }
@@ -231,6 +240,27 @@ public final class ConfigProvider {
     }
   }
 
+  public boolean isEnabled(
+      final Iterable<String> settingNames,
+      final String settingPrefix,
+      final String settingSuffix,
+      final boolean defaultEnabled) {
+    // If default is enabled, we want to disable individually.
+    // If default is disabled, we want to enable individually.
+    boolean anyEnabled = defaultEnabled;
+    for (final String name : settingNames) {
+      final String configKey = settingPrefix + name + settingSuffix;
+      final String fullKey = configKey.startsWith("trace.") ? configKey : "trace." + configKey;
+      final boolean configEnabled = getBoolean(fullKey, defaultEnabled, configKey);
+      if (defaultEnabled) {
+        anyEnabled &= configEnabled;
+      } else {
+        anyEnabled |= configEnabled;
+      }
+    }
+    return anyEnabled;
+  }
+
   public static ConfigProvider getInstance() {
     return Singleton.INSTANCE;
   }
@@ -246,6 +276,27 @@ public final class ConfigProvider {
           new CapturedEnvironmentConfigSource());
     } else {
       return new ConfigProvider(
+          new SystemPropertiesConfigSource(),
+          new EnvironmentConfigSource(),
+          new PropertiesConfigSource(configProperties, true),
+          new CapturedEnvironmentConfigSource());
+    }
+  }
+
+  public static ConfigProvider withoutCollector() {
+    Properties configProperties =
+        loadConfigurationFile(
+            new ConfigProvider(
+                false, new SystemPropertiesConfigSource(), new EnvironmentConfigSource()));
+    if (configProperties.isEmpty()) {
+      return new ConfigProvider(
+          false,
+          new SystemPropertiesConfigSource(),
+          new EnvironmentConfigSource(),
+          new CapturedEnvironmentConfigSource());
+    } else {
+      return new ConfigProvider(
+          false,
           new SystemPropertiesConfigSource(),
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
