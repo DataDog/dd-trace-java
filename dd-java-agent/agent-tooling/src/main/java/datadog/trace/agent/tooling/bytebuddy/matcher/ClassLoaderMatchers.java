@@ -90,7 +90,8 @@ public final class ClassLoaderMatchers {
   public static ElementMatcher.Junction<ClassLoader> hasClassNamed(String className) {
     ElementMatcher.Junction<ClassLoader> matcher = hasClassMatchers.get(className);
     if (null == matcher) {
-      hasClassMatchers.put(className, matcher = new HasClassMatcher(hasClassMatchers.size()));
+      // each matcher is given an id based on where to find its resource-name in the sequence
+      hasClassMatchers.put(className, matcher = new HasClassMatcher(hasClassResourceNames.size()));
       hasClassResourceNames.add(Strings.getResourceName(className));
     }
     return matcher;
