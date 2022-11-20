@@ -9,8 +9,8 @@ public final class Platform {
   private static final Version JAVA_VERSION = parseJavaVersion(System.getProperty("java.version"));
   private static final JvmRuntime RUNTIME = new JvmRuntime();
 
-  private static final boolean HAS_JFR = checkJfr();
-  private static final boolean IS_NATIVE_IMAGE_BUILDER = checkIsNativeImageBuilder();
+  private static final boolean HAS_JFR = checkForJfr();
+  private static final boolean IS_NATIVE_IMAGE_BUILDER = checkForNativeImageBuilder();
 
   public static boolean hasJfr() {
     return HAS_JFR;
@@ -20,7 +20,7 @@ public final class Platform {
     return IS_NATIVE_IMAGE_BUILDER;
   }
 
-  private static boolean checkJfr() {
+  private static boolean checkForJfr() {
     try {
       /* Check only for the open-sources JFR implementation.
        * If it is ever needed to support also the closed sourced JDK 8 version the check should be
@@ -34,7 +34,7 @@ public final class Platform {
     }
   }
 
-  private static boolean checkIsNativeImageBuilder() {
+  private static boolean checkForNativeImageBuilder() {
     try {
       return "org.graalvm.nativeimage.builder".equals(System.getProperty("jdk.module.main"));
     } catch (Throwable e) {
