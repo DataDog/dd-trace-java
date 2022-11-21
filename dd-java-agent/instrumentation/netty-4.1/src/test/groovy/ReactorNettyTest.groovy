@@ -1,8 +1,10 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.Platform
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
+import datadog.trace.core.datastreams.StatsGroup
 import io.netty.handler.timeout.ReadTimeoutException
 import io.netty.handler.timeout.ReadTimeoutHandler
 import reactor.netty.http.client.HttpClient
@@ -22,6 +24,11 @@ class ReactorNettyTest extends AgentTestRunner {
   boolean useStrictTraceWrites() {
     // TODO fix this by making sure that spans get closed properly
     return false
+  }
+
+  @Override
+  boolean isDataStreamsEnabled() {
+    true
   }
 
   @AutoCleanup
@@ -77,6 +84,9 @@ class ReactorNettyTest extends AgentTestRunner {
     runUnderTrace("parent") {
       doRequest()
     }
+    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     then:
     assertTraces(2) {
@@ -89,6 +99,14 @@ class ReactorNettyTest extends AgentTestRunner {
         clientSpan(it, 1, span(0))
       }
     }
+    and:
+    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(["type:http", "direction:out"])
+        edgeTags.size() == 2
+      }
+    }
   }
 
   def "test timeout"() {
@@ -96,12 +114,23 @@ class ReactorNettyTest extends AgentTestRunner {
     runUnderTrace("parent") {
       doTimeoutRequest()
     }
+    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     then:
     assertTraces(1) {
       trace(2) {
         basicSpan(it, "parent")
         clientSpan(it, 1, span(0), "GET", server.address.resolve("/timeout"), null, true, ReadTimeoutException)
+      }
+    }
+    and:
+    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(["type:http", "direction:out"])
+        edgeTags.size() == 2
       }
     }
   }
