@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 public class SnapshotSummaryTest {
   private static final String CLASS_NAME = "com.datadog.debugger.SomeClass";
   private static final ProbeLocation PROBE_LOCATION =
-      new ProbeLocation(CLASS_NAME, "someMethod", null, null);;
+      new ProbeLocation(CLASS_NAME, "someMethod", null, null);
 
   @BeforeAll
   public static void staticSetup() {

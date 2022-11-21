@@ -155,7 +155,28 @@ public class LogProbesInstrumentationTest {
     Assert.assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertEquals("this is log line with local var=UNDEFINED", snapshot.getSummary());
-    // TODO assert on eval errors from snapshot
+    assertEquals(1, snapshot.getEvaluationErrors().size());
+    assertEquals("#var42", snapshot.getEvaluationErrors().get(0).getExpr());
+    assertEquals(
+        "Cannot find local var: var42", snapshot.getEvaluationErrors().get(0).getMessage());
+  }
+
+  @Test
+  public void lineTemplateNullFieldLog() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot04";
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installSingleProbe(
+            "this is log line with field={#nullObject.intValue}", CLASS_NAME, null, null, "25");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "").get();
+    Assert.assertEquals(143, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertEquals("this is log line with field=UNDEFINED", snapshot.getSummary());
+    assertEquals(1, snapshot.getEvaluationErrors().size());
+    assertEquals("#nullObject.intValue", snapshot.getEvaluationErrors().get(0).getExpr());
+    assertEquals(
+        "Cannot dereference to field: intValue",
+        snapshot.getEvaluationErrors().get(0).getMessage());
   }
 
   private DebuggerTransformerTest.TestSnapshotListener installSingleProbe(
