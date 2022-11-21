@@ -787,14 +787,14 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def request = request(PATH_PARAM, 'GET', null)
       .header(IG_EXTRA_SPAN_NAME_HEADER, 'appsec-span')
       .build()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
-    }
 
     when:
     def response = client.newCall(request).execute()
     response.body().string() == PATH_PARAM.body
     TEST_WRITER.waitForTraces(1)
+    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     then:
     DDSpan span = TEST_WRITER.flatten().find {it.operationName =='appsec-span' }
