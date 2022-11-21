@@ -33,10 +33,6 @@ import org.junit.jupiter.api.Test;
 public class LogProbesInstrumentationTest {
   private static final String LANGUAGE = "java";
   private static final String LOG_ID = "beae1807-f3b0-4ea8-a74f-826790c5e6f8";
-  private static final String LOG_ID1 = "beae1807-f3b0-4ea8-a74f-826790c5e6f6";
-  private static final String LOG_ID2 = "beae1807-f3b0-4ea8-a74f-826790c5e6f7";
-  private static final long ORG_ID = 2;
-  private static final String SERVICE_NAME = "service-name";
 
   private Instrumentation instr = ByteBuddyAgent.install();
   private ClassFileTransformer currentTransformer;
@@ -148,8 +144,7 @@ public class LogProbesInstrumentationTest {
   private DebuggerTransformerTest.TestSnapshotListener installSingleProbe(
       String template, String typeName, String methodName, String signature, String... lines) {
     LogProbe logProbe = createProbe(LOG_ID, template, typeName, methodName, signature, lines);
-    return installProbes(
-        typeName, new Configuration(SERVICE_NAME, ORG_ID, null, null, Arrays.asList(logProbe)));
+    return installProbes(typeName, new Configuration(null, null, Arrays.asList(logProbe)));
   }
 
   private static LogProbe createProbe(

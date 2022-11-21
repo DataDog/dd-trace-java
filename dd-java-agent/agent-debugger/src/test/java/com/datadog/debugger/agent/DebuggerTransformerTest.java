@@ -70,8 +70,6 @@ import utils.SourceCompiler;
 public class DebuggerTransformerTest {
   private static final String LANGUAGE = "java";
   private static final String PROBE_ID = "beae1807-f3b0-4ea8-a74f-826790c5e6f8";
-  private static final String SERVICE_NAME = "service-name";
-  private static final long ORG_ID = 2;
   private static final boolean FAST_TESTS = Boolean.getBoolean("fast-tests");
 
   enum InstrumentationKind {
@@ -119,9 +117,7 @@ public class DebuggerTransformerTest {
       this.targetClassName = targetClassName;
       this.delegate =
           new DebuggerTransformer(
-              Config.get(),
-              new Configuration(SERVICE_NAME, ORG_ID, Collections.singletonList(probe)),
-              null);
+              Config.get(), new Configuration(Collections.singletonList(probe)), null);
       this.codeOutput = codeOutput;
     }
 
@@ -242,9 +238,7 @@ public class DebuggerTransformerTest {
         SnapshotProbe.builder().where("java.util.ArrayList", "add").build();
     DebuggerTransformer debuggerTransformer =
         new DebuggerTransformer(
-            config,
-            new Configuration(SERVICE_NAME, ORG_ID, Collections.singletonList(snapshotProbe)),
-            null);
+            config, new Configuration(Collections.singletonList(snapshotProbe)), null);
     debuggerTransformer.transform(
         ClassLoader.getSystemClassLoader(),
         "java.util.ArrayList",
@@ -285,7 +279,7 @@ public class DebuggerTransformerTest {
               .build();
       snapshotProbes.add(snapshotProbe);
     }
-    Configuration configuration = new Configuration(SERVICE_NAME, ORG_ID, snapshotProbes);
+    Configuration configuration = new Configuration(snapshotProbes);
     DebuggerTransformer debuggerTransformer = new DebuggerTransformer(config, configuration);
     for (ProbeTestInfo probeInfo : probeInfos) {
       byte[] newClassBuffer =
@@ -340,7 +334,7 @@ public class DebuggerTransformerTest {
                 .active(false)
                 .where("java.util.HashMap", "<init>", "void ()")
                 .build());
-    Configuration configuration = new Configuration(SERVICE_NAME, ORG_ID, snapshotProbes);
+    Configuration configuration = new Configuration(snapshotProbes);
     DebuggerTransformer debuggerTransformer = new DebuggerTransformer(config, configuration);
     byte[] newClassBuffer =
         debuggerTransformer.transform(
@@ -371,7 +365,7 @@ public class DebuggerTransformerTest {
                 .active(true)
                 .where("java.lang.String", "toString")
                 .build());
-    Configuration configuration = new Configuration(SERVICE_NAME, ORG_ID, snapshotProbes);
+    Configuration configuration = new Configuration(snapshotProbes);
     AtomicReference<InstrumentationResult> lastResult = new AtomicReference<>(null);
     DebuggerTransformer debuggerTransformer =
         new DebuggerTransformer(
@@ -394,8 +388,7 @@ public class DebuggerTransformerTest {
   public void classBeingRedefinedNull() {
     Config config = mock(Config.class);
     SnapshotProbe snapshotProbe = SnapshotProbe.builder().where("ArrayList", "add").build();
-    Configuration configuration =
-        new Configuration(SERVICE_NAME, ORG_ID, Collections.singletonList(snapshotProbe));
+    Configuration configuration = new Configuration(Collections.singletonList(snapshotProbe));
     AtomicReference<InstrumentationResult> lastResult = new AtomicReference<>(null);
     DebuggerTransformer debuggerTransformer =
         new DebuggerTransformer(

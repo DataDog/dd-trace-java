@@ -73,8 +73,6 @@ public class CapturedSnapshotTest {
   private static final String PROBE_ID = "beae1807-f3b0-4ea8-a74f-826790c5e6f8";
   private static final String PROBE_ID1 = "beae1807-f3b0-4ea8-a74f-826790c5e6f6";
   private static final String PROBE_ID2 = "beae1807-f3b0-4ea8-a74f-826790c5e6f7";
-  private static final long ORG_ID = 2;
-  private static final String SERVICE_NAME = "service-name";
   private static final JsonAdapter<Snapshot.CapturedValue> VALUE_ADAPTER =
       new MoshiSnapshotHelper.CapturedValueAdapter();
   private static final JsonAdapter<Map<String, Object>> GENERIC_ADAPTER =
@@ -789,15 +787,10 @@ public class CapturedSnapshotTest {
     SnapshotProbe probe2 =
         createProbeBuilder(PROBE_ID1, CLASS_NAME, "f2", "(int)").sampling(10).build();
     Configuration config =
-        new Configuration(
-            SERVICE_NAME,
-            ORG_ID,
-            Arrays.asList(probe1, probe2),
-            null,
-            null,
-            null,
-            null,
-            new SnapshotProbe.Sampling(1));
+        Configuration.builder()
+            .addSnapshotsProbes(Arrays.asList(probe1, probe2))
+            .add(new SnapshotProbe.Sampling(1))
+            .build();
     DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, config);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     for (int i = 0; i < 100; i++) {
@@ -1271,8 +1264,7 @@ public class CapturedSnapshotTest {
 
   private DebuggerTransformerTest.TestSnapshotListener installProbes(
       String expectedClassName, SnapshotProbe... snapshotProbes) {
-    return installProbes(
-        expectedClassName, new Configuration(SERVICE_NAME, ORG_ID, Arrays.asList(snapshotProbes)));
+    return installProbes(expectedClassName, new Configuration(Arrays.asList(snapshotProbes)));
   }
 
   private void assertCaptureArgs(

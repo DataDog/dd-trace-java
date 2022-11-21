@@ -1045,6 +1045,13 @@ class ConfigurationPollerSpecification extends DDSpecification {
       JsonOutput.toJson(it)
     } | 'No content for employee/ASM_DD/1.recommended.json/config'
 
+    // two reportable errors
+    SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
+      it['client_configs'] = ['foobar', 'employee/ASM_DD/1.recommended.json/config']
+      it['target_files'] = []
+      JsonOutput.toJson(it)
+    } | 'Failed to apply configuration due to 2 errors:\n (1) Not a valid config key: foobar\n (2) No content for employee/ASM_DD/1.recommended.json/config\n'
+
     // in target_files, but not targets.signed.targets
     SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
       def targetDecoded = Base64.decoder.decode(it['targets'])

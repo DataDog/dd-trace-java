@@ -111,7 +111,6 @@ public class ConfigurationTest {
     assertEquals(2, configs.size());
     Configuration config0 = configs.get(0);
     assertEquals(10.0, config0.getSampling().getSnapshotsPerSecond(), 0.1);
-    assertEquals("service1", config0.getId());
     // snapshot probe
     assertEquals(1, config0.getSnapshotProbes().size());
     SnapshotProbe snapshotProbe1 = config0.getSnapshotProbes().iterator().next();
@@ -123,7 +122,6 @@ public class ConfigurationTest {
     assertEquals("tag2:value2", snapshotProbe1.getTags()[1].toString());
     assertEquals(42.0, snapshotProbe1.getSampling().getSnapshotsPerSecond(), 0.1);
     Configuration config1 = configs.get(1);
-    assertEquals("service2", config1.getId());
     assertEquals(1, config1.getSnapshotProbes().size());
     SnapshotProbe snapshotProbe2 = config1.getSnapshotProbes().iterator().next();
     assertEquals("java.util.Map", snapshotProbe2.getWhere().getTypeName());
@@ -162,8 +160,6 @@ public class ConfigurationTest {
             Arrays.asList("java.security"), Arrays.asList("javax.security.auth.AuthPermission"));
     SnapshotProbe.Sampling globalSampling = new SnapshotProbe.Sampling(10.0);
     return new Configuration(
-        "service1",
-        2,
         Arrays.asList(probe1),
         Arrays.asList(metric1),
         Arrays.asList(log1),
@@ -191,8 +187,6 @@ public class ConfigurationTest {
             Arrays.asList("java.security"), Arrays.asList("javax.security.auth.AuthPermission"));
     SnapshotProbe.Sampling globalSampling = new SnapshotProbe.Sampling(10.0);
     return new Configuration(
-        "service2",
-        2,
         Arrays.asList(probe2),
         Arrays.asList(metric2),
         Arrays.asList(log2),

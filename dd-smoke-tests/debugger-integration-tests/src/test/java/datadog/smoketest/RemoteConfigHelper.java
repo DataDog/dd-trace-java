@@ -5,7 +5,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 
 public class RemoteConfigHelper {
-  public static String encode(String config, String serviceName) {
+  public static String encode(String config, String configId) {
     String hashStr = null;
     try {
       hashStr = Strings.sha256(config);
@@ -31,7 +31,7 @@ public class RemoteConfigHelper {
                 + "     }"
                 + "  }"
                 + "}",
-            serviceName, config.length(), hashStr);
+            configId, config.length(), hashStr);
     String targetsEncoding = new String(Base64.getEncoder().encode(targetsStr.getBytes()));
     String encodedConfig = new String(Base64.getEncoder().encode(config.getBytes()));
     return String.format(
@@ -46,6 +46,6 @@ public class RemoteConfigHelper {
             + "                        \"datadog/2/LIVE_DEBUGGING/%s/config\"\n"
             + "                ]"
             + "}",
-        targetsEncoding, serviceName, encodedConfig, serviceName);
+        targetsEncoding, configId, encodedConfig, configId);
   }
 }

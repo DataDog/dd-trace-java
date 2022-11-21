@@ -19,8 +19,6 @@ import org.objectweb.asm.tree.MethodNode;
 
 class ConfigurationComparerTest {
   private static final String PROBE_ID = "beae1807-f3b0-4ea8-a74f-826790c5e6f8";
-  private static final String SERVICE_NAME = "service-name";
-  private static final long ORG_ID = 2;
 
   @Test
   public void newDefinitions() {
@@ -166,8 +164,6 @@ class ConfigurationComparerTest {
     Configuration empty = createConfig(Collections.emptyList());
     Configuration config =
         new Configuration(
-            SERVICE_NAME,
-            ORG_ID,
             Collections.emptyList(),
             Collections.emptyList(),
             Collections.emptyList(),
@@ -193,8 +189,6 @@ class ConfigurationComparerTest {
     Configuration noFilterConfig = createConfig(Collections.singletonList(probe));
     Configuration config =
         new Configuration(
-            SERVICE_NAME,
-            ORG_ID,
             Collections.singletonList(probe),
             Collections.emptyList(),
             Collections.emptyList(),
@@ -208,8 +202,6 @@ class ConfigurationComparerTest {
 
     Configuration changedAllowedList =
         new Configuration(
-            SERVICE_NAME,
-            ORG_ID,
             Collections.singletonList(probe),
             Collections.emptyList(),
             Collections.emptyList(),
@@ -244,8 +236,6 @@ class ConfigurationComparerTest {
     Configuration noFilterConfig = createConfig(Collections.singletonList(probe));
     Configuration config =
         new Configuration(
-            SERVICE_NAME,
-            ORG_ID,
             Collections.singletonList(probe),
             Collections.emptyList(),
             Collections.emptyList(),
@@ -277,8 +267,6 @@ class ConfigurationComparerTest {
     Configuration empty = createConfig(Collections.emptyList());
     Configuration config =
         new Configuration(
-            SERVICE_NAME,
-            ORG_ID,
             Collections.singletonList(probe),
             Collections.emptyList(),
             Collections.emptyList(),
@@ -461,6 +449,6 @@ class ConfigurationComparerTest {
   }
 
   private static Configuration createConfig(List<SnapshotProbe> snapshotProbes) {
-    return new Configuration(SERVICE_NAME, ORG_ID, snapshotProbes);
+    return new Configuration(snapshotProbes);
   }
 }

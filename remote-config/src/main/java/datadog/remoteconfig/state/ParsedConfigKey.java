@@ -3,6 +3,7 @@ package datadog.remoteconfig.state;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -10,13 +11,17 @@ public class ParsedConfigKey {
 
   private static final Pattern EXTRACT_PRODUCT_REGEX =
       Pattern.compile("([^/]+)(/\\d+)?/([^/]+)/([^/]+)/config");
+
+  private final String orginalKey;
   private final String org;
   private final Integer version;
   private final String productName;
   private final String configId;
   private final Product product;
 
-  ParsedConfigKey(String org, Integer version, String productName, String configId) {
+  ParsedConfigKey(
+      String orginalKey, String org, Integer version, String productName, String configId) {
+    this.orginalKey = orginalKey;
     this.org = org;
     this.version = version;
     this.productName = productName;
@@ -42,7 +47,7 @@ public class ParsedConfigKey {
     String product = matcher.group(3);
     String configId = matcher.group(4);
 
-    return new ParsedConfigKey(org, parsedVersion, product, configId);
+    return new ParsedConfigKey(configKey, org, parsedVersion, product, configId);
   }
 
   public Product getProduct() {
@@ -67,17 +72,19 @@ public class ParsedConfigKey {
 
   @Override
   public String toString() {
-    if (version != null) {
-      return this.org
-          + "/"
-          + this.version
-          + "/"
-          + this.productName
-          + "/"
-          + this.configId
-          + "/config";
-    } else {
-      return this.org + "/" + this.productName + "/" + this.configId + "/config";
-    }
+    return orginalKey;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    ParsedConfigKey that = (ParsedConfigKey) o;
+    return Objects.equals(orginalKey, that.orginalKey);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(orginalKey);
   }
 }

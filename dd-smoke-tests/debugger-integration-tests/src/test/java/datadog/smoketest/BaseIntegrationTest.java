@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import okhttp3.HttpUrl;
@@ -180,7 +181,7 @@ public abstract class BaseIntegrationTest {
         JsonAdapter<Configuration> adapter =
             MoshiHelper.createMoshiConfig().adapter(Configuration.class);
         String json = adapter.toJson(configuration);
-        String remoteConfigJson = RemoteConfigHelper.encode(json, configuration.getId());
+        String remoteConfigJson = RemoteConfigHelper.encode(json, UUID.randomUUID().toString());
         return new MockResponse().setResponseCode(200).setBody(remoteConfigJson);
       } catch (Exception e) {
         throw new RuntimeException(e);
@@ -219,14 +220,14 @@ public abstract class BaseIntegrationTest {
   }
 
   protected Configuration createConfig(Collection<SnapshotProbe> snapshotProbes) {
-    return new Configuration(getAppId(), 2, snapshotProbes);
+    return new Configuration(snapshotProbes);
   }
 
   protected Configuration createConfig(
       Collection<SnapshotProbe> snapshotProbes,
       Configuration.FilterList allowList,
       Configuration.FilterList denyList) {
-    return new Configuration(getAppId(), 2, snapshotProbes, null, null, allowList, denyList, null);
+    return new Configuration(snapshotProbes, null, null, allowList, denyList, null);
   }
 
   protected void assertCaptureArgs(

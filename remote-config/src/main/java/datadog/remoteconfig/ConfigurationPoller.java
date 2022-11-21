@@ -67,8 +67,7 @@ public class ConfigurationPoller
   private final long maxPayloadSize;
   private final boolean integrityChecks;
 
-  private final Map<Product, ProductState> productState = new HashMap<>();
-  private final Map<Product, ProductListener> productListeners = new HashMap<>();
+  private final Map<Product, ProductState> productStates = new HashMap<>();
   private final Map<File, ConfigurationChangesListener> fileListeners = new HashMap<>();
 
   private final ClientState nextClientState = new ClientState();
@@ -128,8 +127,7 @@ public class ConfigurationPoller
   }
 
   public synchronized <T> void addListener(Product product, ProductListener listener) {
-    this.productState.put(product, new ProductState(product));
-    this.productListeners.put(product, listener);
+    this.productStates.put(product, new ProductState(product, listener));
   }
 
   public synchronized <T> void addListener(
@@ -140,8 +138,7 @@ public class ConfigurationPoller
   }
 
   public synchronized void removeListener(Product product) {
-    this.productState.remove(product);
-    this.productListeners.remove(product);
+    this.productStates.remove(product);
   }
 
   public synchronized <T> void addFileListener(
@@ -183,7 +180,7 @@ public class ConfigurationPoller
       loadFromFile(e.getKey(), e.getValue());
     }
 
-    if (!this.productListeners.isEmpty()) {
+    if (!this.productStates.isEmpty()) {
 
       if (!initialize()) {
         // Do not log anything before initialization to avoid excessive verboseness when remote
@@ -252,13 +249,13 @@ public class ConfigurationPoller
   }
 
   private Collection<String> getSubscribedProductNames() {
-    return this.productListeners.keySet().stream().map(Enum::name).collect(Collectors.toList());
+    return this.productStates.keySet().stream().map(Enum::name).collect(Collectors.toList());
   }
 
   List<RemoteConfigRequest.CachedTargetFile> getCachedTargetFiles() {
     List<RemoteConfigRequest.CachedTargetFile> cachedTargetFiles = new ArrayList<>();
 
-    for (ProductState state : productState.values()) {
+    for (ProductState state : productStates.values()) {
       cachedTargetFiles.addAll(state.getCachedTargetFiles());
     }
     return cachedTargetFiles;
@@ -267,7 +264,7 @@ public class ConfigurationPoller
   List<ConfigState> getConfigState() {
     List<ConfigState> configStates = new ArrayList<>();
 
-    for (ProductState state : productState.values()) {
+    for (ProductState state : productStates.values()) {
       configStates.addAll(state.getConfigStates());
     }
     return configStates;
@@ -342,15 +339,15 @@ public class ConfigurationPoller
       return;
     }
 
-    ReportableException error = null;
+    List<ReportableException> errors = new ArrayList<>();
 
-    Map<Product, List<ParsedConfigKey>> sortedKeys = new HashMap<>();
+    Map<Product, List<ParsedConfigKey>> parsedKeysByProduct = new HashMap<>();
 
     for (String configKey : fleetResponse.getClientConfigs()) {
       try {
         ParsedConfigKey parsedConfigKey = ParsedConfigKey.parse(configKey);
         Product product = parsedConfigKey.getProduct();
-        if (!(productListeners.containsKey(product))) {
+        if (!(productStates.containsKey(product))) {
           throw new ReportableException(
               "Told to handle config key "
                   + configKey
@@ -358,26 +355,42 @@ public class ConfigurationPoller
                   + parsedConfigKey.getProductName()
                   + " is not being handled");
         }
-        sortedKeys.computeIfAbsent(product, k -> new ArrayList<>()).add(parsedConfigKey);
+        parsedKeysByProduct.computeIfAbsent(product, k -> new ArrayList<>()).add(parsedConfigKey);
       } catch (ReportableException e) {
-        error = e;
+        errors.add(e);
       }
     }
 
-    for (Map.Entry<Product, ProductState> entry : productState.entrySet()) {
+    for (Map.Entry<Product, ProductState> entry : productStates.entrySet()) {
       Product product = entry.getKey();
       ProductState state = entry.getValue();
-      ProductListener listener = productListeners.get(product);
-      List<ParsedConfigKey> keysToAccept = sortedKeys.getOrDefault(product, Collections.EMPTY_LIST);
-      state.apply(fleetResponse, keysToAccept, this, listener);
+      List<ParsedConfigKey> relevantKeys =
+          parsedKeysByProduct.getOrDefault(product, Collections.EMPTY_LIST);
+      state.apply(fleetResponse, relevantKeys, this);
       if (state.hasError()) {
-        error = state.getError();
+        errors.addAll(state.getErrors());
       }
     }
 
-    updateNextState(fleetResponse, error);
+    updateNextState(fleetResponse, buildErrorMessage(errors));
 
     rescheduleBaseOnConfiguration(this.durationHint);
+  }
+
+  private String buildErrorMessage(List<ReportableException> errors) {
+    if (errors.isEmpty()) {
+      return null;
+    }
+    if (errors.size() == 1) {
+      return errors.get(0).getMessage();
+    }
+    StringBuilder aggregateMessage = new StringBuilder();
+    aggregateMessage.append(
+        String.format("Failed to apply configuration due to %d errors:%n", errors.size()));
+    for (int i = 0; i < errors.size(); i++) {
+      aggregateMessage.append(String.format(" (%d) %s%n", i + 1, errors.get(i).getMessage()));
+    }
+    return aggregateMessage.toString();
   }
 
   /**
@@ -386,7 +399,7 @@ public class ConfigurationPoller
    *     during registered deserializers and config listeners. If there is an error, the
    *     targets_version in client.state is not updated (but the rest is).
    */
-  private void updateNextState(RemoteConfigResponse fleetResponse, ReportableException error) {
+  private void updateNextState(RemoteConfigResponse fleetResponse, String error) {
     RemoteConfigResponse.Targets.TargetsSigned targetsSigned = fleetResponse.getTargetsSigned();
 
     long newTargetsVersion = targetsSigned.version;
@@ -395,7 +408,7 @@ public class ConfigurationPoller
         // the system tests expect here the targets version not to be updated
         error == null ? newTargetsVersion : this.nextClientState.targetsVersion,
         getConfigState(),
-        error == null ? null : error.getMessage(),
+        error == null ? null : error,
         targetsSigned.custom != null ? targetsSigned.custom.opaqueBackendState : null);
   }
 

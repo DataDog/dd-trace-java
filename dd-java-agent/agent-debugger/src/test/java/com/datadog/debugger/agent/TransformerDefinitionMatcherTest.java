@@ -17,8 +17,6 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 public class TransformerDefinitionMatcherTest {
-  private static final String SERVICE_NAME = "service-name";
-  private static final long ORG_ID = 2;
   private static final String PROBE_ID1 = "beae1807-f3b0-4ea8-a74f-826790c5e6f6";
   private static final String PROBE_ID2 = "beae1807-f3b0-4ea8-a74f-826790c5e6f7";
 
@@ -168,7 +166,7 @@ public class TransformerDefinitionMatcherTest {
       Collection<MetricProbe> metricProbes,
       Collection<LogProbe> logProbes) {
     return new TransformerDefinitionMatcher(
-        new Configuration(SERVICE_NAME, ORG_ID, snapshotProbes, metricProbes, logProbes));
+        new Configuration(snapshotProbes, metricProbes, logProbes));
   }
 
   private static List<ProbeDefinition> match(TransformerDefinitionMatcher matcher, Class<?> clazz) {
