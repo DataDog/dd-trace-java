@@ -128,12 +128,7 @@ public class DebuggerAgent {
 
   private static void subscribeConfigurationPoller(ConfigurationUpdater configurationUpdater) {
     configurationPoller.addListener(
-        Product.LIVE_DEBUGGING,
-        ConfigurationDeserializer.INSTANCE,
-        (configKey, newConfig, hinter) -> {
-          configurationUpdater.accept(newConfig);
-          // TODO: disable debugger
-        });
+        Product.LIVE_DEBUGGING, new ConfigurationChangesListener(configurationUpdater));
   }
 
   static ClassFileTransformer setupInstrumentTheWorldTransformer(
