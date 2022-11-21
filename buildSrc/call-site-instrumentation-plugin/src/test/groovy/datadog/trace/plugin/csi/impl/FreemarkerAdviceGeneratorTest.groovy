@@ -170,7 +170,7 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
       invokeDynamic = true
     )
     static String after(@CallSite.AllArguments final Object[] arguments, @CallSite.Return final String result) {
-      return result;
+      result
     }
   }
 
@@ -195,7 +195,7 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     final adviceClass = javaFile.getType(0)
     adviceClass.name.asString().endsWith(InvokeDynamicAfterAdvice.simpleName + 'After')
     final interfaces = adviceClass.asClassOrInterfaceDeclaration().implementedTypes.collect {it.name.asString() }
-    interfaces == ['CallSiteAdvice', 'Pointcut', 'InvokeDynamicAdvice', 'HasFlags', 'HasHelpers']
+    interfaces == ['CallSiteAdvice', 'Pointcut', 'InvokeDynamicAdvice', 'HasFlags', 'HasHelpers', 'HasMinJavaVersion']
     final methods = groupMethods(adviceClass)
     getStatements(methods['pointcut']) == ['return this;']
     getStatements(methods['type']) == ['return "java/lang/invoke/StringConcatFactory";']
@@ -246,7 +246,7 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     final adviceClass = javaFile.getType(0)
     adviceClass.name.asString().endsWith(InvokeDynamicAroundAdvice.simpleName + 'Around')
     final interfaces = adviceClass.asClassOrInterfaceDeclaration().implementedTypes.collect {it.name.asString() }
-    interfaces == ['CallSiteAdvice', 'Pointcut', 'InvokeDynamicAdvice', 'HasHelpers']
+    interfaces == ['CallSiteAdvice', 'Pointcut', 'InvokeDynamicAdvice', 'HasHelpers', 'HasMinJavaVersion']
     final methods = groupMethods(adviceClass)
     getStatements(methods['pointcut']) == ['return this;']
     getStatements(methods['type']) == ['return "java/lang/invoke/StringConcatFactory";']
@@ -292,7 +292,7 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     final adviceClass = javaFile.getType(0)
     adviceClass.name.asString().endsWith(InvokeDynamicWithConstantsAdvice.simpleName + 'After')
     final interfaces = adviceClass.asClassOrInterfaceDeclaration().implementedTypes.collect {it.name.asString() }
-    interfaces == ['CallSiteAdvice', 'Pointcut', 'InvokeDynamicAdvice', 'HasFlags', 'HasHelpers']
+    interfaces == ['CallSiteAdvice', 'Pointcut', 'InvokeDynamicAdvice', 'HasFlags', 'HasHelpers', 'HasMinJavaVersion']
     final methods = groupMethods(adviceClass)
     getStatements(methods['pointcut']) == ['return this;']
     getStatements(methods['type']) == ['return "java/lang/invoke/StringConcatFactory";']
@@ -353,6 +353,109 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     assertNoErrors(result)
     final advices = result.advices.map { it.file.name }.collect(Collectors.toList())
     advices.containsAll(['FreemarkerAdviceGeneratorTest$ArrayAdviceAfter0.java', 'FreemarkerAdviceGeneratorTest$ArrayAdviceAfter1.java'])
+  }
+
+  @CallSite(minJavaVersion = 9)
+  class MinJavaVersionAdvice {
+    @CallSite.After('void java.net.URL.<init>(java.lang.String)')
+    static URL after(@CallSite.This final URL url, @CallSite.Argument final String spec) {
+      return url;
+    }
+  }
+
+  def 'test min java version advice'() {
+    setup:
+    final spec = buildClassSpecification(MinJavaVersionAdvice)
+    final generator = buildFreemarkerAdviceGenerator(buildDir)
+
+    when:
+    final result = generator.generate(spec)
+
+    then:
+    assertNoErrors(result)
+    final advice = findAdvice(result, 'after' )
+    assertNoErrors(advice)
+    final javaFile = new JavaParser().parse(advice.file).getResult().get()
+    final adviceClass = javaFile.getType(0)
+    final interfaces = adviceClass.asClassOrInterfaceDeclaration().implementedTypes.collect {it.name.asString() }
+    interfaces == ['CallSiteAdvice', 'Pointcut', 'InvokeAdvice', 'HasFlags', 'HasHelpers', 'HasMinJavaVersion']
+    final methods = groupMethods(adviceClass)
+    getStatements(methods['minJavaVersion']) == ['return 9;']
+  }
+
+
+  @CallSite
+  class PartialArgumentsBeforeAdvice {
+    @CallSite.Before("int java.sql.Statement.executeUpdate(java.lang.String, java.lang.String[])")
+    static void before(@CallSite.Argument(0) String arg1) {}
+
+    @CallSite.Before("java.lang.String java.lang.String.format(java.lang.String, java.lang.Object[])")
+    static void before(@CallSite.Argument(1) Object[] arg) {}
+
+    @CallSite.Before("java.lang.CharSequence java.lang.String.subSequence(int, int)")
+    static void before(@CallSite.This String thiz, @CallSite.Argument(0) int arg) {}
+  }
+
+  void 'partial arguments with before advice'() {
+    setup:
+    CallSiteSpecification spec = buildClassSpecification(PartialArgumentsBeforeAdvice)
+    FreemarkerAdviceGenerator generator = buildFreemarkerAdviceGenerator(buildDir)
+
+    when:
+    CallSiteResult result = generator.generate(spec)
+
+    then:
+    assertNoErrors result
+    List<String> adviceFiles = result.advices*.file*.name
+    adviceFiles == [
+      'FreemarkerAdviceGeneratorTest$PartialArgumentsBeforeAdviceBefore0.java',
+      'FreemarkerAdviceGeneratorTest$PartialArgumentsBeforeAdviceBefore1.java',
+      'FreemarkerAdviceGeneratorTest$PartialArgumentsBeforeAdviceBefore2.java',
+    ]
+
+    when:
+    def javaFile = new JavaParser().parse(result.advices.findFirst().get().file).result.get()
+    def adviceClass = javaFile.getType(0)
+    def methods = groupMethods(adviceClass)
+
+    then:
+    getStatements(methods['pointcut']) == ['return this;']
+    getStatements(methods['type']) == ['return "java/sql/Statement";']
+    getStatements(methods['method']) == ['return "executeUpdate";']
+    getStatements(methods['descriptor']) == ['return "(Ljava/lang/String;[Ljava/lang/String;)I";']
+    getStatements(methods['flags']) == ['return COMPUTE_MAX_STACK;']
+    getStatements(methods['apply']) == [
+      'int[] parameterIndices = new int[] { 0 };',
+      'handler.dupParameters(descriptor, parameterIndices, owner);',
+      'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/FreemarkerAdviceGeneratorTest$PartialArgumentsBeforeAdvice", "before", "(Ljava/lang/String;)V", false);',
+      'handler.method(opcode, owner, name, descriptor, isInterface);',
+    ]
+
+    when:
+    javaFile = new JavaParser().parse(result.advices*.file[1]).result.get()
+    adviceClass = javaFile.getType(0)
+    methods = groupMethods(adviceClass)
+
+    then:
+    getStatements(methods['apply']) == [
+      'int[] parameterIndices = new int[] { 1 };',
+      'handler.dupParameters(descriptor, parameterIndices, null);',
+      'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/FreemarkerAdviceGeneratorTest$PartialArgumentsBeforeAdvice", "before", "([Ljava/lang/Object;)V", false);',
+      'handler.method(opcode, owner, name, descriptor, isInterface);',
+    ]
+
+    when:
+    javaFile = new JavaParser().parse(result.advices*.file[2]).result.get()
+    adviceClass = javaFile.getType(0)
+    methods = groupMethods(adviceClass)
+
+    then:
+    getStatements(methods['apply']) == [
+      'int[] parameterIndices = new int[] { 0 };',
+      'handler.dupInvoke(owner, descriptor, parameterIndices);',
+      'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/FreemarkerAdviceGeneratorTest$PartialArgumentsBeforeAdvice", "before", "(Ljava/lang/String;I)V", false);',
+      'handler.method(opcode, owner, name, descriptor, isInterface);',
+    ]
   }
 
   private static List<String> getStatements(final MethodDeclaration method) {

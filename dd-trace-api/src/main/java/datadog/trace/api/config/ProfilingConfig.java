@@ -42,6 +42,10 @@ public final class ProfilingConfig {
   public static final String PROFILING_PROXY_PASSWORD = "profiling.proxy.password";
   public static final String PROFILING_EXCEPTION_SAMPLE_LIMIT = "profiling.exception.sample.limit";
   public static final int PROFILING_EXCEPTION_SAMPLE_LIMIT_DEFAULT = 10_000;
+
+  public static final String PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT =
+      "profiling.direct.allocation.sample.limit";
+  public static final int PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT_DEFAULT = 10_000;
   public static final String PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS =
       "profiling.exception.histogram.top-items";
   public static final int PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS_DEFAULT = 50;
@@ -56,6 +60,11 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_ASYNC_ENABLED = "profiling.async.enabled";
   public static final boolean PROFILING_ASYNC_ENABLED_DEFAULT = false;
+
+  public static final String PROFILING_DIRECT_ALLOCATION_ENABLED =
+      "profiling.directallocation.enabled";
+  public static final boolean PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT = false;
+
   public static final String PROFILING_ASYNC_LIBPATH = "profiling.async.lib";
   public static final String PROFILING_ASYNC_ALLOC_ENABLED = "profiling.async.alloc.enabled";
   public static final boolean PROFILING_ASYNC_ALLOC_ENABLED_DEFAULT = false;
@@ -113,20 +122,8 @@ public final class ProfilingConfig {
   public static final String PROFILING_TRACING_CONTEXT_MAX_SPANS =
       "profiling.tracing_context.inflight_spans.max";
   public static final int PROFILING_TRACING_CONTEXT_MAX_SPANS_DEFAULT = 1_000_000;
-
-  public static final String PROFILING_LEGACY_TRACING_INTEGRATION =
-      "profiling.legacy.tracing.integration";
-  public static final boolean PROFILING_LEGACY_TRACING_INTEGRATION_DEFAULT = true;
   public static final String PROFILING_CHECKPOINTS_RECORD_CPU_TIME =
       "profiling.checkpoints.record.cpu.time";
-  public static final String PROFILING_CHECKPOINTS_SAMPLER_RATE_LIMIT =
-      "profiling.checkpoints.sampler.rate-limit";
-  public static final int PROFILING_CHECKPOINTS_SAMPLER_RATE_LIMIT_DEFAULT = 100000;
-  public static final String PROFILING_CHECKPOINTS_SAMPLER_WINDOW_MS =
-      "profiling.checkpoints.sampler.sliding-window.ms";
-  public static final int PROFILING_CHECKPOINTS_SAMPLER_WINDOW_MS_DEFAULT = 5000;
-  public static final String PROFILING_CHECKPOINTS_SAMPLER_LIMIT = "profiling.checkpoints.limit";
-  public static final int PROFILING_CHECKPOINTS_SAMPLER_LIMIT_DEFAULT = 500_000;
   public static final String PROFILING_ENDPOINT_COLLECTION_ENABLED =
       "profiling.endpoint.collection.enabled";
   public static final boolean PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT = true;

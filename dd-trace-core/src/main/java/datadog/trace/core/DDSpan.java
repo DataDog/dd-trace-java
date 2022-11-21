@@ -10,8 +10,9 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.profiling.TracingContextTracker;
@@ -50,12 +51,7 @@ public class DDSpan
   public static final String CHECKPOINTED_TAG = "checkpointed";
 
   static DDSpan create(final long timestampMicro, @Nonnull DDSpanContext context) {
-    return create(timestampMicro, context, true);
-  }
-
-  static DDSpan create(
-      final long timestampMicro, @Nonnull DDSpanContext context, boolean emitCheckpoints) {
-    final DDSpan span = new DDSpan(timestampMicro, context, emitCheckpoints);
+    final DDSpan span = new DDSpan(timestampMicro, context);
     log.debug("Started span: {}", span);
     context.getTrace().registerSpan(span);
     span.tracingContextTracker = TracingContextTrackerFactory.instance(span);
@@ -89,11 +85,6 @@ public class DDSpan
 
   private boolean forceKeep;
 
-  // Marked as volatile to assure proper publication to child spans executed on different threads
-  private volatile byte emittingCheckpoints; // 0 = unset, 1 = true, -1 = false
-
-  private final boolean withCheckpoints;
-
   private volatile EndpointTracker endpointTracker;
 
   // Cached OT/OTel wrapper to avoid multiple allocations, e.g. when span is activated
@@ -111,7 +102,17 @@ public class DDSpan
    * @param context the context used for the span
    */
   private DDSpan(final long timestampMicro, @Nonnull DDSpanContext context) {
-    this(timestampMicro, context, true);
+    this.context = context;
+
+    if (timestampMicro <= 0L) {
+      // note: getting internal time from the trace implicitly 'touches' it
+      startTimeNano = context.getTrace().getCurrentTimeNano();
+      externalClock = false;
+    } else {
+      startTimeNano = MICROSECONDS.toNanos(timestampMicro);
+      externalClock = true;
+      context.getTrace().touch(); // external clock: explicitly update lastReferenced
+    }
   }
 
   private volatile TracingContextTracker tracingContextTracker;
@@ -135,22 +136,6 @@ public class DDSpan
           return encodedString.encodedLength();
         }
       };
-
-  private DDSpan(
-      final long timestampMicro, @Nonnull DDSpanContext context, boolean emitLocalCheckpoints) {
-    this.context = context;
-    this.withCheckpoints = emitLocalCheckpoints;
-
-    if (timestampMicro <= 0L) {
-      // note: getting internal time from the trace implicitly 'touches' it
-      startTimeNano = context.getTrace().getCurrentTimeNano();
-      externalClock = false;
-    } else {
-      startTimeNano = MICROSECONDS.toNanos(timestampMicro);
-      externalClock = true;
-      context.getTrace().touch(); // external clock: explicitly update lastReferenced
-    }
-  }
 
   public boolean isFinished() {
     return durationNano != 0;
@@ -308,40 +293,6 @@ public class DDSpan
     return forceKeep;
   }
 
-  @Override
-  public void setEmittingCheckpoints(boolean value) {
-    /*
-    The decision to emit checkpoints is made at the local root span level.
-    This is to ensure consistency in the emitted checkpoints where the whole
-    local root span subtree must either be fully covered or no checkpoints should
-    be emitted at all.
-    */
-    DDSpan rootSpan = getLocalRootSpan();
-    if (rootSpan.emittingCheckpoints == 0) {
-      rootSpan.emittingCheckpoints = value ? 1 : (byte) -1;
-      if (value) {
-        rootSpan.setTag(CHECKPOINTED_TAG, value);
-      }
-    }
-  }
-
-  @Override
-  public Boolean isEmittingCheckpoints() {
-    /*
-    The decision to emit checkpoints is made at the local root span level.
-    This is to ensure consistency in the emitted checkpoints where the whole
-    local root span subtree must either be fully covered or no checkpoints should
-    be emitted at all.
-    */
-    byte flag = getLocalRootSpan().emittingCheckpoints;
-    return flag == 0 ? null : flag > 0 ? Boolean.TRUE : Boolean.FALSE;
-  }
-
-  @Override
-  public boolean hasCheckpoints() {
-    return withCheckpoints;
-  }
-
   /**
    * Check if the span is the root parent. It means that the traceId is the same as the spanId. In
    * the context of distributed tracing this will return true if an only if this is the application
@@ -350,7 +301,7 @@ public class DDSpan
    * @return true if root, false otherwise
    */
   public final boolean isRootSpan() {
-    return DDId.ZERO.equals(context.getParentId());
+    return context.getParentId() == DDSpanId.ZERO;
   }
 
   @Override
@@ -377,7 +328,6 @@ public class DDSpan
   public boolean isSameTrace(final AgentSpan otherSpan) {
     // FIXME [API] AgentSpan or AgentSpan.Context should have a "getTraceId()" type method
     if (otherSpan instanceof DDSpan) {
-      // minor optimization to avoid BigInteger.toString()
       return getTraceId().equals(otherSpan.getTraceId());
     }
 
@@ -585,21 +535,12 @@ public class DDSpan
     if (tracingContextTracker != null) {
       tracingContextTracker.activateContext();
     }
-    if (hasCheckpoints()) {
-      CoreTracer tracer = context.getTracer();
-      if (tracer != null) {
-        tracer.onStartWork(this);
-      }
-    }
   }
 
   @Override
   public void finishWork() {
     if (tracingContextTracker != null) {
       tracingContextTracker.deactivateContext();
-    }
-    if (hasCheckpoints()) {
-      context.getTracer().onFinishWork(this);
     }
   }
 
@@ -664,17 +605,17 @@ public class DDSpan
   }
 
   @Override
-  public DDId getTraceId() {
+  public DDTraceId getTraceId() {
     return context.getTraceId();
   }
 
   @Override
-  public DDId getSpanId() {
+  public long getSpanId() {
     return context.getSpanId();
   }
 
   @Override
-  public DDId getParentId() {
+  public long getParentId() {
     return context.getParentId();
   }
 

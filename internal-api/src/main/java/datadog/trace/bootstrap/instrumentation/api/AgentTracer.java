@@ -2,11 +2,10 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 
-import datadog.trace.api.Checkpointer;
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.PropagationStyle;
-import datadog.trace.api.SpanCheckpointer;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -14,8 +13,8 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
-import datadog.trace.context.ScopeListener;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -26,45 +25,23 @@ public class AgentTracer {
 
   // Implicit parent
   public static AgentSpan startSpan(final CharSequence spanName) {
-    return startSpan(spanName, true);
-  }
-
-  public static AgentSpan startSpan(final CharSequence spanName, boolean withCheckpoints) {
-    return get().startSpan(spanName, withCheckpoints);
+    return get().startSpan(spanName);
   }
 
   // Implicit parent
   public static AgentSpan startSpan(final CharSequence spanName, final long startTimeMicros) {
-    return startSpan(spanName, startTimeMicros, true);
-  }
-
-  public static AgentSpan startSpan(
-      final CharSequence spanName, final long startTimeMicros, boolean withCheckpoints) {
-    return get().startSpan(spanName, startTimeMicros, withCheckpoints);
+    return get().startSpan(spanName, startTimeMicros);
   }
 
   // Explicit parent
   public static AgentSpan startSpan(final CharSequence spanName, final AgentSpan.Context parent) {
-    return startSpan(spanName, parent, true);
-  }
-
-  public static AgentSpan startSpan(
-      final CharSequence spanName, final AgentSpan.Context parent, boolean withCheckpoints) {
-    return get().startSpan(spanName, parent, withCheckpoints);
+    return get().startSpan(spanName, parent);
   }
 
   // Explicit parent
   public static AgentSpan startSpan(
       final CharSequence spanName, final AgentSpan.Context parent, final long startTimeMicros) {
-    return startSpan(spanName, parent, startTimeMicros, true);
-  }
-
-  public static AgentSpan startSpan(
-      final CharSequence spanName,
-      final AgentSpan.Context parent,
-      final long startTimeMicros,
-      boolean withCheckpoints) {
-    return get().startSpan(spanName, parent, startTimeMicros, withCheckpoints);
+    return get().startSpan(spanName, parent, startTimeMicros);
   }
 
   public static AgentScope activateSpan(final AgentSpan span) {
@@ -137,18 +114,15 @@ public class AgentTracer {
   // Not intended to be constructed.
   private AgentTracer() {}
 
-  public interface TracerAPI extends datadog.trace.api.Tracer, AgentPropagation, SpanCheckpointer {
-    AgentSpan startSpan(CharSequence spanName, boolean emitCheckpoint);
+  public interface TracerAPI
+      extends datadog.trace.api.Tracer, AgentPropagation, EndpointCheckpointer {
+    AgentSpan startSpan(CharSequence spanName);
 
-    AgentSpan startSpan(CharSequence spanName, long startTimeMicros, boolean emitCheckpoint);
+    AgentSpan startSpan(CharSequence spanName, long startTimeMicros);
 
-    AgentSpan startSpan(CharSequence spanName, AgentSpan.Context parent, boolean emitCheckpoint);
+    AgentSpan startSpan(CharSequence spanName, AgentSpan.Context parent);
 
-    AgentSpan startSpan(
-        CharSequence spanName,
-        AgentSpan.Context parent,
-        long startTimeMicros,
-        boolean emitCheckpoint);
+    AgentSpan startSpan(CharSequence spanName, AgentSpan.Context parent, long startTimeMicros);
 
     AgentScope activateSpan(AgentSpan span, ScopeSource source);
 
@@ -175,12 +149,11 @@ public class AgentTracer {
     void flush();
 
     /**
-     * Registers the checkpointer
+     * Attach a scope listener to the global scope manager
      *
-     * @param checkpointer
+     * @param listener listener to attach
      */
-    @Deprecated(/* forRemoval = true */ )
-    void registerCheckpointer(Checkpointer checkpointer);
+    void addScopeListener(ScopeListener listener);
 
     /**
      * Registers the checkpointer
@@ -235,8 +208,6 @@ public class AgentTracer {
     SpanBuilder withErrorFlag();
 
     SpanBuilder withSpanType(CharSequence spanType);
-
-    SpanBuilder suppressCheckpoints();
   }
 
   static class NoopTracerAPI implements TracerAPI {
@@ -244,28 +215,23 @@ public class AgentTracer {
     protected NoopTracerAPI() {}
 
     @Override
-    public AgentSpan startSpan(final CharSequence spanName, boolean withCheckpoints) {
+    public AgentSpan startSpan(final CharSequence spanName) {
+      return NoopAgentSpan.INSTANCE;
+    }
+
+    @Override
+    public AgentSpan startSpan(final CharSequence spanName, final long startTimeMicros) {
+      return NoopAgentSpan.INSTANCE;
+    }
+
+    @Override
+    public AgentSpan startSpan(final CharSequence spanName, final Context parent) {
       return NoopAgentSpan.INSTANCE;
     }
 
     @Override
     public AgentSpan startSpan(
-        final CharSequence spanName, final long startTimeMicros, boolean withCheckpoints) {
-      return NoopAgentSpan.INSTANCE;
-    }
-
-    @Override
-    public AgentSpan startSpan(
-        final CharSequence spanName, final Context parent, boolean withCheckpoints) {
-      return NoopAgentSpan.INSTANCE;
-    }
-
-    @Override
-    public AgentSpan startSpan(
-        final CharSequence spanName,
-        final Context parent,
-        final long startTimeMicros,
-        boolean withCheckpoints) {
+        final CharSequence spanName, final Context parent, final long startTimeMicros) {
       return NoopAgentSpan.INSTANCE;
     }
 
@@ -343,9 +309,6 @@ public class AgentTracer {
     public void addScopeListener(final ScopeListener listener) {}
 
     @Override
-    public void registerCheckpointer(Checkpointer checkpointer) {}
-
-    @Override
     public void registerCheckpointer(EndpointCheckpointer checkpointer) {}
 
     @Override
@@ -405,15 +368,6 @@ public class AgentTracer {
     }
 
     @Override
-    public void checkpoint(AgentSpan span, int flags) {}
-
-    @Override
-    public void onStartWork(AgentSpan span) {}
-
-    @Override
-    public void onFinishWork(AgentSpan span) {}
-
-    @Override
     public void onRootSpanFinished(AgentSpan root, boolean published) {}
 
     @Override
@@ -443,13 +397,13 @@ public class AgentTracer {
     private NoopAgentSpan() {}
 
     @Override
-    public DDId getTraceId() {
-      return DDId.ZERO;
+    public DDTraceId getTraceId() {
+      return DDTraceId.ZERO;
     }
 
     @Override
-    public DDId getSpanId() {
-      return DDId.ZERO;
+    public long getSpanId() {
+      return DDSpanId.ZERO;
     }
 
     @Override
@@ -716,19 +670,6 @@ public class AgentTracer {
     public byte getResourceNamePriority() {
       return Byte.MAX_VALUE;
     }
-
-    @Override
-    public void setEmittingCheckpoints(boolean value) {}
-
-    @Override
-    public Boolean isEmittingCheckpoints() {
-      return Boolean.FALSE;
-    }
-
-    @Override
-    public boolean hasCheckpoints() {
-      return false;
-    }
   }
 
   public static final class NoopAgentScope implements AgentScope {
@@ -836,13 +777,13 @@ public class AgentTracer {
     private NoopContext() {}
 
     @Override
-    public DDId getTraceId() {
-      return DDId.ZERO;
+    public DDTraceId getTraceId() {
+      return DDTraceId.ZERO;
     }
 
     @Override
-    public DDId getSpanId() {
-      return DDId.ZERO;
+    public long getSpanId() {
+      return DDSpanId.ZERO;
     }
 
     @Override

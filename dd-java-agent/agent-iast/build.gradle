@@ -1,6 +1,7 @@
 plugins {
-  id "com.github.johnrengelman.shadow"
+  id 'com.github.johnrengelman.shadow'
   id 'me.champeau.jmh'
+  id 'java-test-fixtures'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -8,15 +9,24 @@ apply from: "$rootDir/gradle/version.gradle"
 
 dependencies {
   api deps.slf4j
+
+  compileOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+
   implementation project(':internal-api')
   implementation project(':internal-api:internal-api-8')
   implementation project(':internal-api:internal-api-9')
   implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
 
+  testFixturesApi project(':dd-java-agent:testing')
+  testFixturesApi project(':utils:test-utils')
   testImplementation deps.bytebuddy
-  testImplementation project(':utils:test-utils')
 
   jmh project(':utils:test-utils')
+  jmh project(':dd-trace-core')
+  jmh project(':dd-java-agent:agent-builder')
+  jmh project(':dd-java-agent:instrumentation:iast-instrumenter')
+  jmh project(':dd-java-agent:instrumentation:java-lang')
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_8
@@ -42,7 +52,7 @@ ext {
     // Small JsonAdapters with unimplemented fromJson
     'com.datadog.iast.model.json.AdapterFactory',
     'com.datadog.iast.model.json.SourceTypeAdapter',
-    'com.datadog.iast.model.json.DDIdAdapter',
+    'com.datadog.iast.model.json.DDSpanIdAdapter',
     'com.datadog.iast.model.json.EvidenceAdapter',
   ]
   excludedClassesBranchCoverage = []

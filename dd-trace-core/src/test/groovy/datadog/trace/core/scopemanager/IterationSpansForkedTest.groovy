@@ -1,6 +1,5 @@
 package datadog.trace.core.scopemanager
 
-import datadog.trace.api.Checkpointer
 import datadog.trace.api.StatsDClient
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.common.writer.ListWriter
@@ -14,16 +13,13 @@ class IterationSpansForkedTest extends DDCoreSpecification {
   CoreTracer tracer
   ContinuableScopeManager scopeManager
   StatsDClient statsDClient
-  Checkpointer checkpointer
 
   def setup() {
     injectSysConfig("dd.trace.scope.iteration.keep.alive", "1")
 
-    checkpointer = Mock()
     writer = new ListWriter()
     statsDClient = Mock()
     tracer = tracerBuilder().writer(writer).statsDClient(statsDClient).build()
-    tracer.registerCheckpointer(checkpointer)
     scopeManager = tracer.scopeManager
   }
 

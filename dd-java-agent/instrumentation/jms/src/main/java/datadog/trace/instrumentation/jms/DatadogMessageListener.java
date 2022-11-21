@@ -48,8 +48,7 @@ public class DatadogMessageListener implements MessageListener {
       long batchId = GETTER.extractMessageBatchId(message);
       AgentSpan timeInQueue = consumerState.getTimeInQueueSpan(batchId);
       if (null == timeInQueue) {
-        timeInQueue =
-            startSpan(JMS_DELIVER, propagatedContext, MILLISECONDS.toMicros(startMillis), false);
+        timeInQueue = startSpan(JMS_DELIVER, propagatedContext, MILLISECONDS.toMicros(startMillis));
         BROKER_DECORATE.afterStart(timeInQueue);
         BROKER_DECORATE.onTimeInQueue(
             timeInQueue,

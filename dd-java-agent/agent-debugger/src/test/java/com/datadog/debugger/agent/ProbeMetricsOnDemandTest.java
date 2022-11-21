@@ -615,7 +615,7 @@ public class ProbeMetricsOnDemandTest {
 
   private MetricForwarderListener installMetricProbes(MetricProbe... metricProbes) {
     return installMetricProbes(
-        new Configuration(SERVICE_NAME, ORG_ID, null, Arrays.asList(metricProbes)));
+        new Configuration(SERVICE_NAME, ORG_ID, null, Arrays.asList(metricProbes), null));
   }
 
   @Test

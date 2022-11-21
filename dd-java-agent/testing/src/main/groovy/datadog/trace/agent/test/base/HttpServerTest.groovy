@@ -1188,7 +1188,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       errored expectedErrored(endpoint)
       if (parentID != null) {
         traceId traceID
-        parentId parentID
+        parentSpanId parentID
       } else {
         parent()
       }

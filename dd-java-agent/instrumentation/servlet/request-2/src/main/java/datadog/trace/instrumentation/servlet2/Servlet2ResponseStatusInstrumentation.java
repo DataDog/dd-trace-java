@@ -20,6 +20,11 @@ public final class Servlet2ResponseStatusInstrumentation extends Instrumenter.Tr
   }
 
   @Override
+  public String muzzleDirective() {
+    return "servlet-2.x";
+  }
+
+  @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     return Servlet2Instrumentation.NOT_SERVLET_3;
   }

@@ -55,9 +55,7 @@ public final class AgentBootstrap {
 
     try {
       final URL agentJarURL = installAgentJar(inst);
-
-      final Class<?> agentClass =
-          ClassLoader.getSystemClassLoader().loadClass("datadog.trace.bootstrap.Agent");
+      final Class<?> agentClass = Class.forName("datadog.trace.bootstrap.Agent", true, null);
       if (agentClass.getClassLoader() != null) {
         throw new IllegalStateException("DD Java Agent NOT added to bootstrap classpath.");
       }

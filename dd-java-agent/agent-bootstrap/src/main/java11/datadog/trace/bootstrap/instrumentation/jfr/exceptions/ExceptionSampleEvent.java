@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.jfr.exceptions;
 
+import datadog.trace.bootstrap.instrumentation.jfr.ContextualEvent;
 import jdk.jfr.Category;
 import jdk.jfr.Description;
 import jdk.jfr.Event;
@@ -10,7 +11,7 @@ import jdk.jfr.Name;
 @Label("ExceptionSample")
 @Description("Datadog exception sample event.")
 @Category("Datadog")
-public class ExceptionSampleEvent extends Event {
+public class ExceptionSampleEvent extends Event implements ContextualEvent {
   @Label("Exception Type")
   private final String type;
 
@@ -28,13 +29,12 @@ public class ExceptionSampleEvent extends Event {
   private final boolean firstOccurrence;
 
   @Label("Local Root Span Id")
-  private final long localRootSpanId;
+  private long localRootSpanId;
 
   @Label("Span Id")
-  private final long spanId;
+  private long spanId;
 
-  public ExceptionSampleEvent(
-      Throwable e, boolean sampled, boolean firstOccurrence, long localRootSpanId, long spanId) {
+  public ExceptionSampleEvent(Throwable e, boolean sampled, boolean firstOccurrence) {
     /*
      * TODO: we should have some tests for this class.
      * Unfortunately at the moment this is not easily possible because we cannot build tests with groovy that
@@ -46,8 +46,7 @@ public class ExceptionSampleEvent extends Event {
     this.stackDepth = getStackDepth(e);
     this.sampled = sampled;
     this.firstOccurrence = firstOccurrence;
-    this.localRootSpanId = localRootSpanId;
-    this.spanId = spanId;
+    captureContext();
   }
 
   private static String getMessage(Throwable t) {
@@ -66,5 +65,11 @@ public class ExceptionSampleEvent extends Event {
       // be defensive about exceptions choking on a call to getStackTrace()
     }
     return 0;
+  }
+
+  @Override
+  public void setContext(long localRootSpanId, long spanId) {
+    this.localRootSpanId = localRootSpanId;
+    this.spanId = spanId;
   }
 }

@@ -17,8 +17,6 @@ import static datadog.trace.api.DDTags.RUNTIME_ID_TAG
 import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG
 import static datadog.trace.api.DDTags.SERVICE
 import static datadog.trace.api.DDTags.SERVICE_TAG
-import static datadog.trace.api.IdGenerationStrategy.RANDOM
-import static datadog.trace.api.IdGenerationStrategy.SEQUENTIAL
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED
@@ -233,7 +231,7 @@ class ConfigTest extends DDSpecification {
     config.apiKey == "new api key" // we can still override via internal properties object
     config.site == "new site"
     config.serviceName == "something else"
-    config.idGenerationStrategy == SEQUENTIAL
+    config.idGenerationStrategy.class.name.endsWith('$Sequential')
     config.traceEnabled == false
     config.writerType == "LoggingWriter"
     config.agentHost == "somehost"
@@ -254,7 +252,6 @@ class ConfigTest extends DDSpecification {
     config.splitByTags == ["some.tag1", "some.tag2"].toSet()
     config.partialFlushMinSpans == 15
     config.reportHostName == true
-    config.runtimeContextFieldInjection == false
     config.propagationStylesToExtract.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
     config.propagationStylesToInject.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
     config.jmxFetchEnabled == false
@@ -422,7 +419,6 @@ class ConfigTest extends DDSpecification {
     config.splitByTags == ["some.tag3", "some.tag2", "some.tag1"].toSet()
     config.partialFlushMinSpans == 25
     config.reportHostName == true
-    config.runtimeContextFieldInjection == false
     config.propagationStylesToExtract.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
     config.propagationStylesToInject.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
     config.jmxFetchEnabled == false
@@ -777,42 +773,6 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == "what actually wants"
-  }
-
-  def "verify integration config"() {
-    setup:
-    environmentVariables.set("DD_INTEGRATION_ORDER_ENABLED", "false")
-    environmentVariables.set("DD_INTEGRATION_TEST_ENV_ENABLED", "true")
-    environmentVariables.set("DD_INTEGRATION_DISABLED_ENV_ENABLED", "false")
-
-    System.setProperty("dd.integration.order.enabled", "true")
-    System.setProperty("dd.integration.test-prop.enabled", "true")
-    System.setProperty("dd.integration.disabled-prop.enabled", "false")
-
-    expect:
-    Config.get().isIntegrationEnabled(integrationNames, defaultEnabled) == expected
-
-    where:
-    // spotless:off
-    names                          | defaultEnabled | expected
-    []                             | true           | true
-    []                             | false          | false
-    ["invalid"]                    | true           | true
-    ["invalid"]                    | false          | false
-    ["test-prop"]                  | false          | true
-    ["test-env"]                   | false          | true
-    ["disabled-prop"]              | true           | false
-    ["disabled-env"]               | true           | false
-    ["other", "test-prop"]         | false          | true
-    ["other", "test-env"]          | false          | true
-    ["order"]                      | false          | true
-    ["test-prop", "disabled-prop"] | false          | true
-    ["disabled-env", "test-env"]   | false          | true
-    ["test-prop", "disabled-prop"] | true           | false
-    ["disabled-env", "test-env"]   | true           | false
-    // spotless:on
-
-    integrationNames = new TreeSet<>(names)
   }
 
   def "verify rule config #name"() {
@@ -1970,7 +1930,7 @@ class ConfigTest extends DDSpecification {
     Config config = Config.get(prop)
 
     then:
-    config.idGenerationStrategy == RANDOM
+    config.idGenerationStrategy.class.name.endsWith('$Random')
   }
 
   def "DD_RUNTIME_METRICS_ENABLED=false disables all metrics"() {

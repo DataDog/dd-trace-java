@@ -99,7 +99,7 @@ public class CapturedSnapshotTest {
     int result = Reflect.on(testClass).call("main", "2").get();
     Assert.assertEquals(2, result);
     Assert.assertEquals(
-        "Cannot find CapturedSnapshot01::foobar",
+        "Cannot find method CapturedSnapshot01::foobar",
         listener.errors.get(PROBE_ID).get(0).getMessage());
   }
 
@@ -112,7 +112,8 @@ public class CapturedSnapshotTest {
     int result = Reflect.on(testClass).call("main", "2").get();
     Assert.assertEquals(2, result);
     Assert.assertEquals(
-        "Cannot find CapturedSnapshot01:L42", listener.errors.get(PROBE_ID).get(0).getMessage());
+        "No executable code was found at CapturedSnapshot01:L42",
+        listener.errors.get(PROBE_ID).get(0).getMessage());
   }
 
   @Test
@@ -794,6 +795,7 @@ public class CapturedSnapshotTest {
             null,
             null,
             null,
+            null,
             new SnapshotProbe.Sampling(1));
     DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, config);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -1125,6 +1127,24 @@ public class CapturedSnapshotTest {
     assertCaptureReturnValue(snapshot.getCaptures().getReturn(), "java.lang.Integer", "50");
   }
 
+  @Test
+  public void exceptionAsLocalVariable() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot18";
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, null, null, "14"));
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "2").get();
+    Assert.assertEquals(42, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    Map<String, String> expectedFields = new HashMap<>();
+    expectedFields.put("detailMessage", "For input string: \"a\"");
+    assertCaptureLocals(
+        snapshot.getCaptures().getLines().get(14),
+        "ex",
+        "java.lang.NumberFormatException",
+        expectedFields);
+  }
+
   private DebuggerTransformerTest.TestSnapshotListener setupInstrumentTheWorldTransformer(
       String excludeFileName) {
     Config config = mock(Config.class);
@@ -1264,6 +1284,26 @@ public class CapturedSnapshotTest {
     Snapshot.CapturedValue localVar = context.getLocals().get(name);
     Assert.assertEquals(typeName, localVar.getType());
     Assert.assertEquals(value, getValue(localVar));
+  }
+
+  private void assertCaptureLocals(
+      Snapshot.CapturedContext context,
+      String name,
+      String typeName,
+      Map<String, String> expectedFields) {
+    Snapshot.CapturedValue localVar = context.getLocals().get(name);
+    Assert.assertEquals(typeName, localVar.getType());
+    Map<String, Snapshot.CapturedValue> fields = getFields(localVar);
+    for (Map.Entry<String, String> entry : expectedFields.entrySet()) {
+      Assert.assertTrue(fields.containsKey(entry.getKey()));
+      Snapshot.CapturedValue fieldCapturedValue = fields.get(entry.getKey());
+      if (fieldCapturedValue.getNotCapturedReason() != null) {
+        Assert.assertEquals(
+            entry.getValue(), String.valueOf(fieldCapturedValue.getNotCapturedReason()));
+      } else {
+        Assert.assertEquals(entry.getValue(), String.valueOf(fieldCapturedValue.getValue()));
+      }
+    }
   }
 
   private void assertCaptureFields(

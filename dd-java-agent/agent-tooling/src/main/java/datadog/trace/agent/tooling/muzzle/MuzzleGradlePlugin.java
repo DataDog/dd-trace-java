@@ -1,8 +1,8 @@
 package datadog.trace.agent.tooling.muzzle;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.abstractClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.Instrumenter;
@@ -29,7 +29,7 @@ public class MuzzleGradlePlugin extends Plugin.ForElementMatcher {
   private final File targetDir;
 
   public MuzzleGradlePlugin(File targetDir) {
-    super(not(isAbstract()).and(extendsClass(named(Instrumenter.Default.class.getName()))));
+    super(not(abstractClass()).and(extendsClass(named(Instrumenter.Default.class.getName()))));
     this.targetDir = targetDir;
   }
 

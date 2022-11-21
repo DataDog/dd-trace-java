@@ -4,7 +4,7 @@ import static datadog.trace.bootstrap.AgentClassLoading.PROBING_CLASSLOADER;
 import static net.bytebuddy.matcher.ElementMatchers.any;
 
 import datadog.trace.agent.tooling.WeakCaches;
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Tracer;
 import datadog.trace.bootstrap.PatchLogger;
 import datadog.trace.bootstrap.WeakCache;
@@ -27,7 +27,7 @@ public final class ClassLoaderMatchers {
   private static final ClassLoader BOOTSTRAP_CLASSLOADER = null;
 
   private static final boolean HAS_CLASSLOADER_EXCLUDES =
-      !Config.get().getExcludedClassLoaders().isEmpty();
+      !InstrumenterConfig.get().getExcludedClassLoaders().isEmpty();
 
   /* Cache of classloader-instance -> (true|false). True = skip instrumentation. False = safe to instrument. */
   private static final WeakCache<ClassLoader, Boolean> skipCache = WeakCaches.newWeakCache(64);
@@ -75,7 +75,7 @@ public final class ClassLoaderMatchers {
         return true;
     }
     if (HAS_CLASSLOADER_EXCLUDES) {
-      return Config.get().getExcludedClassLoaders().contains(classLoaderName);
+      return InstrumenterConfig.get().getExcludedClassLoaders().contains(classLoaderName);
     }
     return false;
   }
@@ -90,7 +90,8 @@ public final class ClassLoaderMatchers {
   public static ElementMatcher.Junction<ClassLoader> hasClassNamed(String className) {
     ElementMatcher.Junction<ClassLoader> matcher = hasClassMatchers.get(className);
     if (null == matcher) {
-      hasClassMatchers.put(className, matcher = new HasClassMatcher(hasClassMatchers.size()));
+      // each matcher is given an id based on where to find its resource-name in the sequence
+      hasClassMatchers.put(className, matcher = new HasClassMatcher(hasClassResourceNames.size()));
       hasClassResourceNames.add(Strings.getResourceName(className));
     }
     return matcher;

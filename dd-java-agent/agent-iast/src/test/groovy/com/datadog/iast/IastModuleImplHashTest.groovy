@@ -3,14 +3,13 @@ package com.datadog.iast
 import com.datadog.iast.model.Evidence
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
-import datadog.trace.api.DDId
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
 class IastModuleImplHashTest extends IastModuleImplTestBase {
 
   void 'iast module vulnerable hash algorithm'(){
     given:
-    final spanId = DDId.from(123456)
+    final spanId = 123456
     final span = Mock(AgentSpan)
 
     when:

@@ -113,8 +113,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   public AgentSpan startSpan(REQUEST_CARRIER carrier, AgentSpan.Context.Extracted context) {
-    AgentSpan span =
-        tracer().startSpan(spanName(), callIGCallbackStart(context), true).setMeasured(true);
+    AgentSpan span = tracer().startSpan(spanName(), callIGCallbackStart(context)).setMeasured(true);
     Flow<Void> flow = callIGCallbackRequestHeaders(span, carrier);
     if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
       span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());

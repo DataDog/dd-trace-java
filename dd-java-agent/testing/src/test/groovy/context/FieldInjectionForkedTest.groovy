@@ -3,7 +3,7 @@ package context
 import datadog.trace.agent.test.AbortTransformationException
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.utils.ClasspathUtils
-import datadog.trace.api.Config
+import datadog.trace.api.InstrumenterConfig
 import datadog.trace.test.util.GCUtils
 import net.bytebuddy.agent.ByteBuddyAgent
 import net.bytebuddy.utility.JavaModule
@@ -112,7 +112,7 @@ class FieldInjectionForkedTest extends AgentTestRunner {
 
   def "serializability not impacted"() {
     setup:
-    assumeTrue(Config.get().isSerialVersionUIDFieldInjection())
+    assumeTrue(InstrumenterConfig.get().isSerialVersionUIDFieldInjection())
 
     expect:
     serialVersionUID(serializable) == serialVersionUID

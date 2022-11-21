@@ -47,8 +47,8 @@ import org.slf4j.LoggerFactory;
  */
 public class DebuggerTransformer implements ClassFileTransformer {
   private static final Logger log = LoggerFactory.getLogger(DebuggerTransformer.class);
-  private static final String CANNOT_FIND_METHOD = "Cannot find %s::%s";
-  private static final String CANNOT_FIND_LINE = "Cannot find %s:L%s";
+  private static final String CANNOT_FIND_METHOD = "Cannot find method %s::%s";
+  private static final String CANNOT_FIND_LINE = "No executable code was found at %s:L%s";
 
   private final Config config;
   private final TransformerDefinitionMatcher definitonMatcher;

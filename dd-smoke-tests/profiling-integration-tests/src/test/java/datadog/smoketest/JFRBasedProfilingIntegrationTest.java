@@ -75,8 +75,6 @@ class JFRBasedProfilingIntegrationTest {
   private static final int PROFILING_UPLOAD_PERIOD_SECONDS = 5;
 
   private static final int PROFILING_UPLOAD_TIMEOUT_SECONDS = 1;
-
-  private static final boolean LEGACY_TRACING_INTEGRATION = true; // default
   private static final boolean ENDPOINT_COLLECTION_ENABLED = true; // default
   // Set the request timeout value to the sum of the initial delay and the upload period
   // multiplied by a safety margin
@@ -140,42 +138,20 @@ class JFRBasedProfilingIntegrationTest {
   @DisplayName("Test continuous recording - no jmx delay")
   public void testContinuousRecording_no_jmx_delay(final TestInfo testInfo) throws Exception {
     testWithRetry(
-        () ->
-            testContinuousRecording(
-                0, LEGACY_TRACING_INTEGRATION, ENDPOINT_COLLECTION_ENABLED, false),
-        testInfo,
-        5);
+        () -> testContinuousRecording(0, true, ENDPOINT_COLLECTION_ENABLED, false), testInfo, 5);
   }
 
   @Test
   @DisplayName("Test continuous recording - 1 sec jmx delay")
   public void testContinuousRecording(final TestInfo testInfo) throws Exception {
     testWithRetry(
-        () ->
-            testContinuousRecording(
-                1, LEGACY_TRACING_INTEGRATION, ENDPOINT_COLLECTION_ENABLED, false),
-        testInfo,
-        5);
-  }
-
-  @Test
-  @DisplayName("Test continuous recording - checkpoint events")
-  public void testContinuousRecordingCheckpointEvents(final TestInfo testInfo) throws Exception {
-    testWithRetry(
-        () -> testContinuousRecording(0, false, ENDPOINT_COLLECTION_ENABLED, false), testInfo, 5);
+        () -> testContinuousRecording(1, true, ENDPOINT_COLLECTION_ENABLED, false), testInfo, 5);
   }
 
   @Test
   @DisplayName("Test continuous recording - async-profiler")
   public void testContinuousRecordingAsyncProfiler(final TestInfo testInfo) throws Exception {
     testWithRetry(() -> testContinuousRecording(0, false, true, true), testInfo, 5);
-  }
-
-  @Test
-  @DisplayName("Test continuous recording - checkpoint events, endpoint events disabled")
-  public void testContinuousRecordingCheckpointEventsNoEndpointCollection(final TestInfo testInfo)
-      throws Exception {
-    testWithRetry(() -> testContinuousRecording(0, false, false, false), testInfo, 5);
   }
 
   private void testContinuousRecording(
@@ -412,7 +388,7 @@ class JFRBasedProfilingIntegrationTest {
                         0,
                         PROFILING_START_DELAY_SECONDS,
                         PROFILING_UPLOAD_PERIOD_SECONDS,
-                        LEGACY_TRACING_INTEGRATION,
+                        true,
                         ENDPOINT_COLLECTION_ENABLED,
                         false,
                         exitDelay,
@@ -469,7 +445,7 @@ class JFRBasedProfilingIntegrationTest {
                         0,
                         PROFILING_START_DELAY_SECONDS,
                         PROFILING_UPLOAD_PERIOD_SECONDS,
-                        LEGACY_TRACING_INTEGRATION,
+                        true,
                         ENDPOINT_COLLECTION_ENABLED,
                         false,
                         duration,
@@ -566,10 +542,6 @@ class JFRBasedProfilingIntegrationTest {
                           Aggregators.min("datadog.Scope", cpuTimeAttr)))
                   .longValue()
               >= 10_000L);
-    } else if (!asyncProfilerEnabled) {
-      // Check checkpoint events
-      final IItemCollection checkpointEvents = events.apply(ItemFilters.type("datadog.Checkpoint"));
-      assertTrue(checkpointEvents.hasItems());
     }
     if (expectEndpointEvents) {
       // Check endpoint events

@@ -14,6 +14,7 @@ import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,16 +30,19 @@ public class CallSiteSpecification implements Validatable {
   private final Type clazz;
   private final List<AdviceSpecification> advices;
   private final Type spi;
+  private final int minJavaVersion;
   private final Type[] helpers;
 
   public CallSiteSpecification(
       @Nonnull final Type clazz,
       @Nonnull final List<AdviceSpecification> advices,
       @Nonnull final Type spi,
+      final int minJavaVersion,
       @Nonnull final Set<Type> helpers) {
     this.clazz = clazz;
     this.advices = advices;
     this.spi = spi;
+    this.minJavaVersion = minJavaVersion;
     this.helpers = helpers.toArray(new Type[0]);
   }
 
@@ -72,6 +76,10 @@ public class CallSiteSpecification implements Validatable {
     return spi;
   }
 
+  public int getMinJavaVersion() {
+    return minJavaVersion;
+  }
+
   public Type[] getHelpers() {
     return helpers;
   }
@@ -88,7 +96,7 @@ public class CallSiteSpecification implements Validatable {
   public abstract static class AdviceSpecification implements Validatable {
 
     protected final MethodType advice;
-    private final Map<Integer, ParameterSpecification> parameters;
+    private final Map<Integer /* param idx on the advice */, ParameterSpecification> parameters;
     protected final String signature;
     protected final boolean invokeDynamic;
     protected MethodType pointcut;
@@ -130,10 +138,6 @@ public class CallSiteSpecification implements Validatable {
           validateThisSpecCompatibility(context, adviceArgumentTypes);
           validateArgumentSpecCompatibility(context, adviceArgumentTypes, pointcutParameters);
           validateReturnSpecCompatibility(context, adviceArgumentTypes);
-          if (!pointcutParameters.isEmpty()) {
-            context.addError(
-                ErrorCode.ADVICE_POINT_CUT_PARAMETERS_NOT_CONSUMED, pointcutParameters);
-          }
         }
       } catch (ResolutionException e) {
         e.getErrors().forEach(context::addError);
@@ -403,6 +407,28 @@ public class CallSiteSpecification implements Validatable {
       return invokeDynamic;
     }
 
+    /* Whether not all of the pointcut arguments are consumed or they're not
+     * consumed in sequential order or there are no pointcut arguments at all */
+    public boolean isPositionalArguments() {
+      if (parameters.isEmpty()) {
+        return true;
+      }
+      if (pointcut.getMethodType().getArgumentTypes().length != getArguments().count()) {
+        return true;
+      }
+
+      Iterator<ArgumentSpecification> iterator = getArguments().iterator();
+      int i = 0;
+      while (iterator.hasNext()) {
+        ArgumentSpecification spec = iterator.next();
+        if (spec.getIndex() != i) {
+          return true;
+        }
+        i++;
+      }
+      return false;
+    }
+
     public boolean includeThis() {
       if (findThis() != null) {
         return true;
@@ -611,7 +637,7 @@ public class CallSiteSpecification implements Validatable {
 
     @Override
     public String toString() {
-      return "@Argument";
+      return "@Argument(" + index + ")";
     }
   }
 

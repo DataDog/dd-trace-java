@@ -1,6 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
 import datadog.trace.api.Platform
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -48,7 +46,6 @@ class KafkaStreamsTest extends AgentTestRunner {
 
   def "test kafka produce and consume with streams in-between"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(CheckpointValidationMode.INTERVALS)
     def config = new Properties()
     def producerProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
     config.putAll(producerProps)
@@ -213,26 +210,32 @@ class KafkaStreamsTest extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup originProducerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(originProducerPoint) {
-        edgeTags == ["topic:$STREAM_PENDING", "type:internal"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:out", "topic:$STREAM_PENDING", "type:kafka"]
+        edgeTags.size() == 3
       }
 
       StatsGroup kafkaStreamsConsumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == originProducerPoint.hash }
       verifyAll(kafkaStreamsConsumerPoint) {
-        edgeTags == ["group:test-application", "partition:0", "topic:$STREAM_PENDING".toString(), "type:kafka"]
-        edgeTags.size() == 4
+        edgeTags == [
+          "direction:in",
+          "group:test-application",
+          "partition:0",
+          "topic:$STREAM_PENDING".toString(),
+          "type:kafka"
+        ]
+        edgeTags.size() == 5
       }
 
       StatsGroup kafkaStreamsProducerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == kafkaStreamsConsumerPoint.hash }
       verifyAll(kafkaStreamsProducerPoint) {
-        edgeTags == ["topic:$STREAM_PROCESSED", "type:internal"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:out", "topic:$STREAM_PROCESSED", "type:kafka"]
+        edgeTags.size() == 3
       }
 
       StatsGroup finalConsumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == kafkaStreamsProducerPoint.hash }
       verifyAll(finalConsumerPoint) {
-        edgeTags == ["group:sender", "partition:0", "topic:$STREAM_PROCESSED".toString(), "type:kafka"]
-        edgeTags.size() == 4
+        edgeTags == ["direction:in", "group:sender", "partition:0", "topic:$STREAM_PROCESSED".toString(), "type:kafka"]
+        edgeTags.size() == 5
       }
     }
 

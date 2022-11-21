@@ -15,7 +15,8 @@ import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_PROTO_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_REAL_IP_KEY;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -31,8 +32,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
 
   protected final Map<String, String> taggedHeaders;
 
-  protected DDId traceId;
-  protected DDId spanId;
+  protected DDTraceId traceId;
+  protected long spanId;
   protected int samplingPriority;
   protected Map<String, String> tags;
   protected Map<String, String> baggage;
@@ -176,8 +177,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   }
 
   public ContextInterpreter reset() {
-    traceId = DDId.ZERO;
-    spanId = DDId.ZERO;
+    traceId = DDTraceId.ZERO;
+    spanId = DDSpanId.ZERO;
     samplingPriority = defaultSamplingPriority();
     origin = null;
     endToEndStartTime = 0;
@@ -193,7 +194,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
 
   TagContext build() {
     if (valid) {
-      if (!DDId.ZERO.equals(traceId)) {
+      if (!DDTraceId.ZERO.equals(traceId)) {
         final ExtractedContext context;
         context =
             new ExtractedContext(
