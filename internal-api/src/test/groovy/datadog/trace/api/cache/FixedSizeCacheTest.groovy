@@ -1,6 +1,7 @@
 package datadog.trace.api.cache
 
 import datadog.trace.test.util.DDSpecification
+import spock.lang.Shared
 import spock.util.concurrent.AsyncConditions
 
 import java.util.concurrent.CountDownLatch
@@ -94,16 +95,16 @@ class FixedSizeCacheTest extends DDSpecification {
     null                                       | null           | 3     // do nothing
   }
 
-  static id1 = new TKey(1, 0, "one")
-  static id6 = new TKey(6, 0, "six")
-  static id10 = new TKey(10, 0, "ten")
+  @Shared id1 = new TKey(1, 0, "one")
+  @Shared id6 = new TKey(6, 0, "six")
+  @Shared id10 = new TKey(10, 0, "ten")
 
   def "identity cache should store and retrieve values"() {
     setup:
     def fsCache = DDCaches.newFixedSizeIdentityCache(15)
     def creationCount = new AtomicInteger(0)
     def tvc = new TVC(creationCount)
-    // insert some values that happen to be the chain of hashes 1 -> 6 -> 10
+    // insert some values - note the keys will be compared by their identity, not their hash
     fsCache.computeIfAbsent(id1, tvc)
     fsCache.computeIfAbsent(id6, tvc)
     fsCache.computeIfAbsent(id10, tvc)
@@ -117,9 +118,9 @@ class FixedSizeCacheTest extends DDSpecification {
     id1                       | "one_value"    | 3     // used the cached id1
     id6                       | "six_value"    | 3     // used the cached id6
     id10                      | "ten_value"    | 3     // used the cached id10
-    new TKey(6, 0, "foo")     | "foo_value"    | 4     // create new value for key with different identity
-    new TKey(1, 0, "eleven")  | "eleven_value" | 4     // create new value in an occupied slot
-    new TKey(4, 0, "four")    | "four_value"   | 4     // create new value in empty slot
+    new TKey(1, 0, "1")       | "1_value"      | 4     // create new value for key with different identity
+    new TKey(6, 0, "6")       | "6_value"      | 4     // create new value for key with different identity
+    new TKey(10, 0, "10")     | "10_value"     | 4     // create new value for key with different identity
     null                      | null           | 3     // do nothing
   }
 
