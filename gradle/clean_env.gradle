@@ -14,6 +14,10 @@ def passEnv = [
   'TESTCONTAINERS_HOST_OVERRIDE',
   'TESTCONTAINERS_RYUK_DISABLED',
   'TEST_LIBASYNC',
+  'SONATYPE_USERNAME',
+  'SONATYPE_PASSWORD',
+  'GPG_PRIVATE_KEY',
+  'GPG_PASSWORD',
 ]
 
 def customPassEnv = System.getenv(passEnvKey)
