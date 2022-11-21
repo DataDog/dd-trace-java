@@ -1,5 +1,7 @@
 package datadog.trace.api.iast;
 
+import java.io.File;
+import java.net.URI;
 import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -161,6 +163,56 @@ public abstract class InstrumentationBridge {
       }
     } catch (final Throwable t) {
       onUnexpectedException("Callback for onProcessBuilderStart threw.", t);
+    }
+  }
+
+  public static void onPathTraversal(@Nonnull final String path) {
+    try {
+      if (MODULE != null) {
+        MODULE.onPathTraversal(path);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onPathTraversal threw.", t);
+    }
+  }
+
+  public static void onPathTraversal(@Nullable final String parent, @Nonnull final String child) {
+    try {
+      if (MODULE != null) {
+        MODULE.onPathTraversal(parent, child);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onPathTraversal threw.", t);
+    }
+  }
+
+  public static void onPathTraversal(@Nonnull final String first, @Nonnull final String[] more) {
+    try {
+      if (MODULE != null) {
+        MODULE.onPathTraversal(first, more);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onPathTraversal threw.", t);
+    }
+  }
+
+  public static void onPathTraversal(@Nullable final File parent, @Nonnull final String path) {
+    try {
+      if (MODULE != null) {
+        MODULE.onPathTraversal(parent, path);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onPathTraversal threw.", t);
+    }
+  }
+
+  public static void onPathTraversal(@Nonnull final URI uri) {
+    try {
+      if (MODULE != null) {
+        MODULE.onPathTraversal(uri);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onPathTraversal threw.", t);
     }
   }
 
