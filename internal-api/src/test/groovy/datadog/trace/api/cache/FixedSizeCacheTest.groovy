@@ -96,19 +96,17 @@ class FixedSizeCacheTest extends DDSpecification {
   }
 
   @Shared id1 = new TKey(1, 1, "one")
-  @Shared id6 = new TKey(6, 6, "six")
 
   def "identity cache should store and retrieve values"() {
     setup:
     def fsCache = DDCaches.newFixedSizeIdentityCache(15)
     def creationCount = new AtomicInteger(0)
     def tvc = new TVC(creationCount)
-    // insert some values - note the keys will be compared by their identity, not their hash
     fsCache.computeIfAbsent(id1, tvc)
-    fsCache.computeIfAbsent(id6, tvc)
-    // (only use two keys because we can't control the identity hash: a third might overwrite
-    // an earlier slot for a particular sequence of hashes, breaking test assumption that all
-    // the initial keys were allocated to distinct slots)
+
+    // (only use one key because we can't control the identity hash: more keys might overwrite
+    // an earlier slot if rehashing cycles to the same slots, breaking test assumption that all
+    // the initial keys are allocated to distinct slots)
 
     expect:
     fsCache.computeIfAbsent(tk, tvc) == value
@@ -116,11 +114,9 @@ class FixedSizeCacheTest extends DDSpecification {
 
     where:
     tk                        | value          | count
-    id1                       | "one_value"    | 2     // used the cached id1
-    id6                       | "six_value"    | 2     // used the cached id6
-    new TKey(1, 1, "1")       | "1_value"      | 3     // create new value for key with different identity
-    new TKey(6, 6, "6")       | "6_value"      | 3     // create new value for key with different identity
-    null                      | null           | 2     // do nothing
+    id1                       | "one_value"    | 1     // used the cached id1
+    new TKey(1, 1, "1")       | "1_value"      | 2     // create new value for key with different identity
+    null                      | null           | 1     // do nothing
   }
 
   def "chm cache should store and retrieve values"() {
