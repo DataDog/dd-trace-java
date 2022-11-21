@@ -109,21 +109,37 @@ class DDTraceIdTest extends DDSpecification {
     ]
   }
 
-  def "generate id with #idGenerator"() {
+  def "generate id with #strategyName"() {
     when:
-    final strategy = IdGenerationStrategy.fromName(strategyName)
-    final ddid = strategy != null ? strategy.generateTraceId() : DDTraceId.ONE
+    def strategy = IdGenerationStrategy.fromName(strategyName)
+    def traceIds = (0..32768).collect { strategy.generateTraceId() }
+    Set<DDTraceId> checked = new HashSet<>()
 
     then:
-    !ddid.equals(null)
-    !ddid.equals("foo")
-    ddid != DDTraceId.ZERO
-    ddid.equals(ddid)
-    ddid.hashCode() == (int) (ddid.toLong() ^ (ddid.toLong() >>> 32))
+    traceIds.forEach { traceId ->
+      assert !traceId.equals(null)
+      assert !traceId.equals("foo")
+      assert traceId != DDTraceId.ZERO
+      assert traceId.equals(traceId)
+      assert traceId.hashCode() == (int) (traceId.toLong() ^ (traceId.toLong() >>> 32))
+      assert !checked.contains(traceId)
+      checked.add(traceId)
+    }
 
     where:
-    // Add an unknown strategy for code coverage
-    strategyName << ["RANDOM", "SEQUENTIAL", "UNKNOWN"]
+    strategyName << ["RANDOM", "SEQUENTIAL"]
+  }
+
+  def "return null for non existing strategy #strategyName"() {
+    when:
+    def strategy = IdGenerationStrategy.fromName(strategyName)
+
+    then:
+    strategy == null
+
+    where:
+    // Check unknown strategies for code coverage
+    strategyName << ["SOME", "UNKNOWN", "STRATEGIES"]
   }
 
   def "convert ids from/to hex String and truncate to 64 bits while keeping the original"() {
