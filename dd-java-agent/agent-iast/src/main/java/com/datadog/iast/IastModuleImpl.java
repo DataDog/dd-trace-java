@@ -16,11 +16,13 @@ import datadog.trace.api.Config;
 import datadog.trace.api.iast.IastModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
 import datadog.trace.util.stacktrace.StackWalker;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -53,7 +55,8 @@ public final class IastModuleImpl implements IastModule {
       return;
     }
     // get StackTraceElement for the callee of MessageDigest
-    StackTraceElement stackTraceElement = stackWalker.walk(stack -> stack.findFirst().get());
+    StackTraceElement stackTraceElement =
+        stackWalker.walk(IastModuleImpl::findValidPackageForVulnerability);
 
     Vulnerability vulnerability =
         new Vulnerability(
@@ -76,7 +79,8 @@ public final class IastModuleImpl implements IastModule {
       return;
     }
     // get StackTraceElement for the caller of MessageDigest
-    StackTraceElement stackTraceElement = stackWalker.walk(stack -> stack.findFirst().get());
+    StackTraceElement stackTraceElement =
+        stackWalker.walk(IastModuleImpl::findValidPackageForVulnerability);
 
     Vulnerability vulnerability =
         new Vulnerability(
@@ -258,6 +262,48 @@ public final class IastModuleImpl implements IastModule {
       }
     }
     taintedObjects.taint(result, targetRanges);
+  }
+
+  @Override
+  public void onJdbcQuery(@Nonnull String queryString) {
+    final AgentSpan span = AgentTracer.activeSpan();
+    final IastRequestContext ctx = IastRequestContext.get(span);
+    if (ctx == null) {
+      return;
+    }
+    TaintedObject taintedObject = ctx.getTaintedObjects().get(queryString);
+    if (taintedObject == null) {
+      return;
+    }
+
+    if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
+      return;
+    }
+
+    StackTraceElement stackTraceElement =
+        stackWalker.walk(IastModuleImpl::findValidPackageForVulnerability);
+
+    Vulnerability vulnerability =
+        new Vulnerability(
+            VulnerabilityType.SQL_INJECTION,
+            Location.forSpanAndStack(span.getSpanId(), stackTraceElement),
+            new Evidence(queryString, taintedObject.getRanges()));
+    reporter.report(span, vulnerability);
+  }
+
+  private static StackTraceElement findValidPackageForVulnerability(
+      Stream<StackTraceElement> stream) {
+    final StackTraceElement[] first = new StackTraceElement[1];
+    return stream
+        .filter(
+            stack -> {
+              if (first[0] == null) {
+                first[0] = stack;
+              }
+              return IastExclusionTrie.apply(stack.getClassName()) != 1;
+            })
+        .findFirst()
+        .orElse(first[0]);
   }
 
   private static Range[] getRanges(final TaintedObject taintedObject) {

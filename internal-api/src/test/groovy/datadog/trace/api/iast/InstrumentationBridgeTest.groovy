@@ -1,80 +1,79 @@
 package datadog.trace.api.iast
 
-
 import datadog.trace.test.util.DDSpecification
+import groovy.transform.Canonical
 
 class InstrumentationBridgeTest extends DDSpecification {
+  @Canonical
+  static class BridgeMethod {
+    String bridgeMethod
+    List<Object> params
+    String moduleMethod
 
-  def "bridge calls module when a new hash is detected"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
-
-    when:
-    InstrumentationBridge.onMessageDigestGetInstance('SHA-1')
-
-    then:
-    1 * module.onHashingAlgorithm('SHA-1')
+    String toString() {
+      "bridge method $bridgeMethod"
+    }
   }
 
-  def "bridge calls don't fail with null module when a new hash is detected"() {
+  private final static BRIDGE_METHODS = [
+    new BridgeMethod('onCipherGetInstance', ['algo'], 'onCipherAlgorithm'),
+    new BridgeMethod('onMessageDigestGetInstance', ['algo'], 'onHashingAlgorithm'),
+    new BridgeMethod('onJdbcQuery', ['my query'], 'onJdbcQuery'),
+  ]
+
+  void '#bridgeMethod does not fail when module is not set'() {
     setup:
-    InstrumentationBridge.registerIastModule(null)
+    InstrumentationBridge.registerIastModule null
 
     when:
-    InstrumentationBridge.onMessageDigestGetInstance('SHA-1')
+    InstrumentationBridge."${bridgeMethod.bridgeMethod}"(*bridgeMethod.params)
 
     then:
     noExceptionThrown()
+
+    where:
+    bridgeMethod << BRIDGE_METHODS
   }
 
-  def "bridge calls don't leak exceptions when a new hash is detected"() {
+  void '#bridgeMethod delegates to the module'() {
     setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
+    def exception
+    def module = Mock(IastModule)
+    InstrumentationBridge.registerIastModule module
 
     when:
-    InstrumentationBridge.onMessageDigestGetInstance('SHA-1')
+    InstrumentationBridge."${bridgeMethod.bridgeMethod}"(*bridgeMethod.params)
 
     then:
-    1 * module.onHashingAlgorithm(_) >> { throw new Error('Boom!!!') }
+    1 * module."${bridgeMethod.moduleMethod}"(*_) >> { List args ->
+      try {
+        args.size().times { assert args[it].is(bridgeMethod.params[it]) }
+      } catch (Throwable t) {
+        exception = t
+      }
+    }
+    0 * _
+    exception == null
+
+    where:
+    bridgeMethod << BRIDGE_METHODS
+  }
+
+  void '#bridgeMethod leaks no exceptions'() {
+    setup:
+    def module = Mock(IastModule)
+    InstrumentationBridge.registerIastModule module
+
+    when:
+    InstrumentationBridge."${bridgeMethod.bridgeMethod}"(*bridgeMethod.params)
+
+    then:
+    1 * module."${bridgeMethod.moduleMethod}"(*_) >> { throw new Throwable('should not leak') }
+    0 * _
     noExceptionThrown()
-  }
 
-  def "bridge calls module when a new cipher is detected"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
-
-    when:
-    InstrumentationBridge.onCipherGetInstance('AES')
-
-    then:
-    1 * module.onCipherAlgorithm('AES')
-  }
-
-  def "bridge calls don't fail with null module when a new cipher is detected"() {
-    setup:
-    InstrumentationBridge.registerIastModule(null)
-
-    when:
-    InstrumentationBridge.onCipherGetInstance('AES')
-
-    then:
-    noExceptionThrown()
-  }
-
-  def "bridge calls don't leak exceptions when a new cipher is detected"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
-
-    when:
-    InstrumentationBridge.onCipherGetInstance('AES')
-
-    then:
-    1 * module.onCipherAlgorithm(_) >> { throw new Error('Boom!!!') }
-    noExceptionThrown()
+    where:
+    bridgeMethod << BRIDGE_METHODS
   }
 
   def "bridge calls module when onParameterName"() {

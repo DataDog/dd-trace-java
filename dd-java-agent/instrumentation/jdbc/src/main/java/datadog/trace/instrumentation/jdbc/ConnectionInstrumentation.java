@@ -8,7 +8,7 @@ import datadog.trace.api.InstrumenterConfig;
 public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
     implements Instrumenter.ForKnownTypes, Instrumenter.ForConfiguredType {
 
-  private static final String[] CONCRETE_TYPES = {
+  static final String[] CONCRETE_TYPES = {
     // redshift
     "com.amazon.redshift.jdbc.RedshiftConnectionImpl",
     // jt400

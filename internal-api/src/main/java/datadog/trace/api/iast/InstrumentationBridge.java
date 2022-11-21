@@ -15,7 +15,7 @@ public abstract class InstrumentationBridge {
 
   private static final Logger LOG = LoggerFactory.getLogger(InstrumentationBridge.class);
 
-  private static IastModule MODULE;
+  private static volatile IastModule MODULE;
 
   private InstrumentationBridge() {}
 
@@ -131,6 +131,16 @@ public abstract class InstrumentationBridge {
       onUnexpectedException("Callback for onStringConcatFactory threw.", t);
     }
     return result;
+  }
+
+  public static void onJdbcQuery(String query) {
+    try {
+      if (MODULE != null) {
+        MODULE.onJdbcQuery(query);
+      }
+    } catch (Throwable t) {
+      onUnexpectedException("Callback for onJdbcQuery threw.", t);
+    }
   }
 
   private static void onUnexpectedException(final String message, final Throwable error) {
