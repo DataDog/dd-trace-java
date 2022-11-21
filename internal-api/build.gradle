@@ -67,7 +67,9 @@ excludedClassesCoverage += [
   "datadog.trace.util.ClassNameTrie.JavaGenerator",
   "datadog.trace.util.CollectionUtils",
   "datadog.trace.api.IntegrationsCollector.Holder",
-  "datadog.trace.api.ConfigCollector.Holder"
+  "datadog.trace.api.ConfigCollector.Holder",
+  // can't reliably force same identity hash for different instance to cover branch
+  "datadog.trace.api.cache.FixedSizeCache.IdentityHash"
 ]
 excludedClassesBranchCoverage = ['datadog.trace.api.ProductActivationConfig',]
 
