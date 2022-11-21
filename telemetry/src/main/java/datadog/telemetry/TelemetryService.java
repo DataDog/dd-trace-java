@@ -4,17 +4,9 @@ import datadog.telemetry.api.Dependency;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.Metric;
 import java.util.Map;
-import java.util.Queue;
-import okhttp3.Request;
 
 public interface TelemetryService {
 
-  // Special telemetry requests
-  void addStartedRequest();
-
-  Request appClosingRequest();
-
-  // Data for periodic telemetry requests
   boolean addConfiguration(Map<String, Object> configuration);
 
   boolean addDependency(Dependency dependency);
@@ -23,7 +15,9 @@ public interface TelemetryService {
 
   boolean addMetric(Metric metric);
 
-  Queue<Request> prepareRequests();
+  RequestStatus sendAppStarted(RequestBuilder requestBuilder);
 
-  int getHeartbeatInterval();
+  RequestStatus sendTelemetry(RequestBuilder requestBuilder);
+
+  RequestStatus sendAppClosing(RequestBuilder requestBuilder);
 }

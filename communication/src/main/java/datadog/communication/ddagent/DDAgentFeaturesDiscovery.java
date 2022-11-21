@@ -47,6 +47,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public static final String DEBUGGER_ENDPOINT = "debugger/v1/input";
 
+  public static final String TELEMETRY_ENDPOINT = "telemetry/proxy/";
   private static final long MIN_FEATURE_DISCOVERY_INTERVAL_MILLIS = 60 * 1000;
 
   private final OkHttpClient client;
@@ -66,10 +67,12 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private volatile String state;
   private volatile String configEndpoint;
   private volatile String debuggerEndpoint;
+
+  private volatile String telemetryEndpoint;
   private volatile String evpProxyEndpoint;
   private volatile String version;
 
-  private long lastTimeDiscovered;
+  private long lastTimeDiscovered = MIN_FEATURE_DISCOVERY_INTERVAL_MILLIS;
 
   public DDAgentFeaturesDiscovery(
       OkHttpClient client,
@@ -96,6 +99,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     debuggerEndpoint = null;
     dataStreamsEndpoint = null;
     evpProxyEndpoint = null;
+    telemetryEndpoint = null;
     version = null;
     lastTimeDiscovered = 0;
   }
@@ -155,13 +159,14 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
     if (log.isDebugEnabled()) {
       log.debug(
-          "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}, dataStreamsEndpoint={}, configEndpoint={}, evpProxyEndpoint={}",
+          "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}, dataStreamsEndpoint={}, configEndpoint={}, evpProxyEndpoint={}, telemetryEndpoint={}",
           traceEndpoint,
           metricsEndpoint,
           supportsDropping,
           dataStreamsEndpoint,
           evpProxyEndpoint,
-          configEndpoint);
+          configEndpoint,
+          telemetryEndpoint);
     }
   }
 
@@ -225,6 +230,11 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         debuggerEndpoint = DEBUGGER_ENDPOINT;
       }
 
+      if (endpoints.contains(TELEMETRY_ENDPOINT) || endpoints.contains("/" + TELEMETRY_ENDPOINT)) {
+        telemetryEndpoint = TELEMETRY_ENDPOINT;
+      }
+
+      String foundDatastreamsEndpoint = null;
       for (String endpoint : dataStreamsEndpoints) {
         if (endpoints.contains(endpoint) || endpoints.contains("/" + endpoint)) {
           dataStreamsEndpoint = endpoint;
@@ -316,6 +326,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public String getConfigEndpoint() {
     return configEndpoint;
+  }
+
+  public String getTelemetryEndpoint() {
+    return telemetryEndpoint;
   }
 
   public String getVersion() {
