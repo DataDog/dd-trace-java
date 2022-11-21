@@ -3,8 +3,8 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 
-import datadog.trace.api.Config;
 import datadog.trace.api.GenericClassValue;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import java.util.Set;
@@ -37,8 +37,8 @@ public final class TPEHelper {
           });
 
   static {
-    Config config = Config.get();
-    useWrapping = config.isLegacyTracingEnabled(false, "trace.thread-pool-executors");
+    InstrumenterConfig config = InstrumenterConfig.get();
+    useWrapping = config.isLegacyInstrumentationEnabled(false, "trace.thread-pool-executors");
     excludedClasses = config.getTraceThreadPoolExecutorsExclude();
     if (useWrapping) {
       threadLocalScope = null;

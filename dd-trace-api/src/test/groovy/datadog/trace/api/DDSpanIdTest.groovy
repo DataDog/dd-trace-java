@@ -86,12 +86,18 @@ class DDSpanIdTest extends DDSpecification {
     ]
   }
 
-  def "generate id with #idGenerator"() {
+  def "generate id with #strategyName"() {
     when:
-    final long spanId = IdGenerationStrategy.fromName(strategyName).generateSpanId()
+    def strategy = IdGenerationStrategy.fromName(strategyName)
+    def spanIds = (0..32768).collect { strategy.generateSpanId() }
+    Set<Long> checked = new HashSet<>()
 
     then:
-    spanId != 0
+    spanIds.forEach { spanId ->
+      assert spanId != 0
+      assert !checked.contains(spanId)
+      checked.add(spanId)
+    }
 
     where:
     strategyName << ["RANDOM", "SEQUENTIAL", "SECURE_RANDOM"]

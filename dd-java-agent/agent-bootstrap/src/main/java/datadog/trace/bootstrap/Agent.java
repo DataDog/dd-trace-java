@@ -27,7 +27,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ContextThreadListener;
 import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
-import datadog.trace.bootstrap.instrumentation.exceptions.ExceptionSampling;
+import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import java.lang.instrument.Instrumentation;
@@ -271,8 +271,8 @@ public class Agent {
         registerLogManagerCallback(new StartProfilingAgentCallback());
       } else {
         startProfilingAgent(false);
-        // only enable sampler when we know JFR is ready
-        ExceptionSampling.enableExceptionSampling();
+        // only enable instrumentation based profilers when we know JFR is ready
+        InstrumentationBasedProfiling.enableInstrumentationBasedProfiling();
       }
     }
   }
@@ -413,8 +413,8 @@ public class Agent {
     @Override
     public void execute() {
       startProfilingAgent(false);
-      // only enable sampler when we know JFR is ready
-      ExceptionSampling.enableExceptionSampling();
+      // only enable instrumentation based profilers when we know JFR is ready
+      InstrumentationBasedProfiling.enableInstrumentationBasedProfiling();
     }
   }
 

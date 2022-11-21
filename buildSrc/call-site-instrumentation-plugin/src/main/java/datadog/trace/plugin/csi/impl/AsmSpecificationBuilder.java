@@ -242,15 +242,19 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
                 parameters.values().stream()
                     .filter(it -> it instanceof ArgumentSpecification)
                     .count();
-            ((ArgumentSpecification) parameterSpec).setIndex((int) index);
+            ((ArgumentSpecification) parameterSpec)
+                .setIndex((int) index); // can change in annotation visitor
           }
           parameters.put(parameter, parameterSpec);
+
           return new AnnotationVisitor(ASM_API_VERSION) {
             @Override
             public void visit(final String key, final Object value) {
               if ("includeThis".equals(key) && parameterSpec instanceof AllArgsSpecification) {
                 final AllArgsSpecification allArgs = (AllArgsSpecification) parameterSpec;
                 allArgs.setIncludeThis((boolean) value);
+              } else if ("value".equals(key) && parameterSpec instanceof ArgumentSpecification) {
+                ((ArgumentSpecification) parameterSpec).setIndex((Integer) value);
               }
             }
           };

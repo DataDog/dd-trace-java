@@ -1,5 +1,7 @@
 package com.datadog.iast;
 
+import static com.datadog.iast.taint.Ranges.rangesProviderFor;
+
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Location;
 import com.datadog.iast.model.Range;
@@ -7,20 +9,25 @@ import com.datadog.iast.model.Source;
 import com.datadog.iast.model.SourceType;
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityType;
+import com.datadog.iast.model.VulnerabilityType.InjectionType;
 import com.datadog.iast.overhead.Operations;
 import com.datadog.iast.overhead.OverheadController;
 import com.datadog.iast.taint.Ranges;
+import com.datadog.iast.taint.Ranges.RangesProvider;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.iast.IastModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
 import datadog.trace.util.stacktrace.StackWalker;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -53,7 +60,8 @@ public final class IastModuleImpl implements IastModule {
       return;
     }
     // get StackTraceElement for the callee of MessageDigest
-    StackTraceElement stackTraceElement = stackWalker.walk(stack -> stack.findFirst().get());
+    StackTraceElement stackTraceElement =
+        stackWalker.walk(IastModuleImpl::findValidPackageForVulnerability);
 
     Vulnerability vulnerability =
         new Vulnerability(
@@ -76,7 +84,8 @@ public final class IastModuleImpl implements IastModule {
       return;
     }
     // get StackTraceElement for the caller of MessageDigest
-    StackTraceElement stackTraceElement = stackWalker.walk(stack -> stack.findFirst().get());
+    StackTraceElement stackTraceElement =
+        stackWalker.walk(IastModuleImpl::findValidPackageForVulnerability);
 
     Vulnerability vulnerability =
         new Vulnerability(
@@ -260,6 +269,115 @@ public final class IastModuleImpl implements IastModule {
     taintedObjects.taint(result, targetRanges);
   }
 
+  @Override
+  public void onJdbcQuery(@Nonnull String queryString) {
+    final AgentSpan span = AgentTracer.activeSpan();
+    final IastRequestContext ctx = IastRequestContext.get(span);
+    if (ctx == null) {
+      return;
+    }
+    TaintedObject taintedObject = ctx.getTaintedObjects().get(queryString);
+    if (taintedObject == null) {
+      return;
+    }
+
+    if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
+      return;
+    }
+
+    StackTraceElement stackTraceElement =
+        stackWalker.walk(IastModuleImpl::findValidPackageForVulnerability);
+
+    Vulnerability vulnerability =
+        new Vulnerability(
+            VulnerabilityType.SQL_INJECTION,
+            Location.forSpanAndStack(span.getSpanId(), stackTraceElement),
+            new Evidence(queryString, taintedObject.getRanges()));
+    reporter.report(span, vulnerability);
+  }
+
+  @Override
+  public void onRuntimeExec(@Nonnull final String... cmdArray) {
+    if (!canBeTainted(cmdArray)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects to = ctx.getTaintedObjects();
+    final RangesProvider<String> rangesProvider = rangesProviderFor(to, cmdArray);
+    checkInjection(VulnerabilityType.COMMAND_INJECTION, rangesProvider);
+  }
+
+  @Override
+  public void onProcessBuilderStart(@Nonnull final List<String> command) {
+    if (!canBeTainted(command)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects to = ctx.getTaintedObjects();
+    final RangesProvider<String> rangesProvider = Ranges.rangesProviderFor(to, command);
+    checkInjection(VulnerabilityType.COMMAND_INJECTION, rangesProvider);
+  }
+
+  private <E> void checkInjection(
+      @Nonnull final InjectionType type, @Nonnull final RangesProvider<E> rangeProvider) {
+    final int rangeCount = rangeProvider.rangeCount();
+    if (rangeCount == 0) {
+      return;
+    }
+    final AgentSpan span = AgentTracer.activeSpan();
+    if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
+      return;
+    }
+    final StringBuilder evidence = new StringBuilder();
+    final Range[] targetRanges = new Range[rangeCount];
+    int rangeIndex = 0;
+    for (int i = 0; i < rangeProvider.size(); i++) {
+      final E item = rangeProvider.value(i);
+      if (item != null) {
+        if (evidence.length() > 0) {
+          evidence.append(type.evidenceSeparator());
+        }
+        final Range[] taintedRanges = rangeProvider.ranges(item);
+        if (taintedRanges != null) {
+          Ranges.copyShift(taintedRanges, targetRanges, rangeIndex, evidence.length());
+          rangeIndex += taintedRanges.length;
+        }
+        evidence.append(item);
+      }
+    }
+
+    StackTraceElement stackTraceElement =
+        stackWalker.walk(IastModuleImpl::findValidPackageForVulnerability);
+
+    reporter.report(
+        span,
+        new Vulnerability(
+            type,
+            Location.forSpanAndStack(span.getSpanId(), stackTraceElement),
+            new Evidence(evidence.toString(), targetRanges)));
+  }
+
+  private static StackTraceElement findValidPackageForVulnerability(
+      Stream<StackTraceElement> stream) {
+    final StackTraceElement[] first = new StackTraceElement[1];
+    return stream
+        .filter(
+            stack -> {
+              if (first[0] == null) {
+                first[0] = stack;
+              }
+              return IastExclusionTrie.apply(stack.getClassName()) != 1;
+            })
+        .findFirst()
+        .orElse(first[0]);
+  }
+
   private static Range[] getRanges(final TaintedObject taintedObject) {
     return taintedObject == null ? Ranges.EMPTY : taintedObject.getRanges();
   }
@@ -277,10 +395,29 @@ public final class IastModuleImpl implements IastModule {
   }
 
   private static boolean canBeTaintedNullSafe(@Nullable final CharSequence[] args) {
-    if (args == null || args.length == 0) {
+    if (args == null) {
+      return false;
+    }
+    return canBeTainted(args);
+  }
+
+  private static boolean canBeTainted(@Nonnull final CharSequence[] args) {
+    if (args.length == 0) {
       return false;
     }
     for (final CharSequence item : args) {
+      if (canBeTaintedNullSafe(item)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean canBeTainted(@Nonnull final List<? extends CharSequence> items) {
+    if (items.size() == 0) {
+      return false;
+    }
+    for (final CharSequence item : items) {
       if (canBeTaintedNullSafe(item)) {
         return true;
       }

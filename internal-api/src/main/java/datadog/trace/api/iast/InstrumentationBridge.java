@@ -1,5 +1,6 @@
 package datadog.trace.api.iast;
 
+import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -15,7 +16,7 @@ public abstract class InstrumentationBridge {
 
   private static final Logger LOG = LoggerFactory.getLogger(InstrumentationBridge.class);
 
-  private static IastModule MODULE;
+  private static volatile IastModule MODULE;
 
   private InstrumentationBridge() {}
 
@@ -131,6 +132,36 @@ public abstract class InstrumentationBridge {
       onUnexpectedException("Callback for onStringConcatFactory threw.", t);
     }
     return result;
+  }
+
+  public static void onJdbcQuery(String query) {
+    try {
+      if (MODULE != null) {
+        MODULE.onJdbcQuery(query);
+      }
+    } catch (Throwable t) {
+      onUnexpectedException("Callback for onJdbcQuery threw.", t);
+    }
+  }
+
+  public static void onRuntimeExec(@Nonnull final String... command) {
+    try {
+      if (MODULE != null) {
+        MODULE.onRuntimeExec(command);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onRuntimeExec threw.", t);
+    }
+  }
+
+  public static void onProcessBuilderStart(@Nonnull final List<String> command) {
+    try {
+      if (MODULE != null) {
+        MODULE.onProcessBuilderStart(command);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onProcessBuilderStart threw.", t);
+    }
   }
 
   private static void onUnexpectedException(final String message, final Throwable error) {

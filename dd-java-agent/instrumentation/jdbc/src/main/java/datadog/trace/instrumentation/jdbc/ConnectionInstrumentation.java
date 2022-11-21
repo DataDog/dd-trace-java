@@ -2,13 +2,13 @@ package datadog.trace.instrumentation.jdbc;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 
 @AutoService(Instrumenter.class)
 public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
     implements Instrumenter.ForKnownTypes, Instrumenter.ForConfiguredType {
 
-  private static final String[] CONCRETE_TYPES = {
+  static final String[] CONCRETE_TYPES = {
     // redshift
     "com.amazon.redshift.jdbc.RedshiftConnectionImpl",
     // jt400
@@ -79,7 +79,7 @@ public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
   @Override
   public String configuredMatchingType() {
     // this won't match any class unless the property is set
-    return Config.get().getJdbcConnectionClassName();
+    return InstrumenterConfig.get().getJdbcConnectionClassName();
   }
 
   public ConnectionInstrumentation() {

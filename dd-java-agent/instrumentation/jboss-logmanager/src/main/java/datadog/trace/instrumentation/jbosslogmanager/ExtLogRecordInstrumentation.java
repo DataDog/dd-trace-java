@@ -13,6 +13,7 @@ import datadog.trace.agent.tooling.log.UnionMap;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDSpanId;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -33,7 +34,7 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing
 
   @Override
   protected boolean defaultEnabled() {
-    return Config.get().isLogsInjectionEnabled();
+    return InstrumenterConfig.get().isLogsInjectionEnabled();
   }
 
   @Override

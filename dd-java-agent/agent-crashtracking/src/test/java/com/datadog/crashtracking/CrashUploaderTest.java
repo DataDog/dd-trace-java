@@ -73,8 +73,6 @@ public class CrashUploaderTest {
 
   @BeforeEach
   public void setup() throws IOException {
-    configProvider = ConfigProvider.getInstance();
-
     server.start();
     url = server.url(URL_PATH);
 
@@ -92,7 +90,7 @@ public class CrashUploaderTest {
     // Given
 
     // When
-    uploader = new CrashUploader(config, configProvider);
+    uploader = new CrashUploader(config);
     List<String> filesContent = new ArrayList<>();
     filesContent.add(CRASH);
     ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -114,7 +112,7 @@ public class CrashUploaderTest {
     // Given
 
     // When
-    uploader = new CrashUploader(config, configProvider);
+    uploader = new CrashUploader(config);
     server.enqueue(new MockResponse().setResponseCode(200));
     List<String> filesContent = new ArrayList<>();
     filesContent.add(CRASH);
@@ -152,7 +150,7 @@ public class CrashUploaderTest {
     when(config.getApiKey()).thenReturn(API_KEY_VALUE);
     when(config.isCrashTrackingAgentless()).thenReturn(true);
 
-    uploader = new CrashUploader(config, configProvider);
+    uploader = new CrashUploader(config);
     server.enqueue(new MockResponse().setResponseCode(200));
     List<InputStream> files = new ArrayList<>();
     files.add(new ByteArrayInputStream(CRASH.getBytes()));
@@ -168,7 +166,7 @@ public class CrashUploaderTest {
     // test added to get the coverage checks to pass since we log conditionally in this case
     when(config.getApiKey()).thenReturn(null);
 
-    uploader = new CrashUploader(config, configProvider);
+    uploader = new CrashUploader(config);
     server.enqueue(new MockResponse().setResponseCode(404));
     List<InputStream> files = new ArrayList<>();
     files.add(new ByteArrayInputStream(CRASH.getBytes()));
@@ -186,7 +184,7 @@ public class CrashUploaderTest {
     when(config.getApiKey()).thenReturn(API_KEY_VALUE);
     when(config.isCrashTrackingAgentless()).thenReturn(true);
 
-    uploader = new CrashUploader(config, configProvider);
+    uploader = new CrashUploader(config);
     server.enqueue(new MockResponse().setResponseCode(404));
     List<InputStream> files = new ArrayList<>();
     files.add(new ByteArrayInputStream(CRASH.getBytes()));
