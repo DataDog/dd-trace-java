@@ -44,6 +44,7 @@
 0 java.lang.Throwable
 # allow ProcessImpl instrumentation
 0 java.lang.ProcessImpl
+0 java.net.http.*
 0 java.net.HttpURLConnection
 0 java.net.URL
 0 java.nio.DirectByteBuffer
@@ -61,6 +62,7 @@
 # Need for IAST
 0 java.io.PushbackInputStream
 1 jdk.*
+0 jdk.internal.net.http.*
 1 net.bytebuddy.*
 1 org.apache.felix.framework.URLHandlers*
 1 org.apache.groovy.*
