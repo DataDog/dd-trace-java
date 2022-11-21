@@ -127,7 +127,7 @@ class DDTraceIdTest extends DDSpecification {
     }
 
     where:
-    strategyName << ["RANDOM", "SEQUENTIAL"]
+    strategyName << ["RANDOM", "SEQUENTIAL", "SECURE_RANDOM"]
   }
 
   def "return null for non existing strategy #strategyName"() {

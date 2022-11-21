@@ -58,34 +58,32 @@ public abstract class IdGenerationStrategy {
   }
 
   static final class SRandom extends IdGenerationStrategy {
-    static DDTraceId secureRandomTraceId;
-    static long secureRandomSpanId;
+    private final SecureRandom secureRandom;
 
-    static {
+    SRandom() {
       try {
-        SecureRandom secureRandom = SecureRandom.getInstanceStrong();
-        secureRandomTraceId = DDTraceId.from(secureRandom.nextLong());
-        secureRandomSpanId = secureRandom.nextLong();
+        secureRandom = SecureRandom.getInstanceStrong();
       } catch (NoSuchAlgorithmException e) {
-        secureRandomTraceId = null;
-        secureRandomSpanId = 0;
+        throw new ExceptionInInitializerError(e);
       }
+    }
+
+    private long getNonZeroPositiveLong() {
+      long value = secureRandom.nextLong() & Long.MAX_VALUE;
+      while (value == 0) {
+        value = secureRandom.nextLong() & Long.MAX_VALUE;
+      }
+      return value;
     }
 
     @Override
     public DDTraceId generateTraceId() {
-      if (secureRandomTraceId != null) {
-        return secureRandomTraceId;
-      }
-      return DDTraceId.from(ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE));
+      return DDTraceId.from(getNonZeroPositiveLong());
     }
 
     @Override
     public long generateSpanId() {
-      if (secureRandomSpanId != 0) {
-        return secureRandomSpanId;
-      }
-      return ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
+      return getNonZeroPositiveLong();
     }
   }
 }
