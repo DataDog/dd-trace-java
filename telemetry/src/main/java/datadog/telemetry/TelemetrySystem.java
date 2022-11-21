@@ -6,11 +6,9 @@ import datadog.telemetry.dependency.DependencyService;
 import datadog.telemetry.dependency.DependencyServiceImpl;
 import datadog.telemetry.integration.IntegrationPeriodicAction;
 import datadog.trace.api.Config;
-import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.util.AgentThreadFactory;
 import java.lang.instrument.Instrumentation;
 import java.util.Arrays;
-import okhttp3.OkHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,13 +32,14 @@ public class TelemetrySystem {
 
   static Thread createTelemetryRunnable(
       TelemetryService telemetryService,
-      OkHttpClient okHttpClient,
+      SharedCommunicationObjects sco,
       DependencyService dependencyService) {
     DEPENDENCY_SERVICE = dependencyService;
     TelemetryRunnable telemetryRunnable =
         new TelemetryRunnable(
-            okHttpClient,
+            sco,
             telemetryService,
+            Config.get().getTelemetryHeartbeatInterval(),
             Arrays.asList(
                 new DependencyPeriodicAction(dependencyService), new IntegrationPeriodicAction()));
     return AgentThreadFactory.newAgentThread(
@@ -50,14 +49,8 @@ public class TelemetrySystem {
   public static void startTelemetry(
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
     DependencyService dependencyService = createDependencyService(instrumentation);
-    RequestBuilder requestBuilder = new RequestBuilder(sco.agentUrl);
-    TelemetryService telemetryService =
-        new TelemetryServiceImpl(
-            new RequestBuilderSupplier(sco.agentUrl),
-            SystemTimeSource.INSTANCE,
-            Config.get().getTelemetryHeartbeatInterval());
-    TELEMETRY_THREAD =
-        createTelemetryRunnable(telemetryService, sco.okHttpClient, dependencyService);
+    TelemetryService telemetryService = new TelemetryServiceImpl(sco.okHttpClient);
+    TELEMETRY_THREAD = createTelemetryRunnable(telemetryService, sco, dependencyService);
     TELEMETRY_THREAD.start();
   }
 

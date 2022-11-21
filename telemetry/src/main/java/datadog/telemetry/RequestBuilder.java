@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
 
 public class RequestBuilder {
 
-  private static final String API_ENDPOINT = "telemetry/proxy/api/v2/apmtelemetry";
+  private static final String API_ENDPOINT = "api/v2/apmtelemetry";
 
   private static final ApiVersion API_VERSION = ApiVersion.V1;
   private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
