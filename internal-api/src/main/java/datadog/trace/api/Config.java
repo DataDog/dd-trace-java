@@ -540,16 +540,6 @@ public class Config {
 
   private final boolean secureRandom;
 
-  private final boolean internalExitOnFailure;
-
-  private final boolean resolverOutlinePoolEnabled;
-  private final int resolverOutlinePoolSize;
-  private final int resolverTypePoolSize;
-  private final boolean resolverUseLoadClassEnabled;
-
-  private final String jdbcPreparedStatementClassName;
-  private final String jdbcConnectionClassName;
-
   private final Set<String> grpcIgnoredInboundMethods;
   private final Set<String> grpcIgnoredOutboundMethods;
   private final boolean grpcServerTrimPackageResource;
