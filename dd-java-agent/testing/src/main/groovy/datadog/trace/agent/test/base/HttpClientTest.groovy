@@ -667,9 +667,6 @@ abstract class HttpClientTest extends AgentTestRunner {
     runUnderTrace("parent") {
       doRequest(method, uri)
     }
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
-    }
 
     then:
     def ex = thrown(Exception)
@@ -680,15 +677,6 @@ abstract class HttpClientTest extends AgentTestRunner {
       trace(2) {
         basicSpan(it, "parent", null, thrownException)
         clientSpan(it, span(0), method, false, false, uri, null, true, thrownException)
-      }
-    }
-
-    and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-      verifyAll(first) {
-        edgeTags.containsAll(["type:http", "direction:out"])
-        edgeTags.size() == 2
       }
     }
 
