@@ -95,9 +95,8 @@ class FixedSizeCacheTest extends DDSpecification {
     null                                       | null           | 3     // do nothing
   }
 
-  @Shared id1 = new TKey(1, 0, "one")
-  @Shared id6 = new TKey(6, 0, "six")
-  @Shared id10 = new TKey(10, 0, "ten")
+  @Shared id1 = new TKey(1, 1, "one")
+  @Shared id6 = new TKey(6, 6, "six")
 
   def "identity cache should store and retrieve values"() {
     setup:
@@ -107,7 +106,9 @@ class FixedSizeCacheTest extends DDSpecification {
     // insert some values - note the keys will be compared by their identity, not their hash
     fsCache.computeIfAbsent(id1, tvc)
     fsCache.computeIfAbsent(id6, tvc)
-    fsCache.computeIfAbsent(id10, tvc)
+    // (only use two keys because we can't control the identity hash: a third might overwrite
+    // an earlier slot for a particular sequence of hashes, breaking test assumption that all
+    // the initial keys were allocated to distinct slots)
 
     expect:
     fsCache.computeIfAbsent(tk, tvc) == value
@@ -117,10 +118,8 @@ class FixedSizeCacheTest extends DDSpecification {
     tk                        | value          | count
     id1                       | "one_value"    | 3     // used the cached id1
     id6                       | "six_value"    | 3     // used the cached id6
-    id10                      | "ten_value"    | 3     // used the cached id10
-    new TKey(1, 0, "1")       | "1_value"      | 4     // create new value for key with different identity
-    new TKey(6, 0, "6")       | "6_value"      | 4     // create new value for key with different identity
-    new TKey(10, 0, "10")     | "10_value"     | 4     // create new value for key with different identity
+    new TKey(1, 1, "1")       | "1_value"      | 4     // create new value for key with different identity
+    new TKey(6, 6, "6")       | "6_value"      | 4     // create new value for key with different identity
     null                      | null           | 3     // do nothing
   }
 
