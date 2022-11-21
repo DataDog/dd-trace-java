@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.jfr.directallocation;
 
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.instrumentation.jfr.ContextualEvent;
 
 public class DirectAllocationProfiling {
 
@@ -40,8 +39,7 @@ public class DirectAllocationProfiling {
       DirectAllocationSource source, Class<?> caller, long bytes) {
     boolean firstHit = histogram.record(caller, source, bytes);
     if (sampler.sample() || firstHit) {
-      return ContextualEvent.captureContext(
-          new DirectAllocationSampleEvent(className(caller), source.name(), bytes));
+      return new DirectAllocationSampleEvent(className(caller), source.name(), bytes);
     }
     return null;
   }
