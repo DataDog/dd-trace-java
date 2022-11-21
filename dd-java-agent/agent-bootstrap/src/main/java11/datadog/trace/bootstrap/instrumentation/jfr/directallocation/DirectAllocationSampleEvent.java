@@ -1,7 +1,12 @@
 package datadog.trace.bootstrap.instrumentation.jfr.directallocation;
 
 import datadog.trace.bootstrap.instrumentation.jfr.ContextualEvent;
-import jdk.jfr.*;
+import jdk.jfr.Category;
+import jdk.jfr.DataAmount;
+import jdk.jfr.Description;
+import jdk.jfr.Event;
+import jdk.jfr.Label;
+import jdk.jfr.Name;
 
 @Name("datadog.DirectAllocationSample")
 @Label("Direct Allocation")

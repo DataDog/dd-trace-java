@@ -1,7 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.jfr.exceptions;
 
 import datadog.trace.bootstrap.instrumentation.jfr.ContextualEvent;
-import jdk.jfr.*;
+import jdk.jfr.Category;
+import jdk.jfr.Description;
+import jdk.jfr.Event;
+import jdk.jfr.Label;
+import jdk.jfr.Name;
 
 @Name("datadog.ExceptionSample")
 @Label("ExceptionSample")
