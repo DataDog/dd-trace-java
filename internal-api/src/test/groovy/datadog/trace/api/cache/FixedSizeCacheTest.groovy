@@ -116,6 +116,7 @@ class FixedSizeCacheTest extends DDSpecification {
     tk                        | value          | count
     id1                       | "one_value"    | 1     // used the cached id1
     new TKey(1, 1, "1")       | "1_value"      | 2     // create new value for key with different identity
+    new TKey(6, 6, "6")       | "6_value"      | 2     // create new value for new key
     null                      | null           | 1     // do nothing
   }
 
