@@ -9,6 +9,34 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.Function
 
 class FixedSizeCacheTest extends DDSpecification {
+  def "invalid capacities are rejected"() {
+    when:
+    DDCaches.newFixedSizeCache(capacity)
+
+    then:
+    thrown(IllegalArgumentException)
+
+    where:
+    capacity << [Integer.MIN_VALUE, -1, 0]
+  }
+
+  def "cache can be explicitly cleared"() {
+    setup:
+    def fsCache = DDCaches.newFixedSizeCache(15)
+
+    when:
+    fsCache.computeIfAbsent("test-key", { "first-value" })
+
+    then:
+    fsCache.computeIfAbsent("test-key", { "second-value" }) == "first-value"
+
+    when:
+    fsCache.clear()
+
+    then:
+    fsCache.computeIfAbsent("test-key", { "second-value" }) == "second-value"
+  }
+
   def "fixed size should store and retrieve values"() {
     setup:
     def fsCache = DDCaches.newFixedSizeCache(15)
