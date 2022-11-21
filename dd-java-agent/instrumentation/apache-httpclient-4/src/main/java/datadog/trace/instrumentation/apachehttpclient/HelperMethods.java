@@ -29,11 +29,12 @@ public class HelperMethods {
     // AWS calls are often signed, so we can't add headers without breaking the signature.
     if (!awsClientCall) {
       propagate().inject(span, request, SETTER);
+      propagate()
+          .injectPathwayContext(
+              span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
     } else if (Config.get().isAwsPropagationEnabled()) {
       propagate().inject(span, request, SETTER, PropagationStyle.XRAY);
     }
-    propagate()
-        .injectPathwayContext(span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
     return scope;
   }
 
