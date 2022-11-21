@@ -116,11 +116,11 @@ class FixedSizeCacheTest extends DDSpecification {
 
     where:
     tk                        | value          | count
-    id1                       | "one_value"    | 3     // used the cached id1
-    id6                       | "six_value"    | 3     // used the cached id6
-    new TKey(1, 1, "1")       | "1_value"      | 4     // create new value for key with different identity
-    new TKey(6, 6, "6")       | "6_value"      | 4     // create new value for key with different identity
-    null                      | null           | 3     // do nothing
+    id1                       | "one_value"    | 2     // used the cached id1
+    id6                       | "six_value"    | 2     // used the cached id6
+    new TKey(1, 1, "1")       | "1_value"      | 3     // create new value for key with different identity
+    new TKey(6, 6, "6")       | "6_value"      | 3     // create new value for key with different identity
+    null                      | null           | 2     // do nothing
   }
 
   def "chm cache should store and retrieve values"() {
