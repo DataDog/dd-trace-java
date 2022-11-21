@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.jfr.exceptions;
 import datadog.trace.bootstrap.instrumentation.jfr.ContextualEvent;
 import jdk.jfr.Category;
 import jdk.jfr.Description;
+import jdk.jfr.Event;
 import jdk.jfr.Label;
 import jdk.jfr.Name;
 
@@ -10,7 +11,7 @@ import jdk.jfr.Name;
 @Label("ExceptionSample")
 @Description("Datadog exception sample event.")
 @Category("Datadog")
-public class ExceptionSampleEvent extends ContextualEvent {
+public class ExceptionSampleEvent extends Event implements ContextualEvent {
   @Label("Exception Type")
   private final String type;
 
@@ -27,6 +28,12 @@ public class ExceptionSampleEvent extends ContextualEvent {
   @Label("First occurrence")
   private final boolean firstOccurrence;
 
+  @Label("Local Root Span Id")
+  private long localRootSpanId;
+
+  @Label("Span Id")
+  private long spanId;
+
   public ExceptionSampleEvent(Throwable e, boolean sampled, boolean firstOccurrence) {
     /*
      * TODO: we should have some tests for this class.
@@ -39,6 +46,7 @@ public class ExceptionSampleEvent extends ContextualEvent {
     this.stackDepth = getStackDepth(e);
     this.sampled = sampled;
     this.firstOccurrence = firstOccurrence;
+    captureContext();
   }
 
   private static String getMessage(Throwable t) {
@@ -57,5 +65,11 @@ public class ExceptionSampleEvent extends ContextualEvent {
       // be defensive about exceptions choking on a call to getStackTrace()
     }
     return 0;
+  }
+
+  @Override
+  public void setContext(long localRootSpanId, long spanId) {
+    this.localRootSpanId = localRootSpanId;
+    this.spanId = spanId;
   }
 }

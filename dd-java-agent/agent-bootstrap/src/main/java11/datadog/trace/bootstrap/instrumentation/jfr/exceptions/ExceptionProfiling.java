@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.jfr.exceptions;
 
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.instrumentation.jfr.ContextualEvent;
 
 /**
  * JVM-wide singleton exception profiling service. Uses {@linkplain Config} class to configure
@@ -41,7 +40,7 @@ public final class ExceptionProfiling {
 
     final boolean sampled = sampler.sample();
     if (firstHit || sampled) {
-      return ContextualEvent.captureContext(new ExceptionSampleEvent(t, sampled, firstHit));
+      return new ExceptionSampleEvent(t, sampled, firstHit);
     }
     return null;
   }
