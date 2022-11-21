@@ -54,6 +54,7 @@ ext {
     'com.datadog.iast.model.json.SourceTypeAdapter',
     'com.datadog.iast.model.json.DDSpanIdAdapter',
     'com.datadog.iast.model.json.EvidenceAdapter',
+    'com.datadog.iast.model.json.VulnerabilityTypeAdapter',
   ]
   excludedClassesBranchCoverage = []
   excludedClassesInstructionCoverage = []

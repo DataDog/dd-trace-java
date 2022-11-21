@@ -1,5 +1,6 @@
 package datadog.trace.api.iast;
 
+import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -140,6 +141,26 @@ public abstract class InstrumentationBridge {
       }
     } catch (Throwable t) {
       onUnexpectedException("Callback for onJdbcQuery threw.", t);
+    }
+  }
+
+  public static void onRuntimeExec(@Nonnull final String... command) {
+    try {
+      if (MODULE != null) {
+        MODULE.onRuntimeExec(command);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onRuntimeExec threw.", t);
+    }
+  }
+
+  public static void onProcessBuilderStart(@Nonnull final List<String> command) {
+    try {
+      if (MODULE != null) {
+        MODULE.onProcessBuilderStart(command);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onProcessBuilderStart threw.", t);
     }
   }
 
