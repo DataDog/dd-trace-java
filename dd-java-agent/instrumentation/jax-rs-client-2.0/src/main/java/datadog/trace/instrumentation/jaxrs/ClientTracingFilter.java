@@ -9,6 +9,7 @@ import static datadog.trace.instrumentation.jaxrs.JaxRsClientDecorator.JAX_RS_CL
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import javax.annotation.Priority;
 import javax.ws.rs.Priorities;
 import javax.ws.rs.client.ClientRequestContext;
@@ -28,6 +29,12 @@ public class ClientTracingFilter implements ClientRequestFilter, ClientResponseF
       DECORATE.onRequest(span, requestContext);
 
       propagate().inject(span, requestContext.getHeaders(), SETTER);
+      propagate()
+          .injectPathwayContext(
+              span,
+              requestContext.getHeaders(),
+              SETTER,
+              HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
 
       requestContext.setProperty(SPAN_PROPERTY_NAME, span);
     }
