@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.directbytebuffer;
 
-import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
@@ -10,11 +11,11 @@ import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 
 @AutoService(Instrumenter.class)
-public final class DirectByteBufferInstrumentation extends Instrumenter.Profiling
+public final class FileChannelImplInstrumentation extends Instrumenter.Profiling
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
 
-  public DirectByteBufferInstrumentation() {
-    super("jni", "directallocation");
+  public FileChannelImplInstrumentation() {
+    super("mmap", "directallocation");
   }
 
   @Override
@@ -29,16 +30,18 @@ public final class DirectByteBufferInstrumentation extends Instrumenter.Profilin
 
   @Override
   public String instrumentedType() {
-    return "java.nio.DirectByteBuffer";
+    return "sun.nio.ch.FileChannelImpl";
   }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        isConstructor()
-            .and(takesArgument(0, long.class))
-            .and(takesArgument(1, int.class))
-            .and(takesArguments(2)),
-        packageName + ".NewDirectByteBufferAdvice");
+        isMethod()
+            .and(named("map"))
+            .and(takesArguments(3))
+            .and(takesArgument(0, named("java.nio.channels.FileChannel$MapMode")))
+            .and(takesArgument(1, long.class))
+            .and(takesArgument(2, long.class)),
+        packageName + ".MemoryMappingAdvice");
   }
 }

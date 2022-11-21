@@ -1,8 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.jfr.exceptions;
 
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.jfr.ContextualEvent;
 
 /**
  * JVM-wide singleton exception profiling service. Uses {@linkplain Config} class to configure
@@ -42,15 +41,7 @@ public final class ExceptionProfiling {
 
     final boolean sampled = sampler.sample();
     if (firstHit || sampled) {
-      long spanId = 0;
-      long localRootSpanId = 0;
-      AgentSpan activeSpan = AgentTracer.activeSpan();
-      if (activeSpan != null) {
-        spanId = activeSpan.getSpanId();
-        AgentSpan rootSpan = activeSpan.getLocalRootSpan();
-        localRootSpanId = rootSpan == null ? spanId : rootSpan.getSpanId();
-      }
-      return new ExceptionSampleEvent(t, sampled, firstHit, localRootSpanId, spanId);
+      return ContextualEvent.captureContext(new ExceptionSampleEvent(t, sampled, firstHit));
     }
     return null;
   }

@@ -169,44 +169,7 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_START_DELAY;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_HOST;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OLD;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_VERY_OLD;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_OLD;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_VERY_OLD;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_ASYNC_ALLOC_ENABLED_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_ASYNC_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCLUDE_AGENT_THREADS;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_HOTSPOTS_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_HOST;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PASSWORD;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_USERNAME;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_TAGS;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_COMPRESSION;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_COMPRESSION_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_PERIOD;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_PERIOD_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_SUMMARY_ON_413;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_SUMMARY_ON_413_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
+import static datadog.trace.api.config.ProfilingConfig.*;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_ENABLED;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_INITIAL_POLL_INTERVAL;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED;
@@ -462,6 +425,7 @@ public class Config {
   private final boolean profilingAgentless;
 
   private final boolean isAsyncProfilerEnabled;
+  private final boolean isDirectAllocationProfilingEnabled;
   @Deprecated private final String profilingUrl;
   private final Map<String, String> profilingTags;
   private final int profilingStartDelay;
@@ -475,6 +439,7 @@ public class Config {
   private final String profilingProxyUsername;
   private final String profilingProxyPassword;
   private final int profilingExceptionSampleLimit;
+  private final int profilingDirectAllocationSampleLimit;
   private final int profilingExceptionHistogramTopItems;
   private final int profilingExceptionHistogramMaxCollectionSize;
   private final boolean profilingExcludeAgentThreads;
@@ -944,6 +909,9 @@ public class Config {
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
     isAsyncProfilerEnabled =
         configProvider.getBoolean(PROFILING_ASYNC_ENABLED, PROFILING_ASYNC_ALLOC_ENABLED_DEFAULT);
+    isDirectAllocationProfilingEnabled =
+        configProvider.getBoolean(
+            PROFILING_DIRECT_ALLOCATION_ENABLED, PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT);
     profilingUrl = configProvider.getString(PROFILING_URL);
 
     if (tmpApiKey == null) {
@@ -999,6 +967,10 @@ public class Config {
     profilingExceptionSampleLimit =
         configProvider.getInteger(
             PROFILING_EXCEPTION_SAMPLE_LIMIT, PROFILING_EXCEPTION_SAMPLE_LIMIT_DEFAULT);
+    profilingDirectAllocationSampleLimit =
+        configProvider.getInteger(
+            PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT,
+            PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT_DEFAULT);
     profilingExceptionHistogramTopItems =
         configProvider.getInteger(
             PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS,
@@ -1652,6 +1624,10 @@ public class Config {
     return profilingExceptionSampleLimit;
   }
 
+  public int getProfilingDirectAllocationSampleLimit() {
+    return profilingDirectAllocationSampleLimit;
+  }
+
   public int getProfilingExceptionHistogramTopItems() {
     return profilingExceptionHistogramTopItems;
   }
@@ -1674,6 +1650,10 @@ public class Config {
 
   public boolean isAsyncProfilerEnabled() {
     return isAsyncProfilerEnabled;
+  }
+
+  public boolean isDirectAllocationProfilingEnabled() {
+    return isDirectAllocationProfilingEnabled;
   }
 
   public boolean isCrashTrackingAgentless() {
