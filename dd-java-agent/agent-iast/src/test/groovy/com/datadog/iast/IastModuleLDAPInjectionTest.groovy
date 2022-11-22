@@ -25,9 +25,8 @@ class IastModuleLDAPInjectionTest extends IastModuleImplTestBase {
     final reqCtx = Mock(RequestContext) {
       getData(RequestContextSlot.IAST) >> ctx
     }
-    final spanId = DDId.from(123456)
     final span = Mock(AgentSpan) {
-      getSpanId() >> spanId
+      getSpanId() >> 123456
       getRequestContext() >> reqCtx
     }
     tracer.activeSpan() >> span
