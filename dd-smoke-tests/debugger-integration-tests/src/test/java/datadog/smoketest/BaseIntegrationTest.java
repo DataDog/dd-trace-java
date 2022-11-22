@@ -45,9 +45,10 @@ public abstract class BaseIntegrationTest {
           buildDirectory(), "reports", "testProcess." + DebuggerIntegrationTest.class.getName());
   private static final String INFO_CONTENT =
       "{\"endpoints\": [\"v0.4/traces\", \"debugger/v1/input\", \"v0.7/config\"]}";
-  private static final MockResponse agentInfoResponse =
+  private static final MockResponse AGENT_INFO_RESPONSE =
       new MockResponse().setResponseCode(200).setBody(INFO_CONTENT);
-  private static final MockResponse telemetryResponse = new MockResponse().setResponseCode(202);
+  private static final MockResponse TELEMETRY_RESPONSE = new MockResponse().setResponseCode(202);
+  private static final MockResponse EMPTY_200_RESPONSE = new MockResponse().setResponseCode(200);
 
   protected MockWebServer datadogAgentServer;
   private MockDispatcher probeMockDispatcher;
@@ -154,34 +155,38 @@ public abstract class BaseIntegrationTest {
   }
 
   private MockResponse datadogAgentDispatch(RecordedRequest request) {
+    LOG.info("datadogAgentDispatch request path: {}", request.getPath());
     if (request.getPath().equals("/info")) {
-      return agentInfoResponse;
+      return AGENT_INFO_RESPONSE;
     }
-    if (request.getPath().equals("telemetry/proxy/api/v2/apmtelemetry")) {
+    if (request.getPath().equals("/telemetry/proxy/api/v2/apmtelemetry")) {
       // Ack every telemetry request. This is needed if telemetry is enabled in the tests.
-      return telemetryResponse;
+      return TELEMETRY_RESPONSE;
     }
     if (request.getPath().startsWith(SNAPSHOT_URL_PATH)) {
       return new MockResponse().setResponseCode(200);
     }
-    Configuration configuration;
-    synchronized (configLock) {
-      configuration = getCurrentConfiguration();
-      configProvided = true;
-      configLock.notifyAll();
+    if (request.getPath().equals("/v0.7/config")) {
+      Configuration configuration;
+      synchronized (configLock) {
+        configuration = getCurrentConfiguration();
+        configProvided = true;
+        configLock.notifyAll();
+      }
+      if (configuration == null) {
+        configuration = createConfig(Collections.emptyList());
+      }
+      try {
+        JsonAdapter<Configuration> adapter =
+            MoshiHelper.createMoshiConfig().adapter(Configuration.class);
+        String json = adapter.toJson(configuration);
+        String remoteConfigJson = RemoteConfigHelper.encode(json, configuration.getId());
+        return new MockResponse().setResponseCode(200).setBody(remoteConfigJson);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
     }
-    if (configuration == null) {
-      configuration = createConfig(Collections.emptyList());
-    }
-    try {
-      JsonAdapter<Configuration> adapter =
-          MoshiHelper.createMoshiConfig().adapter(Configuration.class);
-      String json = adapter.toJson(configuration);
-      String remoteConfigJson = RemoteConfigHelper.encode(json, configuration.getId());
-      return new MockResponse().setResponseCode(200).setBody(remoteConfigJson);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    return EMPTY_200_RESPONSE;
   }
 
   private Configuration getCurrentConfiguration() {
