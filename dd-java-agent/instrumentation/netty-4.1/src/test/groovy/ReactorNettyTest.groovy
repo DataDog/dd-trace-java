@@ -26,11 +26,6 @@ class ReactorNettyTest extends AgentTestRunner {
     return false
   }
 
-  @Override
-  boolean isDataStreamsEnabled() {
-    true
-  }
-
   @AutoCleanup
   @Shared
   def server = httpServer {
@@ -84,9 +79,6 @@ class ReactorNettyTest extends AgentTestRunner {
     runUnderTrace("parent") {
       doRequest()
     }
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
-    }
 
     then:
     assertTraces(2) {
@@ -99,14 +91,6 @@ class ReactorNettyTest extends AgentTestRunner {
         clientSpan(it, 1, span(0))
       }
     }
-    and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-      verifyAll(first) {
-        edgeTags.containsAll(["type:http", "direction:out"])
-        edgeTags.size() == 2
-      }
-    }
   }
 
   def "test timeout"() {
@@ -114,23 +98,12 @@ class ReactorNettyTest extends AgentTestRunner {
     runUnderTrace("parent") {
       doTimeoutRequest()
     }
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
-    }
 
     then:
     assertTraces(1) {
       trace(2) {
         basicSpan(it, "parent")
         clientSpan(it, 1, span(0), "GET", server.address.resolve("/timeout"), null, true, ReadTimeoutException)
-      }
-    }
-    and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-      verifyAll(first) {
-        edgeTags.containsAll(["type:http", "direction:out"])
-        edgeTags.size() == 2
       }
     }
   }

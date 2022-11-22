@@ -21,8 +21,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecor
   private static final LinkedHashMap<String, String> createClientPathwaySortedTags() {
     LinkedHashMap<String, String> result = new LinkedHashMap<>();
     // TODO: Refactor TagsProcessor to move it into a package that we can link the constants for.
-    result.put("direction", "out");
-    result.put("type", "http");
+    result.put("type", "internal");
     return result;
   }
 
