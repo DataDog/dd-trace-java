@@ -48,16 +48,13 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   public static final String DD_DISPATCH_SPAN_ATTRIBUTE = "datadog.span.dispatch";
   public static final String DD_RESPONSE_ATTRIBUTE = "datadog.response";
 
-  private static final LinkedHashMap<String, String> createServerPathwaySortedTags() {
-    LinkedHashMap<String, String> result = new LinkedHashMap<>();
+  public static final LinkedHashMap<String, String> SERVER_PATHWAY_EDGE_TAGS;
+  static {
+    SERVER_PATHWAY_EDGE_TAGS = new LinkedHashMap<>(2);
     // TODO: Refactor TagsProcessor to move it into a package that we can link the constants for.
-    result.put("direction", "in");
-    result.put("type", "http");
-    return result;
+    SERVER_PATHWAY_EDGE_TAGS.put("direction", "in");
+    SERVER_PATHWAY_EDGE_TAGS.put("type", "http");
   }
-
-  private static final LinkedHashMap<String, String> SERVER_PATHWAY_EDGE_TAGS =
-      createServerPathwaySortedTags();
 
   private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
   protected static final UTF8BytesString NOT_FOUND_RESOURCE_NAME = UTF8BytesString.create("404");

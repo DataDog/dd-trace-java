@@ -18,16 +18,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecorator {
-  private static final LinkedHashMap<String, String> createClientPathwaySortedTags() {
-    LinkedHashMap<String, String> result = new LinkedHashMap<>();
+  public static final LinkedHashMap<String, String> CLIENT_PATHWAY_EDGE_TAGS;
+  static {
+    CLIENT_PATHWAY_EDGE_TAGS = new LinkedHashMap<>(2);
     // TODO: Refactor TagsProcessor to move it into a package that we can link the constants for.
-    result.put("direction", "out");
-    result.put("type", "http");
-    return result;
+    CLIENT_PATHWAY_EDGE_TAGS.put("direction", "out");
+    CLIENT_PATHWAY_EDGE_TAGS.put("type", "http");
   }
-
-  public static final LinkedHashMap<String, String> CLIENT_PATHWAY_EDGE_TAGS =
-      createClientPathwaySortedTags();
 
   private static final Logger log = LoggerFactory.getLogger(HttpClientDecorator.class);
 
