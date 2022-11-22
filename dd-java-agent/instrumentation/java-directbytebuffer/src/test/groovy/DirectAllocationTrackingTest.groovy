@@ -44,11 +44,16 @@ class DirectAllocationTrackingTest extends AgentTestRunner {
     def directAllocations = getDirectAllocations()
 
     then:
-    directAllocations.size() == 1
-    directAllocations.get(0).getLong("allocated") == 20
-    directAllocations.get(0).getString("source") == "MMAP"
-    directAllocations.get(0).getString("allocatingClass") == "org.codehaus.groovy.runtime.callsite.PlainObjectMetaMethodSite"
-    directAllocations.get(0).getLong("spanId") == expectedSpanId.get()
+    directAllocations.size() == 2
+    def sample = directAllocations.find({ it.getEventType().name.equals("datadog.DirectAllocationSample")})
+    sample.getLong("allocated") == 20
+    sample.getString("source") == "MMAP"
+    sample.getString("allocatingClass") == "org.codehaus.groovy.runtime.callsite.PlainObjectMetaMethodSite"
+    sample.getLong("spanId") == expectedSpanId.get()
+    def total = directAllocations.find({ it.getEventType().name.equals("datadog.DirectAllocationTotal")})
+    total.getLong("allocated") == 20
+    total.getString("source") == "MMAP"
+    total.getString("allocatingClass") == "org.codehaus.groovy.runtime.callsite.PlainObjectMetaMethodSite"
 
     cleanup:
     recording.close()
@@ -66,11 +71,16 @@ class DirectAllocationTrackingTest extends AgentTestRunner {
     def directAllocations = getDirectAllocations()
 
     then:
-    directAllocations.size() == 1
-    directAllocations.get(0).getLong("allocated") == 10
-    directAllocations.get(0).getString("source") == "ALLOCATE_DIRECT"
-    directAllocations.get(0).getString("allocatingClass") == "java_nio_ByteBuffer\$allocateDirect"
-    directAllocations.get(0).getLong("spanId") == expectedSpanId.get()
+    directAllocations.size() == 2
+    def sample = directAllocations.find({ it.getEventType().name.equals("datadog.DirectAllocationSample")})
+    sample.getLong("allocated") == 10
+    sample.getString("source") == "ALLOCATE_DIRECT"
+    sample.getString("allocatingClass") == "java_nio_ByteBuffer\$allocateDirect"
+    sample.getLong("spanId") == expectedSpanId.get()
+    def total = directAllocations.find({ it.getEventType().name.equals("datadog.DirectAllocationTotal")})
+    total.getLong("allocated") == 10
+    total.getString("source") == "ALLOCATE_DIRECT"
+    total.getString("allocatingClass") == "java_nio_ByteBuffer\$allocateDirect"
 
     cleanup:
     recording.close()
@@ -85,8 +95,11 @@ class DirectAllocationTrackingTest extends AgentTestRunner {
     def directAllocations = getDirectAllocations()
 
     then:
-    directAllocations.size() == 1
-    directAllocations.get(0).getLong("allocated") == 10
+    directAllocations.size() == 2
+    def sample = directAllocations.find({ it.getEventType().name.equals("datadog.DirectAllocationSample")})
+    sample.getLong("allocated") == 10
+    def total = directAllocations.find({ it.getEventType().name.equals("datadog.DirectAllocationTotal")})
+    total.getLong("allocated") == 10
 
     cleanup:
     recording.close()
@@ -100,7 +113,7 @@ class DirectAllocationTrackingTest extends AgentTestRunner {
     stream.transferTo(new FileOutputStream(output))
     return RecordingFile.readAllEvents(output.toPath())
       .stream()
-      .filter({ it.getEventType().name.equals("datadog.DirectAllocationSample")})
+      .filter({ ["datadog.DirectAllocationSample", "datadog.DirectAllocationTotal"].contains(it.getEventType().name)})
       .collect(Collectors.toList())
   }
 
