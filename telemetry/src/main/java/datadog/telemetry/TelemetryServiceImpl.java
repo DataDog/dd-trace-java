@@ -10,29 +10,26 @@ import datadog.telemetry.api.KeyValue;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.Payload;
 import datadog.telemetry.api.RequestType;
-import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TelemetryServiceImpl implements TelemetryService {
 
   private static final Logger log = LoggerFactory.getLogger(TelemetryServiceImpl.class);
-  private final OkHttpClient okHttpClient;
+  private final TelemetryHttpClient httpClient;
   private final Set<KeyValue> configurations = new LimitedLinkedHashSet<>(1024);
   private final Set<Integration> integrations = new LimitedLinkedHashSet<>(1024);
   private final Set<Dependency> dependencies = new LimitedLinkedHashSet<>(1024);
   private final Set<Metric> metrics = new LimitedLinkedHashSet<>(1024);
 
-  public TelemetryServiceImpl(OkHttpClient okHttpClient) {
-    this.okHttpClient = okHttpClient;
+  public TelemetryServiceImpl(TelemetryHttpClient httpClient) {
+    this.httpClient = httpClient;
   }
 
   @Override
@@ -69,17 +66,17 @@ public class TelemetryServiceImpl implements TelemetryService {
 
     List<KeyValue> configs = null;
     if (!configurations.isEmpty()) {
-      configs = new LinkedList<>(configurations);
+      configs = new ArrayList<>(configurations);
     }
 
     List<Integration> integs = Collections.emptyList();
     if (!integrations.isEmpty()) {
-      integs = new LinkedList<>(integrations);
+      integs = new ArrayList<>(integrations);
     }
 
     List<Dependency> deps = Collections.emptyList();
     if (!dependencies.isEmpty()) {
-      deps = new LinkedList<>(dependencies);
+      deps = new ArrayList<>(dependencies);
     }
 
     Payload payload =
@@ -90,7 +87,7 @@ public class TelemetryServiceImpl implements TelemetryService {
             .requestType(RequestType.APP_STARTED);
 
     Request request = requestBuilder.build(RequestType.APP_STARTED, payload);
-    RequestStatus status = sendRequest(request);
+    RequestStatus status = httpClient.sendRequest(request);
 
     // Telemetry successfully sent - clear data
     if (status == RequestStatus.SUCCESS) {
@@ -104,8 +101,8 @@ public class TelemetryServiceImpl implements TelemetryService {
     return status;
   }
 
-  private RequestStatus sendIntegrations(RequestBuilder requestBuilder) {
-    List<Integration> integs = new LinkedList<>(integrations);
+  RequestStatus sendIntegrations(RequestBuilder requestBuilder) {
+    List<Integration> integs = new ArrayList<>(integrations);
 
     Payload payload =
         new AppIntegrationsChange()
@@ -113,7 +110,7 @@ public class TelemetryServiceImpl implements TelemetryService {
             .requestType(RequestType.APP_INTEGRATIONS_CHANGE);
 
     Request request = requestBuilder.build(RequestType.APP_INTEGRATIONS_CHANGE, payload);
-    RequestStatus status = sendRequest(request);
+    RequestStatus status = httpClient.sendRequest(request);
 
     if (status == RequestStatus.SUCCESS) {
       integrations.removeAll(integs);
@@ -122,8 +119,8 @@ public class TelemetryServiceImpl implements TelemetryService {
     return status;
   }
 
-  private RequestStatus sendDependencies(RequestBuilder requestBuilder) {
-    List<Dependency> deps = new LinkedList<>(dependencies);
+  RequestStatus sendDependencies(RequestBuilder requestBuilder) {
+    List<Dependency> deps = new ArrayList<>(dependencies);
 
     Payload payload =
         new AppDependenciesLoaded()
@@ -131,7 +128,7 @@ public class TelemetryServiceImpl implements TelemetryService {
             .requestType(RequestType.APP_DEPENDENCIES_LOADED);
 
     Request request = requestBuilder.build(RequestType.APP_DEPENDENCIES_LOADED, payload);
-    RequestStatus status = sendRequest(request);
+    RequestStatus status = httpClient.sendRequest(request);
 
     if (status == RequestStatus.SUCCESS) {
       dependencies.removeAll(deps);
@@ -140,8 +137,8 @@ public class TelemetryServiceImpl implements TelemetryService {
     return status;
   }
 
-  private RequestStatus sendMetrics(RequestBuilder requestBuilder) {
-    List<Metric> mtrs = new LinkedList<>(metrics);
+  RequestStatus sendMetrics(RequestBuilder requestBuilder) {
+    List<Metric> mtrs = new ArrayList<>(metrics);
 
     Payload payload =
         new GenerateMetrics()
@@ -152,7 +149,7 @@ public class TelemetryServiceImpl implements TelemetryService {
             .requestType(RequestType.GENERATE_METRICS);
 
     Request request = requestBuilder.build(RequestType.GENERATE_METRICS, payload);
-    RequestStatus status = sendRequest(request);
+    RequestStatus status = httpClient.sendRequest(request);
 
     if (status == RequestStatus.SUCCESS) {
       metrics.removeAll(mtrs);
@@ -196,29 +193,11 @@ public class TelemetryServiceImpl implements TelemetryService {
   @Override
   public RequestStatus sendAppClosing(RequestBuilder requestBuilder) {
     Request request = requestBuilder.build(RequestType.APP_CLOSING);
-    return sendRequest(request);
+    return httpClient.sendRequest(request);
   }
 
   public RequestStatus sendHeartbeat(RequestBuilder requestBuilder) {
     Request request = requestBuilder.build(RequestType.APP_HEARTBEAT);
-    return sendRequest(request);
-  }
-
-  private RequestStatus sendRequest(Request request) {
-    try (Response response = okHttpClient.newCall(request).execute()) {
-      switch (response.code()) {
-        case 202:
-          return RequestStatus.SUCCESS;
-
-        case 404:
-          return RequestStatus.ENDPOINT_ERROR;
-
-        default:
-          return RequestStatus.HTTP_ERROR;
-      }
-    } catch (IOException e) {
-      log.warn("IOException on HTTP request to Telemetry Intake Service", e);
-      return RequestStatus.HTTP_ERROR;
-    }
+    return httpClient.sendRequest(request);
   }
 }

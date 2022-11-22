@@ -1,11 +1,8 @@
 package datadog.telemetry;
 
-import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
-import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigCollector;
 import java.util.List;
-import okhttp3.HttpUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,7 +10,7 @@ public class TelemetryRunnable implements Runnable {
 
   private static final Logger log = LoggerFactory.getLogger(TelemetryRunnable.class);
 
-  private final SharedCommunicationObjects sco;
+  private final AgentDiscoverer discoverer;
   private final TelemetryService telemetryService;
 
   private final long heartbeatIntervalMs;
@@ -21,20 +18,20 @@ public class TelemetryRunnable implements Runnable {
   private final ThreadSleeper sleeper;
 
   public TelemetryRunnable(
-      SharedCommunicationObjects sco,
+      AgentDiscoverer discoverer,
       TelemetryService telemetryService,
       int heartbeatIntervalMs,
       List<TelemetryPeriodicAction> actions) {
-    this(sco, telemetryService, heartbeatIntervalMs, actions, new ThreadSleeperImpl());
+    this(discoverer, telemetryService, heartbeatIntervalMs, actions, new ThreadSleeperImpl());
   }
 
   TelemetryRunnable(
-      SharedCommunicationObjects sco,
+      AgentDiscoverer discoverer,
       TelemetryService telemetryService,
       int heartbeatIntervalMs,
       List<TelemetryPeriodicAction> actions,
       ThreadSleeper sleeper) {
-    this.sco = sco;
+    this.discoverer = discoverer;
     this.telemetryService = telemetryService;
     this.heartbeatIntervalMs = heartbeatIntervalMs;
     this.actions = actions;
@@ -53,20 +50,22 @@ public class TelemetryRunnable implements Runnable {
       action.doIteration(this.telemetryService);
     }
 
-    RequestBuilder requestBuilder = discoverNewEndpoint();
+    RequestBuilder requestBuilder = discoverer.telemetryRequestBuilder();
+
     RequestStatus status = telemetryService.sendAppStarted(requestBuilder);
     RequestStatus lastStatus = RequestStatus.SUCCESS;
 
     while (!Thread.interrupted()) {
 
       sleeper.sleep(heartbeatIntervalMs);
+      if (Thread.interrupted()) break;
 
       for (TelemetryPeriodicAction action : this.actions) {
         action.doIteration(this.telemetryService);
       }
 
       if (status == RequestStatus.ENDPOINT_ERROR || requestBuilder == null) {
-        requestBuilder = discoverNewEndpoint();
+        requestBuilder = discoverer.telemetryRequestBuilder();
       }
 
       status = telemetryService.sendTelemetry(requestBuilder);
@@ -88,6 +87,8 @@ public class TelemetryRunnable implements Runnable {
         case SUCCESS:
           if (status != lastStatus) {
             log.info("Telemetry back to normal - message sent successfully");
+          } else {
+            log.debug("Telemetry message sent successfully");
           }
       }
       lastStatus = status;
@@ -96,27 +97,6 @@ public class TelemetryRunnable implements Runnable {
     log.debug("Sending AppClosing telemetry event");
     telemetryService.sendAppClosing(requestBuilder);
     log.debug("Telemetry thread finishing");
-  }
-
-  private RequestBuilder discoverNewEndpoint() {
-    DDAgentFeaturesDiscovery fd = sco.featuresDiscovery(Config.get());
-    if (fd == null) {
-      return null;
-    }
-
-    fd.discoverIfOutdated();
-
-    String telemetryEndpoint = fd.getTelemetryEndpoint();
-    if (telemetryEndpoint == null) {
-      return null;
-    }
-
-    HttpUrl httpUrl = fd.buildUrl(telemetryEndpoint);
-    if (httpUrl == null) {
-      return null;
-    }
-
-    return new RequestBuilder(httpUrl);
   }
 
   interface ThreadSleeper {

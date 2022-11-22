@@ -46,8 +46,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   public static final String DEBUGGER_ENDPOINT = "debugger/v1/input";
 
   public static final String TELEMETRY_ENDPOINT = "telemetry/proxy/";
-  private static final long MIN_FEATURE_DISCOVERY_INTERVAL_MILLIS = 60 * 1000;
 
+  private static final long MIN_FEATURE_DISCOVERY_INTERVAL_MILLIS = 60 * 1000;
   private final OkHttpClient client;
   private final HttpUrl agentBaseUrl;
   private final Recording discoveryTimer;
@@ -64,11 +64,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private volatile String state;
   private volatile String configEndpoint;
   private volatile String debuggerEndpoint;
-
   private volatile String telemetryEndpoint;
   private volatile String version;
 
-  private long lastTimeDiscovered = MIN_FEATURE_DISCOVERY_INTERVAL_MILLIS;
+  private long lastTimeDiscovered;
 
   public DDAgentFeaturesDiscovery(
       OkHttpClient client,
