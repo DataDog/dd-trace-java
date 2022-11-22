@@ -2,6 +2,8 @@ package datadog.trace.api
 
 import datadog.trace.test.util.DDSpecification
 
+import java.security.SecureRandom
+
 class DDTraceIdTest extends DDSpecification {
 
   def "convert ids from/to long and check strings"() {
@@ -160,5 +162,38 @@ class DDTraceIdTest extends DDSpecification {
     "0" * 4 + "8" + "0" * 15       | DDTraceId.from(Long.MIN_VALUE)
     "1" * 8 + "0" * 8 + "cafebabe" | DDTraceId.from(3405691582)
     "1" * 12 + "0123456789abcdef"  | DDTraceId.from(81985529216486895)
+  }
+
+  def "exception created on SecureRandom strategy"() {
+    setup:
+    def provider = Mock(IdGenerationStrategy.ThrowingSupplier)
+
+    when:
+    new IdGenerationStrategy.SRandom(provider)
+
+    then:
+    1 * provider.get() >> { throw new IllegalArgumentException("SecureRandom init exception") }
+    0 * _
+    final ExceptionInInitializerError exception = thrown()
+    exception.cause.message == "SecureRandom init exception"
+  }
+
+  def "SecureRandom traceID will always be non-zero"() {
+    setup:
+    def provider = Mock(IdGenerationStrategy.ThrowingSupplier)
+    def random = Mock(SecureRandom)
+
+    when:
+    def strategy = new IdGenerationStrategy.SRandom(provider)
+    strategy.generateTraceId().toLong() == 47
+    strategy.generateSpanId() == 11
+
+    then:
+    1 * provider.get() >> { random }
+    1 * random.nextLong() >> { 0 }
+    1 * random.nextLong() >> { 47 }
+    1 * random.nextLong() >> { 0 }
+    1 * random.nextLong() >> { 11 }
+    0 * _
   }
 }

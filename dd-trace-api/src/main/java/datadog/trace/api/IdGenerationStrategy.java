@@ -1,6 +1,5 @@
 package datadog.trace.api;
 
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
@@ -57,13 +56,22 @@ public abstract class IdGenerationStrategy {
     }
   }
 
+  @FunctionalInterface
+  interface ThrowingSupplier<T> {
+    T get() throws Throwable;
+  }
+
   static final class SRandom extends IdGenerationStrategy {
     private final SecureRandom secureRandom;
 
     SRandom() {
+      this(SecureRandom::getInstanceStrong);
+    }
+
+    SRandom(ThrowingSupplier<SecureRandom> supplier) {
       try {
-        secureRandom = SecureRandom.getInstanceStrong();
-      } catch (NoSuchAlgorithmException e) {
+        secureRandom = supplier.get();
+      } catch (Throwable e) {
         throw new ExceptionInInitializerError(e);
       }
     }
