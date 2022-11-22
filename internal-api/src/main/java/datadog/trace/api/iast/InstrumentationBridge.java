@@ -216,6 +216,18 @@ public abstract class InstrumentationBridge {
     }
   }
 
+  public static void onDirContextSearch(String name, String filterExpr, Object[] filterArgs) {
+    LOG.debug("Start onDirContextSearch");
+    try {
+      if (MODULE != null) {
+        MODULE.onDirContextSearch(name, filterExpr, filterArgs);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onProcessBuilderStart threw.", t);
+    }
+    LOG.debug("End onDirContextSearch");
+  }
+
   private static void onUnexpectedException(final String message, final Throwable error) {
     LOG.warn(message, error);
   }

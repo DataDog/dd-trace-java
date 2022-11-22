@@ -39,7 +39,8 @@ class InstrumentationBridgeTest extends DDSpecification {
     new BridgeMethod('onPathTraversal', ['/var', 'log'], 'onPathTraversal'),
     new BridgeMethod('onPathTraversal', ['/var', ['log', 'log.txt'] as String[]], 'onPathTraversal'),
     new BridgeMethod('onPathTraversal', [new File('/var'), '/log/log.txt'], 'onPathTraversal'),
-    new BridgeMethod('onPathTraversal', [new URI('file:/tmp')], 'onPathTraversal')
+    new BridgeMethod('onPathTraversal', [new URI('file:/tmp')], 'onPathTraversal'),
+    new BridgeMethod('onDirContextSearch', [null, 'filter', null], 'onDirContextSearch')
   ]
 
   void '#bridgeMethod does not fail when module is not set'(final BridgeMethod bridgeMethod) {
@@ -95,5 +96,41 @@ class InstrumentationBridgeTest extends DDSpecification {
 
     where:
     bridgeMethod << BRIDGE_METHODS
+  }
+
+  def "bridge calls module when a InitialDirContext search is detected"() {
+    setup:
+    final module = Mock(IastModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    InstrumentationBridge.onDirContextSearch(null, 'filter', null)
+
+    then:
+    1 * module.onDirContextSearch(null, 'filter', null)
+  }
+
+  def "bridge calls don't fail with null module when InitialDirContext search is detected"() {
+    setup:
+    InstrumentationBridge.registerIastModule(null)
+
+    when:
+    InstrumentationBridge.onDirContextSearch(null, null, null)
+
+    then:
+    noExceptionThrown()
+  }
+
+  def "bridge calls don't leak exceptions when InitialDirContext search is detected"() {
+    setup:
+    final module = Mock(IastModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    InstrumentationBridge.onDirContextSearch(null, null, null)
+
+    then:
+    1 * module.onDirContextSearch(null, null, null) >> { throw new Error('Boom!!!') }
+    noExceptionThrown()
   }
 }

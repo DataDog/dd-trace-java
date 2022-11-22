@@ -35,8 +35,12 @@ import java.util.Map;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class IastModuleImpl implements IastModule {
+
+  private static final Logger LOG = LoggerFactory.getLogger(IastModuleImpl.class);
 
   private static final int NULL_STR_LENGTH = "null".length();
 
@@ -413,6 +417,50 @@ public final class IastModuleImpl implements IastModule {
       rangeProvider = rangesProviderFor(to, asList(parent, child));
     }
     checkInjection(VulnerabilityType.PATH_TRAVERSAL, rangeProvider);
+  }
+
+  @Override
+  public void onDirContextSearch(String name, @Nonnull String filterExpr, Object[] filterArgs) {
+    // TODO check if is worth to calc size and use String[] instead of List<String>
+    List<String> elements = null;
+    if (canBeTaintedNullSafe(name)) {
+      elements = new ArrayList<>();
+      elements.add(name);
+    }
+    if (canBeTaintedNullSafe(filterExpr)) {
+      elements = getElements(elements);
+      elements.add(filterExpr);
+    }
+    if (filterArgs != null) {
+      for (int i = 0; i < filterArgs.length; i++) {
+        if (filterArgs[i] != null && filterArgs[i] instanceof String) {
+          String stringArg = (String) filterArgs[i];
+          if (stringArg.length() > 0) {
+            elements = getElements(elements);
+            elements.add(stringArg);
+          }
+        }
+      }
+    }
+    if (elements.isEmpty()) {
+      LOG.debug("there ara no elements that can be tainted");
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      LOG.debug("No IastRequestContext available");
+      return;
+    }
+    final TaintedObjects to = ctx.getTaintedObjects();
+    final RangesProvider<String> rangesProvider = Ranges.rangesProviderFor(to, elements);
+    checkInjection(VulnerabilityType.LDAP_INJECTION, rangesProvider);
+  }
+
+  private static List<String> getElements(List<String> elements) {
+    if (elements == null) {
+      elements = new ArrayList<>();
+    }
+    return elements;
   }
 
   private <E> void checkInjection(
