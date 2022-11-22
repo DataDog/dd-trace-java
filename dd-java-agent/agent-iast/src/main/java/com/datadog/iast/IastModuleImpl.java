@@ -468,10 +468,6 @@ public final class IastModuleImpl implements IastModule {
         .orElse(first[0]);
   }
 
-  private static Range[] getRanges(final TaintedObject taintedObject) {
-    return taintedObject == null ? Ranges.EMPTY : taintedObject.getRanges();
-  }
-
   private static TaintedObject getTainted(final TaintedObjects to, final Object value) {
     return value == null ? null : to.get(value);
   }
