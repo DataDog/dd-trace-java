@@ -4,7 +4,6 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Platform
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import datadog.trace.core.datastreams.StatsGroup
 import io.netty.handler.timeout.ReadTimeoutException
 import io.netty.handler.timeout.ReadTimeoutHandler
 import reactor.netty.http.client.HttpClient
