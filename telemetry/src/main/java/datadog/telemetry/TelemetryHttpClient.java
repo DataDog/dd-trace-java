@@ -34,7 +34,7 @@ public class TelemetryHttpClient {
           return RequestStatus.HTTP_ERROR;
       }
     } catch (IOException e) {
-      log.warn("IOException on HTTP request to Telemetry Intake ServiceL {}", e.getMessage());
+      log.warn("IOException on HTTP request to Telemetry Intake ServiceL {}", e.toString());
       return RequestStatus.HTTP_ERROR;
     }
   }

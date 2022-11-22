@@ -37,7 +37,7 @@ public class TelemetrySystem {
     DEPENDENCY_SERVICE = dependencyService;
     TelemetryRunnable telemetryRunnable =
         new TelemetryRunnable(
-            sco,
+            new AgentDiscoverer(sco),
             telemetryService,
             Config.get().getTelemetryHeartbeatInterval(),
             Arrays.asList(

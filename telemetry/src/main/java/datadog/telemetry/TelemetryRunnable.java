@@ -13,7 +13,7 @@ public class TelemetryRunnable implements Runnable {
 
   private static final Logger log = LoggerFactory.getLogger(TelemetryRunnable.class);
 
-  private final SharedCommunicationObjects sco;
+  private final AgentDiscoverer discoverer;
   private final TelemetryService telemetryService;
 
   private final long heartbeatIntervalMs;
@@ -21,20 +21,20 @@ public class TelemetryRunnable implements Runnable {
   private final ThreadSleeper sleeper;
 
   public TelemetryRunnable(
-      SharedCommunicationObjects sco,
+      AgentDiscoverer discoverer,
       TelemetryService telemetryService,
       int heartbeatIntervalMs,
       List<TelemetryPeriodicAction> actions) {
-    this(sco, telemetryService, heartbeatIntervalMs, actions, new ThreadSleeperImpl());
+    this(discoverer, telemetryService, heartbeatIntervalMs, actions, new ThreadSleeperImpl());
   }
 
   TelemetryRunnable(
-      SharedCommunicationObjects sco,
+      AgentDiscoverer discoverer,
       TelemetryService telemetryService,
       int heartbeatIntervalMs,
       List<TelemetryPeriodicAction> actions,
       ThreadSleeper sleeper) {
-    this.sco = sco;
+    this.discoverer = discoverer;
     this.telemetryService = telemetryService;
     this.heartbeatIntervalMs = heartbeatIntervalMs;
     this.actions = actions;
@@ -53,7 +53,8 @@ public class TelemetryRunnable implements Runnable {
       action.doIteration(this.telemetryService);
     }
 
-    RequestBuilder requestBuilder = discoverNewEndpoint();
+    RequestBuilder requestBuilder = discoverer.telemetryRequestBuilder();
+
     RequestStatus status = telemetryService.sendAppStarted(requestBuilder);
     RequestStatus lastStatus = RequestStatus.SUCCESS;
 
@@ -66,7 +67,7 @@ public class TelemetryRunnable implements Runnable {
       }
 
       if (status == RequestStatus.ENDPOINT_ERROR || requestBuilder == null) {
-        requestBuilder = discoverNewEndpoint();
+        requestBuilder = discoverer.telemetryRequestBuilder();
       }
 
       status = telemetryService.sendTelemetry(requestBuilder);
@@ -98,27 +99,6 @@ public class TelemetryRunnable implements Runnable {
     log.debug("Sending AppClosing telemetry event");
     telemetryService.sendAppClosing(requestBuilder);
     log.debug("Telemetry thread finishing");
-  }
-
-  private RequestBuilder discoverNewEndpoint() {
-    DDAgentFeaturesDiscovery fd = sco.featuresDiscovery(Config.get());
-    if (fd == null) {
-      return null;
-    }
-
-    fd.discoverIfOutdated();
-
-    String telemetryEndpoint = fd.getTelemetryEndpoint();
-    if (telemetryEndpoint == null) {
-      return null;
-    }
-
-    HttpUrl httpUrl = fd.buildUrl(telemetryEndpoint);
-    if (httpUrl == null) {
-      return null;
-    }
-
-    return new RequestBuilder(httpUrl);
   }
 
   interface ThreadSleeper {

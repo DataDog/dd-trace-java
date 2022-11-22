@@ -11,7 +11,7 @@ import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.Payload;
 import datadog.telemetry.api.RequestType;
 import java.util.Collections;
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -66,17 +66,17 @@ public class TelemetryServiceImpl implements TelemetryService {
 
     List<KeyValue> configs = null;
     if (!configurations.isEmpty()) {
-      configs = new LinkedList<>(configurations);
+      configs = new ArrayList<>(configurations);
     }
 
     List<Integration> integs = Collections.emptyList();
     if (!integrations.isEmpty()) {
-      integs = new LinkedList<>(integrations);
+      integs = new ArrayList<>(integrations);
     }
 
     List<Dependency> deps = Collections.emptyList();
     if (!dependencies.isEmpty()) {
-      deps = new LinkedList<>(dependencies);
+      deps = new ArrayList<>(dependencies);
     }
 
     Payload payload =
@@ -102,7 +102,7 @@ public class TelemetryServiceImpl implements TelemetryService {
   }
 
   RequestStatus sendIntegrations(RequestBuilder requestBuilder) {
-    List<Integration> integs = new LinkedList<>(integrations);
+    List<Integration> integs = new ArrayList<>(integrations);
 
     Payload payload =
         new AppIntegrationsChange()
@@ -120,7 +120,7 @@ public class TelemetryServiceImpl implements TelemetryService {
   }
 
   RequestStatus sendDependencies(RequestBuilder requestBuilder) {
-    List<Dependency> deps = new LinkedList<>(dependencies);
+    List<Dependency> deps = new ArrayList<>(dependencies);
 
     Payload payload =
         new AppDependenciesLoaded()
@@ -138,7 +138,7 @@ public class TelemetryServiceImpl implements TelemetryService {
   }
 
   RequestStatus sendMetrics(RequestBuilder requestBuilder) {
-    List<Metric> mtrs = new LinkedList<>(metrics);
+    List<Metric> mtrs = new ArrayList<>(metrics);
 
     Payload payload =
         new GenerateMetrics()

@@ -1,6 +1,6 @@
 package datadog.telemetry
 
-import datadog.communication.ddagent.SharedCommunicationObjects
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.test.util.DDSpecification
 import okhttp3.Call
 import okhttp3.OkHttpClient
@@ -19,13 +19,18 @@ class TelemetryRunnableSpecification extends DDSpecification {
   .request(REQUEST).protocol(Protocol.HTTP_1_0).message("msg").code(404).build()
 
   OkHttpClient okHttpClient = Mock()
+  DDAgentFeaturesDiscovery fd = Mock {
+    getTelemetryEndpoint() >> 'telemetry/proxy/'
+  }
   TelemetryRunnable.ThreadSleeper sleeper = Mock()
-  SharedCommunicationObjects sco = Mock()
-  TelemetryServiceImpl telemetryService = Mock()
-  TelemetryRunnable.TelemetryPeriodicAction periodicAction = Mock()
-  TelemetryRunnable runnable = new TelemetryRunnable(sco, telemetryService, 1, [periodicAction], sleeper)
-  Thread t = new Thread(runnable)
+  TelemetryServiceImpl telemetryService = Mock ()
   RequestBuilder requestBuilder = Mock()
+  AgentDiscoverer discoverer = Mock {
+    telemetryRequestBuilder() >> requestBuilder
+  }
+  TelemetryRunnable.TelemetryPeriodicAction periodicAction = Mock()
+  TelemetryRunnable runnable = new TelemetryRunnable(discoverer, telemetryService, 1, [periodicAction], sleeper)
+  Thread t = new Thread(runnable)
 
   void cleanup() {
     if (t.isAlive()) {
@@ -152,28 +157,20 @@ class TelemetryRunnableSpecification extends DDSpecification {
     then:
     1 * telemetryService.addConfiguration(_)
     1 * periodicAction.doIteration(telemetryService)
-    1 * telemetryService.addStartedRequest()
+    1 * telemetryService.sendAppStarted(requestBuilder) >> RequestStatus.SUCCESS
 
     then:
+    1 * sleeper.sleep(_)
     1 * periodicAction.doIteration(telemetryService)
-    1 * telemetryService.prepareRequests() >> queue
+    1 * telemetryService.sendTelemetry(requestBuilder) >> RequestStatus.SUCCESS
 
     then:
-    1 * okHttpClient.newCall(REQUEST) >> call
-    1 * call.execute() >> BAD_RESPONSE
-    queue.size() == 1
-
-    then:
-    1 * sleeper.sleep(3_000)
-
-    then:
+    1 * sleeper.sleep(_) >> { t.interrupt() }
     1 * periodicAction.doIteration(telemetryService)
-    1 * telemetryService.prepareRequests() >> queue
-    1 * okHttpClient.newCall(REQUEST) >> call
-    1 * call.execute() >> BAD_RESPONSE
-    queue.size() == 1
+    1 * telemetryService.sendTelemetry(requestBuilder) >> RequestStatus.SUCCESS
 
     then:
+    1 * telemetryService.sendAppClosing(requestBuilder) >> RequestStatus.SUCCESS
     1 * sleeper.sleep(9_000) >> { t.interrupt() }
 
     then:
@@ -182,4 +179,5 @@ class TelemetryRunnableSpecification extends DDSpecification {
     1 * call.execute() >> OK_RESPONSE
     0 * _
   }
+
 }
