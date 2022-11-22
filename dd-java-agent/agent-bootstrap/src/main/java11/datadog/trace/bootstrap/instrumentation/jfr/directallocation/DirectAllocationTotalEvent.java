@@ -22,14 +22,14 @@ public class DirectAllocationTotalEvent extends Event {
   private final String allocatingClass;
 
   @Label("Allocation Type")
-  private final String allocationType;
+  private final String source;
 
   @Label("Allocated")
   private final long allocated;
 
   public DirectAllocationTotalEvent(String allocatingClass, String allocationType, long allocated) {
     this.allocatingClass = allocatingClass;
-    this.allocationType = allocationType;
+    this.source = allocationType;
     this.allocated = allocated;
   }
 }
