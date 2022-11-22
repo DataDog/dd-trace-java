@@ -103,8 +103,6 @@ public class SharedCommunicationObjects {
     private String configUrl;
     private final SharedCommunicationObjects sco;
     private final Config config;
-    private long lastTry = 0;
-    private long retryInterval = 5000;
 
     private RetryConfigUrlSupplier(final SharedCommunicationObjects sco, final Config config) {
       this.sco = sco;
@@ -117,31 +115,13 @@ public class SharedCommunicationObjects {
         return configUrl;
       }
 
-      long now = System.currentTimeMillis();
-      long elapsed = now - lastTry;
-      if (elapsed > retryInterval) {
-
-        if (sco.featuresDiscovery == null) {
-          // Note that feature discovery initialization also runs discovery on its first call.
-          sco.featuresDiscovery(config);
-        } else {
-          // Feature discovery might have run elsewhere. In that case, we don't need another call.
-          if (sco.featuresDiscovery.getConfigEndpoint() == null) {
-            sco.featuresDiscovery.discover();
-          }
-          retryInterval = 60000;
-        }
-      } else {
-        return null;
-      }
-      lastTry = now;
-      String configEndpoint = sco.featuresDiscovery.getConfigEndpoint();
+      final DDAgentFeaturesDiscovery discovery = sco.featuresDiscovery(config);
+      discovery.discoverIfOutdated();
+      final String configEndpoint = discovery.getConfigEndpoint();
       if (configEndpoint == null) {
-        log.debug("Remote config endpoint not found");
         return null;
       }
-
-      this.configUrl = sco.featuresDiscovery.buildUrl(configEndpoint).toString();
+      this.configUrl = discovery.buildUrl(configEndpoint).toString();
       log.debug("Found remote config endpoint: {}", this.configUrl);
       return this.configUrl;
     }

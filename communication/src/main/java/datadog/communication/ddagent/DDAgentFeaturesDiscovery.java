@@ -45,6 +45,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public static final String DEBUGGER_ENDPOINT = "debugger/v1/input";
 
+  private static final long MIN_FEATURE_DISCOVERY_INTERVAL_MILLIS = 60 * 1000;
+
   private final OkHttpClient client;
   private final HttpUrl agentBaseUrl;
   private final Recording discoveryTimer;
@@ -62,6 +64,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private volatile String configEndpoint;
   private volatile String debuggerEndpoint;
   private volatile String version;
+
+  private long lastTimeDiscovered;
 
   public DDAgentFeaturesDiscovery(
       OkHttpClient client,
@@ -87,9 +91,29 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     configEndpoint = null;
     debuggerEndpoint = null;
     version = null;
+    lastTimeDiscovered = 0;
   }
 
+  /** Run feature discovery, unconditionally. */
   public void discover() {
+    discoverIfOutdated(0);
+  }
+
+  /** Run feature discovery, if it was not run recently. */
+  public void discoverIfOutdated() {
+    discoverIfOutdated(MIN_FEATURE_DISCOVERY_INTERVAL_MILLIS);
+  }
+
+  private synchronized void discoverIfOutdated(final long maxElapsedMs) {
+    final long now = System.currentTimeMillis();
+    final long elapsed = now - lastTimeDiscovered;
+    if (elapsed > maxElapsedMs) {
+      doDiscovery();
+      lastTimeDiscovered = now;
+    }
+  }
+
+  private void doDiscovery() {
     reset();
     // 1. try to fetch info about the agent, if the endpoint is there
     // 2. try to parse the response, if it can be parsed, finish
