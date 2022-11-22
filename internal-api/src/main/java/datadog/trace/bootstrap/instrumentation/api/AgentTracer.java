@@ -12,6 +12,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.interceptor.TraceInterceptor;
+import datadog.trace.api.internal.InternalTracer;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
@@ -115,7 +116,7 @@ public class AgentTracer {
   private AgentTracer() {}
 
   public interface TracerAPI
-      extends datadog.trace.api.Tracer, AgentPropagation, EndpointCheckpointer {
+      extends datadog.trace.api.Tracer, InternalTracer, AgentPropagation, EndpointCheckpointer {
     AgentSpan startSpan(CharSequence spanName);
 
     AgentSpan startSpan(CharSequence spanName, long startTimeMicros);
@@ -145,8 +146,6 @@ public class AgentTracer {
     SpanBuilder buildSpan(CharSequence spanName);
 
     void close();
-
-    void flush();
 
     /**
      * Attach a scope listener to the global scope manager
@@ -289,6 +288,9 @@ public class AgentTracer {
 
     @Override
     public void flush() {}
+
+    @Override
+    public void flushMetrics() {}
 
     @Override
     public String getTraceId() {

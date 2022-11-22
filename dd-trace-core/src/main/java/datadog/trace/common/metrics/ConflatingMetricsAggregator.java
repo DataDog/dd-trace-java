@@ -26,7 +26,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.jctools.maps.NonBlockingHashMap;
 import org.jctools.queues.MpscBlockingConsumerArrayQueue;
@@ -58,6 +61,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private final Aggregator aggregator;
   private final long reportingInterval;
   private final TimeUnit reportingIntervalTimeUnit;
+  private final BlockingQueue<Aggregator.ReportEvent> outbox;
   private final DDAgentFeaturesDiscovery features;
 
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
@@ -125,6 +129,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this.keys = new NonBlockingHashMap<>();
     this.features = features;
     this.sink = sink;
+    this.outbox = new ArrayBlockingQueue<>(8);
     this.aggregator =
         new Aggregator(
             metricWriter,
@@ -134,7 +139,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             keys.keySet(),
             maxAggregates,
             reportingInterval,
-            timeUnit);
+            timeUnit,
+            outbox);
     this.thread = newAgentThread(METRICS_AGGREGATOR, aggregator);
     this.reportingInterval = reportingInterval;
     this.reportingIntervalTimeUnit = timeUnit;
@@ -173,6 +179,29 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       log.debug("Skipped metrics reporting because the queue is full");
     }
     return published;
+  }
+
+  @Override
+  public Future<Boolean> forceReport() {
+    while (thread.isAlive() && !report()) {
+      try {
+        Thread.sleep(10);
+      } catch (InterruptedException e) {
+        log.debug("Failed to ask for report");
+        break;
+      }
+    }
+    return CompletableFuture.supplyAsync(this::waitForOutboxElement);
+  }
+
+  private Boolean waitForOutboxElement() {
+    try {
+      outbox.take();
+      return true;
+    } catch (InterruptedException e) {
+      log.debug("Failed to wait for report");
+      return false;
+    }
   }
 
   @Override

@@ -21,6 +21,7 @@ public final class Batch {
       AtomicIntegerFieldUpdater.newUpdater(Batch.class, "committed");
   static final Batch NULL = new Batch((AtomicLongArray) null);
   static final Batch REPORT = new Batch((AtomicLongArray) null);
+  static final Batch REPORT_AND_NOTIFY = new Batch((AtomicLongArray) null);
 
   /**
    * This counter has two states:

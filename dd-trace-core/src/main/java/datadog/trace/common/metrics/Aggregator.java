@@ -1,6 +1,8 @@
 package datadog.trace.common.metrics;
 
+import static datadog.trace.common.metrics.Aggregator.ReportEvent.SENT;
 import static datadog.trace.common.metrics.Batch.REPORT;
+import static datadog.trace.common.metrics.Batch.REPORT_AND_NOTIFY;
 import static datadog.trace.common.metrics.ConflatingMetricsAggregator.POISON_PILL;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -29,6 +31,7 @@ final class Aggregator implements Runnable {
   // when the agent is unresponsive (only 10 pending requests will be
   // buffered by OkHttpSink)
   private final long reportingIntervalNanos;
+  private final BlockingQueue<ReportEvent> outbox;
 
   private boolean dirty;
 
@@ -40,7 +43,8 @@ final class Aggregator implements Runnable {
       final Set<MetricKey> commonKeys,
       int maxAggregates,
       long reportingInterval,
-      TimeUnit reportingIntervalTimeUnit) {
+      TimeUnit reportingIntervalTimeUnit,
+      BlockingQueue<ReportEvent> outbox) {
     this.writer = writer;
     this.batchPool = batchPool;
     this.inbox = inbox;
@@ -50,6 +54,7 @@ final class Aggregator implements Runnable {
             new CommonKeyCleaner(commonKeys), maxAggregates * 4 / 3, 0.75f, maxAggregates);
     this.pending = pending;
     this.reportingIntervalNanos = reportingIntervalTimeUnit.toNanos(reportingInterval);
+    this.outbox = outbox;
   }
 
   public void clearAggregates() {
@@ -63,10 +68,10 @@ final class Aggregator implements Runnable {
       try {
         Batch batch = inbox.take();
         if (batch == POISON_PILL) {
-          report(wallClockTime());
+          report(wallClockTime(), true);
           break;
-        } else if (batch == REPORT) {
-          report(wallClockTime());
+        } else if (batch == REPORT || batch == REPORT_AND_NOTIFY) {
+          report(wallClockTime(), batch == REPORT_AND_NOTIFY);
         } else {
           MetricKey key = batch.getKey();
           // important that it is still *this* batch pending, must not remove otherwise
@@ -90,7 +95,7 @@ final class Aggregator implements Runnable {
     log.debug("metrics aggregator exited");
   }
 
-  private void report(long when) {
+  private void report(long when, boolean notify) {
     boolean skipped = true;
     if (dirty) {
       try {
@@ -110,6 +115,9 @@ final class Aggregator implements Runnable {
         log.debug("Error publishing metrics. Dropping payload", error);
       }
       dirty = false;
+    }
+    if (notify) {
+      outbox.add(SENT);
     }
     if (skipped) {
       log.debug("skipped metrics reporting because no points have changed");
@@ -145,5 +153,9 @@ final class Aggregator implements Runnable {
     public void accept(Map.Entry<MetricKey, AggregateMetric> expired) {
       commonKeys.remove(expired.getKey());
     }
+  }
+
+  static final class ReportEvent {
+    static final ReportEvent SENT = new ReportEvent();
   }
 }
