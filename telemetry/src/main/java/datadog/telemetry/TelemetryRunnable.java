@@ -88,6 +88,8 @@ public class TelemetryRunnable implements Runnable {
         case SUCCESS:
           if (status != lastStatus) {
             log.info("Telemetry back to normal - message sent successfully");
+          } else {
+            log.debug("Telemetry message sent successfully");
           }
       }
       lastStatus = status;

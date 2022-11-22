@@ -1,5 +1,6 @@
 package datadog.telemetry
 
+import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.trace.test.util.DDSpecification
 import okhttp3.Call
 import okhttp3.OkHttpClient
@@ -19,10 +20,12 @@ class TelemetryRunnableSpecification extends DDSpecification {
 
   OkHttpClient okHttpClient = Mock()
   TelemetryRunnable.ThreadSleeper sleeper = Mock()
+  SharedCommunicationObjects sco = Mock()
   TelemetryServiceImpl telemetryService = Mock()
   TelemetryRunnable.TelemetryPeriodicAction periodicAction = Mock()
-  TelemetryRunnable runnable = new TelemetryRunnable(okHttpClient, telemetryService, [periodicAction], sleeper)
+  TelemetryRunnable runnable = new TelemetryRunnable(sco, telemetryService, 1, [periodicAction], sleeper)
   Thread t = new Thread(runnable)
+  RequestBuilder requestBuilder = Mock()
 
   void cleanup() {
     if (t.isAlive()) {
@@ -43,11 +46,11 @@ class TelemetryRunnableSpecification extends DDSpecification {
     then:
     1 * telemetryService.addConfiguration(_)
     1 * periodicAction.doIteration(telemetryService)
-    1 * telemetryService.addStartedRequest()
+    1 * telemetryService.sendAppStarted(requestBuilder) >> REQUEST
 
     then:
     1 * periodicAction.doIteration(telemetryService)
-    1 * telemetryService.prepareRequests() >> queue
+    1 * telemetryService.sendTelemetry(requestBuilder) >> REQUEST
     1 * okHttpClient.newCall(REQUEST) >> call
     1 * call.execute() >> OK_RESPONSE
     queue.size() == 0
@@ -131,7 +134,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
     1 * sleeper.sleep(10_000L) >> { t.interrupt() }
 
     then:
-    1 * telemetryService.appClosingRequest() >> REQUEST
+    1 * telemetryService.sendAppClosing(requestBuilder) >> REQUEST
     1 * okHttpClient.newCall(REQUEST) >> call
     1 * call.execute() >> OK_RESPONSE
     0 * _

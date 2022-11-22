@@ -49,7 +49,8 @@ public class TelemetrySystem {
   public static void startTelemetry(
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
     DependencyService dependencyService = createDependencyService(instrumentation);
-    TelemetryService telemetryService = new TelemetryServiceImpl(sco.okHttpClient);
+    TelemetryHttpClient httpClient = new TelemetryHttpClient(sco.okHttpClient);
+    TelemetryService telemetryService = new TelemetryServiceImpl(httpClient);
     TELEMETRY_THREAD = createTelemetryRunnable(telemetryService, sco, dependencyService);
     TELEMETRY_THREAD.start();
   }

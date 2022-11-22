@@ -19,77 +19,36 @@ class TelemetryServiceSpecification extends DDSpecification {
   private static final Request REQUEST = new Request.Builder()
   .url('https://example.com').build()
 
-  TimeSource timeSource = Mock()
   RequestBuilder requestBuilder = Mock {
     build(_ as RequestType) >> REQUEST
   }
-  Supplier<RequestBuilder> requestBuilderSupplier = new Supplier<RequestBuilder>() {
-    @Override
-    RequestBuilder get() {
-      return requestBuilder
-    }
-  }
-  TelemetryServiceImpl telemetryService =
-  new TelemetryServiceImpl(requestBuilderSupplier, timeSource, 1)
-
-  void 'heartbeat interval every 1 sec'() {
-    // Time: 0 seconds - no packets yet
-    when:
-    def queue = telemetryService.prepareRequests()
-
-    then:
-    1 * timeSource.getCurrentTimeMillis() >> 0
-    queue.isEmpty()
-
-    // Time +999ms : less that 1 second passed - still no packets
-    when:
-    queue = telemetryService.prepareRequests()
-
-    then:
-    1 * timeSource.getCurrentTimeMillis() >> 999
-    queue.isEmpty()
-
-    // Time +1001ms : more than 1 second passed - heart beat generated
-    when:
-    queue = telemetryService.prepareRequests()
-
-    then:
-    1 * timeSource.getCurrentTimeMillis() >> 1001
-    queue.size() == 1
-    queue.clear()
-
-    // Time +1001ms : more than 2 seconds passed - another heart beat generated
-    when:
-    queue = telemetryService.prepareRequests()
-
-    then:
-    1 * timeSource.getCurrentTimeMillis() >> 2002
-    queue.size() == 1
-
-  }
+  TelemetryHttpClient httpClient = Mock()
+  TelemetryServiceImpl telemetryService = new TelemetryServiceImpl(httpClient)
 
   void 'addStartedRequest adds app_started event'() {
     when:
-    telemetryService.addStartedRequest()
+    def status = telemetryService.sendAppStarted(requestBuilder)
 
     then:
     1 * requestBuilder.build(RequestType.APP_STARTED, { it.requestType.is(RequestType.APP_STARTED)}) >> REQUEST
-    telemetryService.queue.peek().is(REQUEST)
+    1 * httpClient.sendRequest(REQUEST) >> RequestStatus.SUCCESS
+    status == RequestStatus.SUCCESS
   }
 
   void 'appClosingRequests returns an app_closing event'() {
     when:
-    Request req = telemetryService.appClosingRequest()
+    RequestStatus status = telemetryService.sendAppClosing(requestBuilder)
 
     then:
     1 * requestBuilder.build(RequestType.APP_CLOSING) >> REQUEST
-    req.is(REQUEST)
+    1 * httpClient.sendRequest(REQUEST) >> RequestStatus.SUCCESS
+    status == RequestStatus.SUCCESS
   }
 
   void 'added configuration pairs are reported in app_start'() {
     when:
     telemetryService.addConfiguration('my name': 'my value')
-    telemetryService.addStartedRequest()
+    telemetryService.sendAppStarted(requestBuilder)
 
     then:
     1 * requestBuilder.build(RequestType.APP_STARTED, { AppStarted p ->
@@ -106,7 +65,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     def dep = new Dependency(
       hash: 'deadbeef', name: 'dep name', version: '1.2.3', type: DependencyType.SHARED_SYSTEM_LIBRARY)
     telemetryService.addDependency(dep)
-    telemetryService.addStartedRequest()
+    telemetryService.sendAppStarted(requestBuilder)
 
     then:
     1 * requestBuilder.build(RequestType.APP_STARTED, { AppStarted p ->
@@ -124,7 +83,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     def dep = new Dependency(
       hash: 'deadbeef', name: 'dep name', version: '1.2.3', type: DependencyType.SHARED_SYSTEM_LIBRARY)
     telemetryService.addDependency(dep)
-    def queue = telemetryService.prepareRequests()
+    def status = telemetryService.sendDependencies(requestBuilder)
 
     then:
     1 * requestBuilder.build(RequestType.APP_DEPENDENCIES_LOADED, { AppDependenciesLoaded p ->
@@ -134,8 +93,9 @@ class TelemetryServiceSpecification extends DDSpecification {
             version == '1.2.3' && it.type.is(DependencyType.SHARED_SYSTEM_LIBRARY)
         }
     }) >> REQUEST
-    queue.first().is(REQUEST)
     0 * requestBuilder._
+    1 * httpClient.sendRequest(REQUEST) >> RequestStatus.SUCCESS
+    status == RequestStatus.SUCCESS
   }
 
   void 'added integration is reported in app_start'() {
@@ -145,7 +105,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     integration = new Integration(
       autoEnabled: true, compatible: true, enabled: true, name: 'my integration', version: '1.2.3')
     telemetryService.addIntegration(integration)
-    telemetryService.addStartedRequest()
+    telemetryService.sendAppStarted(requestBuilder)
 
     then:
     1 * requestBuilder.build(RequestType.APP_STARTED, { AppStarted p ->
@@ -162,15 +122,16 @@ class TelemetryServiceSpecification extends DDSpecification {
     integration = new Integration(
       autoEnabled: true, compatible: true, enabled: true, name: 'my integration', version: '1.2.3')
     telemetryService.addIntegration(integration)
-    def queue = telemetryService.prepareRequests()
+    def status = telemetryService.sendIntegrations(requestBuilder)
 
     then:
     1 * requestBuilder.build(RequestType.APP_INTEGRATIONS_CHANGE, { AppIntegrationsChange p ->
       p.requestType == RequestType.APP_INTEGRATIONS_CHANGE &&
         p.integrations.first().is(integration)
     }) >> REQUEST
-    queue.first().is(REQUEST)
     0 * requestBuilder._
+    1 * httpClient.sendRequest(REQUEST) >> RequestStatus.SUCCESS
+    status == RequestStatus.SUCCESS
   }
 
   void 'added metrics are reported in generate_metrics'() {
@@ -180,7 +141,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     metric = new Metric(metric: 'my metric', tags: ['my tag'],
     type: Metric.TypeEnum.GAUGE, points: [[0.1, 0.2], [0.2, 0.1]])
     telemetryService.addMetric(metric)
-    def queue = telemetryService.prepareRequests()
+    def status = telemetryService.sendMetrics(requestBuilder)
 
     then:
     1 * requestBuilder.build(RequestType.GENERATE_METRICS, { GenerateMetrics p ->
@@ -191,7 +152,8 @@ class TelemetryServiceSpecification extends DDSpecification {
         p.requestType &&
         p.series.first().is(metric)
     }) >> REQUEST
-    queue.first().is(REQUEST)
     0 * requestBuilder._
+    1 * httpClient.sendRequest(REQUEST) >> RequestStatus.SUCCESS
+    status == RequestStatus.SUCCESS
   }
 }
