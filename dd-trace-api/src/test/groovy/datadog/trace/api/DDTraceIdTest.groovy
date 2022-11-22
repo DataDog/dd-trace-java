@@ -178,7 +178,7 @@ class DDTraceIdTest extends DDSpecification {
     exception.cause.message == "SecureRandom init exception"
   }
 
-  def "SecureRandom traceID will always be non-zero"() {
+  def "SecureRandom ids will always be non-zero"() {
     setup:
     def provider = Mock(IdGenerationStrategy.ThrowingSupplier)
     def random = Mock(SecureRandom)
