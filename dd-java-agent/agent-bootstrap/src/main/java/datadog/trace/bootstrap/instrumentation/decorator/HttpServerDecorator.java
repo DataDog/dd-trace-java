@@ -51,6 +51,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   private static final LinkedHashMap<String, String> createServerPathwaySortedTags() {
     LinkedHashMap<String, String> result = new LinkedHashMap<>();
     // TODO: Refactor TagsProcessor to move it into a package that we can link the constants for.
+    result.put("direction", "in");
     result.put("type", "http");
     return result;
   }
