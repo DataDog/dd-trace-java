@@ -4,8 +4,9 @@
 # Use 0 to allow transformation of packages or classes beneath ignored packages
 # End lines with '.*' to match any sub-package or '$*' to match nested-classes
 
-# 0 = global allows
-# 1 = Iast Instrumenter ignores
+# 0 = global allows and not filter stacktrace
+# 1 = Iast Instrumenter ignores and filter stacktrace
+# 2 = Iast Instrumenter allows and filter stacktrace
 
 # -------- JDK --------
 1 com.sun.*
