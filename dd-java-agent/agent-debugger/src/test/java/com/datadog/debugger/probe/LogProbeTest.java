@@ -18,7 +18,7 @@ public class LogProbeTest {
     assertEquals(1, logProbe.getSegments().size());
     assertEquals("plain log line", logProbe.getSegments().get(0).getStr());
     assertNull(logProbe.getSegments().get(0).getExpr());
-    assertNull(logProbe.getSegments().get(0).getParsedExr());
+    assertNull(logProbe.getSegments().get(0).getParsedExpr());
     logProbe = createLog().template("simple template log line {arg}").build();
     assertEquals("simple template log line {arg}", logProbe.getTemplate());
     assertEquals(2, logProbe.getSegments().size());

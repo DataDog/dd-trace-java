@@ -2,6 +2,7 @@ package com.datadog.debugger.probe;
 
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.el.ValueScript;
+import com.datadog.debugger.instrumentation.SnapshotInstrumentor;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.util.Strings;
 import java.util.ArrayList;
@@ -19,18 +20,18 @@ public class LogProbe extends ProbeDefinition {
   public static class Segment {
     private final String str;
     private final String expr;
-    private final ValueScript parsedExr;
+    private final ValueScript parsedExpr;
 
     public Segment(String str) {
       this.str = str;
       this.expr = null;
-      this.parsedExr = null;
+      this.parsedExpr = null;
     }
 
     public Segment(String expr, ValueScript valueScript) {
       this.str = null;
       this.expr = expr;
-      this.parsedExr = valueScript;
+      this.parsedExpr = valueScript;
     }
 
     public String getStr() {
@@ -41,8 +42,8 @@ public class LogProbe extends ProbeDefinition {
       return expr;
     }
 
-    public ValueScript getParsedExr() {
-      return parsedExr;
+    public ValueScript getParsedExpr() {
+      return parsedExpr;
     }
 
     @Generated
@@ -53,13 +54,13 @@ public class LogProbe extends ProbeDefinition {
       Segment segment = (Segment) o;
       return Objects.equals(str, segment.str)
           && Objects.equals(expr, segment.expr)
-          && Objects.equals(parsedExr, segment.parsedExr);
+          && Objects.equals(parsedExpr, segment.parsedExpr);
     }
 
     @Generated
     @Override
     public int hashCode() {
-      return Objects.hash(str, expr, parsedExr);
+      return Objects.hash(str, expr, parsedExpr);
     }
 
     @Generated
@@ -73,13 +74,19 @@ public class LogProbe extends ProbeDefinition {
           + expr
           + '\''
           + ", parsedExr="
-          + parsedExr
+          + parsedExpr
           + '}';
     }
   }
 
   private final String template;
   private final List<Segment> segments;
+
+  // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
+  // constructors, including field initializers.
+  public LogProbe() {
+    this(LANGUAGE, null, true, null, null, null, new ArrayList<>());
+  }
 
   public LogProbe(
       String language,
@@ -107,7 +114,9 @@ public class LogProbe extends ProbeDefinition {
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics) {}
+      List<DiagnosticMessage> diagnostics) {
+    new SnapshotInstrumentor(this, classLoader, classNode, methodNode, diagnostics).instrument();
+  }
 
   @Generated
   @Override
