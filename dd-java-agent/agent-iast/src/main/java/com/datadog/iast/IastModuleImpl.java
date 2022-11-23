@@ -421,7 +421,6 @@ public final class IastModuleImpl implements IastModule {
 
   @Override
   public void onDirContextSearch(String name, @Nonnull String filterExpr, Object[] filterArgs) {
-    // TODO check if is worth to calc size and use String[] instead of List<String>
     List<String> elements = null;
     if (canBeTaintedNullSafe(name)) {
       elements = new ArrayList<>();
