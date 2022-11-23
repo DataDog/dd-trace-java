@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.java.lang;
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.propagation.StringModule;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -15,7 +16,14 @@ public class StringCallSite {
       @CallSite.This @Nonnull final String self,
       @CallSite.Argument @Nullable final String param,
       @CallSite.Return @Nonnull final String result) {
-    InstrumentationBridge.onStringConcat(self, param, result);
+    final StringModule module = InstrumentationBridge.STRING;
+    try {
+      if (module != null) {
+        module.onStringConcat(self, param, result);
+      }
+    } catch (final Throwable e) {
+      module.onUnexpectedException("afetConcat threw", e);
+    }
     return result;
   }
 }

@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.java.lang
 
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.iast.IastModule
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.sink.CommandInjectionModule
 import foo.bar.TestProcessBuilderSuite
 
 class ProcessBuilderCallSiteTest extends AgentTestRunner {
@@ -16,7 +16,7 @@ class ProcessBuilderCallSiteTest extends AgentTestRunner {
   def 'test start'() {
     setup:
     final command = ['you_cant_run_me', '-lah']
-    final iastModule = Mock(IastModule)
+    CommandInjectionModule iastModule = Mock(CommandInjectionModule)
     InstrumentationBridge.registerIastModule(iastModule)
 
     when:

@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.javax.naming;
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.sink.LdapInjectionModule;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.naming.Name;
@@ -17,7 +18,7 @@ public class InitialDirContextCallSite {
       @CallSite.Argument @Nullable final String name,
       @CallSite.Argument @Nonnull final String filter,
       @CallSite.Argument @Nullable final SearchControls cons) {
-    InstrumentationBridge.onDirContextSearch(name, filter, null);
+    onDirContextSearch(name, filter, null);
   }
 
   @CallSite.Before(
@@ -27,7 +28,7 @@ public class InitialDirContextCallSite {
       @CallSite.Argument @Nonnull final String filterExpr,
       @CallSite.Argument @Nullable Object[] filterArgs,
       @CallSite.Argument @Nullable final SearchControls cons) {
-    InstrumentationBridge.onDirContextSearch(name, filterExpr, filterArgs);
+    onDirContextSearch(name, filterExpr, filterArgs);
   }
 
   @CallSite.Before(
@@ -36,7 +37,7 @@ public class InitialDirContextCallSite {
       @CallSite.Argument @Nullable final Name name,
       @CallSite.Argument @Nonnull final String filter,
       @CallSite.Argument @Nullable final SearchControls cons) {
-    InstrumentationBridge.onDirContextSearch(null, filter, null);
+    onDirContextSearch(null, filter, null);
   }
 
   @CallSite.Before(
@@ -46,6 +47,20 @@ public class InitialDirContextCallSite {
       @CallSite.Argument @Nonnull final String filterExpr,
       @CallSite.Argument @Nullable Object[] filterArgs,
       @CallSite.Argument @Nullable final SearchControls cons) {
-    InstrumentationBridge.onDirContextSearch(null, filterExpr, filterArgs);
+    onDirContextSearch(null, filterExpr, filterArgs);
+  }
+
+  private static void onDirContextSearch(
+      @Nullable final String name,
+      @Nonnull final String filterExpr,
+      @Nullable final Object[] filterArgs) {
+    final LdapInjectionModule module = InstrumentationBridge.LDAP_INJECTION;
+    if (module != null) {
+      try {
+        module.onDirContextSearch(name, filterExpr, filterArgs);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("onDirContextSearch threw", e);
+      }
+    }
   }
 }

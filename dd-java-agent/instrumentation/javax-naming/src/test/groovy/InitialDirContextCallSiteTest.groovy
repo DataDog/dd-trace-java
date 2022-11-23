@@ -1,6 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.iast.IastModule
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.sink.LdapInjectionModule
 import foo.bar.TestInitialDirContextSuite
 
 import javax.naming.Name
@@ -23,7 +23,7 @@ class InitialDirContextCallSiteTest extends AgentTestRunner {
     final cons = Mock(SearchControls)
     final initialDirContext = Mock(InitialDirContext)
     initialDirContext.search(name, filter, cons) >> null
-    final iastModule = Mock(IastModule)
+    final iastModule = Mock(LdapInjectionModule)
     InstrumentationBridge.registerIastModule(iastModule)
 
     when:
@@ -42,7 +42,7 @@ class InitialDirContextCallSiteTest extends AgentTestRunner {
     final cons = Mock(SearchControls)
     final initialDirContext = Mock(InitialDirContext)
     initialDirContext.search(name, filter, cons) >> null
-    final iastModule = Mock(IastModule)
+    final iastModule = Mock(LdapInjectionModule)
     InstrumentationBridge.registerIastModule(iastModule)
 
     when:
@@ -62,7 +62,7 @@ class InitialDirContextCallSiteTest extends AgentTestRunner {
     final cons = Mock(SearchControls)
     final initialDirContext = Mock(InitialDirContext)
     initialDirContext.search(name, filter, args, cons) >> null
-    final iastModule = Mock(IastModule)
+    final iastModule = Mock(LdapInjectionModule)
     InstrumentationBridge.registerIastModule(iastModule)
 
     when:
@@ -82,7 +82,7 @@ class InitialDirContextCallSiteTest extends AgentTestRunner {
     final cons = Mock(SearchControls)
     final initialDirContext = Mock(InitialDirContext)
     initialDirContext.search(name, filter, args, cons) >> null
-    final iastModule = Mock(IastModule)
+    final iastModule = Mock(LdapInjectionModule)
     InstrumentationBridge.registerIastModule(iastModule)
 
     when:

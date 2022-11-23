@@ -1,9 +1,12 @@
-package com.datadog.iast
+package com.datadog.iast.sink
 
+import com.datadog.iast.IastModuleImplTestBase
+import com.datadog.iast.IastRequestContext
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.sink.PathTraversalModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
@@ -11,15 +14,18 @@ import static com.datadog.iast.taint.TaintUtils.fromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.getStringFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.taintFormat
 
-class IastModuleImplPathTraversalTest extends IastModuleImplTestBase {
+class PathTraversalModuleTest extends IastModuleImplTestBase {
 
   private static final char SP = File.separatorChar
+
+  private PathTraversalModule module
 
   private List<Object> objectHolder
 
   private IastRequestContext ctx
 
   def setup() {
+    module = registerDependencies(new PathTraversalModuleImpl())
     objectHolder = []
     ctx = new IastRequestContext()
     final reqCtx = Mock(RequestContext) {
@@ -71,6 +77,30 @@ class IastModuleImplPathTraversalTest extends IastModuleImplTestBase {
     path         | expected
     '/var'       | null
     '/==>var<==' | "/==>var<=="
+  }
+
+  void 'iast module detects path traversal with String (#parent, #child)'(final String first, final String rest, final String expected) {
+    setup:
+    final parent = mapTainted(first)
+    final children = mapTainted(rest)
+
+    when:
+    module.onPathTraversal((String) parent, children)
+
+    then:
+    if (expected != null) {
+      1 * reporter.report(_, _) >> { args -> assertVulnerability(args[1] as Vulnerability, expected) }
+    } else {
+      0 * reporter.report(_, _)
+    }
+
+    where:
+    first        | rest        | expected
+    '/var'       | 'log'       | null
+    null         | 'log'       | null
+    '/var'       | '==>log<==' | "/var${SP}==>log<=="
+    '/==>var<==' | '==>log<==' | "/==>var<==${SP}==>log<=="
+    '/==>var<==' | 'log'       | "/==>var<==${SP}log"
   }
 
   void 'iast module detects path traversal with String (#first, #rest)'(final String first, final String[] rest, final String expected) {
