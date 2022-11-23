@@ -11,14 +11,6 @@ import static com.datadog.iast.taint.TaintUtils.taintFormat
 
 class IastModuleImplOnStringToUppercaseTest extends IastModuleImplTestBase {
 
-  def 'test trim for null arguments'() {
-    when:
-    module.onStringToUpperCase(null, null)
-
-    then:
-    noExceptionThrown()
-  }
-
   void 'make sure IastRequestContext is called'() {
     given:
 
