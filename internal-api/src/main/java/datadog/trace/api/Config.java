@@ -1,6 +1,5 @@
 package datadog.trace.api;
 
-
 import static datadog.trace.api.ConfigDefaults.*;
 import static datadog.trace.api.DDTags.HOST_TAG;
 import static datadog.trace.api.DDTags.INTERNAL_HOST_NAME;
@@ -140,6 +139,7 @@ import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_MAX_PAYL
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY_ID;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL;
+import static datadog.trace.api.config.TraceInstrumentationConfig.*;
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST;
 import static datadog.trace.api.config.TracerConfig.AGENT_NAMED_PIPE;
 import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY;
@@ -197,6 +197,7 @@ import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -224,6 +225,7 @@ import java.util.SortedSet;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -250,7 +252,9 @@ public class Config {
    */
   private final String runtimeId;
 
-  /** This is the version of the runtime, ex: 1.8.0_332, 11.0.15, 17.0.3 */
+  /**
+   * This is the version of the runtime, ex: 1.8.0_332, 11.0.15, 17.0.3
+   */
   private final String runtimeVersion;
 
   /**
@@ -324,7 +328,8 @@ public class Config {
   private final boolean jmxFetchEnabled;
   private final String jmxFetchConfigDir;
   private final List<String> jmxFetchConfigs;
-  @Deprecated private final List<String> jmxFetchMetricsConfigs;
+  @Deprecated
+  private final List<String> jmxFetchMetricsConfigs;
   private final Integer jmxFetchCheckPeriod;
   private final Integer jmxFetchInitialRefreshBeansPeriod;
   private final Integer jmxFetchRefreshBeansPeriod;
@@ -371,7 +376,8 @@ public class Config {
   private final boolean profilingAgentless;
 
   private final boolean isAsyncProfilerEnabled;
-  @Deprecated private final String profilingUrl;
+  @Deprecated
+  private final String profilingUrl;
   private final Map<String, String> profilingTags;
   private final int profilingStartDelay;
   private final boolean profilingStartForceFirst;
@@ -1118,7 +1124,7 @@ public class Config {
 
     jdbcConnectionClassName = configProvider.getString(JDBC_CONNECTION_CLASS_NAME, "");
 
-    jdbcSqlObfuscation = configProvider.getBoolean(JDBC_SQL_OBFUSCATION,DEFAULT_JDBC_SQL_OBFUSCATION);
+    jdbcSqlObfuscation = configProvider.getBoolean(JDBC_SQL_OBFUSCATION, DEFAULT_JDBC_SQL_OBFUSCATION);
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws");
     sqsPropagationEnabled = awsPropagationEnabled && isPropagationEnabled(true, "sqs");
@@ -2041,7 +2047,9 @@ public class Config {
     return grpcClientErrorStatuses;
   }
 
-  /** @return A map of tags to be applied only to the local application root span. */
+  /**
+   * @return A map of tags to be applied only to the local application root span.
+   */
   public Map<String, Object> getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
     final Map<String, Object> result = new HashMap<>(runtimeTags.size() + 1);
@@ -2350,7 +2358,7 @@ public class Config {
    * @param defaultEnabled
    * @return
    * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   *     #isJmxFetchIntegrationEnabled(Iterable, boolean)}.
+   * #isJmxFetchIntegrationEnabled(Iterable, boolean)}.
    */
   public static boolean jmxFetchIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
@@ -2427,7 +2435,7 @@ public class Config {
    * @param defaultEnabled
    * @return
    * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   *     #isTraceAnalyticsIntegrationEnabled(SortedSet, boolean)}.
+   * #isTraceAnalyticsIntegrationEnabled(SortedSet, boolean)}.
    */
   public static boolean traceAnalyticsIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
@@ -2549,7 +2557,9 @@ public class Config {
     return Collections.unmodifiableSet(result);
   }
 
-  /** Returns the detected hostname. First tries locally, then using DNS */
+  /**
+   * Returns the detected hostname. First tries locally, then using DNS
+   */
   private static String initHostName() {
     String possibleHostname;
 
