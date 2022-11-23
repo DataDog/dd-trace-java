@@ -21,11 +21,6 @@ public class SqsReceiveRequestInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return super.defaultEnabled() && Config.get().isSqsPropagationEnabled();
-  }
-
-  @Override
   public String instrumentedType() {
     return "software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest$BuilderImpl";
   }
@@ -47,15 +42,17 @@ public class SqsReceiveRequestInstrumentation extends Instrumenter.Tracing
         @Advice.FieldValue(value = "attributeNames", readOnly = false)
             List<String> attributeNames) {
       // ReceiveMessageRequest.BuilderImpl maintains an immutable list which we may need to replace
-      for (String name : attributeNames) {
-        if ("AWSTraceHeader".equals(name) || "All".equals(name)) {
-          return;
+      if (Config.get().isSqsPropagationEnabled()) {
+        for (String name : attributeNames) {
+          if ("AWSTraceHeader".equals(name) || "All".equals(name)) {
+            return;
+          }
         }
+        int oldLength = attributeNames.size();
+        String[] nameArray = attributeNames.toArray(new String[oldLength + 1]);
+        nameArray[oldLength] = "AWSTraceHeader";
+        attributeNames = asList(nameArray);
       }
-      int oldLength = attributeNames.size();
-      String[] nameArray = attributeNames.toArray(new String[oldLength + 1]);
-      nameArray[oldLength] = "AWSTraceHeader";
-      attributeNames = asList(nameArray);
     }
   }
 }
