@@ -311,7 +311,15 @@ public class Config {
    * this is a random UUID that gets generated on JVM start up and is attached to every root span
    * and every JMX metric that is sent out.
    */
-  private final String runtimeId;
+  static class RuntimeIdHolder {
+    static final String runtimeId = UUID.randomUUID().toString();
+  }
+
+  static class HostNameHolder {
+    static final String hostName = initHostName();
+  }
+
+  private final boolean runtimeIdEnabled;
 
   /** This is the version of the runtime, ex: 1.8.0_332, 11.0.15, 17.0.3 */
   private final String runtimeVersion;
@@ -327,7 +335,6 @@ public class Config {
    */
   private final String site;
 
-  private final String hostName;
   private final String serviceName;
   private final boolean serviceNameSetByUser;
   private final String rootContextServiceName;
@@ -562,12 +569,7 @@ public class Config {
   private Config(final ConfigProvider configProvider) {
     this.configProvider = configProvider;
     configFileStatus = configProvider.getConfigFileStatus();
-    runtimeId =
-        null != INSTANCE
-            ? INSTANCE.runtimeId
-            : configProvider.getBoolean(RUNTIME_ID_ENABLED, true)
-                ? UUID.randomUUID().toString()
-                : "";
+    runtimeIdEnabled = configProvider.getBoolean(RUNTIME_ID_ENABLED, true);
     runtimeVersion = System.getProperty("java.version", "unknown");
 
     // Note: We do not want APiKey to be loaded from property for security reasons
@@ -585,8 +587,6 @@ public class Config {
       }
     }
     site = configProvider.getString(SITE, DEFAULT_SITE);
-
-    hostName = initHostName();
 
     String userProvidedServiceName =
         configProvider.getStringExcludingSource(
@@ -1217,7 +1217,7 @@ public class Config {
   }
 
   public String getRuntimeId() {
-    return runtimeId;
+    return runtimeIdEnabled ? RuntimeIdHolder.runtimeId : "";
   }
 
   public String getRuntimeVersion() {
@@ -1233,7 +1233,7 @@ public class Config {
   }
 
   public String getHostName() {
-    return hostName;
+    return HostNameHolder.hostName;
   }
 
   public String getServiceName() {
@@ -2116,7 +2116,7 @@ public class Config {
    * @return A map of tag-name -> tag-value
    */
   private Map<String, String> getRuntimeTags() {
-    return Collections.singletonMap(RUNTIME_ID_TAG, runtimeId);
+    return Collections.singletonMap(RUNTIME_ID_TAG, getRuntimeId());
   }
 
   private Map<String, String> getAzureAppServicesTags() {
@@ -2547,7 +2547,7 @@ public class Config {
         + "instrumenterConfig="
         + instrumenterConfig
         + ", runtimeId='"
-        + runtimeId
+        + getRuntimeId()
         + '\''
         + ", runtimeVersion='"
         + runtimeVersion
@@ -2557,7 +2557,7 @@ public class Config {
         + site
         + '\''
         + ", hostName='"
-        + hostName
+        + getHostName()
         + '\''
         + ", serviceName='"
         + serviceName
