@@ -100,7 +100,7 @@ public class InstrumenterConfig {
     this(ConfigProvider.createDefault());
   }
 
-  private InstrumenterConfig(ConfigProvider configProvider) {
+  InstrumenterConfig(ConfigProvider configProvider) {
     this.configProvider = configProvider;
 
     integrationsEnabled =

@@ -303,7 +303,7 @@ public class Config {
 
   private static final Logger log = LoggerFactory.getLogger(Config.class);
 
-  private final InstrumenterConfig instrumenterConfig = InstrumenterConfig.get();
+  private final InstrumenterConfig instrumenterConfig;
 
   private final long startTimeMillis = System.currentTimeMillis();
 
@@ -567,7 +567,12 @@ public class Config {
   }
 
   private Config(final ConfigProvider configProvider) {
+    this(configProvider, new InstrumenterConfig(configProvider));
+  }
+
+  private Config(final ConfigProvider configProvider, final InstrumenterConfig instrumenterConfig) {
     this.configProvider = configProvider;
+    this.instrumenterConfig = instrumenterConfig;
     configFileStatus = configProvider.getConfigFileStatus();
     runtimeIdEnabled = configProvider.getBoolean(RUNTIME_ID_ENABLED, true);
     runtimeVersion = System.getProperty("java.version", "unknown");
@@ -2513,7 +2518,8 @@ public class Config {
 
   // This has to be placed after all other static fields to give them a chance to initialize
   @SuppressFBWarnings("SI_INSTANCE_BEFORE_FINALS_ASSIGNED")
-  private static final Config INSTANCE = new Config(ConfigProvider.getInstance());
+  private static final Config INSTANCE =
+      new Config(ConfigProvider.getInstance(), InstrumenterConfig.get());
 
   public static Config get() {
     return INSTANCE;
