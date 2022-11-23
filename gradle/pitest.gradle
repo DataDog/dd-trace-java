@@ -1,0 +1,11 @@
+apply plugin: 'info.solidsoft.pitest'
+
+pitest {
+  targetClasses = ['datadog.*', 'com.datadog.*']
+  excludedClasses = ['datadog.trace.api.Config', 'datadog.trace.api.InstrumenterConfig']
+  threads = 4
+  verbose = true
+  outputFormats = ['XML', 'HTML']
+  timestampedReports = false
+  mutators = ['STRONGER']
+}

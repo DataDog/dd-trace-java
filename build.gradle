@@ -4,6 +4,7 @@ plugins {
   id "com.diffplug.spotless" version "6.11.0"
   id 'com.github.spotbugs' version '4.6.0'
   id "de.thetaphi.forbiddenapis" version "3.2"
+  id 'info.solidsoft.pitest' version '1.9.11'
 
   id 'org.unbroken-dome.test-sets' version '4.0.0'
   id 'pl.allegro.tech.build.axion-release' version '1.14.2'
