@@ -46,6 +46,6 @@ dependencies {
 }
 
 tasks.test {
-  useJUnitPlatform()
-  dependsOn(":call-site-instrumentation-plugin:build")
+  //useJUnitPlatform()
+  //dependsOn(":call-site-instrumentation-plugin:build")
 }
