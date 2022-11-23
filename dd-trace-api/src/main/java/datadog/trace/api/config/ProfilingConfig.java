@@ -140,7 +140,7 @@ public final class ProfilingConfig {
   public static final boolean PROFILING_AGENTLESS_DEFAULT = false;
 
   public static final String PROFILING_DISABLED_EVENTS = "profiling.disabled.events";
-  public static final String PROFILING_ENABLED_EVENTS = "profiling.disabled.events";
+  public static final String PROFILING_ENABLED_EVENTS = "profiling.enabled.events";
 
   public static final String PROFILING_DEBUG_DUMP_PATH = "profiling.debug.dump_path";
 
