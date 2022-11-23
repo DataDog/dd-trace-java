@@ -42,7 +42,7 @@ import org.objectweb.asm.tree.VarInsnNode;
 /** Handles generating instrumentation for snapshot method & line probes */
 public final class SnapshotInstrumentor extends Instrumentor {
   private final SnapshotProbe.Capture capture;
-  private final LogProbe logProbe;
+  private final boolean captureFullState;
   private final LabelNode snapshotInitLabel = new LabelNode();
   private int snapshotVar = -1;
   private LabelNode returnHandlerLabel = null;
@@ -55,7 +55,7 @@ public final class SnapshotInstrumentor extends Instrumentor {
       List<DiagnosticMessage> diagnostics) {
     super(snapshotProbe, classLoader, classNode, methodNode, diagnostics);
     this.capture = snapshotProbe.getCapture();
-    this.logProbe = null;
+    captureFullState = true;
   }
 
   public SnapshotInstrumentor(
@@ -66,7 +66,7 @@ public final class SnapshotInstrumentor extends Instrumentor {
       List<DiagnosticMessage> diagnostics) {
     super(logProbe, classLoader, classNode, methodNode, diagnostics);
     this.capture = null;
-    this.logProbe = logProbe;
+    this.captureFullState = false;
   }
 
   public void instrument() {
@@ -208,7 +208,7 @@ public final class SnapshotInstrumentor extends Instrumentor {
   }
 
   private void instrumentTryCatchHandlers() {
-    if (logProbe != null) {
+    if (!captureFullState) {
       // do not instrument try/catch for log probe
       return;
     }

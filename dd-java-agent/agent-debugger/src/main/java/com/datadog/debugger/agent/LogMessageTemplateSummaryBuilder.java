@@ -19,15 +19,6 @@ public class LogMessageTemplateSummaryBuilder implements SummaryBuilder {
     executeExpressions(entry);
   }
 
-  private void executeExpressions(Snapshot.CapturedContext entry) {
-    for (LogProbe.Segment segment : logProbe.getSegments()) {
-      ValueScript parsedExr = segment.getParsedExpr();
-      if (parsedExr != null) {
-        parsedExr.execute(entry);
-      }
-    }
-  }
-
   @Override
   public void addExit(Snapshot.CapturedContext exit) {
     executeExpressions(exit);
@@ -52,5 +43,14 @@ public class LogMessageTemplateSummaryBuilder implements SummaryBuilder {
       }
     }
     return sb.toString();
+  }
+
+  private void executeExpressions(Snapshot.CapturedContext entry) {
+    for (LogProbe.Segment segment : logProbe.getSegments()) {
+      ValueScript parsedExr = segment.getParsedExpr();
+      if (parsedExr != null) {
+        parsedExr.execute(entry);
+      }
+    }
   }
 }

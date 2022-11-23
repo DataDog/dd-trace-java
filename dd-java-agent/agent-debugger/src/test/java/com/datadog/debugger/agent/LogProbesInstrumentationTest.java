@@ -89,12 +89,7 @@ public class LogProbesInstrumentationTest {
   public void lineTemplateVarLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     DebuggerTransformerTest.TestSnapshotListener listener =
-        installSingleProbe(
-            "this is log line with local var={#var1}",
-            CLASS_NAME,
-            null,
-            null,
-            "9");
+        installSingleProbe("this is log line with local var={#var1}", CLASS_NAME, null, null, "9");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assert.assertEquals(3, result);
@@ -141,12 +136,7 @@ public class LogProbesInstrumentationTest {
   public void lineTemplateInvalidVarLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     DebuggerTransformerTest.TestSnapshotListener listener =
-        installSingleProbe(
-            "this is log line with local var={#var42}",
-            CLASS_NAME,
-            null,
-            null,
-            "9");
+        installSingleProbe("this is log line with local var={#var42}", CLASS_NAME, null, null, "9");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assert.assertEquals(3, result);
