@@ -18,10 +18,10 @@ public enum ProductActivation {
   ENABLED_INACTIVE;
 
   public static ProductActivation fromString(String s) {
-    if (s.equalsIgnoreCase("true") || s.equals("1")) {
+    if ("true".equalsIgnoreCase(s) || "1".equals(s)) {
       return FULLY_ENABLED;
     }
-    if (s.equalsIgnoreCase("inactive")) {
+    if ("inactive".equalsIgnoreCase(s)) {
       return ENABLED_INACTIVE;
     }
     return FULLY_DISABLED;
