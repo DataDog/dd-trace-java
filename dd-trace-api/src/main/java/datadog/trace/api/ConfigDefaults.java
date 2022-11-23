@@ -137,6 +137,8 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_TELEMETRY_ENABLED = true;
   static final int DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL = 60; // in seconds
 
+  static final boolean DEFAULT_SECURE_RANDOM = false;
+
   public static final int DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH = 512;
 
   private ConfigDefaults() {}
