@@ -34,14 +34,15 @@ import org.slf4j.LoggerFactory;
  */
 public interface Instrumenter {
   /**
-   * Since several subsystems are sharing the same instrumentation infrastructure in order to enable
-   * only the applicable {@link Instrumenter instrumenters} on startup each {@linkplain
-   * Instrumenter} type must declare its target system. Four systems are currently supported
+   * Since several systems share the same instrumentation infrastructure in order to enable only the
+   * applicable {@link Instrumenter instrumenters} on startup each {@linkplain Instrumenter} type
+   * must declare its target system. Five systems are currently supported:
    *
    * <ul>
    *   <li>{@link TargetSystem#TRACING tracing}
    *   <li>{@link TargetSystem#PROFILING profiling}
    *   <li>{@link TargetSystem#APPSEC appsec}
+   *   <li>{@link TargetSystem#IAST iast}
    *   <li>{@link TargetSystem#CIVISIBILITY ci-visibility}
    * </ul>
    */

@@ -452,7 +452,7 @@ public class Config {
 
   private final boolean clientIpEnabled;
 
-  private final ProductActivationConfig appSecEnabled;
+  private final ProductActivation appSecEnabled;
   private final boolean appSecReportingInband;
   private final String appSecRulesFile;
   private final int appSecReportMinTimeout;
@@ -1028,7 +1028,7 @@ public class Config {
         appSecEnabled = DEFAULT_APPSEC_ENABLED;
       }
     }
-    this.appSecEnabled = ProductActivationConfig.fromString(appSecEnabled);
+    this.appSecEnabled = ProductActivation.fromString(appSecEnabled);
     appSecReportingInband =
         configProvider.getBoolean(APPSEC_REPORTING_INBAND, DEFAULT_APPSEC_REPORTING_INBAND);
     appSecRulesFile = configProvider.getString(APPSEC_RULES_FILE, null);
@@ -1678,7 +1678,7 @@ public class Config {
     return clientIpEnabled;
   }
 
-  public ProductActivationConfig getAppSecEnabledConfig() {
+  public ProductActivation getAppSecActivation() {
     return appSecEnabled;
   }
 

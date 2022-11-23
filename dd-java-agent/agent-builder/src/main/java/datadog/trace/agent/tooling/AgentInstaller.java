@@ -10,7 +10,7 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
 import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.IntegrationsCollector;
-import datadog.trace.api.ProductActivationConfig;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.util.AgentTaskScheduler;
@@ -49,16 +49,12 @@ public class AgentInstaller {
 
   public static void installBytebuddyAgent(final Instrumentation inst) {
     /*
-     * ByteBuddy agent is used by tracing, profiling, appsec and civisibility and since they can
-     * be enabled independently we need to install the agent when either of them
-     * is active.
+     * ByteBuddy agent is used by several systems which can be enabled independently;
+     * we need to install the agent whenever any of them is active.
      */
-    if (Config.get().isTraceEnabled()
-        || Config.get().isProfilingEnabled()
-        || Config.get().getAppSecEnabledConfig() != ProductActivationConfig.FULLY_DISABLED
-        || Config.get().isIastEnabled()
-        || Config.get().isCiVisibilityEnabled()) {
-      installBytebuddyAgent(inst, false, new AgentBuilder.Listener[0]);
+    Set<Instrumenter.TargetSystem> enabledSystems = getEnabledSystems();
+    if (!enabledSystems.isEmpty()) {
+      installBytebuddyAgent(inst, false, enabledSystems);
       if (DEBUG) {
         log.debug("Class instrumentation installed");
       }
@@ -71,19 +67,19 @@ public class AgentInstaller {
             TimeUnit.SECONDS);
       }
     } else if (DEBUG) {
-      log.debug("There are not any enabled subsystems, not installing instrumentations.");
+      log.debug("There are no enabled target systems, skipping instrumentation.");
     }
   }
 
   /**
    * Install the core bytebuddy agent along with all implementations of {@link Instrumenter}.
    *
-   * @param inst Java Instrumentation used to install bytebuddy
    * @return the agent's class transformer
    */
   public static ResettableClassFileTransformer installBytebuddyAgent(
       final Instrumentation inst,
       final boolean skipAdditionalLibraryMatcher,
+      final Set<Instrumenter.TargetSystem> enabledSystems,
       final AgentBuilder.Listener... listeners) {
     Utils.setInstrumentation(inst);
 
@@ -154,7 +150,6 @@ public class AgentInstaller {
     AgentTransformerBuilder transformerBuilder = new AgentTransformerBuilder(agentBuilder);
 
     int installedCount = 0;
-    Set<Instrumenter.TargetSystem> enabledSystems = getEnabledSystems();
     for (Instrumenter instrumenter : instrumenters) {
       if (!instrumenter.isApplicable(enabledSystems)) {
         if (DEBUG) {
@@ -195,7 +190,7 @@ public class AgentInstaller {
     }
   }
 
-  private static Set<Instrumenter.TargetSystem> getEnabledSystems() {
+  public static Set<Instrumenter.TargetSystem> getEnabledSystems() {
     EnumSet<Instrumenter.TargetSystem> enabledSystems =
         EnumSet.noneOf(Instrumenter.TargetSystem.class);
     Config cfg = Config.get();
@@ -205,7 +200,7 @@ public class AgentInstaller {
     if (cfg.isProfilingEnabled()) {
       enabledSystems.add(Instrumenter.TargetSystem.PROFILING);
     }
-    if (cfg.getAppSecEnabledConfig() != ProductActivationConfig.FULLY_DISABLED) {
+    if (cfg.getAppSecActivation() != ProductActivation.FULLY_DISABLED) {
       enabledSystems.add(Instrumenter.TargetSystem.APPSEC);
     }
     if (cfg.isIastEnabled()) {

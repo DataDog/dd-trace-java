@@ -13,7 +13,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
-import datadog.trace.api.ProductActivationConfig;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -118,7 +118,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
         MethodList<?> methods,
         int writerFlags,
         int readerFlags) {
-      if (Config.get().getAppSecEnabledConfig() == ProductActivationConfig.FULLY_DISABLED) {
+      if (Config.get().getAppSecActivation() == ProductActivation.FULLY_DISABLED) {
         return classVisitor;
       }
 
