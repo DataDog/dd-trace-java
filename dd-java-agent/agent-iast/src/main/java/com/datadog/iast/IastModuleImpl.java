@@ -420,20 +420,20 @@ public final class IastModuleImpl implements IastModule {
   }
 
   @Override
-  public void onStringToUpperCase(@Nullable String self, @Nullable String result) {
+  public void onStringToUpperCase(@Nonnull String self, @Nonnull String result) {
     onStringCaseChanged(self, result);
   }
 
   @Override
-  public void onStringToLowerCase(@Nullable String self, @Nullable String result) {
+  public void onStringToLowerCase(@Nonnull String self, @Nonnull String result) {
     onStringCaseChanged(self, result);
   }
 
-  public void onStringCaseChanged(@Nullable String self, @Nullable String result) {
+  public void onStringCaseChanged(@Nonnull String self, @Nonnull String result) {
     if (!canBeTainted(result)) {
       return;
     }
-    if (self == result) {
+    if (self.equals(result)) {
       return;
     }
     final IastRequestContext ctx = IastRequestContext.get();
