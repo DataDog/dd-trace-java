@@ -55,7 +55,7 @@ public class AgentInstaller {
     if (!enabledSystems.isEmpty()) {
       installBytebuddyAgent(inst, false, enabledSystems);
       if (DEBUG) {
-        log.debug("Class instrumentation installed");
+        log.debug("Instrumentation installed for {}", enabledSystems);
       }
       int poolCleaningInterval = InstrumenterConfig.get().getResolverResetInterval();
       if (poolCleaningInterval > 0) {
@@ -66,7 +66,7 @@ public class AgentInstaller {
             TimeUnit.SECONDS);
       }
     } else if (DEBUG) {
-      log.debug("There are no enabled target systems, skipping instrumentation.");
+      log.debug("No target systems enabled, skipping instrumentation.");
     }
   }
 
