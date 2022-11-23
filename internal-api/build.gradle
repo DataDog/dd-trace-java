@@ -68,6 +68,7 @@ excludedClassesCoverage += [
   "datadog.trace.util.CollectionUtils",
   "datadog.trace.api.IntegrationsCollector.Holder",
   "datadog.trace.api.ConfigCollector.Holder",
+  "datadog.trace.api.Config.RuntimeIdHolder",
   // can't reliably force same identity hash for different instance to cover branch
   "datadog.trace.api.cache.FixedSizeCache.IdentityHash"
 ]
