@@ -2544,7 +2544,9 @@ public class Config {
   @Override
   public String toString() {
     return "Config{"
-        + "runtimeId='"
+        + "instrumenterConfig="
+        + instrumenterConfig
+        + ", runtimeId='"
         + runtimeId
         + '\''
         + ", runtimeVersion='"
@@ -2855,8 +2857,6 @@ public class Config {
         + cwsEnabled
         + ", cwsTlsRefresh="
         + cwsTlsRefresh
-        + ", instrumenterConfig="
-        + instrumenterConfig
         + '}';
   }
 }
