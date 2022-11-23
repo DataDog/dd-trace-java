@@ -132,7 +132,7 @@ public class DubboDecorator extends BaseDecorator {
 
   public AgentScope buildSpan(Invoker invoker, Invocation invocation) {
     AgentSpan span = startDubboSpan(invoker,invocation);
-    span.startThreadMigration();
+   // span.startThreadMigration();
     AgentScope agentScope = activateSpan(span);
     return agentScope;
   }
