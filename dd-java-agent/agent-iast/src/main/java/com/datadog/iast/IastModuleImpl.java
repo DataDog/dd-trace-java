@@ -576,12 +576,12 @@ public final class IastModuleImpl implements IastModule {
   }
 
   @Override
-  public void onStringTrim(@Nullable final String self, @Nullable final String result) {
+  public void onStringTrim(@Nonnull final String self, @Nonnull final String result) {
     // checks
     if (!canBeTainted(result)) {
       return;
     }
-    if (self == result) {
+    if (self.equals(result)) {
       return;
     }
     final IastRequestContext ctx = IastRequestContext.get();
