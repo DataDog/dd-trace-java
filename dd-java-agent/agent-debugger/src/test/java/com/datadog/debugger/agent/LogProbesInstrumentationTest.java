@@ -77,7 +77,7 @@ public class LogProbesInstrumentationTest {
   public void linePlainLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     DebuggerTransformerTest.TestSnapshotListener listener =
-        installSingleProbe("this is log line", CLASS_NAME, "main", "int (java.lang.String)", "9");
+        installSingleProbe("this is log line", CLASS_NAME, null, null, "9");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assert.assertEquals(3, result);
@@ -92,8 +92,8 @@ public class LogProbesInstrumentationTest {
         installSingleProbe(
             "this is log line with local var={#var1}",
             CLASS_NAME,
-            "main",
-            "int (java.lang.String)",
+            null,
+            null,
             "9");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
@@ -109,8 +109,8 @@ public class LogProbesInstrumentationTest {
         installSingleProbe(
             "nullObject={#nullObject} sdata={#sdata.strValue} cdata={#cdata.s1.intValue}",
             CLASS_NAME,
-            "main",
-            "int (java.lang.String)",
+            null,
+            null,
             "25");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
@@ -126,8 +126,8 @@ public class LogProbesInstrumentationTest {
         installSingleProbe(
             "this is log line with {{curly braces}} and with local var={{{#var1}}}",
             CLASS_NAME,
-            "main",
-            "int (java.lang.String)",
+            null,
+            null,
             "9");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
@@ -144,8 +144,8 @@ public class LogProbesInstrumentationTest {
         installSingleProbe(
             "this is log line with local var={#var42}",
             CLASS_NAME,
-            "main",
-            "int (java.lang.String)",
+            null,
+            null,
             "9");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
@@ -259,6 +259,7 @@ public class LogProbesInstrumentationTest {
   }
 
   private Snapshot assertOneSnapshot(DebuggerTransformerTest.TestSnapshotListener listener) {
+    Assert.assertFalse("Snapshot skipped because " + listener.cause, listener.skipped);
     Assert.assertEquals(1, listener.snapshots.size());
     Snapshot snapshot = listener.snapshots.get(0);
     Assert.assertEquals(LOG_ID, snapshot.getProbe().getId());

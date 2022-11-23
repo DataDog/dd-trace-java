@@ -182,7 +182,7 @@ public class Snapshot {
       return;
     }
     // only rate limit if a condition is defined
-    if (probe.getScript() != null) {
+    if (probe.getScript() != null && probe.isSnapshotProbe()) {
       if (!ProbeRateLimiter.tryProbe(probe.id)) {
         DebuggerContext.skipSnapshot(probe.id, DebuggerContext.SkipCause.RATE);
         return;
@@ -346,6 +346,10 @@ public class Snapshot {
 
     public String getTags() {
       return tags;
+    }
+
+    public boolean isSnapshotProbe() {
+      return summaryBuilder instanceof SnapshotSummaryBuilder;
     }
 
     @Override
