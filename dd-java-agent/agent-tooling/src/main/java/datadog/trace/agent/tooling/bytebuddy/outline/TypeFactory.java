@@ -127,6 +127,11 @@ final class TypeFactory {
     clearReferences();
   }
 
+  static void clear() {
+    outlineTypes.clear();
+    fullTypes.clear();
+  }
+
   /**
    * New transform request; begins with type matching that only requires outline descriptions.
    *

@@ -133,6 +133,7 @@ public final class ConfigDefaults {
 
   static final int DEFAULT_RESOLVER_OUTLINE_POOL_SIZE = 128;
   static final int DEFAULT_RESOLVER_TYPE_POOL_SIZE = 64;
+  static final int DEFAULT_RESOLVER_RESET_INTERVAL = 300; // seconds
 
   static final boolean DEFAULT_TELEMETRY_ENABLED = true;
   static final int DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL = 60; // in seconds

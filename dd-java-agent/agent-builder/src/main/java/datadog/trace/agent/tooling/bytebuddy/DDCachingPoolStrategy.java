@@ -136,6 +136,11 @@ public final class DDCachingPoolStrategy
   @Override
   public void endTransform() {}
 
+  @Override
+  public void clear() {
+    sharedResolutionCache.clear();
+  }
+
   private TypePool.CacheProvider createCacheProvider(
       final int loaderHash, final WeakReference<ClassLoader> loaderRef) {
     return new SharedResolutionCacheAdapter(

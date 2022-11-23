@@ -41,8 +41,12 @@ public final class TypeInfoCache<T> {
    * @return previously shared information for the named type
    */
   public SharedTypeInfo<T> share(String name, ClassLoader loader, URL classFile, T typeInfo) {
-    return this.sharedTypeInfo.put(
-        name, new SharedTypeInfo<>(loaderId(loader), classFile, typeInfo));
+    return sharedTypeInfo.put(name, new SharedTypeInfo<>(loaderId(loader), classFile, typeInfo));
+  }
+
+  /** Clears all type information from the shared cache. */
+  public void clear() {
+    sharedTypeInfo.clear();
   }
 
   private static LoaderId loaderId(ClassLoader loader) {
