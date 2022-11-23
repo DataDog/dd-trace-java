@@ -427,7 +427,6 @@ public class Config {
   private final boolean profilingAgentless;
 
   private final boolean isAsyncProfilerEnabled;
-  private final boolean isDirectAllocationProfilingEnabled;
   @Deprecated private final String profilingUrl;
   private final Map<String, String> profilingTags;
   private final int profilingStartDelay;
@@ -923,9 +922,6 @@ public class Config {
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
     isAsyncProfilerEnabled =
         configProvider.getBoolean(PROFILING_ASYNC_ENABLED, PROFILING_ASYNC_ALLOC_ENABLED_DEFAULT);
-    isDirectAllocationProfilingEnabled =
-        configProvider.getBoolean(
-            PROFILING_DIRECT_ALLOCATION_ENABLED, PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT);
     profilingUrl = configProvider.getString(PROFILING_URL);
 
     if (tmpApiKey == null) {
@@ -1664,10 +1660,6 @@ public class Config {
 
   public boolean isAsyncProfilerEnabled() {
     return isAsyncProfilerEnabled;
-  }
-
-  public boolean isDirectAllocationProfilingEnabled() {
-    return isDirectAllocationProfilingEnabled;
   }
 
   public boolean isCrashTrackingAgentless() {
