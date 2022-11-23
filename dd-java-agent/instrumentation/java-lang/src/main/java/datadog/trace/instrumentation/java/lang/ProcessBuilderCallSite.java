@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.java.lang;
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.sink.CommandInjectionModule;
 import java.util.List;
 import javax.annotation.Nullable;
 
@@ -18,7 +19,14 @@ public class ProcessBuilderCallSite {
     // be careful when fetching the environment as it does mutate the instance
     final List<String> cmd = self.command();
     if (cmd != null && cmd.size() > 0) {
-      InstrumentationBridge.onProcessBuilderStart(cmd);
+      final CommandInjectionModule module = InstrumentationBridge.COMMAND_INJECTION;
+      if (module != null) {
+        try {
+          module.onProcessBuilderStart(cmd);
+        } catch (final Throwable e) {
+          module.onUnexpectedException("beforeStart threw", e);
+        }
+      }
     }
   }
 }

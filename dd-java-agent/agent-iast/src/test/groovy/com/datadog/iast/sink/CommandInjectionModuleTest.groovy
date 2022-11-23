@@ -1,24 +1,27 @@
-package com.datadog.iast
+package com.datadog.iast.sink
 
+import com.datadog.iast.IastModuleImplTestBase
+import com.datadog.iast.IastRequestContext
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.sink.CommandInjectionModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import spock.lang.Shared
 
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.taintFormat
 
-class IastModuleImplCommandInjectionTest extends IastModuleImplTestBase {
+class CommandInjectionModuleTest extends IastModuleImplTestBase {
 
-  @Shared
+  private CommandInjectionModule module
+
   private List<Object> objectHolder
 
-  @Shared
   private IastRequestContext ctx
 
   def setup() {
+    module = registerDependencies(new CommandInjectionModuleImpl())
     objectHolder = []
     ctx = new IastRequestContext()
     final reqCtx = Mock(RequestContext) {
@@ -29,7 +32,6 @@ class IastModuleImplCommandInjectionTest extends IastModuleImplTestBase {
       getRequestContext() >> reqCtx
     }
     tracer.activeSpan() >> span
-    overheadController.consumeQuota(_, _) >> true
   }
 
   void 'iast module detect command injection on process builder start (#command)'(final List<String> command, final String expected) {
@@ -48,6 +50,8 @@ class IastModuleImplCommandInjectionTest extends IastModuleImplTestBase {
 
     where:
     command                    | expected
+    null                       | null
+    []                         | null
     ['ls', '-lah']             | null
     ['==>ls<==', '-lah']       | '==>ls<== -lah'
     ['==>ls<==', '==>-lah<=='] | '==>ls<== ==>-lah<=='
@@ -69,6 +73,8 @@ class IastModuleImplCommandInjectionTest extends IastModuleImplTestBase {
 
     where:
     command                    | expected
+    null                       | null
+    []                         | null
     ['ls', '-lah']             | null
     ['==>ls<==', '-lah']       | '==>ls<== -lah'
     ['==>ls<==', '==>-lah<=='] | '==>ls<== ==>-lah<=='

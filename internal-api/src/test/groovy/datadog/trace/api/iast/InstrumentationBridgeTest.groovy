@@ -1,100 +1,58 @@
 package datadog.trace.api.iast
 
+import datadog.trace.api.iast.propagation.StringModule
+import datadog.trace.api.iast.sink.CommandInjectionModule
+import datadog.trace.api.iast.sink.LdapInjectionModule
+import datadog.trace.api.iast.sink.PathTraversalModule
+import datadog.trace.api.iast.sink.SqlInjectionModule
+import datadog.trace.api.iast.sink.WeakCipherModule
+import datadog.trace.api.iast.sink.WeakHashModule
+import datadog.trace.api.iast.source.WebModule
 import datadog.trace.test.util.DDSpecification
-import groovy.transform.Canonical
 
 class InstrumentationBridgeTest extends DDSpecification {
 
-  @Canonical
-  static class BridgeMethod {
-    String bridgeMethod
-    List<Object> params
-    String moduleMethod
-
-    @Override
-    String toString() {
-      "method $bridgeMethod"
-    }
-  }
-
-  private final static BRIDGE_METHODS = [
-    new BridgeMethod('onCipherGetInstance', ['algo'], 'onCipherAlgorithm'),
-    new BridgeMethod('onMessageDigestGetInstance', ['algo'], 'onHashingAlgorithm'),
-    new BridgeMethod('onParameterName', ['param'], 'onParameterName'),
-    new BridgeMethod('onParameterValue', ['param', 'value'], 'onParameterValue'),
-    new BridgeMethod('onStringConcat', ['param', 'Value', 'paramValue'], 'onStringConcat'),
-    new BridgeMethod('onStringBuilderInit', [new StringBuilder(), 'param'], 'onStringBuilderInit'),
-    new BridgeMethod('onStringBuilderAppend', [new StringBuilder(), 'param'], 'onStringBuilderAppend'),
-    new BridgeMethod('onStringBuilderToString', [new StringBuilder('param'), 'param'], 'onStringBuilderToString'),
-    new BridgeMethod('onStringConcatFactory', [
-      'Hello World!',
-      ['Hello ', 'World!'] as String[],
-      '\u0001\u0001',
-      ['a', 'b'] as Object[],
-      [0, 1] as int[]
-    ], 'onStringConcatFactory'),
-    new BridgeMethod('onRuntimeExec', [['ls', '-lah'] as String[]] as List<Object>, 'onRuntimeExec'),
-    new BridgeMethod('onProcessBuilderStart', [['ls', '-lah'] as List<String>], 'onProcessBuilderStart'),
-    new BridgeMethod('onPathTraversal', ['/var/log'], 'onPathTraversal'),
-    new BridgeMethod('onPathTraversal', ['/var', 'log'], 'onPathTraversal'),
-    new BridgeMethod('onPathTraversal', ['/var', ['log', 'log.txt'] as String[]], 'onPathTraversal'),
-    new BridgeMethod('onPathTraversal', [new File('/var'), '/log/log.txt'], 'onPathTraversal'),
-    new BridgeMethod('onPathTraversal', [new URI('file:/tmp')], 'onPathTraversal'),
-    new BridgeMethod('onDirContextSearch', [null, 'filter', null], 'onDirContextSearch')
+  private final static BRIDGE_MODULES = [
+    WeakCipherModule,
+    WeakHashModule,
+    WebModule,
+    StringModule,
+    SqlInjectionModule,
+    CommandInjectionModule,
+    PathTraversalModule,
+    LdapInjectionModule
   ]
 
-  void '#bridgeMethod does not fail when module is not set'(final BridgeMethod bridgeMethod) {
-    setup:
-    InstrumentationBridge.registerIastModule null
-
-    when:
-    InstrumentationBridge."${bridgeMethod.bridgeMethod}"(*bridgeMethod.params)
-
-    then:
-    noExceptionThrown()
-
-    where:
-    bridgeMethod << BRIDGE_METHODS
+  def cleanup() {
+    InstrumentationBridge.clearIastModules()
   }
 
-  void '#bridgeMethod delegates to the module'() {
+  void '#module can be registered'(final Class<? extends IastModule> module) {
     setup:
-    def exception
-    def module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule module
+    final instance = Mock(module)
+    InstrumentationBridge.registerIastModule(instance)
 
     when:
-    InstrumentationBridge."${bridgeMethod.bridgeMethod}"(*bridgeMethod.params)
+    def result = InstrumentationBridge.getIastModule(module)
 
     then:
-    1 * module."${bridgeMethod.moduleMethod}"(*_) >> { List args ->
-      try {
-        args.size().times { assert args[it].is(bridgeMethod.params[it]) }
-      } catch (Throwable t) {
-        exception = t
-      }
-    }
-    0 * _
-    exception == null
+    instance == result
 
     where:
-    bridgeMethod << BRIDGE_METHODS
+    module << BRIDGE_MODULES
   }
 
-  void '#bridgeMethod leaks no exceptions'() {
-    setup:
-    def module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule module
-
+  void 'unsupported modules throw exceptions'() {
     when:
-    InstrumentationBridge."${bridgeMethod.bridgeMethod}"(*bridgeMethod.params)
+    InstrumentationBridge.registerIastModule(Mock(IastModule))
 
     then:
-    1 * module."${bridgeMethod.moduleMethod}"(*_) >> { throw new Throwable('should not leak') }
-    0 * _
-    noExceptionThrown()
+    thrown(UnsupportedOperationException)
 
-    where:
-    bridgeMethod << BRIDGE_METHODS
+    when:
+    InstrumentationBridge.getIastModule(IastModule)
+
+    then:
+    thrown(UnsupportedOperationException)
   }
 }

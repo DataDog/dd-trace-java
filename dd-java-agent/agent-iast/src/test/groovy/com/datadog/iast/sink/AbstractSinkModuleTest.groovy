@@ -1,7 +1,8 @@
-package com.datadog.iast
+package com.datadog.iast.sink
 
+import com.datadog.iast.IastModuleImplTestBase
 
-class IastModuleFindValidPackageForVulnerability extends IastModuleImplTestBase {
+class AbstractSinkModuleTest  extends IastModuleImplTestBase {
 
   final StackTraceElement ignoredPackageClassElement = element("org.springframework.Ignored")
   final StackTraceElement notIgnoredPackageClassElement = element("datadog.smoketest.NotIgnored")
@@ -14,7 +15,7 @@ class IastModuleFindValidPackageForVulnerability extends IastModuleImplTestBase 
     final StackTraceElement expected = notInIastExclusionTrie
     final list = Arrays.asList(ignoredPackageClassElement, expected, notIgnoredPackageClassElement)
     when:
-    final StackTraceElement result = IastModuleImpl.findValidPackageForVulnerability(list.stream())
+    final StackTraceElement result = SinkModuleBase.findValidPackageForVulnerability(list.stream())
     then:
     result == expected
   }
@@ -25,7 +26,7 @@ class IastModuleFindValidPackageForVulnerability extends IastModuleImplTestBase 
     final StackTraceElement expected = notIgnoredPackageClassElement
     final list = Arrays.asList(ignoredPackageClassElement, expected, notInIastExclusionTrie)
     when:
-    final StackTraceElement result = IastModuleImpl.findValidPackageForVulnerability(list.stream())
+    final StackTraceElement result = SinkModuleBase.findValidPackageForVulnerability(list.stream())
     then:
     result == expected
   }
@@ -37,7 +38,7 @@ class IastModuleFindValidPackageForVulnerability extends IastModuleImplTestBase 
     final ignoredPackageClassElement2 = element("java.Ignored")
     final list = Arrays.asList(expected, ignoredPackageClassElement2)
     when:
-    final StackTraceElement result = IastModuleImpl.findValidPackageForVulnerability(list.stream())
+    final StackTraceElement result = SinkModuleBase.findValidPackageForVulnerability(list.stream())
     then:
     result == expected
   }

@@ -1,14 +1,14 @@
 package datadog.trace.instrumentation.java.io
 
-import datadog.trace.api.iast.IastModule
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.sink.PathTraversalModule
 import foo.bar.TestFileSuite
 
 class FileCallSiteTest extends BaseIoCallSiteTest {
 
   def 'test new file with path'() {
     setup:
-    final iastModule = Mock(IastModule)
+    PathTraversalModule iastModule = Mock(PathTraversalModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final path = 'test.txt'
 
@@ -22,7 +22,7 @@ class FileCallSiteTest extends BaseIoCallSiteTest {
 
   def 'test new file with parent and child'() {
     setup:
-    final iastModule = Mock(IastModule)
+    PathTraversalModule iastModule = Mock(PathTraversalModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final parent = '/home/test'
     final child = 'test.txt'
@@ -37,7 +37,7 @@ class FileCallSiteTest extends BaseIoCallSiteTest {
 
   def 'test new file with parent file and child'() {
     setup:
-    final iastModule = Mock(IastModule)
+    PathTraversalModule iastModule = Mock(PathTraversalModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final parent = new File('/home/test')
     final child = 'test.txt'
@@ -52,7 +52,7 @@ class FileCallSiteTest extends BaseIoCallSiteTest {
 
   def 'test new file with uri'() {
     setup:
-    final iastModule = Mock(IastModule)
+    PathTraversalModule iastModule = Mock(PathTraversalModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final file = new URI('file:/test.txt')
 

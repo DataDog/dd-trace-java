@@ -1,15 +1,23 @@
-package com.datadog.iast
+package com.datadog.iast.sink
 
-
+import com.datadog.iast.IastModuleImplTestBase
+import com.datadog.iast.IastRequestContext
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.sink.SqlInjectionModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
 import static com.datadog.iast.IastAgentTestRunner.EMPTY_SOURCE
 
-class IastModuleImplJdbcQueryTest extends IastModuleImplTestBase {
+class SqlInjectionModuleTest extends IastModuleImplTestBase {
+
+  private SqlInjectionModule module
+
+  def setup() {
+    module = registerDependencies(new SqlInjectionModuleImpl())
+  }
 
   void 'jdbc report a vulnerability iff the string is tainted'() {
     given:
@@ -45,7 +53,7 @@ class IastModuleImplJdbcQueryTest extends IastModuleImplTestBase {
     }
   }
 
-  void 'nothing is reported if the query is not tainted'() {
+  void 'nothing is reported if the query is not tainted'(final String queryString) {
     given:
     def iastRC = new IastRequestContext()
     final span = Mock(AgentSpan) {
@@ -53,14 +61,22 @@ class IastModuleImplJdbcQueryTest extends IastModuleImplTestBase {
         getData(RequestContextSlot.IAST) >> iastRC
       }
     }
-    String queryString = 'dummy query'
 
     when:
     module.onJdbcQuery(queryString)
 
     then:
-    1 * tracer.activeSpan() >> span
+    if (queryString) {
+      1 * tracer.activeSpan() >> span
+    } else {
+      0 * tracer.activeSpan()
+    }
     0 * overheadController._
     0 * reporter._
+
+    where:
+    queryString   | _
+    null          | _
+    'dummy query' | _
   }
 }

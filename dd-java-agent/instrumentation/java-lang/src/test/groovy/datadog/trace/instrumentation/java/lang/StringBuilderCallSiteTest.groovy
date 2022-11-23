@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.java.lang
 
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.iast.IastModule
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.propagation.StringModule
 import foo.bar.TestStringBuilderSuite
 
 class StringBuilderCallSiteTest extends AgentTestRunner {
@@ -14,7 +14,7 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
 
   def 'test string builder new call site'(final CharSequence param, final String expected) {
     setup:
-    final iastModule = Mock(IastModule)
+    StringModule iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
 
     when:
@@ -39,7 +39,7 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
 
   def 'test string builder append call site'(final CharSequence param, final String expected) {
     setup:
-    final iastModule = Mock(IastModule)
+    StringModule iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final target = new StringBuilder('Hello ')
 
@@ -68,7 +68,7 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
 
   def 'test string builder toString call site'() {
     setup:
-    final iastModule = Mock(IastModule)
+    StringModule iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final target = new StringBuilder('Hello World!')
 
@@ -83,7 +83,7 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
 
   def 'test string builder call site in plus operations (JDK8)'() {
     setup:
-    final iastModule = Mock(IastModule)
+    StringModule iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
 
     when:
@@ -100,7 +100,7 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
 
   def 'test string builder call site in plus operations with multiple objects (JDK8)'() {
     setup:
-    final iastModule = Mock(IastModule)
+    StringModule iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final args = ['Come to my website ', new URL('https://www.datadoghq.com/'), ' today is ', new Date()] as Object[]
     final expected = args.join()
@@ -128,7 +128,7 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
 
   def 'test string builder call site in plus operations throwing exceptions (JDK8)'() {
     setup:
-    final iastModule = Mock(IastModule)
+    StringModule iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
 
     when:

@@ -1,24 +1,27 @@
-package com.datadog.iast
+package com.datadog.iast.sink
 
+import com.datadog.iast.IastModuleImplTestBase
+import com.datadog.iast.IastRequestContext
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.sink.LdapInjectionModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import spock.lang.Shared
 
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.taintFormat
 
-class IastModuleLDAPInjectionTest extends IastModuleImplTestBase {
+class LdapInjectionModuleTest extends IastModuleImplTestBase {
 
-  @Shared
   private List<Object> objectHolder
 
-  @Shared
   private IastRequestContext ctx
 
+  private LdapInjectionModule module
+
   def setup() {
+    module = registerDependencies(new LdapInjectionModuleImpl())
     objectHolder = []
     ctx = new IastRequestContext()
     final reqCtx = Mock(RequestContext) {
@@ -29,7 +32,6 @@ class IastModuleLDAPInjectionTest extends IastModuleImplTestBase {
       getRequestContext() >> reqCtx
     }
     tracer.activeSpan() >> span
-    overheadController.consumeQuota(_, _) >> true
   }
 
   void 'iast module detect LDAP injection on search(#name, #filter, #args)'(final String name, final String filter, final List<Object> args, final String expected) {

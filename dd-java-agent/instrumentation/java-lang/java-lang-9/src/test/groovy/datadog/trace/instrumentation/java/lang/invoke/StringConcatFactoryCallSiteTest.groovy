@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.java.lang.invoke
 
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.iast.IastModule
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.propagation.StringModule
 import foo.bar.TestStringConcatFactorySuite
 import spock.lang.Requires
 
@@ -18,7 +18,7 @@ class StringConcatFactoryCallSiteTest extends AgentTestRunner {
 
   def 'test string concat factory'() {
     setup:
-    final iastModule = Mock(IastModule)
+    StringModule iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final expected = 'Hello World!'
 
@@ -38,7 +38,7 @@ class StringConcatFactoryCallSiteTest extends AgentTestRunner {
 
   def 'test string concat factory with constants '() {
     setup:
-    final iastModule = Mock(IastModule)
+    StringModule iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final expected = 'Hello World!'
 
@@ -58,7 +58,7 @@ class StringConcatFactoryCallSiteTest extends AgentTestRunner {
 
   def 'test string concat factory with flag constants'() {
     setup:
-    final iastModule = Mock(IastModule)
+    StringModule iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final expected = '\u0001 Hello \u0002 World!.'
 
@@ -78,7 +78,7 @@ class StringConcatFactoryCallSiteTest extends AgentTestRunner {
 
   def 'test string concat factory with object args'() {
     setup:
-    final iastModule = Mock(IastModule)
+    StringModule iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final web = new URL('https://www.datadoghq.com/')
     final Date date = new Date()
@@ -100,7 +100,7 @@ class StringConcatFactoryCallSiteTest extends AgentTestRunner {
 
   def 'test string concat factory with null args'() {
     setup:
-    final iastModule = Mock(IastModule)
+    StringModule iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final expected = 'Hello null'
 
@@ -120,7 +120,7 @@ class StringConcatFactoryCallSiteTest extends AgentTestRunner {
 
   def 'test string concat factory with multiple args'() {
     setup:
-    final iastModule = Mock(IastModule)
+    StringModule iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final args = ['Come to my website ', new URL('https://www.datadoghq.com/'), ' today is ', new Date()] as Object[]
     final first = ['', args[0]] as String[]
@@ -143,7 +143,7 @@ class StringConcatFactoryCallSiteTest extends AgentTestRunner {
 
   def 'test string concat factory with utf constants'() {
     setup:
-    final iastModule = Mock(IastModule)
+    StringModule iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final expected = '𠆢Hello𠆢\u0001𠆢World!.'
 

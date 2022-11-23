@@ -59,6 +59,23 @@ public class StackUtilsTest {
     assertThat(filtered2.getStackTrace()).isEqualTo(expected);
   }
 
+  @Test
+  public void test_remove_last() {
+    final StackTraceElement[] stack =
+        new StackTraceElement[] {
+          stack().className("org.junit.jupiter.api.Test").build(),
+          stack().className("datadog.trace.util.stacktrace.StackUtilsTest").build(),
+          stack().className("java.util.function.Function").build(),
+          stack().className("datadog.trace.util.stacktrace.StackUtils").build(),
+          stack().className("com.google.common.truth.Truth").build()
+        };
+    final StackTraceElement[] expected =
+        new StackTraceElement[] {stack[0], stack[1], stack[2], stack[3]};
+
+    final Throwable removed = StackUtils.removeLast(withStack(stack));
+    assertThat(removed.getStackTrace()).isEqualTo(expected);
+  }
+
   private static Throwable withStack(final StackTraceElement... stack) {
     final Exception exception = new RuntimeException();
     exception.setStackTrace(stack);
