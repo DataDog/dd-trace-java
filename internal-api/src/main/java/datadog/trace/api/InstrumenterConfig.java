@@ -61,8 +61,8 @@ public class InstrumenterConfig {
   private final boolean integrationsEnabled;
 
   private final boolean traceEnabled;
-  private final boolean profilingEnabled;
   private final boolean logsInjectionEnabled;
+  private final boolean profilingEnabled;
   private final boolean ciVisibilityEnabled;
   private final ProductActivation appSecActivation;
   private final boolean iastEnabled;
@@ -107,9 +107,9 @@ public class InstrumenterConfig {
         configProvider.getBoolean(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
 
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
-    profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT);
     logsInjectionEnabled =
         configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
+    profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT);
     ciVisibilityEnabled =
         configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
     // ConfigProvider.getString currently doesn't fallback to default for empty strings. So we have
@@ -186,12 +186,12 @@ public class InstrumenterConfig {
     return traceEnabled;
   }
 
-  public boolean isProfilingEnabled() {
-    return profilingEnabled;
-  }
-
   public boolean isLogsInjectionEnabled() {
     return logsInjectionEnabled;
+  }
+
+  public boolean isProfilingEnabled() {
+    return profilingEnabled;
   }
 
   public boolean isCiVisibilityEnabled() {
@@ -315,10 +315,10 @@ public class InstrumenterConfig {
         + integrationsEnabled
         + ", traceEnabled="
         + traceEnabled
-        + ", profilingEnabled="
-        + profilingEnabled
         + ", logsInjectionEnabled="
         + logsInjectionEnabled
+        + ", profilingEnabled="
+        + profilingEnabled
         + ", ciVisibilityEnabled="
         + ciVisibilityEnabled
         + ", appSecActivation="

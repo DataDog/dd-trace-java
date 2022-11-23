@@ -1248,6 +1248,10 @@ public class Config {
     return rootContextServiceName;
   }
 
+  public boolean isTraceEnabled() {
+    return instrumenterConfig.isTraceEnabled();
+  }
+
   public boolean isIntegrationSynapseLegacyOperationName() {
     return integrationSynapseLegacyOperationName;
   }
@@ -1496,32 +1500,8 @@ public class Config {
     return tracerMetricsMaxPending;
   }
 
-  public boolean isTraceEnabled() {
-    return instrumenterConfig.isTraceEnabled();
-  }
-
-  public boolean isProfilingEnabled() {
-    return instrumenterConfig.isProfilingEnabled();
-  }
-
   public boolean isLogsInjectionEnabled() {
     return instrumenterConfig.isLogsInjectionEnabled();
-  }
-
-  public boolean isCiVisibilityEnabled() {
-    return instrumenterConfig.isCiVisibilityEnabled();
-  }
-
-  public ProductActivation getAppSecActivation() {
-    return instrumenterConfig.getAppSecActivation();
-  }
-
-  public boolean isIastEnabled() {
-    return instrumenterConfig.isIastEnabled();
-  }
-
-  public boolean isTelemetryEnabled() {
-    return instrumenterConfig.isTelemetryEnabled();
   }
 
   public boolean isLogsMDCTagsInjectionEnabled() {
@@ -1564,6 +1544,10 @@ public class Config {
 
   public int getTraceRateLimit() {
     return traceRateLimit;
+  }
+
+  public boolean isProfilingEnabled() {
+    return instrumenterConfig.isProfilingEnabled();
   }
 
   public boolean isProfilingAgentless() {
@@ -1646,12 +1630,20 @@ public class Config {
     return crashTrackingAgentless;
   }
 
+  public boolean isTelemetryEnabled() {
+    return instrumenterConfig.isTelemetryEnabled();
+  }
+
   public int getTelemetryHeartbeatInterval() {
     return telemetryHeartbeatInterval;
   }
 
   public boolean isClientIpEnabled() {
     return clientIpEnabled;
+  }
+
+  public ProductActivation getAppSecActivation() {
+    return instrumenterConfig.getAppSecActivation();
   }
 
   public boolean isAppSecReportingInband() {
@@ -1690,6 +1682,10 @@ public class Config {
     return appSecHttpBlockedTemplateJson;
   }
 
+  public boolean isIastEnabled() {
+    return instrumenterConfig.isIastEnabled();
+  }
+
   public boolean isIastTaintTrackingDebugEnabled() {
     return iastTaintTrackingDebugEnabled;
   }
@@ -1704,6 +1700,10 @@ public class Config {
 
   public float getIastRequestSampling() {
     return iastRequestSampling;
+  }
+
+  public boolean isCiVisibilityEnabled() {
+    return instrumenterConfig.isCiVisibilityEnabled();
   }
 
   public boolean isCiVisibilityAgentlessEnabled() {
