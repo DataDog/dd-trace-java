@@ -144,6 +144,7 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
     Wrapper wrapper = servletContext.createWrapper()
     wrapper.name = UUID.randomUUID()
     wrapper.servletClass = servlet.name
+    wrapper.asyncSupported =true
     servletContext.addChild(wrapper)
     servletContext.addServletMappingDecoded(path, wrapper.name)
   }
