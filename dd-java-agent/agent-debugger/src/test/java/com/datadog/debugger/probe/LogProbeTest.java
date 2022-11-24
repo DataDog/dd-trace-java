@@ -36,6 +36,6 @@ public class LogProbeTest {
   }
 
   private LogProbe.Builder createLog() {
-    return LogProbe.builder().language(LANGUAGE).logId(PROBE_ID);
+    return LogProbe.builder().language(LANGUAGE).probeId(PROBE_ID);
   }
 }

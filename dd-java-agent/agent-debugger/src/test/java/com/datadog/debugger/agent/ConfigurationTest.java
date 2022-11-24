@@ -116,6 +116,7 @@ public class ConfigurationTest {
     assertEquals(1, config0.getSnapshotProbes().size());
     SnapshotProbe snapshotProbe1 = config0.getSnapshotProbes().iterator().next();
     assertEquals("java.lang.String", snapshotProbe1.getWhere().getTypeName());
+    assertEquals(ProbeDefinition.MethodLocation.ENTRY, snapshotProbe1.getEvaluateAt());
     assertEquals(1, snapshotProbe1.getAllProbeIds().count());
     assertEquals(2, snapshotProbe1.getTags().length);
     assertEquals("tag1:value1", snapshotProbe1.getTags()[0].toString());
@@ -214,6 +215,7 @@ public class ConfigurationTest {
             Limits.DEFAULT_FIELD_COUNT)
         .tags("tag1:value1", "tag2:value2")
         .sampling(42.0)
+        .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
         .build();
   }
 
@@ -226,9 +228,10 @@ public class ConfigurationTest {
       String signature) {
     return MetricProbe.builder()
         .language("java")
-        .metricId(id)
+        .probeId(id)
         .active(true)
         .where(typeName, methodName, signature)
+        .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
         .metricName(metricName)
         .kind(metricKind)
         .tags("tag1:value1", "tag2:value2")
@@ -239,9 +242,10 @@ public class ConfigurationTest {
       String id, String template, String typeName, String methodName, String signature) {
     return LogProbe.builder()
         .language("java")
-        .logId(id)
+        .probeId(id)
         .active(true)
         .where(typeName, methodName, signature)
+        .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
         .template(template)
         .tags("tag1:value1", "tag2:value2")
         .build();

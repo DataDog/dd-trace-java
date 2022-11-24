@@ -85,7 +85,7 @@ public class LogProbe extends ProbeDefinition {
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
   public LogProbe() {
-    this(LANGUAGE, null, true, null, null, null, new ArrayList<>());
+    this(LANGUAGE, null, true, null, null, MethodLocation.NONE, null, new ArrayList<>());
   }
 
   public LogProbe(
@@ -94,9 +94,10 @@ public class LogProbe extends ProbeDefinition {
       boolean active,
       String[] tagStrs,
       Where where,
+      MethodLocation evaluateAt,
       String template,
       List<Segment> segments) {
-    super(language, id, active, tagStrs, where);
+    super(language, id, active, tagStrs, where, evaluateAt);
     this.template = template;
     this.segments = segments;
   }
@@ -130,6 +131,7 @@ public class LogProbe extends ProbeDefinition {
         && Arrays.equals(tags, that.tags)
         && Objects.equals(tagMap, that.tagMap)
         && Objects.equals(where, that.where)
+        && Objects.equals(evaluateAt, that.evaluateAt)
         && Objects.equals(template, that.template)
         && Objects.equals(segments, that.segments);
   }
@@ -137,7 +139,7 @@ public class LogProbe extends ProbeDefinition {
   @Generated
   @Override
   public int hashCode() {
-    int result = Objects.hash(language, id, active, tagMap, where, template, segments);
+    int result = Objects.hash(language, id, active, tagMap, where, evaluateAt, template, segments);
     result = 31 * result + Arrays.hashCode(tags);
     return result;
   }
@@ -160,6 +162,8 @@ public class LogProbe extends ProbeDefinition {
         + tagMap
         + ", where="
         + where
+        + ", evaluateAt="
+        + evaluateAt
         + ", template='"
         + template
         + '\''
@@ -169,91 +173,22 @@ public class LogProbe extends ProbeDefinition {
   }
 
   public static LogProbe.Builder builder() {
-    return new LogProbe.Builder();
+    return new Builder();
   }
 
-  public static class Builder {
-    private String language = LANGUAGE;
-    private String logId;
-    private boolean active = true;
-    private String[] tagStrs;
-    private Where where;
+  public static class Builder extends ProbeDefinition.Builder<Builder> {
     private String template;
     private List<Segment> segments;
-
-    public LogProbe.Builder language(String language) {
-      this.language = language;
-      return this;
-    }
-
-    public LogProbe.Builder logId(String logId) {
-      this.logId = logId;
-      return this;
-    }
-
-    public LogProbe.Builder active(boolean active) {
-      this.active = active;
-      return this;
-    }
-
-    public LogProbe.Builder tags(String... tagStrs) {
-      this.tagStrs = tagStrs;
-      return this;
-    }
-
-    public LogProbe.Builder where(Where where) {
-      this.where = where;
-      return this;
-    }
-
-    public LogProbe.Builder where(String typeName, String methodName) {
-      return where(new Where(typeName, methodName, null, (Where.SourceLine[]) null, null));
-    }
-
-    public LogProbe.Builder where(String typeName, String methodName, String signature) {
-      return where(new Where(typeName, methodName, signature, (Where.SourceLine[]) null, null));
-    }
-
-    public LogProbe.Builder where(
-        String typeName, String methodName, String signature, String... lines) {
-      return where(new Where(typeName, methodName, signature, Where.sourceLines(lines), null));
-    }
-
-    public LogProbe.Builder where(String sourceFile, String... lines) {
-      return where(new Where(null, null, null, lines, sourceFile));
-    }
-
-    public LogProbe.Builder where(
-        String typeName, String methodName, String signature, int codeLine, String source) {
-      return where(
-          new Where(
-              typeName,
-              methodName,
-              signature,
-              new Where.SourceLine[] {new Where.SourceLine(codeLine)},
-              source));
-    }
-
-    public LogProbe.Builder where(
-        String typeName,
-        String methodName,
-        String signature,
-        int codeLineFrom,
-        int codeLineTill,
-        String source) {
-      return where(
-          new Where(
-              typeName,
-              methodName,
-              signature,
-              new Where.SourceLine[] {new Where.SourceLine(codeLineFrom, codeLineTill)},
-              source));
-    }
 
     public LogProbe.Builder template(String template) {
       this.template = template;
       this.segments = parseTemplate(template);
       return this;
+    }
+
+    public LogProbe build() {
+      return new LogProbe(
+          language, probeId, active, tagStrs, where, evaluateAt, template, segments);
     }
 
     private static List<Segment> parseTemplate(String template) {
@@ -295,10 +230,6 @@ public class LogProbe extends ProbeDefinition {
       str = Strings.replace(str, "{{", "{");
       str = Strings.replace(str, "}}", "}");
       segments.add(new Segment(str));
-    }
-
-    public LogProbe build() {
-      return new LogProbe(language, logId, active, tagStrs, where, template, segments);
     }
   }
 }

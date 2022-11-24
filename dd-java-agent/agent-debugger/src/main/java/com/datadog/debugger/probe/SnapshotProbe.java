@@ -115,17 +115,27 @@ public class SnapshotProbe extends ProbeDefinition {
       boolean active,
       String[] tagStrs,
       Where where,
+      MethodLocation evaluateAt,
       ProbeCondition probeCondition,
       Capture capture,
       Sampling sampling) {
-    super(language, probeId, active, tagStrs, where);
+    super(language, probeId, active, tagStrs, where, evaluateAt);
     this.probeCondition = probeCondition;
     this.capture = capture;
     this.sampling = sampling != null ? sampling : new Sampling(1.0);
   }
 
   public SnapshotProbe() {
-    this(LANGUAGE, UUID.randomUUID().toString(), true, null, new Where(), null, null, null);
+    this(
+        LANGUAGE,
+        UUID.randomUUID().toString(),
+        true,
+        null,
+        new Where(),
+        MethodLocation.NONE,
+        null,
+        null,
+        null);
   }
 
   public static Builder builder() {
@@ -153,40 +163,10 @@ public class SnapshotProbe extends ProbeDefinition {
     new SnapshotInstrumentor(this, classLoader, classNode, methodNode, diagnostics).instrument();
   }
 
-  public static class Builder {
-    private String language = LANGUAGE;
-    private String probeId;
-    private boolean active = true;
-    private Where where;
+  public static class Builder extends ProbeDefinition.Builder<Builder> {
     private ProbeCondition probeCondition;
-    private String[] tagStrs;
     private Capture capture;
     private Sampling sampling;
-
-    public Builder language(String language) {
-      this.language = language;
-      return this;
-    }
-
-    public Builder probeId(String probeId) {
-      this.probeId = probeId;
-      return this;
-    }
-
-    public Builder active(boolean active) {
-      this.active = active;
-      return this;
-    }
-
-    public Builder tags(String... tagStrs) {
-      this.tagStrs = tagStrs;
-      return this;
-    }
-
-    public Builder where(Where where) {
-      this.where = where;
-      return this;
-    }
 
     public Builder capture(Capture capture) {
       this.capture = capture;
@@ -196,45 +176,6 @@ public class SnapshotProbe extends ProbeDefinition {
     public Builder sampling(Sampling sampling) {
       this.sampling = sampling;
       return this;
-    }
-
-    public Builder where(String typeName, String methodName) {
-      return where(new Where(typeName, methodName, null, (Where.SourceLine[]) null, null));
-    }
-
-    public Builder where(String typeName, String methodName, String signature) {
-      return where(new Where(typeName, methodName, signature, (Where.SourceLine[]) null, null));
-    }
-
-    public Builder where(String typeName, String methodName, String signature, String... lines) {
-      return where(new Where(typeName, methodName, signature, Where.sourceLines(lines), null));
-    }
-
-    public Builder where(
-        String typeName, String methodName, String signature, int codeLine, String source) {
-      return where(
-          new Where(
-              typeName,
-              methodName,
-              signature,
-              new Where.SourceLine[] {new Where.SourceLine(codeLine)},
-              source));
-    }
-
-    public Builder where(
-        String typeName,
-        String methodName,
-        String signature,
-        int codeLineFrom,
-        int codeLineTill,
-        String source) {
-      return where(
-          new Where(
-              typeName,
-              methodName,
-              signature,
-              new Where.SourceLine[] {new Where.SourceLine(codeLineFrom, codeLineTill)},
-              source));
     }
 
     public Builder when(ProbeCondition probeCondition) {
@@ -253,7 +194,7 @@ public class SnapshotProbe extends ProbeDefinition {
 
     public SnapshotProbe build() {
       return new SnapshotProbe(
-          language, probeId, active, tagStrs, where, probeCondition, capture, sampling);
+          language, probeId, active, tagStrs, where, evaluateAt, probeCondition, capture, sampling);
     }
   }
 
@@ -271,6 +212,8 @@ public class SnapshotProbe extends ProbeDefinition {
         + active
         + ", where="
         + where
+        + ", evaluateAt="
+        + evaluateAt
         + ", script="
         + probeCondition
         + ", capture="
@@ -296,6 +239,7 @@ public class SnapshotProbe extends ProbeDefinition {
         && Objects.equals(language, that.language)
         && Objects.equals(id, that.id)
         && Objects.equals(where, that.where)
+        && Objects.equals(evaluateAt, that.evaluateAt)
         && Objects.equals(probeCondition, that.probeCondition)
         && Objects.equals(capture, that.capture)
         && Objects.equals(sampling, that.sampling)
@@ -313,6 +257,7 @@ public class SnapshotProbe extends ProbeDefinition {
             id,
             active,
             where,
+            evaluateAt,
             probeCondition,
             capture,
             sampling,

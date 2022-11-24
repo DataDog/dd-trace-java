@@ -188,7 +188,7 @@ public class TransformerDefinitionMatcherTest {
 
   private MetricProbe createMetric(String probeId, String typeName, String methodName) {
     return MetricProbe.builder()
-        .metricId(probeId)
+        .probeId(probeId)
         .where(typeName, methodName)
         .metricName("count")
         .kind(MetricProbe.MetricKind.COUNT)

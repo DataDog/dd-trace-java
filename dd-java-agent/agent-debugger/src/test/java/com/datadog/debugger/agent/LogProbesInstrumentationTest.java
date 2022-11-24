@@ -161,7 +161,7 @@ public class LogProbesInstrumentationTest {
       String... lines) {
     return LogProbe.builder()
         .language(LANGUAGE)
-        .logId(id)
+        .probeId(id)
         .active(true)
         .where(typeName, methodName, signature, lines)
         .template(template)

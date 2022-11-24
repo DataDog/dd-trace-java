@@ -768,7 +768,7 @@ public class CapturedSnapshotTest {
             .language(LANGUAGE)
             .probeId(PROBE_ID)
             .active(true)
-            .where(CLASS_NAME, "main", "int (java.lang.String)", "8")
+            .where(CLASS_NAME, 8)
             .sampling(new SnapshotProbe.Sampling(1))
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener =

@@ -227,7 +227,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot03";
     String METRIC_NAME = "argument_count";
     MetricProbe metricProbe =
-        createMetric(METRIC_ID, METRIC_NAME, COUNT, CLASS_NAME, new ValueScript("^value"), "4");
+        createMetric(METRIC_ID, METRIC_NAME, COUNT, CLASS_NAME, new ValueScript("^value"), 4);
     MetricForwarderListener listener = installMetricProbes(metricProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
@@ -277,7 +277,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot01";
     String METRIC_NAME = "localvar_count";
     MetricProbe metricProbe =
-        createMetric(METRIC_ID, METRIC_NAME, COUNT, CLASS_NAME, new ValueScript("#var1"), "9");
+        createMetric(METRIC_ID, METRIC_NAME, COUNT, CLASS_NAME, new ValueScript("#var1"), 9);
     MetricForwarderListener listener = installMetricProbes(metricProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
@@ -291,7 +291,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot01";
     String METRIC_NAME = "localvar_count";
     MetricProbe metricProbe =
-        createMetric(METRIC_ID, METRIC_NAME, COUNT, CLASS_NAME, new ValueScript("#foo"), "9");
+        createMetric(METRIC_ID, METRIC_NAME, COUNT, CLASS_NAME, new ValueScript("#foo"), 9);
     MetricForwarderListener listener = installMetricProbes(metricProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
@@ -306,7 +306,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot01";
     String METRIC_NAME = "localvar_count";
     MetricProbe metricProbe =
-        createMetric(METRIC_ID, METRIC_NAME, COUNT, CLASS_NAME, new ValueScript("#arg"), "9");
+        createMetric(METRIC_ID, METRIC_NAME, COUNT, CLASS_NAME, new ValueScript("#arg"), 9);
     MetricForwarderListener listener = installMetricProbes(metricProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
@@ -337,7 +337,7 @@ public class MetricProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot06";
     String METRIC_NAME = "field_count";
     MetricProbe metricProbe =
-        createMetric(METRIC_ID, METRIC_NAME, COUNT, CLASS_NAME, new ValueScript(".intValue"), "24");
+        createMetric(METRIC_ID, METRIC_NAME, COUNT, CLASS_NAME, new ValueScript(".intValue"), 24);
     MetricForwarderListener listener = installMetricProbes(metricProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "f").get();
@@ -353,15 +353,10 @@ public class MetricProbesInstrumentationTest {
     String METRIC_NAME2 = "field2_count";
     MetricProbe metricProbe1 =
         createMetric(
-            METRIC_ID1, METRIC_NAME1, COUNT, CLASS_NAME, new ValueScript("#sdata.intValue"), "24");
+            METRIC_ID1, METRIC_NAME1, COUNT, CLASS_NAME, new ValueScript("#sdata.intValue"), 24);
     MetricProbe metricProbe2 =
         createMetric(
-            METRIC_ID2,
-            METRIC_NAME2,
-            COUNT,
-            CLASS_NAME,
-            new ValueScript("#cdata.s1.intValue"),
-            "24");
+            METRIC_ID2, METRIC_NAME2, COUNT, CLASS_NAME, new ValueScript("#cdata.s1.intValue"), 24);
     MetricForwarderListener listener = installMetricProbes(metricProbe1, metricProbe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "").get();
@@ -384,7 +379,7 @@ public class MetricProbesInstrumentationTest {
             COUNT,
             CLASS_NAME,
             new ValueScript("#nullObject.intValue"),
-            "25");
+            25);
     MetricProbe metricProbe2 =
         createMetric(
             METRIC_ID2,
@@ -392,7 +387,7 @@ public class MetricProbesInstrumentationTest {
             COUNT,
             CLASS_NAME,
             new ValueScript("#cdata.nullsd.intValue"),
-            "25");
+            25);
     MetricForwarderListener listener = installMetricProbes(metricProbe1, metricProbe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "").get();
@@ -409,15 +404,10 @@ public class MetricProbesInstrumentationTest {
     String METRIC_NAME2 = "field2_count";
     MetricProbe metricProbe1 =
         createMetric(
-            METRIC_ID1, METRIC_NAME1, COUNT, CLASS_NAME, new ValueScript("#sdata.foovalue"), "24");
+            METRIC_ID1, METRIC_NAME1, COUNT, CLASS_NAME, new ValueScript("#sdata.foovalue"), 24);
     MetricProbe metricProbe2 =
         createMetric(
-            METRIC_ID2,
-            METRIC_NAME2,
-            COUNT,
-            CLASS_NAME,
-            new ValueScript("#cdata.s1.foovalue"),
-            "24");
+            METRIC_ID2, METRIC_NAME2, COUNT, CLASS_NAME, new ValueScript("#cdata.s1.foovalue"), 24);
     MetricForwarderListener listener = installMetricProbes(metricProbe1, metricProbe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "").get();
@@ -437,15 +427,10 @@ public class MetricProbesInstrumentationTest {
     String METRIC_NAME2 = "field2_count";
     MetricProbe metricProbe1 =
         createMetric(
-            METRIC_ID1, METRIC_NAME1, COUNT, CLASS_NAME, new ValueScript("#sdata.strValue"), "24");
+            METRIC_ID1, METRIC_NAME1, COUNT, CLASS_NAME, new ValueScript("#sdata.strValue"), 24);
     MetricProbe metricProbe2 =
         createMetric(
-            METRIC_ID2,
-            METRIC_NAME2,
-            COUNT,
-            CLASS_NAME,
-            new ValueScript("#cdata.s1.strValue"),
-            "24");
+            METRIC_ID2, METRIC_NAME2, COUNT, CLASS_NAME, new ValueScript("#cdata.s1.strValue"), 24);
     MetricForwarderListener listener = installMetricProbes(metricProbe1, metricProbe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "").get();
@@ -583,9 +568,9 @@ public class MetricProbesInstrumentationTest {
       MetricProbe.MetricKind metricKind,
       String sourceFile,
       ValueScript valueScript,
-      String... lines) {
+      int line) {
     return createMetricBuilder(id, metricName, metricKind)
-        .where(sourceFile, lines)
+        .where(sourceFile, line)
         .kind(COUNT)
         .valueScript(valueScript)
         .build();
@@ -595,7 +580,7 @@ public class MetricProbesInstrumentationTest {
       String id, String metricName, MetricProbe.MetricKind metricKind) {
     return MetricProbe.builder()
         .language(LANGUAGE)
-        .metricId(id)
+        .probeId(id)
         .metricName(metricName)
         .kind(metricKind);
   }
