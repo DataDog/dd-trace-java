@@ -393,21 +393,16 @@ public class MoshiSnapshotHelper {
                 jsonReader.endArray();
               }
               jsonReader.endArray();
-              if (type.equals(Map.class.getTypeName())
-                  || type.equals(HashMap.class.getTypeName())) {
-                Map<Object, Object> entries = new HashMap<>();
-                for (int i = 0; i < values.size(); i += 2) {
-                  Object entryKey = values.get(i).getValue();
-                  if (i + 1 >= values.size()) {
-                    break;
-                  }
-                  Object entryValue = values.get(i + 1).getValue();
-                  entries.put(entryKey, entryValue);
+              Map<Object, Object> entries = new HashMap<>();
+              for (int i = 0; i < values.size(); i += 2) {
+                Object entryKey = values.get(i).getValue();
+                if (i + 1 >= values.size()) {
+                  break;
                 }
-                value = entries;
-              } else {
-                throw new RuntimeException("Cannot deserialize type: " + type);
+                Object entryValue = values.get(i + 1).getValue();
+                entries.put(entryKey, entryValue);
               }
+              value = entries;
               break;
             }
           case IS_NULL:
