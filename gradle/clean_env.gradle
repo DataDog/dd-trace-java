@@ -22,7 +22,7 @@ def passEnv = [
 
 def customPassEnv = System.getenv(passEnvKey)
 if (customPassEnv != null && !customPassEnv.trim().isEmpty()) {
-  passEnv += ystem.getenv(passEnvKey).split(" ").collect { it.trim() }
+  passEnv += System.getenv(passEnvKey).split(" ").collect { it.trim() }
 }
 
 tasks.withType(Test).configureEach {
