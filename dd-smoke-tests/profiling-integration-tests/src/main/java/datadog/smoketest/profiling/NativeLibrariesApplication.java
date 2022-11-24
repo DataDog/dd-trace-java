@@ -42,7 +42,7 @@ public class NativeLibrariesApplication {
     byte[] bytes = TEXT.getBytes(StandardCharsets.UTF_8);
     Span lz4 = tracer.buildSpan("lz4").start();
     try (Scope outer = tracer.activateSpan(lz4)) {
-      for (int i = 0; i < 100; i++) {
+      for (int i = 0; i < 200; i++) {
         {
           Span compress = tracer.buildSpan("lz4.compress.fast").start();
           byte[] compressed;
