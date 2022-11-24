@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.ci.AppVeyorInfo.APPVEYOR;
 import static datadog.trace.bootstrap.instrumentation.ci.AzurePipelinesInfo.AZURE;
 import static datadog.trace.bootstrap.instrumentation.ci.BitBucketInfo.BITBUCKET;
 import static datadog.trace.bootstrap.instrumentation.ci.BitriseInfo.BITRISE;
+import static datadog.trace.bootstrap.instrumentation.ci.BuddyInfo.BUDDY;
 import static datadog.trace.bootstrap.instrumentation.ci.BuildkiteInfo.BUILDKITE;
 import static datadog.trace.bootstrap.instrumentation.ci.CircleCIInfo.CIRCLECI;
 import static datadog.trace.bootstrap.instrumentation.ci.GitLabInfo.GITLAB;
@@ -159,6 +160,8 @@ public abstract class CIProviderInfo {
       return new BuildkiteInfo();
     } else if (System.getenv(BITRISE) != null) {
       return new BitriseInfo();
+    } else if (System.getenv(BUDDY) != null) {
+      return new BuddyInfo();
     } else {
       return new UnknownCIInfo();
     }

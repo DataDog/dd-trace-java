@@ -442,6 +442,27 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     arguments == [0]
   }
 
+  @CallSite(minJavaVersion = 9)
+  static class TestMinJavaVersion {
+    @CallSite.After('java.lang.String javax.servlet.http.HttpServletRequest.getParameter(java.lang.String)')
+    static String after(@CallSite.This final ServletRequest request, @CallSite.Argument final String parameter, @CallSite.Return final String value) {
+      return value
+    }
+  }
+
+  def 'test specification builder for min java version'() {
+    setup:
+    final advice = fetchClass(TestMinJavaVersion)
+    final specificationBuilder = new AsmSpecificationBuilder()
+
+    when:
+    final result = specificationBuilder.build(advice).orElseThrow(RuntimeException::new)
+
+    then:
+    result.clazz.className == TestMinJavaVersion.name
+    result.minJavaVersion == 9
+  }
+
   protected static List<Integer> getArguments(final AdviceSpecification advice) {
     return advice.arguments.map(it -> it.index).collect(Collectors.toList())
   }

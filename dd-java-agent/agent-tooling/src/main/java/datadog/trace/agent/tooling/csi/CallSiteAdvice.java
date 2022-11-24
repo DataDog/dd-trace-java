@@ -16,6 +16,10 @@ public interface CallSiteAdvice {
     int flags();
   }
 
+  interface HasMinJavaVersion {
+    int minJavaVersion();
+  }
+
   /** Interface to isolate advices from ASM */
   interface MethodHandler {
 
@@ -42,10 +46,22 @@ public interface CallSiteAdvice {
     void dupParameters(String methodDescriptor, StackDupMode mode);
 
     /**
+     * Duplicates the specified method parameters in the stack just before the method is invoked.
+     *
+     * @param owner if this is an instance method (but the advice method doesn't have any parameter
+     *     annotated with @This), then the owner of the method invocation. Otherwise <code>null
+     *     </code>.
+     */
+    void dupParameters(String methodDescriptor, int[] indexes, String owner);
+
+    /**
      * Duplicates the <code>this</code> reference and all the method parameters in the stack just
      * before the method is invoked (only for instance methods for obvious reasons).
      */
     void dupInvoke(String owner, String methodDescriptor, StackDupMode mode);
+
+    /** Variant taking positional (partial or non-sequential) argument injection. */
+    void dupInvoke(String owner, String methodDescriptor, int[] parameterIndices);
   }
 
   /** This enumeration describes how to duplicate the parameters in the stack */

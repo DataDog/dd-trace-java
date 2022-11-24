@@ -54,6 +54,7 @@ public class DefaultPathwayContext implements PathwayContext {
           Arrays.asList(
               TagsProcessor.GROUP_TAG,
               TagsProcessor.TYPE_TAG,
+              TagsProcessor.DIRECTION_TAG,
               TagsProcessor.TOPIC_TAG,
               TagsProcessor.EXCHANGE_TAG));
 

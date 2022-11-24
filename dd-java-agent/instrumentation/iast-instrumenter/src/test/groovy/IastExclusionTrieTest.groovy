@@ -1,5 +1,4 @@
-package datadog.trace.instrumentation.iastinstrumenter
-
+import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Unroll
 

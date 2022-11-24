@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import java.security.SecureRandom;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -18,6 +19,8 @@ public abstract class IdGenerationStrategy {
         return new Random();
       case "SEQUENTIAL":
         return new Sequential();
+      case "SECURE_RANDOM":
+        return new SRandom();
       default:
         return null;
     }
@@ -50,6 +53,45 @@ public abstract class IdGenerationStrategy {
     @Override
     public long generateSpanId() {
       return id.incrementAndGet();
+    }
+  }
+
+  @FunctionalInterface
+  interface ThrowingSupplier<T> {
+    T get() throws Throwable;
+  }
+
+  static final class SRandom extends IdGenerationStrategy {
+    private final SecureRandom secureRandom;
+
+    SRandom() {
+      this(SecureRandom::getInstanceStrong);
+    }
+
+    SRandom(ThrowingSupplier<SecureRandom> supplier) {
+      try {
+        secureRandom = supplier.get();
+      } catch (Throwable e) {
+        throw new ExceptionInInitializerError(e);
+      }
+    }
+
+    private long getNonZeroPositiveLong() {
+      long value = secureRandom.nextLong() & Long.MAX_VALUE;
+      while (value == 0) {
+        value = secureRandom.nextLong() & Long.MAX_VALUE;
+      }
+      return value;
+    }
+
+    @Override
+    public DDTraceId generateTraceId() {
+      return DDTraceId.from(getNonZeroPositiveLong());
+    }
+
+    @Override
+    public long generateSpanId() {
+      return getNonZeroPositiveLong();
     }
   }
 }

@@ -4,7 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -17,7 +17,7 @@ import scala.util.Try;
 
 public class PromiseHelper {
   public static final boolean completionPriority =
-      Config.get()
+      InstrumenterConfig.get()
           .isIntegrationEnabled(
               Collections.singletonList("scala_promise_completion_priority"), false);
 

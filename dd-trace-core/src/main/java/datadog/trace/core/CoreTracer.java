@@ -20,7 +20,6 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.EndpointCheckpointerHolder;
 import datadog.trace.api.IdGenerationStrategy;
-import datadog.trace.api.Platform;
 import datadog.trace.api.PropagationStyle;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.config.GeneralConfig;
@@ -54,6 +53,7 @@ import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
 import datadog.trace.core.datastreams.DataStreamsCheckpointer;
+import datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer;
 import datadog.trace.core.datastreams.StubDataStreamsCheckpointer;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.propagation.DatadogTags;
@@ -68,7 +68,6 @@ import datadog.trace.util.AgentTaskScheduler;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
-import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -1004,23 +1003,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @SuppressForbidden
   private static DataStreamsCheckpointer createDataStreamsCheckpointer(
       Config config, SharedCommunicationObjects sharedCommunicationObjects, TimeSource timeSource) {
-
-    if (config.isDataStreamsEnabled() && Platform.isJavaVersionAtLeast(8)) {
-      try {
-        // Use reflection to load the class because it should only be loaded on Java 8+
-
-        return (DataStreamsCheckpointer)
-            Class.forName("datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer")
-                .getConstructor(Config.class, SharedCommunicationObjects.class, TimeSource.class)
-                .newInstance(config, sharedCommunicationObjects, timeSource);
-      } catch (InstantiationException
-          | InvocationTargetException
-          | NoSuchMethodException
-          | IllegalAccessException
-          | ClassNotFoundException e) {
-        log.error("Failed to instantiate data streams checkpointer", e);
-        return new StubDataStreamsCheckpointer();
-      }
+    if (config.isDataStreamsEnabled()) {
+      return new DefaultDataStreamsCheckpointer(config, sharedCommunicationObjects, timeSource);
     } else {
       log.debug("Data streams monitoring not enabled.");
       return new StubDataStreamsCheckpointer();

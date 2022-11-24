@@ -29,6 +29,13 @@ public class OverheadController {
     }
   }
 
+  protected OverheadController() {
+    // for testing
+    this.maxConcurrentRequests = 0;
+    this.sampling = 0;
+    this.availableRequests = new AtomicInteger();
+  }
+
   public boolean acquireRequest() {
     if (executedRequests.incrementAndGet() % sampling != 0) {
       // Skipped by sampling

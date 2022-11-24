@@ -86,7 +86,11 @@ public class FreemarkerAdviceGenerator implements AdviceGenerator {
                     unique ? "" : i);
             result.addAdvice(
                 generateAdviceJavaFile(
-                    spec.getSpi(), spec.getHelpers(), advice, classNameToType(className)));
+                    spec.getSpi(),
+                    spec.getMinJavaVersion(),
+                    spec.getHelpers(),
+                    advice,
+                    classNameToType(className)));
           }
         }
       }
@@ -104,6 +108,7 @@ public class FreemarkerAdviceGenerator implements AdviceGenerator {
 
   private AdviceResult generateAdviceJavaFile(
       @Nonnull final Type spiClass,
+      final int minJavaVersion,
       @Nonnull final Type[] helperClasses,
       @Nonnull final AdviceSpecification spec,
       @Nonnull final Type adviceClass) {
@@ -121,11 +126,13 @@ public class FreemarkerAdviceGenerator implements AdviceGenerator {
       final Map<String, Object> arguments = new HashMap<>();
       arguments.put("spiPackageName", getPackageName(spiClass));
       arguments.put("spiClassName", getClassName(spiClass, false));
+      arguments.put("minJavaVersion", getMinJavaVersion(minJavaVersion, spec));
       arguments.put("packageName", getPackageName(adviceClass));
       arguments.put("className", getClassName(adviceClass));
       arguments.put("dynamicInvoke", spec.isInvokeDynamic());
       arguments.put("computeMaxStack", spec.isComputeMaxStack());
-      arguments.put("applyBody", getApplyMethodBody(spec));
+      boolean isInstanceMethod = !spec.isStaticPointcut();
+      arguments.put("applyBody", getApplyMethodBody(spec, isInstanceMethod));
       arguments.put("helperClassNames", getHelperClassNames(helperClasses));
       final MethodType pointcut = spec.getPointcut();
       arguments.put("type", pointcut.getOwner().getInternalName());
@@ -139,18 +146,26 @@ public class FreemarkerAdviceGenerator implements AdviceGenerator {
     return result;
   }
 
+  private int getMinJavaVersion(final int defaultMinJavaVersion, AdviceSpecification spec) {
+    if (defaultMinJavaVersion >= 0) {
+      return defaultMinJavaVersion;
+    }
+    return spec.invokeDynamic ? 9 : defaultMinJavaVersion;
+  }
+
   private Set<String> getHelperClassNames(final Type[] spec) {
     return Arrays.stream(spec).map(Type::getClassName).collect(Collectors.toSet());
   }
 
-  private String getApplyMethodBody(@Nonnull final AdviceSpecification spec) {
+  private String getApplyMethodBody(
+      @Nonnull final AdviceSpecification spec, boolean instanceMethod) {
     final StringBuilder builder = new StringBuilder(APPLY_METHOD_BODY_BUFFER);
     if (spec instanceof BeforeSpecification) {
-      writeStackOperations(builder, spec);
+      writeStackOperations(builder, spec, instanceMethod);
       writeAdviceMethodCall(builder, spec);
       writeOriginalMethodCall(builder, spec);
     } else if (spec instanceof AfterSpecification) {
-      writeStackOperations(builder, spec);
+      writeStackOperations(builder, spec, instanceMethod);
       writeOriginalMethodCall(builder, spec);
       writeAdviceMethodCall(builder, spec);
     } else {
@@ -160,7 +175,9 @@ public class FreemarkerAdviceGenerator implements AdviceGenerator {
   }
 
   private void writeStackOperations(
-      @Nonnull final StringBuilder builder, @Nonnull final AdviceSpecification advice) {
+      @Nonnull final StringBuilder builder,
+      @Nonnull final AdviceSpecification advice,
+      boolean instanceMethod) {
     final AllArgsSpecification allArgsSpec = advice.findAllArguments();
     final String mode;
     if (allArgsSpec != null) {
@@ -168,13 +185,34 @@ public class FreemarkerAdviceGenerator implements AdviceGenerator {
     } else {
       mode = "COPY";
     }
-    builder.append(TAB).append(TAB).append("handler.");
-    if (advice.includeThis()) {
-      builder.append("dupInvoke(owner, descriptor");
+    if (allArgsSpec == null && advice.isPositionalArguments()) {
+      builder.append(TAB).append(TAB).append("int[] parameterIndices = new int[] {");
+      advice
+          .getArguments()
+          .forEachOrdered(argSpec -> builder.append(' ').append(argSpec.getIndex()).append(", "));
+      builder.append("};").append(LINE_END);
+
+      builder.append(TAB).append(TAB).append("handler.");
+      if (advice.includeThis()) {
+        builder.append("dupInvoke(owner, descriptor, parameterIndices");
+      } else {
+        builder.append("dupParameters(descriptor, parameterIndices");
+        if (instanceMethod) {
+          builder.append(", owner");
+        } else {
+          builder.append(", null");
+        }
+      }
+      builder.append(");").append(LINE_END);
     } else {
-      builder.append("dupParameters(descriptor");
+      builder.append(TAB).append(TAB).append("handler.");
+      if (advice.includeThis()) {
+        builder.append("dupInvoke(owner, descriptor");
+      } else {
+        builder.append("dupParameters(descriptor");
+      }
+      builder.append(", StackDupMode.").append(mode).append(");").append(LINE_END);
     }
-    builder.append(", StackDupMode.").append(mode).append(");").append(LINE_END);
   }
 
   private void writeOriginalMethodCall(

@@ -1,5 +1,8 @@
 package datadog.trace.api.iast;
 
+import java.io.File;
+import java.net.URI;
+import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -15,7 +18,7 @@ public abstract class InstrumentationBridge {
 
   private static final Logger LOG = LoggerFactory.getLogger(InstrumentationBridge.class);
 
-  private static IastModule MODULE;
+  private static volatile IastModule MODULE;
 
   private InstrumentationBridge() {}
 
@@ -114,6 +117,102 @@ public abstract class InstrumentationBridge {
       }
     } catch (final Throwable t) {
       onUnexpectedException("Callback for onStringBuilderToString threw.", t);
+    }
+  }
+
+  public static String onStringConcatFactory(
+      final String result,
+      final String[] arguments,
+      final String recipe,
+      final Object[] constants,
+      final int[] recipeOffsets) {
+    try {
+      if (MODULE != null) {
+        MODULE.onStringConcatFactory(result, arguments, recipe, constants, recipeOffsets);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onStringConcatFactory threw.", t);
+    }
+    return result;
+  }
+
+  public static void onJdbcQuery(String query) {
+    try {
+      if (MODULE != null) {
+        MODULE.onJdbcQuery(query);
+      }
+    } catch (Throwable t) {
+      onUnexpectedException("Callback for onJdbcQuery threw.", t);
+    }
+  }
+
+  public static void onRuntimeExec(@Nonnull final String... command) {
+    try {
+      if (MODULE != null) {
+        MODULE.onRuntimeExec(command);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onRuntimeExec threw.", t);
+    }
+  }
+
+  public static void onProcessBuilderStart(@Nonnull final List<String> command) {
+    try {
+      if (MODULE != null) {
+        MODULE.onProcessBuilderStart(command);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onProcessBuilderStart threw.", t);
+    }
+  }
+
+  public static void onPathTraversal(@Nonnull final String path) {
+    try {
+      if (MODULE != null) {
+        MODULE.onPathTraversal(path);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onPathTraversal threw.", t);
+    }
+  }
+
+  public static void onPathTraversal(@Nullable final String parent, @Nonnull final String child) {
+    try {
+      if (MODULE != null) {
+        MODULE.onPathTraversal(parent, child);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onPathTraversal threw.", t);
+    }
+  }
+
+  public static void onPathTraversal(@Nonnull final String first, @Nonnull final String[] more) {
+    try {
+      if (MODULE != null) {
+        MODULE.onPathTraversal(first, more);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onPathTraversal threw.", t);
+    }
+  }
+
+  public static void onPathTraversal(@Nullable final File parent, @Nonnull final String path) {
+    try {
+      if (MODULE != null) {
+        MODULE.onPathTraversal(parent, path);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onPathTraversal threw.", t);
+    }
+  }
+
+  public static void onPathTraversal(@Nonnull final URI uri) {
+    try {
+      if (MODULE != null) {
+        MODULE.onPathTraversal(uri);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onPathTraversal threw.", t);
     }
   }
 

@@ -1,5 +1,6 @@
 package com.datadog.debugger.agent;
 
+import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SnapshotProbe;
@@ -59,20 +60,13 @@ public class Configuration {
   private final long orgId;
   private final Collection<SnapshotProbe> snapshotProbes;
   private final Collection<MetricProbe> metricProbes;
+  private final Collection<LogProbe> logProbes;
   private final FilterList allowList;
   private final FilterList denyList;
   private final SnapshotProbe.Sampling sampling;
 
   public Configuration(String id, long orgId, Collection<SnapshotProbe> snapshotProbes) {
-    this(id, orgId, snapshotProbes, null, null, null, null);
-  }
-
-  public Configuration(
-      String id,
-      long orgId,
-      Collection<SnapshotProbe> snapshotProbes,
-      Collection<MetricProbe> metricProbes) {
-    this(id, orgId, snapshotProbes, metricProbes, null, null, null);
+    this(id, orgId, snapshotProbes, null, null, null, null, null);
   }
 
   public Configuration(
@@ -80,6 +74,16 @@ public class Configuration {
       long orgId,
       Collection<SnapshotProbe> snapshotProbes,
       Collection<MetricProbe> metricProbes,
+      Collection<LogProbe> logProbes) {
+    this(id, orgId, snapshotProbes, metricProbes, logProbes, null, null, null);
+  }
+
+  public Configuration(
+      String id,
+      long orgId,
+      Collection<SnapshotProbe> snapshotProbes,
+      Collection<MetricProbe> metricProbes,
+      Collection<LogProbe> logProbes,
       FilterList allowList,
       FilterList denyList,
       SnapshotProbe.Sampling sampling) {
@@ -87,6 +91,7 @@ public class Configuration {
     this.orgId = orgId;
     this.snapshotProbes = snapshotProbes;
     this.metricProbes = metricProbes;
+    this.logProbes = logProbes;
     this.allowList = allowList;
     this.denyList = denyList;
     this.sampling = sampling;
@@ -106,6 +111,10 @@ public class Configuration {
 
   public Collection<MetricProbe> getMetricProbes() {
     return metricProbes;
+  }
+
+  public Collection<LogProbe> getLogProbes() {
+    return logProbes;
   }
 
   public FilterList getAllowList() {
@@ -128,6 +137,9 @@ public class Configuration {
     if (metricProbes != null) {
       result.addAll(metricProbes);
     }
+    if (logProbes != null) {
+      result.addAll(logProbes);
+    }
     return result;
   }
 
@@ -144,6 +156,8 @@ public class Configuration {
         + snapshotProbes
         + ", metricProbes="
         + metricProbes
+        + ", logProbes="
+        + logProbes
         + ", allowList="
         + allowList
         + ", denyList="
@@ -163,6 +177,7 @@ public class Configuration {
         && Objects.equals(id, that.id)
         && Objects.equals(snapshotProbes, that.snapshotProbes)
         && Objects.equals(metricProbes, that.metricProbes)
+        && Objects.equals(logProbes, that.logProbes)
         && Objects.equals(allowList, that.allowList)
         && Objects.equals(denyList, that.denyList)
         && Objects.equals(sampling, that.sampling);
@@ -171,6 +186,7 @@ public class Configuration {
   @Generated
   @Override
   public int hashCode() {
-    return Objects.hash(id, orgId, snapshotProbes, metricProbes, allowList, denyList, sampling);
+    return Objects.hash(
+        id, orgId, snapshotProbes, metricProbes, logProbes, allowList, denyList, sampling);
   }
 }

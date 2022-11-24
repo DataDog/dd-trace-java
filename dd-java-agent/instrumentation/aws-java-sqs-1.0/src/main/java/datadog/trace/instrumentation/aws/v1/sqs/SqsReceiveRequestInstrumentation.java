@@ -19,11 +19,6 @@ public class SqsReceiveRequestInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return super.defaultEnabled() && Config.get().isSqsPropagationEnabled();
-  }
-
-  @Override
   public String instrumentedType() {
     return "com.amazonaws.services.sqs.model.ReceiveMessageRequest";
   }
@@ -38,14 +33,16 @@ public class SqsReceiveRequestInstrumentation extends Instrumenter.Tracing
   public static class ReceiveMessageRequestAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(@Advice.This ReceiveMessageRequest request) {
-      // ReceiveMessageRequest always returns a mutable list which we can append to
-      List<String> attributeNames = request.getAttributeNames();
-      for (String name : attributeNames) {
-        if ("AWSTraceHeader".equals(name) || "All".equals(name)) {
-          return;
+      if (Config.get().isSqsPropagationEnabled()) {
+        // ReceiveMessageRequest always returns a mutable list which we can append to
+        List<String> attributeNames = request.getAttributeNames();
+        for (String name : attributeNames) {
+          if ("AWSTraceHeader".equals(name) || "All".equals(name)) {
+            return;
+          }
         }
+        attributeNames.add("AWSTraceHeader");
       }
-      attributeNames.add("AWSTraceHeader");
     }
   }
 }

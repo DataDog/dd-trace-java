@@ -88,12 +88,14 @@ public class DebuggerTransformerTest {
 
   static class TestSnapshotListener implements DebuggerContext.Sink {
     boolean skipped;
+    DebuggerContext.SkipCause cause;
     List<Snapshot> snapshots = new ArrayList<>();
     Map<String, List<DiagnosticMessage>> errors = new HashMap<>();
 
     @Override
     public void skipSnapshot(String probeId, DebuggerContext.SkipCause cause) {
       skipped = true;
+      this.cause = cause;
     }
 
     @Override

@@ -4,6 +4,7 @@ import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityBatch;
+import com.datadog.iast.model.VulnerabilityType;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
@@ -57,6 +58,8 @@ class AdapterFactory implements JsonAdapter.Factory {
       return new VulnerabilityBatchAdapter(moshi);
     } else if (Evidence.class.equals(rawType)) {
       return new EvidenceAdapter();
+    } else if (VulnerabilityType.class.equals(rawType)) {
+      return new VulnerabilityTypeAdapter();
     }
     return null;
   }
