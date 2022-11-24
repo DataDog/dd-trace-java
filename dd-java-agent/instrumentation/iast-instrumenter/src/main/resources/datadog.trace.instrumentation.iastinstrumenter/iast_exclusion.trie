@@ -158,6 +158,8 @@
 1 org.mongodb.*
 1 org.osgi.*
 1 org.owasp.*
+# https://github.com/OWASP-Benchmark/BenchmarkJava
+0 org.owasp.benchmark.*
 # https://github.com/WebGoat/WebGoat
 0 org.owasp.webgoat.*
 1 org.picketlink.*
