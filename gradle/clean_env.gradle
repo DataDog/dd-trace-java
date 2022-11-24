@@ -14,18 +14,6 @@ def passEnv = [
   'TESTCONTAINERS_HOST_OVERRIDE',
   'TESTCONTAINERS_RYUK_DISABLED',
   'TEST_LIBASYNC',
-  'SONATYPE_USERNAME',
-  'SONATYPE_PASSWORD',
-  'GPG_PRIVATE_KEY',
-  'GPG_PASSWORD',
-
-  // Test
-  'USER',
-  'LANG',
-  'LANGUAGE',
-  'SHELL',
-  'LC_ALL',
-  'JAVA_HOME'
 ]
 
 def customPassEnv = System.getenv(passEnvKey)
@@ -36,9 +24,7 @@ if (customPassEnv != null && !customPassEnv.trim().isEmpty()) {
 tasks.withType(Test).configureEach {
   System.getenv().each { key, value ->
     if (!passEnv.contains(key)) {
-      logger.warn("Dropping environment variable: ${key}")
-      environment.remove(key)
+      it.environment.remove(key)
     }
   }
-  environment.put('LC_ALL', 'en_EN.UTF-8')
 }
