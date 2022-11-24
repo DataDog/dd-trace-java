@@ -28,7 +28,9 @@ if (customPassEnv != null && !customPassEnv.trim().isEmpty()) {
 tasks.withType(Test).configureEach {
   System.getenv().each { key, value ->
     if (!passEnv.contains(key)) {
+      logger.warn("Dropping environment variable: ${key}")
       environment.remove(key)
     }
   }
+  environment.put('LC_ALL', 'en_EN.UTF-8')
 }
