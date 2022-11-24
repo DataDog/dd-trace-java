@@ -44,7 +44,6 @@ import net.bytebuddy.agent.ByteBuddyAgent
 import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.dynamic.DynamicType
-import net.bytebuddy.implementation.FixedValue
 import net.bytebuddy.utility.JavaModule
 import org.junit.runner.RunWith
 import org.slf4j.LoggerFactory
@@ -55,15 +54,11 @@ import java.lang.instrument.ClassFileTransformer
 import java.lang.instrument.Instrumentation
 import java.lang.reflect.InvocationTargetException
 import java.nio.ByteBuffer
-import java.nio.file.Files
-import java.security.ProtectionDomain
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
-import static net.bytebuddy.matcher.ElementMatchers.named
-import static net.bytebuddy.matcher.ElementMatchers.none
 
 /**
  * A spock test runner which automatically applies instrumentation and exposes a global trace
@@ -219,8 +214,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     TEST_TRACER.addThreadContextListener(TEST_CONTEXT_THREAD_LISTENER)
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
 
-    enableAppSec()
-
     TEST_TRACER.startSpan(*_) >> {
       def agentSpan = callRealMethod()
       TEST_SPANS.add(agentSpan.spanId)
@@ -230,34 +223,8 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     assert ServiceLoader.load(Instrumenter, AgentTestRunner.getClassLoader())
     .iterator()
     .hasNext(): "No instrumentation found"
-    activeTransformer = AgentInstaller.installBytebuddyAgent(INSTRUMENTATION, true, this)
-  }
-
-  private void enableAppSec() {
-    if (Config.get().getAppSecEnabledConfig()) {
-      return
-    }
-
-    File temp = Files.createTempDirectory('tmp').toFile()
-    new AgentBuilder.Default()
-      .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
-      .with(AgentBuilder.InitializationStrategy.NoOp.INSTANCE)
-      .with(AgentBuilder.TypeStrategy.Default.REDEFINE)
-      .with(new AgentBuilder.InjectionStrategy.UsingInstrumentation(INSTRUMENTATION, temp))
-      .disableClassFormatChanges()
-      .ignore(none())
-      .type(named("datadog.trace.api.Config"))
-      .transform(new AgentBuilder.Transformer() {
-        @Override
-        DynamicType.Builder<?> transform(
-          DynamicType.Builder<?> builder,
-          TypeDescription typeDescription,
-          ClassLoader classLoader,
-          JavaModule module,
-          ProtectionDomain pd) {
-          builder.method(named("isAppSecEnabled")).intercept(FixedValue.value(true))
-        }
-      }).installOn(INSTRUMENTATION)
+    activeTransformer = AgentInstaller.installBytebuddyAgent(
+      INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), this)
   }
 
   /** Override to set config before the agent is installed */
