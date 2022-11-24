@@ -18,6 +18,14 @@ def passEnv = [
   'SONATYPE_PASSWORD',
   'GPG_PRIVATE_KEY',
   'GPG_PASSWORD',
+
+  // Test
+  'USER',
+  'LANG',
+  'LANGUAGE',
+  'SHELL',
+  'LC_ALL',
+  'JAVA_HOME'
 ]
 
 def customPassEnv = System.getenv(passEnvKey)
