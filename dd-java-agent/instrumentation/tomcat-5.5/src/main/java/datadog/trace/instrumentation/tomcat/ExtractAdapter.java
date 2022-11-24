@@ -7,6 +7,17 @@ import org.apache.tomcat.util.http.MimeHeaders;
 public abstract class ExtractAdapter<T> implements AgentPropagation.ContextVisitor<T> {
   abstract MimeHeaders getMimeHeaders(T t);
 
+  static String messageBytesToString(final MessageBytes messageBytes) {
+    switch (messageBytes.getType()) {
+      case MessageBytes.T_BYTES:
+        return messageBytes.getByteChunk().toString();
+      case MessageBytes.T_CHARS:
+        return messageBytes.getCharChunk().toString();
+      default:
+        return messageBytes.toString();
+    }
+  }
+
   @Override
   public void forEachKey(T carrier, AgentPropagation.KeyClassifier classifier) {
     MimeHeaders headers = getMimeHeaders(carrier);
@@ -16,7 +27,7 @@ public abstract class ExtractAdapter<T> implements AgentPropagation.ContextVisit
     for (int i = 0; i < headers.size(); ++i) {
       MessageBytes header = headers.getName(i);
       MessageBytes value = headers.getValue(i);
-      if (!classifier.accept(header.toString(), value.toString())) {
+      if (!classifier.accept(messageBytesToString(header), messageBytesToString(value))) {
         return;
       }
     }
