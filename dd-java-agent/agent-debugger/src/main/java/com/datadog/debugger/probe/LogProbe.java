@@ -180,7 +180,7 @@ public class LogProbe extends ProbeDefinition {
     private String template;
     private List<Segment> segments;
 
-    public LogProbe.Builder template(String template) {
+    public Builder template(String template) {
       this.template = template;
       this.segments = parseTemplate(template);
       return this;

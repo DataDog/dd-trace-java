@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.FieldNode;
@@ -55,9 +56,29 @@ public class MetricInstrumentor extends Instrumentor {
       fillLineMap();
       addLineMetric(lineMap);
     } else {
-      InsnList insnList = callMetric(metricProbe);
-      methodNode.instructions.insert(methodEnterLabel, insnList);
+      switch (definition.getEvaluateAt()) {
+        case ENTRY:
+        case NONE:
+          {
+            InsnList insnList = callMetric(metricProbe);
+            methodNode.instructions.insert(methodEnterLabel, insnList);
+            break;
+          }
+        case EXIT:
+          {
+            processInstructions();
+            break;
+          }
+        default:
+          throw new IllegalArgumentException(
+              "Invalid evaluateAt attribute: " + definition.getEvaluateAt());
+      }
     }
+  }
+
+  @Override
+  protected InsnList getBeforeReturnInsnList(AbstractInsnNode node) {
+    return callMetric(metricProbe);
   }
 
   private InsnList callCount(MetricProbe metricProbe) {
