@@ -87,8 +87,7 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:servlet:request-2')
   testImplementation project(':dd-java-agent:instrumentation:servlet:request-3')
 
-  // Tomcat 10.1.+ seems to require Java 11. Limit to fix build.
-  latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '10.1.+'
+  latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '10+'
   latestDepTestImplementation group: 'org.apache.tomcat', name: 'jakartaee-migration', version: '1.+'
 
   latestDepTestImplementation(project(':dd-java-agent:instrumentation:tomcat-appsec-6'))
