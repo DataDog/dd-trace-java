@@ -1,3 +1,5 @@
+package datadog.trace.instrumentation.servlet3
+
 import datadog.trace.agent.test.base.HttpServerTest
 import groovy.servlet.AbstractHttpServlet
 
@@ -10,6 +12,9 @@ import java.lang.reflect.Field
 import java.lang.reflect.Modifier
 import java.util.concurrent.Phaser
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -19,8 +24,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 
@@ -29,10 +32,15 @@ class TestServlet3 {
   public static final long SERVLET_TIMEOUT = 1000
 
   static HttpServerTest.ServerEndpoint getEndpoint(HttpServletRequest req) {
-    // Most correct would be to get the dispatched path from the request
-    // This is not part of the spec varies by implementation so the simplest is just removing
-    // "/dispatch"
-    String truePath = req.servletPath.replace("/dispatch", "")
+    String truePath
+    if (req.servletPath == "") {
+      truePath = req.requestURI - ~'^/[^/]+'
+    } else {
+      // Most correct would be to get the dispatched path from the request
+      // This is not part of the spec varies by implementation so the simplest is just removing
+      // "/dispatch"
+      truePath = req.servletPath.replace("/dispatch", "")
+    }
     return HttpServerTest.ServerEndpoint.forPath(truePath)
   }
 
@@ -77,6 +85,15 @@ class TestServlet3 {
           case QUERY_PARAM:
             resp.status = endpoint.status
             resp.writer.print(endpoint.bodyForQuery(req.queryString))
+            break
+          case BODY_URLENCODED:
+            resp.status = endpoint.status
+            resp.writer.print(
+              req.parameterMap
+              .findAll{
+                it.key != 'ignore'
+              }
+              .collectEntries {[it.key, it.value as List]} as String)
             break
           case REDIRECT:
             resp.sendRedirect(endpoint.body)
@@ -254,7 +271,7 @@ class TestServlet3 {
   static class DispatchRecursive extends AbstractHttpServlet {
     @Override
     protected void service(HttpServletRequest req, HttpServletResponse resp) {
-      if (req.servletPath.equals("/recursive")) {
+      if (req.servletPath == "/recursive") {
         resp.writer.print("Hello Recursive")
         return
       }
