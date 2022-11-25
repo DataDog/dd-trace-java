@@ -10,6 +10,11 @@ public class NoOpInstrumentation implements Instrumenter {
   }
 
   @Override
+  public TargetSystem getTargetSystem() {
+    return TargetSystem.TRACING;
+  }
+
+  @Override
   public void instrument(TransformerBuilder transformerBuilder) {
     // no-op
   }
