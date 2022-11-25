@@ -576,6 +576,24 @@ public final class IastModuleImpl implements IastModule {
     return elements;
   }
 
+  @Override
+  public void onURLDecoderDecode(
+      @Nonnull final String value, @Nullable final String encoding, @Nonnull final String result) {
+    if (!canBeTainted(result)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects to = ctx.getTaintedObjects();
+    final TaintedObject tainted = to.get(value);
+    if (tainted != null) {
+      // TODO this is not enough, the resulting ranges can change due to the decodin process
+      to.taint(result, tainted.getRanges());
+    }
+  }
+
   private <E> void checkInjection(
       @Nonnull final InjectionType type, @Nonnull final RangesProvider<E> rangeProvider) {
     final int rangeCount = rangeProvider.rangeCount();

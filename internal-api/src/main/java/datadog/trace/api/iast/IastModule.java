@@ -69,4 +69,6 @@ public interface IastModule {
   void onStringTrim(@Nullable String self, @Nullable String result);
 
   void onDirContextSearch(String name, String filterExpr, Object[] filterArgs);
+
+  void onURLDecoderDecode(@Nonnull String value, @Nullable String encoding, @Nonnull String result);
 }
