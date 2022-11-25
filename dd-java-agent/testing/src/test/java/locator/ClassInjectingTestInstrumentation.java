@@ -19,6 +19,11 @@ public class ClassInjectingTestInstrumentation extends TestInstrumentation {
     transformation.applyAdvice(isConstructor(), getClass().getName() + "$ConstructorAdvice");
   }
 
+  @Override
+  public TargetSystem getTargetSystem() {
+    return TargetSystem.TRACING;
+  }
+
   public static class ConstructorAdvice {
     @Advice.OnMethodEnter
     public static void appendToMessage(
