@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
 import javax.servlet.ServletRequest;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
 
 @CallSite(spi = IastAdvice.class)
 public class ServletRequestCallSite {
@@ -67,5 +69,26 @@ public class ServletRequestCallSite {
       }
     }
     return parameterValues;
+  }
+
+  @CallSite.AfterArray({
+    @CallSite.After(
+        "javax.servlet.http.Cookie[] javax.servlet.http.HttpServletRequest.getCookies()"),
+    @CallSite.After(
+        "javax.servlet.http.Cookie[] javax.servlet.http.HttpServletRequestWrapper.getCookies()")
+  })
+  public static Cookie[] afterGetCookies(
+      @CallSite.This final HttpServletRequest self, @CallSite.Return final Cookie[] cookies) {
+    if (null != cookies) {
+      for (Cookie cookie : cookies) {
+        InstrumentationBridge.onCookie(
+            cookie.getComment(),
+            cookie.getDomain(),
+            cookie.getValue(),
+            cookie.getName(),
+            cookie.getPath());
+      }
+    }
+    return cookies;
   }
 }

@@ -58,4 +58,6 @@ public interface IastModule {
   void onPathTraversal(@Nonnull URI uri);
 
   void onPathTraversal(@Nullable File parent, @Nonnull String child);
+
+  void onCookie(@Nonnull String... cookieStrings);
 }

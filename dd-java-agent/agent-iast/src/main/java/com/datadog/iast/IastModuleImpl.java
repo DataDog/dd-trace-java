@@ -443,6 +443,21 @@ public final class IastModuleImpl implements IastModule {
     checkInjection(VulnerabilityType.PATH_TRAVERSAL, rangeProvider);
   }
 
+  @Override
+  public void onCookie(@Nonnull String... cookieStrings) {
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    for (String cookieString : cookieStrings) {
+      if (canBeTaintedNullSafe(cookieString)) {
+        taintedObjects.taintInputString(
+            cookieString, new Source(SourceType.REQUEST_COOKIE, cookieString, null));
+      }
+    }
+  }
+
   private <E> void checkInjection(
       @Nonnull final InjectionType type, @Nonnull final RangesProvider<E> rangeProvider) {
     final int rangeCount = rangeProvider.rangeCount();

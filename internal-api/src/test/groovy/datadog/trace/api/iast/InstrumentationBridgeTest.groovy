@@ -39,7 +39,8 @@ class InstrumentationBridgeTest extends DDSpecification {
     new BridgeMethod('onPathTraversal', ['/var', 'log'], 'onPathTraversal'),
     new BridgeMethod('onPathTraversal', ['/var', ['log', 'log.txt'] as String[]], 'onPathTraversal'),
     new BridgeMethod('onPathTraversal', [new File('/var'), '/log/log.txt'], 'onPathTraversal'),
-    new BridgeMethod('onPathTraversal', [new URI('file:/tmp')], 'onPathTraversal')
+    new BridgeMethod('onPathTraversal', [new URI('file:/tmp')], 'onPathTraversal'),
+    new BridgeMethod('onCookie', [['cookieName', 'cookieValue'] as String[]], 'onCookie')
   ]
 
   void '#bridgeMethod does not fail when module is not set'(final BridgeMethod bridgeMethod) {
