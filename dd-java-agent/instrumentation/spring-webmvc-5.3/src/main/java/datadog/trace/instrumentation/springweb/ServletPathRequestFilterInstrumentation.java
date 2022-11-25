@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.springweb;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamedOneOf;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -28,7 +29,8 @@ public class ServletPathRequestFilterInstrumentation extends Instrumenter.Tracin
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassNamed("org.springframework.web.filter.ServletRequestPathFilter");
+    return hasClassNamed("org.springframework.web.filter.ServletRequestPathFilter")
+        .and(hasClassNamedOneOf("javax.servlet.Filter", "jakarta.servlet.Filter"));
   }
 
   @Override
