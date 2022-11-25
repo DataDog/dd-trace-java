@@ -71,4 +71,6 @@ public interface IastModule {
   void onDirContextSearch(String name, String filterExpr, Object[] filterArgs);
 
   void onURLDecoderDecode(@Nonnull String value, @Nullable String encoding, @Nonnull String result);
+
+  void onCookie(@Nonnull String... cookieStrings);
 }

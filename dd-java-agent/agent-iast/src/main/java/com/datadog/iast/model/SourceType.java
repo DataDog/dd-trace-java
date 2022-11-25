@@ -15,6 +15,9 @@ public final class SourceType {
   public static final byte REQUEST_HEADER_VALUE = 4;
   static final String REQUEST_HEADER_VALUE_STRING = "http.request.header";
 
+  public static final byte REQUEST_COOKIE = 5;
+  static final String REQUEST_COOKIE_STRING = "http.request.cookie";
+
   public static String toString(final byte sourceType) {
     switch (sourceType) {
       case REQUEST_PARAMETER_NAME:
@@ -25,6 +28,8 @@ public final class SourceType {
         return REQUEST_HEADER_NAME_STRING;
       case REQUEST_HEADER_VALUE:
         return REQUEST_HEADER_VALUE_STRING;
+      case REQUEST_COOKIE:
+        return REQUEST_COOKIE_STRING;
       default:
         return null;
     }

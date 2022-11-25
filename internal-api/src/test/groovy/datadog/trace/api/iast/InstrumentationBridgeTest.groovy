@@ -42,7 +42,9 @@ class InstrumentationBridgeTest extends DDSpecification {
     new BridgeMethod('onPathTraversal', [new URI('file:/tmp')], 'onPathTraversal'),
     new BridgeMethod('onStringSubSequence', ["Hello", 1, 3, "el"], 'onStringSubSequence'),
     new BridgeMethod('onPathTraversal', [new URI('file:/tmp')], 'onPathTraversal'),
-    new BridgeMethod('onDirContextSearch', [null, 'filter', null], 'onDirContextSearch')
+    new BridgeMethod('onDirContextSearch', [null, 'filter', null], 'onDirContextSearch'),
+    new BridgeMethod('onPathTraversal', [new URI('file:/tmp')], 'onPathTraversal'),
+    new BridgeMethod('onCookie', [['cookieName', 'cookieValue'] as String[]], 'onCookie')
   ]
 
   void '#bridgeMethod does not fail when module is not set'(final BridgeMethod bridgeMethod) {
