@@ -19,6 +19,11 @@ public class ElasticsearchBreakTraceInstrumentation extends TestInstrumentation 
   }
 
   @Override
+  public TargetSystem getTargetSystem() {
+    return TargetSystem.TRACING;
+  }
+
+  @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(named("executeLocally"), ShadowExistingScopeAdvice.class.getName());
   }
