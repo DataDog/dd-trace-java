@@ -156,10 +156,10 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     then:
     def responseBodyStr = response.body().string()
     responseBodyStr != null
-    responseBodyStr.contains("Param is: A")
+    responseBodyStr.contains('Param is: A')
     Boolean foundTaintedString = false
     checkLog {
-      if (it.contains("TaintInputString")) {
+      if (it.contains('taint') && it.contains('Param is: A')) {
         foundTaintedString = true
       }
     }
