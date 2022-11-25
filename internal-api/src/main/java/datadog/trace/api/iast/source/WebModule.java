@@ -16,4 +16,8 @@ public interface WebModule extends IastModule {
    * whether the parameter comes in the query string or body (e.g. servlet's getParameter).
    */
   void onParameterValue(@Nullable String paramName, @Nullable String paramValue);
+
+  void onHeaderName(@Nullable String headerName);
+
+  void onHeaderValue(@Nullable String headerName, @Nullable String headerValue);
 }
