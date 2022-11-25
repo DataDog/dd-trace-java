@@ -33,15 +33,28 @@ public class AsyncContext extends AbstractContext {
 //      for (Map.Entry<String,AsyncProcessFunction> entry : processMapView.entrySet()){
 //        System.out.println("ARGS1:"+entry.getKey()+"\t"+entry.getValue().getClass().getName());
 //
-//        System.out.println("ARGS2:"+entry.getValue().getEmptyArgsInstance());
+//        System.out.println("ARGS2:"+entry.getValue().getEmptyArgsInstance().toString());
 //      }
-      return null;
-//      return processMapView.get(methodName).getEmptyArgsInstance().toString();
+      if (processMapView==null){
+        return null;
+      }
+      AsyncProcessFunction function = processMapView.get(methodName);
+      if (function==null){
+        return null;
+      }
+      return function.getEmptyArgsInstance().toString();
     }
 
     @Override
     public String getOperatorName() {
-        return processMapView.get(methodName).getClass().getName();
+      if (processMapView==null){
+        return null;
+      }
+      AsyncProcessFunction function = processMapView.get(methodName);
+      if (function==null){
+        return null;
+      }
+      return function.getClass().getName();
     }
 
 }

@@ -67,6 +67,7 @@ public class TBaseProcessorInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void before(@Advice.This final Object obj
         , @Advice.AllArguments final Object[] args) {
+      System.out.println("do ProcessAdvice onEnter");
       if (obj instanceof TBaseProcessor) {
         try {
           Object in = args[0];
@@ -76,6 +77,7 @@ public class TBaseProcessorInstrumentation extends Instrumenter.Tracing
           }
         }catch (Exception e){
           e.printStackTrace();
+          throw e;
         }
       }
     }
@@ -84,6 +86,7 @@ public class TBaseProcessorInstrumentation extends Instrumenter.Tracing
     public static void after(@Advice.Thrown final Throwable throwable) {
       AgentScope scope  = activeScope();
       if (scope!=null) {
+        System.out.println("finish ProcessAdvice span.");
         SERVER_DECORATOR.onError(scope.span(), throwable);
         SERVER_DECORATOR.beforeFinish(scope.span());
         scope.close();
