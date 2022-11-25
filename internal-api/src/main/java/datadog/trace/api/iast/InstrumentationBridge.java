@@ -216,6 +216,17 @@ public abstract class InstrumentationBridge {
     }
   }
 
+  public static void onURLDecoderDecode(
+      @Nonnull final String value, @Nullable final String encoding, @Nonnull final String result) {
+    try {
+      if (MODULE != null) {
+        MODULE.onURLDecoderDecode(value, encoding, result);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onURLDecoderDecode threw.", t);
+    }
+  }
+
   private static void onUnexpectedException(final String message, final Throwable error) {
     LOG.warn(message, error);
   }
