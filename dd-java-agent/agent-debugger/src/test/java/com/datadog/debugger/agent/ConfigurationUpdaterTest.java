@@ -51,6 +51,7 @@ public class ConfigurationUpdaterTest {
   private static final String METRIC_ID2 = "cfbf2919-e4c1-5fb9-b85e-937881d6f7e9";
   private static final String LOG_ID = "d0c03a2a-f5d2-60ca-c96f-a48992e708fa";
   private static final String LOG_ID2 = "d0c03a2b-f5d2-60ca-c96f-a48992e708fa";
+  private static final String SERVICE_NAME = "service-name";
 
   @Mock private Instrumentation inst;
   @Mock private DebuggerTransformer transformer;
@@ -725,22 +726,25 @@ public class ConfigurationUpdaterTest {
   }
 
   private static Configuration createApp(List<SnapshotProbe> snapshotProbes) {
-    return new Configuration(snapshotProbes);
+    return Configuration.builder()
+        .setService(SERVICE_NAME)
+        .addSnapshotsProbes(snapshotProbes)
+        .build();
   }
 
   private static Configuration createApp(
       List<SnapshotProbe> snapshotProbes,
       List<MetricProbe> metricProbes,
       List<LogProbe> logProbes) {
-    return new Configuration(snapshotProbes, metricProbes, logProbes);
+    return new Configuration(SERVICE_NAME, snapshotProbes, metricProbes, logProbes);
   }
 
   private static Configuration createAppMetrics(List<MetricProbe> metricProbes) {
-    return new Configuration(null, metricProbes, null);
+    return Configuration.builder().setService(SERVICE_NAME).addMetricProbes(metricProbes).build();
   }
 
   private static Configuration createAppLogs(List<LogProbe> logProbes) {
-    return new Configuration(null, null, logProbes);
+    return Configuration.builder().setService(SERVICE_NAME).addLogProbes(logProbes).build();
   }
 
   private DebuggerTransformer createTransformer(

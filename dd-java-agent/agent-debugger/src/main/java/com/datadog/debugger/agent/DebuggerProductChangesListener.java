@@ -7,6 +7,8 @@ import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.remoteconfig.state.ProductListener;
+import datadog.trace.api.Config;
+import datadog.trace.util.TagsHelper;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.HashMap;
@@ -16,7 +18,6 @@ import java.util.regex.Pattern;
 import okio.Okio;
 
 public class DebuggerProductChangesListener implements ProductListener {
-
   public interface ConfigurationAcceptor {
     void accept(Configuration configuration);
   }
@@ -64,12 +65,12 @@ public class DebuggerProductChangesListener implements ProductListener {
               "^[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}$")
           .asPredicate();
 
+  private final String serviceName;
   private final ConfigurationAcceptor configurationAcceptor;
-  private Configuration lastConfiguration = null;
-
   private final Map<String, ConfigChunkBuilder> configChunks = new HashMap<>();
 
-  DebuggerProductChangesListener(ConfigurationAcceptor configurationAcceptor) {
+  DebuggerProductChangesListener(Config config, ConfigurationAcceptor configurationAcceptor) {
+    this.serviceName = TagsHelper.sanitize(config.getServiceName());
     this.configurationAcceptor = configurationAcceptor;
   }
 
@@ -93,7 +94,12 @@ public class DebuggerProductChangesListener implements ProductListener {
       configChunks.put(configId, (builder) -> builder.add(logProbe));
     } else if (IS_UUID.test(configId)) {
       Configuration newConfig = Adapter.deserializeConfiguration(content);
-      configChunks.put(configId, (builder) -> builder.add(newConfig));
+      if (newConfig.getService().equals(serviceName)) {
+        configChunks.put(configId, (builder) -> builder.add(newConfig));
+      } else {
+        throw new IOException(
+            "got config.serviceName = " + newConfig.getService() + ", ignoring configuration");
+      }
     } else {
       throw new IOException("unsupported configuration id " + configId);
     }
@@ -111,10 +117,12 @@ public class DebuggerProductChangesListener implements ProductListener {
   public void commit(
       datadog.remoteconfig.ConfigurationChangesListener.PollingRateHinter pollingRateHinter) {
 
-    Configuration.Builder builder = Configuration.builder();
+    Configuration.Builder builder = Configuration.builder().setService(serviceName);
+
     for (ConfigChunkBuilder chunk : configChunks.values()) {
       chunk.buildWith(builder);
     }
+
     Configuration config = builder.build();
 
     configurationAcceptor.accept(config);

@@ -1,21 +1,31 @@
 package com.datadog.debugger.agent;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.mockito.Mockito.lenient;
 
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.SnapshotProbe;
 import datadog.remoteconfig.ConfigurationChangesListener;
 import datadog.remoteconfig.state.ParsedConfigKey;
+import datadog.trace.api.Config;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.UUID;
 import org.junit.Assert;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
+@ExtendWith(MockitoExtension.class)
 public class DebuggerProductChangesListenerTest {
+  private static final String SERVICE_NAME = "service-name";
+
+  @Mock private Config tracerConfig;
 
   final ConfigurationChangesListener.PollingHinterNoop pollingHinter =
       new ConfigurationChangesListener.PollingHinterNoop();
@@ -33,12 +43,18 @@ public class DebuggerProductChangesListenerTest {
     }
   }
 
+  @BeforeEach
+  void setUp() {
+    lenient().when(tracerConfig.getServiceName()).thenReturn(SERVICE_NAME);
+  }
+
   @Test
   public void testNoConfiguration() {
-    Configuration emptyConfig = Configuration.builder().build();
+    Configuration emptyConfig = Configuration.builder().setService(SERVICE_NAME).build();
     SimpleAcceptor acceptor = new SimpleAcceptor();
 
-    DebuggerProductChangesListener listener = new DebuggerProductChangesListener(acceptor);
+    DebuggerProductChangesListener listener =
+        new DebuggerProductChangesListener(tracerConfig, acceptor);
     listener.commit(pollingHinter);
 
     Assert.assertEquals(emptyConfig, acceptor.getConfiguration());
@@ -48,12 +64,14 @@ public class DebuggerProductChangesListenerTest {
   public void testSingleConfiguration() {
     Configuration config =
         Configuration.builder()
+            .setService(SERVICE_NAME)
             .add(createSnapshotProbe(UUID.randomUUID().toString()))
             .addDenyList(createFilteredList())
             .build();
     SimpleAcceptor acceptor = new SimpleAcceptor();
 
-    DebuggerProductChangesListener listener = new DebuggerProductChangesListener(acceptor);
+    DebuggerProductChangesListener listener =
+        new DebuggerProductChangesListener(tracerConfig, acceptor);
 
     acceptConfig(listener, config, UUID.randomUUID().toString());
     listener.commit(pollingHinter);
@@ -62,10 +80,36 @@ public class DebuggerProductChangesListenerTest {
   }
 
   @Test
+  public void rejectConfigurationsFromOtherServices() {
+    Configuration config =
+        Configuration.builder()
+            .setService("other-service")
+            .add(createSnapshotProbe(UUID.randomUUID().toString()))
+            .addDenyList(createFilteredList())
+            .build();
+    SimpleAcceptor acceptor = new SimpleAcceptor();
+
+    DebuggerProductChangesListener listener =
+        new DebuggerProductChangesListener(tracerConfig, acceptor);
+
+    Assertions.assertThrows(
+        IOException.class,
+        () ->
+            listener.accept(
+                createConfigKey(UUID.randomUUID().toString()), toContent(config), pollingHinter));
+
+    listener.commit(pollingHinter);
+
+    Assert.assertEquals(
+        Configuration.builder().setService(SERVICE_NAME).build(), acceptor.getConfiguration());
+  }
+
+  @Test
   public void testMultipleSingleProbesConfigurations() {
     SimpleAcceptor acceptor = new SimpleAcceptor();
 
-    DebuggerProductChangesListener listener = new DebuggerProductChangesListener(acceptor);
+    DebuggerProductChangesListener listener =
+        new DebuggerProductChangesListener(tracerConfig, acceptor);
 
     SnapshotProbe snapshotProbe = createSnapshotProbe(UUID.randomUUID().toString());
     MetricProbe metricProbe = createMetricProbe(UUID.randomUUID().toString());
@@ -74,40 +118,54 @@ public class DebuggerProductChangesListenerTest {
     acceptSnapshotProbe(listener, snapshotProbe);
     listener.commit(pollingHinter);
     Assert.assertEquals(
-        Configuration.builder().add(snapshotProbe).build(), acceptor.getConfiguration());
+        Configuration.builder().setService(SERVICE_NAME).add(snapshotProbe).build(),
+        acceptor.getConfiguration());
 
     acceptMetricProbe(listener, metricProbe);
     listener.commit(pollingHinter);
     Assert.assertEquals(
-        Configuration.builder().add(snapshotProbe).add(metricProbe).build(),
+        Configuration.builder()
+            .setService(SERVICE_NAME)
+            .add(snapshotProbe)
+            .add(metricProbe)
+            .build(),
         acceptor.getConfiguration());
 
     acceptLogProbe(listener, logProbe);
     listener.commit(pollingHinter);
     Assert.assertEquals(
-        Configuration.builder().add(snapshotProbe).add(metricProbe).add(logProbe).build(),
+        Configuration.builder()
+            .setService(SERVICE_NAME)
+            .add(snapshotProbe)
+            .add(metricProbe)
+            .add(logProbe)
+            .build(),
         acceptor.getConfiguration());
 
     removeSnapshotProbe(listener, snapshotProbe);
     listener.commit(pollingHinter);
     Assert.assertEquals(
-        Configuration.builder().add(metricProbe).add(logProbe).build(),
+        Configuration.builder().setService(SERVICE_NAME).add(metricProbe).add(logProbe).build(),
         acceptor.getConfiguration());
 
     removeMetricProbe(listener, metricProbe);
     listener.commit(pollingHinter);
-    Assert.assertEquals(Configuration.builder().add(logProbe).build(), acceptor.getConfiguration());
+    Assert.assertEquals(
+        Configuration.builder().setService(SERVICE_NAME).add(logProbe).build(),
+        acceptor.getConfiguration());
 
     removeLogProbe(listener, logProbe);
     listener.commit(pollingHinter);
-    Assert.assertEquals(Configuration.builder().build(), acceptor.getConfiguration());
+    Assert.assertEquals(
+        Configuration.builder().setService(SERVICE_NAME).build(), acceptor.getConfiguration());
   }
 
   @Test
   public void testMergeConfigWithSingleProbe() {
     SimpleAcceptor acceptor = new SimpleAcceptor();
 
-    DebuggerProductChangesListener listener = new DebuggerProductChangesListener(acceptor);
+    DebuggerProductChangesListener listener =
+        new DebuggerProductChangesListener(tracerConfig, acceptor);
 
     SnapshotProbe snapshotProbe = createSnapshotProbe("123");
     MetricProbe metricProbe = createMetricProbe("345");
@@ -115,6 +173,7 @@ public class DebuggerProductChangesListenerTest {
 
     Configuration config =
         Configuration.builder()
+            .setService(SERVICE_NAME)
             .add(metricProbe)
             .add(logProbe)
             .add(new SnapshotProbe.Sampling(3.0))
@@ -133,7 +192,8 @@ public class DebuggerProductChangesListenerTest {
   public void badConfigIDFailsToAccept() {
     SimpleAcceptor acceptor = new SimpleAcceptor();
 
-    DebuggerProductChangesListener listener = new DebuggerProductChangesListener(acceptor);
+    DebuggerProductChangesListener listener =
+        new DebuggerProductChangesListener(tracerConfig, acceptor);
 
     Assertions.assertThrows(
         IOException.class,
@@ -217,7 +277,7 @@ public class DebuggerProductChangesListenerTest {
 
   MetricProbe createMetricProbe(String id) {
     return MetricProbe.builder()
-        .metricId(id)
+        .probeId(id)
         .kind(MetricProbe.MetricKind.COUNT)
         .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
         .build();
@@ -225,7 +285,7 @@ public class DebuggerProductChangesListenerTest {
 
   LogProbe createLogProbe(String id) {
     return LogProbe.builder()
-        .logId(id)
+        .probeId(id)
         .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
         .template("hello {^world}")
         .build();

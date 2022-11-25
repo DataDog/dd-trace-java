@@ -4,6 +4,7 @@ import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SnapshotProbe;
+import com.squareup.moshi.Json;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -56,6 +57,9 @@ public class Configuration {
     }
   }
 
+  @Json(name = "id")
+  private final String service;
+
   private final Collection<SnapshotProbe> snapshotProbes;
   private final Collection<MetricProbe> metricProbes;
   private final Collection<LogProbe> logProbes;
@@ -63,30 +67,37 @@ public class Configuration {
   private final FilterList denyList;
   private final SnapshotProbe.Sampling sampling;
 
-  public Configuration(Collection<SnapshotProbe> snapshotProbes) {
-    this(snapshotProbes, null, null, null, null, null);
+  public Configuration(String service, Collection<SnapshotProbe> snapshotProbes) {
+    this(service, snapshotProbes, null, null);
   }
 
   public Configuration(
+      String serviceName,
       Collection<SnapshotProbe> snapshotProbes,
       Collection<MetricProbe> metricProbes,
       Collection<LogProbe> logProbes) {
-    this(snapshotProbes, metricProbes, logProbes, null, null, null);
+    this(serviceName, snapshotProbes, metricProbes, logProbes, null, null, null);
   }
 
   public Configuration(
+      String serviceName,
       Collection<SnapshotProbe> snapshotProbes,
       Collection<MetricProbe> metricProbes,
       Collection<LogProbe> logProbes,
       FilterList allowList,
       FilterList denyList,
       SnapshotProbe.Sampling sampling) {
+    this.service = serviceName;
     this.snapshotProbes = snapshotProbes;
     this.metricProbes = metricProbes;
     this.logProbes = logProbes;
     this.allowList = allowList;
     this.denyList = denyList;
     this.sampling = sampling;
+  }
+
+  public String getService() {
+    return service;
   }
 
   public Collection<SnapshotProbe> getSnapshotProbes() {
@@ -131,7 +142,9 @@ public class Configuration {
   @Override
   public String toString() {
     return "DebuggerConfiguration{"
-        + "snapshotProbes="
+        + "service="
+        + service
+        + ", snapshotProbes="
         + snapshotProbes
         + ", metricProbes="
         + metricProbes
@@ -152,7 +165,8 @@ public class Configuration {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     Configuration that = (Configuration) o;
-    return Objects.equals(snapshotProbes, that.snapshotProbes)
+    return Objects.equals(service, that.service)
+        && Objects.equals(snapshotProbes, that.snapshotProbes)
         && Objects.equals(metricProbes, that.metricProbes)
         && Objects.equals(logProbes, that.logProbes)
         && Objects.equals(allowList, that.allowList)
@@ -163,7 +177,8 @@ public class Configuration {
   @Generated
   @Override
   public int hashCode() {
-    return Objects.hash(snapshotProbes, metricProbes, logProbes, allowList, denyList, sampling);
+    return Objects.hash(
+        service, snapshotProbes, metricProbes, logProbes, allowList, denyList, sampling);
   }
 
   public static Configuration.Builder builder() {
@@ -171,12 +186,18 @@ public class Configuration {
   }
 
   public static class Builder {
+    private String service = null;
     private List<SnapshotProbe> snapshotProbes = null;
     private List<MetricProbe> metricProbes = null;
     private List<LogProbe> logProbes = null;
     private FilterList allowList = null;
     private FilterList denyList = null;
     private SnapshotProbe.Sampling sampling = null;
+
+    public Configuration.Builder setService(String service) {
+      this.service = service;
+      return this;
+    }
 
     public Configuration.Builder add(SnapshotProbe probe) {
       if (snapshotProbes == null) {
@@ -264,6 +285,9 @@ public class Configuration {
     }
 
     public Configuration.Builder add(Configuration other) {
+      if (other.service != null) {
+        this.service = other.service;
+      }
       addSnapshotsProbes(other.getSnapshotProbes());
       addMetricProbes(other.getMetricProbes());
       addLogProbes(other.getLogProbes());
@@ -275,7 +299,7 @@ public class Configuration {
 
     public Configuration build() {
       return new Configuration(
-          snapshotProbes, metricProbes, logProbes, allowList, denyList, sampling);
+          service, snapshotProbes, metricProbes, logProbes, allowList, denyList, sampling);
     }
   }
 }

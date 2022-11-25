@@ -85,7 +85,7 @@ public class DebuggerAgent {
 
     configurationPoller = sco.configurationPoller(config);
     if (configurationPoller != null) {
-      subscribeConfigurationPoller(configurationUpdater);
+      subscribeConfigurationPoller(config, configurationUpdater);
 
       try {
         /*
@@ -126,9 +126,10 @@ public class DebuggerAgent {
     }
   }
 
-  private static void subscribeConfigurationPoller(ConfigurationUpdater configurationUpdater) {
+  private static void subscribeConfigurationPoller(
+      Config config, ConfigurationUpdater configurationUpdater) {
     configurationPoller.addListener(
-        Product.LIVE_DEBUGGING, new DebuggerProductChangesListener(configurationUpdater));
+        Product.LIVE_DEBUGGING, new DebuggerProductChangesListener(config, configurationUpdater));
   }
 
   static ClassFileTransformer setupInstrumentTheWorldTransformer(

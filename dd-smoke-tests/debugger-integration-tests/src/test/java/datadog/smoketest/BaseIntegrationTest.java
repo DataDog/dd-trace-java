@@ -220,14 +220,14 @@ public abstract class BaseIntegrationTest {
   }
 
   protected Configuration createConfig(Collection<SnapshotProbe> snapshotProbes) {
-    return new Configuration(snapshotProbes);
+    return new Configuration(getAppId(), snapshotProbes);
   }
 
   protected Configuration createConfig(
       Collection<SnapshotProbe> snapshotProbes,
       Configuration.FilterList allowList,
       Configuration.FilterList denyList) {
-    return new Configuration(snapshotProbes, null, null, allowList, denyList, null);
+    return new Configuration(getAppId(), snapshotProbes, null, null, allowList, denyList, null);
   }
 
   protected void assertCaptureArgs(

@@ -142,6 +142,7 @@ public class ConfigurationUpdater
               .collect(Collectors.toList());
     }
     return new Configuration(
+        serviceName,
         probes,
         metricProbes,
         logProbes,
@@ -213,6 +214,7 @@ public class ConfigurationUpdater
   private Configuration createEmptyConfiguration() {
     if (currentConfiguration != null) {
       return new Configuration(
+          currentConfiguration.getService(),
           null,
           null,
           null,
@@ -220,7 +222,7 @@ public class ConfigurationUpdater
           currentConfiguration.getDenyList(),
           currentConfiguration.getSampling());
     }
-    return new Configuration(null, null, null, null, null, null);
+    return new Configuration(serviceName, null, null, null, null, null, null);
   }
 
   private void retransformClasses(List<Class<?>> classesToBeTransformed) {
