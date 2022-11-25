@@ -138,7 +138,7 @@ public final class IastModuleImpl implements IastModule {
 
   @Override
   public void onHeaderName(@Nullable final String headerName) {
-    if (canBeTaintedNullSafe(headerName)) {
+    if (!canBeTaintedNullSafe(headerName)) {
       return;
     }
     final IastRequestContext ctx = IastRequestContext.get();
@@ -152,7 +152,7 @@ public final class IastModuleImpl implements IastModule {
 
   @Override
   public void onHeaderValue(@Nullable final String headerName, @Nullable final String headerValue) {
-    if (canBeTaintedNullSafe(headerValue)) {
+    if (!canBeTaintedNullSafe(headerValue)) {
       return;
     }
     final IastRequestContext ctx = IastRequestContext.get();
