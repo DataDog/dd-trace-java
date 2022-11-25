@@ -26,6 +26,10 @@ public interface IastModule {
    */
   void onParameterValue(@Nullable String paramName, @Nullable String paramValue);
 
+  void onHeaderName(@Nullable String headerName);
+
+  void onHeaderValue(@Nullable String headerName, @Nullable String headerValue);
+
   void onStringConcat(@Nonnull String left, @Nullable String right, @Nonnull String result);
 
   void onStringBuilderInit(@Nonnull StringBuilder builder, @Nullable CharSequence param);

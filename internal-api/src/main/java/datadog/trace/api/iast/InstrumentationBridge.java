@@ -76,6 +76,26 @@ public abstract class InstrumentationBridge {
     }
   }
 
+  public static void onHeaderName(final String headerName) {
+    try {
+      if (MODULE != null) {
+        MODULE.onHeaderName(headerName);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onHeaderName threw.", t);
+    }
+  }
+
+  public static void onHeaderValue(final String headerName, final String headerValue) {
+    try {
+      if (MODULE != null) {
+        MODULE.onHeaderValue(headerName, headerValue);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onHeaderValue threw.", t);
+    }
+  }
+
   public static void onStringConcat(
       @Nonnull final String self, @Nullable final String param, @Nonnull final String result) {
     try {

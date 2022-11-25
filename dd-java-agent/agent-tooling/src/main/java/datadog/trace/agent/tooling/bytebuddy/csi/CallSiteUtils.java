@@ -217,17 +217,10 @@ public abstract class CallSiteUtils {
       minIdx = Math.min(minIdx, index);
     }
 
-    // apply offset
-    for (int i = 0; i < indices.length; i++) {
-      indices[i] -= minIdx;
-    }
-    Type[] newArgumentTypes = new Type[argumentTypes.length - minIdx];
-    System.arraycopy(argumentTypes, minIdx, newArgumentTypes, 0, argumentTypes.length - minIdx);
-
     StringBuilder sb = new StringBuilder();
-    for (int i = 0; i < newArgumentTypes.length; i++) {
-      sb.append(i + 1);
-      Type type = newArgumentTypes[i];
+    for (int i = minIdx; i < argumentTypes.length; i++) {
+      sb.append(i + 1 - minIdx);
+      Type type = argumentTypes[i];
       if (type == Type.LONG_TYPE || type == Type.DOUBLE_TYPE) {
         sb.append('L');
       }
@@ -235,7 +228,7 @@ public abstract class CallSiteUtils {
     sb.append('|');
     for (int index : indices) {
       Type type = argumentTypes[index];
-      sb.append(index + 1);
+      sb.append(index + 1 - minIdx);
       if (type == Type.LONG_TYPE || type == Type.DOUBLE_TYPE) {
         sb.append('L');
       }
