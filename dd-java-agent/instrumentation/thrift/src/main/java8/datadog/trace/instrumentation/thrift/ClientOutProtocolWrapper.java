@@ -42,7 +42,7 @@ public class ClientOutProtocolWrapper extends TProtocolDecorator {
         writeHeader(map);
       } catch (Throwable throwable) {
         if (log.isDebugEnabled()) {
-          log.debug("inject exception", throwable);
+          log.error("inject exception", throwable);
         }
       } finally {
         CLIENT_INJECT_THREAD.set(true);

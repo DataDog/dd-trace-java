@@ -82,7 +82,7 @@ public class TMultiplexedProcessorInstrumentation extends Instrumenter.Tracing
         TProtocol protocol = (TProtocol) args[0];
         ((ServerInProtocolWrapper) protocol).initial(new Context(TM_M.get(processor)));
       } catch (Exception e) {
-        e.printStackTrace();
+        throw  e;
       }
       return activateSpan(noopSpan());
     }

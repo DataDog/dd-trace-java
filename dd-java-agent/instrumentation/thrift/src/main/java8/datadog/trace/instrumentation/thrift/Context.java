@@ -13,13 +13,26 @@ public class Context extends AbstractContext {
 
   @Override
   public String getArguments() {
-    return
-        processMapView.get(methodName).getEmptyArgsInstance().toString();
+    if (processMapView==null){
+      return null;
+    }
+    ProcessFunction function = processMapView.get(methodName);
+    if (function==null){
+      return null;
+    }
+    return function.getEmptyArgsInstance().toString();
   }
 
   @Override
   public String getOperatorName() {
-    return processMapView.get(methodName).getClass().getName();
+    if (processMapView==null){
+      return null;
+    }
+    ProcessFunction function = processMapView.get(methodName);
+    if (function==null){
+      return methodName;
+    }
+    return function.getClass().getName();
   }
 
 }

@@ -66,6 +66,7 @@ public class TBaseAsyncProcessorInstrumentation extends Instrumenter.Tracing
     public static AgentScope onEnter(@Advice.This final TBaseAsyncProcessor tBaseAsyncProcessor
         , @Advice.AllArguments final Object[] args) {
       try {
+        System.out.println("do AsyncProcessAdvice onEnter");
         TProtocol protocol = ((AbstractNonblockingServer.AsyncFrameBuffer) args[0]).getInputProtocol();
         ((ServerInProtocolWrapper) protocol).initial(new AsyncContext(tBaseAsyncProcessor.getProcessMapView()));
       }catch (Exception e){

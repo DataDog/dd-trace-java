@@ -1,10 +1,7 @@
 package datadog.trace.instrumentation.thrift;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import org.apache.thrift.*;
-import org.apache.thrift.async.TAsyncMethodCall;
 import org.apache.thrift.protocol.TMultiplexedProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,7 +10,6 @@ import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class ThriftConstants {
 
@@ -27,6 +23,8 @@ public class ThriftConstants {
   public static final String T_ASYNC_METHOD_CALL = "org.apache.thrift.async.TAsyncMethodCall";
   public static final String TSERVICE_CLIENT = "org.apache.thrift.TServiceClient";
   public static final String T_BASE_PROCESSOR = "org.apache.thrift.TBaseProcessor";
+  public static final String T_PROCESSOR = "org.apache.thrift.TProcessor";
+  public static final String T_ASYNC_PROCESSOR = "org.apache.thrift.TAsyncProcessor";
   public static final String T_MULTIPLEXED_PROCESSOR = "org.apache.thrift.TMultiplexedProcessor";
   public static final String T_BASE_ASYNC_PROCESSOR = "org.apache.thrift.TBaseAsyncProcessor";
   public static final String T_SERVER = "org.apache.thrift.server.TServer";
@@ -67,7 +65,9 @@ public class ThriftConstants {
       Map<String, ProcessFunction> processMapView = ((TBaseAsyncProcessor) processor).getProcessMapView();
       processMapView.forEach((k, v) -> hashMap.put(serviceName + TMultiplexedProtocol.SEPARATOR + k, v));
     } else {
-      logger.debug("Not support this processor:{}", processor.getClass().getName());
+      if (logger.isDebugEnabled()) {
+        logger.error("Not support this processor:{},serviceName:{}", serviceName, processor.getClass().getName());
+      }
     }
     return hashMap;
   }
@@ -81,7 +81,9 @@ public class ThriftConstants {
       Map<String, ProcessFunction> processMapView = ((TBaseProcessor) processor).getProcessMapView();
       hashMap.putAll(processMapView);
     } else {
-      logger.debug("Not support this processor:{}", processor.getClass().getName());
+      if (logger.isDebugEnabled()) {
+        logger.error("Not support this processor:{}", processor.getClass().getName());
+      }
     }
     return hashMap;
   }

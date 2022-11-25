@@ -17,6 +17,7 @@ import static datadog.trace.instrumentation.thrift.ThriftServerDecorator.SERVER_
 
 public class ServerInProtocolWrapper extends TProtocolDecorator {
   public static final Logger logger = LoggerFactory.getLogger(ServerInProtocolWrapper.class);
+
   public ServerInProtocolWrapper(TProtocol protocol) {
     super(protocol);
   }
@@ -40,15 +41,16 @@ public class ServerInProtocolWrapper extends TProtocolDecorator {
         }
         AbstractContext context = CONTEXT_THREAD.get();
         context.setCreatedSpan(true);
-        AgentSpan span = SERVER_DECORATOR.createSpan(header,context);
+        AgentSpan span = SERVER_DECORATOR.createSpan(header, context);
         CONTEXT_THREAD.set(context);
         activateSpan(span);
       } catch (Throwable throwable) {
-         throw throwable;
+        logger.error("readFieldBegin exception", throwable);
+        throw throwable;
       } finally {
         super.readMapEnd();
         super.readFieldEnd();
-        readFieldEnd();
+//        readFieldEnd();
       }
       return readFieldBegin();
     }
@@ -85,6 +87,10 @@ public class ServerInProtocolWrapper extends TProtocolDecorator {
     final TMessage message = super.readMessageBegin();
     if (Objects.nonNull(message)) {
       AbstractContext context = CONTEXT_THREAD.get();
+      if (context == null) {
+        context = new Context(null);
+        CONTEXT_THREAD.set(context);
+      }
       context.setup(message.name);
     }
     return message;
