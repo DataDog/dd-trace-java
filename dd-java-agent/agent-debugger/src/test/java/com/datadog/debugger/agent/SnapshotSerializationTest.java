@@ -20,12 +20,15 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.TYPE;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.VALUE;
 import static utils.TestHelper.getFixtureContent;
 
+import com.datadog.debugger.el.DSL;
+import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.SnapshotSummaryBuilder;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
@@ -195,6 +198,33 @@ public class SnapshotSerializationTest {
     Map<String, Snapshot.CapturedValue> lineFields = lines.get(24).getFields();
     Assert.assertEquals(1, lineFields.size());
     Assert.assertEquals(42, lineFields.get("fieldInt").getValue());
+  }
+
+  @Test
+  public void roundtripCondition() throws IOException {
+    JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
+    Snapshot snapshot =
+        new Snapshot(
+            Thread.currentThread(),
+            new Snapshot.ProbeDetails(
+                PROBE_ID,
+                PROBE_LOCATION,
+                new ProbeCondition(DSL.when(DSL.gt(DSL.ref("^n"), DSL.value(0))), "^n > 0"),
+                "",
+                new SnapshotSummaryBuilder(PROBE_LOCATION)),
+            String.class.getTypeName());
+    Snapshot.Captures captures = snapshot.getCaptures();
+    Snapshot.CapturedContext lineCapturedContext = new Snapshot.CapturedContext();
+    lineCapturedContext.addFields(
+        new Snapshot.CapturedValue[] {Snapshot.CapturedValue.of("fieldInt", "int", "42")});
+    captures.addLine(24, lineCapturedContext);
+    String buffer = adapter.toJson(snapshot);
+
+    Snapshot deserializedSnapshot = adapter.fromJson(buffer);
+    Assert.assertTrue(deserializedSnapshot.getProbe().getScript() instanceof ProbeCondition);
+    Assert.assertEquals(
+        "^n > 0",
+        ((ProbeCondition) deserializedSnapshot.getProbe().getScript()).getDslExpression());
   }
 
   class AnotherClass {
