@@ -783,12 +783,6 @@ public class Agent {
               }
             });
       }
-    } catch (final ClassFormatError e) {
-      /*
-      Profiling is compiled for Java8. Loading it on Java7 results in ClassFormatError
-      (more specifically UnsupportedClassVersionError). Just ignore and continue when this happens.
-      */
-      log.debug("Profiling requires OpenJDK 8 or above - skipping");
     } catch (final Throwable ex) {
       log.error("Throwable thrown while starting profiling agent", ex);
     } finally {
@@ -815,12 +809,6 @@ public class Agent {
       final Method profilingInstallerMethod =
           profilingAgentClass.getMethod("shutdown", Boolean.TYPE);
       profilingInstallerMethod.invoke(null, sync);
-    } catch (final ClassFormatError e) {
-      /*
-      Profiling is compiled for Java8. Loading it on Java7 results in ClassFormatError
-      (more specifically UnsupportedClassVersionError). Just ignore and continue when this happens.
-      */
-      log.debug("Profiling requires OpenJDK 8 or above - skipping");
     } catch (final Throwable ex) {
       log.error("Throwable thrown while shutting down profiling agent", ex);
     } finally {
@@ -849,12 +837,6 @@ public class Agent {
       final Method debuggerInstallerMethod =
           debuggerAgentClass.getMethod("run", Instrumentation.class, scoClass);
       debuggerInstallerMethod.invoke(null, inst, sco);
-    } catch (final ClassFormatError e) {
-      /*
-      Debugger is compiled for Java8. Loading it on Java7 results in ClassFormatError
-      (more specifically UnsupportedClassVersionError). Just ignore and continue when this happens.
-      */
-      log.debug("Debugger requires OpenJDK 8 or above - skipping");
     } catch (final Throwable ex) {
       log.error("Throwable thrown while starting debugger agent", ex);
     } finally {
