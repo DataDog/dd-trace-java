@@ -252,7 +252,6 @@ class ConfigTest extends DDSpecification {
     config.splitByTags == ["some.tag1", "some.tag2"].toSet()
     config.partialFlushMinSpans == 15
     config.reportHostName == true
-    config.runtimeContextFieldInjection == false
     config.propagationStylesToExtract.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
     config.propagationStylesToInject.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
     config.jmxFetchEnabled == false
@@ -420,7 +419,6 @@ class ConfigTest extends DDSpecification {
     config.splitByTags == ["some.tag3", "some.tag2", "some.tag1"].toSet()
     config.partialFlushMinSpans == 25
     config.reportHostName == true
-    config.runtimeContextFieldInjection == false
     config.propagationStylesToExtract.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
     config.propagationStylesToInject.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
     config.jmxFetchEnabled == false
@@ -775,42 +773,6 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == "what actually wants"
-  }
-
-  def "verify integration config"() {
-    setup:
-    environmentVariables.set("DD_INTEGRATION_ORDER_ENABLED", "false")
-    environmentVariables.set("DD_INTEGRATION_TEST_ENV_ENABLED", "true")
-    environmentVariables.set("DD_INTEGRATION_DISABLED_ENV_ENABLED", "false")
-
-    System.setProperty("dd.integration.order.enabled", "true")
-    System.setProperty("dd.integration.test-prop.enabled", "true")
-    System.setProperty("dd.integration.disabled-prop.enabled", "false")
-
-    expect:
-    Config.get().isIntegrationEnabled(integrationNames, defaultEnabled) == expected
-
-    where:
-    // spotless:off
-    names                          | defaultEnabled | expected
-    []                             | true           | true
-    []                             | false          | false
-    ["invalid"]                    | true           | true
-    ["invalid"]                    | false          | false
-    ["test-prop"]                  | false          | true
-    ["test-env"]                   | false          | true
-    ["disabled-prop"]              | true           | false
-    ["disabled-env"]               | true           | false
-    ["other", "test-prop"]         | false          | true
-    ["other", "test-env"]          | false          | true
-    ["order"]                      | false          | true
-    ["test-prop", "disabled-prop"] | false          | true
-    ["disabled-env", "test-env"]   | false          | true
-    ["test-prop", "disabled-prop"] | true           | false
-    ["disabled-env", "test-env"]   | true           | false
-    // spotless:on
-
-    integrationNames = new TreeSet<>(names)
   }
 
   def "verify rule config #name"() {
@@ -2048,52 +2010,52 @@ class ConfigTest extends DDSpecification {
     def config = new Config()
 
     then:
-    config.getAppSecEnabledConfig() == res
+    config.getAppSecActivation() == res
 
     where:
     sys        | env        | res
-    null       | null       | ProductActivationConfig.ENABLED_INACTIVE
-    null       | ""         | ProductActivationConfig.ENABLED_INACTIVE
-    null       | "inactive" | ProductActivationConfig.ENABLED_INACTIVE
-    null       | "false"    | ProductActivationConfig.FULLY_DISABLED
-    null       | "0"        | ProductActivationConfig.FULLY_DISABLED
-    null       | "invalid"  | ProductActivationConfig.FULLY_DISABLED
-    null       | "true"     | ProductActivationConfig.FULLY_ENABLED
-    null       | "1"        | ProductActivationConfig.FULLY_ENABLED
-    ""         | null       | ProductActivationConfig.ENABLED_INACTIVE
-    ""         | ""         | ProductActivationConfig.ENABLED_INACTIVE
-    ""         | "inactive" | ProductActivationConfig.ENABLED_INACTIVE
-    ""         | "false"    | ProductActivationConfig.FULLY_DISABLED
-    ""         | "0"        | ProductActivationConfig.FULLY_DISABLED
-    ""         | "invalid"  | ProductActivationConfig.FULLY_DISABLED
-    ""         | "true"     | ProductActivationConfig.FULLY_ENABLED
-    ""         | "1"        | ProductActivationConfig.FULLY_ENABLED
-    "inactive" | null       | ProductActivationConfig.ENABLED_INACTIVE
-    "inactive" | ""         | ProductActivationConfig.ENABLED_INACTIVE
-    "inactive" | "inactive" | ProductActivationConfig.ENABLED_INACTIVE
-    "inactive" | "false"    | ProductActivationConfig.ENABLED_INACTIVE
-    "inactive" | "0"        | ProductActivationConfig.ENABLED_INACTIVE
-    "inactive" | "invalid"  | ProductActivationConfig.ENABLED_INACTIVE
-    "inactive" | "true"     | ProductActivationConfig.ENABLED_INACTIVE
-    "inactive" | "1"        | ProductActivationConfig.ENABLED_INACTIVE
-    "false"    | null       | ProductActivationConfig.FULLY_DISABLED
-    "false"    | ""         | ProductActivationConfig.FULLY_DISABLED
-    "false"    | "inactive" | ProductActivationConfig.FULLY_DISABLED
-    "false"    | "false"    | ProductActivationConfig.FULLY_DISABLED
-    "false"    | "0"        | ProductActivationConfig.FULLY_DISABLED
-    "false"    | "invalid"  | ProductActivationConfig.FULLY_DISABLED
-    "false"    | "true"     | ProductActivationConfig.FULLY_DISABLED
-    "false"    | "1"        | ProductActivationConfig.FULLY_DISABLED
-    "0"        | null       | ProductActivationConfig.FULLY_DISABLED
-    "true"     | null       | ProductActivationConfig.FULLY_ENABLED
-    "true"     | ""         | ProductActivationConfig.FULLY_ENABLED
-    "true"     | "inactive" | ProductActivationConfig.FULLY_ENABLED
-    "true"     | "false"    | ProductActivationConfig.FULLY_ENABLED
-    "true"     | "0"        | ProductActivationConfig.FULLY_ENABLED
-    "true"     | "invalid"  | ProductActivationConfig.FULLY_ENABLED
-    "true"     | "true"     | ProductActivationConfig.FULLY_ENABLED
-    "true"     | "1"        | ProductActivationConfig.FULLY_ENABLED
-    "1"        | null       | ProductActivationConfig.FULLY_ENABLED
+    null       | null       | ProductActivation.ENABLED_INACTIVE
+    null       | ""         | ProductActivation.ENABLED_INACTIVE
+    null       | "inactive" | ProductActivation.ENABLED_INACTIVE
+    null       | "false"    | ProductActivation.FULLY_DISABLED
+    null       | "0"        | ProductActivation.FULLY_DISABLED
+    null       | "invalid"  | ProductActivation.FULLY_DISABLED
+    null       | "true"     | ProductActivation.FULLY_ENABLED
+    null       | "1"        | ProductActivation.FULLY_ENABLED
+    ""         | null       | ProductActivation.ENABLED_INACTIVE
+    ""         | ""         | ProductActivation.ENABLED_INACTIVE
+    ""         | "inactive" | ProductActivation.ENABLED_INACTIVE
+    ""         | "false"    | ProductActivation.FULLY_DISABLED
+    ""         | "0"        | ProductActivation.FULLY_DISABLED
+    ""         | "invalid"  | ProductActivation.FULLY_DISABLED
+    ""         | "true"     | ProductActivation.FULLY_ENABLED
+    ""         | "1"        | ProductActivation.FULLY_ENABLED
+    "inactive" | null       | ProductActivation.ENABLED_INACTIVE
+    "inactive" | ""         | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "inactive" | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "false"    | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "0"        | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "invalid"  | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "true"     | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "1"        | ProductActivation.ENABLED_INACTIVE
+    "false"    | null       | ProductActivation.FULLY_DISABLED
+    "false"    | ""         | ProductActivation.FULLY_DISABLED
+    "false"    | "inactive" | ProductActivation.FULLY_DISABLED
+    "false"    | "false"    | ProductActivation.FULLY_DISABLED
+    "false"    | "0"        | ProductActivation.FULLY_DISABLED
+    "false"    | "invalid"  | ProductActivation.FULLY_DISABLED
+    "false"    | "true"     | ProductActivation.FULLY_DISABLED
+    "false"    | "1"        | ProductActivation.FULLY_DISABLED
+    "0"        | null       | ProductActivation.FULLY_DISABLED
+    "true"     | null       | ProductActivation.FULLY_ENABLED
+    "true"     | ""         | ProductActivation.FULLY_ENABLED
+    "true"     | "inactive" | ProductActivation.FULLY_ENABLED
+    "true"     | "false"    | ProductActivation.FULLY_ENABLED
+    "true"     | "0"        | ProductActivation.FULLY_ENABLED
+    "true"     | "invalid"  | ProductActivation.FULLY_ENABLED
+    "true"     | "true"     | ProductActivation.FULLY_ENABLED
+    "true"     | "1"        | ProductActivation.FULLY_ENABLED
+    "1"        | null       | ProductActivation.FULLY_ENABLED
   }
 
   static class ClassThrowsExceptionForValueOfMethod {

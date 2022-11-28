@@ -42,6 +42,10 @@ public final class ProfilingConfig {
   public static final String PROFILING_PROXY_PASSWORD = "profiling.proxy.password";
   public static final String PROFILING_EXCEPTION_SAMPLE_LIMIT = "profiling.exception.sample.limit";
   public static final int PROFILING_EXCEPTION_SAMPLE_LIMIT_DEFAULT = 10_000;
+
+  public static final String PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT =
+      "profiling.direct.allocation.sample.limit";
+  public static final int PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT_DEFAULT = 10_000;
   public static final String PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS =
       "profiling.exception.histogram.top-items";
   public static final int PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS_DEFAULT = 50;
@@ -56,6 +60,11 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_ASYNC_ENABLED = "profiling.async.enabled";
   public static final boolean PROFILING_ASYNC_ENABLED_DEFAULT = false;
+
+  public static final String PROFILING_DIRECT_ALLOCATION_ENABLED =
+      "profiling.directallocation.enabled";
+  public static final boolean PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT = false;
+
   public static final String PROFILING_ASYNC_LIBPATH = "profiling.async.lib";
   public static final String PROFILING_ASYNC_ALLOC_ENABLED = "profiling.async.alloc.enabled";
   public static final boolean PROFILING_ASYNC_ALLOC_ENABLED_DEFAULT = false;
@@ -131,7 +140,7 @@ public final class ProfilingConfig {
   public static final boolean PROFILING_AGENTLESS_DEFAULT = false;
 
   public static final String PROFILING_DISABLED_EVENTS = "profiling.disabled.events";
-  public static final String PROFILING_ENABLED_EVENTS = "profiling.disabled.events";
+  public static final String PROFILING_ENABLED_EVENTS = "profiling.enabled.events";
 
   public static final String PROFILING_DEBUG_DUMP_PATH = "profiling.debug.dump_path";
 

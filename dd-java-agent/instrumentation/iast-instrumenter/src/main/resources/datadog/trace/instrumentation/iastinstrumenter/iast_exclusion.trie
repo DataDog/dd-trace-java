@@ -4,8 +4,9 @@
 # Use 0 to allow transformation of packages or classes beneath ignored packages
 # End lines with '.*' to match any sub-package or '$*' to match nested-classes
 
-# 0 = global allows
-# 1 = Iast Instrumenter ignores
+# 0 = global allows and not filter stacktrace
+# 1 = Iast Instrumenter ignores and filter stacktrace
+# 2 = Iast Instrumenter allows and filter stacktrace
 
 # -------- JDK --------
 1 com.sun.*
@@ -157,6 +158,8 @@
 1 org.mongodb.*
 1 org.osgi.*
 1 org.owasp.*
+# https://github.com/OWASP-Benchmark/BenchmarkJava
+0 org.owasp.benchmark.*
 # https://github.com/WebGoat/WebGoat
 0 org.owasp.webgoat.*
 1 org.picketlink.*

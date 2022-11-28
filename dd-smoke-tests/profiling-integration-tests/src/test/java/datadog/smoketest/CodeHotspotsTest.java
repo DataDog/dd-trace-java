@@ -9,6 +9,8 @@ import static org.openjdk.jmc.common.item.Attribute.attr;
 import static org.openjdk.jmc.common.unit.UnitLookup.NUMBER;
 
 import datadog.smoketest.profiling.CodeHotspotsApplication;
+import datadog.smoketest.profiling.GenerativeStackTraces;
+import datadog.smoketest.profiling.NativeLibrariesApplication;
 import datadog.trace.api.Platform;
 import java.io.File;
 import java.lang.management.ManagementFactory;
@@ -28,12 +30,14 @@ import org.apache.commons.math3.stat.descriptive.rank.PSquarePercentile;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.openjdk.jmc.common.item.IAttribute;
 import org.openjdk.jmc.common.item.IItem;
 import org.openjdk.jmc.common.item.IItemCollection;
@@ -210,6 +214,96 @@ public final class CodeHotspotsTest {
         .filter(Files::isRegularFile)
         .map(Path::toFile)
         .forEach(f -> validateJfr(f, 0, 0.8));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"lz4", "snappy"})
+  @Disabled("flaky")
+  void testNativeLibrary(String libraryName) throws Exception {
+    System.out.println("Test " + libraryName);
+    int interval = 10; // milliseconds
+    Process targetProcess =
+        createProcessBuilder(
+                NativeLibrariesApplication.class.getName(),
+                0,
+                timeout * 2,
+                interval,
+                interval,
+                dumpDir,
+                logFilePath,
+                libraryName)
+            .start();
+
+    int ret = targetProcess.waitFor();
+    assertEquals(0, ret);
+
+    Files.walk(dumpDir)
+        .filter(Files::isRegularFile)
+        .map(Path::toFile)
+        .forEach(CodeHotspotsTest::hasCpuEvents);
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {128})
+  void testGenerativeStackTraces(int depth) throws Exception {
+    runTestGenerativeStackTraces("Raw", depth);
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {128})
+  void testGenerativeStackTracesWithMethodHandles(int depth) throws Exception {
+    runTestGenerativeStackTraces("MethodHandles", depth);
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {128})
+  void testGenerativeStackTracesWithCapturingLambdas(int depth) throws Exception {
+    runTestGenerativeStackTraces("CapturingLambdas", depth);
+  }
+
+  private void runTestGenerativeStackTraces(String mode, int depth) throws Exception {
+    System.out.println("Test depth=" + depth + " with mode: " + mode);
+    int interval = 10; // milliseconds
+    Process targetProcess =
+        createProcessBuilder(
+                GenerativeStackTraces.class.getName(),
+                0,
+                timeout * 2,
+                interval,
+                interval,
+                dumpDir,
+                logFilePath,
+                String.valueOf(depth),
+                "1000",
+                mode)
+            .start();
+
+    int ret = targetProcess.waitFor();
+    assertEquals(0, ret);
+
+    Files.walk(dumpDir)
+        .filter(Files::isRegularFile)
+        .map(Path::toFile)
+        .forEach(CodeHotspotsTest::hasCpuEvents);
+  }
+
+  private static void hasCpuEvents(File f) {
+    try {
+      IItemCollection events = JfrLoaderToolkit.loadEvents(f);
+      IItemCollection cpu = events.apply(ItemFilters.type("datadog.ExecutionSample"));
+      assertTrue(cpu.hasItems(), "no cpu events");
+      int labelCount = 0;
+      for (IItemIterable items : cpu) {
+        IMemberAccessor<IQuantity, IItem> spanIdAccessor = SPAN_ID.getAccessor(items.getType());
+        for (IItem item : items) {
+          long spanId = spanIdAccessor.getMember(item).longValue();
+          labelCount += (spanId != 0) ? 1 : 0;
+        }
+      }
+      assertTrue(labelCount > 0, "no cpu labels");
+    } catch (Exception e) {
+      fail(e);
+    }
   }
 
   private static void validateJfr(File f, double idleness, double minCoverage) {

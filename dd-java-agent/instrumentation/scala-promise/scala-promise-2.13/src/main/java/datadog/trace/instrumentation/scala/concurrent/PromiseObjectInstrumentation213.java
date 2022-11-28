@@ -7,7 +7,7 @@ import static scala.concurrent.impl.Promise.Transformation;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -58,7 +58,7 @@ public class PromiseObjectInstrumentation213 extends Instrumenter.Tracing
     // Only enable this if integrations have been enabled and the extra "integration"
     // scala_promise_completion_priority has been enabled specifically
     return super.isEnabled()
-        && Config.get()
+        && InstrumenterConfig.get()
             .isIntegrationEnabled(
                 Collections.singletonList("scala_promise_completion_priority"), false);
   }

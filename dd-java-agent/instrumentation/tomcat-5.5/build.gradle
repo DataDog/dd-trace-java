@@ -48,6 +48,17 @@ configurations.all {
   }
 }
 
+tasks.named("latestDepTest").configure {
+  javaLauncher = getJavaLauncherFor(11)
+}
+tasks.named("compileLatestDepTestJava").configure {
+  setJavaVersion(it, 11)
+}
+tasks.named("compileLatestDepTestGroovy").configure {
+  javaLauncher = getJavaLauncherFor(11)
+}
+
+
 dependencies {
   compileOnly group: 'tomcat', name: 'catalina', version: tomcatVersion
   compileOnly group: 'tomcat', name: 'tomcat-coyote', version: tomcatVersion
@@ -76,8 +87,9 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:servlet:request-2')
   testImplementation project(':dd-java-agent:instrumentation:servlet:request-3')
 
-  // Tomcat 10.1.+ seems to require Java 11. Limit to fix build.
-  latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '10.0.+'
+  latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '10+'
+  latestDepTestImplementation group: 'org.apache.tomcat', name: 'jakartaee-migration', version: '1.+'
+
   latestDepTestImplementation(project(':dd-java-agent:instrumentation:tomcat-appsec-6'))
 }
 

@@ -115,6 +115,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME)
   }
 
+  // here to go around a limitation in openliberty, where the service name
+  // is set only at the end of the span and doesn't propagate down
+  String expectedControllerServiceName() {
+    expectedServiceName()
+  }
+
   abstract String expectedOperationName()
 
   String expectedResourceName(ServerEndpoint endpoint, String method, URI address) {
@@ -771,12 +777,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   def "test error"() {
     setup:
-    def request = request(ERROR, method, body).build()
+    String method = 'GET'
+    def request = request(ERROR, method, null).build()
     def response = client.newCall(request).execute()
 
     expect:
     if (bubblesResponse()) {
-      assert response.body().string() == ERROR.body
+      assert response.body().string().contains(ERROR.body)
       assert response.code() == ERROR.status
     }
 
@@ -794,10 +801,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         }
       }
     }
-
-    where:
-    method = "GET"
-    body = null
   }
 
   def "test exception"() {
@@ -835,6 +838,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   def "test notFound"() {
     setup:
     assumeTrue(testNotFound())
+
+    String method = "GET"
+    RequestBody body = null
+
     def request = request(NOT_FOUND, method, body).build()
     def response = client.newCall(request).execute()
 
@@ -855,10 +862,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         }
       }
     }
-
-    where:
-    method = "GET"
-    body = null
   }
 
   def "test timeout"() {
@@ -1131,7 +1134,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def exception = endpoint == CUSTOM_EXCEPTION ? expectedCustomExceptionType() : expectedExceptionType()
     def errorMessage = endpoint?.body
     trace.span {
-      serviceName expectedServiceName()
       operationName "controller"
       resourceName "controller"
       errored errorMessage != null

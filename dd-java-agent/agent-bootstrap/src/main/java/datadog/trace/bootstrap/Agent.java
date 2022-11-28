@@ -27,7 +27,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ContextThreadListener;
 import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
-import datadog.trace.bootstrap.instrumentation.exceptions.ExceptionSampling;
+import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import java.lang.instrument.Instrumentation;
@@ -271,8 +271,8 @@ public class Agent {
         registerLogManagerCallback(new StartProfilingAgentCallback());
       } else {
         startProfilingAgent(false);
-        // only enable sampler when we know JFR is ready
-        ExceptionSampling.enableExceptionSampling();
+        // only enable instrumentation based profilers when we know JFR is ready
+        InstrumentationBasedProfiling.enableInstrumentationBasedProfiling();
       }
     }
   }
@@ -413,8 +413,8 @@ public class Agent {
     @Override
     public void execute() {
       startProfilingAgent(false);
-      // only enable sampler when we know JFR is ready
-      ExceptionSampling.enableExceptionSampling();
+      // only enable instrumentation based profilers when we know JFR is ready
+      InstrumentationBasedProfiling.enableInstrumentationBasedProfiling();
     }
   }
 
@@ -783,12 +783,6 @@ public class Agent {
               }
             });
       }
-    } catch (final ClassFormatError e) {
-      /*
-      Profiling is compiled for Java8. Loading it on Java7 results in ClassFormatError
-      (more specifically UnsupportedClassVersionError). Just ignore and continue when this happens.
-      */
-      log.debug("Profiling requires OpenJDK 8 or above - skipping");
     } catch (final Throwable ex) {
       log.error("Throwable thrown while starting profiling agent", ex);
     } finally {
@@ -815,12 +809,6 @@ public class Agent {
       final Method profilingInstallerMethod =
           profilingAgentClass.getMethod("shutdown", Boolean.TYPE);
       profilingInstallerMethod.invoke(null, sync);
-    } catch (final ClassFormatError e) {
-      /*
-      Profiling is compiled for Java8. Loading it on Java7 results in ClassFormatError
-      (more specifically UnsupportedClassVersionError). Just ignore and continue when this happens.
-      */
-      log.debug("Profiling requires OpenJDK 8 or above - skipping");
     } catch (final Throwable ex) {
       log.error("Throwable thrown while shutting down profiling agent", ex);
     } finally {
@@ -849,12 +837,6 @@ public class Agent {
       final Method debuggerInstallerMethod =
           debuggerAgentClass.getMethod("run", Instrumentation.class, scoClass);
       debuggerInstallerMethod.invoke(null, inst, sco);
-    } catch (final ClassFormatError e) {
-      /*
-      Debugger is compiled for Java8. Loading it on Java7 results in ClassFormatError
-      (more specifically UnsupportedClassVersionError). Just ignore and continue when this happens.
-      */
-      log.debug("Debugger requires OpenJDK 8 or above - skipping");
     } catch (final Throwable ex) {
       log.error("Throwable thrown while starting debugger agent", ex);
     } finally {
@@ -929,7 +911,7 @@ public class Agent {
     }
   }
 
-  /** @see datadog.trace.api.ProductActivationConfig#fromString(String) */
+  /** @see datadog.trace.api.ProductActivation#fromString(String) */
   private static boolean isAppSecFullyDisabled() {
     // must be kept in sync with logic from Config!
     final String featureEnabledSysprop = AgentFeature.APPSEC.systemProp;

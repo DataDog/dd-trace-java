@@ -2,6 +2,7 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
+import datadog.trace.instrumentation.servlet3.TestServlet3
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ErrorHandler
@@ -12,7 +13,6 @@ import javax.servlet.ServletException
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
-import static TestServlet3.SERVLET_TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -21,6 +21,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
+import static datadog.trace.instrumentation.servlet3.TestServlet3.SERVLET_TIMEOUT
 
 abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletContextHandler> {
   static final boolean IS_LATEST

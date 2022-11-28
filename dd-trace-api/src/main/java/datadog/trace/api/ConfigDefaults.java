@@ -52,7 +52,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE = false;
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX = false;
   static final int DEFAULT_SCOPE_DEPTH_LIMIT = 100;
-  static final int DEFAULT_SCOPE_ITERATION_KEEP_ALIVE = 10; // in seconds
+  static final int DEFAULT_SCOPE_ITERATION_KEEP_ALIVE = 30; // in seconds
   static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
   static final boolean DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED = false;
   static final String DEFAULT_PROPAGATION_STYLE_EXTRACT = PropagationStyle.DATADOG.name();
@@ -133,9 +133,12 @@ public final class ConfigDefaults {
 
   static final int DEFAULT_RESOLVER_OUTLINE_POOL_SIZE = 128;
   static final int DEFAULT_RESOLVER_TYPE_POOL_SIZE = 64;
+  static final int DEFAULT_RESOLVER_RESET_INTERVAL = 300; // seconds
 
   static final boolean DEFAULT_TELEMETRY_ENABLED = true;
   static final int DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL = 60; // in seconds
+
+  static final boolean DEFAULT_SECURE_RANDOM = false;
 
   public static final int DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH = 512;
 

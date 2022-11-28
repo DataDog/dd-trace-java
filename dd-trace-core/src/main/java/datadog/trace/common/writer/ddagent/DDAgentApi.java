@@ -97,7 +97,7 @@ public class DDAgentApi implements RemoteApi {
     final int sizeInBytes = payload.sizeInBytes();
     String tracesEndpoint = featuresDiscovery.getTraceEndpoint();
     if (null == tracesEndpoint) {
-      featuresDiscovery.discover();
+      featuresDiscovery.discoverIfOutdated();
       tracesEndpoint = featuresDiscovery.getTraceEndpoint();
       if (null == tracesEndpoint) {
         log.error("No datadog agent detected");

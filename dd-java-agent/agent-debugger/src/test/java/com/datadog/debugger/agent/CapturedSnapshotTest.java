@@ -27,6 +27,7 @@ import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.SnapshotSummaryBuilder;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import groovy.lang.GroovyClassLoader;
 import java.io.File;
@@ -767,7 +768,7 @@ public class CapturedSnapshotTest {
             .language(LANGUAGE)
             .probeId(PROBE_ID)
             .active(true)
-            .where(CLASS_NAME, "main", "int (java.lang.String)", "8")
+            .where(CLASS_NAME, 8)
             .sampling(new SnapshotProbe.Sampling(1))
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener =
@@ -1127,6 +1128,24 @@ public class CapturedSnapshotTest {
     assertCaptureReturnValue(snapshot.getCaptures().getReturn(), "java.lang.Integer", "50");
   }
 
+  @Test
+  public void exceptionAsLocalVariable() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot18";
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, null, null, "14"));
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "2").get();
+    Assert.assertEquals(42, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    Map<String, String> expectedFields = new HashMap<>();
+    expectedFields.put("detailMessage", "For input string: \"a\"");
+    assertCaptureLocals(
+        snapshot.getCaptures().getLines().get(14),
+        "ex",
+        "java.lang.NumberFormatException",
+        expectedFields);
+  }
+
   private DebuggerTransformerTest.TestSnapshotListener setupInstrumentTheWorldTransformer(
       String excludeFileName) {
     Config config = mock(Config.class);
@@ -1234,6 +1253,7 @@ public class CapturedSnapshotTest {
             location,
             probe.getProbeCondition(),
             probe.concatTags(),
+            new SnapshotSummaryBuilder(location),
             probe.getAdditionalProbes().stream()
                 .map(
                     (ProbeDefinition relatedProbe) ->
@@ -1241,7 +1261,8 @@ public class CapturedSnapshotTest {
                             relatedProbe.getId(),
                             location,
                             ((SnapshotProbe) relatedProbe).getProbeCondition(),
-                            ((SnapshotProbe) relatedProbe).concatTags()))
+                            relatedProbe.concatTags(),
+                            new SnapshotSummaryBuilder(location)))
                 .collect(Collectors.toList()));
       }
     }
@@ -1266,6 +1287,26 @@ public class CapturedSnapshotTest {
     Snapshot.CapturedValue localVar = context.getLocals().get(name);
     Assert.assertEquals(typeName, localVar.getType());
     Assert.assertEquals(value, getValue(localVar));
+  }
+
+  private void assertCaptureLocals(
+      Snapshot.CapturedContext context,
+      String name,
+      String typeName,
+      Map<String, String> expectedFields) {
+    Snapshot.CapturedValue localVar = context.getLocals().get(name);
+    Assert.assertEquals(typeName, localVar.getType());
+    Map<String, Snapshot.CapturedValue> fields = getFields(localVar);
+    for (Map.Entry<String, String> entry : expectedFields.entrySet()) {
+      Assert.assertTrue(fields.containsKey(entry.getKey()));
+      Snapshot.CapturedValue fieldCapturedValue = fields.get(entry.getKey());
+      if (fieldCapturedValue.getNotCapturedReason() != null) {
+        Assert.assertEquals(
+            entry.getValue(), String.valueOf(fieldCapturedValue.getNotCapturedReason()));
+      } else {
+        Assert.assertEquals(entry.getValue(), String.valueOf(fieldCapturedValue.getValue()));
+      }
+    }
   }
 
   private void assertCaptureFields(

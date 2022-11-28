@@ -1,3 +1,5 @@
+import datadog.trace.agent.test.utils.TraceUtils
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.Headers
@@ -35,6 +37,7 @@ class OkHttp3AsyncTest extends OkHttp3Test {
 
         void onFailure(Call call, IOException e) {
           exRef.set(e)
+          callback?.call()
           latch.countDown()
         }
       })
@@ -43,5 +46,28 @@ class OkHttp3AsyncTest extends OkHttp3Test {
       throw exRef.get()
     }
     return responseRef.get().code()
+  }
+
+  def "callbacks should carry context" () {
+
+    when:
+    def captured = AgentTracer.noopSpan()
+    try {
+      TraceUtils.runUnderTrace("parent", {
+        doRequest(method, url, ["Datadog-Meta-Lang": "java"], "", { captured = AgentTracer.activeSpan() })
+      })
+    } catch (Exception e) {
+      assert error == true
+    }
+
+    then:
+    "parent".contentEquals(captured.getOperationName())
+
+    where:
+    url                                 | error
+    server.address.resolve("/success")  | false
+    new URI("http://240.0.0.1")         | true
+
+    method = "GET"
   }
 }

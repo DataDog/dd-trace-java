@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.jdbc;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 
 @AutoService(Instrumenter.class)
 public final class PreparedStatementInstrumentation extends AbstractPreparedStatementInstrumentation
@@ -121,7 +121,7 @@ public final class PreparedStatementInstrumentation extends AbstractPreparedStat
   @Override
   public String configuredMatchingType() {
     // this won't match any class unless the property is set
-    return Config.get().getJdbcPreparedStatementClassName();
+    return InstrumenterConfig.get().getJdbcPreparedStatementClassName();
   }
 
   public PreparedStatementInstrumentation() {

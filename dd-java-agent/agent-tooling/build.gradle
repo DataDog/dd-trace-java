@@ -62,6 +62,8 @@ jmh {
   jmhVersion = '1.32'
   includeTests = true
 }
+compileJmhJava.dependsOn compileTestJava
+compileTestJava.dependsOn 'generateTestClassNameTries'
 
 forbiddenApisJmh {
   ignoreFailures = true

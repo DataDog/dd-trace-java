@@ -178,7 +178,7 @@ class AppSecSystemSpecification extends DDSpecification {
     def sco = new SharedCommunicationObjects(
       ) {
         @Override
-        Object configurationPoller(Config config) {
+        ConfigurationPoller configurationPoller(Config config) {
           poller
         }
       }

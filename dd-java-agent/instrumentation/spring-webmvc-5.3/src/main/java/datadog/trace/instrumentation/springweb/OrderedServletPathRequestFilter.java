@@ -2,12 +2,18 @@ package datadog.trace.instrumentation.springweb;
 
 import org.springframework.beans.factory.annotation.AnnotatedGenericBeanDefinition;
 import org.springframework.core.Ordered;
+import org.springframework.web.filter.DelegatingFilterProxy;
 import org.springframework.web.filter.ServletRequestPathFilter;
 
-public class OrderedServletPathRequestFilter extends ServletRequestPathFilter implements Ordered {
+public class OrderedServletPathRequestFilter extends DelegatingFilterProxy implements Ordered {
+
   @Override
   public int getOrder() {
     return Ordered.HIGHEST_PRECEDENCE;
+  }
+
+  public OrderedServletPathRequestFilter() {
+    super(new ServletRequestPathFilter());
   }
 
   public static class BeanDefinition extends AnnotatedGenericBeanDefinition {

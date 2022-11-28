@@ -1,5 +1,6 @@
 package com.datadog.debugger.agent;
 
+import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
@@ -12,6 +13,8 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.SnapshotSummaryBuilder;
+import datadog.trace.bootstrap.debugger.SummaryBuilder;
 import datadog.trace.util.TagsHelper;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
@@ -261,10 +264,6 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
       retransformClasses(Collections.singletonList(callingClass));
       return null;
     }
-    if (!(definition instanceof SnapshotProbe)) {
-      log.warn("Definition id={} is not a Probe", definition.getId());
-      return null;
-    }
     String type = definition.getWhere().getTypeName();
     String method = definition.getWhere().getMethodName();
     String file = definition.getWhere().getSourceFile();
@@ -275,17 +274,29 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
       method = result.getMethodName();
     }
     List<String> lines = probeLines != null ? Arrays.asList(probeLines) : null;
-    return convertToProbeDetails(
-        (SnapshotProbe) definition, new Snapshot.ProbeLocation(type, method, file, lines));
+    return convertToProbeDetails(definition, new Snapshot.ProbeLocation(type, method, file, lines));
   }
 
   private Snapshot.ProbeDetails convertToProbeDetails(
-      SnapshotProbe probe, Snapshot.ProbeLocation location) {
+      ProbeDefinition probe, Snapshot.ProbeLocation location) {
+    SummaryBuilder summaryBuilder;
+    ProbeCondition probeCondition;
+    if (probe instanceof SnapshotProbe) {
+      summaryBuilder = new SnapshotSummaryBuilder(location);
+      probeCondition = ((SnapshotProbe) probe).getProbeCondition();
+    } else if (probe instanceof LogProbe) {
+      summaryBuilder = new LogMessageTemplateSummaryBuilder((LogProbe) probe);
+      probeCondition = null;
+    } else {
+      log.warn("definition id={} has unsupported probe type: {}", probe.getId(), probe.getClass());
+      return null;
+    }
     return new Snapshot.ProbeDetails(
         probe.getId(),
         location,
-        probe.getProbeCondition(),
+        probeCondition,
         probe.concatTags(),
+        summaryBuilder,
         probe.getAdditionalProbes().stream()
             .map(relatedProbe -> convertToProbeDetails(((SnapshotProbe) relatedProbe), location))
             .collect(Collectors.toList()));

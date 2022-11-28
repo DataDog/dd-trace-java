@@ -463,15 +463,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
     @Override
     protected ScopeStack initialValue() {
-      return new ScopeStack(
-          new Runnable() {
-            @Override
-            public void run() {
-              for (ContextThreadListener listener : listeners) {
-                listener.onAttach();
-              }
-            }
-          });
+      return new ScopeStack(listeners);
     }
 
     @Override
@@ -493,8 +485,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
    */
   static final class ScopeStack {
 
-    private final Runnable onFirstUsage;
-    private boolean used = false;
+    private final List<ContextThreadListener> contextThreadListeners;
     private final ArrayDeque<ContinuableScope> stack = new ArrayDeque<>(); // previous scopes
 
     ContinuableScope top; // current scope
@@ -502,8 +493,8 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     // set by background task when a root iteration scope remains unclosed for too long
     volatile ContinuableScope overdueRootScope;
 
-    ScopeStack(Runnable onFirstUsage) {
-      this.onFirstUsage = onFirstUsage;
+    ScopeStack(List<ContextThreadListener> contextThreadListeners) {
+      this.contextThreadListeners = contextThreadListeners;
     }
 
     ContinuableScope active() {
@@ -532,13 +523,17 @@ public final class ContinuableScopeManager implements AgentScopeManager {
           curScope.afterActivated();
         }
       }
+      if (top == null) {
+        onBecomeEmpty();
+      }
     }
 
     /** Marks a new scope as current, pushing the previous onto the stack */
     void push(final ContinuableScope scope) {
-      notifyOnFirstPush();
       if (top != null) {
         stack.push(top);
+      } else {
+        onBecomeNonEmpty();
       }
       top = scope;
       scope.afterActivated();
@@ -586,10 +581,17 @@ public final class ContinuableScopeManager implements AgentScopeManager {
       top = null;
     }
 
-    private void notifyOnFirstPush() {
-      if (!used) {
-        used = true;
-        onFirstUsage.run();
+    /** Notifies context thread listeners that this thread has a context now */
+    private void onBecomeNonEmpty() {
+      for (ContextThreadListener listener : contextThreadListeners) {
+        listener.onAttach();
+      }
+    }
+
+    /** Notifies context thread listeners that this thread no longer has a context */
+    private void onBecomeEmpty() {
+      for (ContextThreadListener listener : contextThreadListeners) {
+        listener.onDetach();
       }
     }
   }
