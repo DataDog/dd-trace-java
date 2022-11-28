@@ -1,12 +1,12 @@
 package datadog.trace.instrumentation.graal.nativeimage;
 
-import com.oracle.svm.hosted.classinitialization.ClassInitializationSupport;
 import net.bytebuddy.asm.Advice;
+import org.graalvm.nativeimage.impl.RuntimeClassInitializationSupport;
 
 public class ClassInitializationAdvice {
   @Advice.OnMethodEnter
   public static void onEnter(
-      @Advice.Argument(0) ClassInitializationSupport classInitializationSupport) {
+      @Advice.Argument(0) RuntimeClassInitializationSupport classInitializationSupport) {
     classInitializationSupport.initializeAtBuildTime(
         "datadog.trace.api.env.CapturedEnvironment", "");
     classInitializationSupport.initializeAtBuildTime("datadog.trace.api.ConfigDefaults", "");

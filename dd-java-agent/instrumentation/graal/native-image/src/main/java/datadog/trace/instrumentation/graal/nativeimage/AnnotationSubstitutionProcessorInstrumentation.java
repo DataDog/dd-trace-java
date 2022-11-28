@@ -24,4 +24,10 @@ public final class AnnotationSubstitutionProcessorInstrumentation
             .and(takesArgument(0, named("jdk.vm.ci.meta.ResolvedJavaField"))),
         packageName + ".DeleteFieldAdvice");
   }
+
+  @Override
+  public String[] muzzleIgnoredClassNames() {
+    // ignore JVMCI classes which are part of GraalVM but aren't available in public repositories
+    return new String[] {"jdk.vm.ci.meta.ResolvedJavaType", "jdk.vm.ci.meta.ResolvedJavaField"};
+  }
 }
