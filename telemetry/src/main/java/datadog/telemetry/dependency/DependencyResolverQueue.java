@@ -35,7 +35,7 @@ public class DependencyResolverQueue {
 
     // ignore already processed url
     synchronized (this) {
-      if (processedUrlsSet.contains(uri)) {
+      if (!processedUrlsSet.add(uri)) {
         return;
       }
     }
@@ -62,10 +62,6 @@ public class DependencyResolverQueue {
     }
     if (log.isDebugEnabled()) {
       log.debug("dependency detected {} for {}", dep, uri);
-    }
-
-    synchronized (this) {
-      processedUrlsSet.add(uri);
     }
 
     return dep;
