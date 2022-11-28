@@ -190,7 +190,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATIO
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS;
-import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MESSAGE_BROKER_SPLIT_BY_DESTINATION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.OBFUSCATION_QUERY_STRING_REGEXP;
 import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HTTP_STATUS;
@@ -406,7 +405,6 @@ public class Config {
   private final int tracerMetricsMaxAggregates;
   private final int tracerMetricsMaxPending;
 
-  private final boolean logsMDCTagsInjectionEnabled;
   private final boolean reportHostName;
 
   private final boolean traceAnalyticsEnabled;
@@ -876,7 +874,6 @@ public class Config {
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
     tracerMetricsMaxPending = configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048);
 
-    logsMDCTagsInjectionEnabled = configProvider.getBoolean(LOGS_MDC_TAGS_INJECTION_ENABLED, true);
     reportHostName =
         configProvider.getBoolean(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
 
@@ -1507,10 +1504,6 @@ public class Config {
 
   public boolean isLogsInjectionEnabled() {
     return instrumenterConfig.isLogsInjectionEnabled();
-  }
-
-  public boolean isLogsMDCTagsInjectionEnabled() {
-    return logsMDCTagsInjectionEnabled;
   }
 
   public boolean isReportHostName() {
@@ -2698,8 +2691,6 @@ public class Config {
         + tracerMetricsMaxAggregates
         + ", tracerMetricsMaxPending="
         + tracerMetricsMaxPending
-        + ", logsMDCTagsInjectionEnabled="
-        + logsMDCTagsInjectionEnabled
         + ", reportHostName="
         + reportHostName
         + ", traceAnalyticsEnabled="
