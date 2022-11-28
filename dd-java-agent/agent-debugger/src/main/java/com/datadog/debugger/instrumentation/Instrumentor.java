@@ -180,7 +180,9 @@ public class Instrumentor {
 
   protected LabelNode getReturnHandler(AbstractInsnNode exitNode) {
     // exit node must have been removed from the original instruction list
-    assert exitNode.getNext() == null && exitNode.getPrevious() == null;
+    if (exitNode.getNext() != null || exitNode.getPrevious() != null) {
+      throw new IllegalArgumentException("exitNode is not removed from original instruction list");
+    }
     if (returnHandlerLabel != null) {
       return returnHandlerLabel;
     }
