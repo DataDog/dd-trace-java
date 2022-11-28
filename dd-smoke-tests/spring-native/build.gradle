@@ -20,6 +20,8 @@ if (testJvm != null && testJvm.startsWith('GRAALVM')) {
   // Configure build directory for application
   def appDir = "$projectDir/application"
   def appBuildDir = "$buildDir/application"
+  def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
+  def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
   // Define the task that builds the Spring Native project
   tasks.register('springNativeBuild', Exec) {
     workingDir "$appDir"
@@ -28,7 +30,7 @@ if (testJvm != null && testJvm.startsWith('GRAALVM')) {
       "JAVA_HOME": testJvmHome,
       "GRAALVM_HOME": testJvmHome
     ]
-    commandLine "$rootDir/gradlew", "nativeCompile", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PagentPath=${project(':dd-java-agent').tasks.shadowJar.archivePath}"
+    commandLine "$rootDir/${gradlewCommand}", "nativeCompile", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PagentPath=${project(':dd-java-agent').tasks.shadowJar.archivePath}"
 
     outputs.cacheIf { true }
     outputs.dir(appBuildDir)
@@ -36,7 +38,7 @@ if (testJvm != null && testJvm.startsWith('GRAALVM')) {
 
     inputs.files(fileTree(appDir) {
       include '**/*'
-      exclude '.gradle/**', 'build/**'
+      exclude '.gradle/**'
     }).withPropertyName("application")
     .withPathSensitivity(PathSensitivity.RELATIVE)
   }
@@ -60,7 +62,6 @@ if (testJvm != null && testJvm.startsWith('GRAALVM')) {
     enabled = false
   }
 }
-
 
 spotless {
   java {

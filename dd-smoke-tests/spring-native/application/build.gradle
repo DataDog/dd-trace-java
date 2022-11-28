@@ -28,6 +28,8 @@ if (hasProperty('agentPath')) {
     binaries {
       main {
         buildArgs.add("-J-javaagent:${property('agentPath')}")
+        buildArgs.add("--enable-http")  // TODO Remove this option with final native-image support
+        buildArgs.add("-H:+AddAllCharsets")  // TODO Remove this option with final native-image support
       }
     }
   }
