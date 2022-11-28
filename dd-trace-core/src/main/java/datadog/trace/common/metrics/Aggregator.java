@@ -1,11 +1,9 @@
 package datadog.trace.common.metrics;
 
-import static datadog.trace.common.metrics.Aggregator.ReportEvent.SENT;
-import static datadog.trace.common.metrics.Batch.REPORT;
-import static datadog.trace.common.metrics.Batch.REPORT_AND_NOTIFY;
-import static datadog.trace.common.metrics.ConflatingMetricsAggregator.POISON_PILL;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.trace.common.metrics.SignalItem.ReportSignal;
+import datadog.trace.common.metrics.SignalItem.StopSignal;
 import datadog.trace.core.util.LRUCache;
 import java.util.Iterator;
 import java.util.Map;
@@ -22,7 +20,7 @@ final class Aggregator implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(Aggregator.class);
 
   private final Queue<Batch> batchPool;
-  private final BlockingQueue<Batch> inbox;
+  private final BlockingQueue<InboxItem> inbox;
   private final LRUCache<MetricKey, AggregateMetric> aggregates;
   private final NonBlockingHashMap<MetricKey, Batch> pending;
   private final Set<MetricKey> commonKeys;
@@ -31,20 +29,18 @@ final class Aggregator implements Runnable {
   // when the agent is unresponsive (only 10 pending requests will be
   // buffered by OkHttpSink)
   private final long reportingIntervalNanos;
-  private final BlockingQueue<ReportEvent> outbox;
 
   private boolean dirty;
 
   Aggregator(
       MetricWriter writer,
       Queue<Batch> batchPool,
-      BlockingQueue<Batch> inbox,
+      BlockingQueue<InboxItem> inbox,
       NonBlockingHashMap<MetricKey, Batch> pending,
       final Set<MetricKey> commonKeys,
       int maxAggregates,
       long reportingInterval,
-      TimeUnit reportingIntervalTimeUnit,
-      BlockingQueue<ReportEvent> outbox) {
+      TimeUnit reportingIntervalTimeUnit) {
     this.writer = writer;
     this.batchPool = batchPool;
     this.inbox = inbox;
@@ -54,7 +50,6 @@ final class Aggregator implements Runnable {
             new CommonKeyCleaner(commonKeys), maxAggregates * 4 / 3, 0.75f, maxAggregates);
     this.pending = pending;
     this.reportingIntervalNanos = reportingIntervalTimeUnit.toNanos(reportingInterval);
-    this.outbox = outbox;
   }
 
   public void clearAggregates() {
@@ -66,13 +61,14 @@ final class Aggregator implements Runnable {
     Thread currentThread = Thread.currentThread();
     while (!currentThread.isInterrupted()) {
       try {
-        Batch batch = inbox.take();
-        if (batch == POISON_PILL) {
-          report(wallClockTime(), true);
+        InboxItem item = inbox.take();
+        if (item instanceof StopSignal) {
+          report(wallClockTime(), (StopSignal) item);
           break;
-        } else if (batch == REPORT || batch == REPORT_AND_NOTIFY) {
-          report(wallClockTime(), batch == REPORT_AND_NOTIFY);
-        } else {
+        } else if (item instanceof ReportSignal) {
+          report(wallClockTime(), (ReportSignal) item);
+        } else if (item instanceof Batch) {
+          Batch batch = (Batch) item;
           MetricKey key = batch.getKey();
           // important that it is still *this* batch pending, must not remove otherwise
           pending.remove(key, batch);
@@ -95,7 +91,7 @@ final class Aggregator implements Runnable {
     log.debug("metrics aggregator exited");
   }
 
-  private void report(long when, boolean notify) {
+  private void report(long when, SignalItem signal) {
     boolean skipped = true;
     if (dirty) {
       try {
@@ -116,9 +112,7 @@ final class Aggregator implements Runnable {
       }
       dirty = false;
     }
-    if (notify) {
-      outbox.add(SENT);
-    }
+    signal.complete();
     if (skipped) {
       log.debug("skipped metrics reporting because no points have changed");
     }
@@ -153,9 +147,5 @@ final class Aggregator implements Runnable {
     public void accept(Map.Entry<MetricKey, AggregateMetric> expired) {
       commonKeys.remove(expired.getKey());
     }
-  }
-
-  static final class ReportEvent {
-    static final ReportEvent SENT = new ReportEvent();
   }
 }
