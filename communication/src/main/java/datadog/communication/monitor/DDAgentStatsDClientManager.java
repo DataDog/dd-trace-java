@@ -43,7 +43,8 @@ public final class DDAgentStatsDClientManager implements StatsDClientManager {
       final Integer port,
       final String namedPipe,
       final String namespace,
-      final String[] constantTags) {
+      final String[] constantTags,
+      final boolean useAggregation) {
     Function<String, String> nameMapping = Function.identity();
     Function<String[], String[]> tagMapping = Function.identity();
 
@@ -58,16 +59,18 @@ public final class DDAgentStatsDClientManager implements StatsDClientManager {
     if (USE_LOGGING_CLIENT) {
       return new LoggingStatsDClient(nameMapping, tagMapping);
     } else {
-      return new DDAgentStatsDClient(getConnection(host, port, namedPipe), nameMapping, tagMapping);
+      return new DDAgentStatsDClient(
+          getConnection(host, port, namedPipe, useAggregation), nameMapping, tagMapping);
     }
   }
 
   private DDAgentStatsDConnection getConnection(
-      final String host, final Integer port, final String namedPipe) {
-    String connectionKey = getConnectionKey(host, port, namedPipe);
+      final String host, final Integer port, final String namedPipe, boolean useAggregation) {
+    String connectionKey = getConnectionKey(host, port, namedPipe, useAggregation);
     DDAgentStatsDConnection connection = connectionPool.get(connectionKey);
     if (null == connection) {
-      DDAgentStatsDConnection newConnection = new DDAgentStatsDConnection(host, port, namedPipe);
+      DDAgentStatsDConnection newConnection =
+          new DDAgentStatsDConnection(host, port, namedPipe, useAggregation);
       connection = connectionPool.putIfAbsent(connectionKey, newConnection);
       if (null == connection) {
         connection = newConnection;
@@ -77,11 +80,14 @@ public final class DDAgentStatsDClientManager implements StatsDClientManager {
   }
 
   private static String getConnectionKey(
-      final String host, final Integer port, final String namedPipe) {
+      final String host, final Integer port, final String namedPipe, boolean useAggregation) {
     if (namedPipe != null) {
-      return namedPipe;
+      return namedPipe + (useAggregation ? "" : ":no_aggregation");
     }
-    return (null != host ? host : "?") + ":" + (null != port ? port : "?");
+    return (null != host ? host : "?")
+        + ":"
+        + (null != port ? port : "?")
+        + (useAggregation ? "" : ":no_aggregation");
   }
 
   private void handleDefaultPortChange(final int newPort) {
