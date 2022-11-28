@@ -388,23 +388,20 @@ public final class AsyncProfiler {
     return Math.max(min, Math.min(max, value));
   }
 
-  public void setContext(long spanId, long rootSpanId) {
+  public void setContext(int tid, long spanId, long rootSpanId) {
     if (asyncProfiler != null) {
       try {
-        asyncProfiler.setContext(spanId, rootSpanId);
+        asyncProfiler.setContext(tid, spanId, rootSpanId);
       } catch (IllegalStateException e) {
         log.warn("Failed to set context", e);
       }
     }
   }
 
-  public void clearContext() {
+  public int getNativeThreadId() {
     if (asyncProfiler != null) {
-      try {
-        asyncProfiler.clearContext();
-      } catch (IllegalStateException e) {
-        log.warn("Failed to clear context", e);
-      }
+      return asyncProfiler.getNativeThreadId();
     }
+    return -1;
   }
 }

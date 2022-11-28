@@ -173,15 +173,6 @@ public class AgentTracer {
     AgentSpan.Context notifyExtensionStart(Object event);
 
     void notifyExtensionEnd(AgentSpan span, boolean isError);
-
-    /**
-     * Registers a listener for notification when context is attached to and detached from a thread
-     *
-     * @param listener listener to context attachment/detachment
-     */
-    void addThreadContextListener(ContextThreadListener listener);
-
-    void detach();
   }
 
   public interface SpanBuilder {
@@ -383,12 +374,6 @@ public class AgentTracer {
 
     @Override
     public void notifyExtensionEnd(AgentSpan span, boolean isError) {}
-
-    @Override
-    public void addThreadContextListener(ContextThreadListener listener) {}
-
-    @Override
-    public void detach() {}
   }
 
   public static final class NoopAgentSpan implements AgentSpan {
