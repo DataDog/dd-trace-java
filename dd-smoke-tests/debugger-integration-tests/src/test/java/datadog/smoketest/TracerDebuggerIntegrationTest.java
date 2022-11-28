@@ -21,11 +21,9 @@ import java.util.regex.Pattern;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.mockwebserver.RecordedRequest;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@Disabled("Flaky Test https://github.com/DataDog/dd-trace-java/issues/4231")
 public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
 
   private static final String DEBUGGER_TEST_APP_CLASS =

@@ -2,8 +2,8 @@ package datadog.trace.common.writer;
 
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.Platform;
 import datadog.trace.core.DDSpan;
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -48,12 +48,9 @@ public class TraceStructureWriter implements Writer {
       outputFile = outputFile.substring(1);
     }
     try {
-      String[] args = ARGS_DELIMITER.split(outputFile);
+      String[] args = parseArgs(outputFile);
       String fileName = args[0];
-      this.out =
-          fileName.isEmpty()
-              ? System.err
-              : new PrintStream(new FileOutputStream(new File(fileName)));
+      this.out = fileName.isEmpty() ? System.err : new PrintStream(new FileOutputStream(fileName));
       for (int i = 1; i < args.length; i++) {
         switch (args[i].toLowerCase()) {
           case "includeresource":
@@ -76,6 +73,21 @@ public class TraceStructureWriter implements Writer {
     this.debugLog = argsDebugLog;
     this.includeResource = argsIncludeResource;
     this.includeService = argsIncludeService;
+  }
+
+  private static String[] parseArgs(String outputFile) {
+    String[] args = ARGS_DELIMITER.split(outputFile);
+    // Check Windows absolute paths (<drive>:<path>) as column is used as arg delimiter
+    if (Platform.isWindows()
+        && args.length > 1
+        && args[0].length() == 1
+        && (args[1].startsWith("\\") || args[1].startsWith("/"))) {
+      String[] windowsArgs = new String[args.length - 1];
+      windowsArgs[0] = args[0] + ":" + args[1];
+      System.arraycopy(args, 2, windowsArgs, 1, args.length - 2);
+      args = windowsArgs;
+    }
+    return args;
   }
 
   @Override

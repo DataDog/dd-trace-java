@@ -94,6 +94,7 @@ public final class TraceInstrumentationConfig {
   public static final String RESOLVER_OUTLINE_POOL_SIZE = "resolver.outline.pool.size";
   public static final String RESOLVER_TYPE_POOL_SIZE = "resolver.type.pool.size";
   public static final String RESOLVER_USE_LOADCLASS = "resolver.use.loadclass";
+  public static final String RESOLVER_RESET_INTERVAL = "resolver.reset.interval";
 
   private TraceInstrumentationConfig() {}
 }

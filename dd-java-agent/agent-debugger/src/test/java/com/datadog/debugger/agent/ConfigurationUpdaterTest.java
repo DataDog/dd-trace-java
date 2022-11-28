@@ -225,7 +225,7 @@ public class ConfigurationUpdaterTest {
             SnapshotProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build());
     List<MetricProbe> metricProbes =
         Arrays.asList(
-            MetricProbe.builder().metricId(METRIC_ID).where("java.lang.String", "concat").build());
+            MetricProbe.builder().probeId(METRIC_ID).where("java.lang.String", "concat").build());
     configurationUpdater.accept(createApp(snapshotProbes, metricProbes, Collections.emptyList()));
     verify(inst).addTransformer(any(), eq(true));
     verify(inst).getAllLoadedClasses();
@@ -577,7 +577,7 @@ public class ConfigurationUpdaterTest {
         new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
     List<MetricProbe> metricProbes =
         Collections.singletonList(
-            MetricProbe.builder().metricId(METRIC_ID).where("java.lang.String", "concat").build());
+            MetricProbe.builder().probeId(METRIC_ID).where("java.lang.String", "concat").build());
     configurationUpdater.accept(createAppMetrics(metricProbes));
     verify(inst).addTransformer(any(), eq(true));
     verify(inst).getAllLoadedClasses();
@@ -593,7 +593,7 @@ public class ConfigurationUpdaterTest {
         new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
     List<LogProbe> logProbes =
         Collections.singletonList(
-            LogProbe.builder().logId(LOG_ID).where("java.lang.String", "concat").build());
+            LogProbe.builder().probeId(LOG_ID).where("java.lang.String", "concat").build());
     configurationUpdater.accept(createAppLogs(logProbes));
     verify(inst).addTransformer(any(), eq(true));
     verify(inst).getAllLoadedClasses();
@@ -610,13 +610,13 @@ public class ConfigurationUpdaterTest {
     MetricProbe metricProbe1 =
         MetricProbe.builder()
             .language(LANGUAGE)
-            .metricId(METRIC_ID)
+            .probeId(METRIC_ID)
             .where("java.lang.String", "concat")
             .build();
     MetricProbe metricProbe2 =
         MetricProbe.builder()
             .language(LANGUAGE)
-            .metricId(METRIC_ID2)
+            .probeId(METRIC_ID2)
             .where("java.util.HashMap", "<init>", "void ()")
             .build();
     List<MetricProbe> metricProbes = Arrays.asList(metricProbe1, metricProbe2);
@@ -643,13 +643,13 @@ public class ConfigurationUpdaterTest {
     LogProbe logProbe1 =
         LogProbe.builder()
             .language(LANGUAGE)
-            .logId(LOG_ID)
+            .probeId(LOG_ID)
             .where("java.lang.String", "concat")
             .build();
     LogProbe logProbe2 =
         LogProbe.builder()
             .language(LANGUAGE)
-            .logId(LOG_ID2)
+            .probeId(LOG_ID2)
             .where("java.util.HashMap", "<init>", "void ()")
             .build();
     List<LogProbe> logProbes = Arrays.asList(logProbe1, logProbe2);
@@ -675,7 +675,7 @@ public class ConfigurationUpdaterTest {
         new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
     List<MetricProbe> metricProbes =
         Collections.singletonList(
-            MetricProbe.builder().metricId(METRIC_ID).where("java.lang.String", "concat").build());
+            MetricProbe.builder().probeId(METRIC_ID).where("java.lang.String", "concat").build());
     configurationUpdater.accept(createAppMetrics(metricProbes));
     configurationUpdater.accept(null);
     verify(inst).removeTransformer(any());
@@ -690,7 +690,7 @@ public class ConfigurationUpdaterTest {
         new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
     List<LogProbe> logProbes =
         Collections.singletonList(
-            LogProbe.builder().logId(LOG_ID).where("java.lang.String", "concat").build());
+            LogProbe.builder().probeId(LOG_ID).where("java.lang.String", "concat").build());
     configurationUpdater.accept(createAppLogs(logProbes));
     configurationUpdater.accept(null);
     verify(inst).removeTransformer(any());
@@ -721,7 +721,7 @@ public class ConfigurationUpdaterTest {
         Collections.singletonList(
             MetricProbe.builder()
                 .language(LANGUAGE)
-                .metricId(METRIC_ID)
+                .probeId(METRIC_ID)
                 .where("java.lang.StringBuilder", "append")
                 .build());
     configurationUpdater.accept(createAppMetrics(metricProbes));

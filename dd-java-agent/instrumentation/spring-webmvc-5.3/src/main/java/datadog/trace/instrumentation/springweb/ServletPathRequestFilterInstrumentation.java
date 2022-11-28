@@ -23,12 +23,13 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 public class ServletPathRequestFilterInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public ServletPathRequestFilterInstrumentation() {
-    super("spring-web");
+    super("spring-web", "spring-path-filter");
   }
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassNamed("org.springframework.web.filter.ServletRequestPathFilter");
+    return hasClassNamed("org.springframework.web.filter.ServletRequestPathFilter")
+        .and(hasClassNamed("javax.servlet.Filter"));
   }
 
   @Override

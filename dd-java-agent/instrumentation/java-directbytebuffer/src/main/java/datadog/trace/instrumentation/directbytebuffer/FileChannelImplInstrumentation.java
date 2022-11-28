@@ -7,7 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Platform;
 
 @AutoService(Instrumenter.class)
@@ -25,7 +25,7 @@ public final class FileChannelImplInstrumentation extends Instrumenter.Profiling
 
   @Override
   protected boolean defaultEnabled() {
-    return Config.get().isDirectAllocationProfilingEnabled();
+    return InstrumenterConfig.get().isDirectAllocationProfilingEnabled();
   }
 
   @Override

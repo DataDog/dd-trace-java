@@ -12,17 +12,18 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 /** Helper class for generating snapshot summaries */
-public class SnapshotSummaryBuilder {
-  private final Snapshot.ProbeDetails probe;
+public class SnapshotSummaryBuilder implements SummaryBuilder {
+  private final ProbeLocation probeLocation;
   private String arguments;
   private String method;
   private String returnValue;
   private String locals;
 
-  public SnapshotSummaryBuilder(Snapshot.ProbeDetails probe) {
-    this.probe = probe;
+  public SnapshotSummaryBuilder(ProbeLocation probeLocation) {
+    this.probeLocation = probeLocation;
   }
 
+  @Override
   public void addEntry(Snapshot.CapturedContext entry) {
     if (entry == null) {
       return;
@@ -32,6 +33,7 @@ public class SnapshotSummaryBuilder {
     }
   }
 
+  @Override
   public void addExit(Snapshot.CapturedContext exit) {
     if (exit == null) {
       return;
@@ -46,6 +48,7 @@ public class SnapshotSummaryBuilder {
     }
   }
 
+  @Override
   public void addLine(Snapshot.CapturedContext line) {
     if (line == null) {
       return;
@@ -58,14 +61,16 @@ public class SnapshotSummaryBuilder {
     }
   }
 
+  @Override
   public void addStack(List<CapturedStackFrame> stack) {
-    method = formatMethod(stack, probe.getLocation());
+    method = formatMethod(stack, probeLocation);
   }
 
+  @Override
   public String build() {
     StringBuilder sb = new StringBuilder();
     if (method == null) {
-      method = formatMethod(probe.getLocation());
+      method = formatMethod(probeLocation);
     }
     sb.append(method);
     sb.append("(");

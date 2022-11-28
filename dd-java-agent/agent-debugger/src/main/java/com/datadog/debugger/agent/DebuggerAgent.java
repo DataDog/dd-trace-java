@@ -46,6 +46,7 @@ public class DebuggerAgent {
     boolean isSnapshotUploadThroughAgent = Objects.equals(finalDebuggerSnapshotUrl, agentUrl);
 
     DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = sco.featuresDiscovery(config);
+    ddAgentFeaturesDiscovery.discoverIfOutdated();
     agentVersion = ddAgentFeaturesDiscovery.getVersion();
 
     if (isSnapshotUploadThroughAgent && !ddAgentFeaturesDiscovery.supportsDebugger()) {
@@ -83,7 +84,7 @@ public class DebuggerAgent {
       return;
     }
 
-    configurationPoller = (ConfigurationPoller) sco.configurationPoller(config);
+    configurationPoller = sco.configurationPoller(config);
     if (configurationPoller != null) {
       subscribeConfigurationPoller(configurationUpdater);
 

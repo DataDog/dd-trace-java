@@ -11,7 +11,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
-import datadog.trace.api.ProductActivationConfig;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.instrumentation.jetty9.HttpChannelHandleVisitor;
 import java.security.ProtectionDomain;
@@ -111,7 +111,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
         MethodList<?> methods,
         int writerFlags,
         int readerFlags) {
-      if (Config.get().getAppSecEnabledConfig() == ProductActivationConfig.FULLY_DISABLED) {
+      if (Config.get().getAppSecActivation() == ProductActivation.FULLY_DISABLED) {
         return classVisitor;
       }
 

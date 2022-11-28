@@ -27,6 +27,7 @@ import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.SnapshotSummaryBuilder;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import groovy.lang.GroovyClassLoader;
 import java.io.File;
@@ -767,7 +768,7 @@ public class CapturedSnapshotTest {
             .language(LANGUAGE)
             .probeId(PROBE_ID)
             .active(true)
-            .where(CLASS_NAME, "main", "int (java.lang.String)", "8")
+            .where(CLASS_NAME, 8)
             .sampling(new SnapshotProbe.Sampling(1))
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener =
@@ -1252,6 +1253,7 @@ public class CapturedSnapshotTest {
             location,
             probe.getProbeCondition(),
             probe.concatTags(),
+            new SnapshotSummaryBuilder(location),
             probe.getAdditionalProbes().stream()
                 .map(
                     (ProbeDefinition relatedProbe) ->
@@ -1259,7 +1261,8 @@ public class CapturedSnapshotTest {
                             relatedProbe.getId(),
                             location,
                             ((SnapshotProbe) relatedProbe).getProbeCondition(),
-                            ((SnapshotProbe) relatedProbe).concatTags()))
+                            relatedProbe.concatTags(),
+                            new SnapshotSummaryBuilder(location)))
                 .collect(Collectors.toList()));
       }
     }

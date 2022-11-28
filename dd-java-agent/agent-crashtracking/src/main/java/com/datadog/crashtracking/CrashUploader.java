@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -216,12 +217,31 @@ public final class CrashUploader {
         .trim();
   }
 
-  private static final Pattern errorStackTracePattern =
-      Pattern.compile(String.join("", "^", "$"), Pattern.DOTALL | Pattern.MULTILINE);
+  private static final Pattern ERROR_STACK_TRACE_PATTERN =
+      Pattern.compile(
+          "(Native frames: \\(J=compiled Java code, j=interpreted, Vv=VM code, C=native code\\)\n)(.+)(\n\\s*$)",
+          Pattern.DOTALL | Pattern.MULTILINE);
 
   private String extractErrorStackTrace(String fileContent) {
-    // TODO: implement errorStackTracePattern
-    return null;
+    Scanner scanner = new Scanner(fileContent);
+    StringBuilder stacktrace = new StringBuilder();
+    boolean foundStart = false;
+    while (scanner.hasNext()) {
+      String next = scanner.nextLine();
+      if (foundStart && next.isEmpty()) {
+        if (stacktrace.length() > 0) {
+          // remove trailing newline
+          stacktrace.setLength(stacktrace.length() - 1);
+        }
+        return stacktrace.toString();
+      }
+      if (foundStart) {
+        stacktrace.append(next).append('\n');
+      } else {
+        foundStart = next.startsWith("Native frames:");
+      }
+    }
+    return "";
   }
 
   void uploadToTelemetry(@Nonnull List<String> filesContent) throws IOException {

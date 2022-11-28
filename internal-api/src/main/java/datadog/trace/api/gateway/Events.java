@@ -138,7 +138,7 @@ public final class Events<D> {
 
   @SuppressWarnings("rawtypes")
   private static final EventType REQUEST_BODY_CONVERTED =
-      new ET<>("request.body.done", REQUEST_BODY_CONVERTED_ID);
+      new ET<>("request.body.converted", REQUEST_BODY_CONVERTED_ID);
   /** The request body has been converted by the framework */
   @SuppressWarnings("unchecked")
   public EventType<BiFunction<RequestContext, Object, Flow<Void>>> requestBodyProcessed() {

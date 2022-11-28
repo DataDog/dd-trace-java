@@ -100,6 +100,6 @@ class DDSpanIdTest extends DDSpecification {
     }
 
     where:
-    strategyName << ["RANDOM", "SEQUENTIAL"]
+    strategyName << ["RANDOM", "SEQUENTIAL", "SECURE_RANDOM"]
   }
 }

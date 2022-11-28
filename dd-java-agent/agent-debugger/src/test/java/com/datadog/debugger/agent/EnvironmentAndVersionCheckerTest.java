@@ -107,8 +107,6 @@ public class EnvironmentAndVersionCheckerTest {
   }
 
   private ProbeDefinition getProbeWithTags(String... tags) {
-    SnapshotProbe probe = new SnapshotProbe("java", "1", true, tags, null, null, null, null);
-
-    return probe;
+    return SnapshotProbe.builder().probeId("1").tags(tags).build();
   }
 }
