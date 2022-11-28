@@ -1,11 +1,6 @@
 package datadog.trace.test.util
 
 import de.thetaphi.forbiddenapis.SuppressForbidden
-import net.bytebuddy.agent.ByteBuddyAgent
-import net.bytebuddy.agent.builder.AgentBuilder
-import net.bytebuddy.dynamic.ClassFileLocator
-import net.bytebuddy.dynamic.Transformer
-import net.bytebuddy.utility.JavaModule
 import org.junit.Rule
 import spock.lang.Shared
 import spock.lang.Specification
@@ -13,13 +8,6 @@ import spock.lang.Specification
 import java.lang.reflect.Constructor
 import java.lang.reflect.Field
 import java.lang.reflect.Modifier
-
-import static net.bytebuddy.description.modifier.FieldManifestation.VOLATILE
-import static net.bytebuddy.description.modifier.Ownership.STATIC
-import static net.bytebuddy.description.modifier.Visibility.PUBLIC
-import static net.bytebuddy.matcher.ElementMatchers.named
-import static net.bytebuddy.matcher.ElementMatchers.namedOneOf
-import static net.bytebuddy.matcher.ElementMatchers.none
 
 @SuppressForbidden
 abstract class DDSpecification extends Specification {
@@ -60,24 +48,6 @@ abstract class DDSpecification extends Specification {
     }
 
     try {
-      def instrumentation = ByteBuddyAgent.install()
-      new AgentBuilder.Default()
-        .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
-        .with(AgentBuilder.RedefinitionStrategy.Listener.ErrorEscalating.FAIL_FAST)
-        // Config is injected into the bootstrap, so we need to provide a locator.
-        .with(
-        new AgentBuilder.LocationStrategy.Simple(
-        ClassFileLocator.ForClassLoader.ofSystemLoader()))
-        .ignore(none()) // Allow transforming bootstrap classes
-        .type(namedOneOf(INST_CONFIG, CONFIG))
-        .transform { builder, typeDescription, classLoader, module, pd ->
-          builder
-            .field(named("INSTANCE"))
-            .transform(Transformer.ForField.withModifiers(PUBLIC, STATIC, VOLATILE))
-        }
-        .with(new ConfigInstrumentationFailedListener())
-        .installOn(instrumentation)
-
       Class instConfigClass = Class.forName(INST_CONFIG)
       instConfigInstanceField = instConfigClass.getDeclaredField("INSTANCE")
       instConfigConstructor = instConfigClass.getDeclaredConstructor()
@@ -96,7 +66,7 @@ abstract class DDSpecification extends Specification {
         println("Config will not be modifiable")
         e.printStackTrace()
       }
-    } catch (ReflectiveOperationException | IllegalStateException e) {
+    } catch (ReflectiveOperationException e) {
       configModificationFailed = true
       println("Config will not be modifiable")
       e.printStackTrace()
@@ -271,11 +241,3 @@ abstract class DDSpecification extends Specification {
   }
 }
 
-class ConfigInstrumentationFailedListener extends AgentBuilder.Listener.Adapter {
-  @Override
-  void onError(String typeName, ClassLoader classLoader, JavaModule module, boolean loaded, Throwable throwable) {
-    if (DDSpecification.CONFIG == typeName) {
-      DDSpecification.configModificationFailed = true
-    }
-  }
-}
