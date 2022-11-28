@@ -953,10 +953,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         edgeTags.size() == DSM_EDGE_TAGS.size()
       }
     }
-
-    where:
-    method = "GET"
-    body = null
   }
 
   def "test exception"() {
@@ -1042,10 +1038,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         edgeTags.size() == DSM_EDGE_TAGS.size()
       }
     }
-
-    where:
-    method = "GET"
-    body = null
   }
 
   def "test timeout"() {
