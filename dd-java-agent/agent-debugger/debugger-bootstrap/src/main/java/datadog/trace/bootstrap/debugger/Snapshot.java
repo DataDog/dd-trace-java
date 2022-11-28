@@ -92,7 +92,7 @@ public class Snapshot {
   public void setEntry(CapturedContext context) {
     summaryBuilder.addEntry(context);
     context.setThisClassName(thisClassName);
-    if ((probe.getEvaluateAt() == MethodLocation.NONE
+    if ((probe.getEvaluateAt() == MethodLocation.DEFAULT
             || probe.getEvaluateAt() == MethodLocation.ENTRY)
         && checkCapture(context)) {
       captures.setEntry(context);
@@ -104,7 +104,7 @@ public class Snapshot {
     context.addExtension(ValueReferences.DURATION_EXTENSION_NAME, duration);
     summaryBuilder.addExit(context);
     context.setThisClassName(thisClassName);
-    if ((probe.getEvaluateAt() == MethodLocation.NONE
+    if ((probe.getEvaluateAt() == MethodLocation.DEFAULT
             || probe.getEvaluateAt() == MethodLocation.EXIT)
         && checkCapture(context)) {
       captures.setReturn(context);
@@ -296,7 +296,7 @@ public class Snapshot {
   }
 
   public enum MethodLocation {
-    NONE,
+    DEFAULT,
     ENTRY,
     EXIT
   }
@@ -320,7 +320,7 @@ public class Snapshot {
       this(
           id,
           location,
-          MethodLocation.NONE,
+          MethodLocation.DEFAULT,
           null,
           null,
           new SnapshotSummaryBuilder(location),

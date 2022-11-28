@@ -85,7 +85,7 @@ public class LogProbe extends ProbeDefinition {
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
   public LogProbe() {
-    this(LANGUAGE, null, true, null, null, MethodLocation.NONE, null, new ArrayList<>());
+    this(LANGUAGE, null, true, null, null, MethodLocation.DEFAULT, null, new ArrayList<>());
   }
 
   public LogProbe(

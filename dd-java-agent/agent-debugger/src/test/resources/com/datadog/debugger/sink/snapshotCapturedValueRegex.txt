@@ -51,7 +51,7 @@
 \},
 "language":"java",
 "probe":\{
-"evaluateAt":"NONE",
+"evaluateAt":"DEFAULT",
 "id":"12fd-8490-c111-4374-ffde",
 "location":\{
 "file":"String.java",

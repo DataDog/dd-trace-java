@@ -306,8 +306,8 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
   private Snapshot.MethodLocation convertMethodLocation(
       ProbeDefinition.MethodLocation methodLocation) {
     switch (methodLocation) {
-      case NONE:
-        return Snapshot.MethodLocation.NONE;
+      case DEFAULT:
+        return Snapshot.MethodLocation.DEFAULT;
       case ENTRY:
         return Snapshot.MethodLocation.ENTRY;
       case EXIT:

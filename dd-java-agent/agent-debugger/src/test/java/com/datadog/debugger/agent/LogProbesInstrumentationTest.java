@@ -239,7 +239,7 @@ public class LogProbesInstrumentationTest {
         return new Snapshot.ProbeDetails(
             id,
             location,
-            Snapshot.MethodLocation.NONE,
+            Snapshot.MethodLocation.DEFAULT,
             null,
             probe.concatTags(),
             new LogMessageTemplateSummaryBuilder(probe),
@@ -249,7 +249,7 @@ public class LogProbesInstrumentationTest {
                         new Snapshot.ProbeDetails(
                             relatedProbe.getId(),
                             location,
-                            Snapshot.MethodLocation.NONE,
+                            Snapshot.MethodLocation.DEFAULT,
                             relatedProbe instanceof SnapshotProbe
                                 ? ((SnapshotProbe) relatedProbe).getProbeCondition()
                                 : null,

@@ -58,7 +58,7 @@ public class MetricInstrumentor extends Instrumentor {
     } else {
       switch (definition.getEvaluateAt()) {
         case ENTRY:
-        case NONE:
+        case DEFAULT:
           {
             InsnList insnList = callMetric(metricProbe);
             methodNode.instructions.insert(methodEnterLabel, insnList);
