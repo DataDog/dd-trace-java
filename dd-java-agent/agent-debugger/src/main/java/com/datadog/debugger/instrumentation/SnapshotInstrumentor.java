@@ -12,6 +12,7 @@ import static com.datadog.debugger.instrumentation.Types.THROWABLE_TYPE;
 import static org.objectweb.asm.Type.INT_TYPE;
 
 import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SnapshotProbe;
 import com.datadog.debugger.probe.Where;
 import datadog.trace.api.Config;
@@ -31,7 +32,6 @@ import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
-import org.objectweb.asm.tree.LineNumberNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
@@ -45,7 +45,6 @@ public final class SnapshotInstrumentor extends Instrumentor {
   private final boolean captureFullState;
   private final LabelNode snapshotInitLabel = new LabelNode();
   private int snapshotVar = -1;
-  private LabelNode returnHandlerLabel = null;
 
   public SnapshotInstrumentor(
       SnapshotProbe snapshotProbe,
@@ -79,45 +78,6 @@ public final class SnapshotInstrumentor extends Instrumentor {
       processInstructions();
       addFinallyHandler(returnHandlerLabel);
     }
-  }
-
-  private void processInstructions() {
-    AbstractInsnNode node = methodNode.instructions.getFirst();
-    while (node != null && !node.equals(returnHandlerLabel)) {
-      if (node.getType() == AbstractInsnNode.LINE) {
-        lineMap.addLine((LineNumberNode) node);
-      } else {
-        node = processInstruction(node);
-      }
-      node = node.getNext();
-    }
-    if (returnHandlerLabel == null) {
-      // if no return found, fallback to use the last instruction as last resort
-      returnHandlerLabel = new LabelNode();
-      methodNode.instructions.insert(methodNode.instructions.getLast(), returnHandlerLabel);
-    }
-  }
-
-  private AbstractInsnNode processInstruction(AbstractInsnNode node) {
-    switch (node.getOpcode()) {
-      case Opcodes.RET:
-      case Opcodes.RETURN:
-      case Opcodes.IRETURN:
-      case Opcodes.FRETURN:
-      case Opcodes.LRETURN:
-      case Opcodes.DRETURN:
-      case Opcodes.ARETURN:
-        {
-          methodNode.instructions.insertBefore(
-              node, collectSnapshotCapture(-1, Snapshot.Kind.RETURN, node));
-          AbstractInsnNode prev = node.getPrevious();
-          methodNode.instructions.remove(node);
-          methodNode.instructions.insert(
-              prev, new JumpInsnNode(Opcodes.GOTO, getReturnHandler(node)));
-          return prev;
-        }
-    }
-    return node;
   }
 
   private void addLineCaptures(LineMap lineMap) {
@@ -156,19 +116,14 @@ public final class SnapshotInstrumentor extends Instrumentor {
     }
   }
 
-  private LabelNode getReturnHandler(AbstractInsnNode exitNode) {
-    // exit node must have been removed from the original instruction list
-    assert exitNode.getNext() == null && exitNode.getPrevious() == null;
-    if (returnHandlerLabel != null) {
-      return returnHandlerLabel;
-    }
-    returnHandlerLabel = new LabelNode();
-    methodNode.instructions.add(returnHandlerLabel);
-    // stack top is return value (if any)
-    InsnList handler = commitSnapshot();
-    handler.add(exitNode); // stack: []
-    methodNode.instructions.add(handler);
-    return returnHandlerLabel;
+  @Override
+  protected InsnList getBeforeReturnInsnList(AbstractInsnNode node) {
+    return collectSnapshotCapture(-1, Snapshot.Kind.RETURN, node);
+  }
+
+  @Override
+  protected InsnList getReturnHandlerInsnList() {
+    return commitSnapshot();
   }
 
   private InsnList commitSnapshot() {
@@ -203,8 +158,16 @@ public final class SnapshotInstrumentor extends Instrumentor {
   }
 
   private void instrumentMethodEnter() {
-    methodNode.instructions.insert(
-        snapshotInitLabel, collectSnapshotCapture(-1, Snapshot.Kind.ENTER, null));
+    InsnList insnList;
+    if (definition.getEvaluateAt() == ProbeDefinition.MethodLocation.EXIT) {
+      // if evaluation is at exit, skip collecting data at enter
+      // but create the snapshot at entry anyway
+      insnList = new InsnList();
+      getSnapshot(insnList);
+    } else {
+      insnList = collectSnapshotCapture(-1, Snapshot.Kind.ENTER, null);
+    }
+    methodNode.instructions.insert(snapshotInitLabel, insnList);
   }
 
   private void instrumentTryCatchHandlers() {

@@ -85,7 +85,7 @@ public class LogProbe extends ProbeDefinition {
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
   public LogProbe() {
-    this(LANGUAGE, null, true, null, null, MethodLocation.NONE, null, new ArrayList<>());
+    this(LANGUAGE, null, true, null, null, MethodLocation.DEFAULT, null, new ArrayList<>());
   }
 
   public LogProbe(
@@ -180,7 +180,7 @@ public class LogProbe extends ProbeDefinition {
     private String template;
     private List<Segment> segments;
 
-    public LogProbe.Builder template(String template) {
+    public Builder template(String template) {
       this.template = template;
       this.segments = parseTemplate(template);
       return this;

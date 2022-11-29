@@ -10,6 +10,7 @@ import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.instrumentation.InsnListValue;
 import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
@@ -506,6 +507,42 @@ public class MetricProbesInstrumentationTest {
     Assert.assertEquals(2, listener.counters.get(METRIC_NAME).longValue());
     result = Reflect.on(testClass).call("main", "2").get();
     Assert.assertEquals(3, listener.counters.get(METRIC_NAME).longValue());
+  }
+
+  @Test
+  public void evaluateAtEntry() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot06";
+    String METRIC_NAME = "field_count";
+    MetricProbe metricProbe =
+        createMetricBuilder(METRIC_ID, METRIC_NAME, COUNT)
+            .where(CLASS_NAME, "f", "()")
+            .valueScript(new ValueScript(".intValue"))
+            .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
+            .build();
+    MetricForwarderListener listener = installMetricProbes(metricProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assert.assertEquals(42, result);
+    Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
+    Assert.assertEquals(24, listener.counters.get(METRIC_NAME).longValue());
+  }
+
+  @Test
+  public void evaluateAtExit() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot06";
+    String METRIC_NAME = "field_count";
+    MetricProbe metricProbe =
+        createMetricBuilder(METRIC_ID, METRIC_NAME, COUNT)
+            .where(CLASS_NAME, "f", "()")
+            .valueScript(new ValueScript(".intValue"))
+            .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
+            .build();
+    MetricForwarderListener listener = installMetricProbes(metricProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assert.assertEquals(42, result);
+    Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
+    Assert.assertEquals(48, listener.counters.get(METRIC_NAME).longValue());
   }
 
   private MetricForwarderListener installSingleMetric(

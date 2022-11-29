@@ -1146,6 +1146,62 @@ public class CapturedSnapshotTest {
         expectedFields);
   }
 
+  @Test
+  public void evaluateAtEntry() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    SnapshotProbe snapshotProbe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "main", "int (java.lang.String)")
+            .when(
+                new ProbeCondition(
+                    DSL.when(DSL.eq(DSL.ref("^arg"), DSL.value("1"))), "^arg == '1'"))
+            .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, snapshotProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    Assert.assertEquals(3, result);
+    assertOneSnapshot(listener);
+  }
+
+  @Test
+  public void evaluateAtExit() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    SnapshotProbe snapshotProbe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "main", "int (java.lang.String)")
+            .when(
+                new ProbeCondition(
+                    DSL.when(DSL.eq(DSL.ref("@return"), DSL.value(3))), "@return == 3"))
+            .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, snapshotProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    Assert.assertEquals(3, result);
+    assertOneSnapshot(listener);
+  }
+
+  @Test
+  public void evaluateAtExitFalse() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    SnapshotProbe snapshotProbe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "main", "int (java.lang.String)")
+            .when(
+                new ProbeCondition(
+                    DSL.when(DSL.eq(DSL.ref("@return"), DSL.value(0))), "@return == 0"))
+            .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, snapshotProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    Assert.assertEquals(3, result);
+    Assert.assertEquals(0, listener.snapshots.size());
+    Assert.assertTrue(listener.skipped);
+    Assert.assertEquals(DebuggerContext.SkipCause.CONDITION, listener.cause);
+  }
+
   private DebuggerTransformerTest.TestSnapshotListener setupInstrumentTheWorldTransformer(
       String excludeFileName) {
     Config config = mock(Config.class);
@@ -1251,6 +1307,7 @@ public class CapturedSnapshotTest {
         return new Snapshot.ProbeDetails(
             id,
             location,
+            Snapshot.MethodLocation.DEFAULT,
             probe.getProbeCondition(),
             probe.concatTags(),
             new SnapshotSummaryBuilder(location),
@@ -1260,6 +1317,7 @@ public class CapturedSnapshotTest {
                         new Snapshot.ProbeDetails(
                             relatedProbe.getId(),
                             location,
+                            Snapshot.MethodLocation.DEFAULT,
                             ((SnapshotProbe) relatedProbe).getProbeCondition(),
                             relatedProbe.concatTags(),
                             new SnapshotSummaryBuilder(location)))

@@ -74,6 +74,19 @@ public class LogProbesInstrumentationTest {
   }
 
   @Test
+  public void methodTemplateArgLogEvaluateAtExit() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installSingleProbe(
+            "this is log line with return={@return}", CLASS_NAME, "main", "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    Assert.assertEquals(3, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertEquals("this is log line with return=3", snapshot.getSummary());
+  }
+
+  @Test
   public void linePlainLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     DebuggerTransformerTest.TestSnapshotListener listener =
@@ -226,6 +239,7 @@ public class LogProbesInstrumentationTest {
         return new Snapshot.ProbeDetails(
             id,
             location,
+            Snapshot.MethodLocation.DEFAULT,
             null,
             probe.concatTags(),
             new LogMessageTemplateSummaryBuilder(probe),
@@ -235,6 +249,7 @@ public class LogProbesInstrumentationTest {
                         new Snapshot.ProbeDetails(
                             relatedProbe.getId(),
                             location,
+                            Snapshot.MethodLocation.DEFAULT,
                             relatedProbe instanceof SnapshotProbe
                                 ? ((SnapshotProbe) relatedProbe).getProbeCondition()
                                 : null,

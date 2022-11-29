@@ -26,7 +26,7 @@ public class MetricProbe extends ProbeDefinition {
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
   public MetricProbe() {
-    this(LANGUAGE, null, true, null, null, MethodLocation.NONE, MetricKind.COUNT, null, null);
+    this(LANGUAGE, null, true, null, null, MethodLocation.DEFAULT, MetricKind.COUNT, null, null);
   }
 
   public MetricProbe(
