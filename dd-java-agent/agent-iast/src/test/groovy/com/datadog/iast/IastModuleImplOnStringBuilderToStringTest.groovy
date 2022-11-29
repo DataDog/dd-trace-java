@@ -32,7 +32,7 @@ class IastModuleImplOnStringBuilderToStringTest extends IastModuleImplTestBase {
     0 * _
   }
 
-  void 'onStringBuilderToString (#builder)'(StringBuilder builder, final String expected) {
+  void 'onStringBuilderToString (#originalBuilder)'(final StringBuilder originalBuilder, final String expected) {
     given:
     final span = Mock(AgentSpan)
     tracer.activeSpan() >> span
@@ -43,7 +43,7 @@ class IastModuleImplOnStringBuilderToStringTest extends IastModuleImplTestBase {
 
     and:
     final taintedObjects = ctx.getTaintedObjects()
-    builder = addFromTaintFormat(taintedObjects, builder)
+    final builder = addFromTaintFormat(taintedObjects, originalBuilder)
     objectHolder.add(builder)
 
     and:
@@ -70,7 +70,7 @@ class IastModuleImplOnStringBuilderToStringTest extends IastModuleImplTestBase {
     }
 
     where:
-    builder            | expected
+    originalBuilder    | expected
     sb('123')          | '123'
     sb('==>123<==')    | '==>123<=='
     sb('==>123<==456') | '==>123<==456'
