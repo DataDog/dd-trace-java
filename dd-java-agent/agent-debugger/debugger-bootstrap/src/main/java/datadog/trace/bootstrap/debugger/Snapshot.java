@@ -14,7 +14,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -577,7 +576,6 @@ public class Snapshot {
    * Stores different kind of data (arguments, locals, fields, exception) for a specific location
    */
   public static class CapturedContext implements ValueReferenceResolver {
-    private static final Pattern DOT_PATTERN = Pattern.compile("\\.");
     private final transient Map<String, Object> extensions = new HashMap<>();
 
     private Map<String, CapturedValue> arguments;
@@ -613,108 +611,93 @@ public class Snapshot {
     }
 
     @Override
-    public Object resolve(String path) {
-      // 'path' is a string which starts with a prefixed head element and can contain
-      // a number of period separated tail elements denoting access to fields (of fields)
-      String prefix = path.substring(0, 1);
-      String[] parts = DOT_PATTERN.split(path.substring(1));
-
-      String head = parts[0];
-      Object target = Values.UNDEFINED_OBJECT;
-      if (prefix.equals(ValueReferences.FIELD_PREFIX)) {
-        target = tryRetrieveField(head);
-        checkUndefined(path, target, head, "Cannot find field: ");
-      } else if (prefix.equals(ValueReferences.SYNTHETIC_PREFIX)) {
-        target = tryRetrieveSynthetic(head);
-        checkUndefined(path, target, head, "Cannot find synthetic var: ");
-      } else if (prefix.equals(ValueReferences.LOCALVAR_PREFIX)) {
-        target = tryRetrieveLocalVar(head);
-        checkUndefined(path, target, head, "Cannot find local var: ");
-      } else if (prefix.equals(ValueReferences.ARGUMENT_PREFIX)) {
-        target = tryRetrieveArgument(head);
-        checkUndefined(path, target, head, "Cannot find argument: ");
+    public Object lookup(String name) {
+      String prefix = name.substring(0, 1);
+      boolean hasPrefix = ValueReferences.isRefPrefix(prefix);
+      String rawName = hasPrefix ? name.substring(prefix.length()) : name;
+      Object target;
+      if (hasPrefix) {
+        if (prefix.equals(ValueReferences.FIELD_PREFIX)) {
+          target = tryRetrieveField(rawName);
+          checkUndefined(name, target, rawName, "Cannot find field: ");
+        } else if (prefix.equals(ValueReferences.SYNTHETIC_PREFIX)) {
+          target = tryRetrieveSynthetic(rawName);
+          checkUndefined(name, target, rawName, "Cannot find synthetic var: ");
+        } else {
+          throw new IllegalArgumentException("Invalid reference prefix: " + prefix);
+        }
+      } else {
+        target = tryRetrieve(rawName);
+        checkUndefined(name, target, rawName, "Cannot find symbol: ");
       }
-      target = followReferences(path, target, parts);
-
       return target instanceof CapturedValue ? ((CapturedValue) target).getValue() : target;
     }
 
-    private void checkUndefined(String path, Object target, String name, String msg) {
+    private void checkUndefined(String expr, Object target, String name, String msg) {
       if (target == Values.UNDEFINED_OBJECT) {
-        addEvalError(path, msg + name);
+        addEvalError(expr, msg + name);
       }
+    }
+
+    @Override
+    public Object getMember(Object target, String memberName) {
+      if (target == Values.UNDEFINED_OBJECT) {
+        return target;
+      }
+      if (target instanceof CapturedValue) {
+        Map<String, CapturedValue> fields = ((CapturedValue) target).fields;
+        if (fields.containsKey(memberName)) {
+          target = fields.get(memberName);
+        } else {
+          CapturedValue capturedTarget = ((CapturedValue) target);
+          target = capturedTarget.getValue();
+          if (target != null) {
+            // resolve to a CapturedValue instance
+            target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), memberName);
+          } else {
+            target = Values.UNDEFINED_OBJECT;
+          }
+        }
+      } else {
+        target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), memberName);
+      }
+      checkUndefined(memberName, target, memberName, "Cannot dereference to field: ");
+      return target;
     }
 
     private Object tryRetrieveField(String name) {
       if (fields == null) {
         return Values.UNDEFINED_OBJECT;
       }
-      return fields.containsKey(name) ? fields.get(name) : Values.UNDEFINED_OBJECT;
+      Object field = fields.get(name);
+      return field != null ? field : Values.UNDEFINED_OBJECT;
     }
 
     private Object tryRetrieveSynthetic(String name) {
       if (extensions == null || extensions.isEmpty()) {
         return Values.UNDEFINED_OBJECT;
       }
-      return extensions.containsKey(name) ? extensions.get(name) : Values.UNDEFINED_OBJECT;
+      return extensions.getOrDefault(name, Values.UNDEFINED_OBJECT);
     }
 
-    private Object tryRetrieveLocalVar(String name) {
-      if (locals == null || locals.isEmpty()) {
-        return Values.UNDEFINED_OBJECT;
+    private Object tryRetrieve(String name) {
+      Object result = null;
+      if (arguments != null && !arguments.isEmpty()) {
+        result = arguments.get(name);
       }
-      return locals.containsKey(name) ? locals.get(name) : Values.UNDEFINED_OBJECT;
-    }
-
-    private Object tryRetrieveArgument(String name) {
-      if (arguments == null || arguments.isEmpty()) {
-        return Values.UNDEFINED_OBJECT;
+      if (result != null) {
+        return result;
       }
-      return arguments.containsKey(name) ? arguments.get(name) : Values.UNDEFINED_OBJECT;
-    }
-
-    /**
-     * Will follow the fields as described by the 'parts' argument.
-     *
-     * @param src the value to start the field traversing at
-     * @param parts the reference path
-     * @return the resolved value or {@linkplain Values#UNDEFINED_OBJECT}
-     */
-    private Object followReferences(String path, Object src, String[] parts) {
-      if (src == Values.UNDEFINED_OBJECT) {
-        return src;
+      if (locals != null && !locals.isEmpty()) {
+        result = locals.get(name);
       }
-      Object target = src;
-      // the iteration starts with index 1 as the index 0 was used to resolve the 'src' argument
-      // in order to avoid extraneous array copies the original array is passed around as is
-      for (int i = 1; i < parts.length; i++) {
-        if (target == Values.UNDEFINED_OBJECT) {
-          break;
-        }
-        if (target instanceof CapturedValue) {
-          Map<String, CapturedValue> fields = ((CapturedValue) target).fields;
-          if (fields.containsKey(parts[i])) {
-            target = fields.get(parts[i]);
-          } else {
-            CapturedValue capturedTarget = ((CapturedValue) target);
-            target = capturedTarget.getValue();
-            if (target != null) {
-              // resolve to a CapturedValue instance
-              target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), parts[i]);
-            } else {
-              target = Values.UNDEFINED_OBJECT;
-            }
-          }
-        } else {
-          if (target != null) {
-            target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), parts[i]);
-          } else {
-            target = Values.UNDEFINED_OBJECT;
-          }
-        }
-        checkUndefined(path, target, parts[i], "Cannot dereference to field: ");
+      if (result != null) {
+        return result;
       }
-      return target;
+      if (fields != null && !fields.isEmpty()) {
+        result = fields.get(name);
+      }
+      return result != null ? result : Values.UNDEFINED_OBJECT;
     }
 
     @Override

@@ -8,9 +8,7 @@ package datadog.trace.bootstrap.debugger.el;
 public final class ValueReferences {
 
   public static String SYNTHETIC_PREFIX = "@";
-  public static String LOCALVAR_PREFIX = "#";
-  public static String ARGUMENT_PREFIX = "^";
-  public static String FIELD_PREFIX = ".";
+  public static String FIELD_PREFIX = "this.";
 
   public static String DURATION_EXTENSION_NAME = "duration";
   public static String RETURN_EXTENSION_NAME = "return";
@@ -23,22 +21,11 @@ public final class ValueReferences {
     return SYNTHETIC_PREFIX + name;
   }
 
-  public static String localVar(String name) {
-    return LOCALVAR_PREFIX + name;
-  }
-
-  public static String argument(String name) {
-    return ARGUMENT_PREFIX + name;
-  }
-
   public static String field(String name) {
     return FIELD_PREFIX + name;
   }
 
-  public static boolean isRefExpression(String expr) {
-    return expr.startsWith(ValueReferences.SYNTHETIC_PREFIX)
-        || expr.startsWith(ValueReferences.FIELD_PREFIX)
-        || expr.startsWith(ValueReferences.ARGUMENT_PREFIX)
-        || expr.startsWith(ValueReferences.LOCALVAR_PREFIX);
+  public static boolean isRefPrefix(String prefix) {
+    return SYNTHETIC_PREFIX.equals(prefix) || FIELD_PREFIX.equals(prefix);
   }
 }

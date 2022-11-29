@@ -30,13 +30,13 @@ public class ProbeConditionTest {
 
     Collection<String> tags = Arrays.asList("hello", "world", "ko");
     ValueReferenceResolver ctx =
-        new StaticValueRefResolver(this, 100, null, Collections.singletonMap("#tags", tags));
+        new StaticValueRefResolver(this, 100, null, Collections.singletonMap("tags", tags));
 
     assertTrue(probeCondition.execute(ctx));
 
     Collection<String> tags2 = Arrays.asList("hey", "world", "ko");
     ValueReferenceResolver ctx2 =
-        new StaticValueRefResolver(this, 100, null, Collections.singletonMap("#tags", tags2));
+        new StaticValueRefResolver(this, 100, null, Collections.singletonMap("tags", tags2));
     assertFalse(probeCondition.execute(ctx2));
   }
 
@@ -57,7 +57,7 @@ public class ProbeConditionTest {
     ProbeCondition probeCondition = load("/test_conditional_02.json");
     Collection<String> vets = Arrays.asList("vet1", "vet2", "vet3");
     ValueReferenceResolver ctx =
-        new StaticValueRefResolver(this, 100, null, Collections.singletonMap("#vets", vets));
+        new StaticValueRefResolver(this, 100, null, Collections.singletonMap("vets", vets));
 
     // the condition checks if length of vets > 2
     assertTrue(probeCondition.execute(ctx));

@@ -88,7 +88,7 @@ class HasAllExpressionTest {
     assertNotNull(predicate);
     assertFalse(predicate.test());
 
-    expression = all(targetExpression, eq(ref(".testField"), value(10)));
+    expression = all(targetExpression, eq(ref("testField"), value(10)));
     predicate = expression.evaluate(ctx);
     assertNotNull(predicate);
     assertTrue(predicate.test());
@@ -109,7 +109,7 @@ class HasAllExpressionTest {
     assertNotNull(predicate);
     assertFalse(predicate.test());
 
-    ValueRefExpression fldRef = ref(ValueReferences.ITERATOR_REF + ".testField");
+    GetMemberExpression fldRef = getMember(ref(ValueReferences.ITERATOR_REF), "testField");
     ValueRefExpression itRef = ref(ValueReferences.ITERATOR_REF);
 
     expression = all(targetExpression, eq(fldRef, value(10)));
@@ -181,13 +181,16 @@ class HasAllExpressionTest {
     assertNotNull(predicate);
     assertFalse(predicate.test());
 
-    expression = all(targetExpression, eq(ref(ValueReferences.ITERATOR_REF + ".key"), value("a")));
+    expression =
+        all(targetExpression, eq(getMember(ref(ValueReferences.ITERATOR_REF), "key"), value("a")));
     predicate = expression.evaluate(ctx);
     assertNotNull(predicate);
     assertFalse(predicate.test());
 
     expression =
-        all(targetExpression, eq(ref(ValueReferences.ITERATOR_REF + ".value"), value("a")));
+        all(
+            targetExpression,
+            eq(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value("a")));
     predicate = expression.evaluate(ctx);
     assertNotNull(predicate);
     assertTrue(predicate.test());

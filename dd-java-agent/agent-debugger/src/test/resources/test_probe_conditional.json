@@ -23,14 +23,14 @@
       ]
     },
     "when": {
-      "dsl": "hasAny(filter(#tags, { len(@it) > 4 }), { @it == 'hello' }) && (.field == 10 || .field < 11 || .field <= 10 || .field > 0 || .field >= 10 || .field != 0 || !(.field == 0) || hasAll(.field, { @it == 10 }) || isEmpty(.field2))",
+      "dsl": "hasAny(filter(#tags, { len(@it) > 4 }), { @it == \"hello\" }) && (.field == 10 || .field < 11 || .field <= 10 || .field > 0 || .field >= 10 || .field != 0 || !(.field == 0) || hasAll(.field, { @it == 10 }) || isEmpty(.field2))",
       "json": {
         "and": [
           {
             "hasAny": [
               {
                 "filter": [
-                  "#tags",
+                  "tags",
                   {
                     "gt": [
                       {
@@ -44,7 +44,7 @@
               {
                 "eq": [
                   "@it",
-                  "hello"
+                  "\"hello\""
                 ]
               }
             ]
@@ -53,51 +53,51 @@
             "or": [
               {
                 "eq": [
-                  ".field",
+                  "field",
                   10
                 ]
               },
               {
                 "<": [
-                  ".field",
+                  "field",
                   11
                 ]
               },
               {
                 "<=": [
-                  ".field",
+                  "field",
                   10
                 ]
               },
               {
                 ">": [
-                  ".field",
+                  "field",
                   0
                 ]
               },
               {
                 ">=": [
-                  ".field",
+                  "field",
                   10
                 ]
               },
               {
                 "!=": [
-                  ".field",
+                  "field",
                   0
                 ]
               },
               {
                 "not": {
                   "==": [
-                    ".field",
+                    "field",
                     0
                   ]
                 }
               },
               {
                 "hasAll": [
-                  ".field",
+                  "field",
                   {
                     "eq": [
                       "@it",
@@ -107,7 +107,7 @@
                 ]
               },
               {
-                "isEmpty": ".field2"
+                "isEmpty": "field2"
               }
             ]
           }
