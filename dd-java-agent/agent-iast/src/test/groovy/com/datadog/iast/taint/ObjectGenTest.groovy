@@ -17,7 +17,7 @@ class ObjectGenTest extends Specification {
     def n = 5
 
     when:
-    def objects = objectGen.genBucket(n)
+    def objects = objectGen.genBucket(n, ObjectGen.TRUE)
 
     then:
     objects.size() == n
