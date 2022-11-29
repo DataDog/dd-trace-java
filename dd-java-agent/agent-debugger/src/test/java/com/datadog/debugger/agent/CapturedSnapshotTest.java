@@ -815,13 +815,18 @@ public class CapturedSnapshotTest {
                             // this is always true
                             DSL.and(
                                 // this reference is resolved directly from the snapshot
-                                DSL.eq(DSL.ref(".fld"), DSL.value(11)),
+                                DSL.eq(DSL.ref("fld"), DSL.value(11)),
                                 // this reference chain needs to use reflection
-                                DSL.eq(DSL.ref(".typed.fld.fld.msg"), DSL.value("hello"))),
+                                DSL.eq(
+                                    DSL.getMember(
+                                        DSL.getMember(
+                                            DSL.getMember(DSL.ref("typed"), "fld"), "fld"),
+                                        "msg"),
+                                    DSL.value("hello"))),
                             DSL.and(
-                                DSL.eq(DSL.ref(ValueReferences.argument("arg")), DSL.value("5")),
+                                DSL.eq(DSL.ref("arg"), DSL.value("5")),
                                 DSL.gt(DSL.ref(ValueReferences.DURATION_REF), DSL.value(0L))))),
-                    "(.fld == 11 && .typed.fld.fld.msg == 'hello') && (#arg == '5' && @duration > 0)"))
+                    "(fld == 11 && typed.fld.fld.msg == \"hello\") && (arg == '5' && @duration > 0)"))
             .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener =
@@ -843,7 +848,12 @@ public class CapturedSnapshotTest {
         createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", "int (java.lang.String)")
             .when(
                 new ProbeCondition(
-                    DSL.when(DSL.eq(DSL.ref(".nullTyped.fld.fld.msg"), DSL.value("hello"))),
+                    DSL.when(
+                        DSL.eq(
+                            DSL.getMember(
+                                DSL.getMember(DSL.getMember(DSL.ref("nullTyped"), "fld"), "fld"),
+                                "msg"),
+                            DSL.value("hello"))),
                     ".nullTyped.fld.fld.msg == 'hello'"))
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener =
@@ -854,7 +864,7 @@ public class CapturedSnapshotTest {
     List<Snapshot.EvaluationError> evaluationErrors =
         listener.snapshots.get(0).getEvaluationErrors();
     Assert.assertEquals(1, evaluationErrors.size());
-    Assert.assertEquals(".nullTyped.fld.fld.msg", evaluationErrors.get(0).getExpr());
+    Assert.assertEquals("fld", evaluationErrors.get(0).getExpr());
     Assert.assertEquals("Cannot dereference to field: fld", evaluationErrors.get(0).getMessage());
   }
 
@@ -1167,8 +1177,7 @@ public class CapturedSnapshotTest {
     SnapshotProbe snapshotProbe =
         createProbeBuilder(PROBE_ID, CLASS_NAME, "main", "int (java.lang.String)")
             .when(
-                new ProbeCondition(
-                    DSL.when(DSL.eq(DSL.ref("^arg"), DSL.value("1"))), "^arg == '1'"))
+                new ProbeCondition(DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("1"))), "arg == '1'"))
             .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener =

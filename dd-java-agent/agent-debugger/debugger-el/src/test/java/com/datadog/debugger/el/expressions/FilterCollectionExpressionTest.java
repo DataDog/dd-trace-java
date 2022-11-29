@@ -81,7 +81,7 @@ class FilterCollectionExpressionTest {
 
     FilterCollectionExpression expression =
         new FilterCollectionExpression(
-            collection, eq(ref(ValueReferences.ITERATOR_REF + ".key"), value("b")));
+            collection, eq(getMember(ref(ValueReferences.ITERATOR_REF), "key"), value("b")));
     CollectionValue<?> filtered = expression.evaluate(StaticValueRefResolver.self(this));
     assertNotEquals(collection, filtered);
     assertEquals(1, filtered.count());
@@ -91,7 +91,7 @@ class FilterCollectionExpressionTest {
 
     expression =
         new FilterCollectionExpression(
-            collection, lt(ref(ValueReferences.ITERATOR_REF + ".value"), value(2)));
+            collection, lt(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value(2)));
     filtered = expression.evaluate(StaticValueRefResolver.self(this));
     assertNotEquals(collection, filtered);
     assertEquals(1, filtered.count());

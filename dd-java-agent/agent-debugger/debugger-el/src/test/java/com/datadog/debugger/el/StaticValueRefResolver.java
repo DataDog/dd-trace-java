@@ -36,33 +36,29 @@ public class StaticValueRefResolver implements ValueReferenceResolver {
   }
 
   @Override
-  public Object resolve(String path) {
-    boolean isField = false;
-    String[] parts;
-    if (path.startsWith(".")) {
-      isField = true;
-      parts = path.substring(1).split("\\.");
-    } else if (path.startsWith("@")) {
-      parts = path.substring(1).split("\\.");
-    } else {
-      parts = path.split("\\.");
+  public Object lookup(String name) {
+    String rawName = name;
+    if (name.startsWith("this.")) {
+      rawName = name.substring(5);
+    } else if (name.startsWith("@")) {
+      rawName = name.substring(1);
     }
-    Object target;
-    if (isField) {
-      target = ReflectiveFieldValueResolver.resolve(self, self.getClass(), parts[0]);
-    } else {
-      target = valueMap.getOrDefault(parts[0], Values.UNDEFINED_OBJECT);
-    }
-    for (int i = 1; i < parts.length; i++) {
-      if (target == Values.UNDEFINED_OBJECT) {
-        break;
-      }
-      if (target instanceof ObjectValue) {
-        target = ((ObjectValue) target).getValue();
-      }
-      target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), parts[i]);
+    Object target = ReflectiveFieldValueResolver.resolve(self, self.getClass(), rawName);
+    if (target == Values.UNDEFINED_OBJECT) {
+      target = valueMap.getOrDefault(rawName, Values.UNDEFINED_OBJECT);
     }
     return target;
+  }
+
+  @Override
+  public Object getMember(Object target, String name) {
+    if (target == Values.UNDEFINED_OBJECT) {
+      return target;
+    }
+    if (target instanceof ObjectValue) {
+      target = ((ObjectValue) target).getValue();
+    }
+    return ReflectiveFieldValueResolver.resolve(target, target.getClass(), name);
   }
 
   @Override

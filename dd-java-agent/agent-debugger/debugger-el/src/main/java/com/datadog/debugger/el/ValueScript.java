@@ -6,12 +6,14 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import datadog.trace.bootstrap.debugger.el.DebuggerScript;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
-import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import java.io.IOException;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 /** Implements expression language for capturing values for metric probes */
 public class ValueScript implements DebuggerScript {
+  private static final Pattern PERIOD_PATTERN = Pattern.compile("\\.");
+
   private final Object node;
   private Value<?> result;
 
@@ -60,10 +62,12 @@ public class ValueScript implements DebuggerScript {
     }
     if (node instanceof String) {
       String textValue = (String) node;
-      if (ValueReferences.isRefExpression(textValue)) {
-        return DSL.ref(textValue);
+      String[] parts = PERIOD_PATTERN.split(textValue);
+      ValueExpression<?> current = DSL.ref(parts[0]);
+      for (int i = 1; i < parts.length; i++) {
+        current = DSL.getMember(current, parts[i]);
       }
-      throw new InvalidValueException("Invalid value definition: " + node);
+      return current;
     }
     throw new InvalidValueException(
         "Invalid type value definition: " + node + ", expect text or integral type.");

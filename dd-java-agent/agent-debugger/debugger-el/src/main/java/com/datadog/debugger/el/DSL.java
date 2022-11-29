@@ -3,6 +3,7 @@ package com.datadog.debugger.el;
 import com.datadog.debugger.el.expressions.BinaryExpression;
 import com.datadog.debugger.el.expressions.ComparisonExpression;
 import com.datadog.debugger.el.expressions.FilterCollectionExpression;
+import com.datadog.debugger.el.expressions.GetMemberExpression;
 import com.datadog.debugger.el.expressions.HasAllExpression;
 import com.datadog.debugger.el.expressions.HasAnyExpression;
 import com.datadog.debugger.el.expressions.IfElseExpression;
@@ -105,6 +106,10 @@ public class DSL {
 
   public static ValueRefExpression ref(String path) {
     return new ValueRefExpression(path);
+  }
+
+  public static GetMemberExpression getMember(ValueExpression<?> target, String name) {
+    return new GetMemberExpression(target, name);
   }
 
   public static Literal<Boolean> value(boolean value) {
