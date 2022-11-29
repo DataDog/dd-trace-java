@@ -32,7 +32,7 @@ class IastModuleImplOnStringBuilderToStringTest extends IastModuleImplTestBase {
     0 * _
   }
 
-  void 'onStringBuilderToString (#originalBuilder)'(final StringBuilder originalBuilder, final String expected) {
+  void 'onStringBuilderToString (#originalBuilder)'() {
     given:
     final span = Mock(AgentSpan)
     tracer.activeSpan() >> span

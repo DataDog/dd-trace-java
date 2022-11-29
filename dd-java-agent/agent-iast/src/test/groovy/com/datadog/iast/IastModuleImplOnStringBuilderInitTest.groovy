@@ -19,7 +19,7 @@ class IastModuleImplOnStringBuilderInitTest extends IastModuleImplTestBase {
     objectHolder.clear()
   }
 
-  void 'onStringBuilderInit null or empty (#builder, #param)'(final StringBuilder builder, final String param) {
+  void 'onStringBuilderInit null or empty (#builder, #param)'() {
     given:
     final result = builder?.append(param)
 
@@ -35,7 +35,7 @@ class IastModuleImplOnStringBuilderInitTest extends IastModuleImplTestBase {
     sb('')  | ''
   }
 
-  void 'onStringBuilderInit without span (#builder, #param)'(final StringBuilder builder, final String param, final int mockCalls) {
+  void 'onStringBuilderInit without span (#builder, #param)'() {
     given:
     final result = builder?.append(param)
 
@@ -52,7 +52,7 @@ class IastModuleImplOnStringBuilderInitTest extends IastModuleImplTestBase {
     sb()    | '4'   | 1
   }
 
-  void 'onStringBuilderInit (#builder, #param)'(StringBuilder builder, String param, final int mockCalls, final String expected) {
+  void 'onStringBuilderInit (#builder, #param)'() {
     given:
     final span = Mock(AgentSpan)
     tracer.activeSpan() >> span
