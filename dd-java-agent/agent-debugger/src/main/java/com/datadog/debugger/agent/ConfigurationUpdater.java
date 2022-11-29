@@ -33,7 +33,8 @@ import org.slf4j.LoggerFactory;
  * Handles configuration updates if required by installing a new ClassFileTransformer and triggering
  * re-transformation of required classes
  */
-public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
+public class ConfigurationUpdater
+    implements DebuggerContext.ProbeResolver, DebuggerProductChangesListener.ConfigurationAcceptor {
 
   public static final int MAX_ALLOWED_PROBES = 100;
   public static final int MAX_ALLOWED_METRIC_PROBES = 100;
@@ -89,12 +90,6 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
         applyNewConfiguration(createEmptyConfiguration());
         return;
       }
-      // handle mismatched configurations
-      if (!configuration.getId().equals(serviceName)) {
-        log.debug(
-            "got debugConfig.serviceName = {}, ignoring configuration", configuration.getId());
-        return;
-      }
       // apply new configuration
       Configuration newConfiguration = applyConfigurationFilters(configuration);
       applyNewConfiguration(newConfiguration);
@@ -147,8 +142,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
               .collect(Collectors.toList());
     }
     return new Configuration(
-        configuration.getId(),
-        configuration.getOrgId(),
+        serviceName,
         probes,
         metricProbes,
         logProbes,
@@ -220,8 +214,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
   private Configuration createEmptyConfiguration() {
     if (currentConfiguration != null) {
       return new Configuration(
-          currentConfiguration.getId(),
-          currentConfiguration.getOrgId(),
+          currentConfiguration.getService(),
           null,
           null,
           null,
@@ -229,7 +222,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
           currentConfiguration.getDenyList(),
           currentConfiguration.getSampling());
     }
-    return new Configuration("ID", 0, null, null, null, null, null, null);
+    return new Configuration(serviceName, null, null, null, null, null, null);
   }
 
   private void retransformClasses(List<Class<?>> classesToBeTransformed) {

@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 
-public class DebugerFeaturesTest {
+public class DebuggerFeaturesTest {
 
   @Test
   public void roundtripSerialization() throws Exception {

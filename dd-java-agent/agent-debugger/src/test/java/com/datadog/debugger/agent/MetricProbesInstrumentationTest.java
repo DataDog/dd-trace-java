@@ -35,7 +35,6 @@ public class MetricProbesInstrumentationTest {
   private static final String METRIC_ID = "beae1807-f3b0-4ea8-a74f-826790c5e6f8";
   private static final String METRIC_ID1 = "beae1807-f3b0-4ea8-a74f-826790c5e6f6";
   private static final String METRIC_ID2 = "beae1807-f3b0-4ea8-a74f-826790c5e6f7";
-  private static final long ORG_ID = 2;
   private static final String SERVICE_NAME = "service-name";
 
   private Instrumentation instr = ByteBuddyAgent.install();
@@ -637,7 +636,10 @@ public class MetricProbesInstrumentationTest {
 
   private MetricForwarderListener installMetricProbes(MetricProbe... metricProbes) {
     return installMetricProbes(
-        new Configuration(SERVICE_NAME, ORG_ID, null, Arrays.asList(metricProbes), null));
+        Configuration.builder()
+            .setService(SERVICE_NAME)
+            .addMetricProbes(Arrays.asList(metricProbes))
+            .build());
   }
 
   @Test
