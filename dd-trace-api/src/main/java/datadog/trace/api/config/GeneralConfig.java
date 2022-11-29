@@ -57,5 +57,8 @@ public final class GeneralConfig {
   public static final String TELEMETRY_ENABLED = "instrumentation.telemetry.enabled";
   public static final String TELEMETRY_HEARTBEAT_INTERVAL = "telemetry.heartbeat.interval";
 
+  public static final String OVERWRITE_INITIAL_RESOURCE_NAME_ALLOWED =
+      "trace.overwrite.initial.resource.name.allowed";
+
   private GeneralConfig() {}
 }

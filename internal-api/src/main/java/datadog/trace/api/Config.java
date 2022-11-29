@@ -127,6 +127,7 @@ import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_PORT;
+import static datadog.trace.api.config.GeneralConfig.OVERWRITE_INITIAL_RESOURCE_NAME_ALLOWED;
 import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_ID_ENABLED;
@@ -533,7 +534,7 @@ public class Config {
   private final boolean grpcServerTrimPackageResource;
   private final BitSet grpcServerErrorStatuses;
   private final BitSet grpcClientErrorStatuses;
-
+  private final boolean overwriteInitialResourceNameAllowed;
   private final boolean cwsEnabled;
   private final int cwsTlsRefresh;
 
@@ -996,6 +997,9 @@ public class Config {
       telemetryInterval = DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
     }
     telemetryHeartbeatInterval = telemetryInterval;
+
+    overwriteInitialResourceNameAllowed =
+        configProvider.getBoolean(OVERWRITE_INITIAL_RESOURCE_NAME_ALLOWED, true);
 
     this.clientIpEnabled = configProvider.getBoolean(CLIENT_IP_ENABLED, DEFAULT_CLIENT_IP_ENABLED);
 
@@ -1634,6 +1638,10 @@ public class Config {
 
   public int getTelemetryHeartbeatInterval() {
     return telemetryHeartbeatInterval;
+  }
+
+  public boolean isOverwriteInitialResourceNameAllowed() {
+    return overwriteInitialResourceNameAllowed;
   }
 
   public boolean isClientIpEnabled() {

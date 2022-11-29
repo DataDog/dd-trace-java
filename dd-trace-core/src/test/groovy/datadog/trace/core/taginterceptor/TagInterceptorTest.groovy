@@ -299,6 +299,29 @@ class TagInterceptorTest extends DDCoreSpecification {
     name = "my resource name"
   }
 
+  def "allow overwriting initial resource name is #allow"() {
+    when:
+    injectSysConfig("dd.trace.overwrite.initial.resource.name.allowed", "$allow")
+    def writer = new ListWriter()
+    def tracer = tracerBuilder().writer(writer).build()
+
+    def span = tracer.buildSpan("test").withTag(DDTags.RESOURCE_NAME, initial).start()
+    span.setResourceName(overwrite)
+    span.finish()
+    writer.waitForTraces(1)
+
+    then:
+    span.getResourceName() == expected
+
+    cleanup:
+    tracer.close()
+
+    where:
+    allow | initial | overwrite | expected
+    false | "first" | "second"  | "first"
+    true  | "one"   | "other"   | "other"
+  }
+
   def "set span type"() {
     when:
     def tracer = tracerBuilder().writer(new ListWriter()).build()

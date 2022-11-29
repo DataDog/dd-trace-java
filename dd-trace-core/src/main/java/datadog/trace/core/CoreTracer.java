@@ -115,6 +115,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   /** Nanosecond offset to counter clock drift */
   private volatile long counterDrift;
 
+  private final boolean allowOverwritingInitialResourceName;
+
   private final PendingTraceBuffer pendingTraceBuffer;
 
   /** Default service name if none provided on the trace or span */
@@ -407,6 +409,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.startNanoTicks = this.timeSource.getNanoTicks();
     this.clockSyncPeriod = Math.max(1_000_000L, SECONDS.toNanos(config.getClockSyncPeriod()));
     this.lastSyncTicks = startNanoTicks;
+
+    this.allowOverwritingInitialResourceName = config.isOverwriteInitialResourceNameAllowed();
 
     this.endpointCheckpointer = EndpointCheckpointerHolder.create();
     this.serviceName = serviceName;
@@ -1285,6 +1289,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       context.setAllTags(tags);
       context.setAllTags(coreTags);
       context.setAllTags(rootSpanTags);
+      if (allowOverwritingInitialResourceName) {
+        context.resetResourceNamePriority();
+      }
       return context;
     }
   }
