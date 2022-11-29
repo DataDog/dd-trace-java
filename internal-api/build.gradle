@@ -73,7 +73,9 @@ excludedClassesCoverage += [
   // can't reliably force same identity hash for different instance to cover branch
   "datadog.trace.api.cache.FixedSizeCache.IdentityHash",
   // Interface with default method
-  "datadog.trace.api.StatsDClientManager"
+  "datadog.trace.api.StatsDClientManager",
+  // a stub
+  "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOp"
 ]
 excludedClassesBranchCoverage = ['datadog.trace.api.ProductActivationConfig',]
 

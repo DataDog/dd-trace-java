@@ -123,7 +123,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   // don't use mocks because it will break too many exhaustive interaction-verifying tests
   @SuppressWarnings('PropertyName')
   @Shared
-  TestContextThreadListener TEST_CONTEXT_THREAD_LISTENER = new TestContextThreadListener()
+  TestProfilingContextIntegration TEST_PROFILING_CONTEXT_INTEGRATION = new TestProfilingContextIntegration()
 
   @SuppressWarnings('PropertyName')
   @Shared
@@ -209,9 +209,9 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       .statsDClient(STATS_D_CLIENT)
       .strictTraceWrites(useStrictTraceWrites())
       .dataStreamsCheckpointer(dataStreamsCheckpointer)
+      .profilingContextIntegration(TEST_PROFILING_CONTEXT_INTEGRATION)
       .build())
     TEST_TRACER.registerCheckpointer(TEST_CHECKPOINTER)
-    TEST_TRACER.addThreadContextListener(TEST_CONTEXT_THREAD_LISTENER)
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
 
     TEST_TRACER.startSpan(*_) >> {

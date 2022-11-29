@@ -15,17 +15,15 @@ import static datadog.trace.util.Strings.toEnvVar;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.EndpointCheckpointer;
-import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
-import datadog.trace.api.Tracer;
 import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
-import datadog.trace.bootstrap.instrumentation.api.ContextThreadListener;
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import datadog.trace.util.AgentTaskScheduler;
@@ -396,7 +394,6 @@ public class Agent {
       }
 
       installDatadogTracer(scoClass, sco);
-      installContextThreadListener();
       maybeStartAppSec(scoClass, sco);
       maybeStartIast(scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
@@ -488,8 +485,9 @@ public class Agent {
       final Class<?> tracerInstallerClass =
           AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.TracerInstaller");
       final Method tracerInstallerMethod =
-          tracerInstallerClass.getMethod("installGlobalTracer", scoClass);
-      tracerInstallerMethod.invoke(null, sco);
+          tracerInstallerClass.getMethod(
+              "installGlobalTracer", scoClass, ProfilingContextIntegration.class);
+      tracerInstallerMethod.invoke(null, sco, createProfilingContextIntegration());
     } catch (final Throwable ex) {
       log.error("Throwable thrown while installing the Datadog Tracer", ex);
     }
@@ -715,26 +713,21 @@ public class Agent {
   }
 
   /**
-   * Must be called after tracer is installed, but can't wait until the profiler is installed. {@see
-   * com.datadog.profiling.async.ContextThreadFilter} must not be modified to depend on JFR.
+   * {@see com.datadog.profiling.async.ContextThreadFilter} must not be modified to depend on JFR.
    */
-  private static void installContextThreadListener() {
+  private static ProfilingContextIntegration createProfilingContextIntegration() {
     if (Config.get().isProfilingEnabled()) {
       try {
-        Tracer tracer = GlobalTracer.get();
-        if (tracer instanceof TracerAPI) {
-          ContextThreadListener listener =
-              (ContextThreadListener)
-                  AGENT_CLASSLOADER
-                      .loadClass("com.datadog.profiling.async.ContextThreadFilter")
-                      .getDeclaredConstructor()
-                      .newInstance();
-          ((TracerAPI) tracer).addThreadContextListener(listener);
-        }
+        return (ProfilingContextIntegration)
+            AGENT_CLASSLOADER
+                .loadClass("com.datadog.profiling.async.ContextThreadFilter")
+                .getDeclaredConstructor()
+                .newInstance();
       } catch (Throwable t) {
         log.debug("Profiling context labeling not available. {}", t.getMessage());
       }
     }
+    return ProfilingContextIntegration.NoOp.INSTANCE;
   }
 
   private static void startProfilingAgent(final boolean isStartingFirst) {
@@ -758,12 +751,6 @@ public class Agent {
               public void withTracer(TracerAPI tracer) {
                 log.debug("Initializing profiler tracer integrations");
                 try {
-                  if (Config.get().isAsyncProfilerEnabled()) {
-                    log.debug("Registering async-profiler scope listener");
-                    tracer.addScopeListener(
-                        createScopeListener(
-                            "com.datadog.profiling.context.AsyncProfilerScopeListener"));
-                  }
                   if (Platform.isOracleJDK8() || Platform.isJ9()) {
                     return;
                   }
