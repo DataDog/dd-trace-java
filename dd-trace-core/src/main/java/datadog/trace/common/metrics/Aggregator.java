@@ -63,7 +63,7 @@ final class Aggregator implements Runnable {
       try {
         InboxItem item = inbox.take();
         if (item instanceof StopSignal) {
-          report(wallClockTime(), (StopSignal) item);
+          stop((StopSignal) item);
           break;
         } else if (item instanceof ReportSignal) {
           report(wallClockTime(), (ReportSignal) item);
@@ -89,6 +89,16 @@ final class Aggregator implements Runnable {
       }
     }
     log.debug("metrics aggregator exited");
+  }
+
+  private void stop(StopSignal stopSignal) {
+    report(wallClockTime(), stopSignal);
+    for (InboxItem item : inbox) {
+      if (item instanceof SignalItem) {
+        ((SignalItem) item).ignore();
+      }
+    }
+    stopSignal.complete();
   }
 
   private void report(long when, SignalItem signal) {

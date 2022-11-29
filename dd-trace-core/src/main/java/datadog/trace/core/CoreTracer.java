@@ -81,6 +81,7 @@ import java.util.ServiceLoader;
 import java.util.SortedSet;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -957,9 +958,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public void flushMetrics() {
     try {
-      metricsAggregator.forceReport().get();
-    } catch (InterruptedException | ExecutionException e) {
-      log.debug("Failed to wait for metrics flush.");
+      metricsAggregator.forceReport().get(1_000, MILLISECONDS);
+    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+      log.debug("Failed to wait for metrics flush.", e);
     }
   }
 

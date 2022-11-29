@@ -15,6 +15,10 @@ abstract class SignalItem implements InboxItem {
     this.future.complete(true);
   }
 
+  void ignore() {
+    this.future.complete(false);
+  }
+
   static final class StopSignal extends SignalItem {
     static final StopSignal STOP = new StopSignal();
 
