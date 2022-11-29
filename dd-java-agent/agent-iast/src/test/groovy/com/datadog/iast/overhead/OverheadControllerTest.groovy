@@ -193,20 +193,18 @@ class OverheadControllerTest extends DDSpecification {
         ->
         startLatch.countDown()
         startLatch.await()
-        final results = new Boolean[nIters]
-        for (int j = 0; j < nIters; j++) {
+        return (0..nIters-1).collect { j ->
           if (overheadController.acquireRequest()) {
-            results[j] = true
             if (!sem.tryAcquire()) {
               throw new RuntimeException("Could not acquire semaphore")
             }
             sem.release()
             overheadController.releaseRequest()
+            return true
           } else {
-            results[j] = false
+            return false
           }
         }
-        return results
       } as Callable<Boolean[]>)
     }
     def results = futures.collect({

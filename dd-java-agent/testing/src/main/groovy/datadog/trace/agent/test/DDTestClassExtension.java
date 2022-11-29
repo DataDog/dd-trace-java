@@ -79,7 +79,8 @@ public class DDTestClassExtension implements TestInstanceFactory, BeforeTestExec
   @Override
   public Object createTestInstance(final TestInstanceFactoryContext factoryCtx, final ExtensionContext extCtx) throws TestInstantiationException {
     final Class<?> clazz = factoryCtx.getTestClass();
-    final Class<?> shadowClass = shadowTestClass(factoryCtx.getTestClass());
+    //final Class<?> shadowClass = shadowTestClass(factoryCtx.getTestClass());
+    final Class<?> shadowClass = clazz;
     assertNoBootstrapClassesInTestClass(clazz);
 
     // Save our custom class loader for later use during test runs.
@@ -90,11 +91,6 @@ public class DDTestClassExtension implements TestInstanceFactory, BeforeTestExec
     } catch (ReflectiveOperationException ex) {
       throw new TestInstantiationException("Failed to create test class", ex);
     }
-  }
-
-  private ExtensionContext.Store getStore(final ExtensionContext ctx) {
-    final ExtensionContext.Namespace ns = ExtensionContext.Namespace.create(ctx.getTestClass().get());
-    return ctx.getStore(ns);
   }
 
   @Override
@@ -118,6 +114,11 @@ public class DDTestClassExtension implements TestInstanceFactory, BeforeTestExec
       throw new Exception("BAD");
     }
     Thread.currentThread().setContextClassLoader(originalContextLoader);
+  }
+
+  private ExtensionContext.Store getStore(final ExtensionContext ctx) {
+    final ExtensionContext.Namespace ns = ExtensionContext.Namespace.create(ctx.getTestClass().get());
+    return ctx.getStore(ns);
   }
 
   private static void assertNoBootstrapClassesInTestClass(final Class<?> testClass) {

@@ -14,9 +14,9 @@ def testTimeoutDuration = Duration.of(9, ChronoUnit.MINUTES)
 
 // Go through the Test tasks and configure them
 tasks.withType(Test).configureEach {
-  if (project.findProperty("enableJunitPlatform") == true) {
+  //if (project.findProperty("enableJunitPlatform") == true) {
     useJUnitPlatform()
-  }
+  //}
 
   // All tests must complete within 15 minutes.
   // This value is quite big because with lower values (3 mins) we were experiencing large number of false positives
