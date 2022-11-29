@@ -102,6 +102,7 @@ shadowJar {
     exclude('datadog.trace.api.*')
     exclude('datadog.trace.api.config.*')
     exclude('datadog.trace.api.interceptor.*')
+    exclude('datadog.trace.api.internal.*')
     exclude('datadog.trace.api.sampling.*')
     exclude('datadog.trace.context.*')
   }

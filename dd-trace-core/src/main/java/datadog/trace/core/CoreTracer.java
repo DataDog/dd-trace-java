@@ -80,6 +80,8 @@ import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.SortedSet;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -950,6 +952,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public void flush() {
     pendingTraceBuffer.flush();
     writer.flush();
+  }
+
+  @Override
+  public void flushMetrics() {
+    try {
+      metricsAggregator.forceReport().get(1_000, MILLISECONDS);
+    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+      log.debug("Failed to wait for metrics flush.", e);
+    }
   }
 
   private static StatsDClient createStatsDClient(final Config config) {
