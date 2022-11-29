@@ -105,6 +105,7 @@ public final class CodeHotspotsTest {
   @ParameterizedTest(
       name = "Test reactive app (mean service time = {0}, arrival rate = {1} tasks/s)")
   @MethodSource("reactiveTestParams")
+  @Disabled
   void testReactive(Duration meanServiceTime, int arrivalRate, double minCoverage)
       throws Exception {
     System.out.println(
@@ -373,7 +374,6 @@ public final class CodeHotspotsTest {
     System.out.println("  Median  : " + p50.getResult());
     System.out.println("  P99     : " + p99.getResult());
 
-    // FIXME flaky in CI
-    // assertTrue(coverage >= minCoverage, "Expected coverage: " + coverage + " >= " + minCoverage);
+    assertTrue(coverage >= minCoverage, "Expected coverage: " + coverage + " >= " + minCoverage);
   }
 }
