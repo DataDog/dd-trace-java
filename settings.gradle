@@ -80,6 +80,7 @@ include ':dd-java-agent:agent-iast'
 include ':dd-java-agent:cws-tls'
 
 // misc
+include ':agent-test-runner'
 include ':dd-java-agent:testing'
 include ':utils:container-utils'
 include ':utils:process-utils'

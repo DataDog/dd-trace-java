@@ -1,0 +1,30 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  api deps.bytebuddy
+  api deps.bytebuddyagent
+}
+
+shadowJar {
+  archiveClassifier = ''
+
+  manifest {
+    attributes(
+      "Premain-Class": "datadog.trace.agent.test.TestAgent",
+      "Can-Redefine-Classes": true,
+      "Can-Retransform-Classes": true,
+      )
+  }
+}
+
+forbiddenApis {
+  ignoreSignaturesOfMissingClasses = true
+  ignoreFailures = true
+}
+
+
+

@@ -14,6 +14,11 @@ def testTimeoutDuration = Duration.of(9, ChronoUnit.MINUTES)
 
 // Go through the Test tasks and configure them
 tasks.withType(Test).configureEach {
+  if (!(project.name in ['agent-test-runner'])) {
+    dependsOn project(':agent-test-runner').tasks.named("shadowJar")
+    jvmArgs += ["-javaagent:${project(':agent-test-runner').tasks.shadowJar.archivePath.absolutePath}"]
+  }
+
   if (project.findProperty("enableJunitPlatform") == true) {
     useJUnitPlatform()
   }
