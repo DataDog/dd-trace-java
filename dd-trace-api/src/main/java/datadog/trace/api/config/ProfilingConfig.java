@@ -79,6 +79,12 @@ public final class ProfilingConfig {
   public static final String PROFILING_ASYNC_WALL_INTERVAL = "profiling.async.wall.interval.ms";
   public static final int PROFILING_ASYNC_WALL_INTERVAL_DEFAULT = 10;
 
+  public static final String PROFILING_ASYNC_SCHEDULING_EVENT =
+      "profiling.experimental.async.scheduling.event";
+
+  public static final String PROFILING_ASYNC_SCHEDULING_EVENT_INTERVAL =
+      "profiling.experimental.async.scheduling.event.interval";
+
   public static final String PROFILING_ASYNC_LOG_LEVEL = "profiling.async.loglevel";
 
   public static final String PROFILING_ASYNC_LOG_LEVEL_DEFAULT = "NONE";
