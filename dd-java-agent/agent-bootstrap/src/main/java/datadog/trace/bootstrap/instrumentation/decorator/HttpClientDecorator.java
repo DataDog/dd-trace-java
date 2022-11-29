@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecorator {
   public static final LinkedHashMap<String, String> CLIENT_PATHWAY_EDGE_TAGS;
+
   static {
     CLIENT_PATHWAY_EDGE_TAGS = new LinkedHashMap<>(2);
     // TODO: Refactor TagsProcessor to move it into a package that we can link the constants for.

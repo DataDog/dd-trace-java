@@ -49,6 +49,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   public static final String DD_RESPONSE_ATTRIBUTE = "datadog.response";
 
   public static final LinkedHashMap<String, String> SERVER_PATHWAY_EDGE_TAGS;
+
   static {
     SERVER_PATHWAY_EDGE_TAGS = new LinkedHashMap<>(2);
     // TODO: Refactor TagsProcessor to move it into a package that we can link the constants for.
