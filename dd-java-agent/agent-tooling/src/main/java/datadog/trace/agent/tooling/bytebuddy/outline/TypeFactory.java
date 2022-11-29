@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.description.type.TypeList;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.pool.TypePool;
@@ -302,13 +303,46 @@ final class TypeFactory {
     }
 
     @Override
+    public int getModifiers() {
+      return outline().getModifiers();
+    }
+
+    @Override
+    public Generic getSuperClass() {
+      return outline().getSuperClass();
+    }
+
+    @Override
+    public TypeList.Generic getInterfaces() {
+      return outline().getInterfaces();
+    }
+
+    @Override
+    public TypeDescription getDeclaringType() {
+      return outline().getDeclaringType();
+    }
+
+    private TypeDescription outline() {
+      TypeDescription outline;
+      if (createOutlines) {
+        outline = doResolve(true);
+      } else {
+        // temporarily switch to outlines as that's all we need
+        createOutlines = true;
+        outline = doResolve(true);
+        createOutlines = false;
+      }
+      return outline;
+    }
+
+    @Override
     protected TypeDescription delegate() {
       return doResolve(true);
     }
 
     TypeDescription doResolve(boolean throwIfMissing) {
       // re-resolve type when switching to full descriptions
-      if (null == delegate || createOutlines != isOutline) {
+      if (null == delegate || (isOutline && !createOutlines)) {
         delegate = resolveType(name);
         isOutline = createOutlines;
         if (throwIfMissing && null == delegate) {
