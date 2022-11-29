@@ -468,7 +468,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     1 * statsDClient.incrementCounter("scope.close.error")
     1 * rootSpanCheckpointer.onRootSpanStarted(_)
     3 * listener.setContext(_, _, _)
-    1 * listener.onAttach()
+    1 * listener.onAttach(_)
     0 * _
 
     when:
@@ -479,7 +479,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     1 * rootSpanCheckpointer.onRootSpanFinished(_, _)
     _ * statsDClient.close()
     1 * listener.setContext(_, 0, 0)
-    1 * listener.onDetach()
+    1 * listener.onDetach(_)
     assertEvents([ACTIVATE, ACTIVATE, CLOSE, CLOSE])
     0 * _
 
@@ -506,7 +506,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeScope() == firstScope
     assertEvents([ACTIVATE])
     1 * rootSpanCheckpointer.onRootSpanStarted(_)
-    1 * listener.onAttach()
+    1 * listener.onAttach(_)
     1 * listener.setContext(_, _, _)
     0 * _
 
@@ -584,7 +584,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     ])
     _ * statsDClient.close()
     1 * listener.setContext(_, 0, 0)
-    1 * listener.onDetach()
+    1 * listener.onDetach(_)
     0 * _
   }
 
@@ -970,7 +970,7 @@ class ScopeManagerTest extends DDCoreSpecification {
       assert scopeManager.active() == null
     }).get()
     then: "the listener is not notified"
-    0 * listener.onAttach()
+    0 * listener.onAttach(_)
 
     when: "scopes activate on threads"
     AgentSpan span = tracer.buildSpan("foo").start()
@@ -991,7 +991,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     }
 
     then: "the first activation notifies the listener"
-    numThreads * listener.onAttach()
+    numThreads * listener.onAttach(_)
     _ * _
 
     cleanup:

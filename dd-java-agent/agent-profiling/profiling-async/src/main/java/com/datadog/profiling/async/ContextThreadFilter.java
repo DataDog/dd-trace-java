@@ -11,16 +11,16 @@ public class ContextThreadFilter implements ProfilingContextIntegration {
   private static final AsyncProfiler ASYNC_PROFILER = AsyncProfiler.getInstance();
 
   @Override
-  public void onAttach() {
+  public void onAttach(int tid) {
     if (AsyncProfilerConfig.isWallClockProfilerEnabled()) {
-      ASYNC_PROFILER.addCurrentThread();
+      ASYNC_PROFILER.addThread(tid);
     }
   }
 
   @Override
-  public void onDetach() {
+  public void onDetach(int tid) {
     if (AsyncProfilerConfig.isWallClockProfilerEnabled()) {
-      ASYNC_PROFILER.removeCurrentThread();
+      ASYNC_PROFILER.removeThread(tid);
     }
   }
 

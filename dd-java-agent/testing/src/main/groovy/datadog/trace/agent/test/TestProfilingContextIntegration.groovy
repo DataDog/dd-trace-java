@@ -8,12 +8,12 @@ class TestProfilingContextIntegration implements ProfilingContextIntegration {
   final AtomicInteger attachments = new AtomicInteger()
   final AtomicInteger detachments = new AtomicInteger()
   @Override
-  void onAttach() {
+  void onAttach(int tid) {
     attachments.incrementAndGet()
   }
 
   @Override
-  void onDetach() {
+  void onDetach(int tid) {
     detachments.incrementAndGet()
   }
 
