@@ -63,7 +63,7 @@ final class CachedData {
       // Used by Spock for mocking:
       "org.objenesis:objenesis:2.6" // Last version to support Java7
     ],
-    groovy               : "org.apache.groovy:groovy-all:${versions.groovy}",
+    groovy               : "org.codehaus.groovy:groovy-all:${versions.groovy}",
     junit4               : "junit:junit:${versions.junit4}",
     junit5               : [
       "org.junit.jupiter:junit-jupiter:${versions.junit5}",

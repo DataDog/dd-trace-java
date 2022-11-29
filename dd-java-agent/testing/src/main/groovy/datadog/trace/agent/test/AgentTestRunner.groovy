@@ -77,7 +77,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevi
  */
 // CodeNarc incorrectly thinks ".class" is unnecessary in @RunWith
 @SuppressWarnings('UnnecessaryDotClass')
-@RunWith(SpockRunner.class)
 abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.Listener {
   private static final long TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(10)
 

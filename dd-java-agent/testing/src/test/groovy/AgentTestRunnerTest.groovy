@@ -1,6 +1,7 @@
 import com.google.common.reflect.ClassPath
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.SpockRunner
+import datadog.trace.agent.test.DDTestClassExtension
+
 import datadog.trace.agent.test.utils.ClasspathUtils
 import datadog.trace.api.GlobalTracer
 import datadog.trace.bootstrap.Constants
@@ -37,7 +38,7 @@ class AgentTestRunnerTest extends AgentTestRunner {
 
   def "spock runner bootstrap prefixes correct for test setup"() {
     expect:
-    SpockRunner.BOOTSTRAP_PACKAGE_PREFIXES_COPY == Constants.BOOTSTRAP_PACKAGE_PREFIXES
+    DDTestClassExtension.BOOTSTRAP_PACKAGE_PREFIXES_COPY == Constants.BOOTSTRAP_PACKAGE_PREFIXES
   }
 
   def "classpath setup"() {

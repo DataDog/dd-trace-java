@@ -1,8 +1,18 @@
 package datadog.trace.agent.test;
 
+import com.google.auto.service.AutoService;
 import com.google.common.reflect.ClassPath;
 import datadog.trace.agent.test.utils.ClasspathUtils;
 import datadog.trace.bootstrap.BootstrapProxy;
+import net.bytebuddy.agent.ByteBuddyAgent;
+import net.bytebuddy.dynamic.ClassFileLocator;
+import org.junit.jupiter.api.extension.AfterTestExecutionCallback;
+import org.junit.jupiter.api.extension.BeforeTestExecutionCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.api.extension.TestInstanceFactory;
+import org.junit.jupiter.api.extension.TestInstanceFactoryContext;
+import org.junit.jupiter.api.extension.TestInstantiationException;
+
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -12,20 +22,17 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.jar.JarFile;
-import net.bytebuddy.agent.ByteBuddyAgent;
-import net.bytebuddy.dynamic.ClassFileLocator;
-import org.junit.runner.notification.RunNotifier;
-import org.junit.runners.model.InitializationError;
-import org.spockframework.runtime.Sputnik;
 
 /**
- * Runs a spock test in an agent-friendly way.
+ * Prepares JUnit 5 (or Spock 2) environment in an agent-friendly way.
  *
  * <ul>
  *   <li>Adds agent bootstrap classes to bootstrap classpath.
  * </ul>
  */
-public class SpockRunner extends Sputnik {
+@AutoService({TestInstanceFactory.class, BeforeTestExecutionCallback.class, AfterTestExecutionCallback.class})
+public class DDTestClassExtension implements TestInstanceFactory, BeforeTestExecutionCallback, AfterTestExecutionCallback {
+
   /**
    * An exact copy of {@link datadog.trace.bootstrap.Constants#BOOTSTRAP_PACKAGE_PREFIXES}.
    *
@@ -33,26 +40,30 @@ public class SpockRunner extends Sputnik {
    * references bootstrap classes (e.g. DatadogClassLoader).
    */
   public static final String[] BOOTSTRAP_PACKAGE_PREFIXES_COPY = {
-    "datadog.slf4j",
-    "datadog.trace.api",
-    "datadog.trace.bootstrap",
-    "datadog.trace.context",
-    "datadog.trace.instrumentation.api",
-    "datadog.trace.logging",
-    "datadog.trace.util",
+      "datadog.slf4j",
+      "datadog.trace.api",
+      "datadog.trace.bootstrap",
+      "datadog.trace.context",
+      "datadog.trace.instrumentation.api",
+      "datadog.trace.logging",
+      "datadog.trace.util",
   };
 
   private static final String[] TEST_BOOTSTRAP_PREFIXES;
 
+  private static final String CUSTOM_CLASS_LOADER_KEY = "DD_CUSTOM_CLASS_LOADER";
+
+  private static final String ORIGINAL_CLASS_LOADER_KEY = "DD_ORIGINAL_CLASS_LOADER";
+
   static {
     ByteBuddyAgent.install();
     final String[] testBS = {
-      "org.slf4j",
-      "ch.qos.logback",
-      // Tomcat's servlet classes must be on boostrap
-      // when running tomcat test
-      "javax.servlet.ServletContainerInitializer",
-      "javax.servlet.ServletContext"
+        "org.slf4j",
+        "ch.qos.logback",
+        // Tomcat's servlet classes must be on boostrap
+        // when running tomcat test
+        "javax.servlet.ServletContainerInitializer",
+        "javax.servlet.ServletContext"
     };
     TEST_BOOTSTRAP_PREFIXES =
         Arrays.copyOf(
@@ -65,22 +76,48 @@ public class SpockRunner extends Sputnik {
     setupBootstrapClasspath();
   }
 
-  private final InstrumentationClassLoader customLoader;
-
-  public SpockRunner(final Class<?> clazz)
-      throws InitializationError, NoSuchFieldException, SecurityException, IllegalArgumentException,
-          IllegalAccessException {
-    super(shadowTestClass(clazz));
+  @Override
+  public Object createTestInstance(final TestInstanceFactoryContext factoryCtx, final ExtensionContext extCtx) throws TestInstantiationException {
+    final Class<?> clazz = factoryCtx.getTestClass();
+    final Class<?> shadowClass = shadowTestClass(factoryCtx.getTestClass());
     assertNoBootstrapClassesInTestClass(clazz);
-    // access the classloader created in shadowTestClass above
-    final Field clazzField = Sputnik.class.getDeclaredField("clazz");
+
+    // Save our custom class loader for later use during test runs.
+    getStore(extCtx).put(CUSTOM_CLASS_LOADER_KEY, shadowClass.getClassLoader());
+
     try {
-      clazzField.setAccessible(true);
-      customLoader =
-          (InstrumentationClassLoader) ((Class<?>) clazzField.get(this)).getClassLoader();
-    } finally {
-      clazzField.setAccessible(false);
+      return clazz.getDeclaredConstructor().newInstance();
+    } catch (ReflectiveOperationException ex) {
+      throw new TestInstantiationException("Failed to create test class", ex);
     }
+  }
+
+  private ExtensionContext.Store getStore(final ExtensionContext ctx) {
+    final ExtensionContext.Namespace ns = ExtensionContext.Namespace.create(ctx.getTestClass().get());
+    return ctx.getStore(ns);
+  }
+
+  @Override
+  public void beforeTestExecution(final ExtensionContext ctx) throws Exception {
+    final ClassLoader customClassLoader = (ClassLoader) getStore(ctx).get(CUSTOM_CLASS_LOADER_KEY);
+    if (customClassLoader == null) {
+      // TODO
+      throw new Exception("BAD");
+    }
+    final Thread currentThread = Thread.currentThread();
+    final ClassLoader originalClassLoader = currentThread.getContextClassLoader();
+    getStore(ctx).put(ORIGINAL_CLASS_LOADER_KEY, originalClassLoader);
+    currentThread.setContextClassLoader(customClassLoader);
+  }
+
+  @Override
+  public void afterTestExecution(final ExtensionContext ctx) throws Exception {
+    final ClassLoader originalContextLoader = (ClassLoader) getStore(ctx).get(ORIGINAL_CLASS_LOADER_KEY);
+    if (originalContextLoader == null) {
+      // TODO
+      throw new Exception("BAD");
+    }
+    Thread.currentThread().setContextClassLoader(originalContextLoader);
   }
 
   private static void assertNoBootstrapClassesInTestClass(final Class<?> testClass) {
@@ -118,22 +155,10 @@ public class SpockRunner extends Sputnik {
   private static Class<?> shadowTestClass(final Class<?> clazz) {
     try {
       final InstrumentationClassLoader customLoader =
-          new InstrumentationClassLoader(
-              datadog.trace.agent.test.SpockRunner.class.getClassLoader(), clazz.getName());
+          new InstrumentationClassLoader(DDTestClassExtension.class.getClassLoader(), clazz.getName());
       return customLoader.shadow(clazz);
     } catch (final Exception e) {
       throw new IllegalStateException(e);
-    }
-  }
-
-  @Override
-  public void run(final RunNotifier notifier) {
-    final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
-    try {
-      Thread.currentThread().setContextClassLoader(customLoader);
-      super.run(notifier);
-    } finally {
-      Thread.currentThread().setContextClassLoader(contextLoader);
     }
   }
 
