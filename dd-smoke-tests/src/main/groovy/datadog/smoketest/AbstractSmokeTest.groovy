@@ -93,6 +93,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
     "-Ddd.profiling.url=${getProfilingUrl()}",
     "-Ddd.profiling.async.enabled=true",
     "-Ddd.profiling.async.wall.enabled=true",
+    "-Ddd.profiling.async.cstack=dwarf",
     "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
     "-Dorg.slf4j.simpleLogger.defaultLogLevel=${logLevel()}"
   ]
