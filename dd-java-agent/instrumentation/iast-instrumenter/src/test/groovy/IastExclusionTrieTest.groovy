@@ -4,7 +4,6 @@ import spock.lang.Unroll
 
 class IastExclusionTrieTest extends DDSpecification {
 
-  @Unroll
   def 'Test that #name should be included? #expected'(final String name, final int expected) {
     when:
     final result = IastExclusionTrie.apply(name)

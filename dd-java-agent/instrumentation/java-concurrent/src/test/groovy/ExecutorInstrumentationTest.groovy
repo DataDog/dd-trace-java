@@ -64,7 +64,6 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     injectSysConfig("trace.thread-pool-executors.exclude", "ExecutorInstrumentationTest\$ToBeIgnoredExecutor")
   }
 
-  @Unroll
   def "#poolImpl '#name' propagates"() {
     setup:
     assumeTrue(poolImpl != null) // skip for Java 7 CompletableFuture, non-Linux Netty EPoll
@@ -223,7 +222,6 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     // spotless:on
   }
 
-  @Unroll
   def "#poolImpl '#name' doesn't propagate"() {
     setup:
     def pool = poolImpl
@@ -337,7 +335,6 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     }
   }
 
-  @Unroll
   def "#poolImpl '#name' wraps"() {
     setup:
     def pool = poolImpl
@@ -374,7 +371,6 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     "schedule Runnable" | scheduleRunnable | { new RunnableWrapper(it) } | new ScheduledThreadPoolExecutor(1)
   }
 
-  @Unroll
   def "#poolImpl '#name' reports after canceled jobs"() {
     setup:
     assumeTrue(poolImpl != null) // skip for non-Linux Netty EPoll

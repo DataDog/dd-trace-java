@@ -38,7 +38,6 @@ class VertxSqlClientForkedTest extends AgentTestRunner {
   @Shared
   def vertx = Vertx.vertx(new VertxOptions())
 
-  @Unroll
   def "test #type"() {
     when:
     AsyncResult<RowSet<Row>> asyncResult = runUnderTrace("parent") {
@@ -72,7 +71,6 @@ class VertxSqlClientForkedTest extends AgentTestRunner {
     'prepared statement' | pool() | prepare(connection(pool), "SELECT 7").query() | true
   }
 
-  @Unroll
   def "test #type without parent"() {
     when:
     AsyncResult<RowSet<Row>> asyncResult = executeQueryWithHandler(query)
@@ -105,7 +103,6 @@ class VertxSqlClientForkedTest extends AgentTestRunner {
     'prepared statement' | pool() | prepare(connection(pool), "SELECT 7").query() | true
   }
 
-  @Unroll
   def "test #type mapped"() {
     setup:
     def mapped = query.mapping({row ->
@@ -144,7 +141,6 @@ class VertxSqlClientForkedTest extends AgentTestRunner {
     'prepared statement' | pool() | prepare(connection(pool), "SELECT 7").query() | true
   }
 
-  @Unroll
   def "test #type mapped without parent"() {
     setup:
     def mapped = query.mapping({row ->

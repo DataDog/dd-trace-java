@@ -19,7 +19,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static org.junit.Assume.assumeTrue
 
-@Unroll
 class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
 
   class TomcatServer implements HttpServer {

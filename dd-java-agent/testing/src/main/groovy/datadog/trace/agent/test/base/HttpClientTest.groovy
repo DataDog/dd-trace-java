@@ -23,7 +23,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HO
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING
 import static org.junit.Assume.assumeTrue
 
-@Unroll
 abstract class HttpClientTest extends AgentTestRunner {
   protected static final BODY_METHODS = ["POST", "PUT"]
   protected static final int CONNECT_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(3) as int

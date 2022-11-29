@@ -9,7 +9,6 @@ import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator
 import spock.lang.Shared
 import spock.lang.Unroll
 
-@Unroll
 abstract class TestFrameworkTest extends AgentTestRunner {
 
   @Override

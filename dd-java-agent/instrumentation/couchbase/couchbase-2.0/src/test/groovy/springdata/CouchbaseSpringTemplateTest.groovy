@@ -16,7 +16,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 @Retry(count = 10, delay = 500)
-@Unroll
 class CouchbaseSpringTemplateTest extends AbstractCouchbaseTest {
 
   @Override

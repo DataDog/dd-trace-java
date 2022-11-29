@@ -11,7 +11,6 @@ abstract class URIDataAdapterTest extends DDSpecification {
     return true
   }
 
-  @Unroll
   def "test URI parts #input"() {
     setup:
     def uri = new URI(input)

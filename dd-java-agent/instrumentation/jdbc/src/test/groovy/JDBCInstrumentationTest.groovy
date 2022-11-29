@@ -162,7 +162,6 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     }
   }
 
-  @Unroll
   def "basic statement with #connection.getClass().getCanonicalName() on #driver generates spans"() {
     setup:
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
@@ -232,7 +231,6 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     "hsqldb" | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"  | "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"
   }
 
-  @Unroll
   def "prepared statement execute on #driver with #connection.getClass().getCanonicalName() generates a span"() {
     setup:
     PreparedStatement statement = connection.prepareStatement(query)
@@ -287,7 +285,6 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     "derby" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
   }
 
-  @Unroll
   def "prepared statement query on #driver with #connection.getClass().getCanonicalName() generates a span"() {
     setup:
     PreparedStatement statement = connection.prepareStatement(query)
@@ -341,7 +338,6 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     "derby" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
   }
 
-  @Unroll
   def "prepared call on #driver with #connection.getClass().getCanonicalName() generates a span"() {
     setup:
     CallableStatement statement = connection.prepareCall(query)
@@ -395,7 +391,6 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     "derby" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
   }
 
-  @Unroll
   def "statement update on #driver with #connection.getClass().getCanonicalName() generates a span"() {
     setup:
     Statement statement = connection.createStatement()
@@ -452,7 +447,6 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     "hsqldb" | cpDatasources.get("c3p0").get(driver).getConnection()   | "CREATE TABLE PUBLIC.S_HSQLDB_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
   }
 
-  @Unroll
   def "prepared statement update on #driver with #connection.getClass().getCanonicalName() generates a span"() {
     setup:
     def sql = connection.nativeSQL(query)
@@ -504,7 +498,6 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     "derby" | cpDatasources.get("c3p0").get(driver).getConnection()   | "APP"    | "CREATE TABLE PS_DERBY_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
   }
 
-  @Unroll
   def "connection constructor throwing then generating correct spans after recovery using #driver connection (prepare statement = #prepareStatement)"() {
     setup:
     Connection connection = null
@@ -684,7 +677,6 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     obfuscatedQuery = "testing ?"
   }
 
-  @Unroll
   def "#connectionPoolName connections should be cached in case of wrapped connections"() {
     setup:
     String dbType = "hsqldb"

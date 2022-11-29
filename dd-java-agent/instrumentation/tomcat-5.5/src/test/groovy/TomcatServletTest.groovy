@@ -24,7 +24,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOU
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static org.junit.Assume.assumeTrue
 
-@Unroll
 class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
 
   class TomcatServer implements HttpServer {

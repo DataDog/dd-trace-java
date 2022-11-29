@@ -21,7 +21,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
   // TODO Java 17: This version of spring-data doesn't support Java 17
   new BigDecimal(System.getProperty("java.specification.version")).isAtLeast(17.0)
 })
-@Unroll
 class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
   static final Closure<Doc> FIND
   static {

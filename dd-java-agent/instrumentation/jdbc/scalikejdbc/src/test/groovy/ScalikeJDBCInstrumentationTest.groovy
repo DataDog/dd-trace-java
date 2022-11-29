@@ -132,7 +132,6 @@ class ScalikeJDBCInstrumentationTest extends AgentTestRunner {
     }
   }
 
-  @Unroll
   def "scalikejdbc query test"() {
     setup:
     runUnderTrace("parent") {

@@ -1996,7 +1996,6 @@ class ConfigTest extends DDSpecification {
     config.getMetricsIgnoredResources() == ["GET /healthcheck", "SELECT foo from bar"].toSet()
   }
 
-  @Unroll
   def "appsec state with sys = #sys env = #env"() {
     setup:
     if (sys != null) {

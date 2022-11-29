@@ -905,7 +905,6 @@ class KafkaClientTest extends AgentTestRunner {
     container?.stop()
   }
 
-  @Unroll
   def "test kafka client header propagation manual config"() {
     setup:
     def producerProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())

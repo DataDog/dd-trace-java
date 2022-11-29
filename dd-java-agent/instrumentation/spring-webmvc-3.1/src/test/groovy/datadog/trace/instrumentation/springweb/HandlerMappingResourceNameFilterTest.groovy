@@ -32,7 +32,6 @@ class HandlerMappingResourceNameFilterTest extends AgentTestRunner {
   @Autowired
   HandlerMappingResourceNameFilter filter
 
-  @Unroll
   def "test filter doesn't make externally visible changes to request object - url: #url"() {
     given:
     def request = new MockHttpServletRequest("GET", url)

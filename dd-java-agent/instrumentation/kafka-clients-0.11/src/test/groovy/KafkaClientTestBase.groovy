@@ -725,7 +725,6 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     container?.stop()
   }
 
-  @Unroll
   def "test kafka client header propagation manual config"() {
     setup:
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())

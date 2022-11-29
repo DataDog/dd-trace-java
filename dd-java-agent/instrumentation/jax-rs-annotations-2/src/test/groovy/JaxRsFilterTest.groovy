@@ -20,7 +20,6 @@ import javax.ws.rs.ext.Provider
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-@Unroll
 abstract class JaxRsFilterTest extends AgentTestRunner {
 
   @Shared
