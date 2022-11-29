@@ -81,7 +81,12 @@ public class TagsProcessor {
     return result;
   }
 
+  // Creates the tag string using the provided tagKey and tagValue.
+  // Returns null if either tagKey or tagValue is null.
   public static String createTag(String tagKey, String tagValue) {
+    if (tagKey == null || tagValue == null) {
+      return null;
+    }
     DDCache<String, String> cache = TAG_TO_CACHE.get(tagKey);
     Function<String, String> prefix = TAG_TO_PREFIX.get(tagKey);
     if (cache != null && prefix != null) {

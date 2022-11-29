@@ -107,6 +107,9 @@ public class DefaultPathwayContext implements PathwayContext {
 
       for (Map.Entry<String, String> entry : sortedTags.entrySet()) {
         String tag = TagsProcessor.createTag(entry.getKey(), entry.getValue());
+        if (tag == null) {
+          continue;
+        }
         if (hashableTagKeys.contains(entry.getKey())) {
           pathwayHashBuilder.addTag(tag);
         }
