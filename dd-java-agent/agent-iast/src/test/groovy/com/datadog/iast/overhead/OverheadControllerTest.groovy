@@ -201,9 +201,8 @@ class OverheadControllerTest extends DDSpecification {
             sem.release()
             overheadController.releaseRequest()
             return true
-          } else {
-            return false
           }
+          return false
         }
       } as Callable<Boolean[]>)
     }

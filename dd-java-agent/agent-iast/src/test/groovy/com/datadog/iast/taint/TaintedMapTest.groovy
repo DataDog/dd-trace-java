@@ -6,8 +6,6 @@ import datadog.trace.test.util.CircularBuffer
 import datadog.trace.test.util.DDSpecification
 import spock.lang.IgnoreIf
 
-import java.util.concurrent.ArrayBlockingQueue
-import java.util.concurrent.Callable
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -255,102 +253,6 @@ class TaintedMapTest extends DDSpecification {
     objectHolder.count {
       map.get(it.getKey()) == it.getValue()
     } >= nTotalObjects * maxAcceptableLoss
-
-    cleanup:
-    executorService?.shutdown()
-  }
-
-
-  def 'multi-threaded put-intensive workflow with garbage collection interaction and under max size'() {
-    given:
-    float maxAcceptableLoss = 0.99
-    float maxAcceptableLossPerThread = 0.9
-    int nThreads = 16
-    int nObjectsPerThread = (int) Math.floor(DefaultTaintedMap.DEFAULT_FLAT_MODE_THRESHOLD / nThreads) * 2
-    int nRetainedObjectsPerThread = 128
-    // Each thread will wait for garbage collection after this number of puts.
-    int nBeforeWaitGC = 64
-
-    // Total number of puts should go over the flat mode threshold.
-    assert nObjectsPerThread * nThreads > DefaultTaintedMap.DEFAULT_FLAT_MODE_THRESHOLD
-    // Total retained objects (plus a wide margin given the probabilistic size estimate) should not go
-    // over the flat mode threshold.
-    assert nRetainedObjectsPerThread * 2 * nThreads < DefaultTaintedMap.DEFAULT_FLAT_MODE_THRESHOLD
-    assert nBeforeWaitGC <= nRetainedObjectsPerThread
-
-    def executorService = Executors.newFixedThreadPool(nThreads)
-    def startLatch = new CountDownLatch(nThreads)
-    def map = new DefaultTaintedMap()
-
-    // Holders to avoid objects being garbage collected
-    def objectHolders = (1..nThreads).collect { new CircularBuffer<>(nRetainedObjectsPerThread) }
-
-    when: 'perform a high amount of concurrent puts'
-    def futures = (1..nThreads).collect { thread ->
-      executorService.submit({
-        ->
-        final unreferenced = new ArrayList<TaintedObject>()
-        final buffer = objectHolders.get(thread - 1)
-        final tuples = new ArrayBlockingQueue<Tuple2<Object, TaintedObject>>(nObjectsPerThread)
-        for (int i = 1; i <= nObjectsPerThread; i++) {
-          final o = new Object()
-          final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
-          tuples.add(new Tuple2<Object, TaintedObject>(o, to))
-        }
-        startLatch.countDown()
-        startLatch.await()
-        for (int i = 1; i <= nObjectsPerThread; i++) {
-          if (i % nBeforeWaitGC == 0) {
-            awaitCollected(unreferenced)
-          }
-          def tuple = tuples.poll()
-          final previous = buffer.add(tuple.getFirst())
-          if (previous != null) {
-            final to = map.get(previous)
-            if (to != null) {
-              unreferenced.add(to)
-            }
-          }
-          map.put(tuple.getSecond())
-        }
-        while (!tuples.isEmpty()) {
-          def tuple = tuples.poll()
-          final previous = buffer.add(tuple.getFirst())
-          if (previous != null) {
-            final to = map.get(previous)
-            if (to != null) {
-              unreferenced.add(to)
-            }
-          }
-          map.put(tuple.getSecond())
-        }
-        return unreferenced
-      } as Callable<List<TaintedObject>>)
-    }
-    final unreferenced = futures.collectMany { it.get() }
-    awaitCollected(unreferenced)
-
-    then: 'map is not in flat mode'
-    !map.isFlat()
-
-    and: 'map does not contain too many extra entries'
-    map.toList().size() <= nThreads * nRetainedObjectsPerThread * 2
-
-    and: 'map does not contain extra objects'
-    map.toList().findAll { it.get() != null }.size() <= nThreads * nRetainedObjectsPerThread + nBeforeWaitGC
-
-    and: 'map did not lose too many objects'
-    map.toList().findAll { it.get() != null }.size() >= nThreads * nRetainedObjectsPerThread * maxAcceptableLoss
-
-    and: 'sanity check'
-    objectHolders.every { it.size() == nRetainedObjectsPerThread }
-
-    and: 'all objects are as expected'
-    for (final CircularBuffer<Object> objectHolder : objectHolders) {
-      assert objectHolder.count {
-        map.get(it) != null && map.get(it).get() == it
-      } >= nRetainedObjectsPerThread * maxAcceptableLossPerThread
-    }
 
     cleanup:
     executorService?.shutdown()
