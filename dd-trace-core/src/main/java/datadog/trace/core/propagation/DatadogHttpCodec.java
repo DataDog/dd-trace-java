@@ -167,23 +167,22 @@ class DatadogHttpCodec {
       }
       if (classification != IGNORE) {
         try {
-          String firstValue = firstHeaderValue(value);
-          if (null != firstValue) {
+          if (null != value) {
             switch (classification) {
               case TRACE_ID:
-                traceId = DDTraceId.from(firstValue);
+                traceId = DDTraceId.from(firstHeaderValue(value));
                 break;
               case SPAN_ID:
-                spanId = DDSpanId.from(firstValue);
+                spanId = DDSpanId.from(firstHeaderValue(value));
                 break;
               case ORIGIN:
-                origin = firstValue;
+                origin = firstHeaderValue(value);
                 break;
               case SAMPLING_PRIORITY:
-                samplingPriority = Integer.parseInt(firstValue);
+                samplingPriority = Integer.parseInt(firstHeaderValue(value));
                 break;
               case E2E_START:
-                endToEndStartTime = extractEndToEndStartTime(firstValue);
+                endToEndStartTime = extractEndToEndStartTime(firstHeaderValue(value));
                 break;
               case DD_TAGS:
                 datadogTags = datadogTagsFactory.fromHeaderValue(value);
