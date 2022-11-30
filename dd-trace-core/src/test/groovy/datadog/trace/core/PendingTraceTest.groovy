@@ -1,6 +1,6 @@
 package datadog.trace.core
 
-import datadog.trace.api.DDId
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.time.TimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -19,9 +19,9 @@ class PendingTraceTest extends PendingTraceTestBase {
   }
   protected DDSpan createSimpleSpan(PendingTrace trace){
     return new DDSpan((long)0,new DDSpanContext(
-      DDId.from(1),
-      DDId.from(1),
-      DDId.ZERO,
+      DDTraceId.from(1),
+      DDTraceId.from(1),
+      DDTraceId.ZERO,
       null,
       "",
       "",
@@ -68,12 +68,11 @@ class PendingTraceTest extends PendingTraceTestBase {
     def tracer = Mock(CoreTracer)
     def buffer = Mock(PendingTraceBuffer)
     def healthMetrics = Mock(HealthMetrics)
-    PendingTrace trace = new PendingTrace(tracer,DDId.from(0),buffer,Mock(TimeSource),false,healthMetrics)
+    PendingTrace trace = new PendingTrace(tracer,DDTraceId.from(0),buffer,Mock(TimeSource),false,healthMetrics)
     when:
     rootSpan = createSimpleSpan(trace)
     trace.registerSpan(rootSpan)
     then:
-    1 * tracer.onStart(_)
     1 * healthMetrics.onCreateSpan()
 
     when:
