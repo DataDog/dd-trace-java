@@ -52,13 +52,15 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE = false;
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX = false;
   static final int DEFAULT_SCOPE_DEPTH_LIMIT = 100;
-  static final int DEFAULT_SCOPE_ITERATION_KEEP_ALIVE = 10; // in seconds
+  static final int DEFAULT_SCOPE_ITERATION_KEEP_ALIVE = 30; // in seconds
   static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
   static final boolean DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED = false;
   static final String DEFAULT_PROPAGATION_STYLE_EXTRACT = PropagationStyle.DATADOG.name();
   static final String DEFAULT_PROPAGATION_STYLE_INJECT = PropagationStyle.DATADOG.name();
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
   static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
+
+  static final boolean DEFAULT_CLIENT_IP_ENABLED = false;
 
   static final int DEFAULT_CLOCK_SYNC_PERIOD = 30; // seconds
 
@@ -79,20 +81,28 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_APPSEC_WAF_METRICS = true;
 
   static final boolean DEFAULT_IAST_ENABLED = false;
+  static final boolean DEFAULT_IAST_TAINT_TRACKING_DEBUG_ENABLED = false;
   public static final int DEFAULT_IAST_MAX_CONCURRENT_REQUESTS = 2;
   public static final int DEFAULT_IAST_VULNERABILITIES_PER_REQUEST = 2;
   public static final int DEFAULT_IAST_REQUEST_SAMPLING = 30;
   static final Set<String> DEFAULT_IAST_WEAK_HASH_ALGORITHMS =
-      new HashSet<>(Arrays.asList("MD2", "MD5", "RIPEMD128", "MD4"));
+      new HashSet<>(Arrays.asList("SHA1", "SHA-1", "MD2", "MD5", "RIPEMD128", "MD4"));
   static final String DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS =
       "^(?:PBEWITH(?:HMACSHA(?:2(?:24ANDAES_(?:128|256)|56ANDAES_(?:128|256))|384ANDAES_(?:128|256)|512ANDAES_(?:128|256)|1ANDAES_(?:128|256))|SHA1AND(?:RC(?:2_(?:128|40)|4_(?:128|40))|DESEDE)|MD5AND(?:TRIPLEDES|DES))|DES(?:EDE(?:WRAP)?)?|BLOWFISH|ARCFOUR|RC2).*$";
+
+  static final boolean DEFAULT_IAST_DEDUPLICATION_ENABLED = true;
 
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED = false;
 
-  static final boolean DEFAULT_REMOTE_CONFIG_ENABLED = false;
+  static final boolean DEFAULT_REMOTE_CONFIG_ENABLED = true;
+  static final boolean DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED = false;
   static final int DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE = 1024; // KiB
   static final int DEFAULT_REMOTE_CONFIG_INITIAL_POLL_INTERVAL = 5; // s
+  static final String DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID =
+      "5c4ece41241a1bb513f6e3e5df74ab7d5183dfffbd71bfd43127920d880569fd";
+  static final String DEFAULT_REMOTE_CONFIG_TARGETS_KEY =
+      "e3f1f98c9da02a93bb547f448b472d727e14b22455235796fe49863856252508";
 
   static final boolean DEFAULT_DEBUGGER_ENABLED = false;
   static final int DEFAULT_DEBUGGER_UPLOAD_TIMEOUT = 30; // seconds
@@ -123,8 +133,12 @@ public final class ConfigDefaults {
 
   static final int DEFAULT_RESOLVER_OUTLINE_POOL_SIZE = 128;
   static final int DEFAULT_RESOLVER_TYPE_POOL_SIZE = 64;
+  static final int DEFAULT_RESOLVER_RESET_INTERVAL = 300; // seconds
 
-  static final boolean DEFAULT_TELEMETRY_ENABLED = false;
+  static final boolean DEFAULT_TELEMETRY_ENABLED = true;
+  static final int DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL = 60; // in seconds
+
+  static final boolean DEFAULT_SECURE_RANDOM = false;
 
   public static final int DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH = 512;
 

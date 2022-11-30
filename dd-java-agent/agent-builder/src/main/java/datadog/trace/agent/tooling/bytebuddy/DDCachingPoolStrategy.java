@@ -5,11 +5,11 @@ import static datadog.trace.bootstrap.AgentClassLoading.LOCATING_CLASS;
 
 import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
 import datadog.trace.agent.tooling.WeakCaches;
-import datadog.trace.api.Config;
-import datadog.trace.api.function.Function;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.WeakCache;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Function;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.annotation.AnnotationList;
 import net.bytebuddy.description.method.MethodDescription;
@@ -52,20 +52,15 @@ public final class DDCachingPoolStrategy
 
   static final int CONCURRENCY_LEVEL = 8;
   static final int LOADER_CAPACITY = 64;
-  static final int TYPE_CAPACITY = Config.get().getResolverTypePoolSize();
+  static final int TYPE_CAPACITY = InstrumenterConfig.get().getResolverTypePoolSize();
 
   static final int BOOTSTRAP_HASH = 7236344; // Just a random number
 
   private static final Function<ClassLoader, WeakReference<ClassLoader>> WEAK_REF =
-      new Function<ClassLoader, WeakReference<ClassLoader>>() {
-        @Override
-        public WeakReference<ClassLoader> apply(ClassLoader input) {
-          return new WeakReference<>(input);
-        }
-      };
+      WeakReference::new;
 
   public static final DDCachingPoolStrategy INSTANCE =
-      new DDCachingPoolStrategy(Config.get().isResolverUseLoadClassEnabled());
+      new DDCachingPoolStrategy(InstrumenterConfig.get().isResolverUseLoadClassEnabled());
 
   public static void registerAsSupplier() {
     SharedTypePools.registerIfAbsent(INSTANCE);
@@ -140,6 +135,11 @@ public final class DDCachingPoolStrategy
 
   @Override
   public void endTransform() {}
+
+  @Override
+  public void clear() {
+    sharedResolutionCache.clear();
+  }
 
   private TypePool.CacheProvider createCacheProvider(
       final int loaderHash, final WeakReference<ClassLoader> loaderRef) {

@@ -3,7 +3,6 @@ package datadog.trace.agent.test
 import datadog.trace.agent.tooling.HelperInjector
 import datadog.trace.agent.tooling.Utils
 import datadog.trace.test.util.DDSpecification
-import net.bytebuddy.agent.ByteBuddyAgent
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.dynamic.ClassFileLocator
 import net.bytebuddy.dynamic.loading.ClassInjector
@@ -13,7 +12,6 @@ import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicReference
 
 import static datadog.trace.agent.test.utils.ClasspathUtils.isClassLoaded
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.BOOTSTRAP_CLASSLOADER
 import static datadog.trace.test.util.GCUtils.awaitGC
 
 class HelperInjectionTest extends DDSpecification {
@@ -31,7 +29,7 @@ class HelperInjectionTest extends DDSpecification {
     thrown ClassNotFoundException
 
     when:
-    injector.transform(null, null, emptyLoader.get(), null)
+    injector.transform(null, null, emptyLoader.get(), null, null)
     emptyLoader.get().loadClass(HELPER_CLASS_NAME)
     then:
     isClassLoaded(HELPER_CLASS_NAME, emptyLoader.get())
@@ -47,24 +45,6 @@ class HelperInjectionTest extends DDSpecification {
 
     then: "HelperInjector doesn't prevent it from being collected"
     null == ref.get()
-  }
-
-  def "helpers injected on bootstrap classloader"() {
-    setup:
-    Utils.setInstrumentation(ByteBuddyAgent.install())
-    HelperInjector injector = new HelperInjector("test", HELPER_CLASS_NAME)
-    URLClassLoader bootstrapChild = new URLClassLoader(new URL[0], (ClassLoader) null)
-
-    when:
-    bootstrapChild.loadClass(HELPER_CLASS_NAME)
-    then:
-    thrown ClassNotFoundException
-
-    when:
-    injector.transform(null, null, BOOTSTRAP_CLASSLOADER, null)
-    Class<?> helperClass = bootstrapChild.loadClass(HELPER_CLASS_NAME)
-    then:
-    helperClass.getClassLoader() == BOOTSTRAP_CLASSLOADER
   }
 
   @Retry

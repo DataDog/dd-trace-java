@@ -34,18 +34,19 @@ public class PollerRequestFactory {
   private final String hostName;
   private final String tracerVersion;
   private final String containerId;
-  final HttpUrl url;
   private final Moshi moshi;
+  final HttpUrl url;
 
   public PollerRequestFactory(
       Config config, String tracerVersion, String containerId, String url, Moshi moshi) {
     this.runtimeId = getRuntimeId(config);
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
     this.apiKey = config.getApiKey();
-    this.env = config.getEnv();
-    this.ddVersion = config.getVersion();
+    this.env = TagsHelper.sanitize(config.getEnv());
+    this.ddVersion = TagsHelper.sanitize(config.getVersion());
     this.hostName = config.getHostName();
-    this.tracerVersion = tracerVersion;
+    // Semantic Versioning requires build separated with `+`
+    this.tracerVersion = tracerVersion.replace('~', '+');
     this.containerId = containerId;
     this.url = parseUrl(url);
     this.moshi = moshi;
@@ -71,13 +72,15 @@ public class PollerRequestFactory {
   public Request newConfigurationRequest(
       Collection<String> productNames,
       ClientState clientState,
-      Collection<CachedTargetFile> cachedTargetFiles) {
+      Collection<CachedTargetFile> cachedTargetFiles,
+      long capabilities) {
     Request.Builder requestBuilder = new Request.Builder().url(this.url).get();
     MediaType applicationJson = MediaType.parse("application/json");
     RequestBody requestBody =
         RequestBody.create(
             applicationJson,
-            buildRemoteConfigRequestJson(productNames, clientState, cachedTargetFiles));
+            buildRemoteConfigRequestJson(
+                productNames, clientState, cachedTargetFiles, capabilities));
     requestBuilder.post(requestBody);
     if (this.apiKey != null) {
       requestBuilder.addHeader(HEADER_DD_API_KEY, this.apiKey);
@@ -91,21 +94,31 @@ public class PollerRequestFactory {
   private String buildRemoteConfigRequestJson(
       Collection<String> productNames,
       ClientState clientState,
-      Collection<CachedTargetFile> cachedTargetFiles) {
+      Collection<CachedTargetFile> cachedTargetFiles,
+      long capabilities) {
     RemoteConfigRequest rcRequest =
-        RemoteConfigRequest.newRequest(
-            this.clientId,
-            this.runtimeId,
-            this.tracerVersion,
-            productNames,
-            this.serviceName,
-            this.env,
-            this.ddVersion,
-            buildRequestTags(),
-            clientState,
-            cachedTargetFiles);
-
+        buildRemoteConfigRequest(productNames, clientState, cachedTargetFiles, capabilities);
     return moshi.adapter(RemoteConfigRequest.class).toJson(rcRequest);
+  }
+
+  /** For testing purposes only. */
+  public RemoteConfigRequest buildRemoteConfigRequest(
+      Collection<String> productNames,
+      ClientState clientState,
+      Collection<CachedTargetFile> cachedTargetFiles,
+      long capabilities) {
+    return RemoteConfigRequest.newRequest(
+        this.clientId,
+        this.runtimeId,
+        this.tracerVersion,
+        productNames,
+        this.serviceName,
+        this.env,
+        this.ddVersion,
+        buildRequestTags(),
+        clientState,
+        cachedTargetFiles,
+        capabilities);
   }
 
   private List<String> buildRequestTags() {

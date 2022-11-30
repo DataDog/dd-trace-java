@@ -101,6 +101,11 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
 
   abstract boolean splitByDestination()
 
+  boolean excludesRoutingKeyFromResource() {
+    false
+  }
+
+
   def "test rabbit publish/get"() {
     setup:
     String queueName
@@ -146,14 +151,14 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["exchange:" + exchangeName, "has_routing_key:true", "type:internal"]
-        edgeTags.size() == 3
+        edgeTags == ["direction:out", "exchange:" + exchangeName, "has_routing_key:true", "type:rabbitmq"]
+        edgeTags.size() == 4
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["topic:" + queueName, "type:rabbitmq"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:in", "topic:" + queueName, "type:rabbitmq"]
+        edgeTags.size() == 3
       }
     }
 
@@ -200,14 +205,14 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["exchange:", "has_routing_key:true", "type:internal"]
-        edgeTags.size() == 3
+        edgeTags == ["direction:out", "exchange:", "has_routing_key:true", "type:rabbitmq"]
+        edgeTags.size() == 4
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["topic:" + queueName, "type:rabbitmq"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:in", "topic:" + queueName, "type:rabbitmq"]
+        edgeTags.size() == 3
       }
     }
   }
@@ -297,15 +302,15 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       List<StatsGroup> producerPoints = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
       producerPoints.each { producerPoint ->
         verifyAll(producerPoint) {
-          edgeTags == ["exchange:" + exchangeName, "has_routing_key:false", "type:internal"]
-          edgeTags.size() == 3
+          edgeTags == ["direction:out", "exchange:" + exchangeName, "has_routing_key:false", "type:rabbitmq"]
+          edgeTags.size() == 4
         }
       }
 
       StatsGroup consumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == producerPoints.get(0).hash }
       verifyAll(consumerPoint) {
-        edgeTags == ["topic:" + queueName, "type:rabbitmq"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:in", "topic:" + queueName, "type:rabbitmq"]
+        edgeTags.size() == 3
       }
     }
 
@@ -389,14 +394,14 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["exchange:" + exchangeName, "has_routing_key:false", "type:internal"]
-        edgeTags.size() == 3
+        edgeTags == ["direction:out", "exchange:" + exchangeName, "has_routing_key:false", "type:rabbitmq"]
+        edgeTags.size() == 4
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["topic:" + queueName, "type:rabbitmq"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:in", "topic:" + queueName, "type:rabbitmq"]
+        edgeTags.size() == 3
       }
     }
 
@@ -474,14 +479,14 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(["exchange:", "has_routing_key:true", "type:internal"])
-        edgeTags.size() == 3
+        edgeTags.containsAll(["direction:out", "exchange:", "has_routing_key:true", "type:rabbitmq"])
+        edgeTags.size() == 4
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["topic:some-routing-queue", "type:rabbitmq"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:in", "topic:some-routing-queue", "type:rabbitmq"]
+        edgeTags.size() == 3
       }
     }
   }
@@ -558,14 +563,14 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled() && !noParent) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["exchange:" + exchangeName, "has_routing_key:true", "type:internal"]
-        edgeTags.size() == 3
+        edgeTags == ["direction:out", "exchange:" + exchangeName, "has_routing_key:true", "type:rabbitmq"]
+        edgeTags.size() == 4
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["topic:" + queueName, "type:rabbitmq"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:in", "topic:" + queueName, "type:rabbitmq"]
+        edgeTags.size() == 3
       }
     }
 
@@ -651,14 +656,14 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled() && !noParent) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["exchange:" + exchangeName, "has_routing_key:true", "type:internal"]
-        edgeTags.size() == 3
+        edgeTags == ["direction:out", "exchange:" + exchangeName, "has_routing_key:true", "type:rabbitmq"]
+        edgeTags.size() == 4
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["topic:" + queueName, "type:rabbitmq"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:in", "topic:" + queueName, "type:rabbitmq"]
+        edgeTags.size() == 3
       }
     }
 
@@ -685,7 +690,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       trace,
       expectedServiceName(),
       "amqp.command",
-      resource,
+      excludesRoutingKeyFromResource() ? resource.replaceAll(" -> .*", "") : resource,
       distributedRootSpan,
       parentSpan,
       exception,
@@ -938,5 +943,36 @@ class RabbitMQLegacyTracingForkedTest extends RabbitMQTestBase {
   @Override
   boolean splitByDestination() {
     return false
+  }
+}
+
+@Requires({ jvm.java8Compatible })
+class RabbitMQRoutingKeyExcludedForkedTest extends RabbitMQTestBase {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.service", "RabbitMQRoutingKeyExcludedForkedTest")
+    injectSysConfig("dd.rabbit.include.routingkey.in.resource", "false")
+    injectSysConfig("dd.rabbit.legacy.tracing.enabled", "false")
+  }
+
+  @Override
+  String expectedServiceName() {
+    return "RabbitMQRoutingKeyExcludedForkedTest"
+  }
+
+  @Override
+  boolean hasQueueSpan() {
+    return true
+  }
+
+  @Override
+  boolean splitByDestination() {
+    return false
+  }
+
+  @Override
+  boolean excludesRoutingKeyFromResource() {
+    return true
   }
 }

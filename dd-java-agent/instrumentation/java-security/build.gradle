@@ -1,0 +1,26 @@
+muzzle {
+  pass {
+    coreJdk()
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+apply plugin: 'call-site-instrumentation'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+tasks.withType(Test).configureEach {
+  jvmArgs += ['-Ddd.iast.enabled=true']
+}
+
+dependencies {
+  testImplementation project(':dd-java-agent:agent-iast')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testImplementation group: 'org.bouncycastle', name: 'bcprov-jdk15on', version: '1.70'
+}

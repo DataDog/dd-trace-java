@@ -7,7 +7,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -30,7 +30,7 @@ public final class TraceAnnotationsInstrumentation extends Instrumenter.Tracing
     super("trace", "trace-annotation");
     Set<String> annotations = new HashSet<>();
     annotations.add("datadog.trace.api.Trace");
-    final String configString = Config.get().getTraceAnnotations();
+    final String configString = InstrumenterConfig.get().getTraceAnnotations();
     if (configString == null) {
       annotations.addAll(
           Arrays.asList(

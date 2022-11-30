@@ -9,6 +9,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.probe.SnapshotProbe;
+import com.datadog.debugger.probe.Where;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Tracer;
@@ -17,10 +19,9 @@ import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
-import datadog.trace.bootstrap.debugger.FieldExtractor;
+import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.Snapshot;
-import datadog.trace.bootstrap.debugger.ValueConverter;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import java.io.BufferedReader;
@@ -69,9 +70,8 @@ import utils.SourceCompiler;
 public class DebuggerTransformerTest {
   private static final String LANGUAGE = "java";
   private static final String PROBE_ID = "beae1807-f3b0-4ea8-a74f-826790c5e6f8";
-  private static final String SERVICE_NAME = "service-name";
-  private static final long ORG_ID = 2;
   private static final boolean FAST_TESTS = Boolean.getBoolean("fast-tests");
+  private static final String SERVICE_NAME = "service-name";
 
   enum InstrumentationKind {
     ENTRY_EXIT,
@@ -87,12 +87,14 @@ public class DebuggerTransformerTest {
 
   static class TestSnapshotListener implements DebuggerContext.Sink {
     boolean skipped;
+    DebuggerContext.SkipCause cause;
     List<Snapshot> snapshots = new ArrayList<>();
     Map<String, List<DiagnosticMessage>> errors = new HashMap<>();
 
     @Override
     public void skipSnapshot(String probeId, DebuggerContext.SkipCause cause) {
       skipped = true;
+      this.cause = cause;
     }
 
     @Override
@@ -117,7 +119,7 @@ public class DebuggerTransformerTest {
       this.delegate =
           new DebuggerTransformer(
               Config.get(),
-              new Configuration(SERVICE_NAME, ORG_ID, Collections.singletonList(probe)),
+              new Configuration(SERVICE_NAME, Collections.singletonList(probe)),
               null);
       this.codeOutput = codeOutput;
     }
@@ -191,6 +193,9 @@ public class DebuggerTransformerTest {
             new InputStreamReader(
                 DebuggerTransformerTest.class.getResourceAsStream("/TargetClass.ftlh")),
             cfg);
+    // TODO asserts are operating on 'toString()' which requires keeping the underlying object so we
+    // just disable serialization for now
+    DebuggerContext.initSnapshotSerializer(null);
   }
 
   @AfterEach
@@ -237,7 +242,7 @@ public class DebuggerTransformerTest {
     DebuggerTransformer debuggerTransformer =
         new DebuggerTransformer(
             config,
-            new Configuration(SERVICE_NAME, ORG_ID, Collections.singletonList(snapshotProbe)),
+            new Configuration(SERVICE_NAME, Collections.singletonList(snapshotProbe)),
             null);
     debuggerTransformer.transform(
         ClassLoader.getSystemClassLoader(),
@@ -279,7 +284,7 @@ public class DebuggerTransformerTest {
               .build();
       snapshotProbes.add(snapshotProbe);
     }
-    Configuration configuration = new Configuration(SERVICE_NAME, ORG_ID, snapshotProbes);
+    Configuration configuration = new Configuration(SERVICE_NAME, snapshotProbes);
     DebuggerTransformer debuggerTransformer = new DebuggerTransformer(config, configuration);
     for (ProbeTestInfo probeInfo : probeInfos) {
       byte[] newClassBuffer =
@@ -334,7 +339,7 @@ public class DebuggerTransformerTest {
                 .active(false)
                 .where("java.util.HashMap", "<init>", "void ()")
                 .build());
-    Configuration configuration = new Configuration(SERVICE_NAME, ORG_ID, snapshotProbes);
+    Configuration configuration = new Configuration(SERVICE_NAME, snapshotProbes);
     DebuggerTransformer debuggerTransformer = new DebuggerTransformer(config, configuration);
     byte[] newClassBuffer =
         debuggerTransformer.transform(
@@ -365,7 +370,7 @@ public class DebuggerTransformerTest {
                 .active(true)
                 .where("java.lang.String", "toString")
                 .build());
-    Configuration configuration = new Configuration(SERVICE_NAME, ORG_ID, snapshotProbes);
+    Configuration configuration = new Configuration(SERVICE_NAME, snapshotProbes);
     AtomicReference<InstrumentationResult> lastResult = new AtomicReference<>(null);
     DebuggerTransformer debuggerTransformer =
         new DebuggerTransformer(
@@ -389,7 +394,7 @@ public class DebuggerTransformerTest {
     Config config = mock(Config.class);
     SnapshotProbe snapshotProbe = SnapshotProbe.builder().where("ArrayList", "add").build();
     Configuration configuration =
-        new Configuration(SERVICE_NAME, ORG_ID, Collections.singletonList(snapshotProbe));
+        new Configuration(SERVICE_NAME, Collections.singletonList(snapshotProbe));
     AtomicReference<InstrumentationResult> lastResult = new AtomicReference<>(null);
     DebuggerTransformer debuggerTransformer =
         new DebuggerTransformer(
@@ -508,7 +513,7 @@ public class DebuggerTransformerTest {
     for (Snapshot snapshot : listener.snapshots) {
       List<CapturedStackFrame> stackTrace = snapshot.getStack();
       assertNotNull(stackTrace);
-      assertFalse(stackTrace.get(0).getFunction().contains(Snapshot.class.getName()));
+      assertFalse(stackTrace.get(0).getFunction().contains(Snapshot.class.getTypeName()));
 
       assertEquals(probe.getId(), snapshot.getProbe().getId());
     }
@@ -557,11 +562,10 @@ public class DebuggerTransformerTest {
     SnapshotProbe.Builder builder = SnapshotProbe.builder().probeId(UUID.randomUUID().toString());
     // add depth 1 field destructuring
     builder.capture(
-        ValueConverter.DEFAULT_REFERENCE_DEPTH,
-        ValueConverter.DEFAULT_COLLECTION_SIZE,
-        ValueConverter.DEFAULT_LENGTH,
-        1,
-        FieldExtractor.DEFAULT_FIELD_COUNT);
+        Limits.DEFAULT_REFERENCE_DEPTH,
+        Limits.DEFAULT_COLLECTION_SIZE,
+        Limits.DEFAULT_LENGTH,
+        Limits.DEFAULT_FIELD_COUNT);
     if (kind == InstrumentationKind.LINE) {
       // locate the specially marked line in the source code
       int line = findLine(sourceCode, LINE_PROBE_MARKER);

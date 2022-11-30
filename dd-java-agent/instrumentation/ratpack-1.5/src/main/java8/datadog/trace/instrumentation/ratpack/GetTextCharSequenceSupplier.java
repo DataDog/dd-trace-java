@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.ratpack;
 
-import datadog.trace.api.function.Supplier;
+import java.util.function.Supplier;
 import ratpack.http.TypedData;
 
 public class GetTextCharSequenceSupplier implements Supplier<CharSequence> {

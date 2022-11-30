@@ -1,6 +1,7 @@
 package datadog.trace.core.taginterceptor;
 
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
+import static datadog.trace.api.DDTags.MEASURED;
 import static datadog.trace.api.DDTags.ORIGIN_KEY;
 import static datadog.trace.api.DDTags.SPAN_TYPE;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
@@ -83,6 +84,8 @@ public class TagInterceptor {
         return interceptHttpStatusCode(span, value);
       case ORIGIN_KEY:
         return interceptOrigin(span, value);
+      case MEASURED:
+        return interceptMeasured(span, value);
       default:
         return intercept(span, tag, value);
     }
@@ -214,8 +217,17 @@ public class TagInterceptor {
     return true;
   }
 
+  private static boolean interceptMeasured(DDSpanContext span, Object value) {
+    if ((value instanceof Number && ((Number) value).intValue() > 0) || asBoolean(value)) {
+      span.setMeasured(true);
+      return true;
+    }
+    return false;
+  }
+
   private static boolean asBoolean(Object value) {
     return Boolean.TRUE.equals(value)
+        || "1".equals(value)
         || (!Boolean.FALSE.equals(value) && Boolean.parseBoolean(String.valueOf(value)));
   }
 

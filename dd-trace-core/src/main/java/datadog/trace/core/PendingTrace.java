@@ -1,7 +1,7 @@
 package datadog.trace.core;
 
 import datadog.communication.monitor.Recording;
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -60,7 +60,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
       this.healthMetrics.start();
     }
 
-    PendingTrace create(@Nonnull DDId traceId) {
+    PendingTrace create(@Nonnull DDTraceId traceId) {
       return new PendingTrace(
           tracer, traceId, pendingTraceBuffer, timeSource, strictTraceWrites, healthMetrics);
     }
@@ -69,7 +69,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   private static final List<DDSpan> EMPTY = new ArrayList<>(0);
 
   private final CoreTracer tracer;
-  private final DDId traceId;
+  private final DDTraceId traceId;
   private final PendingTraceBuffer pendingTraceBuffer;
   private final TimeSource timeSource;
   private final boolean strictTraceWrites;
@@ -112,7 +112,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
 
   private PendingTrace(
       @Nonnull CoreTracer tracer,
-      @Nonnull DDId traceId,
+      @Nonnull DDTraceId traceId,
       @Nonnull PendingTraceBuffer pendingTraceBuffer,
       @Nonnull TimeSource timeSource,
       boolean strictTraceWrites,
@@ -162,16 +162,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   void registerSpan(final DDSpan span) {
     ROOT_SPAN.compareAndSet(this, null, span);
     PENDING_REFERENCE_COUNT.incrementAndGet(this);
-    if (span.hasCheckpoints()) {
-      tracer.onStart(span);
-    }
     healthMetrics.onCreateSpan();
-  }
-
-  void onFinish(final DDSpan span) {
-    if (span.hasCheckpoints()) {
-      tracer.onFinish(span);
-    }
   }
 
   PublishState onPublish(final DDSpan span) {

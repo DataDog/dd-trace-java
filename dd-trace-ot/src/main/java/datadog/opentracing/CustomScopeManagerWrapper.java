@@ -231,7 +231,6 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
           }
           spans.poll();
         }
-        s.finishThreadMigration();
         s.finishWithEndToEnd();
       }
     }
@@ -239,7 +238,6 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
     public void finishAllSpans() {
       synchronized (spans) {
         for (AgentSpan s : spans) {
-          s.finishThreadMigration();
           s.finishWithEndToEnd();
         }
         // no need to clear as this is only called when the owning thread is no longer alive

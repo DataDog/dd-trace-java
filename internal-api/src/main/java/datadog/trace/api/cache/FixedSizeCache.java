@@ -1,8 +1,8 @@
 package datadog.trace.api.cache;
 
 import datadog.trace.api.Pair;
-import datadog.trace.api.function.Function;
 import java.util.Arrays;
+import java.util.function.Function;
 
 /**
  * This is a fixed size cache that only has one operation <code>computeIfAbsent</code>, that is used
@@ -123,6 +123,20 @@ abstract class FixedSizeCache<K, V> implements DDCache<K, V> {
 
     boolean equals(K key, Pair<K, V> current) {
       return key.equals(current.getLeft());
+    }
+  }
+
+  static final class IdentityHash<K, V> extends FixedSizeCache<K, V> {
+    IdentityHash(int capacity) {
+      super(capacity);
+    }
+
+    int hash(K key) {
+      return System.identityHashCode(key);
+    }
+
+    boolean equals(K key, Pair<K, V> current) {
+      return key == current.getLeft();
     }
   }
 

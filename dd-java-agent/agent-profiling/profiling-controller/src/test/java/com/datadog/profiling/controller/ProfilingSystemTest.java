@@ -130,7 +130,7 @@ public class ProfilingSystemTest {
     system.start();
     assertLog(
         Level.WARN,
-        "Oracle JDK 8 is being used, where the Flight Recorder is a commercial feature. Please, make sure you have a valid license to use Flight Recorder  (for example Oracle Java SE Advanced) and then add ‘-XX:+UnlockCommercialFeatures -XX:+FlightRecorder’ to your launcher script. Alternatively, use an OpenJDK 8 distribution from another vendor, where the Flight Recorder is free.");
+        "You're running Oracle JDK 8. Datadog Continuous Profiler for Java depends on Java Flight Recorder, which requires a paid license in Oracle JDK 8. If you have one, please add the following `java` command line args: ‘-XX:+UnlockCommercialFeatures -XX:+FlightRecorder’. Alternatively, you can use a different Java 8 distribution like OpenJDK, where Java Flight Recorder is free.");
   }
 
   @Test
@@ -328,7 +328,7 @@ public class ProfilingSystemTest {
   @Test
   public void testDoesntSendPeriodicRecordingIfPeriodicRecordingIsDisabled()
       throws InterruptedException, ConfigurationException {
-    when(recording.snapshot(any())).thenReturn(recordingData);
+    when(recording.snapshot(any(), any())).thenReturn(recordingData);
     final ProfilingSystem system =
         new ProfilingSystem(
             configProvider,
@@ -397,7 +397,7 @@ public class ProfilingSystemTest {
   public void testRecordingSnapshotError() throws ConfigurationException {
     final Duration uploadPeriod = Duration.ofMillis(300);
     final List<RecordingData> generatedRecordingData = new ArrayList<>();
-    when(recording.snapshot(any()))
+    when(recording.snapshot(any(), any()))
         .thenThrow(new RuntimeException("Test"))
         .thenAnswer(generateMockRecordingData(generatedRecordingData));
 
@@ -426,7 +426,7 @@ public class ProfilingSystemTest {
   public void testRecordingSnapshotNoData() throws ConfigurationException {
     final Duration uploadPeriod = Duration.ofMillis(300);
     final List<RecordingData> generatedRecordingData = new ArrayList<>();
-    when(recording.snapshot(any()))
+    when(recording.snapshot(any(), any()))
         .thenReturn(null)
         .thenAnswer(generateMockRecordingData(generatedRecordingData));
 

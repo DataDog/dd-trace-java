@@ -49,8 +49,7 @@ public class ProbeConditionTest {
     JsonAdapter<ProbeCondition> jsonAdapter = moshi.adapter(ProbeCondition.class);
     assertNull(jsonAdapter.fromJson("null"));
     assertEquals(jsonAdapter.toJson(null), "null");
-    assertThrows(
-        UnsupportedOperationException.class, () -> jsonAdapter.toJson(ProbeCondition.NONE));
+    assertEquals("{\"dsl\":\"\"}", jsonAdapter.toJson(ProbeCondition.NONE));
   }
 
   @Test
@@ -85,6 +84,14 @@ public class ProbeConditionTest {
 
     assertTrue(map.get(probeCondition2));
     assertNull(map.get(ProbeCondition.NONE));
+  }
+
+  @Test
+  void testIncorrectSyntax() {
+    UnsupportedOperationException ex =
+        assertThrows(
+            UnsupportedOperationException.class, () -> load("/test_conditional_03_error.json"));
+    assertEquals("Unsupported operation 'gte'", ex.getMessage());
   }
 
   private static ProbeCondition load(String resourcePath) throws IOException {

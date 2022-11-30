@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
 import java.util.Collections;
 import java.util.Map;
 
@@ -36,27 +37,34 @@ public class TagContext implements AgentSpan.Context.Extracted {
 
   @Override
   public String getForwarded() {
-    return null;
+    if (httpHeaders == null) {
+      return null;
+    }
+    return httpHeaders.forwarded;
   }
 
   @Override
-  public String getForwardedProto() {
-    return null;
+  public String getXForwardedProto() {
+    if (httpHeaders == null) {
+      return null;
+    }
+    return httpHeaders.xForwardedProto;
   }
 
   @Override
-  public String getForwardedHost() {
-    return null;
+  public String getXForwardedHost() {
+    if (httpHeaders == null) {
+      return null;
+    }
+    return httpHeaders.xForwardedHost;
   }
 
   @Override
-  public String getForwardedIp() {
-    return null;
-  }
-
-  @Override
-  public String getForwardedPort() {
-    return null;
+  public String getXForwardedPort() {
+    if (httpHeaders == null) {
+      return null;
+    }
+    return httpHeaders.xForwardedPort;
   }
 
   @Override
@@ -149,13 +157,13 @@ public class TagContext implements AgentSpan.Context.Extracted {
   }
 
   @Override
-  public DDId getTraceId() {
-    return DDId.ZERO;
+  public DDTraceId getTraceId() {
+    return DDTraceId.ZERO;
   }
 
   @Override
-  public DDId getSpanId() {
-    return DDId.ZERO;
+  public long getSpanId() {
+    return DDSpanId.ZERO;
   }
 
   @Override
@@ -189,6 +197,10 @@ public class TagContext implements AgentSpan.Context.Extracted {
   public static class HttpHeaders {
     public String forwardedFor;
     public String xForwarded;
+    public String forwarded;
+    public String xForwardedProto;
+    public String xForwardedHost;
+    public String xForwardedPort;
     public String xForwardedFor;
     public String xClusterClientIp;
     public String xRealIp;

@@ -7,13 +7,13 @@ import com.datadoghq.sketch.ddsketch.encoding.GrowingByteArrayOutput;
 import com.datadoghq.sketch.ddsketch.encoding.VarEncodingHelper;
 import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
-import datadog.trace.api.function.Consumer;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.core.Base64Decoder;
 import datadog.trace.core.Base64Encoder;
+import datadog.trace.core.util.LRUCache;
 import datadog.trace.util.FNV64Hash;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,12 +46,15 @@ public class DefaultPathwayContext implements PathwayContext {
   private long edgeStartNanoTicks;
   private long hash;
   private boolean started;
+  // used to detect and prevent loops in case of inaccurate / incomplete instrumentation
+  private final LRUCache<Long, Long> history = new LRUCache<Long, Long>(10000);
 
   private static final Set<String> hashableTagKeys =
       new HashSet<String>(
           Arrays.asList(
               TagsProcessor.GROUP_TAG,
               TagsProcessor.TYPE_TAG,
+              TagsProcessor.DIRECTION_TAG,
               TagsProcessor.TOPIC_TAG,
               TagsProcessor.EXCHANGE_TAG));
 
@@ -103,13 +107,26 @@ public class DefaultPathwayContext implements PathwayContext {
 
       for (Map.Entry<String, String> entry : sortedTags.entrySet()) {
         String tag = TagsProcessor.createTag(entry.getKey(), entry.getValue());
+        if (tag == null) {
+          continue;
+        }
         if (hashableTagKeys.contains(entry.getKey())) {
           pathwayHashBuilder.addTag(tag);
         }
         allTags.add(tag);
       }
 
-      long newHash = generatePathwayHash(pathwayHashBuilder, hash);
+      long nodeHash = generateNodeHash(pathwayHashBuilder);
+      // loop protection - a node should not be chosen as parent
+      // for an identical node within a single pathway context, as this
+      // will cause a `cardinality explosion` for hash / parentHash tag values
+      if (hash != 0 && history.containsKey(nodeHash)) {
+        hash = history.get(nodeHash);
+      } else {
+        history.put(nodeHash, hash);
+      }
+
+      long newHash = generatePathwayHash(nodeHash, hash);
 
       long pathwayLatencyNano = nanoTicks - pathwayStartNanoTicks;
       long edgeLatencyNano = nanoTicks - edgeStartNanoTicks;
@@ -316,7 +333,7 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   private static class PathwayHashBuilder {
-    private StringBuilder builder;
+    private final StringBuilder builder;
 
     public PathwayHashBuilder(WellKnownTags wellKnownTags) {
       builder = new StringBuilder();
@@ -342,9 +359,7 @@ public class DefaultPathwayContext implements PathwayContext {
     return pathwayHashBuilder.generateHash();
   }
 
-  private long generatePathwayHash(PathwayHashBuilder pathwayHashBuilder, long parentHash) {
-    long nodeHash = generateNodeHash(pathwayHashBuilder);
-
+  private long generatePathwayHash(long nodeHash, long parentHash) {
     lock.lock();
     try {
       outputBuffer.clear();

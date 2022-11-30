@@ -4,6 +4,7 @@ import static net.bytebuddy.matcher.ElementMatchers.none;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import java.security.ProtectionDomain;
 import java.util.Arrays;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
@@ -50,7 +51,8 @@ public class RequestImplInstrumentation extends Instrumenter.Tracing
         DynamicType.Builder<?> builder,
         TypeDescription typeDescription,
         ClassLoader classLoader,
-        JavaModule module) {
+        JavaModule module,
+        ProtectionDomain pd) {
       return builder.visit(
           new AsmVisitorWrapper() {
             @Override

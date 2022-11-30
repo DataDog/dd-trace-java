@@ -1,5 +1,6 @@
 package com.openliberty.demo;
 
+import java.security.MessageDigest;
 import java.util.Random;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,5 +40,15 @@ public class DemoController {
     int visitID = this.users[user]++ % MAX_REQUESTS;
     log.info("User {} visited {} times", user, visitID);
     return String.format("%d:%d", user, visitID);
+  }
+
+  @RequestMapping("/vulnerability")
+  public String vulnerability() {
+    try {
+      MessageDigest.getInstance("MD5");
+    } catch (Exception e) {
+      return e.toString();
+    }
+    return "OK";
   }
 }

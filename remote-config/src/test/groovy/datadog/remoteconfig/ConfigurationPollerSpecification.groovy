@@ -1,7 +1,13 @@
+import cafe.cryptography.ed25519.Ed25519PrivateKey
+import cafe.cryptography.ed25519.Ed25519PublicKey
+import cafe.cryptography.ed25519.Ed25519Signature
 import datadog.remoteconfig.ConfigurationChangesListener
+import datadog.remoteconfig.ConfigurationChangesTypedListener
 import datadog.remoteconfig.ConfigurationDeserializer
 import datadog.remoteconfig.ConfigurationPoller
+import datadog.remoteconfig.JsonCanonicalizer
 import datadog.remoteconfig.Product
+import datadog.remoteconfig.state.ProductListener
 import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.AgentTaskScheduler
@@ -18,17 +24,23 @@ import okhttp3.Response
 import okhttp3.ResponseBody
 import okio.Buffer
 
-import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.security.MessageDigest
+import java.security.SecureRandom
 import java.time.Duration
 import java.util.concurrent.TimeUnit
+import java.util.function.Supplier
+
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState.ConfigState.APPLY_STATE_ERROR
 
 class ConfigurationPollerSpecification extends DDSpecification {
   final static HttpUrl URL = HttpUrl.get('https://example.com/v0.7/config')
   private static final Request REQUEST = new Request.Builder()
   .url('https://example.com').build()
   private static final int DEFAULT_POLL_PERIOD = 5000
+  private static final String KEY_ID = 'TEST_KEY_ID'
+  private static final Ed25519PrivateKey PRIVATE_KEY = Ed25519PrivateKey.generate(new SecureRandom())
+  private static final Ed25519PublicKey PUBLIC_KEY = PRIVATE_KEY.derivePublic()
 
   private Response buildOKResponse(String bodyStr) {
     ResponseBody body = ResponseBody.create(MediaType.get('application/json'), bodyStr)
@@ -46,15 +58,19 @@ class ConfigurationPollerSpecification extends DDSpecification {
   AgentTaskScheduler.Task task
   Request request
   Call call = Mock()
+  Supplier<String> configUrlSupplier = { -> URL.toString() } as Supplier<String>
 
   void setup() {
+    injectSysConfig('dd.rc.targets.key.id', KEY_ID)
+    injectSysConfig('dd.rc.targets.key', new BigInteger(1, PUBLIC_KEY.toByteArray()).toString(16))
     injectSysConfig('dd.service', 'my_service')
     injectSysConfig('dd.env', 'my_env')
+    injectSysConfig('dd.remote_config.integrity_check.enabled', 'true')
     poller = new ConfigurationPoller(
       Config.get(),
       '0.0.0',
       '',
-      URL.toString(),
+      { -> configUrlSupplier.get() } as Supplier<String>,
       okHttpClient,
       scheduler,
       )
@@ -83,8 +99,8 @@ class ConfigurationPollerSpecification extends DDSpecification {
 
     when:
     poller.addListener(Product.ASM_DD,
-      {throw new RuntimeException('should not be caleed') } as ConfigurationDeserializer,
-      { cfg, hinter -> true } as ConfigurationChangesListener)
+      {throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
+      { cfg, hinter -> true } as ConfigurationChangesTypedListener)
     poller.removeListener(Product.ASM_DD)
     task.run(poller)
 
@@ -99,7 +115,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
   void 'issues request if there is a subscription'() {
-    ConfigurationChangesListener listener = Mock()
+    ConfigurationChangesTypedListener listener = Mock()
 
     when:
     poller.addListener(Product.ASM_DD,
@@ -116,7 +132,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     then:
     1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
     1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
-    1 * listener.accept(_, _, _ as ConfigurationChangesListener.PollingRateHinter) >> true
+    1 * listener.accept(_, _, _ as ConfigurationChangesListener.PollingRateHinter)
     0 * _._
 
     def body = parseBody(request.body())
@@ -144,6 +160,154 @@ class ConfigurationPollerSpecification extends DDSpecification {
     }
   }
 
+  void 'issues no request if the config url supplier returns null'() {
+    setup:
+    def deserializer = Mock(ConfigurationDeserializer)
+    def listener = Mock(ConfigurationChangesTypedListener)
+    configUrlSupplier = { -> }
+
+    when:
+    poller.addListener(Product.ASM_DD, deserializer, listener)
+    poller.start()
+
+    then:
+    1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> { task = it[0]; scheduled }
+
+    when:
+    task.run(poller)
+
+    then:
+    0 * _._
+  }
+
+  void 'once the supplier provides a url it is not called anymore'() {
+    setup:
+    def deserializer = Mock(ConfigurationDeserializer)
+    def listener = Mock(ConfigurationChangesTypedListener)
+    configUrlSupplier = Mock(Supplier)
+
+    when:
+    poller.addListener(Product.ASM_DD, deserializer, listener)
+    poller.start()
+
+    then:
+    1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> { task = it[0]; scheduled }
+
+    when:
+    2.times { task.run(poller) }
+
+    then:
+    1 * configUrlSupplier.get() >> URL.toString()
+    2 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    2 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * deserializer.deserialize(_) >> true
+    1 * listener.accept(_, _, _)
+    0 * _._
+  }
+
+  void 'processing happens for all listeners'() {
+    def deserializer = Mock(ConfigurationDeserializer)
+    List<ConfigurationChangesTypedListener> listeners = (1..5).collect { Mock(ConfigurationChangesTypedListener) }
+    def respBody = JsonOutput.toJson(
+      client_configs: [
+        'datadog/2/ASM_FEATURES/asm_features_activation/config',
+        'foo/ASM_DD/bar/config',
+        'foo/ASM/bar/config',
+        'foo/ASM_DATA/bar/config',
+        'foo/LIVE_DEBUGGING/bar/config',
+      ],
+      roots: [],
+      target_files: [
+        [
+          path: 'datadog/2/ASM_FEATURES/asm_features_activation/config',
+          raw: Base64.encoder.encodeToString('{"asm":{"enabled":true}}'.getBytes('UTF-8'))
+        ],
+        [
+          path: 'foo/ASM_DD/bar/config',
+          raw: ''
+        ],
+        [
+          path: 'foo/ASM/bar/config',
+          raw: ''
+        ],
+        [
+          path: 'foo/ASM_DATA/bar/config',
+          raw: ''
+        ],
+        [
+          path: 'foo/LIVE_DEBUGGING/bar/config',
+          raw: ''
+        ],
+      ],
+      targets: signAndBase64EncodeTargets(
+      signed: [
+        expires: '2022-09-17T12:49:15Z',
+        spec_version: '1.0.0',
+        targets: [
+          'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+            custom: [ v: 1 ],
+            hashes: [ sha256: '159658ab85be7207761a4111172b01558394bfc74a1fe1d314f2023f7c656db' ],
+            length : 24,
+          ],
+          'foo/ASM_DD/bar/config': [
+            custom: [v:1],
+            hashes: [ sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' ],
+            length : 0,
+          ],
+          'foo/ASM/bar/config': [
+            custom: [v:1],
+            hashes: [ sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' ],
+            length : 0,
+          ],
+          'foo/ASM_DATA/bar/config': [
+            custom: [v:1],
+            hashes: [ sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' ],
+            length : 0,
+          ],
+          'foo/LIVE_DEBUGGING/bar/config': [
+            custom: [v:1],
+            hashes: [ sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' ],
+            length : 0,
+          ],
+        ],
+        version: 1
+      ]
+      ))
+
+    when:
+    poller.addListener(Product.ASM_DD, deserializer, listeners[1])
+    poller.addListener(Product.ASM, deserializer, listeners[2])
+    poller.addListener(Product.ASM_DATA, deserializer, listeners[3])
+    poller.addListener(Product.LIVE_DEBUGGING, deserializer, listeners[0])
+    poller.addListener(Product.ASM_FEATURES, deserializer, listeners[4])
+    poller.start()
+
+    then:
+    1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> { task = it[0]; scheduled }
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(respBody) }
+
+    then:
+    1 * deserializer.deserialize(_) >> true
+    1 * listeners[0].accept(*_)
+    1 * deserializer.deserialize(_) >> true
+    1 * listeners[1].accept(*_)
+    1 * deserializer.deserialize(_) >> true
+    1 * listeners[2].accept(*_)
+    1 * deserializer.deserialize(_) >> true
+    1 * listeners[3].accept(*_)
+    1 * deserializer.deserialize(_) >> true
+    1 * listeners[4].accept(*_)
+
+    then:
+    0 * _
+  }
+
   void 'reschedules if instructed to do so'() {
     when:
     poller.addListener(Product.ASM_DD,
@@ -151,8 +315,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
         hinter.suggestPollingRate(Duration.ofMillis(124))
         hinter.suggestPollingRate(Duration.ofMillis(123))
         hinter.suggestPollingRate(Duration.ofMillis(1230)) // higher is ignored
-        true
-      } as ConfigurationChangesListener)
+      } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -173,7 +336,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     when:
     poller.addListener(Product.ASM_DD,
       { SLURPER.parse(it) } as ConfigurationDeserializer,
-      { Object[] args -> true } as ConfigurationChangesListener)
+      { Object[] args -> } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -217,7 +380,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     when:
     poller.addListener(Product.ASM_DD,
       { SLURPER.parse(it) } as ConfigurationDeserializer,
-      { Object[] args -> true } as ConfigurationChangesListener)
+      { Object[] args -> } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -263,7 +426,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     when:
     poller.addListener(Product.ASM_DD,
       { SLURPER.parse(it) } as ConfigurationDeserializer,
-      { Object[] args -> true } as ConfigurationChangesListener)
+      { Object[] args -> } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -284,11 +447,12 @@ class ConfigurationPollerSpecification extends DDSpecification {
     1 * okHttpClient.newCall(_ as Request) >> { call }
     1 * call.execute() >> {
       SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
+        it['target_files'] = []
         def targetDecoded = Base64.decoder.decode(it['targets'])
         Map target = ConfigurationPollerSpecification.SLURPER.parse(targetDecoded)
         target['signed']['targets'].remove('employee/ASM_DD/1.recommended.json/config')
         target['signed']['version'] = 42
-        it['targets'] = Base64.encoder.encodeToString(JsonOutput.toJson(target).getBytes('UTF-8'))
+        it['targets'] = signAndBase64EncodeTargets(target)
         buildOKResponse(JsonOutput.toJson(it))
       }
     }
@@ -319,7 +483,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
   void 'applies configuration only if the hash has changed'() {
-    ConfigurationChangesListener listener = Mock()
+    ConfigurationChangesTypedListener listener = Mock()
 
     when:
     poller.addListener(Product.ASM_DD,
@@ -336,7 +500,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     then:
     2 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
     2 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
-    1 * listener.accept(_, _, _ as ConfigurationChangesListener.PollingRateHinter) >> true
+    1 * listener.accept(_, _, _ as ConfigurationChangesListener.PollingRateHinter)
     0 * _._
 
     when:
@@ -355,16 +519,17 @@ class ConfigurationPollerSpecification extends DDSpecification {
         def target = ConfigurationPollerSpecification.SLURPER.parse(targetDecoded)
         target['signed']['targets']['employee/ASM_DD/1.recommended.json/config']['hashes']['sha256'] =
           new BigInteger((byte[])MessageDigest.getInstance('SHA-256').digest(newFile)).toString(16)
-        it['targets'] = Base64.encoder.encodeToString(JsonOutput.toJson(target).getBytes('UTF-8'))
+        target['signed']['targets']['employee/ASM_DD/1.recommended.json/config']['length'] += 1
+        it['targets'] = signAndBase64EncodeTargets(target)
         buildOKResponse(JsonOutput.toJson(it))
       }
     }
-    1 * listener.accept('employee/ASM_DD/1.recommended.json/config', _, _ as ConfigurationChangesListener.PollingRateHinter) >> true
+    1 * listener.accept('employee/ASM_DD/1.recommended.json/config', _, _ as ConfigurationChangesListener.PollingRateHinter)
     0 * _._
   }
 
   void 'configuration cannot be applied without hashes'() {
-    ConfigurationChangesListener listener = Mock()
+    ConfigurationChangesTypedListener listener = Mock()
 
     when:
     poller.addListener(Product.ASM_DD,
@@ -387,7 +552,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
         def targetDecoded = Base64.decoder.decode(it['targets'])
         def target = ConfigurationPollerSpecification.SLURPER.parse(targetDecoded)
         target['signed']['targets']['employee/ASM_DD/1.recommended.json/config']['hashes'].remove('sha256')
-        it['targets'] = Base64.encoder.encodeToString(JsonOutput.toJson(target).getBytes('UTF-8'))
+        it['targets'] = signAndBase64EncodeTargets(target)
         buildOKResponse(JsonOutput.toJson(it))
       }
     }
@@ -412,7 +577,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
   void 'encoded file is not valid base64 data'() {
-    ConfigurationChangesListener listener = Mock()
+    ConfigurationChangesTypedListener listener = Mock()
 
     when:
     poller.addListener(Product.ASM_DD,
@@ -454,7 +619,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
   void 'deserializer can return null to indicate no config should be applied'() {
-    ConfigurationChangesListener listener = Mock()
+    ConfigurationChangesTypedListener listener = Mock()
 
     when:
     poller.addListener(Product.ASM_DD,
@@ -475,7 +640,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
   void 'rejects configuration if the hash is wrong'() {
-    ConfigurationChangesListener listener = Mock()
+    ConfigurationChangesTypedListener listener = Mock()
 
     when:
     poller.addListener(Product.ASM_DD,
@@ -496,7 +661,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
         def targetDecoded = Base64.decoder.decode(it['targets'])
         def target = ConfigurationPollerSpecification.SLURPER.parse(targetDecoded)
         target['signed']['targets']['employee/ASM_DD/1.recommended.json/config']['hashes']['sha256'] = '0'
-        it['targets'] = Base64.encoder.encodeToString(JsonOutput.toJson(target).getBytes('UTF-8'))
+        it['targets'] = signAndBase64EncodeTargets(target)
         buildOKResponse(JsonOutput.toJson(it))
       }
     }
@@ -507,7 +672,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     when:
     poller.addListener(Product.ASM_DD,
       { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
-      { throw new RuntimeException('should not be called' ) } as ConfigurationChangesListener)
+      { throw new RuntimeException('should not be called' ) } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -522,14 +687,71 @@ class ConfigurationPollerSpecification extends DDSpecification {
     0 * _._
   }
 
-  void 'unapplies configurations it has stopped seeing'() {
-    ConfigurationChangesListener<Map<String, Object>> listener = Mock()
+  void 'applies and remove called for product listener'() {
+    ProductListener listener = Mock()
     String cfgWithoutAsm = SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
       it['client_configs'] = []
       def targetDecoded = Base64.decoder.decode(it['targets'])
       def target = ConfigurationPollerSpecification.SLURPER.parse(targetDecoded)
       target['signed']['targets']['employee/ASM_DD/1.recommended.json/config']['hashes']['sha256'] = 'aec070645fe53ee3b3763059376134f058cc337247c978add178b6ccdfb0019f'
-      it['targets'] = Base64.encoder.encodeToString(JsonOutput.toJson(target).getBytes('UTF-8'))
+      it['targets'] = signAndBase64EncodeTargets(target)
+      JsonOutput.toJson(it)
+    }
+
+    when:
+    poller.addListener(Product.ASM_DD, listener)
+    poller.start()
+
+    then:
+    1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> { task = it[0]; scheduled }
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * listener.accept(_, { it != null }, _) >> false
+    1 * listener.commit(_)
+    0 * _._
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    // no listnenr.commit() should be called as no changed where detected
+    0 * _._
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(cfgWithoutAsm) }
+    1 * listener.remove(_, _)
+    1 * listener.commit(_)
+    0 * _._
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(cfgWithoutAsm) }
+    // no listnenr.commit() should be called as no changed where detected
+    0 * _._
+  }
+
+  void 'unapplies configurations it has stopped seeing'() {
+    ConfigurationChangesTypedListener<Map<String, Object>> listener = Mock()
+    String cfgWithoutAsm = SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
+      it['client_configs'] = []
+      def targetDecoded = Base64.decoder.decode(it['targets'])
+      def target = ConfigurationPollerSpecification.SLURPER.parse(targetDecoded)
+      target['signed']['targets']['employee/ASM_DD/1.recommended.json/config']['hashes']['sha256'] = 'aec070645fe53ee3b3763059376134f058cc337247c978add178b6ccdfb0019f'
+      it['targets'] = signAndBase64EncodeTargets(target)
       JsonOutput.toJson(it)
     }
 
@@ -557,7 +779,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     then:
     1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
     1 * call.execute() >> { buildOKResponse(cfgWithoutAsm) }
-    1 * listener.accept(_, null, _) >> true
+    1 * listener.accept(_, null, _)
     0 * _._
 
     // the next time it doesn't unapply it
@@ -571,7 +793,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
   void 'support multiple configurations'() {
-    ConfigurationChangesListener<Map<String, Object>> listener = Mock()
+    ConfigurationChangesTypedListener<Map<String, Object>> listener = Mock()
     String multiConfigs = SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
       it['client_configs'] = ['employee/ASM_DD/1.recommended.json/config', 'employee/ASM_DD/2.suggested.json/config']
       JsonOutput.toJson(it)
@@ -608,7 +830,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     then:
     1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
     1 * call.execute() >> { buildOKResponse(multiConfigs) }
-    1 * listener.accept('employee/ASM_DD/2.suggested.json/config', { it != null }, _) >> true
+    1 * listener.accept('employee/ASM_DD/2.suggested.json/config', { it != null }, _)
     0 * _._
 
     //remove second configuration if it no longer sent
@@ -638,10 +860,10 @@ class ConfigurationPollerSpecification extends DDSpecification {
     when:
     poller.addListener(Product.ASM_DD,
       { SLURPER.parse(it) } as ConfigurationDeserializer,
-      { throw new RuntimeException('throw here') } as ConfigurationChangesListener)
+      { Object[] args -> throw new RuntimeException('throw here') } as ConfigurationChangesTypedListener)
     poller.addListener(Product.LIVE_DEBUGGING,
       { SLURPER.parse(it) } as ConfigurationDeserializer,
-      { true } as ConfigurationChangesListener)
+      { Object[] args -> } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -662,14 +884,14 @@ class ConfigurationPollerSpecification extends DDSpecification {
           hashes: [
             sha256: '7a38bf81f383f69433ad6e900d35b3e2385593f76a7b7ab5d4355b8ba41ee24b',
           ],
-          length: 72,
+          length: '{"foo":"bar"}'.size(),
         ]
         it['target_files'] << [
           path: newConfigKey,
           raw: Base64.encoder.encodeToString('{"foo":"bar"}'.getBytes('UTF-8'))
         ]
 
-        it['targets'] = Base64.encoder.encodeToString(JsonOutput.toJson(target).getBytes('UTF-8'))
+        it['targets'] = signAndBase64EncodeTargets(target)
         buildOKResponse(JsonOutput.toJson(it))
       }
     }
@@ -686,15 +908,22 @@ class ConfigurationPollerSpecification extends DDSpecification {
     def body = parseBody(request.body())
     with(body) {
       client.state.config_states.size() == 2
-      with(client.state.config_states[0]) {
-        id == 'employee/ASM_DD/1.recommended.json/config'
-        product == 'ASM_DD'
-        version == 1
-      }
-      with(client.state.config_states[1]) {
+      def first = client.state.config_states[0]
+      def second = client.state.config_states[1]
+      def liveDebuggingConfig = first.product == 'LIVE_DEBUGGING'? first : second
+      def asmConfig = first.product == 'ASM_DD'? first : second
+      with(liveDebuggingConfig) {
         id == newConfigKey
         product == 'LIVE_DEBUGGING'
         version == 3
+        apply_error == null
+      }
+      with(asmConfig) {
+        id == 'employee/ASM_DD/1.recommended.json/config'
+        product == 'ASM_DD'
+        version == 1
+        apply_state == APPLY_STATE_ERROR
+        apply_error == "throw here"
       }
     }
   }
@@ -703,7 +932,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     when:
     poller.addListener(Product.ASM_DD,
       { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
-      { true } as ConfigurationChangesListener)
+      { } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -742,7 +971,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     when:
     poller.addListener(Product.ASM_DD,
       { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
-      { true } as ConfigurationChangesListener)
+      { } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -769,7 +998,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     when:
     poller.addListener(Product.ASM_DD,
       { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
-      { true } as ConfigurationChangesListener)
+      { } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -816,11 +1045,120 @@ class ConfigurationPollerSpecification extends DDSpecification {
       JsonOutput.toJson(it)
     } | 'No content for employee/ASM_DD/1.recommended.json/config'
 
+    // two reportable errors
+    SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
+      it['client_configs'] = ['foobar', 'employee/ASM_DD/1.recommended.json/config']
+      it['target_files'] = []
+      JsonOutput.toJson(it)
+    } | 'Failed to apply configuration due to 2 errors:\n (1) Not a valid config key: foobar\n (2) No content for employee/ASM_DD/1.recommended.json/config\n'
+
+    // in target_files, but not targets.signed.targets
+    SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
+      def targetDecoded = Base64.decoder.decode(it['targets'])
+      Map targets = ConfigurationPollerSpecification.SLURPER.parse(targetDecoded)
+      targets['signed']['targets'] = [:]
+      it['targets'] = signAndBase64EncodeTargets(targets)
+      JsonOutput.toJson(it)
+    } | 'Path employee/ASM_DD/1.recommended.json/config is in target_files, but not in targets.signed'
+
     // told to apply config that is not subscribed
     SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
       it['client_configs'] = ['datadog/2/LIVE_DEBUGGING/1ba66cc9-146a-3479-9e66-2b63fd580f48/config']
       JsonOutput.toJson(it)
     } | 'Told to handle config key datadog/2/LIVE_DEBUGGING/1ba66cc9-146a-3479-9e66-2b63fd580f48/config, but the product LIVE_DEBUGGING is not being handled'
+
+    // Invalid signature
+    SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
+      def targetDecoded = Base64.decoder.decode(it['targets'])
+      Map targets = ConfigurationPollerSpecification.SLURPER.parse(targetDecoded)
+      targets['signatures'][0]['sig'] = '59a6478aba87d171261e6995faaa8e36c95c3e75436c4e82f11ac625220e13b703ce9b912ee0731415121b5a47aa2abdb398a60656b7701b15e606c6327c880e'
+      it['targets'] = Base64.encoder.encodeToString(JsonOutput.toJson(targets).getBytes('UTF-8'))
+      JsonOutput.toJson(it)
+    } | 'Signature verification failed for targets.signed. Key id: TEST_KEY_ID'
+
+    // Structurally invalid signature
+    SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
+      def targetDecoded = Base64.decoder.decode(it['targets'])
+      Map targets = ConfigurationPollerSpecification.SLURPER.parse(targetDecoded)
+      targets['signatures'][0]['sig'] = 'a' * 128
+      it['targets'] = Base64.encoder.encodeToString(JsonOutput.toJson(targets).getBytes('UTF-8'))
+      JsonOutput.toJson(it)
+    } | 'Error reading signature or canonicalizing targets.signed: Invalid scalar representation'
+
+  }
+
+  void 'reports error during deserialization'() {
+    when:
+    poller.addListener(Product.ASM_DD,
+      { throw new RuntimeException('my deserializer error') } as ConfigurationDeserializer,
+      { } as ConfigurationChangesTypedListener)
+    poller.start()
+
+    then:
+    1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> {
+      task = it[0]
+      scheduled }
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> call
+    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    0 * _._
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    0 * _._
+
+    def body = parseBody(request.body())
+    with(body) {
+      with(client.state.config_states.first()) {
+        apply_state == APPLY_STATE_ERROR
+        apply_error == 'my deserializer error'
+      }
+    }
+  }
+
+  void 'reports error applying configuration'() {
+    when:
+    poller.addListener(Product.ASM_DD,
+      { true } as ConfigurationDeserializer,
+      { Object[] args -> throw new RuntimeException('error applying config') } as ConfigurationChangesTypedListener)
+    poller.start()
+
+    then:
+    1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> {
+      task = it[0]
+      scheduled }
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> call
+    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    0 * _._
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    0 * _._
+
+    def body = parseBody(request.body())
+    with(body) {
+      with(client.state.config_states.first()) {
+        apply_state == APPLY_STATE_ERROR
+        apply_error == 'error applying config'
+      }
+    }
   }
 
   void 'the max size is exceeded'() {
@@ -828,7 +1166,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     when:
     poller.addListener(Product.ASM_DD,
       deserializer,
-      { throw new RuntimeException('throw here') } as ConfigurationChangesListener)
+      { throw new RuntimeException('throw here') } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -858,7 +1196,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     when:
     poller.addFileListener(file,
       { SLURPER.parse(it) } as ConfigurationDeserializer,
-      { path, conf, hinter -> savedConf = conf } as ConfigurationChangesListener)
+      { path, conf, hinter -> savedConf = conf } as ConfigurationChangesTypedListener)
     poller.start()
     file << '{"foo":"bar"}'.getBytes('UTF-8')
 
@@ -886,10 +1224,10 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
   void 'distributes features'() {
-    ConfigurationChangesListener listener = Mock()
+    ConfigurationChangesTypedListener listener = Mock()
 
     when:
-    poller.addFeaturesListener('asm',
+    poller.addListener(Product.ASM_FEATURES,
       { SLURPER.parse(it) } as ConfigurationDeserializer,
       listener)
     poller.start()
@@ -905,41 +1243,36 @@ class ConfigurationPollerSpecification extends DDSpecification {
     1 * call.execute() >> { buildOKResponse(FEATURES_RESP_BODY) }
     1 * listener.accept(
       _,
-      { cfg -> cfg['enabled'] == true },
-      _ as ConfigurationChangesListener.PollingRateHinter) >> true
+      { cfg -> cfg['asm']['enabled'] == true },
+      _ as ConfigurationChangesListener.PollingRateHinter)
     0 * _._
   }
 
   void 'distributes features upon subscribing'() {
-    ConfigurationChangesListener listener = Mock()
+    ConfigurationChangesTypedListener listener = Mock()
 
     when:
-    poller.addFeaturesListener('foobar',
+    poller.addListener(Product.ASM_FEATURES,
       { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
-      { Object[] args -> throw new RuntimeException('should not be called') } as ConfigurationChangesListener)
+      { Object[] args -> throw new RuntimeException('should not be called') } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
     1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> { task = it[0]; scheduled }
 
     when:
+    poller.addListener(Product.ASM_FEATURES,
+      { SLURPER.parse(it) } as ConfigurationDeserializer,
+      listener)
     task.run(poller)
 
     then:
     1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
     1 * call.execute() >> { buildOKResponse(FEATURES_RESP_BODY) }
-    0 * _._
-
-    when:
-    poller.addFeaturesListener('asm',
-      { SLURPER.parse(it) } as ConfigurationDeserializer,
-      listener)
-
-    then:
     1 * listener.accept(
       _,
-      { cfg -> cfg['enabled'] == true },
-      _ as ConfigurationChangesListener.PollingRateHinter) >> true
+      { cfg -> cfg['asm']['enabled'] == true },
+      _ as ConfigurationChangesListener.PollingRateHinter)
     0 * _._
   }
 
@@ -947,9 +1280,9 @@ class ConfigurationPollerSpecification extends DDSpecification {
     boolean called
 
     when:
-    poller.addFeaturesListener('asm',
+    poller.addListener(Product.ASM_FEATURES,
       {true } as ConfigurationDeserializer<Boolean>,
-      { Object[] args -> called = true; throw new RuntimeException('throws') } as ConfigurationChangesListener<Boolean>)
+      { Object[] args -> called = true; throw new RuntimeException('throws') } as ConfigurationChangesTypedListener<Boolean>)
     poller.start()
 
     then:
@@ -967,16 +1300,16 @@ class ConfigurationPollerSpecification extends DDSpecification {
   }
 
   void 'removing feature listeners'() {
-    ConfigurationChangesListener listener = Mock()
+    ConfigurationChangesTypedListener listener = Mock()
 
     when:
-    poller.addFeaturesListener('foobar',
+    poller.addListener(Product._UNKNOWN,
       { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
-      { Object[] args -> throw new RuntimeException('should not be called') } as ConfigurationChangesListener)
-    poller.addFeaturesListener('asm',
-      {true } as ConfigurationDeserializer<Boolean>,
+      { Object[] args -> throw new RuntimeException('should not be called') } as ConfigurationChangesTypedListener)
+    poller.addListener(Product.ASM_FEATURES,
+      {} as ConfigurationDeserializer<Boolean>,
       listener)
-    poller.removeFeaturesListener('asm')
+    poller.removeListener(Product.ASM_FEATURES)
     poller.start()
 
     then:
@@ -991,11 +1324,82 @@ class ConfigurationPollerSpecification extends DDSpecification {
     0 * _._ // in particular, listener is not called
 
     when:
-    poller.removeFeaturesListener('foobar')
+    poller.removeListener(Product._UNKNOWN)
     task.run(poller)
 
     then:
     0 * _._ // not even a request is made
+  }
+
+  void 'check setting of capabilities negative test'() {
+    ConfigurationChangesTypedListener listener = Mock()
+
+    when:
+    poller.addListener(Product._UNKNOWN,
+      {true } as ConfigurationDeserializer<Boolean>,
+      listener)
+    poller.start()
+
+    then:
+    1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> { task = it[0]; scheduled }
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(FEATURES_RESP_BODY) }
+    0 * _._
+    def body = parseBody(request.body())
+    with(body.client) {
+      capabilities[0] == 0
+    }
+  }
+
+  private static String signAndBase64EncodeTargets(Map targets) {
+    Map targetsSigned = targets['signed']
+    if (targetsSigned) {
+      byte[] canonicalTargetsSigned = JsonCanonicalizer.canonicalize(targetsSigned)
+      Ed25519Signature signature = PRIVATE_KEY.expand().sign(canonicalTargetsSigned, PUBLIC_KEY)
+      String sigBase16 = new BigInteger(1, signature.toByteArray()).toString(16)
+      targets['signatures'] = [[
+          keyid: KEY_ID,
+          sig  : sigBase16,
+        ]]
+    }
+
+    Base64.encoder.encodeToString(JsonOutput.toJson(targets).getBytes('UTF-8'))
+  }
+
+  private static String signAndBase64EncodeTargets(String targetsJson) {
+    Map targets = SLURPER.parse(targetsJson.getBytes('UTF-8'))
+    signAndBase64EncodeTargets(targets)
+  }
+
+
+  void 'check setting of capabilities positive test'() {
+    ConfigurationDeserializer deserializer = { true } as ConfigurationDeserializer<Boolean>
+    ConfigurationChangesTypedListener listener = { Object[] args -> } as ConfigurationChangesTypedListener
+
+    when:
+    poller.addListener(Product._UNKNOWN, deserializer, listener)
+    poller.addCapabilities(14L)
+    poller.start()
+
+    then:
+    1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> { task = it[0]; scheduled }
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(FEATURES_RESP_BODY) }
+    0 * _._
+    def body = parseBody(request.body())
+    with(body.client) {
+      capabilities[0] == 14
+    }
   }
 
   private static final String SAMPLE_RESP_BODY = """
@@ -1014,7 +1418,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
          "raw" : "${Base64.encoder.encodeToString(SAMPLE_APPSEC_CONFIG.getBytes('UTF-8'))}"
       }
    ],
-   "targets" : "${Base64.encoder.encodeToString(SAMPLE_TARGETS.getBytes('UTF-8'))}"
+   "targets" : "${signAndBase64EncodeTargets(SAMPLE_TARGETS)}"
 }
   """
 
@@ -1106,30 +1510,30 @@ class ConfigurationPollerSpecification extends DDSpecification {
 '''
 
   private static final FEATURES_RESP_BODY = JsonOutput.toJson(
-  client_configs: ['datadog/2/FEATURES/asm_features_activation/config'],
+  client_configs: ['datadog/2/ASM_FEATURES/asm_features_activation/config'],
   roots: [],
   target_files: [
     [
-      path: 'datadog/2/FEATURES/asm_features_activation/config',
+      path: 'datadog/2/ASM_FEATURES/asm_features_activation/config',
       raw: Base64.encoder.encodeToString('{"asm":{"enabled":true}}'.getBytes('UTF-8'))
     ]
   ],
-  targets: Base64.encoder.encodeToString(JsonOutput.toJson([
-    signed: [
-      expires: '2022-09-17T12:49:15Z',
-      spec_version: '1.0.0',
-      targets: [
-        'datadog/2/FEATURES/asm_features_activation/config': [
-          custom: [
-            v: 1
-          ],
-          hashes: [
-            sha256: '159658ab85be7207761a4111172b01558394bfc74a1fe1d314f2023f7c656db'
-          ],
-          length : 24,
-        ]
-      ],
-      version: 23337393
-    ]
-  ]).getBytes(StandardCharsets.UTF_8)))
+  targets: signAndBase64EncodeTargets(
+  signed: [
+    expires: '2022-09-17T12:49:15Z',
+    spec_version: '1.0.0',
+    targets: [
+      'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+        custom: [
+          v: 1
+        ],
+        hashes: [
+          sha256: '159658ab85be7207761a4111172b01558394bfc74a1fe1d314f2023f7c656db'
+        ],
+        length : 24,
+      ]
+    ],
+    version: 23337393
+  ]
+  ))
 }

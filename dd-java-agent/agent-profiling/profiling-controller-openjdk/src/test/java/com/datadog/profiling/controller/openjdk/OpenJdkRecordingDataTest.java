@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import datadog.trace.api.profiling.ProfilingSnapshot;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
@@ -47,8 +48,10 @@ public class OpenJdkRecordingDataTest {
     when(recording.getStopTime()).thenReturn(end);
     when(recording.getName()).thenReturn(TEST_NAME);
 
-    recordingData = new OpenJdkRecordingData(recording);
-    customRecordingData = new OpenJdkRecordingData(recording, customStart, customEnd);
+    recordingData = new OpenJdkRecordingData(recording, ProfilingSnapshot.Kind.PERIODIC);
+    customRecordingData =
+        new OpenJdkRecordingData(
+            recording, customStart, customEnd, ProfilingSnapshot.Kind.PERIODIC);
   }
 
   @Test

@@ -1,6 +1,8 @@
 package com.datadog.profiling.context;
 
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -22,18 +24,26 @@ public final class TestSpan implements AgentSpan {
   }
 
   @Override
-  public DDId getTraceId() {
-    return DDId.ZERO;
+  public DDTraceId getTraceId() {
+    return DDTraceId.ZERO;
   }
 
   @Override
-  public DDId getSpanId() {
-    return DDId.ZERO;
+  public long getSpanId() {
+    return DDSpanId.ZERO;
   }
 
   @Override
   public AgentSpan setTag(final String key, final boolean value) {
     return this;
+  }
+
+  @Override
+  public void setRequestBlockingAction(Flow.Action.RequestBlockingAction rba) {}
+
+  @Override
+  public Flow.Action.RequestBlockingAction getRequestBlockingAction() {
+    return null;
   }
 
   @Override
@@ -135,12 +145,6 @@ public final class TestSpan implements AgentSpan {
   public boolean eligibleForDropping() {
     return eligibleForDropping;
   }
-
-  @Override
-  public void startThreadMigration() {}
-
-  @Override
-  public void finishThreadMigration() {}
 
   @Override
   public void startWork() {}
@@ -290,18 +294,5 @@ public final class TestSpan implements AgentSpan {
   @Override
   public byte getResourceNamePriority() {
     return Byte.MAX_VALUE;
-  }
-
-  @Override
-  public void setEmittingCheckpoints(boolean value) {}
-
-  @Override
-  public Boolean isEmittingCheckpoints() {
-    return Boolean.FALSE;
-  }
-
-  @Override
-  public boolean hasCheckpoints() {
-    return false;
   }
 }

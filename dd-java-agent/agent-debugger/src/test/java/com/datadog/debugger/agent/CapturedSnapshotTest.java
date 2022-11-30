@@ -1,5 +1,8 @@
 package com.datadog.debugger.agent;
 
+import static com.datadog.debugger.util.MoshiSnapshotHelper.DEPTH_REASON;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.FIELD_COUNT_REASON;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -12,12 +15,19 @@ import static utils.TestHelper.getFixtureContent;
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SnapshotProbe;
+import com.datadog.debugger.probe.Where;
+import com.datadog.debugger.util.MoshiHelper;
+import com.datadog.debugger.util.MoshiSnapshotHelper;
+import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.FieldExtractor;
+import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.SnapshotSummaryBuilder;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import groovy.lang.GroovyClassLoader;
 import java.io.File;
@@ -36,10 +46,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.jetbrains.kotlin.cli.common.ExitCode;
@@ -58,13 +69,15 @@ import org.junit.jupiter.params.provider.ValueSource;
 import utils.SourceCompiler;
 
 public class CapturedSnapshotTest {
-
   private static final String LANGUAGE = "java";
   private static final String PROBE_ID = "beae1807-f3b0-4ea8-a74f-826790c5e6f8";
   private static final String PROBE_ID1 = "beae1807-f3b0-4ea8-a74f-826790c5e6f6";
   private static final String PROBE_ID2 = "beae1807-f3b0-4ea8-a74f-826790c5e6f7";
-  private static final long ORG_ID = 2;
   private static final String SERVICE_NAME = "service-name";
+  private static final JsonAdapter<Snapshot.CapturedValue> VALUE_ADAPTER =
+      new MoshiSnapshotHelper.CapturedValueAdapter();
+  private static final JsonAdapter<Map<String, Object>> GENERIC_ADAPTER =
+      MoshiHelper.createGenericAdapter();
 
   private Instrumentation instr = ByteBuddyAgent.install();
   private ClassFileTransformer currentTransformer;
@@ -86,7 +99,7 @@ public class CapturedSnapshotTest {
     int result = Reflect.on(testClass).call("main", "2").get();
     Assert.assertEquals(2, result);
     Assert.assertEquals(
-        "Cannot find CapturedSnapshot01::foobar",
+        "Cannot find method CapturedSnapshot01::foobar",
         listener.errors.get(PROBE_ID).get(0).getMessage());
   }
 
@@ -94,12 +107,13 @@ public class CapturedSnapshotTest {
   public void lineNotFound() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".java", "42"));
+        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".java", 42));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "2").get();
     Assert.assertEquals(2, result);
     Assert.assertEquals(
-        "Cannot find CapturedSnapshot01:L42", listener.errors.get(PROBE_ID).get(0).getMessage());
+        "No executable code was found at CapturedSnapshot01:L42",
+        listener.errors.get(PROBE_ID).get(0).getMessage());
   }
 
   @Test
@@ -223,10 +237,12 @@ public class CapturedSnapshotTest {
     int result = Reflect.on(testClass).call("main", "").get();
     Assert.assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
-    assertCaptureFields(snapshot.getCaptures().getEntry(), "obj2", "java.lang.Object", "null");
+    assertCaptureFields(
+        snapshot.getCaptures().getEntry(), "obj2", "java.lang.Object", (String) null);
     Snapshot.CapturedValue obj2 = snapshot.getCaptures().getReturn().getFields().get("obj2");
-    Assert.assertTrue(
-        obj2.getValue().startsWith("Base(intValue=24, doubleValue=3.14, obj1=java.lang.Object@"));
+    Map<String, Snapshot.CapturedValue> fields = getFields(obj2);
+    Assert.assertEquals(24, fields.get("intValue").getValue());
+    Assert.assertEquals(3.14, fields.get("doubleValue").getValue());
   }
 
   @Test
@@ -356,7 +372,7 @@ public class CapturedSnapshotTest {
   public void sourceFileProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot03";
     DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".java", "4"));
+        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".java", 4));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "").get();
     Assert.assertEquals(48, result);
@@ -373,7 +389,7 @@ public class CapturedSnapshotTest {
   public void simpleSourceFileProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot10";
     DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, "CapturedSnapshot10.java", "11"));
+        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, "CapturedSnapshot10.java", 11));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "2").get();
     Assert.assertEquals(2, result);
@@ -393,7 +409,7 @@ public class CapturedSnapshotTest {
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(
             CLASS_NAME,
-            createSourceFileProbe(PROBE_ID, "src/main/java/" + DIR_CLASS_NAME + ".java", "11"));
+            createSourceFileProbe(PROBE_ID, "src/main/java/" + DIR_CLASS_NAME + ".java", 11));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "2").get();
     Assert.assertEquals(2, result);
@@ -413,7 +429,7 @@ public class CapturedSnapshotTest {
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(
             "com.datadog.debugger.TopLevel01",
-            createSourceFileProbe(PROBE_ID, "src/main/java/" + DIR_CLASS_NAME + ".java", "21"));
+            createSourceFileProbe(PROBE_ID, "src/main/java/" + DIR_CLASS_NAME + ".java", 21));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assert.assertEquals(42 * 42, result);
@@ -434,7 +450,7 @@ public class CapturedSnapshotTest {
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(
             CLASS_NAME,
-            createSourceFileProbe(PROBE_ID1, "src/main/java/" + DIR_CLASS_NAME + ".java", "10"),
+            createSourceFileProbe(PROBE_ID1, "src/main/java/" + DIR_CLASS_NAME + ".java", 10),
             createProbe(PROBE_ID2, CLASS_NAME, "main", null));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "2").get();
@@ -462,7 +478,7 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "CapturedSnapshot101";
     final String FILE_NAME = CLASS_NAME + ".scala";
     DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, FILE_NAME, "3"));
+        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, FILE_NAME, 3));
     String source = getFixtureContent("/" + FILE_NAME);
     Class<?> testClass = ScalaHelper.compileAndLoad(source, CLASS_NAME, FILE_NAME);
     int result = Reflect.on(testClass).call("main", "").get();
@@ -480,7 +496,7 @@ public class CapturedSnapshotTest {
   public void sourceFileProbeGroovy() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot201";
     DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".groovy", "4"));
+        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".groovy", 4));
     String source = getFixtureContent("/" + CLASS_NAME + ".groovy");
     GroovyClassLoader groovyClassLoader = new GroovyClassLoader();
     Class<?> testClass = groovyClassLoader.parseClass(source);
@@ -499,7 +515,7 @@ public class CapturedSnapshotTest {
   public void sourceFileProbeKotlin() {
     final String CLASS_NAME = "CapturedSnapshot301";
     DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".kt", "4"));
+        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".kt", 4));
     URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
     Assert.assertNotNull(resource);
     List<File> filesToDelete = new ArrayList<>();
@@ -521,15 +537,15 @@ public class CapturedSnapshotTest {
   }
 
   @Test
-  public void valueConverter() throws IOException, URISyntaxException {
+  public void fieldExtractor() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot04";
     SnapshotProbe.Builder builder =
         createProbeBuilder(PROBE_ID1, CLASS_NAME, "createSimpleData", "()");
     SnapshotProbe simpleDataProbe =
-        builder.capture(0, 100, 255, 0, FieldExtractor.DEFAULT_FIELD_COUNT).build();
+        builder.capture(1, 100, 255, Limits.DEFAULT_FIELD_COUNT).build();
     builder = createProbeBuilder(PROBE_ID2, CLASS_NAME, "createCompositeData", "()");
     SnapshotProbe compositeDataProbe =
-        builder.capture(0, 3, 255, 0, FieldExtractor.DEFAULT_FIELD_COUNT).build();
+        builder.capture(1, 3, 255, Limits.DEFAULT_FIELD_COUNT).build();
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(CLASS_NAME, simpleDataProbe, compositeDataProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -537,53 +553,71 @@ public class CapturedSnapshotTest {
     Assert.assertEquals(143, result);
     List<Snapshot> snapshots = assertSnapshots(listener, 2, PROBE_ID1, PROBE_ID2);
     Snapshot simpleSnapshot = snapshots.get(0);
+    Map<String, String> expectedSimpleFields = new HashMap<>();
+    expectedSimpleFields.put("intValue", "42");
+    expectedSimpleFields.put("strValue", "foo");
     assertCaptureReturnValue(
         simpleSnapshot.getCaptures().getReturn(),
         "CapturedSnapshot04$SimpleData",
-        "SimpleData(strValue=foo, intValue=42, listValue=java.util.ArrayList)");
+        expectedSimpleFields);
     Snapshot compositeSnapshot = snapshots.get(1);
+    Map<String, String> expectedCompositeFields = new HashMap<>();
+    expectedCompositeFields.put("nullsd", "null");
+    expectedCompositeFields.put("l1", DEPTH_REASON); // notCapturedReason
+    expectedCompositeFields.put("s1", DEPTH_REASON); // notCapturedReason
+    expectedCompositeFields.put("s2", DEPTH_REASON); // notCapturedReason
     assertCaptureReturnValue(
         compositeSnapshot.getCaptures().getReturn(),
         "CapturedSnapshot04$CompositeData",
-        "CompositeData(s1=CapturedSnapshot04$SimpleData, s2=CapturedSnapshot04$SimpleData, nullsd=null, l1=java.util.ArrayList)");
+        expectedCompositeFields);
   }
 
   @Test
-  public void valueConverterDeep2() throws IOException, URISyntaxException {
+  public void fieldExtractorDeep2() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot04";
     SnapshotProbe.Builder builder =
         createProbeBuilder(PROBE_ID, CLASS_NAME, "createCompositeData", "()");
     SnapshotProbe compositeDataProbe =
-        builder.capture(2, 3, 255, 2, FieldExtractor.DEFAULT_FIELD_COUNT).build();
+        builder.capture(2, 3, 255, Limits.DEFAULT_FIELD_COUNT).build();
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(CLASS_NAME, compositeDataProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "").get();
     Assert.assertEquals(143, result);
     Snapshot snapshot = assertOneSnapshot(listener);
-    assertCaptureReturnValue(
-        snapshot.getCaptures().getReturn(),
-        "CapturedSnapshot04$CompositeData",
-        "CompositeData(s1=SimpleData(strValue=foo1, intValue=101, listValue=[]), s2=SimpleData(strValue=foo2, intValue=202, listValue=[]), nullsd=null, l1=[SimpleData(strValue=bar1, intValue=303, listValue=java.util.ArrayList), SimpleData(strValue=bar2, intValue=4...)");
+    Snapshot.CapturedValue returnValue =
+        snapshot.getCaptures().getReturn().getLocals().get("@return");
+    Map<String, Snapshot.CapturedValue> fields = getFields(returnValue);
+    Assert.assertTrue(fields.containsKey("nullsd"));
+    Assert.assertTrue(fields.containsKey("l1"));
+    Snapshot.CapturedValue s1 = fields.get("s1");
+    Map<String, Snapshot.CapturedValue> s1Fields =
+        (Map<String, Snapshot.CapturedValue>) s1.getValue();
+    Assert.assertEquals("101", String.valueOf(s1Fields.get("intValue").getValue()));
+    Assert.assertEquals("foo1", s1Fields.get("strValue").getValue());
+    Assert.assertEquals("null", String.valueOf(s1Fields.get("listValue").getValue()));
+    Assert.assertEquals(
+        DEPTH_REASON, String.valueOf(s1Fields.get("listValue").getNotCapturedReason()));
   }
 
   @Test
-  public void valueConverterLength() throws IOException, URISyntaxException {
+  public void fieldExtractorLength() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot04";
     SnapshotProbe.Builder builder =
         createProbeBuilder(PROBE_ID, CLASS_NAME, "createSimpleData", "()");
-    SnapshotProbe simpleDataProbe =
-        builder.capture(0, 100, 50, 0, FieldExtractor.DEFAULT_FIELD_COUNT).build();
+    SnapshotProbe simpleDataProbe = builder.capture(1, 100, 2, Limits.DEFAULT_FIELD_COUNT).build();
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(CLASS_NAME, simpleDataProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "").get();
     Assert.assertEquals(143, result);
     Snapshot snapshot = assertOneSnapshot(listener);
+    Map<String, String> expectedFields = new HashMap<>();
+    expectedFields.put("intValue", "42");
+    expectedFields.put("strValue", "truncated");
+    expectedFields.put("listValue", DEPTH_REASON);
     assertCaptureReturnValue(
-        snapshot.getCaptures().getReturn(),
-        "CapturedSnapshot04$SimpleData",
-        "SimpleData(strValue=foo, intValue=42, listValue=ja...)");
+        snapshot.getCaptures().getReturn(), "CapturedSnapshot04$SimpleData", expectedFields);
   }
 
   @Test
@@ -591,8 +625,7 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "CapturedSnapshot04";
     SnapshotProbe.Builder builder =
         createProbeBuilder(PROBE_ID, CLASS_NAME, "createSimpleData", "()");
-    SnapshotProbe simpleDataProbe =
-        builder.capture(0, 100, 50, -1, FieldExtractor.DEFAULT_FIELD_COUNT).build();
+    SnapshotProbe simpleDataProbe = builder.capture(0, 100, 50, Limits.DEFAULT_FIELD_COUNT).build();
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(CLASS_NAME, simpleDataProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -601,7 +634,9 @@ public class CapturedSnapshotTest {
     Snapshot snapshot = assertOneSnapshot(listener);
     Snapshot.CapturedValue simpleData =
         snapshot.getCaptures().getReturn().getLocals().get("simpleData");
-    Assert.assertEquals(0, simpleData.getFields().size());
+    Map<String, Snapshot.CapturedValue> fields = getFields(simpleData);
+    Assert.assertEquals(1, fields.size());
+    Assert.assertEquals(DEPTH_REASON, fields.get("@" + NOT_CAPTURED_REASON).getNotCapturedReason());
   }
 
   @Test
@@ -609,8 +644,7 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "CapturedSnapshot04";
     SnapshotProbe.Builder builder =
         createProbeBuilder(PROBE_ID, CLASS_NAME, "createSimpleData", "()");
-    SnapshotProbe simpleDataProbe =
-        builder.capture(0, 100, 50, 0, FieldExtractor.DEFAULT_FIELD_COUNT).build();
+    SnapshotProbe simpleDataProbe = builder.capture(0, 100, 50, Limits.DEFAULT_FIELD_COUNT).build();
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(CLASS_NAME, simpleDataProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -619,16 +653,10 @@ public class CapturedSnapshotTest {
     Snapshot snapshot = assertOneSnapshot(listener);
     Snapshot.CapturedValue simpleData =
         snapshot.getCaptures().getReturn().getLocals().get("simpleData");
-    Map<String, Snapshot.CapturedValue> simpleDataFields = simpleData.getFields();
-    Assert.assertNotNull(simpleDataFields);
-    Assert.assertEquals(3, simpleDataFields.size());
-    Assert.assertTrue(simpleDataFields.containsKey("listValue"));
-    Assert.assertTrue(simpleDataFields.containsKey("intValue"));
-    Assert.assertTrue(simpleDataFields.containsKey("strValue"));
-    Snapshot.CapturedValue listValue = simpleDataFields.get("listValue");
-    Assert.assertEquals(0, listValue.getFields().size());
-    Snapshot.CapturedValue strValue = simpleDataFields.get("strValue");
-    Assert.assertEquals(0, strValue.getFields().size());
+    Map<String, Snapshot.CapturedValue> simpleDataFields = getFields(simpleData);
+    Assert.assertEquals(1, simpleDataFields.size());
+    Assert.assertEquals(
+        DEPTH_REASON, simpleDataFields.get("@" + NOT_CAPTURED_REASON).getNotCapturedReason());
   }
 
   @Test
@@ -636,8 +664,7 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "CapturedSnapshot04";
     SnapshotProbe.Builder builder =
         createProbeBuilder(PROBE_ID, CLASS_NAME, "createSimpleData", "()");
-    SnapshotProbe simpleDataProbe =
-        builder.capture(0, 100, 50, 1, FieldExtractor.DEFAULT_FIELD_COUNT).build();
+    SnapshotProbe simpleDataProbe = builder.capture(1, 100, 50, Limits.DEFAULT_FIELD_COUNT).build();
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(CLASS_NAME, simpleDataProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -646,16 +673,11 @@ public class CapturedSnapshotTest {
     Snapshot snapshot = assertOneSnapshot(listener);
     Snapshot.CapturedValue simpleData =
         snapshot.getCaptures().getReturn().getLocals().get("simpleData");
-    Map<String, Snapshot.CapturedValue> simpleDataFields = simpleData.getFields();
-    Assert.assertNotNull(simpleDataFields);
+    Map<String, Snapshot.CapturedValue> simpleDataFields = getFields(simpleData);
     Assert.assertEquals(3, simpleDataFields.size());
-    Assert.assertTrue(simpleDataFields.containsKey("listValue"));
-    Assert.assertTrue(simpleDataFields.containsKey("intValue"));
-    Assert.assertTrue(simpleDataFields.containsKey("strValue"));
-    Snapshot.CapturedValue listValue = simpleDataFields.get("listValue");
-    Assert.assertNotNull(listValue.getFields());
-    Snapshot.CapturedValue strValue = simpleDataFields.get("strValue");
-    Assert.assertNotNull(strValue.getFields());
+    Assert.assertEquals("foo", simpleDataFields.get("strValue").getValue());
+    Assert.assertEquals(42, simpleDataFields.get("intValue").getValue());
+    Assert.assertEquals(DEPTH_REASON, simpleDataFields.get("listValue").getNotCapturedReason());
   }
 
   @Test
@@ -663,27 +685,38 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "CapturedSnapshot04";
     SnapshotProbe.Builder builder =
         createProbeBuilder(PROBE_ID, CLASS_NAME, "createCompositeData", "()");
-    SnapshotProbe compositeDataProbe = builder.capture(2, 3, 255, 2, 2).build();
+    SnapshotProbe compositeDataProbe = builder.capture(2, 3, 255, 2).build();
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(CLASS_NAME, compositeDataProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "").get();
     Assert.assertEquals(143, result);
     Snapshot snapshot = assertOneSnapshot(listener);
-    assertCaptureReturnValue(
-        snapshot.getCaptures().getReturn(),
-        "CapturedSnapshot04$CompositeData",
-        "CompositeData(s1=SimpleData(strValue=foo1, intValue=101), s2=SimpleData(strValue=foo2, intValue=202))");
+    Snapshot.CapturedValue returnValue =
+        snapshot.getCaptures().getReturn().getLocals().get("@return");
+    Assert.assertEquals("CapturedSnapshot04$CompositeData", returnValue.getType());
+    Map<String, Snapshot.CapturedValue> fields = getFields(returnValue);
+    Assert.assertEquals(3, fields.size());
+    Assert.assertEquals(
+        FIELD_COUNT_REASON, fields.get("@" + NOT_CAPTURED_REASON).getNotCapturedReason());
+    Map<String, Snapshot.CapturedValue> s1Fields =
+        (Map<String, Snapshot.CapturedValue>) fields.get("s1").getValue();
+    Assert.assertEquals("foo1", s1Fields.get("strValue").getValue());
+    Assert.assertEquals(101, s1Fields.get("intValue").getValue());
+    Map<String, Snapshot.CapturedValue> s2Fields =
+        (Map<String, Snapshot.CapturedValue>) fields.get("s2").getValue();
+    Assert.assertEquals("foo2", s2Fields.get("strValue").getValue());
+    Assert.assertEquals(202, s2Fields.get("intValue").getValue());
+
     Snapshot.CapturedValue compositeData =
         snapshot.getCaptures().getReturn().getLocals().get("compositeData");
-    Map<String, Snapshot.CapturedValue> compositeDataFields = compositeData.getFields();
-    Assert.assertNotNull(compositeDataFields);
+    Map<String, Snapshot.CapturedValue> compositeDataFields = getFields(compositeData);
     Assert.assertEquals(3, compositeDataFields.size());
+    Assert.assertEquals(
+        FIELD_COUNT_REASON,
+        compositeDataFields.get("@" + NOT_CAPTURED_REASON).getNotCapturedReason());
     Assert.assertTrue(compositeDataFields.containsKey("s1"));
     Assert.assertTrue(compositeDataFields.containsKey("s2"));
-    Assert.assertEquals(
-        "Max 2 fields reached, 2 fields were not captured",
-        compositeDataFields.get("@status").getReasonNotCaptured());
   }
 
   @Test
@@ -730,15 +763,13 @@ public class CapturedSnapshotTest {
   public void rateLimitSnapshot() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     SnapshotProbe snapshotProbe =
-        new SnapshotProbe(
-            LANGUAGE,
-            PROBE_ID,
-            true,
-            null,
-            new Where(CLASS_NAME, "main", "int (java.lang.String)", new String[] {"8"}, null),
-            ProbeCondition.NONE,
-            null,
-            new SnapshotProbe.Sampling(1));
+        new SnapshotProbe.Builder()
+            .language(LANGUAGE)
+            .probeId(PROBE_ID)
+            .active(true)
+            .where(CLASS_NAME, 8)
+            .sampling(new SnapshotProbe.Sampling(1))
+            .build();
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(CLASS_NAME, snapshotProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -757,15 +788,11 @@ public class CapturedSnapshotTest {
     SnapshotProbe probe2 =
         createProbeBuilder(PROBE_ID1, CLASS_NAME, "f2", "(int)").sampling(10).build();
     Configuration config =
-        new Configuration(
-            SERVICE_NAME,
-            ORG_ID,
-            Arrays.asList(probe1, probe2),
-            null,
-            null,
-            null,
-            new SnapshotProbe.Sampling(1),
-            null);
+        Configuration.builder()
+            .setService(SERVICE_NAME)
+            .addSnapshotsProbes(Arrays.asList(probe1, probe2))
+            .add(new SnapshotProbe.Sampling(1))
+            .build();
     DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, config);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     for (int i = 0; i < 100; i++) {
@@ -780,27 +807,23 @@ public class CapturedSnapshotTest {
   public void simpleConditionTest() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot08";
     SnapshotProbe snapshotProbe =
-        new SnapshotProbe(
-            LANGUAGE,
-            PROBE_ID,
-            true,
-            null,
-            new Where(CLASS_NAME, "doit", "int (java.lang.String)", new String[0], null),
-            new ProbeCondition(
-                DSL.when(
-                    DSL.and(
-                        // this is always true
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", "int (java.lang.String)")
+            .when(
+                new ProbeCondition(
+                    DSL.when(
                         DSL.and(
-                            // this reference is resolved directly from the snapshot
-                            DSL.eq(DSL.ref(".fld"), DSL.value(11)),
-                            // this reference chain needs to use reflection
-                            DSL.eq(DSL.ref(".typed.fld.fld.msg"), DSL.value("hello"))),
-                        DSL.or(
-                            DSL.eq(DSL.ref(ValueReferences.argument("arg")), DSL.value("5")),
-                            DSL.gt(DSL.ref(ValueReferences.DURATION_REF), DSL.value(500_000L))))),
-                "(.fld == 11 && .typed.fld.fld.msg == 'hello') && (#arg == '5' || @duration > 500000)"),
-            null,
-            null);
+                            // this is always true
+                            DSL.and(
+                                // this reference is resolved directly from the snapshot
+                                DSL.eq(DSL.ref(".fld"), DSL.value(11)),
+                                // this reference chain needs to use reflection
+                                DSL.eq(DSL.ref(".typed.fld.fld.msg"), DSL.value("hello"))),
+                            DSL.or(
+                                DSL.eq(DSL.ref(ValueReferences.argument("arg")), DSL.value("5")),
+                                DSL.gt(
+                                    DSL.ref(ValueReferences.DURATION_REF), DSL.value(500_000L))))),
+                    "(.fld == 11 && .typed.fld.fld.msg == 'hello') && (#arg == '5' || @duration > 500000)"))
+            .build();
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(CLASS_NAME, snapshotProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -811,8 +834,66 @@ public class CapturedSnapshotTest {
     Assert.assertEquals(1, listener.snapshots.size());
     Snapshot.CapturedValue argument =
         listener.snapshots.get(0).getCaptures().getEntry().getArguments().get("arg");
-    Assert.assertEquals("5", argument.getValue());
+    Assert.assertEquals("5", getValue(argument));
     Assert.assertEquals("java.lang.String", argument.getType());
+  }
+
+  @Test
+  public void mergedProbesWithAllConditionsTrueTest() throws IOException, URISyntaxException {
+    doMergedProbeConditions(
+        new ProbeCondition(DSL.when(DSL.TRUE), "true"),
+        new ProbeCondition(DSL.when(DSL.TRUE), "true"),
+        2);
+  }
+
+  @Test
+  public void mergedProbesWithAllConditionsFalseTest() throws IOException, URISyntaxException {
+    doMergedProbeConditions(
+        new ProbeCondition(DSL.when(DSL.FALSE), "false"),
+        new ProbeCondition(DSL.when(DSL.FALSE), "false"),
+        0);
+  }
+
+  @Test
+  public void mergedProbesWithMainProbeConditionTest() throws IOException, URISyntaxException {
+    doMergedProbeConditions(new ProbeCondition(DSL.when(DSL.TRUE), "true"), null, 2);
+  }
+
+  @Test
+  public void mergedProbesWithAdditionalProbeConditionTest()
+      throws IOException, URISyntaxException {
+    doMergedProbeConditions(null, new ProbeCondition(DSL.when(DSL.TRUE), "true"), 2);
+  }
+
+  @Test
+  public void mergedProbesWithMainProbeConditionFalseTest() throws IOException, URISyntaxException {
+    doMergedProbeConditions(new ProbeCondition(DSL.when(DSL.FALSE), "false"), null, 1);
+  }
+
+  @Test
+  public void mergedProbesWithAdditionalProbeConditionFalseTest()
+      throws IOException, URISyntaxException {
+    doMergedProbeConditions(null, new ProbeCondition(DSL.when(DSL.FALSE), "false"), 1);
+  }
+
+  private void doMergedProbeConditions(
+      ProbeCondition probeCondition1, ProbeCondition probeCondition2, int expectedSnapshots)
+      throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    SnapshotProbe probe1 =
+        createProbeBuilder(PROBE_ID1, CLASS_NAME, "doit", "int (java.lang.String)")
+            .when(probeCondition1)
+            .build();
+    SnapshotProbe probe2 =
+        createProbeBuilder(PROBE_ID2, CLASS_NAME, "doit", "int (java.lang.String)")
+            .when(probeCondition2)
+            .build();
+    probe1.addAdditionalProbe(probe2);
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe1);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    Assert.assertEquals(3, result);
+    Assert.assertEquals(expectedSnapshots, listener.snapshots.size());
   }
 
   @Test
@@ -830,15 +911,22 @@ public class CapturedSnapshotTest {
     assertCaptureFields(
         snapshot.getCaptures().getEntry(), "strValue", "java.lang.String", "foobar");
     assertCaptureFields(
-        snapshot.getCaptures().getEntry(), "strList", "java.util.List", "[foo, bar]");
-    assertCaptureFields(snapshot.getCaptures().getEntry(), "strMap", "java.util.Map", "{}");
+        snapshot.getCaptures().getEntry(),
+        "strList",
+        "java.util.ArrayList",
+        Arrays.asList("foo", "bar"));
+    assertCaptureFields(
+        snapshot.getCaptures().getEntry(), "strMap", "java.util.HashMap", Collections.emptyMap());
     assertCaptureFieldCount(snapshot.getCaptures().getReturn(), 5);
     assertCaptureFields(snapshot.getCaptures().getReturn(), "intValue", "int", "48");
     assertCaptureFields(snapshot.getCaptures().getReturn(), "doubleValue", "double", "3.14");
     assertCaptureFields(snapshot.getCaptures().getReturn(), "strValue", "java.lang.String", "done");
     assertCaptureFields(
-        snapshot.getCaptures().getReturn(), "strList", "java.util.List", "[foo, bar, done]");
-    assertCaptureFields(snapshot.getCaptures().getReturn(), "strMap", "java.util.Map", "{foo=bar}");
+        snapshot.getCaptures().getReturn(), "strList", "java.util.ArrayList", "[foo, bar, done]");
+    Map<Object, Object> expectedMap = new HashMap<>();
+    expectedMap.put("foo", "bar");
+    assertCaptureFields(
+        snapshot.getCaptures().getReturn(), "strMap", "java.util.HashMap", expectedMap);
   }
 
   @Test
@@ -1019,6 +1107,96 @@ public class CapturedSnapshotTest {
     Assert.assertEquals(0, listener.snapshots.size());
   }
 
+  @Test
+  public void objectDynamicType() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot17";
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, "processWithArg", null));
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "2").get();
+    Assert.assertEquals(50, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertCaptureArgs(snapshot.getCaptures().getEntry(), "obj", "java.lang.Integer", "42");
+    assertCaptureFields(
+        snapshot.getCaptures().getEntry(), "objField", "java.lang.String", "foobar");
+    assertCaptureLocals(snapshot.getCaptures().getReturn(), "result", "java.lang.Integer", "50");
+    assertCaptureReturnValue(snapshot.getCaptures().getReturn(), "java.lang.Integer", "50");
+  }
+
+  @Test
+  public void exceptionAsLocalVariable() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot18";
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, null, null, "14"));
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "2").get();
+    Assert.assertEquals(42, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    Map<String, String> expectedFields = new HashMap<>();
+    expectedFields.put("detailMessage", "For input string: \"a\"");
+    assertCaptureLocals(
+        snapshot.getCaptures().getLines().get(14),
+        "ex",
+        "java.lang.NumberFormatException",
+        expectedFields);
+  }
+
+  @Test
+  public void evaluateAtEntry() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    SnapshotProbe snapshotProbe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "main", "int (java.lang.String)")
+            .when(
+                new ProbeCondition(
+                    DSL.when(DSL.eq(DSL.ref("^arg"), DSL.value("1"))), "^arg == '1'"))
+            .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, snapshotProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    Assert.assertEquals(3, result);
+    assertOneSnapshot(listener);
+  }
+
+  @Test
+  public void evaluateAtExit() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    SnapshotProbe snapshotProbe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "main", "int (java.lang.String)")
+            .when(
+                new ProbeCondition(
+                    DSL.when(DSL.eq(DSL.ref("@return"), DSL.value(3))), "@return == 3"))
+            .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, snapshotProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    Assert.assertEquals(3, result);
+    assertOneSnapshot(listener);
+  }
+
+  @Test
+  public void evaluateAtExitFalse() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    SnapshotProbe snapshotProbe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "main", "int (java.lang.String)")
+            .when(
+                new ProbeCondition(
+                    DSL.when(DSL.eq(DSL.ref("@return"), DSL.value(0))), "@return == 0"))
+            .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, snapshotProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    Assert.assertEquals(3, result);
+    Assert.assertEquals(0, listener.snapshots.size());
+    Assert.assertTrue(listener.skipped);
+    Assert.assertEquals(DebuggerContext.SkipCause.CONDITION, listener.cause);
+  }
+
   private DebuggerTransformerTest.TestSnapshotListener setupInstrumentTheWorldTransformer(
       String excludeFileName) {
     Config config = mock(Config.class);
@@ -1083,6 +1261,7 @@ public class CapturedSnapshotTest {
             resolver(id, callingClass, expectedClassName, snapshotProbes, instrumentationResults),
         null);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
+    DebuggerContext.initSnapshotSerializer(new JsonSnapshotSerializer());
     for (SnapshotProbe snapshotProbe : snapshotProbes) {
       if (snapshotProbe.getSampling() != null) {
         ProbeRateLimiter.setRate(
@@ -1123,16 +1302,20 @@ public class CapturedSnapshotTest {
         return new Snapshot.ProbeDetails(
             id,
             location,
+            Snapshot.MethodLocation.DEFAULT,
             probe.getProbeCondition(),
             probe.concatTags(),
-            probe.additionalProbes.stream()
+            new SnapshotSummaryBuilder(location),
+            probe.getAdditionalProbes().stream()
                 .map(
                     (ProbeDefinition relatedProbe) ->
                         new Snapshot.ProbeDetails(
-                            relatedProbe.id,
+                            relatedProbe.getId(),
                             location,
+                            Snapshot.MethodLocation.DEFAULT,
                             ((SnapshotProbe) relatedProbe).getProbeCondition(),
-                            ((SnapshotProbe) relatedProbe).concatTags()))
+                            relatedProbe.concatTags(),
+                            new SnapshotSummaryBuilder(location)))
                 .collect(Collectors.toList()));
       }
     }
@@ -1142,28 +1325,81 @@ public class CapturedSnapshotTest {
   private DebuggerTransformerTest.TestSnapshotListener installProbes(
       String expectedClassName, SnapshotProbe... snapshotProbes) {
     return installProbes(
-        expectedClassName, new Configuration(SERVICE_NAME, ORG_ID, Arrays.asList(snapshotProbes)));
+        expectedClassName,
+        Configuration.builder()
+            .setService(SERVICE_NAME)
+            .addSnapshotsProbes(Arrays.asList(snapshotProbes))
+            .build());
   }
 
   private void assertCaptureArgs(
       Snapshot.CapturedContext context, String name, String typeName, String value) {
     Snapshot.CapturedValue capturedValue = context.getArguments().get(name);
     Assert.assertEquals(typeName, capturedValue.getType());
-    Assert.assertEquals(value, capturedValue.getValue());
+    Assert.assertEquals(value, getValue(capturedValue));
   }
 
   private void assertCaptureLocals(
       Snapshot.CapturedContext context, String name, String typeName, String value) {
     Snapshot.CapturedValue localVar = context.getLocals().get(name);
     Assert.assertEquals(typeName, localVar.getType());
-    Assert.assertEquals(value, localVar.getValue());
+    Assert.assertEquals(value, getValue(localVar));
+  }
+
+  private void assertCaptureLocals(
+      Snapshot.CapturedContext context,
+      String name,
+      String typeName,
+      Map<String, String> expectedFields) {
+    Snapshot.CapturedValue localVar = context.getLocals().get(name);
+    Assert.assertEquals(typeName, localVar.getType());
+    Map<String, Snapshot.CapturedValue> fields = getFields(localVar);
+    for (Map.Entry<String, String> entry : expectedFields.entrySet()) {
+      Assert.assertTrue(fields.containsKey(entry.getKey()));
+      Snapshot.CapturedValue fieldCapturedValue = fields.get(entry.getKey());
+      if (fieldCapturedValue.getNotCapturedReason() != null) {
+        Assert.assertEquals(
+            entry.getValue(), String.valueOf(fieldCapturedValue.getNotCapturedReason()));
+      } else {
+        Assert.assertEquals(entry.getValue(), String.valueOf(fieldCapturedValue.getValue()));
+      }
+    }
   }
 
   private void assertCaptureFields(
       Snapshot.CapturedContext context, String name, String typeName, String value) {
     Snapshot.CapturedValue field = context.getFields().get(name);
     Assert.assertEquals(typeName, field.getType());
-    Assert.assertEquals(value, field.getValue());
+    Assert.assertEquals(value, getValue(field));
+  }
+
+  private void assertCaptureFields(
+      Snapshot.CapturedContext context, String name, String typeName, Collection<?> collection) {
+    Snapshot.CapturedValue field = context.getFields().get(name);
+    Assert.assertEquals(typeName, field.getType());
+    Iterator<?> iterator = collection.iterator();
+    for (Object obj : getCollection(field)) {
+      if (iterator.hasNext()) {
+        Assert.assertEquals(iterator.next(), obj);
+      } else {
+        Assert.fail("not same number of elements");
+      }
+    }
+  }
+
+  private void assertCaptureFields(
+      Snapshot.CapturedContext context,
+      String name,
+      String typeName,
+      Map<Object, Object> expectedMap) {
+    Snapshot.CapturedValue field = context.getFields().get(name);
+    Assert.assertEquals(typeName, field.getType());
+    Map<Object, Object> map = getMap(field);
+    Assert.assertEquals(expectedMap.size(), map.size());
+    for (Map.Entry<Object, Object> entry : map.entrySet()) {
+      Assert.assertTrue(expectedMap.containsKey(entry.getKey()));
+      Assert.assertEquals(expectedMap.get(entry.getKey()), entry.getValue());
+    }
   }
 
   private void assertCaptureFieldCount(Snapshot.CapturedContext context, int expectedFieldCount) {
@@ -1174,14 +1410,24 @@ public class CapturedSnapshotTest {
       Snapshot.CapturedContext context, String typeName, String value) {
     Snapshot.CapturedValue returnValue = context.getLocals().get("@return");
     Assert.assertEquals(typeName, returnValue.getType());
-    Assert.assertEquals(value, returnValue.getValue());
+    Assert.assertEquals(value, getValue(returnValue));
   }
 
-  private void assertCaptureReturnValueRegEx(
-      Snapshot.CapturedContext context, String typeName, String regex) {
+  private void assertCaptureReturnValue(
+      Snapshot.CapturedContext context, String typeName, Map<String, String> expectedFields) {
     Snapshot.CapturedValue returnValue = context.getLocals().get("@return");
     Assert.assertEquals(typeName, returnValue.getType());
-    Assert.assertTrue(returnValue.getValue(), Pattern.matches(regex, returnValue.getValue()));
+    Map<String, Snapshot.CapturedValue> fields = getFields(returnValue);
+    for (Map.Entry<String, String> entry : expectedFields.entrySet()) {
+      Assert.assertTrue(fields.containsKey(entry.getKey()));
+      Snapshot.CapturedValue fieldCapturedValue = fields.get(entry.getKey());
+      if (fieldCapturedValue.getNotCapturedReason() != null) {
+        Assert.assertEquals(
+            entry.getValue(), String.valueOf(fieldCapturedValue.getNotCapturedReason()));
+      } else {
+        Assert.assertEquals(entry.getValue(), String.valueOf(fieldCapturedValue.getValue()));
+      }
+    }
   }
 
   private void assertCaptureThrowable(
@@ -1209,6 +1455,87 @@ public class CapturedSnapshotTest {
     Assert.assertEquals(lineNumber, throwable.getStacktrace().get(0).getLineNumber());
   }
 
+  private static String getValue(Snapshot.CapturedValue capturedValue) {
+    Snapshot.CapturedValue valued = null;
+    try {
+      valued = VALUE_ADAPTER.fromJson(capturedValue.getStrValue());
+      Object obj = valued.getValue();
+      return obj != null ? String.valueOf(obj) : null;
+    } catch (IOException e) {
+      e.printStackTrace();
+      return null;
+    }
+  }
+
+  public static Map<String, Snapshot.CapturedValue> getFields(
+      Snapshot.CapturedValue capturedValue) {
+    try {
+      Snapshot.CapturedValue valued = VALUE_ADAPTER.fromJson(capturedValue.getStrValue());
+      Map<String, Snapshot.CapturedValue> results = new HashMap<>();
+      if (valued.getNotCapturedReason() != null) {
+        results.put(
+            "@" + NOT_CAPTURED_REASON,
+            Snapshot.CapturedValue.notCapturedReason(null, null, valued.getNotCapturedReason()));
+      }
+      if (valued.getValue() == null) {
+        return results;
+      }
+      results.putAll((Map<String, Snapshot.CapturedValue>) valued.getValue());
+      return results;
+    } catch (IOException e) {
+      e.printStackTrace();
+      return Collections.emptyMap();
+    }
+  }
+
+  private static Collection<?> getCollection(Snapshot.CapturedValue capturedValue) {
+    try {
+      Map<String, Object> capturedValueMap = GENERIC_ADAPTER.fromJson(capturedValue.getStrValue());
+      List<Object> elements = (List<Object>) capturedValueMap.get("elements");
+      if (elements == null) {
+        Assert.fail("not a collection");
+      }
+      List<Object> result = new ArrayList<>();
+      for (Object obj : elements) {
+        Map<String, Object> element = (Map<String, Object>) obj;
+        String type = (String) element.get("type");
+        if (type == null) {
+          Assert.fail("no type for element");
+        }
+        if (MoshiSnapshotHelper.isPrimitive(type)) {
+          result.add(element.get("value"));
+        } else {
+          Assert.fail("not implemented");
+        }
+      }
+      return result;
+    } catch (IOException e) {
+      e.printStackTrace();
+      return null;
+    }
+  }
+
+  private Map<Object, Object> getMap(Snapshot.CapturedValue capturedValue) {
+    try {
+      Map<String, Object> capturedValueMap = GENERIC_ADAPTER.fromJson(capturedValue.getStrValue());
+      List<Object> entries = (List<Object>) capturedValueMap.get("entries");
+      if (entries == null) {
+        Assert.fail("not a map");
+      }
+      Map<Object, Object> result = new HashMap<>();
+      for (Object obj : entries) {
+        List<Object> entry = (List<Object>) obj;
+        Map<String, Object> key = (Map<String, Object>) entry.get(0);
+        Map<String, Object> value = (Map<String, Object>) entry.get(1);
+        result.put(key.get("value"), value.get("value"));
+      }
+      return result;
+    } catch (IOException e) {
+      e.printStackTrace();
+      return null;
+    }
+  }
+
   private static SnapshotProbe createProbe(
       String id, String typeName, String methodName, String signature, String... lines) {
     return createProbeBuilder(id, typeName, methodName, signature, lines).build();
@@ -1224,17 +1551,13 @@ public class CapturedSnapshotTest {
         .sampling(new SnapshotProbe.Sampling(100));
   }
 
-  private static SnapshotProbe createSourceFileProbe(
-      String id, String sourceFile, String... lines) {
-    return new SnapshotProbe(
-        LANGUAGE,
-        id,
-        true,
-        null,
-        new Where(null, null, null, lines, sourceFile),
-        ProbeCondition.NONE,
-        null,
-        null);
+  private static SnapshotProbe createSourceFileProbe(String id, String sourceFile, int line) {
+    return new SnapshotProbe.Builder()
+        .language(LANGUAGE)
+        .probeId(id)
+        .active(true)
+        .where(null, null, null, line, sourceFile)
+        .build();
   }
 
   static class KotlinHelper {

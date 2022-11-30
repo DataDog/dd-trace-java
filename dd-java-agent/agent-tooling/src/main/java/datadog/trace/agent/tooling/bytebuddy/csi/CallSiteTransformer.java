@@ -4,6 +4,10 @@ import static net.bytebuddy.jar.asm.ClassWriter.COMPUTE_MAXS;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.csi.CallSiteAdvice;
+import datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode;
+import datadog.trace.agent.tooling.csi.InvokeAdvice;
+import datadog.trace.agent.tooling.csi.InvokeDynamicAdvice;
+import java.security.ProtectionDomain;
 import javax.annotation.Nonnull;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
@@ -13,8 +17,10 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.jar.asm.ClassVisitor;
+import net.bytebuddy.jar.asm.Handle;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
+import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.pool.TypePool;
 import net.bytebuddy.utility.JavaModule;
 
@@ -33,7 +39,8 @@ public class CallSiteTransformer implements Instrumenter.AdviceTransformer {
       @Nonnull final DynamicType.Builder<?> builder,
       @Nonnull final TypeDescription type,
       final ClassLoader classLoader,
-      final JavaModule module) {
+      final JavaModule module,
+      final ProtectionDomain pd) {
     Advices discovered = advices.findAdvices(type, classLoader);
     return discovered.isEmpty() ? builder : builder.visit(new CallSiteVisitorWrapper(discovered));
   }
@@ -48,7 +55,7 @@ public class CallSiteTransformer implements Instrumenter.AdviceTransformer {
 
     @Override
     public int mergeWriter(final int flags) {
-      return flags | COMPUTE_MAXS;
+      return advices.computeMaxStack() ? flags | COMPUTE_MAXS : flags;
     }
 
     @Override
@@ -88,7 +95,8 @@ public class CallSiteTransformer implements Instrumenter.AdviceTransformer {
     }
   }
 
-  private static class CallSiteMethodVisitor extends MethodVisitor {
+  private static class CallSiteMethodVisitor extends MethodVisitor
+      implements CallSiteAdvice.MethodHandler {
     private final Advices advices;
 
     private CallSiteMethodVisitor(
@@ -105,11 +113,119 @@ public class CallSiteTransformer implements Instrumenter.AdviceTransformer {
         final String descriptor,
         final boolean isInterface) {
       CallSiteAdvice advice = advices.findAdvice(owner, name, descriptor);
-      if (advice != null) {
-        advice.apply(mv, opcode, owner, name, descriptor, isInterface);
+      if (advice instanceof InvokeAdvice) {
+        ((InvokeAdvice) advice).apply(this, opcode, owner, name, descriptor, isInterface);
       } else {
         mv.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
       }
+    }
+
+    @Override
+    public void visitInvokeDynamicInsn(
+        final String name,
+        final String descriptor,
+        final Handle bootstrapMethodHandle,
+        final Object... bootstrapMethodArguments) {
+      CallSiteAdvice advice = advices.findAdvice(bootstrapMethodHandle);
+      if (advice instanceof InvokeDynamicAdvice) {
+        ((InvokeDynamicAdvice) advice)
+            .apply(this, name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);
+      } else {
+        mv.visitInvokeDynamicInsn(
+            name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);
+      }
+    }
+
+    @Override
+    public void instruction(final int opcode) {
+      mv.visitInsn(opcode);
+    }
+
+    @Override
+    public void loadConstant(final Object constant) {
+      mv.visitLdcInsn(constant);
+    }
+
+    @Override
+    public void loadConstantArray(final Object[] array) {
+      CallSiteUtils.pushConstantArray(mv, array);
+    }
+
+    @Override
+    public void method(
+        final int opcode,
+        final String owner,
+        final String name,
+        final String descriptor,
+        final boolean isInterface) {
+      mv.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
+    }
+
+    @Override
+    public void invokeDynamic(
+        final String name,
+        final String descriptor,
+        final Handle bootstrapMethodHandle,
+        final Object... bootstrapMethodArguments) {
+      mv.visitInvokeDynamicInsn(name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);
+    }
+
+    @Override
+    public void dupParameters(final String methodDescriptor, final StackDupMode mode) {
+      final Type method = Type.getMethodType(methodDescriptor);
+      if (method.getArgumentTypes().length == 0) {
+        return;
+      }
+      CallSiteUtils.dup(mv, method.getArgumentTypes(), mode);
+    }
+
+    @Override
+    public void dupParameters(final String methodDescriptor, int[] indices, String owner) {
+      final Type method = Type.getMethodType(methodDescriptor);
+      Type[] stackArgTypes;
+      if (owner != null) {
+        stackArgTypes = methodParamTypesWithThis(owner, methodDescriptor);
+        int[] newIndices = new int[indices.length];
+        for (int i = 0; i < indices.length; i++) {
+          newIndices[i] = indices[i] + 1;
+        }
+        indices = newIndices;
+      } else {
+        stackArgTypes = method.getArgumentTypes();
+      }
+      CallSiteUtils.dup(mv, stackArgTypes, indices);
+    }
+
+    @Override
+    public void dupInvoke(
+        final String owner, final String methodDescriptor, final StackDupMode mode) {
+      final Type[] parameters = methodParamTypesWithThis(owner, methodDescriptor);
+      CallSiteUtils.dup(mv, parameters, mode);
+    }
+
+    @Override
+    public void dupInvoke(String owner, String methodDescriptor, int[] parameterIndices) {
+      final Type[] methodParameterTypesWithThis = methodParamTypesWithThis(owner, methodDescriptor);
+
+      int[] parameterIndicesWithThis = new int[parameterIndices.length];
+      for (int i = 0; i < parameterIndices.length; i++) {
+        parameterIndicesWithThis[i] = parameterIndices[i] + 1;
+      }
+      CallSiteUtils.dup(mv, methodParameterTypesWithThis, parameterIndicesWithThis);
+    }
+
+    private Type[] methodParamTypesWithThis(String owner, String methodDescriptor) {
+      final Type method = Type.getMethodType(methodDescriptor);
+      Type ownerType = Type.getType("L" + owner + ";");
+      final Type[] methodParameterTypesWithThis = new Type[method.getArgumentTypes().length + 1];
+      methodParameterTypesWithThis[0] = ownerType;
+      System.arraycopy(
+          method.getArgumentTypes(),
+          0,
+          methodParameterTypesWithThis,
+          1,
+          methodParameterTypesWithThis.length - 1);
+      return methodParameterTypesWithThis;
     }
   }
 }

@@ -1,11 +1,12 @@
 package datadog.trace.instrumentation.grpc.server;
 
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -14,6 +15,7 @@ import io.grpc.ServerCall;
 import io.grpc.Status;
 import java.util.BitSet;
 import java.util.LinkedHashMap;
+import java.util.function.Function;
 
 public class GrpcServerDecorator extends ServerDecorator {
 
@@ -27,6 +29,7 @@ public class GrpcServerDecorator extends ServerDecorator {
 
   private static final LinkedHashMap<String, String> createServerPathwaySortedTags() {
     LinkedHashMap<String, String> result = new LinkedHashMap<>();
+    result.put(DIRECTION_TAG, DIRECTION_IN);
     result.put(TYPE_TAG, "grpc");
     return result;
   }
@@ -36,6 +39,7 @@ public class GrpcServerDecorator extends ServerDecorator {
   public static final GrpcServerDecorator DECORATE = new GrpcServerDecorator();
 
   private static final Function<String, String> NORMALIZE =
+      // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
       new Function<String, String>() {
         @Override
         public String apply(String fullName) {

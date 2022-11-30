@@ -4,14 +4,13 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_PORT;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.LOGGING_WRITER_TYPE;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.Functions;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.function.Function;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 
 public final class DDAgentStatsDClientManager implements StatsDClientManager {
   private static final DDAgentStatsDClientManager INSTANCE = new DDAgentStatsDClientManager();
@@ -44,9 +43,10 @@ public final class DDAgentStatsDClientManager implements StatsDClientManager {
       final Integer port,
       final String namedPipe,
       final String namespace,
-      final String[] constantTags) {
-    Function<String, String> nameMapping = Functions.<String>zero();
-    Function<String[], String[]> tagMapping = Functions.<String[]>zero();
+      final String[] constantTags,
+      final boolean useAggregation) {
+    Function<String, String> nameMapping = Function.identity();
+    Function<String[], String[]> tagMapping = Function.identity();
 
     if (null != namespace) {
       nameMapping = new NameResolver(namespace);
@@ -59,16 +59,18 @@ public final class DDAgentStatsDClientManager implements StatsDClientManager {
     if (USE_LOGGING_CLIENT) {
       return new LoggingStatsDClient(nameMapping, tagMapping);
     } else {
-      return new DDAgentStatsDClient(getConnection(host, port, namedPipe), nameMapping, tagMapping);
+      return new DDAgentStatsDClient(
+          getConnection(host, port, namedPipe, useAggregation), nameMapping, tagMapping);
     }
   }
 
   private DDAgentStatsDConnection getConnection(
-      final String host, final Integer port, final String namedPipe) {
-    String connectionKey = getConnectionKey(host, port, namedPipe);
+      final String host, final Integer port, final String namedPipe, boolean useAggregation) {
+    String connectionKey = getConnectionKey(host, port, namedPipe, useAggregation);
     DDAgentStatsDConnection connection = connectionPool.get(connectionKey);
     if (null == connection) {
-      DDAgentStatsDConnection newConnection = new DDAgentStatsDConnection(host, port, namedPipe);
+      DDAgentStatsDConnection newConnection =
+          new DDAgentStatsDConnection(host, port, namedPipe, useAggregation);
       connection = connectionPool.putIfAbsent(connectionKey, newConnection);
       if (null == connection) {
         connection = newConnection;
@@ -78,11 +80,14 @@ public final class DDAgentStatsDClientManager implements StatsDClientManager {
   }
 
   private static String getConnectionKey(
-      final String host, final Integer port, final String namedPipe) {
+      final String host, final Integer port, final String namedPipe, boolean useAggregation) {
     if (namedPipe != null) {
-      return namedPipe;
+      return namedPipe + (useAggregation ? "" : ":no_aggregation");
     }
-    return (null != host ? host : "?") + ":" + (null != port ? port : "?");
+    return (null != host ? host : "?")
+        + ":"
+        + (null != port ? port : "?")
+        + (useAggregation ? "" : ":no_aggregation");
   }
 
   private void handleDefaultPortChange(final int newPort) {
@@ -124,15 +129,12 @@ public final class DDAgentStatsDClientManager implements StatsDClientManager {
     public TagCombiner(final String[] constantTags) {
       this.packedTags = pack(constantTags);
       this.tagsInserter =
-          new Function<String[], String[]>() {
-            @Override
-            public String[] apply(final String[] tags) {
-              // extend per-call array by one to add the pre-packed constant tags
-              String[] result = new String[tags.length + 1];
-              System.arraycopy(tags, 0, result, 1, tags.length);
-              result[0] = packedTags[0];
-              return result;
-            }
+          tags -> {
+            // extend per-call array by one to add the pre-packed constant tags
+            String[] result = new String[tags.length + 1];
+            System.arraycopy(tags, 0, result, 1, tags.length);
+            result[0] = packedTags[0];
+            return result;
           };
     }
 

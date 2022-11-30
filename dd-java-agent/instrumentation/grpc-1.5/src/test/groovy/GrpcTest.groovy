@@ -1,11 +1,8 @@
 import com.google.common.util.concurrent.MoreExecutors
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Platform
-import datadog.trace.api.function.Function
-import datadog.trace.api.function.BiFunction
-import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
@@ -32,13 +29,12 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.TimeUnit
+import java.util.function.BiFunction
+import java.util.function.Function
+import java.util.function.Supplier
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.api.Checkpointer.CPU
-import static datadog.trace.api.Checkpointer.END
-import static datadog.trace.api.Checkpointer.SPAN
-import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
 import static datadog.trace.api.gateway.Events.EVENTS
 
 abstract class GrpcTest extends AgentTestRunner {
@@ -68,10 +64,12 @@ abstract class GrpcTest extends AgentTestRunner {
     } as TriConsumer<RequestContext, String, String>)
     ig.registerCallback(EVENTS.requestHeaderDone(),{
       appSecHeaderDone = true
+      Flow.ResultFlow.empty()
     } as Function<RequestContext, Flow<Void>>)
     ig.registerCallback(EVENTS.grpcServerRequestMessage(), { reqCtx, obj ->
       collectedAppSecReqMsgs << obj
-    } as BiFunction<RequestContext, Object>)
+      Flow.ResultFlow.empty()
+    } as BiFunction<RequestContext, Object, Flow<Void>>)
   }
 
   def cleanup() {
@@ -80,9 +78,6 @@ abstract class GrpcTest extends AgentTestRunner {
 
   def "test request-response"() {
     setup:
-    //    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-    //      CheckpointValidationMode.INTERVALS,
-    //      CheckpointValidationMode.THREAD_SEQUENCE)
 
     ExecutorService responseExecutor = Executors.newSingleThreadExecutor()
     BindableService greeter = new GreeterGrpc.GreeterImplBase() {
@@ -185,15 +180,6 @@ abstract class GrpcTest extends AgentTestRunner {
         }
       }
     }
-    5 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    5 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
-    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    0 * TEST_CHECKPOINTER._
 
     and:
     def traceId = TEST_WRITER[0].traceId.first()
@@ -205,14 +191,14 @@ abstract class GrpcTest extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(["type:internal"])
-        edgeTags.size() == 1
+        edgeTags.containsAll(["direction:out", "type:grpc"])
+        edgeTags.size() == 2
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags.containsAll(["type:grpc"])
-        edgeTags.size() == 1
+        edgeTags.containsAll(["direction:in", "type:grpc"])
+        edgeTags.size() == 2
       }
     }
 
@@ -318,16 +304,6 @@ abstract class GrpcTest extends AgentTestRunner {
       }
     }
 
-    3 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    3 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
-    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    0 * TEST_CHECKPOINTER._
-
     cleanup:
     channel?.shutdownNow()?.awaitTermination(10, TimeUnit.SECONDS)
     server?.shutdownNow()?.awaitTermination()
@@ -417,16 +393,6 @@ abstract class GrpcTest extends AgentTestRunner {
       }
     }
 
-    3 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    3 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
-    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    0 * TEST_CHECKPOINTER._
-
     cleanup:
     channel?.shutdownNow()?.awaitTermination(10, TimeUnit.SECONDS)
     server?.shutdownNow()?.awaitTermination()
@@ -498,7 +464,7 @@ abstract class GrpcTest extends AgentTestRunner {
           operationName "grpc.server"
           resourceName "example.Greeter/Ignore"
           spanType DDSpanTypes.RPC
-          parentDDId DDId.ZERO
+          parentSpanId DDSpanId.ZERO
           errored false
           measured true
           tags {

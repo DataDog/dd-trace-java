@@ -42,7 +42,8 @@ public interface EventProducerService {
       DataSubscriberInfo subscribers,
       AppSecRequestContext ctx,
       DataBundle newData,
-      boolean isTransient);
+      boolean isTransient)
+      throws ExpiredSubscriberInfoException;
 
   interface DataSubscriberInfo {
     boolean isEmpty();

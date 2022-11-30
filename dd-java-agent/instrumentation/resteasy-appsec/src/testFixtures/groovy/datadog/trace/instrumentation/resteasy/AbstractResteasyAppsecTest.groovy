@@ -3,8 +3,6 @@ package datadog.trace.instrumentation.resteasy
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.utils.OkHttpUtils
-import datadog.trace.api.function.BiFunction
-import datadog.trace.api.function.Supplier
 import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
@@ -27,6 +25,8 @@ import javax.ws.rs.core.MediaType
 import javax.ws.rs.core.Response
 import javax.ws.rs.ext.ContextResolver
 import java.util.concurrent.TimeUnit
+import java.util.function.BiFunction
+import java.util.function.Supplier
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED

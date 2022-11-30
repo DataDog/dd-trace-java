@@ -43,15 +43,11 @@ class MuzzlePlugin implements Plugin<Project> {
 
   static {
     RemoteRepository central = new RemoteRepository.Builder("central", "default", "https://repo1.maven.org/maven2/").build()
-    RemoteRepository sonatype = new RemoteRepository.Builder("sonatype", "default", "https://oss.sonatype.org/content/repositories/releases/").build()
-    RemoteRepository jcenter = new RemoteRepository.Builder("jcenter", "default", "https://jcenter.bintray.com/").build()
-    RemoteRepository spring = new RemoteRepository.Builder("spring", "default", "https://repo.spring.io/libs-release/").build()
-    RemoteRepository jboss = new RemoteRepository.Builder("jboss", "default", "https://repository.jboss.org/nexus/content/repositories/releases/").build()
-    RemoteRepository typesafe = new RemoteRepository.Builder("typesafe", "default", "https://repo.typesafe.com/typesafe/releases").build()
-    RemoteRepository akka = new RemoteRepository.Builder("akka", "default", "https://dl.bintray.com/akka/maven/").build()
-    RemoteRepository atlassian = new RemoteRepository.Builder("atlassian", "default", "https://maven.atlassian.com/content/repositories/atlassian-public/").build()
-//    MUZZLE_REPOS = Arrays.asList(central, sonatype, jcenter, spring, jboss, typesafe, akka, atlassian)
-    MUZZLE_REPOS = Collections.unmodifiableList(Arrays.asList(central, jcenter))
+    // Only needed for restlet
+    RemoteRepository restlet = new RemoteRepository.Builder("restlet", "default", "https://maven.restlet.talend.com/").build()
+    // Only needed  for play-2.3
+    RemoteRepository typesafe = new RemoteRepository.Builder("typesafe", "default", "https://repo.typesafe.com/typesafe/maven-releases/").build()
+    MUZZLE_REPOS = Collections.unmodifiableList(Arrays.asList(central, restlet, typesafe))
   }
 
   @Override
@@ -82,8 +78,8 @@ class MuzzlePlugin implements Plugin<Project> {
           final ClassLoader userCL = createCompileDepsClassLoader(project, bootstrapProject)
           final ClassLoader instrumentationCL = createInstrumentationClassloader(project, toolingProject)
           Method assertionMethod = instrumentationCL.loadClass('datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin')
-            .getMethod('assertInstrumentationMuzzled', ClassLoader.class, ClassLoader.class, boolean.class)
-          assertionMethod.invoke(null, instrumentationCL, userCL, true)
+            .getMethod('assertInstrumentationMuzzled', ClassLoader.class, ClassLoader.class, boolean.class, String.class)
+          assertionMethod.invoke(null, instrumentationCL, userCL, true, null)
         }
         println "Muzzle executing for $project"
       }
@@ -293,6 +289,7 @@ class MuzzlePlugin implements Plugin<Project> {
 
     return filterAndLimitVersions(allRangeResult, muzzleDirective.skipVersions).collect { version ->
       final MuzzleDirective inverseDirective = new MuzzleDirective()
+      inverseDirective.name = muzzleDirective.name
       inverseDirective.group = muzzleDirective.group
       inverseDirective.module = muzzleDirective.module
       inverseDirective.versions = "$version"
@@ -391,8 +388,8 @@ class MuzzlePlugin implements Plugin<Project> {
         try {
           // find all instrumenters, get muzzle, and assert
           Method assertionMethod = instrumentationCL.loadClass('datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin')
-            .getMethod('assertInstrumentationMuzzled', ClassLoader.class, ClassLoader.class, boolean.class)
-          assertionMethod.invoke(null, instrumentationCL, userCL, muzzleDirective.assertPass)
+            .getMethod('assertInstrumentationMuzzled', ClassLoader.class, ClassLoader.class, boolean.class, String.class)
+          assertionMethod.invoke(null, instrumentationCL, userCL, muzzleDirective.assertPass, muzzleDirective.name ?: muzzleDirective.module)
         } finally {
           Thread.currentThread().contextClassLoader = ccl
         }

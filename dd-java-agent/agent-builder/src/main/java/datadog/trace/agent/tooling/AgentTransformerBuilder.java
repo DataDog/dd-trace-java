@@ -14,14 +14,13 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.FailSafeRawMatcher;
 import datadog.trace.agent.tooling.bytebuddy.matcher.KnownTypesMatcher;
+import datadog.trace.agent.tooling.bytebuddy.matcher.MuzzleMatcher;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ShouldInjectFieldsRawMatcher;
 import datadog.trace.agent.tooling.bytebuddy.matcher.SingleTypeMatcher;
 import datadog.trace.agent.tooling.context.FieldBackedContextInjector;
 import datadog.trace.agent.tooling.context.FieldBackedContextRequestRewriter;
-import datadog.trace.api.Config;
-import datadog.trace.api.IntegrationsCollector;
+import datadog.trace.api.InstrumenterConfig;
 import java.lang.instrument.Instrumentation;
-import java.security.ProtectionDomain;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.agent.builder.AgentBuilder;
@@ -29,9 +28,7 @@ import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.utility.JavaModule;
 
 public class AgentTransformerBuilder
     implements Instrumenter.TransformerBuilder, Instrumenter.AdviceTransformation {
@@ -65,7 +62,7 @@ public class AgentTransformerBuilder
   }
 
   public ResettableClassFileTransformer installOn(Instrumentation instrumentation) {
-    if (Config.get().isRuntimeContextFieldInjection()) {
+    if (InstrumenterConfig.get().isRuntimeContextFieldInjection()) {
       applyContextStoreInjection();
     }
 
@@ -73,29 +70,15 @@ public class AgentTransformerBuilder
   }
 
   private AgentBuilder buildInstrumentation(final Instrumenter.Default instrumenter) {
-    AgentBuilder.RawMatcher matcher = matcher(instrumenter);
+    InstrumenterState.registerInstrumentationNames(
+        instrumenter.instrumentationId(), instrumenter.names());
 
     ignoreMatcher = instrumenter.methodIgnoreMatcher();
     adviceBuilder =
         agentBuilder
-            .type(matcher)
+            .type(typeMatcher(instrumenter))
             .and(NOT_DECORATOR_MATCHER)
-            .and(
-                new AgentBuilder.RawMatcher() {
-                  @Override
-                  public boolean matches(
-                      TypeDescription typeDescription,
-                      ClassLoader classLoader,
-                      JavaModule module,
-                      Class<?> classBeingRedefined,
-                      ProtectionDomain protectionDomain) {
-                    boolean isMatch = instrumenter.muzzleMatches(classLoader, classBeingRedefined);
-                    if (isMatch && Config.get().isTelemetryEnabled()) {
-                      IntegrationsCollector.get().update(instrumenter.names(), true);
-                    }
-                    return isMatch;
-                  }
-                })
+            .and(new MuzzleMatcher(instrumenter))
             .transform(defaultTransformers());
 
     String[] helperClassNames = instrumenter.helperClassNames();
@@ -118,18 +101,7 @@ public class AgentTransformerBuilder
 
     final Instrumenter.AdviceTransformer customTransformer = instrumenter.transformer();
     if (customTransformer != null) {
-      adviceBuilder =
-          adviceBuilder.transform(
-              new AgentBuilder.Transformer() {
-                @Override
-                public DynamicType.Builder<?> transform(
-                    DynamicType.Builder<?> builder,
-                    TypeDescription typeDescription,
-                    ClassLoader classLoader,
-                    JavaModule module) {
-                  return customTransformer.transform(builder, typeDescription, classLoader, module);
-                }
-              });
+      adviceBuilder = adviceBuilder.transform(customTransformer::transform);
     }
 
     instrumenter.adviceTransformations(this);
@@ -137,7 +109,7 @@ public class AgentTransformerBuilder
     return adviceBuilder;
   }
 
-  private AgentBuilder.RawMatcher matcher(Instrumenter.Default instrumenter) {
+  private AgentBuilder.RawMatcher typeMatcher(Instrumenter.Default instrumenter) {
     ElementMatcher<? super TypeDescription> typeMatcher;
     String hierarchyHint = null;
 
@@ -234,16 +206,7 @@ public class AgentTransformerBuilder
   }
 
   private static AgentBuilder.Transformer wrapVisitor(final AsmVisitorWrapper visitor) {
-    return new AgentBuilder.Transformer() {
-      @Override
-      public DynamicType.Builder<?> transform(
-          final DynamicType.Builder<?> builder,
-          final TypeDescription typeDescription,
-          final ClassLoader classLoader,
-          final JavaModule module) {
-        return builder.visit(visitor);
-      }
-    };
+    return (builder, typeDescription, classLoader, module, pd) -> builder.visit(visitor);
   }
 
   private static ElementMatcher<ClassLoader> requireBoth(

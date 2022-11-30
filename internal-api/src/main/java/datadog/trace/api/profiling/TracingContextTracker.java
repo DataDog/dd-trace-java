@@ -1,9 +1,9 @@
 package datadog.trace.api.profiling;
 
-import datadog.trace.api.function.ToIntFunction;
 import java.nio.ByteBuffer;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
+import java.util.function.ToIntFunction;
 
 /** A tracing context tracker */
 public interface TracingContextTracker {

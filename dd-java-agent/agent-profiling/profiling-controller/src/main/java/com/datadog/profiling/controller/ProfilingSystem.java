@@ -17,6 +17,7 @@ package com.datadog.profiling.controller;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_RECORDING_SCHEDULER;
 
+import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.AgentTaskScheduler;
 import java.time.Duration;
@@ -157,7 +158,7 @@ public final class ProfilingSystem {
           if (msg != null && msg.contains("com.oracle.jrockit:type=FlightRecorder")) {
             // Yes, the commercial JFR is not enabled
             log.warn(
-                "Oracle JDK 8 is being used, where the Flight Recorder is a commercial feature. Please, make sure you have a valid license to use Flight Recorder  (for example Oracle Java SE Advanced) and then add ‘-XX:+UnlockCommercialFeatures -XX:+FlightRecorder’ to your launcher script. Alternatively, use an OpenJDK 8 distribution from another vendor, where the Flight Recorder is free.");
+                "You're running Oracle JDK 8. Datadog Continuous Profiler for Java depends on Java Flight Recorder, which requires a paid license in Oracle JDK 8. If you have one, please add the following `java` command line args: ‘-XX:+UnlockCommercialFeatures -XX:+FlightRecorder’. Alternatively, you can use a different Java 8 distribution like OpenJDK, where Java Flight Recorder is free.");
             // Do not log the underlying exception
             t = null;
             break;
@@ -232,18 +233,22 @@ public final class ProfilingSystem {
       snapshot(false);
     }
 
-    public void snapshot(boolean sync) {
+    public void snapshot(boolean onShutdown) {
       final RecordingType recordingType = RecordingType.CONTINUOUS;
       try {
         log.debug("Creating profiler snapshot");
-        final RecordingData recordingData = recording.snapshot(lastSnapshot);
+        final RecordingData recordingData =
+            recording.snapshot(
+                lastSnapshot,
+                onShutdown ? ProfilingSnapshot.Kind.ON_SHUTDOWN : ProfilingSnapshot.Kind.PERIODIC);
+        log.debug("Snapshot created: {}", recordingData);
         if (recordingData != null) {
           // To make sure that we don't get data twice, we say that the next start should be
           // the last recording end time plus one nano second. The reason for this is that when
           // JFR is filtering the stream it will only discard earlier chunks that have an end
           // time that is before (not before or equal to) the requested start time of the filter.
           lastSnapshot = recordingData.getEnd().plus(ONE_NANO);
-          dataListener.onNewData(recordingType, recordingData, sync);
+          dataListener.onNewData(recordingType, recordingData, onShutdown);
         } else {
           lastSnapshot = Instant.now();
         }

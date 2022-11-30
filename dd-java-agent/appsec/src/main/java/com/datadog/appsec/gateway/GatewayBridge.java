@@ -6,12 +6,17 @@ import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.config.TraceSegmentPostProcessor;
 import com.datadog.appsec.event.EventProducerService;
 import com.datadog.appsec.event.EventType;
-import com.datadog.appsec.event.data.*;
+import com.datadog.appsec.event.ExpiredSubscriberInfoException;
+import com.datadog.appsec.event.data.Address;
+import com.datadog.appsec.event.data.DataBundle;
+import com.datadog.appsec.event.data.KnownAddresses;
+import com.datadog.appsec.event.data.MapDataBundle;
+import com.datadog.appsec.event.data.ObjectIntrospection;
+import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.report.AppSecEventWrapper;
 import com.datadog.appsec.report.raw.events.AppSecEvent100;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.TraceSegment;
-import datadog.trace.api.function.Function;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.Events;
@@ -37,6 +42,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,7 +90,7 @@ public class GatewayBridge {
     subscriptionService.registerCallback(
         events.requestStarted(),
         () -> {
-          if (!AppSecSystem.ACTIVE) {
+          if (!AppSecSystem.isActive()) {
             return RequestContextSupplier.EMPTY;
           }
 
@@ -111,6 +117,9 @@ public class GatewayBridge {
           if (traceSeg != null) {
             traceSeg.setTagTop("_dd.appsec.enabled", 1);
             traceSeg.setTagTop("_dd.runtime_family", "jvm");
+            if (spanInfo.getRequestBlockingAction() != null) {
+              traceSeg.setTagTop("appsec.blocked", "true");
+            }
 
             Collection<AppSecEvent100> collectedEvents = ctx.transferCollectedEvents();
 
@@ -204,12 +213,19 @@ public class GatewayBridge {
               return NoopFlow.INSTANCE;
             }
 
-            if (pathParamsSubInfo == null) {
-              pathParamsSubInfo =
-                  producerService.getDataSubscribers(KnownAddresses.REQUEST_PATH_PARAMS);
+            while (true) {
+              if (pathParamsSubInfo == null) {
+                pathParamsSubInfo =
+                    producerService.getDataSubscribers(KnownAddresses.REQUEST_PATH_PARAMS);
+              }
+              DataBundle bundle =
+                  new SingletonDataBundle<>(KnownAddresses.REQUEST_PATH_PARAMS, data);
+              try {
+                return producerService.publishDataEvent(pathParamsSubInfo, ctx, bundle, false);
+              } catch (ExpiredSubscriberInfoException e) {
+                pathParamsSubInfo = null;
+              }
             }
-            DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.REQUEST_PATH_PARAMS, data);
-            return producerService.publishDataEvent(pathParamsSubInfo, ctx, bundle, false);
           });
     }
 
@@ -225,21 +241,27 @@ public class GatewayBridge {
 
             producerService.publishEvent(ctx, EventType.REQUEST_BODY_END);
 
-            if (rawRequestBodySubInfo == null) {
-              rawRequestBodySubInfo =
-                  producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_RAW);
-            }
-            if (rawRequestBodySubInfo.isEmpty()) {
-              return NoopFlow.INSTANCE;
-            }
+            while (true) {
+              if (rawRequestBodySubInfo == null) {
+                rawRequestBodySubInfo =
+                    producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_RAW);
+              }
+              if (rawRequestBodySubInfo.isEmpty()) {
+                return NoopFlow.INSTANCE;
+              }
 
-            CharSequence bodyContent = supplier.get();
-            if (bodyContent == null || bodyContent.length() == 0) {
-              return NoopFlow.INSTANCE;
+              CharSequence bodyContent = supplier.get();
+              if (bodyContent == null || bodyContent.length() == 0) {
+                return NoopFlow.INSTANCE;
+              }
+              DataBundle bundle =
+                  new SingletonDataBundle<>(KnownAddresses.REQUEST_BODY_RAW, bodyContent);
+              try {
+                return producerService.publishDataEvent(rawRequestBodySubInfo, ctx, bundle, false);
+              } catch (ExpiredSubscriberInfoException e) {
+                rawRequestBodySubInfo = null;
+              }
             }
-            DataBundle bundle =
-                new SingletonDataBundle<>(KnownAddresses.REQUEST_BODY_RAW, bodyContent);
-            return producerService.publishDataEvent(rawRequestBodySubInfo, ctx, bundle, false);
           });
     }
 
@@ -260,17 +282,23 @@ public class GatewayBridge {
             }
             ctx.setConvertedReqBodyPublished(true);
 
-            if (requestBodySubInfo == null) {
-              requestBodySubInfo =
-                  producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_OBJECT);
+            while (true) {
+              if (requestBodySubInfo == null) {
+                requestBodySubInfo =
+                    producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_OBJECT);
+              }
+              if (requestBodySubInfo.isEmpty()) {
+                return NoopFlow.INSTANCE;
+              }
+              DataBundle bundle =
+                  new SingletonDataBundle<>(
+                      KnownAddresses.REQUEST_BODY_OBJECT, ObjectIntrospection.convert(obj));
+              try {
+                return producerService.publishDataEvent(requestBodySubInfo, ctx, bundle, false);
+              } catch (ExpiredSubscriberInfoException e) {
+                requestBodySubInfo = null;
+              }
             }
-            if (requestBodySubInfo.isEmpty()) {
-              return NoopFlow.INSTANCE;
-            }
-            DataBundle bundle =
-                new SingletonDataBundle<>(
-                    KnownAddresses.REQUEST_BODY_OBJECT, ObjectIntrospection.convert(obj));
-            return producerService.publishDataEvent(requestBodySubInfo, ctx, bundle, false);
           });
     }
 
@@ -287,6 +315,16 @@ public class GatewayBridge {
         });
 
     subscriptionService.registerCallback(
+        EVENTS.requestInferredClientAddress(),
+        (ctx_, ip) -> {
+          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+          if (ctx != null) {
+            ctx.setInferredClientIp(ip);
+          }
+          return NoopFlow.INSTANCE; // expected to be called before requestClientSocketAddress
+        });
+
+    subscriptionService.registerCallback(
         EVENTS.responseStarted(),
         (ctx_, status) -> {
           AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
@@ -300,7 +338,7 @@ public class GatewayBridge {
     subscriptionService.registerCallback(
         EVENTS.responseHeader(),
         (ctx_, name, value) -> {
-          AppSecRequestContext ctx = ctx_.<AppSecRequestContext>getData(RequestContextSlot.APPSEC);
+          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
           if (ctx != null) {
             ctx.addResponseHeader(name, value);
           }
@@ -323,18 +361,24 @@ public class GatewayBridge {
           if (ctx == null) {
             return NoopFlow.INSTANCE;
           }
-
-          if (grpcServerRequestMsgSubInfo == null) {
-            grpcServerRequestMsgSubInfo =
-                producerService.getDataSubscribers(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE);
+          while (true) {
+            if (grpcServerRequestMsgSubInfo == null) {
+              grpcServerRequestMsgSubInfo =
+                  producerService.getDataSubscribers(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE);
+            }
+            if (grpcServerRequestMsgSubInfo.isEmpty()) {
+              return Flow.ResultFlow.empty();
+            }
+            Object convObj = ObjectIntrospection.convert(obj);
+            DataBundle bundle =
+                new SingletonDataBundle<>(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE, convObj);
+            try {
+              return producerService.publishDataEvent(
+                  grpcServerRequestMsgSubInfo, ctx, bundle, true);
+            } catch (ExpiredSubscriberInfoException e) {
+              grpcServerRequestMsgSubInfo = null;
+            }
           }
-          if (grpcServerRequestMsgSubInfo.isEmpty()) {
-            return Flow.ResultFlow.empty();
-          }
-          Object convObj = ObjectIntrospection.convert(obj);
-          DataBundle bundle =
-              new SingletonDataBundle<>(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE, convObj);
-          return producerService.publishDataEvent(grpcServerRequestMsgSubInfo, ctx, bundle, true);
         });
   }
 
@@ -455,18 +499,6 @@ public class GatewayBridge {
 
     ctx.setReqDataPublished(true);
 
-    if (initialReqDataSubInfo == null) {
-      initialReqDataSubInfo =
-          producerService.getDataSubscribers(
-              KnownAddresses.HEADERS_NO_COOKIES,
-              KnownAddresses.REQUEST_COOKIES,
-              KnownAddresses.REQUEST_SCHEME,
-              KnownAddresses.REQUEST_METHOD,
-              KnownAddresses.REQUEST_URI_RAW,
-              KnownAddresses.REQUEST_QUERY,
-              KnownAddresses.REQUEST_CLIENT_IP,
-              KnownAddresses.REQUEST_CLIENT_PORT);
-    }
     MapDataBundle bundle =
         new MapDataBundle.Builder(CAPACITY_6_10)
             .add(KnownAddresses.HEADERS_NO_COOKIES, ctx.getRequestHeaders())
@@ -477,9 +509,30 @@ public class GatewayBridge {
             .add(KnownAddresses.REQUEST_QUERY, queryParams)
             .add(KnownAddresses.REQUEST_CLIENT_IP, ctx.getPeerAddress())
             .add(KnownAddresses.REQUEST_CLIENT_PORT, ctx.getPeerPort())
+            .add(KnownAddresses.REQUEST_INFERRED_CLIENT_IP, ctx.getInferredClientIp())
             .build();
 
-    return producerService.publishDataEvent(initialReqDataSubInfo, ctx, bundle, false);
+    while (true) {
+      if (initialReqDataSubInfo == null) {
+        initialReqDataSubInfo =
+            producerService.getDataSubscribers(
+                KnownAddresses.HEADERS_NO_COOKIES,
+                KnownAddresses.REQUEST_COOKIES,
+                KnownAddresses.REQUEST_SCHEME,
+                KnownAddresses.REQUEST_METHOD,
+                KnownAddresses.REQUEST_URI_RAW,
+                KnownAddresses.REQUEST_QUERY,
+                KnownAddresses.REQUEST_CLIENT_IP,
+                KnownAddresses.REQUEST_CLIENT_PORT,
+                KnownAddresses.REQUEST_INFERRED_CLIENT_IP);
+      }
+
+      try {
+        return producerService.publishDataEvent(initialReqDataSubInfo, ctx, bundle, false);
+      } catch (ExpiredSubscriberInfoException e) {
+        initialReqDataSubInfo = null;
+      }
+    }
   }
 
   private Flow<Void> maybePublishResponseData(AppSecRequestContext ctx) {
@@ -497,13 +550,19 @@ public class GatewayBridge {
             KnownAddresses.RESPONSE_STATUS, String.valueOf(ctx.getResponseStatus()),
             KnownAddresses.RESPONSE_HEADERS_NO_COOKIES, ctx.getResponseHeaders());
 
-    if (respDataSubInfo == null) {
-      respDataSubInfo =
-          producerService.getDataSubscribers(
-              KnownAddresses.RESPONSE_STATUS, KnownAddresses.RESPONSE_HEADERS_NO_COOKIES);
-    }
+    while (true) {
+      if (respDataSubInfo == null) {
+        respDataSubInfo =
+            producerService.getDataSubscribers(
+                KnownAddresses.RESPONSE_STATUS, KnownAddresses.RESPONSE_HEADERS_NO_COOKIES);
+      }
 
-    return producerService.publishDataEvent(respDataSubInfo, ctx, bundle, false);
+      try {
+        return producerService.publishDataEvent(respDataSubInfo, ctx, bundle, false);
+      } catch (ExpiredSubscriberInfoException e) {
+        respDataSubInfo = null;
+      }
+    }
   }
 
   private static Map<String, List<String>> parseQueryStringParams(

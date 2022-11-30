@@ -8,15 +8,16 @@ import static net.bytebuddy.dynamic.loading.ClassLoadingStrategy.BOOTSTRAP_LOADE
 import datadog.trace.agent.tooling.bytebuddy.ClassFileLocators;
 import datadog.trace.agent.tooling.bytebuddy.TypeInfoCache;
 import datadog.trace.agent.tooling.bytebuddy.TypeInfoCache.SharedTypeInfo;
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.function.Function;
 import java.io.Serializable;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.description.type.TypeList;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.pool.TypePool;
@@ -39,15 +40,10 @@ final class TypeFactory {
   private static final Logger log = LoggerFactory.getLogger(TypeFactory.class);
 
   /** Maintain a reusable type factory for each thread involved in class-loading. */
-  static final ThreadLocal<TypeFactory> typeFactory =
-      new ThreadLocal<TypeFactory>() {
-        @Override
-        protected TypeFactory initialValue() {
-          return new TypeFactory();
-        }
-      };
+  static final ThreadLocal<TypeFactory> typeFactory = ThreadLocal.withInitial(TypeFactory::new);
 
-  private static final boolean fallBackToLoadClass = Config.get().isResolverUseLoadClassEnabled();
+  private static final boolean fallBackToLoadClass =
+      InstrumenterConfig.get().isResolverUseLoadClassEnabled();
 
   private static final Map<String, TypeDescription> primitiveDescriptorTypes = new HashMap<>();
 
@@ -88,21 +84,15 @@ final class TypeFactory {
   private static final TypeParser fullTypeParser = new FullTypeParser();
 
   private static final TypeInfoCache<TypeDescription> outlineTypes =
-      new TypeInfoCache<>(Config.get().getResolverOutlinePoolSize());
+      new TypeInfoCache<>(InstrumenterConfig.get().getResolverOutlinePoolSize());
 
   private static final TypeInfoCache<TypeDescription> fullTypes =
-      new TypeInfoCache<>(Config.get().getResolverTypePoolSize());
+      new TypeInfoCache<>(InstrumenterConfig.get().getResolverTypePoolSize());
 
   /** Small local cache to help deduplicate lookups when matching/transforming. */
   private final DDCache<String, LazyType> deferredTypes = DDCaches.newFixedSizeCache(16);
 
-  private final Function<String, LazyType> deferType =
-      new Function<String, LazyType>() {
-        @Override
-        public LazyType apply(String input) {
-          return new LazyType(input);
-        }
-      };
+  private final Function<String, LazyType> deferType = LazyType::new;
 
   boolean installing = true;
 
@@ -136,6 +126,11 @@ final class TypeFactory {
     installing = false;
     originalClassLoader = null;
     clearReferences();
+  }
+
+  static void clear() {
+    outlineTypes.clear();
+    fullTypes.clear();
   }
 
   /**
@@ -308,13 +303,46 @@ final class TypeFactory {
     }
 
     @Override
+    public int getModifiers() {
+      return outline().getModifiers();
+    }
+
+    @Override
+    public Generic getSuperClass() {
+      return outline().getSuperClass();
+    }
+
+    @Override
+    public TypeList.Generic getInterfaces() {
+      return outline().getInterfaces();
+    }
+
+    @Override
+    public TypeDescription getDeclaringType() {
+      return outline().getDeclaringType();
+    }
+
+    private TypeDescription outline() {
+      TypeDescription outline;
+      if (createOutlines) {
+        outline = doResolve(true);
+      } else {
+        // temporarily switch to outlines as that's all we need
+        createOutlines = true;
+        outline = doResolve(true);
+        createOutlines = false;
+      }
+      return outline;
+    }
+
+    @Override
     protected TypeDescription delegate() {
       return doResolve(true);
     }
 
     TypeDescription doResolve(boolean throwIfMissing) {
       // re-resolve type when switching to full descriptions
-      if (null == delegate || createOutlines != isOutline) {
+      if (null == delegate || (isOutline && !createOutlines)) {
         delegate = resolveType(name);
         isOutline = createOutlines;
         if (throwIfMissing && null == delegate) {

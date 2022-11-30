@@ -29,13 +29,16 @@ import datadog.trace.relocate.api.IOLogger;
 import datadog.trace.util.AgentThreadFactory;
 import java.io.IOException;
 import java.io.InterruptedIOException;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import okhttp3.Call;
@@ -107,6 +110,8 @@ public final class ProfileUploader {
   private final CompressionType compressionType;
   private final String tags;
 
+  private final Duration uploadTimeout;
+
   public ProfileUploader(final Config config, final ConfigProvider configProvider) {
     this(config, configProvider, new IOLogger(log), TERMINATION_TIMEOUT_SEC);
   }
@@ -147,6 +152,7 @@ public final class ProfileUploader {
     }
     // Comma separated tags string for V2.4 format
     tags = String.join(",", tagsToList(tagsMap));
+    this.uploadTimeout = Duration.ofSeconds(config.getProfilingUploadTimeout());
 
     // This is the same thing OkHttp Dispatcher is doing except thread naming and daemonization
     okHttpExecutorService =
@@ -169,7 +175,7 @@ public final class ProfileUploader {
             config.getProfilingProxyPort(),
             config.getProfilingProxyUsername(),
             config.getProfilingProxyPassword(),
-            TimeUnit.SECONDS.toMillis(config.getProfilingUploadTimeout()));
+            uploadTimeout.toMillis());
 
     compressionType = CompressionType.of(config.getProfilingUploadCompression());
   }
@@ -232,31 +238,51 @@ public final class ProfileUploader {
     }
 
     Call call = makeRequest(type, data);
+    CountDownLatch latch = new CountDownLatch(sync ? 1 : 0);
+    AtomicBoolean handled = new AtomicBoolean(false);
+
+    call.enqueue(
+        new Callback() {
+          @Override
+          public void onResponse(final Call call, final Response response) throws IOException {
+            if (handled.compareAndSet(false, true)) {
+              handleResponse(call, response, data, onCompletion);
+              latch.countDown();
+            }
+          }
+
+          @Override
+          public void onFailure(final Call call, final IOException e) {
+            if (handled.compareAndSet(false, true)) {
+              handleFailure(call, e, data, onCompletion);
+              latch.countDown();
+            }
+          }
+        });
     if (sync) {
       try {
-        handleResponse(call, call.execute(), data, onCompletion);
-      } catch (IOException e) {
-        handleFailure(call, e, data, onCompletion);
+        log.debug("Waiting at most {} seconds for upload to finish", uploadTimeout.plusSeconds(1));
+        if (!latch.await(uploadTimeout.plusSeconds(1).toMillis(), TimeUnit.MILLISECONDS)) {
+          // Usually this should not happen and timeouts should be handled by the client.
+          // But, in any case, we have this safety-break in place to prevent blocking finishing the
+          // sync request to a misbehaving server.
+          if (handled.compareAndSet(false, true)) {
+            handleFailure(call, null, data, onCompletion);
+          }
+        }
+      } catch (InterruptedException e) {
+        if (handled.compareAndSet(false, true)) {
+          handleFailure(call, e, data, onCompletion);
+        }
+        // reset the interrupted flag
+        Thread.currentThread().interrupt();
       }
-    } else {
-      call.enqueue(
-          new Callback() {
-            @Override
-            public void onResponse(final Call call, final Response response) throws IOException {
-              handleResponse(call, response, data, onCompletion);
-            }
-
-            @Override
-            public void onFailure(final Call call, final IOException e) {
-              handleFailure(call, e, data, onCompletion);
-            }
-          });
     }
   }
 
   private void handleFailure(
       final Call call,
-      final IOException e,
+      final Exception e,
       final RecordingData data,
       @Nonnull final Runnable onCompletion) {
     if (isEmptyReplyFromServer(e)) {
@@ -315,15 +341,16 @@ public final class ProfileUploader {
     return null;
   }
 
-  private static boolean isEmptyReplyFromServer(final IOException e) {
+  private static boolean isEmptyReplyFromServer(final Exception e) {
     // The server in datadog-agent triggers 'unexpected end of stream' caused by
     // EOFException.
     // The MockWebServer in tests triggers an InterruptedIOException with SocketPolicy
     // NO_RESPONSE. This is because in tests we can't cleanly terminate the connection
     // on the
     // server side without resetting.
-    return (e instanceof InterruptedIOException)
-        || (e.getCause() != null && e.getCause() instanceof java.io.EOFException);
+    return e != null
+        && ((e instanceof InterruptedIOException)
+            || (e.getCause() != null && e.getCause() instanceof java.io.EOFException));
   }
 
   public void shutdown() {
@@ -342,7 +369,14 @@ public final class ProfileUploader {
     final StringBuilder os = new StringBuilder();
     os.append("{");
     os.append("\"attachments\":[\"" + V4_ATTACHMENT_FILENAME + "\"],");
-    os.append("\"" + V4_PROFILE_TAGS_PARAM + "\":\"" + tags + "\",");
+    os.append(
+        "\""
+            + V4_PROFILE_TAGS_PARAM
+            + "\":\""
+            + tags
+            + ",snapshot:"
+            + data.getKind().name().toLowerCase()
+            + "\",");
     os.append("\"" + V4_PROFILE_START_PARAM + "\":\"" + data.getStart() + "\",");
     os.append("\"" + V4_PROFILE_END_PARAM + "\":\"" + data.getEnd() + "\",");
     os.append("\"family\":\"" + V4_FAMILY + "\",");

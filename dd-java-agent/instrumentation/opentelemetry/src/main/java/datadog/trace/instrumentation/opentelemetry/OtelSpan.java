@@ -187,6 +187,11 @@ public class OtelSpan implements Span, MutableSpan {
   }
 
   @Override
+  public Object getTag(String key) {
+    return delegate.getTag(key);
+  }
+
+  @Override
   public MutableSpan setTag(final String tag, final String value) {
     return delegate.setTag(tag, value);
   }

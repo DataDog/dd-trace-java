@@ -71,7 +71,8 @@ public class ClassInjectingTransformer implements AgentBuilder.Transformer, AsmV
       DynamicType.Builder<?> builder,
       TypeDescription typeDescription,
       ClassLoader classLoader,
-      JavaModule module) {
+      JavaModule module,
+      ProtectionDomain pd) {
 
     // First we create an interface and define it
     injectInterfaceNamed(BINARY_NAME, classLoader);

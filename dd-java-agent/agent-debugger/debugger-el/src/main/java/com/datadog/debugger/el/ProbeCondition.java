@@ -45,10 +45,14 @@ public final class ProbeCondition implements DebuggerScript {
 
     @Override
     public void toJson(@NonNull JsonWriter jsonWriter, ProbeCondition value) throws IOException {
-      if (value != null) {
-        throw new UnsupportedOperationException();
+      if (value == null) {
+        jsonWriter.nullValue();
+        return;
       }
-      jsonWriter.nullValue();
+      jsonWriter.beginObject();
+      jsonWriter.name("dsl");
+      jsonWriter.value(value.dslExpression);
+      jsonWriter.endObject();
     }
   }
 

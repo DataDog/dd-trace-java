@@ -1,12 +1,15 @@
 package datadog.trace.instrumentation.aws.v2;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.AWS_HTTP;
 import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.DECORATE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import software.amazon.awssdk.core.SdkRequest;
 import software.amazon.awssdk.core.interceptor.Context;
 import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
@@ -15,17 +18,22 @@ import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 /** AWS request execution interceptor */
 public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
-  static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
+  public static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
       new ExecutionAttribute<>("DatadogSpan");
 
   @Override
   public void beforeExecution(
       final Context.BeforeExecution context, final ExecutionAttributes executionAttributes) {
-    final AgentSpan span = startSpan(AWS_HTTP);
-    try (final AgentScope scope = activateSpan(span)) {
-      DECORATE.afterStart(span);
-      executionAttributes.putAttribute(SPAN_ATTRIBUTE, span);
+    boolean isPolling = isPollingRequest(context.request());
+    if (isPolling) {
+      closePrevious(true);
     }
+    final AgentSpan span = startSpan(AWS_HTTP);
+    DECORATE.afterStart(span);
+    if (isPolling) {
+      activateNext(span); // this scope will last until next poll
+    }
+    executionAttributes.putAttribute(SPAN_ATTRIBUTE, span);
   }
 
   @Override
@@ -47,7 +55,6 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     // doesn't provide a way to run code in the same thread after transmission has been scheduled.
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
-    scope.span().startThreadMigration();
   }
 
   @Override
@@ -55,13 +62,16 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       final Context.AfterExecution context, final ExecutionAttributes executionAttributes) {
     final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
     if (span != null) {
-      span.finishThreadMigration();
       executionAttributes.putAttribute(SPAN_ATTRIBUTE, null);
       // Call onResponse on both types of responses:
       DECORATE.onResponse(span, context.response());
       DECORATE.onResponse(span, context.httpResponse());
       DECORATE.beforeFinish(span);
-      span.finish();
+      if (isPollingRequest(context.request())) {
+        // will be finished on next poll
+      } else {
+        span.finish();
+      }
     }
   }
 
@@ -73,8 +83,18 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       executionAttributes.putAttribute(SPAN_ATTRIBUTE, null);
       DECORATE.onError(span, context.exception());
       DECORATE.beforeFinish(span);
-      span.finish();
+      if (isPollingRequest(context.request())) {
+        // will be finished on next poll
+      } else {
+        span.finish();
+      }
     }
+  }
+
+  private static boolean isPollingRequest(SdkRequest request) {
+    return null != request
+        && "software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest"
+            .equals(request.getClass().getName());
   }
 
   public static void muzzleCheck() {

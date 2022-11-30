@@ -20,7 +20,7 @@ public class TestApplicationHelper {
   private static final String RENTRANSFORMATION_CLASS =
       "[dd-remote-config] INFO com.datadog.debugger.agent.ConfigurationUpdater - re-transforming %s";
   private static final String RETRANSFORMATION_DONE =
-      "com.datadog.debugger.agent.ConfigurationUpdater - Re-transformation done.";
+      "com.datadog.debugger.agent.ConfigurationUpdater - Re-transformation done";
   private static final long SLEEP_MS = 100;
   private static final long TIMEOUT_S = 10;
 

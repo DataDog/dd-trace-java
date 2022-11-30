@@ -575,4 +575,36 @@ class TagInterceptorTest extends DDCoreSpecification {
     cleanup:
     tracer.close()
   }
+
+  def "treat `1` value as `true` for boolean tag values"() {
+    setup:
+    def tracer = tracerBuilder()
+      .serviceName("some-service")
+      .writer(new LoggingWriter())
+      .sampler(new AllSampler())
+      .build()
+
+    when:
+    AgentSpan span = tracer.buildSpan("test").start()
+
+    then:
+    span.getSamplingPriority() == null
+
+    when:
+    span.setTag(tag, value)
+
+    then:
+    span.getSamplingPriority() == samplingPriority
+
+    where:
+    tag                | value | samplingPriority
+    DDTags.MANUAL_DROP | true  | PrioritySampling.USER_DROP
+    DDTags.MANUAL_DROP | "1"   | PrioritySampling.USER_DROP
+    DDTags.MANUAL_DROP | false | null
+    DDTags.MANUAL_DROP | "0"   | null
+    DDTags.MANUAL_KEEP | true  | PrioritySampling.USER_KEEP
+    DDTags.MANUAL_KEEP | "1"   | PrioritySampling.USER_KEEP
+    DDTags.MANUAL_KEEP | false | null
+    DDTags.MANUAL_KEEP | "0"   | null
+  }
 }

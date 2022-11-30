@@ -1,7 +1,6 @@
 package com.datadog.debugger.sink;
 
 import com.datadog.debugger.agent.DebuggerAgent;
-import com.datadog.debugger.sink.SnapshotSink.IntakeRequest;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.trace.api.Config;
@@ -10,8 +9,10 @@ import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.AgentTaskScheduler;
+import datadog.trace.util.TagsHelper;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,17 +82,29 @@ public class DebuggerSink implements DebuggerContext.Sink {
       ProbeStatusSink probeStatusSink,
       SnapshotSink snapshotSink) {
     this.batchUploader = batchUploader;
-    tags =
-        IntakeRequest.concatTags(
+    tags = getDefaultTagsMergedWithGlobalTags(config);
+    this.debuggerMetrics = debuggerMetrics;
+    this.probeStatusSink = probeStatusSink;
+    this.snapshotSink = snapshotSink;
+    this.uploadFlushInterval = config.getDebuggerUploadFlushInterval();
+  }
+
+  private static String getDefaultTagsMergedWithGlobalTags(Config config) {
+    String debuggerTags =
+        TagsHelper.concatTags(
             "env:" + config.getEnv(),
             "version:" + config.getVersion(),
             "debugger_version:" + DDTraceCoreInfo.VERSION,
             "agent_version:" + DebuggerAgent.getAgentVersion(),
             "host_name:" + config.getHostName());
-    this.debuggerMetrics = debuggerMetrics;
-    this.probeStatusSink = probeStatusSink;
-    this.snapshotSink = snapshotSink;
-    this.uploadFlushInterval = config.getDebuggerUploadFlushInterval();
+    if (config.getGlobalTags().isEmpty()) {
+      return debuggerTags;
+    }
+    String globalTags =
+        config.getGlobalTags().entrySet().stream()
+            .map(e -> e.getKey() + ":" + e.getValue())
+            .collect(Collectors.joining(","));
+    return debuggerTags + "," + globalTags;
   }
 
   public void start() {

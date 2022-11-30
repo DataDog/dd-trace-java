@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module xmlns="urn:jboss:module:1.1" name="app">
+  <main-class name="datadog.smoketest.jbossmodules.app.Main"/>
+  <resources>
+    <resource-root path="app.jar"/>
+  </resources>
+  <dependencies>
+    <system>
+      <paths>
+        <path name="org/jboss/modules"/>
+      </paths>
+    </system>
+    <module name="messaging"/>
+    <module name="client" services="import"/>
+    <module name="publishing" services="import"/>
+    <module name="subscribing" services="import"/>
+  </dependencies>
+</module>

@@ -13,14 +13,60 @@ import datadog.trace.api.time.TimeSource
 import datadog.trace.test.util.DDSpecification
 import okhttp3.Request
 
+import java.util.function.Supplier
+
 class TelemetryServiceSpecification extends DDSpecification {
   private static final Request REQUEST = new Request.Builder()
   .url('https://example.com').build()
 
   TimeSource timeSource = Mock()
-  RequestBuilder requestBuilder = Mock()
+  RequestBuilder requestBuilder = Mock {
+    build(_ as RequestType) >> REQUEST
+  }
+  Supplier<RequestBuilder> requestBuilderSupplier = new Supplier<RequestBuilder>() {
+    @Override
+    RequestBuilder get() {
+      return requestBuilder
+    }
+  }
   TelemetryServiceImpl telemetryService =
-  new TelemetryServiceImpl(requestBuilder, timeSource)
+  new TelemetryServiceImpl(requestBuilderSupplier, timeSource, 1)
+
+  void 'heartbeat interval every 1 sec'() {
+    // Time: 0 seconds - no packets yet
+    when:
+    def queue = telemetryService.prepareRequests()
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 0
+    queue.isEmpty()
+
+    // Time +999ms : less that 1 second passed - still no packets
+    when:
+    queue = telemetryService.prepareRequests()
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 999
+    queue.isEmpty()
+
+    // Time +1001ms : more than 1 second passed - heart beat generated
+    when:
+    queue = telemetryService.prepareRequests()
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 1001
+    queue.size() == 1
+    queue.clear()
+
+    // Time +1001ms : more than 2 seconds passed - another heart beat generated
+    when:
+    queue = telemetryService.prepareRequests()
+
+    then:
+    1 * timeSource.getCurrentTimeMillis() >> 2002
+    queue.size() == 1
+
+  }
 
   void 'addStartedRequest adds app_started event'() {
     when:

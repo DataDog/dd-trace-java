@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static java.util.Collections.singletonMap;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -16,6 +17,11 @@ public final class Servlet2ResponseStatusInstrumentation extends Instrumenter.Tr
     implements Instrumenter.ForTypeHierarchy {
   public Servlet2ResponseStatusInstrumentation() {
     super("servlet", "servlet-2");
+  }
+
+  @Override
+  public String muzzleDirective() {
+    return "servlet-2.x";
   }
 
   @Override
@@ -45,7 +51,8 @@ public final class Servlet2ResponseStatusInstrumentation extends Instrumenter.Tr
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        namedOneOf("sendError", "setStatus"), packageName + ".Servlet2ResponseStatusAdvice");
+        namedOneOf("sendError", "setStatus").and(takesArgument(0, int.class)),
+        packageName + ".Servlet2ResponseStatusAdvice");
     transformation.applyAdvice(
         named("sendRedirect"), packageName + ".Servlet2ResponseRedirectAdvice");
   }

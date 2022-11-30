@@ -4,7 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -17,7 +17,7 @@ import scala.util.Try;
 
 public class PromiseHelper {
   public static final boolean completionPriority =
-      Config.get()
+      InstrumenterConfig.get()
           .isIntegrationEnabled(
               Collections.singletonList("scala_promise_completion_priority"), false);
 
@@ -58,12 +58,6 @@ public class PromiseHelper {
     } else if (resolved instanceof Failure) {
       Failure<T> failure = (Failure<T>) resolved;
       return new Failure<>(failure.exception());
-    }
-
-    if (null != span) {
-      // The span may be escaping via the context to other threads.
-      // Need to mark it for migration.
-      span.startThreadMigration();
     }
     return resolved;
   }
@@ -115,9 +109,6 @@ public class PromiseHelper {
         return state;
       }
       AgentScope.Continuation continuation = captureSpan(span);
-      // Since the continuation was created from a Span that was marked for migration,
-      // we make sure that the continuation will be marked as migrated
-      continuation.migrated();
       AgentScope.Continuation existing = null;
       if (null != state) {
         existing = state.getAndResetContinuation();

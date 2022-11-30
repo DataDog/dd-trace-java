@@ -1,24 +1,21 @@
 package datadog.trace.api.cache;
 
-import datadog.trace.api.function.Function;
-import datadog.trace.api.function.TwoArgFunction;
+import datadog.trace.api.Functions;
+import java.util.function.Function;
 
 public final class QualifiedClassNameCache extends ClassValue<QualifiedClassNameCache.Leaf> {
 
   private final Function<Class<?>, CharSequence> formatter;
-  private final TwoArgFunction<CharSequence, CharSequence, CharSequence> joiner;
+  private final Functions.Join joiner;
   private final int leafSize;
 
   public QualifiedClassNameCache(
-      Function<Class<?>, CharSequence> formatter,
-      TwoArgFunction<CharSequence, CharSequence, CharSequence> joiner) {
+      Function<Class<?>, CharSequence> formatter, Functions.Join joiner) {
     this(formatter, joiner, 16);
   }
 
   public QualifiedClassNameCache(
-      Function<Class<?>, CharSequence> formatter,
-      TwoArgFunction<CharSequence, CharSequence, CharSequence> joiner,
-      int leafSize) {
+      Function<Class<?>, CharSequence> formatter, Functions.Join joiner, int leafSize) {
     this.formatter = formatter;
     this.joiner = joiner;
     this.leafSize = leafSize;
@@ -36,10 +33,7 @@ public final class QualifiedClassNameCache extends ClassValue<QualifiedClassName
     private final DDCache<CharSequence, CharSequence> cache;
     private final Function<CharSequence, CharSequence> joiner;
 
-    private Leaf(
-        CharSequence name,
-        TwoArgFunction<CharSequence, CharSequence, CharSequence> joiner,
-        int leafSize) {
+    private Leaf(CharSequence name, Functions.Join joiner, int leafSize) {
       this.name = name;
       // the class provides a natural bound on the number of elements
       // (e.g. the number of methods)

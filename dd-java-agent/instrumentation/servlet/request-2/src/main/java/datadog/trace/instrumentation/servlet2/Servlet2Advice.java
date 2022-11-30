@@ -8,9 +8,11 @@ import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
 import java.security.Principal;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -21,16 +23,16 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
 
 public class Servlet2Advice {
 
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope onEnter(
+  @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
+  public static boolean onEnter(
       @Advice.This final Object servlet,
       @Advice.Argument(value = 0, readOnly = false) ServletRequest request,
-      @Advice.Argument(value = 1, typing = Assigner.Typing.DYNAMIC)
-          final ServletResponse response) {
+      @Advice.Argument(value = 1, typing = Assigner.Typing.DYNAMIC) final ServletResponse response,
+      @Advice.Local("agentScope") AgentScope scope) {
 
     final boolean invalidRequest = !(request instanceof HttpServletRequest);
     if (invalidRequest) {
-      return null;
+      return false;
     }
 
     final HttpServletRequest httpServletRequest = (HttpServletRequest) request;
@@ -38,7 +40,7 @@ public class Servlet2Advice {
     final boolean hasServletTrace = spanAttr instanceof AgentSpan;
     if (hasServletTrace) {
       // Tracing might already be applied by the FilterChain or a parent request (forward/include).
-      return null;
+      return false;
     }
 
     if (response instanceof HttpServletResponse) {
@@ -51,7 +53,7 @@ public class Servlet2Advice {
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);
 
-    final AgentScope scope = activateSpan(span);
+    scope = activateSpan(span);
     scope.setAsyncPropagation(true);
 
     httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
@@ -60,14 +62,21 @@ public class Servlet2Advice {
     httpServletRequest.setAttribute(
         CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
 
-    return scope;
+    Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
+    if (rba != null) {
+      ServletBlockingHelper.commitBlockingResponse(
+          httpServletRequest, (HttpServletResponse) response, rba);
+      return true; // skip method body
+    }
+
+    return false;
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void stopSpan(
       @Advice.Argument(0) final ServletRequest request,
       @Advice.Argument(1) final ServletResponse response,
-      @Advice.Enter final AgentScope scope,
+      @Advice.Local("agentScope") final AgentScope scope,
       @Advice.Thrown final Throwable throwable) {
     // Set user.principal regardless of who created this span.
     final Object spanAttr = request.getAttribute(DD_SPAN_ATTRIBUTE);

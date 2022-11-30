@@ -12,6 +12,8 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.log.UnionMap;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -31,7 +33,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
 
   @Override
   protected boolean defaultEnabled() {
-    return Config.get().isLogsInjectionEnabled();
+    return InstrumenterConfig.get().isLogsInjectionEnabled();
   }
 
   @Override
@@ -79,7 +81,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
 
       AgentSpan.Context context =
           InstrumentationContext.get(ILoggingEvent.class, AgentSpan.Context.class).get(event);
-      boolean mdcTagsInjectionEnabled = Config.get().isLogsMDCTagsInjectionEnabled();
+      boolean mdcTagsInjectionEnabled = InstrumenterConfig.get().isLogsMDCTagsInjectionEnabled();
 
       // Nothing to add so return early
       if (context == null && !mdcTagsInjectionEnabled) {
@@ -91,7 +93,8 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
       if (context != null) {
         correlationValues.put(
             CorrelationIdentifier.getTraceIdKey(), context.getTraceId().toString());
-        correlationValues.put(CorrelationIdentifier.getSpanIdKey(), context.getSpanId().toString());
+        correlationValues.put(
+            CorrelationIdentifier.getSpanIdKey(), DDSpanId.toString(context.getSpanId()));
       }
 
       if (mdcTagsInjectionEnabled) {

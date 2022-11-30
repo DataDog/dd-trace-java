@@ -216,7 +216,7 @@ public class LogManagerSetter {
   }
 
   private static boolean okHttpMayIndirectlyLoadJUL() {
-    if ("IBM Corporation".equals(System.getProperty("java.vendor"))) {
+    if ("IBM Corporation".equals(System.getProperty("java.vm.vendor"))) {
       return true; // IBM JDKs ship with 'IBMSASL' which will load JUL when OkHttp accesses TLS
     }
     if (!System.getProperty("java.version").startsWith("1.")) {

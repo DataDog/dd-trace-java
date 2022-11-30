@@ -2,12 +2,12 @@ package com.datadog.debugger.instrumentation;
 
 import static com.datadog.debugger.instrumentation.Types.*;
 
-import com.datadog.debugger.agent.MetricProbe;
-import com.datadog.debugger.agent.ProbeDefinition;
-import com.datadog.debugger.agent.Where;
 import com.datadog.debugger.el.InvalidValueException;
 import com.datadog.debugger.el.Literal;
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.Where;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.FieldNode;
@@ -55,9 +56,29 @@ public class MetricInstrumentor extends Instrumentor {
       fillLineMap();
       addLineMetric(lineMap);
     } else {
-      InsnList insnList = callMetric(metricProbe);
-      methodNode.instructions.insert(methodEnterLabel, insnList);
+      switch (definition.getEvaluateAt()) {
+        case ENTRY:
+        case DEFAULT:
+          {
+            InsnList insnList = callMetric(metricProbe);
+            methodNode.instructions.insert(methodEnterLabel, insnList);
+            break;
+          }
+        case EXIT:
+          {
+            processInstructions();
+            break;
+          }
+        default:
+          throw new IllegalArgumentException(
+              "Invalid evaluateAt attribute: " + definition.getEvaluateAt());
+      }
     }
+  }
+
+  @Override
+  protected InsnList getBeforeReturnInsnList(AbstractInsnNode node) {
+    return callMetric(metricProbe);
   }
 
   private InsnList callCount(MetricProbe metricProbe) {
@@ -106,7 +127,7 @@ public class MetricInstrumentor extends Instrumentor {
         ldc(insnList, literal); // stack [long]
       } else {
         reportError(
-            "Unsupported literal: " + literal + " type: " + literal.getClass().getName() + ".");
+            "Unsupported literal: " + literal + " type: " + literal.getClass().getTypeName() + ".");
         return EMPTY_INSN_LIST;
       }
     } else {

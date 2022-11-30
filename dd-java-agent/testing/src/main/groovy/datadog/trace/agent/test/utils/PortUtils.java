@@ -4,13 +4,63 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class PortUtils {
 
   public static int UNUSABLE_PORT = 61;
 
+  private static final int FREE_PORT_RANGE_START = 20000;
+  private static final int FREE_PORT_RANGE_END = 40000;
+  private static final int PORT_POOL_SIZE = 200;
+
+  private static final ServerSocket baseSocket;
+  private static final int basePort;
+  private static final int lastPort;
+  private static final AtomicInteger nextPort = new AtomicInteger(0);
+
+  static {
+    // We try to allocate a pool of PORT_POOL_SIZE consecutive ports for this process, and make it
+    // non-overlapping with other test processes. The first process tries to bind to port 20000. If
+    // it works, it'll leave that socket bound for the rest of the process execution (as a cheap
+    // lock), and use 20000-20199 round robin. Next process tries to bind to 20000, it fails and
+    // tries 20200, if it works, it'll use 20200-23999.... So each process tries to use a
+    // non-overlapping batch of 200 ports.
+    ServerSocket s = null;
+    for (int i = FREE_PORT_RANGE_START; i < FREE_PORT_RANGE_END; i += PORT_POOL_SIZE) {
+      s = openSocket(i);
+      if (s != null) {
+        break;
+      }
+    }
+    baseSocket = s;
+    if (s != null) {
+      basePort = baseSocket.getLocalPort();
+      lastPort = basePort + PORT_POOL_SIZE - 1;
+      nextPort.set(basePort + 1);
+    } else {
+      basePort = 0;
+      lastPort = 0;
+    }
+  }
+
   /** Open up a random, reusable port. */
   public static int randomOpenPort() {
+    if (basePort > 0) {
+      for (int i = 0; i < PORT_POOL_SIZE; i++) {
+        final int port = nextPort.getAndUpdate(x -> (x >= lastPort) ? basePort + 1 : x + 1);
+        ServerSocket socket = openSocket(port);
+        if (null != socket) {
+          try {
+            socket.close();
+            return socket.getLocalPort();
+          } catch (final IOException ioe) {
+            // Ignore
+          }
+        }
+      }
+    }
+
     ServerSocket socket = randomOpenSocket();
     if (null != socket) {
       try {
@@ -27,8 +77,12 @@ public class PortUtils {
 
   /** Open up a random, server socket and keep it open. */
   public static ServerSocket randomOpenSocket() {
+    return openSocket(0);
+  }
+
+  private static ServerSocket openSocket(final int port) {
     try {
-      ServerSocket socket = new ServerSocket(0);
+      ServerSocket socket = new ServerSocket(port);
       socket.setReuseAddress(true);
       return socket;
     } catch (final IOException ioe) {

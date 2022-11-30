@@ -67,6 +67,11 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     return processBuilder
   }
 
+  @Override
+  def logLevel() {
+    return "debug"
+  }
+
   List additionalArguments() {
     return []
   }
@@ -213,12 +218,18 @@ abstract class JULBackend extends LogInjectionSmokeTest {
   def supportsJson() { false }
 
   def setupSpec() {
+    def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
+    def outputLogFilePath = outputLogFile.absolutePath
+    if (isWindows) {
+      // FileHandler pattern only uses / as path delimiter
+      outputLogFilePath = outputLogFilePath.replace("\\", "/")
+    }
     // JUL doesn't support reading a properties file from the classpath so everything needs
     // to be specified in a temp file
     propertiesFile.withPrintWriter {
       it.println ".level=INFO"
       it.println "handlers=java.util.logging.FileHandler"
-      it.println "java.util.logging.FileHandler.pattern=${outputLogFile.absolutePath}"
+      it.println "java.util.logging.FileHandler.pattern=${outputLogFilePath}"
       it.println "java.util.logging.FileHandler.formatter=java.util.logging.SimpleFormatter"
       it.println "java.util.logging.SimpleFormatter.format=JUL:%1\$tF %1\$tT [%4\$-7s] - %5\$s%n"
     }

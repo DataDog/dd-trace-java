@@ -3,6 +3,7 @@ package com.datadog.appsec.config;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -79,7 +80,7 @@ public interface AppSecConfig {
 
     @Override
     public List<Rule> getRules() {
-      return events;
+      return events != null ? events : Collections.emptyList();
     }
 
     @Override
@@ -115,12 +116,12 @@ public interface AppSecConfig {
 
     @Override
     public String getVersion() {
-      return null;
+      return version;
     }
 
     @Override
     public List<Rule> getRules() {
-      return rules;
+      return rules != null ? rules : Collections.emptyList();
     }
 
     @Override

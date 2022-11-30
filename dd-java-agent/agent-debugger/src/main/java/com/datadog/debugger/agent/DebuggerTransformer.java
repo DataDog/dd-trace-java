@@ -1,6 +1,8 @@
 package com.datadog.debugger.agent;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SnapshotProbe;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
@@ -23,7 +25,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.pool.TypePool;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
@@ -46,8 +47,8 @@ import org.slf4j.LoggerFactory;
  */
 public class DebuggerTransformer implements ClassFileTransformer {
   private static final Logger log = LoggerFactory.getLogger(DebuggerTransformer.class);
-  private static final String CANNOT_FIND_METHOD = "Cannot find %s::%s";
-  private static final String CANNOT_FIND_LINE = "Cannot find %s:L%s";
+  private static final String CANNOT_FIND_METHOD = "Cannot find method %s::%s";
+  private static final String CANNOT_FIND_LINE = "No executable code was found at %s:L%s";
 
   private final Config config;
   private final TransformerDefinitionMatcher definitonMatcher;
@@ -402,7 +403,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       return InstrumentationResult.Status.ERROR;
     }
     if (classLoader != null
-        && classLoader.getClass().getName().equals("sun.reflect.DelegatingClassLoader")) {
+        && classLoader.getClass().getTypeName().equals("sun.reflect.DelegatingClassLoader")) {
       // This classloader is used when using reflection. This is a special classloader known
       // by the JVM with special behavior. it cannot load other classes inside it (e.i. no
       // delegation to parent classloader).
@@ -509,16 +510,25 @@ public class DebuggerTransformer implements ClassFileTransformer {
       // duplicate class definition for name: "okhttp3/RealCall"
       // for more info see:
       // https://stackoverflow.com/questions/69563714/linkageerror-attempted-duplicate-class-definition-when-dynamically-instrument
-      ClassFileLocator locator =
-          AgentStrategies.locationStrategy().classFileLocator(classLoader, null);
-      TypePool tp =
+      TypePool tpTargetClassLoader =
           new TypePool.Default.WithLazyResolution(
               TypePool.CacheProvider.Simple.withObjectType(),
-              locator,
+              AgentStrategies.locationStrategy().classFileLocator(classLoader, null),
               TypePool.Default.ReaderMode.FAST);
+      // Introduced the java agent DataDog classloader for resolving types introduced by other
+      // Datadog instrumentation (Tracing, AppSec, Profiling, ...)
+      // Here we assume that the current class is loaded in DataDog classloader
+      TypePool tpDatadogClassLoader =
+          new TypePool.Default.WithLazyResolution(
+              TypePool.CacheProvider.Simple.withObjectType(),
+              AgentStrategies.locationStrategy()
+                  .classFileLocator(getClass().getClassLoader(), null),
+              TypePool.Default.ReaderMode.FAST,
+              tpTargetClassLoader);
+
       try {
-        TypeDescription td1 = tp.describe(type1.replace('/', '.')).resolve();
-        TypeDescription td2 = tp.describe(type2.replace('/', '.')).resolve();
+        TypeDescription td1 = tpDatadogClassLoader.describe(type1.replace('/', '.')).resolve();
+        TypeDescription td2 = tpDatadogClassLoader.describe(type2.replace('/', '.')).resolve();
         TypeDescription common = null;
         if (td1.isAssignableFrom(td2)) {
           common = td1;
@@ -526,7 +536,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
           common = td2;
         } else {
           if (td1.isInterface() || td2.isInterface()) {
-            common = tp.describe("java.lang.Object").resolve();
+            common = tpDatadogClassLoader.describe("java.lang.Object").resolve();
           } else {
             common = td1;
             do {
@@ -537,7 +547,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
         return common.getInternalName();
       } catch (Exception ex) {
         ExceptionHelper.logException(log, ex, "getCommonSuperClass failed: ");
-        return tp.describe("java.lang.Object").resolve().getInternalName();
+        return tpDatadogClassLoader.describe("java.lang.Object").resolve().getInternalName();
       }
     }
   }

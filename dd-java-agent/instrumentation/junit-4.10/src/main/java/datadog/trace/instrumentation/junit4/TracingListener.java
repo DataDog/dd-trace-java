@@ -105,7 +105,7 @@ public class TracingListener extends RunListener {
     final List<String> testNames = new ArrayList<>();
     if (description.getMethodName() != null && !"".equals(description.getMethodName())) {
       testNames.add(description.getMethodName());
-    } else {
+    } else if (description.getTestClass() != null) {
       // If @Ignore annotation is kept at class level, the instrumentation
       // reports every method annotated with @Test as skipped test.
       testNames.addAll(DECORATE.testNames(description.getTestClass(), Test.class));

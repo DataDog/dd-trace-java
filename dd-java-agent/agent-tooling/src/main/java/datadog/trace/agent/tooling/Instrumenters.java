@@ -39,6 +39,10 @@ public final class Instrumenters implements Iterable<Instrumenter> {
     this.instrumenters = new Instrumenter[names.length];
   }
 
+  public int maxInstrumentationId() {
+    return instrumenters.length;
+  }
+
   /** Returns the id of the {@link Instrumenter} currently being installed. */
   public static int currentInstrumentationId() {
     return currentInstrumentationId;

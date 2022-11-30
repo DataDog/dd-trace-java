@@ -21,6 +21,7 @@ class SpringBootOpenLibertySnapshotTest extends AbstractTestAgentSmokeTest {
     command.addAll(defaultJavaProperties)
     command.addAll((String[]) [
       "-Ddd.jmxfetch.enabled=false",
+      '-Ddd.trace.integration.java-lang-appsec.enabled=false',
       "-jar",
       openLibertyShadowJar,
       "--server.port=${httpPort}"

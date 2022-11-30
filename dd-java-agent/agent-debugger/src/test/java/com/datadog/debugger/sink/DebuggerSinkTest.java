@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static utils.TestHelper.getFixtureContent;
 
+import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.trace.api.Config;
@@ -40,7 +41,10 @@ public class DebuggerSinkTest {
   private static final Snapshot.ProbeLocation PROBE_LOCATION =
       new Snapshot.ProbeLocation("java.lang.String", "indexOf", null, null);
   private static final Snapshot SNAPSHOT =
-      new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
+      new Snapshot(
+          Thread.currentThread(),
+          new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+          String.class.getTypeName());
   public static final int MAX_PAYLOAD = 5 * 1024 * 1024;
 
   @Mock private Config config;
@@ -51,6 +55,7 @@ public class DebuggerSinkTest {
 
   @BeforeEach
   void setUp() {
+    DebuggerContext.initSnapshotSerializer(new JsonSnapshotSerializer());
     when(config.getHostName()).thenReturn("host-name");
     when(config.getServiceName()).thenReturn("service-name");
     when(config.getEnv()).thenReturn("test");
@@ -72,7 +77,7 @@ public class DebuggerSinkTest {
     sink.flush(sink);
     verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
     String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
-    assertTrue(strPayload.matches(regex));
+    assertTrue(strPayload.matches(regex), strPayload);
   }
 
   @Test
@@ -86,7 +91,7 @@ public class DebuggerSinkTest {
     sink.flush(sink);
     verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
     String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
-    assertTrue(strPayload.matches(regex));
+    assertTrue(strPayload.matches(regex), strPayload);
   }
 
   @Test
@@ -94,7 +99,10 @@ public class DebuggerSinkTest {
     when(config.getDebuggerUploadBatchSize()).thenReturn(10);
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     Snapshot largeSnapshot =
-        new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
+        new Snapshot(
+            Thread.currentThread(),
+            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+            String.class.getTypeName());
     for (int i = 0; i < 15_000; i++) {
       largeSnapshot.getStack().add(new CapturedStackFrame("f" + i, i));
     }
@@ -112,7 +120,10 @@ public class DebuggerSinkTest {
   public void tooLargeSnapshot() {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     Snapshot largeSnapshot =
-        new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
+        new Snapshot(
+            Thread.currentThread(),
+            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+            String.class.getTypeName());
     for (int i = 0; i < 150_000; i++) {
       largeSnapshot.getStack().add(new CapturedStackFrame("f" + i, i));
     }
@@ -125,7 +136,10 @@ public class DebuggerSinkTest {
   public void tooLargeUTF8Snapshot() {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     Snapshot largeSnapshot =
-        new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
+        new Snapshot(
+            Thread.currentThread(),
+            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+            String.class.getTypeName());
     for (int i = 0; i < 140_000; i++) {
       largeSnapshot.getStack().add(new CapturedStackFrame("f€" + i, i));
     }
@@ -268,7 +282,7 @@ public class DebuggerSinkTest {
           Snapshot.CapturedValue.of("dd.trace_id", "java.lang.String", "123"),
           Snapshot.CapturedValue.of("dd.span_id", "java.lang.String", "456"),
         });
-    SNAPSHOT.getCaptures().setEntry(entry);
+    SNAPSHOT.setEntry(entry);
     sink.addSnapshot(SNAPSHOT);
     String fixtureContent =
         getFixtureContent(SINK_FIXTURE_PREFIX + "/snapshotWithCorrelationIdsRegex.txt");
@@ -294,7 +308,10 @@ public class DebuggerSinkTest {
     DebuggerMetrics debuggerMetrics = spy(DebuggerMetrics.getInstance(config));
     DebuggerSink sink = new DebuggerSink(config, batchUploader, debuggerMetrics);
     Snapshot snapshot =
-        new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
+        new Snapshot(
+            Thread.currentThread(),
+            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+            String.class.getTypeName());
     sink.skipSnapshot(snapshot.getProbe().getId(), DebuggerContext.SkipCause.CONDITION);
     verify(debuggerMetrics)
         .incrementCounter(anyString(), eq("cause:condition"), eq("probe_id:" + PROBE_ID));

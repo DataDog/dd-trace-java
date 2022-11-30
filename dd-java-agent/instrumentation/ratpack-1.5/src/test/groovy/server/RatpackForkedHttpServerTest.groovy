@@ -178,4 +178,10 @@ class RatpackForkedHttpServerTest extends RatpackHttpServerTest {
       }
     })
   }
+
+  @Override
+  boolean testRedirect() {
+    // re-enable when https://github.com/DataDog/dd-trace-java/issues/3979 is fixed
+    return false
+  }
 }

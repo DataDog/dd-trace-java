@@ -5,6 +5,7 @@ import datadog.trace.bootstrap.config.provider.ConfigConverter
 import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.test.util.DDSpecification
 import org.junit.Rule
+import spock.lang.Unroll
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES
@@ -16,8 +17,6 @@ import static datadog.trace.api.DDTags.RUNTIME_ID_TAG
 import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG
 import static datadog.trace.api.DDTags.SERVICE
 import static datadog.trace.api.DDTags.SERVICE_TAG
-import static datadog.trace.api.IdGenerationStrategy.RANDOM
-import static datadog.trace.api.IdGenerationStrategy.SEQUENTIAL
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED
@@ -211,7 +210,6 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(REMOTE_CONFIG_MAX_PAYLOAD_SIZE, "2")
 
     prop.setProperty(DEBUGGER_ENABLED, "true")
-    prop.setProperty(DEBUGGER_SNAPSHOT_URL, "snapshot url")
     prop.setProperty(DEBUGGER_PROBE_FILE_LOCATION, "file location")
     prop.setProperty(DEBUGGER_UPLOAD_TIMEOUT, "10")
     prop.setProperty(DEBUGGER_UPLOAD_FLUSH_INTERVAL, "1000")
@@ -233,7 +231,7 @@ class ConfigTest extends DDSpecification {
     config.apiKey == "new api key" // we can still override via internal properties object
     config.site == "new site"
     config.serviceName == "something else"
-    config.idGenerationStrategy == SEQUENTIAL
+    config.idGenerationStrategy.class.name.endsWith('$Sequential')
     config.traceEnabled == false
     config.writerType == "LoggingWriter"
     config.agentHost == "somehost"
@@ -254,7 +252,6 @@ class ConfigTest extends DDSpecification {
     config.splitByTags == ["some.tag1", "some.tag2"].toSet()
     config.partialFlushMinSpans == 15
     config.reportHostName == true
-    config.runtimeContextFieldInjection == false
     config.propagationStylesToExtract.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
     config.propagationStylesToInject.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
     config.jmxFetchEnabled == false
@@ -296,7 +293,7 @@ class ConfigTest extends DDSpecification {
     config.remoteConfigMaxPayloadSizeBytes == 2048
 
     config.debuggerEnabled == true
-    config.getFinalDebuggerSnapshotUrl() == "snapshot url"
+    config.getFinalDebuggerSnapshotUrl() == "http://somehost:123/debugger/v1/input"
     config.debuggerProbeFileLocation == "file location"
     config.debuggerUploadTimeout == 10
     config.debuggerUploadFlushInterval == 1000
@@ -422,7 +419,6 @@ class ConfigTest extends DDSpecification {
     config.splitByTags == ["some.tag3", "some.tag2", "some.tag1"].toSet()
     config.partialFlushMinSpans == 25
     config.reportHostName == true
-    config.runtimeContextFieldInjection == false
     config.propagationStylesToExtract.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
     config.propagationStylesToInject.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
     config.jmxFetchEnabled == false
@@ -777,42 +773,6 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == "what actually wants"
-  }
-
-  def "verify integration config"() {
-    setup:
-    environmentVariables.set("DD_INTEGRATION_ORDER_ENABLED", "false")
-    environmentVariables.set("DD_INTEGRATION_TEST_ENV_ENABLED", "true")
-    environmentVariables.set("DD_INTEGRATION_DISABLED_ENV_ENABLED", "false")
-
-    System.setProperty("dd.integration.order.enabled", "true")
-    System.setProperty("dd.integration.test-prop.enabled", "true")
-    System.setProperty("dd.integration.disabled-prop.enabled", "false")
-
-    expect:
-    Config.get().isIntegrationEnabled(integrationNames, defaultEnabled) == expected
-
-    where:
-    // spotless:off
-    names                          | defaultEnabled | expected
-    []                             | true           | true
-    []                             | false          | false
-    ["invalid"]                    | true           | true
-    ["invalid"]                    | false          | false
-    ["test-prop"]                  | false          | true
-    ["test-env"]                   | false          | true
-    ["disabled-prop"]              | true           | false
-    ["disabled-env"]               | true           | false
-    ["other", "test-prop"]         | false          | true
-    ["other", "test-env"]          | false          | true
-    ["order"]                      | false          | true
-    ["test-prop", "disabled-prop"] | false          | true
-    ["disabled-env", "test-env"]   | false          | true
-    ["test-prop", "disabled-prop"] | true           | false
-    ["disabled-env", "test-env"]   | true           | false
-    // spotless:on
-
-    integrationNames = new TreeSet<>(names)
   }
 
   def "verify rule config #name"() {
@@ -1970,7 +1930,7 @@ class ConfigTest extends DDSpecification {
     Config config = Config.get(prop)
 
     then:
-    config.idGenerationStrategy == RANDOM
+    config.idGenerationStrategy.class.name.endsWith('$Random')
   }
 
   def "DD_RUNTIME_METRICS_ENABLED=false disables all metrics"() {
@@ -2034,6 +1994,68 @@ class ConfigTest extends DDSpecification {
     def config = new Config()
     then:
     config.getMetricsIgnoredResources() == ["GET /healthcheck", "SELECT foo from bar"].toSet()
+  }
+
+  @Unroll
+  def "appsec state with sys = #sys env = #env"() {
+    setup:
+    if (sys != null) {
+      System.setProperty("dd.appsec.enabled", sys)
+    }
+    if (env != null) {
+      environmentVariables.set("DD_APPSEC_ENABLED", env)
+    }
+
+    when:
+    def config = new Config()
+
+    then:
+    config.getAppSecActivation() == res
+
+    where:
+    sys        | env        | res
+    null       | null       | ProductActivation.ENABLED_INACTIVE
+    null       | ""         | ProductActivation.ENABLED_INACTIVE
+    null       | "inactive" | ProductActivation.ENABLED_INACTIVE
+    null       | "false"    | ProductActivation.FULLY_DISABLED
+    null       | "0"        | ProductActivation.FULLY_DISABLED
+    null       | "invalid"  | ProductActivation.FULLY_DISABLED
+    null       | "true"     | ProductActivation.FULLY_ENABLED
+    null       | "1"        | ProductActivation.FULLY_ENABLED
+    ""         | null       | ProductActivation.ENABLED_INACTIVE
+    ""         | ""         | ProductActivation.ENABLED_INACTIVE
+    ""         | "inactive" | ProductActivation.ENABLED_INACTIVE
+    ""         | "false"    | ProductActivation.FULLY_DISABLED
+    ""         | "0"        | ProductActivation.FULLY_DISABLED
+    ""         | "invalid"  | ProductActivation.FULLY_DISABLED
+    ""         | "true"     | ProductActivation.FULLY_ENABLED
+    ""         | "1"        | ProductActivation.FULLY_ENABLED
+    "inactive" | null       | ProductActivation.ENABLED_INACTIVE
+    "inactive" | ""         | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "inactive" | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "false"    | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "0"        | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "invalid"  | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "true"     | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "1"        | ProductActivation.ENABLED_INACTIVE
+    "false"    | null       | ProductActivation.FULLY_DISABLED
+    "false"    | ""         | ProductActivation.FULLY_DISABLED
+    "false"    | "inactive" | ProductActivation.FULLY_DISABLED
+    "false"    | "false"    | ProductActivation.FULLY_DISABLED
+    "false"    | "0"        | ProductActivation.FULLY_DISABLED
+    "false"    | "invalid"  | ProductActivation.FULLY_DISABLED
+    "false"    | "true"     | ProductActivation.FULLY_DISABLED
+    "false"    | "1"        | ProductActivation.FULLY_DISABLED
+    "0"        | null       | ProductActivation.FULLY_DISABLED
+    "true"     | null       | ProductActivation.FULLY_ENABLED
+    "true"     | ""         | ProductActivation.FULLY_ENABLED
+    "true"     | "inactive" | ProductActivation.FULLY_ENABLED
+    "true"     | "false"    | ProductActivation.FULLY_ENABLED
+    "true"     | "0"        | ProductActivation.FULLY_ENABLED
+    "true"     | "invalid"  | ProductActivation.FULLY_ENABLED
+    "true"     | "true"     | ProductActivation.FULLY_ENABLED
+    "true"     | "1"        | ProductActivation.FULLY_ENABLED
+    "1"        | null       | ProductActivation.FULLY_ENABLED
   }
 
   static class ClassThrowsExceptionForValueOfMethod {

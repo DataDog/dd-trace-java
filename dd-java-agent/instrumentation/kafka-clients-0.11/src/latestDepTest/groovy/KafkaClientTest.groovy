@@ -24,6 +24,7 @@ import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
 import spock.lang.Retry
 import spock.lang.Unroll
+import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
@@ -166,14 +167,20 @@ class KafkaClientTest extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8)) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["topic:$SHARED_TOPIC".toString(), "type:internal"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:out", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
+        edgeTags.size() == 3
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["group:sender", "partition:" + received.partition(), "topic:$SHARED_TOPIC".toString(), "type:kafka"]
-        edgeTags.size() == 4
+        edgeTags == [
+          "direction:in",
+          "group:sender",
+          "partition:" + received.partition(),
+          "topic:$SHARED_TOPIC".toString(),
+          "type:kafka"
+        ]
+        edgeTags.size() == 5
       }
     }
 
@@ -287,14 +294,20 @@ class KafkaClientTest extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8)) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["topic:$SHARED_TOPIC".toString(), "type:internal"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:out", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
+        edgeTags.size() == 3
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["group:sender", "partition:" + received.partition(), "topic:$SHARED_TOPIC".toString(), "type:kafka"]
-        edgeTags.size() == 4
+        edgeTags == [
+          "direction:in",
+          "group:sender",
+          "partition:" + received.partition(),
+          "topic:$SHARED_TOPIC".toString(),
+          "type:kafka"
+        ]
+        edgeTags.size() == 5
       }
     }
 
@@ -704,6 +717,7 @@ class KafkaClientTest extends AgentTestRunner {
 
   def "test spring kafka template produce and batch consume"() {
     setup:
+    def conditions = new PollingConditions(timeout: 10)
     def producerProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(producerProps)
     def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
@@ -742,6 +756,9 @@ class KafkaClientTest extends AgentTestRunner {
     TEST_DATA_STREAMS_WRITER.waitForGroups(2)
 
     then:
+    conditions.eventually {
+      assert !records.isEmpty()
+    }
     int partition = records.first().partition()
     def receivedSet = greetings.toSet()
     greetings.eachWithIndex { g, i ->
@@ -866,14 +883,20 @@ class KafkaClientTest extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8)) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["topic:$SHARED_TOPIC".toString(), "type:internal"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:out", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
+        edgeTags.size() == 3
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["group:sender", "partition:" + partition, "topic:$SHARED_TOPIC".toString(), "type:kafka"]
-        edgeTags.size() == 4
+        edgeTags == [
+          "direction:in",
+          "group:sender",
+          "partition:" + partition,
+          "topic:$SHARED_TOPIC".toString(),
+          "type:kafka"
+        ]
+        edgeTags.size() == 5
       }
     }
 

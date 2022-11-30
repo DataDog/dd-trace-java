@@ -13,17 +13,19 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static datadog.trace.util.Strings.getResourceName;
 import static datadog.trace.util.Strings.toEnvVar;
 
-import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
+import datadog.trace.api.EndpointCheckpointer;
+import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
-import datadog.trace.api.Tracer;
 import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
-import datadog.trace.bootstrap.instrumentation.exceptions.ExceptionSampling;
-import datadog.trace.context.ScopeListener;
+import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import java.lang.instrument.Instrumentation;
@@ -72,11 +74,11 @@ public class Agent {
     PROFILING("dd.profiling.enabled", false),
     APPSEC("dd.appsec.enabled", false),
     IAST("dd.iast.enabled", false),
-    REMOTE_CONFIG("dd.remote_config.enabled", false),
+    REMOTE_CONFIG("dd.remote_config.enabled", true),
     CWS("dd.cws.enabled", false),
     CIVISIBILITY("dd.civisibility.enabled", false),
     CIVISIBILITY_AGENTLESS("dd.civisibility.agentless.enabled", false),
-    TELEMETRY("dd.instrumentation.telemetry.enabled", false),
+    TELEMETRY("dd.instrumentation.telemetry.enabled", true),
     DEBUGGER("dd." + DEBUGGER_ENABLED, false);
 
     private final String systemProp;
@@ -113,15 +115,20 @@ public class Agent {
   private static boolean profilingEnabled = false;
   private static boolean appSecEnabled;
   private static boolean appSecFullyDisabled;
-  private static boolean remoteConfigEnabled;
+  private static boolean remoteConfigEnabled = true;
   private static boolean iastEnabled = false;
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
-  private static boolean telemetryEnabled = false;
+  private static boolean telemetryEnabled = true;
   private static boolean debuggerEnabled = false;
 
   public static void start(final Instrumentation inst, final URL agentJarURL) {
     createAgentClassloader(agentJarURL);
+
+    if (Platform.isNativeImageBuilder()) {
+      startDatadogAgent(inst);
+      return;
+    }
 
     // Retro-compatibility for the old way to configure CI Visibility
     if ("true".equals(ddGetProperty("dd.integration.junit.enabled"))
@@ -148,6 +155,17 @@ public class Agent {
       if (ciVisibilityAgentlessEnabled) {
         setSystemPropertyDefault("dd.writer.type", WriterConstants.DD_INTAKE_WRITER_TYPE);
       }
+    }
+
+    if (Platform.isJ9()) {
+      log.debug("OpenJ9 detected, dd.appsec.enabled will default to false");
+      setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
+    } else if (!isSupportedAppSecArch()) {
+      log.debug(
+          "OS and architecture ({}/{}) not supported by AppSec, dd.appsec.enabled will default to false",
+          System.getProperty("os.name"),
+          System.getProperty("os.arch"));
+      setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
     }
 
     jmxFetchEnabled = isFeatureEnabled(AgentFeature.JMXFETCH);
@@ -256,8 +274,8 @@ public class Agent {
         registerLogManagerCallback(new StartProfilingAgentCallback());
       } else {
         startProfilingAgent(false);
-        // only enable sampler when we know JFR is ready
-        ExceptionSampling.enableExceptionSampling();
+        // only enable instrumentation based profilers when we know JFR is ready
+        InstrumentationBasedProfiling.enableInstrumentationBasedProfiling();
       }
     }
   }
@@ -397,8 +415,8 @@ public class Agent {
     @Override
     public void execute() {
       startProfilingAgent(false);
-      // only enable sampler when we know JFR is ready
-      ExceptionSampling.enableExceptionSampling();
+      // only enable instrumentation based profilers when we know JFR is ready
+      InstrumentationBasedProfiling.enableInstrumentationBasedProfiling();
     }
   }
 
@@ -422,7 +440,7 @@ public class Agent {
   }
 
   private static void maybeStartRemoteConfig(Class<?> scoClass, Object sco) {
-    if (!remoteConfigEnabled || !isJavaVersionAtLeast(8)) {
+    if (!remoteConfigEnabled) {
       return;
     }
 
@@ -435,7 +453,7 @@ public class Agent {
       }
       Class<?> pollerCls = AGENT_CLASSLOADER.loadClass("datadog.remoteconfig.ConfigurationPoller");
       Method startMethod = pollerCls.getMethod("start");
-      log.info("Starting remote config poller");
+      log.debug("Starting remote config poller");
       startMethod.invoke(poller);
     } catch (Exception e) {
       log.error("Error starting remote config", e);
@@ -467,8 +485,9 @@ public class Agent {
       final Class<?> tracerInstallerClass =
           AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.TracerInstaller");
       final Method tracerInstallerMethod =
-          tracerInstallerClass.getMethod("installGlobalTracer", scoClass);
-      tracerInstallerMethod.invoke(null, sco);
+          tracerInstallerClass.getMethod(
+              "installGlobalTracer", scoClass, ProfilingContextIntegration.class);
+      tracerInstallerMethod.invoke(null, sco, createProfilingContextIntegration());
     } catch (final Throwable ex) {
       log.error("Throwable thrown while installing the Datadog Tracer", ex);
     }
@@ -497,6 +516,8 @@ public class Agent {
     if (jmxStarting.getAndSet(true)) {
       return; // another thread is already in startJmx
     }
+    // crash uploader initialization relies on JMX being available
+    initializeCrashUploader();
     if (jmxFetchEnabled) {
       startJmxFetch();
     }
@@ -579,11 +600,6 @@ public class Agent {
       return;
     }
 
-    if (!isJavaVersionAtLeast(8)) {
-      log.warn("AppSec System requires Java 8 or later to run");
-      return;
-    }
-
     try {
       SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC);
       startAppSec(ss, scoClass, o);
@@ -604,18 +620,28 @@ public class Agent {
     }
   }
 
+  private static boolean isSupportedAppSecArch() {
+    final String arch = System.getProperty("os.arch");
+    if (Platform.isWindows()) {
+      // TODO: Windows bindings need to be built for x86
+      return "amd64".equals(arch) || "x86_64".equals(arch);
+    } else if (Platform.isMac()) {
+      return "amd64".equals(arch) || "x86_64".equals(arch) || "aarch64".equals(arch);
+    } else if (Platform.isLinux()) {
+      return "amd64".equals(arch) || "x86_64".equals(arch) || "aarch64".equals(arch);
+    }
+    // Still return true in other if unexpected cases (e.g. SunOS), and we'll handle loading errors
+    // during AppSec startup.
+    return true;
+  }
+
   private static void maybeStartIast(Class<?> scoClass, Object o) {
     if (iastEnabled) {
-      if (isJavaVersionAtLeast(8)) {
-        try {
-          SubscriptionService ss =
-              AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST);
-          startIast(ss, scoClass, o);
-        } catch (Exception e) {
-          log.error("Error starting IAST subsystem", e);
-        }
-      } else {
-        log.warn("IAST subsystem requires Java 8 or later to run");
+      try {
+        SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST);
+        startIast(ss, scoClass, o);
+      } catch (Exception e) {
+        log.error("Error starting IAST subsystem", e);
       }
     }
   }
@@ -639,7 +665,20 @@ public class Agent {
           telemetrySystem.getMethod("startTelemetry", Instrumentation.class, scoClass);
       startTelemetry.invoke(null, inst, sco);
     } catch (final Throwable ex) {
-      log.warn("Unable start telemetry: {}", ex);
+      log.warn("Unable start telemetry", ex);
+    }
+  }
+
+  private static void initializeCrashUploader() {
+    if (Platform.isJ9()) {
+      // TODO currently crash tracking is supported only for HotSpot based JVMs
+      return;
+    }
+    try {
+      Class<?> clz = AGENT_CLASSLOADER.loadClass("com.datadog.crashtracking.ScriptInitializer");
+      clz.getMethod("initialize").invoke(null);
+    } catch (Throwable t) {
+      log.debug("Unable to initialize crash uploader", t);
     }
   }
 
@@ -652,7 +691,7 @@ public class Agent {
     WithGlobalTracer.registerOrExecute(
         new WithGlobalTracer.Callback() {
           @Override
-          public void withTracer(Tracer tracer) {
+          public void withTracer(TracerAPI tracer) {
             log.debug("Registering CWS scope tracker");
             try {
               ScopeListener scopeListener =
@@ -673,6 +712,24 @@ public class Agent {
         });
   }
 
+  /**
+   * {@see com.datadog.profiling.async.ContextThreadFilter} must not be modified to depend on JFR.
+   */
+  private static ProfilingContextIntegration createProfilingContextIntegration() {
+    if (Config.get().isProfilingEnabled()) {
+      try {
+        return (ProfilingContextIntegration)
+            AGENT_CLASSLOADER
+                .loadClass("com.datadog.profiling.async.ContextThreadFilter")
+                .getDeclaredConstructor()
+                .newInstance();
+      } catch (Throwable t) {
+        log.debug("Profiling context labeling not available. {}", t.getMessage());
+      }
+    }
+    return ProfilingContextIntegration.NoOp.INSTANCE;
+  }
+
   private static void startProfilingAgent(final boolean isStartingFirst) {
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
@@ -691,28 +748,23 @@ public class Agent {
         WithGlobalTracer.registerOrExecute(
             new WithGlobalTracer.Callback() {
               @Override
-              public void withTracer(Tracer tracer) {
+              public void withTracer(TracerAPI tracer) {
+                log.debug("Initializing profiler tracer integrations");
                 try {
-                  if (Config.get().isProfilingLegacyTracingIntegrationEnabled()) {
+                  if (Platform.isOracleJDK8() || Platform.isJ9()) {
+                    return;
+                  }
+                  EndpointCheckpointer endpointCheckpointer =
+                      (EndpointCheckpointer)
+                          AGENT_CLASSLOADER
+                              .loadClass("datadog.trace.core.jfr.openjdk.JFRCheckpointer")
+                              .getDeclaredConstructor()
+                              .newInstance();
+                  tracer.registerCheckpointer(endpointCheckpointer);
+                  if (!Config.get().isAsyncProfilerEnabled()) {
                     log.debug("Registering scope event factory");
-                    ScopeListener scopeListener =
-                        (ScopeListener)
-                            AGENT_CLASSLOADER
-                                .loadClass("datadog.trace.core.jfr.openjdk.ScopeEventFactory")
-                                .getDeclaredConstructor()
-                                .newInstance();
-                    tracer.addScopeListener(scopeListener);
-                    log.debug("Scope event factory {} has been registered", scopeListener);
-                  } else if (tracer instanceof AgentTracer.TracerAPI) {
-                    log.debug("Registering checkpointer");
-                    Checkpointer checkpointer =
-                        (Checkpointer)
-                            AGENT_CLASSLOADER
-                                .loadClass("datadog.trace.core.jfr.openjdk.JFRCheckpointer")
-                                .getDeclaredConstructor()
-                                .newInstance();
-                    ((AgentTracer.TracerAPI) tracer).registerCheckpointer(checkpointer);
-                    log.debug("Checkpointer {} has been registered", checkpointer);
+                    tracer.addScopeListener(
+                        createScopeListener("datadog.trace.core.jfr.openjdk.ScopeEventFactory"));
                   }
                 } catch (Throwable e) {
                   if (e instanceof InvocationTargetException) {
@@ -723,17 +775,16 @@ public class Agent {
               }
             });
       }
-    } catch (final ClassFormatError e) {
-      /*
-      Profiling is compiled for Java8. Loading it on Java7 results in ClassFormatError
-      (more specifically UnsupportedClassVersionError). Just ignore and continue when this happens.
-      */
-      log.debug("Profiling requires OpenJDK 8 or above - skipping");
     } catch (final Throwable ex) {
       log.error("Throwable thrown while starting profiling agent", ex);
     } finally {
       Thread.currentThread().setContextClassLoader(contextLoader);
     }
+  }
+
+  private static ScopeListener createScopeListener(String className) throws Throwable {
+    return (ScopeListener)
+        AGENT_CLASSLOADER.loadClass(className).getDeclaredConstructor().newInstance();
   }
 
   private static void shutdownProfilingAgent(final boolean sync) {
@@ -750,12 +801,6 @@ public class Agent {
       final Method profilingInstallerMethod =
           profilingAgentClass.getMethod("shutdown", Boolean.TYPE);
       profilingInstallerMethod.invoke(null, sync);
-    } catch (final ClassFormatError e) {
-      /*
-      Profiling is compiled for Java8. Loading it on Java7 results in ClassFormatError
-      (more specifically UnsupportedClassVersionError). Just ignore and continue when this happens.
-      */
-      log.debug("Profiling requires OpenJDK 8 or above - skipping");
     } catch (final Throwable ex) {
       log.error("Throwable thrown while shutting down profiling agent", ex);
     } finally {
@@ -784,12 +829,6 @@ public class Agent {
       final Method debuggerInstallerMethod =
           debuggerAgentClass.getMethod("run", Instrumentation.class, scoClass);
       debuggerInstallerMethod.invoke(null, inst, sco);
-    } catch (final ClassFormatError e) {
-      /*
-      Debugger is compiled for Java8. Loading it on Java7 results in ClassFormatError
-      (more specifically UnsupportedClassVersionError). Just ignore and continue when this happens.
-      */
-      log.debug("Debugger requires OpenJDK 8 or above - skipping");
     } catch (final Throwable ex) {
       log.error("Throwable thrown while starting debugger agent", ex);
     } finally {
@@ -864,13 +903,14 @@ public class Agent {
     }
   }
 
-  /** @see datadog.trace.api.ProductActivationConfig#fromString(String) */
+  /** @see datadog.trace.api.ProductActivation#fromString(String) */
   private static boolean isAppSecFullyDisabled() {
     // must be kept in sync with logic from Config!
     final String featureEnabledSysprop = AgentFeature.APPSEC.systemProp;
-    String settingValue = System.getProperty(featureEnabledSysprop);
+    String settingValue = getNullIfEmpty(System.getProperty(featureEnabledSysprop));
     if (settingValue == null) {
-      settingValue = ddGetEnv(featureEnabledSysprop);
+      settingValue = getNullIfEmpty(ddGetEnv(featureEnabledSysprop));
+      settingValue = settingValue != null && settingValue.isEmpty() ? null : settingValue;
     }
 
     // defaults to inactive
@@ -878,6 +918,13 @@ public class Agent {
         || settingValue.equalsIgnoreCase("true")
         || settingValue.equalsIgnoreCase("1")
         || settingValue.equalsIgnoreCase("inactive"));
+  }
+
+  private static String getNullIfEmpty(final String value) {
+    if (value == null || value.isEmpty()) {
+      return null;
+    }
+    return value;
   }
 
   /** @return configured JMX start delay in seconds */

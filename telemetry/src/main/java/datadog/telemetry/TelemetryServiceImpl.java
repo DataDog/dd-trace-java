@@ -11,23 +11,26 @@ import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.Payload;
 import datadog.telemetry.api.RequestType;
 import datadog.trace.api.time.TimeSource;
-import java.util.*;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.Supplier;
 import okhttp3.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TelemetryServiceImpl implements TelemetryService {
 
-  private static final int HEARTBEAT_INTERVAL_MS = 60 * 1000;
-
   private static final Logger log = LoggerFactory.getLogger(TelemetryServiceImpl.class);
 
-  private final RequestBuilder requestBuilder;
+  private final Supplier<RequestBuilder> requestBuilderSupplier;
   private final TimeSource timeSource;
-
+  private final int heartbeatIntervalMs;
   private final BlockingQueue<KeyValue> configurations = new LinkedBlockingQueue<>();
   private final BlockingQueue<Integration> integrations = new LinkedBlockingQueue<>();
   private final BlockingQueue<Dependency> dependencies = new LinkedBlockingQueue<>();
@@ -38,9 +41,14 @@ public class TelemetryServiceImpl implements TelemetryService {
 
   private long lastPreparationTimestamp;
 
-  public TelemetryServiceImpl(RequestBuilder requestBuilder, TimeSource timeSource) {
-    this.requestBuilder = requestBuilder;
+  public TelemetryServiceImpl(
+      Supplier<RequestBuilder> requestBuilderSupplier,
+      TimeSource timeSource,
+      int heartBeatIntervalSec) {
+
+    this.requestBuilderSupplier = requestBuilderSupplier;
     this.timeSource = timeSource;
+    this.heartbeatIntervalMs = heartBeatIntervalSec * 1000; // we use time in milliseconds
   }
 
   @Override
@@ -52,12 +60,12 @@ public class TelemetryServiceImpl implements TelemetryService {
             .dependencies(drainOrEmpty(dependencies)) // empty list if nothing
             .requestType(RequestType.APP_STARTED);
 
-    queue.offer(requestBuilder.build(RequestType.APP_STARTED, payload));
+    queue.offer(requestBuilderSupplier.get().build(RequestType.APP_STARTED, payload));
   }
 
   @Override
   public Request appClosingRequest() {
-    return requestBuilder.build(RequestType.APP_CLOSING);
+    return requestBuilderSupplier.get().build(RequestType.APP_CLOSING);
   }
 
   @Override
@@ -91,9 +99,11 @@ public class TelemetryServiceImpl implements TelemetryService {
     if (!integrations.isEmpty()) {
       Payload payload = new AppIntegrationsChange().integrations(drainOrEmpty(integrations));
       Request request =
-          requestBuilder.build(
-              RequestType.APP_INTEGRATIONS_CHANGE,
-              payload.requestType(RequestType.APP_INTEGRATIONS_CHANGE));
+          requestBuilderSupplier
+              .get()
+              .build(
+                  RequestType.APP_INTEGRATIONS_CHANGE,
+                  payload.requestType(RequestType.APP_INTEGRATIONS_CHANGE));
       queue.offer(request);
     }
 
@@ -101,9 +111,11 @@ public class TelemetryServiceImpl implements TelemetryService {
     if (!dependencies.isEmpty()) {
       Payload payload = new AppDependenciesLoaded().dependencies(drainOrEmpty(dependencies));
       Request request =
-          requestBuilder.build(
-              RequestType.APP_DEPENDENCIES_LOADED,
-              payload.requestType(RequestType.APP_DEPENDENCIES_LOADED));
+          requestBuilderSupplier
+              .get()
+              .build(
+                  RequestType.APP_DEPENDENCIES_LOADED,
+                  payload.requestType(RequestType.APP_DEPENDENCIES_LOADED));
       queue.offer(request);
     }
 
@@ -116,8 +128,10 @@ public class TelemetryServiceImpl implements TelemetryService {
               .libVersion("0.0.0")
               .series(drainOrEmpty(metrics));
       Request request =
-          requestBuilder.build(
-              RequestType.GENERATE_METRICS, payload.requestType(RequestType.GENERATE_METRICS));
+          requestBuilderSupplier
+              .get()
+              .build(
+                  RequestType.GENERATE_METRICS, payload.requestType(RequestType.GENERATE_METRICS));
       queue.offer(request);
     }
 
@@ -126,13 +140,18 @@ public class TelemetryServiceImpl implements TelemetryService {
     if (!queue.isEmpty()) {
       lastPreparationTimestamp = curTime;
     }
-    if (curTime - lastPreparationTimestamp > HEARTBEAT_INTERVAL_MS) {
-      Request request = requestBuilder.build(RequestType.APP_HEARTBEAT);
+    if (curTime - lastPreparationTimestamp > heartbeatIntervalMs) {
+      Request request = requestBuilderSupplier.get().build(RequestType.APP_HEARTBEAT);
       queue.offer(request);
       lastPreparationTimestamp = curTime;
     }
 
     return queue;
+  }
+
+  @Override
+  public int getHeartbeatInterval() {
+    return heartbeatIntervalMs;
   }
 
   private static <T> List<T> drainOrNull(BlockingQueue<T> srcQueue) {

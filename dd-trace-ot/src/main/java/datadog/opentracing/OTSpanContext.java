@@ -1,5 +1,6 @@
 package datadog.opentracing;
 
+import datadog.trace.api.DDSpanId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.opentracing.SpanContext;
 import java.util.Map;
@@ -18,7 +19,7 @@ class OTSpanContext implements SpanContext {
 
   @Override
   public String toSpanId() {
-    return delegate.getSpanId().toString();
+    return DDSpanId.toString(delegate.getSpanId());
   }
 
   @Override

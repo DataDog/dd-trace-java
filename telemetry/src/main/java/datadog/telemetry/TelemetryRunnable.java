@@ -1,5 +1,6 @@
 package datadog.telemetry;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.ConfigCollector;
 import java.io.IOException;
 import java.util.List;
@@ -22,6 +23,7 @@ public class TelemetryRunnable implements Runnable {
   private final List<TelemetryPeriodicAction> actions;
   private final ThreadSleeper sleeper;
 
+  private SendResult lastStatus;
   private int consecutiveFailures;
 
   public TelemetryRunnable(
@@ -44,6 +46,9 @@ public class TelemetryRunnable implements Runnable {
 
   @Override
   public void run() {
+    // Ensure that Config has been initialized, so ConfigCollector can collect all settings first.
+    Config.get();
+
     log.debug("Adding APP_STARTED telemetry event");
     this.telemetryService.addConfiguration(ConfigCollector.get());
     for (TelemetryPeriodicAction action : this.actions) {
@@ -79,7 +84,14 @@ public class TelemetryRunnable implements Runnable {
     Queue<Request> queue = telemetryService.prepareRequests();
     Request request;
     while ((request = queue.peek()) != null) {
-      if (!sendRequest(request)) {
+      final SendResult result = sendRequest(request);
+      lastStatus = result;
+      if (result == SendResult.DROP) {
+        // If we need to drop, clear the queue and return as if it was success.
+        // We will not retry if the telemetry endpoint is disabled.
+        queue.clear();
+        return true;
+      } else if (result == SendResult.FAILURE) {
         return false;
       }
       // remove request from queue, in case of success submitting
@@ -91,8 +103,8 @@ public class TelemetryRunnable implements Runnable {
 
   private void successWait() {
     consecutiveFailures = 0;
-    int waitSeconds = 10;
-    sleeper.sleep(waitSeconds * 1000L);
+    final int waitMs = telemetryService.getHeartbeatInterval();
+    sleeper.sleep(waitMs);
   }
 
   private void failureWait() {
@@ -101,28 +113,49 @@ public class TelemetryRunnable implements Runnable {
         BACKOFF_INITIAL
             * Math.pow(
                 BACKOFF_BASE, Math.min((double) consecutiveFailures - 1, BACKOFF_MAX_EXPONENT));
-    log.warn(
+    log.debug(
         "Last attempt to send telemetry failed; will retry in {} seconds (num failures: {})",
         waitSeconds,
         consecutiveFailures);
     sleeper.sleep((long) (waitSeconds * 1000L));
   }
 
-  private boolean sendRequest(Request request) {
+  private SendResult sendRequest(Request request) {
     Response response;
     try {
       response = okHttpClient.newCall(request).execute();
     } catch (IOException e) {
-      log.warn("IOException on HTTP request to Telemetry Intake Service", e);
-      return false;
+      if (lastStatus != SendResult.FAILURE) {
+        log.warn("IOException on HTTP request to Telemetry Intake Service: {}", e.toString());
+      } else {
+        log.debug("IOException on HTTP request to Telemetry Intake Service: {}", e.toString());
+      }
+      return SendResult.FAILURE;
     }
 
-    if (response.code() != 202) {
-      log.warn(
-          "Telemetry Intake Service responded with: " + response.code() + " " + response.message());
-      return false;
+    if (response.code() == 404) {
+      log.debug("Telemetry endpoint is disabled, dropping message");
+      return SendResult.DROP;
     }
-    return true;
+    if (response.code() != 202) {
+      if (lastStatus != SendResult.FAILURE) {
+        log.warn(
+            "Telemetry Intake Service responded with: {} {} ", response.code(), response.message());
+      } else {
+        log.debug(
+            "Telemetry Intake Service responded with: {} {} ", response.code(), response.message());
+      }
+      return SendResult.FAILURE;
+    }
+
+    log.debug("Telemetry message sent successfully");
+    return SendResult.SUCCESS;
+  }
+
+  enum SendResult {
+    SUCCESS,
+    FAILURE,
+    DROP;
   }
 
   interface ThreadSleeper {

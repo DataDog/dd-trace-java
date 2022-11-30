@@ -4,7 +4,6 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.DEBUGGER_HTTP_DI
 
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.common.container.ContainerInfo;
-import datadog.communication.http.SafeRequestBuilder;
 import datadog.trace.api.Config;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentThreadFactory;
@@ -154,7 +153,7 @@ public class BatchUploader {
     if (!tags.isEmpty()) {
       builder.addQueryParameter("ddtags", tags);
     }
-    SafeRequestBuilder requestBuilder = new SafeRequestBuilder().url(builder.build()).post(body);
+    Request.Builder requestBuilder = new Request.Builder().url(builder.build()).post(body);
     if (apiKey != null) {
       if (apiKey.isEmpty()) {
         log.debug("API key is empty");

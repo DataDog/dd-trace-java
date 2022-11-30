@@ -24,4 +24,6 @@ public interface TelemetryService {
   boolean addMetric(Metric metric);
 
   Queue<Request> prepareRequests();
+
+  int getHeartbeatInterval();
 }

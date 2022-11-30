@@ -33,6 +33,11 @@ public final class AsyncContextInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String muzzleDirective() {
+    return "servlet-3.x";
+  }
+
+  @Override
   public String hierarchyMarkerType() {
     return "javax.servlet.AsyncContext";
   }
@@ -89,8 +94,6 @@ public final class AsyncContextInstrumentation extends Instrumenter.Tracing
         } else if (args.length == 2 && args[1] instanceof String) {
           span.setResourceName((String) args[1]);
         }
-        // request may be processed on any thread; signal thread migration
-        span.startThreadMigration();
       }
       return true;
     }

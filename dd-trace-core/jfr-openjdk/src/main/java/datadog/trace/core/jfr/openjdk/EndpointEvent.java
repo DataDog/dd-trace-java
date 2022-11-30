@@ -43,7 +43,7 @@ public class EndpointEvent extends Event implements EndpointTracker {
 
   public EndpointEvent(final DDSpan span) {
     this.traceId = span.getTraceId().toLong();
-    this.localRootSpanId = span.getSpanId().toLong();
+    this.localRootSpanId = span.getSpanId();
     this.samplingPriorityStart = span.samplingPriority();
     begin();
   }

@@ -1,8 +1,13 @@
 package datadog.trace.agent.tooling.bytebuddy.csi;
 
+import static datadog.trace.agent.tooling.bytebuddy.csi.ConstantPool.CONSTANT_INTERFACE_METHODREF_TAG;
+import static datadog.trace.agent.tooling.bytebuddy.csi.ConstantPool.CONSTANT_METHODREF_TAG;
+import static datadog.trace.agent.tooling.csi.CallSiteAdvice.HasFlags.COMPUTE_MAX_STACK;
+
 import datadog.trace.agent.tooling.bytebuddy.ClassFileLocators;
 import datadog.trace.agent.tooling.csi.CallSiteAdvice;
 import datadog.trace.agent.tooling.csi.Pointcut;
+import datadog.trace.api.Platform;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -12,8 +17,7 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
-import net.bytebuddy.jar.asm.ClassReader;
-import net.bytebuddy.utility.OpenedClassReader;
+import net.bytebuddy.jar.asm.Handle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +33,7 @@ public class Advices {
       new Advices(
           Collections.<String, Map<String, Map<String, CallSiteAdvice>>>emptyMap(),
           new String[0],
+          0,
           AdviceIntrospector.NoOpAdviceInstrospector.INSTANCE) {
         @Override
         public boolean isEmpty() {
@@ -42,12 +47,16 @@ public class Advices {
 
   private final AdviceIntrospector introspector;
 
+  private final int flags;
+
   private Advices(
       final Map<String, Map<String, Map<String, CallSiteAdvice>>> advices,
       final String[] helpers,
+      final int flags,
       final AdviceIntrospector introspector) {
     this.advices = Collections.unmodifiableMap(advices);
     this.helpers = helpers;
+    this.flags = flags;
     this.introspector = introspector;
   }
 
@@ -64,15 +73,26 @@ public class Advices {
       @Nonnull final AdviceIntrospector introspector) {
     final Map<String, Map<String, Map<String, CallSiteAdvice>>> adviceMap = new HashMap<>();
     final Set<String> helperSet = new HashSet<>();
-    for (CallSiteAdvice advice : advices) {
-      addAdvice(adviceMap, helperSet, advice);
+    int flags = 0;
+    for (final CallSiteAdvice advice : advices) {
+      if (applyAdvice(advice)) {
+        flags |= addAdvice(adviceMap, helperSet, advice);
+      }
     }
     return adviceMap.isEmpty()
         ? EMPTY
-        : new Advices(adviceMap, helperSet.toArray(new String[0]), introspector);
+        : new Advices(adviceMap, helperSet.toArray(new String[0]), flags, introspector);
   }
 
-  private static void addAdvice(
+  private static boolean applyAdvice(final CallSiteAdvice advice) {
+    if (advice instanceof CallSiteAdvice.HasMinJavaVersion) {
+      final int minJavaVersion = ((CallSiteAdvice.HasMinJavaVersion) advice).minJavaVersion();
+      return Platform.isJavaVersionAtLeast(minJavaVersion);
+    }
+    return true;
+  }
+
+  private static int addAdvice(
       @Nonnull final Map<String, Map<String, Map<String, CallSiteAdvice>>> advices,
       @Nonnull final Set<String> helpers,
       @Nonnull final CallSiteAdvice advice) {
@@ -100,6 +120,9 @@ public class Advices {
         Collections.addAll(helpers, helperClassNames);
       }
     }
+    return advice instanceof CallSiteAdvice.HasFlags
+        ? ((CallSiteAdvice.HasFlags) advice).flags()
+        : 0;
   }
 
   /**
@@ -116,6 +139,10 @@ public class Advices {
   // used for testing
   public CallSiteAdvice findAdvice(@Nonnull final Pointcut pointcut) {
     return findAdvice(pointcut.type(), pointcut.method(), pointcut.descriptor());
+  }
+
+  public CallSiteAdvice findAdvice(@Nonnull final Handle handle) {
+    return findAdvice(handle.getOwner(), handle.getName(), handle.getDesc());
   }
 
   /**
@@ -152,6 +179,14 @@ public class Advices {
     return advices.isEmpty();
   }
 
+  public boolean hasFlag(final int flag) {
+    return (this.flags & flag) > 0;
+  }
+
+  public boolean computeMaxStack() {
+    return hasFlag(COMPUTE_MAX_STACK);
+  }
+
   /**
    * Instance of this class will try to discover the advices required to instrument a class before
    * visiting it
@@ -185,16 +220,13 @@ public class Advices {
 
       public static final AdviceIntrospector INSTANCE = new ConstantPoolInstrospector();
 
-      private static final int CONSTANT_METHOD_REF = 10;
-      private static final int CONSTANT_INTERFACE_METHOD_REF = 11;
-
       private static final Map<Integer, ConstantPoolHandler> CP_HANDLERS;
 
       static {
-        final Map<Integer, ConstantPoolHandler> handlers = new HashMap<>(2);
+        final Map<Integer, ConstantPoolHandler> handlers = new HashMap<>(4);
         final ConstantPoolHandler methodRefHandler = new MethodRefHandler();
-        handlers.put(CONSTANT_METHOD_REF, methodRefHandler);
-        handlers.put(CONSTANT_INTERFACE_METHOD_REF, methodRefHandler);
+        handlers.put(CONSTANT_METHODREF_TAG, methodRefHandler);
+        handlers.put(CONSTANT_INTERFACE_METHODREF_TAG, methodRefHandler);
         CP_HANDLERS = Collections.unmodifiableMap(handlers);
       }
 
@@ -208,27 +240,17 @@ public class Advices {
           if (!resolution.isResolved()) {
             return advices; // cannot resolve class file so don't apply any filtering
           }
-          final Map<String, Map<String, Map<String, CallSiteAdvice>>> adviceMap = new HashMap<>();
-          final Set<String> helperSet = new HashSet<>();
-          final ClassReader reader = OpenedClassReader.of(resolution.resolve());
-          final char[] buffer = new char[reader.getMaxStringLength()];
-          for (int i = 0; i < reader.getItemCount(); i++) {
-            final int offset = reader.getItem(i);
-            if (offset > 0) {
-              final int referenceType = reader.readByte(offset - 1);
-              final ConstantPoolHandler handler = CP_HANDLERS.get(referenceType);
-              if (handler != null) {
-                final CallSiteAdvice advice = handler.findAdvice(advices, reader, offset, buffer);
-                if (advice != null) {
-                  addAdvice(adviceMap, helperSet, advice);
-                }
-              }
+          final ConstantPool cp = new ConstantPool(resolution.resolve());
+          for (int index = 1; index < cp.getCount(); index++) {
+            final int referenceType = cp.getType(index);
+            final ConstantPoolHandler handler = CP_HANDLERS.get(referenceType);
+            // short circuit when any advice is found
+            if (handler != null && handler.findAdvice(advices, cp, index) != null) {
+              return advices;
             }
           }
-          return adviceMap.isEmpty()
-              ? EMPTY
-              : new Advices(adviceMap, helperSet.toArray(new String[0]), this);
-        } catch (Throwable e) {
+          return EMPTY;
+        } catch (final Throwable e) {
           if (LOG.isErrorEnabled()) {
             LOG.error(String.format("Failed to introspect %s constant pool", type), e);
           }
@@ -238,11 +260,7 @@ public class Advices {
 
       /** Handler for a particular type of constant pool type (MethodRef, InvokeDynamic, ...) */
       private interface ConstantPoolHandler {
-        CallSiteAdvice findAdvice(
-            @Nonnull Advices advices,
-            @Nonnull ClassReader reader,
-            int offset,
-            @Nonnull char[] buffer);
+        CallSiteAdvice findAdvice(@Nonnull Advices advices, @Nonnull ConstantPool cp, int index);
       }
 
       /**
@@ -255,18 +273,31 @@ public class Advices {
 
         @Override
         public CallSiteAdvice findAdvice(
-            @Nonnull final Advices advices,
-            @Nonnull final ClassReader reader,
-            final int offset,
-            @Nonnull final char[] buffer) {
-          final int classIndex = reader.readUnsignedShort(offset);
-          final int classOffset = reader.getItem(classIndex);
-          final String className = reader.readUTF8(classOffset, buffer);
-          final int nameAndTypeIndex = reader.readUnsignedShort(offset + 2);
-          final int nameAndTypeOffset = reader.getItem(nameAndTypeIndex);
-          final String name = reader.readUTF8(nameAndTypeOffset, buffer);
-          final String descriptor = reader.readUTF8(nameAndTypeOffset + 2, buffer);
-          return advices.findAdvice(className, name, descriptor);
+            @Nonnull final Advices advices, @Nonnull final ConstantPool cp, final int index) {
+          final int offset = cp.getOffset(index);
+
+          // u2 class_index;
+          final int classIndex = cp.readUnsignedShort(offset);
+          final int classNameIndex = cp.readUnsignedShort(cp.getOffset(classIndex));
+          final String className = cp.readUTF8(cp.getOffset(classNameIndex));
+          final Map<String, Map<String, CallSiteAdvice>> calleeAdvices =
+              advices.advices.get(className);
+          if (calleeAdvices == null) {
+            return null;
+          }
+
+          // u2 name_and_type_index;
+          final int nameAndTypeIndex = cp.readUnsignedShort(offset + 2);
+          final int nameAndTypeOffset = cp.getOffset(nameAndTypeIndex);
+          final int nameIndex = cp.readUnsignedShort(nameAndTypeOffset);
+          final String name = cp.readUTF8(cp.getOffset(nameIndex));
+          final Map<String, CallSiteAdvice> methodAdvices = calleeAdvices.get(name);
+          if (methodAdvices == null) {
+            return null;
+          }
+          final int descriptorIndex = cp.readUnsignedShort(nameAndTypeOffset + 2);
+          final String descriptor = cp.readUTF8(cp.getOffset(descriptorIndex));
+          return methodAdvices.get(descriptor);
         }
       }
     }

@@ -32,13 +32,19 @@ public final class TracerConfig {
 
   public static final String SPAN_TAGS = "trace.span.tags";
   public static final String TRACE_ANALYTICS_ENABLED = "trace.analytics.enabled";
+
+  @Deprecated
   public static final String TRACE_SAMPLING_SERVICE_RULES = "trace.sampling.service.rules";
+
+  @Deprecated
   public static final String TRACE_SAMPLING_OPERATION_RULES = "trace.sampling.operation.rules";
+  // JSON rules
+  public static final String TRACE_SAMPLING_RULES = "trace.sampling.rules";
+  // a global rate used for all services (that don’t have a dedicated rule defined).
   public static final String TRACE_SAMPLE_RATE = "trace.sample.rate";
   public static final String TRACE_RATE_LIMIT = "trace.rate.limit";
   public static final String TRACE_REPORT_HOSTNAME = "trace.report-hostname";
   public static final String TRACE_CLIENT_IP_HEADER = "trace.client-ip-header";
-  public static final String TRACE_CLIENT_IP_HEADER_DISABLED = "trace.client-ip-header.disabled";
   public static final String TRACE_CLIENT_IP_RESOLVER_ENABLED = "trace.client-ip.resolver.enabled";
   public static final String HEADER_TAGS = "trace.header.tags";
   public static final String REQUEST_HEADER_TAGS = "trace.request_header.tags";
@@ -63,6 +69,10 @@ public final class TracerConfig {
   public static final String PROPAGATION_STYLE_INJECT = "propagation.style.inject";
 
   public static final String ENABLE_TRACE_AGENT_V05 = "trace.agent.v0.5.enabled";
+
+  public static final String CLIENT_IP_ENABLED = "trace.client-ip.enabled";
+
+  public static final String SECURE_RANDOM = "trace.secure-random";
 
   /**
    * Disables validation that prevents invalid combinations of sampling priority and sampling

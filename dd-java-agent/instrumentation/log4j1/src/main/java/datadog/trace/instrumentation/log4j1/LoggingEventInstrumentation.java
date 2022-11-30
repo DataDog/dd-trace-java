@@ -10,6 +10,8 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -28,7 +30,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
 
   @Override
   protected boolean defaultEnabled() {
-    return Config.get().isLogsInjectionEnabled();
+    return InstrumenterConfig.get().isLogsInjectionEnabled();
   }
 
   @Override
@@ -99,7 +101,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
             AgentSpan.Context context =
                 InstrumentationContext.get(LoggingEvent.class, AgentSpan.Context.class).get(event);
             if (context != null) {
-              value = context.getSpanId().toString();
+              value = DDSpanId.toString(context.getSpanId());
             }
           }
           break;
@@ -121,7 +123,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
 
         Hashtable mdc = new Hashtable();
 
-        if (Config.get().isLogsMDCTagsInjectionEnabled()) {
+        if (InstrumenterConfig.get().isLogsMDCTagsInjectionEnabled()) {
           String serviceName = Config.get().getServiceName();
           if (null != serviceName && !serviceName.isEmpty()) {
             mdc.put(Tags.DD_SERVICE, serviceName);
@@ -140,7 +142,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
             InstrumentationContext.get(LoggingEvent.class, AgentSpan.Context.class).get(event);
         if (context != null) {
           mdc.put(CorrelationIdentifier.getTraceIdKey(), context.getTraceId().toString());
-          mdc.put(CorrelationIdentifier.getSpanIdKey(), context.getSpanId().toString());
+          mdc.put(CorrelationIdentifier.getSpanIdKey(), DDSpanId.toString(context.getSpanId()));
         }
 
         Hashtable originalMdc = MDC.getContext();

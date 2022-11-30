@@ -4,13 +4,12 @@ import datadog.trace.agent.tooling.Instrumenter
 import net.bytebuddy.asm.AsmVisitorWrapper
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.dynamic.DynamicType
-import net.bytebuddy.jar.asm.MethodVisitor
 
 class CallSiteInstrumenterTest extends BaseCallSiteTest {
 
   def 'test instrumenter creates transformer'() {
     setup:
-    final advice = mockAdvice(buildPointcut(String.getDeclaredMethod('concat', String)))
+    final advice = mockInvokeAdvice(stringConcatPointcut())
     final instrumenter = buildInstrumenter([advice])
     final builder = Mock(DynamicType.Builder)
     final type = Mock(TypeDescription) {
@@ -19,7 +18,7 @@ class CallSiteInstrumenterTest extends BaseCallSiteTest {
 
     when:
     final transformer = instrumenter.transformer()
-    final result = transformer.transform(builder, type, getClass().getClassLoader(), null)
+    final result = transformer.transform(builder, type, getClass().getClassLoader(), null, null)
 
     then:
     result == builder
@@ -28,7 +27,7 @@ class CallSiteInstrumenterTest extends BaseCallSiteTest {
 
   def 'test instrumenter adds no transformations'() {
     setup:
-    final advice = mockAdvice(buildPointcut(String.getDeclaredMethod('concat', String)))
+    final advice = mockInvokeAdvice(stringConcatPointcut())
     final instrumenter = buildInstrumenter([advice])
     final mock = Mock(Instrumenter.AdviceTransformation)
 
@@ -41,8 +40,8 @@ class CallSiteInstrumenterTest extends BaseCallSiteTest {
 
   def 'test helper class names'() {
     setup:
-    final advice1 = mockAdvice(buildPointcut(String.getDeclaredMethod('concat', String)), 'foo.bar.Helper1')
-    final advice2 = mockAdvice(buildPointcut(StringBuilder.getDeclaredMethod('append', String)), 'foo.bar.Helper1', 'foo.bar.Helper2', 'foo.bar.Helper3')
+    final advice1 = mockInvokeAdvice(stringConcatPointcut(), 'foo.bar.Helper1')
+    final advice2 = mockInvokeAdvice(messageDigestGetInstancePointcut(), 'foo.bar.Helper1', 'foo.bar.Helper2', 'foo.bar.Helper3')
     final instrumenter = buildInstrumenter([advice1, advice2])
 
     when:
@@ -63,7 +62,7 @@ class CallSiteInstrumenterTest extends BaseCallSiteTest {
     when:
     final instrumenter = buildInstrumenter(TestCallSiteAdvice)
     final transformer = instrumenter.transformer()
-    transformer.transform(builder, type, getClass().getClassLoader(), null)
+    transformer.transform(builder, type, getClass().getClassLoader(), null, null)
 
     then:
     transformer != null
@@ -80,28 +79,28 @@ class CallSiteInstrumenterTest extends BaseCallSiteTest {
     when:
     final instrumenter = buildInstrumenter(CallSiteAdvice)
     final transformer = instrumenter.transformer()
-    transformer.transform(builder, type, getClass().getClassLoader(), null)
+    transformer.transform(builder, type, getClass().getClassLoader(), null, null)
 
     then:
     0 * builder.visit(_ as AsmVisitorWrapper) >> builder
   }
 
-  static class StringConcatAdvice implements TestCallSiteAdvice {
+  static class StringConcatAdvice implements TestCallSiteAdvice, InvokeAdvice {
 
     @Override
     Pointcut pointcut() {
-      return buildPointcut(String.getDeclaredMethod('concat', String))
+      return stringConcatPointcut()
     }
 
     @Override
     void apply(
-      final MethodVisitor mv,
+      final MethodHandler handler,
       final int opcode,
       final String owner,
       final String name,
       final String descriptor,
       final boolean isInterface) {
-      mv.visitMethodInsn(opcode, owner, name, descriptor, isInterface)
+      handler.method(opcode, owner, name, descriptor, isInterface)
     }
   }
 }

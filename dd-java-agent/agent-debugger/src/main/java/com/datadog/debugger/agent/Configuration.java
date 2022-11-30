@@ -1,6 +1,10 @@
 package com.datadog.debugger.agent;
 
-import java.time.Duration;
+import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SnapshotProbe;
+import com.squareup.moshi.Json;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -53,90 +57,47 @@ public class Configuration {
     }
   }
 
-  /** Stores operational configuration */
-  public static class OpsConfiguration {
-    private final long pollInterval;
+  @Json(name = "id")
+  private final String service;
 
-    public OpsConfiguration(long pollInterval) {
-      this.pollInterval = pollInterval;
-    }
-
-    public long getPollInterval() {
-      return pollInterval;
-    }
-
-    public Duration getPollIntervalDuration() {
-      return Duration.ofSeconds(pollInterval);
-    }
-
-    @Generated
-    @Override
-    public String toString() {
-      return "OperationConfiguration{" + "pollInterval=" + pollInterval + '}';
-    }
-
-    @Generated
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-      OpsConfiguration other = (OpsConfiguration) o;
-      return Objects.equals(pollInterval, other.pollInterval);
-    }
-
-    @Generated
-    @Override
-    public int hashCode() {
-      return Objects.hash(pollInterval);
-    }
-  }
-
-  private final String id;
-  private final long orgId;
   private final Collection<SnapshotProbe> snapshotProbes;
   private final Collection<MetricProbe> metricProbes;
+  private final Collection<LogProbe> logProbes;
   private final FilterList allowList;
   private final FilterList denyList;
   private final SnapshotProbe.Sampling sampling;
-  private final OpsConfiguration opsConfig;
 
-  public Configuration(String id, long orgId, Collection<SnapshotProbe> snapshotProbes) {
-    this(id, orgId, snapshotProbes, null, null, null, null, null);
+  public Configuration(String service, Collection<SnapshotProbe> snapshotProbes) {
+    this(service, snapshotProbes, null, null);
   }
 
   public Configuration(
-      String id,
-      long orgId,
-      Collection<SnapshotProbe> snapshotProbes,
-      Collection<MetricProbe> metricProbes) {
-    this(id, orgId, snapshotProbes, metricProbes, null, null, null, null);
-  }
-
-  public Configuration(
-      String id,
-      long orgId,
+      String serviceName,
       Collection<SnapshotProbe> snapshotProbes,
       Collection<MetricProbe> metricProbes,
+      Collection<LogProbe> logProbes) {
+    this(serviceName, snapshotProbes, metricProbes, logProbes, null, null, null);
+  }
+
+  public Configuration(
+      String serviceName,
+      Collection<SnapshotProbe> snapshotProbes,
+      Collection<MetricProbe> metricProbes,
+      Collection<LogProbe> logProbes,
       FilterList allowList,
       FilterList denyList,
-      SnapshotProbe.Sampling sampling,
-      OpsConfiguration opsConfig) {
-    this.id = id;
-    this.orgId = orgId;
+      SnapshotProbe.Sampling sampling) {
+    this.service = serviceName;
     this.snapshotProbes = snapshotProbes;
     this.metricProbes = metricProbes;
+    this.logProbes = logProbes;
     this.allowList = allowList;
     this.denyList = denyList;
     this.sampling = sampling;
-    this.opsConfig = opsConfig;
   }
 
-  public String getId() {
-    return id;
-  }
-
-  public long getOrgId() {
-    return orgId;
+  public String getService() {
+    return service;
   }
 
   public Collection<SnapshotProbe> getSnapshotProbes() {
@@ -145,6 +106,10 @@ public class Configuration {
 
   public Collection<MetricProbe> getMetricProbes() {
     return metricProbes;
+  }
+
+  public Collection<LogProbe> getLogProbes() {
+    return logProbes;
   }
 
   public FilterList getAllowList() {
@@ -159,10 +124,6 @@ public class Configuration {
     return sampling;
   }
 
-  public OpsConfiguration getOpsConfig() {
-    return opsConfig;
-  }
-
   public Collection<ProbeDefinition> getDefinitions() {
     Collection<ProbeDefinition> result = new ArrayList<>();
     if (snapshotProbes != null) {
@@ -171,6 +132,9 @@ public class Configuration {
     if (metricProbes != null) {
       result.addAll(metricProbes);
     }
+    if (logProbes != null) {
+      result.addAll(logProbes);
+    }
     return result;
   }
 
@@ -178,23 +142,20 @@ public class Configuration {
   @Override
   public String toString() {
     return "DebuggerConfiguration{"
-        + "id='"
-        + id
-        + '\''
-        + ", orgId="
-        + orgId
-        + ", probes="
+        + "service="
+        + service
+        + ", snapshotProbes="
         + snapshotProbes
         + ", metricProbes="
         + metricProbes
+        + ", logProbes="
+        + logProbes
         + ", allowList="
         + allowList
         + ", denyList="
         + denyList
         + ", sampling="
         + sampling
-        + ", opsConfig="
-        + opsConfig
         + '}';
   }
 
@@ -204,20 +165,141 @@ public class Configuration {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     Configuration that = (Configuration) o;
-    return orgId == that.orgId
-        && Objects.equals(id, that.id)
+    return Objects.equals(service, that.service)
         && Objects.equals(snapshotProbes, that.snapshotProbes)
         && Objects.equals(metricProbes, that.metricProbes)
+        && Objects.equals(logProbes, that.logProbes)
         && Objects.equals(allowList, that.allowList)
         && Objects.equals(denyList, that.denyList)
-        && Objects.equals(sampling, that.sampling)
-        && Objects.equals(opsConfig, that.opsConfig);
+        && Objects.equals(sampling, that.sampling);
   }
 
   @Generated
   @Override
   public int hashCode() {
     return Objects.hash(
-        id, orgId, snapshotProbes, metricProbes, allowList, denyList, sampling, opsConfig);
+        service, snapshotProbes, metricProbes, logProbes, allowList, denyList, sampling);
+  }
+
+  public static Configuration.Builder builder() {
+    return new Configuration.Builder();
+  }
+
+  public static class Builder {
+    private String service = null;
+    private List<SnapshotProbe> snapshotProbes = null;
+    private List<MetricProbe> metricProbes = null;
+    private List<LogProbe> logProbes = null;
+    private FilterList allowList = null;
+    private FilterList denyList = null;
+    private SnapshotProbe.Sampling sampling = null;
+
+    public Configuration.Builder setService(String service) {
+      this.service = service;
+      return this;
+    }
+
+    public Configuration.Builder add(SnapshotProbe probe) {
+      if (snapshotProbes == null) {
+        snapshotProbes = new ArrayList<>();
+      }
+      snapshotProbes.add(probe);
+      return this;
+    }
+
+    public Configuration.Builder add(MetricProbe probe) {
+      if (metricProbes == null) {
+        metricProbes = new ArrayList<>();
+      }
+      metricProbes.add(probe);
+      return this;
+    }
+
+    public Configuration.Builder add(LogProbe probe) {
+      if (logProbes == null) {
+        logProbes = new ArrayList<>();
+      }
+      logProbes.add(probe);
+      return this;
+    }
+
+    public Configuration.Builder add(SnapshotProbe.Sampling newSampling) {
+      if (newSampling != null) {
+        sampling = newSampling;
+      }
+      return this;
+    }
+
+    public Configuration.Builder addSnapshotsProbes(Collection<SnapshotProbe> probes) {
+      if (probes == null) {
+        return this;
+      }
+      for (SnapshotProbe probe : probes) {
+        add(probe);
+      }
+      return this;
+    }
+
+    public Configuration.Builder addMetricProbes(Collection<MetricProbe> probes) {
+      if (probes == null) {
+        return this;
+      }
+      for (MetricProbe probe : probes) {
+        add(probe);
+      }
+      return this;
+    }
+
+    public Configuration.Builder addLogProbes(Collection<LogProbe> probes) {
+      if (probes == null) {
+        return this;
+      }
+      for (LogProbe probe : probes) {
+        add(probe);
+      }
+      return this;
+    }
+
+    public Configuration.Builder addAllowList(FilterList newAllowList) {
+      if (newAllowList == null) {
+        return this;
+      }
+      if (allowList == null) {
+        allowList = new FilterList(new ArrayList<>(), new ArrayList<>());
+      }
+      allowList.getClasses().addAll(newAllowList.getClasses());
+      allowList.getPackagePrefixes().addAll(newAllowList.getPackagePrefixes());
+      return this;
+    }
+
+    public Configuration.Builder addDenyList(FilterList newDenyList) {
+      if (newDenyList == null) {
+        return this;
+      }
+      if (denyList == null) {
+        denyList = new FilterList(new ArrayList<>(), new ArrayList<>());
+      }
+      denyList.getClasses().addAll(newDenyList.getClasses());
+      denyList.getPackagePrefixes().addAll(newDenyList.getPackagePrefixes());
+      return this;
+    }
+
+    public Configuration.Builder add(Configuration other) {
+      if (other.service != null) {
+        this.service = other.service;
+      }
+      addSnapshotsProbes(other.getSnapshotProbes());
+      addMetricProbes(other.getMetricProbes());
+      addLogProbes(other.getLogProbes());
+      addAllowList(other.getAllowList());
+      addDenyList(other.getDenyList());
+      add(other.getSampling());
+      return this;
+    }
+
+    public Configuration build() {
+      return new Configuration(
+          service, snapshotProbes, metricProbes, logProbes, allowList, denyList, sampling);
+    }
   }
 }

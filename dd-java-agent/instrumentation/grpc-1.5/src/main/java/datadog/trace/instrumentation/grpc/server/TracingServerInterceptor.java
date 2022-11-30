@@ -11,9 +11,6 @@ import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.GRPC
 import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.SERVER_PATHWAY_EDGE_TAGS;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.function.BiFunction;
-import datadog.trace.api.function.Function;
-import datadog.trace.api.function.Supplier;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -39,6 +36,9 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 public class TracingServerInterceptor implements ServerInterceptor {
@@ -88,8 +88,6 @@ public class TracingServerInterceptor implements ServerInterceptor {
       final TracingServerCall<ReqT, RespT> tracingServerCall = new TracingServerCall<>(span, call);
       // call other interceptors
       result = next.startCall(tracingServerCall, headers);
-      // the span related work can continue on any thread
-      span.startThreadMigration();
     } catch (final Throwable e) {
       if (span.phasedFinish()) {
         DECORATE.onError(span, e);
@@ -117,8 +115,6 @@ public class TracingServerInterceptor implements ServerInterceptor {
     public void close(final Status status, final Metadata trailers) {
       DECORATE.onClose(span, status);
       try (final AgentScope scope = activateSpan(span)) {
-        // resume the span related work on this thread
-        span.finishThreadMigration();
         delegate().close(status, trailers);
       } catch (final Throwable e) {
         DECORATE.onError(span, e);

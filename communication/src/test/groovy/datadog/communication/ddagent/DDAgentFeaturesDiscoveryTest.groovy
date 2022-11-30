@@ -59,6 +59,32 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.getConfigEndpoint() == V7_CONFIG_ENDPOINT
     features.supportsDebugger()
     features.getVersion() == "0.99.0"
+    0 * _
+  }
+
+  def "test parse /info response with discoverIfOutdated"() {
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+
+    when: "/info available"
+    features.discoverIfOutdated()
+    features.discoverIfOutdated()
+    features.discoverIfOutdated()
+
+    then:
+    1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_RESPONSE) }
+    features.getMetricsEndpoint() == V6_METRICS_ENDPOINT
+    features.supportsMetrics()
+    features.getTraceEndpoint() == "v0.5/traces"
+    !features.supportsDropping()
+    features.getDataStreamsEndpoint() == V01_DATASTREAMS_ENDPOINT
+    features.supportsDataStreams()
+    features.state() == INFO_STATE
+    features.getConfigEndpoint() == V7_CONFIG_ENDPOINT
+    features.supportsDebugger()
+    features.getVersion() == "0.99.0"
+    0 * _
   }
 
   def "test parse /info response with client dropping"() {
@@ -76,6 +102,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.getTraceEndpoint() == "v0.5/traces"
     features.supportsDropping()
     features.state() == INFO_WITH_CLIENT_DROPPING_STATE
+    0 * _
   }
 
 
@@ -95,6 +122,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.getDataStreamsEndpoint() == null
     !features.supportsDataStreams()
     features.state() == INFO_WITHOUT_DATA_STREAMS_STATE
+    0 * _
   }
 
   def "test fallback when /info not found"() {
@@ -116,6 +144,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.getTraceEndpoint() == "v0.5/traces"
     !features.supportsDropping()
     features.state() == PROBE_STATE
+    0 * _
   }
 
   def "test fallback when /info not found and agent returns ok"() {
@@ -135,6 +164,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.getTraceEndpoint() == "v0.5/traces"
     !features.supportsDropping()
     features.state() == PROBE_STATE
+    0 * _
   }
 
   def "test fallback when /info not found and v0.5 disabled"() {
@@ -156,6 +186,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.getTraceEndpoint() == "v0.4/traces"
     !features.supportsDropping()
     features.state() == PROBE_STATE
+    0 * _
   }
 
   def "test fallback when /info not found and v0.5 unavailable agent side"() {
@@ -177,6 +208,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.getTraceEndpoint() == "v0.4/traces"
     !features.supportsDropping()
     features.state() == PROBE_STATE
+    0 * _
   }
 
   def "test fallback on very old agent"() {
@@ -198,6 +230,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.getTraceEndpoint() == "v0.3/traces"
     !features.supportsDropping()
     features.state() == PROBE_STATE
+    0 * _
   }
 
   def "disabling metrics disables metrics and dropping"() {
@@ -236,6 +269,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     !features.supportsDropping()
     !(features as DroppingPolicy).active()
     features.state() == INFO_STATE
+    0 * _
   }
 
   def "discovery of metrics endpoint after agent upgrade enables dropping and metrics"() {
@@ -265,6 +299,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.supportsMetrics()
     (features as DroppingPolicy).active()
     features.state() == INFO_WITH_CLIENT_DROPPING_STATE
+    0 * _
   }
 
   def "disappearance of info endpoint after agent downgrade disables metrics and dropping"() {
@@ -295,6 +330,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     !features.supportsMetrics()
     !(features as DroppingPolicy).active()
     features.state() == PROBE_STATE
+    0 * _
   }
 
   def "disappearance of metrics endpoint after agent downgrade disables metrics and dropping"() {
@@ -326,6 +362,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     // but we don't permit dropping anyway
     !(features as DroppingPolicy).active()
     features.state() == INFO_WITHOUT_METRICS_STATE
+    0 * _
   }
 
   def countingNotFound(Request request, CountDownLatch latch) {

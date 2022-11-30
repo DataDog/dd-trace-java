@@ -14,6 +14,10 @@ public final class AppSecConfig {
       "appsec.obfuscation.parameter_key_regexp";
   public static final String APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP =
       "appsec.obfuscation.parameter_value_regexp";
+  public static final String APPSEC_HTTP_BLOCKED_TEMPLATE_HTML =
+      "appsec.http.blocked.template.html";
+  public static final String APPSEC_HTTP_BLOCKED_TEMPLATE_JSON =
+      "appsec.http.blocked.template.json";
 
   private AppSecConfig() {}
 }

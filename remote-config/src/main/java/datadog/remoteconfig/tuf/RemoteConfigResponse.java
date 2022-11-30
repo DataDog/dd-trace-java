@@ -2,6 +2,7 @@ package datadog.remoteconfig.tuf;
 
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.Moshi;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -34,7 +35,7 @@ public class RemoteConfigResponse {
   private transient Targets targets;
 
   @Json(name = "target_files")
-  private List<TargetFile> targetFiles;
+  public List<TargetFile> targetFiles;
 
   public static class Factory {
     private final JsonAdapter<RemoteConfigResponse> adapterRC;
@@ -54,16 +55,33 @@ public class RemoteConfigResponse {
         }
         byte[] targetsJsonDecoded =
             Base64.getDecoder().decode(targetsJsonBase64.getBytes(StandardCharsets.ISO_8859_1));
-        response.targets =
-            (targetsJsonDecoded.length > 0)
-                ? adapterTargets.fromJson(
-                    Okio.buffer(Okio.source(new ByteArrayInputStream(targetsJsonDecoded))))
-                : null;
+        if (targetsJsonDecoded.length > 0) {
+          response.targets =
+              adapterTargets.fromJson(
+                  Okio.buffer(Okio.source(new ByteArrayInputStream(targetsJsonDecoded))));
+          response.targets.targetsSignedUntyped = extractUntypedSignedField(targetsJsonDecoded);
+        }
         response.targetsJson = null;
         return Optional.of(response);
       } catch (IOException | RuntimeException e) {
         throw new RuntimeException("Failed to parse fleet response: " + e.getMessage(), e);
       }
+    }
+
+    private Map<String, Object> extractUntypedSignedField(byte[] targetsJsonDecoded)
+        throws IOException {
+      JsonReader reader =
+          JsonReader.of(Okio.buffer(Okio.source(new ByteArrayInputStream(targetsJsonDecoded))));
+      reader.beginObject();
+      while (reader.peek() == JsonReader.Token.NAME) {
+        String curName = reader.nextName();
+        if (curName.equals("signed")) {
+          return (Map<String, Object>) reader.readJsonValue();
+        } else {
+          reader.skipValue();
+        }
+      }
+      return null;
     }
   }
 
@@ -71,14 +89,28 @@ public class RemoteConfigResponse {
     return this.targets.targetsSigned.targets.get(configKey);
   }
 
+  public String getTargetsSignature(String keyId) {
+    for (Targets.Signature signature : this.targets.signatures) {
+      if (keyId.equals(signature.keyId)) {
+        return signature.signature;
+      }
+    }
+
+    throw new IntegrityCheckException("Missing signature for key " + keyId);
+  }
+
   public Targets.TargetsSigned getTargetsSigned() {
     return this.targets.targetsSigned;
   }
 
-  public Optional<byte[]> getFileContents(String configKey) {
+  public Map<String, Object> getUntypedTargetsSigned() {
+    return this.targets.targetsSignedUntyped;
+  }
+
+  public byte[] getFileContents(String configKey) {
 
     if (targetFiles == null) {
-      return Optional.empty();
+      throw new MissingContentException("No content for " + configKey);
     }
 
     try {
@@ -109,8 +141,18 @@ public class RemoteConfigResponse {
                   + ", but got "
                   + gottenHash.toString(16));
         }
+        if (decode.length != configTarget.length) {
+          throw new IntegrityCheckException(
+              "File "
+                  + configKey
+                  + " does not "
+                  + "have the expected length: Expected "
+                  + configTarget.length
+                  + ", but got "
+                  + decode.length);
+        }
 
-        return Optional.of(decode);
+        return decode;
       }
     } catch (IntegrityCheckException e) {
       throw e;
@@ -119,7 +161,7 @@ public class RemoteConfigResponse {
           "Could not get file contents from remote config, file " + configKey, exception);
     }
 
-    return Optional.empty();
+    throw new MissingContentException("No content for " + configKey);
   }
 
   private static BigInteger sha256(byte[] bytes) {
@@ -142,11 +184,13 @@ public class RemoteConfigResponse {
     @Json(name = "signed")
     public TargetsSigned targetsSigned;
 
+    public transient Map<String, Object> targetsSignedUntyped;
+
     public static class Signature {
       @Json(name = "keyid")
       public String keyId;
 
-      @Json(name = "signature")
+      @Json(name = "sig")
       public String signature;
     }
 

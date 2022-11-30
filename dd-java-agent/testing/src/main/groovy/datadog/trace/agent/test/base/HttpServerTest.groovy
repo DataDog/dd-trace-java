@@ -5,11 +5,8 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
-import datadog.trace.api.function.Function
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
-import datadog.trace.api.function.BiFunction
-import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
 import datadog.trace.api.gateway.Events
@@ -33,6 +30,10 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import spock.lang.Shared
 import spock.lang.Unroll
+
+import java.util.function.BiFunction
+import java.util.function.Function
+import java.util.function.Supplier
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
@@ -63,8 +64,8 @@ import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 import static org.junit.Assume.assumeTrue
 
 @Unroll
@@ -112,6 +113,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   String expectedServiceName() {
     CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME)
+  }
+
+  // here to go around a limitation in openliberty, where the service name
+  // is set only at the end of the span and doesn't propagate down
+  String expectedControllerServiceName() {
+    expectedServiceName()
   }
 
   abstract String expectedOperationName()
@@ -262,6 +269,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   boolean testBodyJson() {
+    false
+  }
+
+  boolean testBlocking() {
     false
   }
 
@@ -766,12 +777,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   def "test error"() {
     setup:
-    def request = request(ERROR, method, body).build()
+    String method = 'GET'
+    def request = request(ERROR, method, null).build()
     def response = client.newCall(request).execute()
 
     expect:
     if (bubblesResponse()) {
-      assert response.body().string() == ERROR.body
+      assert response.body().string().contains(ERROR.body)
       assert response.code() == ERROR.status
     }
 
@@ -789,10 +801,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         }
       }
     }
-
-    where:
-    method = "GET"
-    body = null
   }
 
   def "test exception"() {
@@ -830,6 +838,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   def "test notFound"() {
     setup:
     assumeTrue(testNotFound())
+
+    String method = "GET"
+    RequestBody body = null
+
     def request = request(NOT_FOUND, method, body).build()
     def response = client.newCall(request).execute()
 
@@ -850,10 +862,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         }
       }
     }
-
-    where:
-    method = "GET"
-    body = null
   }
 
   def "test timeout"() {
@@ -1057,11 +1065,75 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
+  def 'test blocking of request with auto and accept=#acceptHeader'(boolean expectedJson, String acceptHeader) {
+    // Note: this does not actually test that the handler for SUCCESS is never called,
+    //       only that the response is the expected one (insofar as invoking the handler
+    //       does not result in another span being created)
+    setup:
+    assumeTrue(testBlocking())
+
+    def request = request(SUCCESS, 'GET', null)
+      .addHeader(IG_BLOCK_HEADER, 'auto').with {
+        if (acceptHeader) {
+          it.addHeader('Accept', 'text/html;q=0.9, application/json;q=0.8')
+        }
+        it.build()
+      }
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.code() == 418
+    if (expectedJson) {
+      response.header('Content-type') =~ /(?i)\Aapplication\/json(?:;\s?charset=utf-8)?\z/
+      response.body().charStream().text.contains('"title": "You\'ve been blocked"')
+    } else {
+      response.header('Content-type') =~ /(?i)\Atext\/html;\s?charset=utf-8\z/
+      response.body().charStream().text.contains("<title>You've been blocked</title>")
+    }
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+    def trace = TEST_WRITER.get(0)
+
+    then:
+    trace.size() == 1
+    trace[0].tags['http.status_code'] == 418
+
+    where:
+    expectedJson | acceptHeader
+    true         | null
+    false        | 'text/html;q=0.9, application/json;q=0.8'
+    true         | 'text/html;q=0.8, application/json;q=0.9'
+  }
+
+  def 'test blocking of request with json response'() {
+    setup:
+    assumeTrue(testBlocking())
+
+    def request = request(SUCCESS, 'GET', null)
+      .addHeader(IG_BLOCK_HEADER, 'json')
+      .addHeader('Accept', 'text/html')  // preference for html will be ignored
+      .build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.code() == 418
+    response.header('Content-type') =~ /(?i)\Aapplication\/json(?:;\s?charset=utf-8)?\z/
+    response.body().charStream().text.contains('"title": "You\'ve been blocked"')
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+    def trace = TEST_WRITER.get(0)
+
+    then:
+    trace.size() == 1
+    trace[0].tags['http.status_code'] == 418
+  }
+
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
     def exception = endpoint == CUSTOM_EXCEPTION ? expectedCustomExceptionType() : expectedExceptionType()
     def errorMessage = endpoint?.body
     trace.span {
-      serviceName expectedServiceName()
       operationName "controller"
       resourceName "controller"
       errored errorMessage != null
@@ -1118,7 +1190,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       errored expectedErrored(endpoint)
       if (parentID != null) {
         traceId traceID
-        parentId parentID
+        parentSpanId parentID
       } else {
         parent()
       }
@@ -1166,6 +1238,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   static final String IG_EXTRA_SPAN_NAME_HEADER = "x-ig-write-tags"
   static final String IG_TEST_HEADER = "x-ig-test-header"
+  static final String IG_BLOCK_HEADER = "x-block"
   static final String IG_PEER_ADDRESS = "ig-peer-address"
   static final String IG_PEER_PORT = "ig-peer-port"
   static final String IG_RESPONSE_STATUS = "ig-response-status"
@@ -1182,6 +1255,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       HashMap<String, String> tags = new HashMap<>()
       StoredBodySupplier requestBodySupplier
       String responseEncoding
+      String blockingContentType
     }
 
     static final String stringOrEmpty(String string) {
@@ -1217,6 +1291,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       if (IG_EXTRA_SPAN_NAME_HEADER.equalsIgnoreCase(key)) {
         context.extraSpanName = value
       }
+      if (IG_BLOCK_HEADER.equalsIgnoreCase(key)) {
+        context.blockingContentType = value
+      }
     } as TriConsumer<RequestContext, String, String>
 
     final Function<RequestContext, Flow<Void>> requestHeaderDoneCb =
@@ -1225,7 +1302,18 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       if (null != context.matchingHeaderValue) {
         context.doneHeaderValue = stringOrEmpty(context.doneHeaderValue) + context.matchingHeaderValue
       }
-      Flow.ResultFlow.empty()
+
+      if (context.blockingContentType) {
+        new Flow.ResultFlow<Void>(null) {
+            @Override
+            Flow.Action getAction() {
+              new Flow.Action.RequestBlockingAction(418,
+                Flow.Action.BlockingContentType.valueOf(context.blockingContentType.toUpperCase(Locale.ROOT)))
+            }
+          }
+      } else {
+        Flow.ResultFlow.empty()
+      }
     } as Function<RequestContext, Flow<Void>>)
 
     private static final String EXPECTED = "${QUERY_ENCODED_BOTH.rawPath}?${QUERY_ENCODED_BOTH.rawQuery}"

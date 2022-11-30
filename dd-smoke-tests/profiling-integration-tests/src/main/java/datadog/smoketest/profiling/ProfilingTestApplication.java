@@ -13,19 +13,19 @@ public class ProfilingTestApplication {
   private static final ThreadMXBean THREAD_MX_BEAN = ManagementFactory.getThreadMXBean();
 
   public static void main(final String[] args) throws InterruptedException {
-    long exitDelay = -1;
+    long duration = -1;
     if (args.length > 0) {
-      exitDelay = TimeUnit.SECONDS.toMillis(Long.parseLong(args[0]));
+      duration = TimeUnit.SECONDS.toMillis(Long.parseLong(args[0]));
     }
     setupDeadlock();
     final long startTime = System.currentTimeMillis();
     while (true) {
       tracedMethod();
-      if (exitDelay > 0 && exitDelay + startTime < System.currentTimeMillis()) {
+      if (duration > 0 && duration + startTime < System.currentTimeMillis()) {
         break;
       }
     }
-    System.out.println("Exiting (" + exitDelay + ")");
+    System.out.println("Exiting (" + duration + ")");
   }
 
   @Trace
@@ -64,28 +64,22 @@ public class ProfilingTestApplication {
 
     final Thread threadA =
         new Thread(
-            new Runnable() {
-              @Override
-              public void run() {
-                synchronized (lockA) {
-                  phaser.arriveAndAwaitAdvance(); // sync such as cross-order locking is provoked
-                  synchronized (lockB) {
-                    phaser.arriveAndDeregister(); // virtually unreachable
-                  }
+            () -> {
+              synchronized (lockA) {
+                phaser.arriveAndAwaitAdvance(); // sync such as cross-order locking is provoked
+                synchronized (lockB) {
+                  phaser.arriveAndDeregister(); // virtually unreachable
                 }
               }
             },
             "monitor-thread-A");
     final Thread threadB =
         new Thread(
-            new Runnable() {
-              @Override
-              public void run() {
-                synchronized (lockB) {
-                  phaser.arriveAndAwaitAdvance(); // sync such as cross-order locking is provoked
-                  synchronized (lockA) {
-                    phaser.arriveAndDeregister(); // virtually unreachable
-                  }
+            () -> {
+              synchronized (lockB) {
+                phaser.arriveAndAwaitAdvance(); // sync such as cross-order locking is provoked
+                synchronized (lockA) {
+                  phaser.arriveAndDeregister(); // virtually unreachable
                 }
               }
             },
@@ -96,15 +90,12 @@ public class ProfilingTestApplication {
     final CountDownLatch latch = new CountDownLatch(1);
     Thread main =
         new Thread(
-            new Runnable() {
-              @Override
-              public void run() {
-                threadA.start();
-                threadB.start();
-                phaser.arriveAndAwaitAdvance(); // enter deadlock
-                phaser.arriveAndAwaitAdvance(); // unreachable if deadlock is present
-                latch.countDown();
-              }
+            () -> {
+              threadA.start();
+              threadB.start();
+              phaser.arriveAndAwaitAdvance(); // enter deadlock
+              phaser.arriveAndAwaitAdvance(); // unreachable if deadlock is present
+              latch.countDown();
             },
             "main-monitor-thread");
     main.setDaemon(true);

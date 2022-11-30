@@ -111,7 +111,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
 
     then:
     1 * writer.startBucket(1, _, _)
-    1 * writer.add(new MetricKey("resource", "service", "operation", "type", HTTP_OK), _) >> { MetricKey key, AggregateMetric value ->
+    1 * writer.add(new MetricKey("resource", "service", "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
       value.getHitCount() == 1 && value.getTopLevelCount() == 1 && value.getDuration() == 100
     }
     1 * writer.finishBucket() >> { latch.countDown() }
@@ -140,7 +140,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
 
     then:
     1 * writer.startBucket(1, _, _)
-    1 * writer.add(new MetricKey("resource", "service", "operation", "type", HTTP_OK), _) >> { MetricKey key, AggregateMetric value ->
+    1 * writer.add(new MetricKey("resource", "service", "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
       value.getHitCount() == 1 && value.getTopLevelCount() == topLevelCount && value.getDuration() == 100
     }
     1 * writer.finishBucket() >> { latch.countDown() }
@@ -183,10 +183,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then: "metrics should be conflated"
     1 * writer.finishBucket() >> { latch.countDown() }
     1 * writer.startBucket(2, _, SECONDS.toNanos(reportingInterval))
-    1 * writer.add(new MetricKey("resource", "service", "operation", "type", HTTP_OK), _) >> { MetricKey key, AggregateMetric value ->
+    1 * writer.add(new MetricKey("resource", "service", "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
       value.getHitCount() == count && value.getDuration() == count * duration
     }
-    1 * writer.add(new MetricKey("resource2", "service2", "operation2", "type", HTTP_OK), _) >> { MetricKey key, AggregateMetric value ->
+    1 * writer.add(new MetricKey("resource2", "service2", "operation2", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
       value.getHitCount() == count && value.getDuration() == count * duration * 2
     }
 
@@ -222,11 +222,11 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then: "the first aggregate should be dropped but the rest reported"
     1 * writer.startBucket(10, _, SECONDS.toNanos(reportingInterval))
     for (int i = 1; i < 11; ++i) {
-      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", HTTP_OK), _) >> { MetricKey key, AggregateMetric value ->
+      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration
       }
     }
-    0 * writer.add(new MetricKey("resource", "service0", "operation", "type", HTTP_OK), _)
+    0 * writer.add(new MetricKey("resource", "service0", "operation", "type", HTTP_OK, false), _)
     1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
@@ -258,7 +258,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then: "all aggregates should be reported"
     1 * writer.startBucket(5, _, SECONDS.toNanos(reportingInterval))
     for (int i = 0; i < 5; ++i) {
-      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", HTTP_OK), _) >> { MetricKey key, AggregateMetric value ->
+      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration
       }
     }
@@ -277,11 +277,11 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then: "aggregate not updated in cycle is not reported"
     1 * writer.startBucket(4, _, SECONDS.toNanos(reportingInterval))
     for (int i = 1; i < 5; ++i) {
-      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", HTTP_OK), _) >> { MetricKey key, AggregateMetric value ->
+      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration
       }
     }
-    0 * writer.add(new MetricKey("resource", "service0", "operation", "type", HTTP_OK), _)
+    0 * writer.add(new MetricKey("resource", "service0", "operation", "type", HTTP_OK, false), _)
     1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
@@ -313,7 +313,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then: "all aggregates should be reported"
     1 * writer.startBucket(5, _, SECONDS.toNanos(reportingInterval))
     for (int i = 0; i < 5; ++i) {
-      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", HTTP_OK), _) >> { MetricKey key, AggregateMetric value ->
+      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration
       }
     }
@@ -355,7 +355,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then: "all aggregates should be reported"
     1 * writer.startBucket(5, _, SECONDS.toNanos(1))
     for (int i = 0; i < 5; ++i) {
-      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", HTTP_OK), _) >> { MetricKey key, AggregateMetric value ->
+      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration
       }
     }

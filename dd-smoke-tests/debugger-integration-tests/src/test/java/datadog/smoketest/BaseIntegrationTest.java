@@ -3,16 +3,16 @@ package datadog.smoketest;
 import static datadog.smoketest.ProcessBuilderHelper.buildDirectory;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 import com.datadog.debugger.agent.Configuration;
+import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.ProbeStatus;
-import com.datadog.debugger.agent.SnapshotProbe;
-import com.datadog.debugger.sink.SnapshotSink;
+import com.datadog.debugger.probe.SnapshotProbe;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
 import datadog.trace.bootstrap.debugger.Snapshot;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -21,9 +21,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import java.util.regex.Pattern;
 import okhttp3.HttpUrl;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -38,21 +38,20 @@ import org.slf4j.LoggerFactory;
 
 public abstract class BaseIntegrationTest {
   protected static final Logger LOG = LoggerFactory.getLogger(BaseIntegrationTest.class);
-  protected static final String SINGLE_EXPECTED_UPLOAD = "1";
-  protected static final String PROBE_URL_PATH = "/configurations";
-  protected static final String SNAPSHOT_URL_PATH = "/snapshots";
+  protected static final String PROBE_URL_PATH = "/v0.7/config";
+  protected static final String SNAPSHOT_URL_PATH = "/debugger/v1/input";
   protected static final int REQUEST_WAIT_TIMEOUT = 10;
   private static final Path LOG_FILE_BASE =
       Paths.get(
           buildDirectory(), "reports", "testProcess." + DebuggerIntegrationTest.class.getName());
   private static final String INFO_CONTENT =
       "{\"endpoints\": [\"v0.4/traces\", \"debugger/v1/input\", \"v0.7/config\"]}";
-  private static final MockResponse agentInfoResponse =
+  private static final MockResponse AGENT_INFO_RESPONSE =
       new MockResponse().setResponseCode(200).setBody(INFO_CONTENT);
+  private static final MockResponse TELEMETRY_RESPONSE = new MockResponse().setResponseCode(202);
+  private static final MockResponse EMPTY_200_RESPONSE = new MockResponse().setResponseCode(200);
 
-  protected MockWebServer snapshotServer;
-  private MockDispatcher snapshotMockDispatcher;
-  protected MockWebServer probeServer;
+  protected MockWebServer datadogAgentServer;
   private MockDispatcher probeMockDispatcher;
 
   private HttpUrl probeUrl;
@@ -70,15 +69,13 @@ public abstract class BaseIntegrationTest {
 
   @BeforeEach
   void setup(TestInfo testInfo) throws Exception {
-    probeServer = new MockWebServer();
+    datadogAgentServer = new MockWebServer();
     probeMockDispatcher = new MockDispatcher();
-    probeMockDispatcher.setDispatcher(this::provideProbes);
-    probeServer.setDispatcher(probeMockDispatcher);
-    probeUrl = probeServer.url(PROBE_URL_PATH);
-    LOG.info("ProbeServer on {}", probeServer.getPort());
-    snapshotServer = new MockWebServer();
-    snapshotUrl = snapshotServer.url(SNAPSHOT_URL_PATH);
-    LOG.info("SnapshotServer on {}", snapshotServer.getPort());
+    probeMockDispatcher.setDispatcher(this::datadogAgentDispatch);
+    datadogAgentServer.setDispatcher(probeMockDispatcher);
+    probeUrl = datadogAgentServer.url(PROBE_URL_PATH);
+    LOG.info("DatadogAgentServer on {}", datadogAgentServer.getPort());
+    snapshotUrl = datadogAgentServer.url(SNAPSHOT_URL_PATH);
     logFilePath = LOG_FILE_BASE.resolve(testInfo.getDisplayName() + ".log");
   }
 
@@ -87,11 +84,7 @@ public abstract class BaseIntegrationTest {
     if (targetProcess != null) {
       targetProcess.destroyForcibly();
     }
-    try {
-      snapshotServer.shutdown();
-    } finally {
-      probeServer.shutdown();
-    }
+    datadogAgentServer.shutdown();
   }
 
   protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
@@ -115,21 +108,20 @@ public abstract class BaseIntegrationTest {
             "-Ddd.jmxfetch.start-delay=0",
             "-Ddd.jmxfetch.enabled=false",
             "-Ddd.dynamic.instrumentation.enabled=true",
-            "-Ddd.remote_config.enabled=true",
+            // "-Ddd.remote_config.enabled=true", // default
             "-Ddd.remote_config.initial.poll.interval=1",
+            /*"-Ddd.remote_config.integrity_check.enabled=false",
             "-Ddd.dynamic.instrumentation.probe.url=http://localhost:"
                 + probeServer.getPort()
                 + PROBE_URL_PATH,
             "-Ddd.dynamic.instrumentation.snapshot.url=http://localhost:"
                 + snapshotServer.getPort()
-                + SNAPSHOT_URL_PATH,
-            "-Ddd.trace.agent.url=http://localhost:" + probeServer.getPort(),
-            "-Ddd.dynamic.instrumentation.upload.batch.size=1", // to verify each snapshot upload
-            // one by one
-            "-Ddd.dynamic.instrumentation.upload.flush.interval=100" // flush uploads every 100ms to
-            // have quick
-            // tests
-            ));
+                + SNAPSHOT_URL_PATH,*/
+            "-Ddd.trace.agent.url=http://localhost:" + datadogAgentServer.getPort(),
+            // to verify each snapshot upload one by one
+            "-Ddd.dynamic.instrumentation.upload.batch.size=1",
+            // flush uploads every 100ms to have quick tests
+            "-Ddd.dynamic.instrumentation.upload.flush.interval=100"));
   }
 
   protected RecordedRequest retrieveSnapshotRequest() throws Exception {
@@ -137,9 +129,10 @@ public abstract class BaseIntegrationTest {
     RecordedRequest request;
 
     do {
-      request = snapshotServer.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS);
+      request = datadogAgentServer.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS);
     } while (request != null
-        && request.getBody().indexOf(ByteString.encodeUtf8("diagnostics")) > -1);
+        && (!request.getPath().startsWith(SNAPSHOT_URL_PATH)
+            || request.getBody().indexOf(ByteString.encodeUtf8("diagnostics")) > -1));
     long dur = System.nanoTime() - ts;
     LOG.info(
         "request retrieved in {} seconds", TimeUnit.SECONDS.convert(dur, TimeUnit.NANOSECONDS));
@@ -147,7 +140,10 @@ public abstract class BaseIntegrationTest {
   }
 
   protected ProbeStatus retrieveProbeStatusRequest() throws Exception {
-    RecordedRequest request = snapshotServer.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS);
+    RecordedRequest request;
+    do {
+      request = datadogAgentServer.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS);
+    } while (request != null && !request.getPath().startsWith(SNAPSHOT_URL_PATH));
     assertNotNull(request);
     JsonAdapter<List<ProbeStatus>> adapter =
         MoshiHelper.createMoshiProbeStatus()
@@ -159,28 +155,39 @@ public abstract class BaseIntegrationTest {
     return probeStatuses.get(0);
   }
 
-  private MockResponse provideProbes(RecordedRequest request) {
+  private MockResponse datadogAgentDispatch(RecordedRequest request) {
+    LOG.info("datadogAgentDispatch request path: {}", request.getPath());
     if (request.getPath().equals("/info")) {
-      return agentInfoResponse;
+      return AGENT_INFO_RESPONSE;
     }
-    Configuration configuration;
-    synchronized (configLock) {
-      configuration = getCurrentConfiguration();
-      configProvided = true;
-      configLock.notifyAll();
+    if (request.getPath().equals("/telemetry/proxy/api/v2/apmtelemetry")) {
+      // Ack every telemetry request. This is needed if telemetry is enabled in the tests.
+      return TELEMETRY_RESPONSE;
     }
-    if (configuration == null) {
-      configuration = createConfig(Collections.emptyList());
+    if (request.getPath().startsWith(SNAPSHOT_URL_PATH)) {
+      return new MockResponse().setResponseCode(200);
     }
-    try {
-      JsonAdapter<Configuration> adapter =
-          MoshiHelper.createMoshiConfig().adapter(Configuration.class);
-      String json = adapter.toJson(configuration);
-      String remoteConfigJson = RemoteConfigHelper.encode(json, configuration.getId());
-      return new MockResponse().setResponseCode(200).setBody(remoteConfigJson);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
+    if (request.getPath().equals("/v0.7/config")) {
+      Configuration configuration;
+      synchronized (configLock) {
+        configuration = getCurrentConfiguration();
+        configProvided = true;
+        configLock.notifyAll();
+      }
+      if (configuration == null) {
+        configuration = createConfig(Collections.emptyList());
+      }
+      try {
+        JsonAdapter<Configuration> adapter =
+            MoshiHelper.createMoshiConfig().adapter(Configuration.class);
+        String json = adapter.toJson(configuration);
+        String remoteConfigJson = RemoteConfigHelper.encode(json, UUID.randomUUID().toString());
+        return new MockResponse().setResponseCode(200).setBody(remoteConfigJson);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
     }
+    return EMPTY_200_RESPONSE;
   }
 
   private Configuration getCurrentConfiguration() {
@@ -195,9 +202,10 @@ public abstract class BaseIntegrationTest {
     }
   }
 
-  protected JsonAdapter<List<SnapshotSink.IntakeRequest>> createAdapterForSnapshot() {
+  protected JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> createAdapterForSnapshot() {
     return MoshiHelper.createMoshiSnapshot()
-        .adapter(Types.newParameterizedType(List.class, SnapshotSink.IntakeRequest.class));
+        .adapter(
+            Types.newParameterizedType(List.class, JsonSnapshotSerializer.IntakeRequest.class));
   }
 
   protected void setCurrentConfiguration(Configuration configuration) {
@@ -212,21 +220,26 @@ public abstract class BaseIntegrationTest {
   }
 
   protected Configuration createConfig(Collection<SnapshotProbe> snapshotProbes) {
-    return new Configuration(getAppId(), 2, snapshotProbes);
+    return new Configuration(getAppId(), snapshotProbes);
   }
 
   protected Configuration createConfig(
       Collection<SnapshotProbe> snapshotProbes,
       Configuration.FilterList allowList,
       Configuration.FilterList denyList) {
-    return new Configuration(getAppId(), 2, snapshotProbes, null, allowList, denyList, null, null);
+    return new Configuration(getAppId(), snapshotProbes, null, null, allowList, denyList, null);
   }
 
   protected void assertCaptureArgs(
       Snapshot.CapturedContext context, String name, String typeName, String value) {
     Snapshot.CapturedValue capturedValue = context.getArguments().get(name);
     assertEquals(typeName, capturedValue.getType());
-    assertEquals(value, capturedValue.getValue());
+    Object objValue = capturedValue.getValue();
+    if (objValue.getClass().isArray()) {
+      assertEquals(value, Arrays.toString((Object[]) objValue));
+    } else {
+      assertEquals(value, String.valueOf(objValue));
+    }
   }
 
   protected void assertCaptureLocals(
@@ -236,24 +249,6 @@ public abstract class BaseIntegrationTest {
     assertEquals(value, localVar.getValue());
   }
 
-  protected void assertCaptureFields(
-      Snapshot.CapturedContext context, String name, String typeName, String value) {
-    Snapshot.CapturedValue field = context.getFields().get(name);
-    assertEquals(typeName, field.getType());
-    assertEquals(value, field.getValue());
-  }
-
-  protected void assertCaptureFieldsRegEx(
-      Snapshot.CapturedContext context, String name, String typeName, String regExValue) {
-    Snapshot.CapturedValue field = context.getFields().get(name);
-    assertEquals(typeName, field.getType());
-    assertTrue(field.getValue(), Pattern.matches(regExValue, field.getValue()));
-  }
-
-  protected void assertCaptureFieldCount(Snapshot.CapturedContext context, int expectedFieldCount) {
-    assertEquals(expectedFieldCount, context.getFields().size());
-  }
-
   protected void assertCaptureReturnValue(
       Snapshot.CapturedContext context, String typeName, String value) {
     Snapshot.CapturedValue returnValue = context.getLocals().get("@return");
@@ -261,24 +256,31 @@ public abstract class BaseIntegrationTest {
     assertEquals(value, returnValue.getValue());
   }
 
-  protected void assertCaptureReturnValueRegEx(
-      Snapshot.CapturedContext context, String typeName, String regex) {
-    Snapshot.CapturedValue returnValue = context.getLocals().get("@return");
-    assertEquals(typeName, returnValue.getType());
-    assertTrue(returnValue.getValue(), Pattern.matches(regex, returnValue.getValue()));
-  }
-
-  protected void assertCaptureThrowable(
-      Snapshot.CapturedContext context, String typeName, String message) {
-    Snapshot.CapturedThrowable throwable = context.getThrowable();
-    assertCaptureThrowable(throwable, typeName, message);
-  }
-
   protected void assertCaptureThrowable(
       Snapshot.CapturedThrowable throwable, String typeName, String message) {
     assertNotNull(throwable);
     assertEquals(typeName, throwable.getType());
     assertEquals(message, throwable.getMessage());
+  }
+
+  protected static boolean logHasErrors(Path logFilePath, Function<String, Boolean> checker)
+      throws IOException {
+    long errorLines =
+        Files.lines(logFilePath)
+            .filter(
+                it ->
+                    it.contains(" ERROR ")
+                        || it.contains("ASSERTION FAILED")
+                        || it.contains("Error:")
+                        || checker.apply(it))
+            .peek(System.out::println)
+            .count();
+    boolean hasErrors = errorLines > 0;
+    if (hasErrors) {
+      System.out.println(
+          "Test application log is containing errors. See full run logs in " + logFilePath);
+    }
+    return hasErrors;
   }
 
   private static class MockDispatcher extends okhttp3.mockwebserver.QueueDispatcher {

@@ -4,6 +4,7 @@ import static com.datadog.debugger.agent.Trie.reverseStr;
 import static com.datadog.debugger.agent.TypeNameHelper.extractSimpleName;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.probe.ProbeDefinition;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -24,8 +25,8 @@ import org.slf4j.LoggerFactory;
 public class ConfigurationComparer {
   private static final Logger LOGGER = LoggerFactory.getLogger(ConfigurationComparer.class);
 
-  private Configuration originalConfiguration;
-  private Configuration incomingConfiguration;
+  private final Configuration originalConfiguration;
+  private final Configuration incomingConfiguration;
 
   private final List<ProbeDefinition> addedDefinitions;
   private final List<ProbeDefinition> removedDefinitions;
@@ -172,16 +173,15 @@ public class ConfigurationComparer {
         new AllowListHelper(originalConfiguration.getAllowList());
     DenyListHelper originalDenyListHelper = new DenyListHelper(originalConfiguration.getDenyList());
 
-    AllowListHelper incommingAllowListHelper =
+    AllowListHelper incomingAllowListHelper =
         new AllowListHelper(incomingConfiguration.getAllowList());
-    DenyListHelper incommingDenyListHelper =
-        new DenyListHelper(incomingConfiguration.getDenyList());
+    DenyListHelper incomingDenyListHelper = new DenyListHelper(incomingConfiguration.getDenyList());
 
     List<String> changedTypes = new ArrayList();
 
     for (InstrumentationResult result : instrumentationResults.values()) {
       boolean originalAllowed = true;
-      boolean incommingAllowed = true;
+      boolean incomingAllowed = true;
       String typeName = result.getTypeName();
 
       if (originalDenyListHelper.isDenied(typeName)) {
@@ -193,16 +193,16 @@ public class ConfigurationComparer {
         originalAllowed = false;
       }
 
-      if (incommingDenyListHelper.isDenied(typeName)) {
+      if (incomingDenyListHelper.isDenied(typeName)) {
         LOGGER.debug("type {} will be denied", typeName);
-        incommingAllowed = false;
-      } else if (!incommingAllowListHelper.isAllowAll()
-          && !incommingAllowListHelper.isAllowed(typeName)) {
+        incomingAllowed = false;
+      } else if (!incomingAllowListHelper.isAllowAll()
+          && !incomingAllowListHelper.isAllowed(typeName)) {
         LOGGER.debug("type {} will not be allowed", typeName);
-        incommingAllowed = false;
+        incomingAllowed = false;
       }
 
-      if (incommingAllowed != originalAllowed) {
+      if (incomingAllowed != originalAllowed) {
         changedTypes.add(typeName);
       }
     }

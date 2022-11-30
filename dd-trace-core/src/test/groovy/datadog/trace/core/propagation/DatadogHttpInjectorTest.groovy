@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation
 
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpanContext
@@ -22,9 +23,9 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     def tracer = tracerBuilder().writer(writer).build()
     final DDSpanContext mockedContext =
       new DDSpanContext(
-      DDId.from(traceId),
-      DDId.from(spanId),
-      DDId.ZERO,
+      DDTraceId.from(traceId),
+      DDSpanId.from(spanId),
+      DDSpanId.ZERO,
       null,
       "fakeService",
       "fakeOperation",
@@ -35,7 +36,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDId.ONE),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,
@@ -78,9 +79,9 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     def tracer = tracerBuilder().writer(writer).build()
     final DDSpanContext mockedContext =
       new DDSpanContext(
-      DDId.from("1"),
-      DDId.from("2"),
-      DDId.ZERO,
+      DDTraceId.from("1"),
+      DDSpanId.from("2"),
+      DDSpanId.ZERO,
       null,
       "fakeService",
       "fakeOperation",
@@ -91,7 +92,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDId.ONE),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,
@@ -125,9 +126,9 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     def tracer = tracerBuilder().writer(writer).build()
     final DDSpanContext mockedContext =
       new DDSpanContext(
-      DDId.from("1"),
-      DDId.from("2"),
-      DDId.ZERO,
+      DDTraceId.from("1"),
+      DDSpanId.from("2"),
+      DDSpanId.ZERO,
       null,
       "fakeService",
       "fakeOperation",
@@ -138,7 +139,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDId.ONE),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,

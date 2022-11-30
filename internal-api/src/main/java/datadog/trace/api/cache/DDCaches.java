@@ -21,6 +21,16 @@ public final class DDCaches {
   }
 
   /**
+   * Specialized fixed-size cache that uses {@link System#identityHashCode} for key hashing and
+   * equality.
+   *
+   * @see #newFixedSizeCache(int)
+   */
+  public static <K, V> DDCache<K, V> newFixedSizeIdentityCache(final int capacity) {
+    return new FixedSizeCache.IdentityHash<>(capacity);
+  }
+
+  /**
    * Specialized fixed-size cache that uses {@link java.util.Arrays} for key hashing and equality.
    *
    * @see #newFixedSizeCache(int)
