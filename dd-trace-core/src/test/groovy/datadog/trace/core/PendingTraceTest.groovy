@@ -6,7 +6,6 @@ import datadog.trace.api.time.TimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.propagation.DatadogTags
-import spock.lang.Ignore
 import spock.lang.Timeout
 
 import java.util.concurrent.TimeUnit
