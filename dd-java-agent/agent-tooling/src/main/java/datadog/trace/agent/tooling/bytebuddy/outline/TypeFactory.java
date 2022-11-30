@@ -147,6 +147,13 @@ final class TypeFactory {
     createOutlines = false;
   }
 
+  /** Temporarily turn off full description parsing; returns {@code true} if it was enabled. */
+  boolean disableFullDescriptions() {
+    boolean wasEnabled = !createOutlines;
+    createOutlines = true;
+    return wasEnabled;
+  }
+
   /** Cleans-up local caches to minimise memory use once we're done with the type-factory. */
   void endTransform() {
     if (null == targetName) {

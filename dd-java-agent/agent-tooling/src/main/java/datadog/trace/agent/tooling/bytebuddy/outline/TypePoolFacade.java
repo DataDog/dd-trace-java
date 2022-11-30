@@ -51,6 +51,11 @@ public final class TypePoolFacade implements TypePool, SharedTypePools.Supplier 
     typeFactory.get().enableFullDescriptions();
   }
 
+  /** Temporarily switch back to outlines, e.g. for last-minute memoization. */
+  public static boolean disableFullDescriptions() {
+    return typeFactory.get().disableFullDescriptions();
+  }
+
   @Override
   public void endTransform() {
     typeFactory.get().endTransform();
