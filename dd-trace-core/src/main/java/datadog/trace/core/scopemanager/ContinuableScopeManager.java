@@ -471,16 +471,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     protected ScopeStack initialValue() {
       return new ScopeStack(profilingContextIntegration);
     }
-
-    @Override
-    public void remove() {
-      detach();
-      super.remove();
-    }
-
-    private void detach() {
-      profilingContextIntegration.onDetach();
-    }
   }
 
   /**
@@ -600,13 +590,13 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
     /** Notifies context thread listeners that this thread has a context now */
     private void onBecomeNonEmpty() {
-      profilingContextIntegration.onAttach();
+      profilingContextIntegration.onAttach(nativeThreadId);
     }
 
     /** Notifies context thread listeners that this thread no longer has a context */
     private void onBecomeEmpty() {
       profilingContextIntegration.setContext(nativeThreadId, 0, 0);
-      profilingContextIntegration.onDetach();
+      profilingContextIntegration.onDetach(nativeThreadId);
     }
   }
 

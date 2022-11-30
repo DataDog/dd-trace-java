@@ -172,15 +172,15 @@ public final class AsyncProfiler {
             arch, os));
   }
 
-  void addCurrentThread() {
-    if (asyncProfiler != null) {
-      asyncProfiler.addThread(Thread.currentThread());
+  void addThread(int tid) {
+    if (asyncProfiler != null && tid >= 0) {
+      asyncProfiler.addThread(tid);
     }
   }
 
-  void removeCurrentThread() {
-    if (asyncProfiler != null) {
-      asyncProfiler.removeThread(Thread.currentThread());
+  void removeThread(int tid) {
+    if (asyncProfiler != null && tid >= 0) {
+      asyncProfiler.removeThread(tid);
     }
   }
 
@@ -408,7 +408,7 @@ public final class AsyncProfiler {
   }
 
   public void setContext(int tid, long spanId, long rootSpanId) {
-    if (asyncProfiler != null) {
+    if (asyncProfiler != null && tid >= 0) {
       try {
         asyncProfiler.setContext(tid, spanId, rootSpanId);
       } catch (IllegalStateException e) {
