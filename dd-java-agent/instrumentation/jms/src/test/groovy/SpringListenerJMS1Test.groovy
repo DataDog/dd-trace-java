@@ -16,18 +16,18 @@
 
 
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.test.util.Flaky
 import listener.Config
 import org.apache.activemq.junit.EmbeddedActiveMQBroker
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.jms.core.JmsTemplate
-import spock.lang.Retry
 
 import javax.jms.ConnectionFactory
 
 import static JMS1Test.consumerTrace
 import static JMS1Test.producerTrace
 
-@Retry
+@Flaky
 class SpringListenerJMS1Test extends AgentTestRunner {
 
   def "receiving message in spring listener generates spans"() {

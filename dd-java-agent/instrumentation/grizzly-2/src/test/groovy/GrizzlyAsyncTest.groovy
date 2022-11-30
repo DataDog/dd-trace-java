@@ -24,6 +24,12 @@ class GrizzlyAsyncTest extends GrizzlyTest {
     return AsyncServiceResource
   }
 
+  @Override
+  boolean testBlocking() {
+    // @Flaky("'test blocking of request with json response' is flaky")
+    false
+  }
+
   @Path("/")
   static class AsyncServiceResource {
     private ExecutorService executor = Executors.newSingleThreadExecutor()

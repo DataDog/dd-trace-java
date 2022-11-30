@@ -1,10 +1,12 @@
 package mule4
 
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.test.util.Flaky
 import spock.lang.Shared
 
 import static mule4.MuleTestApplicationConstants.*
 
+@Flaky("'test success with # requests' is flaky, but there is no way to mark that one alone")
 class MuleHttpServerForkedTest extends HttpServerTest<MuleTestContainer> {
 
   // TODO since mule uses reactor core, things sometime propagate to places where they're not closed
