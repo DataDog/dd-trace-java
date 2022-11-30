@@ -27,6 +27,10 @@ public final class TypePoolFacade implements TypePool, SharedTypePools.Supplier 
     typeFactory.get().switchContext(classLoader);
   }
 
+  public static ClassLoader currentContext() {
+    return typeFactory.get().currentContext();
+  }
+
   @Override
   public void annotationOfInterest(String name) {
     AnnotationOutline.prepareAnnotationOutline(name);

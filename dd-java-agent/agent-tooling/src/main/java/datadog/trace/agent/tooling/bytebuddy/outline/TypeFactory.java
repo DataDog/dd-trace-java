@@ -106,6 +106,10 @@ final class TypeFactory {
     }
   }
 
+  ClassLoader currentContext() {
+    return classLoader;
+  }
+
   void beginInstall() {
     installing = true;
   }
