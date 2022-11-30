@@ -667,8 +667,13 @@ jobs:
 
       - run:
           name: Run pitest
-          command: |
-            ./gradlew :dd-java-agent:agent-iast:pitest :dd-java-agent:appsec:pitest :telemetry:pitest
+          command: >-
+            MAVEN_OPTS="-Xms64M -Xmx512M"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx2G -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
+            ./gradlew
+            :dd-java-agent:agent-iast:pitest
+            :dd-java-agent:appsec:pitest
+            :telemetry:pitest
 
       - run:
           name: Collect Reports
