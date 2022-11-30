@@ -21,8 +21,8 @@ class PendingTraceTest extends PendingTraceTestBase {
   protected DDSpan createSimpleSpan(PendingTrace trace){
     return new DDSpan((long)0,new DDSpanContext(
       DDTraceId.from(1),
-      DDTraceId.from(1),
-      DDTraceId.ZERO,
+      1,
+      0,
       null,
       "",
       "",
@@ -64,7 +64,6 @@ class PendingTraceTest extends PendingTraceTestBase {
     writer == [[rootSpan]]
     writer.traceCount.get() == 1
   }
-  @Ignore
   def "verify healthmetrics called"() {
     setup:
     def tracer = Mock(CoreTracer)
