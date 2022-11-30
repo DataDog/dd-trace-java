@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.*;
 import java.lang.instrument.Instrumentation;
 import net.bytebuddy.agent.Installer;
 import net.bytebuddy.agent.builder.AgentBuilder;
+import net.bytebuddy.asm.Advice;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.dynamic.Transformer;
 
@@ -15,6 +16,7 @@ public class TestAgent {
 
   private static final String INST_CONFIG = "datadog.trace.api.InstrumenterConfig";
   private static final String CONFIG = "datadog.trace.api.Config";
+  private static final String SPUTNIK = "org.spockframework.runtime.Sputnik";
 
   public static void premain(final String agentArgs, final Instrumentation inst) {
     new AgentBuilder.Default()
@@ -33,6 +35,13 @@ public class TestAgent {
                 builder
                     .field(named("INSTANCE"))
                     .transform(Transformer.ForField.withModifiers(PUBLIC, STATIC, VOLATILE)))
+        // Shadows AgentTestRunner-based test classes before running.
+        .type(named(SPUTNIK))
+        .transform(
+            (builder, typeDescription, classLoader, module, pd) ->
+                builder
+                    .constructor(takesArguments(Class.class))
+                    .intercept(Advice.to(SputnikAdvice.class)))
         .installOn(inst);
     Installer.premain(agentArgs, inst);
   }
