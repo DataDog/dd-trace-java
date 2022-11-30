@@ -652,6 +652,32 @@ jobs:
           path: system-tests/logs
           destination: logs_java_<< parameters.weblog-variant >>_dev.tar.gz
 
+  pitest:
+    <<: *defaults
+    resource_class: large
+
+    steps:
+      - setup_code
+
+      - restore_cache:
+          <<: *dependency_cache_keys
+
+      - restore_cache:
+          <<: *build_cache_keys
+
+      - run:
+          name: Run pitest
+          command: |
+            ./gradlew :dd-java-agent:agent-iast:pitest :dd-java-agent:appsec:pitest :telemetry:pitest
+
+      - run:
+          name: Collect Reports
+          command: .circleci/collect_reports.sh
+
+      - store_artifacts:
+          path: ./reports
+
+
 build_test_jobs: &build_test_jobs
   - build
 
@@ -825,6 +851,11 @@ build_test_jobs: &build_test_jobs
         - build
       matrix:
           <<: *system_test_matrix
+
+  - pitest:
+      requires:
+        - build
+
   - fan_in:
       requires:
         - test_published_artifacts
