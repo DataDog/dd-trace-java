@@ -1,3 +1,0 @@
-app_env_no_admission_controller:
-  - name: JAVA_TOOL_OPTIONS
-    value: '-javaagent:/datadog-lib/dd-java-agent.jar'
