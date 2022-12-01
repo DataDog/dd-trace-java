@@ -63,7 +63,7 @@ jobs:
 
   injection-tests:
     needs:
-      - lib-injection-image-build
+      - build-and-publish-init-image
     runs-on: ubuntu-latest
     permissions:
       contents: read
