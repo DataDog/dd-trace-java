@@ -132,7 +132,7 @@ public class SnapshotProbe extends ProbeDefinition {
         true,
         null,
         new Where(),
-        MethodLocation.NONE,
+        MethodLocation.DEFAULT,
         null,
         null,
         null);

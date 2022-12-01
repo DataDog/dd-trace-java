@@ -10,6 +10,7 @@ import static datadog.trace.instrumentation.apachehttpclient5.HttpHeadersInjectA
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import org.apache.hc.client5.http.classic.HttpClient;
 import org.apache.hc.core5.http.HttpRequest;
 import org.apache.hc.core5.http.HttpResponse;
@@ -23,6 +24,8 @@ public class HelperMethods {
     DECORATE.onRequest(span, request);
 
     propagate().inject(span, request, SETTER);
+    propagate()
+        .injectPathwayContext(span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
     return scope;
   }
 

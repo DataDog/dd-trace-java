@@ -81,7 +81,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
 
       AgentSpan.Context context =
           InstrumentationContext.get(ILoggingEvent.class, AgentSpan.Context.class).get(event);
-      boolean mdcTagsInjectionEnabled = Config.get().isLogsMDCTagsInjectionEnabled();
+      boolean mdcTagsInjectionEnabled = InstrumenterConfig.get().isLogsMDCTagsInjectionEnabled();
 
       // Nothing to add so return early
       if (context == null && !mdcTagsInjectionEnabled) {

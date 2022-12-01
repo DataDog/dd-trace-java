@@ -3,6 +3,7 @@ package com.datadog.appsec.config
 import com.datadog.appsec.AppSecSystem
 import com.datadog.appsec.util.AbortStartupException
 import datadog.remoteconfig.ConfigurationChangesListener
+import datadog.remoteconfig.ConfigurationChangesTypedListener
 import datadog.remoteconfig.ConfigurationDeserializer
 import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.Product
@@ -90,13 +91,13 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     AppSecModuleConfigurer.SubconfigListener wafDataListener = Mock()
     AppSecModuleConfigurer.SubconfigListener wafRulesOverrideListener = Mock()
     ConfigurationDeserializer<AppSecConfig> savedConfDeserializer
-    ConfigurationChangesListener<AppSecConfig> savedConfChangesListener
+    ConfigurationChangesTypedListener<AppSecConfig> savedConfChangesListener
     ConfigurationDeserializer<List<Map<String, Object>>> savedWafDataDeserializer
-    ConfigurationChangesListener<List<Map<String, Object>>> savedWafDataChangesListener
+    ConfigurationChangesTypedListener<List<Map<String, Object>>> savedWafDataChangesListener
     ConfigurationDeserializer<Map<String, Boolean>> savedWafRulesOverrideDeserializer
-    ConfigurationChangesListener<Map<String, Boolean>> savedWafRulesOverrideListener
+    ConfigurationChangesTypedListener<Map<String, Boolean>> savedWafRulesOverrideListener
     ConfigurationDeserializer<AppSecFeatures> savedFeaturesDeserializer
-    ConfigurationChangesListener<AppSecFeatures> savedFeaturesListener
+    ConfigurationChangesTypedListener<AppSecFeatures> savedFeaturesListener
     def initialWafConfig
     def initialWafData
     def initialRulesOverride
@@ -239,7 +240,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
   void 'error in one listener does not prevent others from running'() {
     AppSecModuleConfigurer.SubconfigListener fooListener = Mock()
     ConfigurationDeserializer<AppSecConfig> savedConfDeserializer
-    ConfigurationChangesListener<AppSecConfig> savedConfChangesListener
+    ConfigurationChangesTypedListener<AppSecConfig> savedConfChangesListener
 
     when:
     def configurer = appSecConfigService.createAppSecModuleConfigurer()

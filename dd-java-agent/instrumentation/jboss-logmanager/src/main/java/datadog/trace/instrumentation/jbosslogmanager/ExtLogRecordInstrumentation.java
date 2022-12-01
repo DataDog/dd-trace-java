@@ -140,7 +140,7 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing
 
       AgentSpan.Context context =
           InstrumentationContext.get(ExtLogRecord.class, AgentSpan.Context.class).get(record);
-      boolean mdcTagsInjectionEnabled = Config.get().isLogsMDCTagsInjectionEnabled();
+      boolean mdcTagsInjectionEnabled = InstrumenterConfig.get().isLogsMDCTagsInjectionEnabled();
 
       // Nothing to add so return early
       if (context == null && !mdcTagsInjectionEnabled) {

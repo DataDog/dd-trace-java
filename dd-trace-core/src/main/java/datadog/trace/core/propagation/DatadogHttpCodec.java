@@ -21,13 +21,13 @@ import org.slf4j.LoggerFactory;
 class DatadogHttpCodec {
   private static final Logger log = LoggerFactory.getLogger(DatadogHttpCodec.class);
 
-  private static final String OT_BAGGAGE_PREFIX = "ot-baggage-";
-  private static final String TRACE_ID_KEY = "x-datadog-trace-id";
-  private static final String SPAN_ID_KEY = "x-datadog-parent-id";
-  private static final String SAMPLING_PRIORITY_KEY = "x-datadog-sampling-priority";
-  private static final String ORIGIN_KEY = "x-datadog-origin";
+  static final String OT_BAGGAGE_PREFIX = "ot-baggage-";
+  static final String TRACE_ID_KEY = "x-datadog-trace-id";
+  static final String SPAN_ID_KEY = "x-datadog-parent-id";
+  static final String SAMPLING_PRIORITY_KEY = "x-datadog-sampling-priority";
+  static final String ORIGIN_KEY = "x-datadog-origin";
   private static final String E2E_START_KEY = OT_BAGGAGE_PREFIX + DDTags.TRACE_START_TIME;
-  private static final String DATADOG_TAGS_KEY = "x-datadog-tags";
+  static final String DATADOG_TAGS_KEY = "x-datadog-tags";
 
   private DatadogHttpCodec() {
     // This class should not be created. This also makes code coverage checks happy.
@@ -167,23 +167,22 @@ class DatadogHttpCodec {
       }
       if (classification != IGNORE) {
         try {
-          String firstValue = firstHeaderValue(value);
-          if (null != firstValue) {
+          if (null != value) {
             switch (classification) {
               case TRACE_ID:
-                traceId = DDTraceId.from(firstValue);
+                traceId = DDTraceId.from(firstHeaderValue(value));
                 break;
               case SPAN_ID:
-                spanId = DDSpanId.from(firstValue);
+                spanId = DDSpanId.from(firstHeaderValue(value));
                 break;
               case ORIGIN:
-                origin = firstValue;
+                origin = firstHeaderValue(value);
                 break;
               case SAMPLING_PRIORITY:
-                samplingPriority = Integer.parseInt(firstValue);
+                samplingPriority = Integer.parseInt(firstHeaderValue(value));
                 break;
               case E2E_START:
-                endToEndStartTime = extractEndToEndStartTime(firstValue);
+                endToEndStartTime = extractEndToEndStartTime(firstHeaderValue(value));
                 break;
               case DD_TAGS:
                 datadogTags = datadogTagsFactory.fromHeaderValue(value);

@@ -8,7 +8,7 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import org.cassandraunit.utils.EmbeddedCassandraServerHelper
+import org.testcontainers.containers.CassandraContainer
 import spock.lang.Shared
 import spock.util.concurrent.BlockingVariable
 
@@ -36,17 +36,14 @@ class CassandraClientTest extends AgentTestRunner {
   @Shared
   InetSocketAddress address
 
-  def setupSpec() {
-    /*
-     This timeout seems excessive but we've seen tests fail with timeout of 40s.
-     TODO: if we continue to see failures we may want to consider using 'real' Cassandra
-     started in container like we do for memcached. Note: this will complicate things because
-     tests would have to assume they run under shared Cassandra and act accordingly.
-     */
-    EmbeddedCassandraServerHelper.startEmbeddedCassandra(EmbeddedCassandraServerHelper.CASSANDRA_RNDPORT_YML_FILE, 120000L)
+  @Shared
+  CassandraContainer container
 
-    port = EmbeddedCassandraServerHelper.getNativeTransportPort()
-    address = new InetSocketAddress(EmbeddedCassandraServerHelper.getHost(), port)
+  def setupSpec() {
+    container = new CassandraContainer("cassandra:4").withStartupTimeout(Duration.ofSeconds(120))
+    container.start()
+    port = container.getMappedPort(9042)
+    address = new InetSocketAddress("127.0.0.1", port)
 
     runUnderTrace("setup") {
       Session session = sessionBuilder().build()
@@ -60,7 +57,7 @@ class CassandraClientTest extends AgentTestRunner {
   }
 
   def cleanupSpec() {
-    EmbeddedCassandraServerHelper.cleanEmbeddedCassandra()
+    container?.stop()
   }
 
   def "test sync"() {

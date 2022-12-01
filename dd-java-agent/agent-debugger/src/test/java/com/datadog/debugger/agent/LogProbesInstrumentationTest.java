@@ -33,9 +33,6 @@ import org.junit.jupiter.api.Test;
 public class LogProbesInstrumentationTest {
   private static final String LANGUAGE = "java";
   private static final String LOG_ID = "beae1807-f3b0-4ea8-a74f-826790c5e6f8";
-  private static final String LOG_ID1 = "beae1807-f3b0-4ea8-a74f-826790c5e6f6";
-  private static final String LOG_ID2 = "beae1807-f3b0-4ea8-a74f-826790c5e6f7";
-  private static final long ORG_ID = 2;
   private static final String SERVICE_NAME = "service-name";
 
   private Instrumentation instr = ByteBuddyAgent.install();
@@ -71,6 +68,19 @@ public class LogProbesInstrumentationTest {
     Assert.assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertEquals("this is log line with arg=1", snapshot.getSummary());
+  }
+
+  @Test
+  public void methodTemplateArgLogEvaluateAtExit() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installSingleProbe(
+            "this is log line with return={@return}", CLASS_NAME, "main", "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    Assert.assertEquals(3, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertEquals("this is log line with return=3", snapshot.getSummary());
   }
 
   @Test
@@ -149,7 +159,7 @@ public class LogProbesInstrumentationTest {
       String template, String typeName, String methodName, String signature, String... lines) {
     LogProbe logProbe = createProbe(LOG_ID, template, typeName, methodName, signature, lines);
     return installProbes(
-        typeName, new Configuration(SERVICE_NAME, ORG_ID, null, null, Arrays.asList(logProbe)));
+        typeName, Configuration.builder().setService(SERVICE_NAME).add(logProbe).build());
   }
 
   private static LogProbe createProbe(
@@ -226,6 +236,7 @@ public class LogProbesInstrumentationTest {
         return new Snapshot.ProbeDetails(
             id,
             location,
+            Snapshot.MethodLocation.DEFAULT,
             null,
             probe.concatTags(),
             new LogMessageTemplateSummaryBuilder(probe),
@@ -235,6 +246,7 @@ public class LogProbesInstrumentationTest {
                         new Snapshot.ProbeDetails(
                             relatedProbe.getId(),
                             location,
+                            Snapshot.MethodLocation.DEFAULT,
                             relatedProbe instanceof SnapshotProbe
                                 ? ((SnapshotProbe) relatedProbe).getProbeCondition()
                                 : null,

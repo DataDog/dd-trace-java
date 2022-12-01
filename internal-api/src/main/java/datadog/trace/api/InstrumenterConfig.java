@@ -28,6 +28,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_E
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_OUTLINE_POOL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_OUTLINE_POOL_SIZE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_RESET_INTERVAL;
@@ -62,6 +63,7 @@ public class InstrumenterConfig {
 
   private final boolean traceEnabled;
   private final boolean logsInjectionEnabled;
+  private final boolean logsMDCTagsInjectionEnabled;
   private final boolean profilingEnabled;
   private final boolean ciVisibilityEnabled;
   private final ProductActivation appSecActivation;
@@ -109,6 +111,7 @@ public class InstrumenterConfig {
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     logsInjectionEnabled =
         configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
+    logsMDCTagsInjectionEnabled = configProvider.getBoolean(LOGS_MDC_TAGS_INJECTION_ENABLED, true);
     profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT);
     ciVisibilityEnabled =
         configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
@@ -190,6 +193,10 @@ public class InstrumenterConfig {
     return logsInjectionEnabled;
   }
 
+  public boolean isLogsMDCTagsInjectionEnabled() {
+    return logsMDCTagsInjectionEnabled && !Platform.isNativeImageBuilder();
+  }
+
   public boolean isProfilingEnabled() {
     return profilingEnabled;
   }
@@ -267,7 +274,7 @@ public class InstrumenterConfig {
   }
 
   public int getResolverResetInterval() {
-    return resolverResetInterval;
+    return Platform.isNativeImageBuilder() ? 0 : resolverResetInterval;
   }
 
   public boolean isRuntimeContextFieldInjection() {
@@ -317,6 +324,8 @@ public class InstrumenterConfig {
         + traceEnabled
         + ", logsInjectionEnabled="
         + logsInjectionEnabled
+        + ", logsMDCTagsInjectionEnabled="
+        + logsMDCTagsInjectionEnabled
         + ", profilingEnabled="
         + profilingEnabled
         + ", ciVisibilityEnabled="
