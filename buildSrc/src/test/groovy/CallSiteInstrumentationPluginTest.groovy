@@ -92,7 +92,7 @@ class CallSiteInstrumentationPluginTest extends Specification {
   private static void createGradleProject(final File buildDir, final String gradleFile, final String advice) {
     final projectFolder = new File(System.getProperty('user.dir')).parentFile
     final callSiteJar = resolve(projectFolder, 'buildSrc', 'call-site-instrumentation-plugin')
-    final gradleFileContent = gradleFile.replace('$$ROOT_FOLDER$$', projectFolder.toString())
+    final gradleFileContent = gradleFile.replace('$$ROOT_FOLDER$$', projectFolder.toString().replace("\\","\\\\"))
 
     final buildGradle = resolve(buildDir, 'build.gradle')
     buildGradle.text = gradleFileContent

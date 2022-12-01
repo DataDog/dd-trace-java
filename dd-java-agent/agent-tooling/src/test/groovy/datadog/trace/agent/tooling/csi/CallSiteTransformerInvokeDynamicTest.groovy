@@ -2,8 +2,6 @@ package datadog.trace.agent.tooling.csi
 
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteTransformer
 import datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode
-import datadog.trace.api.function.Consumer
-import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
 import net.bytebuddy.jar.asm.Handle
@@ -12,6 +10,9 @@ import net.bytebuddy.jar.asm.Type
 import org.spockframework.runtime.ConditionNotSatisfiedError
 import spock.lang.Requires
 import datadog.trace.agent.tooling.csi.CallSiteAdvice.MethodHandler
+
+import java.util.function.Consumer
+import java.util.function.Supplier
 
 import static datadog.trace.agent.tooling.csi.CallSiteAdvice.HasFlags.COMPUTE_MAX_STACK
 import static datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode.APPEND_ARRAY

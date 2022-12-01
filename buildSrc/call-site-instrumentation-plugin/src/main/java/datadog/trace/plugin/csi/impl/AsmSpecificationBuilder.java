@@ -78,6 +78,7 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
     private final List<AdviceSpecification> advices = new ArrayList<>();
     private final Set<Type> helpers = new HashSet<>();
     private Type spi = classNameToType(CALL_SITE_ADVICE_CLASS); // default annotation value
+    private int minJavaVersion = -1;
     private CallSiteSpecification result;
 
     public SpecificationVisitor() {
@@ -105,6 +106,8 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
           public void visit(final String key, final Object value) {
             if ("spi".equals(key)) {
               spi = (Type) value;
+            } else if ("minJavaVersion".equals(key)) {
+              minJavaVersion = (int) value;
             }
           }
 
@@ -141,7 +144,7 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
     @Override
     public void visitEnd() {
       if (isCallSite) {
-        result = new CallSiteSpecification(clazz, advices, spi, helpers);
+        result = new CallSiteSpecification(clazz, advices, spi, minJavaVersion, helpers);
       }
     }
 
@@ -239,15 +242,19 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
                 parameters.values().stream()
                     .filter(it -> it instanceof ArgumentSpecification)
                     .count();
-            ((ArgumentSpecification) parameterSpec).setIndex((int) index);
+            ((ArgumentSpecification) parameterSpec)
+                .setIndex((int) index); // can change in annotation visitor
           }
           parameters.put(parameter, parameterSpec);
+
           return new AnnotationVisitor(ASM_API_VERSION) {
             @Override
             public void visit(final String key, final Object value) {
               if ("includeThis".equals(key) && parameterSpec instanceof AllArgsSpecification) {
                 final AllArgsSpecification allArgs = (AllArgsSpecification) parameterSpec;
                 allArgs.setIncludeThis((boolean) value);
+              } else if ("value".equals(key) && parameterSpec instanceof ArgumentSpecification) {
+                ((ArgumentSpecification) parameterSpec).setIndex((Integer) value);
               }
             }
           };

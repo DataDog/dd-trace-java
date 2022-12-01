@@ -12,12 +12,14 @@ dependencies {
 
 def appDir = "$projectDir/application"
 def appBuildDir = "$buildDir/application"
+def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
+def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
 
 // define the task that builds the quarkus project
 tasks.register('webfluxBuild', Exec) {
   workingDir "$appDir"
   environment += ["GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'"]
-  commandLine "$rootDir/gradlew", "bootJar", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archivePath}"
+  commandLine "$rootDir/${gradlewCommand}", "bootJar", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archivePath}"
 
   outputs.cacheIf { true }
 
@@ -44,7 +46,7 @@ tasks.named("compileTestGroovy").configure {
 }
 
 tasks.withType(Test).configureEach {
-  jvmArgs "-Ddatadog.smoketest.webflux.uberJar.path=$appBuildDir/libs/webflux-2.7-smoketest-${version}.jar"
+  jvmArgs "-Ddatadog.smoketest.webflux.uberJar.path=$appBuildDir/libs/webflux-2.7-smoketest.jar"
 }
 
 spotless {

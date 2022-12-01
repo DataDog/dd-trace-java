@@ -13,7 +13,7 @@ import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.trace.api.Config;
-import datadog.trace.api.ProductActivationConfig;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.ActiveSubsystems;
@@ -50,8 +50,8 @@ public class AppSecSystem {
 
   private static void doStart(SubscriptionService gw, SharedCommunicationObjects sco) {
     final Config config = Config.get();
-    ProductActivationConfig appSecEnabledConfig = config.getAppSecEnabledConfig();
-    if (appSecEnabledConfig == ProductActivationConfig.FULLY_DISABLED) {
+    ProductActivation appSecEnabledConfig = config.getAppSecActivation();
+    if (appSecEnabledConfig == ProductActivation.FULLY_DISABLED) {
       log.debug("AppSec: disabled");
       return;
     }
@@ -61,7 +61,7 @@ public class AppSecSystem {
     EventDispatcher eventDispatcher = new EventDispatcher();
     REPLACEABLE_EVENT_PRODUCER.replaceEventProducerService(eventDispatcher);
 
-    ConfigurationPoller configurationPoller = (ConfigurationPoller) sco.configurationPoller(config);
+    ConfigurationPoller configurationPoller = sco.configurationPoller(config);
     // may throw and abort startup
     APP_SEC_CONFIG_SERVICE =
         new AppSecConfigServiceImpl(
@@ -81,7 +81,7 @@ public class AppSecSystem {
     loadModules(eventDispatcher);
     gatewayBridge.init();
 
-    setActive(appSecEnabledConfig == ProductActivationConfig.FULLY_ENABLED);
+    setActive(appSecEnabledConfig == ProductActivation.FULLY_ENABLED);
 
     APP_SEC_CONFIG_SERVICE.maybeSubscribeConfigPolling();
 

@@ -16,7 +16,7 @@ public abstract class AbstractStackWalker implements StackWalker {
 
   abstract <T> T doGetStack(Function<Stream<StackTraceElement>, T> consumer);
 
-  private static boolean isNotDatadogTraceStackElement(final StackTraceElement el) {
+  static boolean isNotDatadogTraceStackElement(final StackTraceElement el) {
     final String clazz = el.getClassName();
     return !clazz.startsWith("datadog.trace.") && !clazz.startsWith("com.datadog.iast.");
   }

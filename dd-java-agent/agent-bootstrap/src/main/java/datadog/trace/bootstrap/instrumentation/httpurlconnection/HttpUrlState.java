@@ -13,13 +13,7 @@ public class HttpUrlState {
 
   public static final String OPERATION_NAME = "http.request";
 
-  public static final ContextStore.Factory<HttpUrlState> FACTORY =
-      new ContextStore.Factory<HttpUrlState>() {
-        @Override
-        public HttpUrlState create() {
-          return new HttpUrlState();
-        }
-      };
+  public static final ContextStore.Factory<HttpUrlState> FACTORY = HttpUrlState::new;
 
   private volatile AgentSpan span = null;
   private volatile boolean finished = false;

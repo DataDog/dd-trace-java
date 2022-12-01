@@ -42,6 +42,6 @@ dependencies {
   testImplementation group: 'org.apache.activemq', name: 'activemq-pool', version: '5.14.5'
   testImplementation group: 'org.apache.activemq', name: 'activemq-broker', version: '5.14.5'
 
-  latestDepTestImplementation group: 'org.springframework', name: 'spring-jms', version: '+'
-  latestDepTestImplementation group: 'org.springframework', name: 'spring-context', version: '+'
+  latestDepTestImplementation group: 'org.springframework', name: 'spring-jms', version: '5.+'
+  latestDepTestImplementation group: 'org.springframework', name: 'spring-context', version: '5.+'
 }

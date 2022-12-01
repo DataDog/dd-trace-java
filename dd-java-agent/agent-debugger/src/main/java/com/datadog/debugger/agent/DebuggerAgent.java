@@ -21,7 +21,6 @@ import java.lang.instrument.Instrumentation;
 import java.lang.ref.WeakReference;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +45,7 @@ public class DebuggerAgent {
     boolean isSnapshotUploadThroughAgent = Objects.equals(finalDebuggerSnapshotUrl, agentUrl);
 
     DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = sco.featuresDiscovery(config);
+    ddAgentFeaturesDiscovery.discoverIfOutdated();
     agentVersion = ddAgentFeaturesDiscovery.getVersion();
 
     if (isSnapshotUploadThroughAgent && !ddAgentFeaturesDiscovery.supportsDebugger()) {
@@ -83,9 +83,9 @@ public class DebuggerAgent {
       return;
     }
 
-    configurationPoller = (ConfigurationPoller) sco.configurationPoller(config);
+    configurationPoller = sco.configurationPoller(config);
     if (configurationPoller != null) {
-      subscribeConfigurationPoller(configurationUpdater);
+      subscribeConfigurationPoller(config, configurationUpdater);
 
       try {
         /*
@@ -117,7 +117,8 @@ public class DebuggerAgent {
         }
       } while (bytesRead > -1);
       Configuration configuration =
-          ConfigurationDeserializer.INSTANCE.deserialize(outputStream.toByteArray());
+          DebuggerProductChangesListener.Adapter.deserializeConfiguration(
+              outputStream.toByteArray());
       log.debug("Probe definitions loaded from file {}", probeFilePath);
       configurationUpdater.accept(configuration);
     } catch (IOException ex) {
@@ -125,14 +126,10 @@ public class DebuggerAgent {
     }
   }
 
-  private static void subscribeConfigurationPoller(ConfigurationUpdater configurationUpdater) {
+  private static void subscribeConfigurationPoller(
+      Config config, ConfigurationUpdater configurationUpdater) {
     configurationPoller.addListener(
-        Product.LIVE_DEBUGGING,
-        ConfigurationDeserializer.INSTANCE,
-        (configKey, newConfig, hinter) -> {
-          configurationUpdater.accept(newConfig);
-          // TODO: disable debugger
-        });
+        Product.LIVE_DEBUGGING, new DebuggerProductChangesListener(config, configurationUpdater));
   }
 
   static ClassFileTransformer setupInstrumentTheWorldTransformer(
@@ -143,7 +140,7 @@ public class DebuggerAgent {
     log.info("install Instrument-The-World transformer");
     DebuggerContext.init(sink, DebuggerAgent::instrumentTheWorldResolver, statsdMetricForwarder);
     DebuggerTransformer transformer =
-        createTransformer(config, new Configuration("", -1, Collections.emptyList()), null);
+        createTransformer(config, Configuration.builder().build(), null);
     instrumentation.addTransformer(transformer);
     return transformer;
   }

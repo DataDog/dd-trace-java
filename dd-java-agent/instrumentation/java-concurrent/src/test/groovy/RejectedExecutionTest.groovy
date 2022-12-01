@@ -1,5 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
 import datadog.trace.core.DDSpan
 import io.netty.util.concurrent.DefaultEventExecutor
 import io.netty.util.concurrent.DefaultThreadFactory
@@ -215,7 +215,7 @@ class RejectedExecutionTest extends AgentTestRunner {
     }
     assert parent != null
     assert child != null
-    assert parent.getParentId() == DDId.ZERO
+    assert parent.getParentId() == DDSpanId.ZERO
     assert parent.getSpanId() == child.getParentId()
     return true
   }

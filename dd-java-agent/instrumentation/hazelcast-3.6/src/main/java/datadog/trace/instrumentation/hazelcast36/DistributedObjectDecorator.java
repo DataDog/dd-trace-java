@@ -9,12 +9,12 @@ import com.hazelcast.core.DistributedObject;
 import datadog.trace.api.Pair;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import datadog.trace.util.Strings;
+import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +29,7 @@ public class DistributedObjectDecorator extends ClientDecorator {
       DDCaches.newFixedSizeCache(64);
 
   private static final Function<Pair<String, String>, String> COMPUTE_QUALIFIED_NAME =
+      // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
       new Function<Pair<String, String>, String>() {
         @Override
         public String apply(Pair<String, String> input) {

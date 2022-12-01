@@ -42,9 +42,12 @@
 1 java.*
 # allow exception profiling instrumentation
 0 java.lang.Throwable
+# allow ProcessImpl instrumentation
+0 java.lang.ProcessImpl
 0 java.net.HttpURLConnection
 0 java.net.URL
 0 java.nio.DirectByteBuffer
+0 java.nio.ByteBuffer
 0 java.rmi.*
 0 java.util.concurrent.*
 1 java.util.concurrent.ConcurrentHashMap*
@@ -79,6 +82,7 @@
 0 sun.net.www.protocol.https.*
 0 sun.rmi.server.*
 0 sun.rmi.transport.*
+0 sun.nio.ch.FileChannelImpl
 
 # -------- ADDITIONAL IGNORES --------
 

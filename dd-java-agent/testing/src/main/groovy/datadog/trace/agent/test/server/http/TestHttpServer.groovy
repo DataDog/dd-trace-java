@@ -366,7 +366,7 @@ class TestHttpServer implements AutoCloseable {
       if (isDDServer) {
         final AgentSpan.Context extractedContext = propagate().extract(req.orig, GETTER)
         if (extractedContext != null) {
-          startSpan("test-http-server", extractedContext, true)
+          startSpan("test-http-server", extractedContext)
             .setTag("path", request.path)
             .setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER).finish()
         } else {

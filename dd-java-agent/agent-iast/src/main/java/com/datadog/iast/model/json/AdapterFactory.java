@@ -4,12 +4,12 @@ import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityBatch;
+import com.datadog.iast.model.VulnerabilityType;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
-import datadog.trace.api.DDId;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
@@ -56,10 +56,10 @@ class AdapterFactory implements JsonAdapter.Factory {
       return null;
     } else if (VulnerabilityBatch.class.equals(rawType)) {
       return new VulnerabilityBatchAdapter(moshi);
-    } else if (DDId.class.equals(rawType)) {
-      return new DDIdAdapter();
     } else if (Evidence.class.equals(rawType)) {
       return new EvidenceAdapter();
+    } else if (VulnerabilityType.class.equals(rawType)) {
+      return new VulnerabilityTypeAdapter();
     }
     return null;
   }

@@ -227,6 +227,7 @@ public class TagInterceptor {
 
   private static boolean asBoolean(Object value) {
     return Boolean.TRUE.equals(value)
+        || "1".equals(value)
         || (!Boolean.FALSE.equals(value) && Boolean.parseBoolean(String.valueOf(value)));
   }
 

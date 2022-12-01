@@ -1,6 +1,7 @@
 package datadog.trace.core;
 
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext;
 import java.util.Collections;
@@ -35,15 +36,15 @@ public class PendingTraceWrite {
             .writer(new BlackholeWriter(blackhole, counters, tokens))
             .strictTraceWrites(false)
             .build();
-    DDId traceId = DDId.from(1);
+    DDTraceId traceId = DDTraceId.ONE;
     trace = tracer.createTrace(traceId);
     root =
         DDSpan.create(
             System.currentTimeMillis() * 1000,
             new DDSpanContext(
                 traceId,
-                DDId.from(2),
-                DDId.ZERO,
+                2,
+                DDSpanId.ZERO,
                 null,
                 "service",
                 "operation",
@@ -65,8 +66,8 @@ public class PendingTraceWrite {
             System.currentTimeMillis() * 1000,
             new DDSpanContext(
                 traceId,
-                DDId.from(3),
-                DDId.from(2),
+                3,
+                2,
                 null,
                 "service",
                 "operation",

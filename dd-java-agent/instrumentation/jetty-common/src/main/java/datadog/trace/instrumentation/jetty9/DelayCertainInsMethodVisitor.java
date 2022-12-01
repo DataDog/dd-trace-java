@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.jetty9;
 
-import datadog.trace.api.function.Function;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import net.bytebuddy.jar.asm.AnnotationVisitor;
 import net.bytebuddy.jar.asm.Handle;
 import net.bytebuddy.jar.asm.Label;

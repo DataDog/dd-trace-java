@@ -24,6 +24,7 @@ import org.objectweb.asm.tree.MethodNode;
 public class Instrumentor {
   protected static final String CONSTRUCTOR_NAME = "<init>";
 
+  protected final ProbeDefinition definition;
   protected final ClassLoader classLoader;
   protected final ClassNode classNode;
   protected final MethodNode methodNode;
@@ -33,8 +34,9 @@ public class Instrumentor {
   protected final LineMap lineMap = new LineMap();
   protected final LabelNode methodEnterLabel;
   protected int localVarBaseOffset;
-  protected int argOffset = 0;
+  protected int argOffset;
   protected final String[] argumentNames;
+  protected LabelNode returnHandlerLabel;
 
   public Instrumentor(
       ProbeDefinition definition,
@@ -42,6 +44,7 @@ public class Instrumentor {
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics) {
+    this.definition = definition;
     this.classLoader = classLoader;
     this.classNode = classNode;
     this.methodNode = methodNode;
@@ -130,6 +133,70 @@ public class Instrumentor {
       }
       node = node.getNext();
     }
+  }
+
+  protected void processInstructions() {
+    AbstractInsnNode node = methodNode.instructions.getFirst();
+    while (node != null && !node.equals(returnHandlerLabel)) {
+      if (node.getType() == AbstractInsnNode.LINE) {
+        lineMap.addLine((LineNumberNode) node);
+      } else {
+        node = processInstruction(node);
+      }
+      node = node.getNext();
+    }
+    if (returnHandlerLabel == null) {
+      // if no return found, fallback to use the last instruction as last resort
+      returnHandlerLabel = new LabelNode();
+      methodNode.instructions.insert(methodNode.instructions.getLast(), returnHandlerLabel);
+    }
+  }
+
+  protected AbstractInsnNode processInstruction(AbstractInsnNode node) {
+    switch (node.getOpcode()) {
+      case Opcodes.RET:
+      case Opcodes.RETURN:
+      case Opcodes.IRETURN:
+      case Opcodes.FRETURN:
+      case Opcodes.LRETURN:
+      case Opcodes.DRETURN:
+      case Opcodes.ARETURN:
+        {
+          InsnList beforeReturnInsnList = getBeforeReturnInsnList(node);
+          methodNode.instructions.insertBefore(node, beforeReturnInsnList);
+          AbstractInsnNode prev = node.getPrevious();
+          methodNode.instructions.remove(node);
+          methodNode.instructions.insert(
+              prev, new JumpInsnNode(Opcodes.GOTO, getReturnHandler(node)));
+          return prev;
+        }
+    }
+    return node;
+  }
+
+  protected InsnList getBeforeReturnInsnList(AbstractInsnNode node) {
+    return null;
+  }
+
+  protected LabelNode getReturnHandler(AbstractInsnNode exitNode) {
+    // exit node must have been removed from the original instruction list
+    if (exitNode.getNext() != null || exitNode.getPrevious() != null) {
+      throw new IllegalArgumentException("exitNode is not removed from original instruction list");
+    }
+    if (returnHandlerLabel != null) {
+      return returnHandlerLabel;
+    }
+    returnHandlerLabel = new LabelNode();
+    methodNode.instructions.add(returnHandlerLabel);
+    // stack top is return value (if any)
+    InsnList handler = getReturnHandlerInsnList();
+    handler.add(exitNode); // stack: []
+    methodNode.instructions.add(handler);
+    return returnHandlerLabel;
+  }
+
+  protected InsnList getReturnHandlerInsnList() {
+    return new InsnList();
   }
 
   protected static void invokeStatic(

@@ -72,14 +72,21 @@ public class ValueScript implements DebuggerScript {
   public static class ValueScriptAdapter extends JsonAdapter<ValueScript> {
     @Override
     public ValueScript fromJson(JsonReader jsonReader) throws IOException {
-      jsonReader.beginObject();
-      String fieldName = jsonReader.nextName();
-      if (fieldName.equals("expr")) {
+      if (jsonReader.peek() == JsonReader.Token.BEGIN_OBJECT) {
+        jsonReader.beginObject();
+        String fieldName = jsonReader.nextName();
+        if (fieldName.equals("expr")) {
+          Object obj = jsonReader.readJsonValue();
+          jsonReader.endObject();
+          return new ValueScript(obj);
+        } else {
+          throw new IOException("Invalid field: " + fieldName);
+        }
+      } else if (jsonReader.peek() == JsonReader.Token.STRING) {
         Object obj = jsonReader.readJsonValue();
-        jsonReader.endObject();
         return new ValueScript(obj);
       } else {
-        throw new IOException("Invalid field: " + fieldName);
+        throw new IOException("Invalid ValueScript format");
       }
     }
 

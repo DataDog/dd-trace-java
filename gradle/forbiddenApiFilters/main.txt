@@ -2,7 +2,6 @@
 java.lang.Class#forName(java.lang.String)
 
 # String methods which uses regexes for matching
-java.lang.String#replace(java.lang.CharSequence,java.lang.CharSequence)
 java.lang.String#split(java.lang.String)
 java.lang.String#split(java.lang.String,int)
 java.lang.String#replaceAll(java.lang.String,java.lang.String)
@@ -19,4 +18,6 @@ net.bytebuddy.matcher.ElementMatchers#declaresAnnotation(net.bytebuddy.matcher.E
 net.bytebuddy.matcher.ElementMatchers#isAnnotatedWith(net.bytebuddy.matcher.ElementMatcher)
 net.bytebuddy.matcher.ElementMatchers#inheritsAnnotation(net.bytebuddy.matcher.ElementMatcher)
 net.bytebuddy.matcher.ElementMatchers#hasAnnotation(net.bytebuddy.matcher.ElementMatcher)
+net.bytebuddy.matcher.ElementMatchers#isInterface()
+net.bytebuddy.matcher.ElementMatchers#isAbstract()
 

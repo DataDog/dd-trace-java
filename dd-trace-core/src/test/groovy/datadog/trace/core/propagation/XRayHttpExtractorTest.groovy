@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation
 
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
@@ -38,8 +39,8 @@ class XRayHttpExtractorTest extends DDSpecification {
     final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
 
     then:
-    context.traceId == DDId.fromHex("$traceId")
-    context.spanId == DDId.fromHex("$spanId")
+    context.traceId == DDTraceId.fromHex("$traceId")
+    context.spanId == DDSpanId.fromHex("$spanId")
     context.baggage == [
       "empty value" : ""
     ]
@@ -177,8 +178,8 @@ class XRayHttpExtractorTest extends DDSpecification {
     TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
 
     then:
-    context.traceId == DDId.fromHex("e1be46a994272793")
-    context.spanId == DDId.fromHex("53995c3f42cd8ad8")
+    context.traceId == DDTraceId.fromHex("e1be46a994272793")
+    context.spanId == DDSpanId.fromHex("53995c3f42cd8ad8")
     context.origin == null
   }
 
@@ -196,18 +197,18 @@ class XRayHttpExtractorTest extends DDSpecification {
       assert context.traceId == expectedTraceId
       assert context.traceId.toHexStringOrOriginal() == traceId.padLeft(16, '0')
       assert context.spanId == expectedSpanId
-      assert context.spanId.toHexStringOrOriginal() == spanId.padLeft(16, '0')
+      assert DDSpanId.toHexStringPadded(context.spanId) == spanId.padLeft(16, '0')
     } else {
       assert context == null
     }
 
     where:
-    traceId            | spanId             | expectedTraceId                  | expectedSpanId
-    "00001"            | "00001"            | DDId.ONE                         | DDId.ONE
-    "463ac35c9f6413ad" | "463ac35c9f6413ad" | DDId.from("5060571933882717101") | DDId.from("5060571933882717101")
-    "48485a3953bb6124" | "1"                | DDId.from("5208512171318403364") | DDId.ONE
-    "f" * 16           | "1"                | DDId.MAX                         | DDId.ONE
-    "1"                | "f" * 16           | DDId.ONE                         | DDId.MAX
+    traceId            | spanId             | expectedTraceId                       | expectedSpanId
+    "00001"            | "00001"            | DDTraceId.ONE                         | 1
+    "463ac35c9f6413ad" | "463ac35c9f6413ad" | DDTraceId.from("5060571933882717101") | DDSpanId.from("5060571933882717101")
+    "48485a3953bb6124" | "1"                | DDTraceId.from("5208512171318403364") | 1
+    "f" * 16           | "1"                | DDTraceId.MAX                         | 1
+    "1"                | "f" * 16           | DDTraceId.ONE                         | DDSpanId.MAX
   }
 
   def "extract headers with end-to-end"() {
@@ -221,8 +222,8 @@ class XRayHttpExtractorTest extends DDSpecification {
     ExtractedContext context = extractor.extract(ctx, ContextVisitors.stringValuesMap())
 
     then:
-    context.traceId == DDId.from(traceId)
-    context.spanId == DDId.from(spanId)
+    context.traceId == DDTraceId.from(traceId)
+    context.spanId == DDSpanId.from(spanId)
     context.baggage == ["k1": "v1", "k2": "v2"]
     context.endToEndStartTime == endToEndStartTime * 1000000L
 

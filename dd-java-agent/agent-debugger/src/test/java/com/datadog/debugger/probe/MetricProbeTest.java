@@ -79,6 +79,6 @@ public class MetricProbeTest {
   }
 
   private MetricProbe.Builder createMetric() {
-    return MetricProbe.builder().language(LANGUAGE).metricId(PROBE_ID);
+    return MetricProbe.builder().language(LANGUAGE).probeId(PROBE_ID);
   }
 }

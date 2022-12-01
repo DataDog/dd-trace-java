@@ -1,13 +1,15 @@
 package datadog.trace.agent.tooling.csi
 
+import datadog.trace.agent.tooling.bytebuddy.csi.Advices
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteTransformer
-import datadog.trace.api.function.BiFunction
-import datadog.trace.api.function.Consumer
+import datadog.trace.agent.tooling.csi.CallSiteAdvice.MethodHandler
 import datadog.trace.api.function.TriFunction
 import net.bytebuddy.jar.asm.Opcodes
 import net.bytebuddy.jar.asm.Type
-import datadog.trace.agent.tooling.csi.CallSiteAdvice.MethodHandler
 import org.spockframework.runtime.ConditionNotSatisfiedError
+
+import java.util.function.BiFunction
+import java.util.function.Consumer
 
 import static datadog.trace.agent.tooling.csi.CallSiteAdvice.HasFlags.COMPUTE_MAX_STACK
 import static datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode.COPY
@@ -163,6 +165,46 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
     }
   }
 
+  def 'dupParameters with owner argument'() {
+    // case where there is no annotation with @This but we're instrumenting an instance method
+    // (that is, the advice is not interested in the object whose method is being called)
+    setup:
+    Type source = Type.getType(CallSiteWithArraysExample)
+    Type target = renameType(source, 'Test')
+    Type helperType = Type.getType(InstrumentationHelper)
+    Type helperMethod = Type.getType(InstrumentationHelper.getDeclaredMethod('onInsertPartialArgs', int, char[], int))
+    Pointcut pointcut = stringBuilderInsertPointcut()
+    InvokeAdvice callSite = mockInvokeAdvice(pointcut, COMPUTE_MAX_STACK, helperType.className)
+    Advices advices = mockAdvices([callSite])
+    CallSiteTransformer callSiteTransformer = new CallSiteTransformer(advices)
+    def callbackArg
+    InstrumentationHelper.callback = { arg -> callbackArg = arg }
+
+    when:
+    byte[] transformedClass = transformType(source, target, callSiteTransformer)
+    def insert = loadType(target, transformedClass) as TriFunction<String, Integer, Integer, String>
+    insert.apply('Hello World!', 6, 5)
+
+    then:
+    callbackArg[0] == 0
+    callbackArg[1] == 'Hello World!'.toCharArray()
+    callbackArg[2] == 6
+    callbackArg.size() == 3
+    1 * callSite.apply(_ as MethodHandler, Opcodes.INVOKEVIRTUAL, pointcut.type(), pointcut.method(), pointcut.descriptor(), false) >> { params ->
+      MethodHandler handler = params[0]
+      int opcode = params[1]
+      String owner = params[2]
+      String name = params[3]
+      String descriptor = params[4]
+      boolean isInterface = params[5]
+
+      int[] parameterIndices = [0, 1, 2,] as int[]
+      handler.dupParameters(descriptor, parameterIndices, owner)
+      handler.method(Opcodes.INVOKESTATIC, helperType.internalName, 'onInsertPartialArgs', helperMethod.descriptor, false)
+      handler.method(opcode, owner, name, descriptor, isInterface)
+    }
+  }
+
   static class InstrumentationHelper {
 
     private static Consumer<Object[]> callback = null // codenarc forces the lowercase name
@@ -177,6 +219,10 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
       if (callback != null) {
         callback.accept([index, str, offset, length] as Object[])
       }
+    }
+
+    static void onInsertPartialArgs(int index, char[] str, int offset) {
+      callback?.accept([index, str, offset])
     }
   }
 }

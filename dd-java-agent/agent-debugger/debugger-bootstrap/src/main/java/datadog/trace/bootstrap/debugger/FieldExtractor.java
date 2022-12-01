@@ -3,7 +3,7 @@ package datadog.trace.bootstrap.debugger;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.function.BiConsumer;
-import java.util.function.ObjIntConsumer;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +28,7 @@ public class FieldExtractor {
       Limits limits,
       Fields.ProcessField onField,
       BiConsumer<Exception, Field> exHandling,
-      ObjIntConsumer<Field> maxFieldCount) {
+      Consumer<Field> maxFieldCount) {
     if (obj == null) {
       return;
     }

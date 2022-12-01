@@ -1,13 +1,31 @@
 package datadog.trace.api.gateway;
 
-import static datadog.trace.api.gateway.Events.*;
+import static datadog.trace.api.gateway.Events.GRPC_SERVER_REQUEST_MESSAGE_ID;
+import static datadog.trace.api.gateway.Events.MAX_EVENTS;
+import static datadog.trace.api.gateway.Events.REQUEST_BODY_CONVERTED_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_BODY_DONE_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_BODY_START_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_CLIENT_SOCKET_ADDRESS_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_ENDED_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_HEADER_DONE_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_HEADER_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_INFERRED_CLIENT_ADDRESS_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_METHOD_URI_RAW_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_PATH_PARAMS_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_STARTED_ID;
+import static datadog.trace.api.gateway.Events.RESPONSE_HEADER_DONE_ID;
+import static datadog.trace.api.gateway.Events.RESPONSE_HEADER_ID;
+import static datadog.trace.api.gateway.Events.RESPONSE_STARTED_ID;
 
-import datadog.trace.api.function.*;
-import datadog.trace.api.function.Function;
+import datadog.trace.api.function.TriConsumer;
+import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReferenceArray;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

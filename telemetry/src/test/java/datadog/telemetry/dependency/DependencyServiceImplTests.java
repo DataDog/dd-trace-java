@@ -12,8 +12,6 @@ import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
 import java.lang.instrument.Instrumentation;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -52,17 +50,13 @@ public class DependencyServiceImplTests {
             Proxy.newProxyInstance(
                 DependencyServiceImplTests.class.getClassLoader(),
                 new Class<?>[] {Instrumentation.class},
-                new InvocationHandler() {
-                  @Override
-                  public Object invoke(Object proxy, Method method, Object[] args)
-                      throws Throwable {
-                    if (method.getName().equals("addTransformer")) {
-                      t[0] = (ClassFileTransformer) args[0];
-                    } else {
-                      throw new UnsupportedOperationException();
-                    }
-                    return null;
+                (proxy, method, args) -> {
+                  if (method.getName().equals("addTransformer")) {
+                    t[0] = (ClassFileTransformer) args[0];
+                  } else {
+                    throw new UnsupportedOperationException();
                   }
+                  return null;
                 });
 
     depService.installOn(instrumentation);

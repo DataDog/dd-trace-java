@@ -17,13 +17,14 @@ import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
-import java.util.function.ObjIntConsumer;
+import java.util.function.Consumer;
 import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -358,7 +359,8 @@ public class MoshiSnapshotHelper {
               }
               jsonReader.endArray();
               if (type.equals(List.class.getTypeName())
-                  || type.equals(ArrayList.class.getTypeName())) {
+                  || type.equals(ArrayList.class.getTypeName())
+                  || type.equals("java.util.Collections$UnmodifiableRandomAccessList")) {
                 List<Object> list = new ArrayList<>();
                 for (Snapshot.CapturedValue cValue : values) {
                   list.add(cValue.getValue());
@@ -371,6 +373,8 @@ public class MoshiSnapshotHelper {
                 } else {
                   value = values.stream().map(Snapshot.CapturedValue::getValue).toArray();
                 }
+              } else if (type.equals("java.util.Collections$EmptyList")) {
+                value = Collections.emptyList();
               } else {
                 throw new RuntimeException("Cannot deserialize type: " + type);
               }
@@ -389,21 +393,16 @@ public class MoshiSnapshotHelper {
                 jsonReader.endArray();
               }
               jsonReader.endArray();
-              if (type.equals(Map.class.getTypeName())
-                  || type.equals(HashMap.class.getTypeName())) {
-                Map<Object, Object> entries = new HashMap<>();
-                for (int i = 0; i < values.size(); i += 2) {
-                  Object entryKey = values.get(i).getValue();
-                  if (i + 1 >= values.size()) {
-                    break;
-                  }
-                  Object entryValue = values.get(i + 1).getValue();
-                  entries.put(entryKey, entryValue);
+              Map<Object, Object> entries = new HashMap<>();
+              for (int i = 0; i < values.size(); i += 2) {
+                Object entryKey = values.get(i).getValue();
+                if (i + 1 >= values.size()) {
+                  break;
                 }
-                value = entries;
-              } else {
-                throw new RuntimeException("Cannot deserialize type: " + type);
+                Object entryValue = values.get(i + 1).getValue();
+                entries.put(entryKey, entryValue);
               }
+              value = entries;
               break;
             }
           case IS_NULL:
@@ -588,12 +587,19 @@ public class MoshiSnapshotHelper {
               try {
                 jsonWriter.name(field.getName());
                 Limits newLimits = Limits.decDepthLimits(maxDepth, limits);
+                String typeName;
+                if (isPrimitive(field.getType().getTypeName())) {
+                  typeName = field.getType().getTypeName();
+                } else {
+                  typeName =
+                      val != null ? val.getClass().getTypeName() : field.getType().getTypeName();
+                }
                 serializeValue(
                     jsonWriter,
                     val instanceof Snapshot.CapturedValue
                         ? ((Snapshot.CapturedValue) val).getValue()
                         : val,
-                    field.getType().getTypeName(),
+                    typeName,
                     newLimits);
               } catch (IOException ex) {
                 LOG.debug("Exception when extracting field={}", field.getName(), ex);
@@ -611,7 +617,7 @@ public class MoshiSnapshotHelper {
                 jsonWriter.name(fieldName);
                 jsonWriter.beginObject();
                 jsonWriter.name(TYPE);
-                jsonWriter.value(field.getType().getName());
+                jsonWriter.value(field.getType().getTypeName());
                 jsonWriter.name(NOT_CAPTURED_REASON);
                 jsonWriter.value(ex.toString());
                 jsonWriter.endObject();
@@ -619,8 +625,8 @@ public class MoshiSnapshotHelper {
                 LOG.debug("Error during serializing reason for failed field extraction", e);
               }
             };
-        ObjIntConsumer<Field> maxFieldCount =
-            (field, maxCount) -> {
+        Consumer<Field> maxFieldCount =
+            (field) -> {
               try {
                 jsonWriter.name(NOT_CAPTURED_REASON);
                 jsonWriter.value(FIELD_COUNT_REASON);

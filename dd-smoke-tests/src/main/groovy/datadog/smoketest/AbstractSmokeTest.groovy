@@ -1,7 +1,6 @@
 package datadog.smoketest
 
 import datadog.trace.agent.test.server.http.TestHttpServer
-import datadog.trace.api.function.Function
 import datadog.trace.test.agent.decoder.DecodedSpan
 import datadog.trace.test.agent.decoder.Decoder
 import datadog.trace.test.agent.decoder.DecodedMessage
@@ -12,6 +11,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
+
+import java.util.function.Function
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static datadog.trace.test.util.ForkedTestUtils.getMaxMemoryArgumentForFork
@@ -92,6 +93,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
     "-Ddd.profiling.url=${getProfilingUrl()}",
     "-Ddd.profiling.async.enabled=true",
     "-Ddd.profiling.async.wall.enabled=true",
+    "-Ddd.profiling.async.cstack=dwarf",
     "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
     "-Dorg.slf4j.simpleLogger.defaultLogLevel=${logLevel()}"
   ]

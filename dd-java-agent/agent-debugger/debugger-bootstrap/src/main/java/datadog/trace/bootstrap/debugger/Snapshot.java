@@ -38,19 +38,19 @@ public class Snapshot {
   private final transient String thisClassName;
   private String traceId; // trace_id
   private String spanId; // span_id
-  private final transient SnapshotSummaryBuilder summaryBuilder;
+  private final transient SummaryBuilder summaryBuilder;
 
-  public Snapshot(java.lang.Thread thread, ProbeDetails probe, String thisClassName) {
+  public Snapshot(java.lang.Thread thread, ProbeDetails probeDetails, String thisClassName) {
     this.startTs = System.nanoTime();
     this.version = VERSION;
     this.timestamp = System.currentTimeMillis();
     this.captures = new Captures();
     this.language = LANGUAGE;
     this.thread = new CapturedThread(thread);
-    this.probe = probe;
+    this.probe = probeDetails;
     this.thisClassName = thisClassName;
-    this.summaryBuilder = new SnapshotSummaryBuilder(probe);
-    addCapturingProbeId(probe);
+    this.summaryBuilder = probeDetails.summaryBuilder;
+    addCapturingProbeId(probeDetails);
   }
 
   public Snapshot(
@@ -79,8 +79,8 @@ public class Snapshot {
     this.traceId = traceId;
     this.spanId = spanId;
     this.thisClassName = thisClassName;
-    this.summaryBuilder = new SnapshotSummaryBuilder(probeDetails);
-    addCapturingProbeId(probe);
+    this.summaryBuilder = probeDetails.summaryBuilder;
+    addCapturingProbeId(this.probe);
   }
 
   private void addCapturingProbeId(ProbeDetails probe) {
@@ -92,7 +92,9 @@ public class Snapshot {
   public void setEntry(CapturedContext context) {
     summaryBuilder.addEntry(context);
     context.setThisClassName(thisClassName);
-    if (checkCapture(context)) {
+    if ((probe.getEvaluateAt() == MethodLocation.DEFAULT
+            || probe.getEvaluateAt() == MethodLocation.ENTRY)
+        && checkCapture(context)) {
       captures.setEntry(context);
     }
   }
@@ -102,7 +104,9 @@ public class Snapshot {
     context.addExtension(ValueReferences.DURATION_EXTENSION_NAME, duration);
     summaryBuilder.addExit(context);
     context.setThisClassName(thisClassName);
-    if (checkCapture(context)) {
+    if ((probe.getEvaluateAt() == MethodLocation.DEFAULT
+            || probe.getEvaluateAt() == MethodLocation.EXIT)
+        && checkCapture(context)) {
       captures.setReturn(context);
     }
   }
@@ -181,9 +185,12 @@ public class Snapshot {
       }
       return;
     }
-    if (!ProbeRateLimiter.tryProbe(probe.id)) {
-      DebuggerContext.skipSnapshot(probe.id, DebuggerContext.SkipCause.RATE);
-      return;
+    // only rate limit if a condition is defined
+    if (probe.getScript() != null && probe.isSnapshotProbe()) {
+      if (!ProbeRateLimiter.tryProbe(probe.id)) {
+        DebuggerContext.skipSnapshot(probe.id, DebuggerContext.SkipCause.RATE);
+        return;
+      }
     }
     // generates id only when effectively committing
     this.id = UUID.randomUUID().toString();
@@ -217,7 +224,8 @@ public class Snapshot {
         duration,
         stack,
         captures,
-        new ProbeDetails(probeId, probe.location, probe.script, probe.tags),
+        new ProbeDetails(
+            probeId, probe.location, probe.evaluateAt, probe.script, probe.tags, summaryBuilder),
         language,
         thread,
         thisClassName,
@@ -287,6 +295,12 @@ public class Snapshot {
     AFTER;
   }
 
+  public enum MethodLocation {
+    DEFAULT,
+    ENTRY,
+    EXIT
+  }
+
   /** Probe information associated with a snapshot */
   public static class ProbeDetails {
     public static final String ITW_PROBE_ID = "instrument-the-world-probe";
@@ -296,29 +310,48 @@ public class Snapshot {
 
     private final String id;
     private final ProbeLocation location;
+    private final MethodLocation evaluateAt;
     private final DebuggerScript script;
     private final transient List<ProbeDetails> additionalProbes;
     private final String tags;
+    private final transient SummaryBuilder summaryBuilder;
 
     public ProbeDetails(String id, ProbeLocation location) {
-      this(id, location, null, null, Collections.emptyList());
-    }
-
-    public ProbeDetails(String id, ProbeLocation location, DebuggerScript script, String tags) {
-      this(id, location, script, tags, Collections.emptyList());
+      this(
+          id,
+          location,
+          MethodLocation.DEFAULT,
+          null,
+          null,
+          new SnapshotSummaryBuilder(location),
+          Collections.emptyList());
     }
 
     public ProbeDetails(
         String id,
         ProbeLocation location,
+        MethodLocation evaluateAt,
         DebuggerScript script,
         String tags,
+        SummaryBuilder summaryBuilder) {
+      this(id, location, evaluateAt, script, tags, summaryBuilder, Collections.emptyList());
+    }
+
+    public ProbeDetails(
+        String id,
+        ProbeLocation location,
+        MethodLocation evaluateAt,
+        DebuggerScript script,
+        String tags,
+        SummaryBuilder summaryBuilder,
         List<ProbeDetails> additionalProbes) {
       this.id = id;
       this.location = location;
+      this.evaluateAt = evaluateAt;
       this.script = script;
       this.additionalProbes = additionalProbes;
       this.tags = tags;
+      this.summaryBuilder = summaryBuilder;
     }
 
     public String getId() {
@@ -329,12 +362,20 @@ public class Snapshot {
       return location;
     }
 
+    public MethodLocation getEvaluateAt() {
+      return evaluateAt;
+    }
+
     public DebuggerScript getScript() {
       return script;
     }
 
     public String getTags() {
       return tags;
+    }
+
+    public boolean isSnapshotProbe() {
+      return summaryBuilder instanceof SnapshotSummaryBuilder;
     }
 
     @Override

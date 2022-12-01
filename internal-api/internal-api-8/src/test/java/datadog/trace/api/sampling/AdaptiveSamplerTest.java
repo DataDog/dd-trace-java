@@ -289,67 +289,59 @@ class AdaptiveSamplerTest {
             2,
             1,
             1,
-            new AdaptiveSampler.ConfigListener() {
-              @Override
-              public void onWindowRoll(
-                  long totalCount,
-                  long sampledCount,
-                  long budget,
-                  double totalAverage,
-                  double probability) {
-                switch (counter.getAndIncrement()) {
-                  case 0:
-                    {
-                      // initial config at the sampler instantiation
-                      assertEquals(0, totalCount);
-                      assertEquals(0, sampledCount);
-                      assertEquals(4, budget);
-                      assertEquals(0.0d, totalAverage);
-                      assertEquals(1.0d, probability);
-                      break;
-                    }
-                  case 1:
-                    {
-                      // after first roll window
-                      assertEquals(2, totalCount);
-                      assertEquals(1, sampledCount);
-                      assertEquals(1, budget);
-                      assertEquals(2.0d, totalAverage);
-                      assertEquals(0.5d, probability);
-                      break;
-                    }
-                  case 2:
-                    {
-                      // after second roll window
-                      assertEquals(3, totalCount);
-                      assertEquals(2, sampledCount);
-                      assertEquals(0, budget);
-                      assertEquals(3.0d, totalAverage);
-                      assertEquals(0.0d, probability);
-                      break;
-                    }
-                  case 3:
-                    {
-                      // after third roll window
-                      assertEquals(3, totalCount);
-                      assertEquals(0, sampledCount);
-                      assertEquals(2, budget);
-                      assertEquals(3.0d, totalAverage);
-                      assertEquals(0.6666d, probability, 0.00007d);
-                      System.err.println(
-                          "==> "
-                              + totalCount
-                              + ", "
-                              + sampledCount
-                              + ", "
-                              + budget
-                              + ", "
-                              + totalAverage
-                              + ", "
-                              + probability);
-                      break;
-                    }
-                }
+            (totalCount, sampledCount, budget, totalAverage, probability) -> {
+              switch (counter.getAndIncrement()) {
+                case 0:
+                  {
+                    // initial config at the sampler instantiation
+                    assertEquals(0, totalCount);
+                    assertEquals(0, sampledCount);
+                    assertEquals(4, budget);
+                    assertEquals(0.0d, totalAverage);
+                    assertEquals(1.0d, probability);
+                    break;
+                  }
+                case 1:
+                  {
+                    // after first roll window
+                    assertEquals(2, totalCount);
+                    assertEquals(1, sampledCount);
+                    assertEquals(1, budget);
+                    assertEquals(2.0d, totalAverage);
+                    assertEquals(0.5d, probability);
+                    break;
+                  }
+                case 2:
+                  {
+                    // after second roll window
+                    assertEquals(3, totalCount);
+                    assertEquals(2, sampledCount);
+                    assertEquals(0, budget);
+                    assertEquals(3.0d, totalAverage);
+                    assertEquals(0.0d, probability);
+                    break;
+                  }
+                case 3:
+                  {
+                    // after third roll window
+                    assertEquals(3, totalCount);
+                    assertEquals(0, sampledCount);
+                    assertEquals(2, budget);
+                    assertEquals(3.0d, totalAverage);
+                    assertEquals(0.6666d, probability, 0.00007d);
+                    System.err.println(
+                        "==> "
+                            + totalCount
+                            + ", "
+                            + sampledCount
+                            + ", "
+                            + budget
+                            + ", "
+                            + totalAverage
+                            + ", "
+                            + probability);
+                    break;
+                  }
               }
             },
             taskScheduler);

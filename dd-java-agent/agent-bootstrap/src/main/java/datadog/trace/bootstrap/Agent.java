@@ -13,21 +13,19 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static datadog.trace.util.Strings.getResourceName;
 import static datadog.trace.util.Strings.toEnvVar;
 
-import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
 import datadog.trace.api.EndpointCheckpointer;
-import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
-import datadog.trace.api.Tracer;
 import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.ContextThreadListener;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
-import datadog.trace.bootstrap.instrumentation.exceptions.ExceptionSampling;
-import datadog.trace.context.ScopeListener;
+import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import java.lang.instrument.Instrumentation;
@@ -126,6 +124,11 @@ public class Agent {
 
   public static void start(final Instrumentation inst, final URL agentJarURL) {
     createAgentClassloader(agentJarURL);
+
+    if (Platform.isNativeImageBuilder()) {
+      startDatadogAgent(inst);
+      return;
+    }
 
     // Retro-compatibility for the old way to configure CI Visibility
     if ("true".equals(ddGetProperty("dd.integration.junit.enabled"))
@@ -271,8 +274,8 @@ public class Agent {
         registerLogManagerCallback(new StartProfilingAgentCallback());
       } else {
         startProfilingAgent(false);
-        // only enable sampler when we know JFR is ready
-        ExceptionSampling.enableExceptionSampling();
+        // only enable instrumentation based profilers when we know JFR is ready
+        InstrumentationBasedProfiling.enableInstrumentationBasedProfiling();
       }
     }
   }
@@ -391,7 +394,6 @@ public class Agent {
       }
 
       installDatadogTracer(scoClass, sco);
-      installContextThreadListener();
       maybeStartAppSec(scoClass, sco);
       maybeStartIast(scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
@@ -413,8 +415,8 @@ public class Agent {
     @Override
     public void execute() {
       startProfilingAgent(false);
-      // only enable sampler when we know JFR is ready
-      ExceptionSampling.enableExceptionSampling();
+      // only enable instrumentation based profilers when we know JFR is ready
+      InstrumentationBasedProfiling.enableInstrumentationBasedProfiling();
     }
   }
 
@@ -483,8 +485,9 @@ public class Agent {
       final Class<?> tracerInstallerClass =
           AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.TracerInstaller");
       final Method tracerInstallerMethod =
-          tracerInstallerClass.getMethod("installGlobalTracer", scoClass);
-      tracerInstallerMethod.invoke(null, sco);
+          tracerInstallerClass.getMethod(
+              "installGlobalTracer", scoClass, ProfilingContextIntegration.class);
+      tracerInstallerMethod.invoke(null, sco, createProfilingContextIntegration());
     } catch (final Throwable ex) {
       log.error("Throwable thrown while installing the Datadog Tracer", ex);
     }
@@ -662,7 +665,7 @@ public class Agent {
           telemetrySystem.getMethod("startTelemetry", Instrumentation.class, scoClass);
       startTelemetry.invoke(null, inst, sco);
     } catch (final Throwable ex) {
-      log.warn("Unable start telemetry: {}", ex);
+      log.warn("Unable start telemetry", ex);
     }
   }
 
@@ -688,7 +691,7 @@ public class Agent {
     WithGlobalTracer.registerOrExecute(
         new WithGlobalTracer.Callback() {
           @Override
-          public void withTracer(Tracer tracer) {
+          public void withTracer(TracerAPI tracer) {
             log.debug("Registering CWS scope tracker");
             try {
               ScopeListener scopeListener =
@@ -710,26 +713,21 @@ public class Agent {
   }
 
   /**
-   * Must be called after tracer is installed, but can't wait until the profiler is installed. {@see
-   * com.datadog.profiling.async.ContextThreadFilter} must not be modified to depend on JFR.
+   * {@see com.datadog.profiling.async.ContextThreadFilter} must not be modified to depend on JFR.
    */
-  private static void installContextThreadListener() {
+  private static ProfilingContextIntegration createProfilingContextIntegration() {
     if (Config.get().isProfilingEnabled()) {
       try {
-        Tracer tracer = GlobalTracer.get();
-        if (tracer instanceof AgentTracer.TracerAPI) {
-          ContextThreadListener listener =
-              (ContextThreadListener)
-                  AGENT_CLASSLOADER
-                      .loadClass("com.datadog.profiling.async.ContextThreadFilter")
-                      .getDeclaredConstructor()
-                      .newInstance();
-          ((AgentTracer.TracerAPI) tracer).addThreadContextListener(listener);
-        }
+        return (ProfilingContextIntegration)
+            AGENT_CLASSLOADER
+                .loadClass("com.datadog.profiling.async.ContextThreadFilter")
+                .getDeclaredConstructor()
+                .newInstance();
       } catch (Throwable t) {
         log.debug("Profiling context labeling not available. {}", t.getMessage());
       }
     }
+    return ProfilingContextIntegration.NoOp.INSTANCE;
   }
 
   private static void startProfilingAgent(final boolean isStartingFirst) {
@@ -750,37 +748,23 @@ public class Agent {
         WithGlobalTracer.registerOrExecute(
             new WithGlobalTracer.Callback() {
               @Override
-              public void withTracer(Tracer tracer) {
+              public void withTracer(TracerAPI tracer) {
                 log.debug("Initializing profiler tracer integrations");
                 try {
-                  if (Config.get().isAsyncProfilerEnabled()) {
-                    log.debug("Registering async-profiler scope listener");
-                    tracer.addScopeListener(
-                        createScopeListener(
-                            "com.datadog.profiling.context.AsyncProfilerScopeListener"));
-                  }
                   if (Platform.isOracleJDK8() || Platform.isJ9()) {
                     return;
                   }
-                  Checkpointer checkpointer =
-                      (Checkpointer)
+                  EndpointCheckpointer endpointCheckpointer =
+                      (EndpointCheckpointer)
                           AGENT_CLASSLOADER
                               .loadClass("datadog.trace.core.jfr.openjdk.JFRCheckpointer")
                               .getDeclaredConstructor()
                               .newInstance();
-                  ((AgentTracer.TracerAPI) tracer)
-                      .registerCheckpointer((EndpointCheckpointer) checkpointer);
+                  tracer.registerCheckpointer(endpointCheckpointer);
                   if (!Config.get().isAsyncProfilerEnabled()) {
-                    if (Config.get().isProfilingLegacyTracingIntegrationEnabled()) {
-                      log.debug("Registering scope event factory");
-                      tracer.addScopeListener(
-                          createScopeListener("datadog.trace.core.jfr.openjdk.ScopeEventFactory"));
-                    } else {
-                      // TODO remove this
-                      log.debug("Registering checkpointer");
-                      ((AgentTracer.TracerAPI) tracer).registerCheckpointer(checkpointer);
-                      log.debug("Checkpointer {} has been registered", checkpointer);
-                    }
+                    log.debug("Registering scope event factory");
+                    tracer.addScopeListener(
+                        createScopeListener("datadog.trace.core.jfr.openjdk.ScopeEventFactory"));
                   }
                 } catch (Throwable e) {
                   if (e instanceof InvocationTargetException) {
@@ -791,12 +775,6 @@ public class Agent {
               }
             });
       }
-    } catch (final ClassFormatError e) {
-      /*
-      Profiling is compiled for Java8. Loading it on Java7 results in ClassFormatError
-      (more specifically UnsupportedClassVersionError). Just ignore and continue when this happens.
-      */
-      log.debug("Profiling requires OpenJDK 8 or above - skipping");
     } catch (final Throwable ex) {
       log.error("Throwable thrown while starting profiling agent", ex);
     } finally {
@@ -823,12 +801,6 @@ public class Agent {
       final Method profilingInstallerMethod =
           profilingAgentClass.getMethod("shutdown", Boolean.TYPE);
       profilingInstallerMethod.invoke(null, sync);
-    } catch (final ClassFormatError e) {
-      /*
-      Profiling is compiled for Java8. Loading it on Java7 results in ClassFormatError
-      (more specifically UnsupportedClassVersionError). Just ignore and continue when this happens.
-      */
-      log.debug("Profiling requires OpenJDK 8 or above - skipping");
     } catch (final Throwable ex) {
       log.error("Throwable thrown while shutting down profiling agent", ex);
     } finally {
@@ -857,12 +829,6 @@ public class Agent {
       final Method debuggerInstallerMethod =
           debuggerAgentClass.getMethod("run", Instrumentation.class, scoClass);
       debuggerInstallerMethod.invoke(null, inst, sco);
-    } catch (final ClassFormatError e) {
-      /*
-      Debugger is compiled for Java8. Loading it on Java7 results in ClassFormatError
-      (more specifically UnsupportedClassVersionError). Just ignore and continue when this happens.
-      */
-      log.debug("Debugger requires OpenJDK 8 or above - skipping");
     } catch (final Throwable ex) {
       log.error("Throwable thrown while starting debugger agent", ex);
     } finally {
@@ -937,7 +903,7 @@ public class Agent {
     }
   }
 
-  /** @see datadog.trace.api.ProductActivationConfig#fromString(String) */
+  /** @see datadog.trace.api.ProductActivation#fromString(String) */
   private static boolean isAppSecFullyDisabled() {
     // must be kept in sync with logic from Config!
     final String featureEnabledSysprop = AgentFeature.APPSEC.systemProp;

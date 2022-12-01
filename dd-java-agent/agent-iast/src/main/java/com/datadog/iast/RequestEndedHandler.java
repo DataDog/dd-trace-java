@@ -2,11 +2,11 @@ package com.datadog.iast;
 
 import com.datadog.iast.overhead.OverheadController;
 import datadog.trace.api.TraceSegment;
-import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import java.util.function.BiFunction;
 
 public class RequestEndedHandler implements BiFunction<RequestContext, IGSpanInfo, Flow<Void>> {
 

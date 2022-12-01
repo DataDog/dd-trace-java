@@ -4,6 +4,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.GROUP_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.PARTITION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
@@ -222,8 +224,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           span = startSpan(KAFKA_CONSUME, extractedContext);
         } else {
           queueSpan =
-              startSpan(
-                  KAFKA_DELIVER, extractedContext, MILLISECONDS.toMicros(timeInQueueStart), false);
+              startSpan(KAFKA_DELIVER, extractedContext, MILLISECONDS.toMicros(timeInQueueStart));
           BROKER_DECORATE.afterStart(queueSpan);
           BROKER_DECORATE.onTimeInQueue(queueSpan, record);
           span = startSpan(KAFKA_CONSUME, queueSpan.context());
@@ -235,6 +236,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, SR_GETTER);
         span.mergePathwayContext(pathwayContext);
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+        sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
         if (streamTaskContext != null) {
           String applicationId = streamTaskContext.getApplicationId();
           if (applicationId != null) {
@@ -288,8 +290,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           span = startSpan(KAFKA_CONSUME, extractedContext);
         } else {
           queueSpan =
-              startSpan(
-                  KAFKA_DELIVER, extractedContext, MILLISECONDS.toMicros(timeInQueueStart), false);
+              startSpan(KAFKA_DELIVER, extractedContext, MILLISECONDS.toMicros(timeInQueueStart));
           BROKER_DECORATE.afterStart(queueSpan);
           BROKER_DECORATE.onTimeInQueue(queueSpan, record);
           span = startSpan(KAFKA_CONSUME, queueSpan.context());
@@ -301,6 +302,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, PR_GETTER);
         span.mergePathwayContext(pathwayContext);
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+        sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
         if (streamTaskContext != null) {
           String applicationId = streamTaskContext.getApplicationId();
           if (applicationId != null) {

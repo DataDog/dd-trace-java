@@ -11,8 +11,7 @@ public class SnapshotProbeTest {
   @Test
   public void tags() {
     String[] tags = new String[] {"tag1:foo1", "tag2:foo2", "tag3"};
-    SnapshotProbe snapshotProbe =
-        new SnapshotProbe(LANGUAGE, PROBE_ID, true, tags, null, null, null, null);
+    SnapshotProbe snapshotProbe = SnapshotProbe.builder().probeId(PROBE_ID).tags(tags).build();
     Assert.assertEquals("foo1", snapshotProbe.getTagMap().get("tag1"));
     Assert.assertEquals("foo2", snapshotProbe.getTagMap().get("tag2"));
     Assert.assertNull(snapshotProbe.getTagMap().get("tag3"));
@@ -26,8 +25,7 @@ public class SnapshotProbeTest {
 
   @Test
   public void noTags() {
-    SnapshotProbe snapshotProbe =
-        new SnapshotProbe(LANGUAGE, PROBE_ID, true, null, null, null, null, null);
+    SnapshotProbe snapshotProbe = SnapshotProbe.builder().probeId(PROBE_ID).build();
     Assert.assertNull(snapshotProbe.getTags());
     Assert.assertNull(snapshotProbe.concatTags());
   }
@@ -35,7 +33,7 @@ public class SnapshotProbeTest {
   @Test
   public void emptyTags() {
     SnapshotProbe snapshotProbe =
-        new SnapshotProbe(LANGUAGE, PROBE_ID, true, new String[] {}, null, null, null, null);
+        SnapshotProbe.builder().probeId(PROBE_ID).tags(new String[] {}).build();
     Assert.assertEquals(0, snapshotProbe.getTags().length);
     Assert.assertEquals("", snapshotProbe.concatTags());
   }

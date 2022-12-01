@@ -1,6 +1,7 @@
 package datadog.cws.tls;
 
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -19,13 +20,11 @@ public class TlsScopeListener implements ExtendedScopeListener {
     this.tls = tls;
   }
 
-  void push(DDId traceId, DDId spanId) {
+  void push(DDTraceId traceId, long spanId) {
     Deque<Span> stack = spanStack.get();
 
     Span top = stack.peek();
-    if (top == null
-        || top.getTraceId().toLong() != traceId.toLong()
-        || top.getSpanId().toLong() != spanId.toLong()) {
+    if (top == null || top.getTraceId().toLong() != traceId.toLong() || top.getSpanId() != spanId) {
 
       Span span = new Span(traceId, spanId);
       stack.push(span);
@@ -45,16 +44,16 @@ public class TlsScopeListener implements ExtendedScopeListener {
         return;
       }
     }
-    tls.registerSpan(DDId.ZERO, DDId.ZERO);
+    tls.registerSpan(DDTraceId.ZERO, DDSpanId.ZERO);
   }
 
   @Override
   public void afterScopeActivated() {
-    afterScopeActivated(DDId.ZERO, DDId.ZERO, DDId.ZERO);
+    afterScopeActivated(DDTraceId.ZERO, DDSpanId.ZERO, DDSpanId.ZERO);
   }
 
   @Override
-  public void afterScopeActivated(DDId traceId, DDId localRootSpanId, DDId spanId) {
+  public void afterScopeActivated(DDTraceId traceId, long localRootSpanId, long spanId) {
     push(traceId, spanId);
   }
 

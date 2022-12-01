@@ -314,8 +314,8 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
         edgeTags.size() == 3
         hash == 1
         parentHash == 2
-        pathwayLatency.max() >= 10
-        pathwayLatency.max() < 10.1
+        pathwayLatency.getMaxValue() >= 10
+        pathwayLatency.getMaxValue() < 10.1
       }
     }
 
@@ -330,8 +330,8 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
         parentHash == 2
         edgeTags.containsAll(["type:testType", "group:testGroup", "topic:testTopic"])
         edgeTags.size() == 3
-        pathwayLatency.max() >= 5
-        pathwayLatency.max() < 5.1
+        pathwayLatency.getMaxValue() >= 5
+        pathwayLatency.getMaxValue() < 5.1
       }
 
       with(sortedGroups[1]) {
@@ -339,8 +339,8 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
         parentHash == 4
         edgeTags.containsAll(["type:testType", "group:testGroup", "topic:testTopic2"])
         edgeTags.size() == 3
-        pathwayLatency.max() >= 2
-        pathwayLatency.max() < 2.1
+        pathwayLatency.getMaxValue() >= 2
+        pathwayLatency.getMaxValue() < 2.1
       }
     }
 

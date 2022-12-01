@@ -1,6 +1,7 @@
 package com.datadog.profiling.context;
 
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -23,13 +24,13 @@ public final class TestSpan implements AgentSpan {
   }
 
   @Override
-  public DDId getTraceId() {
-    return DDId.ZERO;
+  public DDTraceId getTraceId() {
+    return DDTraceId.ZERO;
   }
 
   @Override
-  public DDId getSpanId() {
-    return DDId.ZERO;
+  public long getSpanId() {
+    return DDSpanId.ZERO;
   }
 
   @Override
@@ -293,18 +294,5 @@ public final class TestSpan implements AgentSpan {
   @Override
   public byte getResourceNamePriority() {
     return Byte.MAX_VALUE;
-  }
-
-  @Override
-  public void setEmittingCheckpoints(boolean value) {}
-
-  @Override
-  public Boolean isEmittingCheckpoints() {
-    return Boolean.FALSE;
-  }
-
-  @Override
-  public boolean hasCheckpoints() {
-    return false;
   }
 }

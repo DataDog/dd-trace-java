@@ -20,23 +20,36 @@ import org.objectweb.asm.tree.MethodNode;
 public abstract class ProbeDefinition {
   protected static final String LANGUAGE = "java";
 
+  public enum MethodLocation {
+    DEFAULT,
+    ENTRY,
+    EXIT;
+  }
+
   protected final String language;
   protected final String id;
   protected final boolean active;
   protected final Tag[] tags;
   protected final Map<String, String> tagMap = new HashMap<>();
   protected final Where where;
+  protected final MethodLocation evaluateAt;
   // transient for no serialization
   protected final transient List<ProbeDefinition> additionalProbes = new ArrayList<>();
 
   public ProbeDefinition(
-      String language, String id, boolean active, String[] tagStrs, Where where) {
+      String language,
+      String id,
+      boolean active,
+      String[] tagStrs,
+      Where where,
+      MethodLocation evaluateAt) {
     this.language = language;
     this.id = id;
     this.active = active;
     tags = Tag.fromStrings(tagStrs);
     initTagMap(tagMap, tags);
     this.where = where;
+    this.evaluateAt = evaluateAt;
   }
 
   public String getId() {
@@ -77,6 +90,10 @@ public abstract class ProbeDefinition {
     return where;
   }
 
+  public MethodLocation getEvaluateAt() {
+    return evaluateAt;
+  }
+
   public void addAdditionalProbe(ProbeDefinition probe) {
     additionalProbes.add(probe);
   }
@@ -104,6 +121,88 @@ public abstract class ProbeDefinition {
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics);
+
+  public abstract static class Builder<T extends Builder> {
+    protected String language = LANGUAGE;
+    protected String probeId;
+    protected boolean active = true;
+    protected String[] tagStrs;
+    protected Where where;
+    protected MethodLocation evaluateAt = MethodLocation.DEFAULT;
+
+    public T language(String language) {
+      this.language = language;
+      return (T) this;
+    }
+
+    public T probeId(String probeId) {
+      this.probeId = probeId;
+      return (T) this;
+    }
+
+    public T active(boolean active) {
+      this.active = active;
+      return (T) this;
+    }
+
+    public T tags(String... tagStrs) {
+      this.tagStrs = tagStrs;
+      return (T) this;
+    }
+
+    public T where(Where where) {
+      this.where = where;
+      return (T) this;
+    }
+
+    public T evaluateAt(MethodLocation evaluateAt) {
+      this.evaluateAt = evaluateAt;
+      return (T) this;
+    }
+
+    public T where(String typeName, String methodName) {
+      return where(new Where(typeName, methodName, null, (Where.SourceLine[]) null, null));
+    }
+
+    public T where(String typeName, String methodName, String signature) {
+      return where(new Where(typeName, methodName, signature, (Where.SourceLine[]) null, null));
+    }
+
+    public T where(String typeName, String methodName, String signature, String... lines) {
+      return where(new Where(typeName, methodName, signature, Where.sourceLines(lines), null));
+    }
+
+    public T where(String sourceFile, int line) {
+      return where(new Where(null, null, null, new String[] {String.valueOf(line)}, sourceFile));
+    }
+
+    public T where(
+        String typeName, String methodName, String signature, int codeLine, String source) {
+      return where(
+          new Where(
+              typeName,
+              methodName,
+              signature,
+              new Where.SourceLine[] {new Where.SourceLine(codeLine)},
+              source));
+    }
+
+    public T where(
+        String typeName,
+        String methodName,
+        String signature,
+        int codeLineFrom,
+        int codeLineTill,
+        String source) {
+      return where(
+          new Where(
+              typeName,
+              methodName,
+              signature,
+              new Where.SourceLine[] {new Where.SourceLine(codeLineFrom, codeLineTill)},
+              source));
+    }
+  }
 
   public static final class Tag {
     private final String key;

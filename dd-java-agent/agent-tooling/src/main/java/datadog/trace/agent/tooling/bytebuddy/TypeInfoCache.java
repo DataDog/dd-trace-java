@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling.bytebuddy;
 
 import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
 import datadog.trace.agent.tooling.WeakCaches;
-import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.WeakCache;
 import java.lang.ref.WeakReference;
 import java.net.URL;
@@ -42,26 +41,22 @@ public final class TypeInfoCache<T> {
    * @return previously shared information for the named type
    */
   public SharedTypeInfo<T> share(String name, ClassLoader loader, URL classFile, T typeInfo) {
-    return this.sharedTypeInfo.put(
-        name, new SharedTypeInfo<>(loaderId(loader), classFile, typeInfo));
+    return sharedTypeInfo.put(name, new SharedTypeInfo<>(loaderId(loader), classFile, typeInfo));
+  }
+
+  /** Clears all type information from the shared cache. */
+  public void clear() {
+    sharedTypeInfo.clear();
   }
 
   private static LoaderId loaderId(ClassLoader loader) {
     return BOOTSTRAP_LOADER == loader
         ? BOOTSTRAP_LOADER_ID
-        : loaderIds.computeIfAbsent(loader, newLoaderId);
+        : loaderIds.computeIfAbsent(loader, LoaderId::new);
   }
 
   static final ClassLoader BOOTSTRAP_LOADER = null;
   static final LoaderId BOOTSTRAP_LOADER_ID = null;
-
-  private static final Function<ClassLoader, LoaderId> newLoaderId =
-      new Function<ClassLoader, LoaderId>() {
-        @Override
-        public LoaderId apply(ClassLoader input) {
-          return new LoaderId(input);
-        }
-      };
 
   private static final WeakCache<ClassLoader, LoaderId> loaderIds = WeakCaches.newWeakCache(64);
 

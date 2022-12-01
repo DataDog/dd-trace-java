@@ -16,6 +16,9 @@ public @interface CallSite {
   /** Interface to be used for SPI injection, by default {@link CallSiteAdvice} */
   Class<?> spi() default CallSiteAdvice.class;
 
+  /** Minimum JRE version that this call site supports */
+  int minJavaVersion() default -1;
+
   /** Helper classes for the advice */
   Class<?>[] helpers() default {};
 
@@ -79,7 +82,9 @@ public @interface CallSite {
 
   @Target(ElementType.PARAMETER)
   @Retention(RetentionPolicy.CLASS)
-  @interface Argument {}
+  @interface Argument {
+    int value() default -1;
+  }
 
   @Target(ElementType.PARAMETER)
   @Retention(RetentionPolicy.CLASS)

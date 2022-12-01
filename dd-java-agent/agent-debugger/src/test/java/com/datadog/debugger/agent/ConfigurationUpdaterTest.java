@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SnapshotProbe;
@@ -48,8 +49,9 @@ public class ConfigurationUpdaterTest {
   private static final String PROBE_ID2 = "beae1808-f3b0-4ea8-a74f-826790c5e6f8";
   private static final String METRIC_ID = "cfbf2918-e4c1-5fb9-b85e-937881d6f7e9";
   private static final String METRIC_ID2 = "cfbf2919-e4c1-5fb9-b85e-937881d6f7e9";
+  private static final String LOG_ID = "d0c03a2a-f5d2-60ca-c96f-a48992e708fa";
+  private static final String LOG_ID2 = "d0c03a2b-f5d2-60ca-c96f-a48992e708fa";
   private static final String SERVICE_NAME = "service-name";
-  private static final long ORG_ID = 2;
 
   @Mock private Instrumentation inst;
   @Mock private DebuggerTransformer transformer;
@@ -61,7 +63,6 @@ public class ConfigurationUpdaterTest {
 
   @BeforeEach
   void setUp() {
-    lenient().when(tracerConfig.getServiceName()).thenReturn(SERVICE_NAME);
     lenient().when(tracerConfig.getFinalDebuggerSnapshotUrl()).thenReturn("http://localhost");
     lenient().when(tracerConfig.getDebuggerUploadBatchSize()).thenReturn(100);
 
@@ -222,8 +223,8 @@ public class ConfigurationUpdaterTest {
             SnapshotProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build());
     List<MetricProbe> metricProbes =
         Arrays.asList(
-            MetricProbe.builder().metricId(METRIC_ID).where("java.lang.String", "concat").build());
-    configurationUpdater.accept(createApp(snapshotProbes, metricProbes));
+            MetricProbe.builder().probeId(METRIC_ID).where("java.lang.String", "concat").build());
+    configurationUpdater.accept(createApp(snapshotProbes, metricProbes, Collections.emptyList()));
     verify(inst).addTransformer(any(), eq(true));
     verify(inst).getAllLoadedClasses();
     Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
@@ -468,18 +469,6 @@ public class ConfigurationUpdaterTest {
   }
 
   @Test
-  public void rejectConfigurationsFromOtherServices() {
-    ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(inst, this::createTransformer, tracerConfig, debuggerSink);
-    List<SnapshotProbe> snapshotProbes =
-        Collections.singletonList(
-            SnapshotProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build());
-    configurationUpdater.accept(createAppWithSeriveName("other-service", snapshotProbes));
-    verify(inst, never()).addTransformer(any(), eq(true));
-    verifyNoInteractions(debuggerSink);
-  }
-
-  @Test
   public void resolve() {
     when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
     ConfigurationUpdater configurationUpdater =
@@ -574,13 +563,29 @@ public class ConfigurationUpdaterTest {
         new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
     List<MetricProbe> metricProbes =
         Collections.singletonList(
-            MetricProbe.builder().metricId(METRIC_ID).where("java.lang.String", "concat").build());
+            MetricProbe.builder().probeId(METRIC_ID).where("java.lang.String", "concat").build());
     configurationUpdater.accept(createAppMetrics(metricProbes));
     verify(inst).addTransformer(any(), eq(true));
     verify(inst).getAllLoadedClasses();
     Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
     assertEquals(1, appliedDefinitions.size());
     assertTrue(appliedDefinitions.containsKey(METRIC_ID));
+  }
+
+  @Test
+  public void acceptNewLog() {
+    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+    ConfigurationUpdater configurationUpdater =
+        new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
+    List<LogProbe> logProbes =
+        Collections.singletonList(
+            LogProbe.builder().probeId(LOG_ID).where("java.lang.String", "concat").build());
+    configurationUpdater.accept(createAppLogs(logProbes));
+    verify(inst).addTransformer(any(), eq(true));
+    verify(inst).getAllLoadedClasses();
+    Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
+    assertEquals(1, appliedDefinitions.size());
+    assertTrue(appliedDefinitions.containsKey(LOG_ID));
   }
 
   @Test
@@ -591,13 +596,13 @@ public class ConfigurationUpdaterTest {
     MetricProbe metricProbe1 =
         MetricProbe.builder()
             .language(LANGUAGE)
-            .metricId(METRIC_ID)
+            .probeId(METRIC_ID)
             .where("java.lang.String", "concat")
             .build();
     MetricProbe metricProbe2 =
         MetricProbe.builder()
             .language(LANGUAGE)
-            .metricId(METRIC_ID2)
+            .probeId(METRIC_ID2)
             .where("java.util.HashMap", "<init>", "void ()")
             .build();
     List<MetricProbe> metricProbes = Arrays.asList(metricProbe1, metricProbe2);
@@ -617,14 +622,62 @@ public class ConfigurationUpdaterTest {
   }
 
   @Test
+  public void acceptDeleteLog() throws UnmodifiableClassException {
+    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class, HashMap.class});
+    ConfigurationUpdater configurationUpdater =
+        new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
+    LogProbe logProbe1 =
+        LogProbe.builder()
+            .language(LANGUAGE)
+            .probeId(LOG_ID)
+            .where("java.lang.String", "concat")
+            .build();
+    LogProbe logProbe2 =
+        LogProbe.builder()
+            .language(LANGUAGE)
+            .probeId(LOG_ID2)
+            .where("java.util.HashMap", "<init>", "void ()")
+            .build();
+    List<LogProbe> logProbes = Arrays.asList(logProbe1, logProbe2);
+    configurationUpdater.accept(createAppLogs(logProbes));
+    logProbes = Collections.singletonList(logProbe1);
+    configurationUpdater.accept(createAppLogs(logProbes));
+    verify(inst).removeTransformer(any());
+    ArgumentCaptor<Class<?>[]> captor = ArgumentCaptor.forClass(Class[].class);
+    verify(inst, times(3)).retransformClasses(captor.capture());
+    List<Class<?>[]> allValues = captor.getAllValues();
+    assertEquals(String.class, allValues.get(0));
+    assertEquals(HashMap.class, allValues.get(1));
+    assertEquals(HashMap.class, allValues.get(2)); // for removing instrumentation
+    Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
+    assertEquals(1, appliedDefinitions.size());
+    assertTrue(appliedDefinitions.containsKey(logProbe1.getId()));
+  }
+
+  @Test
   public void acceptClearMetrics() throws UnmodifiableClassException {
     when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
     List<MetricProbe> metricProbes =
         Collections.singletonList(
-            MetricProbe.builder().metricId(METRIC_ID).where("java.lang.String", "concat").build());
+            MetricProbe.builder().probeId(METRIC_ID).where("java.lang.String", "concat").build());
     configurationUpdater.accept(createAppMetrics(metricProbes));
+    configurationUpdater.accept(null);
+    verify(inst).removeTransformer(any());
+    verify(inst, times(2)).retransformClasses(any());
+    assertEquals(0, configurationUpdater.getAppliedDefinitions().size());
+  }
+
+  @Test
+  public void acceptClearLogs() throws UnmodifiableClassException {
+    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+    ConfigurationUpdater configurationUpdater =
+        new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
+    List<LogProbe> logProbes =
+        Collections.singletonList(
+            LogProbe.builder().probeId(LOG_ID).where("java.lang.String", "concat").build());
+    configurationUpdater.accept(createAppLogs(logProbes));
     configurationUpdater.accept(null);
     verify(inst).removeTransformer(any());
     verify(inst, times(2)).retransformClasses(any());
@@ -654,7 +707,7 @@ public class ConfigurationUpdaterTest {
         Collections.singletonList(
             MetricProbe.builder()
                 .language(LANGUAGE)
-                .metricId(METRIC_ID)
+                .probeId(METRIC_ID)
                 .where("java.lang.StringBuilder", "append")
                 .build());
     configurationUpdater.accept(createAppMetrics(metricProbes));
@@ -673,21 +726,25 @@ public class ConfigurationUpdaterTest {
   }
 
   private static Configuration createApp(List<SnapshotProbe> snapshotProbes) {
-    return new Configuration(SERVICE_NAME, ORG_ID, snapshotProbes);
+    return Configuration.builder()
+        .setService(SERVICE_NAME)
+        .addSnapshotsProbes(snapshotProbes)
+        .build();
   }
 
   private static Configuration createApp(
-      List<SnapshotProbe> snapshotProbes, List<MetricProbe> metricProbes) {
-    return new Configuration(SERVICE_NAME, ORG_ID, snapshotProbes, metricProbes);
+      List<SnapshotProbe> snapshotProbes,
+      List<MetricProbe> metricProbes,
+      List<LogProbe> logProbes) {
+    return new Configuration(SERVICE_NAME, snapshotProbes, metricProbes, logProbes);
   }
 
   private static Configuration createAppMetrics(List<MetricProbe> metricProbes) {
-    return new Configuration(SERVICE_NAME, ORG_ID, null, metricProbes);
+    return Configuration.builder().setService(SERVICE_NAME).addMetricProbes(metricProbes).build();
   }
 
-  private static Configuration createAppWithSeriveName(
-      String serviceName, List<SnapshotProbe> snapshotProbes) {
-    return new Configuration(serviceName, ORG_ID, snapshotProbes);
+  private static Configuration createAppLogs(List<LogProbe> logProbes) {
+    return Configuration.builder().setService(SERVICE_NAME).addLogProbes(logProbes).build();
   }
 
   private DebuggerTransformer createTransformer(

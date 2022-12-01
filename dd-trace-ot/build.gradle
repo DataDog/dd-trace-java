@@ -98,7 +98,12 @@ shadowJar {
   }
   relocate('datadog.', 'ddtrot.dd.') {
     exclude('datadog.opentracing.*')
+    exclude('datadog.opentracing.resolver.*')
     exclude('datadog.trace.api.*')
+    exclude('datadog.trace.api.config.*')
+    exclude('datadog.trace.api.interceptor.*')
+    exclude('datadog.trace.api.internal.*')
+    exclude('datadog.trace.api.sampling.*')
     exclude('datadog.trace.context.*')
   }
   exclude('META-INF/maven/')

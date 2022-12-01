@@ -19,9 +19,8 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.ShouldInjectFieldsRawMatche
 import datadog.trace.agent.tooling.bytebuddy.matcher.SingleTypeMatcher;
 import datadog.trace.agent.tooling.context.FieldBackedContextInjector;
 import datadog.trace.agent.tooling.context.FieldBackedContextRequestRewriter;
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import java.lang.instrument.Instrumentation;
-import java.security.ProtectionDomain;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.agent.builder.AgentBuilder;
@@ -29,9 +28,7 @@ import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.utility.JavaModule;
 
 public class AgentTransformerBuilder
     implements Instrumenter.TransformerBuilder, Instrumenter.AdviceTransformation {
@@ -65,7 +62,7 @@ public class AgentTransformerBuilder
   }
 
   public ResettableClassFileTransformer installOn(Instrumentation instrumentation) {
-    if (Config.get().isRuntimeContextFieldInjection()) {
+    if (InstrumenterConfig.get().isRuntimeContextFieldInjection()) {
       applyContextStoreInjection();
     }
 
@@ -104,20 +101,7 @@ public class AgentTransformerBuilder
 
     final Instrumenter.AdviceTransformer customTransformer = instrumenter.transformer();
     if (customTransformer != null) {
-      adviceBuilder =
-          adviceBuilder.transform(
-              new AgentBuilder.Transformer() {
-                @Override
-                public DynamicType.Builder<?> transform(
-                    DynamicType.Builder<?> builder,
-                    TypeDescription typeDescription,
-                    ClassLoader classLoader,
-                    JavaModule module,
-                    ProtectionDomain pd) {
-                  return customTransformer.transform(
-                      builder, typeDescription, classLoader, module, pd);
-                }
-              });
+      adviceBuilder = adviceBuilder.transform(customTransformer::transform);
     }
 
     instrumenter.adviceTransformations(this);
@@ -222,17 +206,7 @@ public class AgentTransformerBuilder
   }
 
   private static AgentBuilder.Transformer wrapVisitor(final AsmVisitorWrapper visitor) {
-    return new AgentBuilder.Transformer() {
-      @Override
-      public DynamicType.Builder<?> transform(
-          final DynamicType.Builder<?> builder,
-          final TypeDescription typeDescription,
-          final ClassLoader classLoader,
-          final JavaModule module,
-          final ProtectionDomain pd) {
-        return builder.visit(visitor);
-      }
-    };
+    return (builder, typeDescription, classLoader, module, pd) -> builder.visit(visitor);
   }
 
   private static ElementMatcher<ClassLoader> requireBoth(
