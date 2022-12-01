@@ -323,16 +323,16 @@ final class TypeFactory {
     }
 
     private TypeDescription outline() {
-      TypeDescription outline;
       if (createOutlines) {
-        outline = doResolve(true);
-      } else {
-        // temporarily switch to outlines as that's all we need
-        createOutlines = true;
-        outline = doResolve(true);
+        return doResolve(true);
+      }
+      // temporarily switch to outlines as that's all we need
+      createOutlines = true;
+      try {
+        return doResolve(true);
+      } finally {
         createOutlines = false;
       }
-      return outline;
     }
 
     @Override
