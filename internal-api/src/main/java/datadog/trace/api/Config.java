@@ -256,6 +256,7 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
+import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -2464,9 +2465,10 @@ public class Config {
       } catch (Throwable t) {
         // Ignore
       }
-      if (possibleHostname != null && !possibleHostname.trim().isEmpty()) {
+      possibleHostname = Strings.trim(possibleHostname);
+      if (!possibleHostname.isEmpty()) {
         log.debug("Determined hostname from file {}", hostNameFile);
-        return possibleHostname.trim();
+        return possibleHostname;
       }
     }
 
