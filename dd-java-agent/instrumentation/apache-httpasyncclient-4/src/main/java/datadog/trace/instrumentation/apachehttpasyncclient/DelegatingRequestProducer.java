@@ -5,6 +5,7 @@ import static datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyn
 import static datadog.trace.instrumentation.apachehttpasyncclient.HttpHeadersInjectAdapter.SETTER;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.io.IOException;
 import org.apache.http.HttpException;
 import org.apache.http.HttpHost;
@@ -34,6 +35,8 @@ public class DelegatingRequestProducer implements HttpAsyncRequestProducer {
     DECORATE.onRequest(span, request);
 
     propagate().inject(span, request, SETTER);
+    propagate()
+        .injectPathwayContext(span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
 
     return request;
   }
