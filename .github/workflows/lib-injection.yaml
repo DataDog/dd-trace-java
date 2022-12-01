@@ -61,7 +61,7 @@ jobs:
         platforms: "linux/amd64,linux/arm64/v8"
         context: ./lib-injection
 
- injection-tests:
+  injection-tests:
     needs:
       - lib-injection-image-build
     runs-on: ubuntu-latest
