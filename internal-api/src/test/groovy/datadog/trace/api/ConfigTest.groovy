@@ -2058,6 +2058,32 @@ class ConfigTest extends DDSpecification {
     "1"        | null       | ProductActivation.FULLY_ENABLED
   }
 
+  def "hostname discovery with environment variables"() {
+    setup:
+    final expectedHostname = "myhostname"
+    environmentVariables.set("HOSTNAME", expectedHostname)
+    environmentVariables.set("COMPUTERNAME", expectedHostname)
+
+    when:
+    def hostname = Config.initHostName()
+
+    then:
+    hostname == expectedHostname
+  }
+
+  def "hostname discovery without environment variables"() {
+    setup:
+    environmentVariables.set("HOSTNAME", "")
+    environmentVariables.set("COMPUTERNAME", "")
+
+    when:
+    def hostname = Config.initHostName()
+
+    then:
+    hostname != null
+    !hostname.trim().isEmpty()
+  }
+
   static class ClassThrowsExceptionForValueOfMethod {
     static ClassThrowsExceptionForValueOfMethod valueOf(String ignored) {
       throw new Throwable()

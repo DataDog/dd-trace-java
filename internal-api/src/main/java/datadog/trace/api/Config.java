@@ -256,6 +256,7 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
+import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -267,7 +268,9 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -2435,7 +2438,7 @@ public class Config {
   }
 
   /** Returns the detected hostname. First tries locally, then using DNS */
-  private static String initHostName() {
+  static String initHostName() {
     String possibleHostname;
 
     // Try environment variable.  This works in almost all environments
@@ -2448,6 +2451,25 @@ public class Config {
     if (possibleHostname != null && !possibleHostname.isEmpty()) {
       log.debug("Determined hostname from environment variable");
       return possibleHostname.trim();
+    }
+
+    // Try hostname files
+    final String[] hostNameFiles = new String[] {"/proc/sys/kernel/hostname", "/etc/hostname"};
+    for (final String hostNameFile : hostNameFiles) {
+      try {
+        final Path hostNamePath = FileSystems.getDefault().getPath(hostNameFile);
+        if (Files.isRegularFile(hostNamePath)) {
+          byte[] bytes = Files.readAllBytes(hostNamePath);
+          possibleHostname = new String(bytes, StandardCharsets.ISO_8859_1);
+        }
+      } catch (Throwable t) {
+        // Ignore
+      }
+      possibleHostname = Strings.trim(possibleHostname);
+      if (!possibleHostname.isEmpty()) {
+        log.debug("Determined hostname from file {}", hostNameFile);
+        return possibleHostname;
+      }
     }
 
     // Try hostname command
