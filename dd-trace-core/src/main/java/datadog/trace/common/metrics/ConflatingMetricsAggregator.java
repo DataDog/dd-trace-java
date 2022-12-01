@@ -144,10 +144,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   @Override
   public void start() {
-    if (features.getMetricsEndpoint() == null) {
-      features.discoverIfOutdated();
-    }
-    if (features.supportsMetrics()) {
+    if (isMetricsEnabled()) {
       sink.register(this);
       thread.start();
       cancellation =
@@ -161,6 +158,13 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     } else {
       log.debug("metrics not supported by trace agent");
     }
+  }
+
+  private boolean isMetricsEnabled() {
+    if (features.getMetricsEndpoint() == null) {
+      features.discoverIfOutdated();
+    }
+    return features.supportsMetrics();
   }
 
   @Override
@@ -179,6 +183,19 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   @Override
   public Future<Boolean> forceReport() {
+    // Ensure the feature is enabled
+    if (!isMetricsEnabled()) {
+      return CompletableFuture.completedFuture(false);
+    }
+    // Wait for the thread to start
+    while (cancellation == null || (cancellation.get() != null && !thread.isAlive())) {
+      try {
+        Thread.sleep(10);
+      } catch (InterruptedException e) {
+        return CompletableFuture.completedFuture(false);
+      }
+    }
+    // Try to send the report signal
     ReportSignal reportSignal = new ReportSignal();
     boolean published = false;
     while (thread.isAlive() && !published) {
