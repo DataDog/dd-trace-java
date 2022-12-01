@@ -31,7 +31,9 @@ class Liberty20Test extends HttpServerTest<Server> {
       changeServerXml()
       ServerBuilder sb = new ServerBuilder(name: 'defaultServer')
       server = sb.build()
-      def result = server.start().get(45, TimeUnit.SECONDS)
+      // set bootdelegation to mimic how our -javaagent delegates requests for our shaded slf4j package
+      // (at this point in the build we haven't shaded slf4j or transformed any framework class-loaders)
+      def result = server.start(["org.osgi.framework.bootdelegation":"org.slf4j"]).get(45, TimeUnit.SECONDS)
       if (!result.successful()) {
         throw new IllegalStateException("OpenLiberty startup has failed")
       }
