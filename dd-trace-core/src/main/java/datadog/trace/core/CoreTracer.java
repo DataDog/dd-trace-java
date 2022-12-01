@@ -558,7 +558,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    *
    * @return a PendingTrace
    */
-  PendingTrace createTrace(DDTraceId id) {
+  public PendingTrace createTrace(DDTraceId id) {
     return pendingTraceFactory.create(id);
   }
 
