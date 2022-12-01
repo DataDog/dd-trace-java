@@ -957,7 +957,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public void flushMetrics() {
     try {
-      metricsAggregator.forceReport().get(1_000, MILLISECONDS);
+      metricsAggregator.forceReport().get(2_500, MILLISECONDS);
     } catch (InterruptedException | ExecutionException | TimeoutException e) {
       log.debug("Failed to wait for metrics flush.", e);
     }
