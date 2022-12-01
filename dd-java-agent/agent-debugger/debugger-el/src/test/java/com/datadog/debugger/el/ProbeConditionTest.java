@@ -49,8 +49,7 @@ public class ProbeConditionTest {
     JsonAdapter<ProbeCondition> jsonAdapter = moshi.adapter(ProbeCondition.class);
     assertNull(jsonAdapter.fromJson("null"));
     assertEquals(jsonAdapter.toJson(null), "null");
-    assertThrows(
-        UnsupportedOperationException.class, () -> jsonAdapter.toJson(ProbeCondition.NONE));
+    assertEquals("{\"dsl\":\"\"}", jsonAdapter.toJson(ProbeCondition.NONE));
   }
 
   @Test

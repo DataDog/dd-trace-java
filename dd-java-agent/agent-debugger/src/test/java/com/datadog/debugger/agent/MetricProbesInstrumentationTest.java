@@ -10,6 +10,7 @@ import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.instrumentation.InsnListValue;
 import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
@@ -34,7 +35,6 @@ public class MetricProbesInstrumentationTest {
   private static final String METRIC_ID = "beae1807-f3b0-4ea8-a74f-826790c5e6f8";
   private static final String METRIC_ID1 = "beae1807-f3b0-4ea8-a74f-826790c5e6f6";
   private static final String METRIC_ID2 = "beae1807-f3b0-4ea8-a74f-826790c5e6f7";
-  private static final long ORG_ID = 2;
   private static final String SERVICE_NAME = "service-name";
 
   private Instrumentation instr = ByteBuddyAgent.install();
@@ -508,6 +508,42 @@ public class MetricProbesInstrumentationTest {
     Assert.assertEquals(3, listener.counters.get(METRIC_NAME).longValue());
   }
 
+  @Test
+  public void evaluateAtEntry() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot06";
+    String METRIC_NAME = "field_count";
+    MetricProbe metricProbe =
+        createMetricBuilder(METRIC_ID, METRIC_NAME, COUNT)
+            .where(CLASS_NAME, "f", "()")
+            .valueScript(new ValueScript(".intValue"))
+            .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
+            .build();
+    MetricForwarderListener listener = installMetricProbes(metricProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assert.assertEquals(42, result);
+    Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
+    Assert.assertEquals(24, listener.counters.get(METRIC_NAME).longValue());
+  }
+
+  @Test
+  public void evaluateAtExit() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot06";
+    String METRIC_NAME = "field_count";
+    MetricProbe metricProbe =
+        createMetricBuilder(METRIC_ID, METRIC_NAME, COUNT)
+            .where(CLASS_NAME, "f", "()")
+            .valueScript(new ValueScript(".intValue"))
+            .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
+            .build();
+    MetricForwarderListener listener = installMetricProbes(metricProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assert.assertEquals(42, result);
+    Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
+    Assert.assertEquals(48, listener.counters.get(METRIC_NAME).longValue());
+  }
+
   private MetricForwarderListener installSingleMetric(
       String metricName,
       MetricProbe.MetricKind metricKind,
@@ -600,7 +636,10 @@ public class MetricProbesInstrumentationTest {
 
   private MetricForwarderListener installMetricProbes(MetricProbe... metricProbes) {
     return installMetricProbes(
-        new Configuration(SERVICE_NAME, ORG_ID, null, Arrays.asList(metricProbes), null));
+        Configuration.builder()
+            .setService(SERVICE_NAME)
+            .addMetricProbes(Arrays.asList(metricProbes))
+            .build());
   }
 
   @Test

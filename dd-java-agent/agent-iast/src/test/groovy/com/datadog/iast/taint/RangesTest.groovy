@@ -82,6 +82,8 @@ class RangesTest extends DDSpecification {
 
     where:
     values                                | tainted                                                 | size | rangeCount
+    null                                  | []                                                      | 0    | 0
+    []                                    | []                                                      | 0    | 0
     ['a', 'b', 'c', 'd']                  | [null, ranged(2), null, ranged(6), null]                | 4    | 8
     ['a', 'b', 'c', 'd', 'e'] as String[] | [ranged(1), ranged(1), ranged(1), ranged(1), ranged(1)] | 5    | 5
   }
@@ -89,7 +91,7 @@ class RangesTest extends DDSpecification {
   void 'test empty range provider'() {
     setup:
     final to = Mock(TaintedObjects)
-    final provider = rangesProviderFor(to, [])
+    final provider = rangesProviderFor(to, items)
 
     when:
     final rangeCount = provider.rangeCount()
@@ -110,6 +112,11 @@ class RangesTest extends DDSpecification {
 
     then:
     thrown(UnsupportedOperationException)
+
+    where:
+    items | _
+    null  | _
+    []    | _
   }
 
   Range[] rangesFromSpec(List<List<Object>> spec) {

@@ -52,7 +52,6 @@ public class ConfigurationUpdaterTest {
   private static final String LOG_ID = "d0c03a2a-f5d2-60ca-c96f-a48992e708fa";
   private static final String LOG_ID2 = "d0c03a2b-f5d2-60ca-c96f-a48992e708fa";
   private static final String SERVICE_NAME = "service-name";
-  private static final long ORG_ID = 2;
 
   @Mock private Instrumentation inst;
   @Mock private DebuggerTransformer transformer;
@@ -64,7 +63,6 @@ public class ConfigurationUpdaterTest {
 
   @BeforeEach
   void setUp() {
-    lenient().when(tracerConfig.getServiceName()).thenReturn(SERVICE_NAME);
     lenient().when(tracerConfig.getFinalDebuggerSnapshotUrl()).thenReturn("http://localhost");
     lenient().when(tracerConfig.getDebuggerUploadBatchSize()).thenReturn(100);
 
@@ -471,18 +469,6 @@ public class ConfigurationUpdaterTest {
   }
 
   @Test
-  public void rejectConfigurationsFromOtherServices() {
-    ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(inst, this::createTransformer, tracerConfig, debuggerSink);
-    List<SnapshotProbe> snapshotProbes =
-        Collections.singletonList(
-            SnapshotProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build());
-    configurationUpdater.accept(createAppWithServiceName("other-service", snapshotProbes));
-    verify(inst, never()).addTransformer(any(), eq(true));
-    verifyNoInteractions(debuggerSink);
-  }
-
-  @Test
   public void resolve() {
     when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
     ConfigurationUpdater configurationUpdater =
@@ -740,27 +726,25 @@ public class ConfigurationUpdaterTest {
   }
 
   private static Configuration createApp(List<SnapshotProbe> snapshotProbes) {
-    return new Configuration(SERVICE_NAME, ORG_ID, snapshotProbes);
+    return Configuration.builder()
+        .setService(SERVICE_NAME)
+        .addSnapshotsProbes(snapshotProbes)
+        .build();
   }
 
   private static Configuration createApp(
       List<SnapshotProbe> snapshotProbes,
       List<MetricProbe> metricProbes,
       List<LogProbe> logProbes) {
-    return new Configuration(SERVICE_NAME, ORG_ID, snapshotProbes, metricProbes, logProbes);
+    return new Configuration(SERVICE_NAME, snapshotProbes, metricProbes, logProbes);
   }
 
   private static Configuration createAppMetrics(List<MetricProbe> metricProbes) {
-    return new Configuration(SERVICE_NAME, ORG_ID, null, metricProbes, null);
+    return Configuration.builder().setService(SERVICE_NAME).addMetricProbes(metricProbes).build();
   }
 
   private static Configuration createAppLogs(List<LogProbe> logProbes) {
-    return new Configuration(SERVICE_NAME, ORG_ID, null, null, logProbes);
-  }
-
-  private static Configuration createAppWithServiceName(
-      String serviceName, List<SnapshotProbe> snapshotProbes) {
-    return new Configuration(serviceName, ORG_ID, snapshotProbes);
+    return Configuration.builder().setService(SERVICE_NAME).addLogProbes(logProbes).build();
   }
 
   private DebuggerTransformer createTransformer(

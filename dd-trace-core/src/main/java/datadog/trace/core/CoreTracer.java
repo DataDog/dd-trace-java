@@ -40,8 +40,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.ContextThreadListener;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.civisibility.CiVisibilityTraceInterceptor;
@@ -80,6 +80,8 @@ import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.SortedSet;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -149,6 +151,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final ExternalAgentLauncher externalAgentLauncher;
   private boolean disableSamplingMechanismValidation;
   private final TimeSource timeSource;
+  private final ProfilingContextIntegration profilingContextIntegration;
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -218,6 +221,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private InstrumentationGateway instrumentationGateway;
     private TimeSource timeSource;
     private DataStreamsCheckpointer dataStreamsCheckpointer;
+    private ProfilingContextIntegration profilingContextIntegration =
+        ProfilingContextIntegration.NoOp.INSTANCE;
 
     public CoreTracerBuilder serviceName(String serviceName) {
       this.serviceName = serviceName;
@@ -321,6 +326,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
+    public CoreTracerBuilder profilingContextIntegration(
+        ProfilingContextIntegration profilingContextIntegration) {
+      this.profilingContextIntegration = profilingContextIntegration;
+      return this;
+    }
+
     public CoreTracerBuilder() {
       // Apply the default values from config.
       config(Config.get());
@@ -370,7 +381,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           strictTraceWrites,
           instrumentationGateway,
           timeSource,
-          dataStreamsCheckpointer);
+          dataStreamsCheckpointer,
+          profilingContextIntegration);
     }
   }
 
@@ -395,7 +407,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final boolean strictTraceWrites,
       final InstrumentationGateway instrumentationGateway,
       final TimeSource timeSource,
-      final DataStreamsCheckpointer dataStreamsCheckpointer) {
+      final DataStreamsCheckpointer dataStreamsCheckpointer,
+      final ProfilingContextIntegration profilingContextIntegration) {
 
     assert localRootSpanTags != null;
     assert defaultSpanTags != null;
@@ -446,7 +459,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               config.getScopeDepthLimit(),
               this.statsDClient,
               config.isScopeStrictMode(),
-              config.isScopeInheritAsyncPropagation());
+              config.isScopeInheritAsyncPropagation(),
+              profilingContextIntegration);
       this.scopeManager = csm;
 
     } else {
@@ -524,6 +538,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     StatusLogger.logStatus(config);
 
     datadogTagsFactory = DatadogTags.factory(config);
+    this.profilingContextIntegration = profilingContextIntegration;
   }
 
   @Override
@@ -898,20 +913,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public void addThreadContextListener(ContextThreadListener listener) {
-    if (scopeManager instanceof ContinuableScopeManager) {
-      ((ContinuableScopeManager) scopeManager).addContextThreadListener(listener);
-    }
-  }
-
-  @Override
-  public void detach() {
-    if (scopeManager instanceof ContinuableScopeManager) {
-      ((ContinuableScopeManager) scopeManager).detach();
-    }
-  }
-
-  @Override
   public void registerCheckpointer(EndpointCheckpointer implementation) {
     this.endpointCheckpointer.register(implementation);
   }
@@ -951,6 +952,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public void flush() {
     pendingTraceBuffer.flush();
     writer.flush();
+  }
+
+  @Override
+  public void flushMetrics() {
+    try {
+      metricsAggregator.forceReport().get(1_000, MILLISECONDS);
+    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+      log.debug("Failed to wait for metrics flush.", e);
+    }
   }
 
   private static StatsDClient createStatsDClient(final Config config) {

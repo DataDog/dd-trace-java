@@ -123,7 +123,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
 
         Hashtable mdc = new Hashtable();
 
-        if (Config.get().isLogsMDCTagsInjectionEnabled()) {
+        if (InstrumenterConfig.get().isLogsMDCTagsInjectionEnabled()) {
           String serviceName = Config.get().getServiceName();
           if (null != serviceName && !serviceName.isEmpty()) {
             mdc.put(Tags.DD_SERVICE, serviceName);

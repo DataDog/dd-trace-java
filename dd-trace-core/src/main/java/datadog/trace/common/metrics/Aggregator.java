@@ -1,9 +1,9 @@
 package datadog.trace.common.metrics;
 
-import static datadog.trace.common.metrics.Batch.REPORT;
-import static datadog.trace.common.metrics.ConflatingMetricsAggregator.POISON_PILL;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.trace.common.metrics.SignalItem.ReportSignal;
+import datadog.trace.common.metrics.SignalItem.StopSignal;
 import datadog.trace.core.util.LRUCache;
 import java.util.Iterator;
 import java.util.Map;
@@ -20,7 +20,7 @@ final class Aggregator implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(Aggregator.class);
 
   private final Queue<Batch> batchPool;
-  private final BlockingQueue<Batch> inbox;
+  private final BlockingQueue<InboxItem> inbox;
   private final LRUCache<MetricKey, AggregateMetric> aggregates;
   private final NonBlockingHashMap<MetricKey, Batch> pending;
   private final Set<MetricKey> commonKeys;
@@ -35,7 +35,7 @@ final class Aggregator implements Runnable {
   Aggregator(
       MetricWriter writer,
       Queue<Batch> batchPool,
-      BlockingQueue<Batch> inbox,
+      BlockingQueue<InboxItem> inbox,
       NonBlockingHashMap<MetricKey, Batch> pending,
       final Set<MetricKey> commonKeys,
       int maxAggregates,
@@ -61,13 +61,14 @@ final class Aggregator implements Runnable {
     Thread currentThread = Thread.currentThread();
     while (!currentThread.isInterrupted()) {
       try {
-        Batch batch = inbox.take();
-        if (batch == POISON_PILL) {
-          report(wallClockTime());
+        InboxItem item = inbox.take();
+        if (item instanceof StopSignal) {
+          stop((StopSignal) item);
           break;
-        } else if (batch == REPORT) {
-          report(wallClockTime());
-        } else {
+        } else if (item instanceof ReportSignal) {
+          report(wallClockTime(), (ReportSignal) item);
+        } else if (item instanceof Batch) {
+          Batch batch = (Batch) item;
           MetricKey key = batch.getKey();
           // important that it is still *this* batch pending, must not remove otherwise
           pending.remove(key, batch);
@@ -90,7 +91,17 @@ final class Aggregator implements Runnable {
     log.debug("metrics aggregator exited");
   }
 
-  private void report(long when) {
+  private void stop(StopSignal stopSignal) {
+    report(wallClockTime(), stopSignal);
+    for (InboxItem item : inbox) {
+      if (item instanceof SignalItem) {
+        ((SignalItem) item).ignore();
+      }
+    }
+    stopSignal.complete();
+  }
+
+  private void report(long when, SignalItem signal) {
     boolean skipped = true;
     if (dirty) {
       try {
@@ -111,6 +122,7 @@ final class Aggregator implements Runnable {
       }
       dirty = false;
     }
+    signal.complete();
     if (skipped) {
       log.debug("skipped metrics reporting because no points have changed");
     }

@@ -5,6 +5,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.interceptor.TraceInterceptor;
+import datadog.trace.api.internal.InternalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -35,7 +36,7 @@ import org.slf4j.LoggerFactory;
  * DDTracer implements the <code>io.opentracing.Tracer</code> interface to make it easy to send
  * traces and spans to Datadog using the OpenTracing API.
  */
-public class DDTracer implements Tracer, datadog.trace.api.Tracer {
+public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTracer {
 
   private static final Logger log = LoggerFactory.getLogger(DDTracer.class);
 
@@ -470,6 +471,16 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
       log.debug("Unsupported format for propagation - {}", format.getClass().getName());
       return null;
     }
+  }
+
+  @Override
+  public void flush() {
+    tracer.flush();
+  }
+
+  @Override
+  public void flushMetrics() {
+    tracer.flushMetrics();
   }
 
   @Override

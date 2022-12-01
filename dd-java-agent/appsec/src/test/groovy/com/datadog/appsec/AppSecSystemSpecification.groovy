@@ -9,7 +9,7 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.communication.monitor.Counter
 import datadog.communication.monitor.Monitoring
-import datadog.remoteconfig.ConfigurationChangesListener
+import datadog.remoteconfig.ConfigurationChangesTypedListener
 import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.Product
 import datadog.trace.api.Config
@@ -132,7 +132,7 @@ class AppSecSystemSpecification extends DDSpecification {
   }
 
   void 'updating configuration replaces the EventProducer'() {
-    ConfigurationChangesListener<AppSecConfig> savedAsmListener
+    ConfigurationChangesTypedListener<AppSecConfig> savedAsmListener
     when:
     AppSecSystem.start(subService, sharedCommunicationObjects())
     EventProducerService initialEPS = AppSecSystem.REPLACEABLE_EVENT_PRODUCER.cur

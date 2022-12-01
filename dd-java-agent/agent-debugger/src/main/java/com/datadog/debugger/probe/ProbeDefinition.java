@@ -21,7 +21,7 @@ public abstract class ProbeDefinition {
   protected static final String LANGUAGE = "java";
 
   public enum MethodLocation {
-    NONE,
+    DEFAULT,
     ENTRY,
     EXIT;
   }
@@ -128,7 +128,7 @@ public abstract class ProbeDefinition {
     protected boolean active = true;
     protected String[] tagStrs;
     protected Where where;
-    protected MethodLocation evaluateAt = MethodLocation.NONE;
+    protected MethodLocation evaluateAt = MethodLocation.DEFAULT;
 
     public T language(String language) {
       this.language = language;

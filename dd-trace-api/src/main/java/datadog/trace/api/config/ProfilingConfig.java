@@ -79,15 +79,21 @@ public final class ProfilingConfig {
   public static final String PROFILING_ASYNC_WALL_INTERVAL = "profiling.async.wall.interval.ms";
   public static final int PROFILING_ASYNC_WALL_INTERVAL_DEFAULT = 10;
 
+  public static final String PROFILING_ASYNC_SCHEDULING_EVENT =
+      "profiling.experimental.async.scheduling.event";
+
+  public static final String PROFILING_ASYNC_SCHEDULING_EVENT_INTERVAL =
+      "profiling.experimental.async.scheduling.event.interval";
+
   public static final String PROFILING_ASYNC_LOG_LEVEL = "profiling.async.loglevel";
 
   public static final String PROFILING_ASYNC_LOG_LEVEL_DEFAULT = "NONE";
   public static final String PROFILING_ASYNC_STACKDEPTH = "profiling.async.stackdepth";
   public static final int PROFILING_ASYNC_STACKDEPTH_DEFAULT = 512;
   public static final String PROFILING_ASYNC_CSTACK = "profiling.async.cstack";
-  public static final String PROFILING_ASYNC_CSTACK_DEFAULT = "default";
+  public static final String PROFILING_ASYNC_CSTACK_DEFAULT = "no";
   public static final String PROFILING_ASYNC_SAFEMODE = "profiling.async.safemode";
-  public static final int PROFILING_ASYNC_SAFEMODE_DEFAULT = 12; // POP_FRAME|SCAN_STACK
+  public static final int PROFILING_ASYNC_SAFEMODE_DEFAULT = 12; // POP_METHOD|UNWIND_NATIVE
   public static final String PROFILING_ASYNC_MEMLEAK_ENABLED = "profiling.async.memleak.enabled";
   public static final boolean PROFILING_ASYNC_MEMLEAK_ENABLED_DEFAULT = false;
   public static final String PROFILING_ASYNC_MEMLEAK_INTERVAL = "profiling.async.memleak.interval";
