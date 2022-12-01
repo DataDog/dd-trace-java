@@ -343,19 +343,21 @@ class TaintedMapTest extends DDSpecification {
     map.isFlat()
 
     when: 'puts from different threads to any buckets'
-    def objectHolder = []
     def futures = (0..nThreads-1).collect { thread ->
       // Each thread has multiple objects for each bucket
       def objects = gen.genBuckets(capacity, 10).flatten()
-      objectHolder.addAll(objects)
-      Collections.shuffle(objects)
+      def taintedObjects = objects.collect {o ->
+        final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
+        queue.hold(o, to)
+        return to
+      }
+      Collections.shuffle(taintedObjects)
 
       executorService.submit({
         ->
         latch.countDown()
         latch.await()
-        objects.each { o ->
-          final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
+        taintedObjects.each { to ->
           map.put(to)
         }
       } as Runnable)
@@ -367,7 +369,7 @@ class TaintedMapTest extends DDSpecification {
     then:
     map.isFlat()
     map.toList().size() == capacity
-    map.toList().findAll({ it.get() }).size() == capacity
+    map.toList().findAll({ it.get() != null }).size() == capacity
     map.toList().collect({ it.get() }).toSet().size() == capacity
 
     cleanup:
