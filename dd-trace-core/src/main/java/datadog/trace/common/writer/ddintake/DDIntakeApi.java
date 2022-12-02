@@ -170,5 +170,4 @@ public class DDIntakeApi extends RemoteApi {
 
   @Override
   public void addResponseListener(RemoteResponseListener listener) {}
-
 }

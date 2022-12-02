@@ -1,10 +1,9 @@
 package datadog.trace.common.writer;
 
 import datadog.trace.relocate.api.IOLogger;
+import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
 
 public abstract class RemoteApi {
 
@@ -33,7 +32,8 @@ public abstract class RemoteApi {
     // these are used to catch and log if there is a failure in debug logging the response body
     String responseBody = getResponseBody(response);
     String sendErrorString =
-        createSendLogMessage(traceCount, sizeInBytes, responseBody.isEmpty() ? "Error" : responseBody);
+        createSendLogMessage(
+            traceCount, sizeInBytes, responseBody.isEmpty() ? "Error" : responseBody);
 
     ioLogger.error(sendErrorString, toLoggerResponse(response, responseBody), outer);
   }

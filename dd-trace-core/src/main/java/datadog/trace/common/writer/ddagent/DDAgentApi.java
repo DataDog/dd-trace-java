@@ -147,5 +147,4 @@ public class DDAgentApi extends RemoteApi {
       featuresDiscovery.discover();
     }
   }
-
 }
