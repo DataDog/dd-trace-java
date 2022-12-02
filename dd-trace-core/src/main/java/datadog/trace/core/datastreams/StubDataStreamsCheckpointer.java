@@ -31,4 +31,7 @@ public class StubDataStreamsCheckpointer implements DataStreamsCheckpointer {
 
   @Override
   public void close() {}
+
+  @Override
+  public void clear() {}
 }
