@@ -89,3 +89,8 @@ jmh {
   jmhVersion = '1.28'
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
 }
+
+pitest {
+  targetClasses = ['com.datadog.iast.*']
+  jvmArgs = ['-Ddd.iast.enabled=true']
+}
