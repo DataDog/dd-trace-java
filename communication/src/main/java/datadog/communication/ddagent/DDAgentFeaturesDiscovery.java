@@ -239,7 +239,6 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         }
       }
 
-
       if (metricsEnabled) {
         Object canDrop = map.get("client_drop_p0s");
         supportsDropping =
