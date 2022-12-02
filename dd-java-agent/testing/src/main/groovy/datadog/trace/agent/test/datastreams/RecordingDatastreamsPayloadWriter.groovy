@@ -22,11 +22,11 @@ class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
     groups.clear()
   }
 
-  void waitForPayloads(int count, long timeout = TimeUnit.SECONDS.toMillis(1)) {
+  void waitForPayloads(int count, long timeout = TimeUnit.SECONDS.toMillis(2)) {
     waitFor(count, timeout, payloads)
   }
 
-  void waitForGroups(int count, long timeout = TimeUnit.SECONDS.toMillis(1)) {
+  void waitForGroups(int count, long timeout = TimeUnit.SECONDS.toMillis(2)) {
     waitFor(count, timeout, groups)
   }
 
