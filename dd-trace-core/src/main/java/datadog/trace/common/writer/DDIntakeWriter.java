@@ -41,10 +41,10 @@ public class DDIntakeWriter extends RemoteWriter {
     private TimeUnit flushTimeoutUnit = TimeUnit.SECONDS;
     private boolean alwaysFlush = true;
 
-    private DDIntakeApi intakeApi;
+    private RemoteApi intakeApi;
     private String apiKey;
 
-    public DDIntakeWriterBuilder intakeApi(final DDIntakeApi intakeApi) {
+    public DDIntakeWriterBuilder intakeApi(final RemoteApi intakeApi) {
       this.intakeApi = intakeApi;
       return this;
     }
