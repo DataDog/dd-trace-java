@@ -271,16 +271,30 @@ public class MoshiSnapshotHelper {
         jsonWriter.value(capturedContext.getThisClassName());
         jsonWriter.name(FIELDS);
         jsonWriter.beginObject();
-        toJsonCapturedValues(jsonWriter, capturedContext.getFields(), capturedContext.getLimits());
-        jsonWriter.endObject();
-        jsonWriter.endObject();
+        boolean complete =
+            toJsonCapturedValues(
+                jsonWriter, capturedContext.getFields(), capturedContext.getLimits());
+        jsonWriter.endObject(); // FIELDS
+        if (!complete) {
+          jsonWriter.name(NOT_CAPTURED_REASON);
+          jsonWriter.value(FIELD_COUNT_REASON);
+        }
+        jsonWriter.endObject(); // THIS
       }
-      toJsonCapturedValues(jsonWriter, capturedContext.getArguments(), capturedContext.getLimits());
-      jsonWriter.endObject();
+      boolean completeArgs =
+          toJsonCapturedValues(
+              jsonWriter, capturedContext.getArguments(), capturedContext.getLimits());
+      jsonWriter.endObject(); // ARGUMENTS
       jsonWriter.name(LOCALS);
       jsonWriter.beginObject();
-      toJsonCapturedValues(jsonWriter, capturedContext.getLocals(), capturedContext.getLimits());
-      jsonWriter.endObject();
+      boolean completeLocals =
+          toJsonCapturedValues(
+              jsonWriter, capturedContext.getLocals(), capturedContext.getLimits());
+      jsonWriter.endObject(); // LOCALS
+      if (!completeArgs || !completeLocals) {
+        jsonWriter.name(NOT_CAPTURED_REASON);
+        jsonWriter.value(FIELD_COUNT_REASON);
+      }
       jsonWriter.name(THROWABLE);
       throwableAdapter.toJson(jsonWriter, capturedContext.getThrowable());
       // TODO add static fields
@@ -288,18 +302,17 @@ public class MoshiSnapshotHelper {
       jsonWriter.endObject();
     }
 
-    private void toJsonCapturedValues(
+    /** @return true if all items where serialized or whether we reach the max field count */
+    private boolean toJsonCapturedValues(
         JsonWriter jsonWriter, Map<String, Snapshot.CapturedValue> map, Limits limits)
         throws IOException {
       if (map == null) {
-        return;
+        return true;
       }
       int count = 0;
       for (Map.Entry<String, Snapshot.CapturedValue> entry : map.entrySet()) {
         if (count >= limits.maxFieldCount) {
-          jsonWriter.name(NOT_CAPTURED_REASON);
-          jsonWriter.value(FIELD_COUNT_REASON);
-          break;
+          return false;
         }
         jsonWriter.name(entry.getKey());
         Snapshot.CapturedValue capturedValue = entry.getValue();
@@ -310,6 +323,7 @@ public class MoshiSnapshotHelper {
                         capturedValue.getStrValue().getBytes(StandardCharsets.UTF_8)))));
         count++;
       }
+      return true;
     }
   }
 

@@ -137,6 +137,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @Shared
   RecordingDatastreamsPayloadWriter TEST_DATA_STREAMS_WRITER
 
+  @SuppressWarnings('PropertyName')
+  @Shared
+  DataStreamsCheckpointer TEST_DATA_STREAMS_CHECKPOINTER
+
   @Shared
   ClassFileTransformer activeTransformer
 
@@ -185,7 +189,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
         void register(EventListener listener) {}
       }
-    DataStreamsCheckpointer dataStreamsCheckpointer = new StubDataStreamsCheckpointer()
+    TEST_DATA_STREAMS_CHECKPOINTER = new StubDataStreamsCheckpointer()
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       try {
         // Fast enough so tests don't take forever
@@ -193,7 +197,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
         WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
 
         // Use reflection to load the class because it should only be loaded on Java 8+
-        dataStreamsCheckpointer = (DataStreamsCheckpointer) Class.forName("datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer")
+        TEST_DATA_STREAMS_CHECKPOINTER = (DataStreamsCheckpointer) Class.forName("datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer")
           .getDeclaredConstructor(Sink, DDAgentFeaturesDiscovery, TimeSource, WellKnownTags, DatastreamsPayloadWriter, long)
           .newInstance(sink, features, SystemTimeSource.INSTANCE, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
       } catch (InstantiationException | InvocationTargetException | NoSuchMethodException | IllegalAccessException | ClassNotFoundException e) {
@@ -208,7 +212,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       .idGenerationStrategy(IdGenerationStrategy.fromName("SEQUENTIAL"))
       .statsDClient(STATS_D_CLIENT)
       .strictTraceWrites(useStrictTraceWrites())
-      .dataStreamsCheckpointer(dataStreamsCheckpointer)
+      .dataStreamsCheckpointer(TEST_DATA_STREAMS_CHECKPOINTER)
       .profilingContextIntegration(TEST_PROFILING_CONTEXT_INTEGRATION)
       .build())
     TEST_TRACER.registerCheckpointer(TEST_CHECKPOINTER)
@@ -253,6 +257,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     TEST_TRACKER.clear()
     TEST_WRITER.start()
     TEST_DATA_STREAMS_WRITER.clear()
+    TEST_DATA_STREAMS_CHECKPOINTER.clear()
 
     def util = new MockUtil()
     util.attachMock(STATS_D_CLIENT, this)
