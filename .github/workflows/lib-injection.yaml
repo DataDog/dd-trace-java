@@ -39,6 +39,7 @@ jobs:
           mv *.jar dd-java-agent.jar
           echo "after renaming file tracer"
           ls
+          cp dd-java-agent.jar lib-injection/
     - name: Available platforms
       run: echo ${{ steps.buildx.outputs.platforms }}
 
