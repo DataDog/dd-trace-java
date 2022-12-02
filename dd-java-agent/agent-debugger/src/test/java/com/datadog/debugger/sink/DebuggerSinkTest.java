@@ -40,11 +40,6 @@ public class DebuggerSinkTest {
   private static final String PROBE_ID = "12fd-8490-c111-4374-ffde";
   private static final Snapshot.ProbeLocation PROBE_LOCATION =
       new Snapshot.ProbeLocation("java.lang.String", "indexOf", null, null);
-  private static final Snapshot SNAPSHOT =
-      new Snapshot(
-          Thread.currentThread(),
-          new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
-          String.class.getTypeName());
   public static final int MAX_PAYLOAD = 5 * 1024 * 1024;
 
   @Mock private Config config;
@@ -71,7 +66,12 @@ public class DebuggerSinkTest {
   @Test
   public void addSnapshot() throws URISyntaxException, IOException {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
-    sink.addSnapshot(SNAPSHOT);
+    Snapshot snapshot =
+        new Snapshot(
+            Thread.currentThread(),
+            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+            String.class.getTypeName());
+    sink.addSnapshot(snapshot);
     String fixtureContent = getFixtureContent(SINK_FIXTURE_PREFIX + "/snapshotRegex.txt");
     String regex = fixtureContent.replaceAll("\\n", "");
     sink.flush(sink);
@@ -84,7 +84,12 @@ public class DebuggerSinkTest {
   public void addMultipleSnapshots() throws URISyntaxException, IOException {
     when(config.getDebuggerUploadBatchSize()).thenReturn(2);
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
-    Arrays.asList(SNAPSHOT, SNAPSHOT).forEach(sink::addSnapshot);
+    Snapshot snapshot =
+        new Snapshot(
+            Thread.currentThread(),
+            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+            String.class.getTypeName());
+    Arrays.asList(snapshot, snapshot).forEach(sink::addSnapshot);
 
     String fixtureContent = getFixtureContent(SINK_FIXTURE_PREFIX + "/multipleSnapshotRegex.txt");
     String regex = fixtureContent.replaceAll("\\n", "");
@@ -242,7 +247,12 @@ public class DebuggerSinkTest {
   public void reconsiderFlushIntervalIncreaseFlushInterval() {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     long currentFlushInterval = sink.getCurrentFlushInterval();
-    sink.addSnapshot(SNAPSHOT);
+    Snapshot snapshot =
+        new Snapshot(
+            Thread.currentThread(),
+            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+            String.class.getTypeName());
+    sink.addSnapshot(snapshot);
     sink.doReconsiderFlushInterval();
     long newFlushInterval = sink.getCurrentFlushInterval();
     assertEquals(currentFlushInterval + DebuggerSink.STEP_SIZE, newFlushInterval);
@@ -253,8 +263,13 @@ public class DebuggerSinkTest {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     long currentFlushInterval = sink.getCurrentFlushInterval();
     sink.flush(sink);
+    Snapshot snapshot =
+        new Snapshot(
+            Thread.currentThread(),
+            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+            String.class.getTypeName());
     for (int i = 0; i < 1000; i++) {
-      sink.addSnapshot(SNAPSHOT);
+      sink.addSnapshot(snapshot);
     }
     sink.doReconsiderFlushInterval();
     long newFlushInterval = sink.getCurrentFlushInterval();
@@ -265,8 +280,13 @@ public class DebuggerSinkTest {
   public void reconsiderFlushIntervalNoChange() {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     long currentFlushInterval = sink.getCurrentFlushInterval();
+    Snapshot snapshot =
+        new Snapshot(
+            Thread.currentThread(),
+            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+            String.class.getTypeName());
     for (int i = 0; i < 500; i++) {
-      sink.addSnapshot(SNAPSHOT);
+      sink.addSnapshot(snapshot);
     }
     sink.doReconsiderFlushInterval();
     long newFlushInterval = sink.getCurrentFlushInterval();
@@ -282,10 +302,36 @@ public class DebuggerSinkTest {
           Snapshot.CapturedValue.of("dd.trace_id", "java.lang.String", "123"),
           Snapshot.CapturedValue.of("dd.span_id", "java.lang.String", "456"),
         });
-    SNAPSHOT.setEntry(entry);
-    sink.addSnapshot(SNAPSHOT);
+    Snapshot snapshot =
+        new Snapshot(
+            Thread.currentThread(),
+            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+            String.class.getTypeName());
+    snapshot.setEntry(entry);
+    sink.addSnapshot(snapshot);
     String fixtureContent =
         getFixtureContent(SINK_FIXTURE_PREFIX + "/snapshotWithCorrelationIdsRegex.txt");
+    String regex = fixtureContent.replaceAll("\\n", "");
+    sink.flush(sink);
+    verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
+    String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
+    assertTrue(strPayload.matches(regex), strPayload);
+  }
+
+  @Test
+  public void addSnapshotWithEvalErrors() throws URISyntaxException, IOException {
+    DebuggerSink sink = new DebuggerSink(config, batchUploader);
+    Snapshot.CapturedContext entry = new Snapshot.CapturedContext();
+    entry.addEvalError("obj.field", "Cannot dereference obj");
+    Snapshot snapshot =
+        new Snapshot(
+            Thread.currentThread(),
+            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+            String.class.getTypeName());
+    snapshot.setEntry(entry);
+    sink.addSnapshot(snapshot);
+    String fixtureContent =
+        getFixtureContent(SINK_FIXTURE_PREFIX + "/snapshotWithEvalErrorRegex.txt");
     String regex = fixtureContent.replaceAll("\\n", "");
     sink.flush(sink);
     verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));

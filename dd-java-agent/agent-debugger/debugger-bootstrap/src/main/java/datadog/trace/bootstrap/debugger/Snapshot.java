@@ -35,9 +35,11 @@ public class Snapshot {
   private final String language;
   private final transient CapturedThread thread;
   private final transient Set<String> capturingProbeIds = new HashSet<>();
+  private final transient Set<String> errorReportingIds = new HashSet<>();
   private final transient String thisClassName;
   private String traceId; // trace_id
   private String spanId; // span_id
+  private List<EvaluationError> evaluationErrors;
   private final transient SummaryBuilder summaryBuilder;
 
   public Snapshot(java.lang.Thread thread, ProbeDetails probeDetails, String thisClassName) {
@@ -173,12 +175,16 @@ public class Snapshot {
     return spanId;
   }
 
+  public List<EvaluationError> getEvaluationErrors() {
+    return evaluationErrors;
+  }
+
   public String getSummary() {
     return summaryBuilder.build();
   }
 
   public void commit() {
-    if (!isCapturing()) {
+    if (!isCapturing() && evaluationErrors == null) {
       DebuggerContext.skipSnapshot(probe.id, DebuggerContext.SkipCause.CONDITION);
       for (ProbeDetails probeDetails : probe.additionalProbes) {
         DebuggerContext.skipSnapshot(probeDetails.id, DebuggerContext.SkipCause.CONDITION);
@@ -202,13 +208,14 @@ public class Snapshot {
      * - Snapshot.commit()
      */
     recordStackTrace(3);
-    if (capturingProbeIds.contains(probe.id)) {
+    if (capturingProbeIds.contains(probe.id) || errorReportingIds.contains(probe.id)) {
       DebuggerContext.addSnapshot(this);
     } else {
       DebuggerContext.skipSnapshot(probe.id, DebuggerContext.SkipCause.CONDITION);
     }
     for (ProbeDetails additionalProbe : probe.additionalProbes) {
-      if (capturingProbeIds.contains(additionalProbe.id)) {
+      if (capturingProbeIds.contains(additionalProbe.id)
+          || errorReportingIds.contains(additionalProbe.id)) {
         DebuggerContext.addSnapshot(copy(additionalProbe.id, UUID.randomUUID().toString()));
       } else {
         DebuggerContext.skipSnapshot(additionalProbe.id, DebuggerContext.SkipCause.CONDITION);
@@ -243,11 +250,22 @@ public class Snapshot {
     if (!executeScript(script, capture, probe.id)) {
       capturingProbeIds.remove(probe.id);
     }
+    if (capture.areEvalErrors()) {
+      errorReportingIds.add(probe.id);
+      if (capture.evaluationErrors != null) {
+        if (evaluationErrors == null) {
+          evaluationErrors = new ArrayList<>();
+        }
+        evaluationErrors.addAll(capture.evaluationErrors);
+      }
+    }
     List<ProbeDetails> additionalProbes = probe.additionalProbes;
     if (!additionalProbes.isEmpty()) {
       for (ProbeDetails additionalProbe : additionalProbes) {
         if (executeScript(additionalProbe.getScript(), capture, additionalProbe.id)) {
           capturingProbeIds.add(additionalProbe.id);
+        } else if (capture.areEvalErrors()) {
+          errorReportingIds.add(additionalProbe.id);
         }
       }
     }
@@ -568,6 +586,7 @@ public class Snapshot {
     private Map<String, CapturedValue> fields;
     private Limits limits = Limits.DEFAULT;
     private String thisClassName;
+    private List<EvaluationError> evaluationErrors;
 
     public CapturedContext() {}
 
@@ -604,16 +623,26 @@ public class Snapshot {
       Object target = Values.UNDEFINED_OBJECT;
       if (prefix.equals(ValueReferences.FIELD_PREFIX)) {
         target = tryRetrieveField(head);
+        checkUndefined(path, target, head, "Cannot find field: ");
       } else if (prefix.equals(ValueReferences.SYNTHETIC_PREFIX)) {
         target = tryRetrieveSynthetic(head);
+        checkUndefined(path, target, head, "Cannot find synthetic var: ");
       } else if (prefix.equals(ValueReferences.LOCALVAR_PREFIX)) {
         target = tryRetrieveLocalVar(head);
+        checkUndefined(path, target, head, "Cannot find local var: ");
       } else if (prefix.equals(ValueReferences.ARGUMENT_PREFIX)) {
         target = tryRetrieveArgument(head);
+        checkUndefined(path, target, head, "Cannot find argument: ");
       }
-      target = followReferences(target, parts);
+      target = followReferences(path, target, parts);
 
       return target instanceof CapturedValue ? ((CapturedValue) target).getValue() : target;
+    }
+
+    private void checkUndefined(String path, Object target, String name, String msg) {
+      if (target == Values.UNDEFINED_OBJECT) {
+        addEvalError(path, msg + name);
+      }
     }
 
     private Object tryRetrieveField(String name) {
@@ -651,7 +680,7 @@ public class Snapshot {
      * @param parts the reference path
      * @return the resolved value or {@linkplain Values#UNDEFINED_OBJECT}
      */
-    private Object followReferences(Object src, String[] parts) {
+    private Object followReferences(String path, Object src, String[] parts) {
       if (src == Values.UNDEFINED_OBJECT) {
         return src;
       }
@@ -677,8 +706,13 @@ public class Snapshot {
             }
           }
         } else {
-          target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), parts[i]);
+          if (target != null) {
+            target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), parts[i]);
+          } else {
+            target = Values.UNDEFINED_OBJECT;
+          }
         }
+        checkUndefined(path, target, parts[i], "Cannot dereference to field: ");
       }
       return target;
     }
@@ -745,6 +779,20 @@ public class Snapshot {
       for (CapturedValue value : values) {
         fields.put(value.name, value);
       }
+    }
+
+    public void addEvalError(String expr, String message) {
+      if (evaluationErrors == null) {
+        evaluationErrors = new ArrayList<>();
+      }
+      evaluationErrors.add(new EvaluationError(expr, message));
+    }
+
+    boolean areEvalErrors() {
+      if (evaluationErrors != null) {
+        return !evaluationErrors.isEmpty();
+      }
+      return false;
     }
 
     public void setLimits(
@@ -1137,6 +1185,27 @@ public class Snapshot {
           + ", stacktrace="
           + stacktrace
           + '}';
+    }
+  }
+
+  /**
+   * Store evaluation errors from expressions (probe conditions, log template, metric values, ...)
+   */
+  public static class EvaluationError {
+    private final String expr;
+    private final String message;
+
+    public EvaluationError(String expr, String message) {
+      this.expr = expr;
+      this.message = message;
+    }
+
+    public String getExpr() {
+      return expr;
+    }
+
+    public String getMessage() {
+      return message;
     }
   }
 }

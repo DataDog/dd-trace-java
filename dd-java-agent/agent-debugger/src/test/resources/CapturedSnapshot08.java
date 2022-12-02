@@ -22,6 +22,7 @@ public class CapturedSnapshot08 {
 
   private int fld = 11;
   private Type1 typed = new Type1(new Type2(new Type3("hello")));
+  private Type1 nullTyped = new Type1(null);
 
   private static final CapturedSnapshot08 INSTANCE = new CapturedSnapshot08();
 
