@@ -415,6 +415,18 @@ public final class AsyncProfiler {
     }
   }
 
+  public void setPoolParallelism(int tid, int parallelism) {
+    if (asyncProfiler != null && tid >= 0) {
+      asyncProfiler.setPoolParallelism(tid, parallelism);
+    }
+  }
+
+  public void clearPoolParallelism(int tid) {
+    if (asyncProfiler != null && tid >= 0) {
+      asyncProfiler.clearPoolParallelism(tid);
+    }
+  }
+
   public int getNativeThreadId() {
     if (asyncProfiler != null) {
       return asyncProfiler.getNativeThreadId();

@@ -247,6 +247,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     TEST_WRITER.start()
     TEST_DATA_STREAMS_WRITER.clear()
     TEST_DATA_STREAMS_CHECKPOINTER.clear()
+    TEST_PROFILING_CONTEXT_INTEGRATION.clear()
 
     def util = new MockUtil()
     util.attachMock(STATS_D_CLIENT, this)

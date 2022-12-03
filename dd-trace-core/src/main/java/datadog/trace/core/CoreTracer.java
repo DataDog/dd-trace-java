@@ -837,6 +837,16 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     LambdaHandler.notifyEndInvocation(span, result, isError);
   }
 
+  @Override
+  public void recordCurrentThreadPoolParallelism(int parallelism) {
+    profilingContextIntegration.setPoolParallelism(parallelism);
+  }
+
+  @Override
+  public void clearCurrentThreadPoolParallelism() {
+    profilingContextIntegration.clearPoolParallelism();
+  }
+
   private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, MINUTES);
 
   /**

@@ -30,6 +30,16 @@ public class ContextThreadFilter implements ProfilingContextIntegration {
   }
 
   @Override
+  public void setPoolParallelism(int parallelism) {
+    ASYNC_PROFILER.setPoolParallelism(getNativeThreadId(), parallelism);
+  }
+
+  @Override
+  public void clearPoolParallelism() {
+    ASYNC_PROFILER.clearPoolParallelism(getNativeThreadId());
+  }
+
+  @Override
   public int getNativeThreadId() {
     return ASYNC_PROFILER.getNativeThreadId();
   }

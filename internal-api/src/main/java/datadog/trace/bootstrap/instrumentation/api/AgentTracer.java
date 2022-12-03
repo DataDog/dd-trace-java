@@ -172,6 +172,10 @@ public class AgentTracer {
     AgentSpan.Context notifyExtensionStart(Object event);
 
     void notifyExtensionEnd(AgentSpan span, Object result, boolean isError);
+
+    void recordCurrentThreadPoolParallelism(int parallelism);
+
+    void clearCurrentThreadPoolParallelism();
   }
 
   public interface SpanBuilder {
@@ -380,6 +384,12 @@ public class AgentTracer {
 
     @Override
     public void notifyExtensionEnd(AgentSpan span, Object result, boolean isError) {}
+
+    @Override
+    public void recordCurrentThreadPoolParallelism(int parallelism) {}
+
+    @Override
+    public void clearCurrentThreadPoolParallelism() {}
   }
 
   public static final class NoopAgentSpan implements AgentSpan {

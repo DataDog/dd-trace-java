@@ -9,6 +9,10 @@ public interface ProfilingContextIntegration {
 
   void setContext(int tid, long rootSpanId, long spanId);
 
+  void setPoolParallelism(int parallelism);
+
+  void clearPoolParallelism();
+
   int getNativeThreadId();
 
   final class NoOp implements ProfilingContextIntegration {
@@ -23,6 +27,12 @@ public interface ProfilingContextIntegration {
 
     @Override
     public void setContext(int tid, long rootSpanId, long spanId) {}
+
+    @Override
+    public void setPoolParallelism(int parallelism) {}
+
+    @Override
+    public void clearPoolParallelism() {}
 
     @Override
     public int getNativeThreadId() {
