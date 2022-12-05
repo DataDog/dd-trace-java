@@ -3,12 +3,10 @@ package datadog.trace.common.writer;
 import datadog.trace.relocate.api.IOLogger;
 import java.io.IOException;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public abstract class RemoteApi {
 
-  protected static final Logger log = LoggerFactory.getLogger(RemoteApi.class);
-  protected final IOLogger ioLogger = new IOLogger(log);
+  protected final IOLogger ioLogger = new IOLogger(getLogger());
 
   protected long totalTraces = 0;
   protected long receivedTraces = 0;
@@ -79,6 +77,8 @@ public abstract class RemoteApi {
   protected abstract Response sendSerializedTraces(final Payload payload);
 
   protected abstract void addResponseListener(final RemoteResponseListener listener);
+
+  protected abstract Logger getLogger();
 
   /**
    * Encapsulates an attempted response from the remote location.

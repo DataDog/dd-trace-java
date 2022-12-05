@@ -17,11 +17,14 @@ import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** The API pointing to a DD Intake endpoint */
 public class DDIntakeApi extends RemoteApi {
 
   private static final String DD_API_KEY_HEADER = "dd-api-key";
+  private static final Logger log = LoggerFactory.getLogger(DDIntakeApi.class);
 
   public static DDIntakeApiBuilder builder() {
     return new DDIntakeApiBuilder();
@@ -170,4 +173,9 @@ public class DDIntakeApi extends RemoteApi {
 
   @Override
   public void addResponseListener(RemoteResponseListener listener) {}
+
+  @Override
+  protected Logger getLogger() {
+    return log;
+  }
 }

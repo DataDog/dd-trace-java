@@ -22,11 +22,14 @@ import java.util.Objects;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** The API pointing to a DD agent */
 public class DDAgentApi extends RemoteApi {
 
   public static final String DATADOG_META_TRACER_VERSION = "Datadog-Meta-Tracer-Version";
+  private static final Logger log = LoggerFactory.getLogger(DDAgentApi.class);
 
   private static final String DATADOG_CLIENT_COMPUTED_STATS = "Datadog-Client-Computed-Stats";
   // this is not intended to be a toggled feature,
@@ -146,5 +149,10 @@ public class DDAgentApi extends RemoteApi {
     if (!Objects.equals(state, previous)) {
       featuresDiscovery.discover();
     }
+  }
+
+  @Override
+  protected Logger getLogger() {
+    return log;
   }
 }
