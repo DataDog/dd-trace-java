@@ -50,6 +50,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     List<String> command = new ArrayList<>()
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
+    command.add("-Ddd.instrumentation.telemetry.enabled=false")
     command.add("-Ddd.test.logfile=${outputLogFile.absolutePath}" as String)
     command.add("-Ddd.test.jsonlogfile=${outputJsonLogFile.absolutePath}" as String)
     if (noTags) {
