@@ -5,7 +5,7 @@ and discuss your ideas or propose the changes you wish to make. After a resoluti
 
 ## Requirements
 
-To build the full project from the command line:
+To build the full project:
 
 * JDK version 8 must be installed.
 * JDK version 11 must be installed.
