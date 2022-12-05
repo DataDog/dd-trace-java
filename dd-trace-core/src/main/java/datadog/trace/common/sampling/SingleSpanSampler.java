@@ -31,7 +31,7 @@ public interface SingleSpanSampler<T extends CoreSpan<T>> {
             "Both {} and {} defined. {} will be ignored.",
             SPAN_SAMPLING_RULES,
             SPAN_SAMPLING_RULES_FILE,
-            SPAN_SAMPLING_RULES);
+            SPAN_SAMPLING_RULES_FILE);
       }
 
       if (spanSamplingRulesDefined) {
