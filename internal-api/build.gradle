@@ -76,8 +76,6 @@ excludedClassesCoverage += [
   "datadog.trace.api.StatsDClientManager",
   // a stub
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOp",
-  // Cannot get coverage without different OS's
-  "datadog.common.process.PidHelper"
 ]
 excludedClassesBranchCoverage = ['datadog.trace.api.ProductActivationConfig', 'datadog.trace.api.Config']
 
