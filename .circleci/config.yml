@@ -43,7 +43,7 @@ build_cache_paths: &build_cache_paths
   paths:
     # Gradle version specific cache for incremental builds. Needs to match version in
     # gradle/wrapper/gradle-wrapper.properties
-    - ~/.gradle/caches/7.5.47-20220929220000+0000
+    - ~/.gradle/caches/7.6.1
 
 test_matrix: &test_matrix
   parameters:
