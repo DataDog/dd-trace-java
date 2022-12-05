@@ -116,7 +116,6 @@ public class DDIntakeApi extends RemoteApi {
   @Override
   public Response sendSerializedTraces(Payload payload) {
     final int sizeInBytes = payload.sizeInBytes();
-    boolean shouldRetry;
     int retry = 1;
 
     try {
@@ -129,41 +128,35 @@ public class DDIntakeApi extends RemoteApi {
       this.totalTraces += payload.traceCount();
       this.receivedTraces += payload.traceCount();
 
-      int httpCode = 0;
-      IOException lastException = null;
-      okhttp3.Response lastResponse = null;
       while (true) {
         // Exponential backoff retry when http code >= 500 or ConnectException is thrown.
         try (final okhttp3.Response response = httpClient.newCall(request).execute()) {
-          httpCode = response.code();
-          shouldRetry = httpCode >= 500 && retryPolicy.shouldRetry(retry);
-          if (!shouldRetry && httpCode >= 400) {
-            lastResponse = response;
+          if (response.isSuccessful()) {
+            countAndLogSuccessfulSend(payload.traceCount(), sizeInBytes);
+            return Response.success(response.code());
+          }
+          int httpCode = response.code();
+          boolean shouldRetry = httpCode >= 500 && retryPolicy.shouldRetry(retry);
+          if (!shouldRetry) {
+            countAndLogFailedSend(payload.traceCount(), sizeInBytes, response, null);
+            return Response.failed(httpCode);
           }
         } catch (ConnectException ex) {
-          shouldRetry = retryPolicy.shouldRetry(retry);
-          lastException = ex;
-        }
-
-        if (shouldRetry) {
-          long backoffMs = retryPolicy.backoff(retry);
-          try {
-            Thread.sleep(backoffMs);
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException(e);
+          boolean shouldRetry = retryPolicy.shouldRetry(retry);
+          if (!shouldRetry) {
+            countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, null);
+            return Response.failed(ex);
           }
-          retry++;
-        } else {
-          if (httpCode < 200 || httpCode >= 300) {
-            countAndLogFailedSend(payload.traceCount(), sizeInBytes, lastResponse, null);
-            return Response.failed(httpCode);
-          } else if (lastException != null) {
-            throw lastException;
-          }
-          countAndLogSuccessfulSend(payload.traceCount(), sizeInBytes);
-          return Response.success(httpCode);
         }
+        // If we get here, there has been an error and we still have retries left
+        long backoffMs = retryPolicy.backoff(retry);
+        try {
+          Thread.sleep(backoffMs);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new IOException(e);
+        }
+        retry++;
       }
     } catch (final IOException e) {
       countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, e);
