@@ -2,16 +2,7 @@ plugins {
   id 'org.gradle.playframework'
 }
 
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
-}
-
 apply from: "$rootDir/gradle/java.gradle"
-
-java {
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
-}
 
 def playVer = "2.8.15"
 def scalaVer = System.getProperty("scala.version", /* default = */ "2.13")

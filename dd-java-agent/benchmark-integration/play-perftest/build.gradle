@@ -2,11 +2,6 @@ plugins {
   id 'org.gradle.playframework'
 }
 
-java {
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
-}
-
 def playVer = "2.6.20"
 def scalaVer = System.getProperty("scala.binary.version", /* default = */ "2.12")
 

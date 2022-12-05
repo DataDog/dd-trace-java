@@ -40,6 +40,3 @@ dependencies {
   testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.10')
 }
 
-/* We use Java8 features, but there is no code needing JFR libraries */
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8

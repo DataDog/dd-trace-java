@@ -1,6 +1,5 @@
 ext {
   // See https://ignite.apache.org/docs/latest/quick-start/java#running-ignite-with-java-11-or-later
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
   maxJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 

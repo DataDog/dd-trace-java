@@ -40,9 +40,6 @@ dependencies {
   testImplementation deps.junit5
 }
 
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
-
 shadowJar {
   classifier ""
   include {
@@ -66,6 +63,8 @@ configurations.all {
 [JavaCompile, GroovyCompile].each {
   tasks.withType(it).configureEach {
     setJavaVersion(it, 11)
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
     // Disable '-processing' because some annotations are not claimed.
     // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
     // Disable '-path' because we do not have some of the paths seem to be missing.

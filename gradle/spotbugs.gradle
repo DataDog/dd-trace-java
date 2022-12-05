@@ -9,7 +9,7 @@ spotbugs {
 afterEvaluate {
   tasks.withType(spotbugsMain.class).configureEach {
     def name = it.name
-    if (name.endsWith("Main") || name.endsWith("Main_java8")) {
+    if (name.endsWith("Main") || name.endsWith("Main_java11")) {
       it.ignoreFailures = false
       // detector documentation is in the following link:
       // https://spotbugs-in-kengo-toda.readthedocs.io/en/lqc-list-detectors/detectors.html

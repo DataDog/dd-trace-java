@@ -1,5 +1,4 @@
 ext {
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
   // TODO Java 17: Mule 4 doesn't support Java 17
   maxJavaVersionForTests = JavaVersion.VERSION_15
 }
@@ -70,7 +69,7 @@ tasks.named("compileTestGroovy").configure {
 }
 
 dependencies {
-  main_java8CompileOnly group: 'org.mule.runtime', name: 'mule-core', version: muleVersion
+  compileOnly group: 'org.mule.runtime', name: 'mule-core', version: muleVersion
 
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
   testImplementation project(':dd-java-agent:instrumentation:grizzly-http-2.3.20')

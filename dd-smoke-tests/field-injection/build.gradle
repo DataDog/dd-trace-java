@@ -2,10 +2,6 @@ plugins {
   id "com.github.johnrengelman.shadow"
 }
 
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
-}
-
 description = 'Check fields get injected where expected'
 apply from: "$rootDir/gradle/java.gradle"
 
@@ -16,7 +12,7 @@ jar {
 }
 
 shadowJar {
-  configurations = [project.configurations.runtimeClasspath, project.configurations.main_java8RuntimeClasspath]
+  configurations = [project.configurations.runtimeClasspath]
 }
 
 dependencies {

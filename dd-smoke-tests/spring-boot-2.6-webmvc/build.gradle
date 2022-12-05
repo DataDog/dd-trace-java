@@ -2,10 +2,6 @@ plugins {
   id "com.github.johnrengelman.shadow"
 }
 
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 description = 'Spring Boot 2.6 Webmvc Smoke Tests.'
 
@@ -18,7 +14,7 @@ jar {
 }
 
 shadowJar {
-  configurations = [project.configurations.runtimeClasspath, project.configurations.main_java8RuntimeClasspath]
+  configurations = [project.configurations.runtimeClasspath]
 }
 
 // Only needed until the final release of 2.5.0
@@ -28,7 +24,7 @@ repositories {
 }
 
 dependencies {
-  main_java8Implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.6.0+'
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.6.0+'
   testImplementation project(':dd-smoke-tests')
 }
 

@@ -2,10 +2,6 @@ plugins {
   id 'biz.aQute.bnd.builder' version '6.1.0' apply false
 }
 
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 description = 'OSGi Application Smoke Tests.'
 
