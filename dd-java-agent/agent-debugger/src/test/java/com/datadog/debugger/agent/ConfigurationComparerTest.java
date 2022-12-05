@@ -164,14 +164,11 @@ class ConfigurationComparerTest {
   public void hasProbeRelatedChangesFilteredChanged() {
     Configuration empty = createConfig(Collections.emptyList());
     Configuration config =
-        new Configuration(
-            SERVICE_NAME,
-            Collections.emptyList(),
-            Collections.emptyList(),
-            Collections.emptyList(),
-            new Configuration.FilterList(Arrays.asList("com.datadog"), Collections.emptyList()),
-            null,
-            null);
+        Configuration.builder()
+            .setService(SERVICE_NAME)
+            .addAllowList(
+                new Configuration.FilterList(Arrays.asList("com.datadog"), Collections.emptyList()))
+            .build();
     ConfigurationComparer configurationComparer =
         new ConfigurationComparer(empty, config, Collections.emptyMap());
     Assertions.assertTrue(configurationComparer.hasProbeRelatedChanges());
