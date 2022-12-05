@@ -8,7 +8,6 @@ import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.values.ObjectValue;
 import com.datadog.debugger.el.values.UndefinedValue;
 import com.datadog.debugger.probe.MetricProbe;
-import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
@@ -29,7 +28,6 @@ import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodNode;
-import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,7 +85,7 @@ public class MetricInstrumentor extends Instrumentor {
       // consider the metric as an increment counter one
       insnList.add(new LdcInsnNode(metricProbe.getMetricName()));
       ldc(insnList, 1L); // stack [long]
-      pushTags(insnList); // stack [long, array]
+      pushTags(insnList, metricProbe.getTags()); // stack [long, array]
       invokeStatic(
           insnList,
           DEBUGGER_CONTEXT_TYPE,
@@ -148,7 +146,7 @@ public class MetricInstrumentor extends Instrumentor {
     }
     // insert metric name at the beginning of the list
     insnList.insert(new LdcInsnNode(metricProbe.getMetricName())); // stack [string, long]
-    pushTags(insnList); // stack [string, long, array]
+    pushTags(insnList, metricProbe.getTags()); // stack [string, long, array]
     invokeStatic(
         insnList,
         DEBUGGER_CONTEXT_TYPE,
@@ -221,24 +219,6 @@ public class MetricInstrumentor extends Instrumentor {
         InsnList insnList = callMetric(metricProbe);
         methodNode.instructions.insert(afterLabel, insnList);
       }
-    }
-  }
-
-  private void pushTags(InsnList insnList) {
-    ProbeDefinition.Tag[] tags = metricProbe.getTags();
-    if (tags == null || tags.length == 0) {
-      insnList.add(new InsnNode(Opcodes.ACONST_NULL));
-      return;
-    }
-    ldc(insnList, tags.length); // stack: [int]
-    insnList.add(
-        new TypeInsnNode(Opcodes.ANEWARRAY, STRING_TYPE.getInternalName())); // stack: [array]
-    int counter = 0;
-    for (ProbeDefinition.Tag tag : tags) {
-      insnList.add(new InsnNode(Opcodes.DUP)); // stack: [array, array]
-      ldc(insnList, counter++); // stack: [array, array, int]
-      ldc(insnList, tag.toString()); // stack: [array, array, int, string]
-      insnList.add(new InsnNode(Opcodes.AASTORE)); // stack: [array]
     }
   }
 

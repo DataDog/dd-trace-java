@@ -683,18 +683,6 @@ public final class SnapshotInstrumentor extends Instrumentor {
         INT_TYPE); // stack: [captured_value]
   }
 
-  private void invokeVirtual(
-      InsnList insnList, Type owner, String name, Type returnType, Type... argTypes) {
-    // expected stack: [this, arg_type_1 ... arg_type_N]
-    insnList.add(
-        new MethodInsnNode(
-            Opcodes.INVOKEVIRTUAL,
-            owner.getInternalName(),
-            name,
-            Type.getMethodDescriptor(returnType, argTypes),
-            false)); // stack: [ret_type]
-  }
-
   private void invokeConstructor(InsnList insnList, Type owner, Type... argTypes) {
     // expected stack: [instance, arg_type_1 ... arg_type_N]
     insnList.add(
@@ -708,11 +696,5 @@ public final class SnapshotInstrumentor extends Instrumentor {
 
   private void newInstance(InsnList insnList, Type type) {
     insnList.add(new TypeInsnNode(Opcodes.NEW, type.getInternalName()));
-  }
-
-  private int newVar(Type type) {
-    int varId = methodNode.maxLocals + (type.getSize());
-    methodNode.maxLocals = varId;
-    return varId;
   }
 }

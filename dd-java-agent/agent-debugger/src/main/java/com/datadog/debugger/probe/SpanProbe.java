@@ -1,6 +1,7 @@
 package com.datadog.debugger.probe;
 
 import com.datadog.debugger.agent.Generated;
+import com.datadog.debugger.instrumentation.SpanInstrumentor;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import java.util.Arrays;
 import java.util.List;
@@ -31,7 +32,9 @@ public class SpanProbe extends ProbeDefinition {
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics) {}
+      List<DiagnosticMessage> diagnostics) {
+    new SpanInstrumentor(this, classLoader, classNode, methodNode, diagnostics).instrument();
+  }
 
   @Generated
   @Override
