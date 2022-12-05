@@ -17,9 +17,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>The configuration of (serviceName,env)->rate is configured by the core agent.
  */
-public class RateByServiceSampler implements Sampler, PrioritySampler, RemoteResponseListener {
+public class RateByServiceTraceSampler implements Sampler, PrioritySampler, RemoteResponseListener {
 
-  private static final Logger log = LoggerFactory.getLogger(RateByServiceSampler.class);
+  private static final Logger log = LoggerFactory.getLogger(RateByServiceTraceSampler.class);
   public static final String SAMPLING_AGENT_RATE = "_dd.agent_psr";
 
   private static final double DEFAULT_RATE = 1.0;
@@ -73,7 +73,7 @@ public class RateByServiceSampler implements Sampler, PrioritySampler, RemoteRes
         if (entry.getValue() != null) {
           updatedServiceRates.put(
               EnvAndService.fromString(entry.getKey()),
-              RateByServiceSampler.createRateSampler(entry.getValue().doubleValue()));
+              RateByServiceTraceSampler.createRateSampler(entry.getValue().doubleValue()));
         }
       }
       serviceRates = new RateSamplersByEnvAndService(updatedServiceRates);

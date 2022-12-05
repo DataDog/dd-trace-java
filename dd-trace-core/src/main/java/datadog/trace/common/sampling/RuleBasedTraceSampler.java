@@ -16,9 +16,9 @@ import java.util.Map.Entry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class RuleBasedSampler<T extends CoreSpan<T>> implements Sampler, PrioritySampler {
+public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, PrioritySampler {
 
-  private static final Logger log = LoggerFactory.getLogger(RuleBasedSampler.class);
+  private static final Logger log = LoggerFactory.getLogger(RuleBasedTraceSampler.class);
   private final List<SamplingRule> samplingRules;
   private final PrioritySampler fallbackSampler;
   private final SimpleRateLimiter rateLimiter;
@@ -27,7 +27,7 @@ public class RuleBasedSampler<T extends CoreSpan<T>> implements Sampler, Priorit
   public static final String SAMPLING_RULE_RATE = "_dd.rule_psr";
   public static final String SAMPLING_LIMIT_RATE = "_dd.limit_psr";
 
-  public RuleBasedSampler(
+  public RuleBasedTraceSampler(
       final List<SamplingRule> samplingRules,
       final int rateLimit,
       final PrioritySampler fallbackSampler) {
@@ -38,12 +38,12 @@ public class RuleBasedSampler<T extends CoreSpan<T>> implements Sampler, Priorit
     this.rateLimit = rateLimit;
   }
 
-  public static RuleBasedSampler build(
+  public static RuleBasedTraceSampler build(
       final TraceSamplingRules traceSamplingRules, final Double defaultRate, final int rateLimit) {
     return build(null, null, traceSamplingRules, defaultRate, rateLimit);
   }
 
-  public static RuleBasedSampler build(
+  public static RuleBasedTraceSampler build(
       @Deprecated final Map<String, String> serviceRules,
       @Deprecated final Map<String, String> operationRules,
       final TraceSamplingRules traceSamplingRules,
@@ -107,7 +107,7 @@ public class RuleBasedSampler<T extends CoreSpan<T>> implements Sampler, Priorit
       samplingRules.add(samplingRule);
     }
 
-    return new RuleBasedSampler(samplingRules, rateLimit, new RateByServiceSampler());
+    return new RuleBasedTraceSampler(samplingRules, rateLimit, new RateByServiceTraceSampler());
   }
 
   @Override

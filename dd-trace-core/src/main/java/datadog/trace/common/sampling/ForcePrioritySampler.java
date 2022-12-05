@@ -1,13 +1,10 @@
 package datadog.trace.common.sampling;
 
 import datadog.trace.core.CoreSpan;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** A sampler which forces the sampling priority */
 public class ForcePrioritySampler implements Sampler, PrioritySampler {
 
-  private static final Logger log = LoggerFactory.getLogger(ForcePrioritySampler.class);
   private final int prioritySampling;
   private final int samplingMechanism;
 

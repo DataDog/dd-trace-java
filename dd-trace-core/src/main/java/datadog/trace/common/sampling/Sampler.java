@@ -55,7 +55,7 @@ public interface Sampler {
             || config.getTraceSampleRate() != null) {
           try {
             sampler =
-                RuleBasedSampler.build(
+                RuleBasedTraceSampler.build(
                     serviceRules,
                     operationRules,
                     traceSamplingRules,
@@ -75,7 +75,7 @@ public interface Sampler {
             sampler =
                 new ForcePrioritySampler(PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT);
           } else {
-            sampler = new RateByServiceSampler();
+            sampler = new RateByServiceTraceSampler();
           }
         } else {
           sampler = new AllSampler();
