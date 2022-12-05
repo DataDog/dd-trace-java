@@ -129,7 +129,7 @@ shadowJar generalShadowJarConfig >> {
       "Premain-Class": "datadog.trace.bootstrap.AgentBootstrap",
       "Can-Redefine-Classes": true,
       "Can-Retransform-Classes": true,
-      )
+    )
   }
 }
 
@@ -208,9 +208,6 @@ dependencies {
     transitive = false
   }
   sharedShadowInclude project(':utils:version-utils'), {
-    transitive = false
-  }
-  sharedShadowInclude project(':utils:process-utils'), {
     transitive = false
   }
 }
