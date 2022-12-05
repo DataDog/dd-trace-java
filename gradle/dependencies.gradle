@@ -122,7 +122,6 @@ final class CachedData {
       exclude(project(':remote-config'))
       exclude(project(':telemetry'))
       exclude(project(':utils:container-utils'))
-      exclude(project(':utils:process-utils'))
       exclude(project(':utils:socket-utils'))
       exclude(project(':utils:time-utils'))
       exclude(project(':utils:version-utils'))
