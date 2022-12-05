@@ -121,7 +121,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
 
     ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
     cw.visit(
-        Opcodes.V1_7,
+        Opcodes.V1_8,
         Opcodes.ACC_PUBLIC | Opcodes.ACC_FINAL,
         Type.getInternalName(instrumenter.getClass()) + "$Muzzle",
         null,
