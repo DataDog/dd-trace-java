@@ -164,16 +164,8 @@ class XRayHttpCodec {
 
         if (handledIpHeaders(key, value)) {
           return true;
-        }
-
-        if (!taggedHeaders.isEmpty()) {
-          String mappedKey = taggedHeaders.get(toLowerCase(key));
-          if (null != mappedKey) {
-            if (tags.isEmpty()) {
-              tags = new TreeMap<>();
-            }
-            tags.put(mappedKey, HttpCodec.decode(value));
-          }
+        } else {
+          handleTags(key, value);
         }
         return true;
       } catch (RuntimeException e) {

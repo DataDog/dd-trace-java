@@ -27,6 +27,7 @@ import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 
 public abstract class ContextInterpreter implements AgentPropagation.KeyClassifier {
 
@@ -176,10 +177,24 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     return false;
   }
 
+  protected final void handleTags(String key, String value) {
+    if (taggedHeaders.isEmpty() || value == null) {
+      return;
+    }
+    final String lowerCaseKey = toLowerCase(key);
+    final String mappedKey = taggedHeaders.get(lowerCaseKey);
+    if (null != mappedKey) {
+      if (tags.isEmpty()) {
+        tags = new TreeMap<>();
+      }
+      tags.put(mappedKey, HttpCodec.decode(HttpCodec.firstHeaderValue(value)));
+    }
+  }
+
   public ContextInterpreter reset() {
     traceId = DDTraceId.ZERO;
     spanId = DDSpanId.ZERO;
-    samplingPriority = defaultSamplingPriority();
+    samplingPriority = PrioritySampling.UNSET;
     origin = null;
     endToEndStartTime = 0;
     tags = Collections.emptyMap();
@@ -200,7 +215,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
             new ExtractedContext(
                 traceId,
                 spanId,
-                samplingPriority,
+                samplingPriorityOrDefault(samplingPriority),
                 origin,
                 endToEndStartTime,
                 baggage,
@@ -208,8 +223,12 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
                 httpHeaders,
                 datadogTags);
         return context;
-      } else if (origin != null || !tags.isEmpty() || httpHeaders != null) {
-        return new TagContext(origin, tags, httpHeaders);
+      } else if (origin != null
+          || !tags.isEmpty()
+          || httpHeaders != null
+          || samplingPriority != PrioritySampling.UNSET) {
+        return new TagContext(
+            origin, tags, httpHeaders, samplingPriorityOrDefault(samplingPriority));
       }
     }
     return null;
@@ -223,10 +242,16 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     return PrioritySampling.UNSET;
   }
 
-  private final TagContext.HttpHeaders getHeaders() {
+  private TagContext.HttpHeaders getHeaders() {
     if (httpHeaders == null) {
       httpHeaders = new TagContext.HttpHeaders();
     }
     return httpHeaders;
+  }
+
+  private int samplingPriorityOrDefault(int samplingPriority) {
+    return samplingPriority == PrioritySampling.UNSET
+        ? defaultSamplingPriority()
+        : samplingPriority;
   }
 }

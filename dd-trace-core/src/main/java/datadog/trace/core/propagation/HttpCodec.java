@@ -50,7 +50,8 @@ public class HttpCodec {
         DatadogHttpCodec.INJECTOR.inject(context, carrier, setter);
         break;
       case B3:
-        B3HttpCodec.INJECTOR.inject(context, carrier, setter);
+        B3HttpCodec.SINGLE_INJECTOR.inject(context, carrier, setter);
+        B3HttpCodec.MULTI_INJECTOR.inject(context, carrier, setter);
         break;
       case HAYSTACK:
         HaystackHttpCodec.INJECTOR.inject(context, carrier, setter);
@@ -72,7 +73,8 @@ public class HttpCodec {
           injectors.add(DatadogHttpCodec.INJECTOR);
           break;
         case B3:
-          injectors.add(B3HttpCodec.INJECTOR);
+          injectors.add(B3HttpCodec.SINGLE_INJECTOR);
+          injectors.add(B3HttpCodec.MULTI_INJECTOR);
           break;
         case HAYSTACK:
           injectors.add(HaystackHttpCodec.INJECTOR);
@@ -97,7 +99,8 @@ public class HttpCodec {
           extractors.add(DatadogHttpCodec.newExtractor(taggedHeaders, config));
           break;
         case B3:
-          extractors.add(B3HttpCodec.newExtractor(taggedHeaders));
+          extractors.add(B3HttpCodec.newSingleExtractor(taggedHeaders, config));
+          extractors.add(B3HttpCodec.newMultiExtractor(taggedHeaders, config));
           break;
         case HAYSTACK:
           extractors.add(HaystackHttpCodec.newExtractor(taggedHeaders));

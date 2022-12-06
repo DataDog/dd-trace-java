@@ -10,7 +10,6 @@ import java.util.Map;
 public class ExtractedContext extends TagContext {
   private final DDTraceId traceId;
   private final long spanId;
-  private final int samplingPriority;
   private final long endToEndStartTime;
   private final Map<String, String> baggage;
   private final DatadogTags datadogTags;
@@ -25,10 +24,9 @@ public class ExtractedContext extends TagContext {
       final Map<String, String> tags,
       final HttpHeaders httpHeaders,
       final DatadogTags datadogTags) {
-    super(origin, tags, httpHeaders);
+    super(origin, tags, httpHeaders, samplingPriority);
     this.traceId = traceId;
     this.spanId = spanId;
-    this.samplingPriority = samplingPriority;
     this.endToEndStartTime = endToEndStartTime;
     this.baggage = baggage;
     this.datadogTags = datadogTags;
@@ -47,10 +45,6 @@ public class ExtractedContext extends TagContext {
   @Override
   public final long getSpanId() {
     return spanId;
-  }
-
-  public final int getSamplingPriority() {
-    return samplingPriority;
   }
 
   public final long getEndToEndStartTime() {
