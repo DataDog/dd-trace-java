@@ -1,9 +1,11 @@
 package datadog.trace.instrumentation.springwebflux.server;
 
+import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import java.util.function.BiConsumer;
 import java.util.regex.Pattern;
+import javax.annotation.Nonnull;
 import org.springframework.web.reactive.function.server.HandlerFunction;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerRequest;
@@ -13,6 +15,9 @@ public class RouteOnSuccessOrError implements BiConsumer<HandlerFunction<?>, Thr
   private static final Pattern SPECIAL_CHARACTERS_REGEX = Pattern.compile("[\\(\\)&|]");
   private static final Pattern SPACES_REGEX = Pattern.compile("[ \\t]+");
   private static final Pattern ROUTER_FUNCION_REGEX = Pattern.compile("\\s*->.*$");
+
+  private static final Pattern METHOD_REGEX =
+      Pattern.compile("^(GET|HEAD|POST|PUT|DELETE|CONNECT|OPTIONS|TRACE|PATCH) ");
 
   private final RouterFunction routerFunction;
   private final ServerRequest serverRequest;
@@ -36,8 +41,8 @@ public class RouteOnSuccessOrError implements BiConsumer<HandlerFunction<?>, Thr
         final AgentSpan parentSpan =
             (AgentSpan) serverRequest.attributes().get(AdviceUtils.PARENT_SPAN_ATTRIBUTE);
         if (parentSpan != null) {
-          parentSpan.setResourceName(
-              parseResourceName(predicateString), ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
+          HTTP_RESOURCE_DECORATOR.withRoute(
+              parentSpan, serverRequest.methodName(), parseRoute(predicateString));
         }
       }
     }
@@ -55,10 +60,14 @@ public class RouteOnSuccessOrError implements BiConsumer<HandlerFunction<?>, Thr
     }
   }
 
-  private String parseResourceName(final String routerString) {
-    return SPACES_REGEX
-        .matcher(SPECIAL_CHARACTERS_REGEX.matcher(routerString).replaceAll(""))
-        .replaceAll(" ")
-        .trim();
+  @Nonnull
+  private String parseRoute(@Nonnull String routerString) {
+    return METHOD_REGEX
+        .matcher(
+            SPACES_REGEX
+                .matcher(SPECIAL_CHARACTERS_REGEX.matcher(routerString).replaceAll(""))
+                .replaceAll(" ")
+                .trim())
+        .replaceAll("");
   }
 }
