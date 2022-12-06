@@ -113,3 +113,51 @@ jmh {
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
+/*import org.gradle.plugins.ide.idea.model.IdeaLanguageLevel
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: "idea"
+
+dependencies {
+  implementation deps.slf4j
+
+  implementation group: 'com.github.jnr', name: 'jnr-posix', version: '3.1.15'
+
+  testImplementation deps.junit5
+}
+
+sourceSets {
+  "main_java11" {
+    java.srcDirs "${project.projectDir}/src/main/java11"
+  }
+}
+
+compileMain_java11Java.configure {
+  setJavaVersion(it, 11)
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+  //  sourceCompatibility = JavaVersion.VERSION_1_9
+  //  targetCompatibility = JavaVersion.VERSION_1_9
+}
+
+dependencies {
+  main_java11Implementation deps.slf4j
+  main_java11CompileOnly sourceSets.main.output
+  runtimeOnly sourceSets.main_java11.output
+}
+
+jar {
+  from sourceSets.main_java11.output
+}
+
+forbiddenApisMain_java11 {
+  failOnMissingClasses = false
+}
+
+idea {
+  module {
+    jdkName = '11'
+    //    languageLevel = new IdeaLanguageLevel("9")
+  }
+}*/
+
