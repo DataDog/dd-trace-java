@@ -491,55 +491,60 @@ public class SnapshotSerializationTest {
 
   @Test
   public void collectionSize0() throws IOException {
-    Map<String, Object> thisArg = doCollectionSize(0);
-    assertNotCaptured(thisArg, "intArrayField", "int[]", COLLECTION_SIZE_REASON);
-    Assert.assertEquals(0, getNbElements(thisArg, "intArrayField"));
+    Map<String, Object> thisArgFields = doCollectionSize(0);
+    assertNotCaptured(thisArgFields, "intArrayField", "int[]", COLLECTION_SIZE_REASON);
+    Assert.assertEquals(0, getNbElements(thisArgFields, "intArrayField"));
     assertNotCaptured(
-        thisArg, "strArrayField", String[].class.getTypeName(), COLLECTION_SIZE_REASON);
-    Assert.assertEquals(0, getNbElements(thisArg, "strArrayField"));
+        thisArgFields, "strArrayField", String[].class.getTypeName(), COLLECTION_SIZE_REASON);
+    Assert.assertEquals(0, getNbElements(thisArgFields, "strArrayField"));
     assertNotCaptured(
-        thisArg, "objArrayField", Object[].class.getTypeName(), COLLECTION_SIZE_REASON);
-    Assert.assertEquals(0, getNbElements(thisArg, "objArrayField"));
-    assertNotCaptured(thisArg, "listField", ArrayList.class.getTypeName(), COLLECTION_SIZE_REASON);
-    Assert.assertEquals(0, getNbElements(thisArg, "listField"));
-    assertNotCaptured(thisArg, "mapField", HashMap.class.getTypeName(), COLLECTION_SIZE_REASON);
-    Assert.assertEquals(0, getNbEntries(thisArg, "mapField"));
+        thisArgFields, "objArrayField", Object[].class.getTypeName(), COLLECTION_SIZE_REASON);
+    Assert.assertEquals(0, getNbElements(thisArgFields, "objArrayField"));
+    assertNotCaptured(
+        thisArgFields, "listField", ArrayList.class.getTypeName(), COLLECTION_SIZE_REASON);
+    Assert.assertEquals(0, getNbElements(thisArgFields, "listField"));
+    assertNotCaptured(
+        thisArgFields, "mapField", HashMap.class.getTypeName(), COLLECTION_SIZE_REASON);
+    Assert.assertEquals(0, getNbEntries(thisArgFields, "mapField"));
   }
 
   @Test
   public void collectionSize3() throws IOException {
-    Map<String, Object> thisArg = doCollectionSize(3);
-    assertNotCaptured(thisArg, "intArrayField", "int[]", COLLECTION_SIZE_REASON);
-    Assert.assertEquals(3, getNbElements(thisArg, "intArrayField"));
-    assertArrayItem(thisArg, "intArrayField", "0", "1", "2");
+    Map<String, Object> thisArgFields = doCollectionSize(3);
+    assertNotCaptured(thisArgFields, "intArrayField", "int[]", COLLECTION_SIZE_REASON);
+    Assert.assertEquals(3, getNbElements(thisArgFields, "intArrayField"));
+    assertArrayItem(thisArgFields, "intArrayField", "0", "1", "2");
     assertNotCaptured(
-        thisArg, "strArrayField", String[].class.getTypeName(), COLLECTION_SIZE_REASON);
-    Assert.assertEquals(3, getNbElements(thisArg, "strArrayField"));
-    assertArrayItem(thisArg, "strArrayField", "foo0", "foo1", "foo2");
+        thisArgFields, "strArrayField", String[].class.getTypeName(), COLLECTION_SIZE_REASON);
+    Assert.assertEquals(3, getNbElements(thisArgFields, "strArrayField"));
+    assertArrayItem(thisArgFields, "strArrayField", "foo0", "foo1", "foo2");
     assertNotCaptured(
-        thisArg, "objArrayField", Object[].class.getTypeName(), COLLECTION_SIZE_REASON);
-    Assert.assertEquals(3, getNbElements(thisArg, "objArrayField"));
-    List<Object> objArrayElements = getArrayElements(thisArg, "objArrayField");
+        thisArgFields, "objArrayField", Object[].class.getTypeName(), COLLECTION_SIZE_REASON);
+    Assert.assertEquals(3, getNbElements(thisArgFields, "objArrayField"));
+    List<Object> objArrayElements = getArrayElements(thisArgFields, "objArrayField");
     assertComplexClass(objArrayElements.get(0), ComplexClass.class.getTypeName());
     assertComplexClass(objArrayElements.get(1), ComplexClass.class.getTypeName());
     assertComplexClass(objArrayElements.get(2), ComplexClass.class.getTypeName());
-    assertNotCaptured(thisArg, "listField", ArrayList.class.getTypeName(), COLLECTION_SIZE_REASON);
-    Assert.assertEquals(3, getNbElements(thisArg, "listField"));
-    assertArrayItem(thisArg, "listField", "foo0", "foo1", "foo2");
-    assertNotCaptured(thisArg, "mapField", HashMap.class.getTypeName(), COLLECTION_SIZE_REASON);
-    Assert.assertEquals(3, getNbEntries(thisArg, "mapField"));
+    assertNotCaptured(
+        thisArgFields, "listField", ArrayList.class.getTypeName(), COLLECTION_SIZE_REASON);
+    Assert.assertEquals(3, getNbElements(thisArgFields, "listField"));
+    assertArrayItem(thisArgFields, "listField", "foo0", "foo1", "foo2");
+    assertNotCaptured(
+        thisArgFields, "mapField", HashMap.class.getTypeName(), COLLECTION_SIZE_REASON);
+    Assert.assertEquals(3, getNbEntries(thisArgFields, "mapField"));
   }
 
   @Test
   public void collectionSize100() throws IOException {
-    Map<String, Object> thisArg = doCollectionSize(100);
-    assertNotCaptured(thisArg, "intArrayField", "int[]", null);
-    Assert.assertEquals(10, getNbElements(thisArg, "intArrayField"));
-    assertArrayItem(thisArg, "intArrayField", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
-    assertNotCaptured(thisArg, "strArrayField", String[].class.getTypeName(), null);
-    Assert.assertEquals(10, getNbElements(thisArg, "strArrayField"));
+    Map<String, Object> thisArgFields = doCollectionSize(100);
+    assertNotCaptured(thisArgFields, "intArrayField", "int[]", null);
+    Assert.assertEquals(10, getNbElements(thisArgFields, "intArrayField"));
     assertArrayItem(
-        thisArg,
+        thisArgFields, "intArrayField", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
+    assertNotCaptured(thisArgFields, "strArrayField", String[].class.getTypeName(), null);
+    Assert.assertEquals(10, getNbElements(thisArgFields, "strArrayField"));
+    assertArrayItem(
+        thisArgFields,
         "strArrayField",
         "foo0",
         "foo1",
@@ -551,16 +556,16 @@ public class SnapshotSerializationTest {
         "foo7",
         "foo8",
         "foo9");
-    assertNotCaptured(thisArg, "objArrayField", Object[].class.getTypeName(), null);
-    Assert.assertEquals(10, getNbElements(thisArg, "objArrayField"));
-    List<Object> objArrayElements = getArrayElements(thisArg, "objArrayField");
+    assertNotCaptured(thisArgFields, "objArrayField", Object[].class.getTypeName(), null);
+    Assert.assertEquals(10, getNbElements(thisArgFields, "objArrayField"));
+    List<Object> objArrayElements = getArrayElements(thisArgFields, "objArrayField");
     assertComplexClass(objArrayElements.get(0), ComplexClass.class.getTypeName());
     assertComplexClass(objArrayElements.get(4), ComplexClass.class.getTypeName());
     assertComplexClass(objArrayElements.get(9), ComplexClass.class.getTypeName());
-    assertNotCaptured(thisArg, "listField", ArrayList.class.getTypeName(), null);
-    Assert.assertEquals(10, getNbElements(thisArg, "listField"));
+    assertNotCaptured(thisArgFields, "listField", ArrayList.class.getTypeName(), null);
+    Assert.assertEquals(10, getNbElements(thisArgFields, "listField"));
     assertArrayItem(
-        thisArg,
+        thisArgFields,
         "listField",
         "foo0",
         "foo1",
@@ -572,10 +577,10 @@ public class SnapshotSerializationTest {
         "foo7",
         "foo8",
         "foo9");
-    assertNotCaptured(thisArg, "mapField", HashMap.class.getTypeName(), null);
-    Assert.assertEquals(10, getNbEntries(thisArg, "mapField"));
+    assertNotCaptured(thisArgFields, "mapField", HashMap.class.getTypeName(), null);
+    Assert.assertEquals(10, getNbEntries(thisArgFields, "mapField"));
     assertMapItems(
-        thisArg,
+        thisArgFields,
         "mapField",
         "foo0",
         "bar0",
@@ -609,30 +614,50 @@ public class SnapshotSerializationTest {
 
   @Test
   public void map0() throws IOException {
-    Map<String, Object> thisArg = doMapSize(0);
-    assertNotCaptured(thisArg, "strMap", HashMap.class.getTypeName(), COLLECTION_SIZE_REASON);
-    assertMapItems(thisArg, "strMap");
-    assertSize(thisArg, "strMap", "10");
+    Map<String, Object> thisArgFields = doMapSize(0);
+    assertNotCaptured(thisArgFields, "strMap", HashMap.class.getTypeName(), COLLECTION_SIZE_REASON);
+    assertMapItems(thisArgFields, "strMap");
+    assertSize(thisArgFields, "strMap", "10");
   }
 
   @Test
   public void map3() throws IOException {
-    Map<String, Object> thisArg = doMapSize(3);
-    assertNotCaptured(thisArg, "strMap", HashMap.class.getTypeName(), COLLECTION_SIZE_REASON);
-    Map<String, Object> field = (Map<String, Object>) thisArg.get("strMap");
+    Map<String, Object> thisArgFields = doMapSize(3);
+    assertNotCaptured(thisArgFields, "strMap", HashMap.class.getTypeName(), COLLECTION_SIZE_REASON);
+    Map<String, Object> field = (Map<String, Object>) thisArgFields.get("strMap");
     List<Object> entries = (List<Object>) field.get(ENTRIES);
     Assert.assertEquals(3, entries.size());
-    assertSize(thisArg, "strMap", "10");
+    assertSize(thisArgFields, "strMap", "10");
   }
 
   @Test
   public void map100() throws IOException {
-    Map<String, Object> thisArg = doMapSize(100);
-    assertNotCaptured(thisArg, "strMap", HashMap.class.getTypeName(), null);
+    Map<String, Object> thisArgFields = doMapSize(100);
+    assertNotCaptured(thisArgFields, "strMap", HashMap.class.getTypeName(), null);
     assertMapItems(
-        thisArg, "strMap", "foo0", "bar0", "foo1", "bar1", "foo2", "bar2", "foo3", "bar3", "foo4",
-        "bar4", "foo5", "bar5", "foo6", "bar6", "foo7", "bar7", "foo8", "bar8", "foo9", "bar9");
-    assertSize(thisArg, "strMap", "10");
+        thisArgFields,
+        "strMap",
+        "foo0",
+        "bar0",
+        "foo1",
+        "bar1",
+        "foo2",
+        "bar2",
+        "foo3",
+        "bar3",
+        "foo4",
+        "bar4",
+        "foo5",
+        "bar5",
+        "foo6",
+        "bar6",
+        "foo7",
+        "bar7",
+        "foo8",
+        "bar8",
+        "foo9",
+        "bar9");
+    assertSize(thisArgFields, "strMap", "10");
   }
 
   private Map<String, Object> doMapSize(int maxColSize) throws IOException {
@@ -645,26 +670,26 @@ public class SnapshotSerializationTest {
 
   @Test
   public void length0() throws IOException {
-    Map<String, Object> thisArg = doLength(0);
-    assertPrimitiveValue(thisArg, "strField", String.class.getTypeName(), "");
-    assertTruncated(thisArg, "strField", String.class.getTypeName(), "true");
-    assertSize(thisArg, "strField", "10");
+    Map<String, Object> thisArgFields = doLength(0);
+    assertPrimitiveValue(thisArgFields, "strField", String.class.getTypeName(), "");
+    assertTruncated(thisArgFields, "strField", String.class.getTypeName(), "true");
+    assertSize(thisArgFields, "strField", "10");
   }
 
   @Test
   public void length3() throws IOException {
-    Map<String, Object> thisArg = doLength(3);
-    assertPrimitiveValue(thisArg, "strField", String.class.getTypeName(), "012");
-    assertTruncated(thisArg, "strField", String.class.getTypeName(), "true");
-    assertSize(thisArg, "strField", "10");
+    Map<String, Object> thisArgFields = doLength(3);
+    assertPrimitiveValue(thisArgFields, "strField", String.class.getTypeName(), "012");
+    assertTruncated(thisArgFields, "strField", String.class.getTypeName(), "true");
+    assertSize(thisArgFields, "strField", "10");
   }
 
   @Test
   public void length255() throws IOException {
-    Map<String, Object> thisArg = doLength(255);
-    assertPrimitiveValue(thisArg, "strField", String.class.getTypeName(), "0123456789");
-    assertTruncated(thisArg, "strField", String.class.getTypeName(), "null");
-    assertSize(thisArg, "strField", "null"); // no size field if no truncation
+    Map<String, Object> thisArgFields = doLength(255);
+    assertPrimitiveValue(thisArgFields, "strField", String.class.getTypeName(), "0123456789");
+    assertTruncated(thisArgFields, "strField", String.class.getTypeName(), "null");
+    assertSize(thisArgFields, "strField", "null"); // no size field if no truncation
   }
 
   private Map<String, Object> doLength(int maxLength) throws IOException {
@@ -678,21 +703,21 @@ public class SnapshotSerializationTest {
   @Test
   public void fieldCount0() throws IOException {
     Map<String, Object> thisArg = doFieldCount(0);
-    Assert.assertEquals(1, thisArg.size());
+    Assert.assertEquals(0, ((Map<String, Snapshot.CapturedValue>) thisArg.get(FIELDS)).size());
     Assert.assertEquals(FIELD_COUNT_REASON, thisArg.get(NOT_CAPTURED_REASON));
   }
 
   @Test
   public void fieldCount3() throws IOException {
     Map<String, Object> thisArg = doFieldCount(3);
-    Assert.assertEquals(4, thisArg.size());
+    Assert.assertEquals(3, ((Map<String, Snapshot.CapturedValue>) thisArg.get(FIELDS)).size());
     Assert.assertEquals(FIELD_COUNT_REASON, thisArg.get(NOT_CAPTURED_REASON));
   }
 
   @Test
   public void fieldCount20() throws IOException {
     Map<String, Object> thisArg = doFieldCount(20);
-    Assert.assertEquals(4, thisArg.size());
+    Assert.assertEquals(4, ((Map<String, Snapshot.CapturedValue>) thisArg.get(FIELDS)).size());
     Assert.assertNull(thisArg.get(NOT_CAPTURED_REASON));
   }
 
@@ -701,7 +726,7 @@ public class SnapshotSerializationTest {
     Snapshot snapshot = createSnapshotForFieldCount(maxFieldCount);
     String buffer = adapter.toJson(snapshot);
     System.out.println(buffer);
-    return getFieldsFromJson(buffer);
+    return getThisFromJson(buffer);
   }
 
   private void assertComplexClass(Object obj, String type) {
@@ -796,6 +821,14 @@ public class SnapshotSerializationTest {
     Map<String, Object> arguments = (Map<String, Object>) returnJson.get(ARGUMENTS);
     Map<String, Object> thisArg = (Map<String, Object>) arguments.get(THIS);
     return (Map<String, Object>) thisArg.get(FIELDS);
+  }
+
+  private Map<String, Object> getThisFromJson(String buffer) throws IOException {
+    Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);
+    Map<String, Object> capturesJson = (Map<String, Object>) json.get(CAPTURES);
+    Map<String, Object> returnJson = (Map<String, Object>) capturesJson.get(RETURN);
+    Map<String, Object> arguments = (Map<String, Object>) returnJson.get(ARGUMENTS);
+    return (Map<String, Object>) arguments.get(THIS);
   }
 
   private Snapshot createSnapshotForRefDepth(int maxRefDepth) {

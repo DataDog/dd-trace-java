@@ -68,10 +68,10 @@ final class TypeFactory {
     }
     for (TypeDescription loaded :
         new TypeDescription[] {
-          TypeDescription.OBJECT,
-          TypeDescription.STRING,
-          TypeDescription.CLASS,
-          TypeDescription.THROWABLE,
+          TypeDescription.ForLoadedType.of(Object.class),
+          TypeDescription.ForLoadedType.of(String.class),
+          TypeDescription.ForLoadedType.of(Class.class),
+          TypeDescription.ForLoadedType.of(Throwable.class),
           TypeDescription.ForLoadedType.of(Serializable.class),
           TypeDescription.ForLoadedType.of(Cloneable.class)
         }) {
@@ -323,16 +323,16 @@ final class TypeFactory {
     }
 
     private TypeDescription outline() {
-      TypeDescription outline;
       if (createOutlines) {
-        outline = doResolve(true);
-      } else {
-        // temporarily switch to outlines as that's all we need
-        createOutlines = true;
-        outline = doResolve(true);
+        return doResolve(true);
+      }
+      // temporarily switch to outlines as that's all we need
+      createOutlines = true;
+      try {
+        return doResolve(true);
+      } finally {
         createOutlines = false;
       }
-      return outline;
     }
 
     @Override

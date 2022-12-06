@@ -2,10 +2,6 @@ plugins {
   id "com.github.johnrengelman.shadow"
 }
 
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 description = 'SpringBoot Spring-Data-Mongo Smoke Tests.'
 
@@ -18,12 +14,12 @@ jar {
 }
 
 shadowJar {
-  configurations = [project.configurations.runtimeClasspath, project.configurations.main_java8RuntimeClasspath]
+  configurations = [project.configurations.runtimeClasspath]
 }
 
 dependencies {
-  main_java8Implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.4.1'
-  main_java8Implementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-mongodb', version: '2.4.1'
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.4.1'
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-mongodb', version: '2.4.1'
 
   testImplementation project(':dd-smoke-tests')
   testImplementation group: 'org.testcontainers', name: 'mongodb', version: versions.testcontainers

@@ -17,4 +17,6 @@ public interface DataStreamsCheckpointer extends Consumer<StatsPoint>, AutoClose
 
   @Override
   void close();
+
+  void clear();
 }

@@ -98,7 +98,7 @@ class CacheProviderTest extends DDSpecification {
     def cacheProvider = poolStrat.createCacheProvider(loaderHash, loaderRef)
 
     when:
-    cacheProvider.register("foo", new TypePool.Resolution.Simple(TypeDescription.VOID))
+    cacheProvider.register("foo", new TypePool.Resolution.Simple(TypeDescription.ForLoadedType.of(void.class)))
 
     then:
     // not strictly guaranteed, but fine for this test
@@ -200,7 +200,7 @@ class CacheProviderTest extends DDSpecification {
   }
 
   static newVoid() {
-    return new TypePool.Resolution.Simple(TypeDescription.VOID)
+    return new TypePool.Resolution.Simple(TypeDescription.ForLoadedType.of(void.class))
   }
 
   static newClassLoader() {

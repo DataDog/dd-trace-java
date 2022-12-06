@@ -14,7 +14,7 @@ class FailSafeRawMatcherTest extends DDSpecification {
     def matcher = new FailSafeRawMatcher(mockTypeMatcher, mockLoaderMatcher, "test")
 
     when:
-    def result = matcher.matches(TypeDescription.OBJECT, null, null, null, null)
+    def result = matcher.matches(TypeDescription.ForLoadedType.of(Object), null, null, null, null)
 
     then:
     1 * mockLoaderMatcher.matches(_) >> loaderMatch
@@ -38,7 +38,7 @@ class FailSafeRawMatcherTest extends DDSpecification {
     def matcher = new FailSafeRawMatcher(mockTypeMatcher, mockLoaderMatcher, "test")
 
     when:
-    def result = matcher.matches(TypeDescription.OBJECT, null, null, null, null)
+    def result = matcher.matches(TypeDescription.ForLoadedType.of(Object), null, null, null, null)
 
     then:
     1 * mockLoaderMatcher.matches(_) >> { throw new Exception("matcher exception") }
@@ -52,7 +52,7 @@ class FailSafeRawMatcherTest extends DDSpecification {
     def matcher = new FailSafeRawMatcher(mockTypeMatcher, mockLoaderMatcher, "test")
 
     when:
-    def result = matcher.matches(TypeDescription.OBJECT, null, null, null, null)
+    def result = matcher.matches(TypeDescription.ForLoadedType.of(Object), null, null, null, null)
 
     then:
     1 * mockLoaderMatcher.matches(_) >> true

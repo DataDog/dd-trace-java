@@ -5,7 +5,6 @@ plugins {
 // Set properties before any plugins get loaded
 ext {
   enableJunitPlatform = true
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -38,9 +37,6 @@ subprojects { Project subProj ->
     }
   }
 }
-
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
 
 configurations {
   // exclude bootstrap dependencies from shadowJar

@@ -1,7 +1,3 @@
-// Set properties before any plugins get loaded
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
-}
 
 apply from: "$rootDir/gradle/java.gradle"
 
@@ -34,8 +30,8 @@ latestDepTest {
 }
 
 dependencies {
-  main_java8CompileOnly project(':dd-java-agent:instrumentation:vertx-redis-client-3.9:stubs')
-  main_java8CompileOnly group: 'io.vertx', name: 'vertx-redis-client', version: '3.9.0'
+  compileOnly project(':dd-java-agent:instrumentation:vertx-redis-client-3.9:stubs')
+  compileOnly group: 'io.vertx', name: 'vertx-redis-client', version: '3.9.0'
 
   // only needed for the rx tests
   testImplementation project(':dd-java-agent:instrumentation:vertx-rx-3.5')

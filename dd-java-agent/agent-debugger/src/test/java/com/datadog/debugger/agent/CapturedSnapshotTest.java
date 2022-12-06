@@ -818,11 +818,11 @@ public class CapturedSnapshotTest {
                                 DSL.eq(DSL.ref(".fld"), DSL.value(11)),
                                 // this reference chain needs to use reflection
                                 DSL.eq(DSL.ref(".typed.fld.fld.msg"), DSL.value("hello"))),
-                            DSL.or(
+                            DSL.and(
                                 DSL.eq(DSL.ref(ValueReferences.argument("arg")), DSL.value("5")),
-                                DSL.gt(
-                                    DSL.ref(ValueReferences.DURATION_REF), DSL.value(500_000L))))),
-                    "(.fld == 11 && .typed.fld.fld.msg == 'hello') && (#arg == '5' || @duration > 500000)"))
+                                DSL.gt(DSL.ref(ValueReferences.DURATION_REF), DSL.value(0L))))),
+                    "(.fld == 11 && .typed.fld.fld.msg == 'hello') && (#arg == '5' && @duration > 0)"))
+            .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(CLASS_NAME, snapshotProbe);
@@ -832,10 +832,30 @@ public class CapturedSnapshotTest {
       Assert.assertTrue((i == 2 && result == 2) || result == 3);
     }
     Assert.assertEquals(1, listener.snapshots.size());
-    Snapshot.CapturedValue argument =
-        listener.snapshots.get(0).getCaptures().getEntry().getArguments().get("arg");
-    Assert.assertEquals("5", getValue(argument));
-    Assert.assertEquals("java.lang.String", argument.getType());
+    assertCaptureArgs(
+        listener.snapshots.get(0).getCaptures().getReturn(), "arg", "java.lang.String", "5");
+  }
+
+  @Test
+  public void nullCondition() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    SnapshotProbe snapshotProbe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", "int (java.lang.String)")
+            .when(
+                new ProbeCondition(
+                    DSL.when(DSL.eq(DSL.ref(".nullTyped.fld.fld.msg"), DSL.value("hello"))),
+                    ".nullTyped.fld.fld.msg == 'hello'"))
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, snapshotProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    Assert.assertEquals(1, listener.snapshots.size());
+    List<Snapshot.EvaluationError> evaluationErrors =
+        listener.snapshots.get(0).getEvaluationErrors();
+    Assert.assertEquals(1, evaluationErrors.size());
+    Assert.assertEquals(".nullTyped.fld.fld.msg", evaluationErrors.get(0).getExpr());
+    Assert.assertEquals("Cannot dereference to field: fld", evaluationErrors.get(0).getMessage());
   }
 
   @Test

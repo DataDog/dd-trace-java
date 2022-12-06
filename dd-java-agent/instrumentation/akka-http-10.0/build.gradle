@@ -1,6 +1,5 @@
 // Set properties before any plugins get loaded
 ext {
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
   lagomTestMaxJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
@@ -87,8 +86,8 @@ sourceSets {
 }
 
 dependencies {
-  main_java8CompileOnly deps.scala211
-  main_java8CompileOnly group: 'com.typesafe.akka', name: 'akka-http_2.11', version: '10.0.0'
+  compileOnly deps.scala211
+  compileOnly group: 'com.typesafe.akka', name: 'akka-http_2.11', version: '10.0.0'
 
   // These are the common dependencies that are inherited by the other test sets
   testImplementation group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.6.0'
