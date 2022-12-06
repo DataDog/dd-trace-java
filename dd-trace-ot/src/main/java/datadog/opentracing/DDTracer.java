@@ -474,6 +474,11 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   }
 
   @Override
+  public void addScopeListener(Runnable afterScopeActivatedCallback, Runnable afterScopeClosedCallback) {
+    tracer.addScopeListener(afterScopeActivatedCallback, afterScopeClosedCallback);
+  }
+
+  @Override
   public void flush() {
     tracer.flush();
   }

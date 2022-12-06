@@ -949,6 +949,21 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
+  public void addScopeListener(Runnable afterScopeActivatedCallback, Runnable afterScopeClosedCallback) {
+    addScopeListener(new ScopeListener() {
+      @Override
+      public void afterScopeActivated() {
+        afterScopeActivatedCallback.run();
+      }
+
+      @Override
+      public void afterScopeClosed() {
+        afterScopeClosedCallback.run();
+      }
+    });
+  }
+
+  @Override
   public void flush() {
     pendingTraceBuffer.flush();
     writer.flush();
