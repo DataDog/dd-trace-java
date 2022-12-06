@@ -4,16 +4,12 @@ plugins {
 
 ext {
   enableJunitPlatform = true
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
   excludeJdk = ['IBM8']
 }
 
 apply from: "$rootDir/gradle/java.gradle"
 
 description = 'Profiling Integration Tests.'
-
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
 
 jar {
   manifest {

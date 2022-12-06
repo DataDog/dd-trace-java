@@ -5,7 +5,6 @@ plugins {
 // Set properties before any plugins get loaded
 ext {
   enableJunitPlatform = true
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -60,9 +59,6 @@ dependencies {
   testRuntimeOnly group: 'org.scala-lang', name: 'scala-compiler', version: '2.13.3'
   testRuntimeOnly group: 'antlr', name: 'antlr', version: '2.7.7'
 }
-
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
 
 shadowJar {
   dependencies deps.excludeShared

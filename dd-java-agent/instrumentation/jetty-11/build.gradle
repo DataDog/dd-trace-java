@@ -30,9 +30,9 @@ sourceSets {
 
 [compileMain_java11Java, compileTestJava].each {
   it.configure {
+    setJavaVersion(it, 11)
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
-    setJavaVersion(it, 11)
   }
 }
 

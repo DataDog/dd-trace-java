@@ -1,8 +1,3 @@
-// Set properties before any plugins get loaded
-ext {
-  // Mongo4 driver requires Java 8 minimum
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
-}
 
 muzzle {
   pass {

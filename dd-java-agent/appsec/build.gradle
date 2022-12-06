@@ -36,9 +36,6 @@ dependencies {
   testImplementation group: 'com.flipkart.zjsonpatch', name: 'zjsonpatch', version: '0.4.11'
 }
 
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
-
 shadowJar {
   exclude '**/*-dbgsym.zip'
   dependencies deps.excludeShared
@@ -139,7 +136,6 @@ ext {
     'com.datadog.appsec.util.AbortStartupException',
   ]
   excludedClassesInstructionCoverage = ['com.datadog.appsec.report.ReportServiceImpl.TaskSchedulerImpl',]
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
 tasks.withType(Test).configureEach {

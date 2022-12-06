@@ -1,7 +1,3 @@
-// Set properties before any plugins get loaded
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
-}
 
 muzzle {
   pass {
@@ -60,7 +56,7 @@ testSets {
 }
 
 dependencies {
-  main_java8CompileOnly group: 'org.springframework', name: 'spring-webflux', version: '5.0.0.RELEASE'
+  compileOnly group: 'org.springframework', name: 'spring-webflux', version: '5.0.0.RELEASE'
 
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
   testImplementation project(':dd-java-agent:instrumentation:netty-4.1')

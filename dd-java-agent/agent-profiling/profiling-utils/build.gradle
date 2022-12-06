@@ -16,6 +16,3 @@ dependencies {
   testImplementation deps.mockito
 }
 
-/* We use Java8 features, but there is no code needing JFR libraries */
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8

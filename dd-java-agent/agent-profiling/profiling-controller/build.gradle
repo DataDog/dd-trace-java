@@ -29,5 +29,3 @@ dependencies {
   testImplementation group: 'org.awaitility', name: 'awaitility', version: '4.0.1'
 }
 
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
