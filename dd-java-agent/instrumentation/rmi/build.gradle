@@ -13,13 +13,23 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-def rmic = tasks.register('rmic') {
+def rmic = tasks.register('rmic', Exec) {
   dependsOn testClasses
+
+  Provider<JavaLauncher> javaLauncher = getJavaLauncherFor(8)
+  def toolchainPath = javaLauncher.get().metadata.installationPath
+
   def clazz = 'rmi.app.ServerLegacy'
-  String command = """rmic -g -keep -classpath ${sourceSets.test.output.classesDirs.asPath} -d ${buildDir}/classes/java/test ${clazz}"""
-  command.execute().text
+  commandLine(
+    "${toolchainPath}/bin/rmic",
+    "-g",
+    "-keep",
+    "-classpath", sourceSets.test.output.classesDirs.asPath,
+    "-d", "${buildDir}/classes/java/test",
+    clazz
+  )
 }
 
 tasks.named("test").configure {
-  dependsOn "rmic"
+  dependsOn rmic
 }
