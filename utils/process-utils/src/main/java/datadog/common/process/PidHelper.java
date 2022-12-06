@@ -1,7 +1,6 @@
 package datadog.common.process;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-
 import java.util.function.Supplier;
 
 /**

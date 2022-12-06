@@ -21,8 +21,8 @@ compileMain_java11Java.configure {
   setJavaVersion(it, 11)
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
-//  sourceCompatibility = JavaVersion.VERSION_1_9
-//  targetCompatibility = JavaVersion.VERSION_1_9
+  //  sourceCompatibility = JavaVersion.VERSION_1_9
+  //  targetCompatibility = JavaVersion.VERSION_1_9
 }
 
 dependencies {
@@ -42,6 +42,6 @@ forbiddenApisMain_java11 {
 idea {
   module {
     jdkName = '11'
-//    languageLevel = new IdeaLanguageLevel("9")
+    //    languageLevel = new IdeaLanguageLevel("9")
   }
 }

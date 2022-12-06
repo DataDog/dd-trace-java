@@ -1,5 +1,7 @@
 package datadog.trace.agent.installer;
 
+import datadog.common.process.JnrProcessIdSupplier;
+import datadog.common.process.PidHelper;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.Instrumenters;
@@ -12,10 +14,12 @@ import datadog.trace.api.ProductActivation;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
+import java.lang.reflect.InvocationTargetException;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Supplier;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 import org.slf4j.Logger;
@@ -48,6 +52,28 @@ public class AgentInstaller {
       }
     } else if (DEBUG) {
       log.debug("No instrumentation required, not installing Datadog class transformer.");
+    }
+
+    try {
+      if (Platform.isJavaVersionAtLeast(9)) {
+        Supplier<Long> supplier =
+            (Supplier<Long>)
+                Config.class
+                    .getClassLoader()
+                    .loadClass("datadog.common.process.Java9ProcessIdSupplier")
+                    .getDeclaredConstructor()
+                    .newInstance();
+        PidHelper.computeIfAbsent(supplier);
+      } else {
+        PidHelper.computeIfAbsent(new JnrProcessIdSupplier());
+      }
+
+    } catch (InstantiationException
+        | IllegalAccessException
+        | InvocationTargetException
+        | NoSuchMethodException
+        | ClassNotFoundException e) {
+      log.error("Unable to get process ID using Java 9 API");
     }
   }
 

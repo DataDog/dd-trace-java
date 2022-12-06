@@ -6,6 +6,7 @@ excludedClassesCoverage += ['datadog.trace.agent.tooling.*']
 
 dependencies {
   api project(':dd-java-agent:agent-tooling')
+  api project(':utils:process-utils')
 
   testImplementation project(':dd-java-agent:testing')
 }

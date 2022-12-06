@@ -1,9 +1,8 @@
 package datadog.common.process;
 
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.function.Supplier;
 
 public class Java9ProcessIdSupplier implements Supplier<Long> {
   private static final Logger log = LoggerFactory.getLogger(Java9ProcessIdSupplier.class);
