@@ -1,7 +1,7 @@
 package datadog.common.process;
 
-import com.sun.org.slf4j.internal.Logger;
-import com.sun.org.slf4j.internal.LoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.function.Supplier;
 
@@ -11,9 +11,9 @@ public class Java9ProcessIdSupplier implements Supplier<Long> {
   @Override
   public Long get() {
     try {
-      ProcessHandle
+      return ProcessHandle.current().pid();
     } catch (final Exception e) {
-      log.debug("Cannot get PID through JVM API, trying POSIX instead", e);
+      log.debug("Cannot get PID through JVM API", e);
     }
     return null;
   }
