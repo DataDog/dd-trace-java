@@ -9,7 +9,7 @@ public interface InternalTracer {
    * Attach callbacks to the global scope manager.
    *
    * @param afterScopeActivatedCallback Callback on scope activation.
-   * @param afterScopeClosedCallback    Callback on scope close.
+   * @param afterScopeClosedCallback Callback on scope close.
    */
   void addScopeListener(Runnable afterScopeActivatedCallback, Runnable afterScopeClosedCallback);
 
