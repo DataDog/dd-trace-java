@@ -68,10 +68,10 @@ final class TypeFactory {
     }
     for (TypeDescription loaded :
         new TypeDescription[] {
-          TypeDescription.OBJECT,
-          TypeDescription.STRING,
-          TypeDescription.CLASS,
-          TypeDescription.THROWABLE,
+          TypeDescription.ForLoadedType.of(Object.class),
+          TypeDescription.ForLoadedType.of(String.class),
+          TypeDescription.ForLoadedType.of(Class.class),
+          TypeDescription.ForLoadedType.of(Throwable.class),
           TypeDescription.ForLoadedType.of(Serializable.class),
           TypeDescription.ForLoadedType.of(Cloneable.class)
         }) {
