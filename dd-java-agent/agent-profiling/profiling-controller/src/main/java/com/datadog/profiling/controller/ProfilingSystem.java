@@ -149,6 +149,10 @@ public final class ProfilingSystem {
           uploadPeriod.toMillis(),
           TimeUnit.MILLISECONDS);
       started = true;
+    } catch (UnsupportedEnvironmentException unsupported) {
+      log.warn(
+          "Datadog Profiling was enabled on an unsupported JVM, will not profile application. See {} for more details about supported JVMs.",
+          "https://docs.datadoghq.com/profiler/enabling/java/?tab=commandarguments#requirements");
     } catch (Throwable t) {
       if (t instanceof RuntimeException) {
         // Possibly a wrapped exception related to Oracle JDK 8 JFR MX beans

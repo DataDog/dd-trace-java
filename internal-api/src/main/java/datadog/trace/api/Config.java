@@ -161,7 +161,42 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_START_DELAY;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_HOST;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
-import static datadog.trace.api.config.ProfilingConfig.*;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OLD;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_VERY_OLD;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_OLD;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_VERY_OLD;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_ASYNC_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCLUDE_AGENT_THREADS;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_HOST;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PASSWORD;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_USERNAME;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_TAGS;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_COMPRESSION;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_COMPRESSION_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_PERIOD;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_PERIOD_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_SUMMARY_ON_413;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_SUMMARY_ON_413_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_ENABLED;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_INITIAL_POLL_INTERVAL;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED;
@@ -439,7 +474,6 @@ public class Config {
   private final int profilingExceptionHistogramTopItems;
   private final int profilingExceptionHistogramMaxCollectionSize;
   private final boolean profilingExcludeAgentThreads;
-  private final boolean profilingHotspotsEnabled;
   private final boolean profilingUploadSummaryOn413Enabled;
 
   private final boolean crashTrackingAgentless;
@@ -907,7 +941,8 @@ public class Config {
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
     isAsyncProfilerEnabled =
-        configProvider.getBoolean(PROFILING_ASYNC_ENABLED, PROFILING_ASYNC_ALLOC_ENABLED_DEFAULT);
+        configProvider.getBoolean(
+            PROFILING_ASYNC_ENABLED, isAsyncProfilerSafeInCurrentEnvironment());
     profilingUrl = configProvider.getString(PROFILING_URL);
 
     if (tmpApiKey == null) {
@@ -977,9 +1012,6 @@ public class Config {
             PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE_DEFAULT);
 
     profilingExcludeAgentThreads = configProvider.getBoolean(PROFILING_EXCLUDE_AGENT_THREADS, true);
-
-    // code hotspots are disabled by default because of potential perf overhead they can incur
-    profilingHotspotsEnabled = configProvider.getBoolean(PROFILING_HOTSPOTS_ENABLED, false);
 
     profilingUploadSummaryOn413Enabled =
         configProvider.getBoolean(
@@ -1615,16 +1647,42 @@ public class Config {
     return profilingExcludeAgentThreads;
   }
 
-  public boolean isProfilingHotspotsEnabled() {
-    return profilingHotspotsEnabled;
-  }
-
   public boolean isProfilingUploadSummaryOn413Enabled() {
     return profilingUploadSummaryOn413Enabled;
   }
 
   public boolean isAsyncProfilerEnabled() {
     return isAsyncProfilerEnabled;
+  }
+
+  private static boolean isAsyncProfilerSafeInCurrentEnvironment() {
+    // don't want to put this logic (which will evolve) in the public ProfilingConfig, and can't
+    // access Platform there
+    boolean isSafeArchitecture = false;
+    String architecture = System.getProperty("os.arch", "").toLowerCase();
+    switch (architecture) {
+      case "x86_64":
+      case "amd64":
+      case "k8":
+      case "x86":
+      case "i386":
+      case "i486":
+      case "i586":
+      case "i686":
+        isSafeArchitecture = true;
+        break;
+      default:
+    }
+    if (!isSafeArchitecture) {
+      return false;
+    }
+    if (Platform.isJ9()) {
+      return true;
+    }
+    return Platform.isJavaVersionAtLeast(18)
+        || Platform.isJavaVersionAtLeast(17, 0, 5)
+        || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 17))
+        || (Platform.isJavaVersion(8) && Platform.isJavaVersionAtLeast(8, 0, 352));
   }
 
   public boolean isCrashTrackingAgentless() {
