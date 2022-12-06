@@ -106,38 +106,64 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private static final String LANG_INTERPRETER_VENDOR_STATSD_TAG = "lang_interpreter_vendor";
   private static final String TRACER_VERSION_STATSD_TAG = "tracer_version";
 
-  /** Tracer start time in nanoseconds measured up to a millisecond accuracy */
+  /**
+   * Tracer start time in nanoseconds measured up to a millisecond accuracy
+   */
   private final long startTimeNano;
-  /** Nanosecond ticks value at tracer start */
+  /**
+   * Nanosecond ticks value at tracer start
+   */
   private final long startNanoTicks;
-  /** How often should traced threads check clock ticks against the wall clock */
+  /**
+   * How often should traced threads check clock ticks against the wall clock
+   */
   private final long clockSyncPeriod;
-  /** Last time (in nanosecond ticks) the clock was checked for drift */
+  /**
+   * Last time (in nanosecond ticks) the clock was checked for drift
+   */
   private volatile long lastSyncTicks;
-  /** Nanosecond offset to counter clock drift */
+  /**
+   * Nanosecond offset to counter clock drift
+   */
   private volatile long counterDrift;
 
   private final PendingTraceBuffer pendingTraceBuffer;
 
-  /** Default service name if none provided on the trace or span */
+  /**
+   * Default service name if none provided on the trace or span
+   */
   final String serviceName;
-  /** Writer is an charge of reporting traces and spans to the desired endpoint */
+  /**
+   * Writer is an charge of reporting traces and spans to the desired endpoint
+   */
   final Writer writer;
-  /** Sampler defines the sampling policy in order to reduce the number of traces for instance */
+  /**
+   * Sampler defines the sampling policy in order to reduce the number of traces for instance
+   */
   final Sampler<DDSpan> sampler;
-  /** Scope manager is in charge of managing the scopes from which spans are created */
+  /**
+   * Scope manager is in charge of managing the scopes from which spans are created
+   */
   final AgentScopeManager scopeManager;
 
   final MetricsAggregator metricsAggregator;
 
-  /** A set of tags that are added only to the application's root span */
+  /**
+   * A set of tags that are added only to the application's root span
+   */
   private final Map<String, ?> localRootSpanTags;
-  /** A set of tags that are added to every span */
+  /**
+   * A set of tags that are added to every span
+   */
   private final Map<String, ?> defaultSpanTags;
-  /** A configured mapping of service names to update with new values */
+  /**
+   * A configured mapping of service names to update with new values
+   */
   private final Map<String, String> serviceNameMappings;
 
-  /** number of spans in a pending trace before they get flushed */
+  /**
+   * number of spans in a pending trace before they get flushed
+   */
   private final int partialFlushMinSpans;
 
   private final StatsDClient statsDClient;
@@ -416,12 +442,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     assert taggedHeaders != null;
 
     this.timeSource = timeSource == null ? SystemTimeSource.INSTANCE : timeSource;
-    this.startTimeNano = this.timeSource.getCurrentTimeNanos();
-    this.startNanoTicks = this.timeSource.getNanoTicks();
-    this.clockSyncPeriod = Math.max(1_000_000L, SECONDS.toNanos(config.getClockSyncPeriod()));
-    this.lastSyncTicks = startNanoTicks;
+    startTimeNano = this.timeSource.getCurrentTimeNanos();
+    startNanoTicks = this.timeSource.getNanoTicks();
+    clockSyncPeriod = Math.max(1_000_000L, SECONDS.toNanos(config.getClockSyncPeriod()));
+    lastSyncTicks = startNanoTicks;
 
-    this.endpointCheckpointer = EndpointCheckpointerHolder.create();
+    endpointCheckpointer = EndpointCheckpointerHolder.create();
     this.serviceName = serviceName;
     this.sampler = sampler;
     this.injector = injector;
@@ -444,15 +470,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.statsDClient = StatsDClient.NO_OP;
     }
 
-    this.monitoring =
+    monitoring =
         config.isHealthMetricsEnabled()
             ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
             : Monitoring.DISABLED;
-    this.performanceMonitoring =
+    performanceMonitoring =
         config.isPerfMetricsEnabled()
             ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
             : Monitoring.DISABLED;
-    this.traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
+    traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
     if (scopeManager == null) {
       ContinuableScopeManager csm =
           new ContinuableScopeManager(
@@ -467,9 +493,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.scopeManager = scopeManager;
     }
 
-    this.externalAgentLauncher = new ExternalAgentLauncher(config);
+    externalAgentLauncher = new ExternalAgentLauncher(config);
 
-    this.disableSamplingMechanismValidation = config.isSamplingMechanismValidationDisabled();
+    disableSamplingMechanismValidation = config.isSamplingMechanismValidationDisabled();
 
     if (sharedCommunicationObjects == null) {
       sharedCommunicationObjects = new SharedCommunicationObjects();
@@ -485,7 +511,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.writer = writer;
     }
 
-    this.pendingTraceBuffer =
+    pendingTraceBuffer =
         strictTraceWrites
             ? PendingTraceBuffer.discarding()
             : PendingTraceBuffer.delaying(this.timeSource);
@@ -521,10 +547,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     this.instrumentationGateway = instrumentationGateway;
-    this.callbackProviderAppSec =
+    callbackProviderAppSec =
         instrumentationGateway.getCallbackProvider(RequestContextSlot.APPSEC);
-    this.callbackProviderIast = instrumentationGateway.getCallbackProvider(RequestContextSlot.IAST);
-    this.universalCallbackProvider = instrumentationGateway.getUniversalCallbackProvider();
+    callbackProviderIast = instrumentationGateway.getCallbackProvider(RequestContextSlot.IAST);
+    universalCallbackProvider = instrumentationGateway.getUniversalCallbackProvider();
 
     shutdownCallback = new ShutdownHook(this);
     try {
@@ -868,7 +894,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
   }
 
-  @SuppressWarnings("unchecked")
   void setSamplingPriorityIfNecessary(final DDSpan rootSpan) {
     // There's a race where multiple threads can see PrioritySampling.UNSET here
     // This check skips potential complex sampling priority logic when we know its redundant
@@ -914,12 +939,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void registerCheckpointer(EndpointCheckpointer implementation) {
-    this.endpointCheckpointer.register(implementation);
+    endpointCheckpointer.register(implementation);
   }
 
   @Override
   public SubscriptionService getSubscriptionService(RequestContextSlot slot) {
-    return (SubscriptionService) this.instrumentationGateway.getCallbackProvider(slot);
+    return (SubscriptionService) instrumentationGateway.getCallbackProvider(slot);
   }
 
   @Override
@@ -996,13 +1021,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     constantTags.add(statsdTag(TRACER_VERSION_STATSD_TAG, DDTraceCoreInfo.VERSION));
     constantTags.add(statsdTag("service", config.getServiceName()));
 
-    final Map<String, String> mergedSpanTags = config.getMergedSpanTags();
-    final String version = mergedSpanTags.get(GeneralConfig.VERSION);
+    final Map<String, Object> mergedSpanTags = config.getMergedSpanTags();
+    final String version = (String) mergedSpanTags.get(GeneralConfig.VERSION);
     if (version != null && !version.isEmpty()) {
       constantTags.add(statsdTag("version", version));
     }
 
-    final String env = mergedSpanTags.get(GeneralConfig.ENV);
+    final String env = (String) mergedSpanTags.get(GeneralConfig.ENV);
     if (env != null && !env.isEmpty()) {
       constantTags.add(statsdTag("env", env));
     }
@@ -1029,7 +1054,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return tagPrefix + ":" + tagValue;
   }
 
-  /** Spans are built using this builder */
+  /**
+   * Spans are built using this builder
+   */
   public class CoreSpanBuilder implements AgentTracer.SpanBuilder {
     private final CharSequence operationName;
     private final CoreTracer tracer;
