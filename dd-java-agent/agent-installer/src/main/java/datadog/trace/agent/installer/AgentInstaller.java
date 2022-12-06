@@ -69,10 +69,10 @@ public class AgentInstaller {
       }
 
     } catch (InstantiationException
-        | IllegalAccessException
-        | InvocationTargetException
-        | NoSuchMethodException
-        | ClassNotFoundException e) {
+             | IllegalAccessException
+             | InvocationTargetException
+             | NoSuchMethodException
+             | ClassNotFoundException e) {
       log.error("Unable to get process ID using Java 9 API");
     }
   }
@@ -88,7 +88,7 @@ public class AgentInstaller {
    * </ul>
    *
    * @param className name of the class to match against
-   * @param callback runnable to invoke when class name matches
+   * @param callback  runnable to invoke when class name matches
    */
   public static void registerClassLoadCallback(String className, Runnable callback) {
     if ("java.util.logging.LogManager".equals(className)) {
@@ -210,5 +210,6 @@ public class AgentInstaller {
     return enabledSystems;
   }
 
-  private AgentInstaller() {}
+  private AgentInstaller() {
+  }
 }
