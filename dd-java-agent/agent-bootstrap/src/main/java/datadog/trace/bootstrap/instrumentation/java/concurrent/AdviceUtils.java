@@ -26,9 +26,6 @@ public class AdviceUtils {
     if (state != null) {
       final AgentScope.Continuation continuation = state.getAndResetContinuation();
       if (continuation != null) {
-        if (migrated) {
-          continuation.migrated();
-        }
         final AgentScope scope = continuation.activate();
         scope.setAsyncPropagation(true);
         return scope;
@@ -39,9 +36,6 @@ public class AdviceUtils {
 
   public static void endTaskScope(final AgentScope scope) {
     if (null != scope) {
-      if (scope.checkpointed()) {
-        scope.span().finishWork();
-      }
       scope.close();
     }
   }
@@ -70,9 +64,7 @@ public class AdviceUtils {
         state = State.FACTORY.create();
         contextStore.put(task, state);
       }
-      if (state.captureAndSetContinuation(activeScope) && startThreadMigration) {
-        state.startThreadMigration();
-      }
+      state.captureAndSetContinuation(activeScope);
     }
   }
 }

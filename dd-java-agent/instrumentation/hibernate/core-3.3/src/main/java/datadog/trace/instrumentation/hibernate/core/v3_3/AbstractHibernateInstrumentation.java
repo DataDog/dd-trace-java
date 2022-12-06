@@ -1,20 +1,12 @@
 package datadog.trace.instrumentation.hibernate.core.v3_3;
 
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.instrumentation.hibernate.HibernateMatchers;
-import net.bytebuddy.matcher.ElementMatcher;
 
 public abstract class AbstractHibernateInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
 
   public AbstractHibernateInstrumentation() {
     super("hibernate", "hibernate-core");
-  }
-
-  @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return HibernateMatchers.CLASS_LOADER_MATCHER;
   }
 
   @Override

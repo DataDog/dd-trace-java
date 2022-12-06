@@ -6,7 +6,7 @@ import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.interceptor.TraceInterceptor
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.context.ScopeListener
+import datadog.trace.api.scopemanager.ScopeListener
 import datadog.trace.context.TraceScope
 import datadog.trace.test.util.DDSpecification
 import io.opentracing.Scope
@@ -30,7 +30,7 @@ class OpenTracingAPITest extends DDSpecification {
   def setup() {
     assert tracer.scopeManager().active() == null
     tracer.addTraceInterceptor(traceInterceptor)
-    tracer.addScopeListener(scopeListener)
+    tracer.tracer.addScopeListener(scopeListener)
   }
 
   def cleanup() {
@@ -394,7 +394,7 @@ class OpenTracingAPITest extends DDSpecification {
     injectSysConfig(TracerConfig.SCOPE_STRICT_MODE, "true")
     DDTracer strictTracer = DDTracer.builder().writer(writer).statsDClient(statsDClient).build()
     strictTracer.addTraceInterceptor(traceInterceptor)
-    strictTracer.addScopeListener(scopeListener)
+    strictTracer.tracer.addScopeListener(scopeListener)
 
     when:
     Span firstSpan = strictTracer.buildSpan("someOperation").start()

@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.servlet.dispatcher;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
@@ -28,6 +27,7 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.util.Map;
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletRequest;
@@ -43,18 +43,14 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Tracing
     super("servlet", "servlet-dispatcher");
   }
 
-  static final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
-      hasClassesNamed("javax.servlet.RequestDispatcher");
-
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return CLASS_LOADER_MATCHER;
+  public String hierarchyMarkerType() {
+    return "javax.servlet.RequestDispatcher";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("javax.servlet.RequestDispatcher"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override
@@ -123,6 +119,9 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Tracing
 
       // In case we lose context, inject trace into to the request.
       propagate().inject(span, request, SETTER);
+      propagate()
+          .injectPathwayContext(
+              span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
 
       // temporarily replace from request to avoid spring resource name bubbling up:
       requestSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);

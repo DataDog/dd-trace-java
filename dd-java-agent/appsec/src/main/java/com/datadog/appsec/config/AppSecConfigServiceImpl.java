@@ -1,13 +1,16 @@
 package com.datadog.appsec.config;
 
 import static com.datadog.appsec.util.StandardizedLogging.RulesInvalidReason.INVALID_JSON_FILE;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_ACTIVATION;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_DD_RULES;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_IP_BLOCKING;
 
+import com.datadog.appsec.AppSecSystem;
+import com.datadog.appsec.config.AppSecModuleConfigurer.SubconfigListener;
 import com.datadog.appsec.util.AbortStartupException;
 import com.datadog.appsec.util.StandardizedLogging;
-import com.squareup.moshi.JsonAdapter;
-import com.squareup.moshi.Moshi;
-import com.squareup.moshi.Types;
-import datadog.communication.fleet.FleetService;
+import datadog.remoteconfig.ConfigurationPoller;
+import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -15,14 +18,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicReference;
-import okio.BufferedSource;
-import okio.Okio;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,43 +32,110 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private static final Logger log = LoggerFactory.getLogger(AppSecConfigServiceImpl.class);
 
   private static final String DEFAULT_CONFIG_LOCATION = "default_config.json";
-  private static final JsonAdapter<Map<String, Object>> ADAPTER =
-      new Moshi.Builder()
-          .build()
-          .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
 
-  private final FleetService fleetService;
   // for new subconfig subscribers
-  private final AtomicReference<Map<String, AppSecConfig>> lastConfig =
-      new AtomicReference<>(Collections.emptyMap());
+  private final ConcurrentHashMap<String, Object> lastConfig = new ConcurrentHashMap<>();
   private final ConcurrentHashMap<String, SubconfigListener> subconfigListeners =
       new ConcurrentHashMap<>();
   private final Config tracerConfig;
   private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors = new ArrayList<>();
-  private volatile FleetService.FleetSubscription fleetSubscription;
+  private final ConfigurationPoller configurationPoller;
+  private final AppSecModuleConfigurer.Reconfiguration reconfiguration;
 
-  public AppSecConfigServiceImpl(Config tracerConfig, FleetService fleetService) {
+  private boolean hasUserWafConfig;
+
+  public AppSecConfigServiceImpl(
+      Config tracerConfig,
+      @Nullable ConfigurationPoller configurationPoller,
+      AppSecModuleConfigurer.Reconfiguration reconfig) {
     this.tracerConfig = tracerConfig;
-    this.fleetService = fleetService;
+    this.configurationPoller = configurationPoller;
+    this.reconfiguration = reconfig;
   }
 
-  private void subscribeFleetService(FleetService fleetService) {
-    this.fleetSubscription =
-        fleetService.subscribe(
-            FleetService.Product.APPSEC,
-            is -> {
-              try {
-                Map<String, AppSecConfig> stringObjectMap =
-                    deserializeConfig(Okio.buffer(Okio.source(is)));
-                distributeSubConfigurations(stringObjectMap);
-                this.lastConfig.set(stringObjectMap);
-              } catch (IOException e) {
-                log.error("Error deserializing appsec config", e);
-              }
-            });
+  private void subscribeConfigurationPoller() {
+    // see also close() method
+    this.configurationPoller.addListener(
+        Product.ASM_DD,
+        AppSecConfigDeserializer.INSTANCE,
+        (configKey, newConfig, hinter) -> {
+          if (newConfig == null) {
+            log.warn("AppSec configuration was pulled out by remote config. This has no effect");
+            return;
+          }
+          Map<String, Object> configMap = Collections.singletonMap("waf", newConfig);
+          this.lastConfig.put("waf", newConfig);
+          if (AppSecSystem.isActive()) {
+            distributeSubConfigurations(configMap, reconfiguration);
+
+            int numOfRules = 0;
+            String ver = newConfig.getVersion();
+            List<?> rules = newConfig.getRules();
+            if (rules != null) {
+              numOfRules = rules.size();
+            }
+
+            log.info(
+                "New AppSec configuration {} has been applied. Loaded {} rules. AppSec status: {}",
+                ver,
+                numOfRules,
+                AppSecSystem.isActive() ? "active" : "inactive");
+          }
+        });
+    this.configurationPoller.addListener(
+        Product.ASM_DATA,
+        AppSecDataDeserializer.INSTANCE,
+        (configKey, newConfig, hinter) -> {
+          MergedAsmData wafData = (MergedAsmData) this.lastConfig.get("waf_data");
+          if (wafData == null) {
+            if (newConfig == null) {
+              return;
+            }
+            wafData = new MergedAsmData(new HashMap<>());
+            wafData.addConfig(configKey, newConfig);
+          } else {
+            if (newConfig == null) {
+              wafData.removeConfig(configKey);
+            } else {
+              wafData.addConfig(configKey, newConfig);
+            }
+          }
+          this.lastConfig.put("waf_data", wafData);
+          Map<String, Object> wafDataConfigMap = Collections.singletonMap("waf_data", wafData);
+          distributeSubConfigurations(wafDataConfigMap, reconfiguration);
+        });
+    this.configurationPoller.addListener(
+        Product.ASM,
+        AppSecRuleTogglingDeserializer.INSTANCE,
+        (configKey, newConfig, hinter) -> {
+          this.lastConfig.put("waf_rules_override", newConfig);
+          Map<String, Object> wafRulesOverride =
+              Collections.singletonMap("waf_rules_override", newConfig);
+          distributeSubConfigurations(wafRulesOverride, reconfiguration);
+        });
+    this.configurationPoller.addListener(
+        Product.ASM_FEATURES,
+        AppSecFeaturesDeserializer.INSTANCE,
+        (configKey, newConfig, hinter) -> {
+          final boolean newState =
+              newConfig != null && newConfig.asm != null && newConfig.asm.enabled;
+          if (AppSecSystem.isActive() != newState) {
+            log.info("AppSec {} (runtime)", newState ? "enabled" : "disabled");
+            AppSecSystem.setActive(newState);
+            if (AppSecSystem.isActive()) {
+              // On remote activation, we need to re-distribute the last known configuration.
+              // This may trigger initializations, including PowerWAF if it was lazy loaded.
+              distributeSubConfigurations(lastConfig, reconfiguration);
+            }
+          }
+        });
+
+    this.configurationPoller.addCapabilities(
+        CAPABILITY_ASM_ACTIVATION | CAPABILITY_ASM_DD_RULES | CAPABILITY_ASM_IP_BLOCKING);
   }
 
-  private void distributeSubConfigurations(Map<String, AppSecConfig> newConfig) {
+  private void distributeSubConfigurations(
+      Map<String, Object> newConfig, AppSecModuleConfigurer.Reconfiguration reconfiguration) {
     for (Map.Entry<String, SubconfigListener> entry : subconfigListeners.entrySet()) {
       String key = entry.getKey();
       if (!newConfig.containsKey(key)) {
@@ -75,7 +143,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       }
       SubconfigListener listener = entry.getValue();
       try {
-        listener.onNewSubconfig(newConfig.get(key));
+        listener.onNewSubconfig(newConfig.get(key), reconfiguration);
       } catch (Exception rte) {
         log.warn("Error updating configuration of app sec module listening on key " + key, rte);
       }
@@ -83,69 +151,76 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   }
 
   @Override
-  public void init(boolean initFleetService) {
-    Map<String, AppSecConfig> config;
+  public void init() {
+    AppSecConfig wafConfig;
+    hasUserWafConfig = false;
     try {
-      config = loadUserConfig(tracerConfig);
+      wafConfig = loadUserWafConfig(tracerConfig);
     } catch (Exception e) {
       log.error("Error loading user-provided config", e);
       throw new AbortStartupException("Error loading user-provided config", e);
     }
-    if (config == null) {
+    if (wafConfig == null) {
       try {
-        config = loadDefaultConfig();
+        wafConfig = loadDefaultWafConfig();
       } catch (IOException e) {
         log.error("Error loading default config", e);
         throw new AbortStartupException("Error loading default config", e);
       }
+    } else {
+      hasUserWafConfig = true;
     }
-    lastConfig.set(config);
-    if (initFleetService) {
-      subscribeFleetService(fleetService);
-    }
+    lastConfig.put("waf", wafConfig);
   }
 
-  @Override
-  public Optional<AppSecConfig> addSubConfigListener(String key, SubconfigListener listener) {
-    this.subconfigListeners.put(key, listener);
-    Map<String, AppSecConfig> lastConfig = this.lastConfig.get();
-    return Optional.ofNullable(lastConfig.get(key));
-  }
-
-  @Override
-  public void addTraceSegmentPostProcessor(TraceSegmentPostProcessor interceptor) {
-    this.traceSegmentPostProcessors.add(interceptor);
+  public void maybeSubscribeConfigPolling() {
+    if (this.configurationPoller != null) {
+      if (hasUserWafConfig) {
+        log.info("AppSec will not use remote config because there is a custom user configuration");
+      } else {
+        subscribeConfigurationPoller();
+      }
+    }
   }
 
   public List<TraceSegmentPostProcessor> getTraceSegmentPostProcessors() {
     return traceSegmentPostProcessors;
   }
 
-  // public for testing only
-  public static Map<String, AppSecConfig> deserializeConfig(BufferedSource src) throws IOException {
-    Map<String, Object> rawConfig = ADAPTER.fromJson(src);
-    if (rawConfig == null) {
-      throw new IOException("Unable deserialize Json config");
+  /**
+   * Implementation of {@link AppSecModuleConfigurer} that solves two problems: - Avoids the
+   * submodules receiving configuration changes before their initial config is completed. - Avoid
+   * submodules being (partially) subscribed to configuration changes even if their initial config
+   * failed.
+   */
+  private class TransactionalAppSecModuleConfigurerImpl
+      implements TransactionalAppSecModuleConfigurer {
+    private Map<String, SubconfigListener> listenerMap = new HashMap<>();
+    private List<TraceSegmentPostProcessor> postProcessors = new ArrayList<>();
+
+    @Override
+    public Optional<Object> addSubConfigListener(String key, SubconfigListener listener) {
+      listenerMap.put(key, listener);
+      return Optional.ofNullable(lastConfig.get(key));
     }
 
-    if (rawConfig.containsKey("version")) {
-      // in case if we have single config simulate multi-config structure
-      rawConfig = Collections.singletonMap("waf", rawConfig);
+    @Override
+    public void addTraceSegmentPostProcessor(TraceSegmentPostProcessor interceptor) {
+      postProcessors.add(interceptor);
     }
 
-    Map<String, AppSecConfig> ret = new LinkedHashMap<>();
-    for (Map.Entry<String, Object> entry : rawConfig.entrySet()) {
-      String key = entry.getKey();
-      Object value = entry.getValue();
-      if (!(value instanceof Map)) {
-        throw new IOException("Expect config to be a map");
-      }
-      ret.put(key, AppSecConfig.valueOf((Map<String, Object>) value));
+    public void commit() {
+      AppSecConfigServiceImpl.this.subconfigListeners.putAll(listenerMap);
+      AppSecConfigServiceImpl.this.traceSegmentPostProcessors.addAll(postProcessors);
     }
-    return ret;
   }
 
-  private static Map<String, AppSecConfig> loadDefaultConfig() throws IOException {
+  @Override
+  public TransactionalAppSecModuleConfigurer createAppSecModuleConfigurer() {
+    return new TransactionalAppSecModuleConfigurerImpl();
+  }
+
+  private static AppSecConfig loadDefaultWafConfig() throws IOException {
     try (InputStream is =
         AppSecConfigServiceImpl.class
             .getClassLoader()
@@ -154,7 +229,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         throw new IOException("Resource " + DEFAULT_CONFIG_LOCATION + " not found");
       }
 
-      Map<String, AppSecConfig> ret = deserializeConfig(Okio.buffer(Okio.source(is)));
+      AppSecConfig ret = AppSecConfigDeserializer.INSTANCE.deserialize(is);
 
       StandardizedLogging._initialConfigSourceAndLibddwafVersion(log, "<bundled config>");
       if (log.isInfoEnabled()) {
@@ -165,13 +240,13 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     }
   }
 
-  private static Map<String, AppSecConfig> loadUserConfig(Config tracerConfig) throws IOException {
+  private static AppSecConfig loadUserWafConfig(Config tracerConfig) throws IOException {
     String filename = tracerConfig.getAppSecRulesFile();
     if (filename == null) {
       return null;
     }
     try (InputStream is = new FileInputStream(filename)) {
-      Map<String, AppSecConfig> ret = deserializeConfig(Okio.buffer(Okio.source(is)));
+      AppSecConfig ret = AppSecConfigDeserializer.INSTANCE.deserialize(is);
 
       StandardizedLogging._initialConfigSourceAndLibddwafVersion(log, filename);
       if (log.isInfoEnabled()) {
@@ -188,17 +263,21 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     }
   }
 
-  /** Provide total amount of all events from all configs */
-  private static int countRules(Map<String, AppSecConfig> config) {
-    // get sum for each config->AppSecConfig.getEvents().size()
-    return config.values().stream().map(AppSecConfig::getRules).mapToInt(List::size).sum();
+  private static int countRules(AppSecConfig config) {
+    return config.getRules().size();
   }
 
   @Override
   public void close() {
-    FleetService.FleetSubscription sub = this.fleetSubscription;
-    if (sub != null) {
-      sub.cancel();
+    if (this.configurationPoller == null) {
+      return;
     }
+    this.configurationPoller.removeCapabilities(
+        CAPABILITY_ASM_ACTIVATION | CAPABILITY_ASM_DD_RULES | CAPABILITY_ASM_IP_BLOCKING);
+    this.configurationPoller.removeListener(Product.ASM_DD);
+    this.configurationPoller.removeListener(Product.ASM_DATA);
+    this.configurationPoller.removeListener(Product.ASM);
+    this.configurationPoller.removeListener(Product.ASM_FEATURES);
+    this.configurationPoller.stop();
   }
 }

@@ -1,10 +1,10 @@
 package datadog.trace.api.http;
 
-import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import java.nio.CharBuffer;
 import java.util.Arrays;
+import java.util.function.BiFunction;
 
 /** Analogous to {@link StoredByteBody}, but Java doesn't support generics with scalar types. */
 public class StoredCharBody implements StoredBodySupplier {
@@ -13,9 +13,9 @@ public class StoredCharBody implements StoredBodySupplier {
   private static final int GROW_FACTOR = 4;
   private static final CharBuffer EMPTY_CHAR_BUFFER = CharBuffer.allocate(0);
 
-  private final RequestContext<Object> httpContext;
-  private final BiFunction<RequestContext<Object>, StoredBodySupplier, Void> startCb;
-  private final BiFunction<RequestContext<Object>, StoredBodySupplier, Flow<Void>> endCb;
+  private final RequestContext httpContext;
+  private final BiFunction<RequestContext, StoredBodySupplier, Void> startCb;
+  private final BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> endCb;
   private final StoredBodySupplier supplierInNotifications;
 
   private boolean listenerNotified;
@@ -25,17 +25,17 @@ public class StoredCharBody implements StoredBodySupplier {
   private boolean bodyReadStarted = false;
 
   public StoredCharBody(
-      RequestContext<Object> httpContext,
-      BiFunction<RequestContext<Object>, StoredBodySupplier, Void> startCb,
-      BiFunction<RequestContext<Object>, StoredBodySupplier, Flow<Void>> endCb,
+      RequestContext httpContext,
+      BiFunction<RequestContext, StoredBodySupplier, Void> startCb,
+      BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> endCb,
       int lengthHint) {
     this(httpContext, startCb, endCb, lengthHint, null);
   }
 
   StoredCharBody(
-      RequestContext<Object> httpContext,
-      BiFunction<RequestContext<Object>, StoredBodySupplier, Void> startCb,
-      BiFunction<RequestContext<Object>, StoredBodySupplier, Flow<Void>> endCb,
+      RequestContext httpContext,
+      BiFunction<RequestContext, StoredBodySupplier, Void> startCb,
+      BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> endCb,
       int lengthHint,
       StoredBodySupplier supplierInNotifications) {
     this.httpContext = httpContext;

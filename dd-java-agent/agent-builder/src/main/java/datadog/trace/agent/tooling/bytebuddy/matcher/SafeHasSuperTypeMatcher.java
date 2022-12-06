@@ -59,7 +59,7 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
 
   @Override
   protected boolean doMatch(final T target) {
-    boolean isInterface = target.isInterface();
+    boolean isInterface = safeIsInterface(target);
     if (rejectInterfaceTargets && isInterface) {
       return false;
     }
@@ -115,6 +115,21 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
 
   private Iterable<TypeDefinition> safeGetInterfaces(final TypeDefinition typeDefinition) {
     return new SafeInterfaceIterator(typeDefinition);
+  }
+
+  static boolean safeIsInterface(final TypeDefinition typeDefinition) {
+    try {
+      return typeDefinition.isInterface();
+    } catch (final Exception e) {
+      if (log.isDebugEnabled()) {
+        log.debug(
+            "{} trying to check isInterface for target {}: {}",
+            e.getClass().getSimpleName(),
+            safeTypeDefinitionName(typeDefinition),
+            e.getMessage());
+      }
+      return false;
+    }
   }
 
   static TypeDefinition safeGetSuperClass(final TypeDefinition typeDefinition) {

@@ -1,15 +1,10 @@
 package datadog.trace.agent.test
 
-import datadog.trace.agent.tooling.AgentTransformerBuilder
 import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers
 import datadog.trace.test.util.DDSpecification
-import net.bytebuddy.agent.builder.AgentBuilder
-import net.bytebuddy.description.type.TypeDescription
-import net.bytebuddy.matcher.ElementMatcher
-
-import static net.bytebuddy.matcher.ElementMatchers.none
+import spock.lang.Shared
 
 class DefaultInstrumenterForkedTest extends DDSpecification {
   static {
@@ -17,10 +12,13 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     DDElementMatchers.registerAsSupplier()
   }
 
+  @Shared
+  Instrumenter.TransformerBuilder testAdviceBuilder = { it.adviceTransformations({}) }
+
   def "default enabled"() {
     setup:
     def target = new TestDefaultInstrumenter("test")
-    target.instrument(new AgentTransformerBuilder(new AgentBuilder.Default()))
+    target.instrument(testAdviceBuilder)
 
     expect:
     target.enabled
@@ -29,7 +27,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
 
   def "default enabled override"() {
     setup:
-    target.instrument(new AgentTransformerBuilder(new AgentBuilder.Default()))
+    target.instrument(testAdviceBuilder)
 
     expect:
     target.enabled == enabled
@@ -60,7 +58,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
           return false
         }
       }
-    target.instrument(new AgentTransformerBuilder(new AgentBuilder.Default()))
+    target.instrument(testAdviceBuilder)
 
     expect:
     target.enabled == enabled
@@ -76,7 +74,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
 
     when:
     def target = new TestDefaultInstrumenter("test")
-    target.instrument(new AgentTransformerBuilder(new AgentBuilder.Default()))
+    target.instrument(testAdviceBuilder)
 
     then:
     target.enabled == enabled
@@ -93,7 +91,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     setup:
     injectEnvConfig("DD_INTEGRATIONS_ENABLED", value)
     def target = new TestDefaultInstrumenter("test")
-    target.instrument(new AgentTransformerBuilder(new AgentBuilder.Default()))
+    target.instrument(testAdviceBuilder)
 
     expect:
     target.enabled == enabled
@@ -111,7 +109,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     injectSysConfig("integrations.enabled", "false")
     injectSysConfig("integration.${value}.enabled", "true")
     def target = new TestDefaultInstrumenter(name, altName)
-    target.instrument(new AgentTransformerBuilder(new AgentBuilder.Default()))
+    target.instrument(testAdviceBuilder)
 
     expect:
     target.enabled == enabled
@@ -135,7 +133,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
 
     when:
     def target = new TestDefaultInstrumenter(name, altName)
-    target.instrument(new AgentTransformerBuilder(new AgentBuilder.Default()))
+    target.instrument(testAdviceBuilder)
 
     then:
     System.getenv("DD_INTEGRATION_${value}_ENABLED") == "true"
@@ -153,7 +151,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     "PERIOD_TEST"     | true    | "period.test" | "asdf"
   }
 
-  class TestDefaultInstrumenter extends Instrumenter.Tracing implements Instrumenter.ForTypeHierarchy {
+  class TestDefaultInstrumenter extends Instrumenter.Tracing {
     boolean applyCalled = false
 
     TestDefaultInstrumenter(String instrumentationName) {
@@ -165,13 +163,8 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     }
 
     @Override
-    ElementMatcher<? super TypeDescription> hierarchyMatcher() {
-      applyCalled = true
-      return none()
-    }
-
-    @Override
     void adviceTransformations(AdviceTransformation transformation) {
+      applyCalled = true
     }
   }
 }

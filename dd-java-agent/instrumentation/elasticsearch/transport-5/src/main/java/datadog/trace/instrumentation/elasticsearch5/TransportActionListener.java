@@ -49,16 +49,10 @@ public class TransportActionListener<T extends ActionResponse> implements Action
       span.setTag("elasticsearch.request.write.type", req.type());
       span.setTag("elasticsearch.request.write.routing", req.routing());
     }
-    if (migrateSpan) {
-      span.startThreadMigration();
-    }
   }
 
   @Override
   public void onResponse(final T response) {
-    if (migrateSpan) {
-      span.finishThreadMigration();
-    }
     if (response.remoteAddress() != null) {
       span.setTag(Tags.PEER_HOSTNAME, response.remoteAddress().getHost());
       span.setTag(Tags.PEER_HOST_IPV4, response.remoteAddress().getAddress());

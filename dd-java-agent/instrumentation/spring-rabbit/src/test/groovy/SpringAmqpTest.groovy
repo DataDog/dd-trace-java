@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.utils.PortUtils
 import org.testcontainers.containers.RabbitMQContainer
 import rabbit.MessagingRabbitMQApplication
 import rabbit.Receiver
@@ -16,14 +17,13 @@ class SpringAmqpTest extends AgentTestRunner {
 
   @Override
   def setupSpec() {
-    if (System.getenv("CI") != "true") {
-      rabbit = new RabbitMQContainer("rabbitmq:latest")
-      rabbit.start()
-      MessagingRabbitMQApplication.hostName = rabbit.getHost()
-      MessagingRabbitMQApplication.port = rabbit.getMappedPort(MessagingRabbitMQApplication.port)
-    } else {
-      rabbit = null
-    }
+    rabbit = new RabbitMQContainer("rabbitmq:3.9.20-alpine")
+    rabbit.start()
+    def hostName = rabbit.getHost()
+    def port = rabbit.getMappedPort(MessagingRabbitMQApplication.port)
+    MessagingRabbitMQApplication.hostName = hostName
+    MessagingRabbitMQApplication.port = port
+    PortUtils.waitForPortToOpen(hostName, port, 5, TimeUnit.SECONDS)
   }
 
   @Override

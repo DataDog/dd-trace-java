@@ -1,50 +1,86 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
-import java.util.WeakHashMap;
-import java.util.concurrent.atomic.AtomicReference;
-import net.bytebuddy.dynamic.ClassFileLocator;
+import static datadog.trace.agent.tooling.bytebuddy.ClassFileLocators.classFileLocator;
+
+import java.lang.instrument.ClassFileTransformer;
 import net.bytebuddy.pool.TypePool;
 
 /** Pluggable {@link TypePool}s for use with instrumentation matching and muzzle checks. */
 public final class SharedTypePools {
-  private static final AtomicReference<Supplier> SUPPLIER = new AtomicReference<>();
+  private static volatile Supplier SUPPLIER;
 
+  /** Retrieves the shared type-pool for the given class-loader. */
   public static TypePool typePool(ClassLoader classLoader) {
-    return SUPPLIER.get().typePool(ClassFileLocators.classFileLocator(classLoader), classLoader);
+    return SUPPLIER.typePool(classLoader);
   }
 
-  public static TypePool typePool(ClassFileLocator classFileLocator, ClassLoader classLoader) {
-    return SUPPLIER.get().typePool(classFileLocator, classLoader);
+  /** Hints that the given annotation is of interest and should be proactively cached. */
+  public static void annotationOfInterest(String name) {
+    SUPPLIER.annotationOfInterest(name);
   }
 
-  public static void registerIfAbsent(Supplier supplier) {
-    SUPPLIER.compareAndSet(null, supplier);
+  /** Hints that the given annotations are of interest and should be proactively cached. */
+  public static void annotationsOfInterest(Iterable<String> names) {
+    for (String name : names) {
+      SUPPLIER.annotationOfInterest(name);
+    }
+  }
+
+  /** Hints that the javaagent has finished installing as a {@link ClassFileTransformer}. */
+  public static void endInstall() {
+    SUPPLIER.endInstall();
+  }
+
+  /** Hints that the javaagent has finished calling {@link ClassFileTransformer#transform}. */
+  public static void endTransform() {
+    SUPPLIER.endTransform();
+  }
+
+  public static void clear() {
+    SUPPLIER.clear();
+  }
+
+  public static synchronized void registerIfAbsent(Supplier supplier) {
+    if (null == SUPPLIER) {
+      SUPPLIER = supplier;
+    }
   }
 
   public interface Supplier {
-    TypePool typePool(ClassFileLocator classFileLocator, ClassLoader classLoader);
+    /** Retrieves the shared type-pool for the given class-loader. */
+    TypePool typePool(ClassLoader classLoader);
+
+    /** Hints that the given annotation is of interest and should be proactively cached. */
+    void annotationOfInterest(String name);
+
+    /** Hints that the javaagent has finished installing as a {@link ClassFileTransformer}. */
+    void endInstall();
+
+    /** Hints that the javaagent has finished calling {@link ClassFileTransformer#transform}. */
+    void endTransform();
+
+    void clear();
   }
 
-  /** Simple soft-cache for use during the build when testing or validating muzzle ranges. */
+  /** Simple cache for use during the build when testing or validating muzzle ranges. */
   public static Supplier simpleCache() {
     return new SharedTypePools.Supplier() {
-      private final WeakHashMap<ClassLoader, TypePool> typePools = new WeakHashMap<>();
+      @Override
+      public TypePool typePool(ClassLoader classLoader) {
+        return TypePool.Default.WithLazyResolution.of(classFileLocator(classLoader));
+      }
 
       @Override
-      public TypePool typePool(ClassFileLocator classFileLocator, ClassLoader classLoader) {
-        TypePool typePool = typePools.get(classLoader);
-        if (null == typePool) {
-          typePool =
-              new TypePool.Default.WithLazyResolution(
-                  TypePool.CacheProvider.Simple.withObjectType(),
-                  classFileLocator,
-                  TypePool.Default.ReaderMode.FAST);
-          synchronized (typePools) {
-            typePools.put(classLoader, typePool);
-          }
-        }
-        return typePool;
-      }
+      public void annotationOfInterest(String name) {}
+
+      @Override
+      public void endInstall() {}
+
+      @Override
+      public void endTransform() {}
+
+      @Override
+      public void clear() {}
     };
   }
 

@@ -1,12 +1,10 @@
 package com.datadog.profiling.context.allocator.direct;
 
 import com.datadog.profiling.context.Allocator;
+import com.datadog.profiling.context.StatsDAccessor;
 import com.datadog.profiling.context.allocator.AllocatedBuffer;
-import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.StatsDClient;
-import datadog.trace.api.Tracer;
 import datadog.trace.relocate.api.RatelimitedLogger;
-import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
@@ -94,17 +92,7 @@ public final class DirectAllocator implements Allocator {
     }
     this.capacity = alignedCapacity;
     this.bitmapSize = (int) Math.ceil(lockSectionSize / 8d);
-    StatsDClient statsd = StatsDClient.NO_OP;
-    try {
-      Tracer tracer = GlobalTracer.get();
-      Field fld = tracer.getClass().getDeclaredField("statsDClient");
-      fld.setAccessible(true);
-      statsd = (StatsDClient) fld.get(tracer);
-      log.debug("Set up custom StatsD Client instance {}", statsd);
-    } catch (Throwable t) {
-      t.printStackTrace();
-    }
-    statsDClient = statsd;
+    statsDClient = StatsDAccessor.getStatsdClient();
   }
 
   @Override

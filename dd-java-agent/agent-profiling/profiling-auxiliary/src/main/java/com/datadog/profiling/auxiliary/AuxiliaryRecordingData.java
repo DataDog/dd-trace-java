@@ -16,8 +16,12 @@ public final class AuxiliaryRecordingData extends RecordingData {
   private final RecordingData[] secondaryData;
 
   public AuxiliaryRecordingData(
-      Instant start, Instant end, @Nonnull RecordingData main, RecordingData... secondary) {
-    super(start, end);
+      Instant start,
+      Instant end,
+      Kind kind,
+      @Nonnull RecordingData main,
+      RecordingData... secondary) {
+    super(start, end, kind);
     if (main == null) {
       throw new IllegalArgumentException("Main data must be specified and not null");
     }

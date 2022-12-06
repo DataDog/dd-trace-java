@@ -35,14 +35,13 @@ public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return NettyChannelInstrumentation.CLASS_LOADER_MATCHER;
+  public String hierarchyMarkerType() {
+    return "org.jboss.netty.channel.ChannelFutureListener";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("org.jboss.netty.channel.ChannelFutureListener"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override
@@ -77,10 +76,10 @@ public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing
       /*
       Idea here is:
        - To return scope only if we have captured it.
-       - To capture scope only in case of error.
+       - To capture scope only in case of error on a non-null channel.
        */
       final Throwable cause = future.getCause();
-      if (cause == null) {
+      if (cause == null || future.getChannel() == null) {
         return null;
       }
 

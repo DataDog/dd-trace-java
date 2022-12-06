@@ -3,8 +3,6 @@ package datadog.trace.instrumentation.spymemcached
 import com.google.common.util.concurrent.MoreExecutors
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import net.spy.memcached.CASResponse
@@ -32,9 +30,8 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static net.spy.memcached.ConnectionFactoryBuilder.Protocol.BINARY
 
-// Do not run tests locally on Java7 since testcontainers are not compatible with Java7
-// It is fine to run on CI because CI provides memcached externally, not through testcontainers
-@Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
+// Do not run tests on Java7 since testcontainers are not compatible with Java7
+@Requires({ jvm.java8Compatible })
 class SpymemcachedTest extends AgentTestRunner {
 
   @Shared
@@ -48,10 +45,6 @@ class SpymemcachedTest extends AgentTestRunner {
   @Shared
   def timingOutMemcachedOpTimeout = 1000
 
-  /*
-   Note: type here has to stay undefined, otherwise tests will fail in CI in Java 7 because
-   'testcontainers' are built for Java 8 and Java 7 cannot load this class.
-   */
   @Shared
   def memcachedContainer
   @Shared
@@ -66,22 +59,14 @@ class SpymemcachedTest extends AgentTestRunner {
   }
 
   def setupSpec() {
-
-    /*
-     CI will provide us with memcached container running along side our build.
-     When building locally, however, we need to take matters into our own hands
-     and we use 'testcontainers' for this.
-     */
-    if ("true" != System.getenv("CI")) {
-      memcachedContainer = new GenericContainer('memcached:latest')
-        .withExposedPorts(defaultMemcachedPort)
-        .withStartupTimeout(Duration.ofSeconds(120))
-      memcachedContainer.start()
-      memcachedAddress = new InetSocketAddress(
-        memcachedContainer.containerIpAddress,
-        memcachedContainer.getMappedPort(defaultMemcachedPort)
-        )
-    }
+    memcachedContainer = new GenericContainer('memcached:1.6.14-alpine')
+      .withExposedPorts(defaultMemcachedPort)
+      .withStartupTimeout(Duration.ofSeconds(120))
+    memcachedContainer.start()
+    memcachedAddress = new InetSocketAddress(
+      memcachedContainer.getHost(),
+      memcachedContainer.getMappedPort(defaultMemcachedPort)
+      )
   }
 
   def cleanupSpec() {
@@ -151,9 +136,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test get hit"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace(parentOperation) {
@@ -171,9 +153,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test get miss"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace(parentOperation) {
@@ -191,9 +170,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test get cancel"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace(parentOperation) {
@@ -213,9 +189,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test get timeout"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     /*
@@ -241,9 +214,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test bulk get"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace(parentOperation) {
@@ -262,9 +232,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test set"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace(parentOperation) {
@@ -282,9 +249,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test set cancel"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace(parentOperation) {
@@ -304,9 +268,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test add"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace(parentOperation) {
@@ -326,9 +287,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test second add"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace(parentOperation) {
@@ -348,9 +306,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test delete"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace(parentOperation) {
@@ -370,9 +325,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test delete non existent"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace(parentOperation) {
@@ -390,9 +342,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test replace"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace(parentOperation) {
@@ -412,9 +361,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test replace non existent"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace(parentOperation) {
@@ -432,9 +378,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test append"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace(parentOperation) {
@@ -456,9 +399,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test prepend"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace(parentOperation) {
@@ -480,9 +420,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test cas"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace(parentOperation) {
@@ -502,9 +439,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test cas not found"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace(parentOperation) {
@@ -522,9 +456,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test touch"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace(parentOperation) {
@@ -542,9 +473,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test touch non existent"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace(parentOperation) {
@@ -562,9 +490,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test get and touch"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace(parentOperation) {
@@ -582,9 +507,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test get and touch non existent"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace(parentOperation) {
@@ -602,9 +524,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test decr"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace(parentOperation) {
@@ -628,9 +547,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test decr non existent"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace(parentOperation) {
@@ -648,9 +564,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test decr exception"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     memcached.decr(key("long key: " + longString()), 5)
@@ -666,9 +579,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test incr"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace(parentOperation) {
@@ -692,9 +602,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test incr non existent"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace(parentOperation) {
@@ -712,9 +619,6 @@ class SpymemcachedTest extends AgentTestRunner {
 
   def "test incr exception"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     memcached.incr(key("long key: " + longString()), 5)

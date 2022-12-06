@@ -16,18 +16,18 @@ public class JettyServerAdvice {
   public static class HandleAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.This final HttpChannel channel) {
+    public static AgentScope onEnter(
+        @Advice.This final HttpChannel channel, @Advice.Local("agentSpan") AgentSpan span) {
       Request req = channel.getRequest();
 
       Object existingSpan = req.getAttribute(DD_SPAN_ATTRIBUTE);
       if (existingSpan instanceof AgentSpan) {
-        // Request already gone through initial processing, so just activate the span.
-        ((AgentSpan) existingSpan).finishThreadMigration();
         return activateSpan((AgentSpan) existingSpan);
       }
 
       final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(req);
-      final AgentSpan span = DECORATE.startSpan(req, extractedContext).setMeasured(true);
+      span = DECORATE.startSpan(req, extractedContext);
+      span.setMeasured(true);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, req, req, extractedContext);
 
@@ -36,14 +36,11 @@ public class JettyServerAdvice {
       req.setAttribute(DD_SPAN_ATTRIBUTE, span);
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
       req.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
-      // request may be processed on any thread; signal thread migration
-      span.startThreadMigration();
       return scope;
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void closeScope(@Advice.Enter final AgentScope scope) {
-      scope.span().finishWork();
       scope.close();
     }
   }
@@ -61,8 +58,6 @@ public class JettyServerAdvice {
         final AgentSpan span = (AgentSpan) spanObj;
         DECORATE.onResponse(span, channel);
         DECORATE.beforeFinish(span);
-        // span could have been originated on a different thread and migrated
-        span.finishThreadMigration();
         span.finish();
       }
     }

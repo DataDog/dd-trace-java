@@ -1,9 +1,22 @@
 package datadog.trace.lambda
 
+import datadog.trace.api.Config
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
+import datadog.trace.core.propagation.DatadogTags
 import datadog.trace.core.test.DDCoreSpecification
+import datadog.trace.core.DDSpan
+import com.amazonaws.services.lambda.runtime.events.SQSEvent
+import com.amazonaws.services.lambda.runtime.events.SNSEvent
+import com.amazonaws.services.lambda.runtime.events.S3Event
+import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent
+import com.amazonaws.services.lambda.runtime.events.models.s3.S3EventNotification
+import spock.lang.Requires
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
+// Java8 is the lowest supported version by AWS Lambda
+@Requires({ jvm.java8Compatible })
 class LambdaHandlerTest extends DDCoreSpecification {
 
   class TestObject {
@@ -19,13 +32,16 @@ class LambdaHandlerTest extends DDCoreSpecification {
 
   def "test start invocation success"() {
     given:
+    Config config = Mock(Config)
+    config.getxDatadogTagsMaxLength() >> 512
+
     def server = httpServer {
       handlers {
         post("/lambda/start-invocation") {
           response
             .status(200)
             .addHeader("x-datadog-trace-id", "1234")
-            .addHeader("x-datadog-span-id", "5678")
+            .addHeader("x-datadog-sampling-priority", "2")
             .send()
         }
       }
@@ -33,22 +49,25 @@ class LambdaHandlerTest extends DDCoreSpecification {
     LambdaHandler.setExtensionBaseUrl(server.address.toString())
 
     when:
-    def objTest = LambdaHandler.notifyStartInvocation(obj)
+    def objTest = LambdaHandler.notifyStartInvocation(obj, DatadogTags.factory(config))
 
     then:
     objTest.getTraceId().toString() == traceId
-    objTest.getSpanId().toString() == spanId
+    objTest.getSamplingPriority() == samplingPriority
 
     cleanup:
     server.close()
 
     where:
-    traceId    | spanId      | obj
-    "1234"     | "5678"      | new TestObject()
+    traceId    | samplingPriority      | obj
+    "1234"     | 2                     | new TestObject()
   }
 
   def "test start invocation failure"() {
     given:
+    Config config = Mock(Config)
+    config.getxDatadogTagsMaxLength() >> 512
+
     def server = httpServer {
       handlers {
         post("/lambda/start-invocation") {
@@ -61,7 +80,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
     LambdaHandler.setExtensionBaseUrl(server.address.toString())
 
     when:
-    def objTest = LambdaHandler.notifyStartInvocation(obj)
+    def objTest = LambdaHandler.notifyStartInvocation(obj, DatadogTags.factory(config))
 
     then:
     objTest == expected
@@ -86,21 +105,29 @@ class LambdaHandlerTest extends DDCoreSpecification {
       }
     }
     LambdaHandler.setExtensionBaseUrl(server.address.toString())
+    DDSpan span = Mock(DDSpan) {
+      getTraceId() >> DDTraceId.from("1234")
+      getSpanId() >> DDSpanId.from("5678")
+      getSamplingPriority() >> 2
+    }
 
     when:
-    def result = LambdaHandler.notifyEndInvocation(boolValue)
-    server.lastRequest.headers.get("x-datadog-invocation-error") == headerValue
+    def result = LambdaHandler.notifyEndInvocation(span, boolValue)
 
     then:
+    server.lastRequest.headers.get("x-datadog-invocation-error") == eHeaderValue
+    server.lastRequest.headers.get("x-datadog-trace-id") == tIdHeaderValue
+    server.lastRequest.headers.get("x-datadog-span-id") == sIdHeaderValue
+    server.lastRequest.headers.get("x-datadog-sampling-priority") == sPIdHeaderValue
     result == expected
 
     cleanup:
     server.close()
 
     where:
-    expected  | headerValue     | boolValue
-    true      | "true"          | true
-    true      | null            | false
+    expected | eHeaderValue | tIdHeaderValue | sIdHeaderValue | sPIdHeaderValue | boolValue
+    true     | "true"       | "1234"         | "5678"         | "2"             | true
+    true     | null         | "1234"         | "5678"         | "2"             | false
   }
 
   def "test end invocation failure"() {
@@ -115,9 +142,14 @@ class LambdaHandlerTest extends DDCoreSpecification {
       }
     }
     LambdaHandler.setExtensionBaseUrl(server.address.toString())
+    DDSpan span = Mock(DDSpan) {
+      getTraceId() >> DDTraceId.from("1234")
+      getSpanId() >> DDSpanId.from("5678")
+      getSamplingPriority() >> 2
+    }
 
     when:
-    def result = LambdaHandler.notifyEndInvocation(boolValue)
+    def result = LambdaHandler.notifyEndInvocation(span, boolValue)
 
     then:
     result == expected
@@ -130,5 +162,68 @@ class LambdaHandlerTest extends DDCoreSpecification {
     expected  | headerValue     | boolValue
     false     | "true"          | true
     false     | null            | false
+  }
+
+  def "test moshi toJson SNSEvent"() {
+    given:
+    def myEvent = new SQSEvent()
+    List<SQSEvent.SQSMessage> records = new ArrayList<>()
+    SQSEvent.SQSMessage message = new SQSEvent.SQSMessage()
+    message.setMessageId("myId")
+    message.setAwsRegion("myRegion")
+    records.add(message)
+    myEvent.setRecords(records)
+
+    when:
+    def result = LambdaHandler.writeValueAsString(myEvent)
+
+    then:
+    result == "{\"records\":[{\"awsRegion\":\"myRegion\",\"messageId\":\"myId\"}]}"
+  }
+
+  def "test moshi toJson S3Event"() {
+    given:
+    List<S3EventNotification.S3EventNotificationRecord> list = new ArrayList<>()
+    S3EventNotification.S3EventNotificationRecord item0 = new S3EventNotification.S3EventNotificationRecord(
+      "region", "eventName", "mySource", null, "3.4",
+      null, null, null, null)
+    list.add(item0)
+    def myEvent = new S3Event(list)
+
+    when:
+    def result = LambdaHandler.writeValueAsString(myEvent)
+
+    then:
+    result == "{\"records\":[{\"awsRegion\":\"region\",\"eventName\":\"eventName\",\"eventSource\":\"mySource\",\"eventVersion\":\"3.4\"}]}"
+  }
+
+  def "test moshi toJson SNSEvent"() {
+    given:
+    def myEvent = new SNSEvent()
+    List<SNSEvent.SNSRecord> records = new ArrayList<>()
+    SNSEvent.SNSRecord message = new SNSEvent.SNSRecord()
+    message.setEventSource("mySource")
+    message.setEventVersion("myVersion")
+    records.add(message)
+    myEvent.setRecords(records)
+
+    when:
+    def result = LambdaHandler.writeValueAsString(myEvent)
+
+    then:
+    result == "{\"records\":[{\"eventSource\":\"mySource\",\"eventVersion\":\"myVersion\"}]}"
+  }
+
+  def "test moshi toJson APIGatewayProxyRequestEvent"() {
+    given:
+    def myEvent = new APIGatewayProxyRequestEvent()
+    myEvent.setBody("bababango")
+    myEvent.setHttpMethod("POST")
+
+    when:
+    def result = LambdaHandler.writeValueAsString(myEvent)
+
+    then:
+    result == "{\"body\":\"bababango\",\"httpMethod\":\"POST\"}"
   }
 }

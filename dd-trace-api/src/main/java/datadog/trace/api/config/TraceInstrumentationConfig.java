@@ -12,6 +12,8 @@ public final class TraceInstrumentationConfig {
   public static final String TRACE_ENABLED = "trace.enabled";
   public static final String INTEGRATIONS_ENABLED = "integrations.enabled";
 
+  public static final String INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME =
+      "integration.synapse.legacy-operation-name";
   public static final String TRACE_ANNOTATIONS = "trace.annotations";
   public static final String TRACE_EXECUTORS_ALL = "trace.executors.all";
   public static final String TRACE_EXECUTORS = "trace.executors";
@@ -61,6 +63,9 @@ public final class TraceInstrumentationConfig {
   public static final String RABBIT_PROPAGATION_DISABLED_EXCHANGES =
       "rabbit.propagation.disabled.exchanges";
 
+  public static final String RABBIT_INCLUDE_ROUTINGKEY_IN_RESOURCE =
+      "rabbit.include.routingkey.in.resource";
+
   public static final String MESSAGE_BROKER_SPLIT_BY_DESTINATION =
       "message.broker.split-by-destination";
 
@@ -75,7 +80,7 @@ public final class TraceInstrumentationConfig {
 
   public static final String IGNITE_CACHE_INCLUDE_KEYS = "ignite.cache.include_keys";
 
-  public static final String OSGI_SEARCH_DEPTH = "osgi.search.depth";
+  public static final String OBFUSCATION_QUERY_STRING_REGEXP = "obfuscation.query.string.regexp";
 
   public static final String PLAY_REPORT_HTTP_STATUS = "trace.play.report-http-status";
 
@@ -85,10 +90,11 @@ public final class TraceInstrumentationConfig {
   public static final String SERVLET_ROOT_CONTEXT_SERVICE_NAME =
       "trace.servlet.root-context.service.name";
 
-  public static final String TEMP_JARS_CLEAN_ON_BOOT = "temp.jars.clean.on.boot";
-
-  public static final String RESOLVER_USE_LOADCLASS = "resolver.use.loadclass";
+  public static final String RESOLVER_OUTLINE_POOL_ENABLED = "resolver.outline.pool.enabled";
+  public static final String RESOLVER_OUTLINE_POOL_SIZE = "resolver.outline.pool.size";
   public static final String RESOLVER_TYPE_POOL_SIZE = "resolver.type.pool.size";
+  public static final String RESOLVER_USE_LOADCLASS = "resolver.use.loadclass";
+  public static final String RESOLVER_RESET_INTERVAL = "resolver.reset.interval";
 
   public static final String PREBUILT_MATCHER_DATA_FILE = "prebuilt.matcher.data.file";
 

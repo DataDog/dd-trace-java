@@ -1,14 +1,16 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
+import static datadog.trace.agent.tooling.bytebuddy.ClassFileLocators.classFileLocator;
 import static datadog.trace.bootstrap.AgentClassLoading.LOCATING_CLASS;
 
 import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
 import datadog.trace.agent.tooling.WeakCaches;
-import datadog.trace.api.Config;
-import datadog.trace.api.function.Function;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.WeakCache;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Function;
+import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.annotation.AnnotationList;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.method.MethodList;
@@ -42,27 +44,23 @@ import org.slf4j.LoggerFactory;
  * <p>Eviction is handled almost entirely through a size restriction; however, softValues are still
  * used as a further safeguard.
  */
-public class DDCachingPoolStrategy implements SharedTypePools.Supplier {
+public final class DDCachingPoolStrategy
+    implements AgentBuilder.PoolStrategy, SharedTypePools.Supplier {
   private static final Logger log = LoggerFactory.getLogger(DDCachingPoolStrategy.class);
   // Many things are package visible for testing purposes --
   // others to avoid creation of synthetic accessors
 
   static final int CONCURRENCY_LEVEL = 8;
   static final int LOADER_CAPACITY = 64;
-  static final int TYPE_CAPACITY = Config.get().getResolverTypePoolSize();
+  static final int TYPE_CAPACITY = InstrumenterConfig.get().getResolverTypePoolSize();
 
   static final int BOOTSTRAP_HASH = 7236344; // Just a random number
 
   private static final Function<ClassLoader, WeakReference<ClassLoader>> WEAK_REF =
-      new Function<ClassLoader, WeakReference<ClassLoader>>() {
-        @Override
-        public WeakReference<ClassLoader> apply(ClassLoader input) {
-          return new WeakReference<>(input);
-        }
-      };
+      WeakReference::new;
 
   public static final DDCachingPoolStrategy INSTANCE =
-      new DDCachingPoolStrategy(Config.get().isResolverUseLoadClassEnabled());
+      new DDCachingPoolStrategy(InstrumenterConfig.get().isResolverUseLoadClassEnabled());
 
   public static void registerAsSupplier() {
     SharedTypePools.registerIfAbsent(INSTANCE);
@@ -105,8 +103,8 @@ public class DDCachingPoolStrategy implements SharedTypePools.Supplier {
             BOOTSTRAP_HASH, null, sharedResolutionCache, fallBackToLoadClass);
   }
 
-  public final TypePool typePool(
-      final ClassFileLocator classFileLocator, final ClassLoader classLoader) {
+  @Override
+  public TypePool typePool(ClassFileLocator classFileLocator, ClassLoader classLoader) {
     if (classLoader == null) {
       return createCachingTypePool(bootstrapCacheProvider, classFileLocator);
     }
@@ -115,6 +113,32 @@ public class DDCachingPoolStrategy implements SharedTypePools.Supplier {
 
     final int loaderHash = classLoader.hashCode();
     return createCachingTypePool(loaderHash, loaderRef, classFileLocator);
+  }
+
+  @Override
+  public TypePool typePool(
+      ClassFileLocator classFileLocator, ClassLoader classLoader, String name) {
+    // FIXME satisfy interface constraint that currently instrumented type is not cached
+    return typePool(classFileLocator, classLoader);
+  }
+
+  @Override
+  public TypePool typePool(ClassLoader classLoader) {
+    return typePool(classFileLocator(classLoader), classLoader);
+  }
+
+  @Override
+  public void annotationOfInterest(String name) {}
+
+  @Override
+  public void endInstall() {}
+
+  @Override
+  public void endTransform() {}
+
+  @Override
+  public void clear() {
+    sharedResolutionCache.clear();
   }
 
   private TypePool.CacheProvider createCacheProvider(

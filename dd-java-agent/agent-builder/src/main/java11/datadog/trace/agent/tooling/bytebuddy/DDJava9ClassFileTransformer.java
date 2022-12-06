@@ -16,14 +16,7 @@ import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
 public final class DDJava9ClassFileTransformer
     extends ResettableClassFileTransformer.WithDelegation {
 
-  public static final TransformerDecorator DECORATOR =
-      new TransformerDecorator() {
-        @Override
-        public ResettableClassFileTransformer decorate(
-            final ResettableClassFileTransformer classFileTransformer) {
-          return new DDJava9ClassFileTransformer(classFileTransformer);
-        }
-      };
+  public static final TransformerDecorator DECORATOR = DDJava9ClassFileTransformer::new;
 
   public DDJava9ClassFileTransformer(final ResettableClassFileTransformer classFileTransformer) {
     super(classFileTransformer);
@@ -42,12 +35,21 @@ public final class DDJava9ClassFileTransformer
       return null;
     }
 
+    byte[] result = null;
     ClassTransformationEvent event =
         ClassTransformationEvent.beforeClassTransformation(internalClassName, classFileBuffer);
-    byte[] result =
-        classFileTransformer.transform(
-            classLoader, internalClassName, classBeingRedefined, protectionDomain, classFileBuffer);
-    event.afterClassTransformation(result);
+    try {
+      result =
+          classFileTransformer.transform(
+              classLoader,
+              internalClassName,
+              classBeingRedefined,
+              protectionDomain,
+              classFileBuffer);
+    } finally {
+      SharedTypePools.endTransform();
+      event.afterClassTransformation(result);
+    }
     return result;
   }
 
@@ -65,17 +67,22 @@ public final class DDJava9ClassFileTransformer
       return null;
     }
 
+    byte[] result = null;
     ClassTransformationEvent event =
         ClassTransformationEvent.beforeClassTransformation(internalClassName, classFileBuffer);
-    byte[] result =
-        classFileTransformer.transform(
-            module,
-            classLoader,
-            internalClassName,
-            classBeingRedefined,
-            protectionDomain,
-            classFileBuffer);
-    event.afterClassTransformation(result);
+    try {
+      result =
+          classFileTransformer.transform(
+              module,
+              classLoader,
+              internalClassName,
+              classBeingRedefined,
+              protectionDomain,
+              classFileBuffer);
+    } finally {
+      SharedTypePools.endTransform();
+      event.afterClassTransformation(result);
+    }
     return result;
   }
 }

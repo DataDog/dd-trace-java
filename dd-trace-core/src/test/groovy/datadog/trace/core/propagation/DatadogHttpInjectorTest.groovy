@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation
 
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpanContext
@@ -22,24 +23,25 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     def tracer = tracerBuilder().writer(writer).build()
     final DDSpanContext mockedContext =
       new DDSpanContext(
-      DDId.from(traceId),
-      DDId.from(spanId),
-      DDId.ZERO,
+      DDTraceId.from(traceId),
+      DDSpanId.from(spanId),
+      DDSpanId.ZERO,
       null,
       "fakeService",
       "fakeOperation",
       "fakeResource",
       samplingPriority,
-      samplingMechanism,
       origin,
       ["k1" : "v1", "k2" : "v2"],
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDId.ONE),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
+      null,
       null,
       NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      DatadogTags.factory().fromHeaderValue("_dd.p.usr=123"))
 
     final Map<String, String> carrier = Mock()
 
@@ -57,6 +59,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     }
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k1", "v1")
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
+    1 * carrier.put(DATADOG_TAGS_KEY, "_dd.p.usr=123")
     0 * _
 
     cleanup:
@@ -76,24 +79,25 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     def tracer = tracerBuilder().writer(writer).build()
     final DDSpanContext mockedContext =
       new DDSpanContext(
-      DDId.from("1"),
-      DDId.from("2"),
-      DDId.ZERO,
+      DDTraceId.from("1"),
+      DDSpanId.from("2"),
+      DDSpanId.ZERO,
       null,
       "fakeService",
       "fakeOperation",
       "fakeResource",
       UNSET,
-      UNKNOWN,
       "fakeOrigin",
       ["k1" : "v1", "k2" : "v2"],
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDId.ONE),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
+      null,
       null,
       NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      DatadogTags.factory().fromHeaderValue("_dd.p.dm=-4,_dd.p.anytag=value"))
 
     mockedContext.beginEndToEnd()
 
@@ -109,6 +113,54 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     1 * carrier.put(OT_BAGGAGE_PREFIX + "t0", "${(long) (mockedContext.endToEndStartTime / 1000000L)}")
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k1", "v1")
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
+    1 * carrier.put('x-datadog-tags', '_dd.p.dm=-4,_dd.p.anytag=value')
+    0 * _
+
+    cleanup:
+    tracer.close()
+  }
+
+  def "inject the decision maker tag"() {
+    setup:
+    def writer = new ListWriter()
+    def tracer = tracerBuilder().writer(writer).build()
+    final DDSpanContext mockedContext =
+      new DDSpanContext(
+      DDTraceId.from("1"),
+      DDSpanId.from("2"),
+      DDSpanId.ZERO,
+      null,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      UNSET,
+      "fakeOrigin",
+      ["k1" : "v1", "k2" : "v2"],
+      false,
+      "fakeType",
+      0,
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
+      null,
+      null,
+      NoopPathwayContext.INSTANCE,
+      false,
+      DatadogTags.factory().empty())
+
+    mockedContext.setSamplingPriority(USER_KEEP, MANUAL)
+
+    final Map<String, String> carrier = Mock()
+
+    when:
+    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
+
+    then:
+    1 * carrier.put(TRACE_ID_KEY, "1")
+    1 * carrier.put(SPAN_ID_KEY, "2")
+    1 * carrier.put(ORIGIN_KEY, "fakeOrigin")
+    1 * carrier.put(OT_BAGGAGE_PREFIX + "k1", "v1")
+    1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
+    1 * carrier.put('x-datadog-sampling-priority', '2')
+    1 * carrier.put('x-datadog-tags', '_dd.p.dm=-4')
     0 * _
 
     cleanup:

@@ -1,7 +1,7 @@
 package datadog.trace.api.cache;
 
-import datadog.trace.api.function.Function;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 final class CHMCache<K, V> implements DDCache<K, V> {
 
@@ -25,5 +25,10 @@ final class CHMCache<K, V> implements DDCache<K, V> {
       }
     }
     return value;
+  }
+
+  @Override
+  public void clear() {
+    chm.clear();
   }
 }

@@ -2,6 +2,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import dd.test.trace.annotation.SayTracedHello
+import dd.test.trace.annotation.TracedSubClass
 
 import java.util.concurrent.Callable
 
@@ -285,7 +286,7 @@ class TraceAnnotationsTest extends AgentTestRunner {
     }
   }
 
-  def "test annonymous class annotations"() {
+  def "test anonymous class annotations"() {
     setup:
     // Test anonymous classes with package.
     SayTracedHello.fromCallable()
@@ -334,6 +335,54 @@ class TraceAnnotationsTest extends AgentTestRunner {
               "$Tags.COMPONENT" "trace"
               defaultTags()
             }
+          }
+        }
+      }
+    }
+  }
+
+  def "test simple inheritance"() {
+    setup:
+    def test = new TracedSubClass()
+    when:
+    // these produce spans because the default method in the interface and the non-abstract method in
+    // the superclass were instrumented when those types were loaded and those methods aren't overridden
+    test.testTracedDefaultMethod()
+    test.testTracedSuperMethod()
+
+    // these currently don't produce spans because the overridden methods are not annotated with @Trace
+    // and method annotations are not inherited from the default/super methods
+    test.testOverriddenTracedDefaultMethod()
+    test.testOverriddenTracedSuperMethod()
+
+    // these currently don't produce spans because the implemented methods are not annotated with @Trace
+    // and method annotations are not inherited from the interface/abstract methods
+    test.testTracedInterfaceMethod()
+    test.testTracedAbstractMethod()
+
+    then:
+    assertTraces(2) {
+      trace(1) {
+        span {
+          resourceName "TracedInterface.testTracedDefaultMethod"
+          operationName "trace.annotation"
+          parent()
+          errored false
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+      }
+      trace(1) {
+        span {
+          resourceName "TracedSuperClass.testTracedSuperMethod"
+          operationName "trace.annotation"
+          parent()
+          errored false
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
           }
         }
       }

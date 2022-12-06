@@ -16,18 +16,20 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import net.bytebuddy.asm.Advice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AutoService(Instrumenter.class)
 public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForConfiguredType {
 
+  // these must remain as String literals so they can be easily be shared (copied) with the nested
+  // advice classes
   private static final String HANDLER_ENV_NAME = "_HANDLER";
   private static final String HANDLER_SEPARATOR = "::";
   private static final String DEFAULT_METHOD_NAME = "handleRequest";
+  private static final String INVOCATION_SPAN_NAME = "dd-tracer-serverless-span";
   private static final Logger log = LoggerFactory.getLogger(LambdaHandlerInstrumentation.class);
 
   private String instrumentedType;
@@ -55,7 +57,7 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public String instrumentedType() {
+  public String configuredMatchingType() {
     return this.instrumentedType;
   }
 
@@ -89,8 +91,12 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(0) final Object event,
         @Origin("#m") final String methodName) {
       AgentSpan.Context lambdaContext = AgentTracer.get().notifyExtensionStart(event);
-      AgentSpan span =
-          startSpan(UTF8BytesString.create("dd-tracer-serverless-span"), lambdaContext);
+      final AgentSpan span;
+      if (null == lambdaContext) {
+        span = startSpan(INVOCATION_SPAN_NAME);
+      } else {
+        span = startSpan(INVOCATION_SPAN_NAME, lambdaContext);
+      }
       final AgentScope scope = activateSpan(span);
       return scope;
     }
@@ -103,10 +109,11 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
       if (scope == null) {
         return;
       }
-      AgentTracer.get().notifyExtensionEnd(null != throwable);
+
       try {
         final AgentSpan span = scope.span();
         span.finish();
+        AgentTracer.get().notifyExtensionEnd(span, null != throwable);
       } finally {
         scope.close();
       }

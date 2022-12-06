@@ -1,25 +1,24 @@
 package datadog.trace.instrumentation.tomcat55;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.trace.advice.ActiveRequestContext;
+import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.muzzle.IReferenceMatcher;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
-import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Hashtable;
+import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.tomcat.util.http.Parameters;
@@ -34,8 +33,8 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // class that's not present in tomcat 5.0.x, which we don't support in the tomcat-5.5 instr
-    return hasClassesNamed("org.apache.tomcat.util.buf.StringCache");
+    // Avoid matching Tomcat 5.0.x which is not supported by this instrumentation.
+    return hasClassNamed("org.apache.tomcat.util.buf.StringCache");
   }
 
   @Override
@@ -44,19 +43,18 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
   }
 
   // paramHashStringArray was only final for a few days. it doesn't seem to have made into a release
-  private static final ReferenceMatcher PARAM_HASH_STRING_ARRAY_REFERENCE_MATCHER =
-      new ReferenceMatcher(
-          new Reference.Builder("org.apache.tomcat.util.http.Parameters")
-              .withField(
-                  new String[0],
-                  Reference.EXPECTS_NON_FINAL,
-                  "paramHashStringArray",
-                  "Ljava/util/Hashtable;")
-              .build());
+  private static final Reference PARAM_HASH_STRING_ARRAY_REFERENCE =
+      new Reference.Builder("org.apache.tomcat.util.http.Parameters")
+          .withField(
+              new String[0],
+              Reference.EXPECTS_NON_FINAL,
+              "paramHashStringArray",
+              "Ljava/util/Hashtable;")
+          .build();
 
-  private IReferenceMatcher postProcessReferenceMatcher(final ReferenceMatcher origMatcher) {
-    return new IReferenceMatcher.ConjunctionReferenceMatcher(
-        origMatcher, PARAM_HASH_STRING_ARRAY_REFERENCE_MATCHER);
+  @Override
+  public Reference[] additionalMuzzleReferences() {
+    return new Reference[] {PARAM_HASH_STRING_ARRAY_REFERENCE};
   }
 
   @Override
@@ -91,6 +89,7 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
   }
 
   @SuppressWarnings("Duplicates")
+  @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class ProcessParametersAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static int before(
@@ -103,6 +102,7 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
         paramValuesField = new Hashtable<>();
       }
       return depth;
+      // if there is no request context, skips the body, returns 0 and will skip after()
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
@@ -110,7 +110,8 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
         @Advice.Local("origParamHashStringArray") Hashtable<String, String[]> origParamValues,
         @Advice.FieldValue(value = "paramHashStringArray", readOnly = false)
             Hashtable<String, String[]> paramValuesField,
-        @Advice.Enter final int depth) {
+        @Advice.Enter final int depth,
+        @ActiveRequestContext RequestContext reqCtx) {
       if (depth > 0) {
         return;
       }
@@ -121,19 +122,13 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
           return;
         }
 
-        AgentSpan agentSpan = activeSpan();
-        if (agentSpan == null) {
-          return;
-        }
-
-        CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
-        BiFunction<RequestContext<Object>, Object, Flow<Void>> callback =
+        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+        BiFunction<RequestContext, Object, Flow<Void>> callback =
             cbp.getCallback(EVENTS.requestBodyProcessed());
-        RequestContext<Object> requestContext = agentSpan.getRequestContext();
-        if (requestContext == null || callback == null) {
+        if (callback == null) {
           return;
         }
-        callback.apply(requestContext, paramValuesField);
+        callback.apply(reqCtx, paramValuesField);
       } finally {
         if (origParamValues != null) {
           origParamValues.putAll(paramValuesField);

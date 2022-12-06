@@ -54,7 +54,7 @@ abstract class CIProviderInfoTest extends Specification {
 
     then:
     if (ciInfo.CI) {
-      assert ciInfo.ciTags == ciSpec.tags
+      assert ciSpec.assertTags(ciInfo.ciTags)
     }
 
     where:

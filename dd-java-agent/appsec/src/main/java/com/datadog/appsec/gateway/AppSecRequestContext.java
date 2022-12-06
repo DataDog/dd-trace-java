@@ -60,11 +60,11 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean finishedResponseHeaders;
   private String peerAddress;
   private int peerPort;
+  private String inferredClientIp;
 
   private volatile StoredBodySupplier storedRequestBodySupplier;
 
   private int responseStatus;
-  private boolean blocked;
 
   private boolean reqDataPublished;
   private boolean rawReqBodyPublished;
@@ -272,6 +272,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.peerPort = peerPort;
   }
 
+  void setInferredClientIp(String ipAddress) {
+    this.inferredClientIp = ipAddress;
+  }
+
+  String getInferredClientIp() {
+    return inferredClientIp;
+  }
+
   void setStoredRequestBodySupplier(StoredBodySupplier storedRequestBodySupplier) {
     this.storedRequestBodySupplier = storedRequestBodySupplier;
   }
@@ -282,14 +290,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public void setResponseStatus(int responseStatus) {
     this.responseStatus = responseStatus;
-  }
-
-  public boolean isBlocked() {
-    return blocked;
-  }
-
-  public void setBlocked(boolean blocked) {
-    this.blocked = blocked;
   }
 
   public boolean isReqDataPublished() {

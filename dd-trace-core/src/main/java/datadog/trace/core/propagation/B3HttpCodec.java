@@ -2,7 +2,9 @@ package datadog.trace.core.propagation;
 
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
-import datadog.trace.api.DDId;
+import datadog.trace.api.Config;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
@@ -24,8 +26,8 @@ class B3HttpCodec {
 
   private static final String B3_TRACE_ID = "b3.traceid";
   private static final String B3_SPAN_ID = "b3.spanid";
-  private static final String TRACE_ID_KEY = "X-B3-TraceId";
-  private static final String SPAN_ID_KEY = "X-B3-SpanId";
+  static final String TRACE_ID_KEY = "X-B3-TraceId";
+  static final String SPAN_ID_KEY = "X-B3-SpanId";
   private static final String SAMPLING_PRIORITY_KEY = "X-B3-Sampled";
   // See https://github.com/openzipkin/b3-propagation#single-header for b3 header documentation
   private static final String B3_KEY = "b3";
@@ -45,7 +47,7 @@ class B3HttpCodec {
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
       try {
         final String injectedTraceId = context.getTraceId().toHexStringOrOriginal();
-        final String injectedSpanId = context.getSpanId().toHexStringOrOriginal();
+        final String injectedSpanId = DDSpanId.toHexString(context.getSpanId());
         setter.set(carrier, TRACE_ID_KEY, injectedTraceId);
         setter.set(carrier, SPAN_ID_KEY, injectedSpanId);
 
@@ -96,7 +98,7 @@ class B3HttpCodec {
     private static final int IGNORE = -1;
 
     private B3ContextInterpreter(final Map<String, String> taggedHeaders) {
-      super(taggedHeaders);
+      super(taggedHeaders, Config.get());
     }
 
     @Override
@@ -117,10 +119,10 @@ class B3HttpCodec {
         char first = Character.toLowerCase(key.charAt(0));
         switch (first) {
           case 'x':
-            if ((traceId == null || traceId == DDId.ZERO) && TRACE_ID_KEY.equalsIgnoreCase(key)) {
+            if ((traceId == null || traceId == DDTraceId.ZERO)
+                && TRACE_ID_KEY.equalsIgnoreCase(key)) {
               classification = TRACE_ID;
-            } else if ((spanId == null || spanId == DDId.ZERO)
-                && SPAN_ID_KEY.equalsIgnoreCase(key)) {
+            } else if ((spanId == DDSpanId.ZERO) && SPAN_ID_KEY.equalsIgnoreCase(key)) {
               classification = SPAN_ID;
             } else if (samplingPriority == defaultSamplingPriority()
                 && SAMPLING_PRIORITY_KEY.equalsIgnoreCase(key)) {
@@ -134,9 +136,19 @@ class B3HttpCodec {
               return true;
             }
             break;
+          case 'u':
+            if (handledUserAgent(key, value)) {
+              return true;
+            }
+            break;
           default:
         }
       }
+
+      if (handledIpHeaders(key, value)) {
+        return true;
+      }
+
       if (!taggedHeaders.isEmpty() && classification == IGNORE) {
         lowerCaseKey = toLowerCase(key);
         if (taggedHeaders.containsKey(lowerCaseKey)) {
@@ -214,7 +226,7 @@ class B3HttpCodec {
     }
 
     private void setSpanId(final String sId) {
-      spanId = DDId.fromHexWithOriginal(sId);
+      spanId = DDSpanId.fromHex(sId);
       if (tags.isEmpty()) {
         tags = new TreeMap<>();
       }
@@ -225,10 +237,10 @@ class B3HttpCodec {
       final int length = tId.length();
       if (length > 32) {
         log.debug("Header {} exceeded max length of 32: {}", TRACE_ID_KEY, tId);
-        traceId = DDId.ZERO;
+        traceId = DDTraceId.ZERO;
         return true;
       } else {
-        traceId = DDId.fromHexTruncatedWithOriginal(tId);
+        traceId = DDTraceId.fromHexTruncatedWithOriginal(tId);
       }
       if (tags.isEmpty()) {
         tags = new TreeMap<>();

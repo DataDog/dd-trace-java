@@ -1,9 +1,8 @@
 package datadog.trace.instrumentation.springwebflux.server;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.abstractClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -20,15 +19,13 @@ public final class HandlerAdapterInstrumentation extends AbstractWebfluxInstrume
     implements Instrumenter.ForTypeHierarchy {
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed("org.springframework.web.reactive.HandlerAdapter");
+  public String hierarchyMarkerType() {
+    return "org.springframework.web.reactive.HandlerAdapter";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return not(isAbstract())
-        .and(implementsInterface(named("org.springframework.web.reactive.HandlerAdapter")));
+    return not(abstractClass()).and(implementsInterface(named(hierarchyMarkerType())));
   }
 
   @Override

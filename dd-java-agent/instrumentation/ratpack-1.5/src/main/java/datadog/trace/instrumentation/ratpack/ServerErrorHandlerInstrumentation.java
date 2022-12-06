@@ -1,9 +1,8 @@
 package datadog.trace.instrumentation.ratpack;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.abstractClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -21,14 +20,13 @@ public class ServerErrorHandlerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed("ratpack.error.ServerErrorHandler");
+  public String hierarchyMarkerType() {
+    return "ratpack.error.ServerErrorHandler";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return not(isAbstract()).and(implementsInterface(named("ratpack.error.ServerErrorHandler")));
+    return not(abstractClass()).and(implementsInterface(named(hierarchyMarkerType())));
   }
 
   @Override

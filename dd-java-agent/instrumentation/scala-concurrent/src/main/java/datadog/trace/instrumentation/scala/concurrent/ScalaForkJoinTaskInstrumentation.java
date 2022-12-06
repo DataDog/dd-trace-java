@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.scala.concurrent;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -46,8 +45,8 @@ public final class ScalaForkJoinTaskInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassesNamed("scala.concurrent.forkjoin.ForkJoinTask");
+  public String hierarchyMarkerType() {
+    return "scala.concurrent.forkjoin.ForkJoinTask";
   }
 
   @Override
@@ -56,7 +55,7 @@ public final class ScalaForkJoinTaskInstrumentation extends Instrumenter.Tracing
     // the lifecycle of tasks
     return notExcludedByName(FORK_JOIN_TASK)
         .and(declaresMethod(namedOneOf("exec", "fork", "cancel")))
-        .and(extendsClass(named("scala.concurrent.forkjoin.ForkJoinTask")));
+        .and(extendsClass(named(hierarchyMarkerType())));
   }
 
   @Override

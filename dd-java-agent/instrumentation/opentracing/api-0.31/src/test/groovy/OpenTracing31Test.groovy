@@ -1,8 +1,10 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
+import datadog.trace.core.propagation.DatadogTags
 import datadog.trace.instrumentation.opentracing.DefaultLogHandler
 import datadog.trace.instrumentation.opentracing31.OTTracer
 import datadog.trace.instrumentation.opentracing31.TypeConverter
@@ -43,7 +45,7 @@ class OpenTracing31Test extends AgentTestRunner {
         .withTag("boolean", true)
     }
     if (addReference) {
-      def ctx = new ExtractedContext(DDId.ONE, DDId.from(2), SAMPLER_DROP, DEFAULT, null, 0, [:], [:])
+      def ctx = new ExtractedContext(DDTraceId.ONE, 2, SAMPLER_DROP, null, 0, [:], [:], null, DatadogTags.factory().empty())
       builder.addReference(addReference, tracer.tracer.converter.toSpanContext(ctx))
     }
     def result = builder.start()
@@ -79,7 +81,7 @@ class OpenTracing31Test extends AgentTestRunner {
       trace(1) {
         span {
           if ([References.CHILD_OF, References.FOLLOWS_FROM].contains(addReference)) {
-            parentDDId(DDId.from(2))
+            parentSpanId(2)
           } else {
             parent()
           }
@@ -127,7 +129,7 @@ class OpenTracing31Test extends AgentTestRunner {
 
     expect:
     otherSpan.operationName == "other"
-    (otherSpan.delegate as DDSpan).parentId == DDId.ZERO
+    (otherSpan.delegate as DDSpan).parentId == DDSpanId.ZERO
   }
 
   def "test startActive"() {
@@ -276,11 +278,16 @@ class OpenTracing31Test extends AgentTestRunner {
     tracer.inject(context, Format.Builtin.TEXT_MAP, adapter)
 
     then:
-    textMap == [
+    def expectedTextMap = [
       "x-datadog-trace-id"         : "$context.delegate.traceId",
       "x-datadog-parent-id"        : "$context.delegate.spanId",
       "x-datadog-sampling-priority": propagatedPriority.toString(),
     ]
+    if (propagatedPriority > 0) {
+      def effectiveSamplingMechanism = contextPriority == UNSET ? AGENT_RATE : samplingMechanism
+      expectedTextMap.put("x-datadog-tags", "_dd.p.dm=-" + effectiveSamplingMechanism)
+    }
+    textMap == expectedTextMap
 
     when:
     def extract = tracer.extract(Format.Builtin.TEXT_MAP, adapter)

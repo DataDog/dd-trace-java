@@ -6,6 +6,7 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers
 import datadog.trace.agent.tooling.muzzle.TestAdviceClasses.MethodBodyAdvice
 import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.jar.asm.Type
+import net.bytebuddy.pool.TypePool
 import spock.lang.Shared
 
 import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_INTERFACE
@@ -43,9 +44,15 @@ class ReferenceMatcherTest extends DDSpecification {
   ] as URL[],
   (ClassLoader) null)
 
+  @Shared
+  ClassLoader testClasspath = this.getClass().getClassLoader()
+
+  @Shared
+  TypePool testTypePool = SharedTypePools.typePool(testClasspath)
+
   def "match safe classpaths"() {
     setup:
-    Reference[] refs = ReferenceCreator.createReferencesFrom(MethodBodyAdvice.getName(), this.getClass().getClassLoader()).values().toArray(new Reference[0])
+    Reference[] refs = ReferenceCreator.createReferencesFrom(MethodBodyAdvice.getName(), testClasspath).values().toArray(new Reference[0])
     ReferenceMatcher refMatcher = new ReferenceMatcher(refs)
 
     expect:
@@ -58,44 +65,6 @@ class ReferenceMatcherTest extends DDSpecification {
     MuzzleWeakReferenceTest.classLoaderRefIsGarbageCollected()
   }
 
-  private static class CountingClassLoader extends URLClassLoader {
-    int count = 0
-
-    CountingClassLoader(URL[] urls, ClassLoader parent) {
-      super(urls, (ClassLoader) parent)
-    }
-
-    @Override
-    URL getResource(String name) {
-      count++
-      return super.getResource(name)
-    }
-  }
-
-  def "muzzle type pool caches"() {
-    setup:
-    ClassLoader cl = new CountingClassLoader(
-      [
-        ClasspathUtils.createJarWithClasses(MethodBodyAdvice.A,
-        MethodBodyAdvice.B,
-        MethodBodyAdvice.SomeInterface,
-        MethodBodyAdvice.SkipLevel,
-        MethodBodyAdvice.HasMethod,
-        MethodBodyAdvice.SomeImplementation)
-      ] as URL[],
-      (ClassLoader) null)
-    Reference[] refs = ReferenceCreator.createReferencesFrom(MethodBodyAdvice.getName(), this.getClass().getClassLoader()).values().toArray(new Reference[0])
-    ReferenceMatcher refMatcher1 = new ReferenceMatcher(refs)
-    ReferenceMatcher refMatcher2 = new ReferenceMatcher(refs)
-    assert getMismatchClassSet(refMatcher1.getMismatchedReferenceSources(cl)) == new HashSet<>()
-    int countAfterFirstMatch = cl.count
-    // the second matcher should be able to used cached type descriptions from the first
-    assert getMismatchClassSet(refMatcher2.getMismatchedReferenceSources(cl)) == new HashSet<>()
-
-    expect:
-    cl.count == countAfterFirstMatch
-  }
-
   def "matching ref #referenceName #referenceFlags against #classToCheck produces #expectedMismatches"() {
     setup:
     Reference.Builder builder = new Reference.Builder(referenceName)
@@ -104,7 +73,7 @@ class ReferenceMatcherTest extends DDSpecification {
     List<Reference.Mismatch> mismatches = new ArrayList<>()
 
     when:
-    ReferenceMatcher.checkMatch(ref, this.getClass().getClassLoader(), mismatches)
+    ReferenceMatcher.checkReference(testTypePool, ref, testClasspath, mismatches)
 
     then:
     getMismatchClassSet(mismatches) == expectedMismatches as Set
@@ -127,7 +96,7 @@ class ReferenceMatcherTest extends DDSpecification {
 
 
     when:
-    ReferenceMatcher.checkMatch(reference, this.getClass().getClassLoader(), mismatches)
+    ReferenceMatcher.checkReference(testTypePool, reference, testClasspath, mismatches)
 
     then:
     getMismatchClassSet(mismatches) == expectedMismatches as Set
@@ -153,7 +122,7 @@ class ReferenceMatcherTest extends DDSpecification {
     List<Reference.Mismatch> mismatches = new ArrayList<>()
 
     when:
-    ReferenceMatcher.checkMatch(reference, this.getClass().getClassLoader(), mismatches)
+    ReferenceMatcher.checkReference(testTypePool, reference, testClasspath, mismatches)
 
     then:
     getMismatchClassSet(mismatches) == expectedMismatches as Set

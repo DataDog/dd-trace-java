@@ -2,23 +2,23 @@ package datadog.trace.instrumentation.jetty70;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.instrumentation.jetty70.RequestExtractParametersInstrumentation.REQUEST_REFERENCE_MATCHER;
+import static datadog.trace.instrumentation.jetty70.RequestExtractParametersInstrumentation.REQUEST_REFERENCE;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.trace.advice.ActiveRequestContext;
+import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.muzzle.IReferenceMatcher;
-import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
-import datadog.trace.api.function.BiFunction;
+import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.InputStream;
+import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.MultiMap;
@@ -35,10 +35,9 @@ public class UrlEncodedInstrumentation extends Instrumenter.AppSec
     return "org.eclipse.jetty.util.UrlEncoded";
   }
 
-  // so both instrumentations fall and rise together
-  private IReferenceMatcher postProcessReferenceMatcher(final ReferenceMatcher origMatcher) {
-    return new IReferenceMatcher.ConjunctionReferenceMatcher(
-        origMatcher, REQUEST_REFERENCE_MATCHER);
+  @Override
+  public Reference[] additionalMuzzleReferences() {
+    return new Reference[] {REQUEST_REFERENCE};
   }
 
   @Override
@@ -53,6 +52,7 @@ public class UrlEncodedInstrumentation extends Instrumenter.AppSec
         getClass().getName() + "$UrlEncodedDecodeToAdvice");
   }
 
+  @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class UrlEncodedDecodeToAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static boolean before(
@@ -73,7 +73,8 @@ public class UrlEncodedInstrumentation extends Instrumenter.AppSec
     static void after(
         @Advice.Enter boolean relevantCall,
         @Advice.Argument(1) MultiMap<String> map, // this is our map, not the orig arg
-        @Advice.Local("origMap") MultiMap<String> origMap) {
+        @Advice.Local("origMap") MultiMap<String> origMap,
+        @ActiveRequestContext RequestContext reqCtx) {
       if (!relevantCall) {
         return;
       }
@@ -83,19 +84,13 @@ public class UrlEncodedInstrumentation extends Instrumenter.AppSec
       }
 
       try {
-        AgentSpan agentSpan = activeSpan();
-        if (agentSpan == null) {
-          return;
-        }
-
-        CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
-        BiFunction<RequestContext<Object>, Object, Flow<Void>> callback =
+        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+        BiFunction<RequestContext, Object, Flow<Void>> callback =
             cbp.getCallback(EVENTS.requestBodyProcessed());
-        RequestContext<Object> requestContext = agentSpan.getRequestContext();
-        if (requestContext == null || callback == null) {
+        if (callback == null) {
           return;
         }
-        callback.apply(requestContext, map);
+        callback.apply(reqCtx, map);
       } finally {
         origMap.putAll(map);
       }

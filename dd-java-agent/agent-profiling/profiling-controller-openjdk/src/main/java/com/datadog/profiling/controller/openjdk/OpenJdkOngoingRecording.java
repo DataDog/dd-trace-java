@@ -2,14 +2,15 @@ package com.datadog.profiling.controller.openjdk;
 
 import com.datadog.profiling.auxiliary.AuxiliaryProfiler;
 import com.datadog.profiling.auxiliary.AuxiliaryRecordingData;
-import com.datadog.profiling.auxiliary.ProfilingMode;
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.RecordingData;
+import com.datadog.profiling.utils.ProfilingMode;
 import datadog.trace.api.profiling.ProfilingListenersRegistry;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import javax.annotation.Nonnull;
 import jdk.jfr.FlightRecorder;
 import jdk.jfr.Recording;
 import jdk.jfr.RecordingState;
@@ -72,6 +73,11 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
             recording.disable("jdk.NativeMethodSample");
             break;
           }
+        case WALL:
+          {
+            // do nothing here for now - this mode is not really supported yet
+            break;
+          }
         case ALLOCATION:
           {
             // allocation profiling will take over these events
@@ -86,11 +92,6 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
             // memleak profiling will take over these events
             log.info("Disabling built-in memory leak profiling events");
             recording.disable("jdk.OldObjectSample");
-            break;
-          }
-        case WALLCLOCK:
-          {
-            // do nothing here for now - this mode is not really supported yet
             break;
           }
         default:
@@ -110,15 +111,26 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
     CONFIG_MEMENTO.publish();
 
     recording.stop();
-    OpenJdkRecordingData mainData = new OpenJdkRecordingData(recording);
+    OpenJdkRecordingData mainData =
+        new OpenJdkRecordingData(recording, ProfilingSnapshot.Kind.PERIODIC);
     return auxiliaryRecording != null
         ? new AuxiliaryRecordingData(
-            mainData.getStart(), mainData.getEnd(), mainData, auxiliaryRecording.stop())
+            mainData.getStart(),
+            mainData.getEnd(),
+            ProfilingSnapshot.Kind.PERIODIC,
+            mainData,
+            auxiliaryRecording.stop())
         : mainData;
   }
 
+  // @VisibleForTesting
+  final RecordingData snapshot(@Nonnull final Instant start) {
+    return snapshot(start, ProfilingSnapshot.Kind.PERIODIC);
+  }
+
   @Override
-  public RecordingData snapshot(final Instant start) {
+  public RecordingData snapshot(
+      @Nonnull final Instant start, @Nonnull ProfilingSnapshot.Kind kind) {
     if (recording.getState() != RecordingState.RUNNING) {
       throw new IllegalStateException("Cannot snapshot recording that is not running");
     }
@@ -131,11 +143,15 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
     // very close to now, so use that end time to minimize the risk of gaps or
     // overlaps in the data.
     OpenJdkRecordingData openJdkData =
-        new OpenJdkRecordingData(snapshot, start, snapshot.getStopTime());
+        new OpenJdkRecordingData(snapshot, start, snapshot.getStopTime(), kind);
     RecordingData ret =
         auxiliaryRecording != null
             ? new AuxiliaryRecordingData(
-                start, snapshot.getStopTime(), openJdkData, auxiliaryRecording.snapshot(start))
+                start,
+                snapshot.getStopTime(),
+                kind,
+                openJdkData,
+                auxiliaryRecording.snapshot(start, kind))
             : openJdkData;
 
     ProfilingListenersRegistry.getHost(ProfilingSnapshot.class).fireOnData(ret);

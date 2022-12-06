@@ -5,6 +5,7 @@ import datadog.trace.bootstrap.config.provider.ConfigConverter
 import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.test.util.DDSpecification
 import org.junit.Rule
+import spock.lang.Unroll
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES
@@ -13,10 +14,22 @@ import static datadog.trace.api.DDTags.HOST_TAG
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG
+import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG
 import static datadog.trace.api.DDTags.SERVICE
 import static datadog.trace.api.DDTags.SERVICE_TAG
-import static datadog.trace.api.IdGenerationStrategy.RANDOM
-import static datadog.trace.api.IdGenerationStrategy.SEQUENTIAL
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCLUDE_FILE
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_INSTRUMENT_THE_WORLD
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_METRICS_ENABLED
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_POLL_INTERVAL
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_PROBE_FILE_LOCATION
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SNAPSHOT_URL
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_BATCH_SIZE
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_FLUSH_INTERVAL
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_TIMEOUT
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_VERIFY_BYTECODE
 import static datadog.trace.api.config.GeneralConfig.API_KEY
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE
@@ -57,6 +70,10 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_COMPRESS
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_PERIOD
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_ENABLED
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_INITIAL_POLL_INTERVAL
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_MAX_PAYLOAD_SIZE
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
@@ -88,6 +105,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RULES
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
+import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH
 
 class ConfigTest extends DDSpecification {
 
@@ -121,6 +139,7 @@ class ConfigTest extends DDSpecification {
   private static final DD_PROFILING_API_KEY_VERY_OLD_ENV = "DD_PROFILING_APIKEY"
   private static final DD_PROFILING_TAGS_ENV = "DD_PROFILING_TAGS"
   private static final DD_PROFILING_PROXY_PASSWORD_ENV = "DD_PROFILING_PROXY_PASSWORD"
+  private static final DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH = "DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH"
 
   def "specify overrides via properties"() {
     setup:
@@ -185,6 +204,25 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE, "1122")
     prop.setProperty(PROFILING_AGENTLESS, "true")
 
+    prop.setProperty(REMOTE_CONFIG_ENABLED, "true")
+    prop.setProperty(REMOTE_CONFIG_URL, "remote config url")
+    prop.setProperty(REMOTE_CONFIG_INITIAL_POLL_INTERVAL, "3")
+    prop.setProperty(REMOTE_CONFIG_MAX_PAYLOAD_SIZE, "2")
+
+    prop.setProperty(DEBUGGER_ENABLED, "true")
+    prop.setProperty(DEBUGGER_PROBE_FILE_LOCATION, "file location")
+    prop.setProperty(DEBUGGER_UPLOAD_TIMEOUT, "10")
+    prop.setProperty(DEBUGGER_UPLOAD_FLUSH_INTERVAL, "1000")
+    prop.setProperty(DEBUGGER_UPLOAD_BATCH_SIZE, "200")
+    prop.setProperty(DEBUGGER_METRICS_ENABLED, "false")
+    prop.setProperty(DEBUGGER_CLASSFILE_DUMP_ENABLED, "true")
+    prop.setProperty(DEBUGGER_POLL_INTERVAL, "10")
+    prop.setProperty(DEBUGGER_DIAGNOSTICS_INTERVAL, "60")
+    prop.setProperty(DEBUGGER_VERIFY_BYTECODE, "true")
+    prop.setProperty(DEBUGGER_INSTRUMENT_THE_WORLD, "true")
+    prop.setProperty(DEBUGGER_EXCLUDE_FILE, "exclude file")
+    prop.setProperty(TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
+
     when:
     Config config = Config.get(prop)
 
@@ -193,7 +231,7 @@ class ConfigTest extends DDSpecification {
     config.apiKey == "new api key" // we can still override via internal properties object
     config.site == "new site"
     config.serviceName == "something else"
-    config.idGenerationStrategy == SEQUENTIAL
+    config.idGenerationStrategy.class.name.endsWith('$Sequential')
     config.traceEnabled == false
     config.writerType == "LoggingWriter"
     config.agentHost == "somehost"
@@ -214,7 +252,6 @@ class ConfigTest extends DDSpecification {
     config.splitByTags == ["some.tag1", "some.tag2"].toSet()
     config.partialFlushMinSpans == 15
     config.reportHostName == true
-    config.runtimeContextFieldInjection == false
     config.propagationStylesToExtract.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
     config.propagationStylesToInject.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
     config.jmxFetchEnabled == false
@@ -234,7 +271,7 @@ class ConfigTest extends DDSpecification {
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"
-    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(),  (RUNTIME_VERSION_TAG): config.getRuntimeVersion(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingStartDelay == 1111
     config.profilingStartForceFirst == true
     config.profilingUploadPeriod == 1112
@@ -249,6 +286,27 @@ class ConfigTest extends DDSpecification {
     config.profilingExceptionHistogramTopItems == 1121
     config.profilingExceptionHistogramMaxCollectionSize == 1122
     config.profilingAgentless == true
+
+    config.remoteConfigEnabled == true
+    config.finalRemoteConfigUrl == 'remote config url'
+    config.remoteConfigInitialPollInterval == 3
+    config.remoteConfigMaxPayloadSizeBytes == 2048
+
+    config.debuggerEnabled == true
+    config.getFinalDebuggerSnapshotUrl() == "http://somehost:123/debugger/v1/input"
+    config.debuggerProbeFileLocation == "file location"
+    config.debuggerUploadTimeout == 10
+    config.debuggerUploadFlushInterval == 1000
+    config.debuggerUploadBatchSize == 200
+    config.debuggerMetricsEnabled == false
+    config.debuggerClassFileDumpEnabled == true
+    config.debuggerPollInterval == 10
+    config.debuggerDiagnosticsInterval == 60
+    config.debuggerVerifyByteCode == true
+    config.debuggerInstrumentTheWorld == true
+    config.debuggerExcludeFile == "exclude file"
+
+    config.xDatadogTagsMaxLength == 128
   }
 
   def "specify overrides via system properties"() {
@@ -313,6 +371,27 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE, "1122")
     System.setProperty(PREFIX + PROFILING_AGENTLESS, "true")
 
+    System.setProperty(PREFIX + REMOTE_CONFIG_ENABLED, "true")
+    System.setProperty(PREFIX + REMOTE_CONFIG_URL, "remote config url")
+    System.setProperty(PREFIX + REMOTE_CONFIG_INITIAL_POLL_INTERVAL, "3")
+    System.setProperty(PREFIX + REMOTE_CONFIG_MAX_PAYLOAD_SIZE, "2")
+
+    System.setProperty(PREFIX + DEBUGGER_ENABLED, "true")
+    System.setProperty(PREFIX + DEBUGGER_SNAPSHOT_URL, "snapshot url")
+    System.setProperty(PREFIX + DEBUGGER_PROBE_FILE_LOCATION, "file location")
+    System.setProperty(PREFIX + DEBUGGER_UPLOAD_TIMEOUT, "10")
+    System.setProperty(PREFIX + DEBUGGER_UPLOAD_FLUSH_INTERVAL, "1000")
+    System.setProperty(PREFIX + DEBUGGER_UPLOAD_BATCH_SIZE, "200")
+    System.setProperty(PREFIX + REMOTE_CONFIG_MAX_PAYLOAD_SIZE, "2")
+    System.setProperty(PREFIX + DEBUGGER_METRICS_ENABLED, "false")
+    System.setProperty(PREFIX + DEBUGGER_CLASSFILE_DUMP_ENABLED, "true")
+    System.setProperty(PREFIX + DEBUGGER_POLL_INTERVAL, "10")
+    System.setProperty(PREFIX + DEBUGGER_DIAGNOSTICS_INTERVAL, "60")
+    System.setProperty(PREFIX + DEBUGGER_VERIFY_BYTECODE, "true")
+    System.setProperty(PREFIX + DEBUGGER_INSTRUMENT_THE_WORLD, "true")
+    System.setProperty(PREFIX + DEBUGGER_EXCLUDE_FILE, "exclude file")
+    System.setProperty(PREFIX + TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
+
     when:
     Config config = new Config()
 
@@ -340,7 +419,6 @@ class ConfigTest extends DDSpecification {
     config.splitByTags == ["some.tag3", "some.tag2", "some.tag1"].toSet()
     config.partialFlushMinSpans == 25
     config.reportHostName == true
-    config.runtimeContextFieldInjection == false
     config.propagationStylesToExtract.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
     config.propagationStylesToInject.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
     config.jmxFetchEnabled == false
@@ -360,7 +438,7 @@ class ConfigTest extends DDSpecification {
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"
-    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): config.getRuntimeVersion(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingStartDelay == 1111
     config.profilingStartForceFirst == true
     config.profilingUploadPeriod == 1112
@@ -375,6 +453,26 @@ class ConfigTest extends DDSpecification {
     config.profilingExceptionHistogramTopItems == 1121
     config.profilingExceptionHistogramMaxCollectionSize == 1122
     config.profilingAgentless == true
+
+    config.remoteConfigEnabled == true
+    config.finalRemoteConfigUrl == 'remote config url'
+    config.remoteConfigInitialPollInterval == 3
+    config.remoteConfigMaxPayloadSizeBytes == 2 * 1024
+
+    config.debuggerEnabled == true
+    config.debuggerProbeFileLocation == "file location"
+    config.debuggerUploadTimeout == 10
+    config.debuggerUploadFlushInterval == 1000
+    config.debuggerUploadBatchSize == 200
+    config.debuggerMetricsEnabled == false
+    config.debuggerClassFileDumpEnabled == true
+    config.debuggerPollInterval == 10
+    config.debuggerDiagnosticsInterval == 60
+    config.debuggerVerifyByteCode == true
+    config.debuggerInstrumentTheWorld == true
+    config.debuggerExcludeFile == "exclude file"
+
+    config.xDatadogTagsMaxLength == 128
   }
 
   def "specify overrides via env vars"() {
@@ -388,6 +486,7 @@ class ConfigTest extends DDSpecification {
     environmentVariables.set(DD_PROPAGATION_STYLE_INJECT, "Datadog B3")
     environmentVariables.set(DD_JMXFETCH_METRICS_CONFIGS_ENV, "some/file")
     environmentVariables.set(DD_TRACE_REPORT_HOSTNAME, "true")
+    environmentVariables.set(DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH, "42")
 
     when:
     def config = new Config()
@@ -401,6 +500,7 @@ class ConfigTest extends DDSpecification {
     config.propagationStylesToInject.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
     config.jmxFetchMetricsConfigs == ["some/file"]
     config.reportHostName == true
+    config.xDatadogTagsMaxLength == 42
   }
 
   def "sys props override env vars"() {
@@ -673,42 +773,6 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == "what actually wants"
-  }
-
-  def "verify integration config"() {
-    setup:
-    environmentVariables.set("DD_INTEGRATION_ORDER_ENABLED", "false")
-    environmentVariables.set("DD_INTEGRATION_TEST_ENV_ENABLED", "true")
-    environmentVariables.set("DD_INTEGRATION_DISABLED_ENV_ENABLED", "false")
-
-    System.setProperty("dd.integration.order.enabled", "true")
-    System.setProperty("dd.integration.test-prop.enabled", "true")
-    System.setProperty("dd.integration.disabled-prop.enabled", "false")
-
-    expect:
-    Config.get().isIntegrationEnabled(integrationNames, defaultEnabled) == expected
-
-    where:
-    // spotless:off
-    names                          | defaultEnabled | expected
-    []                             | true           | true
-    []                             | false          | false
-    ["invalid"]                    | true           | true
-    ["invalid"]                    | false          | false
-    ["test-prop"]                  | false          | true
-    ["test-env"]                   | false          | true
-    ["disabled-prop"]              | true           | false
-    ["disabled-env"]               | true           | false
-    ["other", "test-prop"]         | false          | true
-    ["other", "test-env"]          | false          | true
-    ["order"]                      | false          | true
-    ["test-prop", "disabled-prop"] | false          | true
-    ["disabled-env", "test-env"]   | false          | true
-    ["test-prop", "disabled-prop"] | true           | false
-    ["disabled-env", "test-env"]   | true           | false
-    // spotless:on
-
-    integrationNames = new TreeSet<>(names)
   }
 
   def "verify rule config #name"() {
@@ -1346,7 +1410,7 @@ class ConfigTest extends DDSpecification {
     config.requestHeaderTags == [e: "five"]
 
     config.mergedProfilingTags == [a            : "1", b: "2", f: "6", (ENV): "eu-east", (VERSION): "43",
-      (HOST_TAG)   : config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(),
+      (HOST_TAG)   : config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): config.getRuntimeVersion(),
       (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
   }
 
@@ -1367,7 +1431,7 @@ class ConfigTest extends DDSpecification {
     config.mergedJmxTags == [a: "1", b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.requestHeaderTags == [e: "five"]
 
-    config.mergedProfilingTags == [a: "1", b: "2", f: "6", (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [a: "1", b: "2", f: "6", (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): config.getRuntimeVersion(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
   }
 
   def "verify dd.tags merges with global tags in env variables"() {
@@ -1387,7 +1451,7 @@ class ConfigTest extends DDSpecification {
     config.mergedJmxTags == [a: "1:2", b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.requestHeaderTags == [e: "five"]
 
-    config.mergedProfilingTags == [a: "1:2", b: "2", f: "6", (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [a: "1:2", b: "2", f: "6", (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): config.getRuntimeVersion(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
   }
 
   def "toString works when passwords are empty"() {
@@ -1866,7 +1930,7 @@ class ConfigTest extends DDSpecification {
     Config config = Config.get(prop)
 
     then:
-    config.idGenerationStrategy == RANDOM
+    config.idGenerationStrategy.class.name.endsWith('$Random')
   }
 
   def "DD_RUNTIME_METRICS_ENABLED=false disables all metrics"() {
@@ -1930,6 +1994,94 @@ class ConfigTest extends DDSpecification {
     def config = new Config()
     then:
     config.getMetricsIgnoredResources() == ["GET /healthcheck", "SELECT foo from bar"].toSet()
+  }
+
+  @Unroll
+  def "appsec state with sys = #sys env = #env"() {
+    setup:
+    if (sys != null) {
+      System.setProperty("dd.appsec.enabled", sys)
+    }
+    if (env != null) {
+      environmentVariables.set("DD_APPSEC_ENABLED", env)
+    }
+
+    when:
+    def config = new Config()
+
+    then:
+    config.getAppSecActivation() == res
+
+    where:
+    sys        | env        | res
+    null       | null       | ProductActivation.ENABLED_INACTIVE
+    null       | ""         | ProductActivation.ENABLED_INACTIVE
+    null       | "inactive" | ProductActivation.ENABLED_INACTIVE
+    null       | "false"    | ProductActivation.FULLY_DISABLED
+    null       | "0"        | ProductActivation.FULLY_DISABLED
+    null       | "invalid"  | ProductActivation.FULLY_DISABLED
+    null       | "true"     | ProductActivation.FULLY_ENABLED
+    null       | "1"        | ProductActivation.FULLY_ENABLED
+    ""         | null       | ProductActivation.ENABLED_INACTIVE
+    ""         | ""         | ProductActivation.ENABLED_INACTIVE
+    ""         | "inactive" | ProductActivation.ENABLED_INACTIVE
+    ""         | "false"    | ProductActivation.FULLY_DISABLED
+    ""         | "0"        | ProductActivation.FULLY_DISABLED
+    ""         | "invalid"  | ProductActivation.FULLY_DISABLED
+    ""         | "true"     | ProductActivation.FULLY_ENABLED
+    ""         | "1"        | ProductActivation.FULLY_ENABLED
+    "inactive" | null       | ProductActivation.ENABLED_INACTIVE
+    "inactive" | ""         | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "inactive" | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "false"    | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "0"        | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "invalid"  | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "true"     | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "1"        | ProductActivation.ENABLED_INACTIVE
+    "false"    | null       | ProductActivation.FULLY_DISABLED
+    "false"    | ""         | ProductActivation.FULLY_DISABLED
+    "false"    | "inactive" | ProductActivation.FULLY_DISABLED
+    "false"    | "false"    | ProductActivation.FULLY_DISABLED
+    "false"    | "0"        | ProductActivation.FULLY_DISABLED
+    "false"    | "invalid"  | ProductActivation.FULLY_DISABLED
+    "false"    | "true"     | ProductActivation.FULLY_DISABLED
+    "false"    | "1"        | ProductActivation.FULLY_DISABLED
+    "0"        | null       | ProductActivation.FULLY_DISABLED
+    "true"     | null       | ProductActivation.FULLY_ENABLED
+    "true"     | ""         | ProductActivation.FULLY_ENABLED
+    "true"     | "inactive" | ProductActivation.FULLY_ENABLED
+    "true"     | "false"    | ProductActivation.FULLY_ENABLED
+    "true"     | "0"        | ProductActivation.FULLY_ENABLED
+    "true"     | "invalid"  | ProductActivation.FULLY_ENABLED
+    "true"     | "true"     | ProductActivation.FULLY_ENABLED
+    "true"     | "1"        | ProductActivation.FULLY_ENABLED
+    "1"        | null       | ProductActivation.FULLY_ENABLED
+  }
+
+  def "hostname discovery with environment variables"() {
+    setup:
+    final expectedHostname = "myhostname"
+    environmentVariables.set("HOSTNAME", expectedHostname)
+    environmentVariables.set("COMPUTERNAME", expectedHostname)
+
+    when:
+    def hostname = Config.initHostName()
+
+    then:
+    hostname == expectedHostname
+  }
+
+  def "hostname discovery without environment variables"() {
+    setup:
+    environmentVariables.set("HOSTNAME", "")
+    environmentVariables.set("COMPUTERNAME", "")
+
+    when:
+    def hostname = Config.initHostName()
+
+    then:
+    hostname != null
+    !hostname.trim().isEmpty()
   }
 
   static class ClassThrowsExceptionForValueOfMethod {

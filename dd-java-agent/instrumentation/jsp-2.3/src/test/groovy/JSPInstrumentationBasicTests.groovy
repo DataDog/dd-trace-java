@@ -1,4 +1,5 @@
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import okhttp3.MultipartBody
 import okhttp3.Request
@@ -37,6 +38,8 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/$jspFileName"
             defaultTags()
@@ -108,9 +111,12 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/getQuery.jsp"
+            "$DDTags.HTTP_QUERY" "HELLO"
             "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/getQuery.jsp"
             defaultTags()
@@ -182,6 +188,8 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "POST"
             "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/post.jsp"
             defaultTags()
@@ -250,6 +258,8 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 500
+            "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/$jspFileName"
             "error.type" { String tagExceptionType ->
@@ -337,6 +347,8 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/includes/includeHtml.jsp"
             defaultTags()
@@ -404,6 +416,8 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/includes/includeMulti.jsp"
             defaultTags()
@@ -525,6 +539,8 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 500
+            "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/$jspFileName"
             errorTags(JasperException, String)
@@ -588,6 +604,8 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/$staticFile"
             defaultTags()

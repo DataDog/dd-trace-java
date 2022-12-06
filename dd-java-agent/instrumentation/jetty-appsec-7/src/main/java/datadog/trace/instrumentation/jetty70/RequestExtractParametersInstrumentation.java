@@ -5,9 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.muzzle.IReferenceMatcher;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.server.Request;
@@ -31,15 +29,14 @@ public class RequestExtractParametersInstrumentation extends Instrumenter.AppSec
         getClass().getName() + "$ExtractParametersAdvice");
   }
 
-  static final ReferenceMatcher REQUEST_REFERENCE_MATCHER =
-      new ReferenceMatcher(
-          new Reference.Builder("org.eclipse.jetty.server.Request")
-              .withField(new String[0], 0, "_baseParameters", "Lorg/eclipse/jetty/util/MultiMap;")
-              .build());
+  static final Reference REQUEST_REFERENCE =
+      new Reference.Builder("org.eclipse.jetty.server.Request")
+          .withField(new String[0], 0, "_baseParameters", "Lorg/eclipse/jetty/util/MultiMap;")
+          .build();
 
-  private IReferenceMatcher postProcessReferenceMatcher(final ReferenceMatcher origMatcher) {
-    return new IReferenceMatcher.ConjunctionReferenceMatcher(
-        origMatcher, REQUEST_REFERENCE_MATCHER);
+  @Override
+  public Reference[] additionalMuzzleReferences() {
+    return new Reference[] {REQUEST_REFERENCE};
   }
 
   public static class ExtractParametersAdvice {

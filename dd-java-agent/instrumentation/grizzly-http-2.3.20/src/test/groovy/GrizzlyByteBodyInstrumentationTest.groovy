@@ -1,7 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.function.BiFunction
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
@@ -14,6 +14,7 @@ import org.glassfish.grizzly.http.io.NIOInputStream
 import org.glassfish.grizzly.memory.ByteBufferWrapper
 
 import java.nio.ByteBuffer
+import java.util.function.BiFunction
 
 import static datadog.trace.api.gateway.Events.EVENTS
 
@@ -26,7 +27,8 @@ class GrizzlyByteBodyInstrumentationTest extends AgentTestRunner {
   InputBuffer mockInputBuffer = Mock()
   AttributeHolder attributeHolder = Mock()
   def scope
-  def ig = AgentTracer.get().instrumentationGateway()
+  def cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC)
+  def ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC)
   def supplier
   boolean bodyDone
 
@@ -37,15 +39,15 @@ class GrizzlyByteBodyInstrumentationTest extends AgentTestRunner {
     }
     1 * attributeHolder.setAttribute('datadog.intercepted_request_body', Boolean.TRUE)
 
-    TagContext ctx = new TagContext().withRequestContextData(new Object())
-    def agentSpan = AgentTracer.startSpan('test-span', ctx, true)
+    TagContext ctx = new TagContext().withRequestContextDataAppSec(new Object())
+    def agentSpan = AgentTracer.startSpan('test-span', ctx)
     this.scope = AgentTracer.activateSpan(agentSpan)
 
-    ig.registerCallback(EVENTS.requestBodyStart(), { RequestContext<Object> reqContext, StoredBodySupplier sup ->
+    ss.registerCallback(EVENTS.requestBodyStart(), { RequestContext reqContext, StoredBodySupplier sup ->
       supplier = sup
       null
     } as BiFunction)
-    ig.registerCallback(EVENTS.requestBodyDone(), { RequestContext<Object> reqContext, StoredBodySupplier sup ->
+    ss.registerCallback(EVENTS.requestBodyDone(), { RequestContext reqContext, StoredBodySupplier sup ->
       bodyDone = true
       Flow.ResultFlow.empty()
     } as BiFunction)
@@ -58,7 +60,7 @@ class GrizzlyByteBodyInstrumentationTest extends AgentTestRunner {
   }
 
   void cleanup() {
-    ig.reset()
+    cbp.reset()
     nioInputStream.recycle()
     this.scope.close()
   }

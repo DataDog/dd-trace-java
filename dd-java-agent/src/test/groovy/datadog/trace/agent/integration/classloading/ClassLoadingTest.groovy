@@ -6,6 +6,7 @@ import datadog.trace.agent.test.IntegrationTestUtils
 import datadog.trace.api.Trace
 import datadog.trace.test.util.GCUtils
 import jvmbootstraptest.IsolatedClassloading
+import spock.lang.Retry
 import spock.lang.Specification
 import spock.lang.Timeout
 
@@ -34,6 +35,7 @@ class ClassLoadingTest extends Specification {
     instrumentedClass.getClassLoader() == loader
   }
 
+  @Retry
   def "make sure ByteBuddy does not hold strong references to ClassLoader"() {
     setup:
     URLClassLoader loader = new URLClassLoader(classpath, (ClassLoader) null)

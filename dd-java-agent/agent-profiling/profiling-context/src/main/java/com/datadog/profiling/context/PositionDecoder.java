@@ -32,6 +32,11 @@ public final class PositionDecoder {
     public int hashCode() {
       return Objects.hash(slot, index);
     }
+
+    @Override
+    public String toString() {
+      return "Coordinates{" + "slot=" + slot + ", index=" + index + '}';
+    }
   }
 
   private static final class Singleton {
@@ -60,7 +65,7 @@ public final class PositionDecoder {
    *
    * @param position the position
    * @param bufferBoundaryMap an array of buffer boundaries - a boundary is defined as 'size - 1'
-   *     for each buffer element
+   *     for each buffer element; unused slots must have boundary of {@linkplain Integer#MAX_VALUE}
    * @param bufferBoundaryMapLimit limit the buffer boundaries to be used only to the first
    *     {@literal bufferBoundaryMapLimit} ones
    * @return decoded {@linkplain Coordinates} or {@literal null}

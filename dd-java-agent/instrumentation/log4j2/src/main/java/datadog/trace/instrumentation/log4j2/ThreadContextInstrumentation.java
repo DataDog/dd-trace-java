@@ -1,12 +1,12 @@
 package datadog.trace.instrumentation.log4j2;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.WithGlobalTracer;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -22,13 +22,13 @@ public class ThreadContextInstrumentation extends Instrumenter.Tracing
 
   @Override
   protected boolean defaultEnabled() {
-    return Config.get().isLogsInjectionEnabled();
+    return InstrumenterConfig.get().isLogsInjectionEnabled();
   }
 
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    // ContextDataInjectorFactory is in log4j 2.7+. That has its own instrumentation
-    return not(hasClassesNamed("org.apache.logging.log4j.core.impl.ContextDataInjectorFactory"));
+    // Avoid matching log4j 2.7+ which has its own instrumentation.
+    return not(hasClassNamed("org.apache.logging.log4j.core.impl.ContextDataInjectorFactory"));
   }
 
   @Override

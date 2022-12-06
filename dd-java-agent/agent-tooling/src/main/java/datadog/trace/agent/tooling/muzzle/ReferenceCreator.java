@@ -188,13 +188,15 @@ public class ReferenceCreator extends ClassVisitor {
 
     // Add references to each of the interfaces.
     for (String iface : interfaces) {
-      addReference(
-          new Reference.Builder(iface)
-              .withSource(
-                  refSourceClassName,
-                  UNDEFINED_LINE) // We don't have a specific line number to use.
-              .withFlag(Reference.EXPECTS_PUBLIC)
-              .build());
+      if (!ignoreReference(iface)) {
+        addReference(
+            new Reference.Builder(iface)
+                .withSource(
+                    refSourceClassName,
+                    UNDEFINED_LINE) // We don't have a specific line number to use.
+                .withFlag(Reference.EXPECTS_PUBLIC)
+                .build());
+      }
     }
     // the super type is handled by the method visitor to the constructor.
     super.visit(version, access, name, signature, superName, interfaces);
@@ -286,7 +288,8 @@ public class ReferenceCreator extends ClassVisitor {
 
       final Type underlyingFieldType = underlyingType(fieldType);
       String underlyingFieldTypeInternalName = underlyingFieldType.getInternalName();
-      if (underlyingFieldType.getSort() == Type.OBJECT) {
+      if (underlyingFieldType.getSort() == Type.OBJECT
+          && !ignoreReference(underlyingFieldTypeInternalName)) {
         addReference(
             new Reference.Builder(underlyingFieldTypeInternalName)
                 .withSource(refSourceClassName, currentLineNumber)
@@ -323,7 +326,7 @@ public class ReferenceCreator extends ClassVisitor {
       { // ref for method return type
         final Type returnType = underlyingType(methodType.getReturnType());
         String returnTypeInternalName = returnType.getInternalName();
-        if (returnType.getSort() == Type.OBJECT) {
+        if (returnType.getSort() == Type.OBJECT && !ignoreReference(returnTypeInternalName)) {
           addReference(
               new Reference.Builder(returnTypeInternalName)
                   .withSource(refSourceClassName, currentLineNumber)
@@ -336,7 +339,7 @@ public class ReferenceCreator extends ClassVisitor {
       for (Type paramType : methodType.getArgumentTypes()) {
         paramType = underlyingType(paramType);
         String paramTypeInternalName = paramType.getInternalName();
-        if (paramType.getSort() == Type.OBJECT) {
+        if (paramType.getSort() == Type.OBJECT && !ignoreReference(paramTypeInternalName)) {
           addReference(
               new Reference.Builder(paramTypeInternalName)
                   .withSource(refSourceClassName, currentLineNumber)
@@ -425,7 +428,7 @@ public class ReferenceCreator extends ClassVisitor {
       if (value instanceof Type) {
         final Type type = underlyingType((Type) value);
         String typeInternalName = type.getInternalName();
-        if (type.getSort() == Type.OBJECT) {
+        if (type.getSort() == Type.OBJECT && !ignoreReference(typeInternalName)) {
           addReference(
               new Reference.Builder(typeInternalName)
                   .withSource(refSourceClassName, currentLineNumber)

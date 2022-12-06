@@ -70,6 +70,7 @@ class LagomTest extends AgentTestRunner {
             "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 101
+            "$Tags.HTTP_USER_AGENT" String
             defaultTags()
           }
         }
@@ -113,6 +114,7 @@ class LagomTest extends AgentTestRunner {
             "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 500
+            "$Tags.HTTP_USER_AGENT" String
             defaultTags()
           }
         }

@@ -16,6 +16,9 @@ public class MockFeaturesDiscovery extends DDAgentFeaturesDiscovery {
   public void discover() {}
 
   @Override
+  public void discoverIfOutdated() {}
+
+  @Override
   public boolean supportsDataStreams() {
     return supportsDataStreams;
   }

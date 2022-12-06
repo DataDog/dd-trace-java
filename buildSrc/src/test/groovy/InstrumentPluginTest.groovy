@@ -14,13 +14,16 @@ class InstrumentPluginTest extends Specification {
       id 'java'
       id 'net.bytebuddy.byte-buddy-gradle-plugin'
     }
+    
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
 
     repositories {
       mavenCentral()
     }
 
     dependencies {
-      compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.12.9' // just to build TestPlugin
+      compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.12.18' // just to build TestPlugin
     }
 
     apply plugin: 'instrument'

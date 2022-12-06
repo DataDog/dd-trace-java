@@ -1,0 +1,13 @@
+name: Update download releases
+on: 
+  release:
+    types:
+      - released
+  workflow_dispatch:
+jobs:
+  update-releases:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update download releases
+        if: ${{ github.event_name == 'workflow_dispatch' || ( !github.event.release.draft && !github.event.release.prerelease && !startsWith(github.event.release.name, 'download-latest') ) }}
+        uses: DataDog/download-release-action@ea1f13c0cad08eafeebec8b7d9b2d6ee74efb92a # 0.0.2

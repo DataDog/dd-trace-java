@@ -15,6 +15,7 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlState;
 import java.net.HttpURLConnection;
 import java.util.Map;
@@ -22,7 +23,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
 public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes {
 
   public HttpUrlConnectionInstrumentation() {
     super("httpurlconnection");
@@ -72,6 +73,9 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing
           final AgentSpan span = state.start(thiz);
           if (!connected) {
             propagate().inject(span, thiz, SETTER);
+            propagate()
+                .injectPathwayContext(
+                    span, thiz, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
           }
         }
         return state;

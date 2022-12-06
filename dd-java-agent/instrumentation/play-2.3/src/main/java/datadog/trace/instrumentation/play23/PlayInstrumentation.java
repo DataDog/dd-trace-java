@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.play23;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
@@ -20,14 +19,13 @@ public final class PlayInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed("play.api.mvc.Action");
+  public String hierarchyMarkerType() {
+    return "play.api.mvc.Action";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("play.api.mvc.Action"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override

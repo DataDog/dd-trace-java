@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.undertow;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.instrumentation.undertow.UndertowBlockingHandler.REQUEST_BLOCKING_DATA;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_HTTPSERVEREXCHANGE_DISPATCH;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_UNDERTOW_SPAN;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DECORATE;
@@ -13,9 +13,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.gateway.Flow.Action.RequestBlockingAction;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -30,13 +30,13 @@ public final class HandlerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("io.undertow.server.HttpHandler"));
+  public String hierarchyMarkerType() {
+    return "io.undertow.server.HttpHandler";
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassesNamed("io.undertow.server.HttpServerExchange");
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override
@@ -57,17 +57,19 @@ public final class HandlerInstrumentation extends Instrumenter.Tracing
       packageName + ".UndertowDecorator",
       packageName + ".UndertowExtractAdapter",
       packageName + ".UndertowExtractAdapter$Request",
-      packageName + ".UndertowExtractAdapter$Response"
+      packageName + ".UndertowExtractAdapter$Response",
+      packageName + ".UndertowBlockingHandler",
     };
   }
 
   public static class HandlerAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(
-        @Advice.Argument(value = 0) HttpServerExchange exchange, @Advice.This HttpHandler handler) {
+    @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
+    public static boolean onEnter(
+        @Advice.Argument(value = 0) HttpServerExchange exchange,
+        @Advice.Local("agentScope") AgentScope scope) {
       // HttpHandler subclasses are chained so only the first one should create a span
       if (null != exchange.getAttachment(DD_HTTPSERVEREXCHANGE_DISPATCH)) {
-        return null;
+        return false;
       }
 
       final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(exchange);
@@ -75,7 +77,7 @@ public final class HandlerInstrumentation extends Instrumenter.Tracing
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, exchange, exchange, extractedContext);
 
-      final AgentScope scope = activateSpan(span);
+      scope = activateSpan(span);
       scope.setAsyncPropagation(true);
 
       // For use by servlet instrumentation
@@ -88,12 +90,23 @@ public final class HandlerInstrumentation extends Instrumenter.Tracing
       // exchange.getRequestHeaders().add(
       //   new HttpString(CorrelationIdentifier.getSpanIdKey()), GlobalTracer.get().getSpanId());
 
-      return scope;
+      RequestBlockingAction rab = span.getRequestBlockingAction();
+      if (rab != null) {
+        exchange.putAttachment(REQUEST_BLOCKING_DATA, rab);
+        if (exchange.isInIoThread()) {
+          exchange.dispatch(UndertowBlockingHandler.INSTANCE);
+        } else {
+          UndertowBlockingHandler.INSTANCE.handleRequest(exchange);
+        }
+        return true; /* skip */
+      }
+
+      return false;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Local("agentScope") final AgentScope scope,
         @Advice.Argument(value = 0) HttpServerExchange exchange,
         @Advice.Thrown final Throwable throwable) {
       if (null != scope) {

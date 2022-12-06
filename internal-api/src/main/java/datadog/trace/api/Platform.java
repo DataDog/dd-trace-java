@@ -7,6 +7,40 @@ import java.util.List;
 public final class Platform {
 
   public static final Version JAVA_VERSION = parseJavaVersion(System.getProperty("java.version"));
+  private static final JvmRuntime RUNTIME = new JvmRuntime();
+
+  private static final boolean HAS_JFR = checkForJfr();
+  private static final boolean IS_NATIVE_IMAGE_BUILDER = checkForNativeImageBuilder();
+
+  public static boolean hasJfr() {
+    return HAS_JFR;
+  }
+
+  public static boolean isNativeImageBuilder() {
+    return IS_NATIVE_IMAGE_BUILDER;
+  }
+
+  private static boolean checkForJfr() {
+    try {
+      /* Check only for the open-sources JFR implementation.
+       * If it is ever needed to support also the closed sourced JDK 8 version the check should be
+       * enhanced.
+       * Need this custom check because ClassLoaderMatchers.hasClassNamed() does not support bootstrap class loader yet.
+       * Note: the downside of this is that we load some JFR classes at startup.
+       */
+      return ClassLoader.getSystemClassLoader().getResource("jdk/jfr/Event.class") != null;
+    } catch (Throwable e) {
+      return false;
+    }
+  }
+
+  private static boolean checkForNativeImageBuilder() {
+    try {
+      return "org.graalvm.nativeimage.builder".equals(System.getProperty("jdk.module.main"));
+    } catch (Throwable e) {
+      return false;
+    }
+  }
 
   /* The method splits java version string by digits. Delimiters are: dot, underscore and plus */
   private static List<Integer> splitDigits(String str) {
@@ -96,6 +130,42 @@ public final class Platform {
     }
   }
 
+  static final class JvmRuntime {
+    /*
+     * Example:
+     *    jvm     -> "AdoptOpenJDK 1.8.0_265-b01"
+     *
+     *    name    -> "OpenJDK"
+     *    vendor  -> "AdoptOpenJDK"
+     *    version -> "1.8.0_265"
+     *    patches -> "b01"
+     */
+    public final String name;
+
+    public final String vendor;
+    public final String version;
+    public final String patches;
+
+    public JvmRuntime() {
+      this(
+          System.getProperty("java.version"),
+          System.getProperty("java.runtime.version"),
+          System.getProperty("java.runtime.name"),
+          System.getProperty("java.vm.vendor"));
+    }
+
+    // Only visible for testing
+    JvmRuntime(String javaVer, String rtVer, String name, String vendor) {
+      this.name = name == null ? "" : name;
+      this.vendor = vendor == null ? "" : vendor;
+      javaVer = javaVer == null ? "" : javaVer;
+      this.version = javaVer;
+      rtVer = javaVer.isEmpty() || rtVer == null ? javaVer : rtVer;
+      int patchStart = javaVer.length() + 1;
+      this.patches = (patchStart >= rtVer.length()) ? "" : rtVer.substring(javaVer.length() + 1);
+    }
+  }
+
   public static boolean isJavaVersion(int major) {
     return JAVA_VERSION.is(major);
   }
@@ -167,6 +237,10 @@ public final class Platform {
     return JAVA_VERSION.isBetween(fromMajor, fromMinor, fromUpdate, toMajor, toMinor, toUpdate);
   }
 
+  public static boolean isLinux() {
+    return System.getProperty("os.name").toLowerCase().contains("linux");
+  }
+
   public static boolean isWindows() {
     // https://mkyong.com/java/how-to-detect-os-in-java-systemgetpropertyosname/
     final String os = System.getProperty("os.name").toLowerCase();
@@ -180,7 +254,27 @@ public final class Platform {
 
   public static boolean isOracleJDK8() {
     return isJavaVersion(8)
-        && System.getProperty("java.vendor").contains("Oracle")
-        && !System.getProperty("java.runtime.name").contains("OpenJDK");
+        && RUNTIME.vendor.contains("Oracle")
+        && !RUNTIME.name.contains("OpenJDK");
+  }
+
+  public static boolean isJ9() {
+    return System.getProperty("java.vm.name").contains("J9");
+  }
+
+  public static String getLangVersion() {
+    return String.valueOf(JAVA_VERSION.major);
+  }
+
+  public static String getRuntimeVendor() {
+    return RUNTIME.vendor;
+  }
+
+  public static String getRuntimeVersion() {
+    return RUNTIME.version;
+  }
+
+  public static String getRuntimePatches() {
+    return RUNTIME.patches;
   }
 }

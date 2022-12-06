@@ -15,14 +15,22 @@ import java.util.Arrays;
 public final class AgentJar {
   private static final Class<?> thisClass = AgentJar.class;
 
+  private static Class<?> agentClass;
+
   public static void main(final String[] args) {
     if (args.length == 0) {
       printAgentVersion();
     } else {
       try {
+        // load Agent class
+        agentClass = ClassLoader.getSystemClassLoader().loadClass("datadog.trace.bootstrap.Agent");
+
         switch (args[0]) {
           case "sampleTrace":
             sendSampleTrace(args);
+            break;
+          case "uploadCrash":
+            uploadCrash(args);
             break;
           case "--list-integrations":
           case "-li":
@@ -54,11 +62,13 @@ public final class AgentJar {
   }
 
   private static void printUsage() {
-    System.out.println("usage: sampleTrace [-c count] [-i interval]");
-    System.out.println("       [-li | --list-integrations]");
-    System.out.println("       [-mc | --build-matcher-cache]");
-    System.out.println("       [-h  | --help]");
-    System.out.println("       [-v  | --version]");
+    System.out.println("usage:");
+    System.out.println("  sampleTrace [-c count] [-i interval]");
+    System.out.println("  uploadCrash file ...");
+    System.out.println("  [-li | --list-integrations]");
+    System.out.println("  [-mc | --build-matcher-cache]");
+    System.out.println("  [-h  | --help]");
+    System.out.println("  [-v  | --version]");
   }
 
   private static void sendSampleTrace(final String[] args) throws Exception {
@@ -87,6 +97,16 @@ public final class AgentJar {
         .invoke(null, count, interval);
   }
 
+  private static void uploadCrash(final String[] args) throws Exception {
+    if (args.length < 2) {
+      throw new IllegalArgumentException("missing file");
+    }
+
+    installAgentCLI()
+        .getMethod("uploadCrash", String[].class)
+        .invoke(null, new Object[] {Arrays.copyOfRange(args, 1, args.length)});
+  }
+
   private static void printIntegrationNames() throws Exception {
     installAgentCLI().getMethod("printIntegrationNames").invoke(null);
   }
@@ -97,10 +117,8 @@ public final class AgentJar {
       throw new MalformedURLException("Could not get jar location from code source");
     }
 
-    Class<?> agentClass =
-        ClassLoader.getSystemClassLoader().loadClass("datadog.trace.bootstrap.Agent");
-    Method installAgentCLIMethod = agentClass.getMethod("installAgentCLI", URL.class);
-    return (Class<?>) installAgentCLIMethod.invoke(null, codeSource.getLocation());
+    return (Class<?>)
+        agentClass.getMethod("installAgentCLI", URL.class).invoke(null, codeSource.getLocation());
   }
 
   private static void printAgentVersion() {

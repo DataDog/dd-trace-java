@@ -4,20 +4,22 @@ class TimelinePrinter {
   private static String[] emptySpaces = new String[128]
 
   static void print(def spanEvents, def threadEvents, def orderedEvents, def invalidEvents, PrintStream out) {
+    invalidEvents = invalidEvents != null ? invalidEvents : []
     if (!orderedEvents.isEmpty()) {
       if (!invalidEvents.empty) {
         out.println("Invalid event sequences were detected. " +
-          "Affected spans are highlited by '***'")
+          "Affected spans are highlighted by '***'")
       }
       // allows rendering threads top to bottom by when they were first encountered
       Map<Thread, BitSet> timelines = new LinkedHashMap<>()
-      int maxNameLength = 0
       String[] renderings = new String[orderedEvents.size()]
-      for (Thread thread : threadEvents.keySet()) {
-        maxNameLength = Math.max(maxNameLength, thread.name.length())
-      }
       int position = 0
       for (Event event : orderedEvents) {
+        if (position >= renderings.length) {
+          // sometimes the tests fail on an attempt to write beyond the 'renderings' array limit - no idea why ...
+          out.println("!!! Attempted to print element at invalid position ${position} - num of events = ${orderedEvents.size()}")
+          break
+        }
         if (invalidEvents.contains(event)) {
           renderings[position] = "***" + event.name + "/" + event.spanId + "***"
         } else {
@@ -28,6 +30,10 @@ class TimelinePrinter {
           timelines[event.thread] = timeline = new BitSet()
         }
         timeline.set(position++)
+      }
+      int maxNameLength = 0
+      for (Thread thread : timelines.keySet()) {
+        maxNameLength = Math.max(maxNameLength, thread.name.length())
       }
       for (Map.Entry<Thread, BitSet> timeline : timelines) {
         Thread thread = timeline.key

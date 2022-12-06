@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.jaxrs.v1;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -21,6 +20,7 @@ import com.sun.jersey.api.client.ClientResponse;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -34,14 +34,13 @@ public final class JaxRsClientV1Instrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed("com.sun.jersey.api.client.ClientHandler");
+  public String hierarchyMarkerType() {
+    return "com.sun.jersey.api.client.ClientHandler";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("com.sun.jersey.api.client.ClientHandler"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override
@@ -76,6 +75,9 @@ public final class JaxRsClientV1Instrumentation extends Instrumenter.Tracing
         request.getProperties().put(DD_SPAN_ATTRIBUTE, span);
 
         propagate().inject(span, request.getHeaders(), SETTER);
+        propagate()
+            .injectPathwayContext(
+                span, request.getHeaders(), SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
         return activateSpan(span);
       }
       return null;

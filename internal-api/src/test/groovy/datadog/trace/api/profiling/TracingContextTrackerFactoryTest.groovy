@@ -11,7 +11,7 @@ class TracingContextTrackerFactoryTest extends DDSpecification {
 
   def "sanity default"() {
     expect:
-    TracingContextTrackerFactory.isTrackingAvailable() == false
+    !TracingContextTrackerFactory.isTrackingAvailable()
     TracingContextTrackerFactory.instance(null) == TracingContextTracker.EMPTY
   }
 
@@ -25,7 +25,11 @@ class TracingContextTrackerFactoryTest extends DDSpecification {
     tracker.deactivateContext()
     tracker.maybeDeactivateContext()
     tracker.persist() == null
-    tracker.release() == false
+    tracker.persist({100}) == 0
+    tracker.toString() == "Empty context tracker"
+    !tracker.release()
+
+
 
     when:
     def delayed = tracker.asDelayed()
@@ -42,9 +46,9 @@ class TracingContextTrackerFactoryTest extends DDSpecification {
     factory = new TestTracingContextTrackerFactory()
 
     expect:
-    TracingContextTrackerFactory.registerImplementation(factory) == true
-    TracingContextTrackerFactory.registerImplementation(factory) == false
-    TracingContextTrackerFactory.isTrackingAvailable() == true
+    TracingContextTrackerFactory.registerImplementation(factory)
+    !TracingContextTrackerFactory.registerImplementation(factory)
+    TracingContextTrackerFactory.isTrackingAvailable()
   }
 
   def "custom factory usage"() {

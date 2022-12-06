@@ -38,7 +38,7 @@ class CompressionTypeTest {
     // use bit operations to generate permutations
     long mask = 0L;
     for (int i = 0; i < input.length(); i++) {
-      final StringBuilder sb = new StringBuilder();
+      final StringBuilder sb = new StringBuilder(input.length());
       mask += 1;
       long check = mask;
       for (int j = 0; j < input.length(); j++) {

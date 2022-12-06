@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.jakarta3;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -18,14 +17,13 @@ public abstract class AbstractRequestContextInstrumentation extends Instrumenter
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed("jakarta.ws.rs.container.ContainerRequestContext");
+  public String hierarchyMarkerType() {
+    return "jakarta.ws.rs.container.ContainerRequestContext";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("jakarta.ws.rs.container.ContainerRequestContext"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override

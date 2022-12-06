@@ -16,13 +16,15 @@ public class SprayHttpServerRunSealedRouteAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope enter(@Advice.Argument(value = 1, readOnly = false) RequestContext ctx) {
     final AgentSpan span;
+    final AgentSpan.Context.Extracted extractedContext;
     if (activeSpan() == null) {
       // Propagate context in case income request was going through several routes
       // TODO: Add test for it
       final HttpRequest request = ctx.request();
-      final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(request);
+      extractedContext = DECORATE.extract(request);
       span = DECORATE.startSpan(request, extractedContext);
     } else {
+      extractedContext = null;
       span = startSpan(SPRAY_HTTP_REQUEST);
     }
 
@@ -30,7 +32,7 @@ public class SprayHttpServerRunSealedRouteAdvice {
 
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
-    ctx = SprayHelper.wrapRequestContext(ctx, scope.span());
+    ctx = SprayHelper.wrapRequestContext(ctx, scope.span(), extractedContext);
     return scope;
   }
 

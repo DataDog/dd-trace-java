@@ -14,7 +14,7 @@ java_prop () {
 }
 
 # based on tracer implementation: https://github.com/DataDog/dd-trace-java/blob/master/dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator/TestDecorator.java#L55-L77
-datadog-ci junit upload --service $SERVICE_NAME --logs \
+datadog-ci junit upload --service $SERVICE_NAME \
     --tags "test.traits:{\"marker\":[\"$1\"]}" \
     --tags "runtime.name:$(java_prop java.runtime.name)" \
     --tags "runtime.vendor:$(java_prop java.vendor)" \

@@ -2,6 +2,7 @@ import com.mchange.v2.c3p0.ComboPooledDataSource
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.testcontainers.containers.MySQLContainer
@@ -17,11 +18,10 @@ import java.sql.Driver
 import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.Statement
+import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.api.Checkpointer.END
-import static datadog.trace.api.Checkpointer.SPAN
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
 // workaround for SSLHandShakeException on J9 only with Hikari/MySQL
@@ -149,16 +149,19 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
   }
 
   def setupSpec() {
-    if (System.getenv("CI") != "true") {
-      postgres = new PostgreSQLContainer("postgres:11.1")
-        .withDatabaseName(dbName).withUsername("sa").withPassword("sa")
-      postgres.start()
-      jdbcUrls.put("postgresql", "${postgres.getJdbcUrl()}")
-      mysql = new MySQLContainer("mysql:8.0")
-        .withDatabaseName(dbName).withUsername("sa").withPassword("sa")
-      mysql.start()
-      jdbcUrls.put("mysql", "${mysql.getJdbcUrl()}")
-    }
+    postgres = new PostgreSQLContainer("postgres:11.1")
+      .withDatabaseName(dbName).withUsername("sa").withPassword("sa")
+    postgres.start()
+    PortUtils.waitForPortToOpen(postgres.getHost(), postgres.getMappedPort(PostgreSQLContainer.POSTGRESQL_PORT), 5, TimeUnit.SECONDS)
+    jdbcUrls.put("postgresql", "${postgres.getJdbcUrl()}")
+    mysql = new MySQLContainer("mysql:8.0")
+      .withDatabaseName(dbName).withUsername("sa").withPassword("sa")
+    // https://github.com/testcontainers/testcontainers-java/issues/914
+    mysql.addParameter("TC_MY_CNF", null)
+    mysql.start()
+    PortUtils.waitForPortToOpen(mysql.getHost(), mysql.getMappedPort(MySQLContainer.MYSQL_PORT), 5, TimeUnit.SECONDS)
+    jdbcUrls.put("mysql", "${mysql.getJdbcUrl()}")
+
     prepareConnectionPoolDatasources()
   }
 
@@ -216,11 +219,6 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
         }
       }
     }
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    0 * _
 
     cleanup:
     statement.close()
@@ -281,11 +279,6 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
         }
       }
     }
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    0 * _
 
     cleanup:
     statement.close()
@@ -344,11 +337,6 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
         }
       }
     }
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    0 * _
 
     cleanup:
     statement.close()
@@ -407,11 +395,6 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
         }
       }
     }
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    0 * _
 
     cleanup:
     statement.close()
@@ -470,11 +453,7 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
         }
       }
     }
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    0 * _
+
 
     cleanup:
     statement.close()

@@ -1,5 +1,6 @@
 package com.datadog.appsec.gateway
 
+import com.datadog.appsec.AppSecSystem
 import com.datadog.appsec.config.TraceSegmentPostProcessor
 import com.datadog.appsec.event.EventDispatcher
 import com.datadog.appsec.event.EventProducerService
@@ -9,15 +10,13 @@ import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.SingletonDataBundle
 import com.datadog.appsec.report.AppSecEventWrapper
 import com.datadog.appsec.report.raw.events.AppSecEvent100
-import datadog.trace.api.function.Function
 import datadog.trace.api.TraceSegment
-import datadog.trace.api.function.BiFunction
-import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.api.time.TimeSource
@@ -26,6 +25,10 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase
 import datadog.trace.test.util.DDSpecification
 
+import java.util.function.BiFunction
+import java.util.function.Function
+import java.util.function.Supplier
+
 import static datadog.trace.api.gateway.Events.EVENTS
 
 class GatewayBridgeSpecification extends DDSpecification {
@@ -33,13 +36,21 @@ class GatewayBridgeSpecification extends DDSpecification {
   EventDispatcher eventDispatcher = Mock()
   AppSecRequestContext arCtx = new AppSecRequestContext()
   TraceSegment traceSegment = Mock()
-  RequestContext<AppSecRequestContext> ctx = new RequestContext<AppSecRequestContext>() {
+  RequestContext ctx = new RequestContext() {
     final AppSecRequestContext data = arCtx
+
+    @Override
+    Object getData(RequestContextSlot slot) {
+      slot == RequestContextSlot.APPSEC ? data : null
+    }
 
     @Override
     final TraceSegment getTraceSegment() {
       GatewayBridgeSpecification.this.traceSegment
     }
+
+    @Override
+    void close() throws IOException {}
   }
   EventProducerService.DataSubscriberInfo nonEmptyDsInfo = {
     EventProducerService.DataSubscriberInfo i = Mock()
@@ -49,7 +60,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   RateLimiter rateLimiter = new RateLimiter(10, { -> 0L } as TimeSource, RateLimiter.ThrottledCallback.NOOP)
   TraceSegmentPostProcessor pp = Mock()
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, rateLimiter, null, [pp])
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, rateLimiter, [pp])
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
@@ -58,6 +69,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> requestMethodURICB
   BiFunction<RequestContext, Map<String, Object>, Flow<Void>> pathParamsCB
   TriFunction<RequestContext, String, Integer, Flow<Void>> requestSocketAddressCB
+  BiFunction<RequestContext, String, Flow<Void>> requestInferredAddressCB
   BiFunction<RequestContext, StoredBodySupplier, Void> requestBodyStartCB
   BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestBodyDoneCB
   BiFunction<RequestContext, Object, Flow<Void>> requestBodyProcessedCB
@@ -81,6 +93,22 @@ class GatewayBridgeSpecification extends DDSpecification {
     startFlow.action == Flow.Action.Noop.INSTANCE
   }
 
+  void 'request_start returns null context if appsec is disabled'() {
+    setup:
+    AppSecSystem.active = false
+
+    when:
+    Flow<AppSecRequestContext> startFlow = requestStartedCB.get()
+
+    then:
+    Object producedCtx = startFlow.getResult()
+    producedCtx == null
+    0 * _._
+
+    cleanup:
+    AppSecSystem.active = true
+  }
+
   void 'request_end closes context reports attacks and publishes event'() {
     AppSecEvent100 event = Mock()
     AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
@@ -89,15 +117,16 @@ class GatewayBridgeSpecification extends DDSpecification {
       'some-header': ['123'],
       'content-type':['text/html; charset=UTF-8']]
     RequestContext mockCtx = Mock(RequestContext) {
-      getData() >> mockAppSecCtx
+      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
       getTraceSegment() >> traceSegment
     }
-    IGSpanInfo spanInfo = Mock()
+    IGSpanInfo spanInfo = Mock(AgentSpan)
 
     when:
     def flow = requestEndedCB.apply(mockCtx, spanInfo)
 
     then:
+    1 * spanInfo.getTags() >> ['http.client_ip':'1.1.1.1']
     1 * mockAppSecCtx.transferCollectedEvents() >> [event]
     1 * mockAppSecCtx.peerAddress >> '2001::1'
     1 * mockAppSecCtx.close()
@@ -109,7 +138,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('http.request.headers.accept', 'header_value')
     1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/html; charset=UTF-8')
     1 * traceSegment.setTagTop('network.client.ip', '2001::1')
-    0 * traceSegment._(*_)
+    1 * traceSegment._(*_)
     1 * eventDispatcher.publishEvent(mockAppSecCtx, EventType.REQUEST_END)
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
@@ -120,10 +149,10 @@ class GatewayBridgeSpecification extends DDSpecification {
     AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
     mockAppSecCtx.requestHeaders >> [:]
     RequestContext mockCtx = Mock(RequestContext) {
-      getData() >> mockAppSecCtx
+      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
       getTraceSegment() >> traceSegment
     }
-    IGSpanInfo spanInfo = Mock()
+    IGSpanInfo spanInfo = Mock(AgentSpan)
 
     when:
     11.times {requestEndedCB.apply(mockCtx, spanInfo) }
@@ -132,6 +161,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     11 * mockAppSecCtx.transferCollectedEvents() >> [event]
     11 * mockAppSecCtx.close()
     11 * eventDispatcher.publishEvent(mockAppSecCtx, EventType.REQUEST_END)
+    10 * spanInfo.getTags() >> ['http.client_ip':'1.1.1.1']
     10 * traceSegment.setDataTop("appsec", _)
   }
 
@@ -142,15 +172,17 @@ class GatewayBridgeSpecification extends DDSpecification {
       forwarded: ['for=127.0.0.1', 'for="[::1]", for=8.8.8.8'],
     ]
     RequestContext mockCtx = Mock(RequestContext) {
-      getData() >> mockAppSecCtx
+      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
       getTraceSegment() >> traceSegment
     }
+    IGSpanInfo spanInfo = Mock(AgentSpan)
 
     when:
-    requestEndedCB.apply(mockCtx, Mock(IGSpanInfo))
+    requestEndedCB.apply(mockCtx, spanInfo)
 
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> [Mock(AppSecEvent100)]
+    1 * spanInfo.getTags() >> ['http.client_ip':'8.8.8.8']
     1 * traceSegment.setTagTop('actor.ip', '8.8.8.8')
   }
 
@@ -226,6 +258,24 @@ class GatewayBridgeSpecification extends DDSpecification {
     then:
     bundle.get(KnownAddresses.REQUEST_CLIENT_IP) == '0.0.0.0'
     bundle.get(KnownAddresses.REQUEST_CLIENT_PORT) == 5555
+  }
+
+  void 'the inferred ip address is distributed if published before the socket address'() {
+    DataBundle bundle
+
+    when:
+    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
+    { bundle = it[2]; NoopFlow.INSTANCE }
+
+    and:
+    reqHeadersDoneCB.apply(ctx)
+    requestMethodURICB.apply(ctx, 'GET', TestURIDataAdapter.create('/a'))
+    requestInferredAddressCB.apply(ctx, '1.2.3.4')
+    requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
+
+    then:
+    bundle.get(KnownAddresses.REQUEST_INFERRED_CLIENT_IP) == '1.2.3.4'
   }
 
   void 'setting headers then request uri triggers initial data event'() {
@@ -347,6 +397,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.requestHeader(), _) >> { reqHeaderCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestHeaderDone(), _) >> { reqHeadersDoneCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestClientSocketAddress(), _) >> { requestSocketAddressCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.requestInferredClientAddress(), _) >> { requestInferredAddressCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestBodyStart(), _) >> { requestBodyStartCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestBodyDone(), _) >> { requestBodyDoneCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestBodyProcessed(), _) >> { requestBodyProcessedCB = it[1]; null }
@@ -496,7 +547,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     bundle.get(KnownAddresses.REQUEST_BODY_RAW) == 'foobar'
   }
 
-  void 'request body does not published twice'() {
+  void 'request body does not get published twice'() {
     StoredBodySupplier supplier = Mock()
     Flow flow
 
@@ -659,5 +710,52 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     then:
     1 * pp.processTraceSegment(traceSegment, ctx.data, [])
+  }
+
+  void 'no appsec events if was not created request context in request_start event'() {
+    RequestContext emptyCtx = new RequestContext() {
+        final Object data = null
+
+        @Override
+        Object getData(RequestContextSlot slot) {
+          data
+        }
+
+        @Override
+        final TraceSegment getTraceSegment() {
+          GatewayBridgeSpecification.this.traceSegment
+        }
+
+        @Override
+        void close() throws IOException {}
+      }
+
+    StoredBodySupplier supplier = Mock()
+    IGSpanInfo spanInfo = Mock(AgentSpan)
+    Object obj = 'obj'
+
+    when:
+    // request start event doesn't happen and not create AppSecRequestContext
+    def flowMethod = requestMethodURICB.apply(emptyCtx, 'GET', TestURIDataAdapter.create('/a'))
+    def flowParams = pathParamsCB.apply(emptyCtx, [a: 'b'])
+    def flowSock = requestSocketAddressCB.apply(emptyCtx, '0.0.0.0', 5555)
+    reqHeaderCB.accept(emptyCtx, 'header_name', 'header_value')
+    def flowHeadersDone = reqHeadersDoneCB.apply(emptyCtx)
+    requestBodyStartCB.apply(emptyCtx, supplier)
+    def flowBodyEnd = requestBodyDoneCB.apply(emptyCtx, supplier)
+    def flowBodyProc = requestBodyProcessedCB.apply(emptyCtx, obj)
+    def flowReqEnd = requestEndedCB.apply(emptyCtx, spanInfo)
+    def appSecReqCtx = emptyCtx.getData(RequestContextSlot.APPSEC)
+
+    then:
+    appSecReqCtx == null
+    flowMethod == NoopFlow.INSTANCE
+    flowParams == NoopFlow.INSTANCE
+    flowSock == NoopFlow.INSTANCE
+    flowHeadersDone == NoopFlow.INSTANCE
+    flowBodyEnd == NoopFlow.INSTANCE
+    flowBodyProc == NoopFlow.INSTANCE
+    flowReqEnd == NoopFlow.INSTANCE
+    0 * _
   }
 }

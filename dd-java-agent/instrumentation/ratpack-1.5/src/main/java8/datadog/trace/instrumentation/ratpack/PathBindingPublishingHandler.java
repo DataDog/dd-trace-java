@@ -3,13 +3,14 @@ package datadog.trace.instrumentation.ratpack;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
-import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Map;
+import java.util.function.BiFunction;
 import ratpack.handling.Context;
 import ratpack.handling.Handler;
 import ratpack.path.PathTokens;
@@ -38,10 +39,10 @@ public class PathBindingPublishingHandler implements Handler {
       return;
     }
 
-    CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
-    BiFunction<RequestContext<Object>, Map<String, ?>, Flow<Void>> callback =
+    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+    BiFunction<RequestContext, Map<String, ?>, Flow<Void>> callback =
         cbp.getCallback(EVENTS.requestPathParams());
-    RequestContext<Object> requestContext = agentSpan.getRequestContext();
+    RequestContext requestContext = agentSpan.getRequestContext();
     if (requestContext == null || callback == null) {
       return;
     }

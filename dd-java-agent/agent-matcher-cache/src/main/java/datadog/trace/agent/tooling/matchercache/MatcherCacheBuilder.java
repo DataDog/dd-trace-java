@@ -73,7 +73,7 @@ public class MatcherCacheBuilder {
         try {
           PackageData packageData = getDataOrCreate(packageName);
           TypeDescription typeDescription = typeResolver.typeDescription(fullClassName);
-          String matchingInstrumenters = classMatchers.matchingIntrumenters(typeDescription);
+          String matchingInstrumenters = classMatchers.matchingInstrumenters(typeDescription);
           if (matchingInstrumenters != null) {
             if (additionallyIgnored) {
               packageData.insert(

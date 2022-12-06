@@ -1,31 +1,28 @@
 package datadog.trace.core
 
-import datadog.trace.api.Checkpointer
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
+import datadog.trace.api.DDTraceId
+import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
+import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.common.sampling.RateByServiceSampler
-import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
-import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.core.test.DDCoreSpecification
+import spock.lang.Shared
 
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.api.Checkpointer.CPU
-import static datadog.trace.api.Checkpointer.END
-import static datadog.trace.api.Checkpointer.SPAN
-import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
-
 class DDSpanTest extends DDCoreSpecification {
 
-  def writer = new ListWriter()
-  def sampler = new RateByServiceSampler()
-  def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
+  @Shared def writer = new ListWriter()
+  @Shared def sampler = new RateByServiceSampler()
+  @Shared def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
+  @Shared def datadogTagsFactory = tracer.getDatadogTagsFactory()
 
   def cleanup() {
     tracer?.close()
@@ -268,9 +265,9 @@ class DDSpanTest extends DDCoreSpecification {
     child.@origin == null // Access field directly instead of getter.
 
     where:
-    extractedContext                                                                                                                | _
-    new TagContext("some-origin", [:])                                                                                              | _
-    new ExtractedContext(DDId.ONE, DDId.from(2), PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT, "some-origin", 0, [:], [:]) | _
+    extractedContext                                                                                                                          | _
+    new TagContext("some-origin", [:])                                                                                                        | _
+    new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, "some-origin", 0, [:], [:], null, datadogTagsFactory.empty()) | _
   }
 
   def "isRootSpan() in and not in the context of distributed tracing"() {
@@ -287,9 +284,9 @@ class DDSpanTest extends DDCoreSpecification {
     root.finish()
 
     where:
-    extractedContext                                                                                                                   | isTraceRootSpan
-    null                                                                                                                               | true
-    new ExtractedContext(DDId.from(123), DDId.from(456), PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT, "789", 0, [:], [:]) | false
+    extractedContext                                                                                                                          | isTraceRootSpan
+    null                                                                                                                                      | true
+    new ExtractedContext(DDTraceId.from(123), 456, PrioritySampling.SAMPLER_KEEP, "789", 0, [:], [:], null, datadogTagsFactory.empty()) | false
   }
 
   def "getApplicationRootSpan() in and not in the context of distributed tracing"() {
@@ -309,21 +306,21 @@ class DDSpanTest extends DDCoreSpecification {
     root.finish()
 
     where:
-    extractedContext                                                                                                                   | isTraceRootSpan
-    null                                                                                                                               | true
-    new ExtractedContext(DDId.from(123), DDId.from(456), PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT, "789", 0, [:], [:]) | false
+    extractedContext                                                                                                                          | isTraceRootSpan
+    null                                                                                                                                      | true
+    new ExtractedContext(DDTraceId.from(123), 456, PrioritySampling.SAMPLER_KEEP, "789", 0, [:], [:], null, datadogTagsFactory.empty()) | false
   }
 
   def 'publishing of root span closes the request context data'() {
     setup:
     def reqContextData = Mock(Closeable)
-    def context = new TagContext().withRequestContextData(reqContextData)
+    def context = new TagContext().withRequestContextDataAppSec(reqContextData)
     def root = tracer.buildSpan("root").asChildOf(context).start()
     def child = tracer.buildSpan("child").asChildOf(root).start()
 
     expect:
-    root.requestContext.data.is(reqContextData)
-    child.requestContext.data.is(reqContextData)
+    root.requestContext.getData(RequestContextSlot.APPSEC).is(reqContextData)
+    child.requestContext.getData(RequestContextSlot.APPSEC).is(reqContextData)
 
     when:
     child.finish()
@@ -339,27 +336,30 @@ class DDSpanTest extends DDCoreSpecification {
   }
 
   def "infer top level from parent service name"() {
+    setup:
+    def datadogTagsFactory = tracer.getDatadogTagsFactory()
     when:
     DDSpanContext context =
       new DDSpanContext(
-      DDId.from(1),
-      DDId.from(1),
-      DDId.ZERO,
+      DDTraceId.ONE,
+      1,
+      DDSpanId.ZERO,
       parentServiceName,
       "fakeService",
       "fakeOperation",
       "fakeResource",
       PrioritySampling.UNSET,
-      SamplingMechanism.UNKNOWN,
       null,
       Collections.<String, String> emptyMap(),
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDId.ONE),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
+      null,
       null,
       NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      datadogTagsFactory.empty())
     then:
     context.isTopLevel() == expectTopLevel
 
@@ -371,59 +371,6 @@ class DDSpanTest extends DDCoreSpecification {
     UTF8BytesString.create("fakeService") | false
     ""                                    | true
     null                                  | true
-  }
-
-  def "span start and finish emit checkpoints"() {
-    setup:
-    Checkpointer checkpointer = Mock()
-    tracer.registerCheckpointer(checkpointer)
-    DDSpanContext context =
-      new DDSpanContext(
-      DDId.from(1),
-      DDId.from(1),
-      DDId.ZERO,
-      null,
-      "fakeService",
-      "fakeOperation",
-      "fakeResource",
-      PrioritySampling.UNSET,
-      SamplingMechanism.UNKNOWN,
-      null,
-      Collections.<String, String> emptyMap(),
-      false,
-      "fakeType",
-      0,
-      tracer.pendingTraceFactory.create(DDId.ONE),
-      null,
-      NoopPathwayContext.INSTANCE,
-      false)
-
-    def span = null
-
-    when:
-    span = DDSpan.create(1, context)
-    then:
-    // can not assert against 'span' as this check seems to operate on 'span' value before it has been created
-    1 * checkpointer.checkpoint(_, SPAN)
-
-    when:
-    span.startThreadMigration()
-    then:
-    1 * checkpointer.checkpoint(span, THREAD_MIGRATION)
-    when:
-    span.finishThreadMigration()
-    then:
-    1 * checkpointer.checkpoint(span, THREAD_MIGRATION | END)
-
-    when:
-    span.finishWork()
-    then:
-    1 * checkpointer.checkpoint(span, CPU | END)
-
-    when:
-    span.finish()
-    then:
-    1 * checkpointer.checkpoint(span, SPAN | END)
   }
 
   def "broken pipe exception does not create error span"() {
@@ -453,22 +400,5 @@ class DDSpanTest extends DDCoreSpecification {
     then:
     !span.isError()
     span.getTag(DDTags.ERROR_STACK) == null
-  }
-
-  def "checkpointing set only on root span"() {
-    setup:
-    def parent = tracer.buildSpan("testRoot").start()
-    def child = tracer.buildSpan("testSpan").asChildOf(parent).start()
-
-    when:
-    child.setEmittingCheckpoints(true)
-
-    then:
-    parent.isEmittingCheckpoints() == true
-    parent.@emittingCheckpoints == 1 // Access field directly instead of getter.
-    parent.getTag(DDSpan.CHECKPOINTED_TAG) == true
-    child.isEmittingCheckpoints() == true // flag is reflected in children
-    child.@emittingCheckpoints == 0 // but no value is stored in the field
-    child.getTag(DDSpan.CHECKPOINTED_TAG) == null // child span does not get the tag set
   }
 }

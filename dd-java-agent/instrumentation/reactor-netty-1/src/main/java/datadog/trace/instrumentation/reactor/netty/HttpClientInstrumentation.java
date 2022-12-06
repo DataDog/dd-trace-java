@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.reactor.netty;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
@@ -26,8 +26,8 @@ public class HttpClientInstrumentation extends Instrumenter.Tracing
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Introduced in 1.0.0
-    return hasClassesNamed("reactor.netty.transport.AddressUtils");
+    // Avoid matching pre-1.0 releases which are not compatible.
+    return hasClassNamed("reactor.netty.transport.AddressUtils");
   }
 
   @Override

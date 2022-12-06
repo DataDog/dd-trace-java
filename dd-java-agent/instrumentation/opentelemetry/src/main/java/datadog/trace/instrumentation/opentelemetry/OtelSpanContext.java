@@ -22,7 +22,7 @@ public class OtelSpanContext extends SpanContext {
 
   @Override
   public SpanId getSpanId() {
-    return new SpanId(delegate.getSpanId().toLong());
+    return new SpanId(delegate.getSpanId());
   }
 
   @Override

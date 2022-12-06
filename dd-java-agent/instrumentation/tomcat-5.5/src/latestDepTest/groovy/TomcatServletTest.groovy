@@ -94,6 +94,11 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
   }
 
   @Override
+  boolean testBlocking() {
+    true
+  }
+
+  @Override
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.throwsException) {
       // Exception classes get wrapped in ServletException
@@ -139,6 +144,7 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
     Wrapper wrapper = servletContext.createWrapper()
     wrapper.name = UUID.randomUUID()
     wrapper.servletClass = servlet.name
+    wrapper.asyncSupported =true
     servletContext.addChild(wrapper)
     servletContext.addServletMappingDecoded(path, wrapper.name)
   }

@@ -2,11 +2,48 @@ name: Add assets to release
 on:
   release:
     types: [published]
-env:
-  VERSION: ${{ github.event.release.name }}  #Can't use GITHUB_REF because it starts with a "v"
 jobs:
-  dd-java-agent:
+  get-version:
+      runs-on: ubuntu-latest
+      env:
+        TAG_NAME: ${{ github.event.release.tag_name }}
+      steps:
+        - name: Strip leading 'v' from tag and return as output
+          id: version_name
+          run: echo "version=$(echo ${TAG_NAME/#v/})" >> $GITHUB_OUTPUT
+      outputs:
+        ver: ${{ steps.version_name.outputs.version }}
+  test-and-set-version:
+    needs: get-version
     runs-on: ubuntu-latest
+    env: 
+      VERSION: ${{needs.get-version.outputs.ver}}
+      VERSIONED_RELEASE: v${{needs.get-version.outputs.ver}}
+      RELEASE_ID: ${{github.event.release.id}}
+    steps:
+      - name: If release name is set and does not correspond correctly to tag (mismatch versioning in release name and tag), exit.
+        if: ${{ github.event.release.name != '' && github.event.release.name != env.VERSION && github.event.release.name != env.VERSIONED_RELEASE }}
+        run: |
+          echo "Failing job. Release name is invalid for this tag. Clear the contents of the Release Name field and retry."
+          exit 1
+      - name: Update release name
+        uses: actions/github-script@d556feaca394842dc55e4734bf3bb9f685482fa0 # 6.3.3
+        with:
+          script: |
+            const VERSION = process.env.VERSION
+            const RELEASE_ID = process.env.RELEASE_ID
+            
+            github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: `${RELEASE_ID}`,
+              name: `${VERSION}`
+            })
+  dd-java-agent:
+    needs: [get-version, test-and-set-version]
+    runs-on: ubuntu-latest
+    env: 
+      VERSION: ${{needs.get-version.outputs.ver}}
     steps:
       - name: Download from Sonatype
         run: |
@@ -31,7 +68,10 @@ jobs:
           asset_name: dd-java-agent.jar
           asset_content_type: application/java-archive
   dd-trace-api:
+    needs: [get-version, test-and-set-version]
     runs-on: ubuntu-latest
+    env: 
+      VERSION: ${{needs.get-version.outputs.ver}}
     steps:
       - name: Download from Sonatype
         run: |
@@ -46,7 +86,10 @@ jobs:
           asset_name: dd-trace-api-${{ env.VERSION }}.jar
           asset_content_type: application/java-archive
   dd-trace-ot:
+    needs: [get-version, test-and-set-version]
     runs-on: ubuntu-latest
+    env: 
+      VERSION: ${{needs.get-version.outputs.ver}}
     steps:
       - name: Download from Sonatype
         run: |

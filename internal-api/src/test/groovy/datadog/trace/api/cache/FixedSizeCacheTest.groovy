@@ -1,15 +1,43 @@
 package datadog.trace.api.cache
 
-
-import datadog.trace.api.function.Function
 import datadog.trace.test.util.DDSpecification
+import spock.lang.Shared
 import spock.util.concurrent.AsyncConditions
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.function.Function
 
 class FixedSizeCacheTest extends DDSpecification {
+  def "invalid capacities are rejected"() {
+    when:
+    DDCaches.newFixedSizeCache(capacity)
+
+    then:
+    thrown(IllegalArgumentException)
+
+    where:
+    capacity << [Integer.MIN_VALUE, -1, 0]
+  }
+
+  def "cache can be explicitly cleared"() {
+    setup:
+    def fsCache = DDCaches.newFixedSizeCache(15)
+
+    when:
+    fsCache.computeIfAbsent("test-key", { "first-value" })
+
+    then:
+    fsCache.computeIfAbsent("test-key", { "second-value" }) == "first-value"
+
+    when:
+    fsCache.clear()
+
+    then:
+    fsCache.computeIfAbsent("test-key", { "second-value" }) == "second-value"
+  }
+
   def "fixed size should store and retrieve values"() {
     setup:
     def fsCache = DDCaches.newFixedSizeCache(15)
@@ -65,6 +93,31 @@ class FixedSizeCacheTest extends DDSpecification {
     [new TKey(1 - 31, 11, "eleven")] as TKey[] | "eleven_value" | 4     // create new value in an occupied slot
     [new TKey(4 - 31, 4, "four")] as TKey[]    | "four_value"   | 4     // create new value in empty slot
     null                                       | null           | 3     // do nothing
+  }
+
+  @Shared id1 = new TKey(1, 1, "one")
+
+  def "identity cache should store and retrieve values"() {
+    setup:
+    def fsCache = DDCaches.newFixedSizeIdentityCache(15)
+    def creationCount = new AtomicInteger(0)
+    def tvc = new TVC(creationCount)
+    fsCache.computeIfAbsent(id1, tvc)
+
+    // (only use one key because we can't control the identity hash: more keys might overwrite
+    // an earlier slot if rehashing cycles to the same slots, breaking test assumption that all
+    // the initial keys are allocated to distinct slots)
+
+    expect:
+    fsCache.computeIfAbsent(tk, tvc) == value
+    creationCount.get() == count
+
+    where:
+    tk                        | value          | count
+    id1                       | "one_value"    | 1     // used the cached id1
+    new TKey(1, 1, "1")       | "1_value"      | 2     // create new value for key with different identity
+    new TKey(6, 6, "6")       | "6_value"      | 2     // create new value for new key
+    null                      | null           | 1     // do nothing
   }
 
   def "chm cache should store and retrieve values"() {
@@ -133,7 +186,7 @@ class FixedSizeCacheTest extends DDSpecification {
     ]
   }
 
-  private class TVC implements Function<TKey, String> {
+  private static class TVC implements Function<TKey, String> {
     private final AtomicInteger count
 
     TVC(AtomicInteger count) {
@@ -161,7 +214,7 @@ class FixedSizeCacheTest extends DDSpecification {
     }
   }
 
-  private class TKey {
+  private static class TKey {
     private final int hash
     private final int eq
     private final String string

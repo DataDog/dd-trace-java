@@ -1,0 +1,44 @@
+plugins {
+  id 'me.champeau.jmh'
+}
+
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_11
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: "idea"
+
+sourceCompatibility = JavaVersion.VERSION_11
+targetCompatibility = JavaVersion.VERSION_11
+
+[JavaCompile, GroovyCompile].each {
+  tasks.withType(it).configureEach {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+    setJavaVersion(it, 11)
+  }
+}
+
+minimumBranchCoverage = 0.8
+minimumInstructionCoverage = 0.8
+
+dependencies {
+  api project(':internal-api:internal-api-8')
+
+  testImplementation project(':dd-java-agent:testing')
+  testImplementation deps.slf4j
+}
+
+idea {
+  module {
+    jdkName = '11'
+  }
+}
+
+jmh {
+  jmhVersion = '1.28'
+  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+  jvm = System.getenv('JAVA_11_HOME') + '/bin/java'
+}
+

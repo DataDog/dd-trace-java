@@ -48,6 +48,7 @@ class BuildkiteInfo extends CIProviderInfo {
         .ciPipelineUrl(ciPipelineUrl)
         .ciJobUrl(String.format("%s#%s", ciPipelineUrl, System.getenv(BUILDKITE_JOB_ID)))
         .ciWorkspace(expandTilde(System.getenv(BUILDKITE_WORKSPACE_PATH)))
+        .ciEnvVars(BUILDKITE_PIPELINE_ID, BUILDKITE_JOB_ID)
         .build();
   }
 

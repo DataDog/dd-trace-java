@@ -1,6 +1,5 @@
 package datadog.trace.api.http;
 
-import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import java.lang.reflect.UndeclaredThrowableException;
@@ -13,6 +12,7 @@ import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
+import java.util.function.BiFunction;
 import javax.annotation.Nullable;
 
 /** @see StoredCharBody */
@@ -29,9 +29,9 @@ public class StoredByteBody implements StoredBodySupplier {
   private StoredCharBody storedCharBody;
 
   public StoredByteBody(
-      RequestContext<Object> requestContext,
-      BiFunction<RequestContext<Object>, StoredBodySupplier, Void> startCb,
-      BiFunction<RequestContext<Object>, StoredBodySupplier, Flow<Void>> endCb,
+      RequestContext requestContext,
+      BiFunction<RequestContext, StoredBodySupplier, Void> startCb,
+      BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> endCb,
       @Nullable Charset charset,
       int lengthHint) {
     if (charset != null) {

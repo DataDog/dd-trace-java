@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.DECORATE;
-import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.SYNAPSE_REQUEST;
 import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.SYNAPSE_SPAN_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -73,7 +72,7 @@ public final class SynapseServerInstrumentation extends Instrumenter.Tracing
       if (null != extractedContext) {
         span = DECORATE.startSpan(request, extractedContext);
       } else {
-        span = startSpan(SYNAPSE_REQUEST);
+        span = startSpan(DECORATE.spanName());
         span.setMeasured(true);
       }
       DECORATE.afterStart(span);

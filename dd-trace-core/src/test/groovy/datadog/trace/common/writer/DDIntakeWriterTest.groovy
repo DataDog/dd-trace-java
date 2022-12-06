@@ -1,9 +1,9 @@
 package datadog.trace.common.writer
 
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.common.writer.ddintake.DDIntakeApi
 import datadog.trace.common.writer.ddintake.DDIntakeMapperDiscovery
@@ -13,6 +13,7 @@ import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.MonitoringImpl
+import datadog.trace.core.propagation.DatadogTags
 import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Subject
 
@@ -157,15 +158,14 @@ class DDIntakeWriterTest extends DDCoreSpecification{
     PendingTrace trace = Mock(PendingTrace)
     trace.getTracer() >> tracer
     def context = new DDSpanContext(
-      DDId.from(1),
-      DDId.from(1),
-      DDId.ZERO,
+      DDTraceId.ONE,
+      1,
+      DDSpanId.ZERO,
       null,
       "",
       "",
       "",
       PrioritySampling.UNSET,
-      SamplingMechanism.UNKNOWN,
       "",
       [:],
       false,
@@ -173,8 +173,10 @@ class DDIntakeWriterTest extends DDCoreSpecification{
       0,
       trace,
       null,
+      null,
       AgentTracer.NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      DatadogTags.factory().empty())
     return new DDSpan(0, context)
   }
 

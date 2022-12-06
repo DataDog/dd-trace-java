@@ -1,16 +1,13 @@
 package datadog.trace.instrumentation.twilio;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.twilio.TwilioClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.twilio.TwilioClientDecorator.TWILIO_SDK;
-import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
 import com.twilio.Twilio;
@@ -32,9 +29,8 @@ public class TwilioSyncInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed("com.twilio.Twilio");
+  public String hierarchyMarkerType() {
+    return "com.twilio.base.Resource"; // implies existence of Twilio service classes
   }
 
   /** Match any child class of the base Twilio service classes. */
@@ -67,10 +63,7 @@ public class TwilioSyncInstrumentation extends Instrumenter.Tracing
        which we weren't interested in annotating.
     */
     transformation.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(not(isAbstract()))
-            .and(namedOneOf("create", "delete", "read", "fetch", "update")),
+        isMethod().and(isPublic()).and(namedOneOf("create", "delete", "read", "fetch", "update")),
         TwilioSyncInstrumentation.class.getName() + "$TwilioClientAdvice");
   }
 

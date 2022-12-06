@@ -7,7 +7,10 @@ import com.amazonaws.client.builder.AwsClientBuilder
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.utils.TraceUtils
+import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.config.GeneralConfig
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.elasticmq.rest.sqs.SQSRestServerBuilder
 import spock.lang.Shared
@@ -23,10 +26,17 @@ class SqsClientTest extends AgentTestRunner {
     System.setProperty(SDKGlobalConfiguration.SECRET_KEY_SYSTEM_PROPERTY, "my-secret-key")
   }
 
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    // Set a service name that gets sorted early with SORT_BY_NAMES
+    injectSysConfig(GeneralConfig.SERVICE_NAME, "A")
+  }
+
   @Shared
   def credentialsProvider = new AWSStaticCredentialsProvider(new AnonymousAWSCredentials())
   @Shared
-  def server = SQSRestServerBuilder.withInterface("localhost").start()
+  def server = SQSRestServerBuilder.withInterface("localhost").withDynamicPort().start()
   @Shared
   def address = server.waitUntilStarted().localAddress()
   @Shared
@@ -148,9 +158,8 @@ class SqsClientTest extends AgentTestRunner {
       }
     }
 
-    assert messages[0].attributes['AWSTraceHeader'] ==
-    "Root=1-00000000-00000000${sendSpan.traceId.toHexStringPadded(16)};" +
-    "Parent=${sendSpan.spanId.toHexStringPadded(16)};Sampled=1"
+    assert messages[0].attributes['AWSTraceHeader'] =~
+    /Root=1-[0-9a-f]{8}-00000000${sendSpan.traceId.toHexStringPadded(16)};Parent=${DDSpanId.toHexStringPadded(sendSpan.spanId)};Sampled=1/
 
     cleanup:
     client.shutdown()
@@ -181,51 +190,9 @@ class SqsClientTest extends AgentTestRunner {
 
     then:
     def sendSpan
-    assertTraces(4) {
-      trace(2) {
-        span {
-          serviceName "sqs"
-          operationName "aws.http"
-          resourceName "SQS.ReceiveMessage"
-          spanType DDSpanTypes.HTTP_CLIENT
-          errored false
-          measured true
-          parent()
-          tags {
-            "$Tags.COMPONENT" "java-aws-sdk"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.HTTP_URL" "http://localhost:${address.port}/"
-            "$Tags.HTTP_METHOD" "POST"
-            "$Tags.HTTP_STATUS" 200
-            "$Tags.PEER_PORT" address.port
-            "$Tags.PEER_HOSTNAME" "localhost"
-            "aws.service" "AmazonSQS"
-            "aws.endpoint" "http://localhost:${address.port}"
-            "aws.operation" "ReceiveMessageRequest"
-            "aws.agent" "java-aws-sdk"
-            "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
-            defaultTags()
-          }
-        }
-        span {
-          operationName "http.request"
-          resourceName "POST /?/somequeue"
-          spanType DDSpanTypes.HTTP_CLIENT
-          errored false
-          measured true
-          childOf(span(0))
-          tags {
-            "$Tags.COMPONENT" "apache-httpclient"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_HOSTNAME" "localhost"
-            "$Tags.PEER_PORT" address.port
-            "$Tags.HTTP_URL" "http://localhost:${address.port}/000000000000/somequeue"
-            "$Tags.HTTP_METHOD" "POST"
-            "$Tags.HTTP_STATUS" 200
-            defaultTags()
-          }
-        }
-      }
+    // Order has changed in 1.10+ versions of amazon-sqs-java-messaging-lib
+    // so sort by names service/operation/resource
+    assertTraces(4, SORT_TRACES_BY_NAMES) {
       trace(3) {
         basicSpan(it, "parent")
         span {
@@ -272,6 +239,26 @@ class SqsClientTest extends AgentTestRunner {
         }
         sendSpan = span(2)
       }
+      trace(1) {
+        span {
+          serviceName "jms"
+          operationName "jms.consume"
+          resourceName "Consumed from Queue somequeue"
+          spanType DDSpanTypes.MESSAGE_CONSUMER
+          errored false
+          measured true
+          childOf(sendSpan)
+          tags {
+            "$Tags.COMPONENT" "jms"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            // This shows up in 1.10+ versions of amazon-sqs-java-messaging-lib
+            if (isLatestDepTest) {
+              "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
+            }
+            defaultTags(true)
+          }
+        }
+      }
       trace(2) {
         span {
           serviceName "sqs"
@@ -316,28 +303,55 @@ class SqsClientTest extends AgentTestRunner {
           }
         }
       }
-      trace(1) {
+      trace(2) {
         span {
-          serviceName "jms"
-          operationName "jms.consume"
-          resourceName "Consumed from Queue somequeue"
-          spanType DDSpanTypes.MESSAGE_CONSUMER
+          serviceName "sqs"
+          operationName "aws.http"
+          resourceName "SQS.ReceiveMessage"
+          spanType DDSpanTypes.HTTP_CLIENT
           errored false
           measured true
-          childOf(sendSpan)
+          parent()
           tags {
-            "$Tags.COMPONENT" "jms"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            defaultTags(true)
+            "$Tags.COMPONENT" "java-aws-sdk"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.HTTP_URL" "http://localhost:${address.port}/"
+            "$Tags.HTTP_METHOD" "POST"
+            "$Tags.HTTP_STATUS" 200
+            "$Tags.PEER_PORT" address.port
+            "$Tags.PEER_HOSTNAME" "localhost"
+            "aws.service" "AmazonSQS"
+            "aws.endpoint" "http://localhost:${address.port}"
+            "aws.operation" "ReceiveMessageRequest"
+            "aws.agent" "java-aws-sdk"
+            "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "http.request"
+          resourceName "POST /?/somequeue"
+          spanType DDSpanTypes.HTTP_CLIENT
+          errored false
+          measured true
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "apache-httpclient"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" "localhost"
+            "$Tags.PEER_PORT" address.port
+            "$Tags.HTTP_URL" "http://localhost:${address.port}/000000000000/somequeue"
+            "$Tags.HTTP_METHOD" "POST"
+            "$Tags.HTTP_STATUS" 200
+            defaultTags()
           }
         }
       }
     }
 
     def expectedTraceProperty = 'X-Amzn-Trace-Id'.toLowerCase(Locale.ENGLISH).replace('-', '__dash__')
-    assert message.getStringProperty(expectedTraceProperty) ==
-    "Root=1-00000000-00000000${sendSpan.traceId.toHexStringPadded(16)};" +
-    "Parent=${sendSpan.spanId.toHexStringPadded(16)};Sampled=1"
+    assert message.getStringProperty(expectedTraceProperty) =~
+    /Root=1-[0-9a-f]{8}-00000000${sendSpan.traceId.toHexStringPadded(16)};Parent=${DDSpanId.toHexStringPadded(sendSpan.spanId)};Sampled=1/
 
     cleanup:
     session.close()

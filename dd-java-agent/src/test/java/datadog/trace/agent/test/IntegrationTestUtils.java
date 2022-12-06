@@ -3,6 +3,7 @@ package datadog.trace.agent.test;
 import static datadog.trace.test.util.ForkedTestUtils.getMaxMemoryArgumentForFork;
 import static datadog.trace.test.util.ForkedTestUtils.getMinMemoryArgumentForFork;
 
+import datadog.trace.bootstrap.BootstrapProxy;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -13,7 +14,6 @@ import java.io.PrintStream;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,15 +31,11 @@ public class IntegrationTestUtils {
 
   /** Returns the classloader the core agent is running on. */
   public static ClassLoader getAgentClassLoader() {
-    return getAgentFieldClassloader("AGENT_CLASSLOADER");
-  }
-
-  private static ClassLoader getAgentFieldClassloader(final String fieldName) {
     Field classloaderField = null;
     try {
       final Class<?> agentClass =
           ClassLoader.getSystemClassLoader().loadClass("datadog.trace.bootstrap.Agent");
-      classloaderField = agentClass.getDeclaredField(fieldName);
+      classloaderField = agentClass.getDeclaredField("AGENT_CLASSLOADER");
       classloaderField.setAccessible(true);
       return (ClassLoader) classloaderField.get(null);
     } catch (final Exception e) {
@@ -51,11 +47,9 @@ public class IntegrationTestUtils {
     }
   }
 
-  /** Returns the URL to the jar the agent appended to the bootstrap classpath * */
-  public static ClassLoader getBootstrapProxy() throws Exception {
-    final ClassLoader agentClassLoader = getAgentClassLoader();
-    final Method getBootstrapProxy = agentClassLoader.getClass().getMethod("getBootstrapProxy");
-    return (ClassLoader) getBootstrapProxy.invoke(agentClassLoader);
+  /** Returns the classloader to use for bootstrap resources. */
+  public static ClassLoader getBootstrapProxy() {
+    return BootstrapProxy.INSTANCE;
   }
 
   /** See {@link IntegrationTestUtils#createJarWithClasses(String, Class[])} */
@@ -146,6 +140,10 @@ public class IntegrationTestUtils {
     throw new RuntimeException("Agent jar not found");
   }
 
+  private static String getAgentJarLocation() {
+    return getAgentArgument().replace("-javaagent:", "");
+  }
+
   public static int runOnSeparateJvm(
       final String mainClassName,
       final String[] jvmArgs,
@@ -201,28 +199,8 @@ public class IntegrationTestUtils {
       final String classpath,
       final PrintStream out)
       throws Exception {
-
-    final String separator = System.getProperty("file.separator");
-    final String path = System.getProperty("java.home") + separator + "bin" + separator + "java";
-
-    final List<String> vmArgsList = new ArrayList<>(Arrays.asList(jvmArgs));
-
-    vmArgsList.add(getAgentArgument());
-    vmArgsList.add(getMaxMemoryArgumentForFork());
-    vmArgsList.add(getMinMemoryArgumentForFork());
-    vmArgsList.add("-XX:ErrorFile=/tmp/hs_err_pid%p.log");
-
-    final List<String> commands = new ArrayList<>();
-    commands.add(path);
-    commands.addAll(vmArgsList);
-    commands.add("-cp");
-    commands.add(classpath);
-    commands.add(mainClassName);
-    commands.addAll(Arrays.asList(mainMethodArgs));
-    final ProcessBuilder processBuilder = new ProcessBuilder(commands.toArray(new String[0]));
-    processBuilder.environment().putAll(envVars);
-
-    final Process process = processBuilder.start();
+    final Process process =
+        startOnSeparateJvm(mainClassName, jvmArgs, mainMethodArgs, envVars, classpath);
 
     final StreamGobbler errorGobbler = new StreamGobbler(process.getErrorStream(), "ERROR", out);
     final StreamGobbler outputGobbler = new StreamGobbler(process.getInputStream(), "OUTPUT", out);
@@ -235,6 +213,45 @@ public class IntegrationTestUtils {
     errorGobbler.join();
 
     return process.exitValue();
+  }
+
+  public static Process startOnSeparateJvm(
+      final String mainClassName,
+      final String[] jvmArgs,
+      final String[] mainMethodArgs,
+      final Map<String, String> envVars,
+      final String classpath)
+      throws Exception {
+    final String separator = System.getProperty("file.separator");
+    final String path = System.getProperty("java.home") + separator + "bin" + separator + "java";
+
+    final List<String> vmArgsList = new ArrayList<>(Arrays.asList(jvmArgs));
+
+    boolean runAsJar = "datadog.trace.bootstrap.AgentJar".equals(mainClassName);
+
+    if (!runAsJar) {
+      vmArgsList.add(getAgentArgument());
+    }
+    vmArgsList.add(getMaxMemoryArgumentForFork());
+    vmArgsList.add(getMinMemoryArgumentForFork());
+    vmArgsList.add("-XX:ErrorFile=/tmp/hs_err_pid%p.log");
+
+    final List<String> commands = new ArrayList<>();
+    commands.add(path);
+    commands.addAll(vmArgsList);
+    if (runAsJar) {
+      commands.add("-jar");
+      commands.add(getAgentJarLocation());
+    } else {
+      commands.add("-cp");
+      commands.add(classpath);
+      commands.add(mainClassName);
+    }
+    commands.addAll(Arrays.asList(mainMethodArgs));
+    final ProcessBuilder processBuilder = new ProcessBuilder(commands.toArray(new String[0]));
+    processBuilder.environment().putAll(envVars);
+
+    return processBuilder.start();
   }
 
   private static void waitFor(final Process process, final long timeout, final TimeUnit unit)

@@ -67,8 +67,6 @@ public final class RequestInstrumentation extends Instrumenter.Tracing
         final AgentSpan span = (AgentSpan) spanObj;
         DECORATE.onResponse(span, resp);
         DECORATE.beforeFinish(span);
-        // span could have been originated on a different thread and migrated
-        span.finishThreadMigration();
         span.finish();
       }
     }

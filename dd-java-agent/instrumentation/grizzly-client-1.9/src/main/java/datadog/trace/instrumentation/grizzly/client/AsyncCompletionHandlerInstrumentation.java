@@ -38,18 +38,18 @@ public final class AsyncCompletionHandlerInstrumentation extends Instrumenter.Tr
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return AsyncHttpClientInstrumentation.CLASS_LOADER_MATCHER;
-  }
-
-  @Override
   protected boolean defaultEnabled() {
     return false;
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return "com.ning.http.client.AsyncCompletionHandler";
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named("com.ning.http.client.AsyncCompletionHandler"));
+    return extendsClass(named(hierarchyMarkerType()));
   }
 
   @Override
@@ -80,19 +80,7 @@ public final class AsyncCompletionHandlerInstrumentation extends Instrumenter.Tr
       if (null == pair) {
         return null;
       }
-      AgentSpan requestSpan = pair.getRight();
-      if (null == requestSpan) {
-        return null;
-      }
-      requestSpan.finishThreadMigration();
-      return requestSpan;
-    }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void suspend(@Advice.Enter AgentSpan requestSpan) {
-      if (null != requestSpan) {
-        requestSpan.startThreadMigration();
-      }
+      return pair.getRight();
     }
   }
 
@@ -112,7 +100,6 @@ public final class AsyncCompletionHandlerInstrumentation extends Instrumenter.Tr
       contextStore.put(handler, null);
       AgentSpan requestSpan = pair.getRight();
       if (null != requestSpan) {
-        requestSpan.finishThreadMigration();
         DECORATE.onResponse(requestSpan, response);
         DECORATE.beforeFinish(requestSpan);
         requestSpan.finish();
@@ -121,16 +108,12 @@ public final class AsyncCompletionHandlerInstrumentation extends Instrumenter.Tr
       if (null == parent) {
         return null;
       }
-      // migrate the parent to the current thread so work done in the callback
-      // is atttributed to it
-      parent.finishThreadMigration();
       return activateSpan(parent);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void onExit(@Advice.Enter final AgentScope scope) {
       if (null != scope) {
-        scope.span().finishWork();
         scope.close();
       }
     }

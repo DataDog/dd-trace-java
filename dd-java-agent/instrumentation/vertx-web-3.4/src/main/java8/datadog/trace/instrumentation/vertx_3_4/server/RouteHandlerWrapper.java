@@ -35,15 +35,10 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
 
       span = startSpan(INSTRUMENTATION_NAME);
       routingContext.put(HANDLER_SPAN_CONTEXT_KEY, span);
-      // span is stored in the context and the span related work may proceed on any thread
-      span.startThreadMigration();
 
       routingContext.response().endHandler(new EndHandlerWrapper(routingContext));
       DECORATE.afterStart(span);
       span.setResourceName(DECORATE.className(actual.getClass()));
-    } else {
-      // the span was retrieved from the context in 'suspended' state - need to be resumed
-      span.finishThreadMigration();
     }
 
     updateRoutingContextWithRoute(routingContext);
@@ -61,9 +56,15 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
 
   private void updateRoutingContextWithRoute(RoutingContext routingContext) {
     final String method = routingContext.request().rawMethod();
-    final String mountPoint = routingContext.mountPoint();
+    String mountPoint = routingContext.mountPoint();
     String path = routingContext.currentRoute().getPath();
-    if (mountPoint != null) {
+    if (mountPoint != null && !mountPoint.isEmpty()) {
+      if (mountPoint.charAt(mountPoint.length() - 1) == '/'
+          && path != null
+          && !path.isEmpty()
+          && path.charAt(0) == '/') {
+        mountPoint = mountPoint.substring(0, mountPoint.length() - 1);
+      }
       path = mountPoint + path;
     }
     if (method != null && path != null) {

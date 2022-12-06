@@ -1,0 +1,30 @@
+{
+  "id": "petclinic",
+  "orgId": 2,
+  "snapshotProbes": [{
+    "id": "123356536",
+    "language": "java",
+    "where": {
+      "typeName": "java.lang.Object",
+      "methodName": "toString",
+      "signature": "java.lang.String ()"
+    }
+  }],
+  "metricProbes": [{
+    "id": "123356537",
+    "created": "2021-03-31T13:26:52.519150+00:00",
+    "active": true,
+    "language": "java",
+    "where": {
+      "typeName": "VetController",
+      "methodName": "showVetList"
+    },
+    "tags": ["version:v123", "env:staging"],
+    "kind": "COUNT",
+    "userId": "342867d2-2cf1-11ea-ad29-07d1e9ed1dda",
+    "metricName": "datadog.debugger.showVetList.calls",
+    "value": {
+      "expr": 42
+    }
+  }]
+}

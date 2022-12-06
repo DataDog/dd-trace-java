@@ -6,5 +6,5 @@ public interface ClassMatchers {
 
   boolean isGloballyIgnored(String fullClassName, boolean skipAdditionalIgnores);
 
-  String matchingIntrumenters(TypeDescription typeDescription);
+  String matchingInstrumenters(TypeDescription typeDescription);
 }

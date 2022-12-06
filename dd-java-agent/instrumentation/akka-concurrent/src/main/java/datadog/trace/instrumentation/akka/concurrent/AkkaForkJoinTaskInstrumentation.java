@@ -50,10 +50,15 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return "akka.dispatch.forkjoin.ForkJoinTask";
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return notExcludedByName(FORK_JOIN_TASK)
         .and(declaresMethod(namedOneOf("exec", "fork", "cancel")))
-        .and(extendsClass(named("akka.dispatch.forkjoin.ForkJoinTask")));
+        .and(extendsClass(named(hierarchyMarkerType())));
   }
 
   @Override

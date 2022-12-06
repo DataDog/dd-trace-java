@@ -2,9 +2,9 @@ package datadog.trace.agent.tooling;
 
 import com.blogspot.mydailyjava.weaklockfree.WeakConcurrentMap;
 import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
-import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.WeakCache;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Function;
 
 public class WeakCaches {
   private static final long DEFAULT_CACHE_CAPACITY = 32;
@@ -74,6 +74,11 @@ public class WeakCaches {
       expungeIfNecessary();
 
       weakMap.put(key, value);
+    }
+
+    @Override
+    public void clear() {
+      weakMap.clear();
     }
 
     private void expungeIfNecessary() {

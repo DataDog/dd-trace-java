@@ -21,12 +21,14 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -34,6 +36,7 @@ import static org.mockito.Mockito.when;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.Appender;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.AgentTaskScheduler;
 import java.time.Duration;
 import java.time.Instant;
@@ -69,6 +72,7 @@ public class ProfilingSystemTest {
   private final AgentTaskScheduler scheduler = new AgentTaskScheduler(PROFILER_RECORDING_SCHEDULER);
 
   @Mock private ThreadLocalRandom threadLocalRandom;
+  @Mock private ConfigProvider configProvider;
   @Mock private Controller controller;
   @Mock private OngoingRecording recording;
   @Mock private RecordingData recordingData;
@@ -78,7 +82,7 @@ public class ProfilingSystemTest {
 
   @SuppressWarnings("unchecked")
   @BeforeEach
-  public void setup() {
+  public void setup() throws Exception {
     when(controller.createRecording(ProfilingSystem.RECORDING_NAME)).thenReturn(recording);
     when(threadLocalRandom.nextInt(eq(1), anyInt())).thenReturn(1);
     when(recordingData.getEnd()).thenAnswer(mockInvocation -> Instant.now());
@@ -116,6 +120,7 @@ public class ProfilingSystemTest {
             new RuntimeException(new RuntimeException("com.oracle.jrockit:type=FlightRecorder")));
     final ProfilingSystem system =
         new ProfilingSystem(
+            configProvider,
             controller,
             listener,
             Duration.ofMillis(10),
@@ -125,7 +130,7 @@ public class ProfilingSystemTest {
     system.start();
     assertLog(
         Level.WARN,
-        "Oracle JDK 8 is being used, where the Flight Recorder is a commercial feature. Please, make sure you have a valid license to use Flight Recorder  (for example Oracle Java SE Advanced) and then add ‘-XX:+UnlockCommercialFeatures -XX:+FlightRecorder’ to your launcher script. Alternatively, use an OpenJDK 8 distribution from another vendor, where the Flight Recorder is free.");
+        "You're running Oracle JDK 8. Datadog Continuous Profiler for Java depends on Java Flight Recorder, which requires a paid license in Oracle JDK 8. If you have one, please add the following `java` command line args: ‘-XX:+UnlockCommercialFeatures -XX:+FlightRecorder’. Alternatively, you can use a different Java 8 distribution like OpenJDK, where Java Flight Recorder is free.");
   }
 
   @Test
@@ -135,6 +140,7 @@ public class ProfilingSystemTest {
         .thenThrow(new RuntimeException(new RuntimeException()));
     final ProfilingSystem system =
         new ProfilingSystem(
+            configProvider,
             controller,
             listener,
             Duration.ofMillis(10),
@@ -151,6 +157,7 @@ public class ProfilingSystemTest {
         .thenThrow(new IllegalArgumentException());
     final ProfilingSystem system =
         new ProfilingSystem(
+            configProvider,
             controller,
             listener,
             Duration.ofMillis(10),
@@ -161,9 +168,10 @@ public class ProfilingSystemTest {
   }
 
   @Test
-  public void testShutdown() throws ConfigurationException {
+  public void testShutdown() throws Exception {
     final ProfilingSystem system =
         new ProfilingSystem(
+            configProvider,
             controller,
             listener,
             Duration.ofMillis(10),
@@ -181,9 +189,10 @@ public class ProfilingSystemTest {
   }
 
   @Test
-  public void testShutdownWithRunningProfilingRecording() throws ConfigurationException {
+  public void testShutdownWithRunningProfilingRecording() throws Exception {
     final ProfilingSystem system =
         new ProfilingSystem(
+            configProvider,
             controller,
             listener,
             Duration.ofMillis(10),
@@ -201,9 +210,37 @@ public class ProfilingSystemTest {
   }
 
   @Test
-  public void testForceEarlySTartup() throws ConfigurationException {
+  public void testShutdownWithSnapshotOnShutdown() throws Exception {
+    final ProfilingSystem system =
+        spy(
+            new ProfilingSystem(
+                configProvider,
+                controller,
+                listener,
+                Duration.ofMillis(10),
+                Duration.ZERO,
+                Duration.ofMillis(300),
+                false,
+                scheduler,
+                threadLocalRandom));
+    final ProfilingSystem.SnapshotRecording snapshotRecording =
+        spy(system.createSnapshotRecording(Instant.now()));
+
+    when(system.createSnapshotRecording(any())).thenReturn(snapshotRecording);
+    startProfilingSystem(system);
+    verify(controller).createRecording(any());
+    system.shutdown(true);
+
+    verify(snapshotRecording).snapshot(true);
+    verify(recording).close();
+    assertTrue(scheduler.isShutdown());
+  }
+
+  @Test
+  public void testForceEarlySTartup() throws Exception {
     final ProfilingSystem system =
         new ProfilingSystem(
+            configProvider,
             controller,
             listener,
             Duration.ofMillis(10),
@@ -218,7 +255,7 @@ public class ProfilingSystemTest {
   }
 
   @Test
-  public void testShutdownInterruption() throws ConfigurationException {
+  public void testShutdownInterruption() throws Exception {
     final Thread mainThread = Thread.currentThread();
     doAnswer(
             (InvocationOnMock invocation) -> {
@@ -235,9 +272,10 @@ public class ProfilingSystemTest {
               return null;
             })
         .when(listener)
-        .onNewData(any(), any());
+        .onNewData(any(), any(), anyBoolean());
     final ProfilingSystem system =
         new ProfilingSystem(
+            configProvider,
             controller,
             listener,
             Duration.ofMillis(10),
@@ -257,6 +295,7 @@ public class ProfilingSystemTest {
   public void testCanShutDownWithoutStarting() throws ConfigurationException {
     final ProfilingSystem system =
         new ProfilingSystem(
+            configProvider,
             controller,
             listener,
             Duration.ofMillis(10),
@@ -270,9 +309,10 @@ public class ProfilingSystemTest {
   }
 
   @Test
-  public void testDoesntSendDataIfNotStarted() throws InterruptedException, ConfigurationException {
+  public void testDoesntSendDataIfNotStarted() throws Exception {
     final ProfilingSystem system =
         new ProfilingSystem(
+            configProvider,
             controller,
             listener,
             Duration.ofMillis(10),
@@ -282,15 +322,16 @@ public class ProfilingSystemTest {
     Thread.sleep(50);
     system.shutdown();
     verify(controller, never()).createRecording(any());
-    verify(listener, never()).onNewData(any(), any());
+    verify(listener, never()).onNewData(any(), any(), anyBoolean());
   }
 
   @Test
   public void testDoesntSendPeriodicRecordingIfPeriodicRecordingIsDisabled()
       throws InterruptedException, ConfigurationException {
-    when(recording.snapshot(any())).thenReturn(recordingData);
+    when(recording.snapshot(any(), any())).thenReturn(recordingData);
     final ProfilingSystem system =
         new ProfilingSystem(
+            configProvider,
             controller,
             listener,
             Duration.ofMillis(10),
@@ -300,7 +341,7 @@ public class ProfilingSystemTest {
     startProfilingSystem(system);
     Thread.sleep(200);
     system.shutdown();
-    verify(listener, atLeastOnce()).onNewData(CONTINUOUS, recordingData);
+    verify(listener, atLeastOnce()).onNewData(CONTINUOUS, recordingData, false);
   }
 
   @Test
@@ -309,6 +350,7 @@ public class ProfilingSystemTest {
         ConfigurationException.class,
         () -> {
           new ProfilingSystem(
+              configProvider,
               controller,
               listener,
               Duration.ofMillis(-10),
@@ -324,6 +366,7 @@ public class ProfilingSystemTest {
         ConfigurationException.class,
         () -> {
           new ProfilingSystem(
+              configProvider,
               controller,
               listener,
               Duration.ofMillis(10),
@@ -339,6 +382,7 @@ public class ProfilingSystemTest {
         ConfigurationException.class,
         () -> {
           new ProfilingSystem(
+              configProvider,
               controller,
               listener,
               Duration.ofMillis(10),
@@ -353,12 +397,13 @@ public class ProfilingSystemTest {
   public void testRecordingSnapshotError() throws ConfigurationException {
     final Duration uploadPeriod = Duration.ofMillis(300);
     final List<RecordingData> generatedRecordingData = new ArrayList<>();
-    when(recording.snapshot(any()))
+    when(recording.snapshot(any(), any()))
         .thenThrow(new RuntimeException("Test"))
         .thenAnswer(generateMockRecordingData(generatedRecordingData));
 
     final ProfilingSystem system =
         new ProfilingSystem(
+            configProvider,
             controller,
             listener,
             Duration.ofMillis(10),
@@ -371,7 +416,7 @@ public class ProfilingSystemTest {
 
     final ArgumentCaptor<RecordingData> captor = ArgumentCaptor.forClass(RecordingData.class);
     verify(listener, timeout(REASONABLE_TIMEOUT).atLeast(2))
-        .onNewData(eq(CONTINUOUS), captor.capture());
+        .onNewData(eq(CONTINUOUS), captor.capture(), anyBoolean());
     assertEquals(generatedRecordingData, captor.getAllValues());
 
     system.shutdown();
@@ -381,12 +426,13 @@ public class ProfilingSystemTest {
   public void testRecordingSnapshotNoData() throws ConfigurationException {
     final Duration uploadPeriod = Duration.ofMillis(300);
     final List<RecordingData> generatedRecordingData = new ArrayList<>();
-    when(recording.snapshot(any()))
+    when(recording.snapshot(any(), any()))
         .thenReturn(null)
         .thenAnswer(generateMockRecordingData(generatedRecordingData));
 
     final ProfilingSystem system =
         new ProfilingSystem(
+            configProvider,
             controller,
             listener,
             Duration.ofMillis(10),
@@ -399,7 +445,7 @@ public class ProfilingSystemTest {
 
     final ArgumentCaptor<RecordingData> captor = ArgumentCaptor.forClass(RecordingData.class);
     verify(listener, timeout(REASONABLE_TIMEOUT).times(2))
-        .onNewData(eq(CONTINUOUS), captor.capture());
+        .onNewData(eq(CONTINUOUS), captor.capture(), anyBoolean());
     assertEquals(generatedRecordingData, captor.getAllValues());
 
     system.shutdown();
@@ -416,6 +462,7 @@ public class ProfilingSystemTest {
 
     final ProfilingSystem system =
         new ProfilingSystem(
+            configProvider,
             controller,
             listener,
             startupDelay,
@@ -436,6 +483,7 @@ public class ProfilingSystemTest {
 
     final ProfilingSystem system =
         new ProfilingSystem(
+            configProvider,
             controller,
             listener,
             startupDelay,
@@ -449,7 +497,7 @@ public class ProfilingSystemTest {
   }
 
   @Test
-  public void testEarlyShutdownException() throws InterruptedException, ConfigurationException {
+  public void testEarlyShutdownException() throws Exception {
     when(controller.createRecording(any()))
         .thenThrow(new IllegalStateException("Shutdown in progress"));
 
@@ -457,6 +505,7 @@ public class ProfilingSystemTest {
 
     final ProfilingSystem system =
         new ProfilingSystem(
+            configProvider,
             controller,
             listener,
             startupDelay,

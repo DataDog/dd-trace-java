@@ -16,11 +16,13 @@ final class LEB128Support {
     }
     int pos = 63;
     long mask = 0xFE00000000000000L;
+    long highBitMask = 0x8000000000000000L;
     while ((value & mask) == 0) {
       pos -= 7;
       mask = mask >>> 7;
+      highBitMask = highBitMask >>> 7;
     }
-    return ((pos - 1) / 7) + 1;
+    return Math.min((pos / 7) + (pos % 7 == 0 ? 0 : 1) + (((value & highBitMask) != 0 ? 1 : 0)), 9);
   }
 
   int longSize(long value) {

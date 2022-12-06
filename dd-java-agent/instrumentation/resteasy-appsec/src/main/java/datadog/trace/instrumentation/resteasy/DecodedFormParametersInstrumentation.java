@@ -7,18 +7,20 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.muzzle.IReferenceMatcher;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
-import datadog.trace.api.function.BiFunction;
+import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiFunction;
 import javax.ws.rs.core.MultivaluedMap;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.pool.TypePool;
 
 @AutoService(Instrumenter.class)
 public class DecodedFormParametersInstrumentation extends Instrumenter.AppSec
@@ -28,12 +30,15 @@ public class DecodedFormParametersInstrumentation extends Instrumenter.AppSec
     super("resteasy");
   }
 
+  private static final String NETTY_HTTP_REQUEST_CLASS_NAME =
+      "org.jboss.resteasy.plugins.server.netty.NettyHttpRequest";
+
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
       "org.jboss.resteasy.plugins.server.BaseHttpRequest",
       "org.jboss.resteasy.plugins.server.servlet.HttpServletInputMessage",
-      "org.jboss.resteasy.plugins.server.netty.NettyHttpRequest"
+      NETTY_HTTP_REQUEST_CLASS_NAME
     };
   }
 
@@ -44,64 +49,37 @@ public class DecodedFormParametersInstrumentation extends Instrumenter.AppSec
         DecodedFormParametersInstrumentation.class.getName() + "$GetDecodedFormParametersAdvice");
   }
 
-  private static final ReferenceMatcher BASE_HTTP_REQUEST_DECODED_PARAMETERS_MATCHER =
-      new ReferenceMatcher(
-          new Reference.Builder("org.jboss.resteasy.plugins.server.BaseHttpRequest")
-              .withField(
-                  new String[0], 0, "decodedFormParameters", "Ljavax/ws/rs/core/MultivaluedMap;")
-              .build());
+  private static final Reference BASE_HTTP_REQUEST_DECODED_PARAMETERS =
+      new Reference.Builder("org.jboss.resteasy.plugins.server.BaseHttpRequest")
+          .withField(new String[0], 0, "decodedFormParameters", "Ljavax/ws/rs/core/MultivaluedMap;")
+          .build();
 
-  private static final ReferenceMatcher HTTP_SERVLET_INPUT_MESSAGE_DECODED_PARAMETERS_MATCHER =
-      new ReferenceMatcher(
-          new Reference.Builder("org.jboss.resteasy.plugins.server.servlet.HttpServletInputMessage")
-              .withField(
-                  new String[0], 0, "decodedFormParameters", "Ljavax/ws/rs/core/MultivaluedMap;")
-              .build());
+  private static final Reference HTTP_SERVLET_INPUT_MESSAGE_DECODED_PARAMETERS =
+      new Reference.Builder("org.jboss.resteasy.plugins.server.servlet.HttpServletInputMessage")
+          .withField(new String[0], 0, "decodedFormParameters", "Ljavax/ws/rs/core/MultivaluedMap;")
+          .build();
 
-  public static final String NETTY_HTTP_REQUEST_CLASS_NAME =
-      "org.jboss.resteasy.plugins.server.netty.NettyHttpRequest";
-  public static final String NETTY_HTTP_REQUEST_RESOURCE_NAME =
-      "org/jboss/resteasy/plugins/server/netty/NettyHttpRequest.class";
-  private static final ReferenceMatcher NETTY_HTTP_REQUEST_DECODED_PARAMETERS_MATCHER =
-      new ReferenceMatcher(
-          new Reference.Builder(NETTY_HTTP_REQUEST_CLASS_NAME)
-              .withField(
-                  new String[0], 0, "decodedFormParameters", "Ljavax/ws/rs/core/MultivaluedMap;")
-              .build());
+  private static final Reference NETTY_HTTP_REQUEST_DECODED_PARAMETERS =
+      new Reference.Builder(NETTY_HTTP_REQUEST_CLASS_NAME)
+          .withField(new String[0], 0, "decodedFormParameters", "Ljavax/ws/rs/core/MultivaluedMap;")
+          .build();
 
-  private IReferenceMatcher postProcessReferenceMatcher(final ReferenceMatcher origMatcher) {
-    final IReferenceMatcher baseMatcher =
-        new IReferenceMatcher.ConjunctionReferenceMatcher(
-            new IReferenceMatcher.ConjunctionReferenceMatcher(
-                origMatcher, BASE_HTTP_REQUEST_DECODED_PARAMETERS_MATCHER),
-            HTTP_SERVLET_INPUT_MESSAGE_DECODED_PARAMETERS_MATCHER);
-    final IReferenceMatcher matcherWithNetty =
-        new IReferenceMatcher.ConjunctionReferenceMatcher(
-            baseMatcher, NETTY_HTTP_REQUEST_DECODED_PARAMETERS_MATCHER);
+  @Override
+  public ReferenceProvider runtimeMuzzleReferences() {
+    return new CustomReferenceProvider();
+  }
 
-    return new IReferenceMatcher() {
-      @Override
-      public boolean matches(ClassLoader loader) {
-        if (hasNetty(loader)) {
-          return matcherWithNetty.matches(loader);
-        } else {
-          return baseMatcher.matches(loader);
-        }
+  static class CustomReferenceProvider implements ReferenceProvider {
+    @Override
+    public Iterable<Reference> buildReferences(TypePool typePool) {
+      List<Reference> references = new ArrayList<>();
+      references.add(BASE_HTTP_REQUEST_DECODED_PARAMETERS);
+      references.add(HTTP_SERVLET_INPUT_MESSAGE_DECODED_PARAMETERS);
+      if (typePool.describe(NETTY_HTTP_REQUEST_CLASS_NAME).isResolved()) {
+        references.add(NETTY_HTTP_REQUEST_DECODED_PARAMETERS);
       }
-
-      @Override
-      public List<Reference.Mismatch> getMismatchedReferenceSources(ClassLoader loader) {
-        if (hasNetty(loader)) {
-          return matcherWithNetty.getMismatchedReferenceSources(loader);
-        } else {
-          return baseMatcher.getMismatchedReferenceSources(loader);
-        }
-      }
-
-      private boolean hasNetty(ClassLoader loader) {
-        return loader.getResource(NETTY_HTTP_REQUEST_RESOURCE_NAME) != null;
-      }
-    };
+      return references;
+    }
   }
 
   public static class GetDecodedFormParametersAdvice {
@@ -127,10 +105,10 @@ public class DecodedFormParametersInstrumentation extends Instrumenter.AppSec
         return;
       }
 
-      CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
-      BiFunction<RequestContext<Object>, Object, Flow<Void>> callback =
+      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+      BiFunction<RequestContext, Object, Flow<Void>> callback =
           cbp.getCallback(EVENTS.requestBodyProcessed());
-      RequestContext<Object> requestContext = agentSpan.getRequestContext();
+      RequestContext requestContext = agentSpan.getRequestContext();
       if (requestContext == null || callback == null) {
         return;
       }

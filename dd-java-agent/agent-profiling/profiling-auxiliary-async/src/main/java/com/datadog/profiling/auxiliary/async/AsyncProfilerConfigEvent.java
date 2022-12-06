@@ -23,6 +23,12 @@ public class AsyncProfilerConfigEvent extends Event {
   @Timespan("MILLISECONDS")
   private final long cpuInterval;
 
+  @Label("Wall Sampling Interval")
+  @Description(
+      "Number of milliseconds used by a Wall between two subsequent samples or -1 if inactive")
+  @Timespan("MILLISECONDS")
+  private final long wallInterval;
+
   @Label("Allocation Sampling Interval")
   @Description("Number of bytes allocated between two subsequent samples or -1 if inactive")
   @DataAmount
@@ -53,6 +59,7 @@ public class AsyncProfilerConfigEvent extends Event {
       String version,
       String libPath,
       long cpuInterval,
+      long wallInterval,
       long allocInterval,
       long memleakInterval,
       long memleakCapacity,
@@ -60,6 +67,7 @@ public class AsyncProfilerConfigEvent extends Event {
     this.version = version;
     this.libPath = libPath;
     this.cpuInterval = cpuInterval;
+    this.wallInterval = wallInterval;
     this.allocInterval = allocInterval;
     this.memleakInterval = memleakInterval;
     this.memleakCapacity = memleakCapacity;

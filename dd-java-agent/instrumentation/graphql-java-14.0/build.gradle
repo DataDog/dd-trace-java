@@ -1,0 +1,36 @@
+// Set properties before any plugins get loaded
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+muzzle {
+  pass {
+    group = "com.graphql-java"
+    module = 'graphql-java'
+    versions = '[14.0,2018)' // exclude dates as version numbers
+    // earlier versions are missing some classes and will require separate instrumentation
+  }
+  fail {
+    group = "com.graphql-java"
+    module = 'graphql-java'
+    versions = '[1.2,14.0)'
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+dependencies {
+  main_java8CompileOnly group: 'com.graphql-java', name: 'graphql-java', version: '14.0'
+  testImplementation group: 'com.graphql-java', name: 'graphql-java', version: '14.0'
+
+  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+
+  latestDepTestImplementation group: 'com.graphql-java', name: 'graphql-java', version: '[19+,2018)'
+}

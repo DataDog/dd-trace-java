@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: datadog
+  namespace: default
+spec:
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: datadog
+  template:
+    metadata:
+      name: datadog
+      labels:
+        app: datadog
+    spec:
+      containers:
+      - command:
+        - ddapm-test-agent
+        env:
+        - name: SNAPSHOT_CI
+          value: '0'
+        - name: PORT
+          value: '8126'
+        - name: DD_APM_RECEIVER_SOCKET
+          value: '/var/run/datadog/apm.socket'
+        - name: LOG_LEVEL
+          value: 'DEBUG'
+        image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
+        imagePullPolicy: Always
+        livenessProbe:
+          failureThreshold: 3
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          successThreshold: 1
+          tcpSocket:
+            port: 18126
+          timeoutSeconds: 5
+        name: trace-agent
+        ports:
+        - containerPort: 8126
+          hostPort: 8126
+          name: traceport
+          protocol: TCP
+        volumeMounts:
+          - mountPath: /var/run/datadog
+            name: datadog
+      dnsPolicy: ClusterFirst
+      nodeSelector:
+        kubernetes.io/os: linux
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        runAsUser: 0
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: datadog
+          hostPath:
+            path: /var/run/datadog
+            type: DirectoryOrCreate
+  updateStrategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 10%
+    type: RollingUpdate

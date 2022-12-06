@@ -64,7 +64,7 @@ public class DefaultDataStreamsCheckpointer
             false,
             true,
             Collections.<String, String>emptyMap()),
-        sharedCommunicationObjects.featuresDiscovery,
+        sharedCommunicationObjects.featuresDiscovery(config),
         timeSource,
         config);
   }
@@ -101,7 +101,7 @@ public class DefaultDataStreamsCheckpointer
   @Override
   public void start() {
     if (features.getDataStreamsEndpoint() == null) {
-      features.discover();
+      features.discoverIfOutdated();
     }
 
     if (features.supportsDataStreams()) {
@@ -132,9 +132,14 @@ public class DefaultDataStreamsCheckpointer
     return new DefaultPathwayContext(timeSource, wellKnownTags);
   }
 
+  public <C> PathwayContext extractBinaryPathwayContext(
+      C carrier, AgentPropagation.BinaryContextVisitor<C> getter) {
+    return DefaultPathwayContext.extractBinary(carrier, getter, timeSource, wellKnownTags);
+  }
+
   @Override
   public <C> PathwayContext extractPathwayContext(
-      C carrier, AgentPropagation.BinaryContextVisitor<C> getter) {
+      C carrier, AgentPropagation.ContextVisitor<C> getter) {
     return DefaultPathwayContext.extract(carrier, getter, timeSource, wellKnownTags);
   }
 
@@ -173,16 +178,9 @@ public class DefaultDataStreamsCheckpointer
             break;
           } else if (supportsDataStreams) {
             Long bucket = currentBucket(statsPoint.getTimestampNanos());
-
-            // FIXME computeIfAbsent() is not available because Java 7
-            // No easy way to have Java 8 in core even though datastreams monitoring is 8+ from
-            // DDSketch
-            StatsBucket statsBucket = timeToBucket.get(bucket);
-            if (statsBucket == null) {
-              statsBucket = new StatsBucket(bucket, bucketDurationNanos);
-              timeToBucket.put(bucket, statsBucket);
-            }
-
+            StatsBucket statsBucket =
+                timeToBucket.computeIfAbsent(
+                    bucket, startTime -> new StatsBucket(startTime, bucketDurationNanos));
             statsBucket.addPoint(statsPoint);
           }
         } catch (InterruptedException e) {
@@ -219,6 +217,11 @@ public class DefaultDataStreamsCheckpointer
     }
   }
 
+  @Override
+  public void clear() {
+    timeToBucket.clear();
+  }
+
   void report() {
     inbox.offer(REPORT);
   }
@@ -243,7 +246,7 @@ public class DefaultDataStreamsCheckpointer
   private void checkFeatures() {
     boolean oldValue = supportsDataStreams;
 
-    features.discover();
+    features.discoverIfOutdated();
     supportsDataStreams = features.supportsDataStreams();
     if (oldValue && !supportsDataStreams) {
       log.info("Disabling data streams reporting because it is not supported by the agent");

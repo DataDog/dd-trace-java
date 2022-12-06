@@ -1,6 +1,6 @@
 package datadog.trace.common.sampling
 
-import datadog.trace.api.DDId
+import datadog.trace.api.DDTraceId
 import datadog.trace.core.DDSpan
 import datadog.trace.test.util.DDSpecification
 
@@ -10,7 +10,7 @@ class DeterministicSamplerTest extends DDSpecification {
     given:
     DeterministicSampler sampler = new DeterministicSampler(0.5)
     DDSpan span = Mock(DDSpan) {
-      getTraceId() >> DDId.from(traceId)
+      getTraceId() >> DDTraceId.from(traceId)
     }
 
     when:
@@ -127,7 +127,7 @@ class DeterministicSamplerTest extends DDSpecification {
     given:
     DeterministicSampler sampler = new DeterministicSampler(0)
     DDSpan span = Mock(DDSpan) {
-      getTraceId() >> DDId.from(traceId)
+      getTraceId() >> DDTraceId.from(traceId)
     }
 
     when:
@@ -246,7 +246,7 @@ class DeterministicSamplerTest extends DDSpecification {
     given:
     DeterministicSampler sampler = new DeterministicSampler(1)
     DDSpan span = Mock(DDSpan) {
-      getTraceId() >> DDId.from(traceId)
+      getTraceId() >> DDTraceId.from(traceId)
     }
 
     when:
@@ -361,16 +361,18 @@ class DeterministicSamplerTest extends DDSpecification {
     true     | "9956202364908137547"
   }
 
+  static final BigDecimal CUTOFF_FACTOR = new BigDecimal(BigInteger.valueOf(2).pow(64).subtract(BigInteger.ONE))
+
   def "test cutoff calculation"() {
     when:
-    long cutoff = DeterministicSampler.cutoff(rate / 10000F)
+    long cutoff = DeterministicSampler.cutoff(rate / 100F)
     then:
-    Math.abs(cutoff - new BigDecimal(rate / 10000D)
-      .multiply(new BigDecimal(BigInteger.valueOf(2).pow(64).subtract(BigInteger.ONE)))
+    Math.abs(cutoff - new BigDecimal(rate / 100D)
+      .multiply(CUTOFF_FACTOR)
       .toBigInteger()
       .longValue() + Long.MIN_VALUE) <= 1
 
     where:
-    rate << (0..10000)
+    rate << (0..100)
   }
 }

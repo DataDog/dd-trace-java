@@ -1,8 +1,11 @@
 package datadog.smoketest
 
+import datadog.trace.agent.test.utils.PortUtils
 import okhttp3.Request
 import org.testcontainers.containers.RabbitMQContainer
 import spock.lang.Shared
+
+import java.util.concurrent.TimeUnit
 
 class SpringBootRabbitIntegrationTest extends AbstractServerSmokeTest {
 
@@ -27,14 +30,11 @@ class SpringBootRabbitIntegrationTest extends AbstractServerSmokeTest {
 
   @Override
   void beforeProcessBuilders() {
-    if ("true" == System.getenv("CI")) {
-      // CircleCI provides a rabbit image
-    } else {
-      rabbitMQContainer = new RabbitMQContainer("rabbitmq:latest")
-      rabbitMQContainer.start()
-      rabbitHost = rabbitMQContainer.getHost()
-      rabbitPort = rabbitMQContainer.getMappedPort(5672)
-    }
+    rabbitMQContainer = new RabbitMQContainer("rabbitmq:3.9.20-alpine")
+    rabbitMQContainer.start()
+    rabbitHost = rabbitMQContainer.getHost()
+    rabbitPort = rabbitMQContainer.getMappedPort(5672)
+    PortUtils.waitForPortToOpen(rabbitHost, rabbitPort, 5, TimeUnit.SECONDS)
   }
 
   @Override

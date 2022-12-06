@@ -1,10 +1,10 @@
 package datadog.trace.agent.tooling.context;
 
-import static datadog.trace.agent.tooling.context.ShouldInjectFieldsMatcher.hasInjectedField;
+import static datadog.trace.agent.tooling.context.ShouldInjectFieldsState.hasInjectedField;
 import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
 import static datadog.trace.util.Strings.getInternalName;
 
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.FieldBackedContextStores;
@@ -30,7 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Injects fields and accessors so the class can act as a surrogate {@link ContextStore}. */
-final class FieldBackedContextInjector implements AsmVisitorWrapper {
+public final class FieldBackedContextInjector implements AsmVisitorWrapper {
 
   private static final Logger log = LoggerFactory.getLogger(FieldBackedContextInjector.class);
 
@@ -67,7 +67,8 @@ final class FieldBackedContextInjector implements AsmVisitorWrapper {
   /** Keeps track of injection requests for the class being transformed by the current thread. */
   static final ThreadLocal<BitSet> INJECTED_STORE_IDS = new ThreadLocal<>();
 
-  final boolean serialVersionUIDFieldInjection = Config.get().isSerialVersionUIDFieldInjection();
+  final boolean serialVersionUIDFieldInjection =
+      InstrumenterConfig.get().isSerialVersionUIDFieldInjection();
 
   final String keyClassName;
   final String contextClassName;
@@ -501,7 +502,7 @@ final class FieldBackedContextInjector implements AsmVisitorWrapper {
               null,
               computeSVUID());
         } catch (final Exception e) {
-          log.debug("Failed to add serialVersionUID to {}", instrumentedType.getActualName(), e);
+          log.debug("Failed to add serialVersionUID to {}", instrumentedType.getName(), e);
         }
       }
     }

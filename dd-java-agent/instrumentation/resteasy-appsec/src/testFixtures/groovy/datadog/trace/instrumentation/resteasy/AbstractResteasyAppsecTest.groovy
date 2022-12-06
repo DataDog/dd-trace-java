@@ -3,11 +3,10 @@ package datadog.trace.instrumentation.resteasy
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.utils.OkHttpUtils
-import datadog.trace.api.function.BiFunction
-import datadog.trace.api.function.Supplier
 import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
@@ -26,6 +25,8 @@ import javax.ws.rs.core.MediaType
 import javax.ws.rs.core.Response
 import javax.ws.rs.ext.ContextResolver
 import java.util.concurrent.TimeUnit
+import java.util.function.BiFunction
+import java.util.function.Supplier
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
@@ -46,12 +47,12 @@ abstract class AbstractResteasyAppsecTest extends AgentTestRunner {
 
   def setupSpec() {
     Events<Object> events = Events.get()
-    ig = AgentTracer.get().instrumentationGateway()
+    ig = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC)
     ig.registerCallback(events.requestStarted(), { -> new Flow.ResultFlow<Object>(new Object()) } as Supplier<Flow<Object>>)
-    ig.registerCallback(events.requestBodyProcessed(), { RequestContext<Object> ctx, Object obj ->
+    ig.registerCallback(events.requestBodyProcessed(), { RequestContext ctx, Object obj ->
       ctx.traceSegment.setTagTop('request.body.converted', obj as String)
       Flow.ResultFlow.empty()
-    } as BiFunction<RequestContext<Object>, Object, Flow<Void>>)
+    } as BiFunction<RequestContext, Object, Flow<Void>>)
 
     startServer()
   }

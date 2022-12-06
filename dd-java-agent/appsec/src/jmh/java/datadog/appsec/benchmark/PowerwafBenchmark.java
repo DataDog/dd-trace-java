@@ -4,7 +4,7 @@ import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.datadog.appsec.config.AppSecConfig;
-import com.datadog.appsec.config.AppSecConfigServiceImpl;
+import com.datadog.appsec.config.AppSecConfigDeserializer;
 import com.datadog.appsec.event.data.KnownAddresses;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.Powerwaf;
@@ -18,7 +18,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import okio.Okio;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -71,10 +70,10 @@ public class PowerwafBenchmark {
   }
 
   @Setup(Level.Trial)
-  public void setUp() throws IOException, AbstractPowerwafException {
+  public void setUp() throws AbstractPowerwafException, IOException {
     InputStream stream = getClass().getClassLoader().getResourceAsStream("test_multi_config.json");
     Map<String, AppSecConfig> cfg =
-        AppSecConfigServiceImpl.deserializeConfig(Okio.buffer(Okio.source(stream)));
+        Collections.singletonMap("waf", AppSecConfigDeserializer.INSTANCE.deserialize(stream));
     AppSecConfig waf = cfg.get("waf");
     ctx = Powerwaf.createContext("waf", waf.getRawConfig());
 

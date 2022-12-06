@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static java.util.Collections.singletonMap;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -18,15 +19,24 @@ public final class Servlet2ResponseStatusInstrumentation extends Instrumenter.Tr
     super("servlet", "servlet-2");
   }
 
-  // this is required to make sure servlet 2 instrumentation won't apply to servlet 3
+  @Override
+  public String muzzleDirective() {
+    return "servlet-2.x";
+  }
+
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return Servlet2Instrumentation.CLASS_LOADER_MATCHER;
+    return Servlet2Instrumentation.NOT_SERVLET_3;
+  }
+
+  @Override
+  public String hierarchyMarkerType() {
+    return "javax.servlet.http.HttpServletResponse";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("javax.servlet.http.HttpServletResponse"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override
@@ -41,7 +51,8 @@ public final class Servlet2ResponseStatusInstrumentation extends Instrumenter.Tr
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        namedOneOf("sendError", "setStatus"), packageName + ".Servlet2ResponseStatusAdvice");
+        namedOneOf("sendError", "setStatus").and(takesArgument(0, int.class)),
+        packageName + ".Servlet2ResponseStatusAdvice");
     transformation.applyAdvice(
         named("sendRedirect"), packageName + ".Servlet2ResponseRedirectAdvice");
   }

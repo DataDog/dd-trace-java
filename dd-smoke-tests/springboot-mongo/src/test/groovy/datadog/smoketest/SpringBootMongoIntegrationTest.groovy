@@ -3,8 +3,30 @@ package datadog.smoketest
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
+import org.testcontainers.containers.MongoDBContainer
+import org.testcontainers.utility.DockerImageName
+import spock.lang.Shared
 
 class SpringBootMongoIntegrationTest extends AbstractServerSmokeTest {
+
+  @Shared
+  def mongoDbContainer
+
+  @Shared
+  String mongoDbUri
+
+  def cleanupSpec() {
+    if (mongoDbContainer) {
+      mongoDbContainer.stop()
+    }
+  }
+
+  @Override
+  void beforeProcessBuilders() {
+    mongoDbContainer = new MongoDBContainer(DockerImageName.parse("mongo:4.0.10"))
+    mongoDbContainer.start()
+    mongoDbUri = mongoDbContainer.replicaSetUrl
+  }
 
   @Override
   ProcessBuilder createProcessBuilder() {
@@ -19,6 +41,9 @@ class SpringBootMongoIntegrationTest extends AbstractServerSmokeTest {
       springBootShadowJar,
       "--server.port=${httpPort}"
     ])
+    if (mongoDbUri) {
+      command.add("--spring.data.mongodb.uri=$mongoDbUri".toString())
+    }
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
   }

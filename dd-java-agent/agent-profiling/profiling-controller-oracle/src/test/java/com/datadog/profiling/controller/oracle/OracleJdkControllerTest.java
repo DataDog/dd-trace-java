@@ -21,7 +21,7 @@ class OracleJdkControllerTest {
   }
 
   @Test
-  void createRecording() {
+  void createRecording() throws Exception {
     try (OracleJdkOngoingRecording recording = instance.createRecording("my_recording")) {
       assertNotNull(recording);
     }
@@ -66,7 +66,7 @@ class OracleJdkControllerTest {
   }
 
   @Test
-  void getSnapshotAfterClose() {
+  void getSnapshotAfterClose() throws Exception {
     String recordingName = "my_recording";
     Instant start = Instant.now();
     OracleJdkOngoingRecording recording = instance.createRecording(recordingName);

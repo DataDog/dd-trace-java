@@ -1,0 +1,30 @@
+{
+  "dsl": "hasAny(filter(#tags, { len(@it) > 4 }), { @it == 'hello' }) && (.field == 10 || .field < 11 || .field <= 10 || .field > 0 || .field >= 10 || .field != 0 || !(.field == 0) || hasAll(.field, { @it == 10 }) || isEmpty(.field2))",
+  "json": {
+    "and": [
+      {"hasAny": [
+        {
+          "filter": ["#tags", {"gt": [{"len": "@it"}, 4]}]
+        },
+        {
+          "eq": [
+            "@it",
+            "hello"
+          ]
+        }
+      ]},
+      {"or":  [
+        {"eq": [".field", 10]},
+        {"<":  [".field", 11]},
+        {"<=":  [".field", 10]},
+        {">":  [".field", 0]},
+        {">=":  [".field", 10]},
+        {"!=":  [".field", 0]},
+        {"not":  {"==":  [".field", 0]}},
+        {"hasAll":  [".field", {"eq":  ["@it", 10]}]},
+        {"isEmpty": ".field2"}
+      ]}
+    ]
+  },
+  "ignored": true
+}

@@ -27,12 +27,13 @@ public class OpenJdkRecordingData extends RecordingData {
 
   private final Recording recording;
 
-  OpenJdkRecordingData(final Recording recording) {
-    this(recording, recording.getStartTime(), recording.getStopTime());
+  OpenJdkRecordingData(final Recording recording, Kind kind) {
+    this(recording, recording.getStartTime(), recording.getStopTime(), kind);
   }
 
-  OpenJdkRecordingData(final Recording recording, final Instant start, final Instant end) {
-    super(start, end);
+  OpenJdkRecordingData(
+      final Recording recording, final Instant start, final Instant end, Kind kind) {
+    super(start, end, kind);
     this.recording = recording;
   }
 
@@ -51,11 +52,6 @@ public class OpenJdkRecordingData extends RecordingData {
   @Nonnull
   public String getName() {
     return recording.getName();
-  }
-
-  @Override
-  public String toString() {
-    return "OpenJdkRecording: " + getName();
   }
 
   // Visible for testing

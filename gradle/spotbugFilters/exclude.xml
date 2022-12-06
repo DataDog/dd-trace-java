@@ -3,6 +3,7 @@
   <Match>
     <Or>
       <Package name="io.sqreen.testapp.sampleapp" />
+      <Package name="datadog.trace.bootstrap.instrumentation.decorator.http.utils" />
       <!-- these are auto-generated -->
       <Package name="com.datadog.appsec.report.raw.contexts._definitions" />
       <Package name="com.datadog.appsec.report.raw.contexts.actor" />

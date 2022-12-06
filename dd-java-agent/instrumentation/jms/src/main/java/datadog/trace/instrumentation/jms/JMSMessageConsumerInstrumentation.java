@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.jms;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -44,14 +43,13 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed("javax.jms.MessageConsumer");
+  public String hierarchyMarkerType() {
+    return "javax.jms.MessageConsumer";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("javax.jms.MessageConsumer"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override
@@ -135,7 +133,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
         AgentSpan timeInQueue = consumerState.getTimeInQueueSpan(batchId);
         if (null == timeInQueue) {
           timeInQueue =
-              startSpan(JMS_DELIVER, propagatedContext, MILLISECONDS.toMicros(startMillis), false);
+              startSpan(JMS_DELIVER, propagatedContext, MILLISECONDS.toMicros(startMillis));
           BROKER_DECORATE.afterStart(timeInQueue);
           BROKER_DECORATE.onTimeInQueue(
               timeInQueue,
@@ -186,7 +184,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
     public static void setMessageListener(
         @Advice.This MessageConsumer messageConsumer,
         @Advice.Argument(value = 0, readOnly = false) MessageListener listener) {
-      if (!(listener instanceof DatadogMessageListener)) {
+      if (null != listener && !(listener instanceof DatadogMessageListener)) {
         MessageConsumerState consumerState =
             InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
                 .get(messageConsumer);

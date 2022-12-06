@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.rediscala;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
@@ -34,8 +33,8 @@ public final class RediscalaInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassesNamed("redis.Request");
+  public String hierarchyMarkerType() {
+    return "redis.Request";
   }
 
   @Override
@@ -44,8 +43,8 @@ public final class RediscalaInstrumentation extends Instrumenter.Tracing
         .and(
             implementsInterface(
                 namedOneOf( // traits
-                    "redis.ActorRequest",
                     "redis.Request",
+                    "redis.ActorRequest",
                     "redis.BufferedRequest",
                     "redis.RoundRobinPoolRequest")));
   }

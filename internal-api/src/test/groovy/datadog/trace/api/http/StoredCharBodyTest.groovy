@@ -1,13 +1,14 @@
 package datadog.trace.api.http
 
-import datadog.trace.api.function.BiFunction
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
 import spock.lang.Specification
 
+import java.util.function.BiFunction
+
 class StoredCharBodyTest extends Specification {
-  RequestContext<Object> requestContext = Mock(RequestContext) {
-    getData() >> it
+  RequestContext requestContext = Mock(RequestContext) {
+    _ * getData(_) >> it
   }
   BiFunction<RequestContext, StoredBodySupplier, Void> startCb = Mock()
   BiFunction<RequestContext, StoredBodySupplier, Flow<Void> > endCb = Mock()

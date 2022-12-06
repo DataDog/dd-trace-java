@@ -6,11 +6,13 @@ import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 
-import datadog.trace.agent.tooling.muzzle.IReferenceMatcher;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.api.Config;
+import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
+import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -32,14 +34,15 @@ import org.slf4j.LoggerFactory;
  */
 public interface Instrumenter {
   /**
-   * Since several subsystems are sharing the same instrumentation infrastructure in order to enable
-   * only the applicable {@link Instrumenter instrumenters} on startup each {@linkplain
-   * Instrumenter} type must declare its target system. Four systems are currently supported
+   * Since several systems share the same instrumentation infrastructure in order to enable only the
+   * applicable {@link Instrumenter instrumenters} on startup each {@linkplain Instrumenter} type
+   * must declare its target system. Five systems are currently supported:
    *
    * <ul>
    *   <li>{@link TargetSystem#TRACING tracing}
    *   <li>{@link TargetSystem#PROFILING profiling}
    *   <li>{@link TargetSystem#APPSEC appsec}
+   *   <li>{@link TargetSystem#IAST iast}
    *   <li>{@link TargetSystem#CIVISIBILITY ci-visibility}
    * </ul>
    */
@@ -47,12 +50,18 @@ public interface Instrumenter {
     TRACING,
     PROFILING,
     APPSEC,
+    IAST,
     CIVISIBILITY
   }
 
   /** Instrumentation that only matches a single named type. */
   interface ForSingleType {
     String instrumentedType();
+  }
+
+  /** Instrumentation that matches a type configured at runtime. */
+  interface ForConfiguredType {
+    String configuredMatchingType();
   }
 
   /** Instrumentation that can match a series of named types. */
@@ -62,7 +71,15 @@ public interface Instrumenter {
 
   /** Instrumentation that matches based on the type hierarchy. */
   interface ForTypeHierarchy {
+    /** Hint that class-loaders without this type can skip this hierarchy matcher. */
+    String hierarchyMarkerType();
+
     ElementMatcher<TypeDescription> hierarchyMatcher();
+  }
+
+  /** Instrumentation that matches based on the caller of an instruction. */
+  interface ForCallSite {
+    ElementMatcher<TypeDescription> callerType();
   }
 
   /** Instrumentation that can optionally widen matching to consider the type hierarchy. */
@@ -84,6 +101,9 @@ public interface Instrumenter {
     void adviceTransformations(AdviceTransformation transformation);
   }
 
+  /** Instrumentation that transforms types on the bootstrap class-path. */
+  interface ForBootstrap {}
+
   /**
    * Indicates the applicability of an {@linkplain Instrumenter} to the given system.<br>
    *
@@ -104,20 +124,26 @@ public interface Instrumenter {
   abstract class Default implements Instrumenter, HasAdvice {
     private static final Logger log = LoggerFactory.getLogger(Default.class);
 
+    private final int instrumentationId;
     private final List<String> instrumentationNames;
     private final String instrumentationPrimaryName;
     private final boolean enabled;
 
-    protected final String packageName =
-        getClass().getPackage() == null ? "" : getClass().getPackage().getName();
+    protected final String packageName = Strings.getPackageName(getClass().getName());
 
     public Default(final String instrumentationName, final String... additionalNames) {
+      instrumentationId = Instrumenters.currentInstrumentationId();
       instrumentationNames = new ArrayList<>(1 + additionalNames.length);
       instrumentationNames.add(instrumentationName);
       addAll(instrumentationNames, additionalNames);
       instrumentationPrimaryName = instrumentationName;
 
-      enabled = Config.get().isIntegrationEnabled(instrumentationNames, defaultEnabled());
+      enabled =
+          InstrumenterConfig.get().isIntegrationEnabled(instrumentationNames, defaultEnabled());
+    }
+
+    public int instrumentationId() {
+      return instrumentationId;
     }
 
     public String name() {
@@ -145,11 +171,8 @@ public interface Instrumenter {
     /** Matches classes for which instrumentation is not muzzled. */
     public final boolean muzzleMatches(
         final ClassLoader classLoader, final Class<?> classBeingRedefined) {
-      /* Optimization: calling getInstrumentationMuzzle() inside this method
-       * prevents unnecessary loading of muzzle references during agentBuilder
-       * setup.
-       */
-      final IReferenceMatcher muzzle = getInstrumentationMuzzle();
+      // Optimization: we delay calling getInstrumentationMuzzle() until we need the references
+      ReferenceMatcher muzzle = getInstrumentationMuzzle();
       if (null != muzzle) {
         final boolean isMatch = muzzle.matches(classLoader);
         if (!isMatch) {
@@ -159,13 +182,13 @@ public interface Instrumenter {
             log.debug(
                 "Muzzled - instrumentation.names=[{}] instrumentation.class={} instrumentation.target.classloader={}",
                 Strings.join(",", instrumentationNames),
-                Instrumenter.Default.this.getClass().getName(),
+                getClass().getName(),
                 classLoader);
             for (final Reference.Mismatch mismatch : mismatches) {
               log.debug(
                   "Muzzled mismatch - instrumentation.names=[{}] instrumentation.class={} instrumentation.target.classloader={} muzzle.mismatch=\"{}\"",
                   Strings.join(",", instrumentationNames),
-                  Instrumenter.Default.this.getClass().getName(),
+                  getClass().getName(),
                   classLoader,
                   mismatch);
             }
@@ -175,7 +198,7 @@ public interface Instrumenter {
             log.debug(
                 "Instrumentation applied - instrumentation.names=[{}] instrumentation.class={} instrumentation.target.classloader={} instrumentation.target.class={}",
                 Strings.join(",", instrumentationNames),
-                Instrumenter.Default.this.getClass().getName(),
+                getClass().getName(),
                 classLoader,
                 classBeingRedefined == null ? "null" : classBeingRedefined.getName());
           }
@@ -185,13 +208,25 @@ public interface Instrumenter {
       return true;
     }
 
-    /**
-     * This method is implemented dynamically by compile-time bytecode transformations.
-     *
-     * <p>{@see datadog.trace.agent.tooling.muzzle.MuzzleGradlePlugin}
-     */
-    protected IReferenceMatcher getInstrumentationMuzzle() {
-      return null;
+    public final ReferenceMatcher getInstrumentationMuzzle() {
+      String muzzleClassName = getClass().getName() + "$Muzzle";
+      try {
+        // Muzzle class contains static references captured at build-time
+        // see datadog.trace.agent.tooling.muzzle.MuzzleGenerator
+        ReferenceMatcher muzzle =
+            (ReferenceMatcher)
+                getClass()
+                    .getClassLoader()
+                    .loadClass(muzzleClassName)
+                    .getConstructor()
+                    .newInstance();
+        // mix in any additional references captured at runtime
+        muzzle.withReferenceProvider(runtimeMuzzleReferences());
+        return muzzle;
+      } catch (Throwable e) {
+        log.warn("Failed to load - muzzle.class={}", muzzleClassName, e);
+        return null;
+      }
     }
 
     /** @return Class names of helpers to inject into the user's classloader */
@@ -199,20 +234,27 @@ public interface Instrumenter {
       return new String[0];
     }
 
-    /* Classes that the muzzle plugin assumes will be injected */
+    /** Classes that the muzzle plugin assumes will be injected */
     public String[] muzzleIgnoredClassNames() {
       return helperClassNames();
     }
 
-    /**
-     * A type matcher used to match the classloader under transform.
-     *
-     * <p>This matcher needs to either implement equality checks or be the same for different
-     * instrumentations that share context stores to avoid enabling the context store
-     * instrumentations multiple times.
-     *
-     * @return A type matcher used to match the classloader under transform.
-     */
+    /** Override this to supply additional Muzzle references at build time. */
+    public Reference[] additionalMuzzleReferences() {
+      return null;
+    }
+
+    /** Override this to supply additional Muzzle references during startup. */
+    public ReferenceProvider runtimeMuzzleReferences() {
+      return null;
+    }
+
+    /** Override this to validate against a specific named MuzzleDirective. */
+    public String muzzleDirective() {
+      return null;
+    }
+
+    /** Override this to supply additional class-loader requirements. */
     public ElementMatcher<ClassLoader> classLoaderMatcher() {
       return ANY_CLASS_LOADER;
     }
@@ -241,7 +283,7 @@ public interface Instrumenter {
     }
 
     protected boolean defaultEnabled() {
-      return Config.get().isIntegrationsEnabled();
+      return InstrumenterConfig.get().isIntegrationsEnabled();
     }
 
     public boolean isEnabled() {
@@ -254,7 +296,7 @@ public interface Instrumenter {
     }
 
     protected final boolean isShortcutMatchingEnabled(boolean defaultToShortcut) {
-      return Config.get()
+      return InstrumenterConfig.get()
           .isIntegrationShortcutMatchingEnabled(singletonList(name()), defaultToShortcut);
     }
   }
@@ -295,6 +337,18 @@ public interface Instrumenter {
     }
   }
 
+  /** Parent class for all IAST related instrumentations */
+  abstract class Iast extends Default {
+    public Iast(String instrumentationName, String... additionalNames) {
+      super(instrumentationName, additionalNames);
+    }
+
+    @Override
+    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+      return enabledSystems.contains(TargetSystem.IAST);
+    }
+  }
+
   /** Parent class for all CI related instrumentations */
   abstract class CiVisibility extends Default {
 
@@ -321,6 +375,7 @@ public interface Instrumenter {
         DynamicType.Builder<?> builder,
         TypeDescription typeDescription,
         ClassLoader classLoader,
-        JavaModule module);
+        JavaModule module,
+        ProtectionDomain pd);
   }
 }

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jakarta3;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresAnnotation;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
@@ -42,16 +43,15 @@ public final class JakartaRsAnnotationsInstrumentation extends Instrumenter.Trac
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return JakartaRsAsyncResponseInstrumentation.CLASS_LOADER_MATCHER;
+  public String hierarchyMarkerType() {
+    return "jakarta.ws.rs.Path";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return hasSuperType(
-        isAnnotatedWith(named("jakarta.ws.rs.Path"))
-            .<TypeDescription>or(declaresMethod(isAnnotatedWith(named("jakarta.ws.rs.Path")))));
+        declaresAnnotation(named(hierarchyMarkerType()))
+            .or(declaresMethod(isAnnotatedWith(named(hierarchyMarkerType())))));
   }
 
   @Override

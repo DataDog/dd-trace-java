@@ -1,0 +1,21 @@
+// Set properties before any plugins get loaded
+ext {
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+minimumBranchCoverage = 0.78
+
+excludedClassesCoverage += [// an enum with no additional functionality
+  'com.datadog.profiling.utils.ProfilingMode',]
+
+dependencies {
+  implementation deps.slf4j
+
+  testImplementation deps.junit5
+  testImplementation deps.mockito
+}
+
+/* We use Java8 features, but there is no code needing JFR libraries */
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8

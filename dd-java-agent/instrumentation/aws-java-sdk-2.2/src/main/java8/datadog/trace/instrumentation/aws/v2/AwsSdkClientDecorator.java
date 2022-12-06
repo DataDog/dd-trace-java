@@ -28,6 +28,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     request
         .getValueForField("Bucket", String.class)
         .ifPresent(name -> span.setTag("aws.bucket.name", name));
+    request
+        .getValueForField("StorageClass", String.class)
+        .ifPresent(storageClass -> span.setTag("aws.storage.class", storageClass));
     // SQS
     request
         .getValueForField("QueueUrl", String.class)
@@ -63,6 +66,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       case "Sqs.SendMessage":
       case "Sqs.SendMessageBatch":
       case "Sqs.ReceiveMessage":
+      case "Sqs.DeleteMessage":
         span.setServiceName("sqs");
         break;
       case "Sns.Publish":

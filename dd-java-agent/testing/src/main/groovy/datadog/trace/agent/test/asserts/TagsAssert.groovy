@@ -1,7 +1,7 @@
 package datadog.trace.agent.test.asserts
 
 import datadog.trace.api.Config
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
@@ -14,7 +14,7 @@ import groovy.transform.stc.SimpleType
 import java.util.regex.Pattern
 
 class TagsAssert {
-  private final DDId spanParentId
+  private final long spanParentId
   private final Map<String, Object> tags
   private final Set<String> assertedTags = new TreeSet<>()
 
@@ -51,7 +51,7 @@ class TagsAssert {
 
     // FIXME: DQH - Too much conditional logic?  Maybe create specialized methods for client & server cases
 
-    boolean isRoot = (DDId.ZERO == spanParentId)
+    boolean isRoot = (DDSpanId.ZERO == spanParentId)
     if (isRoot || distributedRootSpan) {
       // If runtime id is actually different here, it might indicate that
       // the Config class was loaded on multiple different class loaders.

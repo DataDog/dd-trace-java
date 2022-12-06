@@ -22,7 +22,7 @@ The HTTP server accepts requests on `http://{host}:{port}/roundtrip/{message}`
 Here is an example with two participating nodes that use the queues `queue` and `otherqueue` to communicate.
 
 ```
-terminal1> docker run -d --hostname my-rabbit --name some-rabbit -p 5672:5672 rabbitmq:latest
+terminal1> docker run -d --hostname my-rabbit --name some-rabbit -p 5672:5672 rabbitmq:3.9.20-alpine
 
 terminal1> java -Ddd.service.name=spring-rabbit-1 -jar build/libs/build/libs/spring-boot-rabbit-X.Y.Z-all.jar --rabbit.sender.queue=otherqueue
 

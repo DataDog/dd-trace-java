@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.jaxws1;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresAnnotation;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.isAnnotatedWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -26,7 +26,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public final class WebServiceInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
   private static final String WEB_SERVICE_ANNOTATION_NAME = "javax.jws.WebService";
 
   public WebServiceInstrumentation() {
@@ -39,8 +39,13 @@ public final class WebServiceInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return null; // bootstrap type
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return hasSuperType(isAnnotatedWith(named(WEB_SERVICE_ANNOTATION_NAME)));
+    return hasSuperType(declaresAnnotation(named(WEB_SERVICE_ANNOTATION_NAME)));
   }
 
   @Override
@@ -56,7 +61,9 @@ public final class WebServiceInstrumentation extends Instrumenter.Tracing
         isMethod()
             .and(isPublic())
             .and(not(isStatic()))
-            .and(hasSuperMethod(isDeclaredBy(isAnnotatedWith(named(WEB_SERVICE_ANNOTATION_NAME))))),
+            .and(
+                hasSuperMethod(
+                    isDeclaredBy(declaresAnnotation(named(WEB_SERVICE_ANNOTATION_NAME))))),
         getClass().getName() + "$InvokeAdvice");
   }
 

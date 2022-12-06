@@ -29,5 +29,6 @@ public interface Controller {
    * @return the recording object created.
    */
   @Nonnull
-  OngoingRecording createRecording(@Nonnull String recordingName);
+  OngoingRecording createRecording(@Nonnull String recordingName)
+      throws UnsupportedEnvironmentException;
 }

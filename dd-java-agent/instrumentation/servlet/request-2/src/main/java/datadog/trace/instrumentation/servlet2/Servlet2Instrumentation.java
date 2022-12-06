@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.servlet2;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -24,15 +24,23 @@ public final class Servlet2Instrumentation extends Instrumenter.Tracing
     super("servlet", "servlet-2");
   }
 
-  // this is required to make sure servlet 2 instrumentation won't apply to servlet 3
-  static final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
-      hasClassesNamed("javax.servlet.http.HttpServletResponse")
-          .and(not(hasClassesNamed("javax.servlet.AsyncEvent", "javax.servlet.AsyncListener")));
+  @Override
+  public String muzzleDirective() {
+    return "servlet-2.x";
+  }
+
+  // Avoid matching servlet 3 which has its own instrumentation
+  static final ElementMatcher<ClassLoader> NOT_SERVLET_3 =
+      not(hasClassNamed("javax.servlet.AsyncEvent"));
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return CLASS_LOADER_MATCHER;
+    return NOT_SERVLET_3;
+  }
+
+  @Override
+  public String hierarchyMarkerType() {
+    return "javax.servlet.http.HttpServlet";
   }
 
   @Override
@@ -47,6 +55,7 @@ public final class Servlet2Instrumentation extends Instrumenter.Tracing
       packageName + ".Servlet2Decorator",
       packageName + ".ServletRequestURIAdapter",
       packageName + ".HttpServletRequestExtractAdapter",
+      "datadog.trace.instrumentation.servlet.ServletBlockingHelper",
     };
   }
 

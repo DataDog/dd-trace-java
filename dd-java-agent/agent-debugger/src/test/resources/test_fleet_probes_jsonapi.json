@@ -1,0 +1,122 @@
+{
+  "included":
+  [
+    {
+      "type": "snapshotProbes",
+      "id": "probe1",
+      "attributes":
+      {
+        "version": 0,
+        "language": "java",
+        "active": true,
+        "where":
+        {
+          "typeName": "java.lang.String",
+          "methodName": "indexOf",
+          "signature": "(String)"
+        }
+      }
+    },
+    {
+      "type": "snapshotProbes",
+      "id": "probe2",
+      "attributes":
+      {
+        "version": 0,
+        "language": "java",
+        "active": true,
+        "where":
+        {
+          "typeName": "java.lang.Object",
+          "methodName": "toString",
+          "signature": "String ()"
+        }
+      }
+    },
+    {
+      "type": "snapshotProbes",
+      "id": "probe3",
+      "attributes":
+      {
+        "version": 0,
+        "language": "java",
+        "active": true,
+        "where":
+        {
+          "typeName": "java.lang.String",
+          "methodName": "concat",
+          "signature": "String (String)"
+        }
+      }
+    },
+    {
+      "type": "snapshotProbes",
+      "id": "probe4",
+      "attributes":
+      {
+        "version": 0,
+        "language": "java",
+        "active": true,
+        "where":
+        {
+          "typeName": "java.lang.String",
+          "methodName": "toUpperCase",
+          "signature": "String ()"
+        }
+      }
+    }
+  ],
+  "data":
+  [
+    {
+      "type": "debugger-configurations",
+      "id": "service1",
+      "attributes":
+      {
+        "orgId": 2
+      },
+      "relationships":
+      {
+        "snapshotProbes":
+        {
+          "data":
+          [
+            {
+              "type": "snapshotProbes",
+              "id": "probe1"
+            },
+            {
+              "type": "snapshotProbes",
+              "id": "probe2"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "debugger-configurations",
+      "id": "service2",
+      "attributes":
+      {
+        "orgId": 2
+      },
+      "relationships":
+      {
+        "snapshotProbes":
+        {
+          "data":
+          [
+            {
+              "type": "snapshotProbes",
+              "id": "probe3"
+            },
+            {
+              "type": "snapshotProbes",
+              "id": "probe4"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

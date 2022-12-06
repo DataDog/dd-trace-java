@@ -30,16 +30,15 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
   }
 
   public void resume() {
-    clientSpan.finishThreadMigration();
+    clientSpan.startWork();
   }
 
   public void suspend() {
-    clientSpan.startThreadMigration();
+    clientSpan.finishWork();
   }
 
   @Override
   public void completed(final T result) {
-    resume();
     DECORATE.onResponse(clientSpan, context);
     DECORATE.beforeFinish(clientSpan);
     clientSpan.finish(); // Finish span before calling delegate

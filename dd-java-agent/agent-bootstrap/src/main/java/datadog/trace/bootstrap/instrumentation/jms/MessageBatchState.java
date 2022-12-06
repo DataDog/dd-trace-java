@@ -12,7 +12,7 @@ public final class MessageBatchState {
   final int commitSequence; // used to decide when to assign a new batch state
 
   MessageBatchState(int commitSequence) {
-    this.batchId = ID_STRATEGY.generate().toLong();
+    this.batchId = ID_STRATEGY.generateTraceId().toLong();
     this.startMillis = System.currentTimeMillis();
     this.commitSequence = commitSequence;
   }

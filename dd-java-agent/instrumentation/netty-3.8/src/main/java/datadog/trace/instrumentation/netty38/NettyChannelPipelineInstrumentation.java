@@ -32,14 +32,13 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return NettyChannelInstrumentation.CLASS_LOADER_MATCHER;
+  public String hierarchyMarkerType() {
+    return "org.jboss.netty.channel.ChannelPipeline";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("org.jboss.netty.channel.ChannelPipeline"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override

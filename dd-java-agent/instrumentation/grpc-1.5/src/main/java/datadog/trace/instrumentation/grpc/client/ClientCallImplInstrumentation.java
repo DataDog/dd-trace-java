@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.grpc.client;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.CLIENT_PATHWAY_EDGE_TAGS;
 import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.grpc.client.GrpcInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -68,8 +69,6 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
       AgentSpan span = DECORATE.startCall(method);
       if (null != span) {
         InstrumentationContext.get(ClientCall.class, AgentSpan.class).put(call, span);
-        // span is escaping via context - can be picked up by any thread
-        span.startThreadMigration();
       }
     }
   }
@@ -83,8 +82,7 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
       span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
       if (null != span) {
         propagate().inject(span, headers, SETTER);
-        // span has been retrieved from the context - resume
-        span.finishThreadMigration();
+        propagate().injectPathwayContext(span, headers, SETTER, CLIENT_PATHWAY_EDGE_TAGS);
         return activateSpan(span);
       }
       return null;
@@ -97,8 +95,6 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
         @Advice.Local("$$ddSpan") AgentSpan span)
         throws Throwable {
       if (null != scope) {
-        // the span is deactivated
-        scope.span().finishWork();
         scope.close();
       }
       if (null != error && null != span) {
@@ -115,8 +111,6 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
     public static void before(@Advice.This ClientCall<?, ?> call) {
       AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
       if (null != span) {
-        // span has been retrieved from the context - resume
-        span.finishThreadMigration();
         span.finish();
       }
     }
@@ -128,8 +122,6 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
       // could create a message span here for the request
       AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
       if (span != null) {
-        // span has been retrieved from the context - resume
-        span.finishThreadMigration();
         return activateSpan(span);
       }
       return null;
@@ -138,8 +130,6 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(@Advice.Enter AgentScope scope) {
       if (null != scope) {
-        // the span is deactivated
-        scope.span().finishWork();
         scope.close();
       }
     }
@@ -151,8 +141,6 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
         @Advice.This ClientCall<?, ?> call, @Advice.Argument(1) Status status) {
       AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
       if (null != span) {
-        // span has been retrieved from the context - resume
-        span.finishThreadMigration();
         DECORATE.onClose(span, status);
         span.finish();
       }

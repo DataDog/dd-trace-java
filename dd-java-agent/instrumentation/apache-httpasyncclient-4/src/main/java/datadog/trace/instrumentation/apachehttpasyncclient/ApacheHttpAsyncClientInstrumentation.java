@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.apachehttpasyncclient;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
@@ -31,12 +30,6 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed("org.apache.http.nio.client.HttpAsyncClient");
-  }
-
-  @Override
   public boolean onlyMatchKnownTypes() {
     return isShortcutMatchingEnabled(false);
   }
@@ -55,8 +48,13 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return "org.apache.http.nio.client.HttpAsyncClient";
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("org.apache.http.nio.client.HttpAsyncClient"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override
@@ -97,7 +95,6 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Tracing
       requestProducer = new DelegatingRequestProducer(clientSpan, requestProducer);
       futureCallback =
           new TraceContinuedFutureCallback(parentScope, clientSpan, context, futureCallback);
-      clientSpan.startThreadMigration();
 
       return clientSpan;
     }

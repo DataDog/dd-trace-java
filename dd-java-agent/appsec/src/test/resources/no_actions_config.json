@@ -1,0 +1,30 @@
+{
+  "version": "2.1",
+  "metadata": {
+    "rules_version": "0.42.0"
+  },
+  "rules": [
+    {
+      "id": "ip_match_rule",
+      "name": "rule1",
+      "tags": {
+        "type": "flow1",
+        "category": "category1"
+      },
+      "conditions": [
+        {
+          "operator": "ip_match",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "http.client_ip"
+              }
+            ],
+            "data": "ip_data"
+          }
+        }
+      ],
+      "on_match": ["block"]
+    }
+  ]
+}

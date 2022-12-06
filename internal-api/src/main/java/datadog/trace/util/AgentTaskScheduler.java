@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class AgentTaskScheduler implements Executor {
+public class AgentTaskScheduler implements Executor {
   private static final Logger log = LoggerFactory.getLogger(AgentTaskScheduler.class);
   public static final AgentTaskScheduler INSTANCE = new AgentTaskScheduler(TASK_SCHEDULER);
 
@@ -42,7 +42,7 @@ public final class AgentTaskScheduler implements Executor {
     }
   }
 
-  public static final class Scheduled<T> implements Target<T> {
+  public static class Scheduled<T> implements Target<T> {
     private volatile T referent;
 
     private Scheduled(final T referent) {
@@ -86,6 +86,11 @@ public final class AgentTaskScheduler implements Executor {
     return scheduled;
   }
 
+  public Scheduled<Runnable> schedule(
+      final Runnable target, final long initialDelay, final TimeUnit unit) {
+    return schedule(RunnableTask.INSTANCE, target, initialDelay, unit);
+  }
+
   /**
    * Adds a random jitter of up to 10 seconds to the delay. This avoids a fleet of traced
    * applications starting at the same time and scheduling the same publishing task in sync
@@ -109,6 +114,11 @@ public final class AgentTaskScheduler implements Executor {
     return schedule(task, target, randomMillis, MILLISECONDS);
   }
 
+  public Scheduled<Runnable> scheduleWithJitter(
+      final Runnable target, final long initialDelay, final TimeUnit unit) {
+    return scheduleWithJitter(RunnableTask.INSTANCE, target, initialDelay, unit);
+  }
+
   public <T> Scheduled<T> scheduleAtFixedRate(
       final Task<T> task,
       final T target,
@@ -120,6 +130,11 @@ public final class AgentTaskScheduler implements Executor {
     return scheduled;
   }
 
+  public Scheduled<Runnable> scheduleAtFixedRate(
+      final Runnable target, final long initialDelay, final long period, final TimeUnit unit) {
+    return scheduleAtFixedRate(RunnableTask.INSTANCE, target, initialDelay, period, unit);
+  }
+
   public <T> void weakScheduleAtFixedRate(
       final Task<T> task,
       final T target,
@@ -127,6 +142,11 @@ public final class AgentTaskScheduler implements Executor {
       final long period,
       final TimeUnit unit) {
     scheduleTarget(task, new WeakTarget<>(target), initialDelay, period, unit);
+  }
+
+  public void weakScheduleAtFixedRate(
+      final Runnable target, final long initialDelay, final long period, final TimeUnit unit) {
+    weakScheduleAtFixedRate(RunnableTask.INSTANCE, target, initialDelay, period, unit);
   }
 
   @SuppressFBWarnings("JLM_JSR166_UTILCONCURRENT_MONITORENTER")

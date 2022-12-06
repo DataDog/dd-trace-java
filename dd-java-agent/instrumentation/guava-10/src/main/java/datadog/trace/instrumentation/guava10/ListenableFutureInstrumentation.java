@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.guava10;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static java.util.Collections.singletonMap;
@@ -18,7 +17,6 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public class ListenableFutureInstrumentation extends Instrumenter.Tracing
@@ -26,17 +24,6 @@ public class ListenableFutureInstrumentation extends Instrumenter.Tracing
 
   public ListenableFutureInstrumentation() {
     super("guava");
-  }
-
-  private final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
-      hasClassesNamed("com.google.common.util.concurrent.AbstractFuture");
-
-  @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // prevents Runnable from being instrumented unless this
-    // instrumentation would take effect (unless something else
-    // instruments it).
-    return CLASS_LOADER_MATCHER;
   }
 
   @Override
@@ -69,9 +56,7 @@ public class ListenableFutureInstrumentation extends Instrumenter.Tracing
         task = newTask;
         final ContextStore<Runnable, State> contextStore =
             InstrumentationContext.get(Runnable.class, State.class);
-        State state = ExecutorInstrumentationUtils.setupState(contextStore, newTask, scope);
-        state.startThreadMigration();
-        return state;
+        return ExecutorInstrumentationUtils.setupState(contextStore, newTask, scope);
       }
       return null;
     }

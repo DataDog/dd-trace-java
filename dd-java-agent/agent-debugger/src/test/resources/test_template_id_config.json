@@ -1,0 +1,57 @@
+{
+  "included": [
+    {
+      "type": "snapshotProbes",
+      "id": "%s",
+      "attributes": {
+        "language": "java",
+        "created": 1606407800.445507000,
+        "where": {
+          "typeName": "java.lang.Object",
+          "methodName": "toString",
+          "signature": "java.lang.String ()",
+          "lines": [
+            "12-25",
+            "42-45"
+          ]
+        },
+        "script": {
+          "when": {
+            "gt": ["@duration", 5000000]
+          }
+        },
+        "when": {
+          "durationThreshold": {
+            "value": 5000000,
+            "scope": "METHOD"
+          }
+        }
+      }
+    }
+  ],
+  "data": {
+    "type": "debugger-configurations",
+    "id": "petclinic",
+    "attributes": {
+      "orgId": 2,
+      "allowList": {
+        "packagePrefixes": ["com.datadog", "org.apache"],
+        "classes": []
+      },
+      "denyList": {
+        "packagePrefixes": ["java.security", "sun.security"],
+        "classes": []
+      }
+    },
+    "relationships": {
+      "snapshotProbes": {
+        "data": [
+          {
+            "type": "snapshotProbes",
+            "id": "123356536"
+          }
+        ]
+      }
+    }
+  }
+}

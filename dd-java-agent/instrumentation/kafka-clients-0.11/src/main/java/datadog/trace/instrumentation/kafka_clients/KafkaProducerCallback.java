@@ -22,10 +22,6 @@ public class KafkaProducerCallback implements Callback {
 
   @Override
   public void onCompletion(final RecordMetadata metadata, final Exception exception) {
-    // this is too late, this should be emitted before any work is done,
-    // but it's also impossible to do that because of the way Kafka's
-    // batching works.
-    span.finishThreadMigration();
     PRODUCER_DECORATE.onError(span, exception);
     PRODUCER_DECORATE.beforeFinish(span);
     span.finish();
@@ -33,9 +29,7 @@ public class KafkaProducerCallback implements Callback {
       if (parent != null) {
         try (final AgentScope scope = activateSpan(parent)) {
           scope.setAsyncPropagation(true);
-          parent.finishThreadMigration();
           callback.onCompletion(metadata, exception);
-          parent.finishWork();
         }
       } else {
         callback.onCompletion(metadata, exception);

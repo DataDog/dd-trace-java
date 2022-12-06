@@ -1,0 +1,61 @@
+// Set properties before any plugins get loaded
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_11
+  // By default tests with be compiled for `minJavaVersionForTests` version,
+  // but in this case we would like to avoid this since we would like to run with ZULU8
+  skipSettingTestJavaVersion = true
+  // need access to jdk.jfr package
+  skipSettingCompilerRelease = true
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'idea'
+
+minimumBranchCoverage = 0.5
+minimumInstructionCoverage = 0.7
+
+excludedClassesCoverage += [
+  'com.datadog.profiling.controller.async.AsyncController',
+  'com.datadog.profiling.controller.async.AsyncOngoingRecording',
+]
+
+dependencies {
+  api deps.slf4j
+  api project(':internal-api')
+  implementation project(path: ':dd-java-agent:agent-profiling:profiling-async', configuration: 'shadow')
+  api project(':dd-java-agent:agent-profiling:profiling-controller')
+  api project(':dd-java-agent:agent-profiling:profiling-utils')
+
+  testImplementation deps.junit5
+  testImplementation deps.mockito
+  testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
+}
+
+/*
+ Setup here is as following:
+ * We compile with Java11 compiler to get JFR definitions.
+ * We specify source/target as Java8 to get code that is loadable on Java8 - JFR defs are Java8 compatible.
+ * We force IDEA to treat this as Java11 project with 'idea' plugin below.
+ */
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+[JavaCompile, GroovyCompile].each {
+  tasks.withType(it).configureEach {
+    setJavaVersion(it, 11)
+    // Disable '-processing' because some annotations are not claimed.
+    // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
+    // Disable '-path' because we do not have some of the paths seem to be missing.
+    options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'/*, '-Werror'*/])
+  }
+}
+
+forbiddenApisMain {
+  failOnMissingClasses = false
+}
+
+idea {
+  module {
+    jdkName = '11'
+  }
+}

@@ -20,13 +20,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
-import static datadog.trace.api.Checkpointer.CPU
-import static datadog.trace.api.Checkpointer.END
-import static datadog.trace.api.Checkpointer.SPAN
-import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
 import static org.junit.Assume.assumeTrue
 
 @Unroll
@@ -151,6 +146,11 @@ class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
     true
   }
 
+  @Override
+  boolean testBlocking() {
+    true
+  }
+
   boolean hasResponseSpan(ServerEndpoint endpoint) {
     def responseSpans = [REDIRECT, NOT_FOUND, ERROR, EXCEPTION, CUSTOM_EXCEPTION]
     return responseSpans.contains(endpoint)
@@ -255,23 +255,6 @@ class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
         }
       }
     }
-
-    where:
-    method = "GET"
-    body = null
-  }
-
-  def "test checkpoint emission"() {
-    when:
-    def request = request(SUCCESS, method, body).build()
-    client.newCall(request).execute()
-    TEST_WRITER.waitForTraces(1)
-    then: "2 synchronous spans"
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
-    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
-    0 * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
 
     where:
     method = "GET"

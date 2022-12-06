@@ -1,6 +1,6 @@
 package datadog.trace.common.metrics
 
-import datadog.trace.core.histogram.Histogram
+
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Requires
 
@@ -57,7 +57,7 @@ class AggregateMetricTest extends DDSpecification {
     given:
     AggregateMetric aggregate = new AggregateMetric().recordDurations(3, new AtomicLongArray(0L, 0L, 0L | ERROR_TAG | TOP_LEVEL_TAG))
 
-    Batch batch = new Batch().reset(new MetricKey("foo", "bar", "qux", "type", 0))
+    Batch batch = new Batch().reset(new MetricKey("foo", "bar", "qux", "type", 0, false))
     batch.add(0L, 10)
     batch.add(0L, 10)
     batch.add(0L, 10)
@@ -123,16 +123,16 @@ class AggregateMetricTest extends DDSpecification {
       new AtomicLongArray(1, 100 | ERROR_TAG, 2, 99 | ERROR_TAG, 3,
       98  | ERROR_TAG, 4, 97  | ERROR_TAG))
     then:
-    Histogram errorLatencies = aggregate.getErrorLatencies()
-    Histogram okLatencies = aggregate.getOkLatencies()
-    errorLatencies.max() >= 99
-    okLatencies.max() <= 5
+    def errorLatencies = aggregate.getErrorLatencies()
+    def okLatencies = aggregate.getOkLatencies()
+    errorLatencies.getMaxValue() >= 99
+    okLatencies.getMaxValue() <= 5
   }
 
   def "consistent under concurrent attempts to read and write"() {
     given:
     AggregateMetric aggregate = new AggregateMetric()
-    MetricKey key = new MetricKey("foo", "bar", "qux", "type", 0)
+    MetricKey key = new MetricKey("foo", "bar", "qux", "type", 0, false)
     BlockingDeque<Batch> queue = new LinkedBlockingDeque<>(1000)
     ExecutorService reader = Executors.newSingleThreadExecutor()
     int writerCount = 10

@@ -21,6 +21,8 @@ abstract class ProcessManager extends Specification {
   protected String buildDirectory = System.getProperty("datadog.smoketest.builddir")
   @Shared
   protected String shadowJarPath = System.getProperty("datadog.smoketest.agent.shadowJar.path")
+  @Shared
+  protected boolean isIBM = System.getProperty("java.vendor", "").contains("IBM")
 
   @Shared
   protected static int profilingPort = -1
@@ -144,14 +146,15 @@ abstract class ProcessManager extends Specification {
     logFilePaths.each { lfp ->
       def hasError = false
       new File(lfp).eachLine {
-        if (it.contains("ERROR") || it.contains("ASSERTION FAILED")) {
+        if (it.contains("ERROR") || it.contains("ASSERTION FAILED")
+          || it.contains("Failed to handle exception in instrumentation")) {
           println it
           hasError = logHasErrors = true
         }
         checker(it)
       }
       if (hasError) {
-        println "Test application log is containing errors. See full run logs in ${lfp}"
+        println "Test application log contains errors. See full run logs in ${lfp}"
       }
     }
   }

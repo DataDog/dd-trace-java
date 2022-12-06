@@ -2,14 +2,15 @@ package datadog.trace.api.http;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 
-import datadog.trace.api.function.BiFunction;
-import datadog.trace.api.function.Supplier;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.nio.charset.Charset;
+import java.util.function.BiFunction;
+import java.util.function.Supplier;
 
 public class StoredBodyFactories {
   private StoredBodyFactories() {}
@@ -25,15 +26,15 @@ public class StoredBodyFactories {
   @SuppressWarnings("Duplicates")
   public static StoredByteBody maybeCreateForByte(
       Charset charset, AgentSpan agentSpan, Object contentLengthHeader) {
-    RequestContext<Object> requestContext = agentSpan.getRequestContext();
+    RequestContext requestContext = agentSpan.getRequestContext();
     if (requestContext == null) {
       return null;
     }
 
-    CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
-    BiFunction<RequestContext<Object>, StoredBodySupplier, Void> requestStartCb =
+    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+    BiFunction<RequestContext, StoredBodySupplier, Void> requestStartCb =
         cbp.getCallback(EVENTS.requestBodyStart());
-    BiFunction<RequestContext<Object>, StoredBodySupplier, Flow<Void>> requestEndedCb =
+    BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestEndedCb =
         cbp.getCallback(EVENTS.requestBodyDone());
     if (requestStartCb == null || requestEndedCb == null) {
       return null;
@@ -45,21 +46,12 @@ public class StoredBodyFactories {
   }
 
   @SuppressWarnings("Duplicates")
-  public static Flow<Void> maybeDeliverBodyInOneGo(Supplier<CharSequence> supplier) {
-    AgentSpan agentSpan = AgentTracer.activeSpan();
-    if (agentSpan == null) {
-      return Flow.ResultFlow.empty();
-    }
-
-    RequestContext<Object> requestContext = agentSpan.getRequestContext();
-    if (requestContext == null) {
-      return Flow.ResultFlow.empty();
-    }
-
-    CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
-    BiFunction<RequestContext<Object>, StoredBodySupplier, Void> requestStartCb =
+  public static Flow<Void> maybeDeliverBodyInOneGo(
+      Supplier<CharSequence> supplier, RequestContext requestContext) {
+    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+    BiFunction<RequestContext, StoredBodySupplier, Void> requestStartCb =
         cbp.getCallback(EVENTS.requestBodyStart());
-    BiFunction<RequestContext<Object>, StoredBodySupplier, Flow<Void>> requestEndedCb =
+    BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestEndedCb =
         cbp.getCallback(EVENTS.requestBodyDone());
     if (requestStartCb == null || requestEndedCb == null) {
       return Flow.ResultFlow.empty();
@@ -70,14 +62,8 @@ public class StoredBodyFactories {
     return requestEndedCb.apply(requestContext, wrappedSupplier);
   }
 
-  public static Flow<Void> maybeDeliverBodyInOneGo(final String str) {
-    return maybeDeliverBodyInOneGo(
-        new Supplier<CharSequence>() {
-          @Override
-          public CharSequence get() {
-            return str;
-          }
-        });
+  public static Flow<Void> maybeDeliverBodyInOneGo(final String str, RequestContext reqCtx) {
+    return maybeDeliverBodyInOneGo(() -> str, reqCtx);
   }
 
   public static class ConstantBodySupplier implements StoredBodySupplier {
@@ -103,15 +89,15 @@ public class StoredBodyFactories {
 
   @SuppressWarnings("Duplicates")
   public static StoredCharBody maybeCreateForChar(AgentSpan agentSpan, Object contentLengthHeader) {
-    RequestContext<Object> requestContext = agentSpan.getRequestContext();
+    RequestContext requestContext = agentSpan.getRequestContext();
     if (requestContext == null) {
       return null;
     }
 
-    CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
-    BiFunction<RequestContext<Object>, StoredBodySupplier, Void> requestStartCb =
+    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+    BiFunction<RequestContext, StoredBodySupplier, Void> requestStartCb =
         cbp.getCallback(EVENTS.requestBodyStart());
-    BiFunction<RequestContext<Object>, StoredBodySupplier, Flow<Void>> requestEndedCb =
+    BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestEndedCb =
         cbp.getCallback(EVENTS.requestBodyDone());
     if (requestStartCb == null || requestEndedCb == null) {
       return null;

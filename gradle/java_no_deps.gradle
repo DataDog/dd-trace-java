@@ -1,5 +1,3 @@
-import java.time.Duration
-import java.time.temporal.ChronoUnit
 import org.gradle.jvm.toolchain.internal.SpecificInstallationToolchainSpec
 
 apply plugin: 'java-library'
@@ -9,22 +7,18 @@ apply from: "$rootDir/gradle/forbiddenapis.gradle"
 apply from: "$rootDir/gradle/spotless.gradle"
 apply from: "$rootDir/gradle/spotbugs.gradle"
 apply from: "$rootDir/gradle/repositories.gradle"
+apply from: "$rootDir/gradle/pitest.gradle"
 
-def forkedTestLimit = gradle.sharedServices.registerIfAbsent("forkedTestLimit", BuildService) {
-  maxParallelUsages = 2
+// Only run one testcontainers test at a time
+ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainersLimit", BuildService) {
+  maxParallelUsages = 1
 }
 
 // Task for tests that want to run forked in their own separate JVM
 tasks.register('forkedTest', Test) {
-  setIncludes(["**/*ForkedTest*"])
-  jvmArgs += ["-Xms256M", "-Xmx256M"]
-  forkEvery 1
-  // Limit the number of concurrent forked tests
-  usesService(forkedTestLimit)
 }
 
 test {
-  exclude("**/*ForkedTest*")
   finalizedBy "forkedTest"
 }
 
@@ -40,8 +34,8 @@ if (applyCodeCoverage) {
   apply from: "$rootDir/gradle/jacoco.gradle"
 }
 
-sourceCompatibility = JavaVersion.VERSION_1_7
-targetCompatibility = JavaVersion.VERSION_1_7
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
 
 // when building with Java 9+, lazily set compiler --release flag to match target
 def skipSettingCompilerRelease = project.findProperty('skipSettingCompilerRelease')
@@ -51,6 +45,7 @@ if (!skipSettingCompilerRelease && JavaVersion.current().isJava9Compatible()) {
   }
 }
 
+// TODO:java8 this should be changed and the *_java8 directories folded into the main directory
 if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJavaVersionForTests') != JavaVersion.VERSION_1_7) {
   def version = JavaVersion.toVersion(project.getProperty('minJavaVersionForTests'))
   def name = "java$version.majorVersion"
@@ -92,23 +87,6 @@ java {
   disableAutoTargetJvm()
   withJavadocJar()
   withSourcesJar()
-}
-
-[JavaCompile, ScalaCompile].each { type ->
-  tasks.withType(type).configureEach {
-    doFirst {
-      // We do this specifically for Java7 bytecode generation because we would like to be able to compile
-      // with Java8+ compiler. This likely would require some modifications when we switch to java11 compiler.
-      // Using proper Java7 bootstrap and extensions allows to be sure our code will run on real Java7.
-      if (JavaVersion.toVersion(sourceCompatibility) == JavaVersion.VERSION_1_7
-        && JavaVersion.current() != JavaVersion.VERSION_1_7
-        && System.env.JAVA_7_HOME != null) {
-        options.fork = true
-        options.bootstrapClasspath = fileTree(include: ['*.jar'], dir: "${System.env.JAVA_7_HOME}/jre/lib/")
-        options.extensionDirs = "${System.env.JAVA_7_HOME}/jre/lib/ext/"
-      }
-    }
-  }
 }
 
 jar {
@@ -212,12 +190,16 @@ project.afterEvaluate {
       def allowedOrForced = !isJdkExcluded(testJvm) &&
         (isJavaLanguageVersionAllowed(metadata.languageVersion, it.name) || isJdkForced(testJvm))
       javaLauncher = javaTestLauncher
-      onlyIf {allowedOrForced  }
+      onlyIf { allowedOrForced }
       if (applyCodeCoverage) {
         jacoco {
           // Disable jacoco for additional JVM tests to speed things up a bit
           enabled = false
         }
+      }
+      if (metadata.languageVersion.asInt() >= 16) {
+        // temporary workaround when using Java16+: some tests require reflective access to java.lang/java.util
+        jvmArgs += ['--add-opens=java.base/java.lang=ALL-UNNAMED', '--add-opens=java.base/java.util=ALL-UNNAMED']
       }
     } else {
       def name = it.name
@@ -230,6 +212,32 @@ project.afterEvaluate {
         def latestTestArtifacts = configurations.latestDepTestRuntimeClasspath.resolvedConfiguration.resolvedArtifacts
         assert testArtifacts != latestTestArtifacts: "latestDepTest dependencies are identical to test"
       }
+    }
+  }
+
+  [JavaCompile, ScalaCompile, GroovyCompile].each { type ->
+    tasks.withType(type).configureEach {
+      if (options.fork) {
+        options.forkOptions.with {
+          memoryMaximumSize = "256M"
+        }
+      }
+    }
+  }
+
+  if (project.plugins.hasPlugin('kotlin')) {
+    ['compileKotlin', 'compileTestKotlin'].each { type ->
+      tasks.named(type).configure {
+        kotlinOptions {
+          freeCompilerArgs += '-Xmx256m'
+        }
+      }
+    }
+  }
+
+  tasks.withType(JavaExec).configureEach {
+    if (!it.maxHeapSize) {
+      it.maxHeapSize('256M')
     }
   }
 }
@@ -311,65 +319,9 @@ def isJdkExcluded(String javaName) {
   return (project.hasProperty('excludeJdk') && project.getProperty('excludeJdk').contains(javaName))
 }
 
-def isTestingInstrumentation(Project project) {
-  return ["junit-4.10", "testng-6.4", "junit-5.3"].contains(project.name)
-}
-
 def getJavaHomePath(String path) {
   def javaHome = new File(path).toPath().toRealPath()
   return javaHome.endsWith("jre") ? javaHome.parent : javaHome
 }
 
-// Force timeout after 9 minutes (CircleCI defaults will fail after 10 minutes without output)
-def testTimeoutDuration = Duration.of(9, ChronoUnit.MINUTES)
-
-// Go through the Test tasks and configure them
-tasks.withType(Test).configureEach {
-  if (project.findProperty("enableJunitPlatform") == true) {
-    useJUnitPlatform()
-  }
-
-  // All tests must complete within 15 minutes.
-  // This value is quite big because with lower values (3 mins) we were experiencing large number of false positives
-  timeout = Duration.ofMinutes(15)
-
-  // Disable all tests if skipTests property was specified
-  onlyIf { !project.rootProject.hasProperty("skipTests") }
-
-  // Enable force rerun of tests with -Prerun.tests.${project.name}
-  outputs.upToDateWhen {
-    !project.rootProject.hasProperty("rerun.tests.${project.name}")
-  }
-
-  //Avoid executing classes used to test testing frameworks instrumentation
-  if (isTestingInstrumentation(project)) {
-    exclude "**/TestSucceed*"
-    exclude "**/TestFailed*"
-    exclude "**/TestFailedWithSuccessPercentage*"
-    exclude "**/TestError*"
-    exclude "**/TestSkipped*"
-    exclude "**/TestSkippedClass*"
-    exclude "**/TestInheritance*", "**/BaseTestInheritance*"
-    exclude "**/TestFactory*"
-    exclude "**/TestParameterized*"
-    exclude "**/TestRepeated*"
-    exclude "**/TestTemplate*"
-    exclude "**/TestDisableTestTrace*"
-    exclude "**/TestAssumption*"
-    exclude "**/TestParameterized*"
-  }
-
-  // Split up tests that want to run forked in their own separate JVM for generated tasks
-  if (name.startsWith("forkedTest") || name.endsWith("ForkedTest")) {
-    setIncludes(["**/*ForkedTest*"])
-    jvmArgs += ["-Xms256M", "-Xmx256M"]
-    forkEvery 1
-    // Limit the number of concurrent forked tests
-    usesService(forkedTestLimit)
-    onlyIf { !project.rootProject.hasProperty("skipForkedTests") }
-  } else {
-    exclude("**/*ForkedTest*")
-  }
-
-  timeout = testTimeoutDuration
-}
+apply from: "$rootDir/gradle/configure_tests.gradle"

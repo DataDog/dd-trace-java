@@ -5,11 +5,18 @@ import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
+import spock.lang.Requires
 
+import static datadog.trace.api.Platform.isJavaVersionAtLeast
+
+@Requires({
+  isJavaVersionAtLeast(8)
+})
 class SharedCommunicationsObjectsSpecification extends DDSpecification {
   SharedCommunicationObjects sco = new SharedCommunicationObjects()
 
-  void 'createRemaining with nothing populated'() {
+  void 'nothing populated'() {
+    given:
     Config config = Mock()
 
     when:
@@ -17,14 +24,53 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
 
     then:
     1 * config.agentUrl >> 'http://example.com/'
+    1 * config.agentNamedPipe >> null
+    1 * config.agentTimeout >> 1
     1 * config.agentUnixDomainSocket >> null
-    1 * config.traceAgentV05Enabled >> false
-    1 * config.tracerMetricsEnabled >> false
-
     sco.agentUrl as String == 'http://example.com/'
     sco.okHttpClient != null
     sco.monitoring.is(Monitoring.DISABLED)
+
+    when:
+    sco.featuresDiscovery(config)
+
+    then:
+    1 * config.traceAgentV05Enabled >> false
+    1 * config.tracerMetricsEnabled >> false
     sco.featuresDiscovery != null
+
+    when:
+    sco.configurationPoller(config)
+
+    then:
+    1 * config.remoteConfigEnabled >> false
+    sco.configurationPoller == null
+
+    when:
+    sco.configurationPoller(config)
+
+    then:
+    1 * config.remoteConfigEnabled >> true
+    1 * config.finalRemoteConfigUrl >> 'http://localhost:8080/config'
+    1 * config.remoteConfigTargetsKeyId >> Config.get().remoteConfigTargetsKeyId
+    1 * config.remoteConfigTargetsKey >> Config.get().remoteConfigTargetsKey
+    sco.configurationPoller != null
+  }
+
+  void 'populates ConfigurationPoller even without config endpoint'() {
+    given:
+    Config config = Mock()
+
+    when:
+    sco.configurationPoller(config)
+
+    then:
+    1 * config.agentUrl >> 'http://example.com/'
+    1 * config.remoteConfigEnabled >> true
+    1 * config.finalRemoteConfigUrl >> null
+    1 * config.remoteConfigTargetsKeyId >> Config.get().remoteConfigTargetsKeyId
+    1 * config.remoteConfigTargetsKey >> Config.get().remoteConfigTargetsKey
+    sco.configurationPoller != null
   }
 
   void 'createRemaining with everything populated'() {

@@ -5,6 +5,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.lang.instrument.Instrumentation;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Field;
@@ -48,16 +49,18 @@ public final class AgentBootstrap {
   }
 
   public static void agentmain(final String agentArgs, final Instrumentation inst) {
-    try {
-      final URL bootstrapURL = installBootstrapJar(inst);
+    if (checkAndLogIfLessThanJava8()) {
+      return;
+    }
 
-      final Class<?> agentClass =
-          ClassLoader.getSystemClassLoader().loadClass("datadog.trace.bootstrap.Agent");
+    try {
+      final URL agentJarURL = installAgentJar(inst);
+      final Class<?> agentClass = Class.forName("datadog.trace.bootstrap.Agent", true, null);
       if (agentClass.getClassLoader() != null) {
         throw new IllegalStateException("DD Java Agent NOT added to bootstrap classpath.");
       }
       final Method startMethod = agentClass.getMethod("start", Instrumentation.class, URL.class);
-      startMethod.invoke(null, inst, bootstrapURL);
+      startMethod.invoke(null, inst, agentJarURL);
     } catch (final Throwable ex) {
       // Don't rethrow.  We don't have a log manager here, so just print.
       System.err.println("ERROR " + thisClass.getName());
@@ -65,11 +68,66 @@ public final class AgentBootstrap {
     }
   }
 
+  private static boolean checkAndLogIfLessThanJava8() {
+    return checkAndLogIfLessThanJava8(System.getProperty("java.version"), System.out);
+  }
+
+  // Reachable for testing
+  static boolean checkAndLogIfLessThanJava8(String version, PrintStream output) {
+    if (parseJavaMajorVersion(version) < 8) {
+      String agentVersion = "This version"; // If we can't find the agent version
+      try {
+        agentVersion = AgentJar.getAgentVersion();
+        agentVersion = "Version " + agentVersion;
+      } catch (IOException ignored) {
+      }
+      output.println(
+          "Warning: "
+              + agentVersion
+              + " of dd-java-agent is not compatible with Java "
+              + version
+              + " and will not be installed.");
+      output.println(
+          "Please upgrade your Java version to 8+ or use the 0.x version of dd-java-agent in your build tool or download it from https://dtdg.co/java-tracer-v0");
+      return true;
+    }
+    return false;
+  }
+
+  // Reachable for testing
+  static int parseJavaMajorVersion(String version) {
+    int major = 0;
+    if (null == version || version.isEmpty()) {
+      return major;
+    }
+    int start = 0;
+    if (version.charAt(0) == '1'
+        && version.length() >= 3
+        && version.charAt(1) == '.'
+        && Character.isDigit(version.charAt(2))) {
+      start = 2;
+    }
+    // Parse the major digit and be a bit lenient, allowing digits followed by any non digit
+    for (int i = start; i < version.length(); i++) {
+      char c = version.charAt(i);
+      if (Character.isDigit(c)) {
+        major *= 10;
+        major += Character.digit(c, 10);
+      } else {
+        break;
+      }
+    }
+    return major;
+  }
+
   public static void main(final String[] args) {
+    if (checkAndLogIfLessThanJava8()) {
+      return;
+    }
     AgentJar.main(args);
   }
 
-  private static synchronized URL installBootstrapJar(final Instrumentation inst)
+  private static synchronized URL installAgentJar(final Instrumentation inst)
       throws IOException, URISyntaxException {
     URL ddJavaAgentJarURL = null;
 
@@ -78,12 +136,14 @@ public final class AgentBootstrap {
 
     if (codeSource != null) {
       ddJavaAgentJarURL = codeSource.getLocation();
-      final File bootstrapFile = new File(ddJavaAgentJarURL.toURI());
+      if (ddJavaAgentJarURL != null) {
+        final File ddJavaAgentJarPath = new File(ddJavaAgentJarURL.toURI());
 
-      if (!bootstrapFile.isDirectory()) {
-        checkJarManifestMainClassIsThis(ddJavaAgentJarURL);
-        inst.appendToBootstrapClassLoaderSearch(new JarFile(bootstrapFile));
-        return ddJavaAgentJarURL;
+        if (!ddJavaAgentJarPath.isDirectory()) {
+          checkJarManifestMainClassIsThis(ddJavaAgentJarURL);
+          inst.appendToBootstrapClassLoaderSearch(new JarFile(ddJavaAgentJarPath));
+          return ddJavaAgentJarURL;
+        }
       }
     }
 
@@ -135,6 +195,7 @@ public final class AgentBootstrap {
   private static List<String> getVMArgumentsThroughReflection() {
     try {
       // Try Oracle-based
+      // IBM Semeru Runtime 1.8.0_345-b01 will throw UnsatisfiedLinkError here.
       final Class<?> managementFactoryHelperClass =
           Class.forName("sun.management.ManagementFactoryHelper");
 
@@ -155,7 +216,7 @@ public final class AgentBootstrap {
 
       return (List<String>) vmManagementClass.getMethod("getVmArguments").invoke(vmManagement);
 
-    } catch (final ReflectiveOperationException e) {
+    } catch (final ReflectiveOperationException | UnsatisfiedLinkError e) {
       try { // Try IBM-based.
         final Class<?> VMClass = Class.forName("com.ibm.oti.vm.VM");
         final String[] argArray = (String[]) VMClass.getMethod("getVMArgs").invoke(null);

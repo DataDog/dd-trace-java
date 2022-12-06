@@ -40,11 +40,11 @@ class MetricsIntegrationTest extends DDSpecification {
       )
     writer.startBucket(2, System.nanoTime(), SECONDS.toNanos(10))
     writer.add(
-      new MetricKey("resource1", "service1", "operation1", "sql", 0),
+      new MetricKey("resource1", "service1", "operation1", "sql", 0, false),
       new AggregateMetric().recordDurations(5, new AtomicLongArray(2, 1, 2, 250, 4, 5))
       )
     writer.add(
-      new MetricKey("resource2", "service2", "operation2", "web", 200),
+      new MetricKey("resource2", "service2", "operation2", "web", 200, false),
       new AggregateMetric().recordDurations(10, new AtomicLongArray(1, 1, 200, 2, 3, 4, 5, 6, 7, 8, 9))
       )
     writer.finishBucket()

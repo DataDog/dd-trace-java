@@ -1,20 +1,22 @@
 package datadog.trace.instrumentation.vertx_3_4.server;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
-import datadog.trace.api.function.BiFunction;
+import datadog.trace.advice.ActiveRequestContext;
+import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.vertx.core.json.JsonObject;
+import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 
+@RequiresRequestContext(RequestContextSlot.APPSEC)
 class RoutingContextJsonAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
-  static void after(@Advice.Return Object obj_) {
+  static void after(@Advice.Return Object obj_, @ActiveRequestContext RequestContext reqCtx) {
     if (obj_ == null) {
       return;
     }
@@ -23,18 +25,13 @@ class RoutingContextJsonAdvice {
       obj = ((JsonObject) obj).getMap();
     }
 
-    AgentSpan agentSpan = activeSpan();
-    if (agentSpan == null) {
-      return;
-    }
-    CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
-    BiFunction<RequestContext<Object>, Object, Flow<Void>> callback =
+    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+    BiFunction<RequestContext, Object, Flow<Void>> callback =
         cbp.getCallback(EVENTS.requestBodyProcessed());
-    RequestContext<Object> requestContext = agentSpan.getRequestContext();
-    if (requestContext == null || callback == null) {
+    if (callback == null) {
       return;
     }
 
-    callback.apply(requestContext, obj);
+    callback.apply(reqCtx, obj);
   }
 }

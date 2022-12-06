@@ -91,7 +91,7 @@ class DDApiIntegrationTest extends DDSpecification {
       //        print output.utf8String
       //      }
       agentContainer.start()
-      agentContainerHost = agentContainer.containerIpAddress
+      agentContainerHost = agentContainer.getHost()
       agentContainerPort = agentContainer.getMappedPort(datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT)
     }
 

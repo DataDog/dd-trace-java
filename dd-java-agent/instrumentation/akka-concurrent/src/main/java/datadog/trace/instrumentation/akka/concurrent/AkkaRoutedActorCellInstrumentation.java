@@ -64,7 +64,6 @@ public class AkkaRoutedActorCellInstrumentation extends Instrumenter.Tracing
       if (null != scope) {
         scope.close();
         // then we have invoked an Envelope and need to mark the work complete
-        scope.span().finishWork();
       }
     }
   }

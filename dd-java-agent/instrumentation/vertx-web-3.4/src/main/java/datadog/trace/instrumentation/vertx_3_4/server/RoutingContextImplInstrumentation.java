@@ -1,12 +1,13 @@
 package datadog.trace.instrumentation.vertx_3_4.server;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.instrumentation.vertx_3_4.server.VertxVersionMatcher.PARSABLE_HEADER_VALUE;
+import static datadog.trace.instrumentation.vertx_3_4.server.VertxVersionMatcher.VIRTUAL_HOST_HANDLER;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.muzzle.IReferenceMatcher;
-import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
+import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(Instrumenter.class)
 public class RoutingContextImplInstrumentation extends Instrumenter.AppSec
@@ -21,9 +22,9 @@ public class RoutingContextImplInstrumentation extends Instrumenter.AppSec
     return "io.vertx.ext.web.impl.RoutingContextImpl";
   }
 
-  private IReferenceMatcher postProcessReferenceMatcher(final ReferenceMatcher origMatcher) {
-    return new IReferenceMatcher.ConjunctionReferenceMatcher(
-        origMatcher, VertxVersionMatcher.INSTANCE);
+  @Override
+  public Reference[] additionalMuzzleReferences() {
+    return new Reference[] {PARSABLE_HEADER_VALUE, VIRTUAL_HOST_HANDLER};
   }
 
   @Override

@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jaxrs1;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresAnnotation;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
@@ -33,19 +34,22 @@ public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Tracing
     super("jax-rs", "jaxrs", "jax-rs-annotations");
   }
 
-  // this is required to make sure instrumentation won't apply to jax-rs 2
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return not(hasClassesNamed("javax.ws.rs.container.AsyncResponse"))
-        // Optimization for expensive typeMatcher.
-        .and(hasClassesNamed("javax.ws.rs.Path"));
+    // Avoid matching JAX-RS 2 which has its own instrumentation.
+    return not(hasClassNamed("javax.ws.rs.container.AsyncResponse"));
+  }
+
+  @Override
+  public String hierarchyMarkerType() {
+    return "javax.ws.rs.Path";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return hasSuperType(
-        isAnnotatedWith(named("javax.ws.rs.Path"))
-            .<TypeDescription>or(declaresMethod(isAnnotatedWith(named("javax.ws.rs.Path")))));
+        declaresAnnotation(named(hierarchyMarkerType()))
+            .or(declaresMethod(isAnnotatedWith(named(hierarchyMarkerType())))));
   }
 
   @Override

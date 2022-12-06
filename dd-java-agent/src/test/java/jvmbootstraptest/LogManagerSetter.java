@@ -148,7 +148,7 @@ public class LogManagerSetter {
   }
 
   private static void assertTraceInstallationDelayed(final String message) {
-    if (isJavaBefore9WithJFR()) {
+    if (okHttpMayIndirectlyLoadJUL()) {
       customAssert(isTracerInstalled(false), false, message);
     } else {
       customAssert(
@@ -159,7 +159,7 @@ public class LogManagerSetter {
   }
 
   private static void assertProfilingStartupDelayed(final String message) {
-    if (isJavaBefore9WithJFR()) {
+    if (okHttpMayIndirectlyLoadJUL()) {
       customAssert(isProfilingStarted(false), false, message);
     } else {
       customAssert(
@@ -215,17 +215,18 @@ public class LogManagerSetter {
     return false;
   }
 
-  private static boolean isJavaBefore9WithJFR() {
-    if (!System.getProperty("java.version").startsWith("1.")) {
-      return false;
+  private static boolean okHttpMayIndirectlyLoadJUL() {
+    if ("IBM Corporation".equals(System.getProperty("java.vm.vendor"))) {
+      return true; // IBM JDKs ship with 'IBMSASL' which will load JUL when OkHttp accesses TLS
     }
-
-    return isJFRSupported();
+    if (!System.getProperty("java.version").startsWith("1.")) {
+      return false; // JDKs since 9 have reworked JFR to use a different logging facility, not JUL
+    }
+    return isJFRSupported(); // assume OkHttp will indirectly load JUL via its JFR events
   }
 
   private static boolean isJFRSupported() {
-    final String jfrClassResourceName = "jdk.jfr.Recording".replace('.', '/') + ".class";
-    return Thread.currentThread().getContextClassLoader().getResourceAsStream(jfrClassResourceName)
+    return Thread.currentThread().getContextClassLoader().getResource("jdk/jfr/Recording.class")
         != null;
   }
 }

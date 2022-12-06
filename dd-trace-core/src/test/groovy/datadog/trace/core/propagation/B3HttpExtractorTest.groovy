@@ -1,6 +1,8 @@
 package datadog.trace.core.propagation
 
-import datadog.trace.api.DDId
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
+import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
@@ -17,8 +19,17 @@ class B3HttpExtractorTest extends DDSpecification {
 
   HttpCodec.Extractor extractor = B3HttpCodec.newExtractor(["SOME_HEADER": "some-tag"])
 
-  def setup() {
+  boolean origAppSecActive
+
+  void setup() {
+    origAppSecActive = ActiveSubsystems.APPSEC_ACTIVE
+    ActiveSubsystems.APPSEC_ACTIVE = true
+
     injectSysConfig(PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED, "true")
+  }
+
+  void cleanup() {
+    ActiveSubsystems.APPSEC_ACTIVE = origAppSecActive
   }
 
   def "extract http headers"() {
@@ -38,12 +49,12 @@ class B3HttpExtractorTest extends DDSpecification {
     final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
 
     then:
-    context.traceId == DDId.from("$traceId")
-    context.spanId == DDId.from("$spanId")
+    context.traceId == DDTraceId.from("$traceId")
+    context.spanId == DDSpanId.from("$spanId")
     context.baggage == [:]
     context.tags == [
       "b3.traceid": context.traceId.toHexStringOrOriginal(),
-      "b3.spanid" : context.spanId.toHexStringOrOriginal(),
+      "b3.spanid" : DDSpanId.toHexString(context.spanId),
       "some-tag"  : "my-interesting-info"
     ]
     context.samplingPriority == expectedSamplingPriority
@@ -76,12 +87,12 @@ class B3HttpExtractorTest extends DDSpecification {
     final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
 
     then:
-    context.traceId == DDId.from("$expectedTraceId")
-    context.spanId == DDId.from("$expectedSpanId")
+    context.traceId == DDTraceId.from("$expectedTraceId")
+    context.spanId == DDSpanId.from("$expectedSpanId")
     context.baggage == [:]
     context.tags == [
       "b3.traceid": context.traceId.toHexStringOrOriginal(),
-      "b3.spanid" : context.spanId.toHexStringOrOriginal(),
+      "b3.spanid" : DDSpanId.toHexString(context.spanId),
       "some-tag"  : "my-interesting-info"
     ]
     context.samplingPriority == expectedSamplingPriority
@@ -117,12 +128,12 @@ class B3HttpExtractorTest extends DDSpecification {
     final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
 
     then:
-    context.traceId == DDId.from("$expectedTraceId")
-    context.spanId == DDId.from("$expectedSpanId")
+    context.traceId == DDTraceId.from("$expectedTraceId")
+    context.spanId == DDSpanId.from("$expectedSpanId")
     context.baggage == [:]
     context.tags == [
       "b3.traceid": context.traceId.toHexStringOrOriginal(),
-      "b3.spanid" : context.spanId.toHexStringOrOriginal(),
+      "b3.spanid" : DDSpanId.toHexString(context.spanId),
       "some-tag"  : "my-interesting-info"
     ]
     context.samplingPriority == expectedSamplingPriority
@@ -154,28 +165,27 @@ class B3HttpExtractorTest extends DDSpecification {
     if (expectedTraceId) {
       assert context instanceof ExtractedContext
       assert context.traceId == expectedTraceId
-      assert context.spanId == expectedSpanId
+      assert context.spanId == (expectedSpanId == null ? 0 : expectedSpanId)
       assert context.tags["b3.traceid"] == expectedTraceId.toHexStringOrOriginal()
-      assert context.tags["b3.spanid"] == expectedSpanId.toHexStringOrOriginal()
+      assert context.tags["b3.spanid"] == (expectedSpanId == null ? null : DDSpanId.toHexString(expectedSpanId))
     } else {
       assert context == null || (context instanceof TagContext && !(context instanceof ExtractedContext))
     }
 
     where:
-    traceId                            | spanId             | expectedTraceId                                                       | expectedSpanId
-    "-1"                               | "1"                | null                                                                  | null
-    "1"                                | "-1"               | null                                                                  | null
-    "0"                                | "1"                | null                                                                  | null
-    "00001"                            | "00001"            | DDId.fromHexTruncatedWithOriginal("00001")                            | DDId.fromHexTruncatedWithOriginal("00001")
-    "463ac35c9f6413ad"                 | "463ac35c9f6413ad" | DDId.from("5060571933882717101")                                      | DDId.from("5060571933882717101")
-    "463ac35c9f6413ad48485a3953bb6124" | "1"                | DDId.fromHexTruncatedWithOriginal("463ac35c9f6413ad48485a3953bb6124") | DDId.ONE
-    "f" * 16                           | "1"                | DDId.MAX                                                              | DDId.ONE
-    "a" * 16 + "f" * 16                | "1"                | DDId.fromHexTruncatedWithOriginal("a" * 16 + "f" * 16)                | DDId.ONE
-    "1" + "f" * 32                     | "1"                | null                                                                  | null
-    "0" + "f" * 32                     | "1"                | null                                                                  | null
-    "1"                                | "f" * 16           | DDId.ONE                                                              | DDId.MAX
-    "1"                                | "1" + "f" * 16     | null                                                                  | null
-    "1"                                | "000" + "f" * 16   | DDId.ONE                                                              | DDId.fromHexWithOriginal("000" + "f" * 16)
+    traceId                            | spanId             | expectedTraceId                                                            | expectedSpanId
+    "-1"                               | "1"                | null                                                                       | null
+    "1"                                | "-1"               | null                                                                       | null
+    "0"                                | "1"                | null                                                                       | null
+    "00001"                            | "1"                | DDTraceId.fromHexTruncatedWithOriginal("00001")                            | DDSpanId.fromHex("00001")
+    "463ac35c9f6413ad"                 | "463ac35c9f6413ad" | DDTraceId.from("5060571933882717101")                                      | DDSpanId.from("5060571933882717101")
+    "463ac35c9f6413ad48485a3953bb6124" | "1"                | DDTraceId.fromHexTruncatedWithOriginal("463ac35c9f6413ad48485a3953bb6124") | 1
+    "f" * 16                           | "1"                | DDTraceId.MAX                                                              | 1
+    "a" * 16 + "f" * 16                | "1"                | DDTraceId.fromHexTruncatedWithOriginal("a" * 16 + "f" * 16)                | 1
+    "1" + "f" * 32                     | "1"                | null                                                                       | null
+    "0" + "f" * 32                     | "1"                | null                                                                       | null
+    "1"                                | "f" * 16           | DDTraceId.ONE                                                              | DDSpanId.MAX
+    "1"                                | "1" + "f" * 16     | null                                                                       | null
   }
 
   def "extract header tags with no propagation"() {
@@ -228,9 +238,9 @@ class B3HttpExtractorTest extends DDSpecification {
 
     then:
     context != null
-    !(context instanceof ExtractedContext)
-    context.forwardedIp == forwardedIp
-    context.forwardedPort == forwardedPort
+    context instanceof TagContext
+    context.XForwardedFor == forwardedIp
+    context.XForwardedPort == forwardedPort
 
     when:
     context = extractor.extract(fullCtx, ContextVisitors.stringValuesMap())
@@ -239,8 +249,8 @@ class B3HttpExtractorTest extends DDSpecification {
     context instanceof ExtractedContext
     context.traceId.toLong() == 1
     context.spanId.toLong() == 2
-    context.forwardedIp == forwardedIp
-    context.forwardedPort == forwardedPort
+    context.XForwardedFor == forwardedIp
+    context.XForwardedPort == forwardedPort
 
     where:
     forwardedIp = "1.2.3.4"
@@ -308,19 +318,58 @@ class B3HttpExtractorTest extends DDSpecification {
       assert context.traceId == expectedTraceId
       assert context.traceId.toHexStringOrOriginal() == traceId
       assert context.spanId == expectedSpanId
-      assert context.spanId.toHexStringOrOriginal() == spanId
+      assert DDSpanId.toHexString(context.spanId) == trimmed(spanId)
     } else {
       assert context == null
     }
 
     where:
-    traceId                            | spanId             | expectedTraceId                  | expectedSpanId
-    "00001"                            | "00001"            | DDId.ONE                         | DDId.ONE
-    "463ac35c9f6413ad"                 | "463ac35c9f6413ad" | DDId.from("5060571933882717101") | DDId.from("5060571933882717101")
-    "463ac35c9f6413ad48485a3953bb6124" | "1"                | DDId.from("5208512171318403364") | DDId.ONE
-    "f" * 16                           | "1"                | DDId.MAX                         | DDId.ONE
-    "a" * 16 + "f" * 16                | "1"                | DDId.MAX                         | DDId.ONE
-    "1"                                | "f" * 16           | DDId.ONE                         | DDId.MAX
-    "1"                                | "000" + "f" * 16   | DDId.ONE                         | DDId.MAX
+    traceId                            | spanId             | expectedTraceId                       | expectedSpanId
+    "00001"                            | "00001"            | DDTraceId.ONE                         | 1
+    "463ac35c9f6413ad"                 | "463ac35c9f6413ad" | DDTraceId.from("5060571933882717101") | DDSpanId.from("5060571933882717101")
+    "463ac35c9f6413ad48485a3953bb6124" | "1"                | DDTraceId.from("5208512171318403364") | 1
+    "f" * 16                           | "1"                | DDTraceId.MAX                         | 1
+    "a" * 16 + "f" * 16                | "1"                | DDTraceId.MAX                         | 1
+    "1"                                | "f" * 16           | DDTraceId.ONE                         | DDSpanId.MAX
+    "1"                                | "000" + "f" * 16   | DDTraceId.ONE                         | DDSpanId.MAX
+  }
+
+  String trimmed(String hex) {
+    int length = hex.length()
+    int i = 0
+    while (i < length  && hex.charAt(i) == '0') {
+      i++
+    }
+    if (i == length) {
+      return "0"
+    }
+    return hex.substring(i, length)
+  }
+
+  def "extract common http headers"() {
+    setup:
+    def headers = [
+      (HttpCodec.USER_AGENT_KEY): 'some-user-agent',
+      (HttpCodec.X_CLUSTER_CLIENT_IP_KEY): '1.1.1.1',
+      (HttpCodec.X_REAL_IP_KEY): '2.2.2.2',
+      (HttpCodec.CLIENT_IP_KEY): '3.3.3.3',
+      (HttpCodec.TRUE_CLIENT_IP_KEY): '4.4.4.4',
+      (HttpCodec.VIA_KEY): '5.5.5.5',
+      (HttpCodec.FORWARDED_FOR_KEY): '6.6.6.6',
+      (HttpCodec.X_FORWARDED_KEY): '7.7.7.7'
+    ]
+
+    when:
+    final TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+
+    then:
+    assert context.userAgent == 'some-user-agent'
+    assert context.XClusterClientIp == '1.1.1.1'
+    assert context.XRealIp == '2.2.2.2'
+    assert context.clientIp == '3.3.3.3'
+    assert context.trueClientIp == '4.4.4.4'
+    assert context.via == '5.5.5.5'
+    assert context.forwardedFor == '6.6.6.6'
+    assert context.XForwarded == '7.7.7.7'
   }
 }

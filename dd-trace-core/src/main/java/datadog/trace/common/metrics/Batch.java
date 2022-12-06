@@ -12,19 +12,21 @@ import java.util.concurrent.atomic.AtomicLongArray;
  * <p>A batch can currently take at most 64 values. Attempts to add the 65th update will be
  * rejected.
  */
-public final class Batch {
+public final class Batch implements InboxItem {
 
   private static final int MAX_BATCH_SIZE = 64;
   private static final AtomicIntegerFieldUpdater<Batch> COUNT =
       AtomicIntegerFieldUpdater.newUpdater(Batch.class, "count");
   private static final AtomicIntegerFieldUpdater<Batch> COMMITTED =
       AtomicIntegerFieldUpdater.newUpdater(Batch.class, "committed");
-  static final Batch NULL = new Batch((AtomicLongArray) null);
-  static final Batch REPORT = new Batch((AtomicLongArray) null);
 
   /**
-   * This counter has two states 1 - negative - the batch has been used, must not add values 2 -
-   * otherwise - the number of values added to the batch
+   * This counter has two states:
+   *
+   * <ol>
+   *   <li>negative: the batch has been used, must not add values
+   *   <li>otherwise: the number of values added to the batch
+   * </ol>
    */
   private volatile int count = 0;
   /** incremented when a duration has been added. */

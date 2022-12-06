@@ -22,29 +22,37 @@ class JMXFetchTest extends Specification {
   def "test jmxfetch"() {
     when:
     // verify that JMX starts and reports metrics through the given socket.
-    def returnCode = IntegrationTestUtils.runOnSeparateJvm(JmxStartedChecker.getName()
+    def process = IntegrationTestUtils.startOnSeparateJvm(JmxStartedChecker.getName()
       , [
         "-Ddd.jmxfetch.enabled=true",
         "-Ddd.jmxfetch.start-delay=0",
         "-Ddd.jmxfetch.statsd.port=${jmxStatsSocket.localPort}",
         "-Ddd.writer.type=DDAgentWriter"
       ] as String[]
-      , "" as String[]
+      , ["30000"] as String[]
       , [:]
-      , true)
+      , System.getProperty("java.class.path"))
+
+    def stdout = new BufferedInputStream(process.getInputStream())
+    def lines = stdout.readLines()
 
     then:
-    returnCode == 0
+    lines.size() > 0
+    lines.last() == "READY"
 
     when:
     byte[] buf = new byte[1500]
     DatagramPacket packet = new DatagramPacket(buf, buf.length)
     jmxStatsSocket.receive(packet)
     String received = new String(packet.getData(), 0, packet.getLength())
-    def tags = (received =~ /\|#(.*)/)[0][1].tokenize(',')
 
     then:
-    tags.contains("service:${JmxStartedChecker.getName()}" as String)
+    received.contains("service:${JmxStartedChecker.getName()}" as String)
+
+    cleanup:
+    if (process != null) {
+      process.destroy()
+    }
   }
 
   def "Agent loads when JmxFetch is misconfigured"() {
@@ -104,9 +112,9 @@ class JMXFetchTest extends Specification {
     names               | enable | expectedConfig
     []                  | true   | []
     ["tomcat"]          | false  | []
-    ["tomcat"]          | true   | ["datadog/trace/agent/jmxfetch/metricconfigs/tomcat.yaml"]
-    ["kafka"]           | true   | ["datadog/trace/agent/jmxfetch/metricconfigs/kafka.yaml"]
-    ["tomcat", "kafka"] | true   | ["datadog/trace/agent/jmxfetch/metricconfigs/tomcat.yaml", "datadog/trace/agent/jmxfetch/metricconfigs/kafka.yaml"]
+    ["tomcat"]          | true   | ["metrics/datadog/trace/agent/jmxfetch/metricconfigs/tomcat.yaml"]
+    ["kafka"]           | true   | ["metrics/datadog/trace/agent/jmxfetch/metricconfigs/kafka.yaml"]
+    ["tomcat", "kafka"] | true   | ["metrics/datadog/trace/agent/jmxfetch/metricconfigs/tomcat.yaml", "metrics/datadog/trace/agent/jmxfetch/metricconfigs/kafka.yaml"]
     ["tomcat", "kafka"] | false  | []
     ["invalid"]         | true   | []
     // spotless:on

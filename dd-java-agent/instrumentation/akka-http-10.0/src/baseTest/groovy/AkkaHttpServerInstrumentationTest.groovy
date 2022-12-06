@@ -7,11 +7,6 @@ import spock.lang.Shared
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import static datadog.trace.api.Checkpointer.CPU
-import static datadog.trace.api.Checkpointer.END
-import static datadog.trace.api.Checkpointer.SPAN
-import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
-
 abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttpTestWebServer> {
 
   @Override
@@ -70,24 +65,6 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
 
     and:
     TEST_WRITER.waitForTraces(totalInvocations)
-  }
-
-  def "checkpoints balance"() {
-    when:
-    ThreadUtils.runConcurrently(10, totalInvocations, {
-      def id = counter.incrementAndGet()
-      doAndValidateRequest(id)
-    })
-    TEST_WRITER.waitForTraces(totalInvocations)
-    then:
-    totalInvocations * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    totalInvocations * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
-    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    0 * TEST_CHECKPOINTER._
   }
 }
 

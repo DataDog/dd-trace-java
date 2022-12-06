@@ -83,7 +83,7 @@ class RateByServiceSamplerTest extends DDCoreSpecification {
     then:
     // sets correctly on root span
     span.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
-    // RateByServiceSamler must not set the sample rate
+    // RateByServiceSampler must not set the sample rate
     span.getTag(DDSpanContext.SAMPLE_RATE_KEY) == null
 
     cleanup:

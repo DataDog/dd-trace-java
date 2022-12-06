@@ -7,8 +7,9 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDId;
+import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
 import java.util.Map;
@@ -20,12 +21,13 @@ import org.slf4j.LoggerFactory;
 class DatadogHttpCodec {
   private static final Logger log = LoggerFactory.getLogger(DatadogHttpCodec.class);
 
-  private static final String OT_BAGGAGE_PREFIX = "ot-baggage-";
-  private static final String TRACE_ID_KEY = "x-datadog-trace-id";
-  private static final String SPAN_ID_KEY = "x-datadog-parent-id";
-  private static final String SAMPLING_PRIORITY_KEY = "x-datadog-sampling-priority";
-  private static final String ORIGIN_KEY = "x-datadog-origin";
+  static final String OT_BAGGAGE_PREFIX = "ot-baggage-";
+  static final String TRACE_ID_KEY = "x-datadog-trace-id";
+  static final String SPAN_ID_KEY = "x-datadog-parent-id";
+  static final String SAMPLING_PRIORITY_KEY = "x-datadog-sampling-priority";
+  static final String ORIGIN_KEY = "x-datadog-origin";
   private static final String E2E_START_KEY = OT_BAGGAGE_PREFIX + DDTags.TRACE_START_TIME;
+  static final String DATADOG_TAGS_KEY = "x-datadog-tags";
 
   private DatadogHttpCodec() {
     // This class should not be created. This also makes code coverage checks happy.
@@ -40,7 +42,7 @@ class DatadogHttpCodec {
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
 
       setter.set(carrier, TRACE_ID_KEY, context.getTraceId().toString());
-      setter.set(carrier, SPAN_ID_KEY, context.getSpanId().toString());
+      setter.set(carrier, SPAN_ID_KEY, DDSpanId.toString(context.getSpanId()));
       if (context.lockSamplingPriority()) {
         setter.set(carrier, SAMPLING_PRIORITY_KEY, String.valueOf(context.getSamplingPriority()));
       }
@@ -56,16 +58,27 @@ class DatadogHttpCodec {
       for (final Map.Entry<String, String> entry : context.baggageItems()) {
         setter.set(carrier, OT_BAGGAGE_PREFIX + entry.getKey(), HttpCodec.encode(entry.getValue()));
       }
+
+      // inject x-datadog-tags
+      String datadogTags = context.getDatadogTags().headerValue();
+      if (datadogTags != null) {
+        setter.set(carrier, DATADOG_TAGS_KEY, datadogTags);
+      }
     }
   }
 
   public static HttpCodec.Extractor newExtractor(final Map<String, String> tagMapping) {
+    return newExtractor(tagMapping, Config.get());
+  }
+
+  public static HttpCodec.Extractor newExtractor(
+      final Map<String, String> tagMapping, final Config config) {
     return new TagContextExtractor(
         tagMapping,
         new ContextInterpreter.Factory() {
           @Override
           protected ContextInterpreter construct(Map<String, String> mapping) {
-            return new DatadogContextInterpreter(mapping);
+            return new DatadogContextInterpreter(mapping, config);
           }
         });
   }
@@ -79,10 +92,16 @@ class DatadogHttpCodec {
     private static final int TAGS = 4;
     private static final int OT_BAGGAGE = 5;
     private static final int E2E_START = 6;
+    private static final int DD_TAGS = 7;
     private static final int IGNORE = -1;
 
-    private DatadogContextInterpreter(Map<String, String> taggedHeaders) {
-      super(taggedHeaders);
+    private final boolean isAwsPropagationEnabled;
+    private final DatadogTags.Factory datadogTagsFactory;
+
+    private DatadogContextInterpreter(Map<String, String> taggedHeaders, Config config) {
+      super(taggedHeaders, config);
+      isAwsPropagationEnabled = config.isAwsPropagationEnabled();
+      datadogTagsFactory = DatadogTags.factory(config);
     }
 
     @Override
@@ -106,16 +125,22 @@ class DatadogHttpCodec {
             classification = SAMPLING_PRIORITY;
           } else if (ORIGIN_KEY.equalsIgnoreCase(key)) {
             classification = ORIGIN;
-          } else if (Config.get().isAwsPropagationEnabled()
-              && X_AMZN_TRACE_ID.equalsIgnoreCase(key)) {
+          } else if (isAwsPropagationEnabled && X_AMZN_TRACE_ID.equalsIgnoreCase(key)) {
             handleXRayTraceHeader(this, value);
             return true;
           } else if (handledXForwarding(key, value)) {
             return true;
+          } else if (DATADOG_TAGS_KEY.equalsIgnoreCase(key)) {
+            classification = DD_TAGS;
           }
           break;
         case 'f':
           if (handledForwarding(key, value)) {
+            return true;
+          }
+          break;
+        case 'u':
+          if (handledUserAgent(key, value)) {
             return true;
           }
           break;
@@ -129,6 +154,11 @@ class DatadogHttpCodec {
           break;
         default:
       }
+
+      if (handledIpHeaders(key, value)) {
+        return true;
+      }
+
       if (!taggedHeaders.isEmpty() && classification == IGNORE) {
         lowerCaseKey = toLowerCase(key);
         if (taggedHeaders.containsKey(lowerCaseKey)) {
@@ -137,23 +167,25 @@ class DatadogHttpCodec {
       }
       if (classification != IGNORE) {
         try {
-          String firstValue = firstHeaderValue(value);
-          if (null != firstValue) {
+          if (null != value) {
             switch (classification) {
               case TRACE_ID:
-                traceId = DDId.from(firstValue);
+                traceId = DDTraceId.from(firstHeaderValue(value));
                 break;
               case SPAN_ID:
-                spanId = DDId.from(firstValue);
+                spanId = DDSpanId.from(firstHeaderValue(value));
                 break;
               case ORIGIN:
-                origin = firstValue;
+                origin = firstHeaderValue(value);
                 break;
               case SAMPLING_PRIORITY:
-                samplingPriority = Integer.parseInt(firstValue);
+                samplingPriority = Integer.parseInt(firstHeaderValue(value));
                 break;
               case E2E_START:
-                endToEndStartTime = extractEndToEndStartTime(firstValue);
+                endToEndStartTime = extractEndToEndStartTime(firstHeaderValue(value));
+                break;
+              case DD_TAGS:
+                datadogTags = datadogTagsFactory.fromHeaderValue(value);
                 break;
               case TAGS:
                 {

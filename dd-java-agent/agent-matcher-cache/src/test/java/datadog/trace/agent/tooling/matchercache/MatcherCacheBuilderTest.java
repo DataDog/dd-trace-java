@@ -40,7 +40,7 @@ public class MatcherCacheBuilderTest {
     }
 
     @Override
-    public String matchingIntrumenters(TypeDescription typeDescription) {
+    public String matchingInstrumenters(TypeDescription typeDescription) {
       String fullClassName = typeDescription.getCanonicalName();
       if (fullClassName != null) {
         switch (fullClassName) {

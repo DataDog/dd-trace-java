@@ -8,10 +8,13 @@ import com.aerospike.client.async.EventLoops
 import com.aerospike.client.async.NioEventLoops
 import com.aerospike.client.listener.WriteListener
 import com.aerospike.client.policy.ClientPolicy
+import spock.lang.Requires
 import spock.lang.Shared
 
 import static org.junit.Assert.fail
 
+// Do not run tests on Java7 since testcontainers are not compatible with Java7
+@Requires({ jvm.java8Compatible })
 class AerospikeAsyncClientTest extends AerospikeBaseTest {
 
   @Shared

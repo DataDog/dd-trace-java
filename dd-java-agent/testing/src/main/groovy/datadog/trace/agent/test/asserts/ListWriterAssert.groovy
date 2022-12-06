@@ -16,6 +16,7 @@ import static TraceAssert.assertTrace
 class ListWriterAssert {
   public static final Comparator<List<DDSpan>> SORT_TRACES_BY_ID = new SortTracesById()
   public static final Comparator<List<DDSpan>> SORT_TRACES_BY_START = new SortTracesByStart()
+  public static final Comparator<List<DDSpan>> SORT_TRACES_BY_NAMES = new SortTracesByNames()
 
   private List<List<DDSpan>> traces
   private final int size
@@ -148,6 +149,19 @@ class ListWriterAssert {
     long rootSpanId(List<DDSpan> trace) {
       assert !trace.isEmpty()
       return trace.get(0).localRootSpan.spanId.toLong()
+    }
+  }
+
+  private static class SortTracesByNames implements Comparator<List<DDSpan>> {
+    @Override
+    int compare(List<DDSpan> o1, List<DDSpan> o2) {
+      return rootSpanTrace(o1) <=> rootSpanTrace(o2)
+    }
+
+    String rootSpanTrace(List<DDSpan> trace) {
+      assert !trace.isEmpty()
+      def rootSpan = trace.get(0).localRootSpan
+      return "${rootSpan.serviceName}/${rootSpan.operationName}/${rootSpan.resourceName}"
     }
   }
 }

@@ -10,10 +10,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.netty.handler.codec.http.multipart.Attribute;
@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
@@ -82,10 +83,10 @@ public class HttpPostRequestDecoderInstrumentation extends Instrumenter.AppSec
 
       AgentSpan agentSpan = activeSpan();
       if (agentSpan != null) {
-        CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
-        BiFunction<RequestContext<Object>, Object, Flow<Void>> callback =
+        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+        BiFunction<RequestContext, Object, Flow<Void>> callback =
             cbp.getCallback(EVENTS.requestBodyProcessed());
-        RequestContext<Object> requestContext = agentSpan.getRequestContext();
+        RequestContext requestContext = agentSpan.getRequestContext();
 
         if (requestContext != null && callback != null) {
           doOnlyRelease = false;

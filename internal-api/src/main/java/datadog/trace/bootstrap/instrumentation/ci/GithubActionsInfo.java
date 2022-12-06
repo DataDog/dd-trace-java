@@ -50,6 +50,8 @@ class GithubActionsInfo extends CIProviderInfo {
         .ciPipelineUrl(pipelineUrl)
         .ciJobUrl(jobUrl)
         .ciWorkspace(expandTilde(System.getenv(GHACTIONS_WORKSPACE_PATH)))
+        .ciEnvVars(
+            GHACTIONS_URL, GHACTIONS_REPOSITORY, GHACTIONS_PIPELINE_ID, GHACTIONS_PIPELINE_RETRY)
         .build();
   }
 

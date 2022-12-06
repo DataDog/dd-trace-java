@@ -7,6 +7,10 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AM
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_QUEUE;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_ROUTING_KEY;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Command;
@@ -15,11 +19,14 @@ import com.rabbitmq.client.Envelope;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -90,7 +97,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
         routingKey == null || routingKey.isEmpty()
             ? "<all>"
             : routingKey.startsWith("amq.gen-") ? "<generated>" : routingKey;
-    span.setResourceName("basic.publish " + exchangeName + " -> " + routing);
+    span.setResourceName(buildResourceName("basic.publish", exchangeName, routing));
     span.setTag(AMQP_EXCHANGE, exchange);
     span.setTag(AMQP_ROUTING_KEY, routingKey);
   }
@@ -144,6 +151,20 @@ public class RabbitDecorator extends MessagingClientDecorator {
     return queueName;
   }
 
+  private String buildResourceName(
+      final String opName, final String exchangeName, final String routingKey) {
+    // pre-size to the worst case length
+    final StringBuilder prefix =
+        new StringBuilder(opName.length() + exchangeName.length() + routingKey.length() + 5)
+            .append(opName)
+            .append(" ")
+            .append(exchangeName);
+    if (Config.get().isRabbitIncludeRoutingKeyInResource()) {
+      prefix.append(" -> ").append(routingKey);
+    }
+    return prefix.toString();
+  }
+
   public TracedDelegatingConsumer wrapConsumer(String queue, Consumer consumer) {
     return new TracedDelegatingConsumer(queue, consumer);
   }
@@ -173,8 +194,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
     if (queueStartMillis != 0) {
       queueStartMillis = Math.min(spanStartMillis, queueStartMillis);
       queueSpan =
-          startSpan(
-              AMQP_DELIVER, parentContext, TimeUnit.MILLISECONDS.toMicros(queueStartMillis), false);
+          startSpan(AMQP_DELIVER, parentContext, TimeUnit.MILLISECONDS.toMicros(queueStartMillis));
       BROKER_DECORATE.afterStart(queueSpan);
       BROKER_DECORATE.onTimeInQueue(queueSpan, queue, body);
       parentContext = queueSpan.context();
@@ -183,6 +203,18 @@ public class RabbitDecorator extends MessagingClientDecorator {
       // spans are written out together by the TraceStructureWriter when running in strict mode
     }
     final AgentSpan span = startSpan(AMQP_COMMAND, parentContext, spanStartMicros);
+
+    if (null != headers) {
+      PathwayContext pathwayContext =
+          propagate().extractPathwayContext(headers, ContextVisitors.objectValuesMap());
+      span.mergePathwayContext(pathwayContext);
+      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+      sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+      sortedTags.put(TOPIC_TAG, queue);
+      sortedTags.put(TYPE_TAG, "rabbitmq");
+      AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
+    }
+
     if (null != body) {
       span.setTag("message.size", body.length);
     }

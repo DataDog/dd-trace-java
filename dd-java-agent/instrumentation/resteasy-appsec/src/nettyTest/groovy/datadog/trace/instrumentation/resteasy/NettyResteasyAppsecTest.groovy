@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.resteasy
 
+import datadog.trace.agent.test.utils.PortUtils
 import org.jboss.resteasy.plugins.server.netty.NettyJaxrsServer
 import org.jboss.resteasy.spi.ResteasyDeployment
 import spock.lang.Shared
 
 class NettyResteasyAppsecTest extends AbstractResteasyAppsecTest {
-  private final static int PORT = 59152
 
   @Shared
   NettyJaxrsServer netty
@@ -22,11 +22,11 @@ class NettyResteasyAppsecTest extends AbstractResteasyAppsecTest {
     deployment.application = new TestJaxRsApplication()
 
     netty.deployment = deployment
-    netty.port = PORT
+    netty.port = PortUtils.randomOpenPort()
     netty.rootResourcePath = ''
     netty.securityDomain = null
     netty.start()
-    address = URI.create("http://localhost:$PORT/")
+    address = URI.create("http://localhost:${netty.port}/")
   }
 
   @Override

@@ -9,7 +9,11 @@
       "BITRISE_SOURCE_DIR": "/foo/bar",
       "BITRISE_TRIGGERED_WORKFLOW_ID": "bitrise-pipeline-name",
       "GIT_CLONE_COMMIT_HASH": "bitrise-git-commit",
-      "GIT_REPOSITORY_URL": "sample"
+      "GIT_REPOSITORY_URL": "sample",
+      "GIT_CLONE_COMMIT_AUTHOR_NAME": "David Bowie",
+      "GIT_CLONE_COMMIT_AUTHOR_EMAIL": "author@author.com",
+      "GIT_CLONE_COMMIT_COMMITER_NAME": "Akira Toriyama",
+      "GIT_CLONE_COMMIT_COMMITER_EMAIL": "commiter@commiter.com"
     },
     {
       "ci.pipeline.id": "bitrise-pipeline-id",
@@ -20,7 +24,11 @@
       "ci.workspace_path": "/foo/bar",
       "git.commit.message": "bitrise-git-commit-message",
       "git.commit.sha": "gitcommit",
-      "git.repository_url": "sample"
+      "git.repository_url": "sample",
+      "git.commit.author.name": "David Bowie",
+      "git.commit.author.email": "author@author.com",
+      "git.commit.committer.name": "Akira Toriyama",
+      "git.commit.committer.email": "commiter@commiter.com"
     }
   ],
   [

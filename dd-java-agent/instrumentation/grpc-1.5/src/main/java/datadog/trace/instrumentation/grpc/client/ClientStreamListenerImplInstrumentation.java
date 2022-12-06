@@ -69,8 +69,6 @@ public class ClientStreamListenerImplInstrumentation extends Instrumenter.Tracin
       if (null != scope) {
         AgentSpan span = scope.span();
         InstrumentationContext.get(ClientStreamListener.class, AgentSpan.class).put(listener, span);
-        // Initiate the span thread migration - the listener may be called on any thread
-        span.startThreadMigration();
       }
     }
   }
@@ -85,8 +83,6 @@ public class ClientStreamListenerImplInstrumentation extends Instrumenter.Tracin
         if (null != span) {
           DECORATE.onError(span, status.getCause());
           DECORATE.beforeFinish(span);
-          // Make sure the span thread migration is finished
-          span.finishThreadMigration();
           span.finish();
         }
       }
@@ -102,8 +98,6 @@ public class ClientStreamListenerImplInstrumentation extends Instrumenter.Tracin
       AgentSpan span =
           InstrumentationContext.get(ClientStreamListener.class, AgentSpan.class).get(listener);
       if (span != null) {
-        // Make sure the span thread migration is finished
-        span.finishThreadMigration();
         return activateSpan(span);
       }
       return null;
@@ -112,7 +106,6 @@ public class ClientStreamListenerImplInstrumentation extends Instrumenter.Tracin
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(@Advice.Enter AgentScope scope) {
       if (null != scope) {
-        scope.span().finishWork();
         scope.close();
       }
     }
@@ -133,8 +126,6 @@ public class ClientStreamListenerImplInstrumentation extends Instrumenter.Tracin
       AgentSpan span =
           InstrumentationContext.get(ClientStreamListener.class, AgentSpan.class).get(listener);
       if (span != null) {
-        // Make sure the span thread migration is finished
-        span.finishThreadMigration();
         return activateSpan(span);
       }
       return null;
@@ -143,9 +134,6 @@ public class ClientStreamListenerImplInstrumentation extends Instrumenter.Tracin
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(@Advice.Enter AgentScope scope) {
       if (null != scope) {
-        // The span must be 'suspended' here so the `messageRead` instrumentation can properly
-        // 'resume' it
-        scope.span().startThreadMigration();
         scope.close();
       }
     }
