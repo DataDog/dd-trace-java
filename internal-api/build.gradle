@@ -99,6 +99,7 @@ dependencies {
   api project(":utils:time-utils")
 
   testImplementation project(":utils:test-utils")
+  testImplementation project(":utils:process-utils")
   testImplementation("org.assertj:assertj-core:2.9.1")
   testImplementation deps.junit5
   testImplementation("org.junit.vintage:junit-vintage-engine:${versions.junit5}")

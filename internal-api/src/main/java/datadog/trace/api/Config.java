@@ -1258,7 +1258,7 @@ public class Config {
     return runtimeIdEnabled ? RuntimeIdHolder.runtimeId : "";
   }
 
-  public long getProcessId() {
+  public Long getProcessId() {
     return PidHelper.PID;
   }
 
