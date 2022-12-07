@@ -77,6 +77,7 @@ import static datadog.trace.api.DDTags.HOST_TAG;
 import static datadog.trace.api.DDTags.INTERNAL_HOST_NAME;
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY;
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE;
+import static datadog.trace.api.DDTags.PID_TAG;
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
 import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG;
 import static datadog.trace.api.DDTags.SERVICE;
@@ -291,6 +292,7 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
+import datadog.trace.util.PidHelper;
 import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
@@ -1257,6 +1259,14 @@ public class Config {
     return runtimeIdEnabled ? RuntimeIdHolder.runtimeId : "";
   }
 
+  public Long getProcessId() {
+    String PID = PidHelper.getPid();
+    if (PID == null || PID.equals("") || PID.trim().equals("")) {
+      return 0L;
+    }
+    return Long.parseLong(PID);
+  }
+
   public String getRuntimeVersion() {
     return runtimeVersion;
   }
@@ -2033,6 +2043,8 @@ public class Config {
       result.putAll(getAzureAppServicesTags());
     }
 
+    result.putAll(getProcessIdTag());
+
     return Collections.unmodifiableMap(result);
   }
 
@@ -2176,6 +2188,10 @@ public class Config {
    */
   private Map<String, String> getRuntimeTags() {
     return Collections.singletonMap(RUNTIME_ID_TAG, getRuntimeId());
+  }
+
+  private Map<String, Long> getProcessIdTag() {
+    return Collections.singletonMap(PID_TAG, getProcessId());
   }
 
   private Map<String, String> getAzureAppServicesTags() {
@@ -2435,7 +2451,7 @@ public class Config {
   }
 
   @Nonnull
-  private static Map<String, String> newHashMap(final int size) {
+  private static <VAL> Map<String, VAL> newHashMap(final int size) {
     return new HashMap<>(size + 1, 1f);
   }
 
