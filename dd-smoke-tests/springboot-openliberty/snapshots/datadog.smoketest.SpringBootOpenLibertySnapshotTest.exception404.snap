@@ -32,6 +32,7 @@
               "_sampling_priority_v1" 1
               "peer.port" 57798
               "thread.id" 62
+              "process_id" 123
               "_dd.top_level" 1}}
       {"name" "spring.handler"
        "service" "smoke-test-java-app"
@@ -50,7 +51,8 @@
                "component" "spring-web-controller"
                "span.kind" "server"}
        "metrics" {"_dd.measured" 1
-                  "thread.id" 62}}
+                  "thread.id" 62
+                  "process_id" 123}}
           {"name" "servlet.response"
            "service" "smoke-test-java-app"
            "resource" "HttpServletResponse.sendError"
@@ -65,7 +67,8 @@
                    "version" "99"
                    "thread.name" "Default Executor-thread-13"
                    "component" "java-web-servlet-response"}
-           "metrics" {"thread.id" 62}}
+           "metrics" {"thread.id" 62
+                      "process_id" 123}}
               {"name" "servlet.forward"
                "service" "smoke-test-java-app"
                "resource" "GET /error"
@@ -85,7 +88,8 @@
                        "component" "java-web-servlet-dispatcher"
                        "servlet.path" "/error"
                        "error.type" "org.springframework.http.converter.HttpMessageNotWritableException"}
-               "metrics" {"thread.id" 62}}
+               "metrics" {"thread.id" 62
+                          "process_id" 123}}
                   {"name" "spring.handler"
                    "service" "smoke-test-java-app"
                    "resource" "BasicErrorController.error"
@@ -107,4 +111,5 @@
                            "error.type" "org.springframework.http.converter.HttpMessageNotWritableException"}
                    "metrics" {"_dd.measured" 1
                               "_sampling_priority_v1" 1
-                              "thread.id" 62}}]]
+                              "thread.id" 62
+                              "process_id" 123}}]]
