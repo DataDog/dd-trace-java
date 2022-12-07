@@ -116,7 +116,7 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.throwsException) {
       // Exception classes get wrapped in ServletException
-      ["error.msg": { endpoint == EXCEPTION ? "Servlet execution threw an exception" : it == endpoint.body },
+      ["error.message": { endpoint == EXCEPTION ? "Servlet execution threw an exception" : it == endpoint.body },
         "error.type": { it == ServletException.name || it == InputMismatchException.name },
         "error.stack": String]
     } else {
@@ -157,7 +157,7 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
         }
         "servlet.path" "/dispatch$endpoint.path"
         if (endpoint.throwsException) {
-          "error.msg" endpoint.body
+          "error.message" endpoint.body
           "error.type" { it == Exception.name || it == InputMismatchException.name }
           "error.stack" String
         }
