@@ -265,7 +265,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "error.type" { String tagExceptionType ->
               return tagExceptionType == exceptionClass.getName() || tagExceptionType.contains(exceptionClass.getSimpleName())
             }
-            "error.msg" { String tagErrorMsg ->
+            "error.message" { String tagErrorMsg ->
               return errorMessageOptional || tagErrorMsg instanceof String
             }
             "error.stack" String
@@ -285,7 +285,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "error.type" { String tagExceptionType ->
               return tagExceptionType == exceptionClass.getName() || tagExceptionType.contains(exceptionClass.getSimpleName())
             }
-            "error.msg" { String tagErrorMsg ->
+            "error.message" { String tagErrorMsg ->
               return errorMessageOptional || tagErrorMsg instanceof String
             }
             "error.stack" String

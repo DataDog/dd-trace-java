@@ -143,7 +143,7 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
   @Override
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.throwsException) {
-      ["error.msg": "${endpoint.body}",
+      ["error.message": "${endpoint.body}",
         "error.type": { it == Exception.name || it == InputMismatchException.name },
         "error.stack": String]
     } else {
@@ -168,7 +168,7 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
         }
         "servlet.path" "/dispatch$endpoint.path"
         if (endpoint.throwsException) {
-          "error.msg" endpoint.body
+          "error.message" endpoint.body
           "error.type" { it == Exception.name || it == InputMismatchException.name }
           "error.stack" String
         }
