@@ -27,7 +27,7 @@ public interface Sampler {
   final class Builder {
     private static final Logger log = LoggerFactory.getLogger(Builder.class);
 
-    public static <T extends CoreSpan<T>> Sampler forConfig(final Config config) {
+    public static Sampler forConfig(final Config config) {
       Sampler sampler;
       if (config != null) {
         final Map<String, String> serviceRules = config.getTraceSamplingServiceRules();
@@ -86,7 +86,7 @@ public interface Sampler {
       return sampler;
     }
 
-    public static <T extends CoreSpan<T>> Sampler forConfig(final Properties config) {
+    public static Sampler forConfig(final Properties config) {
       return forConfig(Config.get(config));
     }
 

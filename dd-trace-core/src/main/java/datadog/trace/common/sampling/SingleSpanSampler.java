@@ -18,7 +18,7 @@ public interface SingleSpanSampler {
   final class Builder {
     private static final Logger log = LoggerFactory.getLogger(Builder.class);
 
-    public static <T extends CoreSpan<T>> SingleSpanSampler forConfig(Config config) {
+    public static SingleSpanSampler forConfig(Config config) {
       String spanSamplingRules = config.getSpanSamplingRules();
       String spanSamplingRulesFile = config.getSpanSamplingRulesFile();
 
