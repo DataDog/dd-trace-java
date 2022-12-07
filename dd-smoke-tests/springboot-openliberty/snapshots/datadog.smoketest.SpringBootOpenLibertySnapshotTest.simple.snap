@@ -50,5 +50,4 @@
                "span.kind" "server"}
        "metrics" {"_dd.measured" 1
                   "_sampling_priority_v1" 1
-                  "thread.id" 44
-                  "process_id" 123}}]]
+                  "thread.id" 44}}]]

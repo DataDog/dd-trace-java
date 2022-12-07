@@ -49,8 +49,7 @@
                "component" "spring-web-controller"
                "span.kind" "server"}
        "metrics" {"_dd.measured" 1
-                  "thread.id" 58
-                  "process_id" 123}}
+                  "thread.id" 58}}
           {"name" "http.request"
            "service" "smoke-test-java-app"
            "resource" "GET /connect/?"
@@ -73,8 +72,7 @@
             "metrics" {"_dd.measured" 1
                        "_sampling_priority_v1" 1
                       "peer.port" 57690
-                      "thread.id" 58
-                      "process_id" 123}}
+                      "thread.id" 58}}
               {"name" "servlet.request"
                "service" "smoke-test-java-app"
                "resource" "GET /connect/{user}"
@@ -105,8 +103,7 @@
                           "_sampling_priority_v1" 1
                           "peer.port" 57796
                           "_dd.top_level" 1
-                          "thread.id" 47
-                          "process_id" 123}}
+                          "thread.id" 47}}
                   {"name" "spring.handler"
                    "service" "smoke-test-java-app"
                    "resource" "DemoController.connectFinal"
@@ -125,5 +122,4 @@
                            "span.kind" "server"}
                    "metrics" {"_dd.measured" 1
                               "_sampling_priority_v1" 1
-                              "thread.id" 47
-                              "process_id" 123}}]]
+                              "thread.id" 47}}]]
