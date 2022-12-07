@@ -41,4 +41,5 @@ public class DDTags {
   public static final String LIBRARY_VERSION_TAG_KEY = "library_version";
   public static final String CI_ENV_VARS = "_dd.ci.env_vars";
   public static final String MEASURED = "_dd.measured";
+  public static final String PID_TAG = "process_id";
 }

@@ -9,11 +9,12 @@ import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_UPLOAD
 
 import com.squareup.moshi.JsonWriter;
 import datadog.common.container.ContainerInfo;
-import datadog.common.process.PidHelper;
 import datadog.common.version.VersionInfo;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.util.PidHelper;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.io.InputStream;
@@ -82,8 +83,8 @@ public final class CrashUploader {
     final Map<String, String> tagsMap = new HashMap<>(config.getMergedCrashTrackingTags());
     tagsMap.put(VersionInfo.LIBRARY_VERSION_TAG, VersionInfo.VERSION);
     // PID can be null if we cannot find it out from the system
-    if (PidHelper.PID != null) {
-      tagsMap.put(PidHelper.PID_TAG, PidHelper.PID.toString());
+    if (PidHelper.getPid() != null) {
+      tagsMap.put(DDTags.PID_TAG, PidHelper.getPid().toString());
     }
     // Comma separated tags string for V2.4 format
     tags = tagsToString(tagsMap);

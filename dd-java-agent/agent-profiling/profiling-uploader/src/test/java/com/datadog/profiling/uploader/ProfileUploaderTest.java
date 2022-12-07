@@ -41,12 +41,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
-import datadog.common.process.PidHelper;
 import datadog.common.version.VersionInfo;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.relocate.api.IOLogger;
+import datadog.trace.util.PidHelper;
 import delight.fileupload.FileUpload;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
@@ -104,6 +105,9 @@ public class ProfileUploaderTest {
   private static final Map<String, String> TAGS;
 
   static {
+    // register static PID for testing as we're not running as an agent
+    PidHelper.supplyIfAbsent(() -> 54321L);
+
     // Not using Guava's ImmutableMap because we want to test null value
     final Map<String, String> tags = new HashMap<>();
     tags.put("foo", "bar");
@@ -120,8 +124,8 @@ public class ProfileUploaderTest {
           "123",
           "foo",
           "bar",
-          PidHelper.PID_TAG,
-          PidHelper.PID.toString(),
+          DDTags.PID_TAG,
+          PidHelper.getPid().toString(),
           VersionInfo.PROFILER_VERSION_TAG,
           VersionInfo.VERSION,
           VersionInfo.LIBRARY_VERSION_TAG,

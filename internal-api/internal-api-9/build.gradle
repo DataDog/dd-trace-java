@@ -27,6 +27,10 @@ dependencies {
   testImplementation deps.slf4j
 }
 
+forbiddenApisMain {
+  failOnMissingClasses = false
+}
+
 idea {
   module {
     jdkName = '11'
