@@ -81,7 +81,7 @@ class TagsAssert {
     tag("error.stack", String)
 
     if (message != null) {
-      tag("error.msg", message)
+      tag("error.message", message)
     }
   }
 
