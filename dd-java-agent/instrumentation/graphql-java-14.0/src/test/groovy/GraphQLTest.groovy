@@ -261,7 +261,7 @@ class GraphQLTest extends AgentTestRunner {
             "$Tags.COMPONENT" "graphql-java"
             "graphql.query" query
             "graphql.operation.name" null
-            "error.msg" "Invalid Syntax : offending token ')' at line 2 column 25"
+            "error.msg" { it.toLowerCase().startsWith("invalid syntax") }
             defaultTags()
           }
         }
@@ -275,7 +275,7 @@ class GraphQLTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "graphql-java"
             "error.type" "graphql.parser.InvalidSyntaxException"
-            "error.msg" "Invalid Syntax : offending token ')' at line 2 column 25"
+            "error.msg" { it.toLowerCase().startsWith("invalid syntax") }
             "error.stack" String
             defaultTags()
           }
