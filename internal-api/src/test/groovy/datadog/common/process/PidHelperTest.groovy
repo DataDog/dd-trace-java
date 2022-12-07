@@ -1,6 +1,6 @@
 package datadog.common.process
 
-import spock.lang.Specification;
+import spock.lang.Specification
 
 class PidHelperTest extends Specification {
 

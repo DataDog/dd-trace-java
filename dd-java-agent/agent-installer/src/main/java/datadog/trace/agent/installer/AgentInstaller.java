@@ -54,26 +54,25 @@ public class AgentInstaller {
       log.debug("No instrumentation required, not installing Datadog class transformer.");
     }
 
-    try {
-      if (Platform.isJavaVersionAtLeast(9)) {
+    if (Platform.isJavaVersionAtLeast(9)) {
+      try {
         Supplier<Long> supplier =
             (Supplier<Long>)
-                Config.class
+                Instrumenter.class
                     .getClassLoader()
                     .loadClass("datadog.common.process.Java9ProcessIdSupplier")
                     .getDeclaredConstructor()
                     .newInstance();
         PidHelper.computeIfAbsent(supplier);
-      } else {
-        PidHelper.computeIfAbsent(new JnrProcessIdSupplier());
+      } catch (InstantiationException
+          | IllegalAccessException
+          | InvocationTargetException
+          | NoSuchMethodException
+          | ClassNotFoundException e) {
+        log.error("Failed while calling Java9ProcessIdSupplier");
       }
-
-    } catch (InstantiationException
-             | IllegalAccessException
-             | InvocationTargetException
-             | NoSuchMethodException
-             | ClassNotFoundException e) {
-      log.error("Unable to get process ID using Java 9 API");
+    } else {
+      PidHelper.computeIfAbsent(new JnrProcessIdSupplier());
     }
   }
 
@@ -88,7 +87,7 @@ public class AgentInstaller {
    * </ul>
    *
    * @param className name of the class to match against
-   * @param callback  runnable to invoke when class name matches
+   * @param callback runnable to invoke when class name matches
    */
   public static void registerClassLoadCallback(String className, Runnable callback) {
     if ("java.util.logging.LogManager".equals(className)) {
@@ -210,6 +209,5 @@ public class AgentInstaller {
     return enabledSystems;
   }
 
-  private AgentInstaller() {
-  }
+  private AgentInstaller() {}
 }

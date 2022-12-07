@@ -3,17 +3,21 @@ package datadog.trace.agent.tooling;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher.globalIgnoresMatcher;
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
+import datadog.common.process.JnrProcessIdSupplier;
+import datadog.common.process.PidHelper;
 import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDOutlinePoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.IntegrationsCollector;
+import datadog.trace.api.Platform;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.util.AgentTaskScheduler;
 import java.lang.instrument.Instrumentation;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
@@ -21,6 +25,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
@@ -67,6 +72,27 @@ public class AgentInstaller {
       }
     } else if (DEBUG) {
       log.debug("No target systems enabled, skipping instrumentation.");
+    }
+
+    if (Platform.isJavaVersionAtLeast(9)) {
+      try {
+        Supplier<Long> supplier =
+            (Supplier<Long>)
+                Instrumenter.class
+                    .getClassLoader()
+                    .loadClass("datadog.common.process.Java9ProcessIdSupplier")
+                    .getDeclaredConstructor()
+                    .newInstance();
+        PidHelper.computeIfAbsent(supplier);
+      } catch (InstantiationException
+          | IllegalAccessException
+          | InvocationTargetException
+          | NoSuchMethodException
+          | ClassNotFoundException e) {
+        log.error("Failed while calling Java9ProcessIdSupplier");
+      }
+    } else {
+      PidHelper.computeIfAbsent(new JnrProcessIdSupplier());
     }
   }
 

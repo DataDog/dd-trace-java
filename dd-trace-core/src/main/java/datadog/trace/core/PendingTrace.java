@@ -169,7 +169,9 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     return rootSpan;
   }
 
-  /** @return Long.MAX_VALUE if no spans finished. */
+  /**
+   * @return Long.MAX_VALUE if no spans finished.
+   */
   @Override
   public long oldestFinishedTime() {
     long oldest = Long.MAX_VALUE;

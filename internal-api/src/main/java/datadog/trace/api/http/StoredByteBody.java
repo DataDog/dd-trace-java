@@ -15,7 +15,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.function.BiFunction;
 import javax.annotation.Nullable;
 
-/** @see StoredCharBody */
+/**
+ * @see StoredCharBody
+ */
 public class StoredByteBody implements StoredBodySupplier {
 
   static final Charset UTF_8 = StandardCharsets.UTF_8;

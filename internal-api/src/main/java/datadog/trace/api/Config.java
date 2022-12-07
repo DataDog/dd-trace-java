@@ -359,9 +359,7 @@ public class Config {
 
   private final boolean runtimeIdEnabled;
 
-  /**
-   * This is the version of the runtime, ex: 1.8.0_332, 11.0.15, 17.0.3
-   */
+  /** This is the version of the runtime, ex: 1.8.0_332, 11.0.15, 17.0.3 */
   private final String runtimeVersion;
 
   /**
@@ -426,8 +424,7 @@ public class Config {
   private final boolean jmxFetchEnabled;
   private final String jmxFetchConfigDir;
   private final List<String> jmxFetchConfigs;
-  @Deprecated
-  private final List<String> jmxFetchMetricsConfigs;
+  @Deprecated private final List<String> jmxFetchMetricsConfigs;
   private final Integer jmxFetchCheckPeriod;
   private final Integer jmxFetchInitialRefreshBeansPeriod;
   private final Integer jmxFetchRefreshBeansPeriod;
@@ -461,8 +458,7 @@ public class Config {
 
   private final boolean profilingAgentless;
   private final boolean isAsyncProfilerEnabled;
-  @Deprecated
-  private final String profilingUrl;
+  @Deprecated private final String profilingUrl;
   private final Map<String, String> profilingTags;
   private final int profilingStartDelay;
   private final boolean profilingStartForceFirst;
@@ -957,7 +953,7 @@ public class Config {
         try {
           tmpApiKey =
               new String(
-                  Files.readAllBytes(Paths.get(oldProfilingApiKeyFile)), StandardCharsets.UTF_8)
+                      Files.readAllBytes(Paths.get(oldProfilingApiKeyFile)), StandardCharsets.UTF_8)
                   .trim();
         } catch (final IOException e) {
           log.error("Cannot read API key from file {}, skipping", oldProfilingApiKeyFile, e);
@@ -972,8 +968,8 @@ public class Config {
         try {
           tmpApiKey =
               new String(
-                  Files.readAllBytes(Paths.get(veryOldProfilingApiKeyFile)),
-                  StandardCharsets.UTF_8)
+                      Files.readAllBytes(Paths.get(veryOldProfilingApiKeyFile)),
+                      StandardCharsets.UTF_8)
                   .trim();
         } catch (final IOException e) {
           log.error("Cannot read API key from file {}, skipping", veryOldProfilingApiKeyFile, e);
@@ -1115,7 +1111,7 @@ public class Config {
             REMOTE_CONFIG_INITIAL_POLL_INTERVAL, DEFAULT_REMOTE_CONFIG_INITIAL_POLL_INTERVAL);
     remoteConfigMaxPayloadSize =
         configProvider.getInteger(
-            REMOTE_CONFIG_MAX_PAYLOAD_SIZE, DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE)
+                REMOTE_CONFIG_MAX_PAYLOAD_SIZE, DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE)
             * 1024;
     remoteConfigTargetsKeyId =
         configProvider.getString(
@@ -1140,7 +1136,7 @@ public class Config {
     debuggerMetricEnabled =
         runtimeMetricsEnabled
             && configProvider.getBoolean(
-            DEBUGGER_METRICS_ENABLED, DEFAULT_DEBUGGER_METRICS_ENABLED);
+                DEBUGGER_METRICS_ENABLED, DEFAULT_DEBUGGER_METRICS_ENABLED);
     debuggerProbeFileLocation = configProvider.getString(DEBUGGER_PROBE_FILE_LOCATION);
     debuggerUploadBatchSize =
         configProvider.getInteger(DEBUGGER_UPLOAD_BATCH_SIZE, DEFAULT_DEBUGGER_UPLOAD_BATCH_SIZE);
@@ -1899,7 +1895,7 @@ public class Config {
   public boolean isJmsPropagationDisabledForDestination(final String queueOrTopic) {
     return null != queueOrTopic
         && (jmsPropagationDisabledQueues.contains(queueOrTopic)
-        || jmsPropagationDisabledTopics.contains(queueOrTopic));
+            || jmsPropagationDisabledTopics.contains(queueOrTopic));
   }
 
   public boolean isKafkaClientBase64DecodingEnabled() {
@@ -1913,7 +1909,7 @@ public class Config {
   public boolean isRabbitPropagationDisabledForDestination(final String queueOrExchange) {
     return null != queueOrExchange
         && (rabbitPropagationDisabledQueues.contains(queueOrExchange)
-        || rabbitPropagationDisabledExchanges.contains(queueOrExchange));
+            || rabbitPropagationDisabledExchanges.contains(queueOrExchange));
   }
 
   public boolean isRabbitIncludeRoutingKeyInResource() {
@@ -2194,7 +2190,6 @@ public class Config {
     return Collections.singletonMap(PidHelper.PID_TAG, getProcessId());
   }
 
-
   private Map<String, String> getAzureAppServicesTags() {
     // These variable names and derivations are copied from the dotnet tracer
     // See
@@ -2330,7 +2325,7 @@ public class Config {
    * @param defaultEnabled
    * @return
    * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   * #isJmxFetchIntegrationEnabled(Iterable, boolean)}.
+   *     #isJmxFetchIntegrationEnabled(Iterable, boolean)}.
    */
   public static boolean jmxFetchIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
@@ -2411,7 +2406,7 @@ public class Config {
    * @param defaultEnabled
    * @return
    * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   * #isTraceAnalyticsIntegrationEnabled(SortedSet, boolean)}.
+   *     #isTraceAnalyticsIntegrationEnabled(SortedSet, boolean)}.
    */
   public static boolean traceAnalyticsIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
@@ -2512,9 +2507,7 @@ public class Config {
     return Collections.unmodifiableSet(result);
   }
 
-  /**
-   * Returns the detected hostname. First tries locally, then using DNS
-   */
+  /** Returns the detected hostname. First tries locally, then using DNS */
   static String initHostName() {
     String possibleHostname;
 
@@ -2531,7 +2524,7 @@ public class Config {
     }
 
     // Try hostname files
-    final String[] hostNameFiles = new String[]{"/proc/sys/kernel/hostname", "/etc/hostname"};
+    final String[] hostNameFiles = new String[] {"/proc/sys/kernel/hostname", "/etc/hostname"};
     for (final String hostNameFile : hostNameFiles) {
       try {
         final Path hostNamePath = FileSystems.getDefault().getPath(hostNameFile);
@@ -2551,8 +2544,8 @@ public class Config {
 
     // Try hostname command
     try (final BufferedReader reader =
-             new BufferedReader(
-                 new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))) {
+        new BufferedReader(
+            new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))) {
       possibleHostname = reader.readLine();
     } catch (final Throwable ignore) {
       // Ignore.  Hostname command is not always available

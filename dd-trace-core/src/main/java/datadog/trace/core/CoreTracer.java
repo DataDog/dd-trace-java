@@ -106,64 +106,38 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private static final String LANG_INTERPRETER_VENDOR_STATSD_TAG = "lang_interpreter_vendor";
   private static final String TRACER_VERSION_STATSD_TAG = "tracer_version";
 
-  /**
-   * Tracer start time in nanoseconds measured up to a millisecond accuracy
-   */
+  /** Tracer start time in nanoseconds measured up to a millisecond accuracy */
   private final long startTimeNano;
-  /**
-   * Nanosecond ticks value at tracer start
-   */
+  /** Nanosecond ticks value at tracer start */
   private final long startNanoTicks;
-  /**
-   * How often should traced threads check clock ticks against the wall clock
-   */
+  /** How often should traced threads check clock ticks against the wall clock */
   private final long clockSyncPeriod;
-  /**
-   * Last time (in nanosecond ticks) the clock was checked for drift
-   */
+  /** Last time (in nanosecond ticks) the clock was checked for drift */
   private volatile long lastSyncTicks;
-  /**
-   * Nanosecond offset to counter clock drift
-   */
+  /** Nanosecond offset to counter clock drift */
   private volatile long counterDrift;
 
   private final PendingTraceBuffer pendingTraceBuffer;
 
-  /**
-   * Default service name if none provided on the trace or span
-   */
+  /** Default service name if none provided on the trace or span */
   final String serviceName;
-  /**
-   * Writer is an charge of reporting traces and spans to the desired endpoint
-   */
+  /** Writer is an charge of reporting traces and spans to the desired endpoint */
   final Writer writer;
-  /**
-   * Sampler defines the sampling policy in order to reduce the number of traces for instance
-   */
+  /** Sampler defines the sampling policy in order to reduce the number of traces for instance */
   final Sampler<DDSpan> sampler;
-  /**
-   * Scope manager is in charge of managing the scopes from which spans are created
-   */
+  /** Scope manager is in charge of managing the scopes from which spans are created */
   final AgentScopeManager scopeManager;
 
   final MetricsAggregator metricsAggregator;
 
-  /**
-   * A set of tags that are added only to the application's root span
-   */
+  /** A set of tags that are added only to the application's root span */
   private final Map<String, ?> localRootSpanTags;
-  /**
-   * A set of tags that are added to every span
-   */
+  /** A set of tags that are added to every span */
   private final Map<String, ?> defaultSpanTags;
-  /**
-   * A configured mapping of service names to update with new values
-   */
+  /** A configured mapping of service names to update with new values */
   private final Map<String, String> serviceNameMappings;
 
-  /**
-   * number of spans in a pending trace before they get flushed
-   */
+  /** number of spans in a pending trace before they get flushed */
   private final int partialFlushMinSpans;
 
   private final StatsDClient statsDClient;
@@ -547,8 +521,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     this.instrumentationGateway = instrumentationGateway;
-    callbackProviderAppSec =
-        instrumentationGateway.getCallbackProvider(RequestContextSlot.APPSEC);
+    callbackProviderAppSec = instrumentationGateway.getCallbackProvider(RequestContextSlot.APPSEC);
     callbackProviderIast = instrumentationGateway.getCallbackProvider(RequestContextSlot.IAST);
     universalCallbackProvider = instrumentationGateway.getUniversalCallbackProvider();
 
@@ -1054,9 +1027,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return tagPrefix + ":" + tagValue;
   }
 
-  /**
-   * Spans are built using this builder
-   */
+  /** Spans are built using this builder */
   public class CoreSpanBuilder implements AgentTracer.SpanBuilder {
     private final CharSequence operationName;
     private final CoreTracer tracer;
