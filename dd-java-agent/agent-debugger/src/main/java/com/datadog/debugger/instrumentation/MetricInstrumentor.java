@@ -135,7 +135,11 @@ public class MetricInstrumentor extends Instrumentor {
         ldc(insnList, literal); // stack [long]
       } else {
         reportError(
-            "Unsupported literal: " + literal + " type: " + literal.getClass().getTypeName() + ".");
+            "Unsupported literal: "
+                + literal
+                + " type: "
+                + literal.getClass().getTypeName()
+                + ", expect integral type (int, long).");
         return EMPTY_INSN_LIST;
       }
     } else {
@@ -261,24 +265,23 @@ public class MetricInstrumentor extends Instrumentor {
 
     @Override
     public Object lookup(String name) {
-      String prefix = name.substring(0, 1);
-      boolean hasPrefix = ValueReferences.isRefPrefix(prefix);
-      String rawName = hasPrefix ? name.substring(prefix.length()) : name;
+      if (name == null || name.isEmpty()) {
+        throw new IllegalArgumentException("empty name for lookup operation");
+      }
       InsnList insnList = new InsnList();
       Type currentType;
-      if (hasPrefix) {
-        if (prefix.equals(ValueReferences.FIELD_PREFIX)) {
-          currentType = tryRetrieveField(rawName, insnList);
-        } else {
-          throw new IllegalArgumentException("Invalid reference prefix: " + prefix);
-        }
+      String rawName = name;
+      if (name.startsWith(ValueReferences.FIELD_PREFIX)) {
+        rawName = name.substring(ValueReferences.FIELD_PREFIX.length());
+        currentType = tryRetrieveField(rawName, insnList);
       } else {
-        currentType = tryRetrieve(rawName, insnList);
+        currentType = tryRetrieve(name, insnList);
       }
       if (currentType == null) {
         reportError("Cannot resolve symbol " + rawName);
         return null;
       }
+      convertIfRequired(currentType, expectedType, insnList);
       return new ResolverResult(currentType, insnList);
     }
 
@@ -354,7 +357,6 @@ public class MetricInstrumentor extends Instrumentor {
         if (currentArgName.equals(head)) {
           VarInsnNode varInsnNode = new VarInsnNode(argType.getOpcode(Opcodes.ILOAD), slot);
           insnList.add(varInsnNode);
-          convertIfRequired(argType, expectedType, insnList);
           return argType;
         }
         slot += argType.getSize();
@@ -369,7 +371,6 @@ public class MetricInstrumentor extends Instrumentor {
           VarInsnNode varInsnNode =
               new VarInsnNode(varType.getOpcode(Opcodes.ILOAD), varNode.index);
           insnList.add(varInsnNode);
-          convertIfRequired(varType, expectedType, insnList);
           return varType;
         }
       }
@@ -391,7 +392,6 @@ public class MetricInstrumentor extends Instrumentor {
                   classNode.name,
                   fieldNode.name,
                   fieldNode.desc)); // stack: [field_value]
-          convertIfRequired(fieldType, expectedType, insnList);
           return fieldType;
         }
       }

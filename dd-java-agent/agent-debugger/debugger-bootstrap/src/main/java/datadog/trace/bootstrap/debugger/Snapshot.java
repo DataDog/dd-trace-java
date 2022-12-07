@@ -612,23 +612,21 @@ public class Snapshot {
 
     @Override
     public Object lookup(String name) {
-      String prefix = name.substring(0, 1);
-      boolean hasPrefix = ValueReferences.isRefPrefix(prefix);
-      String rawName = hasPrefix ? name.substring(prefix.length()) : name;
+      if (name == null || name.isEmpty()) {
+        throw new IllegalArgumentException("empty name for lookup operation");
+      }
       Object target;
-      if (hasPrefix) {
-        if (prefix.equals(ValueReferences.FIELD_PREFIX)) {
-          target = tryRetrieveField(rawName);
-          checkUndefined(name, target, rawName, "Cannot find field: ");
-        } else if (prefix.equals(ValueReferences.SYNTHETIC_PREFIX)) {
-          target = tryRetrieveSynthetic(rawName);
-          checkUndefined(name, target, rawName, "Cannot find synthetic var: ");
-        } else {
-          throw new IllegalArgumentException("Invalid reference prefix: " + prefix);
-        }
+      if (name.startsWith(ValueReferences.SYNTHETIC_PREFIX)) {
+        String rawName = name.substring(ValueReferences.SYNTHETIC_PREFIX.length());
+        target = tryRetrieveSynthetic(rawName);
+        checkUndefined(name, target, rawName, "Cannot find synthetic var: ");
+      } else if (name.startsWith(ValueReferences.FIELD_PREFIX)) {
+        String rawName = name.substring(ValueReferences.FIELD_PREFIX.length());
+        target = tryRetrieveField(rawName);
+        checkUndefined(name, target, rawName, "Cannot find field: ");
       } else {
-        target = tryRetrieve(rawName);
-        checkUndefined(name, target, rawName, "Cannot find symbol: ");
+        target = tryRetrieve(name);
+        checkUndefined(name, target, name, "Cannot find symbol: ");
       }
       return target instanceof CapturedValue ? ((CapturedValue) target).getValue() : target;
     }

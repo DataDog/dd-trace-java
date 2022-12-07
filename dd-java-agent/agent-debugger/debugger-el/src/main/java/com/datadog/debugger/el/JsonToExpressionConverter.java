@@ -248,7 +248,18 @@ public class JsonToExpressionConverter {
                   return DSL.ref(reader.nextString());
                 }
               case "getmember":
-                break;
+                {
+                  JsonReader.Token token = reader.peek();
+                  if (token == BEGIN_ARRAY) {
+                    reader.beginArray();
+                    ValueExpression<?> target = asValueExpression(reader);
+                    String name = reader.nextString();
+                    reader.endArray();
+                    return DSL.getMember(target, name);
+                  }
+                  throw new UnsupportedOperationException(
+                      "Operation 'getmember' expects the arguments to be defined as array");
+                }
               case "filter":
                 {
                   JsonReader.Token token = reader.peek();

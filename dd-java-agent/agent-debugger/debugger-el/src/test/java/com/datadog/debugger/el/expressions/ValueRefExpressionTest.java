@@ -4,7 +4,7 @@ import static com.datadog.debugger.el.DSL.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.el.DSL;
-import com.datadog.debugger.el.StaticValueRefResolver;
+import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.Value;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
@@ -13,23 +13,15 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class ValueRefExpressionTest {
 
-  private ValueReferenceResolver ctx;
-
-  @BeforeEach
-  void setup() {
-    ctx = StaticValueRefResolver.self(ValueRefExpressionTest.this);
-  }
-
   @Test
   void testRef() {
     ValueRefExpression valueRef = new ValueRefExpression("b");
-    ExTester instance = new ExTester(null, "\"hello\"");
-    Value<?> val = valueRef.evaluate(StaticValueRefResolver.self(instance));
+    ExTester instance = new ExTester(null, "hello");
+    Value<?> val = valueRef.evaluate(RefResolverHelper.createResolver(instance));
     assertNotNull(val);
     assertFalse(val.isUndefined());
     assertEquals(instance.getB(), val.getValue());
@@ -43,8 +35,8 @@ class ValueRefExpressionTest {
     IsEmptyExpression isEmpty = new IsEmptyExpression(valueRef);
     IsEmptyExpression isEmptyInvalid = new IsEmptyExpression(invalidValueRef);
 
-    ExTester instance = new ExTester(null, "\"hello\"");
-    ValueReferenceResolver ctx = StaticValueRefResolver.self(instance);
+    ExTester instance = new ExTester(null, "hello");
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(instance);
 
     assertFalse(isEmpty.evaluate(ctx).test());
 
@@ -71,8 +63,11 @@ class ValueRefExpressionTest {
 
     long duration = TimeUnit.NANOSECONDS.convert(680, TimeUnit.MILLISECONDS);
     boolean returnVal = true;
-    ValueReferenceResolver resolver =
-        new StaticValueRefResolver(instance, duration, returnVal, values);
+    Map<String, Object> exts = new HashMap<>();
+    exts.put(ValueReferences.RETURN_EXTENSION_NAME, returnVal);
+    exts.put(ValueReferences.DURATION_EXTENSION_NAME, duration);
+    ValueReferenceResolver resolver = RefResolverHelper.createResolver(null, values);
+    resolver = resolver.withExtensions(exts);
 
     Assertions.assertEquals(
         duration, DSL.ref(ValueReferences.DURATION_REF).evaluate(resolver).getValue());

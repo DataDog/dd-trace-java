@@ -3,7 +3,7 @@ package com.datadog.debugger.el.expressions;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.el.DSL;
-import com.datadog.debugger.el.StaticValueRefResolver;
+import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.values.BooleanValue;
 import com.datadog.debugger.el.values.ListValue;
@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 class IsEmptyExpressionTest {
   @Test
   void testNullValue() {
-    ValueReferenceResolver resolver = StaticValueRefResolver.self(this);
+    ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
 
     assertTrue(new IsEmptyExpression(null).evaluate(resolver).test());
     assertTrue(new IsEmptyExpression(DSL.value(Values.NULL_OBJECT)).evaluate(resolver).test());
@@ -28,7 +28,7 @@ class IsEmptyExpressionTest {
 
   @Test
   void testUndefinedValue() {
-    ValueReferenceResolver resolver = StaticValueRefResolver.self(this);
+    ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
 
     assertTrue(new IsEmptyExpression(DSL.value(Values.UNDEFINED_OBJECT)).evaluate(resolver).test());
   }
@@ -39,7 +39,7 @@ class IsEmptyExpressionTest {
     NumericValue one = new NumericValue(1);
     NumericValue none = new NumericValue(null);
 
-    ValueReferenceResolver resolver = StaticValueRefResolver.self(this);
+    ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
     assertFalse(new IsEmptyExpression(zero).evaluate(resolver).test());
     assertFalse(new IsEmptyExpression(one).evaluate(resolver).test());
     assertTrue(new IsEmptyExpression(none).evaluate(resolver).test());
@@ -51,7 +51,7 @@ class IsEmptyExpressionTest {
     BooleanValue no = BooleanValue.FALSE;
     BooleanValue none = new BooleanValue(null);
 
-    ValueReferenceResolver resolver = StaticValueRefResolver.self(this);
+    ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
     assertFalse(new IsEmptyExpression(yes).evaluate(resolver).test());
     assertFalse(new IsEmptyExpression(no).evaluate(resolver).test());
     assertTrue(new IsEmptyExpression(none).evaluate(resolver).test());
@@ -63,7 +63,7 @@ class IsEmptyExpressionTest {
     StringValue emptyString = new StringValue("");
     StringValue nullString = new StringValue(null);
 
-    ValueReferenceResolver resolver = StaticValueRefResolver.self(this);
+    ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
     IsEmptyExpression isEmpty1 = new IsEmptyExpression(string);
     IsEmptyExpression isEmpty2 = new IsEmptyExpression(emptyString);
     IsEmptyExpression isEmpty3 = new IsEmptyExpression(nullString);
@@ -80,7 +80,7 @@ class IsEmptyExpressionTest {
     ListValue nullList = new ListValue(null);
     ListValue undefinedList = new ListValue(Values.UNDEFINED_OBJECT);
 
-    ValueReferenceResolver resolver = StaticValueRefResolver.self(this);
+    ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
     IsEmptyExpression isEmpty1 = new IsEmptyExpression(list);
     IsEmptyExpression isEmpty2 = new IsEmptyExpression(emptyList);
     IsEmptyExpression isEmpty3 = new IsEmptyExpression(nullList);
@@ -99,7 +99,7 @@ class IsEmptyExpressionTest {
     MapValue nullMao = new MapValue(null);
     MapValue undefinedMap = new MapValue(Values.UNDEFINED_OBJECT);
 
-    ValueReferenceResolver resolver = StaticValueRefResolver.self(this);
+    ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
     IsEmptyExpression isEmpty1 = new IsEmptyExpression(map);
     IsEmptyExpression isEmpty2 = new IsEmptyExpression(emptyMap);
     IsEmptyExpression isEmpty3 = new IsEmptyExpression(nullMao);

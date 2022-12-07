@@ -43,4 +43,12 @@ public class GetMemberExpression implements ValueExpression {
   public String toString() {
     return "GetMemberExpression{" + "target=" + target + ", memberName='" + memberName + '\'' + '}';
   }
+
+  public ValueExpression<?> getTarget() {
+    return target;
+  }
+
+  public String getMemberName() {
+    return memberName;
+  }
 }

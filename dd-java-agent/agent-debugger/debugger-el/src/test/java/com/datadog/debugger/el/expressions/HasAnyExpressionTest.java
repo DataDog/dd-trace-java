@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.Predicate;
-import com.datadog.debugger.el.StaticValueRefResolver;
+import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.values.ObjectValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
@@ -21,7 +21,7 @@ class HasAnyExpressionTest {
 
   @Test
   void testNullPredicate() {
-    StaticValueRefResolver resolver = StaticValueRefResolver.self(this);
+    ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
     assertFalse(new HasAnyExpression(null, null).evaluate(resolver).test());
     assertFalse(
         new HasAnyExpression(value(Values.UNDEFINED_OBJECT), null).evaluate(resolver).test());
@@ -38,7 +38,7 @@ class HasAnyExpressionTest {
 
   @Test
   void testNullHasAny() {
-    ValueReferenceResolver ctx = StaticValueRefResolver.self(this);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(this);
     HasAnyExpression expression = any(null, PredicateExpression.TRUE);
     Predicate predicate = expression.evaluate(ctx);
     assertNotNull(predicate);
@@ -57,7 +57,7 @@ class HasAnyExpressionTest {
 
   @Test
   void testUndefinedHasAny() {
-    ValueReferenceResolver ctx = StaticValueRefResolver.self(this);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(this);
     HasAnyExpression expression = any(value(Values.UNDEFINED_OBJECT), TRUE);
     Predicate predicate = expression.evaluate(ctx);
     assertNotNull(predicate);
@@ -76,7 +76,7 @@ class HasAnyExpressionTest {
 
   @Test
   void testSingleElementHasAny() {
-    ValueReferenceResolver ctx = new StaticValueRefResolver(this, Long.MAX_VALUE, null, null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
     ValueExpression<?> targetExpression = new ObjectValue(this);
     HasAnyExpression expression = any(targetExpression, TRUE);
     Predicate predicate = expression.evaluate(ctx);
@@ -99,7 +99,7 @@ class HasAnyExpressionTest {
 
   @Test
   void testArrayHasAny() {
-    ValueReferenceResolver ctx = new StaticValueRefResolver(this, Long.MAX_VALUE, null, null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
     ValueExpression<?> targetExpression = DSL.value(new Object[] {this, "hello"});
 
     HasAnyExpression expression = any(targetExpression, TRUE);
@@ -128,7 +128,7 @@ class HasAnyExpressionTest {
 
   @Test
   void testListHasAny() {
-    ValueReferenceResolver ctx = new StaticValueRefResolver(this, Long.MAX_VALUE, null, null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
     ValueExpression<?> targetExpression = DSL.value(Arrays.asList(this, "hello"));
 
     HasAnyExpression expression = any(targetExpression, TRUE);
@@ -157,7 +157,7 @@ class HasAnyExpressionTest {
 
   @Test
   void testMapHasAny() {
-    ValueReferenceResolver ctx = new StaticValueRefResolver(this, Long.MAX_VALUE, null, null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
     Map<String, String> valueMap = new HashMap<>();
     valueMap.put("a", "a");
     valueMap.put("b", null);

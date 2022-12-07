@@ -3,7 +3,7 @@ package com.datadog.debugger.el.expressions;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.el.DSL;
-import com.datadog.debugger.el.StaticValueRefResolver;
+import com.datadog.debugger.el.RefResolverHelper;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.Values;
 import java.util.Arrays;
@@ -11,7 +11,7 @@ import java.util.Collections;
 import org.junit.jupiter.api.Test;
 
 class LenExpressionTest {
-  private final ValueReferenceResolver resolver = StaticValueRefResolver.self(this);
+  private final ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
 
   @Test
   void nullExpression() {

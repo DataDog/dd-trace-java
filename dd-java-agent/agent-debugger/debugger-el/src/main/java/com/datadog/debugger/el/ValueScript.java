@@ -1,6 +1,9 @@
 package com.datadog.debugger.el;
 
+import com.datadog.debugger.el.expressions.GetMemberExpression;
+import com.datadog.debugger.el.expressions.LenExpression;
 import com.datadog.debugger.el.expressions.ValueExpression;
+import com.datadog.debugger.el.expressions.ValueRefExpression;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
@@ -13,21 +16,22 @@ import java.util.regex.Pattern;
 /** Implements expression language for capturing values for metric probes */
 public class ValueScript implements DebuggerScript {
   private static final Pattern PERIOD_PATTERN = Pattern.compile("\\.");
-
-  private final Object node;
+  private final ValueExpression<?> expr;
+  private final String dsl;
   private Value<?> result;
 
-  public ValueScript(Object node) {
-    this.node = node;
+  public ValueScript(ValueExpression<?> expr, String dsl) {
+    this.expr = expr;
+    this.dsl = dsl;
+  }
+
+  public String getDsl() {
+    return dsl;
   }
 
   @Override
   public boolean execute(ValueReferenceResolver valueRefResolver) {
-    if (node == null) {
-      return true;
-    }
-    ValueExpression<? extends Value<?>> valueExpr = mapToValueExpression(node);
-    result = valueExpr.evaluate(valueRefResolver);
+    result = expr.evaluate(valueRefResolver);
     return true;
   }
 
@@ -40,37 +44,34 @@ public class ValueScript implements DebuggerScript {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     ValueScript that = (ValueScript) o;
-    return Objects.equals(node, that.node);
+    return Objects.equals(expr, that.expr) && Objects.equals(dsl, that.dsl);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(node);
+    return Objects.hash(expr, dsl);
   }
 
   @Override
   public String toString() {
-    return "ValueScript{" + "node=" + node + '}';
+    return "ValueScript{" + "expr=" + expr + ", dsl='" + dsl + '\'' + '}';
   }
 
-  private ValueExpression<? extends Value<?>> mapToValueExpression(Object node) {
-    if (node instanceof Integer) {
-      return DSL.value(((Integer) node).longValue());
+  public static ValueExpression<?> parseRefPath(String refPath) {
+    String[] parts = PERIOD_PATTERN.split(refPath);
+    String head;
+    int startIdx = 1;
+    if (parts[0].equals("this") && parts.length >= 2) {
+      head = parts[0] + "." + parts[1];
+      startIdx++;
+    } else {
+      head = parts[0];
     }
-    if (node instanceof Long) {
-      return DSL.value((Long) node);
+    ValueExpression<?> current = DSL.ref(head);
+    for (int i = startIdx; i < parts.length; i++) {
+      current = DSL.getMember(current, parts[i]);
     }
-    if (node instanceof String) {
-      String textValue = (String) node;
-      String[] parts = PERIOD_PATTERN.split(textValue);
-      ValueExpression<?> current = DSL.ref(parts[0]);
-      for (int i = 1; i < parts.length; i++) {
-        current = DSL.getMember(current, parts[i]);
-      }
-      return current;
-    }
-    throw new InvalidValueException(
-        "Invalid type value definition: " + node + ", expect text or integral type.");
+    return current;
   }
 
   public static class ValueScriptAdapter extends JsonAdapter<ValueScript> {
@@ -78,17 +79,27 @@ public class ValueScript implements DebuggerScript {
     public ValueScript fromJson(JsonReader jsonReader) throws IOException {
       if (jsonReader.peek() == JsonReader.Token.BEGIN_OBJECT) {
         jsonReader.beginObject();
-        String fieldName = jsonReader.nextName();
-        if (fieldName.equals("expr")) {
-          Object obj = jsonReader.readJsonValue();
-          jsonReader.endObject();
-          return new ValueScript(obj);
-        } else {
-          throw new IOException("Invalid field: " + fieldName);
+        ValueExpression<?> valueExpression = null;
+        String dsl = null;
+        while (jsonReader.hasNext()) {
+          String fieldName = jsonReader.nextName();
+          switch (fieldName) {
+            case "parsedExpr":
+              {
+                valueExpression = JsonToExpressionConverter.asValueExpression(jsonReader);
+                break;
+              }
+            case "expr":
+              {
+                dsl = jsonReader.nextString();
+                break;
+              }
+            default:
+              throw new IOException("Invalid field: " + fieldName);
+          }
         }
-      } else if (jsonReader.peek() == JsonReader.Token.STRING) {
-        Object obj = jsonReader.readJsonValue();
-        return new ValueScript(obj);
+        jsonReader.endObject();
+        return new ValueScript(valueExpression, dsl);
       } else {
         throw new IOException("Invalid ValueScript format");
       }
@@ -102,8 +113,31 @@ public class ValueScript implements DebuggerScript {
       }
       jsonWriter.beginObject();
       jsonWriter.name("expr");
-      if (value.node instanceof String) {
-        jsonWriter.value((String) value.node);
+      jsonWriter.value(value.dsl);
+      jsonWriter.name("parsedExpr");
+      writeValueExpression(jsonWriter, value.expr);
+      jsonWriter.endObject();
+    }
+
+    private void writeValueExpression(JsonWriter jsonWriter, ValueExpression<?> expr)
+        throws IOException {
+      jsonWriter.beginObject();
+      if (expr instanceof ValueRefExpression) {
+        ValueRefExpression valueRefExpr = (ValueRefExpression) expr;
+        jsonWriter.name("ref");
+        jsonWriter.value(valueRefExpr.getSymbolName());
+      } else if (expr instanceof GetMemberExpression) {
+        GetMemberExpression getMemberExpr = (GetMemberExpression) expr;
+        jsonWriter.name("getmember");
+        jsonWriter.beginArray();
+        writeValueExpression(jsonWriter, getMemberExpr.getTarget());
+        jsonWriter.value(getMemberExpr.getMemberName());
+        jsonWriter.endArray();
+      } else if (expr instanceof LenExpression) {
+        jsonWriter.name("count");
+        writeValueExpression(jsonWriter, ((LenExpression) expr).getSource());
+      } else {
+        throw new IOException("Unsupported operation: " + expr.getClass().getTypeName());
       }
       jsonWriter.endObject();
     }
