@@ -2451,7 +2451,7 @@ public class Config {
   }
 
   @Nonnull
-  private static <VAL> Map<String, VAL> newHashMap(final int size) {
+  private static Map<String, String> newHashMap(final int size) {
     return new HashMap<>(size + 1, 1f);
   }
 
