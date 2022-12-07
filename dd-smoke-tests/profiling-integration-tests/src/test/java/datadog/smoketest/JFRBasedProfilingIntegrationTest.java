@@ -137,26 +137,17 @@ class JFRBasedProfilingIntegrationTest {
   @Test
   @DisplayName("Test continuous recording - no jmx delay")
   public void testContinuousRecording_no_jmx_delay(final TestInfo testInfo) throws Exception {
-    testWithRetry(
-        () -> testContinuousRecording(0, true, ENDPOINT_COLLECTION_ENABLED, false), testInfo, 5);
+    testWithRetry(() -> testContinuousRecording(0, ENDPOINT_COLLECTION_ENABLED, true), testInfo, 5);
   }
 
   @Test
   @DisplayName("Test continuous recording - 1 sec jmx delay")
   public void testContinuousRecording(final TestInfo testInfo) throws Exception {
-    testWithRetry(
-        () -> testContinuousRecording(1, true, ENDPOINT_COLLECTION_ENABLED, false), testInfo, 5);
-  }
-
-  @Test
-  @DisplayName("Test continuous recording - async-profiler")
-  public void testContinuousRecordingAsyncProfiler(final TestInfo testInfo) throws Exception {
-    testWithRetry(() -> testContinuousRecording(0, false, true, true), testInfo, 5);
+    testWithRetry(() -> testContinuousRecording(1, ENDPOINT_COLLECTION_ENABLED, true), testInfo, 5);
   }
 
   private void testContinuousRecording(
       final int jmxFetchDelay,
-      final boolean legacyTracingIntegration,
       final boolean endpointCollectionEnabled,
       final boolean asyncProfilerEnabled)
       throws Exception {
@@ -164,11 +155,7 @@ class JFRBasedProfilingIntegrationTest {
     try {
       targetProcess =
           createDefaultProcessBuilder(
-                  jmxFetchDelay,
-                  legacyTracingIntegration,
-                  endpointCollectionEnabled,
-                  asyncProfilerEnabled,
-                  logFilePath)
+                  jmxFetchDelay, endpointCollectionEnabled, asyncProfilerEnabled, logFilePath)
               .start();
 
       Assumptions.assumeFalse(Platform.isJ9());
@@ -299,8 +286,7 @@ class JFRBasedProfilingIntegrationTest {
       // Only non-Oracle JDK 8+ JVMs support custom DD events
       if (!System.getProperty("java.vendor").contains("Oracle")
           || !System.getProperty("java.version").contains("1.8")) {
-        assertRecordingEvents(
-            events, legacyTracingIntegration, endpointCollectionEnabled, asyncProfilerEnabled);
+        assertRecordingEvents(events, endpointCollectionEnabled, asyncProfilerEnabled);
       }
     } finally {
       if (targetProcess != null) {
@@ -388,9 +374,8 @@ class JFRBasedProfilingIntegrationTest {
                         0,
                         PROFILING_START_DELAY_SECONDS,
                         PROFILING_UPLOAD_PERIOD_SECONDS,
-                        true,
                         ENDPOINT_COLLECTION_ENABLED,
-                        false,
+                        true,
                         exitDelay,
                         logFilePath)
                     .start();
@@ -445,9 +430,8 @@ class JFRBasedProfilingIntegrationTest {
                         0,
                         PROFILING_START_DELAY_SECONDS,
                         PROFILING_UPLOAD_PERIOD_SECONDS,
-                        true,
                         ENDPOINT_COLLECTION_ENABLED,
-                        false,
+                        true,
                         duration,
                         logFilePath)
                     .start();
@@ -518,31 +502,8 @@ class JFRBasedProfilingIntegrationTest {
 
   private void assertRecordingEvents(
       final IItemCollection events,
-      final boolean legacyTracingIntegration,
       final boolean expectEndpointEvents,
       final boolean asyncProfilerEnabled) {
-
-    if (!asyncProfilerEnabled && legacyTracingIntegration) {
-      // Check scope events
-      final IItemCollection scopeEvents = events.apply(ItemFilters.type("datadog.Scope"));
-
-      assertTrue(scopeEvents.hasItems());
-      final IAttribute<IQuantity> cpuTimeAttr = attr("cpuTime", "cpuTime", UnitLookup.TIMESPAN);
-
-      // filter out scope events without CPU time data
-      final IItemCollection filteredScopeEvents =
-          scopeEvents.apply(
-              ItemFilters.more(cpuTimeAttr, UnitLookup.NANOSECOND.quantity(Long.MIN_VALUE)));
-      // make sure there is at least one scope event with CPU time data
-      assertTrue(filteredScopeEvents.hasItems());
-
-      assertTrue(
-          ((IQuantity)
-                      filteredScopeEvents.getAggregate(
-                          Aggregators.min("datadog.Scope", cpuTimeAttr)))
-                  .longValue()
-              >= 10_000L);
-    }
     if (expectEndpointEvents) {
       // Check endpoint events
       final IItemCollection endpointEvents = events.apply(ItemFilters.type("datadog.Endpoint"));
@@ -612,7 +573,6 @@ class JFRBasedProfilingIntegrationTest {
 
   private ProcessBuilder createDefaultProcessBuilder(
       final int jmxFetchDelay,
-      final boolean legacyTracingIntegration,
       final boolean endpointCollectionEnabled,
       final boolean asyncProfilerEnabled,
       final Path logFilePath) {
@@ -621,7 +581,6 @@ class JFRBasedProfilingIntegrationTest {
         jmxFetchDelay,
         PROFILING_START_DELAY_SECONDS,
         PROFILING_UPLOAD_PERIOD_SECONDS,
-        legacyTracingIntegration,
         endpointCollectionEnabled,
         asyncProfilerEnabled,
         0,
@@ -633,7 +592,6 @@ class JFRBasedProfilingIntegrationTest {
       final int jmxFetchDelaySecs,
       final int profilingStartDelaySecs,
       final int profilingUploadPeriodSecs,
-      final boolean legacyTracingIntegration,
       final boolean endpointCollectionEnabled,
       final boolean asyncProfilerEnabled,
       final int exitDelay,
@@ -645,7 +603,6 @@ class JFRBasedProfilingIntegrationTest {
         jmxFetchDelaySecs,
         profilingStartDelaySecs,
         profilingUploadPeriodSecs,
-        legacyTracingIntegration,
         endpointCollectionEnabled,
         asyncProfilerEnabled,
         exitDelay,
@@ -659,7 +616,6 @@ class JFRBasedProfilingIntegrationTest {
       final int jmxFetchDelaySecs,
       final int profilingStartDelaySecs,
       final int profilingUploadPeriodSecs,
-      final boolean legacyTracingIntegration,
       final boolean endpointCollectionEnabled,
       final boolean asyncProfilerEnabled,
       final int exitDelay,
@@ -688,7 +644,6 @@ class JFRBasedProfilingIntegrationTest {
             "-Ddd.profiling.upload.period=" + profilingUploadPeriodSecs,
             "-Ddd.profiling.url=http://localhost:" + profilerPort,
             "-Ddd.profiling.hotspots.enabled=true",
-            "-Ddd.profiling.legacy.tracing.integration=" + legacyTracingIntegration,
             "-Ddd.profiling.endpoint.collection.enabled=" + endpointCollectionEnabled,
             "-Ddd.profiling.upload.timeout=" + PROFILING_UPLOAD_TIMEOUT_SECONDS,
             "-Ddd.profiling.debug.dump_path=/tmp/dd-profiler",

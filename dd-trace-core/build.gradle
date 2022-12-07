@@ -15,7 +15,6 @@ excludedClassesCoverage += [
   'datadog.trace.common.sampling.PrioritySampling',
   'datadog.trace.core.scopemanager.ScopeInterceptor.DelegatingScope',
   'datadog.trace.common.writer.RemoteMapper.NoopRemoteMapper',
-  'datadog.trace.core.jfr.DDNoopScopeEventFactory',
   'datadog.trace.core.monitor.DDAgentStatsDConnection',
   'datadog.trace.core.monitor.LoggingStatsDClient',
   'datadog.trace.core.PendingTraceBuffer.DelayingPendingTraceBuffer.FlushElement',
