@@ -8,8 +8,8 @@ public class PidHelperTest {
   @Test
   public void testPidCanBeSupplied() {
     PidHelper.supplyIfAbsent(() -> 12345L);
-    assertEquals(12345, (long) PidHelper.getPid(), "Expect PID to match supplied value");
+    assertEquals("12345", PidHelper.getPid(), "Expect PID to match supplied value");
     PidHelper.supplyIfAbsent(() -> 67890L);
-    assertEquals(12345, (long) PidHelper.getPid(), "Expect PID to not change once set");
+    assertEquals("12345", PidHelper.getPid(), "Expect PID to not change once set");
   }
 }

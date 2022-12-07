@@ -35,10 +35,7 @@ public final class ScriptInitializer {
           ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class);
       String onErrorVal = diagBean.getVMOption("OnError").getValue();
       String onErrorFile =
-          Strings.replace(
-              diagBean.getVMOption("ErrorFile").getValue(),
-              "%p",
-              Long.toString(PidHelper.getPid()));
+          Strings.replace(diagBean.getVMOption("ErrorFile").getValue(), "%p", PidHelper.getPid());
       initialize(onErrorVal, onErrorFile);
     } catch (Throwable t) {
       log.warn(

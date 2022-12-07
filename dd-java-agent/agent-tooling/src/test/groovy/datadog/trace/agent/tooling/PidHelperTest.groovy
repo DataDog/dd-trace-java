@@ -10,6 +10,6 @@ class PidHelperTest extends DDSpecification {
     PidHelper.supplyIfAbsent(new PosixPidSupplier())
 
     then:
-    PidHelper.getPid() > 0
+    !PidHelper.getPid().isEmpty()
   }
 }

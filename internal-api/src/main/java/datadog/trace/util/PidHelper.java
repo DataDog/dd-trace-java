@@ -11,15 +11,15 @@ import org.slf4j.LoggerFactory;
 public final class PidHelper {
   private static final Logger log = LoggerFactory.getLogger(PidHelper.class);
 
-  private static Long PID;
+  private static String PID = "";
 
-  public static Long getPid() {
+  public static String getPid() {
     return PID;
   }
 
   public static void supplyIfAbsent(Supplier<Long> supplier) {
-    if (null == PID) {
-      PID = supplier.get();
+    if (PID.isEmpty()) {
+      PID = Long.toString(supplier.get());
     }
   }
 
@@ -27,11 +27,12 @@ public final class PidHelper {
     if (Platform.isJavaVersionAtLeast(9)) {
       try {
         PID =
-            ((Supplier<Long>)
-                    Class.forName("datadog.trace.util.JDK9PidSupplier")
-                        .getDeclaredConstructor()
-                        .newInstance())
-                .get();
+            Long.toString(
+                ((Supplier<Long>)
+                        Class.forName("datadog.trace.util.JDK9PidSupplier")
+                            .getDeclaredConstructor()
+                            .newInstance())
+                    .get());
       } catch (Throwable e) {
         log.debug("JDK9PidSupplier not available", e);
       }

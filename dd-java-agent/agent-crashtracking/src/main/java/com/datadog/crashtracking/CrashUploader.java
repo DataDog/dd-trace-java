@@ -82,9 +82,9 @@ public final class CrashUploader {
 
     final Map<String, String> tagsMap = new HashMap<>(config.getMergedCrashTrackingTags());
     tagsMap.put(VersionInfo.LIBRARY_VERSION_TAG, VersionInfo.VERSION);
-    // PID can be null if we cannot find it out from the system
-    if (PidHelper.getPid() != null) {
-      tagsMap.put(DDTags.PID_TAG, PidHelper.getPid().toString());
+    // PID can be empty if we cannot find it out from the system
+    if (!PidHelper.getPid().isEmpty()) {
+      tagsMap.put(DDTags.PID_TAG, PidHelper.getPid());
     }
     // Comma separated tags string for V2.4 format
     tags = tagsToString(tagsMap);

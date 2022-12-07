@@ -125,7 +125,7 @@ public class ProfileUploaderTest {
           "foo",
           "bar",
           DDTags.PID_TAG,
-          PidHelper.getPid().toString(),
+          PidHelper.getPid(),
           VersionInfo.PROFILER_VERSION_TAG,
           VersionInfo.VERSION,
           VersionInfo.LIBRARY_VERSION_TAG,

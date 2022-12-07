@@ -6,6 +6,6 @@ class PidHelperTest extends DDSpecification {
 
   def "PID is available everywhere we test"() {
     expect:
-    PidHelper.getPid() > 0
+    !PidHelper.getPid().isEmpty()
   }
 }
