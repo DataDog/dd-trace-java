@@ -159,7 +159,7 @@ class UndertowDispatcherTest extends HttpServerTest<Undertow> {
   @Override
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.throwsException) {
-      ["error.msg"  : "${endpoint.body}",
+      ["error.message"  : "${endpoint.body}",
         "error.type" : { it == Exception.name || it == InputMismatchException.name },
         "error.stack": String]
     } else {

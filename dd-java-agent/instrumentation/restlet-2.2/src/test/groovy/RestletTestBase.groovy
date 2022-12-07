@@ -147,7 +147,7 @@ abstract class RestletTestBase extends HttpServerTest<Component> {
         "$Tags.COMPONENT" ResourceDecorator.DECORATE.component()
         if (endpoint == EXCEPTION) {
           // Restlet wraps all Exception types with ResourceException
-          "error.msg" { String tagErrorMsg ->
+          "error.message" { String tagErrorMsg ->
             return tagErrorMsg.startsWith("Internal Server Error")
           }
           "error.type" { it == null || it == ResourceException.name }

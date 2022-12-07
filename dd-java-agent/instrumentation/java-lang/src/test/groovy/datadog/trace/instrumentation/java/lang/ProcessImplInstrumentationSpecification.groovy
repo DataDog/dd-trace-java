@@ -109,7 +109,7 @@ class ProcessImplInstrumentationSpecification extends AgentTestRunner {
 
     then:
     span.tags['cmd.exec'] == '["/bin/does-not-exist"]'
-    span.tags['error.msg'] != null
+    span.tags['error.message'] != null
     span.isError() == true
   }
 
