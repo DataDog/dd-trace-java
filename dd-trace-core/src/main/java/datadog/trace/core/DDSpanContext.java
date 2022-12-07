@@ -299,9 +299,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
     }
   }
 
-  /**
-   * @return if sampling priority was set by this method invocation
-   */
+  /** @return if sampling priority was set by this method invocation */
   public boolean setSamplingPriority(final int newPriority, final int newMechanism) {
     DDSpanContext spanContext = getRootSpanContextOrThis();
     // set trace level sampling priority
@@ -368,9 +366,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
     return true;
   }
 
-  /**
-   * @return the sampling priority of this span's trace, or null if no priority has been set
-   */
+  /** @return the sampling priority of this span's trace, or null if no priority has been set */
   public int getSamplingPriority() {
     return getRootSpanContextOrThis().samplingPriority;
   }

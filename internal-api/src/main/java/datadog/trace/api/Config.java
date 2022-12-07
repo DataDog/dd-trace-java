@@ -2020,9 +2020,7 @@ public class Config {
     return grpcClientErrorStatuses;
   }
 
-  /**
-   * @return A map of tags to be applied only to the local application root span.
-   */
+  /** @return A map of tags to be applied only to the local application root span. */
   public Map<String, Object> getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
     final Map<String, Object> result = new HashMap<>(runtimeTags.size() + 1);
