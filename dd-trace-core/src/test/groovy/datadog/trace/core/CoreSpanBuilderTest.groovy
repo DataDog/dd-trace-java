@@ -12,7 +12,6 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.DatadogTags
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
-import datadog.trace.util.PidHelper
 
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE
