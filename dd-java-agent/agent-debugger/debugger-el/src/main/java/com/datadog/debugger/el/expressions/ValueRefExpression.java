@@ -39,4 +39,8 @@ public final class ValueRefExpression implements ValueExpression {
   public String toString() {
     return "ValueRefExpression{" + "symbolName='" + symbolName + '\'' + '}';
   }
+
+  public String getSymbolName() {
+    return symbolName;
+  }
 }

@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.el.DSL;
-import com.datadog.debugger.el.StaticValueRefResolver;
+import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.values.BooleanValue;
 import com.datadog.debugger.el.values.ListValue;
@@ -18,7 +18,7 @@ import java.util.Collections;
 import org.junit.jupiter.api.Test;
 
 class IsUndefinedExpressionTest {
-  private final ValueReferenceResolver resolver = StaticValueRefResolver.self(this);
+  private final ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
 
   @Test
   void testNullValue() {
@@ -95,7 +95,7 @@ class IsUndefinedExpressionTest {
     MapValue nullMao = new MapValue(null);
     MapValue undefinedMap = new MapValue(Values.UNDEFINED_OBJECT);
 
-    ValueReferenceResolver resolver = StaticValueRefResolver.self(this);
+    ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
     IsUndefinedExpression isUndefined1 = new IsUndefinedExpression(map);
     IsUndefinedExpression isUndefined2 = new IsUndefinedExpression(emptyMap);
     IsUndefinedExpression isUndefined3 = new IsUndefinedExpression(nullMao);

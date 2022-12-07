@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import utils.TestHelper;
 
 public class ConfigurationTest {
 
@@ -32,6 +33,47 @@ public class ConfigurationTest {
     assertEquals("metric1", iterator.next().getId());
     assertEquals("log1", iterator.next().getId());
     assertEquals("span1", iterator.next().getId());
+  }
+
+  @Test
+  public void deserializeMetricProbes() throws Exception {
+    String content = TestHelper.getFixtureContent("/test_metric_probe.json");
+    JsonAdapter<Configuration> adapter =
+        MoshiHelper.createMoshiConfig().adapter(Configuration.class);
+    Configuration config = adapter.fromJson(content);
+    ArrayList<MetricProbe> metricProbes = new ArrayList<>(config.getMetricProbes());
+    assertEquals(4, metricProbes.size());
+    assertEquals("datadog.debugger.calls", metricProbes.get(0).getMetricName());
+    assertEquals(
+        "ValueScript{expr=NumericLiteral{value=42.0}, dsl='42'}",
+        metricProbes.get(0).getValue().toString());
+    assertEquals("datadog.debugger.gauge_value", metricProbes.get(1).getMetricName());
+    assertEquals(
+        "ValueScript{expr=ValueRefExpression{symbolName='value'}, dsl='value'}",
+        metricProbes.get(1).getValue().toString());
+    assertEquals("datadog.debugger.refpathvalue", metricProbes.get(2).getMetricName());
+    assertEquals(
+        "ValueScript{expr=GetMemberExpression{target=ValueRefExpression{symbolName='obj'}, memberName='field'}, dsl='obj.field'}",
+        metricProbes.get(2).getValue().toString());
+    assertEquals("datadog.debugger.novalue", metricProbes.get(3).getMetricName());
+  }
+
+  @Test
+  public void deserializeLogProbes() throws Exception {
+    String content = TestHelper.getFixtureContent("/test_log_probe.json");
+    JsonAdapter<Configuration> adapter =
+        MoshiHelper.createMoshiConfig().adapter(Configuration.class);
+    Configuration config = adapter.fromJson(content);
+    ArrayList<LogProbe> logProbes = new ArrayList<>(config.getLogProbes());
+    assertEquals(1, logProbes.size());
+    LogProbe logProbe0 = logProbes.get(0);
+    assertEquals(6, logProbe0.getSegments().size());
+    assertEquals("this is a log line customized! uuid=", logProbe0.getSegments().get(0).getStr());
+    assertEquals("uuid", logProbe0.getSegments().get(1).getExpr());
+    assertEquals(" result=", logProbe0.getSegments().get(2).getStr());
+    assertEquals("result", logProbe0.getSegments().get(3).getExpr());
+    assertEquals(" garbageStart=", logProbe0.getSegments().get(4).getStr());
+    assertEquals("garbageStart", logProbe0.getSegments().get(5).getExpr());
   }
 
   @Test
@@ -139,10 +181,10 @@ public class ConfigurationTest {
     // log probe
     assertEquals(1, config0.getLogProbes().size());
     LogProbe logProbe1 = config0.getLogProbes().iterator().next();
-    assertEquals("this is a log line with arg={^arg}", logProbe1.getTemplate());
+    assertEquals("this is a log line with arg={arg}", logProbe1.getTemplate());
     assertEquals(2, logProbe1.getSegments().size());
     assertEquals("this is a log line with arg=", logProbe1.getSegments().get(0).getStr());
-    assertEquals("^arg", logProbe1.getSegments().get(1).getExpr());
+    assertEquals("arg", logProbe1.getSegments().get(1).getExpr());
     // span probe
     assertEquals(1, config0.getSpanProbes().size());
     SpanProbe spanProbe1 = config0.getSpanProbes().iterator().next();
@@ -156,7 +198,7 @@ public class ConfigurationTest {
     LogProbe log1 =
         createLog(
             "log1",
-            "this is a log line with arg={^arg}",
+            "this is a log line with arg={arg}",
             "java.lang.String",
             "indexOf",
             "(String)");
@@ -186,7 +228,7 @@ public class ConfigurationTest {
     LogProbe log2 =
         createLog(
             "log2",
-            "{^transactionId}={^transactionStatus}, remaining: {{{count(^transactions)}}}",
+            "{transactionId}={transactionStatus}, remaining: {{{count(transactions)}}}",
             "java.lang.String",
             "indexOf",
             "(String)");
