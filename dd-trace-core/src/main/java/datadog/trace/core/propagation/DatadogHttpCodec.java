@@ -89,10 +89,9 @@ class DatadogHttpCodec {
     private static final int SPAN_ID = 1;
     private static final int ORIGIN = 2;
     private static final int SAMPLING_PRIORITY = 3;
-    private static final int TAGS = 4;
-    private static final int OT_BAGGAGE = 5;
-    private static final int E2E_START = 6;
-    private static final int DD_TAGS = 7;
+    private static final int OT_BAGGAGE = 4;
+    private static final int E2E_START = 5;
+    private static final int DD_TAGS = 6;
     private static final int IGNORE = -1;
 
     private final boolean isAwsPropagationEnabled;
@@ -155,16 +154,6 @@ class DatadogHttpCodec {
         default:
       }
 
-      if (handledIpHeaders(key, value)) {
-        return true;
-      }
-
-      if (!taggedHeaders.isEmpty() && classification == IGNORE) {
-        lowerCaseKey = toLowerCase(key);
-        if (taggedHeaders.containsKey(lowerCaseKey)) {
-          classification = TAGS;
-        }
-      }
       if (classification != IGNORE) {
         try {
           if (null != value) {
@@ -187,17 +176,6 @@ class DatadogHttpCodec {
               case DD_TAGS:
                 datadogTags = datadogTagsFactory.fromHeaderValue(value);
                 break;
-              case TAGS:
-                {
-                  String mappedKey = taggedHeaders.get(lowerCaseKey);
-                  if (null != mappedKey) {
-                    if (tags.isEmpty()) {
-                      tags = new TreeMap<>();
-                    }
-                    tags.put(mappedKey, HttpCodec.decode(value));
-                  }
-                  break;
-                }
               case OT_BAGGAGE:
                 {
                   if (baggage.isEmpty()) {
@@ -215,6 +193,11 @@ class DatadogHttpCodec {
           log.debug("Exception when extracting context", e);
           return false;
         }
+      } else {
+        if (handledIpHeaders(key, value)) {
+          return true;
+        }
+        handleTags(key, value);
       }
       return true;
     }
