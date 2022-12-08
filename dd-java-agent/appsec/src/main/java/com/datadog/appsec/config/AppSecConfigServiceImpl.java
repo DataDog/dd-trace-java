@@ -64,7 +64,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             if (DEFAULT_WAF_CONFIG == null) {
               throw new IllegalStateException("Expected default waf config to be available");
             }
-            log.info(
+            log.debug(
                 "AppSec config given by remote config was pulled. Restoring default WAF config");
             newConfig = DEFAULT_WAF_CONFIG;
           }
@@ -114,7 +114,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         AppSecRuleTogglingDeserializer.INSTANCE,
         (configKey, newConfig, hinter) -> {
           if (newConfig == null) {
-            log.info("Rule toggling configuration was pulled. Enabling all the rules");
+            log.debug("Rule toggling configuration was pulled. Enabling all the rules");
             newConfig = Collections.emptyMap();
           }
           this.lastConfig.put("waf_rules_override", newConfig);
