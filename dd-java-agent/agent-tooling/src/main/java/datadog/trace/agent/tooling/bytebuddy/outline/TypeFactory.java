@@ -94,7 +94,7 @@ final class TypeFactory {
 
   private final Function<String, LazyType> deferType = LazyType::new;
 
-  boolean installing = true;
+  boolean installing = false;
 
   boolean createOutlines = true;
 
