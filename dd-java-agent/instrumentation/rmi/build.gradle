@@ -27,7 +27,7 @@ def rmic = tasks.register('rmic', Exec) {
     "-classpath", sourceSets.test.output.classesDirs.asPath,
     "-d", layout.buildDirectory.dir("classes/java/test").get().toString(),
     clazz
-  )
+    )
 }
 
 tasks.named("test").configure {
