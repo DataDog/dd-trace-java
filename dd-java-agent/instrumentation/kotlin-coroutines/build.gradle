@@ -1,12 +1,33 @@
+import net.bytebuddy.build.gradle.ByteBuddyTask
+
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/test-with-kotlin.gradle"
 
 dependencies {
   implementation project(':dd-java-agent:instrumentation:java-concurrent')
-  testImplementation project(':dd-trace-api')
+  compileOnly deps.kotlin
+  compileOnly deps.coroutines
 
   testImplementation deps.kotlin
   testImplementation deps.coroutines
-
+  testImplementation project(':dd-trace-api')
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+}
+
+def createKotlinDirs = tasks.register("createKotlinDirs") {
+  doLast {
+    // Having Groovy, Kotlin and Java in the same project is a bit problematic
+    // this task allows Java classes in main source set to compile
+    def kotlinClassesDir = new File(project.buildDir, "classes/kotlin")
+    new File(kotlinClassesDir, "main").mkdirs()
+    new File(kotlinClassesDir, "raw").mkdirs()
+  }
+}
+
+tasks.withType(JavaCompile).configureEach {
+  dependsOn createKotlinDirs
+}
+
+tasks.withType(ByteBuddyTask).configureEach {
+  dependsOn createKotlinDirs
 }
