@@ -32,6 +32,7 @@
               "_sampling_priority_v1" 1
               "peer.port" 57798
               "thread.id" 62
+              "process_id" 123
               "_dd.top_level" 1}}
       {"name" "spring.handler"
        "service" "smoke-test-java-app"

@@ -30,6 +30,7 @@
               "_sampling_priority_v1" 1
               "peer.port" 57795
               "thread.id" 58
+              "process_id" 123
               "_dd.top_level" 1}}
       {"name" "spring.handler"
        "service" "smoke-test-java-app"
@@ -102,7 +103,8 @@
                           "_sampling_priority_v1" 1
                           "peer.port" 57796
                           "_dd.top_level" 1
-                          "thread.id" 47}}
+                          "thread.id" 47
+                          "process_id" 123}}
                   {"name" "spring.handler"
                    "service" "smoke-test-java-app"
                    "resource" "DemoController.connectFinal"
