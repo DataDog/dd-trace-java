@@ -30,7 +30,7 @@ public class SnapshotSummaryTest {
     Snapshot snapshot =
         new Snapshot(
             Thread.currentThread(),
-            new ProbeDetails(UUID.randomUUID().toString(), PROBE_LOCATION),
+            new ProbeDetails(UUID.randomUUID().toString(), PROBE_LOCATION, null),
             CLASS_NAME);
     assertEquals("SomeClass.someMethod()", snapshot.getSummary());
   }
@@ -40,7 +40,7 @@ public class SnapshotSummaryTest {
     Snapshot snapshot =
         new Snapshot(
             Thread.currentThread(),
-            new ProbeDetails(UUID.randomUUID().toString(), PROBE_LOCATION),
+            new ProbeDetails(UUID.randomUUID().toString(), PROBE_LOCATION, null),
             CLASS_NAME);
     CapturedContext entry = new CapturedContext();
     HashMap<String, String> argMap = new HashMap<>();
@@ -70,7 +70,7 @@ public class SnapshotSummaryTest {
     Snapshot snapshot =
         new Snapshot(
             Thread.currentThread(),
-            new ProbeDetails(UUID.randomUUID().toString(), PROBE_LOCATION),
+            new ProbeDetails(UUID.randomUUID().toString(), PROBE_LOCATION, null),
             CLASS_NAME);
     CapturedContext entry = new CapturedContext();
     entry.addArguments(
@@ -104,7 +104,7 @@ public class SnapshotSummaryTest {
     Snapshot snapshot =
         new Snapshot(
             Thread.currentThread(),
-            new ProbeDetails(UUID.randomUUID().toString(), PROBE_LOCATION),
+            new ProbeDetails(UUID.randomUUID().toString(), PROBE_LOCATION, null),
             CLASS_NAME);
     StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
     // top frame is actually getStackTrace, we want the test method
@@ -154,7 +154,7 @@ public class SnapshotSummaryTest {
         new ProbeLocation(null, null, "SomeFile", Collections.singletonList("13"));
     // if the line probe had a stacktrace we would use the method information from the stacktrace
     Snapshot snapshot =
-        new Snapshot(Thread.currentThread(), new ProbeDetails("id", location), CLASS_NAME);
+        new Snapshot(Thread.currentThread(), new ProbeDetails("id", location, null), CLASS_NAME);
 
     CapturedContext lineCapture = new CapturedContext();
     lineCapture.addLocals(new Snapshot.CapturedValue[] {});

@@ -41,7 +41,6 @@ import java.net.URL;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -117,10 +116,7 @@ public class DebuggerTransformerTest {
       assertTrue(codeOutput != null && codeOutput.length == 2);
       this.targetClassName = targetClassName;
       this.delegate =
-          new DebuggerTransformer(
-              Config.get(),
-              new Configuration(SERVICE_NAME, Collections.singletonList(probe)),
-              null);
+          new DebuggerTransformer(Config.get(), Configuration.builder().add(probe).build(), null);
       this.codeOutput = codeOutput;
     }
 
@@ -240,10 +236,7 @@ public class DebuggerTransformerTest {
     SnapshotProbe snapshotProbe =
         SnapshotProbe.builder().where("java.util.ArrayList", "add").build();
     DebuggerTransformer debuggerTransformer =
-        new DebuggerTransformer(
-            config,
-            new Configuration(SERVICE_NAME, Collections.singletonList(snapshotProbe)),
-            null);
+        new DebuggerTransformer(config, Configuration.builder().add(snapshotProbe).build(), null);
     debuggerTransformer.transform(
         ClassLoader.getSystemClassLoader(),
         "java.util.ArrayList",
@@ -284,7 +277,8 @@ public class DebuggerTransformerTest {
               .build();
       snapshotProbes.add(snapshotProbe);
     }
-    Configuration configuration = new Configuration(SERVICE_NAME, snapshotProbes);
+    Configuration configuration =
+        Configuration.builder().setService(SERVICE_NAME).addSnapshotsProbes(snapshotProbes).build();
     DebuggerTransformer debuggerTransformer = new DebuggerTransformer(config, configuration);
     for (ProbeTestInfo probeInfo : probeInfos) {
       byte[] newClassBuffer =
@@ -339,7 +333,8 @@ public class DebuggerTransformerTest {
                 .active(false)
                 .where("java.util.HashMap", "<init>", "void ()")
                 .build());
-    Configuration configuration = new Configuration(SERVICE_NAME, snapshotProbes);
+    Configuration configuration =
+        Configuration.builder().setService(SERVICE_NAME).addSnapshotsProbes(snapshotProbes).build();
     DebuggerTransformer debuggerTransformer = new DebuggerTransformer(config, configuration);
     byte[] newClassBuffer =
         debuggerTransformer.transform(
@@ -370,7 +365,8 @@ public class DebuggerTransformerTest {
                 .active(true)
                 .where("java.lang.String", "toString")
                 .build());
-    Configuration configuration = new Configuration(SERVICE_NAME, snapshotProbes);
+    Configuration configuration =
+        Configuration.builder().setService(SERVICE_NAME).addSnapshotsProbes(snapshotProbes).build();
     AtomicReference<InstrumentationResult> lastResult = new AtomicReference<>(null);
     DebuggerTransformer debuggerTransformer =
         new DebuggerTransformer(
@@ -394,7 +390,7 @@ public class DebuggerTransformerTest {
     Config config = mock(Config.class);
     SnapshotProbe snapshotProbe = SnapshotProbe.builder().where("ArrayList", "add").build();
     Configuration configuration =
-        new Configuration(SERVICE_NAME, Collections.singletonList(snapshotProbe));
+        Configuration.builder().setService(SERVICE_NAME).add(snapshotProbe).build();
     AtomicReference<InstrumentationResult> lastResult = new AtomicReference<>(null);
     DebuggerTransformer debuggerTransformer =
         new DebuggerTransformer(
@@ -469,7 +465,7 @@ public class DebuggerTransformerTest {
                       .collect(Collectors.toList())
                   : null;
           return new Snapshot.ProbeDetails(
-              id, new Snapshot.ProbeLocation(typeName, methodName, sourceFile, lines));
+              id, new Snapshot.ProbeLocation(typeName, methodName, sourceFile, lines), null);
         },
         null);
 

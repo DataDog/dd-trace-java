@@ -9,6 +9,7 @@ import com.datadog.debugger.probe.SnapshotProbe;
 import datadog.remoteconfig.ConfigurationChangesListener;
 import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.debugger.Snapshot;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -62,21 +63,31 @@ public class DebuggerProductChangesListenerTest {
 
   @Test
   public void testSingleConfiguration() {
+    String configId = UUID.randomUUID().toString();
+    String probeId = UUID.randomUUID().toString();
     Configuration config =
         Configuration.builder()
             .setService(SERVICE_NAME)
-            .add(createSnapshotProbe(UUID.randomUUID().toString()))
+            .add(createSnapshotProbe(probeId))
             .addDenyList(createFilteredList())
             .build();
+
     SimpleAcceptor acceptor = new SimpleAcceptor();
 
     DebuggerProductChangesListener listener =
         new DebuggerProductChangesListener(tracerConfig, acceptor);
 
-    acceptConfig(listener, config, UUID.randomUUID().toString());
+    acceptConfig(listener, config, configId);
     listener.commit(pollingHinter);
 
-    Assert.assertEquals(config, acceptor.getConfiguration());
+    Configuration expectedConfig =
+        Configuration.builder()
+            .setService(SERVICE_NAME)
+            .add(createSnapshotProbe(probeId), new Snapshot.ProbeSource(configId, 1))
+            .addDenyList(createFilteredList())
+            .build();
+
+    Assert.assertEquals(expectedConfig, acceptor.getConfiguration());
   }
 
   @Test
@@ -96,7 +107,10 @@ public class DebuggerProductChangesListenerTest {
         IOException.class,
         () ->
             listener.accept(
-                createConfigKey(UUID.randomUUID().toString()), toContent(config), pollingHinter));
+                createConfigKey(UUID.randomUUID().toString()),
+                toContent(config),
+                1,
+                pollingHinter));
 
     listener.commit(pollingHinter);
 
@@ -118,7 +132,10 @@ public class DebuggerProductChangesListenerTest {
     acceptSnapshotProbe(listener, snapshotProbe);
     listener.commit(pollingHinter);
     Assert.assertEquals(
-        Configuration.builder().setService(SERVICE_NAME).add(snapshotProbe).build(),
+        Configuration.builder()
+            .setService(SERVICE_NAME)
+            .add(snapshotProbe, createSnapshotProbeSource(snapshotProbe))
+            .build(),
         acceptor.getConfiguration());
 
     acceptMetricProbe(listener, metricProbe);
@@ -126,8 +143,8 @@ public class DebuggerProductChangesListenerTest {
     Assert.assertEquals(
         Configuration.builder()
             .setService(SERVICE_NAME)
-            .add(snapshotProbe)
-            .add(metricProbe)
+            .add(snapshotProbe, createSnapshotProbeSource(snapshotProbe))
+            .add(metricProbe, createMericProbeSource(metricProbe))
             .build(),
         acceptor.getConfiguration());
 
@@ -136,22 +153,29 @@ public class DebuggerProductChangesListenerTest {
     Assert.assertEquals(
         Configuration.builder()
             .setService(SERVICE_NAME)
-            .add(snapshotProbe)
-            .add(metricProbe)
-            .add(logProbe)
+            .add(snapshotProbe, createSnapshotProbeSource(snapshotProbe))
+            .add(metricProbe, createMericProbeSource(metricProbe))
+            .add(logProbe, createLogProbeSource(logProbe))
             .build(),
         acceptor.getConfiguration());
 
     removeSnapshotProbe(listener, snapshotProbe);
     listener.commit(pollingHinter);
     Assert.assertEquals(
-        Configuration.builder().setService(SERVICE_NAME).add(metricProbe).add(logProbe).build(),
+        Configuration.builder()
+            .setService(SERVICE_NAME)
+            .add(metricProbe, createMericProbeSource(metricProbe))
+            .add(logProbe, createLogProbeSource(logProbe))
+            .build(),
         acceptor.getConfiguration());
 
     removeMetricProbe(listener, metricProbe);
     listener.commit(pollingHinter);
     Assert.assertEquals(
-        Configuration.builder().setService(SERVICE_NAME).add(logProbe).build(),
+        Configuration.builder()
+            .setService(SERVICE_NAME)
+            .add(logProbe, createLogProbeSource(logProbe))
+            .build(),
         acceptor.getConfiguration());
 
     removeLogProbe(listener, logProbe);
@@ -170,6 +194,8 @@ public class DebuggerProductChangesListenerTest {
     SnapshotProbe snapshotProbe = createSnapshotProbe("123");
     MetricProbe metricProbe = createMetricProbe("345");
     LogProbe logProbe = createLogProbe("567");
+    String configId = UUID.randomUUID().toString();
+    Snapshot.ProbeSource configSource = new Snapshot.ProbeSource(configId, 1);
 
     Configuration config =
         Configuration.builder()
@@ -181,10 +207,13 @@ public class DebuggerProductChangesListenerTest {
             .build();
 
     acceptSnapshotProbe(listener, snapshotProbe);
-    acceptConfig(listener, config, UUID.randomUUID().toString());
+    acceptConfig(listener, config, configId);
     listener.commit(pollingHinter);
     Assert.assertEquals(
-        Configuration.builder().add(config).add(snapshotProbe).build(),
+        Configuration.builder()
+            .add(config, configSource)
+            .add(snapshotProbe, createSnapshotProbeSource(snapshotProbe))
+            .build(),
         acceptor.getConfiguration());
   }
 
@@ -197,7 +226,7 @@ public class DebuggerProductChangesListenerTest {
 
     Assertions.assertThrows(
         IOException.class,
-        () -> listener.accept(createConfigKey("bad-config-id"), null, pollingHinter));
+        () -> listener.accept(createConfigKey("bad-config-id"), null, 1, pollingHinter));
   }
 
   byte[] toContent(Configuration configuration) {
@@ -227,7 +256,7 @@ public class DebuggerProductChangesListenerTest {
   void acceptConfig(
       DebuggerProductChangesListener listener, Configuration config, String configId) {
     assertDoesNotThrow(
-        () -> listener.accept(createConfigKey(configId), toContent(config), pollingHinter));
+        () -> listener.accept(createConfigKey(configId), toContent(config), 1, pollingHinter));
   }
 
   void acceptSnapshotProbe(DebuggerProductChangesListener listener, SnapshotProbe probe) {
@@ -236,7 +265,12 @@ public class DebuggerProductChangesListenerTest {
             listener.accept(
                 createConfigKey("snapshotProbe_" + probe.getId()),
                 toContent(probe),
+                1,
                 pollingHinter));
+  }
+
+  Snapshot.ProbeSource createSnapshotProbeSource(SnapshotProbe probe) {
+    return new Snapshot.ProbeSource("snapshotProbe_" + probe.getId(), 1);
   }
 
   void removeSnapshotProbe(DebuggerProductChangesListener listener, SnapshotProbe probe) {
@@ -248,7 +282,14 @@ public class DebuggerProductChangesListenerTest {
     assertDoesNotThrow(
         () ->
             listener.accept(
-                createConfigKey("metricProbe_" + probe.getId()), toContent(probe), pollingHinter));
+                createConfigKey("metricProbe_" + probe.getId()),
+                toContent(probe),
+                1,
+                pollingHinter));
+  }
+
+  Snapshot.ProbeSource createMericProbeSource(MetricProbe probe) {
+    return new Snapshot.ProbeSource("metricProbe_" + probe.getId(), 1);
   }
 
   void removeMetricProbe(DebuggerProductChangesListener listener, MetricProbe probe) {
@@ -260,7 +301,11 @@ public class DebuggerProductChangesListenerTest {
     assertDoesNotThrow(
         () ->
             listener.accept(
-                createConfigKey("logProbe_" + probe.getId()), toContent(probe), pollingHinter));
+                createConfigKey("logProbe_" + probe.getId()), toContent(probe), 1, pollingHinter));
+  }
+
+  Snapshot.ProbeSource createLogProbeSource(LogProbe probe) {
+    return new Snapshot.ProbeSource("logProbe_" + probe.getId(), 1);
   }
 
   void removeLogProbe(DebuggerProductChangesListener listener, LogProbe probe) {

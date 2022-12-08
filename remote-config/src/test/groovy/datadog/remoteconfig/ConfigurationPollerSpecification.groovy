@@ -711,7 +711,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     then:
     1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
     1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
-    1 * listener.accept(_, { it != null }, _) >> false
+    1 * listener.accept(_, { it != null }, 1, _) >> false
     1 * listener.commit(_)
     0 * _._
 

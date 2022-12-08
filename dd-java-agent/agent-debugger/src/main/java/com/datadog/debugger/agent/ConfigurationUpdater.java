@@ -136,7 +136,8 @@ public class ConfigurationUpdater
         spanProbes,
         configuration.getAllowList(),
         configuration.getDenyList(),
-        configuration.getSampling());
+        configuration.getSampling(),
+        configuration.getProbesSource());
   }
 
   private <E extends ProbeDefinition> Collection<E> filterProbes(
@@ -221,7 +222,7 @@ public class ConfigurationUpdater
           .setSampling(currentConfiguration.getSampling())
           .build();
     }
-    return Configuration.builder().setService(serviceName).build();
+    return new Configuration(serviceName);
   }
 
   private void retransformClasses(List<Class<?>> classesToBeTransformed) {
@@ -286,6 +287,7 @@ public class ConfigurationUpdater
     return new Snapshot.ProbeDetails(
         probe.getId(),
         location,
+        currentConfiguration.getProbeSource(probe),
         convertMethodLocation(probe.getEvaluateAt()),
         probeCondition,
         probe.concatTags(),

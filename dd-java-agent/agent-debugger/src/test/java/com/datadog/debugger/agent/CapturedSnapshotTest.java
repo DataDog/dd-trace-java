@@ -1331,6 +1331,7 @@ public class CapturedSnapshotTest {
         return new Snapshot.ProbeDetails(
             id,
             location,
+            null,
             Snapshot.MethodLocation.DEFAULT,
             probe.getProbeCondition(),
             probe.concatTags(),
@@ -1341,6 +1342,7 @@ public class CapturedSnapshotTest {
                         new Snapshot.ProbeDetails(
                             relatedProbe.getId(),
                             location,
+                            null,
                             Snapshot.MethodLocation.DEFAULT,
                             ((SnapshotProbe) relatedProbe).getProbeCondition(),
                             relatedProbe.concatTags(),

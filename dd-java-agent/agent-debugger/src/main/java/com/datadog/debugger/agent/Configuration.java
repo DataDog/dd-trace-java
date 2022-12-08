@@ -6,9 +6,12 @@ import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SnapshotProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import com.squareup.moshi.Json;
+import datadog.trace.bootstrap.debugger.Snapshot;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -68,9 +71,10 @@ public class Configuration {
   private final FilterList allowList;
   private final FilterList denyList;
   private final SnapshotProbe.Sampling sampling;
+  private final Map<String, Snapshot.ProbeSource> probesSource;
 
-  public Configuration(String service, Collection<SnapshotProbe> snapshotProbes) {
-    this(service, snapshotProbes, null, null, null);
+  public Configuration(String service) {
+    this(service, null, null, null, null);
   }
 
   public Configuration(
@@ -91,6 +95,18 @@ public class Configuration {
       FilterList allowList,
       FilterList denyList,
       SnapshotProbe.Sampling sampling) {
+    this(serviceName, snapshotProbes, metricProbes, logProbes, allowList, denyList, sampling, null);
+  }
+
+  public Configuration(
+      String serviceName,
+      Collection<SnapshotProbe> snapshotProbes,
+      Collection<MetricProbe> metricProbes,
+      Collection<LogProbe> logProbes,
+      FilterList allowList,
+      FilterList denyList,
+      SnapshotProbe.Sampling sampling,
+      Map<String, Snapshot.ProbeSource> probesSource) {
     this.service = serviceName;
     this.snapshotProbes = snapshotProbes;
     this.metricProbes = metricProbes;
@@ -99,6 +115,7 @@ public class Configuration {
     this.allowList = allowList;
     this.denyList = denyList;
     this.sampling = sampling;
+    this.probesSource = probesSource;
   }
 
   public String getService() {
@@ -150,6 +167,17 @@ public class Configuration {
     return result;
   }
 
+  public Map<String, Snapshot.ProbeSource> getProbesSource() {
+    return probesSource;
+  }
+
+  public Snapshot.ProbeSource getProbeSource(ProbeDefinition definition) {
+    if (probesSource == null) {
+      return null;
+    }
+    return probesSource.get(definition.getId());
+  }
+
   @Generated
   @Override
   public String toString() {
@@ -168,6 +196,8 @@ public class Configuration {
         + denyList
         + ", sampling="
         + sampling
+        + ", probesSource="
+        + probesSource
         + '}';
   }
 
@@ -183,14 +213,22 @@ public class Configuration {
         && Objects.equals(logProbes, that.logProbes)
         && Objects.equals(allowList, that.allowList)
         && Objects.equals(denyList, that.denyList)
-        && Objects.equals(sampling, that.sampling);
+        && Objects.equals(sampling, that.sampling)
+        && Objects.equals(probesSource, that.probesSource);
   }
 
   @Generated
   @Override
   public int hashCode() {
     return Objects.hash(
-        service, snapshotProbes, metricProbes, logProbes, allowList, denyList, sampling);
+        service,
+        snapshotProbes,
+        metricProbes,
+        logProbes,
+        allowList,
+        denyList,
+        sampling,
+        probesSource);
   }
 
   public static Configuration.Builder builder() {
@@ -206,33 +244,63 @@ public class Configuration {
     private FilterList allowList = null;
     private FilterList denyList = null;
     private SnapshotProbe.Sampling sampling = null;
+    private Map<String, Snapshot.ProbeSource> probesSource = null;
 
     public Configuration.Builder setService(String service) {
       this.service = service;
       return this;
     }
 
+    private void setProbeSource(ProbeDefinition probe, Snapshot.ProbeSource source) {
+      if (source == null) {
+        if (probesSource != null) {
+          probesSource.remove(probe.getId());
+        }
+        return;
+      }
+
+      if (probesSource == null) {
+        probesSource = new HashMap<>();
+      }
+      probesSource.put(probe.getId(), source);
+    }
+
     public Configuration.Builder add(SnapshotProbe probe) {
+      return this.add(probe, null);
+    }
+
+    public Configuration.Builder add(SnapshotProbe probe, Snapshot.ProbeSource source) {
       if (snapshotProbes == null) {
         snapshotProbes = new ArrayList<>();
       }
       snapshotProbes.add(probe);
+      setProbeSource(probe, source);
       return this;
     }
 
     public Configuration.Builder add(MetricProbe probe) {
+      return this.add(probe, null);
+    }
+
+    public Configuration.Builder add(MetricProbe probe, Snapshot.ProbeSource source) {
       if (metricProbes == null) {
         metricProbes = new ArrayList<>();
       }
       metricProbes.add(probe);
+      setProbeSource(probe, source);
       return this;
     }
 
     public Configuration.Builder add(LogProbe probe) {
+      return this.add(probe, null);
+    }
+
+    public Configuration.Builder add(LogProbe probe, Snapshot.ProbeSource source) {
       if (logProbes == null) {
         logProbes = new ArrayList<>();
       }
       logProbes.add(probe);
+      setProbeSource(probe, source);
       return this;
     }
 
@@ -252,31 +320,46 @@ public class Configuration {
     }
 
     public Configuration.Builder addSnapshotsProbes(Collection<SnapshotProbe> probes) {
+      return addSnapshotsProbes(probes, null);
+    }
+
+    public Configuration.Builder addSnapshotsProbes(
+        Collection<SnapshotProbe> probes, Snapshot.ProbeSource source) {
       if (probes == null) {
         return this;
       }
       for (SnapshotProbe probe : probes) {
-        add(probe);
+        add(probe, source);
       }
       return this;
     }
 
     public Configuration.Builder addMetricProbes(Collection<MetricProbe> probes) {
+      return addMetricProbes(probes, null);
+    }
+
+    public Configuration.Builder addMetricProbes(
+        Collection<MetricProbe> probes, Snapshot.ProbeSource source) {
       if (probes == null) {
         return this;
       }
       for (MetricProbe probe : probes) {
-        add(probe);
+        add(probe, source);
       }
       return this;
     }
 
     public Configuration.Builder addLogProbes(Collection<LogProbe> probes) {
+      return addLogProbes(probes, null);
+    }
+
+    public Configuration.Builder addLogProbes(
+        Collection<LogProbe> probes, Snapshot.ProbeSource source) {
       if (probes == null) {
         return this;
       }
       for (LogProbe probe : probes) {
-        add(probe);
+        add(probe, source);
       }
       return this;
     }
@@ -321,12 +404,16 @@ public class Configuration {
     }
 
     public Configuration.Builder add(Configuration other) {
+      return add(other, null);
+    }
+
+    public Configuration.Builder add(Configuration other, Snapshot.ProbeSource source) {
       if (other.service != null) {
         this.service = other.service;
       }
-      addSnapshotsProbes(other.getSnapshotProbes());
-      addMetricProbes(other.getMetricProbes());
-      addLogProbes(other.getLogProbes());
+      addSnapshotsProbes(other.getSnapshotProbes(), source);
+      addMetricProbes(other.getMetricProbes(), source);
+      addLogProbes(other.getLogProbes(), source);
       addAllowList(other.getAllowList());
       addDenyList(other.getDenyList());
       add(other.getSampling());
@@ -342,7 +429,8 @@ public class Configuration {
           spanProbes,
           allowList,
           denyList,
-          sampling);
+          sampling,
+          probesSource);
     }
   }
 }

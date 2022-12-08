@@ -14,6 +14,7 @@ public class SimpleProductListener implements ProductListener {
   public void accept(
       ParsedConfigKey configKey,
       byte[] content,
+      long version,
       ConfigurationChangesListener.PollingRateHinter pollingRateHinter)
       throws IOException {
     listener.accept(configKey.toString(), content, pollingRateHinter);

@@ -69,7 +69,7 @@ public class DebuggerSinkTest {
     Snapshot snapshot =
         new Snapshot(
             Thread.currentThread(),
-            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION, null),
             String.class.getTypeName());
     sink.addSnapshot(snapshot);
     String fixtureContent = getFixtureContent(SINK_FIXTURE_PREFIX + "/snapshotRegex.txt");
@@ -87,7 +87,7 @@ public class DebuggerSinkTest {
     Snapshot snapshot =
         new Snapshot(
             Thread.currentThread(),
-            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION, null),
             String.class.getTypeName());
     Arrays.asList(snapshot, snapshot).forEach(sink::addSnapshot);
 
@@ -106,7 +106,7 @@ public class DebuggerSinkTest {
     Snapshot largeSnapshot =
         new Snapshot(
             Thread.currentThread(),
-            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION, null),
             String.class.getTypeName());
     for (int i = 0; i < 15_000; i++) {
       largeSnapshot.getStack().add(new CapturedStackFrame("f" + i, i));
@@ -127,7 +127,7 @@ public class DebuggerSinkTest {
     Snapshot largeSnapshot =
         new Snapshot(
             Thread.currentThread(),
-            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION, null),
             String.class.getTypeName());
     for (int i = 0; i < 150_000; i++) {
       largeSnapshot.getStack().add(new CapturedStackFrame("f" + i, i));
@@ -143,7 +143,7 @@ public class DebuggerSinkTest {
     Snapshot largeSnapshot =
         new Snapshot(
             Thread.currentThread(),
-            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION, null),
             String.class.getTypeName());
     for (int i = 0; i < 140_000; i++) {
       largeSnapshot.getStack().add(new CapturedStackFrame("f€" + i, i));
@@ -250,7 +250,7 @@ public class DebuggerSinkTest {
     Snapshot snapshot =
         new Snapshot(
             Thread.currentThread(),
-            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION, null),
             String.class.getTypeName());
     sink.addSnapshot(snapshot);
     sink.doReconsiderFlushInterval();
@@ -266,7 +266,7 @@ public class DebuggerSinkTest {
     Snapshot snapshot =
         new Snapshot(
             Thread.currentThread(),
-            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION, null),
             String.class.getTypeName());
     for (int i = 0; i < 1000; i++) {
       sink.addSnapshot(snapshot);
@@ -283,7 +283,7 @@ public class DebuggerSinkTest {
     Snapshot snapshot =
         new Snapshot(
             Thread.currentThread(),
-            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION, null),
             String.class.getTypeName());
     for (int i = 0; i < 500; i++) {
       sink.addSnapshot(snapshot);
@@ -305,7 +305,7 @@ public class DebuggerSinkTest {
     Snapshot snapshot =
         new Snapshot(
             Thread.currentThread(),
-            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION, null),
             String.class.getTypeName());
     snapshot.setEntry(entry);
     sink.addSnapshot(snapshot);
@@ -326,7 +326,7 @@ public class DebuggerSinkTest {
     Snapshot snapshot =
         new Snapshot(
             Thread.currentThread(),
-            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION, null),
             String.class.getTypeName());
     snapshot.setEntry(entry);
     sink.addSnapshot(snapshot);
@@ -356,7 +356,7 @@ public class DebuggerSinkTest {
     Snapshot snapshot =
         new Snapshot(
             Thread.currentThread(),
-            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION, null),
             String.class.getTypeName());
     sink.skipSnapshot(snapshot.getProbe().getId(), DebuggerContext.SkipCause.CONDITION);
     verify(debuggerMetrics)

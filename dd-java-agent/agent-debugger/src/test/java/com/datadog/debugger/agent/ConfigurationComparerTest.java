@@ -439,6 +439,9 @@ class ConfigurationComparerTest {
   }
 
   private static Configuration createConfig(List<SnapshotProbe> snapshotProbes) {
-    return new Configuration(SERVICE_NAME, snapshotProbes);
+    return Configuration.builder()
+        .setService(SERVICE_NAME)
+        .addSnapshotsProbes(snapshotProbes)
+        .build();
   }
 }

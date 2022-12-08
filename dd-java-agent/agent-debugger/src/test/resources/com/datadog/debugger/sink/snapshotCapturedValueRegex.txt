@@ -58,6 +58,10 @@
 "lines":\["12-15","23"\],
 "method":"indexOf",
 "type":"java.lang.String"
+\},
+"source":\{
+"config":"config",
+"version":1
 \}
 \},
 "stack":\[\],

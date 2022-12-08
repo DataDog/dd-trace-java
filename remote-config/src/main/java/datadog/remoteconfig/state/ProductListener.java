@@ -7,6 +7,7 @@ public interface ProductListener {
   void accept(
       ParsedConfigKey configKey,
       byte[] content,
+      long version,
       ConfigurationChangesListener.PollingRateHinter pollingRateHinter)
       throws IOException;
 

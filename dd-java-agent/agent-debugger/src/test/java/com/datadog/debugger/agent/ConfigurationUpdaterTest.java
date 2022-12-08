@@ -730,7 +730,7 @@ public class ConfigurationUpdaterTest {
   private static Configuration createApp(List<SnapshotProbe> snapshotProbes) {
     return Configuration.builder()
         .setService(SERVICE_NAME)
-        .addSnapshotsProbes(snapshotProbes)
+        .addSnapshotsProbes(snapshotProbes, null)
         .build();
   }
 

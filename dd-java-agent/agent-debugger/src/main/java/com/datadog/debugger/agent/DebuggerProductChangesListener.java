@@ -8,6 +8,7 @@ import com.squareup.moshi.JsonAdapter;
 import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.util.TagsHelper;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -78,6 +79,7 @@ public class DebuggerProductChangesListener implements ProductListener {
   public void accept(
       ParsedConfigKey configKey,
       byte[] content,
+      long version,
       datadog.remoteconfig.ConfigurationChangesListener.PollingRateHinter pollingRateHinter)
       throws IOException {
 
@@ -85,17 +87,25 @@ public class DebuggerProductChangesListener implements ProductListener {
 
     if (configId.startsWith("snapshotProbe_")) {
       SnapshotProbe snapshotProbe = Adapter.deserializeSnapshotProbe(content);
-      configChunks.put(configId, (builder) -> builder.add(snapshotProbe));
+      configChunks.put(
+          configId,
+          (builder) -> builder.add(snapshotProbe, new Snapshot.ProbeSource(configId, version)));
     } else if (configId.startsWith("metricProbe_")) {
       MetricProbe metricProbe = Adapter.deserializeMetricProbe(content);
-      configChunks.put(configId, (builder) -> builder.add(metricProbe));
+      configChunks.put(
+          configId,
+          (builder) -> builder.add(metricProbe, new Snapshot.ProbeSource(configId, version)));
     } else if (configId.startsWith("logProbe_")) {
       LogProbe logProbe = Adapter.deserializeLogProbe(content);
-      configChunks.put(configId, (builder) -> builder.add(logProbe));
+      configChunks.put(
+          configId,
+          (builder) -> builder.add(logProbe, new Snapshot.ProbeSource(configId, version)));
     } else if (IS_UUID.test(configId)) {
       Configuration newConfig = Adapter.deserializeConfiguration(content);
       if (newConfig.getService().equals(serviceName)) {
-        configChunks.put(configId, (builder) -> builder.add(newConfig));
+        configChunks.put(
+            configId,
+            (builder) -> builder.add(newConfig, new Snapshot.ProbeSource(configId, version)));
       } else {
         throw new IOException(
             "got config.serviceName = " + newConfig.getService() + ", ignoring configuration");

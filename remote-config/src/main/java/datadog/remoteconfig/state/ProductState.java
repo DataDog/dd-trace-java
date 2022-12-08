@@ -58,7 +58,7 @@ public class ProductState {
         if (isTargetChanged(configKey, target)) {
           changesDetected = true;
           byte[] content = getTargetFileContent(fleetResponse, configKey);
-          callListenerApplyTarget(fleetResponse, hinter, configKey, content);
+          callListenerApplyTarget(fleetResponse, hinter, configKey, content, target.custom.version);
         }
 
       } catch (ConfigurationPoller.ReportableException e) {
@@ -89,10 +89,11 @@ public class ProductState {
       RemoteConfigResponse fleetResponse,
       ConfigurationChangesListener.PollingRateHinter hinter,
       ParsedConfigKey configKey,
-      byte[] content) {
+      byte[] content,
+      long version) {
 
     try {
-      listener.accept(configKey, content, hinter);
+      listener.accept(configKey, content, version, hinter);
       updateConfigState(fleetResponse, configKey, null);
     } catch (ConfigurationPoller.ReportableException e) {
       recordError(e);
