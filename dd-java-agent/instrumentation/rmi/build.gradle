@@ -21,11 +21,11 @@ def rmic = tasks.register('rmic', Exec) {
 
   def clazz = 'rmi.app.ServerLegacy'
   commandLine(
-    "${toolchainPath}/bin/rmic",
+    toolchainPath.file("bin/rmic").toString(),
     "-g",
     "-keep",
     "-classpath", sourceSets.test.output.classesDirs.asPath,
-    "-d", "${buildDir}/classes/java/test",
+    "-d", layout.buildDirectory.dir("classes/java/test").get().toString(),
     clazz
   )
 }
