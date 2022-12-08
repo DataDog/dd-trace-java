@@ -1,6 +1,5 @@
 // Set properties before any plugins get loaded
 ext {
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
   // TODO Java 17: This version of vertx-web doesn't support Java 17
   maxJavaVersionForTests = JavaVersion.VERSION_15
 }
@@ -34,7 +33,7 @@ artifacts {
 }
 
 dependencies {
-  main_java8CompileOnly group: 'io.vertx', name: 'vertx-web', version: '4.2.7'
+  compileOnly group: 'io.vertx', name: 'vertx-web', version: '4.2.7'
 
   testImplementation project(':dd-java-agent:instrumentation:netty-4.1')
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')

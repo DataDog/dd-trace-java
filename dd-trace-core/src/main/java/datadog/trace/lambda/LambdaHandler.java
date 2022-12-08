@@ -111,14 +111,14 @@ public class LambdaHandler {
     return null;
   }
 
-  public static boolean notifyEndInvocation(AgentSpan span, boolean isError) {
+  public static boolean notifyEndInvocation(AgentSpan span, Object result, boolean isError) {
 
     if (null == span || null == span.getSamplingPriority()) {
       log.error(
           "could not notify the extension as the lambda span is null or no sampling priority has been found");
       return false;
     }
-    RequestBody body = RequestBody.create(jsonMediaType, "{}");
+    RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(result));
     Request.Builder builder =
         new Request.Builder()
             .url(EXTENSION_BASE_URL + END_INVOCATION)

@@ -1,5 +1,4 @@
 ext {
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
   // TODO Java 17: The embedded cassandra deadlocks on start every time on Java 17
   //  This can be changed to use test-containers
   maxJavaVersionForTests = JavaVersion.VERSION_15
@@ -26,7 +25,6 @@ testSets {
 
 dependencies {
   compileOnly group: 'com.datastax.oss', name: 'java-driver-core', version: '4.0.0'
-  main_java8CompileOnly group: 'com.datastax.oss', name: 'java-driver-core', version: '4.0.0'
 
   // ProgrammaticConfig, required to set the timeout, wasn't added until 4.0.1
   testImplementation group: 'com.datastax.oss', name: 'java-driver-core', version: '4.0.1'

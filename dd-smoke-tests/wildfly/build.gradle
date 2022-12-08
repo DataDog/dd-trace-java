@@ -3,8 +3,6 @@ ext {
   serverModule = 'servlet'
   serverVersion = '15.0.0.Final'
   serverExtension = 'zip'
-
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
 repositories {

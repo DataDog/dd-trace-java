@@ -2,10 +2,6 @@ plugins {
   id "com.github.johnrengelman.shadow"
 }
 
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 description = 'SpringBoot RabbitMQ Smoke Tests.'
 
@@ -18,13 +14,13 @@ jar {
 }
 
 shadowJar {
-  configurations = [project.configurations.runtimeClasspath, project.configurations.main_java8RuntimeClasspath]
+  configurations = [project.configurations.runtimeClasspath]
 }
 
 dependencies {
-  main_java8Implementation project(':dd-trace-api')
-  main_java8Implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.5.4'
-  main_java8Implementation group: 'org.springframework.boot', name: 'spring-boot-starter-amqp', version: '2.5.4'
+  implementation project(':dd-trace-api')
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.5.4'
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-amqp', version: '2.5.4'
 
   testImplementation project(':dd-smoke-tests')
   testImplementation group: 'org.testcontainers', name: 'rabbitmq', version: versions.testcontainers

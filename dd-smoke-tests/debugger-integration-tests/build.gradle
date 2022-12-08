@@ -4,7 +4,6 @@ plugins {
 
 ext {
   enableJunitPlatform = true
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -22,9 +21,6 @@ dependencies {
   testImplementation deps.junit5
   testImplementation deps.mockito
 }
-
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
 
 // TODO latest-jdk-app fails too often with a jgit failure, so disable until fixed
 //tasks.register('buildLatestJdkApp', GradleBuild) {

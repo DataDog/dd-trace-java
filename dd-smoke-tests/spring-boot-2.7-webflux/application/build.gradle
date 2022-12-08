@@ -6,11 +6,6 @@ plugins {
   id 'pl.allegro.tech.build.axion-release' version '1.14.2'
 }
 
-java {
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
-}
-
 def sharedRootDir = "$rootDir/../../../"
 def sharedConfigDirectory = "$sharedRootDir/gradle"
 rootProject.ext.sharedConfigDirectory = sharedConfigDirectory

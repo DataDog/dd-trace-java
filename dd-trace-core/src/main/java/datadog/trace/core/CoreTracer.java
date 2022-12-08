@@ -795,8 +795,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public void notifyExtensionEnd(AgentSpan span, boolean isError) {
-    LambdaHandler.notifyEndInvocation(span, isError);
+  public void notifyExtensionEnd(AgentSpan span, Object result, boolean isError) {
+    LambdaHandler.notifyEndInvocation(span, result, isError);
   }
 
   private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, MINUTES);
@@ -956,6 +956,23 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     metricsAggregator.close();
     dataStreamsCheckpointer.close();
     externalAgentLauncher.close();
+  }
+
+  @Override
+  public void addScopeListener(
+      Runnable afterScopeActivatedCallback, Runnable afterScopeClosedCallback) {
+    addScopeListener(
+        new ScopeListener() {
+          @Override
+          public void afterScopeActivated() {
+            afterScopeActivatedCallback.run();
+          }
+
+          @Override
+          public void afterScopeClosed() {
+            afterScopeClosedCallback.run();
+          }
+        });
   }
 
   @Override

@@ -1,8 +1,8 @@
 package com.datadog.crashtracking;
 
 import com.sun.management.HotSpotDiagnosticMXBean;
-import datadog.common.process.PidHelper;
 import datadog.trace.api.Platform;
+import datadog.trace.util.PidHelper;
 import datadog.trace.util.Strings;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -35,8 +35,7 @@ public final class ScriptInitializer {
           ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class);
       String onErrorVal = diagBean.getVMOption("OnError").getValue();
       String onErrorFile =
-          Strings.replace(
-              diagBean.getVMOption("ErrorFile").getValue(), "%p", Long.toString(PidHelper.PID));
+          Strings.replace(diagBean.getVMOption("ErrorFile").getValue(), "%p", PidHelper.getPid());
       initialize(onErrorVal, onErrorFile);
     } catch (Throwable t) {
       log.warn(

@@ -245,6 +245,7 @@ class DDSpanContextTest extends DDCoreSpecification {
     sourceWithoutCommonTags.remove("language")
     sourceWithoutCommonTags.remove("_dd.agent_psr")
     sourceWithoutCommonTags.remove("_sample_rate")
+    sourceWithoutCommonTags.remove("process_id")
     if (removeThread) {
       sourceWithoutCommonTags.remove(DDTags.THREAD_ID)
       sourceWithoutCommonTags.remove(DDTags.THREAD_NAME)

@@ -15,9 +15,3 @@ dependencies {
   testImplementation project(':utils:test-utils')
 }
 
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
-}
-configurations {
-  main_java8Implementation // setting minJavaVersionForTests requires this config
-}

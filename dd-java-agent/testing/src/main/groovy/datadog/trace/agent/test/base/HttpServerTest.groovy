@@ -162,7 +162,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   // Only used if hasExtraErrorInformation is true
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.errored) {
-      ["error.msg"  : { it == null || it == EXCEPTION.body },
+      ["error.message"  : { it == null || it == EXCEPTION.body },
         "error.type" : { it == null || it == Exception.name },
         "error.stack": { it == null || it instanceof String }]
     } else {

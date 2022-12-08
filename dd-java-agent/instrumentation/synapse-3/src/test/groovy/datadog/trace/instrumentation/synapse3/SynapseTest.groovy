@@ -212,15 +212,15 @@ class SynapseTest extends AgentTestRunner {
     int statusCode = client.newCall(request).execute().code()
 
     then:
-    assertTraces(2) {
-      def parentSpan = null
+    assertTraces(2, SORT_TRACES_BY_NAMES) {
+      def expectedServerSpanParent = trace(1)[1]
+      trace(1) {
+        serverSpan(it, 0, 'POST', statusCode, null, expectedServerSpanParent, true)
+      }
       trace(2) {
         proxySpan(it, 0, 'POST', statusCode)
         clientSpan(it, 1, 'POST', statusCode, span(0))
-        parentSpan = span(1)
-      }
-      trace(1) {
-        serverSpan(it, 0, 'POST', statusCode, null, parentSpan, true)
+        assert span(1).traceId == expectedServerSpanParent.traceId
       }
     }
     statusCode == 200

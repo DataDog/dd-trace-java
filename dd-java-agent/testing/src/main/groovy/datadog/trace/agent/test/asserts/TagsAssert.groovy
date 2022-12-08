@@ -45,6 +45,7 @@ class TagsAssert {
     assertedTags.add(RateByServiceSampler.SAMPLING_AGENT_RATE)
     assertedTags.add(TraceMapper.SAMPLING_PRIORITY_KEY.toString())
     assertedTags.add("_sample_rate")
+    assertedTags.add(DDTags.PID_TAG)
 
     assert tags["thread.name"] != null
     assert tags["thread.id"] != null
@@ -81,7 +82,7 @@ class TagsAssert {
     tag("error.stack", String)
 
     if (message != null) {
-      tag("error.msg", message)
+      tag("error.message", message)
     }
   }
 
