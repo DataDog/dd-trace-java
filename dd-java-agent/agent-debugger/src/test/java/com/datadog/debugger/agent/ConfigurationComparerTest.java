@@ -4,6 +4,7 @@ import static com.datadog.debugger.agent.Trie.reverseStr;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SnapshotProbe;
 import java.util.Arrays;
@@ -404,6 +405,47 @@ class ConfigurationComparerTest {
             .where(null, null, null, 8, "TopLevelHelper.java")
             .build();
     doAllLoadedChangedClasses(probe, TopLevelHelper.class, false, TopLevelHelper.class);
+  }
+
+  @Test
+  public void logProbeTemplateChangeDetected() {
+    LogProbe probe =
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            .where("com.datadog.Blocked", "method", null)
+            .template("hello world {^bar}")
+            .version(1)
+            .build();
+
+    LogProbe updatedProbe =
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            .where("com.datadog.Blocked", "method", null)
+            .template("hello world {^bar} - with a change {#foo}")
+            .version(2)
+            .build();
+
+    Map<String, InstrumentationResult> instrumentationResults = new HashMap<>();
+    instrumentationResults.put(
+        probe.getId(),
+        new InstrumentationResult(
+            InstrumentationResult.Status.INSTALLED, null, "com.datadog.Blocked", "method"));
+    Configuration configuration1 = Configuration.builder().add(probe).build();
+    Configuration configuration2 = Configuration.builder().add(updatedProbe).build();
+    Configuration configuration3 = Configuration.builder().add(updatedProbe).build();
+
+    ConfigurationComparer configurationComparer =
+        new ConfigurationComparer(configuration1, configuration2, instrumentationResults);
+    Assertions.assertTrue(configurationComparer.hasProbeRelatedChanges());
+    Assertions.assertTrue(
+        configurationComparer
+            .getAllChangedClasses()
+            .contains(reverseStr(probe.getWhere().getTypeName())));
+
+    // different config version but same probe details
+    configurationComparer =
+        new ConfigurationComparer(configuration2, configuration3, instrumentationResults);
+    Assertions.assertFalse(configurationComparer.hasProbeRelatedChanges());
   }
 
   private void doAllLoadedChangedClasses(

@@ -102,7 +102,8 @@ public class DebuggerTransformerTest {
     }
 
     @Override
-    public void addDiagnostics(String probeId, List<DiagnosticMessage> messages) {
+    public void addDiagnostics(
+        String probeId, Long probeVersion, List<DiagnosticMessage> messages) {
       errors.computeIfAbsent(probeId, k -> new ArrayList<>()).addAll(messages);
     }
   }
@@ -465,7 +466,7 @@ public class DebuggerTransformerTest {
                       .collect(Collectors.toList())
                   : null;
           return new Snapshot.ProbeDetails(
-              id, new Snapshot.ProbeLocation(typeName, methodName, sourceFile, lines), null);
+              id, 1L, new Snapshot.ProbeLocation(typeName, methodName, sourceFile, lines));
         },
         null);
 

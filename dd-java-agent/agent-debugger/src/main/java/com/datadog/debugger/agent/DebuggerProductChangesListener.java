@@ -3,12 +3,12 @@ package com.datadog.debugger.agent;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.SnapshotProbe;
+import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.util.TagsHelper;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -40,6 +40,9 @@ public class DebuggerProductChangesListener implements ProductListener {
     static final JsonAdapter<LogProbe> LOG_PROBE_JSON_ADAPTER =
         MoshiHelper.createMoshiConfig().adapter(LogProbe.class);
 
+    static final JsonAdapter<SpanProbe> SPAN_PROBE_JSON_ADAPTER =
+        MoshiHelper.createMoshiConfig().adapter(SpanProbe.class);
+
     static Configuration deserializeConfiguration(byte[] content) throws IOException {
       return CONFIGURATION_JSON_ADAPTER.fromJson(
           Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
@@ -57,6 +60,11 @@ public class DebuggerProductChangesListener implements ProductListener {
 
     static LogProbe deserializeLogProbe(byte[] content) throws IOException {
       return LOG_PROBE_JSON_ADAPTER.fromJson(
+          Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
+    }
+
+    static SpanProbe deserializeSpanProbe(byte[] content) throws IOException {
+      return SPAN_PROBE_JSON_ADAPTER.fromJson(
           Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
     }
   }
@@ -87,25 +95,26 @@ public class DebuggerProductChangesListener implements ProductListener {
 
     if (configId.startsWith("snapshotProbe_")) {
       SnapshotProbe snapshotProbe = Adapter.deserializeSnapshotProbe(content);
-      configChunks.put(
-          configId,
-          (builder) -> builder.add(snapshotProbe, new Snapshot.ProbeSource(configId, version)));
+      snapshotProbe.setVersion(version);
+      configChunks.put(configId, (builder) -> builder.add(snapshotProbe));
     } else if (configId.startsWith("metricProbe_")) {
       MetricProbe metricProbe = Adapter.deserializeMetricProbe(content);
-      configChunks.put(
-          configId,
-          (builder) -> builder.add(metricProbe, new Snapshot.ProbeSource(configId, version)));
+      metricProbe.setVersion(version);
+      configChunks.put(configId, (builder) -> builder.add(metricProbe));
     } else if (configId.startsWith("logProbe_")) {
       LogProbe logProbe = Adapter.deserializeLogProbe(content);
-      configChunks.put(
-          configId,
-          (builder) -> builder.add(logProbe, new Snapshot.ProbeSource(configId, version)));
+      logProbe.setVersion(version);
+      configChunks.put(configId, (builder) -> builder.add(logProbe));
+    } else if (configId.startsWith("spanProbe_")) {
+      SpanProbe spanProbe = Adapter.deserializeSpanProbe(content);
+      spanProbe.setVersion(version);
+      configChunks.put(configId, (builder) -> builder.add(spanProbe));
     } else if (IS_UUID.test(configId)) {
+      // TODO: ignore this configuration type once migration is over.
       Configuration newConfig = Adapter.deserializeConfiguration(content);
+      newConfig.getDefinitions().forEach((probe) -> probe.setVersion(version));
       if (newConfig.getService().equals(serviceName)) {
-        configChunks.put(
-            configId,
-            (builder) -> builder.add(newConfig, new Snapshot.ProbeSource(configId, version)));
+        configChunks.put(configId, (builder) -> builder.add(newConfig));
       } else {
         throw new IOException(
             "got config.serviceName = " + newConfig.getService() + ", ignoring configuration");

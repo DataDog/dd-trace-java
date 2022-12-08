@@ -105,18 +105,24 @@ public class ProbeStatus {
   /** Stores status information for a probe */
   public static class Diagnostics {
     private final String probeId;
+    private final Long probeVersion;
     private final Status status;
 
     private final ProbeException exception;
 
-    public Diagnostics(String probeId, Status status, ProbeException exception) {
+    public Diagnostics(String probeId, Long probeVersion, Status status, ProbeException exception) {
       this.probeId = probeId;
+      this.probeVersion = probeVersion;
       this.status = status;
       this.exception = exception;
     }
 
     public String getProbeId() {
       return probeId;
+    }
+
+    public Long getProbeVersion() {
+      return probeVersion;
     }
 
     public Status getStatus() {
@@ -134,6 +140,7 @@ public class ProbeStatus {
       if (o == null || getClass() != o.getClass()) return false;
       Diagnostics that = (Diagnostics) o;
       return probeId.equals(that.probeId)
+          && Objects.equals(probeVersion, that.probeVersion)
           && status == that.status
           && Objects.equals(exception, that.exception);
     }
@@ -141,7 +148,7 @@ public class ProbeStatus {
     @Generated
     @Override
     public int hashCode() {
-      return Objects.hash(probeId, status, exception);
+      return Objects.hash(probeId, probeVersion, status, exception);
     }
 
     @Generated
@@ -150,7 +157,8 @@ public class ProbeStatus {
       return "Diagnostics{"
           + "probeId='"
           + probeId
-          + '\''
+          + "', probeVerison="
+          + probeVersion
           + ", status="
           + status
           + ", exception="
@@ -233,33 +241,34 @@ public class ProbeStatus {
       this.serviceName = TagsHelper.sanitize(config.getServiceName());
     }
 
-    public ProbeStatus receivedMessage(String probeId) {
+    public ProbeStatus receivedMessage(String probeId, Long probeVersion) {
       return new ProbeStatus(
           this.serviceName,
-          "Received probe " + probeId + ".",
-          new Diagnostics(probeId, Status.RECEIVED, null));
+          "Received probe " + probeId + " (version: " + probeVersion + ").",
+          new Diagnostics(probeId, probeVersion, Status.RECEIVED, null));
     }
 
-    public ProbeStatus installedMessage(String probeId) {
+    public ProbeStatus installedMessage(String probeId, Long probeVersion) {
       return new ProbeStatus(
           this.serviceName,
-          "Installed probe " + probeId + ".",
-          new Diagnostics(probeId, Status.INSTALLED, null));
+          "Installed probe " + probeId + " (version: " + probeVersion + ").",
+          new Diagnostics(probeId, probeVersion, Status.INSTALLED, null));
     }
 
-    public ProbeStatus blockedMessage(String probeId) {
+    public ProbeStatus blockedMessage(String probeId, Long probeVersion) {
       return new ProbeStatus(
           this.serviceName,
-          "Blocked probe " + probeId + ".",
-          new Diagnostics(probeId, Status.BLOCKED, null));
+          "Blocked probe " + probeId + " (version: " + probeVersion + ").",
+          new Diagnostics(probeId, probeVersion, Status.BLOCKED, null));
     }
 
-    public ProbeStatus errorMessage(String probeId, Throwable ex) {
+    public ProbeStatus errorMessage(String probeId, Long probeVersion, Throwable ex) {
       return new ProbeStatus(
           this.serviceName,
-          "Error installing probe " + probeId + ".",
+          "Error installing probe " + probeId + " (version: " + probeVersion + ").",
           new Diagnostics(
               probeId,
+              probeVersion,
               Status.ERROR,
               new ProbeException(
                   ex.getClass().getTypeName(),
@@ -269,12 +278,13 @@ public class ProbeStatus {
                       .collect(Collectors.toList()))));
     }
 
-    public ProbeStatus errorMessage(String probeId, String message) {
+    public ProbeStatus errorMessage(String probeId, Long probeVersion, String message) {
       return new ProbeStatus(
           this.serviceName,
-          "Error installing probe " + probeId + ".",
+          "Error installing probe " + probeId + " (version: " + probeVersion + ").",
           new Diagnostics(
               probeId,
+              probeVersion,
               Status.ERROR,
               new ProbeException("NO_TYPE", message, Collections.emptyList())));
     }

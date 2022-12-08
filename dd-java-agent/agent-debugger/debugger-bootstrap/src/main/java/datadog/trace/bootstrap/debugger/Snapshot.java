@@ -215,29 +215,22 @@ public class Snapshot {
     for (ProbeDetails additionalProbe : probe.additionalProbes) {
       if (capturingProbeIds.contains(additionalProbe.id)
           || errorReportingIds.contains(additionalProbe.id)) {
-        DebuggerContext.addSnapshot(copy(additionalProbe.id, UUID.randomUUID().toString()));
+        DebuggerContext.addSnapshot(cloneWithProbe(additionalProbe));
       } else {
         DebuggerContext.skipSnapshot(additionalProbe.id, DebuggerContext.SkipCause.CONDITION);
       }
     }
   }
 
-  private Snapshot copy(String probeId, String newSnapshotId) {
+  private Snapshot cloneWithProbe(ProbeDetails probe) {
     return new Snapshot(
-        newSnapshotId,
+        UUID.randomUUID().toString(),
         version,
         timestamp,
         duration,
         stack,
         captures,
-        new ProbeDetails(
-            probeId,
-            probe.location,
-            probe.source,
-            probe.evaluateAt,
-            probe.script,
-            probe.tags,
-            summaryBuilder),
+        probe,
         language,
         thread,
         thisClassName,
@@ -328,24 +321,24 @@ public class Snapshot {
   public static class ProbeDetails {
     public static final String ITW_PROBE_ID = "instrument-the-world-probe";
     public static final ProbeDetails UNKNOWN =
-        new ProbeDetails("UNKNOWN", ProbeLocation.UNKNOWN, null);
+        new ProbeDetails("UNKNOWN", null, ProbeLocation.UNKNOWN);
     public static final ProbeDetails ITW_PROBE =
-        new ProbeDetails(ITW_PROBE_ID, ProbeLocation.UNKNOWN, null);
+        new ProbeDetails(ITW_PROBE_ID, null, ProbeLocation.UNKNOWN);
 
     private final String id;
+    private final Long version;
     private final ProbeLocation location;
-    private final ProbeSource source;
     private final MethodLocation evaluateAt;
     private final DebuggerScript script;
     private final transient List<ProbeDetails> additionalProbes;
     private final String tags;
     private final transient SummaryBuilder summaryBuilder;
 
-    public ProbeDetails(String id, ProbeLocation location, ProbeSource source) {
+    public ProbeDetails(String id, Long version, ProbeLocation location) {
       this(
           id,
+          version,
           location,
-          source,
           MethodLocation.DEFAULT,
           null,
           null,
@@ -355,19 +348,20 @@ public class Snapshot {
 
     public ProbeDetails(
         String id,
+        Long version,
         ProbeLocation location,
-        ProbeSource source,
         MethodLocation evaluateAt,
         DebuggerScript script,
         String tags,
         SummaryBuilder summaryBuilder) {
-      this(id, location, source, evaluateAt, script, tags, summaryBuilder, Collections.emptyList());
+      this(
+          id, version, location, evaluateAt, script, tags, summaryBuilder, Collections.emptyList());
     }
 
     public ProbeDetails(
         String id,
+        Long version,
         ProbeLocation location,
-        ProbeSource source,
         MethodLocation evaluateAt,
         DebuggerScript script,
         String tags,
@@ -375,7 +369,7 @@ public class Snapshot {
         List<ProbeDetails> additionalProbes) {
       this.id = id;
       this.location = location;
-      this.source = source;
+      this.version = version;
       this.evaluateAt = evaluateAt;
       this.script = script;
       this.additionalProbes = additionalProbes;
@@ -387,12 +381,12 @@ public class Snapshot {
       return id;
     }
 
-    public ProbeLocation getLocation() {
-      return location;
+    public Long getVersion() {
+      return version;
     }
 
-    public ProbeSource getSource() {
-      return source;
+    public ProbeLocation getLocation() {
+      return location;
     }
 
     public MethodLocation getEvaluateAt() {
@@ -417,8 +411,8 @@ public class Snapshot {
       if (o == null || getClass() != o.getClass()) return false;
       ProbeDetails that = (ProbeDetails) o;
       return Objects.equals(id, that.id)
+          && Objects.equals(version, that.version)
           && Objects.equals(location, that.location)
-          && Objects.equals(source, that.source)
           && Objects.equals(evaluateAt, that.evaluateAt)
           && Objects.equals(script, that.script)
           && Objects.equals(tags, that.tags);
@@ -426,7 +420,7 @@ public class Snapshot {
 
     @Override
     public int hashCode() {
-      return Objects.hash(id, location, source, evaluateAt, script, tags);
+      return Objects.hash(id, version, location, evaluateAt, script, tags);
     }
 
     @Override
@@ -434,11 +428,10 @@ public class Snapshot {
       return "ProbeDetails{"
           + "id='"
           + id
-          + '\''
+          + "', verison="
+          + version
           + ", probeLocation="
           + location
-          + ", probeSource="
-          + source
           + ", script="
           + script
           + ", tags="
@@ -511,43 +504,6 @@ public class Snapshot {
           + ", lines="
           + lines
           + '}';
-    }
-  }
-
-  /** Probe source information used in ProbeDetails class */
-  public static class ProbeSource {
-    private final String config;
-    private final long version;
-
-    public ProbeSource(String config, long version) {
-      this.config = config;
-      this.version = version;
-    }
-
-    public String getConfig() {
-      return config;
-    }
-
-    public long getVerison() {
-      return version;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-      ProbeSource that = (ProbeSource) o;
-      return Objects.equals(config, that.config) && version == that.version;
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(config, version);
-    }
-
-    @Override
-    public String toString() {
-      return "ProbeSource{" + "config='" + config + '\'' + ", version=" + version + '}';
     }
   }
 

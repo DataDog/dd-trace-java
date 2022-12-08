@@ -30,6 +30,7 @@ class ProbeStatusSinkTest {
   private static final String SERVICE_NAME = "service-name";
   private static final String PROBE_ID = UUID.randomUUID().toString();
   private static final String PROBE_ID2 = UUID.randomUUID().toString();
+  private static final Long PROBE_VERSION = 1L;
   private static final String MESSAGE = "Foo";
   private static final int DIAGNOSTICS_INTERVAL = 60 * 60; // in seconds = 1h
   private static final Instant AFTER_INTERVAL_HAS_PASSED =
@@ -53,90 +54,96 @@ class ProbeStatusSinkTest {
 
   @Test
   void addReceived() {
-    probeStatusSink.addReceived(PROBE_ID);
+    probeStatusSink.addReceived(PROBE_ID, PROBE_VERSION);
     assertEquals(
-        Collections.singletonList(builder.receivedMessage(PROBE_ID)),
+        Collections.singletonList(builder.receivedMessage(PROBE_ID, PROBE_VERSION)),
         probeStatusSink.getDiagnostics());
   }
 
   @Test
   void addInstalled() {
-    probeStatusSink.addInstalled(PROBE_ID);
+    probeStatusSink.addInstalled(PROBE_ID, PROBE_VERSION);
     assertEquals(
-        Collections.singletonList(builder.installedMessage(PROBE_ID)),
+        Collections.singletonList(builder.installedMessage(PROBE_ID, PROBE_VERSION)),
         probeStatusSink.getDiagnostics());
   }
 
   @Test
   void addBlocked() {
-    probeStatusSink.addBlocked(PROBE_ID);
+    probeStatusSink.addBlocked(PROBE_ID, PROBE_VERSION);
     assertEquals(
-        Collections.singletonList(builder.blockedMessage(PROBE_ID)),
+        Collections.singletonList(builder.blockedMessage(PROBE_ID, PROBE_VERSION)),
         probeStatusSink.getDiagnostics());
   }
 
   @Test
   void addError() {
-    probeStatusSink.addError(PROBE_ID, MESSAGE);
+    probeStatusSink.addError(PROBE_ID, PROBE_VERSION, MESSAGE);
     assertEquals(
-        Collections.singletonList(builder.errorMessage(PROBE_ID, MESSAGE)),
+        Collections.singletonList(builder.errorMessage(PROBE_ID, PROBE_VERSION, MESSAGE)),
         probeStatusSink.getDiagnostics());
   }
 
   @Test
   void addReceivedThenInstalled() {
-    probeStatusSink.addReceived(PROBE_ID);
-    probeStatusSink.addInstalled(PROBE_ID);
+    probeStatusSink.addReceived(PROBE_ID, PROBE_VERSION);
+    probeStatusSink.addInstalled(PROBE_ID, PROBE_VERSION);
     assertEquals(
-        Arrays.asList(builder.receivedMessage(PROBE_ID), builder.installedMessage(PROBE_ID)),
+        Arrays.asList(
+            builder.receivedMessage(PROBE_ID, PROBE_VERSION),
+            builder.installedMessage(PROBE_ID, PROBE_VERSION)),
         probeStatusSink.getDiagnostics());
   }
 
   @Test
   void addReceivedThenBlocked() {
-    probeStatusSink.addReceived(PROBE_ID);
-    probeStatusSink.addBlocked(PROBE_ID);
+    probeStatusSink.addReceived(PROBE_ID, PROBE_VERSION);
+    probeStatusSink.addBlocked(PROBE_ID, PROBE_VERSION);
     assertEquals(
-        Arrays.asList(builder.receivedMessage(PROBE_ID), builder.blockedMessage(PROBE_ID)),
+        Arrays.asList(
+            builder.receivedMessage(PROBE_ID, PROBE_VERSION),
+            builder.blockedMessage(PROBE_ID, PROBE_VERSION)),
         probeStatusSink.getDiagnostics());
   }
 
   @Test
   void addReceivedThenError() {
-    probeStatusSink.addReceived(PROBE_ID);
-    probeStatusSink.addError(PROBE_ID, MESSAGE);
+    probeStatusSink.addReceived(PROBE_ID, PROBE_VERSION);
+    probeStatusSink.addError(PROBE_ID, PROBE_VERSION, MESSAGE);
     assertEquals(
-        Arrays.asList(builder.receivedMessage(PROBE_ID), builder.errorMessage(PROBE_ID, MESSAGE)),
+        Arrays.asList(
+            builder.receivedMessage(PROBE_ID, PROBE_VERSION),
+            builder.errorMessage(PROBE_ID, PROBE_VERSION, MESSAGE)),
         probeStatusSink.getDiagnostics());
   }
 
   @Test
   void addReceivedThenInstalledThenError() {
-    probeStatusSink.addReceived(PROBE_ID);
-    probeStatusSink.addInstalled(PROBE_ID);
-    probeStatusSink.addError(PROBE_ID, MESSAGE);
+    probeStatusSink.addReceived(PROBE_ID, PROBE_VERSION);
+    probeStatusSink.addInstalled(PROBE_ID, PROBE_VERSION);
+    probeStatusSink.addError(PROBE_ID, PROBE_VERSION, MESSAGE);
     assertEquals(
         Arrays.asList(
-            builder.receivedMessage(PROBE_ID),
-            builder.installedMessage(PROBE_ID),
-            builder.errorMessage(PROBE_ID, MESSAGE)),
+            builder.receivedMessage(PROBE_ID, PROBE_VERSION),
+            builder.installedMessage(PROBE_ID, PROBE_VERSION),
+            builder.errorMessage(PROBE_ID, PROBE_VERSION, MESSAGE)),
         probeStatusSink.getDiagnostics());
   }
 
   @Test
   void addErrorWithThrowable() {
     Throwable throwable = new Exception("test");
-    probeStatusSink.addError(PROBE_ID, throwable);
+    probeStatusSink.addError(PROBE_ID, PROBE_VERSION, throwable);
     assertEquals(
-        Collections.singletonList(builder.errorMessage(PROBE_ID, throwable)),
+        Collections.singletonList(builder.errorMessage(PROBE_ID, PROBE_VERSION, throwable)),
         probeStatusSink.getDiagnostics());
   }
 
   @Test
   void removeDiagnostic() {
-    probeStatusSink.addReceived(PROBE_ID);
+    probeStatusSink.addReceived(PROBE_ID, PROBE_VERSION);
     assertEquals(
-        Collections.singletonList(builder.receivedMessage(PROBE_ID)),
+        Collections.singletonList(builder.receivedMessage(PROBE_ID, PROBE_VERSION)),
         probeStatusSink.getDiagnostics());
     probeStatusSink.removeDiagnostics(PROBE_ID);
     assertEquals(Collections.emptyList(), probeStatusSink.getDiagnostics());
@@ -144,17 +151,18 @@ class ProbeStatusSinkTest {
 
   @Test
   void doNotDoubleEmitMessageIfIntervalHasntPassed() {
-    probeStatusSink.addError(PROBE_ID, MESSAGE);
+    probeStatusSink.addError(PROBE_ID, PROBE_VERSION, MESSAGE);
     assertEquals(
-        Collections.singletonList(builder.errorMessage(PROBE_ID, MESSAGE)),
+        Collections.singletonList(builder.errorMessage(PROBE_ID, PROBE_VERSION, MESSAGE)),
         probeStatusSink.getDiagnostics());
     assertEquals(Collections.emptyList(), probeStatusSink.getDiagnostics());
   }
 
   @Test
   void reemitOnInterval() {
-    probeStatusSink.addReceived(PROBE_ID);
-    List<ProbeStatus> expected = Collections.singletonList(builder.receivedMessage(PROBE_ID));
+    probeStatusSink.addReceived(PROBE_ID, PROBE_VERSION);
+    List<ProbeStatus> expected =
+        Collections.singletonList(builder.receivedMessage(PROBE_ID, PROBE_VERSION));
     assertEquals(expected, probeStatusSink.getDiagnostics());
     assertEquals(Collections.emptyList(), probeStatusSink.getDiagnostics());
     Clock fixed = Clock.fixed(AFTER_INTERVAL_HAS_PASSED, ZoneId.systemDefault());
@@ -163,16 +171,19 @@ class ProbeStatusSinkTest {
 
   @Test
   void reemitOnlyLatestMessage() {
-    probeStatusSink.addReceived(PROBE_ID);
-    probeStatusSink.addError(PROBE_ID, MESSAGE);
+    probeStatusSink.addReceived(PROBE_ID, PROBE_VERSION);
+    probeStatusSink.addError(PROBE_ID, PROBE_VERSION, MESSAGE);
     List<ProbeStatus> firstDiagnostics = probeStatusSink.getDiagnostics();
     assertEquals(
-        Arrays.asList(builder.receivedMessage(PROBE_ID), builder.errorMessage(PROBE_ID, MESSAGE)),
+        Arrays.asList(
+            builder.receivedMessage(PROBE_ID, PROBE_VERSION),
+            builder.errorMessage(PROBE_ID, PROBE_VERSION, MESSAGE)),
         firstDiagnostics);
     Clock fixed = Clock.fixed(AFTER_INTERVAL_HAS_PASSED, ZoneId.systemDefault());
     List<ProbeStatus> secondDiagnostics = probeStatusSink.getDiagnostics(fixed);
     assertEquals(
-        Collections.singletonList(builder.errorMessage(PROBE_ID, MESSAGE)), secondDiagnostics);
+        Collections.singletonList(builder.errorMessage(PROBE_ID, PROBE_VERSION, MESSAGE)),
+        secondDiagnostics);
 
     // expect timestamp to be updated
     assertTrue(firstDiagnostics.get(1).getTimestamp() < secondDiagnostics.get(0).getTimestamp());
@@ -180,9 +191,9 @@ class ProbeStatusSinkTest {
 
   @Test
   void doNotReemitIfIntervalHasNotPassedBetweenAddingAndNextCall() {
-    probeStatusSink.addReceived(PROBE_ID);
+    probeStatusSink.addReceived(PROBE_ID, PROBE_VERSION);
     assertEquals(
-        Collections.singletonList(builder.receivedMessage(PROBE_ID)),
+        Collections.singletonList(builder.receivedMessage(PROBE_ID, PROBE_VERSION)),
         probeStatusSink.getDiagnostics());
     Clock fixed = Clock.fixed(BEFORE_INTERVAL_HAS_PASSED, ZoneId.systemDefault());
     assertEquals(Collections.emptyList(), probeStatusSink.getDiagnostics(fixed));
@@ -190,14 +201,14 @@ class ProbeStatusSinkTest {
 
   @Test
   void doNotReemitIfIntervalHasNotPassedBetweenAddingAndNextCallNewStatus() {
-    probeStatusSink.addReceived(PROBE_ID);
+    probeStatusSink.addReceived(PROBE_ID, PROBE_VERSION);
     assertEquals(
-        Collections.singletonList(builder.receivedMessage(PROBE_ID)),
+        Collections.singletonList(builder.receivedMessage(PROBE_ID, PROBE_VERSION)),
         probeStatusSink.getDiagnostics());
-    probeStatusSink.addInstalled(PROBE_ID);
+    probeStatusSink.addInstalled(PROBE_ID, PROBE_VERSION);
     Clock fixed = Clock.fixed(BEFORE_INTERVAL_HAS_PASSED, ZoneId.systemDefault());
     assertEquals(
-        Collections.singletonList(builder.installedMessage(PROBE_ID)),
+        Collections.singletonList(builder.installedMessage(PROBE_ID, PROBE_VERSION)),
         probeStatusSink.getDiagnostics(fixed));
   }
 
@@ -206,29 +217,31 @@ class ProbeStatusSinkTest {
     String secondProbeId = UUID.randomUUID().toString();
 
     // Emit both right-away after adding the messages
-    probeStatusSink.addReceived(PROBE_ID);
-    probeStatusSink.addReceived(secondProbeId);
+    probeStatusSink.addReceived(PROBE_ID, PROBE_VERSION);
+    probeStatusSink.addReceived(secondProbeId, PROBE_VERSION);
     assertEquals(
-        Arrays.asList(builder.receivedMessage(PROBE_ID), builder.receivedMessage(secondProbeId)),
+        Arrays.asList(
+            builder.receivedMessage(PROBE_ID, PROBE_VERSION),
+            builder.receivedMessage(secondProbeId, PROBE_VERSION)),
         probeStatusSink.getDiagnostics());
 
     // Change stored diagnostic for PROBE_ID
-    probeStatusSink.addInstalled(PROBE_ID);
+    probeStatusSink.addInstalled(PROBE_ID, PROBE_VERSION);
 
     // Assert only new (installed) message for PROBE_ID is emitted before DIAGNOSTICS_INTERVAL has
     // passed
     Instant beforeIntervalHasPassed = Instant.now();
     Clock fixed = Clock.fixed(beforeIntervalHasPassed, ZoneId.systemDefault());
     assertEquals(
-        Collections.singletonList(builder.installedMessage(PROBE_ID)),
+        Collections.singletonList(builder.installedMessage(PROBE_ID, PROBE_VERSION)),
         probeStatusSink.getDiagnostics(fixed));
   }
 
   @Test
   void doNotReemitRemovedMessage() {
-    probeStatusSink.addReceived(PROBE_ID);
+    probeStatusSink.addReceived(PROBE_ID, PROBE_VERSION);
     assertEquals(
-        Collections.singletonList(builder.receivedMessage(PROBE_ID)),
+        Collections.singletonList(builder.receivedMessage(PROBE_ID, PROBE_VERSION)),
         probeStatusSink.getDiagnostics());
     probeStatusSink.removeDiagnostics(PROBE_ID);
     assertEquals(Collections.emptyList(), probeStatusSink.getDiagnostics());
@@ -236,34 +249,34 @@ class ProbeStatusSinkTest {
 
   @Test
   void dropRepeatingDiagnostics() {
-    probeStatusSink.addReceived(PROBE_ID);
+    probeStatusSink.addReceived(PROBE_ID, PROBE_VERSION);
 
     // enqueues only a single error message (checking if queue already have that message).
     for (int i = 1; i <= 100; i++) {
-      probeStatusSink.addError(PROBE_ID, "bar");
+      probeStatusSink.addError(PROBE_ID, PROBE_VERSION, "bar");
     }
     // this will enqueue a new error message
-    probeStatusSink.addError(PROBE_ID, "foo");
+    probeStatusSink.addError(PROBE_ID, PROBE_VERSION, "foo");
     assertEquals(
         Arrays.asList(
-            builder.receivedMessage(PROBE_ID),
-            builder.errorMessage(PROBE_ID, "bar"),
-            builder.errorMessage(PROBE_ID, "foo")),
+            builder.receivedMessage(PROBE_ID, PROBE_VERSION),
+            builder.errorMessage(PROBE_ID, PROBE_VERSION, "bar"),
+            builder.errorMessage(PROBE_ID, PROBE_VERSION, "foo")),
         probeStatusSink.getDiagnostics());
   }
 
   @Test
   void dealingFullQueueDroppedDiagnostics() {
-    probeStatusSink.addReceived(PROBE_ID);
+    probeStatusSink.addReceived(PROBE_ID, PROBE_VERSION);
     // enqueues all messages
     for (int i = 1; i <= 199; i++) {
-      probeStatusSink.addError(PROBE_ID, "bar " + i);
+      probeStatusSink.addError(PROBE_ID, PROBE_VERSION, "bar " + i);
     }
     // those two messages would be dropped because the queue is full.
     // However, getDiagnostics will ensure we emit the last message for each probe once it is
     // drained
-    probeStatusSink.addReceived(PROBE_ID2);
-    probeStatusSink.addInstalled(PROBE_ID2);
+    probeStatusSink.addReceived(PROBE_ID2, PROBE_VERSION);
+    probeStatusSink.addInstalled(PROBE_ID2, PROBE_VERSION);
 
     List<ProbeStatus> firstBatch = probeStatusSink.getDiagnostics();
     List<ProbeStatus> secondBatch = probeStatusSink.getDiagnostics();
@@ -274,7 +287,7 @@ class ProbeStatusSinkTest {
 
     // when fetching all messages the queue will reset and only send last messages for ecah probe
 
-    assertEquals(Arrays.asList(builder.installedMessage(PROBE_ID2)), thirdBatch);
+    assertEquals(Arrays.asList(builder.installedMessage(PROBE_ID2, PROBE_VERSION)), thirdBatch);
   }
 
   @Test
@@ -284,7 +297,8 @@ class ProbeStatusSinkTest {
   }
 
   private String serialize() {
-    ProbeStatus probeStatus = builder.errorMessage(PROBE_ID, new NullPointerException("null"));
+    ProbeStatus probeStatus =
+        builder.errorMessage(PROBE_ID, PROBE_VERSION, new NullPointerException("null"));
     JsonAdapter<ProbeStatus> adapter =
         MoshiHelper.createMoshiProbeStatus().adapter(ProbeStatus.class);
     return adapter.toJson(probeStatus);
@@ -296,7 +310,9 @@ class ProbeStatusSinkTest {
     ProbeStatus probeStatus = adapter.fromJson(buffer);
     assertEquals("dd_debugger", probeStatus.getDdSource());
     assertEquals(SERVICE_NAME, probeStatus.getService());
-    assertEquals("Error installing probe " + PROBE_ID + ".", probeStatus.getMessage());
+    assertEquals(
+        "Error installing probe " + PROBE_ID + " (version: " + PROBE_VERSION + ").",
+        probeStatus.getMessage());
     assertEquals(PROBE_ID, probeStatus.getDiagnostics().getProbeId());
     assertEquals(ProbeStatus.Status.ERROR, probeStatus.getDiagnostics().getStatus());
     assertEquals("null", probeStatus.getDiagnostics().getException().getMessage());

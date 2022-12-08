@@ -28,6 +28,8 @@ public abstract class ProbeDefinition {
 
   protected final String language;
   protected final String id;
+  // transient for no serialization and Long type, as null used for unknown-version
+  protected transient Long version = null;
   protected final boolean active;
   protected final Tag[] tags;
   protected final Map<String, String> tagMap = new HashMap<>();
@@ -43,6 +45,17 @@ public abstract class ProbeDefinition {
       String[] tagStrs,
       Where where,
       MethodLocation evaluateAt) {
+    this(language, id, null, active, tagStrs, where, evaluateAt);
+  }
+
+  public ProbeDefinition(
+      String language,
+      String id,
+      Long version,
+      boolean active,
+      String[] tagStrs,
+      Where where,
+      MethodLocation evaluateAt) {
     this.language = language;
     this.id = id;
     this.active = active;
@@ -50,10 +63,19 @@ public abstract class ProbeDefinition {
     initTagMap(tagMap, tags);
     this.where = where;
     this.evaluateAt = evaluateAt;
+    this.version = version;
   }
 
   public String getId() {
     return id;
+  }
+
+  public Long getVersion() {
+    return version;
+  }
+
+  public void setVersion(long version) {
+    this.version = version;
   }
 
   public String getLanguage() {
@@ -102,9 +124,8 @@ public abstract class ProbeDefinition {
     return additionalProbes;
   }
 
-  public Stream<String> getAllProbeIds() {
-    return Stream.concat(Stream.of(this), getAdditionalProbes().stream())
-        .map(ProbeDefinition::getId);
+  public Stream<ProbeDefinition> getAllProbes() {
+    return Stream.concat(Stream.of(this), getAdditionalProbes().stream());
   }
 
   private static void initTagMap(Map<String, String> tagMap, Tag[] tags) {
@@ -129,6 +150,7 @@ public abstract class ProbeDefinition {
     protected String[] tagStrs;
     protected Where where;
     protected MethodLocation evaluateAt = MethodLocation.DEFAULT;
+    protected Long version = null;
 
     public T language(String language) {
       this.language = language;
@@ -137,6 +159,11 @@ public abstract class ProbeDefinition {
 
     public T probeId(String probeId) {
       this.probeId = probeId;
+      return (T) this;
+    }
+
+    public T version(long version) {
+      this.version = version;
       return (T) this;
     }
 

@@ -9,7 +9,6 @@ import datadog.trace.bootstrap.debugger.Limits;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
@@ -109,9 +108,16 @@ public class SnapshotProbe extends ProbeDefinition {
   private final Capture capture;
   private final Sampling sampling;
 
+  // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
+  // constructors, including field initializers.
+  public SnapshotProbe() {
+    this(LANGUAGE, null, null, true, null, null, MethodLocation.DEFAULT, null, null, null);
+  }
+
   public SnapshotProbe(
       String language,
       String probeId,
+      Long version,
       boolean active,
       String[] tagStrs,
       Where where,
@@ -119,23 +125,10 @@ public class SnapshotProbe extends ProbeDefinition {
       ProbeCondition probeCondition,
       Capture capture,
       Sampling sampling) {
-    super(language, probeId, active, tagStrs, where, evaluateAt);
+    super(language, probeId, version, active, tagStrs, where, evaluateAt);
     this.probeCondition = probeCondition;
     this.capture = capture;
     this.sampling = sampling != null ? sampling : new Sampling(1.0);
-  }
-
-  public SnapshotProbe() {
-    this(
-        LANGUAGE,
-        UUID.randomUUID().toString(),
-        true,
-        null,
-        new Where(),
-        MethodLocation.DEFAULT,
-        null,
-        null,
-        null);
   }
 
   public static Builder builder() {
@@ -194,7 +187,16 @@ public class SnapshotProbe extends ProbeDefinition {
 
     public SnapshotProbe build() {
       return new SnapshotProbe(
-          language, probeId, active, tagStrs, where, evaluateAt, probeCondition, capture, sampling);
+          language,
+          probeId,
+          version,
+          active,
+          tagStrs,
+          where,
+          evaluateAt,
+          probeCondition,
+          capture,
+          sampling);
     }
   }
 
@@ -204,10 +206,10 @@ public class SnapshotProbe extends ProbeDefinition {
     return "DebuggerProbe{"
         + "language='"
         + language
-        + '\''
-        + ", id='"
+        + "', id='"
         + id
-        + '\''
+        + "', version='"
+        + version
         + ", active="
         + active
         + ", where="
@@ -238,6 +240,7 @@ public class SnapshotProbe extends ProbeDefinition {
     return active == that.active
         && Objects.equals(language, that.language)
         && Objects.equals(id, that.id)
+        && Objects.equals(version, that.version)
         && Objects.equals(where, that.where)
         && Objects.equals(evaluateAt, that.evaluateAt)
         && Objects.equals(probeCondition, that.probeCondition)
@@ -255,6 +258,7 @@ public class SnapshotProbe extends ProbeDefinition {
         Objects.hash(
             language,
             id,
+            version,
             active,
             where,
             evaluateAt,

@@ -255,8 +255,8 @@ public class LogProbesInstrumentationTest {
 
         return new Snapshot.ProbeDetails(
             id,
+            probe.getVersion(),
             location,
-            null,
             Snapshot.MethodLocation.DEFAULT,
             null,
             probe.concatTags(),
@@ -266,8 +266,8 @@ public class LogProbesInstrumentationTest {
                     (ProbeDefinition relatedProbe) ->
                         new Snapshot.ProbeDetails(
                             relatedProbe.getId(),
+                            relatedProbe.getVersion(),
                             location,
-                            null,
                             Snapshot.MethodLocation.DEFAULT,
                             relatedProbe instanceof SnapshotProbe
                                 ? ((SnapshotProbe) relatedProbe).getProbeCondition()

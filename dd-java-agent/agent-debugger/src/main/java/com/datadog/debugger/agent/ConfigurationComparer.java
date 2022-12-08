@@ -103,7 +103,7 @@ public class ConfigurationComparer {
       LOGGER.debug(
           "instrumented class changed: {} for probe ids: {}",
           key,
-          definition.getAllProbeIds().collect(Collectors.toList()));
+          definition.getAllProbes().map((probe) -> probe.getId()).collect(Collectors.toList()));
       changedClasses.insert(reverseStr(key));
     }
     for (String typeName : changedBlockedTypes) {

@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 import static utils.TestHelper.getFixtureContent;
 
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
+import com.datadog.debugger.probe.SnapshotProbe;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.trace.api.Config;
@@ -69,7 +70,7 @@ public class DebuggerSinkTest {
     Snapshot snapshot =
         new Snapshot(
             Thread.currentThread(),
-            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION, null),
+            new Snapshot.ProbeDetails(PROBE_ID, 1L, PROBE_LOCATION),
             String.class.getTypeName());
     sink.addSnapshot(snapshot);
     String fixtureContent = getFixtureContent(SINK_FIXTURE_PREFIX + "/snapshotRegex.txt");
@@ -87,7 +88,7 @@ public class DebuggerSinkTest {
     Snapshot snapshot =
         new Snapshot(
             Thread.currentThread(),
-            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION, null),
+            new Snapshot.ProbeDetails(PROBE_ID, 1L, PROBE_LOCATION),
             String.class.getTypeName());
     Arrays.asList(snapshot, snapshot).forEach(sink::addSnapshot);
 
@@ -106,7 +107,7 @@ public class DebuggerSinkTest {
     Snapshot largeSnapshot =
         new Snapshot(
             Thread.currentThread(),
-            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION, null),
+            new Snapshot.ProbeDetails(PROBE_ID, 1L, PROBE_LOCATION),
             String.class.getTypeName());
     for (int i = 0; i < 15_000; i++) {
       largeSnapshot.getStack().add(new CapturedStackFrame("f" + i, i));
@@ -127,7 +128,7 @@ public class DebuggerSinkTest {
     Snapshot largeSnapshot =
         new Snapshot(
             Thread.currentThread(),
-            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION, null),
+            new Snapshot.ProbeDetails(PROBE_ID, 1L, PROBE_LOCATION),
             String.class.getTypeName());
     for (int i = 0; i < 150_000; i++) {
       largeSnapshot.getStack().add(new CapturedStackFrame("f" + i, i));
@@ -143,7 +144,7 @@ public class DebuggerSinkTest {
     Snapshot largeSnapshot =
         new Snapshot(
             Thread.currentThread(),
-            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION, null),
+            new Snapshot.ProbeDetails(PROBE_ID, 1L, PROBE_LOCATION),
             String.class.getTypeName());
     for (int i = 0; i < 140_000; i++) {
       largeSnapshot.getStack().add(new CapturedStackFrame("f€" + i, i));
@@ -163,7 +164,7 @@ public class DebuggerSinkTest {
   @Test
   public void addDiagnostics() throws URISyntaxException, IOException {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
-    sink.addReceived("1");
+    sink.addReceived(SnapshotProbe.builder().probeId(PROBE_ID).version(1L).build());
     String fixtureContent = getFixtureContent(SINK_FIXTURE_PREFIX + "/diagnosticsRegex.txt");
     String regex = fixtureContent.replaceAll("\\n", "");
     sink.flush(sink);
@@ -177,7 +178,7 @@ public class DebuggerSinkTest {
     when(config.getDebuggerUploadBatchSize()).thenReturn(100);
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     for (String probeId : Arrays.asList("1", "2")) {
-      sink.addReceived(probeId);
+      sink.addReceived(SnapshotProbe.builder().probeId(probeId).version(1L).build());
     }
 
     String fixtureContent =
@@ -199,7 +200,7 @@ public class DebuggerSinkTest {
     }
     String largeMessage = largeMessageBuilder.toString();
     for (int i = 0; i < 100; i++) {
-      sink.getProbeDiagnosticsSink().addError(String.valueOf(i), largeMessage);
+      sink.getProbeDiagnosticsSink().addError(String.valueOf(i), 1L, largeMessage);
     }
     sink.flush(sink);
     verify(batchUploader, times(2))
@@ -217,7 +218,7 @@ public class DebuggerSinkTest {
       tooLargeMessageBuilder.append("f");
     }
     String tooLargeMessage = tooLargeMessageBuilder.toString();
-    sink.getProbeDiagnosticsSink().addError("1", tooLargeMessage);
+    sink.getProbeDiagnosticsSink().addError("1", 1L, tooLargeMessage);
     sink.flush(sink);
     verifyNoInteractions(batchUploader);
   }
@@ -231,7 +232,7 @@ public class DebuggerSinkTest {
       tooLargeMessageBuilder.append("\uD80C\uDCF0"); // 4 bytes
     }
     String tooLargeMessage = tooLargeMessageBuilder.toString();
-    sink.getProbeDiagnosticsSink().addError("1", tooLargeMessage);
+    sink.getProbeDiagnosticsSink().addError("1", 1L, tooLargeMessage);
     sink.flush(sink);
     verifyNoInteractions(batchUploader);
   }
@@ -250,7 +251,7 @@ public class DebuggerSinkTest {
     Snapshot snapshot =
         new Snapshot(
             Thread.currentThread(),
-            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION, null),
+            new Snapshot.ProbeDetails(PROBE_ID, 1L, PROBE_LOCATION),
             String.class.getTypeName());
     sink.addSnapshot(snapshot);
     sink.doReconsiderFlushInterval();
@@ -266,7 +267,7 @@ public class DebuggerSinkTest {
     Snapshot snapshot =
         new Snapshot(
             Thread.currentThread(),
-            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION, null),
+            new Snapshot.ProbeDetails(PROBE_ID, 1L, PROBE_LOCATION),
             String.class.getTypeName());
     for (int i = 0; i < 1000; i++) {
       sink.addSnapshot(snapshot);
@@ -283,7 +284,7 @@ public class DebuggerSinkTest {
     Snapshot snapshot =
         new Snapshot(
             Thread.currentThread(),
-            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION, null),
+            new Snapshot.ProbeDetails(PROBE_ID, 1L, PROBE_LOCATION),
             String.class.getTypeName());
     for (int i = 0; i < 500; i++) {
       sink.addSnapshot(snapshot);
@@ -305,7 +306,7 @@ public class DebuggerSinkTest {
     Snapshot snapshot =
         new Snapshot(
             Thread.currentThread(),
-            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION, null),
+            new Snapshot.ProbeDetails(PROBE_ID, 1L, PROBE_LOCATION),
             String.class.getTypeName());
     snapshot.setEntry(entry);
     sink.addSnapshot(snapshot);
@@ -326,7 +327,7 @@ public class DebuggerSinkTest {
     Snapshot snapshot =
         new Snapshot(
             Thread.currentThread(),
-            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION, null),
+            new Snapshot.ProbeDetails(PROBE_ID, 1L, PROBE_LOCATION),
             String.class.getTypeName());
     snapshot.setEntry(entry);
     sink.addSnapshot(snapshot);
@@ -345,7 +346,7 @@ public class DebuggerSinkTest {
     DiagnosticMessage info = new DiagnosticMessage(DiagnosticMessage.Kind.INFO, "info message");
     DiagnosticMessage warn = new DiagnosticMessage(DiagnosticMessage.Kind.WARN, "info message");
     DiagnosticMessage error = new DiagnosticMessage(DiagnosticMessage.Kind.ERROR, "info message");
-    sink.addDiagnostics(PROBE_ID, Arrays.asList(info, warn, error));
+    sink.addDiagnostics(PROBE_ID, 1L, Arrays.asList(info, warn, error));
     // ensure just that the code is executed to have coverage (just logging)
   }
 
@@ -356,7 +357,7 @@ public class DebuggerSinkTest {
     Snapshot snapshot =
         new Snapshot(
             Thread.currentThread(),
-            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION, null),
+            new Snapshot.ProbeDetails(PROBE_ID, 1L, PROBE_LOCATION),
             String.class.getTypeName());
     sink.skipSnapshot(snapshot.getProbe().getId(), DebuggerContext.SkipCause.CONDITION);
     verify(debuggerMetrics)

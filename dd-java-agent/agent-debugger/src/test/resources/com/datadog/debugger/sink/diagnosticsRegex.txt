@@ -2,11 +2,12 @@
 "ddsource":"dd_debugger",
 "debugger":\{
 "diagnostics":\{
-"probeId":"\d",
+"probeId":"12fd-8490-c111-4374-ffde",
+"probeVersion":\d,
 "status":"RECEIVED"
 \}
 \},
-"message":"Received probe \d.",
+"message":"Received probe 12fd-8490-c111-4374-ffde \(version: \d\).",
 "service":"service-name",
 "timestamp":\d+
 \}\]

@@ -51,8 +51,6 @@ public class SnapshotSerializationTest {
       new Snapshot.ProbeLocation(
           "java.lang.String", "indexOf", "String.java", Arrays.asList("12-15", "23"));
 
-  private static final Snapshot.ProbeSource PROBE_SOURCE = new Snapshot.ProbeSource("config", 1);
-
   @BeforeEach
   public void setup() {
     DebuggerContext.initClassFilter(new DenyListHelper(null));
@@ -67,13 +65,11 @@ public class SnapshotSerializationTest {
 
     Snapshot deserializedSnapshot = adapter.fromJson(buffer);
     Snapshot.ProbeLocation location = deserializedSnapshot.getProbe().getLocation();
-    Snapshot.ProbeSource source = deserializedSnapshot.getProbe().getSource();
+
     Assert.assertEquals(PROBE_LOCATION.getType(), location.getType());
     Assert.assertEquals(PROBE_LOCATION.getFile(), location.getFile());
     Assert.assertEquals(PROBE_LOCATION.getMethod(), location.getMethod());
     Assert.assertEquals(PROBE_LOCATION.getLines(), location.getLines());
-    Assert.assertEquals(PROBE_SOURCE.getConfig(), source.getConfig());
-    Assert.assertEquals(PROBE_SOURCE.getVerison(), source.getVerison());
   }
 
   @Test
@@ -213,8 +209,8 @@ public class SnapshotSerializationTest {
             Thread.currentThread(),
             new Snapshot.ProbeDetails(
                 PROBE_ID,
+                1L,
                 PROBE_LOCATION,
-                null,
                 Snapshot.MethodLocation.DEFAULT,
                 new ProbeCondition(DSL.when(DSL.gt(DSL.ref("^n"), DSL.value(0))), "^n > 0"),
                 "",
@@ -1037,7 +1033,7 @@ public class SnapshotSerializationTest {
   private Snapshot createSnapshot() {
     return new Snapshot(
         Thread.currentThread(),
-        new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION, PROBE_SOURCE),
+        new Snapshot.ProbeDetails(PROBE_ID, 1L, PROBE_LOCATION),
         String.class.getTypeName());
   }
 }

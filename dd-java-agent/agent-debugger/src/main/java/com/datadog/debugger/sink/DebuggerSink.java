@@ -1,6 +1,7 @@
 package com.datadog.debugger.sink;
 
 import com.datadog.debugger.agent.DebuggerAgent;
+import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.trace.api.Config;
@@ -205,24 +206,24 @@ public class DebuggerSink implements DebuggerContext.Sink {
     }
   }
 
-  public void addReceived(String probeId) {
-    probeStatusSink.addReceived(probeId);
+  public void addReceived(ProbeDefinition probe) {
+    probeStatusSink.addReceived(probe.getId(), probe.getVersion());
   }
 
-  public void addInstalled(String probeId) {
-    probeStatusSink.addInstalled(probeId);
+  public void addInstalled(ProbeDefinition probe) {
+    probeStatusSink.addInstalled(probe.getId(), probe.getVersion());
   }
 
-  public void addBlocked(String probeId) {
-    probeStatusSink.addBlocked(probeId);
+  public void addBlocked(ProbeDefinition probe) {
+    probeStatusSink.addBlocked(probe.getId(), probe.getVersion());
   }
 
-  public void removeDiagnostics(String probeId) {
-    probeStatusSink.removeDiagnostics(probeId);
+  public void removeDiagnostics(ProbeDefinition probe) {
+    probeStatusSink.removeDiagnostics(probe.getId());
   }
 
   @Override
-  public void addDiagnostics(String probeId, List<DiagnosticMessage> messages) {
+  public void addDiagnostics(String probeId, Long probeVersion, List<DiagnosticMessage> messages) {
     for (DiagnosticMessage msg : messages) {
       switch (msg.getKind()) {
         case INFO:
@@ -233,18 +234,18 @@ public class DebuggerSink implements DebuggerContext.Sink {
           break;
         case ERROR:
           log.error(msg.getMessage());
-          reportError(probeId, msg);
+          reportError(probeId, probeVersion, msg);
           break;
       }
     }
   }
 
-  private void reportError(String probeId, DiagnosticMessage msg) {
+  private void reportError(String probeId, Long probeVersion, DiagnosticMessage msg) {
     Throwable throwable = msg.getThrowable();
     if (throwable != null) {
-      probeStatusSink.addError(probeId, throwable);
+      probeStatusSink.addError(probeId, probeVersion, throwable);
     } else {
-      probeStatusSink.addError(probeId, msg.getMessage());
+      probeStatusSink.addError(probeId, probeVersion, msg.getMessage());
     }
   }
 

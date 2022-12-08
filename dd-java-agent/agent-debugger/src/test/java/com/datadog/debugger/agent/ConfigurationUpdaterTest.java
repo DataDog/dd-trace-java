@@ -88,14 +88,18 @@ public class ConfigurationUpdaterTest {
             inst, this::createTransformer, tracerConfig, debuggerSinkWithMockStatusSink);
     List<SnapshotProbe> snapshotProbes =
         Collections.singletonList(
-            SnapshotProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build());
+            SnapshotProbe.builder()
+                .probeId(PROBE_ID)
+                .where("java.lang.String", "concat")
+                .version(1)
+                .build());
     configurationUpdater.accept(createApp(snapshotProbes));
     verify(inst).addTransformer(any(), eq(true));
     verify(inst).getAllLoadedClasses();
     Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
     assertEquals(1, appliedDefinitions.size());
     assertTrue(appliedDefinitions.containsKey(PROBE_ID));
-    verify(probeStatusSink).addReceived(eq(PROBE_ID));
+    verify(probeStatusSink).addReceived(eq(PROBE_ID), eq(1L));
   }
 
   @Test
@@ -127,7 +131,7 @@ public class ConfigurationUpdaterTest {
     for (Class<?> expectedClass : classes) {
       verify(inst).retransformClasses(eq(expectedClass));
     }
-    verify(probeStatusSink, times(2)).addReceived(eq(PROBE_ID));
+    verify(probeStatusSink, times(2)).addReceived(eq(PROBE_ID), any());
   }
 
   @Test
@@ -148,8 +152,8 @@ public class ConfigurationUpdaterTest {
     assertTrue(appliedDefinitions.containsKey(PROBE_ID));
     assertEquals(1, appliedDefinitions.get(PROBE_ID).getAdditionalProbes().size());
     assertEquals(PROBE_ID2, appliedDefinitions.get(PROBE_ID).getAdditionalProbes().get(0).getId());
-    verify(probeStatusSink).addReceived(eq(PROBE_ID));
-    verify(probeStatusSink).addReceived(eq(PROBE_ID2));
+    verify(probeStatusSink, times(1)).addReceived(eq(PROBE_ID), any());
+    verify(probeStatusSink, times(1)).addReceived(eq(PROBE_ID2), any());
   }
 
   @Test
@@ -178,8 +182,9 @@ public class ConfigurationUpdaterTest {
     assertEquals(1, appliedDefinitions.size());
     assertEquals(1, appliedDefinitions.get(PROBE_ID).getAdditionalProbes().size());
     assertEquals(PROBE_ID2, appliedDefinitions.get(PROBE_ID).getAdditionalProbes().get(0).getId());
-    verify(probeStatusSink, times(2)).addReceived(eq(PROBE_ID)); // re-installed for PROBE_ID2
-    verify(probeStatusSink).addReceived(eq(PROBE_ID2));
+    verify(probeStatusSink, times(2))
+        .addReceived(eq(PROBE_ID), any()); // re-installed for PROBE_ID2
+    verify(probeStatusSink, times(1)).addReceived(eq(PROBE_ID2), any());
   }
 
   @Test
@@ -210,8 +215,9 @@ public class ConfigurationUpdaterTest {
     assertEquals(1, appliedDefinitions.size());
     assertTrue(appliedDefinitions.containsKey(PROBE_ID));
     assertEquals(0, appliedDefinitions.get(PROBE_ID).getAdditionalProbes().size());
-    verify(probeStatusSink, times(2)).addReceived(eq(PROBE_ID)); // re-installed for PROBE_ID2
-    verify(probeStatusSink).addReceived(eq(PROBE_ID2));
+    verify(probeStatusSink, times(2))
+        .addReceived(eq(PROBE_ID), any()); // re-installed for PROBE_ID2
+    verify(probeStatusSink, times(1)).addReceived(eq(PROBE_ID2), any());
   }
 
   @Test
@@ -233,8 +239,8 @@ public class ConfigurationUpdaterTest {
     assertEquals(2, appliedDefinitions.size());
     assertTrue(appliedDefinitions.containsKey(PROBE_ID));
     assertTrue(appliedDefinitions.containsKey(METRIC_ID));
-    verify(probeStatusSink).addReceived(eq(PROBE_ID));
-    verify(probeStatusSink).addReceived(eq(METRIC_ID));
+    verify(probeStatusSink, times(1)).addReceived(eq(PROBE_ID), any());
+    verify(probeStatusSink, times(1)).addReceived(eq(METRIC_ID), any());
   }
 
   @Test
@@ -382,17 +388,19 @@ public class ConfigurationUpdaterTest {
             .language(LANGUAGE)
             .probeId(PROBE_ID)
             .where("java.lang.String", "concat")
+            .version(1)
             .build();
     SnapshotProbe probe2 =
         SnapshotProbe.builder()
             .language(LANGUAGE)
             .probeId(PROBE_ID2)
             .where("java.util.HashMap", "<init>", "void ()")
+            .version(2)
             .build();
     List<SnapshotProbe> snapshotProbes = Arrays.asList(probe1, probe2);
     configurationUpdater.accept(createApp(snapshotProbes));
-    verify(probeStatusSink).addReceived(eq(PROBE_ID));
-    verify(probeStatusSink).addReceived(eq(PROBE_ID2));
+    verify(probeStatusSink, times(1)).addReceived(eq(PROBE_ID), eq(1L));
+    verify(probeStatusSink, times(1)).addReceived(eq(PROBE_ID2), eq(2L));
     snapshotProbes = Collections.singletonList(probe1);
     configurationUpdater.accept(createApp(snapshotProbes));
     verify(probeStatusSink).removeDiagnostics(eq(PROBE_ID2));
@@ -426,17 +434,19 @@ public class ConfigurationUpdaterTest {
             .language(LANGUAGE)
             .probeId(PROBE_ID)
             .where("java.lang.String", "concat")
+            .version(1)
             .build();
     SnapshotProbe probe2 =
         SnapshotProbe.builder()
             .language(LANGUAGE)
             .probeId(PROBE_ID2)
             .where("java.lang.String", "indexOf", "int (int)")
+            .version(2)
             .build();
     List<SnapshotProbe> snapshotProbes = Arrays.asList(probe1, probe2);
     configurationUpdater.accept(createApp(snapshotProbes));
-    verify(probeStatusSink).addReceived(eq(PROBE_ID));
-    verify(probeStatusSink).addReceived(eq(PROBE_ID2));
+    verify(probeStatusSink, times(1)).addReceived(eq(PROBE_ID), eq(1L));
+    verify(probeStatusSink, times(1)).addReceived(eq(PROBE_ID2), eq(2L));
     snapshotProbes = Collections.singletonList(probe1);
     expectedDefinitions.set(1);
     configurationUpdater.accept(createApp(snapshotProbes));
@@ -460,9 +470,13 @@ public class ConfigurationUpdaterTest {
             inst, this::createTransformer, tracerConfig, debuggerSinkWithMockStatusSink);
     List<SnapshotProbe> snapshotProbes =
         Collections.singletonList(
-            SnapshotProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build());
+            SnapshotProbe.builder()
+                .probeId(PROBE_ID)
+                .where("java.lang.String", "concat")
+                .version(1)
+                .build());
     configurationUpdater.accept(createApp(snapshotProbes));
-    verify(probeStatusSink).addReceived(eq(PROBE_ID));
+    verify(probeStatusSink, times(1)).addReceived(eq(PROBE_ID), eq(1L));
     configurationUpdater.accept(null);
     verify(probeStatusSink).removeDiagnostics(eq(PROBE_ID));
     verify(inst).removeTransformer(any());
@@ -730,7 +744,7 @@ public class ConfigurationUpdaterTest {
   private static Configuration createApp(List<SnapshotProbe> snapshotProbes) {
     return Configuration.builder()
         .setService(SERVICE_NAME)
-        .addSnapshotsProbes(snapshotProbes, null)
+        .addSnapshotsProbes(snapshotProbes)
         .build();
   }
 

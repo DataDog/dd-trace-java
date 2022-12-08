@@ -59,10 +59,7 @@
 "method":"indexOf",
 "type":"java.lang.String"
 \},
-"source":\{
-"config":"config",
 "version":1
-\}
 \},
 "stack":\[\],
 "timestamp":\d+

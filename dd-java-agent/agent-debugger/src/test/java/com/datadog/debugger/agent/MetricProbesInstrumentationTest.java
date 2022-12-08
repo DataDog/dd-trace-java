@@ -785,7 +785,8 @@ public class MetricProbesInstrumentationTest {
     public void addSnapshot(Snapshot snapshot) {}
 
     @Override
-    public void addDiagnostics(String probeId, List<DiagnosticMessage> messages) {
+    public void addDiagnostics(
+        String probeId, Long probeVersion, List<DiagnosticMessage> messages) {
       for (DiagnosticMessage msg : messages) {
         System.out.println(msg);
       }

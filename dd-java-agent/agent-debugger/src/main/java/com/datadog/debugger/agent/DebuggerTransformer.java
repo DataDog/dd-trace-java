@@ -331,7 +331,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
             fullyQualifiedClassName,
             methodNode.name,
             methodNode.desc,
-            definition.getAllProbeIds().collect(Collectors.toList()));
+            definition.getAllProbes().map((probe)->probe.getId()).collect(Collectors.toList()));
         InstrumentationResult result =
             applyInstrumentation(loader, classNode, definition, methodNode);
         transformed |= result.isInstalled();
@@ -339,7 +339,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
           listener.instrumentationResult(definition, result);
         }
         if (!result.getDiagnostics().isEmpty()) {
-          DebuggerContext.reportDiagnostics(definition.getId(), result.getDiagnostics());
+          DebuggerContext.reportDiagnostics(
+              definition.getId(), definition.getVersion(), result.getDiagnostics());
         }
       }
     }
@@ -359,7 +360,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     String msg = String.format(format, className, location);
     DiagnosticMessage diagnosticMessage = new DiagnosticMessage(DiagnosticMessage.Kind.ERROR, msg);
     DebuggerContext.reportDiagnostics(
-        definition.getId(), Collections.singletonList(diagnosticMessage));
+        definition.getId(), definition.getVersion(), Collections.singletonList(diagnosticMessage));
     log.debug("{} for definition: {}", msg, definition);
   }
 

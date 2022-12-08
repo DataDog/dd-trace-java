@@ -40,24 +40,24 @@ public class ProbeStatusSink {
     this.isInstrumentTheWorld = config.isDebuggerInstrumentTheWorld();
   }
 
-  public void addReceived(String probeId) {
-    addDiagnostics(messageBuilder.receivedMessage(probeId));
+  public void addReceived(String probeId, Long probeVersion) {
+    addDiagnostics(messageBuilder.receivedMessage(probeId, probeVersion));
   }
 
-  public void addInstalled(String probeId) {
-    addDiagnostics(messageBuilder.installedMessage(probeId));
+  public void addInstalled(String probeId, Long probeVersion) {
+    addDiagnostics(messageBuilder.installedMessage(probeId, probeVersion));
   }
 
-  public void addBlocked(String probeId) {
-    addDiagnostics(messageBuilder.blockedMessage(probeId));
+  public void addBlocked(String probeId, Long probeVersion) {
+    addDiagnostics(messageBuilder.blockedMessage(probeId, probeVersion));
   }
 
-  public void addError(String probeId, Throwable ex) {
-    addDiagnostics(messageBuilder.errorMessage(probeId, ex));
+  public void addError(String probeId, Long probeVersion, Throwable ex) {
+    addDiagnostics(messageBuilder.errorMessage(probeId, probeVersion, ex));
   }
 
-  public void addError(String probeId, String message) {
-    addDiagnostics(messageBuilder.errorMessage(probeId, message));
+  public void addError(String probeId, Long probeVersion, String message) {
+    addDiagnostics(messageBuilder.errorMessage(probeId, probeVersion, message));
   }
 
   public List<String> getSerializedDiagnostics() {

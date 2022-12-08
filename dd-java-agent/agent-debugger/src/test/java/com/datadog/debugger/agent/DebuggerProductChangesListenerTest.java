@@ -9,7 +9,6 @@ import com.datadog.debugger.probe.SnapshotProbe;
 import datadog.remoteconfig.ConfigurationChangesListener;
 import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.debugger.Snapshot;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -68,7 +67,7 @@ public class DebuggerProductChangesListenerTest {
     Configuration config =
         Configuration.builder()
             .setService(SERVICE_NAME)
-            .add(createSnapshotProbe(probeId))
+            .add(createSnapshotProbe(probeId, 1))
             .addDenyList(createFilteredList())
             .build();
 
@@ -83,7 +82,7 @@ public class DebuggerProductChangesListenerTest {
     Configuration expectedConfig =
         Configuration.builder()
             .setService(SERVICE_NAME)
-            .add(createSnapshotProbe(probeId), new Snapshot.ProbeSource(configId, 1))
+            .add(createSnapshotProbe(probeId, 1))
             .addDenyList(createFilteredList())
             .build();
 
@@ -95,7 +94,7 @@ public class DebuggerProductChangesListenerTest {
     Configuration config =
         Configuration.builder()
             .setService("other-service")
-            .add(createSnapshotProbe(UUID.randomUUID().toString()))
+            .add(createSnapshotProbe(UUID.randomUUID().toString(), 1))
             .addDenyList(createFilteredList())
             .build();
     SimpleAcceptor acceptor = new SimpleAcceptor();
@@ -125,17 +124,14 @@ public class DebuggerProductChangesListenerTest {
     DebuggerProductChangesListener listener =
         new DebuggerProductChangesListener(tracerConfig, acceptor);
 
-    SnapshotProbe snapshotProbe = createSnapshotProbe(UUID.randomUUID().toString());
-    MetricProbe metricProbe = createMetricProbe(UUID.randomUUID().toString());
-    LogProbe logProbe = createLogProbe(UUID.randomUUID().toString());
+    SnapshotProbe snapshotProbe = createSnapshotProbe(UUID.randomUUID().toString(), 1);
+    MetricProbe metricProbe = createMetricProbe(UUID.randomUUID().toString(), 2);
+    LogProbe logProbe = createLogProbe(UUID.randomUUID().toString(), 3);
 
     acceptSnapshotProbe(listener, snapshotProbe);
     listener.commit(pollingHinter);
     Assert.assertEquals(
-        Configuration.builder()
-            .setService(SERVICE_NAME)
-            .add(snapshotProbe, createSnapshotProbeSource(snapshotProbe))
-            .build(),
+        Configuration.builder().setService(SERVICE_NAME).add(snapshotProbe).build(),
         acceptor.getConfiguration());
 
     acceptMetricProbe(listener, metricProbe);
@@ -143,8 +139,8 @@ public class DebuggerProductChangesListenerTest {
     Assert.assertEquals(
         Configuration.builder()
             .setService(SERVICE_NAME)
-            .add(snapshotProbe, createSnapshotProbeSource(snapshotProbe))
-            .add(metricProbe, createMericProbeSource(metricProbe))
+            .add(snapshotProbe)
+            .add(metricProbe)
             .build(),
         acceptor.getConfiguration());
 
@@ -153,29 +149,22 @@ public class DebuggerProductChangesListenerTest {
     Assert.assertEquals(
         Configuration.builder()
             .setService(SERVICE_NAME)
-            .add(snapshotProbe, createSnapshotProbeSource(snapshotProbe))
-            .add(metricProbe, createMericProbeSource(metricProbe))
-            .add(logProbe, createLogProbeSource(logProbe))
+            .add(snapshotProbe)
+            .add(metricProbe)
+            .add(logProbe)
             .build(),
         acceptor.getConfiguration());
 
     removeSnapshotProbe(listener, snapshotProbe);
     listener.commit(pollingHinter);
     Assert.assertEquals(
-        Configuration.builder()
-            .setService(SERVICE_NAME)
-            .add(metricProbe, createMericProbeSource(metricProbe))
-            .add(logProbe, createLogProbeSource(logProbe))
-            .build(),
+        Configuration.builder().setService(SERVICE_NAME).add(metricProbe).add(logProbe).build(),
         acceptor.getConfiguration());
 
     removeMetricProbe(listener, metricProbe);
     listener.commit(pollingHinter);
     Assert.assertEquals(
-        Configuration.builder()
-            .setService(SERVICE_NAME)
-            .add(logProbe, createLogProbeSource(logProbe))
-            .build(),
+        Configuration.builder().setService(SERVICE_NAME).add(logProbe).build(),
         acceptor.getConfiguration());
 
     removeLogProbe(listener, logProbe);
@@ -191,11 +180,10 @@ public class DebuggerProductChangesListenerTest {
     DebuggerProductChangesListener listener =
         new DebuggerProductChangesListener(tracerConfig, acceptor);
 
-    SnapshotProbe snapshotProbe = createSnapshotProbe("123");
-    MetricProbe metricProbe = createMetricProbe("345");
-    LogProbe logProbe = createLogProbe("567");
+    SnapshotProbe snapshotProbe = createSnapshotProbe("123", 1);
+    MetricProbe metricProbe = createMetricProbe("345", 1);
+    LogProbe logProbe = createLogProbe("567", 1);
     String configId = UUID.randomUUID().toString();
-    Snapshot.ProbeSource configSource = new Snapshot.ProbeSource(configId, 1);
 
     Configuration config =
         Configuration.builder()
@@ -210,10 +198,7 @@ public class DebuggerProductChangesListenerTest {
     acceptConfig(listener, config, configId);
     listener.commit(pollingHinter);
     Assert.assertEquals(
-        Configuration.builder()
-            .add(config, configSource)
-            .add(snapshotProbe, createSnapshotProbeSource(snapshotProbe))
-            .build(),
+        Configuration.builder().add(config).add(snapshotProbe).build(),
         acceptor.getConfiguration());
   }
 
@@ -265,12 +250,8 @@ public class DebuggerProductChangesListenerTest {
             listener.accept(
                 createConfigKey("snapshotProbe_" + probe.getId()),
                 toContent(probe),
-                1,
+                probe.getVersion(),
                 pollingHinter));
-  }
-
-  Snapshot.ProbeSource createSnapshotProbeSource(SnapshotProbe probe) {
-    return new Snapshot.ProbeSource("snapshotProbe_" + probe.getId(), 1);
   }
 
   void removeSnapshotProbe(DebuggerProductChangesListener listener, SnapshotProbe probe) {
@@ -284,12 +265,8 @@ public class DebuggerProductChangesListenerTest {
             listener.accept(
                 createConfigKey("metricProbe_" + probe.getId()),
                 toContent(probe),
-                1,
+                probe.getVersion(),
                 pollingHinter));
-  }
-
-  Snapshot.ProbeSource createMericProbeSource(MetricProbe probe) {
-    return new Snapshot.ProbeSource("metricProbe_" + probe.getId(), 1);
   }
 
   void removeMetricProbe(DebuggerProductChangesListener listener, MetricProbe probe) {
@@ -304,35 +281,34 @@ public class DebuggerProductChangesListenerTest {
                 createConfigKey("logProbe_" + probe.getId()), toContent(probe), 1, pollingHinter));
   }
 
-  Snapshot.ProbeSource createLogProbeSource(LogProbe probe) {
-    return new Snapshot.ProbeSource("logProbe_" + probe.getId(), 1);
-  }
-
   void removeLogProbe(DebuggerProductChangesListener listener, LogProbe probe) {
     assertDoesNotThrow(
         () -> listener.remove(createConfigKey("logProbe_" + probe.getId()), pollingHinter));
   }
 
-  SnapshotProbe createSnapshotProbe(String id) {
+  SnapshotProbe createSnapshotProbe(String id, long version) {
     return SnapshotProbe.builder()
         .probeId(id)
         .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
+        .version(version)
         .build();
   }
 
-  MetricProbe createMetricProbe(String id) {
+  MetricProbe createMetricProbe(String id, long version) {
     return MetricProbe.builder()
         .probeId(id)
         .kind(MetricProbe.MetricKind.COUNT)
         .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
+        .version(version)
         .build();
   }
 
-  LogProbe createLogProbe(String id) {
+  LogProbe createLogProbe(String id, long version) {
     return LogProbe.builder()
         .probeId(id)
         .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
         .template("hello {^world}")
+        .version(version)
         .build();
   }
 

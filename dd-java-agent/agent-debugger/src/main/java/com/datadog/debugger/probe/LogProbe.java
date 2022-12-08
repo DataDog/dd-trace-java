@@ -116,19 +116,20 @@ public class LogProbe extends ProbeDefinition {
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
   public LogProbe() {
-    this(LANGUAGE, null, true, null, null, MethodLocation.DEFAULT, null, new ArrayList<>());
+    this(LANGUAGE, null, null, true, null, null, MethodLocation.DEFAULT, null, new ArrayList<>());
   }
 
   public LogProbe(
       String language,
       String id,
+      Long version,
       boolean active,
       String[] tagStrs,
       Where where,
       MethodLocation evaluateAt,
       String template,
       List<Segment> segments) {
-    super(language, id, active, tagStrs, where, evaluateAt);
+    super(language, id, version, active, tagStrs, where, evaluateAt);
     this.template = template;
     this.segments = segments;
   }
@@ -170,7 +171,8 @@ public class LogProbe extends ProbeDefinition {
   @Generated
   @Override
   public int hashCode() {
-    int result = Objects.hash(language, id, active, tagMap, where, evaluateAt, template, segments);
+    int result =
+        Objects.hash(language, id, version, active, tagMap, where, evaluateAt, template, segments);
     result = 31 * result + Arrays.hashCode(tags);
     return result;
   }
@@ -181,10 +183,10 @@ public class LogProbe extends ProbeDefinition {
     return "LogProbe{"
         + "language='"
         + language
-        + '\''
-        + ", id='"
+        + "', id='"
         + id
-        + '\''
+        + "', version="
+        + version
         + ", active="
         + active
         + ", tags="
@@ -197,8 +199,7 @@ public class LogProbe extends ProbeDefinition {
         + evaluateAt
         + ", template='"
         + template
-        + '\''
-        + ", segments="
+        + "', segments="
         + segments
         + "} ";
   }
@@ -219,7 +220,7 @@ public class LogProbe extends ProbeDefinition {
 
     public LogProbe build() {
       return new LogProbe(
-          language, probeId, active, tagStrs, where, evaluateAt, template, segments);
+          language, probeId, version, active, tagStrs, where, evaluateAt, template, segments);
     }
 
     private static List<Segment> parseTemplate(String template) {

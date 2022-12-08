@@ -136,8 +136,7 @@ public class ConfigurationUpdater
         spanProbes,
         configuration.getAllowList(),
         configuration.getDenyList(),
-        configuration.getSampling(),
-        configuration.getProbesSource());
+        configuration.getSampling());
   }
 
   private <E extends ProbeDefinition> Collection<E> filterProbes(
@@ -183,10 +182,10 @@ public class ConfigurationUpdater
 
   private void reportReceived(ConfigurationComparer changes) {
     for (ProbeDefinition def : changes.getAddedDefinitions()) {
-      def.getAllProbeIds().forEach(sink::addReceived);
+      def.getAllProbes().forEach(sink::addReceived);
     }
     for (ProbeDefinition def : changes.getRemovedDefinitions()) {
-      def.getAllProbeIds().forEach(sink::removeDiagnostics);
+      def.getAllProbes().forEach(sink::removeDiagnostics);
     }
   }
 
@@ -207,9 +206,9 @@ public class ConfigurationUpdater
       ProbeDefinition definition, InstrumentationResult instrumentationResult) {
     instrumentationResults.put(definition.getId(), instrumentationResult);
     if (instrumentationResult.isInstalled()) {
-      definition.getAllProbeIds().forEach(sink::addInstalled);
+      definition.getAllProbes().forEach(sink::addInstalled);
     } else if (instrumentationResult.isBlocked()) {
-      definition.getAllProbeIds().forEach(sink::addBlocked);
+      definition.getAllProbes().forEach(sink::addBlocked);
     }
   }
 
@@ -286,14 +285,14 @@ public class ConfigurationUpdater
     }
     return new Snapshot.ProbeDetails(
         probe.getId(),
+        probe.getVersion(),
         location,
-        currentConfiguration.getProbeSource(probe),
         convertMethodLocation(probe.getEvaluateAt()),
         probeCondition,
         probe.concatTags(),
         summaryBuilder,
         probe.getAdditionalProbes().stream()
-            .map(relatedProbe -> convertToProbeDetails(((SnapshotProbe) relatedProbe), location))
+            .map(relatedProbe -> convertToProbeDetails(relatedProbe, location))
             .collect(Collectors.toList()));
   }
 
