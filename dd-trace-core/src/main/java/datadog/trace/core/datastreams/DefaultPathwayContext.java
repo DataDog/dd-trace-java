@@ -85,6 +85,11 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   @Override
+  public long getHash() {
+    return hash;
+  }
+
+  @Override
   public void setCheckpoint(
       LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer) {
     long startNanos = timeSource.getCurrentTimeNanos();

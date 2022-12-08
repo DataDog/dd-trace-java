@@ -3,6 +3,7 @@ package datadog.trace.core.taginterceptor;
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.DDTags.MEASURED;
 import static datadog.trace.api.DDTags.ORIGIN_KEY;
+import static datadog.trace.api.DDTags.PATHWAY_HASH;
 import static datadog.trace.api.DDTags.SPAN_TYPE;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
@@ -18,6 +19,7 @@ import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpanContext;
@@ -123,6 +125,10 @@ public class TagInterceptor {
 
   private boolean interceptError(DDSpanContext span, Object value) {
     span.setErrorFlag(asBoolean(value));
+    PathwayContext context = span.getPathwayContext();
+    if (context != null){
+      span.setTag(PATHWAY_HASH, context.getHash());
+    }
     return true;
   }
 

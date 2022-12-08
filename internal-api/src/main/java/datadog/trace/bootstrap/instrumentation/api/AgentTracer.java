@@ -878,6 +878,11 @@ public class AgentTracer {
     }
 
     @Override
+    public long getHash(){
+      return 0L;
+    }
+
+    @Override
     public void setCheckpoint(
         LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer) {}
 
