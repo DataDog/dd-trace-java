@@ -58,10 +58,10 @@ public class WriterFactory {
       return new MultiWriter(config, commObjects, sampler, statsDClient, configuredType);
     }
 
-    if (!DD_AGENT_WRITER_TYPE.equals(configuredType) && !DD_INTAKE_WRITER_TYPE.equals(configuredType)) {
+    if (!DD_AGENT_WRITER_TYPE.equals(configuredType)
+        && !DD_INTAKE_WRITER_TYPE.equals(configuredType)) {
       log.warn(
-          "Writer type not configured correctly: Type {} not recognized. Ignoring",
-          configuredType);
+          "Writer type not configured correctly: Type {} not recognized. Ignoring", configuredType);
       configuredType = datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
     }
 

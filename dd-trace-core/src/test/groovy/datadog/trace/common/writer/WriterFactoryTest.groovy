@@ -46,8 +46,7 @@ class WriterFactoryTest extends DDSpecification {
     "not-found" | DDAgentWriter
   }
 
-
-  def "test override for civisibility"() {
+  def "test override for civisibility for configuredWriterType=#configuredType hasEvpProxy=#hasEvpProxy agentless=#isCiVisibilityAgentlessEnabled"() {
     setup:
     def config = Mock(Config)
     config.apiKey >> "my-api-key"
@@ -62,7 +61,7 @@ class WriterFactoryTest extends DDSpecification {
     agentFeaturesDiscovery.supportsEvpProxy() >> hasEvpProxy
 
     def sharedComm = new SharedCommunicationObjects()
-    sharedComm.featuresDiscovery = agentFeaturesDiscovery
+    sharedComm.setFeaturesDiscovery(agentFeaturesDiscovery)
     sharedComm.createRemaining(config)
 
     def sampler = Mock(Sampler)
