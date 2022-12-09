@@ -2,6 +2,7 @@ package datadog.trace.core.scopemanager;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan;
+import static datadog.trace.bootstrap.instrumentation.api.ScopeSource.INSTRUMENTATION;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -15,6 +16,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
+import datadog.trace.bootstrap.instrumentation.api.ManagedScope;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.util.AgentTaskScheduler;
@@ -251,6 +253,30 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
   ScopeStack scopeStack() {
     return this.tlsScopeStack.get();
+  }
+
+  @Override
+  public ManagedScope delegateManagedScope() {
+    return new ContinuableManagedScope();
+  }
+
+  private class ContinuableManagedScope implements ManagedScope {
+
+    private ScopeStack localScopeStack = tlsScopeStack.initialValue();
+    private AgentSpan span = activeSpan();
+
+    @Override
+    public void activate() {
+      tlsScopeStack.set(localScopeStack);
+      if (localScopeStack.depth() == 0 && span != null) {
+        ContinuableScopeManager.this.activate(span, INSTRUMENTATION);
+      }
+    }
+
+    @Override
+    public void fetch() {
+      localScopeStack = tlsScopeStack.get();
+    }
   }
 
   private static class ContinuableScope implements AgentScope, AttachableWrapper {

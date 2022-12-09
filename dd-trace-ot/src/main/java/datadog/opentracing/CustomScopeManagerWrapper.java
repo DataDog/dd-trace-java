@@ -7,6 +7,7 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ManagedScope;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.util.AgentTaskScheduler;
 import io.opentracing.Scope;
@@ -145,6 +146,26 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
       scheduleIterationSpanCleanup(agentSpan);
     }
     return converter.toAgentScope(span, scope);
+  }
+
+  @Override
+  public ManagedScope delegateManagedScope() {
+    return new CustomManagedScope();
+  }
+
+  private class CustomManagedScope implements ManagedScope {
+
+    private AgentSpan span = activeSpan();
+
+    @Override
+    public void activate() {
+      CustomScopeManagerWrapper.this.activate(span, ScopeSource.INSTRUMENTATION);
+    }
+
+    @Override
+    public void fetch() {
+      span = activeSpan();
+    }
   }
 
   private void scheduleIterationSpanCleanup(final AgentSpan span) {

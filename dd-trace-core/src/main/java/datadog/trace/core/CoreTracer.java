@@ -40,6 +40,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ManagedScope;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
@@ -197,6 +198,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public void onRootSpanStarted(AgentSpan root) {
     endpointCheckpointer.onRootSpanStarted(root);
+  }
+
+  @Override
+  public ManagedScope delegateManagedScope() {
+    return scopeManager.delegateManagedScope();
   }
 
   public static class CoreTracerBuilder {

@@ -1,22 +1,32 @@
-package datadog.trace.core;
+package datadog.trace.instrumentation.kotlin.coroutines;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ManagedScope;
 import kotlin.coroutines.CoroutineContext;
 import kotlin.jvm.functions.Function2;
 import kotlinx.coroutines.ThreadContextElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class NoOpContextElement implements ThreadContextElement<Object> {
-  static final Key<NoOpContextElement> KEY = new Key<NoOpContextElement>() {};
+public class ManagedScopeCoroutineContext implements ThreadContextElement<ManagedScope> {
 
-  public NoOpContextElement() {}
-
-  @Override
-  public void restoreThreadContext(@NotNull CoroutineContext coroutineContext, Object oldState) {}
+  private static final Key<ManagedScopeCoroutineContext> KEY = new ContextElementKey();
+  private final ManagedScope managedScope = AgentTracer.get().delegateManagedScope();
 
   @Override
-  public Object updateThreadContext(@NotNull CoroutineContext coroutineContext) {
-    return null;
+  public void restoreThreadContext(
+      @NotNull CoroutineContext coroutineContext, ManagedScope oldState) {
+    oldState.activate();
+  }
+
+  @Override
+  public ManagedScope updateThreadContext(@NotNull CoroutineContext coroutineContext) {
+    final ManagedScope oldManagedScope = AgentTracer.get().delegateManagedScope();
+    oldManagedScope.fetch();
+
+    managedScope.activate();
+
+    return oldManagedScope;
   }
 
   @Nullable
@@ -48,4 +58,6 @@ public class NoOpContextElement implements ThreadContextElement<Object> {
   public Key<?> getKey() {
     return KEY;
   }
+
+  static class ContextElementKey implements Key<ManagedScopeCoroutineContext> {}
 }
