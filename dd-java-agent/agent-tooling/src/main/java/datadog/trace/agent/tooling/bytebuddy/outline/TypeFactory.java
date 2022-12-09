@@ -24,7 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Context-aware factory that provides different kinds of type descriptions:
+ * Context-aware thread-local type factory that provides different kinds of type descriptions:
  *
  * <ul>
  *   <li>minimally parsed type outlines for matching purposes
@@ -82,7 +82,7 @@ final class TypeFactory {
 
   private final Function<String, LazyType> deferType = LazyType::new;
 
-  boolean installing = true;
+  boolean installing = false;
 
   boolean createOutlines = true;
 
