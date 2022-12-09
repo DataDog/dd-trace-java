@@ -8,7 +8,7 @@ public class CoroutineContextAdvice {
   public static void enter(
       @Advice.Argument(value = 1, readOnly = false) CoroutineContext coroutineContext) {
     if (coroutineContext != null) {
-      coroutineContext = coroutineContext.plus(new ManagedScopeCoroutineContext());
+      coroutineContext = coroutineContext.plus(new ScopeStateCoroutineContext());
     }
   }
 }

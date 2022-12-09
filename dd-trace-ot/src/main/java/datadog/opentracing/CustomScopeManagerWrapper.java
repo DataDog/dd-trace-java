@@ -7,8 +7,8 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.ManagedScope;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
+import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import datadog.trace.util.AgentTaskScheduler;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
@@ -149,11 +149,11 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
   }
 
   @Override
-  public ManagedScope delegateManagedScope() {
-    return new CustomManagedScope();
+  public ScopeState newScopeState() {
+    return new CustomScopeState();
   }
 
-  private class CustomManagedScope implements ManagedScope {
+  private class CustomScopeState implements ScopeState {
 
     private AgentSpan span = activeSpan();
 
@@ -163,7 +163,7 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
     }
 
     @Override
-    public void fetch() {
+    public void fetchFromActive() {
       span = activeSpan();
     }
   }

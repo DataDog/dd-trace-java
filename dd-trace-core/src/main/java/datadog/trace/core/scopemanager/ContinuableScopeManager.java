@@ -16,9 +16,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
-import datadog.trace.bootstrap.instrumentation.api.ManagedScope;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
+import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.ArrayDeque;
 import java.util.Iterator;
@@ -256,11 +256,11 @@ public final class ContinuableScopeManager implements AgentScopeManager {
   }
 
   @Override
-  public ManagedScope delegateManagedScope() {
-    return new ContinuableManagedScope();
+  public ScopeState newScopeState() {
+    return new ContinuableScopeState();
   }
 
-  private class ContinuableManagedScope implements ManagedScope {
+  private class ContinuableScopeState implements ScopeState {
 
     private ScopeStack localScopeStack = tlsScopeStack.initialValue();
     private AgentSpan span = activeSpan();
@@ -274,7 +274,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     }
 
     @Override
-    public void fetch() {
+    public void fetchFromActive() {
       localScopeStack = tlsScopeStack.get();
     }
   }

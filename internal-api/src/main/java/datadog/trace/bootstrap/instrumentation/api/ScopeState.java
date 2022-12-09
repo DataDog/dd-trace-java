@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-public interface ManagedScope {
+public interface ScopeState {
   void activate();
 
-  void fetch();
+  void fetchFromActive();
 }

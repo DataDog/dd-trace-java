@@ -120,7 +120,7 @@ public class AgentTracer {
           InternalTracer,
           AgentPropagation,
           EndpointCheckpointer,
-          ManagedScopeAware {
+          ScopeStateAware {
     AgentSpan startSpan(CharSequence spanName);
 
     AgentSpan startSpan(CharSequence spanName, long startTimeMicros);
@@ -386,7 +386,7 @@ public class AgentTracer {
     public void notifyExtensionEnd(AgentSpan span, Object result, boolean isError) {}
 
     @Override
-    public ManagedScope delegateManagedScope() {
+    public ScopeState newScopeState() {
       return null;
     }
   }

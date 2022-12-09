@@ -1,32 +1,32 @@
 package datadog.trace.instrumentation.kotlin.coroutines;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.ManagedScope;
+import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import kotlin.coroutines.CoroutineContext;
 import kotlin.jvm.functions.Function2;
 import kotlinx.coroutines.ThreadContextElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class ManagedScopeCoroutineContext implements ThreadContextElement<ManagedScope> {
+public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeState> {
 
-  private static final Key<ManagedScopeCoroutineContext> KEY = new ContextElementKey();
-  private final ManagedScope managedScope = AgentTracer.get().delegateManagedScope();
+  private static final Key<ScopeStateCoroutineContext> KEY = new ContextElementKey();
+  private final ScopeState scopeState = AgentTracer.get().newScopeState();
 
   @Override
   public void restoreThreadContext(
-      @NotNull CoroutineContext coroutineContext, ManagedScope oldState) {
+      @NotNull CoroutineContext coroutineContext, ScopeState oldState) {
     oldState.activate();
   }
 
   @Override
-  public ManagedScope updateThreadContext(@NotNull CoroutineContext coroutineContext) {
-    final ManagedScope oldManagedScope = AgentTracer.get().delegateManagedScope();
-    oldManagedScope.fetch();
+  public ScopeState updateThreadContext(@NotNull CoroutineContext coroutineContext) {
+    final ScopeState oldScopeState = AgentTracer.get().newScopeState();
+    oldScopeState.fetchFromActive();
 
-    managedScope.activate();
+    scopeState.activate();
 
-    return oldManagedScope;
+    return oldScopeState;
   }
 
   @Nullable
@@ -59,5 +59,5 @@ public class ManagedScopeCoroutineContext implements ThreadContextElement<Manage
     return KEY;
   }
 
-  static class ContextElementKey implements Key<ManagedScopeCoroutineContext> {}
+  static class ContextElementKey implements Key<ScopeStateCoroutineContext> {}
 }

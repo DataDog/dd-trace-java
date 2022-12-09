@@ -40,10 +40,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.ManagedScope;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
+import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.civisibility.CiVisibilityTraceInterceptor;
 import datadog.trace.common.metrics.MetricsAggregator;
@@ -201,8 +201,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public ManagedScope delegateManagedScope() {
-    return scopeManager.delegateManagedScope();
+  public ScopeState newScopeState() {
+    return scopeManager.newScopeState();
   }
 
   public static class CoreTracerBuilder {

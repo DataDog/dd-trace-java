@@ -18,8 +18,8 @@ public class KotlinCoroutinesInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ManagedScopeCoroutineContext",
-      packageName + ".ManagedScopeCoroutineContext$ContextElementKey",
+      packageName + ".ScopeStateCoroutineContext",
+      packageName + ".ScopeStateCoroutineContext$ContextElementKey",
     };
   }
 
