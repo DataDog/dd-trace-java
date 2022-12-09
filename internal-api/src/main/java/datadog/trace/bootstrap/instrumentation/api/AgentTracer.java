@@ -282,6 +282,10 @@ public class AgentTracer {
     public void close() {}
 
     @Override
+    public void addScopeListener(
+        Runnable afterScopeActivatedCallback, Runnable afterScopeClosedCallback) {}
+
+    @Override
     public void flush() {}
 
     @Override

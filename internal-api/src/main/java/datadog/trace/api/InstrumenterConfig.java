@@ -5,9 +5,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_OUTLINE_POOL_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_RESET_INTERVAL;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_TYPE_POOL_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_ENABLED;
@@ -29,10 +27,8 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTIO
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
-import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_OUTLINE_POOL_ENABLED;
-import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_OUTLINE_POOL_SIZE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_CONFIG;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_RESET_INTERVAL;
-import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_TYPE_POOL_SIZE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
@@ -84,9 +80,7 @@ public class InstrumenterConfig {
   private final Set<String> excludedClassLoaders;
   private final List<String> excludedCodeSources;
 
-  private final boolean resolverOutlinePoolEnabled;
-  private final int resolverOutlinePoolSize;
-  private final int resolverTypePoolSize;
+  private final ResolverCacheConfig resolverCacheConfig;
   private final boolean resolverUseLoadClassEnabled;
   private final int resolverResetInterval;
 
@@ -148,11 +142,9 @@ public class InstrumenterConfig {
     excludedClassLoaders = tryMakeImmutableSet(configProvider.getList(TRACE_CLASSLOADERS_EXCLUDE));
     excludedCodeSources = tryMakeImmutableList(configProvider.getList(TRACE_CODESOURCES_EXCLUDE));
 
-    resolverOutlinePoolEnabled = configProvider.getBoolean(RESOLVER_OUTLINE_POOL_ENABLED, true);
-    resolverOutlinePoolSize =
-        configProvider.getInteger(RESOLVER_OUTLINE_POOL_SIZE, DEFAULT_RESOLVER_OUTLINE_POOL_SIZE);
-    resolverTypePoolSize =
-        configProvider.getInteger(RESOLVER_TYPE_POOL_SIZE, DEFAULT_RESOLVER_TYPE_POOL_SIZE);
+    resolverCacheConfig =
+        configProvider.getEnum(
+            RESOLVER_CACHE_CONFIG, ResolverCacheConfig.class, ResolverCacheConfig.DEFAULT);
     resolverUseLoadClassEnabled = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
     resolverResetInterval =
         configProvider.getInteger(RESOLVER_RESET_INTERVAL, DEFAULT_RESOLVER_RESET_INTERVAL);
@@ -257,16 +249,16 @@ public class InstrumenterConfig {
     return excludedCodeSources;
   }
 
-  public boolean isResolverOutlinePoolEnabled() {
-    return resolverOutlinePoolEnabled;
+  public boolean isResolverOutliningEnabled() {
+    return resolverCacheConfig.outlinePoolSize() > 0;
   }
 
   public int getResolverOutlinePoolSize() {
-    return resolverOutlinePoolSize;
+    return resolverCacheConfig.outlinePoolSize();
   }
 
   public int getResolverTypePoolSize() {
-    return resolverTypePoolSize;
+    return resolverCacheConfig.typePoolSize();
   }
 
   public boolean isResolverUseLoadClassEnabled() {
@@ -354,12 +346,8 @@ public class InstrumenterConfig {
         + excludedClassLoaders
         + ", excludedCodeSources="
         + excludedCodeSources
-        + ", resolverOutlinePoolEnabled="
-        + resolverOutlinePoolEnabled
-        + ", resolverOutlinePoolSize="
-        + resolverOutlinePoolSize
-        + ", resolverTypePoolSize="
-        + resolverTypePoolSize
+        + ", resolverCacheConfig="
+        + resolverCacheConfig
         + ", resolverUseLoadClassEnabled="
         + resolverUseLoadClassEnabled
         + ", resolverResetInterval="
@@ -376,8 +364,6 @@ public class InstrumenterConfig {
         + '\''
         + ", internalExitOnFailure="
         + internalExitOnFailure
-        + ", configProvider="
-        + configProvider
         + '}';
   }
 }
