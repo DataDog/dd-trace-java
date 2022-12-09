@@ -37,19 +37,26 @@ dependencies {
 }
 
 def createKotlinDirs = tasks.register("createKotlinDirs") {
-  doLast {
+  def dirsToCreate = ["classes/kotlin/main", "classes/kotlin/raw"]
+  doFirst {
     // Having Groovy, Kotlin and Java in the same project is a bit problematic
     // this task allows Java classes in main source set to compile
-    def kotlinClassesDir = new File(project.buildDir, "classes/kotlin")
-    new File(kotlinClassesDir, "main").mkdirs()
-    new File(kotlinClassesDir, "raw").mkdirs()
+    dirsToCreate.forEach {
+      new File(project.buildDir, it).mkdirs()
+    }
   }
+
+  outputs.dirs(
+    dirsToCreate.collect {
+      project.layout.buildDirectory.dir(it)
+    }
+    )
 }
 
 tasks.withType(JavaCompile).configureEach {
-  dependsOn createKotlinDirs
+  inputs.files(createKotlinDirs)
 }
 
 tasks.withType(ByteBuddyTask).configureEach {
-  dependsOn createKotlinDirs
+  inputs.files(createKotlinDirs)
 }
