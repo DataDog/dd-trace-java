@@ -1,5 +1,5 @@
-import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.core.DDSpan
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ThreadPoolDispatcherKt
 
@@ -98,6 +98,41 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
     where:
     dispatcher << dispatchersToTest
+  }
+
+  def "kotlin suspension should not mess up traces"() {
+    setup:
+    KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(
+      ThreadPoolDispatcherKt.newSingleThreadContext("Single-Thread")
+      )
+    int expectedNumberOfSpans = kotlinTest.tracedWithSuspendingCoroutines()
+
+    expect:
+    assertTraces(1) {
+      trace(expectedNumberOfSpans, true) {
+        span(4) {
+          operationName "trace.annotation"
+          parent()
+        }
+        def topLevelSpan = span(3)
+        span(3) {
+          operationName "top-level"
+          childOf span(4)
+        }
+        span(2) {
+          operationName "synchronous-child"
+          childOf topLevelSpan
+        }
+        span(1) {
+          operationName "second-span"
+          childOf topLevelSpan
+        }
+        span(0) {
+          operationName "first-span"
+          childOf topLevelSpan
+        }
+      }
+    }
   }
 
   private static DDSpan findSpan(List<DDSpan> trace, String opName) {

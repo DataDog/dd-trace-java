@@ -1,20 +1,28 @@
 import datadog.trace.api.Trace
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
+import datadog.trace.bootstrap.instrumentation.api.ScopeSource.INSTRUMENTATION
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.actor
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.channels.toChannel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import java.util.concurrent.TimeUnit
@@ -140,6 +148,68 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
   @Trace
   fun tracedChild(opName: String) {
     activeSpan().setSpanName(opName)
+  }
+
+  fun childSpan(opName: String): AgentSpan = get().buildSpan(opName)
+    .withResourceName("coroutines-test-span")
+    .start()
+
+  /**
+   * --- First job starts -------------------------- First job completes ---
+   *
+   * -------------------- Second job starts ---------------------------- Second job completes ---
+   */
+  @Trace
+  fun tracedWithSuspendingCoroutines(): Int {
+    fun jobContext(jobName: String) = CoroutineName(jobName)
+
+    return runTest {
+      val jobs = mutableListOf<Deferred<Unit>>()
+
+      val beforeFirstJobStartedMutex = Mutex(locked = true)
+      val afterFirstJobStartedMutex = Mutex(locked = true)
+
+      val beforeFirstJobCompletedMutex = Mutex(locked = true)
+      val afterFirstJobCompletedMutex = Mutex(locked = true)
+
+      childSpan("top-level").activateAndUse {
+        childSpan("synchronous-child").activateAndUse {
+          delay(5)
+        }
+
+        // this coroutine starts before the second one starts and completes before the second one
+        async(jobContext("first")) {
+          beforeFirstJobStartedMutex.lock()
+          childSpan("first-span").activateAndUse {
+            afterFirstJobStartedMutex.unlock()
+            beforeFirstJobCompletedMutex.lock()
+          }
+          afterFirstJobCompletedMutex.unlock()
+        }.run(jobs::add)
+
+        // this coroutine starts after the first one and completes after the first one
+        async(jobContext("second")) {
+          afterFirstJobStartedMutex.withLock {
+            childSpan("second-span").activateAndUse {
+              beforeFirstJobCompletedMutex.unlock()
+              afterFirstJobCompletedMutex.lock()
+            }
+          }
+        }.run(jobs::add)
+      }
+      beforeFirstJobStartedMutex.unlock()
+
+      jobs.awaitAll()
+
+      5
+    }
+  }
+
+  private suspend fun AgentSpan.activateAndUse(block: suspend () -> Unit) {
+    get().activateSpan(this, INSTRUMENTATION).use {
+      block()
+      finish()
+    }
   }
 
   private fun <T> runTest(asyncPropagation: Boolean = true, block: suspend CoroutineScope.() -> T): T {
