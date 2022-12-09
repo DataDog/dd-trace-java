@@ -234,6 +234,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGA
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_CONTEXT_SERVICE_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME;
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST;
 import static datadog.trace.api.config.TracerConfig.AGENT_NAMED_PIPE;
 import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY;
@@ -561,6 +562,8 @@ public class Config {
   private final boolean servletPrincipalEnabled;
   private final boolean servletAsyncTimeoutError;
 
+  private final boolean springDataRepositoryInterfaceResourceName;
+
   private final int xDatadogTagsMaxLength;
 
   private final boolean traceAgentV05Enabled;
@@ -836,6 +839,9 @@ public class Config {
             DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX);
 
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
+
+    springDataRepositoryInterfaceResourceName =
+        configProvider.getBoolean(SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME, true);
 
     scopeDepthLimit = configProvider.getInteger(SCOPE_DEPTH_LIMIT, DEFAULT_SCOPE_DEPTH_LIMIT);
 
@@ -1974,6 +1980,10 @@ public class Config {
 
   public boolean isServletPrincipalEnabled() {
     return servletPrincipalEnabled;
+  }
+
+  public boolean isSpringDataRepositoryInterfaceResourceName() {
+    return springDataRepositoryInterfaceResourceName;
   }
 
   public int getxDatadogTagsMaxLength() {
