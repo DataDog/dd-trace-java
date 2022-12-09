@@ -9,7 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
-import datadog.trace.common.sampling.RateByServiceSampler
+import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
@@ -27,7 +27,7 @@ import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_RULE_RATE_TAG
 class DDSpanTest extends DDCoreSpecification {
 
   @Shared def writer = new ListWriter()
-  @Shared def sampler = new RateByServiceSampler()
+  @Shared def sampler = new RateByServiceTraceSampler()
   @Shared def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
   @Shared def datadogTagsFactory = tracer.getDatadogTagsFactory()
 
