@@ -42,7 +42,8 @@ class SpringBootOpenLibertySnapshotTest extends AbstractTestAgentSmokeTest {
       'metrics.peer.port',
       'metrics.thread.id',
       'meta.servlet.path',
-      'meta.http.useragent'
+      'meta.http.useragent',
+      'metrics.process_id'
     ]
     snapshot("datadog.smoketest.SpringBootOpenLibertySnapshotTest.simple", ignoredKeys,{
       def url = "http://localhost:${httpPort}/connect/0"
@@ -64,7 +65,8 @@ class SpringBootOpenLibertySnapshotTest extends AbstractTestAgentSmokeTest {
       'metrics.peer.port',
       'metrics.thread.id',
       'meta.servlet.path',
-      'meta.http.useragent'
+      'meta.http.useragent',
+      'metrics.process_id'
     ]
     snapshot("datadog.smoketest.SpringBootOpenLibertySnapshotTest.nested", ignoredKeys, {
       def url = "http://localhost:${httpPort}/connect"
@@ -91,7 +93,8 @@ class SpringBootOpenLibertySnapshotTest extends AbstractTestAgentSmokeTest {
       'metrics.peer.port',
       'metrics.thread.id',
       'meta.error.stack',
-      'meta.http.useragent'
+      'meta.http.useragent',
+      'metrics.process_id'
     ]
     snapshot("datadog.smoketest.SpringBootOpenLibertySnapshotTest.exception404", ignoredKeys, {
       def url = "http://localhost:${httpPort}/randomEndpoint"

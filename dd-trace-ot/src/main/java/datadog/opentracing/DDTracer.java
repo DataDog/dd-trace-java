@@ -15,6 +15,7 @@ import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
+import datadog.trace.correlation.CorrelationIdInjectors;
 import io.opentracing.References;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
@@ -405,6 +406,8 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
     if (scopeManager == null) {
       this.scopeManager = new OTScopeManager(tracer, converter);
     }
+
+    CorrelationIdInjectors.register(this);
   }
 
   private static Map<String, String> customRuntimeTags(
@@ -471,6 +474,12 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
       log.debug("Unsupported format for propagation - {}", format.getClass().getName());
       return null;
     }
+  }
+
+  @Override
+  public void addScopeListener(
+      Runnable afterScopeActivatedCallback, Runnable afterScopeClosedCallback) {
+    tracer.addScopeListener(afterScopeActivatedCallback, afterScopeClosedCallback);
   }
 
   @Override
