@@ -85,7 +85,7 @@ public class AgentInstaller {
       final AgentBuilder.Listener... listeners) {
     Utils.setInstrumentation(inst);
 
-    if (InstrumenterConfig.get().isResolverOutlinePoolEnabled()) {
+    if (InstrumenterConfig.get().isResolverOutliningEnabled()) {
       DDOutlinePoolStrategy.registerTypePoolFacade();
     } else {
       DDCachingPoolStrategy.registerAsSupplier();
