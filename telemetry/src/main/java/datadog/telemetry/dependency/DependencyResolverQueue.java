@@ -53,11 +53,7 @@ public class DependencyResolverQueue {
 
     List<Dependency> dep = DependencyResolver.resolve(uri);
     if (dep.isEmpty()) {
-      if ("jrt".equals(uri.getScheme()) || "x-internal-jar".equals(uri.getScheme())) {
-        log.debug("unable to detect dependency for URI {}", uri);
-      } else {
-        log.debug("unable to detect dependency for URI {}", uri);
-      }
+      log.debug("unable to detect dependency for URI {}", uri);
       return Collections.emptyList();
     }
     if (log.isDebugEnabled()) {
