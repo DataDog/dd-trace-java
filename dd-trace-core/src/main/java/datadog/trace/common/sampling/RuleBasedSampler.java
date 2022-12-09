@@ -16,6 +16,7 @@ import java.util.Map.Entry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// TODO maybe rename it to TraceSampler?
 public class RuleBasedSampler<T extends CoreSpan<T>> implements Sampler<T>, PrioritySampler<T> {
 
   private static final Logger log = LoggerFactory.getLogger(RuleBasedSampler.class);
@@ -67,7 +68,7 @@ public class RuleBasedSampler<T extends CoreSpan<T>> implements Sampler<T>, Prio
             new TraceSamplingRule<>(
                 rule.getService(),
                 rule.getName(),
-                new DeterministicSampler<T>(rule.getSampleRate()));
+                new DeterministicSampler.TraceSampler<T>(rule.getSampleRate()));
         samplingRules.add(samplingRule);
       }
     } else {
@@ -78,7 +79,7 @@ public class RuleBasedSampler<T extends CoreSpan<T>> implements Sampler<T>, Prio
             final double rateForEntry = Double.parseDouble(entry.getValue());
             final SamplingRule<T> samplingRule =
                 new ServiceSamplingRule<>(
-                    entry.getKey(), new DeterministicSampler<T>(rateForEntry));
+                    entry.getKey(), new DeterministicSampler.TraceSampler<T>(rateForEntry));
             samplingRules.add(samplingRule);
           } catch (final NumberFormatException e) {
             log.error("Unable to parse rate for service: {}", entry, e);
@@ -92,7 +93,7 @@ public class RuleBasedSampler<T extends CoreSpan<T>> implements Sampler<T>, Prio
             final double rateForEntry = Double.parseDouble(entry.getValue());
             final SamplingRule<T> samplingRule =
                 new OperationSamplingRule<>(
-                    entry.getKey(), new DeterministicSampler<T>(rateForEntry));
+                    entry.getKey(), new DeterministicSampler.TraceSampler<T>(rateForEntry));
             samplingRules.add(samplingRule);
           } catch (final NumberFormatException e) {
             log.error("Unable to parse rate for operation: {}", entry, e);
@@ -103,7 +104,7 @@ public class RuleBasedSampler<T extends CoreSpan<T>> implements Sampler<T>, Prio
 
     if (defaultRate != null) {
       final SamplingRule<T> samplingRule =
-          new AlwaysMatchesSamplingRule<>(new DeterministicSampler<T>(defaultRate));
+          new AlwaysMatchesSamplingRule<>(new DeterministicSampler.TraceSampler<T>(defaultRate));
       samplingRules.add(samplingRule);
     }
 

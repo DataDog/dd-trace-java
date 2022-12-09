@@ -97,6 +97,31 @@ class HealthMetricsTest extends DDSpecification {
     ]
   }
 
+  def "test onPartialPublish"() {
+    setup:
+    def latch = new CountDownLatch(1)
+    def healthMetrics = new HealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    healthMetrics.start()
+
+    when:
+    healthMetrics.onPartialPublish(droppedSpans)
+    latch.await(10, TimeUnit.SECONDS)
+
+    then:
+    1 * statsD.count('queue.partial.traces', 1)
+    1 * statsD.count('queue.dropped.spans', droppedSpans)
+    0 * _
+
+    cleanup:
+    healthMetrics.close()
+
+    where:
+    droppedSpans | traces
+    1            | 4
+    42           | 1
+    3            | 5
+  }
+
   def "test onScheduleFlush"() {
     when:
     healthMetrics.onScheduleFlush(true)

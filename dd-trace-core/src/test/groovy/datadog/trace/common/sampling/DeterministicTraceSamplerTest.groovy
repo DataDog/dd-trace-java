@@ -4,11 +4,11 @@ import datadog.trace.api.DDTraceId
 import datadog.trace.core.DDSpan
 import datadog.trace.test.util.DDSpecification
 
-class DeterministicSamplerTest extends DDSpecification {
+class DeterministicTraceSamplerTest extends DDSpecification {
 
   def "test known values: #traceId"() {
     given:
-    DeterministicSampler sampler = new DeterministicSampler(0.5)
+    DeterministicSampler sampler = new DeterministicSampler.TraceSampler(0.5)
     DDSpan span = Mock(DDSpan) {
       getTraceId() >> DDTraceId.from(traceId)
     }
@@ -125,7 +125,7 @@ class DeterministicSamplerTest extends DDSpecification {
 
   def "test sampling none: #traceId"() {
     given:
-    DeterministicSampler sampler = new DeterministicSampler(0)
+    DeterministicSampler sampler = new DeterministicSampler.TraceSampler(0)
     DDSpan span = Mock(DDSpan) {
       getTraceId() >> DDTraceId.from(traceId)
     }
@@ -244,7 +244,7 @@ class DeterministicSamplerTest extends DDSpecification {
 
   def "test sampling all: #traceId"() {
     given:
-    DeterministicSampler sampler = new DeterministicSampler(1)
+    DeterministicSampler sampler = new DeterministicSampler.TraceSampler(1)
     DDSpan span = Mock(DDSpan) {
       getTraceId() >> DDTraceId.from(traceId)
     }

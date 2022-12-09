@@ -93,7 +93,7 @@ public class RateByServiceSampler<T extends CoreSpan<T>>
       sanitizedRate = sampleRate;
     }
 
-    return new DeterministicSampler<>(sanitizedRate);
+    return new DeterministicSampler.TraceSampler<>(sanitizedRate);
   }
 
   private static final class RateSamplersByEnvAndService<T extends CoreSpan<T>> {
