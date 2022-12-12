@@ -77,6 +77,8 @@ public class Agent {
     CWS("dd.cws.enabled", false),
     CIVISIBILITY("dd.civisibility.enabled", false),
     CIVISIBILITY_AGENTLESS("dd.civisibility.agentless.enabled", false),
+
+    USM("dd.usm.enabled", false),
     TELEMETRY("dd.instrumentation.telemetry.enabled", true),
     DEBUGGER("dd." + DEBUGGER_ENABLED, false);
 
@@ -118,6 +120,7 @@ public class Agent {
   private static boolean iastEnabled = false;
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
+  private static boolean usmEnabled = false;
   private static boolean telemetryEnabled = true;
   private static boolean debuggerEnabled = false;
 
@@ -165,6 +168,7 @@ public class Agent {
     jmxFetchEnabled = isFeatureEnabled(AgentFeature.JMXFETCH);
     profilingEnabled = isFeatureEnabled(AgentFeature.PROFILING);
     iastEnabled = isFeatureEnabled(AgentFeature.IAST);
+    usmEnabled = isFeatureEnabled(AgentFeature.USM);
     appSecEnabled = isFeatureEnabled(AgentFeature.APPSEC);
     appSecFullyDisabled = isAppSecFullyDisabled();
     remoteConfigEnabled = isFeatureEnabled(AgentFeature.REMOTE_CONFIG);
@@ -196,6 +200,10 @@ public class Agent {
 
     if (cwsEnabled) {
       startCwsAgent();
+    }
+
+    if (usmEnabled){
+      //TODO: @val finish
     }
 
     /*

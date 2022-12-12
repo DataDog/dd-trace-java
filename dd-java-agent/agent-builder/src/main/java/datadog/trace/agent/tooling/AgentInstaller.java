@@ -214,6 +214,9 @@ public class AgentInstaller {
     if (cfg.isCiVisibilityEnabled()) {
       enabledSystems.add(Instrumenter.TargetSystem.CIVISIBILITY);
     }
+    if (cfg.isUsmEnabled()) {
+      enabledSystems.add(Instrumenter.TargetSystem.USM);
+    }
     return enabledSystems;
   }
 

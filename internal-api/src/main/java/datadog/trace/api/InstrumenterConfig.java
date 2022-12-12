@@ -13,6 +13,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATIONS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_METHODS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_USM_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.INTERNAL_EXIT_ON_FAILURE;
@@ -43,6 +44,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTOR
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_THREAD_POOL_EXECUTORS_EXCLUDE;
+import static datadog.trace.api.config.UsmConfig.USM_ENABLED;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 
@@ -65,6 +67,7 @@ public class InstrumenterConfig {
   private final boolean ciVisibilityEnabled;
   private final ProductActivation appSecActivation;
   private final boolean iastEnabled;
+  private final boolean usmEnabled;
   private final boolean telemetryEnabled;
 
   private final boolean traceExecutorsAll;
@@ -127,6 +130,7 @@ public class InstrumenterConfig {
       }
       appSecActivation = ProductActivation.fromString(appSecEnabled);
       iastEnabled = configProvider.getBoolean(IAST_ENABLED, DEFAULT_IAST_ENABLED);
+      usmEnabled = configProvider.getBoolean(USM_ENABLED, DEFAULT_USM_ENABLED);
       telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
     } else {
       // disable these features in native-image
@@ -135,6 +139,7 @@ public class InstrumenterConfig {
       appSecActivation = ProductActivation.FULLY_DISABLED;
       iastEnabled = false;
       telemetryEnabled = false;
+      usmEnabled = false;
     }
 
     traceExecutorsAll = configProvider.getBoolean(TRACE_EXECUTORS_ALL, DEFAULT_TRACE_EXECUTORS_ALL);
@@ -216,6 +221,10 @@ public class InstrumenterConfig {
 
   public ProductActivation getAppSecActivation() {
     return appSecActivation;
+  }
+
+  public boolean isUsmEnabled() {
+    return usmEnabled;
   }
 
   public boolean isIastEnabled() {
@@ -347,6 +356,8 @@ public class InstrumenterConfig {
         + appSecActivation
         + ", iastEnabled="
         + iastEnabled
+        + ", usmEnabled="
+        + usmEnabled
         + ", telemetryEnabled="
         + telemetryEnabled
         + ", traceExecutorsAll="
