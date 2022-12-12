@@ -99,6 +99,9 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_USM_ENABLED = false;
 
+
+  static final boolean DEFAULT_USM_ENABLED = false;
+
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED = true;
