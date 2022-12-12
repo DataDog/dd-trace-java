@@ -54,4 +54,6 @@ public interface IastModule {
   void onPathTraversal(@Nonnull URI uri);
 
   void onPathTraversal(@Nullable File parent, @Nonnull String child);
+
+  void onDirContextSearch(String name, String filterExpr, Object[] filterArgs);
 }
