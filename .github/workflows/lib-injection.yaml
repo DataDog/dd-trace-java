@@ -42,8 +42,8 @@ jobs:
         DOCKER_IMAGE_NAME=$(echo ghcr.io/${GITHUB_REPOSITORY}/${DOCKER_IMAGE_NAME} | tr '[:upper:]' '[:lower:]')
         DOCKER_IMAGE_NAME_WITH_TAG=$(echo ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} | tr '[:upper:]' '[:lower:]')
         echo "Using image name '$DOCKER_IMAGE_NAME_WITH_TAG'"
-        echo "Using GIT BRANCH name ${GITHUB_REF##*/}"      
-        echo ::set-output name=git_branch::${GITHUB_REF##*/}
+        echo "Using GIT BRANCH name ${GITHUB_HEAD_REF-${GITHUB_REF##*/}}"      
+        echo ::set-output name=git_branch::${GITHUB_HEAD_REF-${GITHUB_REF##*/}}
         echo "::set-output name=image_name::$DOCKER_IMAGE_NAME_WITH_TAG"
     - name: Login to Docker
       run: docker login -u publisher -p ${{ secrets.GITHUB_TOKEN }} ghcr.io
@@ -52,7 +52,7 @@ jobs:
       with:
         push: true
         tags: ${{ steps.set_names.outputs.image_name }}
-        platforms: ${{ steps.buildx.outputs.platforms }}
+        platforms: 'linux/amd64,linux/amd64/v2,linux/amd64/v3,linux/amd64/v4,linux/arm64,linux/riscv64,linux/ppc64le,linux/s390x,linux/386,linux/mips64,linux/arm/v7,linux/arm/v6'
         context: ./lib-injection
 
   injection-tests:
