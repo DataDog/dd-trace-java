@@ -14,7 +14,6 @@ import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.List;
-import java.util.Queue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.jctools.queues.MessagePassingQueue;
@@ -62,10 +61,12 @@ public class TraceProcessingWorker implements AutoCloseable {
             singleSpanSampler,
             healthMetrics,
             droppingPolicy);
-    Queue<Object> droppedTracesQueue =
-        spanSamplingWorker == null ? null : spanSamplingWorker.getSpanSamplingQueue();
     this.prioritizationStrategy =
-        prioritization.create(primaryQueue, secondaryQueue, droppedTracesQueue, droppingPolicy);
+        prioritization.create(
+            primaryQueue,
+            secondaryQueue,
+            spanSamplingWorker.getSpanSamplingQueue(),
+            droppingPolicy);
     this.serializingHandler =
         new TraceSerializingHandler(
             primaryQueue, secondaryQueue, healthMetrics, dispatcher, flushInterval, timeUnit);
@@ -74,9 +75,7 @@ public class TraceProcessingWorker implements AutoCloseable {
 
   public void start() {
     this.serializerThread.start();
-    if (spanSamplingWorker != null) {
-      spanSamplingWorker.start();
-    }
+    this.spanSamplingWorker.start();
   }
 
   public boolean flush(long timeout, TimeUnit timeUnit) {
@@ -96,9 +95,7 @@ public class TraceProcessingWorker implements AutoCloseable {
 
   @Override
   public void close() {
-    if (spanSamplingWorker != null) {
-      spanSamplingWorker.close();
-    }
+    spanSamplingWorker.close();
     serializerThread.interrupt();
     try {
       serializerThread.join(THREAD_JOIN_TIMOUT_MS);
