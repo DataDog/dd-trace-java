@@ -407,7 +407,10 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
       this.scopeManager = new OTScopeManager(tracer, converter);
     }
 
-    CorrelationIdInjectors.register(this);
+    if ((config != null && config.isLogsInjectionEnabled())
+        || (config == null && Config.get().isLogsInjectionEnabled())) {
+      CorrelationIdInjectors.register(this);
+    }
   }
 
   private static Map<String, String> customRuntimeTags(
