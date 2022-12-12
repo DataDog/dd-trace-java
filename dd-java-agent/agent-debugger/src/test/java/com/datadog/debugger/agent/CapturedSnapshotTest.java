@@ -39,13 +39,10 @@ import java.lang.reflect.Modifier;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -518,22 +515,17 @@ public class CapturedSnapshotTest {
         installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".kt", 4));
     URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
     Assert.assertNotNull(resource);
-    List<File> filesToDelete = new ArrayList<>();
-    Class<?> testClass = KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
-    try {
-      Object companion = Reflect.on(testClass).get("Companion");
-      int result = Reflect.on(companion).call("main", "").get();
-      Assert.assertEquals(48, result);
-      Snapshot snapshot = assertOneSnapshot(listener);
-      Assert.assertNull(snapshot.getCaptures().getEntry());
-      Assert.assertNull(snapshot.getCaptures().getReturn());
-      Assert.assertEquals(1, snapshot.getCaptures().getLines().size());
-      Assert.assertEquals(CLASS_NAME, snapshot.getProbe().getLocation().getType());
-      Assert.assertEquals("f1", snapshot.getProbe().getLocation().getMethod());
-      assertCaptureArgs(snapshot.getCaptures().getLines().get(4), "value", "int", "31");
-    } finally {
-      filesToDelete.forEach(File::delete);
-    }
+    Class<?> testClass = KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile());
+    Object companion = Reflect.on(testClass).get("Companion");
+    int result = Reflect.on(companion).call("main", "").get();
+    Assert.assertEquals(48, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    Assert.assertNull(snapshot.getCaptures().getEntry());
+    Assert.assertNull(snapshot.getCaptures().getReturn());
+    Assert.assertEquals(1, snapshot.getCaptures().getLines().size());
+    Assert.assertEquals(CLASS_NAME, snapshot.getProbe().getLocation().getType());
+    Assert.assertEquals("f1", snapshot.getProbe().getLocation().getMethod());
+    assertCaptureArgs(snapshot.getCaptures().getLines().get(4), "value", "int", "31");
   }
 
   @Test
@@ -1581,8 +1573,7 @@ public class CapturedSnapshotTest {
   }
 
   static class KotlinHelper {
-    public static Class<?> compileAndLoad(
-        String className, String sourceFileName, List<File> outputFilesToDelete) {
+    public static Class<?> compileAndLoad(String className, String sourceFileName) {
       K2JVMCompiler compiler = new K2JVMCompiler();
       K2JVMCompilerArguments args = compiler.createArguments();
       args.setFreeArgs(Collections.singletonList(sourceFileName));
@@ -1600,26 +1591,10 @@ public class CapturedSnapshotTest {
       File compileOutputDirFile = new File(compilerOutputDir);
       try {
         URLClassLoader urlClassLoader =
-            new URLClassLoader(new URL[] {compileOutputDirFile.toURI().toURL()});
+            new URLClassLoader(new URL[]{compileOutputDirFile.toURI().toURL()});
         return urlClassLoader.loadClass(className);
       } catch (Exception ex) {
         throw new RuntimeException(ex);
-      } finally {
-        registerFilesToDeleteDir(compileOutputDirFile, outputFilesToDelete);
-      }
-    }
-
-    public static void registerFilesToDeleteDir(File dir, List<File> outputFilesToDelete) {
-      if (!dir.exists()) {
-        return;
-      }
-      try {
-        Files.walk(dir.toPath())
-            .sorted(Comparator.reverseOrder())
-            .map(Path::toFile)
-            .forEach(outputFilesToDelete::add);
-      } catch (IOException ex) {
-        ex.printStackTrace();
       }
     }
   }
