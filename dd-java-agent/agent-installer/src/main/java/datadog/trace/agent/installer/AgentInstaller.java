@@ -39,7 +39,8 @@ public class AgentInstaller {
     if (Config.get().isTraceEnabled()
         || Config.get().isProfilingEnabled()
         || Config.get().getAppSecActivation() != ProductActivation.FULLY_DISABLED
-        || Config.get().isCiVisibilityEnabled()) {
+        || Config.get().isCiVisibilityEnabled()
+        || Config.get().isUsmEnabled()) {
       Utils.setInstrumentation(inst);
       installClassTransformer(inst);
       installInstrumenters();
@@ -180,6 +181,9 @@ public class AgentInstaller {
     }
     if (cfg.isCiVisibilityEnabled()) {
       enabledSystems.add(Instrumenter.TargetSystem.CIVISIBILITY);
+    }
+    if (cfg.isUsmEnabled()) {
+      enabledSystems.add(Instrumenter.TargetSystem.USM);
     }
     return enabledSystems;
   }
