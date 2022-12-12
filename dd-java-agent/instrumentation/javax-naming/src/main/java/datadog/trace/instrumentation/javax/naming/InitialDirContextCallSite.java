@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.javax.naming.directory;
+package datadog.trace.instrumentation.javax.naming;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
