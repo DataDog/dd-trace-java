@@ -316,20 +316,22 @@ class SpanSamplingWorkerTest extends DDSpecification {
 
     DDSpan span1 = Mock(DDSpan)
     DDSpan span2 = Mock(DDSpan)
+    DDSpan span3 = Mock(DDSpan)
     span1.samplingPriority() >> PrioritySampling.SAMPLER_DROP
     singleSpanSampler.setSamplingPriority(span1) >> false
     singleSpanSampler.setSamplingPriority(span2) >> true
+    singleSpanSampler.setSamplingPriority(span3) >> false
 
     def queue = worker.getSpanSamplingQueue()
 
     when:
-    assert queue.offer([span1, span2])
+    assert queue.offer([span1, span2, span3])
 
     then:
     primaryQueue.take() == [span2]
 
     then:
-    1 * healthMetrics.onPartialPublish(1)
+    1 * healthMetrics.onPartialPublish(2)
     0 * healthMetrics.onFailedPublish(_)
     0 * healthMetrics.onPublish(_, _)
 

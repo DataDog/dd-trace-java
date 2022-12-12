@@ -145,7 +145,7 @@ public class SpanSamplingWorker implements AutoCloseable {
             log.debug(
                 "Trace is empty after single span sampling. Counted but dropping trace: {}", trace);
           } else {
-            healthMetrics.onPartialPublish(sampledSpans.size());
+            healthMetrics.onPartialPublish(unsampledSpans.size());
             log.debug(
                 "Unsampled spans dropped after single span sampling because Dropping Policy is active or the queue is full. Counted partial trace: {}",
                 sampledSpans);
