@@ -37,7 +37,7 @@ jobs:
     - name: Set Docker Image Tag
       id: set_names
       run: |
-        
+        echo "AQUIIIIII PRUEBO::: $(echo ${GITHUB_REF#refs/heads/} | tr / -)"
         DOCKER_IMAGE_NAME=dd-lib-java-init
         DOCKER_IMAGE_NAME=$(echo ghcr.io/${GITHUB_REPOSITORY}/${DOCKER_IMAGE_NAME} | tr '[:upper:]' '[:lower:]')
         DOCKER_IMAGE_NAME_WITH_TAG=$(echo ${DOCKER_IMAGE_NAME}:${{ github.sha }} | tr '[:upper:]' '[:lower:]')
