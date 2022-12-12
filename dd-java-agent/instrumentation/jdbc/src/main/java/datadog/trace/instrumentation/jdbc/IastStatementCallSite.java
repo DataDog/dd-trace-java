@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.jdbc;
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.sink.SqlInjectionModule;
 
 @CallSite(spi = IastAdvice.class)
 public class IastStatementCallSite {
@@ -24,6 +25,13 @@ public class IastStatementCallSite {
         "long java.sql.Statement.executeLargeUpdate(java.lang.String, java.lang.String[])"),
   })
   public static void beforeExecute(@CallSite.Argument(0) String sql) {
-    InstrumentationBridge.onJdbcQuery(sql);
+    final SqlInjectionModule module = InstrumentationBridge.SQL_INJECTION;
+    if (module != null) {
+      try {
+        module.onJdbcQuery(sql);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("beforeExecute threw", e);
+      }
+    }
   }
 }

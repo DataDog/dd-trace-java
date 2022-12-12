@@ -52,9 +52,17 @@ public final class Ranges {
     }
   }
 
-  public static <E> RangesProvider<E> rangesProviderFor(
-      @Nonnull final TaintedObjects to, @Nonnull final E item) {
-    return new SingletonProvider<>(item, to);
+  public static Range[] mergeRanges(
+      final int offset, @Nonnull final Range[] rangesLeft, @Nonnull final Range[] rangesRight) {
+    final int nRanges = rangesLeft.length + rangesRight.length;
+    final Range[] ranges = new Range[nRanges];
+    if (rangesLeft.length > 0) {
+      System.arraycopy(rangesLeft, 0, ranges, 0, rangesLeft.length);
+    }
+    if (rangesRight.length > 0) {
+      Ranges.copyShift(rangesRight, ranges, rangesLeft.length, offset);
+    }
+    return ranges;
   }
 
   @SuppressWarnings("unchecked")
@@ -83,42 +91,6 @@ public final class Ranges {
     E value(final int index);
 
     Range[] ranges(final E value);
-  }
-
-  private static class SingletonProvider<E> implements RangesProvider<E> {
-    private final E item;
-    private final Range[] ranges;
-
-    private final int rangeCount;
-
-    private SingletonProvider(@Nonnull final E item, @Nonnull final TaintedObjects to) {
-      this.item = item;
-      final TaintedObject tainted = to.get(item);
-      this.ranges = tainted == null ? null : tainted.getRanges();
-      this.rangeCount = tainted == null ? 0 : this.ranges.length;
-    }
-
-    @Override
-    public int rangeCount() {
-      return rangeCount;
-    }
-
-    @Override
-    public int size() {
-      return 1;
-    }
-
-    @Override
-    public E value(final int index) {
-      assert index == 0;
-      return item;
-    }
-
-    @Override
-    public Range[] ranges(final E value) {
-      assert value == item;
-      return ranges;
-    }
   }
 
   private abstract static class IterableProvider<E, LIST> implements RangesProvider<E> {

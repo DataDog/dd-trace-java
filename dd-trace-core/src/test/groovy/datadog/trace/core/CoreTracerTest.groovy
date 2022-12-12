@@ -6,7 +6,7 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.sampling.PrioritySampler
-import datadog.trace.common.sampling.RateByServiceSampler
+import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.sampling.Sampler
 import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.common.writer.DDAgentWriter
@@ -37,7 +37,7 @@ class CoreTracerTest extends DDCoreSpecification {
 
     then:
     tracer.serviceName != ""
-    tracer.sampler instanceof RateByServiceSampler
+    tracer.sampler instanceof RateByServiceTraceSampler
     tracer.writer instanceof DDAgentWriter
     tracer.statsDClient != null && tracer.statsDClient != StatsDClient.NO_OP
 
@@ -378,16 +378,16 @@ class CoreTracerTest extends DDCoreSpecification {
   }
 }
 
-class ControllableSampler<T extends CoreSpan<T>> implements Sampler<T>, PrioritySampler<T> {
+class ControllableSampler implements Sampler, PrioritySampler {
   protected int nextSamplingPriority = PrioritySampling.SAMPLER_KEEP
 
   @Override
-  void setSamplingPriority(T span) {
+  <T extends CoreSpan<T>> void setSamplingPriority(T span) {
     span.setSamplingPriority(nextSamplingPriority, SamplingMechanism.DEFAULT)
   }
 
   @Override
-  boolean sample(T span) {
+  <T extends CoreSpan<T>> boolean sample(T span) {
     return true
   }
 }

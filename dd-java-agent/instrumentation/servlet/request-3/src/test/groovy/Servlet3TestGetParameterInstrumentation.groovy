@@ -1,8 +1,8 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Platform
 import datadog.trace.api.config.TracerConfig
-import datadog.trace.api.iast.IastModule
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.source.WebModule
 import foo.bar.smoketest.Servlet3TestSuite
 import spock.lang.IgnoreIf
 
@@ -23,7 +23,7 @@ class Servlet3TestGetParameterInstrumentation extends AgentTestRunner {
   def 'test getParameter'() {
 
     setup:
-    final iastModule = Mock(IastModule)
+    WebModule iastModule = Mock(WebModule)
     InstrumentationBridge.registerIastModule(iastModule)
     HashMap<String, String[]> map = new HashMap<>()
     map.put("param1", ["value1", "value2"] as String[])
