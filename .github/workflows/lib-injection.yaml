@@ -34,16 +34,16 @@ jobs:
     - name: Available platforms
       run: echo ${{ steps.buildx.outputs.platforms }}
 
+
     - name: Set Docker Image Tag
       id: set_names
       run: |
-        DOCKER_IMAGE_TAG=${{ github.sha }}
+        DOCKER_IMAGE_TAG=$(echo ${GITHUB_HEAD_REF-${GITHUB_REF##*/}} | tr / -)
         DOCKER_IMAGE_NAME=dd-lib-java-init
         DOCKER_IMAGE_NAME=$(echo ghcr.io/${GITHUB_REPOSITORY}/${DOCKER_IMAGE_NAME} | tr '[:upper:]' '[:lower:]')
         DOCKER_IMAGE_NAME_WITH_TAG=$(echo ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} | tr '[:upper:]' '[:lower:]')
         echo "Using image name '$DOCKER_IMAGE_NAME_WITH_TAG'"
-        echo "Using GIT BRANCH name ${GITHUB_HEAD_REF-${GITHUB_REF##*/}}"      
-        echo ::set-output name=git_branch::${GITHUB_HEAD_REF-${GITHUB_REF##*/}}
+        echo "Using GIT BRANCH name ${DOCKER_IMAGE_TAG}"      
         echo "::set-output name=image_name::$DOCKER_IMAGE_NAME_WITH_TAG"
     - name: Login to Docker
       run: docker login -u publisher -p ${{ secrets.GITHUB_TOKEN }} ghcr.io
@@ -52,7 +52,7 @@ jobs:
       with:
         push: true
         tags: ${{ steps.set_names.outputs.image_name }}
-        platforms: 'linux/amd64,linux/amd64/v2,linux/amd64/v3,linux/amd64/v4,linux/arm64,linux/riscv64,linux/ppc64le,linux/s390x,linux/386,linux/mips64,linux/arm/v7,linux/arm/v6'
+        platforms: 'linux/amd64,linux/amd64/v2,linux/amd64/v3,linux/amd64/v4,linux/arm64,linux/riscv64,linux/ppc64le,linux/s390x,linux/386,linux/arm/v7,linux/arm/v6'
         context: ./lib-injection
 
   injection-tests:
@@ -74,7 +74,8 @@ jobs:
       LIBRARY_INJECTION_CONNECTION: ${{ matrix.lib-injection-connection }}
       LIBRARY_INJECTION_ADMISSION_CONTROLLER: ${{ matrix.lib-injection-use-admission-controller }}
       DOCKER_REGISTRY_IMAGES_PATH: ghcr.io/datadog
-      DOCKER_IMAGE_TAG: ${{ github.sha }}
+      DOCKER_IMAGE_WEBLOG_TAG: ${{ github.sha }}
+      #DOCKER_IMAGE_TAG: ${GITHUB_HEAD_REF-${GITHUB_REF##*/}}
 
     steps:
 
@@ -100,7 +101,9 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
- 
+      - name: Set docker init image tag
+        run: echo "DOCKER_IMAGE_TAG=$(echo ${GITHUB_HEAD_REF-${GITHUB_REF##*/}} | tr / -)" >> $GITHUB_ENV
+      
       - name: Build and push images
         run: |
           cd system-tests   
