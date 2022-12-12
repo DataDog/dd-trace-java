@@ -29,6 +29,7 @@ jobs:
       run: |
         echo "GITHUB_REF:: $(echo ${GITHUB_REF#refs/heads/} | tr / -)"
         echo "GITHUB_HEAD_REF:: $(echo ${GITHUB_HEAD_REF} | tr / -)"
+        echo "LA EXPR::: $(echo ${GITHUB_HEAD_REF-${GITHUB_REF#refs/heads/}} | tr / -) "
         DOCKER_IMAGE_NAME=dd-lib-java-init
         DOCKER_IMAGE_NAME=$(echo ghcr.io/${GITHUB_REPOSITORY}/${DOCKER_IMAGE_NAME} | tr '[:upper:]' '[:lower:]')
         DOCKER_IMAGE_NAME_WITH_TAG=$(echo ${DOCKER_IMAGE_NAME}:${{ github.sha }} | tr '[:upper:]' '[:lower:]')
