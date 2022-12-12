@@ -124,8 +124,7 @@ public class TraceProcessingWorker implements AutoCloseable {
     return new MpscBlockingConsumerArrayQueue<>(capacity);
   }
 
-  public static class TraceSerializingHandler
-      implements Runnable, MessagePassingQueue.Consumer<Object> {
+  public static class TraceSerializingHandler implements Runnable {
 
     private final MpscBlockingConsumerArrayQueue<Object> primaryQueue;
     private final MpscBlockingConsumerArrayQueue<Object> secondaryQueue;
@@ -236,12 +235,7 @@ public class TraceProcessingWorker implements AutoCloseable {
     }
 
     private void consumeBatch(MessagePassingQueue<Object> queue) {
-      queue.drain(this, queue.size());
-    }
-
-    @Override
-    public void accept(Object event) {
-      onEvent(event);
+      queue.drain(this::onEvent, queue.size());
     }
   }
 }
