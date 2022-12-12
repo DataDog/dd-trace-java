@@ -34,31 +34,20 @@ jobs:
     - name: Available platforms
       run: echo ${{ steps.buildx.outputs.platforms }}
 
-
-#    - name: Set Docker Image Tag
-#      id: set_names
-#      run: |
-#        DOCKER_IMAGE_TAG=$(echo ${GITHUB_HEAD_REF-${GITHUB_REF##*/}} | tr / -)
-#        DOCKER_IMAGE_NAME=dd-lib-java-init
-#        DOCKER_IMAGE_NAME=$(echo ghcr.io/${GITHUB_REPOSITORY}/${DOCKER_IMAGE_NAME} | tr '[:upper:]' '[:lower:]')
-#        DOCKER_IMAGE_NAME_WITH_TAG=$(echo ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} | tr '[:upper:]' '[:lower:]')
-#        echo "Using image name '$DOCKER_IMAGE_NAME_WITH_TAG'"
-#        echo "Using GIT BRANCH name ${DOCKER_IMAGE_TAG}"      
-#        echo "::set-output name=image_name::$DOCKER_IMAGE_NAME_WITH_TAG"
-
     - name: Set Docker Image Tag
       id: set_names
       run: |
         
         DOCKER_IMAGE_NAME=dd-lib-java-init
         DOCKER_IMAGE_NAME=$(echo ghcr.io/${GITHUB_REPOSITORY}/${DOCKER_IMAGE_NAME} | tr '[:upper:]' '[:lower:]')
-        DOCKER_IMAGE_TAG=${{ github.sha }}
-        DOCKER_IMAGE_NAME_WITH_TAG=$(echo ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} | tr '[:upper:]' '[:lower:]')
-
+        DOCKER_IMAGE_NAME_WITH_TAG=$(echo ${DOCKER_IMAGE_NAME}:${{ github.sha }} | tr '[:upper:]' '[:lower:]')
+        
+        #If we are building main branch, we also tag as latest_snapshot
         if [ $(echo ${GITHUB_HEAD_REF-${GITHUB_REF##*/}} | tr / -) == 'robertomonteromiguel-lib_injection_system_tests_integration' ]; then
-          DOCKER_IMAGE_NAME_WITH_TAG=${DOCKER_IMAGE_NAME_WITH_TAG},$(echo ${DOCKER_IMAGE_NAME}:LATEST_SNAPSHOT)
+          DOCKER_IMAGE_NAME_WITH_TAG=${DOCKER_IMAGE_NAME_WITH_TAG},$(echo ${DOCKER_IMAGE_NAME}:latest_snapshot)
         fi
 
+        #If we have the CI_COMMIT_SHA we use it as tag (related with release)
         if [ -n "${{ env.CI_COMMIT_SHA }}" ] ; then
           DOCKER_IMAGE_NAME_WITH_TAG=${DOCKER_IMAGE_NAME_WITH_TAG},$(echo ${DOCKER_IMAGE_NAME}:${{ env.CI_COMMIT_SHA }})
         fi
@@ -121,9 +110,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-     # - name: Set docker init image tag
-     #   run: echo "DOCKER_IMAGE_TAG=$(echo ${GITHUB_HEAD_REF-${GITHUB_REF##*/}} | tr / -)" >> $GITHUB_ENV
       
       - name: Build and push images
         run: |
