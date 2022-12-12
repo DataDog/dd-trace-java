@@ -24,20 +24,11 @@ jobs:
       id: buildx
       uses: docker/setup-buildx-action@dc7b9719a96d48369863986a06765841d7ea23f6 # 2.0.0
 
-    - name: Build dd-java-agent.jar
-      run: |
-          JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 ./gradlew dd-java-agent:build dd-java-agent:shadowJar --build-cache --parallel --no-daemon --max-workers=8
-          cp workspace/dd-java-agent/build/libs/dd-java-agent-*.jar lib-injection/
-          rm lib-injection/*-sources.jar lib-injection/*-javadoc.jar
-          mv lib-injection/*.jar lib-injection/dd-java-agent.jar
-
-    - name: Available platforms
-      run: echo ${{ steps.buildx.outputs.platforms }}
-
     - name: Set Docker Image Tag
       id: set_names
       run: |
-        echo "AQUIIIIII PRUEBO::: $(echo ${GITHUB_REF#refs/heads/} | tr / -)"
+        echo "GITHUB_REF:: $(echo ${GITHUB_REF#refs/heads/} | tr / -)"
+        echo "GITHUB_HEAD_REF:: $(echo ${GITHUB_HEAD_REF} | tr / -)"
         DOCKER_IMAGE_NAME=dd-lib-java-init
         DOCKER_IMAGE_NAME=$(echo ghcr.io/${GITHUB_REPOSITORY}/${DOCKER_IMAGE_NAME} | tr '[:upper:]' '[:lower:]')
         DOCKER_IMAGE_NAME_WITH_TAG=$(echo ${DOCKER_IMAGE_NAME}:${{ github.sha }} | tr '[:upper:]' '[:lower:]')
@@ -54,6 +45,18 @@ jobs:
 
         echo "Using image name '$DOCKER_IMAGE_NAME_WITH_TAG'"
         echo "::set-output name=image_name::$DOCKER_IMAGE_NAME_WITH_TAG"
+
+    - name: Build dd-java-agent.jar
+      run: |
+          JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 ./gradlew dd-java-agent:build dd-java-agent:shadowJar --build-cache --parallel --no-daemon --max-workers=8
+          cp workspace/dd-java-agent/build/libs/dd-java-agent-*.jar lib-injection/
+          rm lib-injection/*-sources.jar lib-injection/*-javadoc.jar
+          mv lib-injection/*.jar lib-injection/dd-java-agent.jar
+
+    - name: Available platforms
+      run: echo ${{ steps.buildx.outputs.platforms }}
+
+
 
 
     - name: Login to Docker
