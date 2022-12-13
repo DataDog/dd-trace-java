@@ -3,6 +3,7 @@ package datadog.trace.agent.installer;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.Instrumenters;
+import datadog.trace.agent.tooling.PosixPidSupplier;
 import datadog.trace.agent.tooling.Utils;
 import datadog.trace.agent.tooling.WeakCaches;
 import datadog.trace.agent.tooling.WeakMaps;
@@ -10,6 +11,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
+import datadog.trace.util.PidHelper;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.EnumSet;
@@ -33,6 +35,8 @@ public class AgentInstaller {
     // register weak map/cache suppliers as early as possible
     WeakMaps.registerAsSupplier();
     WeakCaches.registerAsSupplier();
+    // supply PID fall-back on Java 8 as early as possible
+    PidHelper.supplyIfAbsent(new PosixPidSupplier());
   }
 
   public static void installBytebuddyAgent(Instrumentation inst) {

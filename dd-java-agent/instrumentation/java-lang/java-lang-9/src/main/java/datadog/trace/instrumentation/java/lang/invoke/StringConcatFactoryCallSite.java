@@ -6,6 +6,7 @@ import static java.lang.invoke.StringConcatFactory.makeConcatWithConstants;
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.propagation.StringModule;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.invoke.ConstantCallSite;
 import java.lang.invoke.MethodHandle;
@@ -65,6 +66,23 @@ public class StringConcatFactoryCallSite {
           "Failed to instrument makeConcatWithConstants, reverting to default concat logic", e);
       return makeConcatWithConstants(lookup, name, concatType, recipe, constants);
     }
+  }
+
+  public static String onStringConcatFactory(
+      final String result,
+      final String[] arguments,
+      final String recipe,
+      final Object[] constants,
+      final int[] recipeOffsets) {
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        module.onStringConcatFactory(result, arguments, recipe, constants, recipeOffsets);
+      } catch (final Throwable t) {
+        module.onUnexpectedException("Callback for onStringConcatFactory threw.", t);
+      }
+    }
+    return result;
   }
 
   /**
@@ -161,7 +179,7 @@ public class StringConcatFactoryCallSite {
     try {
       final MethodHandles.Lookup lookup = MethodHandles.publicLookup();
       return lookup.findStatic(
-          InstrumentationBridge.class,
+          StringConcatFactoryCallSite.class,
           "onStringConcatFactory",
           methodType(
               String.class,

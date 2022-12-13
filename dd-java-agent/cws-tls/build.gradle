@@ -10,9 +10,6 @@ apply from: "$rootDir/gradle/version.gradle"
 
 excludedClassesCoverage += ['datadog.cws.erpc.*', 'datadog.cws.tls.*',]
 
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
-
 dependencies {
   implementation group: 'net.java.dev.jna', name: 'jna', version: '5.8.0'
   implementation group: 'net.java.dev.jna', name: 'jna-platform', version: '5.8.0'
@@ -27,6 +24,3 @@ shadowJar {
   dependencies deps.excludeShared
 }
 
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
-}

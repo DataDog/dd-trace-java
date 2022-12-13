@@ -4,7 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.jar.asm.Opcodes.ACC_ABSTRACT;
 import static net.bytebuddy.jar.asm.Opcodes.ACC_INTERFACE;
 import static net.bytebuddy.jar.asm.Opcodes.ACC_PUBLIC;
-import static net.bytebuddy.jar.asm.Opcodes.V1_7;
+import static net.bytebuddy.jar.asm.Opcodes.V1_8;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -53,7 +53,7 @@ public class ClassInjectingTransformer implements AgentBuilder.Transformer, AsmV
       MethodHandle defineMethod = myLookup.unreflect(m);
       ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
       cw.visit(
-          V1_7,
+          V1_8,
           ACC_PUBLIC | ACC_INTERFACE | ACC_ABSTRACT,
           binaryName,
           null,

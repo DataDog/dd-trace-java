@@ -18,7 +18,6 @@ minimumInstructionCoverage = 0.0
 dependencies {
   api project(':dd-trace-api')
   api project(':internal-api')
-  api project(':internal-api:internal-api-8')
   api project(':internal-api:internal-api-9')
   api project(':dd-java-agent:agent-logging')
   api deps.slf4j
@@ -35,13 +34,13 @@ sourceSets {
 }
 
 compileMain_java11Java.configure {
+  setJavaVersion(it, 11)
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
-  setJavaVersion(it, 11)
 }
 
 dependencies {
-  main_java11CompileOnly project(':internal-api:internal-api-8')
+  main_java11CompileOnly project(':internal-api')
   main_java11CompileOnly sourceSets.main.output
 }
 

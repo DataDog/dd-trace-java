@@ -8,8 +8,6 @@ ext {
   serverModule = 'tomcat-8'
   serverVersion = '8.5.84'
   serverExtension = 'zip'
-
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
 apply from: "$rootDir/gradle/java.gradle"

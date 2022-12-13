@@ -16,6 +16,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import net.bytebuddy.asm.Advice;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpMethod;
@@ -64,6 +65,9 @@ public class CommonsHttpClientInstrumentation extends Instrumenter.Tracing
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, httpMethod);
       propagate().inject(span, httpMethod, SETTER);
+      propagate()
+          .injectPathwayContext(
+              span, httpMethod, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
 
       return scope;
     }

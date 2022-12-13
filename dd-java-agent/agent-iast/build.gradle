@@ -14,7 +14,6 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 
   implementation project(':internal-api')
-  implementation project(':internal-api:internal-api-8')
   implementation project(':internal-api:internal-api-9')
   implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
 
@@ -28,9 +27,6 @@ dependencies {
   jmh project(':dd-java-agent:instrumentation:iast-instrumenter')
   jmh project(':dd-java-agent:instrumentation:java-lang')
 }
-
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
 
 shadowJar {
   dependencies deps.excludeShared
@@ -58,7 +54,6 @@ ext {
   ]
   excludedClassesBranchCoverage = []
   excludedClassesInstructionCoverage = []
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
 tasks.withType(Test).configureEach {
@@ -88,4 +83,9 @@ subprojects { Project subProj ->
 jmh {
   jmhVersion = '1.28'
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+pitest {
+  targetClasses = ['com.datadog.iast.*']
+  jvmArgs = ['-Ddd.iast.enabled=true']
 }

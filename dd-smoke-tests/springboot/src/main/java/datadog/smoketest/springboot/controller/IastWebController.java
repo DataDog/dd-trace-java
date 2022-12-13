@@ -1,11 +1,10 @@
 package datadog.smoketest.springboot.controller;
 
+import ddtest.client.sources.Hasher;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import javax.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,6 +13,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class IastWebController {
+
+  private final Hasher hasher;
+
+  public IastWebController() {
+    this.hasher = new Hasher();
+    hasher.sha1();
+  }
+
   @RequestMapping("/greeting")
   public String greeting() {
     return "Sup Dawg";
@@ -21,11 +28,14 @@ public class IastWebController {
 
   @RequestMapping("/weakhash")
   public String weakhash() {
-    try {
-      MessageDigest.getInstance("MD5").digest("Message body".getBytes(StandardCharsets.UTF_8));
-    } catch (NoSuchAlgorithmException e) {
-      return "Error: " + e.toString();
-    }
+    hasher.md5().digest("Message body".getBytes(StandardCharsets.UTF_8));
+    return "Weak Hash page";
+  }
+
+  @RequestMapping("/async_weakhash")
+  public String asyncWeakhash() {
+    final Thread thread = new Thread(hasher::md4);
+    thread.start();
     return "Weak Hash page";
   }
 

@@ -20,6 +20,7 @@ jobs:
     - name: Set up QEMU
       uses: docker/setup-qemu-action@8b122486cedac8393e77aa9734c3528886e4a1a8 # 2.0.0
 
+
     - name: Set up Docker Buildx
       id: buildx
       uses: docker/setup-buildx-action@dc7b9719a96d48369863986a06765841d7ea23f6 # 2.0.0
@@ -83,6 +84,7 @@ jobs:
             [worker.oci]
               max-parallelism = 1
 
+<<<<<<< HEAD
       - name: Log in to the Container registry
         uses: docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b # 2.0.0
         with:
@@ -91,6 +93,12 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Build and push images
+=======
+      - name: Build dd-java-agent.jar
+        run: JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 JAVA_17_HOME=$JAVA_HOME_17_X64 ./gradlew clean shadowJar --build-cache --parallel --no-daemon --max-workers=8
+
+      - name: Build injection image
+>>>>>>> master
         run: |
           cd system-tests   
           ./lib-injection/execFunction.sh build-and-push-test-app-image 

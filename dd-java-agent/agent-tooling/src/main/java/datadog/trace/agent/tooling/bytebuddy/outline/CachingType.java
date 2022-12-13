@@ -12,8 +12,10 @@ import net.bytebuddy.description.type.TypeList;
 final class CachingType extends WithName {
 
   // non-null sentinels for fields that can legitimately be null
-  private static final Generic UNSET_SUPER_CLASS = Generic.VOID;
-  private static final TypeDescription UNSET_DECLARING_TYPE = TypeDescription.VOID;
+  private static final Generic UNSET_SUPER_CLASS =
+      Generic.OfNonGenericType.ForLoadedType.of(void.class);
+  private static final TypeDescription UNSET_DECLARING_TYPE =
+      TypeDescription.ForLoadedType.of(void.class);
 
   private final TypeDescription delegate;
 

@@ -79,6 +79,11 @@ final class TypeOutline extends WithName {
   }
 
   @Override
+  public TypeDescription getEnclosingType() {
+    return getDeclaringType(); // equivalent for outline purposes
+  }
+
+  @Override
   public int getModifiers() {
     return modifiers;
   }

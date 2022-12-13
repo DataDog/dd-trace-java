@@ -217,6 +217,11 @@ public class DefaultDataStreamsCheckpointer
     }
   }
 
+  @Override
+  public void clear() {
+    timeToBucket.clear();
+  }
+
   void report() {
     inbox.offer(REPORT);
   }

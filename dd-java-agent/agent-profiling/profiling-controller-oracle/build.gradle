@@ -1,6 +1,5 @@
 // Set properties before any plugins get loaded
 ext {
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
   // Need to force Oracle JDK 8 since it is the only JDK compatible with this implementation
   forceJdk = ['ORACLE8']
   // By default tests with be compiled for `minJavaVersionForTests` version,
@@ -28,10 +27,6 @@ dependencies {
   testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
   testImplementation files(project(':dd-java-agent:agent-profiling:profiling-controller-jfr').sourceSets.test.output)
 }
-
-// make sure the code is compiled to Java 8 bytecode
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
 
 // Oracle JDK requires extra JVM arguments to enable JFR
 tasks.withType(Test).configureEach {

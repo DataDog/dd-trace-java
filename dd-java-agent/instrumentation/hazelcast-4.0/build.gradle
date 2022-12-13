@@ -1,6 +1,3 @@
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
-}
 
 muzzle {
   pass {
@@ -23,7 +20,7 @@ testSets {
 }
 
 dependencies {
-  main_java8CompileOnly group: 'com.hazelcast', name: 'hazelcast-all', version: '4.0'
+  compileOnly group: 'com.hazelcast', name: 'hazelcast-all', version: '4.0'
 
   testImplementation group: 'com.hazelcast', name: 'hazelcast-all', version: '4.0'
 

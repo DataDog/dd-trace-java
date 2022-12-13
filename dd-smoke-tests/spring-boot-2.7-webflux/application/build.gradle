@@ -6,11 +6,6 @@ plugins {
   id 'pl.allegro.tech.build.axion-release' version '1.14.2'
 }
 
-java {
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
-}
-
 def sharedRootDir = "$rootDir/../../../"
 def sharedConfigDirectory = "$sharedRootDir/gradle"
 rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
@@ -26,6 +21,10 @@ version = ""
 
 dependencies {
   implementation 'org.springframework.boot:spring-boot-starter-webflux'
+  implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+  implementation group: 'com.h2database', name: 'h2', version: '2.1.214'
+  compileOnly group:"com.google.code.findbugs", name:"jsr305", version:"3.0.2"
+
   if (hasProperty('apiJar')) {
     implementation files(property('apiJar'))
   } else {

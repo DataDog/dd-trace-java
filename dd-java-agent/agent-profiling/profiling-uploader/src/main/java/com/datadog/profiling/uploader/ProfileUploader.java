@@ -20,13 +20,14 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DI
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.uploader.util.JfrCliHelper;
-import datadog.common.process.PidHelper;
 import datadog.common.version.VersionInfo;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.relocate.api.IOLogger;
 import datadog.trace.util.AgentThreadFactory;
+import datadog.trace.util.PidHelper;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.time.Duration;
@@ -146,9 +147,9 @@ public final class ProfileUploader {
     final Map<String, String> tagsMap = new HashMap<>(config.getMergedProfilingTags());
     tagsMap.put(VersionInfo.PROFILER_VERSION_TAG, VersionInfo.VERSION);
     tagsMap.put(VersionInfo.LIBRARY_VERSION_TAG, VersionInfo.VERSION);
-    // PID can be null if we cannot find it out from the system
-    if (PidHelper.PID != null) {
-      tagsMap.put(PidHelper.PID_TAG, PidHelper.PID.toString());
+    // PID can be empty if we cannot find it out from the system
+    if (!PidHelper.getPid().isEmpty()) {
+      tagsMap.put(DDTags.PID_TAG, PidHelper.getPid());
     }
     // Comma separated tags string for V2.4 format
     tags = String.join(",", tagsToList(tagsMap));

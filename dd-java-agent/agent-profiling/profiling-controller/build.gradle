@@ -22,6 +22,7 @@ excludedClassesCoverage += [
 dependencies {
   api deps.slf4j
   api project(':internal-api')
+  api project(':dd-java-agent:agent-profiling:profiling-utils')
 
   testImplementation deps.junit5
   testImplementation deps.guava
@@ -29,5 +30,3 @@ dependencies {
   testImplementation group: 'org.awaitility', name: 'awaitility', version: '4.0.1'
 }
 
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8

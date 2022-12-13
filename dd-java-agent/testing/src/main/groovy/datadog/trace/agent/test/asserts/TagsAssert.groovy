@@ -5,7 +5,7 @@ import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
-import datadog.trace.common.sampling.RateByServiceSampler
+import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.writer.ddagent.TraceMapper
 import datadog.trace.core.DDSpan
 import groovy.transform.stc.ClosureParams
@@ -42,9 +42,10 @@ class TagsAssert {
     assertedTags.add("thread.id")
     assertedTags.add(DDTags.RUNTIME_ID_TAG)
     assertedTags.add(DDTags.LANGUAGE_TAG_KEY)
-    assertedTags.add(RateByServiceSampler.SAMPLING_AGENT_RATE)
+    assertedTags.add(RateByServiceTraceSampler.SAMPLING_AGENT_RATE)
     assertedTags.add(TraceMapper.SAMPLING_PRIORITY_KEY.toString())
     assertedTags.add("_sample_rate")
+    assertedTags.add(DDTags.PID_TAG)
 
     assert tags["thread.name"] != null
     assert tags["thread.id"] != null
@@ -81,7 +82,7 @@ class TagsAssert {
     tag("error.stack", String)
 
     if (message != null) {
-      tag("error.msg", message)
+      tag("error.message", message)
     }
   }
 

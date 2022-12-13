@@ -28,12 +28,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.jctools.maps.NonBlockingHashMap;
-import org.jctools.queues.MpscBlockingConsumerArrayQueue;
+import org.jctools.queues.MpscCompoundQueue;
 import org.jctools.queues.SpmcArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,7 +54,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private final NonBlockingHashMap<MetricKey, Batch> pending;
   private final NonBlockingHashMap<MetricKey, MetricKey> keys;
   private final Thread thread;
-  private final BlockingQueue<InboxItem> inbox;
+  private final MpscCompoundQueue<InboxItem> inbox;
   private final Sink sink;
   private final Aggregator aggregator;
   private final long reportingInterval;
@@ -121,7 +120,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       long reportingInterval,
       TimeUnit timeUnit) {
     this.ignoredResources = ignoredResources;
-    this.inbox = new MpscBlockingConsumerArrayQueue<>(queueSize);
+    this.inbox = new MpscCompoundQueue<>(queueSize);
     this.batchPool = new SpmcArrayQueue<>(maxAggregates);
     this.pending = new NonBlockingHashMap<>(maxAggregates * 4 / 3);
     this.keys = new NonBlockingHashMap<>();
@@ -144,10 +143,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   @Override
   public void start() {
-    if (features.getMetricsEndpoint() == null) {
-      features.discoverIfOutdated();
-    }
-    if (features.supportsMetrics()) {
+    if (isMetricsEnabled()) {
       sink.register(this);
       thread.start();
       cancellation =
@@ -161,6 +157,13 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     } else {
       log.debug("metrics not supported by trace agent");
     }
+  }
+
+  private boolean isMetricsEnabled() {
+    if (features.getMetricsEndpoint() == null) {
+      features.discoverIfOutdated();
+    }
+    return features.supportsMetrics();
   }
 
   @Override
@@ -179,6 +182,19 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   @Override
   public Future<Boolean> forceReport() {
+    // Ensure the feature is enabled
+    if (!isMetricsEnabled()) {
+      return CompletableFuture.completedFuture(false);
+    }
+    // Wait for the thread to start
+    while (cancellation == null || (cancellation.get() != null && !thread.isAlive())) {
+      try {
+        Thread.sleep(10);
+      } catch (InterruptedException e) {
+        return CompletableFuture.completedFuture(false);
+      }
+    }
+    // Try to send the report signal
     ReportSignal reportSignal = new ReportSignal();
     boolean published = false;
     while (thread.isAlive() && !published) {

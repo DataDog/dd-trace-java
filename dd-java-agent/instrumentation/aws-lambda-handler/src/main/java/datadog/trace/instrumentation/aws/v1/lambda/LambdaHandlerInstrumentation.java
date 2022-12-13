@@ -105,6 +105,7 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
     static void exit(
         @Origin String method,
         @Enter final AgentScope scope,
+        @Advice.Return final Object result,
         @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
@@ -113,7 +114,7 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
       try {
         final AgentSpan span = scope.span();
         span.finish();
-        AgentTracer.get().notifyExtensionEnd(span, null != throwable);
+        AgentTracer.get().notifyExtensionEnd(span, result, null != throwable);
       } finally {
         scope.close();
       }

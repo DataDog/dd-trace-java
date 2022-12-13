@@ -5,12 +5,14 @@ and discuss your ideas or propose the changes you wish to make. After a resoluti
 
 ## Requirements
 
-To build the full project from the command line:
+To build the full project:
 
 * JDK version 8 must be installed.
 * JDK version 11 must be installed.
+* JDK version 17 must be installed.
 * `JAVA_8_HOME` must point to the JDK-8 location.
 * `JAVA_11_HOME` must point to the JDK-11 location.
+* `JAVA_17_HOME` must point to the JDK-17 location.
 * The JDK-8 `bin` directory must be the only JDK on the PATH (e.g. `$JAVA_8_HOME/bin`).
 * `JAVA_HOME` may be unset. If set, it must point to JDK-8 (same as `JAVA_8_HOME`).
 
