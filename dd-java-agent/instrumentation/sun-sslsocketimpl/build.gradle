@@ -1,0 +1,15 @@
+muzzle {
+  pass {
+    coreJdk()
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+
+  //testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
+}
+
+
+
