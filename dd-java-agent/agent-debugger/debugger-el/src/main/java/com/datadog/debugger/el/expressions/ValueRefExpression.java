@@ -2,12 +2,13 @@ package com.datadog.debugger.el.expressions;
 
 import com.datadog.debugger.el.Generated;
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.Visitor;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import java.util.Objects;
 
 /** An expression taking a reference path and resolving to {@linkplain Value} */
 @SuppressWarnings("rawtypes")
-public final class ValueRefExpression implements ValueExpression {
+public final class ValueRefExpression implements ValueExpression<Value<?>> {
   private final String symbolName;
 
   public ValueRefExpression(String symbolName) {
@@ -26,6 +27,11 @@ public final class ValueRefExpression implements ValueExpression {
     if (o == null || getClass() != o.getClass()) return false;
     ValueRefExpression that = (ValueRefExpression) o;
     return Objects.equals(symbolName, that.symbolName);
+  }
+
+  @Override
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
   }
 
   @Generated

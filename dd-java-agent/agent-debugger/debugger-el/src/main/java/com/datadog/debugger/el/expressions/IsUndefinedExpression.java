@@ -2,6 +2,7 @@ package com.datadog.debugger.el.expressions;
 
 import com.datadog.debugger.el.Predicate;
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.Visitor;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
 /**
@@ -23,5 +24,14 @@ public final class IsUndefinedExpression implements PredicateExpression {
     }
     Value<?> value = valueExpression.evaluate(valueRefResolver);
     return value.isUndefined() ? Predicate.TRUE : Predicate.FALSE;
+  }
+
+  @Override
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
+  }
+
+  public ValueExpression<?> getValueExpression() {
+    return valueExpression;
   }
 }

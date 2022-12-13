@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.StringTokenizer;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.VarInsnNode;
 
 /** ASM type constants used by code generating instrumentation */
 public final class Types {
@@ -100,6 +101,29 @@ public final class Types {
     }
     internal.append(getDescriptor(className.substring(0, arrayMarker)));
     return Type.getType(internal.toString());
+  }
+
+  public static int getVarOpcode(String varDesc) {
+    switch (Type.getType(varDesc).getClassName()) {
+      case "short":
+      case "byte":
+      case "boolean":
+      case "char":
+      case "int":
+        return Opcodes.ILOAD;
+      case "long":
+        return Opcodes.LLOAD;
+      case "float":
+        return Opcodes.FLOAD;
+      case "double":
+        return Opcodes.DLOAD;
+      default:
+        return Opcodes.ALOAD;
+    }
+  }
+
+  public static VarInsnNode getVarInsnByType(Type type, int number) {
+    return new VarInsnNode(getVarOpcode(type.getDescriptor()), number);
   }
 
   /**

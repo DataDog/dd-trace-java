@@ -2,6 +2,7 @@ package com.datadog.debugger.el.expressions;
 
 import com.datadog.debugger.el.Predicate;
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
@@ -79,5 +80,10 @@ public final class HasAnyExpression extends MatchingExpression {
           valueRefResolver.withExtensions(
               Collections.singletonMap(ValueReferences.ITERATOR_EXTENSION_NAME, value)));
     }
+  }
+
+  @Override
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
   }
 }

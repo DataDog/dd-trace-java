@@ -100,4 +100,8 @@ public final class ProbeCondition implements DebuggerScript {
     }
     return false;
   }
+
+  public void accept(Visitor visitor) {
+    when.accept(visitor);
+  }
 }

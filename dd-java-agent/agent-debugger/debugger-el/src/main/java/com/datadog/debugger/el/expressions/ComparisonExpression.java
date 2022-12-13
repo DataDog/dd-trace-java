@@ -2,6 +2,7 @@ package com.datadog.debugger.el.expressions;
 
 import com.datadog.debugger.el.Predicate;
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.predicates.ValuePredicate;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
@@ -32,5 +33,22 @@ public final class ComparisonExpression implements PredicateExpression {
       return Predicate.FALSE;
     }
     return combiner.get(leftValue, rightValue);
+  }
+
+  @Override
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
+  }
+
+  public ValueExpression<?> getLeft() {
+    return left;
+  }
+
+  public ValueExpression<?> getRight() {
+    return right;
+  }
+
+  public ValuePredicate.Combiner getCombiner() {
+    return combiner;
   }
 }

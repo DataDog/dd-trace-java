@@ -1,5 +1,7 @@
 package com.datadog.debugger.instrumentation;
 
+import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;
+import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
 import static com.datadog.debugger.instrumentation.Types.*;
 
 import com.datadog.debugger.el.InvalidValueException;

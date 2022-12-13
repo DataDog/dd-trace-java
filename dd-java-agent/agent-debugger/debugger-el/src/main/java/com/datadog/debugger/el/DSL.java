@@ -53,7 +53,7 @@ public class DSL {
   }
 
   public static PredicateExpression and(PredicateExpression left, PredicateExpression right) {
-    return new BinaryExpression(left, right, AndPredicate::new);
+    return new BinaryExpression(left, right, AndPredicate.AND);
   }
 
   public static PredicateExpression or(PredicateExpression... expressions) {
@@ -68,27 +68,27 @@ public class DSL {
   }
 
   public static PredicateExpression or(PredicateExpression left, PredicateExpression right) {
-    return new BinaryExpression(left, right, OrPredicate::new);
+    return new BinaryExpression(left, right, OrPredicate.OR);
   }
 
   public static PredicateExpression gt(ValueExpression<?> left, ValueExpression<?> right) {
-    return new ComparisonExpression(left, right, GreaterThanPredicate::new);
+    return new ComparisonExpression(left, right, GreaterThanPredicate.GT);
   }
 
   public static PredicateExpression ge(ValueExpression<?> left, ValueExpression<?> right) {
-    return new ComparisonExpression(left, right, GreaterOrEqualPredicate::new);
+    return new ComparisonExpression(left, right, GreaterOrEqualPredicate.GE);
   }
 
   public static PredicateExpression lt(ValueExpression<?> left, ValueExpression<?> right) {
-    return new ComparisonExpression(left, right, LessThanPredicate::new);
+    return new ComparisonExpression(left, right, LessThanPredicate.LT);
   }
 
   public static PredicateExpression le(ValueExpression<?> left, ValueExpression<?> right) {
-    return new ComparisonExpression(left, right, LessOrEqualPredicate::new);
+    return new ComparisonExpression(left, right, LessOrEqualPredicate.LE);
   }
 
   public static PredicateExpression eq(ValueExpression<?> left, ValueExpression<?> right) {
-    return new ComparisonExpression(left, right, EqualsPredicate::new);
+    return new ComparisonExpression(left, right, EqualsPredicate.EQ);
   }
 
   public static PredicateExpression not(PredicateExpression expression) {

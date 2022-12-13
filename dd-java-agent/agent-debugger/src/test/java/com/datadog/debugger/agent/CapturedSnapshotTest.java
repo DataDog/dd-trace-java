@@ -842,6 +842,120 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  public void simpleCondition2() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    SnapshotProbe snapshotProbe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", "int (java.lang.String)")
+            .when(
+                new ProbeCondition(DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("5"))), "arg == '5'"))
+            .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, snapshotProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "5").get();
+    Assert.assertEquals(3, result);
+    Assert.assertEquals(1, listener.snapshots.size());
+    assertCaptureArgs(
+        listener.snapshots.get(0).getCaptures().getReturn(), "arg", "java.lang.String", "5");
+  }
+
+  @Test
+  public void simpleConditionPredicate() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    SnapshotProbe snapshotProbe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", "int (java.lang.String)")
+            .when(
+                new ProbeCondition(
+                    DSL.when(
+                        DSL.or(
+                            DSL.eq(DSL.ref("arg"), DSL.value("5")),
+                            DSL.eq(DSL.ref("arg"), DSL.value("6")))),
+                    "arg == '5' || arg == '6'"))
+            .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, snapshotProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "5").get();
+    Assert.assertEquals(3, result);
+    Assert.assertEquals(1, listener.snapshots.size());
+    assertCaptureArgs(
+        listener.snapshots.get(0).getCaptures().getReturn(), "arg", "java.lang.String", "5");
+  }
+
+  @Test
+  public void fieldCondition() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    SnapshotProbe snapshotProbe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", "int (java.lang.String)")
+            .when(
+                new ProbeCondition(
+                    DSL.when(
+                        DSL.and(
+                            DSL.eq(DSL.ref("fld"), DSL.value(11)),
+                            DSL.eq(
+                                DSL.getMember(
+                                    DSL.getMember(DSL.getMember(DSL.ref("typed"), "fld"), "fld"),
+                                    "msg"),
+                                DSL.value("hello")))),
+                    "fld == 11 && typed.fld.fld.msg == \"hello\""))
+            .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, snapshotProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "5").get();
+    Assert.assertEquals(3, result);
+    Assert.assertEquals(1, listener.snapshots.size());
+    assertCaptureArgs(
+        listener.snapshots.get(0).getCaptures().getReturn(), "arg", "java.lang.String", "5");
+  }
+
+  @Test
+  public void syntheticCondition() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    SnapshotProbe snapshotProbe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", "int (java.lang.String)")
+            .when(
+                new ProbeCondition(
+                    DSL.when(
+                        DSL.and(
+                            DSL.eq(DSL.ref("@return"), DSL.value(3)),
+                            DSL.gt(DSL.ref("@duration"), DSL.value(0)))),
+                    "@return == 3 && @duration > 0"))
+            .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, snapshotProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "5").get();
+    Assert.assertEquals(3, result);
+    Assert.assertEquals(1, listener.snapshots.size());
+    assertCaptureArgs(
+        listener.snapshots.get(0).getCaptures().getReturn(), "arg", "java.lang.String", "5");
+  }
+
+  @Test
+  public void getterCondition() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot06";
+    SnapshotProbe snapshotProbe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "f", "int ()")
+            .when(
+                new ProbeCondition(
+                    DSL.when(DSL.eq(DSL.getMember(DSL.ref("strMap"), "size"), DSL.value(0))),
+                    "strMap.size == 0"))
+            .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, snapshotProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assert.assertEquals(42, result);
+    Assert.assertEquals(1, listener.snapshots.size());
+  }
+
+  @Test
   public void nullCondition() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot08";
     SnapshotProbe snapshotProbe =
@@ -854,7 +968,7 @@ public class CapturedSnapshotTest {
                                 DSL.getMember(DSL.getMember(DSL.ref("nullTyped"), "fld"), "fld"),
                                 "msg"),
                             DSL.value("hello"))),
-                    ".nullTyped.fld.fld.msg == 'hello'"))
+                    "nullTyped.fld.fld.msg == 'hello'"))
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(CLASS_NAME, snapshotProbe);
@@ -864,8 +978,8 @@ public class CapturedSnapshotTest {
     List<Snapshot.EvaluationError> evaluationErrors =
         listener.snapshots.get(0).getEvaluationErrors();
     Assert.assertEquals(1, evaluationErrors.size());
-    Assert.assertEquals("fld", evaluationErrors.get(0).getExpr());
-    Assert.assertEquals("Cannot dereference to field: fld", evaluationErrors.get(0).getMessage());
+    Assert.assertEquals("nullTyped.fld.fld.msg == 'hello'", evaluationErrors.get(0).getExpr());
+    Assert.assertEquals("java.lang.NullPointerException", evaluationErrors.get(0).getMessage());
   }
 
   @Test
@@ -1222,8 +1336,6 @@ public class CapturedSnapshotTest {
     int result = Reflect.on(testClass).call("main", "1").get();
     Assert.assertEquals(3, result);
     Assert.assertEquals(0, listener.snapshots.size());
-    Assert.assertTrue(listener.skipped);
-    Assert.assertEquals(DebuggerContext.SkipCause.CONDITION, listener.cause);
   }
 
   private DebuggerTransformerTest.TestSnapshotListener setupInstrumentTheWorldTransformer(

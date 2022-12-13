@@ -11,10 +11,8 @@ import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.InsnList;
-import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
-import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.LineNumberNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodInsnNode;
@@ -197,30 +195,6 @@ public class Instrumentor {
 
   protected InsnList getReturnHandlerInsnList() {
     return new InsnList();
-  }
-
-  protected static void invokeStatic(
-      InsnList insnList, Type owner, String name, Type returnType, Type... argTypes) {
-    // expected stack: [arg_type_1 ... arg_type_N]
-    insnList.add(
-        new MethodInsnNode(
-            Opcodes.INVOKESTATIC,
-            owner.getInternalName(),
-            name,
-            Type.getMethodDescriptor(returnType, argTypes),
-            false)); // stack: [ret_type]
-  }
-
-  protected static void ldc(InsnList insnList, int val) {
-    insnList.add(new LdcInsnNode(val));
-  }
-
-  protected static void ldc(InsnList insnList, long val) {
-    insnList.add(new LdcInsnNode(val));
-  }
-
-  protected static void ldc(InsnList insnList, Object val) {
-    insnList.add(val == null ? new InsnNode(Opcodes.ACONST_NULL) : new LdcInsnNode(val));
   }
 
   protected static boolean isStaticField(FieldNode fieldNode) {

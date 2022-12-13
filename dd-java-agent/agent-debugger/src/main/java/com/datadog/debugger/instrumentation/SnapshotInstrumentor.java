@@ -1,5 +1,10 @@
 package com.datadog.debugger.instrumentation;
 
+import static com.datadog.debugger.instrumentation.ASMHelper.invokeConstructor;
+import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;
+import static com.datadog.debugger.instrumentation.ASMHelper.invokeVirtual;
+import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
+import static com.datadog.debugger.instrumentation.ASMHelper.storeVarDefaultValue;
 import static com.datadog.debugger.instrumentation.Types.CAPTURED_VALUE;
 import static com.datadog.debugger.instrumentation.Types.CAPTURE_CONTEXT_TYPE;
 import static com.datadog.debugger.instrumentation.Types.CLASS_TYPE;
@@ -24,27 +29,17 @@ import java.util.ArrayList;
 import java.util.List;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.FieldInsnNode;
-import org.objectweb.asm.tree.FieldNode;
-import org.objectweb.asm.tree.InsnList;
-import org.objectweb.asm.tree.InsnNode;
-import org.objectweb.asm.tree.JumpInsnNode;
-import org.objectweb.asm.tree.LabelNode;
-import org.objectweb.asm.tree.LocalVariableNode;
-import org.objectweb.asm.tree.MethodInsnNode;
-import org.objectweb.asm.tree.MethodNode;
-import org.objectweb.asm.tree.TryCatchBlockNode;
-import org.objectweb.asm.tree.TypeInsnNode;
-import org.objectweb.asm.tree.VarInsnNode;
+import org.objectweb.asm.tree.*;
 
 /** Handles generating instrumentation for snapshot method & line probes */
 public final class SnapshotInstrumentor extends Instrumentor {
   private final SnapshotProbe.Capture capture;
   private final boolean captureFullState;
   private final LabelNode snapshotInitLabel = new LabelNode();
+  private final ConditionInstrumentor conditionInstrumentor;
   private int snapshotVar = -1;
+  private int resultVar = -1;
+  private MethodNode evalConditionMethod;
 
   public SnapshotInstrumentor(
       SnapshotProbe snapshotProbe,
@@ -55,6 +50,15 @@ public final class SnapshotInstrumentor extends Instrumentor {
     super(snapshotProbe, classLoader, classNode, methodNode, diagnostics);
     this.capture = snapshotProbe.getCapture();
     captureFullState = true;
+    conditionInstrumentor =
+        snapshotProbe.getProbeCondition() != null
+            ? new ConditionInstrumentor(
+                snapshotProbe.getId(),
+                snapshotProbe.getProbeCondition(),
+                classLoader,
+                classNode,
+                methodNode)
+            : null;
   }
 
   public SnapshotInstrumentor(
@@ -66,6 +70,7 @@ public final class SnapshotInstrumentor extends Instrumentor {
     super(logProbe, classLoader, classNode, methodNode, diagnostics);
     this.capture = null;
     this.captureFullState = false;
+    conditionInstrumentor = null;
   }
 
   public void instrument() {
@@ -73,6 +78,10 @@ public final class SnapshotInstrumentor extends Instrumentor {
       fillLineMap();
       addLineCaptures(lineMap);
     } else {
+      if (conditionInstrumentor != null) {
+        evalConditionMethod = conditionInstrumentor.generateEvalMethod();
+        classNode.methods.add(evalConditionMethod);
+      }
       instrumentMethodEnter();
       instrumentTryCatchHandlers();
       processInstructions();
@@ -118,6 +127,7 @@ public final class SnapshotInstrumentor extends Instrumentor {
 
   @Override
   protected InsnList getBeforeReturnInsnList(AbstractInsnNode node) {
+
     return collectSnapshotCapture(-1, Snapshot.Kind.RETURN, node);
   }
 
@@ -128,12 +138,22 @@ public final class SnapshotInstrumentor extends Instrumentor {
 
   private InsnList commitSnapshot() {
     InsnList handler = new InsnList();
+    boolean instrumentCondition =
+        conditionInstrumentor != null
+            && definition.getEvaluateAt() == ProbeDefinition.MethodLocation.EXIT;
+    LabelNode gotoNode = new LabelNode();
+    if (instrumentCondition) {
+      conditionInstrumentor.callEvalMethod(handler, evalConditionMethod, snapshotVar, resultVar);
+      // stack [boolean]
+      // if (condition) { }
+      handler.add(new JumpInsnNode(Opcodes.IFEQ, gotoNode));
+      // stack []
+    }
     getSnapshot(handler); // stack: [snapshot]
     LabelNode targetNode = new LabelNode();
     handler.add(new InsnNode(Opcodes.DUP)); // stack: [snapshot, snapshot]
     handler.add(new JumpInsnNode(Opcodes.IFNULL, targetNode)); // stack: [snapshot]
     invokeVirtual(handler, SNAPSHOT_TYPE, "commit", Type.VOID_TYPE); // stack: []
-    LabelNode gotoNode = new LabelNode();
     handler.add(new JumpInsnNode(Opcodes.GOTO, gotoNode));
     handler.add(targetNode); // stack: [snapshot]
     handler.add(new InsnNode(Opcodes.POP)); // stack: []
@@ -405,14 +425,13 @@ public final class SnapshotInstrumentor extends Instrumentor {
     insnList.add(new VarInsnNode(Opcodes.ASTORE, captureVar)); // stack: [ret_value, snapshot]
     insnList.add(new VarInsnNode(Opcodes.ASTORE, snapshotVar)); // stack: [ret_value]
     Type returnType = Type.getReturnType(methodNode.desc);
-    int retVar = newVar(returnType);
     if (returnType.getSize() == 2) {
       insnList.add(new InsnNode(Opcodes.DUP2));
     } else {
       insnList.add(new InsnNode(Opcodes.DUP));
     } // stack: [ret_value, ret_value]
     insnList.add(
-        new VarInsnNode(returnType.getOpcode(Opcodes.ISTORE), retVar)); // stack: [ret_value]
+        new VarInsnNode(returnType.getOpcode(Opcodes.ISTORE), resultVar)); // stack: [ret_value]
     insnList.add(new VarInsnNode(Opcodes.ALOAD, snapshotVar)); // stack: [ret_value, snapshot]
     insnList.add(
         new VarInsnNode(
@@ -429,7 +448,7 @@ public final class SnapshotInstrumentor extends Instrumentor {
     insnList.add(
         new VarInsnNode(
             returnType.getOpcode(Opcodes.ILOAD),
-            retVar)); // stack: [ret_value, snapshot, capturedcontext, capturedcontext, null,
+            resultVar)); // stack: [ret_value, snapshot, capturedcontext, capturedcontext, null,
     // type_name, ret_value]
     tryBox(
         returnType,
@@ -638,19 +657,55 @@ public final class SnapshotInstrumentor extends Instrumentor {
   private void getSnapshot(InsnList insnList) {
     if (snapshotVar == -1) {
       snapshotVar = newVar(SNAPSHOT_TYPE);
-      ldc(insnList, definition.getId());
-      ldc(insnList, Type.getObjectType(classNode.name));
-      invokeStatic(
-          insnList, SNAPSHOTPROVIDER_TYPE, "newSnapshot", SNAPSHOT_TYPE, STRING_TYPE, CLASS_TYPE);
-      insnList.add(new InsnNode(Opcodes.DUP));
-      insnList.add(new VarInsnNode(Opcodes.ASTORE, snapshotVar));
+      Type returnType = Type.getReturnType(methodNode.desc);
+      if (returnType != Type.VOID_TYPE) {
+        // declare a result var
+        resultVar = newVar(returnType);
+      }
       // init the snapshot holder with NULL and store the position where the variable is initialized
       // as a label
       InsnList initSnapshotVar = new InsnList();
       initSnapshotVar.add(new InsnNode(Opcodes.ACONST_NULL));
       initSnapshotVar.add(new VarInsnNode(Opcodes.ASTORE, snapshotVar));
+      if (resultVar > -1) {
+        storeVarDefaultValue(initSnapshotVar, returnType, resultVar);
+      }
       initSnapshotVar.add(snapshotInitLabel);
       methodNode.instructions.insert(methodEnterLabel, initSnapshotVar);
+      // condition eval
+      LabelNode targetNode = null;
+      LabelNode gotoNode = null;
+      boolean instrumentCondition =
+          conditionInstrumentor != null
+              && (definition.getEvaluateAt() == ProbeDefinition.MethodLocation.ENTRY
+                  || definition.getEvaluateAt() == ProbeDefinition.MethodLocation.DEFAULT);
+      if (instrumentCondition) {
+        conditionInstrumentor.callEvalMethod(insnList, evalConditionMethod, snapshotVar, resultVar);
+        // stack [boolean]
+        // if (condition) { }
+        targetNode = new LabelNode();
+        gotoNode = new LabelNode();
+        insnList.add(new JumpInsnNode(Opcodes.IFEQ, targetNode));
+        // stack []
+      }
+      // snapshot = SnapshotProvider.newSnapshot();
+      ldc(insnList, definition.getId());
+      // stack [string]
+      ldc(insnList, Type.getObjectType(classNode.name));
+      // stack [string, string]
+      invokeStatic(
+          insnList, SNAPSHOTPROVIDER_TYPE, "newSnapshot", SNAPSHOT_TYPE, STRING_TYPE, CLASS_TYPE);
+      // stack [snapshot]
+      insnList.add(new InsnNode(Opcodes.DUP));
+      // stack [snapshot, snapshot]
+      insnList.add(new VarInsnNode(Opcodes.ASTORE, snapshotVar));
+      // stack [snapshot]
+      if (instrumentCondition) {
+        insnList.add(new JumpInsnNode(Opcodes.GOTO, gotoNode));
+        insnList.add(targetNode);
+        insnList.add(new VarInsnNode(Opcodes.ALOAD, snapshotVar));
+        insnList.add(gotoNode);
+      }
     } else {
       insnList.add(new VarInsnNode(Opcodes.ALOAD, snapshotVar));
     }
@@ -681,33 +736,6 @@ public final class SnapshotInstrumentor extends Instrumentor {
         INT_TYPE,
         INT_TYPE,
         INT_TYPE); // stack: [captured_value]
-  }
-
-  private void invokeVirtual(
-      InsnList insnList, Type owner, String name, Type returnType, Type... argTypes) {
-    // expected stack: [this, arg_type_1 ... arg_type_N]
-    insnList.add(
-        new MethodInsnNode(
-            Opcodes.INVOKEVIRTUAL,
-            owner.getInternalName(),
-            name,
-            Type.getMethodDescriptor(returnType, argTypes),
-            false)); // stack: [ret_type]
-  }
-
-  private void invokeConstructor(InsnList insnList, Type owner, Type... argTypes) {
-    // expected stack: [instance, arg_type_1 ... arg_type_N]
-    insnList.add(
-        new MethodInsnNode(
-            Opcodes.INVOKESPECIAL,
-            owner.getInternalName(),
-            Types.CONSTRUCTOR,
-            Type.getMethodDescriptor(Type.VOID_TYPE, argTypes),
-            false)); // stack: []
-  }
-
-  private void newInstance(InsnList insnList, Type type) {
-    insnList.add(new TypeInsnNode(Opcodes.NEW, type.getInternalName()));
   }
 
   private int newVar(Type type) {

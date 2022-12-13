@@ -1,6 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.CollectionValue;
 import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
@@ -76,5 +77,18 @@ public final class FilterCollectionExpression implements ValueExpression<Collect
     }
     log.warn("Unsupported collection type {}", collectionValue.getValue().getClass().getTypeName());
     return CollectionValue.UNDEFINED;
+  }
+
+  @Override
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
+  }
+
+  public ValueExpression<?> getSource() {
+    return source;
+  }
+
+  public PredicateExpression getFilterExpression() {
+    return filterExpression;
   }
 }

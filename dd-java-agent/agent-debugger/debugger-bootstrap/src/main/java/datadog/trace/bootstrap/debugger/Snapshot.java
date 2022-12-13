@@ -90,6 +90,18 @@ public class Snapshot {
     }
   }
 
+  /**
+   * Runtime helper used by condition instrumentation Handle exception happening during condition
+   * evaluation
+   */
+  public void handleException(Exception ex, String expr) {
+    if (evaluationErrors == null) {
+      evaluationErrors = new ArrayList<>();
+    }
+    evaluationErrors.add(new EvaluationError(expr, ex.toString()));
+    commit();
+  }
+
   public void setEntry(CapturedContext context) {
     summaryBuilder.addEntry(context);
     context.setThisClassName(thisClassName);
@@ -277,6 +289,7 @@ public class Snapshot {
 
   private static boolean executeScript(
       DebuggerScript script, CapturedContext capture, String probeId) {
+    /*
     if (script == null) {
       return true;
     }
@@ -288,6 +301,8 @@ public class Snapshot {
     } finally {
       LOG.debug("Script for probe[{}] evaluated in {}ns", probeId, (System.nanoTime() - startTs));
     }
+
+     */
     return true;
   }
 

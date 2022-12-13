@@ -2,6 +2,7 @@ package com.datadog.debugger.el.expressions;
 
 import com.datadog.debugger.el.Predicate;
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.CollectionValue;
 import com.datadog.debugger.el.values.StringValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
@@ -29,5 +30,14 @@ public final class IsEmptyExpression implements PredicateExpression {
       return ((StringValue) value)::isEmpty;
     }
     return Predicate.FALSE;
+  }
+
+  @Override
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
+  }
+
+  public ValueExpression<?> getValueExpression() {
+    return valueExpression;
   }
 }

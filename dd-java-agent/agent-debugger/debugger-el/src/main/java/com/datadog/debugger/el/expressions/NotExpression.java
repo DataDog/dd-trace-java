@@ -1,6 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
 import com.datadog.debugger.el.Predicate;
+import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.predicates.NotPredicate;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
@@ -15,5 +16,14 @@ public final class NotExpression implements PredicateExpression {
   @Override
   public Predicate evaluate(ValueReferenceResolver valueRefResolver) {
     return new NotPredicate(predicate.evaluate(valueRefResolver));
+  }
+
+  @Override
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
+  }
+
+  public PredicateExpression getPredicate() {
+    return predicate;
   }
 }

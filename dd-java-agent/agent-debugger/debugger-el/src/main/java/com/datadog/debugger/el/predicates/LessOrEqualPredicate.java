@@ -9,6 +9,9 @@ import java.util.Comparator;
  * @see java.util.Objects#compare(Object, Object, Comparator)
  */
 public final class LessOrEqualPredicate extends NumericPredicate {
+
+  public static final ValuePredicate.Combiner LE = LessOrEqualPredicate::new;
+
   public LessOrEqualPredicate(Value<?> left, Value<?> right) {
     super(left, right, LessOrEqualPredicate::operator);
   }

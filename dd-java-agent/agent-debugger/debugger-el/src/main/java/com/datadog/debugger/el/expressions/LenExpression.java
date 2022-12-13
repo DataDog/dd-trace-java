@@ -1,6 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.CollectionValue;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.StringValue;
@@ -37,6 +38,11 @@ public final class LenExpression implements ValueExpression<Value<? extends Numb
     }
     log.warn("Can not compute length for {}", materialized);
     return Value.undefined();
+  }
+
+  @Override
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
   }
 
   public ValueExpression<?> getSource() {

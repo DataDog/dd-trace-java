@@ -1,6 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
 import com.datadog.debugger.el.Predicate;
+import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.predicates.BinaryPredicate;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
@@ -23,5 +24,22 @@ public final class BinaryExpression implements PredicateExpression {
   @Override
   public Predicate evaluate(ValueReferenceResolver valueRefResolver) {
     return combiner.get(left.evaluate(valueRefResolver), right.evaluate(valueRefResolver));
+  }
+
+  @Override
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
+  }
+
+  public PredicateExpression getLeft() {
+    return left;
+  }
+
+  public PredicateExpression getRight() {
+    return right;
+  }
+
+  public BinaryPredicate.Combiner getCombiner() {
+    return combiner;
   }
 }

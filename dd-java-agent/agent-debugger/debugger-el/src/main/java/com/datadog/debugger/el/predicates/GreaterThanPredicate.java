@@ -9,6 +9,8 @@ import java.util.Comparator;
  * @see java.util.Objects#compare(Object, Object, Comparator)
  */
 public final class GreaterThanPredicate extends NumericPredicate {
+  public static final ValuePredicate.Combiner GT = GreaterThanPredicate::new;
+
   public GreaterThanPredicate(Value<?> left, Value<?> right) {
     super(left, right, GreaterThanPredicate::operator);
   }

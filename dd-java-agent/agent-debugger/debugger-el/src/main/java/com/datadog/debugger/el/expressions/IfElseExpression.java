@@ -1,6 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
 import com.datadog.debugger.el.Expression;
+import com.datadog.debugger.el.Visitor;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
 /** TODO: Primordial support for 'debugger watches' support */
@@ -24,5 +25,22 @@ public final class IfElseExpression implements Expression<Void> {
       elseExpression.evaluate(valueRefResolver);
     }
     return null;
+  }
+
+  @Override
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
+  }
+
+  public PredicateExpression getTest() {
+    return test;
+  }
+
+  public Expression<?> getThenExpression() {
+    return thenExpression;
+  }
+
+  public Expression<?> getElseExpression() {
+    return elseExpression;
   }
 }

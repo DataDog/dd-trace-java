@@ -5,6 +5,9 @@ import java.util.Objects;
 
 /** Compares two {@linkplain Value} instance for equality */
 public final class EqualsPredicate extends ValuePredicate {
+
+  public static final Combiner EQ = EqualsPredicate::new;
+
   public EqualsPredicate(Value<?> left, Value<?> right) {
     super(left, right, EqualsPredicate::operator);
   }
