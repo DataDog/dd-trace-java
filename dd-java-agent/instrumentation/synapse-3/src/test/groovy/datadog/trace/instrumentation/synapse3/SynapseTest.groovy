@@ -22,16 +22,10 @@ import org.apache.synapse.ServerConfigurationInformation
 import org.apache.synapse.ServerContextInformation
 import org.apache.synapse.ServerManager
 import org.apache.synapse.transport.passthru.PassThroughHttpListener
-import spock.lang.Requires
 import spock.lang.Shared
 
 import java.lang.reflect.Field
 
-import static datadog.trace.api.Platform.isJavaVersionAtLeast
-
-@Requires({
-  isJavaVersionAtLeast(8)
-})
 class SynapseTest extends AgentTestRunner {
 
   String expectedServiceName() {

@@ -1,17 +1,12 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.Platform
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.smoketest.controller.TestSuite
 import datadog.trace.api.iast.source.WebModule
-import spock.lang.IgnoreIf
 
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletRequestWrapper
 
-@IgnoreIf({
-  !Platform.isJavaVersionAtLeast(8)
-})
 class TestGetParameterInstrumentation extends AgentTestRunner {
 
   @Override

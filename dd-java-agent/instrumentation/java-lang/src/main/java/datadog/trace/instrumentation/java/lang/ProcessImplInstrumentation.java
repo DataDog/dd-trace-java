@@ -5,7 +5,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Platform;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
@@ -19,11 +18,6 @@ public class ProcessImplInstrumentation extends Instrumenter.Tracing
   @Override
   public String instrumentedType() {
     return "java.lang.ProcessImpl";
-  }
-
-  @Override
-  public boolean isEnabled() {
-    return Platform.isJavaVersionAtLeast(8) && super.isEnabled();
   }
 
   @Override

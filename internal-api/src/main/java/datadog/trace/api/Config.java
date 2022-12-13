@@ -82,7 +82,6 @@ import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
 import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
-import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
@@ -907,11 +906,9 @@ public class Config {
     healthMetricsStatsdPort = configProvider.getInteger(HEALTH_METRICS_STATSD_PORT);
     perfMetricsEnabled =
         runtimeMetricsEnabled
-            && isJavaVersionAtLeast(8)
             && configProvider.getBoolean(PERF_METRICS_ENABLED, DEFAULT_PERF_METRICS_ENABLED);
 
-    tracerMetricsEnabled =
-        isJavaVersionAtLeast(8) && configProvider.getBoolean(TRACER_METRICS_ENABLED, false);
+    tracerMetricsEnabled = configProvider.getBoolean(TRACER_METRICS_ENABLED, false);
     tracerMetricsBufferingEnabled =
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
