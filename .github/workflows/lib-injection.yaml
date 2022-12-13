@@ -84,7 +84,6 @@ jobs:
             [worker.oci]
               max-parallelism = 1
 
-<<<<<<< HEAD
       - name: Log in to the Container registry
         uses: docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b # 2.0.0
         with:
@@ -92,13 +91,7 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Build and push images
-=======
-      - name: Build dd-java-agent.jar
-        run: JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 JAVA_17_HOME=$JAVA_HOME_17_X64 ./gradlew clean shadowJar --build-cache --parallel --no-daemon --max-workers=8
-
       - name: Build injection image
->>>>>>> master
         run: |
           cd system-tests   
           ./lib-injection/execFunction.sh build-and-push-test-app-image 
