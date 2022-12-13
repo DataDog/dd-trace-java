@@ -5,7 +5,6 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
-import datadog.trace.api.Platform
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.api.function.TriConsumer
@@ -427,7 +426,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     List<Response> responses = (1..count).collect {
       return client.newCall(request).execute()
     }
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -454,7 +453,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
     }
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -474,7 +473,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def ip = FORWARDED.body
     def request = request(FORWARDED, method, body).header("x-forwarded-for", ip).build()
     def response = client.newCall(request).execute()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -497,7 +496,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
     }
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -519,7 +518,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       .header("x-datadog-parent-id", parentId.toString())
       .build()
     def response = client.newCall(request).execute()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -542,7 +541,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
     }
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -561,7 +560,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       .header(header, value)
       .build()
     def response = client.newCall(request).execute()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -585,7 +584,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -610,7 +609,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     expect:
     response.code() == endpoint.status
     response.body().string() == endpoint.body
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -630,7 +629,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -651,7 +650,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     when:
     Response response = client.newCall(request).execute()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -675,7 +674,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -706,7 +705,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     when:
     Response response = client.newCall(request).execute()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -730,7 +729,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -754,7 +753,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assumeTrue(testPathParam() != null)
     def request = request(PATH_PARAM, method, body).build()
     def response = client.newCall(request).execute()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -778,7 +777,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -802,7 +801,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def response = client.newCall(request).execute()
     response.body().string() == PATH_PARAM.body
     TEST_WRITER.waitForTraces(1)
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -811,7 +810,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     span.getTag(IG_PATH_PARAMS_TAG) == expectedIGPathParams()
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -831,7 +830,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       .header("x-datadog-sampling-priority", "1, 1")
       .build()
     def response = client.newCall(request).execute()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -855,7 +854,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -873,7 +872,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assumeTrue(testRedirect())
     def request = request(REDIRECT, method, body).build()
     def response = client.newCall(request).execute()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -902,7 +901,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -920,7 +919,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     String method = 'GET'
     def request = request(ERROR, method, null).build()
     def response = client.newCall(request).execute()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -946,7 +945,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -960,7 +959,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assumeTrue(testException())
     def request = request(EXCEPTION, method, body).build()
     def response = client.newCall(request).execute()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -986,7 +985,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -1008,7 +1007,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     def request = request(NOT_FOUND, method, body).build()
     def response = client.newCall(request).execute()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -1031,7 +1030,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -1048,7 +1047,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     when:
     def response = client.newCall(request).execute()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -1073,7 +1072,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -1091,7 +1090,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assumeTrue(testTimeout())
     def request = request(TIMEOUT_ERROR, method, body).build()
     def response = client.newCall(request).execute()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -1118,7 +1117,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -1147,7 +1146,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     when:
     def response = client.newCall(request).execute()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -1176,7 +1175,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -1201,7 +1200,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       RequestBody.create(MediaType.get('text/plain'), 'my body'))
       .build()
     def response = client.newCall(request).execute()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -1217,7 +1216,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -1234,7 +1233,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       RequestBody.create(MediaType.get('text/plain'), 'my body'))
       .build()
     def response = client.newCall(request).execute()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -1250,7 +1249,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -1267,7 +1266,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       RequestBody.create(MediaType.get('application/x-www-form-urlencoded'), 'a=x'))
       .build()
     def response = client.newCall(request).execute()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -1283,7 +1282,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -1300,7 +1299,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       RequestBody.create(MediaType.get('application/json'), '{"a": "x"}'))
       .build()
     def response = client.newCall(request).execute()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -1316,7 +1315,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -1340,7 +1339,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         it.build()
       }
     def response = client.newCall(request).execute()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -1363,7 +1362,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     trace[0].tags['http.status_code'] == 418
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -1387,7 +1386,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       .addHeader('Accept', 'text/html')  // preference for html will be ignored
       .build()
     def response = client.newCall(request).execute()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -1405,7 +1404,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     trace[0].tags['http.status_code'] == 418
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)

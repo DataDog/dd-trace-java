@@ -1,5 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.Platform
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
@@ -71,7 +70,7 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
           // this is the last processing step so we should see 2 traces here
           TEST_WRITER.waitForTraces(2)
           TEST_TRACER.activeSpan().setTag("testing", 123)
-          if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+          if (isDataStreamsEnabled()) {
             TEST_DATA_STREAMS_WRITER.waitForGroups(1)
           }
           records.add(record)
@@ -93,7 +92,7 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
         String apply(String textLine) {
           TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           TEST_TRACER.activeSpan().setTag("asdf", "testing")
-          if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+          if (isDataStreamsEnabled()) {
             TEST_DATA_STREAMS_WRITER.waitForGroups(1)
           }
           return textLine.toLowerCase()
@@ -249,7 +248,7 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
     new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[1][0].traceId}"
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[1][0].spanId}"
 
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup originProducerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(originProducerPoint) {
         edgeTags == ["topic:$STREAM_PENDING", "type:internal"]

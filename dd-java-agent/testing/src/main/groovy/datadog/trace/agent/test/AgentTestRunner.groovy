@@ -17,7 +17,6 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.IdGenerationStrategy
-import datadog.trace.api.Platform
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.config.TracerConfig
@@ -190,7 +189,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
         void register(EventListener listener) {}
       }
     TEST_DATA_STREAMS_CHECKPOINTER = new StubDataStreamsCheckpointer()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       try {
         // Fast enough so tests don't take forever
         long bucketDuration = TimeUnit.MILLISECONDS.toNanos(50)

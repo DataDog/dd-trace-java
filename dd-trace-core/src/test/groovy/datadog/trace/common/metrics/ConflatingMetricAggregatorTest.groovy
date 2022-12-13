@@ -5,7 +5,6 @@ import datadog.trace.api.WellKnownTags
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.CoreSpan
 import datadog.trace.test.util.DDSpecification
-import spock.lang.Requires
 import spock.lang.Shared
 
 import java.util.concurrent.CompletableFuture
@@ -14,13 +13,9 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.function.Supplier
 
-import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.SECONDS
 
-@Requires({
-  isJavaVersionAtLeast(8)
-})
 class ConflatingMetricAggregatorTest extends DDSpecification {
 
   static Set<String> empty = new HashSet<>()

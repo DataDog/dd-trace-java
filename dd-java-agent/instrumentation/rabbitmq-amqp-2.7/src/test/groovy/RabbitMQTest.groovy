@@ -10,7 +10,6 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.Platform
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -116,7 +115,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       channel.basicPublish(exchangeName, routingKey, null, "Hello, world!".getBytes())
       return channel.basicGet(queueName, true)
     }
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
     }
 
@@ -148,7 +147,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags == ["direction:out", "exchange:" + exchangeName, "has_routing_key:true", "type:rabbitmq"]
@@ -172,7 +171,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     String queueName = channel.queueDeclare().getQueue()
     channel.basicPublish("", queueName, null, "Hello, world!".getBytes())
     GetResponse response = channel.basicGet(queueName, true)
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
     }
 
@@ -202,7 +201,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags == ["direction:out", "exchange:", "has_routing_key:true", "type:rabbitmq"]
@@ -250,7 +249,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
         channel.basicPublish(exchangeName, "", null, "msg $it".getBytes())
       }
       TEST_WRITER.waitForTraces(5 + ((it - 1) * 2))
-      if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+      if (isDataStreamsEnabled()) {
         TEST_DATA_STREAMS_WRITER.waitForGroups(it * 2)
       }
       phaser.arriveAndAwaitAdvance()
@@ -296,7 +295,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     deliveries == (1..messageCount).collect { "msg $it" }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       // Look for all StatsPoints created by the producer. They will have the same hash, which would be the consumer
       // points' parent hash.
       List<StatsGroup> producerPoints = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
@@ -352,7 +351,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     channel.basicPublish(exchangeName, "", null, "msg".getBytes())
     TEST_WRITER.waitForTraces(3)
     phaser.arriveAndAwaitAdvance()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
     }
 
@@ -391,7 +390,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags == ["direction:out", "exchange:" + exchangeName, "has_routing_key:false", "type:rabbitmq"]
@@ -446,7 +445,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     AmqpTemplate template = new RabbitTemplate(connectionFactory)
     template.convertAndSend(queue.name, "foo")
     String message = (String) template.receiveAndConvert(queue.name)
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
     }
 
@@ -476,7 +475,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(["direction:out", "exchange:", "has_routing_key:true", "type:rabbitmq"])
@@ -519,7 +518,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       default:
         break
     }
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled() && !noParent) {
+    if (isDataStreamsEnabled() && !noParent) {
       // In the noParent case, the exchange is disabled so we don't expect any pathway injections.
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
     }
@@ -560,7 +559,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled() && !noParent) {
+    if (isDataStreamsEnabled() && !noParent) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags == ["direction:out", "exchange:" + exchangeName, "has_routing_key:true", "type:rabbitmq"]
@@ -612,7 +611,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       default:
         break
     }
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled() && !noParent) {
+    if (isDataStreamsEnabled() && !noParent) {
       // In the noParent case, the queue is disabled so we don't expect any pathway injections.
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
     }
@@ -653,7 +652,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled() && !noParent) {
+    if (isDataStreamsEnabled() && !noParent) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags == ["direction:out", "exchange:" + exchangeName, "has_routing_key:true", "type:rabbitmq"]
