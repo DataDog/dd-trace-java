@@ -51,12 +51,13 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
         PendingTraceBuffer pendingTraceBuffer,
         TimeSource timeSource,
         boolean strictTraceWrites,
-        StatsDClient statsDClient) {
+        StatsDClient statsDClient,
+        HealthMetrics healthMetrics) {
       this.tracer = tracer;
       this.pendingTraceBuffer = pendingTraceBuffer;
       this.timeSource = timeSource;
       this.strictTraceWrites = strictTraceWrites;
-      this.healthMetrics = new HealthMetrics(statsDClient);
+      this.healthMetrics = healthMetrics;
       this.healthMetrics.start();
     }
 

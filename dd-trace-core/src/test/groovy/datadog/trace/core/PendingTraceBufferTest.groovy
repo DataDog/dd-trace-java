@@ -10,6 +10,7 @@ import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.context.TraceScope
+import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.propagation.DatadogTags
 import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.test.util.DDSpecification
@@ -30,7 +31,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
   def tracer = Mock(CoreTracer)
   def scopeManager = new ContinuableScopeManager(10, StatsDClient.NO_OP, true, true)
-  def factory = new PendingTrace.Factory(tracer, bufferSpy, SystemTimeSource.INSTANCE, false,StatsDClient.NO_OP)
+  def factory = new PendingTrace.Factory(tracer, bufferSpy, SystemTimeSource.INSTANCE, false,StatsDClient.NO_OP, new HealthMetrics(StatsDClient.NO_OP))
   List<TraceScope.Continuation> continuations = []
 
   def cleanup() {

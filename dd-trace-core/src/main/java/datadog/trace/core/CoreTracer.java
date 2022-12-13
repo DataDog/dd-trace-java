@@ -55,6 +55,7 @@ import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
 import datadog.trace.core.datastreams.DataStreamsCheckpointer;
 import datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer;
 import datadog.trace.core.datastreams.StubDataStreamsCheckpointer;
+import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.propagation.DatadogTags;
 import datadog.trace.core.propagation.ExtractedContext;
@@ -143,6 +144,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final StatsDClient statsDClient;
   private final Monitoring monitoring;
   private final Monitoring performanceMonitoring;
+
+  private final HealthMetrics healthMetrics;
   private final Recording traceWriteTimer;
   private final IdGenerationStrategy idGenerationStrategy;
   private final PendingTrace.Factory pendingTraceFactory;
@@ -448,10 +451,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         config.isHealthMetricsEnabled()
             ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
             : Monitoring.DISABLED;
+    this.healthMetrics =
+        config.isHealthMetricsEnabled()
+            ? new HealthMetrics(this.statsDClient)
+            : new HealthMetrics(StatsDClient.NO_OP);
     this.performanceMonitoring =
         config.isPerfMetricsEnabled()
             ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
             : Monitoring.DISABLED;
+
     this.traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
     if (scopeManager == null) {
       ContinuableScopeManager csm =
@@ -491,7 +499,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             : PendingTraceBuffer.delaying(this.timeSource);
     pendingTraceFactory =
         new PendingTrace.Factory(
-            this, pendingTraceBuffer, this.timeSource, strictTraceWrites, statsDClient);
+            this,
+            pendingTraceBuffer,
+            this.timeSource,
+            strictTraceWrites,
+            statsDClient,
+            healthMetrics);
     pendingTraceBuffer.start();
 
     this.writer.start();
