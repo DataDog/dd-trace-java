@@ -15,38 +15,7 @@ import static datadog.trace.api.config.TracerConfig.PRIORITIZATION_TYPE
 
 class WriterFactoryTest extends DDSpecification {
 
-  def "test writer creation for #configuredType"() {
-    setup:
-    def config = Mock(Config)
-    config.apiKey >> "my-api-key"
-    config.agentUrl >> "http://my-agent.url"
-    config.getEnumValue(PRIORITIZATION_TYPE, _, _) >> Prioritization.FAST_LANE
-    config.tracerMetricsEnabled >> true
-
-    def sharedComm = new SharedCommunicationObjects()
-    sharedComm.createRemaining(config)
-
-    def sampler = Mock(Sampler)
-    def statsd = Mock(StatsDClient)
-
-    when:
-    def writer = WriterFactory.createWriter(config, sharedComm, sampler, statsd, configuredType)
-
-    then:
-    writer.class == expectedClass
-
-    where:
-    configuredType | expectedClass
-    "LoggingWriter"| LoggingWriter
-    "PrintingWriter" | PrintingWriter
-    "TraceStructureWriter" | TraceStructureWriter
-    "MultiWriter:LoggingWriter,PrintingWriter" | MultiWriter
-    "DDIntakeWriter" | DDIntakeWriter
-    "DDAgentWriter" | DDAgentWriter
-    "not-found" | DDAgentWriter
-  }
-
-  def "test override for civisibility for configuredWriterType=#configuredType hasEvpProxy=#hasEvpProxy agentless=#isCiVisibilityAgentlessEnabled"() {
+  def "test writer creation for #configuredType when agentHasEvpProxy=#hasEvpProxy ciVisibilityAgentless=#isCiVisibilityAgentlessEnabled"() {
     setup:
     def config = Mock(Config)
     config.apiKey >> "my-api-key"
@@ -54,11 +23,9 @@ class WriterFactoryTest extends DDSpecification {
     config.getEnumValue(PRIORITIZATION_TYPE, _, _) >> Prioritization.FAST_LANE
     config.tracerMetricsEnabled >> true
     config.isCiVisibilityEnabled() >> true
-    config.isCiVisibilityAgentlessEnabled() >> isCiVisibilityAgentlessEnabled
 
     def agentFeaturesDiscovery = Mock(DDAgentFeaturesDiscovery)
     agentFeaturesDiscovery.getEvpProxyEndpoint() >> DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT
-    agentFeaturesDiscovery.supportsEvpProxy() >> hasEvpProxy
 
     def sharedComm = new SharedCommunicationObjects()
     sharedComm.setFeaturesDiscovery(agentFeaturesDiscovery)
@@ -68,25 +35,31 @@ class WriterFactoryTest extends DDSpecification {
     def statsd = Mock(StatsDClient)
 
     when:
+    agentFeaturesDiscovery.supportsEvpProxy() >> hasEvpProxy
+    config.ciVisibilityAgentlessEnabled >> isCiVisibilityAgentlessEnabled
     def writer = WriterFactory.createWriter(config, sharedComm, sampler, statsd, configuredType)
 
     then:
     writer.class == expectedWriterClass
-    writer.api.class == expectedApiClass
+    expectedApiClass == null || ((RemoteWriter)writer).api.class == expectedApiClass
 
     where:
-    configuredType   | hasEvpProxy | isCiVisibilityAgentlessEnabled | expectedWriterClass | expectedApiClass
+    configuredType | hasEvpProxy | isCiVisibilityAgentlessEnabled | expectedWriterClass | expectedApiClass
+    "LoggingWriter" | true | true | LoggingWriter | null
+    "PrintingWriter" | true | true | PrintingWriter | null
+    "TraceStructureWriter" | true | true | TraceStructureWriter | null
+    "MultiWriter:LoggingWriter,PrintingWriter" | true | true | MultiWriter | null
     "DDIntakeWriter" | true  | true  | DDIntakeWriter | DDIntakeApi
     "DDIntakeWriter" | true  | false | DDIntakeWriter | DDEvpProxyApi
     "DDIntakeWriter" | false | true  | DDIntakeWriter | DDIntakeApi
     "DDIntakeWriter" | false | false | DDIntakeWriter | DDIntakeApi
-    "DDAgentWriter"  | true  | true  | DDIntakeWriter | DDIntakeApi
-    "DDAgentWriter"  | true  | false | DDIntakeWriter | DDEvpProxyApi
-    "DDAgentWriter"  | false | true  | DDIntakeWriter | DDIntakeApi
-    "DDAgentWriter"  | false | false | DDAgentWriter  | DDAgentApi
-    "not-found"      | true  | true  | DDIntakeWriter | DDIntakeApi
-    "not-found"      | true  | false | DDIntakeWriter | DDEvpProxyApi
-    "not-found"      | false | true  | DDIntakeWriter | DDIntakeApi
-    "not-found"      | false | false | DDAgentWriter  | DDAgentApi
+    "DDAgentWriter" | true  | true  | DDIntakeWriter | DDIntakeApi
+    "DDAgentWriter" | true  | false | DDIntakeWriter | DDEvpProxyApi
+    "DDAgentWriter" | false | true  | DDIntakeWriter | DDIntakeApi
+    "DDAgentWriter" | false | false | DDAgentWriter  | DDAgentApi
+    "not-found" | true  | true  | DDIntakeWriter | DDIntakeApi
+    "not-found" | true  | false | DDIntakeWriter | DDEvpProxyApi
+    "not-found" | false | true  | DDIntakeWriter | DDIntakeApi
+    "not-found" | false | false | DDAgentWriter  | DDAgentApi
   }
 }
