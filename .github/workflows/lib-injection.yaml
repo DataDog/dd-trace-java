@@ -24,7 +24,7 @@ jobs:
 
       - name: Build app image
         run: |
-          JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 \
+          JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 JAVA_17_HOME=$JAVA_HOME_17_X64 \
           ./lib-injection/run.sh build-test-app-image push-test-app-image
 
   lib-injection-image-build:
@@ -52,7 +52,7 @@ jobs:
               max-parallelism = 1
 
       - name: Build dd-java-agent.jar
-        run: JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 ./gradlew clean shadowJar --build-cache --parallel --no-daemon --max-workers=8
+        run: JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 JAVA_17_HOME=$JAVA_HOME_17_X64 ./gradlew clean shadowJar --build-cache --parallel --no-daemon --max-workers=8
 
       - name: Build injection image
         run: |

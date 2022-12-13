@@ -17,8 +17,12 @@ class IastSystemTest extends DDSpecification {
     final ss = Spy(ig.getSubscriptionService(RequestContextSlot.IAST))
     final cbp = ig.getCallbackProvider(RequestContextSlot.IAST)
     final traceSegment = Mock(TraceSegment)
+    final iastContext = Mock(IastRequestContext) {
+      getTaintedObjects() >> null
+    }
     final RequestContext reqCtx = Stub(RequestContext) {
       getTraceSegment() >> traceSegment
+      getData(RequestContextSlot.IAST) >> iastContext
     }
     final igSpanInfo = Mock(IGSpanInfo)
 
@@ -45,6 +49,7 @@ class IastSystemTest extends DDSpecification {
     endCallback.apply(reqCtx, igSpanInfo)
 
     then:
+    1 * iastContext.getTaintedObjects()
     1 * traceSegment.setTagTop('_dd.iast.enabled', 1)
     0 * _
     noExceptionThrown()
