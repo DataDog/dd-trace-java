@@ -22,7 +22,8 @@ class HttpInjectorTest extends DDCoreSpecification {
     Config config = Mock(Config) {
       getPropagationStylesToInject() >> styles
     }
-    HttpCodec.Injector injector = HttpCodec.createInjector(config)
+    HttpCodec.Injector injector = HttpCodec.createInjector(config.getPropagationStylesToInject(), [:]
+    )
 
     def traceId = DDTraceId.ONE
     def spanId = 2
@@ -116,7 +117,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       "fakeResource",
       samplingPriority,
       origin,
-      ["k1": "v1", "k2": "v2"],
+      ["k1": "v1", "k2": "v2","some-baggage-item":"some-baggage-value"],
       false,
       "fakeType",
       0,
@@ -130,7 +131,8 @@ class HttpInjectorTest extends DDCoreSpecification {
     final Map<String, String> carrier = Mock()
 
     when:
-    HttpCodec.inject(mockedContext, carrier, MapSetter.INSTANCE, style)
+    def injector = HttpCodec.createInjector([style].toSet(), ["some-baggage-item": "SOME_HEADER"],)
+    HttpCodec.inject(mockedContext, carrier, MapSetter.INSTANCE, injector)
 
     then:
     if (style == DATADOG) {
@@ -138,6 +140,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       1 * carrier.put(DatadogHttpCodec.SPAN_ID_KEY, spanId.toString())
       1 * carrier.put(DatadogHttpCodec.OT_BAGGAGE_PREFIX + "k1", "v1")
       1 * carrier.put(DatadogHttpCodec.OT_BAGGAGE_PREFIX + "k2", "v2")
+      1 * carrier.put("SOME_HEADER", "some-baggage-value")
       if (samplingPriority != UNSET) {
         1 * carrier.put(DatadogHttpCodec.SAMPLING_PRIORITY_KEY, "$samplingPriority")
       }

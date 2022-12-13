@@ -84,7 +84,8 @@ public class ExtractorBenchmark {
     }
 
     System.setProperty("dd.propagation.style.extract", propagations.toString());
-    extractor = HttpCodec.createExtractor(Config.get(), Collections.<String, String>emptyMap());
+    extractor =
+        HttpCodec.createExtractor(Config.get(), Collections.emptyMap(), Collections.emptyMap());
 
     if (extractPropagationStyles.startsWith("datadog")) {
       traceId = DDTraceId.from("12345");

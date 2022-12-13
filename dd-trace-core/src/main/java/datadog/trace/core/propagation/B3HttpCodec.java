@@ -77,13 +77,16 @@ class B3HttpCodec {
     }
   }
 
-  public static HttpCodec.Extractor newExtractor(final Map<String, String> tagMapping) {
+  public static HttpCodec.Extractor newExtractor(
+      final Map<String, String> tagMapping, Map<String, String> baggageMapping) {
     return new TagContextExtractor(
         tagMapping,
+        baggageMapping,
         new ContextInterpreter.Factory() {
           @Override
-          protected ContextInterpreter construct(final Map<String, String> mapping) {
-            return new B3ContextInterpreter(mapping);
+          protected ContextInterpreter construct(
+              final Map<String, String> mapping, Map<String, String> baggageMapping) {
+            return new B3ContextInterpreter(mapping, baggageMapping);
           }
         });
   }
@@ -97,8 +100,9 @@ class B3HttpCodec {
     private static final int B3_ID = 4;
     private static final int IGNORE = -1;
 
-    private B3ContextInterpreter(final Map<String, String> taggedHeaders) {
-      super(taggedHeaders, Config.get());
+    private B3ContextInterpreter(
+        final Map<String, String> taggedHeaders, Map<String, String> baggageMapping) {
+      super(taggedHeaders, baggageMapping, Config.get());
     }
 
     @Override
