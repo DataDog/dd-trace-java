@@ -59,5 +59,10 @@ public interface IastModule {
 
   void onPathTraversal(@Nullable File parent, @Nonnull String child);
 
-  void onCookie(@Nonnull String... cookieStrings);
+  void onCookie(
+      final String comment,
+      final String domain,
+      final String value,
+      final String name,
+      final String path);
 }

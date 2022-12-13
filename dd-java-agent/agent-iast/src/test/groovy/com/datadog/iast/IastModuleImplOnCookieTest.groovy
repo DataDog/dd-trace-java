@@ -10,15 +10,11 @@ class IastModuleImplOnCookieTest extends IastModuleImplTestBase {
 
   void 'onCookie without span'() {
     when:
-    module.onParameterName(cookieString)
+    module.onCookie("comment", "domain", "value", "name", "path")
 
     then:
     1 * tracer.activeSpan() >> null
     0 * _
-
-    where:
-    cookieString   | _
-    "cookieString" | _
   }
 
   void 'onCookie'() {
@@ -31,23 +27,35 @@ class IastModuleImplOnCookieTest extends IastModuleImplTestBase {
     reqCtx.getData(RequestContextSlot.IAST) >> ctx
 
     when:
-    module.onCookie(cookieString)
+    module.onCookie(comment, domain, value, name, path)
 
     then:
     1 * tracer.activeSpan() >> span
     1 * span.getRequestContext() >> reqCtx
     1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
     0 * _
-    def to = ctx.getTaintedObjects().get(cookieString)
-    to != null
-    to.get() == cookieString
-    to.ranges.size() == 1
-    to.ranges[0].start == 0
-    to.ranges[0].length == cookieString.length()
-    to.ranges[0].source == new Source(SourceType.REQUEST_COOKIE, cookieString, null)
+    checkCookieStringAttr(ctx, "comment", comment)
+    checkCookieStringAttr(ctx, "value", value)
+    checkCookieStringAttr(ctx, "domain", domain)
+    checkCookieStringAttr(ctx, "name", name)
+    checkCookieStringAttr(ctx, "path", path)
 
     where:
-    cookieString    | _
-    'cookieStrings' | _
+    comment   | domain   | value   | name   | path
+    "comment" | "domain" | "value" | "name" | "path"
+  }
+
+  void 'checkCookieStringAttr'(ctx, attr, value) {
+    def to = ctx.getTaintedObjects().get(value)
+    if (value != null && value != "") {
+      assert to != null
+      assert to.get() == value
+      assert to.ranges.size() == 1
+      assert to.ranges[0].start == 0
+      assert to.ranges[0].length == value.length()
+      assert to.ranges[0].source == new Source(SourceType.REQUEST_COOKIE, "http.request.cookie." + attr, value)
+    } else {
+      assert to == null
+    }
   }
 }

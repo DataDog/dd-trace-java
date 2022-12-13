@@ -236,10 +236,15 @@ public abstract class InstrumentationBridge {
     }
   }
 
-  public static void onCookie(@Nonnull final String... cookieStrings) {
+  public static void onCookie(
+      final String comment,
+      final String domain,
+      final String value,
+      final String name,
+      final String path) {
     try {
       if (MODULE != null) {
-        MODULE.onCookie(cookieStrings);
+        MODULE.onCookie(comment, domain, value, name, path);
       }
     } catch (final Throwable t) {
       onUnexpectedException("Callback for onGetCookies threw.", t);

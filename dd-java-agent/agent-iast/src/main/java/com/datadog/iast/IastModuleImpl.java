@@ -444,17 +444,36 @@ public final class IastModuleImpl implements IastModule {
   }
 
   @Override
-  public void onCookie(@Nonnull String... cookieStrings) {
+  public void onCookie(
+      final String comment,
+      final String domain,
+      final String value,
+      final String name,
+      final String path) {
     final IastRequestContext ctx = IastRequestContext.get();
     if (ctx == null) {
       return;
     }
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    for (String cookieString : cookieStrings) {
-      if (canBeTaintedNullSafe(cookieString)) {
-        taintedObjects.taintInputString(
-            cookieString, new Source(SourceType.REQUEST_COOKIE, cookieString, null));
-      }
+    if (canBeTaintedNullSafe(comment)) {
+      taintedObjects.taintInputString(
+          comment, new Source(SourceType.REQUEST_COOKIE, "http.request.cookie.comment", comment));
+    }
+    if (canBeTaintedNullSafe(domain)) {
+      taintedObjects.taintInputString(
+          domain, new Source(SourceType.REQUEST_COOKIE, "http.request.cookie.domain", domain));
+    }
+    if (canBeTaintedNullSafe(value)) {
+      taintedObjects.taintInputString(
+          value, new Source(SourceType.REQUEST_COOKIE, "http.request.cookie.value", value));
+    }
+    if (canBeTaintedNullSafe(name)) {
+      taintedObjects.taintInputString(
+          name, new Source(SourceType.REQUEST_COOKIE, "http.request.cookie.name", name));
+    }
+    if (canBeTaintedNullSafe(path)) {
+      taintedObjects.taintInputString(
+          path, new Source(SourceType.REQUEST_COOKIE, "http.request.cookie.path", path));
     }
   }
 
