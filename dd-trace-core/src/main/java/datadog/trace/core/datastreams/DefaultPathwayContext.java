@@ -145,10 +145,10 @@ public class DefaultPathwayContext implements PathwayContext {
               pathwayLatencyNano,
               edgeLatencyNano);
       edgeStartNanoTicks = nanoTicks;
+      log.debug("### Checkpoint set reported hash {}, parent {}", newHash, hash);
       hash = newHash;
 
       pointConsumer.accept(point);
-      log.debug("Checkpoint set {}", this);
     } finally {
       lock.unlock();
     }

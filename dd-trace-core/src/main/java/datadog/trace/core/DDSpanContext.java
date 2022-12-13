@@ -1,6 +1,5 @@
 package datadog.trace.core;
 
-import static datadog.trace.api.DDTags.PATHWAY_HASH;
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 
 import datadog.trace.api.Config;
@@ -256,13 +255,12 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
       this.errorFlag = errorFlag;
     }
 
-    if (this.errorFlag) {
-      PathwayContext context = getPathwayContext();
-      if (context != null){
-        setTag(PATHWAY_HASH, context.getHash());
-        log.info("#### -> Set tag on error");
-      }
-    }
+//    if (this.errorFlag) {
+//      PathwayContext context = getPathwayContext();
+//      if (context != null){
+//        setTag(PATHWAY_HASH, context.getHash());
+//      }
+//    }
   }
 
   public boolean isMeasured() {
