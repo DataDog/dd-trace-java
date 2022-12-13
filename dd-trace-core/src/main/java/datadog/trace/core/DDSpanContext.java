@@ -254,13 +254,6 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
     if (errorFlag != this.errorFlag) {
       this.errorFlag = errorFlag;
     }
-
-//    if (this.errorFlag) {
-//      PathwayContext context = getPathwayContext();
-//      if (context != null){
-//        setTag(PATHWAY_HASH, context.getHash());
-//      }
-//    }
   }
 
   public boolean isMeasured() {
