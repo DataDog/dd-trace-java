@@ -67,6 +67,7 @@ jobs:
       DOCKER_IMAGE_TAG: ${{ github.sha }}
 
     steps:
+      
       - name: lib-injection test runner
         id: lib-injection-test-runner
         uses: DataDog/system-tests/lib-injection/runner@robertomonteromiguel/lib_injection_integration
