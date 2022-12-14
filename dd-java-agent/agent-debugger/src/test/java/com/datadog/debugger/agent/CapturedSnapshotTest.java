@@ -529,6 +529,53 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  public void sourceFileProbeKotlinMultipleClassesInOneFile() {
+    final String parentClass = "CapturedSnapshot302";
+    final String extraClass = "ExtraClass";
+    int line = 3;
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(extraClass, createSourceFileProbe(PROBE_ID, parentClass + ".kt", line));
+    URL resource = CapturedSnapshotTest.class.getResource("/" + parentClass + ".kt");
+    Assert.assertNotNull(resource);
+    Class<?> testClass = KotlinHelper.compileAndLoad(parentClass, resource.getFile());
+    Object companion = Reflect.on(testClass).get("Companion");
+    int result = Reflect.on(companion).call("main", "").get();
+    Assert.assertEquals(48, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    Assert.assertNull(snapshot.getCaptures().getEntry());
+    Assert.assertNull(snapshot.getCaptures().getReturn());
+    Assert.assertEquals(1, snapshot.getCaptures().getLines().size());
+    Assert.assertEquals(extraClass, snapshot.getProbe().getLocation().getType());
+    Assert.assertEquals("f1", snapshot.getProbe().getLocation().getMethod());
+    assertCaptureArgs(snapshot.getCaptures().getLines().get(line), "value", "int", "31");
+  }
+
+  @Test
+  public void sourceFileProbeKotlinSuspend() {
+    final String CLASS_NAME = "CapturedSnapshot303";
+<<<<<<< HEAD
+    final String classNameWithSuffix = "CapturedSnapshot303$f1$1";
+=======
+    int line = 7;
+>>>>>>> db2f4ad98b ((Worktree))
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".kt", 7));
+    URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
+    Assert.assertNotNull(resource);
+    Class<?> testClass = KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile());
+    Object companion = Reflect.on(testClass).get("Companion");
+    int result = Reflect.on(companion).call("main", "").get();
+    Assert.assertEquals(48, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    Assert.assertNull(snapshot.getCaptures().getEntry());
+    Assert.assertNull(snapshot.getCaptures().getReturn());
+    Assert.assertEquals(1, snapshot.getCaptures().getLines().size());
+    Assert.assertEquals(classNameWithSuffix, snapshot.getProbe().getLocation().getType());
+    Assert.assertEquals("f1", snapshot.getProbe().getLocation().getMethod());
+    assertCaptureArgs(snapshot.getCaptures().getLines().get(4), "value", "int", "31");
+  }
+
+  @Test
   public void fieldExtractor() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot04";
     SnapshotProbe.Builder builder =

@@ -54,6 +54,7 @@ dependencies {
   testImplementation group: 'org.freemarker', name: 'freemarker', version: '2.3.30'
   testImplementation group: 'org.jooq', name: 'joor-java-8', version: '0.9.13'
   testImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-compiler-embeddable', version: "1.5.21"
+  testImplementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-coroutines-core', version: "1.3.0"
   testImplementation project(':dd-trace-core')
   testImplementation project(':dd-java-agent:agent-builder')
   testRuntimeOnly group: 'org.scala-lang', name: 'scala-compiler', version: '2.13.3'
