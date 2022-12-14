@@ -24,10 +24,14 @@ jobs:
       id: buildx
       uses: docker/setup-buildx-action@dc7b9719a96d48369863986a06765841d7ea23f6 # 2.0.0
 
+    - name: Available platforms
+      run: echo ${{ steps.buildx.outputs.platforms }}
+
     - name: Set up Docker platforms
       id: buildx-platforms
       run:  |
         BUILDX_PLATFORMS=`docker buildx imagetools inspect --raw busybox:latest | jq -r 'reduce (.manifests[] | [ .platform.os, .platform.architecture, .platform.variant ] | join("/") | sub("\\/$"; "")) as $item (""; . + "," + $item)' | sed 's/,//'`
+        echo "$BUILDX_PLATFORMS"
         echo "platforms=$BUILDX_PLATFORMS" >> $GITHUB_OUTPUT
 
     - name: lib-injection-tags
