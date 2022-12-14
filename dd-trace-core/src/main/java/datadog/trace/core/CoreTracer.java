@@ -455,6 +455,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         config.isHealthMetricsEnabled()
             ? new HealthMetrics(this.statsDClient)
             : new HealthMetrics(StatsDClient.NO_OP);
+    this.healthMetrics.start();
     this.performanceMonitoring =
         config.isPerfMetricsEnabled()
             ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
@@ -468,7 +469,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               this.statsDClient,
               config.isScopeStrictMode(),
               config.isScopeInheritAsyncPropagation(),
-              profilingContextIntegration);
+              profilingContextIntegration,
+              this.healthMetrics);
       this.scopeManager = csm;
 
     } else {
