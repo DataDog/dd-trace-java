@@ -26,7 +26,9 @@ jobs:
 
     - name: Set up Docker platforms
       id: buildx-platforms
-      run:  echo "platforms=$(docker buildx imagetools inspect --raw busybox:latest | jq -r 'reduce (.manifests[] | [ .platform.os, .platform.architecture, .platform.variant ] | join("/") | sub("\\/$"; "")) as $item (""; . + "," + $item)' | sed 's/,//'`)" >> $GITHUB_OUTPUT
+      run:  |
+        BUILDX_PLATFORMS=`docker buildx imagetools inspect --raw busybox:latest | jq -r 'reduce (.manifests[] | [ .platform.os, .platform.architecture, .platform.variant ] | join("/") | sub("\\/$"; "")) as $item (""; . + "," + $item)' | sed 's/,//'`
+        echo "platforms=$BUILDX_PLATFORMS" >> $GITHUB_OUTPUT
 
     - name: lib-injection-tags
       id: lib-injection-tags
