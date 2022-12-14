@@ -22,6 +22,7 @@ import java.lang.ref.WeakReference;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;
+import dev.reformator.stacktracedecoroutinator.runtime.DecoroutinatorRuntime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -100,6 +101,8 @@ public class DebuggerAgent {
     } else {
       log.debug("No configuration poller available from SharedCommunicationObjects");
     }
+
+    DecoroutinatorRuntime.INSTANCE.load();
   }
 
   private static void loadFromFile(
