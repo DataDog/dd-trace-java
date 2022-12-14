@@ -24,7 +24,6 @@ import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
-import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
@@ -150,11 +149,6 @@ public class Agent {
 
       /*if CI Visibility is enabled, the PrioritizationType should be {@code Prioritization.ENSURE_TRACE} */
       setSystemPropertyDefault("dd.prioritization.type", "ENSURE_TRACE");
-
-      boolean ciVisibilityAgentlessEnabled = isFeatureEnabled(AgentFeature.CIVISIBILITY_AGENTLESS);
-      if (ciVisibilityAgentlessEnabled) {
-        setSystemPropertyDefault("dd.writer.type", WriterConstants.DD_INTAKE_WRITER_TYPE);
-      }
     }
 
     if (Platform.isJ9()) {
