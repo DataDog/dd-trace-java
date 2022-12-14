@@ -112,7 +112,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
     }
 
     when:
-    def result = LambdaHandler.notifyEndInvocation(span, boolValue)
+    def result = LambdaHandler.notifyEndInvocation(span, lambdaResult, boolValue)
 
     then:
     server.lastRequest.headers.get("x-datadog-invocation-error") == eHeaderValue
@@ -125,9 +125,9 @@ class LambdaHandlerTest extends DDCoreSpecification {
     server.close()
 
     where:
-    expected | eHeaderValue | tIdHeaderValue | sIdHeaderValue | sPIdHeaderValue | boolValue
-    true     | "true"       | "1234"         | "5678"         | "2"             | true
-    true     | null         | "1234"         | "5678"         | "2"             | false
+    expected | eHeaderValue | tIdHeaderValue | sIdHeaderValue | sPIdHeaderValue | lambdaResult | boolValue
+    true     | "true"       | "1234"         | "5678"         | "2"             | {}           | true
+    true     | null         | "1234"         | "5678"         | "2"             | "12345"      | false
   }
 
   def "test end invocation failure"() {
@@ -149,7 +149,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
     }
 
     when:
-    def result = LambdaHandler.notifyEndInvocation(span, boolValue)
+    def result = LambdaHandler.notifyEndInvocation(span, lambdaResult, boolValue)
 
     then:
     result == expected
@@ -159,9 +159,9 @@ class LambdaHandlerTest extends DDCoreSpecification {
     server.close()
 
     where:
-    expected  | headerValue     | boolValue
-    false     | "true"          | true
-    false     | null            | false
+    expected | headerValue | lambdaResult | boolValue
+    false    | "true"      | {}           | true
+    false    | null        | "12345"      | false
   }
 
   def "test moshi toJson SNSEvent"() {

@@ -12,6 +12,7 @@ import static datadog.trace.instrumentation.netty38.client.NettyResponseInjectAd
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.instrumentation.netty38.ChannelTraceContext;
 import java.net.InetSocketAddress;
 import org.jboss.netty.channel.Channel;
@@ -60,6 +61,9 @@ public class HttpClientRequestTracingHandler extends SimpleChannelDownstreamHand
       decorate.onPeerConnection(span, (InetSocketAddress) ctx.getChannel().getRemoteAddress());
 
       propagate().inject(span, request.headers(), SETTER);
+      propagate()
+          .injectPathwayContext(
+              span, request.headers(), SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
 
       channelTraceContext.setClientSpan(span);
 

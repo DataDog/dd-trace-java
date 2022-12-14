@@ -48,6 +48,7 @@ import datadog.trace.civisibility.CiVisibilityTraceInterceptor;
 import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
+import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
@@ -125,7 +126,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   /** Writer is an charge of reporting traces and spans to the desired endpoint */
   final Writer writer;
   /** Sampler defines the sampling policy in order to reduce the number of traces for instance */
-  final Sampler<DDSpan> sampler;
+  final Sampler sampler;
   /** Scope manager is in charge of managing the scopes from which spans are created */
   final AgentScopeManager scopeManager;
 
@@ -209,7 +210,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private SharedCommunicationObjects sharedCommunicationObjects;
     private Writer writer;
     private IdGenerationStrategy idGenerationStrategy;
-    private Sampler<DDSpan> sampler;
+    private Sampler sampler;
+    private SingleSpanSampler singleSpanSampler;
     private HttpCodec.Injector injector;
     private HttpCodec.Extractor extractor;
     private AgentScopeManager scopeManager;
@@ -248,8 +250,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
-    public CoreTracerBuilder sampler(Sampler<DDSpan> sampler) {
+    public CoreTracerBuilder sampler(Sampler sampler) {
       this.sampler = sampler;
+      return this;
+    }
+
+    public CoreTracerBuilder singleSpanSampler(SingleSpanSampler singleSpanSampler) {
+      this.singleSpanSampler = singleSpanSampler;
       return this;
     }
 
@@ -348,7 +355,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.config = config;
       serviceName(config.getServiceName());
       // Explicitly skip setting writer to avoid allocating resources prematurely.
-      sampler(Sampler.Builder.<DDSpan>forConfig(config));
+      sampler(Sampler.Builder.forConfig(config));
+      singleSpanSampler(SingleSpanSampler.Builder.forConfig(config));
       instrumentationGateway(new InstrumentationGateway());
       injector(HttpCodec.createInjector(config));
       extractor(HttpCodec.createExtractor(config, config.getRequestHeaderTags()));
@@ -371,6 +379,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           writer,
           idGenerationStrategy,
           sampler,
+          singleSpanSampler,
           injector,
           extractor,
           scopeManager,
@@ -396,7 +405,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       SharedCommunicationObjects sharedCommunicationObjects,
       final Writer writer,
       final IdGenerationStrategy idGenerationStrategy,
-      final Sampler<DDSpan> sampler,
+      final Sampler sampler,
+      final SingleSpanSampler singleSpanSampler,
       final HttpCodec.Injector injector,
       final HttpCodec.Extractor extractor,
       final AgentScopeManager scopeManager,
@@ -490,7 +500,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (writer == null) {
       this.writer =
           WriterFactory.createWriter(
-              config, sharedCommunicationObjects, sampler, this.statsDClient);
+              config, sharedCommunicationObjects, sampler, singleSpanSampler, this.statsDClient);
     } else {
       this.writer = writer;
     }
@@ -574,7 +584,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    *
    * @return a PendingTrace
    */
-  PendingTrace createTrace(DDTraceId id) {
+  public PendingTrace createTrace(DDTraceId id) {
     return pendingTraceFactory.create(id);
   }
 
@@ -801,8 +811,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public void notifyExtensionEnd(AgentSpan span, boolean isError) {
-    LambdaHandler.notifyEndInvocation(span, isError);
+  public void notifyExtensionEnd(AgentSpan span, Object result, boolean isError) {
+    LambdaHandler.notifyEndInvocation(span, result, isError);
   }
 
   private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, MINUTES);
@@ -894,7 +904,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         && rootSpan != null
         && rootSpan.context().getSamplingPriority() == PrioritySampling.UNSET) {
 
-      ((PrioritySampler<DDSpan>) sampler).setSamplingPriority(rootSpan);
+      ((PrioritySampler) sampler).setSamplingPriority(rootSpan);
     }
   }
 
@@ -965,6 +975,23 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
+  public void addScopeListener(
+      Runnable afterScopeActivatedCallback, Runnable afterScopeClosedCallback) {
+    addScopeListener(
+        new ScopeListener() {
+          @Override
+          public void afterScopeActivated() {
+            afterScopeActivatedCallback.run();
+          }
+
+          @Override
+          public void afterScopeClosed() {
+            afterScopeClosedCallback.run();
+          }
+        });
+  }
+
+  @Override
   public void flush() {
     pendingTraceBuffer.flush();
     writer.flush();
@@ -973,7 +1000,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public void flushMetrics() {
     try {
-      metricsAggregator.forceReport().get(1_000, MILLISECONDS);
+      metricsAggregator.forceReport().get(2_500, MILLISECONDS);
     } catch (InterruptedException | ExecutionException | TimeoutException e) {
       log.debug("Failed to wait for metrics flush.", e);
     }

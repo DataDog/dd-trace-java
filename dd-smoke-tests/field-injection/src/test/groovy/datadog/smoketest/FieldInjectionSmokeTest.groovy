@@ -58,6 +58,7 @@ class FieldInjectionSmokeTest extends Specification {
     command.add("${getMinMemoryArgumentForFork()}" as String)
     command.add("-javaagent:${shadowJarPath}" as String)
     command.add("-XX:ErrorFile=/tmp/hs_err_pid%p.log")
+    command.add("-Ddd.instrumentation.telemetry.enabled=false")
     command.add("-Ddd.writer.type=TraceStructureWriter")
     command.add("-Ddd.trace.debug=true")
     command.add("-jar")

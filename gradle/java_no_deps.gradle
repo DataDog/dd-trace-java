@@ -7,6 +7,7 @@ apply from: "$rootDir/gradle/forbiddenapis.gradle"
 apply from: "$rootDir/gradle/spotless.gradle"
 apply from: "$rootDir/gradle/spotbugs.gradle"
 apply from: "$rootDir/gradle/repositories.gradle"
+apply from: "$rootDir/gradle/pitest.gradle"
 
 // Only run one testcontainers test at a time
 ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainersLimit", BuildService) {
@@ -44,7 +45,6 @@ if (!skipSettingCompilerRelease && JavaVersion.current().isJava9Compatible()) {
   }
 }
 
-// TODO:java8 this should be changed and the *_java8 directories folded into the main directory
 if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJavaVersionForTests') != JavaVersion.VERSION_1_7) {
   def version = JavaVersion.toVersion(project.getProperty('minJavaVersionForTests'))
   def name = "java$version.majorVersion"

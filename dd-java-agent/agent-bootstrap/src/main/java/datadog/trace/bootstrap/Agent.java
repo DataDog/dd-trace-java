@@ -761,11 +761,6 @@ public class Agent {
                               .getDeclaredConstructor()
                               .newInstance();
                   tracer.registerCheckpointer(endpointCheckpointer);
-                  if (!Config.get().isAsyncProfilerEnabled()) {
-                    log.debug("Registering scope event factory");
-                    tracer.addScopeListener(
-                        createScopeListener("datadog.trace.core.jfr.openjdk.ScopeEventFactory"));
-                  }
                 } catch (Throwable e) {
                   if (e instanceof InvocationTargetException) {
                     e = e.getCause();

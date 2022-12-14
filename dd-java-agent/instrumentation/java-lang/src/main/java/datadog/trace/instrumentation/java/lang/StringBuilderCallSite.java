@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.java.lang;
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.propagation.StringModule;
 import datadog.trace.util.stacktrace.StackUtils;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nonnull;
@@ -20,7 +21,14 @@ public class StringBuilderCallSite {
   public static StringBuilder afterInit(
       @CallSite.This @Nonnull final StringBuilder self,
       @CallSite.Argument @Nullable final CharSequence param) {
-    InstrumentationBridge.onStringBuilderInit(self, param);
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        module.onStringBuilderInit(self, param);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterInit threw", e);
+      }
+    }
     return self;
   }
 
@@ -33,9 +41,16 @@ public class StringBuilderCallSite {
   @Nonnull
   public static StringBuilder afterAppend(
       @CallSite.This @Nonnull final StringBuilder self,
-      @CallSite.Argument @Nullable final CharSequence param,
+      @CallSite.Argument(0) @Nullable final CharSequence param,
       @CallSite.Return @Nonnull final StringBuilder result) {
-    InstrumentationBridge.onStringBuilderAppend(self, param);
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        module.onStringBuilderAppend(self, param);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterAppend threw", e);
+      }
+    }
     return result;
   }
 
@@ -46,7 +61,7 @@ public class StringBuilderCallSite {
   // parameter
   public static StringBuilder aroundAppend(
       @CallSite.This @Nullable final StringBuilder self,
-      @CallSite.Argument @Nullable final Object param)
+      @CallSite.Argument(0) @Nullable final Object param)
       throws Throwable {
     try {
       if (self == null) {
@@ -54,10 +69,17 @@ public class StringBuilderCallSite {
       }
       final String paramStr = String.valueOf(param);
       final StringBuilder result = self.append(paramStr);
-      InstrumentationBridge.onStringBuilderAppend(result, paramStr);
+      final StringModule module = InstrumentationBridge.STRING;
+      if (module != null) {
+        try {
+          module.onStringBuilderAppend(self, paramStr);
+        } catch (final Throwable e) {
+          module.onUnexpectedException("aroundAppend threw", e);
+        }
+      }
       return result;
     } catch (final Throwable e) {
-      throw StackUtils.filterDatadog(e);
+      throw StackUtils.removeLast(e);
     }
   }
 
@@ -66,7 +88,14 @@ public class StringBuilderCallSite {
   public static String afterToString(
       @CallSite.This @Nonnull final StringBuilder self,
       @CallSite.Return @Nonnull final String result) {
-    InstrumentationBridge.onStringBuilderToString(self, result);
+    final StringModule module = InstrumentationBridge.STRING;
+    if (module != null) {
+      try {
+        module.onStringBuilderToString(self, result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterToString threw", e);
+      }
+    }
     return result;
   }
 }

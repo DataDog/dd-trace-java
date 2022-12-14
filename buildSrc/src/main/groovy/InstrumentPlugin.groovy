@@ -51,7 +51,7 @@ class InstrumentPlugin implements Plugin<Project> {
           if (javaVersion) {
             byteBuddyTask.classFileVersion = ClassFileVersion."JAVA_V${javaVersion}"
           } else {
-            byteBuddyTask.classFileVersion = ClassFileVersion.JAVA_V7
+            byteBuddyTask.classFileVersion = ClassFileVersion.JAVA_V8
           }
 
           byteBuddyTask.incrementalResolver = IncrementalResolver.ForChangedFiles.INSTANCE

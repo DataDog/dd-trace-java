@@ -1,8 +1,8 @@
 package test
 
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.iast.IastModule
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.sink.WeakCipherModule
 import foo.bar.TestSuite
 
 import javax.crypto.Cipher
@@ -26,7 +26,7 @@ class WeakCipherTest extends AgentTestRunner {
 
   def "test weak cipher instrumentation"() {
     setup:
-    IastModule module = Mock(IastModule)
+    WeakCipherModule module = Mock(WeakCipherModule)
     InstrumentationBridge.registerIastModule(module)
 
     when:
@@ -38,7 +38,7 @@ class WeakCipherTest extends AgentTestRunner {
 
   def "test weak cipher instrumentation with provider"() {
     setup:
-    IastModule module = Mock(IastModule)
+    WeakCipherModule module = Mock(WeakCipherModule)
     InstrumentationBridge.registerIastModule(module)
     final provider = providerFor('DES')
 
@@ -51,7 +51,7 @@ class WeakCipherTest extends AgentTestRunner {
 
   def "test weak cipher instrumentation with provider string"() {
     setup:
-    IastModule module = Mock(IastModule)
+    WeakCipherModule module = Mock(WeakCipherModule)
     InstrumentationBridge.registerIastModule(module)
     final provider = providerFor('DES')
 
@@ -64,7 +64,7 @@ class WeakCipherTest extends AgentTestRunner {
 
   def "weak cipher instrumentation with null argument"() {
     setup:
-    IastModule module = Mock(IastModule)
+    WeakCipherModule module = Mock(WeakCipherModule)
     InstrumentationBridge.registerIastModule(module)
 
     when:

@@ -15,7 +15,7 @@ final class CachedData {
     junit4        : "4.13.2",
     junit5        : "5.8.1",
     logback       : "1.2.3",
-    bytebuddy     : "1.12.18",
+    bytebuddy     : "1.12.19",
     scala         : "2.11.12",  // Last version to support Java 7 (2.12+ require Java 8+)
     scala210      : "2.10.7",
     scala211      : "2.11.12",
@@ -26,6 +26,7 @@ final class CachedData {
     coroutines    : "1.3.0",
     dogstatsd     : "4.1.0",
     jnr_unixsocket: "0.38.17",
+    jnr_posix     : '3.1.15',
     commons       : "3.2",
     mockito       : '4.4.0',
     jctools       : '3.3.0',
@@ -33,7 +34,7 @@ final class CachedData {
     testcontainers: '1.17.3',
     jmc           : "8.1.0-SNAPSHOT",
     autoservice   : "1.0-rc7",
-    asyncprofiler : "2.8.3-DD-20221129",
+    asyncprofiler : "2.8.3-DD-20221202",
     asm           : "9.2"
   ]
 
@@ -116,13 +117,11 @@ final class CachedData {
       exclude(project(':dd-java-agent:agent-logging'))
       exclude(project(':dd-trace-api'))
       exclude(project(':internal-api'))
-      exclude(project(':internal-api:internal-api-8'))
       exclude(project(':internal-api:internal-api-9'))
       exclude(project(':communication'))
       exclude(project(':remote-config'))
       exclude(project(':telemetry'))
       exclude(project(':utils:container-utils'))
-      exclude(project(':utils:process-utils'))
       exclude(project(':utils:socket-utils'))
       exclude(project(':utils:time-utils'))
       exclude(project(':utils:version-utils'))

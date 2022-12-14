@@ -73,7 +73,7 @@ public class StringConcatFactoryBatchBenchmark
   @Fork(jvmArgsAppend = {"-Ddd.iast.enabled=false"})
   public String iastDisabled() throws Throwable {
     final String result = (String) context.method.invokeWithArguments(context.strings);
-    InstrumentationBridge.onStringConcatFactory(
+    InstrumentationBridge.STRING.onStringConcatFactory(
         result, context.stringArray, context.recipe, context.constants, context.recipeOffsets);
     return result;
   }
@@ -82,7 +82,7 @@ public class StringConcatFactoryBatchBenchmark
   @Fork(jvmArgsAppend = {"-Ddd.iast.enabled=true"})
   public String iastEnabled() throws Throwable {
     final String result = (String) context.method.invokeWithArguments(context.strings);
-    InstrumentationBridge.onStringConcatFactory(
+    InstrumentationBridge.STRING.onStringConcatFactory(
         result, context.stringArray, context.recipe, context.constants, context.recipeOffsets);
     return result;
   }
@@ -153,11 +153,11 @@ public class StringConcatFactoryBatchBenchmark
   }
 
   private static MethodDescription.Latent makeConcatWithConstantsDescriptor() {
+    TypeDescription OBJECT = TypeDescription.ForLoadedType.of(Object.class);
+    TypeDescription STRING = TypeDescription.ForLoadedType.of(String.class);
     return new MethodDescription.Latent(
         new TypeDescription.Latent(
-            "java.lang.invoke.StringConcatFactory",
-            Opcodes.ACC_PUBLIC,
-            TypeDescription.Generic.OBJECT),
+            "java.lang.invoke.StringConcatFactory", Opcodes.ACC_PUBLIC, OBJECT.asGenericType()),
         "makeConcatWithConstants",
         Opcodes.ACC_STATIC | Opcodes.ACC_PUBLIC,
         Collections.emptyList(),
@@ -165,13 +165,11 @@ public class StringConcatFactoryBatchBenchmark
         Arrays.asList(
             new ParameterDescription.Token(
                 JavaType.METHOD_HANDLES_LOOKUP.getTypeStub().asGenericType()),
-            new ParameterDescription.Token(TypeDescription.STRING.asGenericType()),
+            new ParameterDescription.Token(STRING.asGenericType()),
             new ParameterDescription.Token(JavaType.METHOD_TYPE.getTypeStub().asGenericType()),
-            new ParameterDescription.Token(TypeDescription.STRING.asGenericType()),
+            new ParameterDescription.Token(STRING.asGenericType()),
             new ParameterDescription.Token(
-                TypeDescription.Generic.Builder.of(TypeDescription.OBJECT.asGenericType())
-                    .asArray()
-                    .build())),
+                TypeDescription.Generic.Builder.of(OBJECT.asGenericType()).asArray().build())),
         Collections.emptyList(),
         Collections.emptyList(),
         AnnotationValue.UNDEFINED,

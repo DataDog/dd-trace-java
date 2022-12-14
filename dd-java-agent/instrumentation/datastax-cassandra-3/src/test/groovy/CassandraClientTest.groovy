@@ -5,9 +5,10 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import org.cassandraunit.utils.EmbeddedCassandraServerHelper
+import org.testcontainers.containers.CassandraContainer
 import spock.lang.Shared
 
+import java.time.Duration
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -34,26 +35,21 @@ class CassandraClientTest extends AgentTestRunner {
   @Shared
   def executor = Executors.newCachedThreadPool()
 
-  def setupSpec() {
-    /*
-     This timeout seems excessive but we've seen tests fail with timeout of 40s.
-     TODO: if we continue to see failures we may want to consider using 'real' Cassandra
-     started in container like we do for memcached. Note: this will complicate things because
-     tests would have to assume they run under shared Cassandra and act accordingly.
-     */
-    EmbeddedCassandraServerHelper.startEmbeddedCassandra(EmbeddedCassandraServerHelper.CASSANDRA_RNDPORT_YML_FILE, 120000L)
+  @Shared
+  CassandraContainer container
 
-    cluster = EmbeddedCassandraServerHelper.getCluster()
-    port = EmbeddedCassandraServerHelper.getNativeTransportPort()
-    /*
-     Looks like sometimes our requests fail because Cassandra takes to long to respond,
-     Increase this timeout as well to try to cope with this.
-     */
+  def setupSpec() {
+    container = new CassandraContainer("cassandra:3").withStartupTimeout(Duration.ofSeconds(120))
+    container.start()
+    cluster = container.getCluster()
+    port = container.getMappedPort(9042)
+    // Looks like sometimes our requests fail because Cassandra takes to long to respond,
+    // Increase this timeout as well to try to cope with this.
     cluster.getConfiguration().getSocketOptions().setReadTimeoutMillis(120000)
   }
 
   def cleanupSpec() {
-    EmbeddedCassandraServerHelper.cleanEmbeddedCassandra()
+    container?.stop()
   }
 
   def "test sync"() {

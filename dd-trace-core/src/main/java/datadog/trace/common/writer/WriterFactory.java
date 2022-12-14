@@ -16,6 +16,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.common.sampling.Sampler;
+import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.common.writer.ddintake.DDIntakeApi;
@@ -34,14 +35,17 @@ public class WriterFactory {
       final Config config,
       final SharedCommunicationObjects commObjects,
       final Sampler sampler,
+      final SingleSpanSampler singleSpanSampler,
       final StatsDClient statsDClient) {
-    return createWriter(config, commObjects, sampler, statsDClient, config.getWriterType());
+    return createWriter(
+        config, commObjects, sampler, singleSpanSampler, statsDClient, config.getWriterType());
   }
 
   public static Writer createWriter(
       final Config config,
       final SharedCommunicationObjects commObjects,
       final Sampler sampler,
+      final SingleSpanSampler singleSpanSampler,
       final StatsDClient statsDClient,
       final String configuredType) {
 
@@ -53,7 +57,8 @@ public class WriterFactory {
       return new TraceStructureWriter(
           Strings.replace(configuredType, TRACE_STRUCTURE_WRITER_TYPE, ""));
     } else if (configuredType.startsWith(MULTI_WRITER_TYPE)) {
-      return new MultiWriter(config, commObjects, sampler, statsDClient, configuredType);
+      return new MultiWriter(
+          config, commObjects, sampler, singleSpanSampler, statsDClient, configuredType);
     }
 
     Prioritization prioritization =
@@ -93,6 +98,7 @@ public class WriterFactory {
               .prioritization(prioritization)
               .healthMetrics(new HealthMetrics(statsDClient))
               .monitoring(commObjects.monitoring)
+              .singleSpanSampler(singleSpanSampler)
               .build();
     } else {
       if (!DD_AGENT_WRITER_TYPE.equals(configuredType)) {
@@ -131,6 +137,7 @@ public class WriterFactory {
               .healthMetrics(new HealthMetrics(statsDClient))
               .monitoring(commObjects.monitoring)
               .alwaysFlush(alwaysFlush)
+              .spanSamplingRules(singleSpanSampler)
               .build();
     }
 

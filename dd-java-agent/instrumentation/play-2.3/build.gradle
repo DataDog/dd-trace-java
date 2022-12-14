@@ -1,5 +1,4 @@
 ext {
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
   // Play doesn't work with Java 9+ until 2.6.12
   maxJavaVersionForTests = JavaVersion.VERSION_1_8
 }
@@ -44,7 +43,7 @@ testSets {
 }
 
 dependencies {
-  main_java8Implementation group: 'com.typesafe.play', name: 'play_2.11', version: '2.3.9'
+  compileOnly group: 'com.typesafe.play', name: 'play_2.11', version: '2.3.9'
 
   testImplementation project(':dd-java-agent:instrumentation:netty-3.8')
   testImplementation project(':dd-java-agent:instrumentation:akka-concurrent')

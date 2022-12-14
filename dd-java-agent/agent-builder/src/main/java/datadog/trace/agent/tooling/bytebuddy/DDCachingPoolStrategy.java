@@ -246,7 +246,8 @@ public final class DDCachingPoolStrategy
   static final class SharedResolutionCacheAdapter implements TypePool.CacheProvider {
     private static final String OBJECT_NAME = "java.lang.Object";
     private static final TypePool.Resolution OBJECT_RESOLUTION =
-        new TypePool.Resolution.Simple(new CachingTypeDescription(TypeDescription.OBJECT));
+        new TypePool.Resolution.Simple(
+            new CachingTypeDescription(TypeDescription.ForLoadedType.of(Object.class)));
 
     private final int loaderHash;
     private final WeakReference<ClassLoader> loaderRef;

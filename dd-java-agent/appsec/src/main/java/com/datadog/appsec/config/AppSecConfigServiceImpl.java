@@ -32,6 +32,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private static final Logger log = LoggerFactory.getLogger(AppSecConfigServiceImpl.class);
 
   private static final String DEFAULT_CONFIG_LOCATION = "default_config.json";
+  private static AppSecConfig DEFAULT_WAF_CONFIG;
 
   // for new subconfig subscribers
   private final ConcurrentHashMap<String, Object> lastConfig = new ConcurrentHashMap<>();
@@ -60,8 +61,12 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         AppSecConfigDeserializer.INSTANCE,
         (configKey, newConfig, hinter) -> {
           if (newConfig == null) {
-            log.warn("AppSec configuration was pulled out by remote config. This has no effect");
-            return;
+            if (DEFAULT_WAF_CONFIG == null) {
+              throw new IllegalStateException("Expected default waf config to be available");
+            }
+            log.debug(
+                "AppSec config given by remote config was pulled. Restoring default WAF config");
+            newConfig = DEFAULT_WAF_CONFIG;
           }
           Map<String, Object> configMap = Collections.singletonMap("waf", newConfig);
           this.lastConfig.put("waf", newConfig);
@@ -108,6 +113,10 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         Product.ASM,
         AppSecRuleTogglingDeserializer.INSTANCE,
         (configKey, newConfig, hinter) -> {
+          if (newConfig == null) {
+            log.debug("Rule toggling configuration was pulled. Enabling all the rules");
+            newConfig = Collections.emptyMap();
+          }
           this.lastConfig.put("waf_rules_override", newConfig);
           Map<String, Object> wafRulesOverride =
               Collections.singletonMap("waf_rules_override", newConfig);
@@ -236,6 +245,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         StandardizedLogging.numLoadedRules(log, "<bundled config>", countRules(ret));
       }
 
+      DEFAULT_WAF_CONFIG = ret;
       return ret;
     }
   }
