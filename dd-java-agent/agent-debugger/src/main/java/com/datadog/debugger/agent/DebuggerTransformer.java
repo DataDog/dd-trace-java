@@ -51,7 +51,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private static final String CANNOT_FIND_LINE = "No executable code was found at %s:L%s";
 
   private final Config config;
-  private final TransformerDefinitionMatcher definitonMatcher;
+  private final TransformerDefinitionMatcher definitionMatcher;
   private final AllowListHelper allowListHelper;
   private final DenyListHelper denyListHelper;
   private final InstrumentationListener listener;
@@ -66,7 +66,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
   public DebuggerTransformer(
       Config config, Configuration configuration, InstrumentationListener listener) {
     this.config = config;
-    this.definitonMatcher = new TransformerDefinitionMatcher(configuration);
+    this.definitionMatcher = new TransformerDefinitionMatcher(configuration);
     this.allowListHelper = new AllowListHelper(configuration.getAllowList());
     this.denyListHelper = new DenyListHelper(configuration.getDenyList());
     this.listener = listener;
@@ -121,7 +121,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     try {
       String fullyQualifiedClassName = classFilePath.replace('/', '.');
       List<ProbeDefinition> definitions =
-          definitonMatcher.match(
+          definitionMatcher.match(
               classBeingRedefined, classFilePath, fullyQualifiedClassName, classfileBuffer);
       if (definitions.isEmpty()) {
         return null;
@@ -154,7 +154,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
   }
 
   private boolean skipInstrumentation(ClassLoader loader, String classFilePath) {
-    if (definitonMatcher.isEmpty()) {
+    if (definitionMatcher.isEmpty()) {
       log.warn("No debugger definitions present.");
       return true;
     }
