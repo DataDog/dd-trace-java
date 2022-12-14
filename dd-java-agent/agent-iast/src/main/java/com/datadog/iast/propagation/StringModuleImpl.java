@@ -11,6 +11,7 @@ import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.iast.propagation.StringModule;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nonnull;
@@ -163,6 +164,32 @@ public class StringModuleImpl extends IastModuleBase implements StringModule {
       }
     }
     taintedObjects.taint(result, targetRanges);
+  }
+
+  @Override
+  @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
+  public void onStringSubSequence(
+      @Nullable String self, int beginIndex, int endIndex, @Nullable CharSequence result) {
+    if (!canBeTainted(self) || !canBeTainted(result) || self == result) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject selfTainted = taintedObjects.get(self);
+    if (selfTainted == null) {
+      return;
+    }
+    final Range[] rangesSelf = selfTainted.getRanges();
+    if (rangesSelf.length == 0) {
+      return;
+    }
+    Range[] newRanges = Ranges.forSubstring(beginIndex, result.length(), rangesSelf);
+    if (newRanges != null && newRanges.length > 0) {
+      taintedObjects.taint(result, newRanges);
+    }
   }
 
   private static int getToStringLength(@Nullable final String s) {
