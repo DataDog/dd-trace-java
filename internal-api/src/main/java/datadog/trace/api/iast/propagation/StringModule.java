@@ -1,7 +1,6 @@
 package datadog.trace.api.iast.propagation;
 
 import datadog.trace.api.iast.IastModule;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -32,5 +31,7 @@ public interface StringModule extends IastModule {
 
   void onStringToLowerCase(@Nonnull String self, @Nullable String result);
 
-  void onStringTrim(@NonNull String self, @Nullable String result);
+  void onStringTrim(@Nonnull String self, @Nullable String result);
+
+  void onStringRepeat(@Nonnull String self, int count, @Nonnull String result);
 }

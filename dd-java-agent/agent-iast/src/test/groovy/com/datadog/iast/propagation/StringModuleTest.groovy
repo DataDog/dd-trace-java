@@ -246,9 +246,9 @@ class StringModuleTest extends IastModuleImplTestBase {
   }
 
   void 'onStringConcatFactory null or empty (#args)'(final List<String> args,
-    final String recipe,
-    final List<Object> constants,
-    final List<Integer> recipeOffsets) {
+                                                     final String recipe,
+                                                     final List<Object> constants,
+                                                     final List<Integer> recipeOffsets) {
     given:
     final result = args.inject('') { res, item -> res + item }
 
@@ -269,9 +269,9 @@ class StringModuleTest extends IastModuleImplTestBase {
   }
 
   void 'onStringConcatFactory without span (#args)'(final List<String> args,
-    final String recipe,
-    final List<Object> constants,
-    final List<Integer> recipeOffsets) {
+                                                    final String recipe,
+                                                    final List<Object> constants,
+                                                    final List<Integer> recipeOffsets) {
     given:
     final result = args.inject('') { res, item -> res + item }
 
@@ -290,10 +290,10 @@ class StringModuleTest extends IastModuleImplTestBase {
   }
 
   void 'onStringConcatFactory (#args, #recipe, #constants)'(List<String> args,
-    final String recipe,
-    final List<Object> constants,
-    final List<Integer> recipeOffsets,
-    final String expected) {
+                                                            final String recipe,
+                                                            final List<Object> constants,
+                                                            final List<Integer> recipeOffsets,
+                                                            final String expected) {
     given:
     final span = Mock(AgentSpan)
     tracer.activeSpan() >> span
@@ -655,6 +655,86 @@ class StringModuleTest extends IastModuleImplTestBase {
     ]                                                                                                                    | "stringParam1,stringParam2,stringParam3:==>taintedString<==, ==>taintedString<==, ==>taintedString<=="
   }
 
+  void 'onStringRepeat that can not be tainted (#self, #count)'(final String self, final int count, final String expected) {
+    when:
+    module.onStringRepeat(self, count, expected)
+
+    then:
+    0 * _
+
+    where:
+    self  | count | expected
+    ""    | 1     | ""
+    "abc" | 0     | ""
+    null  | 1     | ""
+    null  | 0     | ""
+    "abc" | 1     | "abc"
+  }
+
+  void 'onStringRepeat without span (#self, #count)'(final String self, final int count, final String expected, final int mockCalls) {
+    when:
+    module.onStringRepeat(self, count, expected)
+
+    then:
+    mockCalls * tracer.activeSpan() >> null
+    0 * _
+
+    where:
+    self  | count | expected | mockCalls
+    ""    | 0     | ""       | 0
+    null  | 0     | ""       | 0
+    ""    | 1     | ""       | 0
+    null  | 1     | ""       | 0
+    "abc" | 1     | 'abc'    | 0
+    "abc" | 2     | 'abcabc' | 1
+  }
+
+  void 'onStringRepeat (#self, #count, #result)'() {
+    given:
+    final span = Mock(AgentSpan)
+    tracer.activeSpan() >> span
+    final reqCtx = Mock(RequestContext)
+    span.getRequestContext() >> reqCtx
+    final ctx = new IastRequestContext()
+    reqCtx.getData(RequestContextSlot.IAST) >> ctx
+
+    and:
+    final taintedObjects = ctx.getTaintedObjects()
+    self = addFromTaintFormat(taintedObjects, self)
+    objectHolder.add(self)
+
+    and:
+    final result = getStringFromTaintFormat(expected)
+    objectHolder.add(expected)
+    final shouldBeTainted = fromTaintFormat(expected) != null
+
+    when:
+    module.onStringRepeat(self, count, result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    1 * span.getRequestContext() >> reqCtx
+    1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
+    0 * _
+    def to = ctx.getTaintedObjects().get(result)
+    if (shouldBeTainted) {
+      assert to != null
+      assert to.get() == result
+      assert taintFormat(to.get() as String, to.getRanges()) == expected
+    } else {
+      assert to == null
+    }
+
+    where:
+    self                | count | expected
+    "abc"               | 2     | "abcabc"
+    "==>b<=="           | 2     | "==>b<====>b<=="
+    "aa==>b<=="         | 2     | "aa==>b<==aa==>b<=="
+    "==>b<==cc"         | 2     | "==>b<==cc==>b<==cc"
+    "a==>b<==c"         | 2     | "a==>b<==ca==>b<==c"
+    "a==>b<==c==>d<==e" | 2     | "a==>b<==c==>d<==ea==>b<==c==>d<==e"
+  }
+
   private static StringBuilder sb() {
     return sb('')
   }
@@ -759,18 +839,18 @@ class StringModuleTest extends IastModuleImplTestBase {
 
     where:
     testString                            | expected                    | locale | lengthSelf | lengthResult | expectedRanges
-    "==>ab<=="                            |"==>AB<=="                   | "en"   | 2          | 2            | [[0, 2]]
-    "a==>123<==b==>123<==c"               |"A==>123<==B==>123<==C"      | "en"   | 9          | 9            | [[1, 3], [5, 3]]
+    "==>ab<=="                            | "==>AB<=="                  | "en"   | 2          | 2            | [[0, 2]]
+    "a==>123<==b==>123<==c"               | "A==>123<==B==>123<==C"     | "en"   | 9          | 9            | [[1, 3], [5, 3]]
     "a==>123<==b"                         | "A==>123<==B"               | "en"   | 5          | 5            | [[1, 3]]
     "a==>def<==b"                         | "A==>DEF<==B"               | "en"   | 5          | 5            | [[1, 3]]
-    "i̇̀==>def<==b"                         | "ÌD==>EFB<=="               | "lt"   | 7          | 6            | [[3, 3]]
-    "i̇̀==>def<==b"                         | "İ̀==>DEF<==B"               | "en"   | 7          | 7            | [[3, 3]]
-    "i̇̀==>def<==b==>def<=="                | "İ̀==>DEF<==B==>DEF<=="      | "en"   | 10         | 10           | [[3, 3], [7, 3]]
+    "i̇̀==>def<==b"                       | "ÌD==>EFB<=="              | "lt"   | 7          | 6            | [[3, 3]]
+    "i̇̀==>def<==b"                       | "İ̀==>DEF<==B"             | "en"   | 7          | 7            | [[3, 3]]
+    "i̇̀==>def<==b==>def<=="              | "İ̀==>DEF<==B==>DEF<=="    | "en"   | 10         | 10           | [[3, 3], [7, 3]]
     "\u00cc==>def<==b"                    | "\u00cc==>DEF<==B"          | "lt"   | 5          | 5            | [[1, 3]]
-    "i̇̀i̇̀==>fff<==f123b"                    | "ÌÌFF==>FF1<==23B"          | "lt"   | 14         | 12           | [[6, 3]]
-    "i̇̀i̇̀i̇̀i̇̀EEEE==>fff<=="                   | "ÌÌÌÌEEEEFFF"               | "lt"   | 19         | 15           | []
-    "i̇̀i̇̀i̇̀i̇̀EEEE==>fff<==H==>GGG<=="         | "ÌÌÌÌEEEEFFFH==>GGG<=="     | "lt"   | 23         | 19           | [[16, 3]]
-    "i̇̀i̇̀i̇̀EEEE==>fffgggg<=="                | "ÌÌÌEEEEFFF==>GGGG<=="      | "lt"   | 20         | 17           | [[13, 4]]
+    "i̇̀i̇̀==>fff<==f123b"                | "ÌÌFF==>FF1<==23B"        | "lt"   | 14         | 12           | [[6, 3]]
+    "i̇̀i̇̀i̇̀i̇̀EEEE==>fff<=="           | "ÌÌÌÌEEEEFFF"           | "lt"   | 19         | 15           | []
+    "i̇̀i̇̀i̇̀i̇̀EEEE==>fff<==H==>GGG<==" | "ÌÌÌÌEEEEFFFH==>GGG<==" | "lt"   | 23         | 19           | [[16, 3]]
+    "i̇̀i̇̀i̇̀EEEE==>fffgggg<=="          | "ÌÌÌEEEEFFF==>GGGG<=="   | "lt"   | 20         | 17           | [[13, 4]]
   }
 
 
@@ -808,8 +888,8 @@ class StringModuleTest extends IastModuleImplTestBase {
     testString                   | expected               | locale | lengthSelf | lengthResult | expectedRanges
     "A==>123<==B"                | "a==>123<==b"          | "en"   | 5          | 5            | [[1, 3]]
     "\u00cc\u00cc==>123<==B"     | "ìì==>123<==b"         | "en"   | 6          | 6            | [[2, 3]]
-    "\u00cc\u00cc==>123<==B"     | "i̇==>̀i̇<==̀123b"         | "lt"   | 6          | 10           | [[2, 3]]
-    "\u00cc\u00ccFFFF==>123<==B" | "i̇̀i̇̀==>fff<==f123b"     | "lt"   | 10         | 14           | [[6, 3]]
+    "\u00cc\u00cc==>123<==B"     | "i̇==>̀i̇<==̀123b"     | "lt"   | 6          | 10           | [[2, 3]]
+    "\u00cc\u00ccFFFF==>123<==B" | "i̇̀i̇̀==>fff<==f123b" | "lt"   | 10         | 14           | [[6, 3]]
     "A==>\u00cc\u00cc\u00cc<==B" | "a==>ììì<==b"          | "en"   | 5          | 5            | [[1, 3]]
   }
 }
