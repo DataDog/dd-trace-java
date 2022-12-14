@@ -73,4 +73,48 @@ class StringCallSiteTest extends AgentTestRunner {
     1 * iastModule.onStringSubSequence(self, 1, 5, expected)
     0 * _
   }
+
+  def 'test string join call site'() {
+    setup:
+    final iastModule = Mock(StringModule)
+    final expected = '012-345'
+    InstrumentationBridge.registerIastModule(iastModule)
+
+    when:
+    final result = TestStringSuite.join('-', '012', '345')
+
+    then:
+    result == expected
+    1 * iastModule.onStringJoin(expected, '-', '012', '345')
+    0 * _
+  }
+
+  def 'test string join with Iterable call site'() {
+    setup:
+    final iastModule = Mock(StringModule)
+    final expected = '012-345'
+    InstrumentationBridge.registerIastModule(iastModule)
+    final iterable = Arrays.asList('012', '345')
+
+    when:
+    final result = TestStringSuite.join('-', iterable)
+
+    then:
+    result == expected
+    1 * iastModule.onStringJoin(expected, '-', '012', '345')
+    0 * _
+  }
+
+  def 'test string join with Iterable fail on iterable copy'() {
+
+    given:
+    final iterable = Mock(Iterable)
+
+    when:
+    TestStringSuite.join('-', iterable)
+
+    then:
+    1 * iterable.forEach(_) >> { throw new Error('Boom!!!') }
+    thrown Error
+  }
 }

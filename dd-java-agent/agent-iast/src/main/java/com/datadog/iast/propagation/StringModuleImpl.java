@@ -12,7 +12,9 @@ import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.iast.propagation.StringModule;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -192,7 +194,83 @@ public class StringModuleImpl extends IastModuleBase implements StringModule {
     }
   }
 
-  private static int getToStringLength(@Nullable final String s) {
+  @Override
+  public void onStringJoin(
+      @Nullable String result, @Nonnull CharSequence delimiter, @Nonnull CharSequence... elements) {
+    if (!canBeTainted(result)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    // String.join may internally call StringJoiner, if StringJoiner did the job don't do it twice
+    if (getTainted(taintedObjects, result) != null) {
+      return;
+    }
+    List<Range> newRanges = new ArrayList<>();
+    int pos = 0;
+    // Delimiter info
+    Range[] delimiterRanges = getRanges(getTainted(taintedObjects, delimiter));
+    boolean delimiterHasRanges = delimiterRanges.length > 0;
+    int delimiterLength = delimiter.length();
+
+    for (int i = 0; i < elements.length; i++) {
+      CharSequence element = elements[i];
+      pos =
+          getPositionAndUpdateRangesInStringJoin(
+              taintedObjects,
+              newRanges,
+              pos,
+              delimiterRanges,
+              delimiterLength,
+              element,
+              delimiterHasRanges && i < elements.length - 1);
+    }
+    if (!newRanges.isEmpty()) {
+      taintedObjects.taint(result, newRanges.toArray(new Range[0]));
+    }
+  }
+
+  private static int getToStringLength(@Nullable final CharSequence s) {
     return s == null ? NULL_STR_LENGTH : s.length();
+  }
+
+  /**
+   * Iterates over the element and delimiter ranges (if necessary) to update them and calculate the
+   * new pos value
+   */
+  private static int getPositionAndUpdateRangesInStringJoin(
+      TaintedObjects taintedObjects,
+      List<Range> newRanges,
+      int pos,
+      Range[] delimiterRanges,
+      int delimiterLength,
+      CharSequence element,
+      boolean addDelimiterRanges) {
+    if (canBeTainted(element)) {
+      TaintedObject elementTainted = taintedObjects.get(element);
+      if (elementTainted != null) {
+        Range[] elementRanges = elementTainted.getRanges();
+        if (elementRanges.length > 0) {
+          for (Range range : elementRanges) {
+            newRanges.add(pos == 0 ? range : range.shift(pos));
+          }
+        }
+      }
+    }
+    pos += getToStringLength(element);
+    if (addDelimiterRanges) {
+      for (Range range : delimiterRanges) {
+        newRanges.add(range.shift(pos));
+      }
+    }
+    pos += delimiterLength;
+    return pos;
+  }
+
+  private static Range[] getRanges(final TaintedObject taintedObject) {
+    return taintedObject == null ? Ranges.EMPTY : taintedObject.getRanges();
   }
 }
