@@ -27,7 +27,8 @@ spotless {
 spotlessPredeclare {
   // these need to align with the types and versions in gradle/spotless.gradle
   java {
-    googleJavaFormat()
+    // This is the last Google Java Format version that supports Java 8
+    googleJavaFormat('1.7')
   }
   groovyGradle {
     greclipse()

@@ -33,9 +33,18 @@ class DatadogHttpCodec {
     // This class should not be created. This also makes code coverage checks happy.
   }
 
-  public static final HttpCodec.Injector INJECTOR = new Injector();
+  public static HttpCodec.Injector newInjector(Map<String, String> invertedBaggageMapping) {
+    return new Injector(invertedBaggageMapping);
+  }
 
   private static class Injector implements HttpCodec.Injector {
+
+    private final Map<String, String> invertedBaggageMapping;
+
+    public Injector(Map<String, String> invertedBaggageMapping) {
+      assert invertedBaggageMapping != null;
+      this.invertedBaggageMapping = invertedBaggageMapping;
+    }
 
     @Override
     public <C> void inject(
@@ -56,7 +65,9 @@ class DatadogHttpCodec {
       }
 
       for (final Map.Entry<String, String> entry : context.baggageItems()) {
-        setter.set(carrier, OT_BAGGAGE_PREFIX + entry.getKey(), HttpCodec.encode(entry.getValue()));
+        String header = invertedBaggageMapping.get(entry.getKey());
+        header = header != null ? header : OT_BAGGAGE_PREFIX + entry.getKey();
+        setter.set(carrier, header, HttpCodec.encode(entry.getValue()));
       }
 
       // inject x-datadog-tags
@@ -67,18 +78,23 @@ class DatadogHttpCodec {
     }
   }
 
-  public static HttpCodec.Extractor newExtractor(final Map<String, String> tagMapping) {
-    return newExtractor(tagMapping, Config.get());
+  public static HttpCodec.Extractor newExtractor(
+      final Map<String, String> tagMapping, final Map<String, String> baggageMapping) {
+    return newExtractor(tagMapping, baggageMapping, Config.get());
   }
 
   public static HttpCodec.Extractor newExtractor(
-      final Map<String, String> tagMapping, final Config config) {
+      final Map<String, String> tagMapping,
+      final Map<String, String> baggageMapping,
+      final Config config) {
     return new TagContextExtractor(
         tagMapping,
+        baggageMapping,
         new ContextInterpreter.Factory() {
           @Override
-          protected ContextInterpreter construct(Map<String, String> mapping) {
-            return new DatadogContextInterpreter(mapping, config);
+          protected ContextInterpreter construct(
+              Map<String, String> mapping, Map<String, String> baggageMapping) {
+            return new DatadogContextInterpreter(mapping, baggageMapping, config);
           }
         });
   }
@@ -93,13 +109,15 @@ class DatadogHttpCodec {
     private static final int OT_BAGGAGE = 5;
     private static final int E2E_START = 6;
     private static final int DD_TAGS = 7;
+    private static final int MAPPED_OT_BAGGAGE = 8;
     private static final int IGNORE = -1;
 
     private final boolean isAwsPropagationEnabled;
     private final DatadogTags.Factory datadogTagsFactory;
 
-    private DatadogContextInterpreter(Map<String, String> taggedHeaders, Config config) {
-      super(taggedHeaders, config);
+    private DatadogContextInterpreter(
+        Map<String, String> taggedHeaders, Map<String, String> baggageMapping, Config config) {
+      super(taggedHeaders, baggageMapping, config);
       isAwsPropagationEnabled = config.isAwsPropagationEnabled();
       datadogTagsFactory = DatadogTags.factory(config);
     }
@@ -165,6 +183,14 @@ class DatadogHttpCodec {
           classification = TAGS;
         }
       }
+
+      if (!baggageMapping.isEmpty() && classification == IGNORE) {
+        lowerCaseKey = toLowerCase(key);
+        if (baggageMapping.containsKey(lowerCaseKey)) {
+          classification = MAPPED_OT_BAGGAGE;
+        }
+      }
+
       if (classification != IGNORE) {
         try {
           if (null != value) {
@@ -205,8 +231,19 @@ class DatadogHttpCodec {
                   }
                   baggage.put(
                       lowerCaseKey.substring(OT_BAGGAGE_PREFIX.length()), HttpCodec.decode(value));
+                  break;
                 }
-                break;
+              case MAPPED_OT_BAGGAGE:
+                {
+                  String mappedKey = baggageMapping.get(lowerCaseKey);
+                  if (null != mappedKey) {
+                    if (baggage.isEmpty()) {
+                      baggage = new TreeMap<>();
+                    }
+                    baggage.put(mappedKey, HttpCodec.decode(value));
+                  }
+                  break;
+                }
               default:
             }
           }

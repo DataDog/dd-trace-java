@@ -1,6 +1,7 @@
 package com.datadog.iast;
 
 import com.datadog.iast.overhead.OverheadController;
+import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.TraceSegment;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
@@ -18,13 +19,25 @@ public class RequestEndedHandler implements BiFunction<RequestContext, IGSpanInf
 
   @Override
   public Flow<Void> apply(final RequestContext requestContext, final IGSpanInfo igSpanInfo) {
-    if (requestContext != null && requestContext.getData(RequestContextSlot.IAST) != null) {
+    final IastRequestContext iastRequestContext = getIastRequestContext(requestContext);
+    if (iastRequestContext != null) {
       final TraceSegment traceSeg = requestContext.getTraceSegment();
       if (traceSeg != null) {
         traceSeg.setTagTop("_dd.iast.enabled", 1);
       }
+      final TaintedObjects taintedObjects = iastRequestContext.getTaintedObjects();
+      if (taintedObjects != null) {
+        taintedObjects.release();
+      }
       overheadController.releaseRequest();
     }
     return Flow.ResultFlow.empty();
+  }
+
+  private static IastRequestContext getIastRequestContext(final RequestContext requestContext) {
+    if (requestContext == null) {
+      return null;
+    }
+    return requestContext.getData(RequestContextSlot.IAST);
   }
 }

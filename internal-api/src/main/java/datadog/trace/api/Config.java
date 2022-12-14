@@ -82,7 +82,6 @@ import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
 import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
-import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
@@ -240,6 +239,7 @@ import static datadog.trace.api.config.TracerConfig.AGENT_NAMED_PIPE;
 import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY;
 import static datadog.trace.api.config.TracerConfig.AGENT_TIMEOUT;
 import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET;
+import static datadog.trace.api.config.TracerConfig.BAGGAGE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.CLIENT_IP_ENABLED;
 import static datadog.trace.api.config.TracerConfig.CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
@@ -398,6 +398,7 @@ public class Config {
   private final Map<String, String> jmxTags;
   private final Map<String, String> requestHeaderTags;
   private final Map<String, String> responseHeaderTags;
+  private final Map<String, String> baggageMapping;
   private final BitSet httpServerErrorStatuses;
   private final BitSet httpClientErrorStatuses;
   private final boolean httpServerTagQueryString;
@@ -792,6 +793,8 @@ public class Config {
               "http.response.headers.", true, HEADER_TAGS, RESPONSE_HEADER_TAGS);
     }
 
+    baggageMapping = configProvider.getMergedMap(BAGGAGE_MAPPING);
+
     httpServerPathResourceNameMapping =
         configProvider.getOrderedMap(TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING);
 
@@ -907,11 +910,9 @@ public class Config {
     healthMetricsStatsdPort = configProvider.getInteger(HEALTH_METRICS_STATSD_PORT);
     perfMetricsEnabled =
         runtimeMetricsEnabled
-            && isJavaVersionAtLeast(8)
             && configProvider.getBoolean(PERF_METRICS_ENABLED, DEFAULT_PERF_METRICS_ENABLED);
 
-    tracerMetricsEnabled =
-        isJavaVersionAtLeast(8) && configProvider.getBoolean(TRACER_METRICS_ENABLED, false);
+    tracerMetricsEnabled = configProvider.getBoolean(TRACER_METRICS_ENABLED, false);
     tracerMetricsBufferingEnabled =
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
@@ -1387,6 +1388,10 @@ public class Config {
 
   public Map<String, String> getResponseHeaderTags() {
     return responseHeaderTags;
+  }
+
+  public Map<String, String> getBaggageMapping() {
+    return baggageMapping;
   }
 
   public Map<String, String> getHttpServerPathResourceNameMapping() {
@@ -2724,6 +2729,8 @@ public class Config {
         + requestHeaderTags
         + ", responseHeaderTags="
         + responseHeaderTags
+        + ", baggageMapping="
+        + baggageMapping
         + ", httpServerErrorStatuses="
         + httpServerErrorStatuses
         + ", httpClientErrorStatuses="

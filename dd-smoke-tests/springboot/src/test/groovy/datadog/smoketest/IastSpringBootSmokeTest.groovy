@@ -1,18 +1,13 @@
 package datadog.smoketest
 
-import datadog.trace.api.Platform
 import datadog.trace.test.agent.decoder.DecodedSpan
 import groovy.json.JsonSlurper
 import okhttp3.Request
-import spock.lang.IgnoreIf
 import spock.util.concurrent.PollingConditions
 
 import java.util.function.Function
 import java.util.function.Predicate
 
-@IgnoreIf({
-  !Platform.isJavaVersionAtLeast(8)
-})
 class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
 
   private static final String TAG_NAME = '_dd.iast.json'
@@ -156,10 +151,10 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     then:
     def responseBodyStr = response.body().string()
     responseBodyStr != null
-    responseBodyStr.contains("Param is: A")
+    responseBodyStr.contains('Param is: A')
     Boolean foundTaintedString = false
     checkLog {
-      if (it.contains("TaintInputString")) {
+      if (it.contains('taint') && it.contains('Param is: A')) {
         foundTaintedString = true
       }
     }

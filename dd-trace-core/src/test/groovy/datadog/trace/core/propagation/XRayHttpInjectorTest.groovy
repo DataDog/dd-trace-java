@@ -17,7 +17,7 @@ import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 
 class XRayHttpInjectorTest extends DDCoreSpecification {
 
-  HttpCodec.Injector injector = XRayHttpCodec.INJECTOR
+  HttpCodec.Injector injector = XRayHttpCodec.newInjector(["some-baggage-key":"SOME_CUSTOM_HEADER"])
 
   def "inject http headers"() {
     setup:
@@ -35,7 +35,7 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       "fakeResource",
       samplingPriority,
       "fakeOrigin",
-      ["k": "v"],
+      ["k": "v", "some-baggage-key": "some-value"],
       false,
       "fakeType",
       0,
@@ -61,13 +61,13 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
 
     where:
     traceId          | spanId           | samplingPriority | samplingMechanism | expectedTraceHeader
-    1G               | 2G               | UNSET            | UNKNOWN           | 'Root=1-633c7675-000000000000000000000001;Parent=0000000000000002;_dd.origin=fakeOrigin;k=v'
-    2G               | 3G               | SAMPLER_KEEP     | DEFAULT           | 'Root=1-633c7675-000000000000000000000002;Parent=0000000000000003;Sampled=1;_dd.origin=fakeOrigin;k=v'
-    4G               | 5G               | SAMPLER_DROP     | DEFAULT           | 'Root=1-633c7675-000000000000000000000004;Parent=0000000000000005;Sampled=0;_dd.origin=fakeOrigin;k=v'
-    5G               | 6G               | USER_KEEP        | MANUAL            | 'Root=1-633c7675-000000000000000000000005;Parent=0000000000000006;Sampled=1;_dd.origin=fakeOrigin;k=v'
-    6G               | 7G               | USER_DROP        | MANUAL            | 'Root=1-633c7675-000000000000000000000006;Parent=0000000000000007;Sampled=0;_dd.origin=fakeOrigin;k=v'
-    TRACE_ID_MAX     | TRACE_ID_MAX - 1 | UNSET            | UNKNOWN           | 'Root=1-633c7675-00000000ffffffffffffffff;Parent=fffffffffffffffe;_dd.origin=fakeOrigin;k=v'
-    TRACE_ID_MAX - 1 | TRACE_ID_MAX     | SAMPLER_KEEP     | DEFAULT           | 'Root=1-633c7675-00000000fffffffffffffffe;Parent=ffffffffffffffff;Sampled=1;_dd.origin=fakeOrigin;k=v'
+    1G               | 2G               | UNSET            | UNKNOWN           | 'Root=1-633c7675-000000000000000000000001;Parent=0000000000000002;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'
+    2G               | 3G               | SAMPLER_KEEP     | DEFAULT           | 'Root=1-633c7675-000000000000000000000002;Parent=0000000000000003;Sampled=1;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'
+    4G               | 5G               | SAMPLER_DROP     | DEFAULT           | 'Root=1-633c7675-000000000000000000000004;Parent=0000000000000005;Sampled=0;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'
+    5G               | 6G               | USER_KEEP        | MANUAL            | 'Root=1-633c7675-000000000000000000000005;Parent=0000000000000006;Sampled=1;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'
+    6G               | 7G               | USER_DROP        | MANUAL            | 'Root=1-633c7675-000000000000000000000006;Parent=0000000000000007;Sampled=0;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'
+    TRACE_ID_MAX     | TRACE_ID_MAX - 1 | UNSET            | UNKNOWN           | 'Root=1-633c7675-00000000ffffffffffffffff;Parent=fffffffffffffffe;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'
+    TRACE_ID_MAX - 1 | TRACE_ID_MAX     | SAMPLER_KEEP     | DEFAULT           | 'Root=1-633c7675-00000000fffffffffffffffe;Parent=ffffffffffffffff;Sampled=1;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'
   }
 
   def "inject http headers with extracted original"() {
@@ -78,7 +78,7 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
     def headers = [
       'X-Amzn-Trace-Id' : "Root=1-00000000-00000000${traceId.padLeft(16, '0')};Parent=${spanId.padLeft(16, '0')}"
     ]
-    HttpCodec.Extractor extractor = XRayHttpCodec.newExtractor(Collections.emptyMap())
+    HttpCodec.Extractor extractor = XRayHttpCodec.newExtractor(Collections.emptyMap(), Collections.emptyMap())
     final TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
     final DDSpanContext mockedContext =
       new DDSpanContext(
@@ -91,7 +91,7 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       "fakeResource",
       UNSET,
       "fakeOrigin",
-      ["k": "v"],
+      ["k": "v", "some-baggage-key": "some-value"],
       false,
       "fakeType",
       0,
@@ -111,17 +111,19 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
     1 * carrier.put('X-Amzn-Trace-Id', "$expectedTraceHeader")
     0 * _
 
+    println carrier.toString()
+
     cleanup:
     tracer.close()
 
     where:
     traceId            | spanId             | expectedTraceHeader
-    "00001"            | "00001"            | 'Root=1-633c7675-000000000000000000000001;Parent=0000000000000001;_dd.origin=fakeOrigin;k=v'
-    "463ac35c9f6413ad" | "463ac35c9f6413ad" | 'Root=1-633c7675-00000000463ac35c9f6413ad;Parent=463ac35c9f6413ad;_dd.origin=fakeOrigin;k=v'
-    "48485a3953bb6124" | "1"                | 'Root=1-633c7675-0000000048485a3953bb6124;Parent=0000000000000001;_dd.origin=fakeOrigin;k=v'
-    "f" * 16           | "1"                | 'Root=1-633c7675-00000000ffffffffffffffff;Parent=0000000000000001;_dd.origin=fakeOrigin;k=v'
-    "a" * 8 + "f" * 8  | "1"                | 'Root=1-633c7675-00000000aaaaaaaaffffffff;Parent=0000000000000001;_dd.origin=fakeOrigin;k=v'
-    "1"                | "f" * 16           | 'Root=1-633c7675-000000000000000000000001;Parent=ffffffffffffffff;_dd.origin=fakeOrigin;k=v'
+    "00001"            | "00001"            | 'Root=1-633c7675-000000000000000000000001;Parent=0000000000000001;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'
+    "463ac35c9f6413ad" | "463ac35c9f6413ad" | 'Root=1-633c7675-00000000463ac35c9f6413ad;Parent=463ac35c9f6413ad;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'
+    "48485a3953bb6124" | "1"                | 'Root=1-633c7675-0000000048485a3953bb6124;Parent=0000000000000001;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'
+    "f" * 16           | "1"                | 'Root=1-633c7675-00000000ffffffffffffffff;Parent=0000000000000001;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'
+    "a" * 8 + "f" * 8  | "1"                | 'Root=1-633c7675-00000000aaaaaaaaffffffff;Parent=0000000000000001;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'
+    "1"                | "f" * 16           | 'Root=1-633c7675-000000000000000000000001;Parent=ffffffffffffffff;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'
   }
 
   def "inject http headers with end-to-end"() {
