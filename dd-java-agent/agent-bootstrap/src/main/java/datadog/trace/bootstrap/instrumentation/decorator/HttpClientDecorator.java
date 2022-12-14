@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.NamingSchema;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -54,6 +55,11 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecor
   }
 
   public AgentSpan onRequest(final AgentSpan span, final REQUEST request) {
+    // those three lines should be done earlier. For simplicity, I put at this stage
+    final NamingSchema.WithNaming naming =
+        NamingSchema.get().http().outbound(Config.get().getServiceName());
+    span.setOperationName(naming.operationName());
+    //span.setServiceName(naming.serviceName());
     if (request != null) {
       String method = method(request);
       span.setTag(Tags.HTTP_METHOD, method);

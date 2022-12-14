@@ -596,6 +596,8 @@ public class Config {
   private final String dogStatsDPath;
   private final List<String> dogStatsDArgs;
 
+  private final int namingSchemaVersion;
+
   private String env;
   private String version;
   private final String primaryTag;
@@ -937,6 +939,8 @@ public class Config {
 
     this.traceClientIpResolverEnabled =
         configProvider.getBoolean(TRACE_CLIENT_IP_RESOLVER_ENABLED, true);
+
+    namingSchemaVersion = configProvider.getInteger("naming.schema.version", 0);
 
     traceSamplingServiceRules = configProvider.getMergedMap(TRACE_SAMPLING_SERVICE_RULES);
     traceSamplingOperationRules = configProvider.getMergedMap(TRACE_SAMPLING_OPERATION_RULES);
@@ -1511,6 +1515,10 @@ public class Config {
 
   public Integer getJmxFetchInitialRefreshBeansPeriod() {
     return jmxFetchInitialRefreshBeansPeriod;
+  }
+
+  public int getNamingSchemaVersion() {
+    return namingSchemaVersion;
   }
 
   public String getJmxFetchStatsdHost() {

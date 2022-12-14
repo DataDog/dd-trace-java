@@ -20,7 +20,7 @@ public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecora
 
   @Override
   protected String service() {
-    return "redis";
+    return null;
   }
 
   @Override

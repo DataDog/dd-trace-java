@@ -11,7 +11,7 @@ import static datadog.trace.core.datastreams.TagsProcessor.PARTITION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_LEGACY_TRACING;
-import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCE;
+import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.OUTBOUND_SCHEMA;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -72,7 +72,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
         @Advice.Argument(value = 1, readOnly = false) Callback callback) {
       final AgentSpan parent = activeSpan();
-      final AgentSpan span = startSpan(KAFKA_PRODUCE);
+      final AgentSpan span = startSpan(OUTBOUND_SCHEMA.operationName());
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, record);
 

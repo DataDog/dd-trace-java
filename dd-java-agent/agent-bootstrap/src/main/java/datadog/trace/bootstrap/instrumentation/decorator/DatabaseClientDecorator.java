@@ -3,11 +3,12 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.Functions;
+import datadog.trace.api.NamingSchema;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import java.util.Locale;
 import java.util.function.Function;
 
 public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorator {
@@ -15,9 +16,17 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
   // The total number of entries in the cache will normally be less than 4, since
   // most applications only have one or two DBs, and "jdbc" itself is also used as
   // one DB_TYPE, but set the cache size to 16 to help avoid collisions.
-  private static final DDCache<CharSequence, CharSequence> CACHE = DDCaches.newFixedSizeCache(16);
-  private static final Function<CharSequence, CharSequence> APPEND_OPERATION =
-      new Functions.Suffix(".query");
+  private static final DDCache<String, NamingSchema.WithNaming> CACHE =
+      DDCaches.newFixedSizeCache(16);
+  private static final Function<String, NamingSchema.WithNaming> NAMING =
+      dbType -> {
+        switch (dbType.toLowerCase(Locale.ROOT)) {
+          case "redis":
+            return NamingSchema.get().storage().redis(Config.get().getServiceName());
+          default:
+            return NamingSchema.get().storage().jdbc(Config.get().getServiceName(), dbType);
+        }
+      };
 
   protected abstract String dbType();
 
@@ -61,8 +70,9 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
   }
 
   protected void processDatabaseType(AgentSpan span, String dbType) {
-    span.setServiceName(dbType);
-    span.setOperationName(CACHE.computeIfAbsent(dbType, APPEND_OPERATION));
+    final NamingSchema.WithNaming naming = CACHE.computeIfAbsent(dbType, NAMING);
+    span.setServiceName(naming.serviceName());
+    span.setOperationName(naming.operationName());
     span.setTag(DB_TYPE, dbType);
   }
 }

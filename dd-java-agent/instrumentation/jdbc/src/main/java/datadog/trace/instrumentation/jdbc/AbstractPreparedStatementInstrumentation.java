@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.jdbc;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logMissingQueryInfo;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logSQLException;
@@ -12,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -71,10 +71,11 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
           return null;
         }
 
-        final AgentSpan span = startSpan(DATABASE_QUERY);
+        final AgentSpan span = startSpan("database.query");
         DECORATE.afterStart(span);
-        DECORATE.onConnection(
-            span, connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+        final ContextStore<Connection, DBInfo> connectionContext =
+            InstrumentationContext.get(Connection.class, DBInfo.class);
+        DECORATE.onConnection(span, connection, connectionContext);
         DECORATE.onPreparedStatement(span, queryInfo);
         return activateSpan(span);
       } catch (SQLException e) {

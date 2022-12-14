@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.NamingSchema;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -131,6 +132,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       final REQUEST request,
       final AgentSpan.Context.Extracted context) {
     Config config = Config.get();
+    final NamingSchema.WithNaming naming =
+        NamingSchema.get().http().inbound(config.getServiceName());
+    span.setServiceName(naming.serviceName());
+    span.setOperationName(naming.operationName());
     boolean clientIpResolverEnabled =
         config.isClientIpEnabled()
             || traceClientIpResolverEnabled && ActiveSubsystems.APPSEC_ACTIVE;

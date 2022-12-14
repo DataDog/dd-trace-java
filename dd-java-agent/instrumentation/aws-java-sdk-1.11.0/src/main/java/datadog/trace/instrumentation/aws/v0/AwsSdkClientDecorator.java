@@ -1,15 +1,20 @@
 package datadog.trace.instrumentation.aws.v0;
 
+import com.amazonaws.AmazonWebServiceClient;
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
 import com.amazonaws.Response;
+import datadog.trace.api.Config;
 import datadog.trace.api.Functions;
+import datadog.trace.api.NamingSchema;
 import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
+
 import java.net.URI;
+import java.util.Locale;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
@@ -64,10 +69,16 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
         span.setServiceName("sqs");
         break;
       case "SNS.Publish":
-        span.setServiceName("sns");
+        final NamingSchema.WithNaming naming =
+            NamingSchema.get().messaging().outbound().sns(Config.get().getServiceName());
+        span.setServiceName(naming.serviceName());
+        span.setOperationName(naming.operationName());
         break;
       default:
-        span.setServiceName("java-aws-sdk");
+        final NamingSchema.WithNaming defaultNaming =
+            NamingSchema.get().other().aws(Config.get().getServiceName(), AMAZON_PATTERN.matcher(awsServiceName).replaceAll("").toLowerCase(Locale.ROOT));
+        span.setServiceName(defaultNaming.serviceName());
+        span.setOperationName(defaultNaming.operationName());
         break;
     }
 
@@ -116,7 +127,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[] {"aws-sdk"};
+    return new String[]{"aws-sdk"};
   }
 
   @Override

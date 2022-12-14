@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameSta
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -76,7 +75,7 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
       }
       try {
         final Connection connection = statement.getConnection();
-        final AgentSpan span = startSpan(DATABASE_QUERY);
+        final AgentSpan span = startSpan("database.query");
         DECORATE.afterStart(span);
         DECORATE.onConnection(
             span, connection, InstrumentationContext.get(Connection.class, DBInfo.class));

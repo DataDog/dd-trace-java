@@ -8,6 +8,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.Functions;
+import datadog.trace.api.NamingSchema;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -21,11 +22,14 @@ import org.apache.kafka.common.record.TimestampType;
 
 public class KafkaDecorator extends MessagingClientDecorator {
   public static final CharSequence JAVA_KAFKA = UTF8BytesString.create("java-kafka");
-  public static final CharSequence KAFKA_CONSUME = UTF8BytesString.create("kafka.consume");
-  public static final CharSequence KAFKA_PRODUCE = UTF8BytesString.create("kafka.produce");
   public static final CharSequence KAFKA_DELIVER = UTF8BytesString.create("kafka.deliver");
   public static final boolean KAFKA_LEGACY_TRACING =
       Config.get().isLegacyTracingEnabled(true, "kafka");
+
+  public static final NamingSchema.WithNaming INBOUND_SCHEMA =
+      NamingSchema.get().messaging().inbound().kafka(Config.get().getServiceName());
+  public static final NamingSchema.WithNaming OUTBOUND_SCHEMA =
+      NamingSchema.get().messaging().outbound().kafka(Config.get().getServiceName());
 
   public static final String KAFKA_PRODUCED_KEY = "x_datadog_kafka_produced";
   private final String spanKind;
@@ -39,16 +43,19 @@ public class KafkaDecorator extends MessagingClientDecorator {
       DDCaches.newFixedSizeCache(32);
   private static final Functions.Prefix CONSUMER_PREFIX = new Functions.Prefix("Consume Topic ");
 
-  private static final String LOCAL_SERVICE_NAME =
-      KAFKA_LEGACY_TRACING ? "kafka" : Config.get().getServiceName();
+  private static final String LOCAL_SERVICE_NAME_INBOUND =
+      KAFKA_LEGACY_TRACING ? INBOUND_SCHEMA.serviceName() : Config.get().getServiceName();
+
+  private static final String LOCAL_SERVICE_NAME_OUTBOUND =
+      KAFKA_LEGACY_TRACING ? OUTBOUND_SCHEMA.serviceName() : Config.get().getServiceName();
 
   public static final KafkaDecorator PRODUCER_DECORATE =
       new KafkaDecorator(
-          Tags.SPAN_KIND_PRODUCER, InternalSpanTypes.MESSAGE_PRODUCER, LOCAL_SERVICE_NAME);
+          Tags.SPAN_KIND_PRODUCER, InternalSpanTypes.MESSAGE_PRODUCER, LOCAL_SERVICE_NAME_OUTBOUND);
 
   public static final KafkaDecorator CONSUMER_DECORATE =
       new KafkaDecorator(
-          Tags.SPAN_KIND_CONSUMER, InternalSpanTypes.MESSAGE_CONSUMER, LOCAL_SERVICE_NAME);
+          Tags.SPAN_KIND_CONSUMER, InternalSpanTypes.MESSAGE_CONSUMER, LOCAL_SERVICE_NAME_INBOUND);
 
   public static final KafkaDecorator BROKER_DECORATE =
       new KafkaDecorator(

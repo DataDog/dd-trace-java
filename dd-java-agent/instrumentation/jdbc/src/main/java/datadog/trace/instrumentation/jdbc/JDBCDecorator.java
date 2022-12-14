@@ -26,7 +26,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
   public static final JDBCDecorator DECORATE = new JDBCDecorator();
   public static final CharSequence JAVA_JDBC = UTF8BytesString.create("java-jdbc");
-  public static final CharSequence DATABASE_QUERY = UTF8BytesString.create("database.query");
   private static final UTF8BytesString DB_QUERY = UTF8BytesString.create("DB Query");
   private static final UTF8BytesString JDBC_STATEMENT =
       UTF8BytesString.create("java-jdbc-statement");

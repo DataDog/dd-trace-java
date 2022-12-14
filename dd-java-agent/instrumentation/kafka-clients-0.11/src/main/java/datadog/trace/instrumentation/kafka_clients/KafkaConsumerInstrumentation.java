@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.CONSUMER_DECORATE;
-import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_CONSUME;
+import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.INBOUND_SCHEMA;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -85,7 +85,8 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         @Advice.This ConsumerRecords records) {
       if (iterable != null) {
         String group = InstrumentationContext.get(ConsumerRecords.class, String.class).get(records);
-        iterable = new TracingIterable(iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group);
+        iterable =
+            new TracingIterable(iterable, INBOUND_SCHEMA.operationName(), CONSUMER_DECORATE, group);
       }
     }
   }
@@ -98,7 +99,8 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         @Advice.This ConsumerRecords records) {
       if (iterable != null) {
         String group = InstrumentationContext.get(ConsumerRecords.class, String.class).get(records);
-        iterable = new TracingList(iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group);
+        iterable =
+            new TracingList(iterable, INBOUND_SCHEMA.operationName(), CONSUMER_DECORATE, group);
       }
     }
   }
@@ -111,7 +113,8 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
         @Advice.This ConsumerRecords records) {
       if (iterator != null) {
         String group = InstrumentationContext.get(ConsumerRecords.class, String.class).get(records);
-        iterator = new TracingIterator(iterator, KAFKA_CONSUME, CONSUMER_DECORATE, group);
+        iterator =
+            new TracingIterator(iterator, INBOUND_SCHEMA.operationName(), CONSUMER_DECORATE, group);
       }
     }
   }

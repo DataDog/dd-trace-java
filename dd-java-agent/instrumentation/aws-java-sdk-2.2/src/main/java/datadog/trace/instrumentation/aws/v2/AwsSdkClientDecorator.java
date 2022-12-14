@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.aws.v2;
 
+import datadog.trace.api.Config;
+import datadog.trace.api.NamingSchema;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -70,7 +72,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         span.setServiceName("sqs");
         break;
       case "Sns.Publish":
-        span.setServiceName("sns");
+        final NamingSchema.WithNaming naming =
+            NamingSchema.get().messaging().outbound().sns(Config.get().getServiceName());
+        span.setServiceName(naming.serviceName());
+        span.setOperationName(naming.operationName());
         break;
       default:
         span.setServiceName("java-aws-sdk");
