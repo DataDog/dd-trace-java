@@ -86,7 +86,7 @@ class B3HttpInjectorTest extends DDCoreSpecification {
       (TRACE_ID_KEY.toUpperCase()): traceId,
       (SPAN_ID_KEY.toUpperCase()) : spanId,
     ]
-    HttpCodec.Extractor extractor = B3HttpCodec.newExtractor(Collections.emptyMap())
+    HttpCodec.Extractor extractor = B3HttpCodec.newExtractor(Collections.emptyMap(),Collections.emptyMap())
     final TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
     final DDSpanContext mockedContext =
       new DDSpanContext(

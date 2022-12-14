@@ -239,6 +239,7 @@ import static datadog.trace.api.config.TracerConfig.AGENT_NAMED_PIPE;
 import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY;
 import static datadog.trace.api.config.TracerConfig.AGENT_TIMEOUT;
 import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET;
+import static datadog.trace.api.config.TracerConfig.BAGGAGE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.CLIENT_IP_ENABLED;
 import static datadog.trace.api.config.TracerConfig.CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
@@ -397,6 +398,7 @@ public class Config {
   private final Map<String, String> jmxTags;
   private final Map<String, String> requestHeaderTags;
   private final Map<String, String> responseHeaderTags;
+  private final Map<String, String> baggageMapping;
   private final BitSet httpServerErrorStatuses;
   private final BitSet httpClientErrorStatuses;
   private final boolean httpServerTagQueryString;
@@ -790,6 +792,8 @@ public class Config {
           configProvider.getMergedMapWithOptionalMappings(
               "http.response.headers.", true, HEADER_TAGS, RESPONSE_HEADER_TAGS);
     }
+
+    baggageMapping = configProvider.getMergedMap(BAGGAGE_MAPPING);
 
     httpServerPathResourceNameMapping =
         configProvider.getOrderedMap(TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING);
@@ -1384,6 +1388,10 @@ public class Config {
 
   public Map<String, String> getResponseHeaderTags() {
     return responseHeaderTags;
+  }
+
+  public Map<String, String> getBaggageMapping() {
+    return baggageMapping;
   }
 
   public Map<String, String> getHttpServerPathResourceNameMapping() {
@@ -2721,6 +2729,8 @@ public class Config {
         + requestHeaderTags
         + ", responseHeaderTags="
         + responseHeaderTags
+        + ", baggageMapping="
+        + baggageMapping
         + ", httpServerErrorStatuses="
         + httpServerErrorStatuses
         + ", httpClientErrorStatuses="

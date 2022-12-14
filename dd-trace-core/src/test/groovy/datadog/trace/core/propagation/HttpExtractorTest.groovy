@@ -22,7 +22,7 @@ class HttpExtractorTest extends DDSpecification {
     Config config = Mock(Config) {
       getPropagationStylesToExtract() >> styles
     }
-    HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, ["SOME_HEADER": "some-tag"])
+    HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, ["SOME_HEADER": "some-tag"],[:])
 
     final Map<String, String> actual = [:]
     if (datadogTraceId != null) {

@@ -23,7 +23,7 @@ class DatadogHttpExtractorTest extends DDSpecification {
 
   private HttpCodec.Extractor getExtractor() {
     _extractor ?: (
-      _extractor = DatadogHttpCodec.newExtractor(["SOME_HEADER": "some-tag"])
+      _extractor = DatadogHttpCodec.newExtractor(["SOME_HEADER": "some-tag"], ["SOME_CUSTOM_BAGGAGE_HEADER": "some-baggage"])
       )
   }
 
@@ -49,6 +49,7 @@ class DatadogHttpExtractorTest extends DDSpecification {
       (OT_BAGGAGE_PREFIX.toUpperCase() + "k1"): "v1",
       (OT_BAGGAGE_PREFIX.toUpperCase() + "k2"): "v2",
       SOME_HEADER                             : "my-interesting-info",
+      SOME_CUSTOM_BAGGAGE_HEADER              : "my-interesting-baggage-info",
     ]
 
     if (samplingPriority != PrioritySampling.UNSET) {
@@ -65,7 +66,7 @@ class DatadogHttpExtractorTest extends DDSpecification {
     then:
     context.traceId == DDTraceId.from(traceId)
     context.spanId == DDSpanId.from(spanId)
-    context.baggage == ["k1": "v1", "k2": "v2"]
+    context.baggage == ["k1": "v1", "k2": "v2", "some-baggage": "my-interesting-baggage-info"]
     context.tags == ["some-tag": "my-interesting-info"]
     context.samplingPriority == samplingPriority
     context.origin == origin
@@ -313,6 +314,7 @@ class DatadogHttpExtractorTest extends DDSpecification {
       (OT_BAGGAGE_PREFIX.toUpperCase() + "t0"): endToEndStartTime,
       (OT_BAGGAGE_PREFIX.toUpperCase() + "k2"): "v2",
       SOME_HEADER                             : "my-interesting-info",
+      SOME_CUSTOM_BAGGAGE_HEADER              : "my-interesting-baggage-info",
     ]
 
     when:
@@ -321,7 +323,7 @@ class DatadogHttpExtractorTest extends DDSpecification {
     then:
     context.traceId == DDTraceId.from(traceId)
     context.spanId == DDSpanId.from(spanId)
-    context.baggage == ["k1": "v1", "k2": "v2"]
+    context.baggage == ["k1": "v1", "k2": "v2", "some-baggage": "my-interesting-baggage-info"]
     context.tags == ["some-tag": "my-interesting-info"]
     context.endToEndStartTime == endToEndStartTime * 1000000L
 
