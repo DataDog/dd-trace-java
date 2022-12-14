@@ -29,9 +29,8 @@ import java.time.Duration
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
-// Do not run tests locally on Java7 since testcontainers are not compatible with Java7
 // It is fine to run on CI because CI provides agent externally, not through testcontainers
-@Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
+@Requires({ "true" == System.getenv("CI") })
 class DDApiIntegrationTest extends DDSpecification {
   def tracer = CoreTracer.builder().writer(new ListWriter()).build()
   DDSpan span

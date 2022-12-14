@@ -23,7 +23,6 @@ import org.springframework.kafka.test.rule.KafkaEmbedded
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
 import spock.lang.Ignore
-import spock.lang.Requires
 import spock.lang.Unroll
 
 import java.util.concurrent.LinkedBlockingQueue
@@ -446,7 +445,6 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
 
   }
 
-  @Requires({ jvm.java8Compatible })
   def "test records(TopicPartition).forEach kafka consume"() {
     setup:
     // set up the Kafka consumer properties

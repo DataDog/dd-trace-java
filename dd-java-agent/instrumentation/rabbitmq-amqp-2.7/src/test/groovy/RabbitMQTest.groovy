@@ -21,7 +21,6 @@ import org.springframework.amqp.rabbit.connection.CachingConnectionFactory
 import org.springframework.amqp.rabbit.core.RabbitAdmin
 import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.testcontainers.containers.RabbitMQContainer
-import spock.lang.Requires
 import spock.lang.Shared
 
 import java.time.Duration
@@ -34,8 +33,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES
 
-// Do not run tests on Java7 since testcontainers are not compatible with Java7
-@Requires({ jvm.java8Compatible })
 abstract class RabbitMQTestBase extends AgentTestRunner {
   @Shared
   def rabbitMQContainer
@@ -840,7 +837,6 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
   }
 }
 
-@Requires({ jvm.java8Compatible })
 class RabbitMQForkedTest extends RabbitMQTestBase {
   @Override
   void configurePreAgent() {
@@ -865,7 +861,6 @@ class RabbitMQForkedTest extends RabbitMQTestBase {
   }
 }
 
-@Requires({ jvm.java8Compatible })
 class RabbitMQDatastreamsDisabledForkedTest extends RabbitMQTestBase {
   @Override
   void configurePreAgent() {
@@ -895,7 +890,6 @@ class RabbitMQDatastreamsDisabledForkedTest extends RabbitMQTestBase {
   }
 }
 
-@Requires({ jvm.java8Compatible })
 class RabbitMQSplitByDestinationForkedTest extends RabbitMQTestBase {
   @Override
   void configurePreAgent() {
@@ -921,7 +915,6 @@ class RabbitMQSplitByDestinationForkedTest extends RabbitMQTestBase {
   }
 }
 
-@Requires({ jvm.java8Compatible })
 class RabbitMQLegacyTracingForkedTest extends RabbitMQTestBase {
   @Override
   void configurePreAgent() {
@@ -945,7 +938,6 @@ class RabbitMQLegacyTracingForkedTest extends RabbitMQTestBase {
   }
 }
 
-@Requires({ jvm.java8Compatible })
 class RabbitMQRoutingKeyExcludedForkedTest extends RabbitMQTestBase {
   @Override
   void configurePreAgent() {
