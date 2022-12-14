@@ -1,9 +1,8 @@
 package datadog.smoketest
 
 import datadog.smoketest.opentracing.IncorrectSetupWithAgentApplication
-import spock.lang.Timeout
 
-import java.util.concurrent.TimeUnit
+import static java.util.concurrent.TimeUnit.SECONDS
 
 class IncorrectSetupWithAgentTest extends AbstractSmokeTest {
   public static final int TIMEOUT_SECS = 30
@@ -22,9 +21,9 @@ class IncorrectSetupWithAgentTest extends AbstractSmokeTest {
     return processBuilder
   }
 
-  @Timeout(value = TIMEOUT_SECS, unit = TimeUnit.SECONDS)
   def "Application exits without error"() {
     expect:
-    assert testedProcess.waitFor() == 0
+    assert testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
+    assert testedProcess.exitValue() == 0
   }
 }
