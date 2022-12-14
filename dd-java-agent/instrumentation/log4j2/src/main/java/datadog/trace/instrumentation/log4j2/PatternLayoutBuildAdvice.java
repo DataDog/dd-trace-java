@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.log4j2;
 
+import datadog.trace.api.Config;
 import net.bytebuddy.asm.Advice;
 import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.slf4j.Logger;
@@ -18,9 +19,10 @@ public class PatternLayoutBuildAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void onEnter(@Advice.This Object obj,@Advice.FieldValue("pattern") String eventPattern) {
-    logger.debug("origin pattern:{}",eventPattern);
-    String pattern = "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger - [%method,%line] %X{dd.service} %X{dd.trace_id} %X{dd.span_id} - %msg%n";
+    String pattern = Config.get().getLogPattern();
+    logger.debug("origin pattern:{},new pattern:{}",eventPattern,pattern);
     try {
+
       Field field = PatternLayout.Builder.class.getDeclaredField("pattern");
       field.setAccessible(true);
       field.set(obj, pattern);

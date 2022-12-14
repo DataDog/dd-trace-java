@@ -352,6 +352,7 @@ public class Config {
   private final boolean logsInjectionEnabled;
   private final boolean logsMDCTagsInjectionEnabled;
   private final boolean reportHostName;
+  private final String logPattern;
 
   private final String traceAnnotations;
 
@@ -854,6 +855,9 @@ public class Config {
 
     logsInjectionEnabled =
         configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
+
+    logPattern = configProvider.getString(LOGS_PATTERN, DEFAULT_LOG_PATTERN);
+
     logsMDCTagsInjectionEnabled = configProvider.getBoolean(LOGS_MDC_TAGS_INJECTION_ENABLED, true);
     reportHostName =
         configProvider.getBoolean(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
@@ -1549,6 +1553,10 @@ public class Config {
 
   public boolean isLogsInjectionEnabled() {
     return logsInjectionEnabled;
+  }
+
+  public String getLogPattern() {
+    return logPattern;
   }
 
   public boolean isLogsMDCTagsInjectionEnabled() {
@@ -2837,6 +2845,8 @@ public class Config {
         + logsInjectionEnabled
         + ", logsMDCTagsInjectionEnabled="
         + logsMDCTagsInjectionEnabled
+        + ", logPattern="
+        + logPattern
         + ", reportHostName="
         + reportHostName
         + ", traceAnnotations='"

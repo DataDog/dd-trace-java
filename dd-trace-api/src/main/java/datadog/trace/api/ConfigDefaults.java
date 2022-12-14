@@ -141,5 +141,6 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_JDBC_SQL_OBFUSCATION = false;
 
+  static final String DEFAULT_LOG_PATTERN="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger - [%method,%line] %X{dd.service} %X{dd.trace_id} %X{dd.span_id} - %msg%n";
   private ConfigDefaults() {}
 }
