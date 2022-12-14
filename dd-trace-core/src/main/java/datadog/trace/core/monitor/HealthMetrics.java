@@ -67,6 +67,11 @@ public class HealthMetrics implements AutoCloseable {
   private final FixedSizeStripedLongCounter enqueuedSpans =
       CountersFactory.createFixedSizeStripedCounter(8);
 
+  private final FixedSizeStripedLongCounter partialTraces =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter droppedSpans =
+      CountersFactory.createFixedSizeStripedCounter(8);
+
   private final StatsDClient statsd;
   private final long interval;
   private final TimeUnit units;
@@ -132,6 +137,11 @@ public class HealthMetrics implements AutoCloseable {
       default:
         unsetPriorityDroppedTraces.inc();
     }
+  }
+
+  public void onPartialPublish(final int numberOfDroppedSpans) {
+    partialTraces.inc();
+    droppedSpans.inc(numberOfDroppedSpans);
   }
 
   public void onScheduleFlush(final boolean previousIncomplete) {
@@ -223,6 +233,8 @@ public class HealthMetrics implements AutoCloseable {
       reportIfChanged(
           target.statsd, "queue.dropped.traces", target.unsetPriorityDroppedTraces, UNSET_TAG);
       reportIfChanged(target.statsd, "queue.enqueued.spans", target.enqueuedSpans, NO_TAGS);
+      reportIfChanged(target.statsd, "queue.partial.traces", target.partialTraces, NO_TAGS);
+      reportIfChanged(target.statsd, "queue.dropped.spans", target.droppedSpans, NO_TAGS);
     }
 
     private void reportIfChanged(

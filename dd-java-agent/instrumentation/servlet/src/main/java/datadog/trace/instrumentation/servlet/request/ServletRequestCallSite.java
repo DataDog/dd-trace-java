@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.servlet.request;
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.source.WebModule;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -24,7 +25,14 @@ public class ServletRequestCallSite {
       @CallSite.This final ServletRequest self,
       @CallSite.Argument final String paramName,
       @CallSite.Return final String paramValue) {
-    InstrumentationBridge.onParameterValue(paramName, paramValue);
+    final WebModule module = InstrumentationBridge.WEB;
+    if (module != null) {
+      try {
+        module.onParameterValue(paramName, paramValue);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterGetParameter threw", e);
+      }
+    }
     return paramValue;
   }
 
@@ -36,13 +44,21 @@ public class ServletRequestCallSite {
         "java.util.Enumeration javax.servlet.http.HttpServletRequestWrapper.getParameterNames()"),
     @CallSite.After("java.util.Enumeration javax.servlet.ServletRequestWrapper.getParameterNames()")
   })
-  public static Enumeration afterGetParameterNames(
-      @CallSite.This final ServletRequest self, @CallSite.Return final Enumeration enumeration) {
-    ArrayList<String> parameterNames = new ArrayList<>();
+  public static Enumeration<?> afterGetParameterNames(
+      @CallSite.This final ServletRequest self, @CallSite.Return final Enumeration<?> enumeration) {
+    final WebModule module = InstrumentationBridge.WEB;
+    if (module == null) {
+      return enumeration;
+    }
+    final ArrayList<String> parameterNames = new ArrayList<>();
     while (enumeration.hasMoreElements()) {
       String paramName = (String) enumeration.nextElement();
-      InstrumentationBridge.onParameterName(paramName);
       parameterNames.add(paramName);
+      try {
+        module.onParameterName(paramName);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterGetParameterNames threw", e);
+      }
     }
     return Collections.enumeration(parameterNames);
   }
@@ -62,8 +78,15 @@ public class ServletRequestCallSite {
       @CallSite.Argument final String paramName,
       @CallSite.Return final String[] parameterValues) {
     if (null != parameterValues) {
-      for (String paramValue : parameterValues) {
-        InstrumentationBridge.onParameterValue(paramName, paramValue);
+      final WebModule module = InstrumentationBridge.WEB;
+      if (module != null) {
+        for (String paramValue : parameterValues) {
+          try {
+            module.onParameterValue(paramName, paramValue);
+          } catch (final Throwable e) {
+            module.onUnexpectedException("afterGetParameterValues threw", e);
+          }
+        }
       }
     }
     return parameterValues;

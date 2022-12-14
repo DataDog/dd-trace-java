@@ -2,7 +2,7 @@ package com.datadog.iast.propagation;
 
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
-import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.instrumentation.java.lang.StringBuilderCallSite;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 
@@ -28,7 +28,7 @@ public class StringBuilderInitBenchmark
   public StringBuilder iastDisabled() {
     final String param = context.notTainted;
     final StringBuilder self = new StringBuilder(param);
-    InstrumentationBridge.onStringBuilderInit(self, param);
+    StringBuilderCallSite.afterInit(self, param);
     return self;
   }
 
@@ -37,7 +37,7 @@ public class StringBuilderInitBenchmark
   public StringBuilder notTainted() {
     final String param = context.notTainted;
     final StringBuilder self = new StringBuilder(param);
-    InstrumentationBridge.onStringBuilderInit(self, param);
+    StringBuilderCallSite.afterInit(self, param);
     return self;
   }
 
@@ -46,7 +46,7 @@ public class StringBuilderInitBenchmark
   public StringBuilder tainted() {
     final String param = context.tainted;
     final StringBuilder self = new StringBuilder(param);
-    InstrumentationBridge.onStringBuilderInit(self, param);
+    StringBuilderCallSite.afterInit(self, param);
     return self;
   }
 

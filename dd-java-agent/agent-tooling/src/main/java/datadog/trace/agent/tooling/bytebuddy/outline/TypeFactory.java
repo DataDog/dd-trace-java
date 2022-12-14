@@ -11,7 +11,6 @@ import datadog.trace.agent.tooling.bytebuddy.TypeInfoCache.SharedTypeInfo;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import java.io.Serializable;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
@@ -25,7 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Context-aware factory that provides different kinds of type descriptions:
+ * Context-aware thread-local type factory that provides different kinds of type descriptions:
  *
  * <ul>
  *   <li>minimally parsed type outlines for matching purposes
@@ -47,7 +46,7 @@ final class TypeFactory {
 
   private static final Map<String, TypeDescription> primitiveDescriptorTypes = new HashMap<>();
 
-  private static final Map<String, TypeDescription> commonLoadedTypes = new HashMap<>();
+  private static final Map<String, TypeDescription> primitiveTypes = new HashMap<>();
 
   static {
     for (Class<?> primitive :
@@ -64,18 +63,7 @@ final class TypeFactory {
         }) {
       TypeDescription primitiveType = TypeDescription.ForLoadedType.of(primitive);
       primitiveDescriptorTypes.put(Type.getDescriptor(primitive), primitiveType);
-      commonLoadedTypes.put(primitive.getName(), primitiveType);
-    }
-    for (TypeDescription loaded :
-        new TypeDescription[] {
-          TypeDescription.ForLoadedType.of(Object.class),
-          TypeDescription.ForLoadedType.of(String.class),
-          TypeDescription.ForLoadedType.of(Class.class),
-          TypeDescription.ForLoadedType.of(Throwable.class),
-          TypeDescription.ForLoadedType.of(Serializable.class),
-          TypeDescription.ForLoadedType.of(Cloneable.class)
-        }) {
-      commonLoadedTypes.put(loaded.getName(), loaded);
+      primitiveTypes.put(primitive.getName(), primitiveType);
     }
   }
 
@@ -94,7 +82,7 @@ final class TypeFactory {
 
   private final Function<String, LazyType> deferType = LazyType::new;
 
-  boolean installing = true;
+  boolean installing = false;
 
   boolean createOutlines = true;
 
@@ -198,11 +186,13 @@ final class TypeFactory {
   }
 
   static TypeDescription findType(String name) {
-    TypeDescription type = commonLoadedTypes.get(name);
-    if (null == type) {
-      type = typeFactory.get().deferTypeResolution(name);
+    if (name.length() < 8) { // possible primitive name
+      TypeDescription type = primitiveTypes.get(name);
+      if (null != type) {
+        return type;
+      }
     }
-    return type;
+    return typeFactory.get().deferTypeResolution(name);
   }
 
   private TypeDescription deferTypeResolution(String name) {

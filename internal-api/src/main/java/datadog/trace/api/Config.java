@@ -82,7 +82,6 @@ import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
 import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
-import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
@@ -262,6 +261,8 @@ import static datadog.trace.api.config.TracerConfig.SCOPE_ITERATION_KEEP_ALIVE;
 import static datadog.trace.api.config.TracerConfig.SCOPE_STRICT_MODE;
 import static datadog.trace.api.config.TracerConfig.SECURE_RANDOM;
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING;
+import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES;
+import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES_FILE;
 import static datadog.trace.api.config.TracerConfig.SPAN_TAGS;
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_ARGS;
@@ -456,6 +457,8 @@ public class Config {
   private final String traceSamplingRules;
   private final Double traceSampleRate;
   private final int traceRateLimit;
+  private final String spanSamplingRules;
+  private final String spanSamplingRulesFile;
 
   private final boolean profilingAgentless;
   private final boolean isAsyncProfilerEnabled;
@@ -903,11 +906,9 @@ public class Config {
     healthMetricsStatsdPort = configProvider.getInteger(HEALTH_METRICS_STATSD_PORT);
     perfMetricsEnabled =
         runtimeMetricsEnabled
-            && isJavaVersionAtLeast(8)
             && configProvider.getBoolean(PERF_METRICS_ENABLED, DEFAULT_PERF_METRICS_ENABLED);
 
-    tracerMetricsEnabled =
-        isJavaVersionAtLeast(8) && configProvider.getBoolean(TRACER_METRICS_ENABLED, false);
+    tracerMetricsEnabled = configProvider.getBoolean(TRACER_METRICS_ENABLED, false);
     tracerMetricsBufferingEnabled =
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
@@ -939,6 +940,8 @@ public class Config {
     traceSamplingRules = configProvider.getString(TRACE_SAMPLING_RULES);
     traceSampleRate = configProvider.getDouble(TRACE_SAMPLE_RATE);
     traceRateLimit = configProvider.getInteger(TRACE_RATE_LIMIT, DEFAULT_TRACE_RATE_LIMIT);
+    spanSamplingRules = configProvider.getString(SPAN_SAMPLING_RULES);
+    spanSamplingRulesFile = configProvider.getString(SPAN_SAMPLING_RULES_FILE);
 
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
@@ -1595,6 +1598,14 @@ public class Config {
 
   public int getTraceRateLimit() {
     return traceRateLimit;
+  }
+
+  public String getSpanSamplingRules() {
+    return spanSamplingRules;
+  }
+
+  public String getSpanSamplingRulesFile() {
+    return spanSamplingRulesFile;
   }
 
   public boolean isProfilingEnabled() {
@@ -2809,6 +2820,10 @@ public class Config {
         + traceSampleRate
         + ", traceRateLimit="
         + traceRateLimit
+        + ", spanSamplingRules="
+        + spanSamplingRules
+        + ", spanSamplingRulesFile="
+        + spanSamplingRulesFile
         + ", profilingAgentless="
         + profilingAgentless
         + ", profilingUrl='"
@@ -2941,8 +2956,6 @@ public class Config {
         + grpcServerErrorStatuses
         + ", grpcClientErrorStatuses="
         + grpcClientErrorStatuses
-        + ", configProvider="
-        + configProvider
         + ", clientIpEnabled="
         + clientIpEnabled
         + ", appSecReportingInband="

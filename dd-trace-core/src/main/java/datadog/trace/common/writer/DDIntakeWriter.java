@@ -7,6 +7,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.intake.TrackType;
+import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.common.writer.ddintake.DDIntakeApi;
 import datadog.trace.common.writer.ddintake.DDIntakeMapperDiscovery;
@@ -43,6 +44,7 @@ public class DDIntakeWriter extends RemoteWriter {
 
     private RemoteApi intakeApi;
     private String apiKey;
+    private SingleSpanSampler singleSpanSampler;
 
     public DDIntakeWriterBuilder intakeApi(final RemoteApi intakeApi) {
       this.intakeApi = intakeApi;
@@ -126,6 +128,11 @@ public class DDIntakeWriter extends RemoteWriter {
       return this;
     }
 
+    public DDIntakeWriterBuilder singleSpanSampler(SingleSpanSampler singleSpanSampler) {
+      this.singleSpanSampler = singleSpanSampler;
+      return this;
+    }
+
     public DDIntakeWriter build() {
       if (null == intakeApi) {
         intakeApi =
@@ -151,7 +158,8 @@ public class DDIntakeWriter extends RemoteWriter {
               droppingPolicy,
               prioritization,
               flushFrequencySeconds,
-              TimeUnit.SECONDS);
+              TimeUnit.SECONDS,
+              singleSpanSampler);
 
       return new DDIntakeWriter(
           intakeApi,

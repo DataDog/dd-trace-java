@@ -37,7 +37,7 @@ class WriterFactoryTest extends DDSpecification {
     when:
     agentFeaturesDiscovery.supportsEvpProxy() >> hasEvpProxy
     config.ciVisibilityAgentlessEnabled >> isCiVisibilityAgentlessEnabled
-    def writer = WriterFactory.createWriter(config, sharedComm, sampler, statsd, configuredType)
+    def writer = WriterFactory.createWriter(config, sharedComm, sampler, null, statsd, configuredType)
 
     then:
     writer.class == expectedWriterClass

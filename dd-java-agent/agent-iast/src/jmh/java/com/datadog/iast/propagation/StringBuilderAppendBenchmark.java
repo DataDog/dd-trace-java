@@ -2,7 +2,7 @@ package com.datadog.iast.propagation;
 
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
-import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.instrumentation.java.lang.StringBuilderCallSite;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 
@@ -33,7 +33,7 @@ public class StringBuilderAppendBenchmark
   public StringBuilder iastDisabled() {
     final String param = context.notTainted;
     final StringBuilder self = context.notTaintedBuilder.append(param);
-    InstrumentationBridge.onStringBuilderAppend(self, param);
+    StringBuilderCallSite.afterAppend(self, param, self);
     return self;
   }
 
@@ -42,7 +42,7 @@ public class StringBuilderAppendBenchmark
   public StringBuilder notTainted() {
     final String param = context.notTainted;
     final StringBuilder self = context.notTaintedBuilder.append(param);
-    InstrumentationBridge.onStringBuilderAppend(self, param);
+    StringBuilderCallSite.afterAppend(self, param, self);
     return self;
   }
 
@@ -51,7 +51,7 @@ public class StringBuilderAppendBenchmark
   public StringBuilder paramTainted() {
     final String param = context.tainted;
     final StringBuilder self = context.notTaintedBuilder.append(param);
-    InstrumentationBridge.onStringBuilderAppend(self, param);
+    StringBuilderCallSite.afterAppend(self, param, self);
     return self;
   }
 
@@ -60,7 +60,7 @@ public class StringBuilderAppendBenchmark
   public StringBuilder stringBuilderTainted() {
     final String param = context.notTainted;
     final StringBuilder self = context.taintedBuilder.append(param);
-    InstrumentationBridge.onStringBuilderAppend(self, param);
+    StringBuilderCallSite.afterAppend(self, param, self);
     return self;
   }
 
@@ -69,7 +69,7 @@ public class StringBuilderAppendBenchmark
   public StringBuilder bothTainted() {
     final String param = context.tainted;
     final StringBuilder self = context.taintedBuilder.append(param);
-    InstrumentationBridge.onStringBuilderAppend(self, param);
+    StringBuilderCallSite.afterAppend(self, param, self);
     return self;
   }
 

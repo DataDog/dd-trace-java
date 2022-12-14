@@ -63,6 +63,10 @@ public class SimpleRateLimiter {
     return true;
   }
 
+  public int getCapacity() {
+    return capacity;
+  }
+
   private static int getStoredSeconds(long timeAndCount) {
     return (int) (timeAndCount >> 32);
   }
