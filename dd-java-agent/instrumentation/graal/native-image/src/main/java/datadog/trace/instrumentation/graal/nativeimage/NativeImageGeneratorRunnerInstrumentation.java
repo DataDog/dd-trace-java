@@ -30,6 +30,9 @@ public final class NativeImageGeneratorRunnerInstrumentation
       args.add("-H:+AddAllCharsets");
       args.add("-H:EnableURLProtocols=http");
       args.add(
+          "-H:ReflectionConfigurationResources="
+              + "META-INF/native-image/com.datadoghq/dd-java-agent/reflect-config.json");
+      args.add(
           "-H:ClassInitialization="
               + "datadog.trace.api.Platform:rerun,"
               + "datadog.trace.api.env.CapturedEnvironment:build_time,"

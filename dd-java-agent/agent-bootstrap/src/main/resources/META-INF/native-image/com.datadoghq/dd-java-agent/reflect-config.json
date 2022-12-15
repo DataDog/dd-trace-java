@@ -1,0 +1,10 @@
+[
+{
+  "name":"datadog.trace.instrumentation.springweb.HandlerMappingResourceNameFilter",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"datadog.trace.instrumentation.springweb.OrderedServletPathRequestFilter",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+}
+]
