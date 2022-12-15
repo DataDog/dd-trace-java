@@ -1,8 +1,6 @@
 package datadog.smoketest
 
-import spock.lang.Timeout
-
-import java.util.concurrent.TimeUnit
+import static java.util.concurrent.TimeUnit.SECONDS
 
 class CustomSystemLoaderSmokeTest extends AbstractSmokeTest {
   private static final int TIMEOUT_SECS = 30
@@ -29,10 +27,9 @@ class CustomSystemLoaderSmokeTest extends AbstractSmokeTest {
     return processBuilder
   }
 
-  @Timeout(value = TIMEOUT_SECS, unit = TimeUnit.SECONDS)
   def "resource types loaded by custom system class-loader are transformed"() {
     when:
-    testedProcess.waitFor()
+    testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
     int loadedResources = 0
     int transformedResources = 0
     checkLog {

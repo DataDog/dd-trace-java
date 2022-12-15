@@ -2,10 +2,9 @@ package datadog.smoketest
 
 import datadog.smoketest.opentracing.OTWithAgentApplication
 import datadog.smoketest.opentracing.OTWithoutAgentApplication
-import spock.lang.Timeout
 import spock.util.concurrent.PollingConditions
 
-import java.util.concurrent.TimeUnit
+import static java.util.concurrent.TimeUnit.SECONDS
 
 abstract class OpenTracingSmokeTest extends AbstractSmokeTest {
   // Estimate for the amount of time instrumentation, plus request, plus some extra
@@ -21,16 +20,14 @@ abstract class OpenTracingSmokeTest extends AbstractSmokeTest {
     return command
   }
 
-  // TODO: once java7 support is dropped use waitFor() with timeout call added in java8
-  // instead of timeout on test
-  @Timeout(value = TIMEOUT_SECS, unit = TimeUnit.SECONDS)
   def "Receive traces in agent"() {
     when:
     def conditions = new PollingConditions(timeout: TIMEOUT_SECS, initialDelay: 1, factor: 1)
 
     then:
     waitForTraceCount(1, conditions)
-    assert testedProcess.waitFor() == 0
+    assert testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
+    assert testedProcess.exitValue() == 0
   }
 }
 
