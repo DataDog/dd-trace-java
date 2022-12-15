@@ -40,6 +40,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.api.InstrumenterConfig:build_time,"
               + "datadog.trace.api.Functions:build_time,"
               + "datadog.trace.api.GlobalTracer:build_time,"
+              + "datadog.trace.api.WithGlobalTracer:build_time,"
               + "datadog.trace.bootstrap.config.provider.ConfigConverter:build_time,"
               + "datadog.trace.bootstrap.config.provider.ConfigProvider:build_time,"
               + "datadog.trace.bootstrap.Agent:build_time,"
