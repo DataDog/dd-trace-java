@@ -490,6 +490,26 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  public void sourceFileProbeScalaPatternMatch() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot102";
+    final String FILE_NAME = CLASS_NAME + ".scala";
+    int line = 3;
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, FILE_NAME, line));
+    String source = getFixtureContent("/" + FILE_NAME);
+    Class<?> testClass = ScalaHelper.compileAndLoad(source, CLASS_NAME, FILE_NAME);
+    int result = Reflect.on(testClass).call("main", "").get();
+    Assert.assertEquals(48, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    Assert.assertNull(snapshot.getCaptures().getEntry());
+    Assert.assertNull(snapshot.getCaptures().getReturn());
+    Assert.assertEquals(1, snapshot.getCaptures().getLines().size());
+    Assert.assertEquals(CLASS_NAME, snapshot.getProbe().getLocation().getType());
+    Assert.assertEquals("f1", snapshot.getProbe().getLocation().getMethod());
+    assertCaptureArgs(snapshot.getCaptures().getLines().get(line), "value", "int", "31");
+  }
+
+  @Test
   public void sourceFileProbeGroovy() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot201";
     DebuggerTransformerTest.TestSnapshotListener listener =
