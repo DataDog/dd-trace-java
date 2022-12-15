@@ -1,10 +1,33 @@
 [
-{
-  "name":"datadog.trace.instrumentation.springweb.HandlerMappingResourceNameFilter",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"datadog.trace.instrumentation.springweb.OrderedServletPathRequestFilter",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-}
+  {
+    "name" : "datadog.trace.instrumentation.springweb.HandlerMappingResourceNameFilter",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []}
+    ]
+  },
+  {
+    "name" : "datadog.trace.instrumentation.springweb.OrderedServletPathRequestFilter",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []}
+    ]
+  },
+  {
+    "name" : "org.jctools.queues.MpscBlockingConsumerArrayQueueColdProducerFields",
+    "fields": [
+      {"name": "producerLimit", "allowUnsafeAccess": true}
+    ]
+  },
+  {
+    "name" : "org.jctools.queues.MpscBlockingConsumerArrayQueueProducerFields",
+    "fields": [
+      {"name": "producerIndex", "allowUnsafeAccess": true}
+    ]
+  },
+  {
+    "name" : "org.jctools.queues.MpscBlockingConsumerArrayQueueConsumerFields",
+    "fields": [
+      {"name": "consumerIndex", "allowUnsafeAccess": true},
+      {"name": "blocked", "allowUnsafeAccess": true}
+    ]
+  }
 ]
