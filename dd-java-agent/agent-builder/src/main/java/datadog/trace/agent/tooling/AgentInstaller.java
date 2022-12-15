@@ -9,6 +9,7 @@ import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.IntegrationsCollector;
+import datadog.trace.api.Platform;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -46,7 +47,9 @@ public class AgentInstaller {
     WeakMaps.registerAsSupplier();
     WeakCaches.registerAsSupplier();
     // supply PID fall-back on Java 8 as early as possible
-    PidHelper.supplyIfAbsent(new PosixPidSupplier());
+    if (!Platform.isNativeImageBuilder()) {
+      PidHelper.supplyIfAbsent(new PosixPidSupplier());
+    }
   }
 
   public static void installBytebuddyAgent(final Instrumentation inst) {

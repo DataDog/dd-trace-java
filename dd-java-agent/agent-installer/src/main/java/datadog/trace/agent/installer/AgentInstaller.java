@@ -36,7 +36,9 @@ public class AgentInstaller {
     WeakMaps.registerAsSupplier();
     WeakCaches.registerAsSupplier();
     // supply PID fall-back on Java 8 as early as possible
-    PidHelper.supplyIfAbsent(new PosixPidSupplier());
+    if (!Platform.isNativeImageBuilder()) {
+      PidHelper.supplyIfAbsent(new PosixPidSupplier());
+    }
   }
 
   public static void installBytebuddyAgent(Instrumentation inst) {
