@@ -147,7 +147,9 @@ public class InstrumenterConfig {
             RESOLVER_CACHE_CONFIG, ResolverCacheConfig.class, ResolverCacheConfig.DEFAULT);
     resolverUseLoadClassEnabled = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
     resolverResetInterval =
-        configProvider.getInteger(RESOLVER_RESET_INTERVAL, DEFAULT_RESOLVER_RESET_INTERVAL);
+        Platform.isNativeImageBuilder()
+            ? 0
+            : configProvider.getInteger(RESOLVER_RESET_INTERVAL, DEFAULT_RESOLVER_RESET_INTERVAL);
 
     runtimeContextFieldInjection =
         configProvider.getBoolean(
@@ -266,7 +268,7 @@ public class InstrumenterConfig {
   }
 
   public int getResolverResetInterval() {
-    return Platform.isNativeImageBuilder() ? 0 : resolverResetInterval;
+    return resolverResetInterval;
   }
 
   public boolean isRuntimeContextFieldInjection() {
