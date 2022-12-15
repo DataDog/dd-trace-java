@@ -164,21 +164,5 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
       this.env = env;
       this.service = service;
     }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-      EnvAndService that = (EnvAndService) o;
-      return env.equals(that.env) && service.equals(that.service);
-    }
-
-    @Override
-    public int hashCode() {
-      int hash = 1;
-      hash = 31 * hash + env.hashCode();
-      hash = 31 * hash + service.hashCode();
-      return hash;
-    }
   }
 }
