@@ -31,9 +31,9 @@ class SpringBootWebmvcIntegrationTest extends AbstractServerSmokeTest {
   @Override
   protected Set<String> expectedTraces() {
     return [
-      "\\[servlet\\.request:GET /fruits\\[repository\\.operation:CrudRepository\\.findAll\\[h2\\.query:.*",
+      "\\[servlet\\.request:GET /fruits\\[repository\\.operation:FruitRepository\\.findAll\\[h2\\.query:.*",
       //FIXME: it should rather be
-      //"\\[servlet\\.request:GET /fruits\\[spring\\.handler:FruitController\\.listFruits\\[repository\\.operation:CrudRepository\\.findAll\\[h2\\.query:.*",
+      //"\\[servlet\\.request:GET /fruits\\[spring\\.handler:FruitController\\.listFruits\\[repository\\.operation:FruitRepository\\.findAll\\[h2\\.query:.*",
       "\\[servlet\\.request:GET /fruits/banana\\[repository\\.operation:FruitRepository\\.findByName\\[h2\\.query:.*"
       //FIXME: it should rather be:
       //            "\\[servlet\\.request:GET /fruits/\\{name}\\[spring\\.handler:FruitController\\.findOneFruit\\[repository\\.operation:FruitRepository\\.findByName\\[h2\\.query:.*"

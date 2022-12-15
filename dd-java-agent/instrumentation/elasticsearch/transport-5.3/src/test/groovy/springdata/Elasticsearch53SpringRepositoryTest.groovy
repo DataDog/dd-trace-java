@@ -13,6 +13,7 @@ import java.lang.reflect.Method
 import java.lang.reflect.Proxy
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 @Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
@@ -74,7 +75,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
 
   def "test empty repo"() {
     setup:
-
+    injectSysConfig(SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME, "false")
     when:
     def result = repo.findAll()
 
@@ -135,7 +136,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
       sortSpansByStart()
       trace(3) {
         span {
-          resourceName "ElasticsearchRepository.index"
+          resourceName "DocRepository.index"
           operationName "repository.operation"
           tags {
             "$Tags.COMPONENT" "spring-data"
@@ -210,7 +211,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
       sortSpansByStart()
       trace(2) {
         span {
-          resourceName "CrudRepository.findById"
+          resourceName "DocRepository.findById"
           operationName "repository.operation"
           tags {
             "$Tags.COMPONENT" "spring-data"
@@ -254,7 +255,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
       sortSpansByStart()
       trace(3) {
         span {
-          resourceName "ElasticsearchRepository.index"
+          resourceName "DocRepository.index"
           operationName "repository.operation"
           tags {
             "$Tags.COMPONENT" "spring-data"
@@ -304,7 +305,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
       }
       trace(2) {
         span {
-          resourceName "CrudRepository.findById"
+          resourceName "DocRepository.findById"
           operationName "repository.operation"
           tags {
             "$Tags.COMPONENT" "spring-data"
@@ -347,7 +348,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
       sortSpansByStart()
       trace(3) {
         span {
-          resourceName "CrudRepository.deleteById"
+          resourceName "DocRepository.deleteById"
           operationName "repository.operation"
           tags {
             "$Tags.COMPONENT" "spring-data"
@@ -397,7 +398,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
 
       trace(2) {
         span {
-          resourceName "CrudRepository.findAll"
+          resourceName "DocRepository.findAll"
           operationName "repository.operation"
           tags {
             "$Tags.COMPONENT" "spring-data"
