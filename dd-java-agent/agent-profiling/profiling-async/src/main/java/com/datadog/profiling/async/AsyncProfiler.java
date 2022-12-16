@@ -50,6 +50,7 @@ public final class AsyncProfiler {
     try {
       instance = new AsyncProfiler(configProvider);
     } catch (Throwable t) {
+      log.warn("failed to instantiate async-profiler", t);
       instance = new AsyncProfiler((Void) null);
     }
     return instance;
@@ -145,19 +146,11 @@ public final class AsyncProfiler {
         }
       }
     } catch (Throwable t) {
-      if (log.isDebugEnabled()) {
-        log.info(
-            "Unable to instantiate async profiler for the detected environment: arch={}, os={}",
-            arch,
-            os,
-            t);
-      } else {
-        log.info(
-            "Unable to instantiate async profiler for the detected environment: arch={}, os={}, cause={}",
-            arch,
-            os,
-            t.getMessage());
-      }
+      log.info(
+          "Unable to instantiate async profiler for the detected environment: arch={}, os={}",
+          arch,
+          os,
+          t);
       throw new UnsupportedEnvironmentException(
           String.format(
               "Unable to instantiate async profiler for the detected environment: arch=%s, os=%s",
