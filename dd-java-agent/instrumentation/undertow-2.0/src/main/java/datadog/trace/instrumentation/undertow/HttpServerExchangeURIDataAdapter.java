@@ -17,12 +17,12 @@ final class HttpServerExchangeURIDataAdapter extends URIRawDataAdapter {
 
   @Override
   public String host() {
-    return httpServerExchange.getDestinationAddress().getHostName();
+    return httpServerExchange.getHostName();
   }
 
   @Override
   public int port() {
-    return httpServerExchange.getDestinationAddress().getPort();
+    return httpServerExchange.getHostPort();
   }
 
   @Override
