@@ -40,7 +40,7 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
     final String env = getSpanEnv(span);
 
     final RateSamplersByEnvAndService rates = serviceRates;
-    RateSampler sampler = rates.getSampler(new EnvAndService(env, serviceName));
+    RateSampler sampler = rates.getSampler(env, serviceName);
 
     if (sampler.sample(span)) {
       span.setSamplingPriority(
@@ -67,16 +67,21 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
     final Map<String, Number> newServiceRates = responseJson.get("rate_by_service");
     if (null != newServiceRates) {
       log.debug("Update service sampler rates: {} -> {}", endpoint, responseJson);
-      final Map<EnvAndService, RateSampler> updatedServiceRates =
+      final Map<String, Map<String, RateSampler>> updatedEnvServiceRates =
           new HashMap<>(newServiceRates.size() * 2);
       for (final Map.Entry<String, Number> entry : newServiceRates.entrySet()) {
         if (entry.getValue() != null) {
-          updatedServiceRates.put(
-              EnvAndService.fromString(entry.getKey()),
-              RateByServiceTraceSampler.createRateSampler(entry.getValue().doubleValue()));
+          EnvAndService envAndService = EnvAndService.fromString(entry.getKey());
+          Map<String, RateSampler> serviceRates =
+              updatedEnvServiceRates.computeIfAbsent(
+                  envAndService.env, env -> new HashMap<>(newServiceRates.size() * 2));
+          serviceRates.computeIfAbsent(
+              envAndService.service,
+              service ->
+                  RateByServiceTraceSampler.createRateSampler(entry.getValue().doubleValue()));
         }
       }
-      serviceRates = new RateSamplersByEnvAndService(updatedServiceRates);
+      serviceRates = new RateSamplersByEnvAndService(updatedEnvServiceRates);
     }
   }
 
@@ -97,20 +102,28 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
   private static final class RateSamplersByEnvAndService {
     private static final RateSampler DEFAULT = createRateSampler(DEFAULT_RATE);
 
-    private final Map<EnvAndService, RateSampler> serviceRates;
+    private final Map<String, Map<String, RateSampler>> envServiceRates;
 
     RateSamplersByEnvAndService() {
       this(new HashMap<>(0));
     }
 
-    RateSamplersByEnvAndService(Map<EnvAndService, RateSampler> serviceRates) {
-      this.serviceRates = serviceRates;
+    RateSamplersByEnvAndService(Map<String, Map<String, RateSampler>> envServiceRates) {
+      this.envServiceRates = envServiceRates;
     }
 
-    @SuppressWarnings("unchecked")
-    public RateSampler getSampler(EnvAndService key) {
-      RateSampler sampler = serviceRates.get(key);
-      return null == sampler ? (RateSampler) DEFAULT : sampler;
+    // used in tests only
+    RateSampler getSampler(EnvAndService envAndService) {
+      return getSampler(envAndService.env, envAndService.service);
+    }
+
+    public RateSampler getSampler(String env, String service) {
+      Map<String, RateSampler> serviceRates = envServiceRates.get(env);
+      if (serviceRates == null) {
+        return DEFAULT;
+      }
+      RateSampler sampler = serviceRates.get(service);
+      return null == sampler ? DEFAULT : sampler;
     }
   }
 
@@ -144,28 +157,12 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
       return CACHE.computeIfAbsent(key, PARSE);
     }
 
-    private final CharSequence env;
-    private final CharSequence service;
+    private final String env;
+    private final String service;
 
-    private EnvAndService(CharSequence env, CharSequence service) {
+    private EnvAndService(String env, String service) {
       this.env = env;
       this.service = service;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-      EnvAndService that = (EnvAndService) o;
-      return env.equals(that.env) && service.equals(that.service);
-    }
-
-    @Override
-    public int hashCode() {
-      int hash = 1;
-      hash = 31 * hash + env.hashCode();
-      hash = 31 * hash + service.hashCode();
-      return hash;
     }
   }
 }
