@@ -2,6 +2,7 @@ package com.datadog.debugger.probe;
 
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.el.ProbeCondition;
+import com.datadog.debugger.instrumentation.CloneInstrumentor;
 import com.datadog.debugger.instrumentation.SnapshotInstrumentor;
 import com.squareup.moshi.Json;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
@@ -160,7 +161,8 @@ public class SnapshotProbe extends ProbeDefinition {
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics) {
-    new SnapshotInstrumentor(this, classLoader, classNode, methodNode, diagnostics).instrument();
+    //new SnapshotInstrumentor(this, classLoader, classNode, methodNode, diagnostics).instrument();
+    new CloneInstrumentor(classLoader, classNode, methodNode).instrument();
   }
 
   public static class Builder extends ProbeDefinition.Builder<Builder> {

@@ -1226,6 +1226,16 @@ public class CapturedSnapshotTest {
     Assert.assertEquals(DebuggerContext.SkipCause.CONDITION, listener.cause);
   }
 
+  @Test
+  public void clonedMethod() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot19";
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, "main", null));
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "2").get();
+    Assert.assertEquals(43, result);
+  }
+
   private DebuggerTransformerTest.TestSnapshotListener setupInstrumentTheWorldTransformer(
       String excludeFileName) {
     Config config = mock(Config.class);
