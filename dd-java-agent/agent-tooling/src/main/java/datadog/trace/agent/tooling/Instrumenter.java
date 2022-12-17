@@ -234,6 +234,11 @@ public interface Instrumenter {
       return new String[0];
     }
 
+    /** Override this to automatically inject all (non-bootstrap) helper dependencies. */
+    public boolean injectHelperDependencies() {
+      return false;
+    }
+
     /** Classes that the muzzle plugin assumes will be injected */
     public String[] muzzleIgnoredClassNames() {
       return helperClassNames();
