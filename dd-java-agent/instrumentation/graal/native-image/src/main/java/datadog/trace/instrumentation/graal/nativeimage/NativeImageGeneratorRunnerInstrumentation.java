@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.graal.nativeimage;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
@@ -20,15 +20,17 @@ public final class NativeImageGeneratorRunnerInstrumentation
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        isMethod().and(named("extractDriverArguments")),
-        NativeImageGeneratorRunnerInstrumentation.class.getName() + "$MainAdvice");
+        isMethod().and(namedOneOf("extractDriverArguments", "extractImageClassPath")),
+        NativeImageGeneratorRunnerInstrumentation.class.getName() + "$ExpandArgsAdvice");
   }
 
-  public static class MainAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onExit(@Advice.Return List<String> args) {
+  public static class ExpandArgsAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(@Advice.Argument(0) List<String> args) {
       args.add("-H:+AddAllCharsets");
       args.add("-H:EnableURLProtocols=http");
+      // placeholder to trigger resource scanning, ResourcesFeatureInstrumentation does the rest
+      args.add("-H:IncludeResources=.*dd-.*version$");
       args.add(
           "-H:ReflectionConfigurationResources="
               + "META-INF/native-image/com.datadoghq/dd-java-agent/reflect-config.json");
