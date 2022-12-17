@@ -138,14 +138,14 @@ public final class HelperScanner extends ClassVisitor {
       final String signature,
       final String superName,
       final String[] interfaces) {
-    apply(superName, REQUIRES);
-    apply(interfaces, REQUIRES);
+    record(superName, REQUIRES);
+    record(interfaces, REQUIRES);
   }
 
   @Override
   public void visitInnerClass(String name, String outerName, String innerName, int access) {
     if (this.className.equals(name)) {
-      apply(outerName, REQUIRES);
+      record(outerName, REQUIRES);
     }
   }
 
@@ -156,7 +156,7 @@ public final class HelperScanner extends ClassVisitor {
       final String descriptor,
       final String signature,
       final Object value) {
-    apply(Type.getType(descriptor), REQUIRES);
+    record(Type.getType(descriptor), REQUIRES);
     return null;
   }
 
@@ -167,8 +167,8 @@ public final class HelperScanner extends ClassVisitor {
       final String descriptor,
       final String signature,
       final String[] exceptions) {
-    apply(Type.getMethodType(descriptor), REQUIRES);
-    apply(exceptions, REQUIRES);
+    record(Type.getMethodType(descriptor), REQUIRES);
+    record(exceptions, REQUIRES);
     return methodScanner;
   }
 
@@ -181,8 +181,8 @@ public final class HelperScanner extends ClassVisitor {
     @Override
     public void visitFieldInsn(
         final int opcode, final String owner, final String name, final String descriptor) {
-      apply(Type.getObjectType(owner), USES);
-      apply(Type.getType(descriptor), USES);
+      record(Type.getObjectType(owner), USES);
+      record(Type.getType(descriptor), USES);
     }
 
     @Override
@@ -192,13 +192,13 @@ public final class HelperScanner extends ClassVisitor {
         final String name,
         final String descriptor,
         final boolean isInterface) {
-      apply(Type.getObjectType(owner), USES);
-      apply(Type.getMethodType(descriptor), USES);
+      record(Type.getObjectType(owner), USES);
+      record(Type.getMethodType(descriptor), USES);
     }
 
     @Override
     public void visitTypeInsn(final int opcode, final String type) {
-      apply(Type.getObjectType(type), USES);
+      record(Type.getObjectType(type), USES);
     }
 
     @Override
@@ -207,13 +207,13 @@ public final class HelperScanner extends ClassVisitor {
         String descriptor,
         Handle bootstrapMethodHandle,
         Object... bootstrapMethodArguments) {
-      apply(Type.getType(descriptor), USES);
-      apply(bootstrapMethodHandle, USES);
+      record(Type.getType(descriptor), USES);
+      record(bootstrapMethodHandle, USES);
       for (Object value : bootstrapMethodArguments) {
         if (value instanceof Type) {
-          apply((Type) value, USES);
+          record((Type) value, USES);
         } else if (value instanceof Handle) {
-          apply((Handle) value, USES);
+          record((Handle) value, USES);
         }
       }
     }
@@ -221,9 +221,9 @@ public final class HelperScanner extends ClassVisitor {
     @Override
     public void visitLdcInsn(final Object value) {
       if (value instanceof Type) {
-        apply((Type) value, USES);
+        record((Type) value, USES);
       } else if (value instanceof Handle) {
-        apply((Handle) value, USES);
+        record((Handle) value, USES);
       }
     }
   }
@@ -239,14 +239,14 @@ public final class HelperScanner extends ClassVisitor {
     uses.add(className);
   }
 
-  void apply(Type type, Consumer<String> action) {
+  void record(Type type, Consumer<String> action) {
     if (null != type) {
       while (type.getSort() == Type.ARRAY) {
         type = type.getElementType();
       }
       if (type.getSort() == Type.METHOD) {
-        apply(type.getArgumentTypes(), action);
-        apply(type.getReturnType(), action);
+        record(type.getArgumentTypes(), action);
+        record(type.getReturnType(), action);
       } else if (type.getSort() == Type.OBJECT) {
         String className = type.getClassName();
         // ignore types that we expect to be on the boot-class-path
@@ -270,31 +270,31 @@ public final class HelperScanner extends ClassVisitor {
     }
   }
 
-  void apply(Type[] types, Consumer<String> action) {
+  void record(Type[] types, Consumer<String> action) {
     if (null != types) {
       for (Type t : types) {
-        apply(t, action);
+        record(t, action);
       }
     }
   }
 
-  void apply(Handle handle, Consumer<String> action) {
+  void record(Handle handle, Consumer<String> action) {
     if (null != handle) {
-      apply(Type.getObjectType(handle.getOwner()), action);
-      apply(Type.getType(handle.getDesc()), action);
+      record(Type.getObjectType(handle.getOwner()), action);
+      record(Type.getType(handle.getDesc()), action);
     }
   }
 
-  void apply(String internalName, Consumer<String> action) {
+  void record(String internalName, Consumer<String> action) {
     if (null != internalName) {
-      apply(Type.getObjectType(internalName), action);
+      record(Type.getObjectType(internalName), action);
     }
   }
 
-  void apply(String[] internalNames, Consumer<String> action) {
+  void record(String[] internalNames, Consumer<String> action) {
     if (null != internalNames) {
       for (String n : internalNames) {
-        apply(Type.getObjectType(n), action);
+        record(Type.getObjectType(n), action);
       }
     }
   }
