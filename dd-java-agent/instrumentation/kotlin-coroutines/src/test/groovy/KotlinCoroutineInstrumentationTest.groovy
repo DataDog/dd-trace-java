@@ -167,6 +167,34 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
     dispatcher << dispatchersToTest
   }
 
+  def "coroutine instrumentation should work even when there is no parent trace when coroutine is created"() {
+    setup:
+    KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
+    int expectedNumberOfSpans = kotlinTest.withNoParentTrace()
+
+    expect:
+    assertTraces(1) {
+      trace(expectedNumberOfSpans, true) {
+        def topLevelSpan = span(2)
+        span(2) {
+          operationName "top-level"
+          parent()
+        }
+        span(1) {
+          operationName "second-span"
+          childOf topLevelSpan
+        }
+        span(0) {
+          operationName "first-span"
+          childOf topLevelSpan
+        }
+      }
+    }
+
+    where:
+    dispatcher << dispatchersToTest
+  }
+
   private static DDSpan findSpan(List<DDSpan> trace, String opName) {
     for (DDSpan span : trace) {
       if (span.getOperationName() == opName) {

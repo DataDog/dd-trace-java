@@ -225,6 +225,28 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
     4
   }
 
+  fun withNoParentTrace(): Int = runTest {
+    val jobs = mutableListOf<Deferred<Unit>>()
+
+    childSpan("top-level").activateAndUse {
+      async(jobContext("first")) {
+        childSpan("first-span").activateAndUse {
+          delay(1)
+        }
+      }.run(jobs::add)
+
+      async(jobContext("second")) {
+        childSpan("second-span").activateAndUse {
+          delay(1)
+        }
+      }.run(jobs::add)
+
+      jobs.awaitAll()
+    }
+
+    3
+  }
+
   private fun jobContext(jobName: String) = CoroutineName(jobName)
 
   private suspend fun AgentSpan.activateAndUse(block: suspend () -> Unit) {
@@ -235,7 +257,7 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
   }
 
   private fun <T> runTest(asyncPropagation: Boolean = true, block: suspend CoroutineScope.() -> T): T {
-    activeScope().setAsyncPropagation(asyncPropagation)
+    activeScope()?.setAsyncPropagation(asyncPropagation)
     return runBlocking(dispatcher, block = block)
   }
 }
