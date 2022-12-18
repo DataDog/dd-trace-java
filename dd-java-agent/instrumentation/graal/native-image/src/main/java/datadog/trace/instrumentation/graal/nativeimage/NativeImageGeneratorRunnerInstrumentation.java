@@ -1,10 +1,13 @@
 package datadog.trace.instrumentation.graal.nativeimage;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.env.CapturedEnvironment;
+import java.util.Arrays;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
 
@@ -20,21 +23,36 @@ public final class NativeImageGeneratorRunnerInstrumentation
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        isMethod().and(namedOneOf("extractDriverArguments", "extractImageClassPath")),
-        NativeImageGeneratorRunnerInstrumentation.class.getName() + "$ExpandArgsAdvice");
+        isMethod().and(named("main")),
+        NativeImageGeneratorRunnerInstrumentation.class.getName() + "$ArgsAdvice");
+    transformation.applyAdvice(
+        isMethod().and(named("extractDriverArguments")),
+        NativeImageGeneratorRunnerInstrumentation.class.getName() + "$ExtractedArgsAdvice");
   }
 
-  public static class ExpandArgsAdvice {
+  public static class ArgsAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(@Advice.Argument(0) List<String> args) {
-      args.add("-H:+AddAllCharsets");
-      args.add("-H:EnableURLProtocols=http");
+    public static void onEnter(@Advice.Argument(value = 0, readOnly = false) String[] args) {
+      int oldLength = args.length;
+
+      for (int i = 0; i < oldLength; i++) {
+        if (args[i].startsWith("-H:Name=")) {
+          String name = args[i].substring(8);
+          CapturedEnvironment.get().getProperties().put(SERVICE_NAME, name);
+          break;
+        }
+      }
+
+      args = Arrays.copyOf(args, oldLength + 5);
+
+      args[oldLength++] = "-H:+AddAllCharsets";
+      args[oldLength++] = "-H:EnableURLProtocols=http";
       // placeholder to trigger resource scanning, ResourcesFeatureInstrumentation does the rest
-      args.add("-H:IncludeResources=.*dd-.*version$");
-      args.add(
+      args[oldLength++] = "-H:IncludeResources=.*dd-.*version$";
+      args[oldLength++] =
           "-H:ReflectionConfigurationResources="
-              + "META-INF/native-image/com.datadoghq/dd-java-agent/reflect-config.json");
-      args.add(
+              + "META-INF/native-image/com.datadoghq/dd-java-agent/reflect-config.json";
+      args[oldLength++] =
           "-H:ClassInitialization="
               + "datadog.trace.api.Platform:rerun,"
               + "datadog.trace.api.env.CapturedEnvironment:build_time,"
@@ -60,7 +78,20 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.slf4j.LoggerFactory:build_time,"
               + "com.blogspot.mydailyjava.weaklockfree.WeakConcurrentMap:build_time,"
               + "net.bytebuddy:build_time,"
-              + "com.sun.proxy:build_time");
+              + "com.sun.proxy:build_time";
+    }
+  }
+
+  public static class ExtractedArgsAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void onExit(@Advice.Return List<String> expandedArgs) {
+      for (int i = 0; i < expandedArgs.size(); i++) {
+        if (expandedArgs.get(i).startsWith("-H:Name=")) {
+          String name = expandedArgs.get(i).substring(8);
+          CapturedEnvironment.get().getProperties().put(SERVICE_NAME, name);
+          break;
+        }
+      }
     }
   }
 }
