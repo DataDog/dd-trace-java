@@ -35,6 +35,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
     public static void onEnter(@Advice.Argument(value = 0, readOnly = false) String[] args) {
       int oldLength = args.length;
 
+      // attempt to extract configured image name, so we can use it for the service name
       for (int i = 0; i < oldLength; i++) {
         if (args[i].startsWith("-H:Name=")) {
           String name = args[i].substring(8);
@@ -85,6 +86,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
   public static class ExtractedArgsAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(@Advice.Return List<String> expandedArgs) {
+      // GraalVM 22.x supports arg files, so repeat image name check after expansion
       for (int i = 0; i < expandedArgs.size(); i++) {
         if (expandedArgs.get(i).startsWith("-H:Name=")) {
           String name = expandedArgs.get(i).substring(8);

@@ -28,6 +28,10 @@ public final class ResourcesFeatureInstrumentation extends AbstractNativeImageIn
   public static class InjectResourcesAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit() {
+      // the tracer jar is not listed on the image classpath, so manually inject its resources
+      // (drop inst/shared prefixes from embedded resources, so we can find them in native-image
+      // as the final executable won't have our isolating class-loader to map these resources)
+
       String[] tracerResources = {
         "dd-java-agent.version",
         "dd-trace-api.version",
@@ -37,8 +41,6 @@ public final class ResourcesFeatureInstrumentation extends AbstractNativeImageIn
       };
 
       for (String original : tracerResources) {
-        // drop inst/shared prefixes from embedded resources, so we can find them in native-image
-        // (the final native-image won't have our isolating class-loader to maps these resources)
         String flattened = original.substring(original.indexOf('/') + 1);
         try (InputStream is = ClassLoader.getSystemResourceAsStream(original)) {
           Resources.registerResource(flattened, is);

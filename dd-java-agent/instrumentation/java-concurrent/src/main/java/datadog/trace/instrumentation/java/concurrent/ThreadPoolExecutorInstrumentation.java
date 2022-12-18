@@ -129,6 +129,8 @@ public final class ThreadPoolExecutorInstrumentation extends Instrumenter.Tracin
   public static final class Init {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void decideWrapping(@Advice.This final ThreadPoolExecutor zis) {
+      // avoid tracking threads when building native images as it confuses the scanner
+      // (we still want instrumentation applied, so tracking works in the built image)
       if (!Platform.isNativeImageBuilder()) {
         TPEHelper.setPropagate(
             InstrumentationContext.get(ThreadPoolExecutor.class, Boolean.class), zis);

@@ -18,7 +18,7 @@ public class ProcessImplInstrumentation extends Instrumenter.Tracing
 
   @Override
   protected boolean defaultEnabled() {
-    return !Platform.isNativeImageBuilder();
+    return !Platform.isNativeImageBuilder(); // not applicable in native-image
   }
 
   @Override
