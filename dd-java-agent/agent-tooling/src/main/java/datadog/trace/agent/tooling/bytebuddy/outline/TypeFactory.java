@@ -313,10 +313,13 @@ final class TypeFactory {
     }
 
     private TypeDescription outline() {
+      if (null != delegate) {
+        return delegate; // will be at least an outline, no need to re-resolve
+      }
       if (createOutlines) {
         return doResolve(true);
       }
-      // temporarily switch to outlines as that's all we need
+      // temporarily switch to generating (fast) outlines as that's all we need
       createOutlines = true;
       try {
         return doResolve(true);
