@@ -2,7 +2,6 @@ package datadog.trace.core.scopemanager;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan;
-import static datadog.trace.bootstrap.instrumentation.api.ScopeSource.INSTRUMENTATION;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -270,14 +269,10 @@ public final class ContinuableScopeManager implements AgentScopeManager {
   private class ContinuableScopeState implements ScopeState {
 
     private ScopeStack localScopeStack = tlsScopeStack.initialValue();
-    private AgentSpan span = activeSpan();
 
     @Override
     public void activate() {
       tlsScopeStack.set(localScopeStack);
-      if (localScopeStack.depth() == 0 && span != null) {
-        ContinuableScopeManager.this.activate(span, INSTRUMENTATION);
-      }
     }
 
     @Override

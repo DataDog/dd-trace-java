@@ -1,9 +1,13 @@
 package datadog.trace.instrumentation.kotlin.coroutines;
 
+import static datadog.trace.instrumentation.kotlin.coroutines.CoroutineContextHelper.getJob;
+
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import kotlin.coroutines.CoroutineContext;
 import kotlin.jvm.functions.Function2;
+import kotlinx.coroutines.Job;
 import kotlinx.coroutines.ThreadContextElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -11,11 +15,30 @@ import org.jetbrains.annotations.Nullable;
 public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeState> {
 
   private static final Key<ScopeStateCoroutineContext> KEY = new ContextElementKey();
-  private final ScopeState scopeState = AgentTracer.get().newScopeState();
+  private AgentScope.Continuation continuation;
+  private AgentScope continuationScope;
+  private final ScopeState scopeState;
+
+  public ScopeStateCoroutineContext() {
+    final AgentScope activeScope = AgentTracer.get().activeScope();
+    if (activeScope != null) {
+      activeScope.setAsyncPropagation(true);
+      continuation = activeScope.captureConcurrent();
+    }
+    scopeState = AgentTracer.get().newScopeState();
+  }
 
   @Override
   public void restoreThreadContext(
       @NotNull CoroutineContext coroutineContext, ScopeState oldState) {
+    if (continuation != null) {
+      final Job job = getJob(coroutineContext);
+      if (!job.isActive()) {
+        continuationScope.close();
+        continuation.cancel();
+      }
+    }
+
     oldState.activate();
   }
 
@@ -25,6 +48,9 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
     oldScopeState.fetchFromActive();
 
     scopeState.activate();
+    if (continuation != null && continuationScope == null) {
+      continuationScope = continuation.activate();
+    }
 
     return oldScopeState;
   }

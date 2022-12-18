@@ -138,8 +138,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     newScopeState.activate()
 
     then:
-    scopeManager.active() != scope
-    scopeManager.active().span() == span
+    scopeManager.active() == null
 
     when:
     initialScopeState.activate()
@@ -155,46 +154,6 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     scopeManager.active() == null
     writer == [[scope.span()]]
-  }
-
-  def "scope state should not activate the parent span twice"() {
-    when:
-    def span = tracer.buildSpan("test").start()
-    def scope = tracer.activateSpan(span)
-    def initialScopeState = scopeManager.newScopeState()
-    initialScopeState.fetchFromActive()
-
-    then:
-    scope.span() == span
-    scopeManager.active() == scope
-
-    when:
-    def newScopeState = scopeManager.newScopeState()
-    newScopeState.activate()
-
-    then:
-    scopeManager.active() != scope
-    scopeManager.active().span() == span
-
-    when:
-    def newSpan = tracer.buildSpan("another-span").start()
-    def newScope = tracer.activateSpan(newSpan)
-
-    then:
-    newScope.span() == newSpan
-    scopeManager.active() == newScope
-
-    when:
-    initialScopeState.activate()
-
-    then:
-    scopeManager.active() == scope
-
-    when:
-    newScopeState.activate()
-
-    then:
-    scopeManager.active() == newScope
   }
 
   def "non-ddspan activation results in a continuable scope"() {
