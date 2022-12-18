@@ -81,8 +81,7 @@
 1 com.fasterxml.jackson.databind.util.internal.PrivateMaxEntriesMap$*
 1 org.eclipse.osgi.framework.internal.protocol.*
 1 sun.*
-0 sun.security.ssl.SSLSocketImpl
-0 sun.security.ssl.SSLSocketImpl.*
+0 sun.security.ssl.*
 0 sun.net.www.http.HttpClient
 0 sun.net.www.protocol.http.*
 0 sun.net.www.protocol.https.*
