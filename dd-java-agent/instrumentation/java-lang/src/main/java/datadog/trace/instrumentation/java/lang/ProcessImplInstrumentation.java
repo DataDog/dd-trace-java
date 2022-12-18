@@ -8,7 +8,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class ProcessImplInstrumentation extends Instrumenter.Tracing
+public class ProcessImplInstrumentation extends Instrumenter.AppSec
     implements Instrumenter.ForSingleType, Instrumenter.ForBootstrap {
 
   public ProcessImplInstrumentation() {
