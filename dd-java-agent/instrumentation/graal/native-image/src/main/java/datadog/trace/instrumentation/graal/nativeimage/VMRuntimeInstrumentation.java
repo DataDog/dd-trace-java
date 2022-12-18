@@ -5,7 +5,12 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
+import datadog.trace.logging.GlobalLogLevelSwitcher;
+import datadog.trace.logging.LogLevel;
 import net.bytebuddy.asm.Advice;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(Instrumenter.class)
 public final class VMRuntimeInstrumentation extends AbstractNativeImageInstrumentation
@@ -36,6 +41,16 @@ public final class VMRuntimeInstrumentation extends AbstractNativeImageInstrumen
   public static class InitializeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter() {
+      if (Config.get().isDebugEnabled()) {
+        // was this native image originally built with debug off?
+        Logger configLogger = LoggerFactory.getLogger(Config.class);
+        if (!configLogger.isDebugEnabled()) {
+          // patch logger level and re-log configuration details
+          GlobalLogLevelSwitcher.get().switchLevel(LogLevel.DEBUG);
+          configLogger.debug("New instance: {}", Config.get());
+        }
+      }
+
       datadog.trace.agent.tooling.nativeimage.TracerActivation.activate();
     }
   }
