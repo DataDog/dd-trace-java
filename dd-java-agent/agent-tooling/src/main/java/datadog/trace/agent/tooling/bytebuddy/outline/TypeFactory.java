@@ -86,15 +86,15 @@ final class TypeFactory {
 
   boolean createOutlines = true;
 
-  private ClassLoader originalClassLoader;
+  ClassLoader originalClassLoader;
 
-  private ClassLoader classLoader;
+  ClassLoader classLoader;
 
-  private ClassFileLocator classFileLocator;
+  ClassFileLocator classFileLocator;
 
-  private String targetName;
+  String targetName;
 
-  private byte[] targetBytecode;
+  byte[] targetBytecode;
 
   /** Sets the current class-loader context of this type-factory. */
   void switchContext(ClassLoader classLoader) {
@@ -214,16 +214,17 @@ final class TypeFactory {
 
   /** Attempts to resolve the named type using the current context. */
   TypeDescription resolveType(String name) {
-    if (null == classFileLocator) {
-      return TypeDescription.UNDEFINED;
+    if (null != classFileLocator) {
+      TypeDescription result =
+          createOutlines
+              ? lookupType(name, outlineTypes, outlineTypeParser)
+              : lookupType(name, fullTypes, fullTypeParser);
+
+      if (null != result) {
+        return new CachingType(result);
+      }
     }
-
-    TypeDescription type =
-        createOutlines
-            ? lookupType(name, outlineTypes, outlineTypeParser)
-            : lookupType(name, fullTypes, fullTypeParser);
-
-    return null != type ? new CachingType(type) : null;
+    return null;
   }
 
   /** Looks up the type in the current context before falling back to parsing the class-file. */
@@ -297,12 +298,51 @@ final class TypeFactory {
   }
 
   /** Type description that begins with a name and provides more details on-demand. */
-  final class LazyType extends WithName {
-    TypeDescription delegate;
-    boolean isOutline;
+  final class LazyType extends WithName implements WithLocation {
+    private ClassFileLocator.Resolution location;
+    private TypeDescription delegate;
+    private boolean isOutline;
 
     LazyType(String name) {
       super(name);
+    }
+
+    @Override
+    public ClassLoader getClassLoader() {
+      return classLoader;
+    }
+
+    @Override
+    public URL getClassFile() {
+      if (null == location) {
+        location = locateClassFile();
+      }
+      if (location instanceof ClassFileLocators.LazyResolution) {
+        return ((ClassFileLocators.LazyResolution) location).url();
+      }
+      return UNKNOWN_CLASS_FILE;
+    }
+
+    @Override
+    public byte[] getBytecode() {
+      if (null == location) {
+        location = locateClassFile();
+      }
+      if (location.isResolved()) {
+        return location.resolve();
+      }
+      return null;
+    }
+
+    private ClassFileLocator.Resolution locateClassFile() {
+      if (name.equals(targetName)) {
+        return new ClassFileLocator.Resolution.Explicit(targetBytecode);
+      }
+      try {
+        return classFileLocator.locate(name);
+      } catch (Throwable ignored) {
+        return new ClassFileLocator.Resolution.Illegal(name);
+      }
     }
 
     @Override
