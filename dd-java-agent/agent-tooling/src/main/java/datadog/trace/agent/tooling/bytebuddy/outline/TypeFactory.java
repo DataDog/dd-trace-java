@@ -213,12 +213,12 @@ final class TypeFactory {
   }
 
   /** Attempts to resolve the named type using the current context. */
-  TypeDescription resolveType(String name) {
+  TypeDescription resolveType(LazyType request) {
     if (null != classFileLocator) {
       TypeDescription result =
           createOutlines
-              ? lookupType(name, outlineTypes, outlineTypeParser)
-              : lookupType(name, fullTypes, fullTypeParser);
+              ? lookupType(request, outlineTypes, outlineTypeParser)
+              : lookupType(request, fullTypes, fullTypeParser);
 
       if (null != result) {
         return new CachingType(result);
@@ -229,7 +229,8 @@ final class TypeFactory {
 
   /** Looks up the type in the current context before falling back to parsing the class-file. */
   private TypeDescription lookupType(
-      String name, TypeInfoCache<TypeDescription> types, TypeParser typeParser) {
+      LazyType request, TypeInfoCache<TypeDescription> types, TypeParser typeParser) {
+    String name = request.name;
 
     // existing info from same classloader?
     SharedTypeInfo<TypeDescription> typeInfo = types.find(name);
@@ -237,25 +238,7 @@ final class TypeFactory {
       return typeInfo.get();
     }
 
-    // are we looking up the target of this transformation?
-    if (name.equals(targetName)) {
-      TypeDescription type = typeParser.parse(targetBytecode);
-      types.share(name, classLoader, UNKNOWN_CLASS_FILE, type);
-      return type;
-    }
-
-    // try to find the class file resource
-    ClassFileLocator.Resolution classFileResolution;
-    try {
-      classFileResolution = classFileLocator.locate(name);
-    } catch (Throwable ignored) {
-      return null;
-    }
-
-    URL classFile =
-        classFileResolution instanceof ClassFileLocators.LazyResolution
-            ? ((ClassFileLocators.LazyResolution) classFileResolution).url()
-            : UNKNOWN_CLASS_FILE;
+    URL classFile = request.getClassFile();
 
     // existing info from same class file?
     if (null != typeInfo && typeInfo.sameClassFile(classFile)) {
@@ -264,9 +247,10 @@ final class TypeFactory {
 
     TypeDescription type = null;
 
-    // try to parse the class file resource
-    if (classFileResolution.isResolved()) {
-      type = typeParser.parse(classFileResolution.resolve());
+    // try to parse the original bytecode
+    byte[] bytecode = request.getBytecode();
+    if (null != bytecode) {
+      type = typeParser.parse(bytecode);
     } else if (fallBackToLoadClass) {
       type = loadType(name, typeParser);
     }
@@ -389,7 +373,7 @@ final class TypeFactory {
     TypeDescription doResolve(boolean throwIfMissing) {
       // re-resolve type when switching to full descriptions
       if (null == delegate || (isOutline && !createOutlines)) {
-        delegate = resolveType(name);
+        delegate = resolveType(this);
         isOutline = createOutlines;
         if (throwIfMissing && null == delegate) {
           throw new TypePool.Resolution.NoSuchTypeException(name);
