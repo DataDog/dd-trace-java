@@ -100,7 +100,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
     dispatcher << dispatchersToTest
   }
 
-  def "kotlin suspension should not mess up traces"() {
+  def "coroutine suspension should not mess up traces"() {
     setup:
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(
       ThreadPoolDispatcherKt.newSingleThreadContext("Single-Thread")
@@ -133,6 +133,38 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
         }
       }
     }
+  }
+
+  def "lazily started coroutines should respect the span that was active at creation time"() {
+    setup:
+    KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
+    int expectedNumberOfSpans = kotlinTest.tracedWithLazyStarting()
+
+    expect:
+    assertTraces(1) {
+      trace(expectedNumberOfSpans, true) {
+        span(3) {
+          operationName "trace.annotation"
+          parent()
+        }
+        def topLevelSpan = span(2)
+        span(2) {
+          operationName "top-level"
+          childOf span(3)
+        }
+        span(1) {
+          operationName "second-span"
+          childOf topLevelSpan
+        }
+        span(0) {
+          operationName "first-span"
+          childOf topLevelSpan
+        }
+      }
+    }
+
+    where:
+    dispatcher << dispatchersToTest
   }
 
   private static DDSpan findSpan(List<DDSpan> trace, String opName) {

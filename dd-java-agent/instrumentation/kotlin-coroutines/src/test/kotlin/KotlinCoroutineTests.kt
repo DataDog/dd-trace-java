@@ -160,50 +160,72 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
    * -------------------- Second job starts ---------------------------- Second job completes ---
    */
   @Trace
-  fun tracedWithSuspendingCoroutines(): Int {
-    fun jobContext(jobName: String) = CoroutineName(jobName)
+  fun tracedWithSuspendingCoroutines(): Int = runTest {
+    val jobs = mutableListOf<Deferred<Unit>>()
 
-    return runTest {
-      val jobs = mutableListOf<Deferred<Unit>>()
+    val beforeFirstJobStartedMutex = Mutex(locked = true)
+    val afterFirstJobStartedMutex = Mutex(locked = true)
 
-      val beforeFirstJobStartedMutex = Mutex(locked = true)
-      val afterFirstJobStartedMutex = Mutex(locked = true)
+    val beforeFirstJobCompletedMutex = Mutex(locked = true)
+    val afterFirstJobCompletedMutex = Mutex(locked = true)
 
-      val beforeFirstJobCompletedMutex = Mutex(locked = true)
-      val afterFirstJobCompletedMutex = Mutex(locked = true)
-
-      childSpan("top-level").activateAndUse {
-        childSpan("synchronous-child").activateAndUse {
-          delay(5)
-        }
-
-        // this coroutine starts before the second one starts and completes before the second one
-        async(jobContext("first")) {
-          beforeFirstJobStartedMutex.lock()
-          childSpan("first-span").activateAndUse {
-            afterFirstJobStartedMutex.unlock()
-            beforeFirstJobCompletedMutex.lock()
-          }
-          afterFirstJobCompletedMutex.unlock()
-        }.run(jobs::add)
-
-        // this coroutine starts after the first one and completes after the first one
-        async(jobContext("second")) {
-          afterFirstJobStartedMutex.withLock {
-            childSpan("second-span").activateAndUse {
-              beforeFirstJobCompletedMutex.unlock()
-              afterFirstJobCompletedMutex.lock()
-            }
-          }
-        }.run(jobs::add)
+    childSpan("top-level").activateAndUse {
+      childSpan("synchronous-child").activateAndUse {
+        delay(5)
       }
-      beforeFirstJobStartedMutex.unlock()
 
-      jobs.awaitAll()
+      // this coroutine starts before the second one starts and completes before the second one
+      async(jobContext("first")) {
+        beforeFirstJobStartedMutex.lock()
+        childSpan("first-span").activateAndUse {
+          afterFirstJobStartedMutex.unlock()
+          beforeFirstJobCompletedMutex.lock()
+        }
+        afterFirstJobCompletedMutex.unlock()
+      }.run(jobs::add)
 
-      5
+      // this coroutine starts after the first one and completes after the first one
+      async(jobContext("second")) {
+        afterFirstJobStartedMutex.withLock {
+          childSpan("second-span").activateAndUse {
+            beforeFirstJobCompletedMutex.unlock()
+            afterFirstJobCompletedMutex.lock()
+          }
+        }
+      }.run(jobs::add)
     }
+    beforeFirstJobStartedMutex.unlock()
+
+    jobs.awaitAll()
+
+    5
   }
+
+  @Trace
+  fun tracedWithLazyStarting(): Int = runTest {
+    val jobs = mutableListOf<Deferred<Unit>>()
+
+    childSpan("top-level").activateAndUse {
+      async(jobContext("first"), CoroutineStart.LAZY) {
+        childSpan("first-span").activateAndUse {
+          delay(1)
+        }
+      }.run(jobs::add)
+
+      async(jobContext("second"), CoroutineStart.LAZY) {
+        childSpan("second-span").activateAndUse {
+          delay(1)
+        }
+      }.run(jobs::add)
+    }
+
+    jobs.forEach { it.start() }
+    jobs.awaitAll()
+
+    4
+  }
+
+  private fun jobContext(jobName: String) = CoroutineName(jobName)
 
   private suspend fun AgentSpan.activateAndUse(block: suspend () -> Unit) {
     get().activateSpan(this, INSTRUMENTATION).use {
