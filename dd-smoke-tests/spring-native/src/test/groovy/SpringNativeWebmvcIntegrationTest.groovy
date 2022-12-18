@@ -1,9 +1,5 @@
 import datadog.smoketest.AbstractServerSmokeTest
 import okhttp3.Request
-import spock.lang.Shared
-
-import static datadog.trace.test.util.ForkedTestUtils.getMaxMemoryArgumentForFork
-import static datadog.trace.test.util.ForkedTestUtils.getMinMemoryArgumentForFork
 
 class SpringNativeWebmvcIntegrationTest extends AbstractServerSmokeTest {
 
@@ -21,16 +17,6 @@ class SpringNativeWebmvcIntegrationTest extends AbstractServerSmokeTest {
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
   }
-
-  @Shared
-  protected String[] nativeJavaProperties = [
-    "${getMaxMemoryArgumentForFork()}",
-    "${getMinMemoryArgumentForFork()}",
-    "-Ddd.trace.agent.port=${server.address.port}",
-    "-Ddd.service.name=${SERVICE_NAME}",
-    "-Ddd.env=${ENV}",
-    "-Ddd.version=${VERSION}"
-  ]
 
   @Override
   File createTemporaryFile() {
