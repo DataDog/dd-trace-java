@@ -145,11 +145,13 @@ final class TypeFactory {
 
   /** Cleans-up local caches to minimise memory use once we're done with the type-factory. */
   void endTransform() {
+    if (null == targetName) {
+      return; // transformation didn't reach resolve step
+    }
+
     if (installing) {
-      // was there a nested transform during install?
-      if (null != targetName) {
-        switchContext(originalClassLoader);
-      }
+      // just finished transforming a support type, restore the original matching context
+      switchContext(originalClassLoader);
     } else {
       clearReferences();
     }
