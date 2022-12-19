@@ -774,7 +774,6 @@ build_test_jobs: &build_test_jobs
         - build
       name: test_GRAALVM11_smoke
       gradleTarget: "stageMainDist :dd-smoke-test:spring-native"
-      maxHeapSize: "1G"
       stage: smoke
       testJvm: "GRAALVM11"
 
@@ -783,7 +782,6 @@ build_test_jobs: &build_test_jobs
         - build
       name: test_GRAALVM17_smoke
       gradleTarget: "stageMainDist :dd-smoke-test:spring-native"
-      maxHeapSize: "1G"
       stage: smoke
       testJvm: "GRAALVM17"
 
