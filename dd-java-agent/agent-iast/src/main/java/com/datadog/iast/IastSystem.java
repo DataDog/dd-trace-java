@@ -5,7 +5,6 @@ import com.datadog.iast.overhead.OverheadController;
 import com.datadog.iast.propagation.StringModuleImpl;
 import com.datadog.iast.sink.*;
 import com.datadog.iast.source.WebModuleImpl;
-import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.EventType;
 import datadog.trace.api.gateway.Events;
@@ -24,7 +23,8 @@ import org.slf4j.LoggerFactory;
 
 public class IastSystem {
 
-  private static final Logger log = LoggerFactory.getLogger(IastSystem.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(IastSystem.class);
+  public static boolean DEBUG = false;
 
   public static void start(final SubscriptionService ss) {
     start(ss, null);
@@ -33,15 +33,14 @@ public class IastSystem {
   public static void start(final SubscriptionService ss, OverheadController overheadController) {
     final Config config = Config.get();
     if (!config.isIastEnabled()) {
-      log.debug("IAST is disabled");
+      LOGGER.debug("IAST is disabled");
       return;
     }
-    log.debug("IAST is starting");
-
-    TaintedObjects.setDebug(config.isIastTaintTrackingDebugEnabled());
+    DEBUG = config.isIastDebugEnabled();
+    LOGGER.debug("IAST is starting: debug={}", DEBUG);
     final Reporter reporter = new Reporter(config);
     if (overheadController == null) {
-      overheadController = new OverheadController(config, AgentTaskScheduler.INSTANCE);
+      overheadController = OverheadController.build(config, AgentTaskScheduler.INSTANCE);
     }
     final Dependencies dependencies =
         new Dependencies(config, reporter, overheadController, StackWalkerFactory.INSTANCE);
@@ -53,7 +52,7 @@ public class IastSystem {
             });
     registerRequestStartedCallback(ss, overheadController);
     registerRequestEndedCallback(ss, overheadController);
-    log.debug("IAST started");
+    LOGGER.debug("IAST started");
   }
 
   private static Stream<IastModuleBase> iastModules() {

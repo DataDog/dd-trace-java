@@ -21,5 +21,10 @@ public class Operations {
           }
           return context.consumeQuota(1);
         }
+
+        @Override
+        public String toString() {
+          return "Operation#REPORT_VULNERABILITY";
+        }
       };
 }
