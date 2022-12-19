@@ -40,4 +40,32 @@ public class WebModuleImpl extends IastModuleBase implements WebModule {
     taintedObjects.taintInputString(
         paramValue, new Source(SourceType.REQUEST_PARAMETER_VALUE, paramName, paramValue));
   }
+
+  @Override
+  public void onHeaderName(@Nullable final String headerName) {
+    if (!canBeTainted(headerName)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    taintedObjects.taintInputString(
+        headerName, new Source(SourceType.REQUEST_HEADER_NAME, headerName, null));
+  }
+
+  @Override
+  public void onHeaderValue(@Nullable final String headerName, @Nullable final String headerValue) {
+    if (!canBeTainted(headerValue)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    taintedObjects.taintInputString(
+        headerValue, new Source(SourceType.REQUEST_HEADER_VALUE, headerName, headerValue));
+  }
 }
