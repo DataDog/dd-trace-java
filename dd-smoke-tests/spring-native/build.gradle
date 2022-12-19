@@ -66,6 +66,7 @@ if (testJvm != null && testJvm.startsWith('GRAALVM')) {
 spotless {
   java {
     target "**/*.java"
+    targetExclude "application/build/generated/**"
   }
 
   groovyGradle {
