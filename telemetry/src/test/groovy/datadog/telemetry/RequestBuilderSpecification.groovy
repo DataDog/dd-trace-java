@@ -3,7 +3,9 @@ package datadog.telemetry
 import datadog.telemetry.api.AppStarted
 import datadog.telemetry.api.Dependency
 import datadog.telemetry.api.DependencyType
+import datadog.telemetry.api.GenerateMetrics
 import datadog.telemetry.api.KeyValue
+import datadog.telemetry.api.Metric
 import datadog.telemetry.api.RequestType
 import datadog.trace.test.util.DDSpecification
 import groovy.json.JsonSlurper
@@ -78,6 +80,46 @@ class RequestBuilderSpecification extends DDSpecification {
         type == 'SharedSystemLibrary'
         version == '1.2.3'
       }
+    }
+  }
+
+  void 'metrics can be serialized'() {
+    GenerateMetrics payload = new GenerateMetrics(
+      libLanguage: 'java',
+      libVersion: '0.0.1',
+      series: [
+        new Metric(
+        common: false,
+        type: Metric.TypeEnum.GAUGE,
+        metric: 'test',
+        tags: ['example_tag'],
+        points: [[1660307486, 224]]
+        )
+      ]
+      )
+
+    when:
+    Request req = reqBuilder.build(RequestType.GENERATE_METRICS, payload)
+    def body = parseBody req.body()
+
+    then:
+    req.header('Content-type') == 'application/json; charset=utf-8'
+    req.header('DD-Telemetry-API-Version') == 'v1'
+    req.header('DD-Telemetry-Request-Type') == 'generate-metrics'
+    body['api_version'] == 'v1'
+    body['request_type'] == 'generate-metrics'
+    with(body['payload']) {
+      lib_language == 'java'
+      lib_version == '0.0.1'
+      series == [
+        [
+          common: false,
+          metric: 'test',
+          type: 'gauge',
+          tags: ['example_tag'],
+          points: [[1660307486, 224]]
+        ]
+      ]
     }
   }
 }
