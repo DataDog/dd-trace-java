@@ -957,7 +957,7 @@ public class Config {
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
     isAsyncProfilerEnabled =
         configProvider.getBoolean(
-            PROFILING_ASYNC_ENABLED, false /*isAsyncProfilerSafeInCurrentEnvironment()*/);
+            PROFILING_ASYNC_ENABLED, isAsyncProfilerSafeInCurrentEnvironment());
     profilingUrl = configProvider.getString(PROFILING_URL);
 
     if (tmpApiKey == null) {
