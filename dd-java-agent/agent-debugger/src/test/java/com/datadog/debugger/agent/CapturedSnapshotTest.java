@@ -553,9 +553,13 @@ public class CapturedSnapshotTest {
   @Test
   public void sourceFileProbeKotlinSuspend() {
     final String CLASS_NAME = "CapturedSnapshot303";
-    int line = 8;
+<<<<<<< HEAD
+    final String classNameWithSuffix = "CapturedSnapshot303$f1$1";
+=======
+    int line = 7;
+>>>>>>> db2f4ad98b ((Worktree))
     DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".kt", line));
+        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".kt", 7));
     URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
     Assert.assertNotNull(resource);
     Class<?> testClass = KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile());
@@ -566,9 +570,9 @@ public class CapturedSnapshotTest {
     Assert.assertNull(snapshot.getCaptures().getEntry());
     Assert.assertNull(snapshot.getCaptures().getReturn());
     Assert.assertEquals(1, snapshot.getCaptures().getLines().size());
-    Assert.assertEquals(CLASS_NAME, snapshot.getProbe().getLocation().getType());
+    Assert.assertEquals(classNameWithSuffix, snapshot.getProbe().getLocation().getType());
     Assert.assertEquals("f1", snapshot.getProbe().getLocation().getMethod());
-    assertCaptureArgs(snapshot.getCaptures().getLines().get(line), "p0", "int", "31");
+    assertCaptureArgs(snapshot.getCaptures().getLines().get(4), "value", "int", "31");
   }
 
   @Test

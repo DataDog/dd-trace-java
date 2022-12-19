@@ -40,7 +40,6 @@ dependencies {
   implementation deps.okhttp
   implementation deps.dogstatsd
   implementation deps.moshi
-  implementation group: 'dev.reformator.stacktracedecoroutinator', name: 'stacktrace-decoroutinator-jvm', version: '2.3.5'
 
   testImplementation deps.junit5
   testImplementation group: 'org.ow2.asm', name: 'asm-util', version: versions.asm
