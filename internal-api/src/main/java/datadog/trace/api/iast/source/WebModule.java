@@ -22,7 +22,11 @@ public interface WebModule extends IastModule {
 
   void onHeaderValue(@Nullable String headerName, @Nullable String headerValue);
 
-  <COOKIE> void onCookies(@Nonnull COOKIE[] cookies);
+  <COOKIE> void onCookies(@Nullable COOKIE[] cookies);
 
-  <COOKIE> void onCookieGetter(COOKIE self, String cookieName, String result, byte sourceTypeValue);
+  <COOKIE> void onCookieGetter(
+      @Nonnull COOKIE self,
+      @Nullable String cookieName,
+      @Nullable String result,
+      byte sourceTypeValue);
 }

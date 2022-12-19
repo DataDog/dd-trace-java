@@ -59,6 +59,9 @@ public class WebModuleImpl extends IastModuleBase implements WebModule {
 
   @Override
   public <COOKIE> void onCookies(@Nonnull COOKIE[] cookies) {
+    if (cookies == null || cookies.length == 0) {
+      return;
+    }
     final IastRequestContext ctx = IastRequestContext.get();
     if (ctx == null) {
       return;
@@ -74,12 +77,15 @@ public class WebModuleImpl extends IastModuleBase implements WebModule {
   @Override
   public <COOKIE> void onCookieGetter(
       COOKIE self, String name, String result, byte sourceTypeValue) {
+    if (!canBeTainted(result)) {
+      return;
+    }
     final IastRequestContext ctx = IastRequestContext.get();
     if (ctx == null) {
       return;
     }
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    if (taintedObjects.get(self) != null && canBeTainted(result)) {
+    if (taintedObjects.get(self) != null) {
       taintedObjects.taintInputString(result, new Source(sourceTypeValue, name, result));
     }
   }

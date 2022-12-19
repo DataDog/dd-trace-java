@@ -157,11 +157,22 @@ class WebModuleTest extends IastModuleImplTestBase {
 
   void 'test onCookies without span'() {
     when:
-    module.onCookies(new Object[0])
+    module.onCookies([new Object()])
 
     then:
     1 * tracer.activeSpan() >> null
     0 * _
+  }
+
+  void 'test onCookies null or empty'(final Object[] cookies) {
+    when:
+    module.onCookies(cookies)
+
+    then:
+    0 * _
+
+    where:
+    cookies << [null, []]
   }
 
   void 'test onCookies'() {
@@ -190,11 +201,22 @@ class WebModuleTest extends IastModuleImplTestBase {
 
   void 'test onCookieGetter without span'() {
     when:
-    module.onCookieGetter(null, null, null, SourceType.REQUEST_COOKIE_NAME)
+    module.onCookieGetter(new Object(), null, "result", SourceType.REQUEST_COOKIE_NAME)
 
     then:
     1 * tracer.activeSpan() >> null
     0 * _
+  }
+
+  void 'test onCookieGetter null or empty'(final String value) {
+    when:
+    module.onCookieGetter(new Object(), 'cookieName', value, SourceType.REQUEST_COOKIE_NAME)
+
+    then:
+    0 * _
+
+    where:
+    value << [null, ""]
   }
 
   void 'test onCookieGetter'(final String value, final byte sourceTypeValue, final boolean isCookieTainted) {
@@ -233,8 +255,6 @@ class WebModuleTest extends IastModuleImplTestBase {
 
     where:
     value     | sourceTypeValue                   | isCookieTainted
-    null      | SourceType.REQUEST_COOKIE_NAME    | true
-    ""        | SourceType.REQUEST_COOKIE_NAME    | true
     "name"    | SourceType.REQUEST_COOKIE_NAME    | true
     "value"   | SourceType.REQUEST_COOKIE_VALUE   | true
     "comment" | SourceType.REQUEST_COOKIE_COMMENT | true
