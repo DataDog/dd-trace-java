@@ -84,12 +84,12 @@ public class ValueScript implements DebuggerScript {
         while (jsonReader.hasNext()) {
           String fieldName = jsonReader.nextName();
           switch (fieldName) {
-            case "parsedExpr":
+            case "json":
               {
                 valueExpression = JsonToExpressionConverter.asValueExpression(jsonReader);
                 break;
               }
-            case "expr":
+            case "dsl":
               {
                 dsl = jsonReader.nextString();
                 break;
@@ -112,9 +112,9 @@ public class ValueScript implements DebuggerScript {
         return;
       }
       jsonWriter.beginObject();
-      jsonWriter.name("expr");
+      jsonWriter.name("dsl");
       jsonWriter.value(value.dsl);
-      jsonWriter.name("parsedExpr");
+      jsonWriter.name("json");
       writeValueExpression(jsonWriter, value.expr);
       jsonWriter.endObject();
     }

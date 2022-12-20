@@ -26,8 +26,8 @@
     "kind": "COUNT",
     "metricName": "datadog.debugger.calls",
     "value": {
-      "expr": "42",
-      "parsedExpr": 42
+      "dsl": "42",
+      "json": 42
     }
   }, {
     "id": "123356537",
@@ -46,8 +46,8 @@
     "kind": "GAUGE",
     "metricName": "datadog.debugger.gauge_value",
     "value": {
-      "expr": "value",
-      "parsedExpr": { "ref": "value" }
+      "dsl": "value",
+      "json": { "ref": "value" }
     }
   }, {
     "id": "123356538",
@@ -62,8 +62,8 @@
     "kind": "GAUGE",
     "metricName": "datadog.debugger.refpathvalue",
     "value": {
-      "expr": "obj.field",
-      "parsedExpr": {"getmember": [{ "ref": "obj" }, "field"]}
+      "dsl": "obj.field",
+      "json": {"getmember": [{ "ref": "obj" }, "field"]}
     }
   },{
     "id": "123356539",

@@ -23,18 +23,18 @@
       {
         "str": "this is a log line customized! uuid="
       }, {
-        "expr": "uuid",
-        "parsedExpr": {"ref": "uuid"}
+        "dsl": "uuid",
+        "json": {"ref": "uuid"}
       }, {
         "str": " result="
       }, {
-        "expr": "result",
-        "parsedExpr": {"ref": "result"}
+        "dsl": "result",
+        "json": {"ref": "result"}
       }, {
         "str": " garbageStart="
       }, {
-        "expr": "garbageStart",
-        "parsedExpr": {"ref": "garbageStart"}
+        "dsl": "garbageStart",
+        "json": {"ref": "garbageStart"}
       }
     ]
   }]
