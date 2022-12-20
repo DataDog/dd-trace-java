@@ -1,11 +1,11 @@
 package com.datadog.iast.taint;
 
+import com.datadog.iast.util.NonBlockingSemaphore;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -40,7 +40,7 @@ public final class DefaultTaintedMap implements TaintedMap {
   /** Bitmask for fast modulo with table length. */
   private final int lengthMask;
   /** Flag to ensure we do not run multiple purges concurrently. */
-  private final AtomicBoolean isPurging = new AtomicBoolean(false);
+  private final NonBlockingSemaphore purge = NonBlockingSemaphore.withPermitCount(1);
   /**
    * Estimated number of hash table entries. If the hash table switches to flat mode, it stops
    * counting elements.
@@ -140,7 +140,7 @@ public final class DefaultTaintedMap implements TaintedMap {
    */
   void purge() {
     // Ensure we enter only once concurrently.
-    if (!isPurging.compareAndSet(false, true)) {
+    if (!purge.acquire()) {
       return;
     }
 
@@ -163,7 +163,7 @@ public final class DefaultTaintedMap implements TaintedMap {
       }
     } finally {
       // Reset purging flag.
-      isPurging.set(false);
+      purge.release();
     }
   }
 

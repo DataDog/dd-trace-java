@@ -4,9 +4,11 @@ import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.source.WebModule;
+import datadog.trace.util.stacktrace.StackUtils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.List;
 import javax.servlet.ServletRequest;
 
 @CallSite(spi = IastAdvice.class)
@@ -45,22 +47,29 @@ public class ServletRequestCallSite {
     @CallSite.After("java.util.Enumeration javax.servlet.ServletRequestWrapper.getParameterNames()")
   })
   public static Enumeration<?> afterGetParameterNames(
-      @CallSite.This final ServletRequest self, @CallSite.Return final Enumeration<?> enumeration) {
+      @CallSite.This final ServletRequest self, @CallSite.Return final Enumeration<?> enumeration)
+      throws Throwable {
     final WebModule module = InstrumentationBridge.WEB;
     if (module == null) {
       return enumeration;
     }
-    final ArrayList<String> parameterNames = new ArrayList<>();
-    while (enumeration.hasMoreElements()) {
-      String paramName = (String) enumeration.nextElement();
-      parameterNames.add(paramName);
-      try {
-        module.onParameterName(paramName);
-      } catch (final Throwable e) {
-        module.onUnexpectedException("afterGetParameterNames threw", e);
+    try {
+      final List<Object> parameterNames = new ArrayList<>();
+      while (enumeration.hasMoreElements()) {
+        final Object paramName = enumeration.nextElement();
+        parameterNames.add(paramName);
+        try {
+          module.onParameterName((String) paramName);
+        } catch (final Throwable e) {
+          module.onUnexpectedException("afterGetParameterNames threw", e);
+        }
       }
+      return Collections.enumeration(parameterNames);
+    } catch (final Throwable e) {
+      module.onUnexpectedException(
+          "afterGetParameterNames threw while iterating parameter names", e);
+      throw StackUtils.filterFirstDatadog(e);
     }
-    return Collections.enumeration(parameterNames);
   }
 
   @CallSite.AfterArray({

@@ -36,10 +36,10 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_TAG_QUERY_STR
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DEBUG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DEDUPLICATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONCURRENT_REQUESTS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REQUEST_SAMPLING;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_TAINT_TRACKING_DEBUG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_VULNERABILITIES_PER_REQUEST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS;
@@ -141,10 +141,10 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESO
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
+import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_MAX_CONCURRENT_REQUESTS;
 import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING;
-import static datadog.trace.api.config.IastConfig.IAST_TAINT_TRAKING_DEBUG_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_VULNERABILITIES_PER_REQUEST;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_HASH_ALGORITHMS;
@@ -234,6 +234,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGA
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_CONTEXT_SERVICE_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME;
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST;
 import static datadog.trace.api.config.TracerConfig.AGENT_NAMED_PIPE;
 import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY;
@@ -502,7 +503,7 @@ public class Config {
   private final int iastMaxConcurrentRequests;
   private final int iastVulnerabilitiesPerRequest;
   private final float iastRequestSampling;
-  private final boolean iastTaintTrackingDebugEnabled;
+  private final boolean iastDebugEnabled;
 
   private final boolean ciVisibilityAgentlessEnabled;
   private final String ciVisibilityAgentlessUrl;
@@ -560,6 +561,8 @@ public class Config {
 
   private final boolean servletPrincipalEnabled;
   private final boolean servletAsyncTimeoutError;
+
+  private final boolean springDataRepositoryInterfaceResourceName;
 
   private final int xDatadogTagsMaxLength;
 
@@ -837,6 +840,9 @@ public class Config {
 
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
 
+    springDataRepositoryInterfaceResourceName =
+        configProvider.getBoolean(SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME, true);
+
     scopeDepthLimit = configProvider.getInteger(SCOPE_DEPTH_LIMIT, DEFAULT_SCOPE_DEPTH_LIMIT);
 
     scopeStrictMode = configProvider.getBoolean(SCOPE_STRICT_MODE, false);
@@ -1066,9 +1072,7 @@ public class Config {
     appSecHttpBlockedTemplateJson =
         configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, null);
 
-    iastTaintTrackingDebugEnabled =
-        configProvider.getBoolean(
-            IAST_TAINT_TRAKING_DEBUG_ENABLED, DEFAULT_IAST_TAINT_TRACKING_DEBUG_ENABLED);
+    iastDebugEnabled = configProvider.getBoolean(IAST_DEBUG_ENABLED, DEFAULT_IAST_DEBUG_ENABLED);
 
     iastMaxConcurrentRequests =
         configProvider.getInteger(
@@ -1782,8 +1786,8 @@ public class Config {
     return instrumenterConfig.isIastEnabled();
   }
 
-  public boolean isIastTaintTrackingDebugEnabled() {
-    return iastTaintTrackingDebugEnabled;
+  public boolean isIastDebugEnabled() {
+    return iastDebugEnabled;
   }
 
   public int getIastMaxConcurrentRequests() {
@@ -1974,6 +1978,10 @@ public class Config {
 
   public boolean isServletPrincipalEnabled() {
     return servletPrincipalEnabled;
+  }
+
+  public boolean isSpringDataRepositoryInterfaceResourceName() {
+    return springDataRepositoryInterfaceResourceName;
   }
 
   public int getxDatadogTagsMaxLength() {

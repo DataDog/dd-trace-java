@@ -83,6 +83,9 @@
 0 sun.rmi.server.*
 0 sun.rmi.transport.*
 0 sun.nio.ch.FileChannelImpl
+# Prevent IllegalAccessError in OpenJDK 17.0.4
+1 javax.management.*
+1 javax.swing.*
 
 # -------- ADDITIONAL IGNORES --------
 

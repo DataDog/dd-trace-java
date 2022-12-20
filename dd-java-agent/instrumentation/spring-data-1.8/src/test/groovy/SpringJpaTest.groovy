@@ -1,6 +1,7 @@
 // This file includes software developed at SignalFx
 
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import spring.jpa.JpaCustomer
@@ -51,6 +52,7 @@ class SpringJpaTest extends AgentTestRunner {
     TEST_WRITER.clear()
 
     setup:
+    injectSysConfig(TraceInstrumentationConfig.SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME, useEnhancedNaming)
     def customer = new JpaCustomer("Bob", "Anonymous")
 
     expect:
@@ -61,7 +63,7 @@ class SpringJpaTest extends AgentTestRunner {
       trace(2) {
         span {
           operationName "repository.operation"
-          resourceName "JpaRepository.findAll"
+          resourceName "${intfName}.findAll"
           errored false
           measured true
           tags {
@@ -100,7 +102,7 @@ class SpringJpaTest extends AgentTestRunner {
       trace(2) {
         span {
           operationName "repository.operation"
-          resourceName "CrudRepository.save"
+          resourceName "${intfName}.save"
           errored false
           measured true
           tags {
@@ -139,7 +141,7 @@ class SpringJpaTest extends AgentTestRunner {
       trace(3) {
         span {
           operationName "repository.operation"
-          resourceName "CrudRepository.save"
+          resourceName "${intfName}.save"
           errored false
           measured true
           tags {
@@ -227,7 +229,7 @@ class SpringJpaTest extends AgentTestRunner {
       trace(3) {
         span {
           operationName "repository.operation"
-          resourceName "CrudRepository.delete"
+          resourceName "${intfName}.delete"
           errored false
           measured true
           tags {
@@ -269,5 +271,9 @@ class SpringJpaTest extends AgentTestRunner {
       }
     }
     TEST_WRITER.clear()
+    where:
+    useEnhancedNaming | intfName
+    "true"            | "JpaCustomerRepository"
+    "false"           | "CrudRepository"
   }
 }
