@@ -30,7 +30,7 @@ public final class AgentJar {
           case "uploadCrash":
             uploadCrash(args);
             break;
-          case "scandependencies":
+          case "scanDependencies":
             scanDependencies(args);
             break;
           case "--list-integrations":
