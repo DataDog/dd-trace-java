@@ -141,7 +141,7 @@ public final class AgentCLI {
                         out.write(read);
                       }
                     }
-                    log.debug("Adding new jar:" + temp.getAbsolutePath());
+                    log.debug("Adding new jar: {}", temp.getAbsolutePath());
                     recursiveDependencySearch(invoker, temp);
                     temp.delete();
                   } catch (Exception ex) {
