@@ -106,23 +106,33 @@ public class InstrumenterConfig {
     logsInjectionEnabled =
         configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
     logsMDCTagsInjectionEnabled = configProvider.getBoolean(LOGS_MDC_TAGS_INJECTION_ENABLED, true);
-    profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT);
-    ciVisibilityEnabled =
-        configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
-    // ConfigProvider.getString currently doesn't fallback to default for empty strings. So we have
-    // special handling here until we have a general solution for empty string value fallback.
-    String appSecEnabled = configProvider.getString(APPSEC_ENABLED);
-    if (appSecEnabled == null || appSecEnabled.isEmpty()) {
-      appSecEnabled =
-          configProvider.getStringExcludingSource(
-              APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED, SystemPropertiesConfigSource.class);
-      if (appSecEnabled.isEmpty()) {
-        appSecEnabled = DEFAULT_APPSEC_ENABLED;
+
+    if (!Platform.isNativeImageBuilder()) {
+      profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT);
+      ciVisibilityEnabled =
+          configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
+      // ConfigProvider.getString currently doesn't fallback to default for empty strings. We have
+      // special handling here until we have a general solution for empty string value fallback.
+      String appSecEnabled = configProvider.getString(APPSEC_ENABLED);
+      if (appSecEnabled == null || appSecEnabled.isEmpty()) {
+        appSecEnabled =
+            configProvider.getStringExcludingSource(
+                APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED, SystemPropertiesConfigSource.class);
+        if (appSecEnabled.isEmpty()) {
+          appSecEnabled = DEFAULT_APPSEC_ENABLED;
+        }
       }
+      appSecActivation = ProductActivation.fromString(appSecEnabled);
+      iastEnabled = configProvider.getBoolean(IAST_ENABLED, DEFAULT_IAST_ENABLED);
+      telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
+    } else {
+      // disable these features in native-image
+      profilingEnabled = false;
+      ciVisibilityEnabled = false;
+      appSecActivation = ProductActivation.FULLY_DISABLED;
+      iastEnabled = false;
+      telemetryEnabled = false;
     }
-    appSecActivation = ProductActivation.fromString(appSecEnabled);
-    iastEnabled = configProvider.getBoolean(IAST_ENABLED, DEFAULT_IAST_ENABLED);
-    telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
 
     traceExecutorsAll = configProvider.getBoolean(TRACE_EXECUTORS_ALL, DEFAULT_TRACE_EXECUTORS_ALL);
     traceExecutors = tryMakeImmutableList(configProvider.getList(TRACE_EXECUTORS));
@@ -147,7 +157,9 @@ public class InstrumenterConfig {
             RESOLVER_CACHE_CONFIG, ResolverCacheConfig.class, ResolverCacheConfig.DEFAULT);
     resolverUseLoadClassEnabled = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
     resolverResetInterval =
-        configProvider.getInteger(RESOLVER_RESET_INTERVAL, DEFAULT_RESOLVER_RESET_INTERVAL);
+        Platform.isNativeImageBuilder()
+            ? 0
+            : configProvider.getInteger(RESOLVER_RESET_INTERVAL, DEFAULT_RESOLVER_RESET_INTERVAL);
 
     runtimeContextFieldInjection =
         configProvider.getBoolean(
@@ -266,7 +278,7 @@ public class InstrumenterConfig {
   }
 
   public int getResolverResetInterval() {
-    return Platform.isNativeImageBuilder() ? 0 : resolverResetInterval;
+    return resolverResetInterval;
   }
 
   public boolean isRuntimeContextFieldInjection() {

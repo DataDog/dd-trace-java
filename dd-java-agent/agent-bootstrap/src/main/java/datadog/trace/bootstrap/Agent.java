@@ -24,7 +24,6 @@ import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
-import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
@@ -58,14 +57,12 @@ public class Agent {
   private static final String SIMPLE_LOGGER_DEFAULT_LOG_LEVEL_PROPERTY =
       "datadog.slf4j.simpleLogger.defaultLogLevel";
 
+  private static final String AGENT_INSTALLER_CLASS_NAME =
+      "datadog.trace.agent.tooling.AgentInstaller";
+
   private static final int DEFAULT_JMX_START_DELAY = 15; // seconds
 
   private static final Logger log;
-
-  private static final String AGENT_INSTALLER_CLASS_NAME =
-      "false".equalsIgnoreCase(ddGetProperty("dd.legacy.agent.enabled"))
-          ? "datadog.trace.agent.installer.AgentInstaller"
-          : "datadog.trace.agent.tooling.AgentInstaller";
 
   private enum AgentFeature {
     TRACING("dd.tracing.enabled", true),
@@ -150,11 +147,6 @@ public class Agent {
 
       /*if CI Visibility is enabled, the PrioritizationType should be {@code Prioritization.ENSURE_TRACE} */
       setSystemPropertyDefault("dd.prioritization.type", "ENSURE_TRACE");
-
-      boolean ciVisibilityAgentlessEnabled = isFeatureEnabled(AgentFeature.CIVISIBILITY_AGENTLESS);
-      if (ciVisibilityAgentlessEnabled) {
-        setSystemPropertyDefault("dd.writer.type", WriterConstants.DD_INTAKE_WRITER_TYPE);
-      }
     }
 
     if (Platform.isJ9()) {

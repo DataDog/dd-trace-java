@@ -1,18 +1,17 @@
 package datadog.smoketest
 
-import datadog.trace.api.Platform
 import datadog.trace.test.agent.decoder.DecodedSpan
 import groovy.json.JsonSlurper
 import okhttp3.Request
-import spock.lang.IgnoreIf
 import spock.util.concurrent.PollingConditions
 
 import java.util.function.Function
 import java.util.function.Predicate
 
-@IgnoreIf({
-  !Platform.isJavaVersionAtLeast(8)
-})
+import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
+import static datadog.trace.api.config.IastConfig.IAST_ENABLED
+import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING
+
 class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
 
   private static final String TAG_NAME = '_dd.iast.json'
@@ -35,9 +34,9 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
     command.addAll([
-      "-Ddd.iast.enabled=true",
-      "-Ddd.iast.request-sampling=100",
-      "-Ddd.iast.taint-tracking.debug.enabled=true"
+      withSystemProperty(IAST_ENABLED, true),
+      withSystemProperty(IAST_REQUEST_SAMPLING, 100),
+      withSystemProperty(IAST_DEBUG_ENABLED, true)
     ])
     command.addAll((String[]) ["-jar", springBootShadowJar, "--server.port=${httpPort}"])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
@@ -294,5 +293,9 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     return { vul ->
       vul.location.spanId > 0
     }
+  }
+
+  private static String withSystemProperty(final String config, final Object value) {
+    return "-Ddd.${config}=${value}"
   }
 }

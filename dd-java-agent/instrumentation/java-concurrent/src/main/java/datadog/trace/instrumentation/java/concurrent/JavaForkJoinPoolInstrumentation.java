@@ -10,7 +10,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
@@ -37,15 +36,9 @@ public class JavaForkJoinPoolInstrumentation extends Instrumenter.Tracing
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    if (Platform.isJavaVersionAtLeast(8)) {
-      transformation.applyAdvice(
-          isMethod().and(namedOneOf("externalPush", "externalSubmit")),
-          getClass().getName() + "$ExternalPush");
-    } else {
-      transformation.applyAdvice(
-          isMethod().and(namedOneOf("forkOrSubmit", "invoke")),
-          getClass().getName() + "$ExternalPush");
-    }
+    transformation.applyAdvice(
+        isMethod().and(namedOneOf("externalPush", "externalSubmit")),
+        getClass().getName() + "$ExternalPush");
   }
 
   public static final class ExternalPush {

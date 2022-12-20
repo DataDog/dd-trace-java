@@ -61,12 +61,27 @@ public class HealthMetrics implements AutoCloseable {
       CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter samplerKeepDroppedTraces =
       CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter serialFailedDroppedTraces =
+      CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter unsetPriorityDroppedTraces =
       CountersFactory.createFixedSizeStripedCounter(8);
 
   private final FixedSizeStripedLongCounter enqueuedSpans =
       CountersFactory.createFixedSizeStripedCounter(8);
 
+  private final FixedSizeStripedLongCounter createdTraces =
+      CountersFactory.createFixedSizeStripedCounter(8);
+
+  private final FixedSizeStripedLongCounter createdSpans =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter sampledSpans =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter manualTraces =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter cancelledContinuations =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter finishedContinuations =
+      CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter partialTraces =
       CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter droppedSpans =
@@ -150,6 +165,10 @@ public class HealthMetrics implements AutoCloseable {
 
   public void onFlush(final boolean early) {}
 
+  public void onPartialFlush(final int sizeInBytes) {
+    statsd.count("span.flushed.partial", sizeInBytes, NO_TAGS);
+  }
+
   public void onSerialize(final int serializedSizeInBytes) {
     // DQH - Because of Java tracer's 2 phase acceptance and serialization scheme, this doesn't
     // map precisely
@@ -157,8 +176,27 @@ public class HealthMetrics implements AutoCloseable {
   }
 
   public void onFailedSerialize(final List<DDSpan> trace, final Throwable optionalCause) {
-    // TODO - DQH - make a new stat for serialization failure -- or maybe count this towards
-    // api.errors???
+    serialFailedDroppedTraces.inc();
+  }
+
+  public void onCreateSpan() {
+    createdSpans.inc();
+  }
+
+  public void onCreateTrace() {
+    createdTraces.inc();
+  }
+
+  public void onCreateManualTrace() {
+    manualTraces.inc();
+  }
+
+  public void onCancelContinuation() {
+    cancelledContinuations.inc();
+  }
+
+  public void onFinishContinuation() {
+    finishedContinuations.inc();
   }
 
   public void onSend(
@@ -202,6 +240,7 @@ public class HealthMetrics implements AutoCloseable {
     private static final String[] USER_KEEP_TAG = new String[] {"priority:user_keep"};
     private static final String[] SAMPLER_DROP_TAG = new String[] {"priority:sampler_drop"};
     private static final String[] SAMPLER_KEEP_TAG = new String[] {"priority:sampler_keep"};
+    private static final String[] SERIAL_FAILED_TAG = new String[] {"failure:serial"};
     private static final String[] UNSET_TAG = new String[] {"priority:unset"};
 
     @Override
@@ -231,8 +270,19 @@ public class HealthMetrics implements AutoCloseable {
       reportIfChanged(
           target.statsd, "queue.dropped.traces", target.samplerKeepDroppedTraces, SAMPLER_KEEP_TAG);
       reportIfChanged(
+          target.statsd,
+          "queue.dropped.traces",
+          target.serialFailedDroppedTraces,
+          SERIAL_FAILED_TAG);
+      reportIfChanged(
           target.statsd, "queue.dropped.traces", target.unsetPriorityDroppedTraces, UNSET_TAG);
       reportIfChanged(target.statsd, "queue.enqueued.spans", target.enqueuedSpans, NO_TAGS);
+      reportIfChanged(target.statsd, "trace.pending.created", target.createdTraces, NO_TAGS);
+      reportIfChanged(target.statsd, "span.pending.created", target.createdSpans, NO_TAGS);
+      reportIfChanged(
+          target.statsd, "span.continuations.canceled", target.cancelledContinuations, NO_TAGS);
+      reportIfChanged(
+          target.statsd, "span.continuations.finished", target.finishedContinuations, NO_TAGS);
       reportIfChanged(target.statsd, "queue.partial.traces", target.partialTraces, NO_TAGS);
       reportIfChanged(target.statsd, "queue.dropped.spans", target.droppedSpans, NO_TAGS);
     }

@@ -7,16 +7,20 @@ import java.util.Map;
 public class TagContextExtractor implements HttpCodec.Extractor {
 
   protected final Map<String, String> taggedHeaders;
+  protected final Map<String, String> baggageMapping;
   private final ThreadLocal<ContextInterpreter> ctxInterpreter;
 
   public TagContextExtractor(
-      final Map<String, String> taggedHeaders, final ContextInterpreter.Factory factory) {
+      final Map<String, String> taggedHeaders,
+      final Map<String, String> baggageMapping,
+      final ContextInterpreter.Factory factory) {
     this.taggedHeaders = taggedHeaders;
+    this.baggageMapping = baggageMapping;
     this.ctxInterpreter =
         new ThreadLocal<ContextInterpreter>() {
           @Override
           protected ContextInterpreter initialValue() {
-            return factory.create(taggedHeaders);
+            return factory.create(taggedHeaders, baggageMapping);
           }
         };
   }

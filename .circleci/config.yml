@@ -154,8 +154,7 @@ commands:
             chmod -v 0400 ca-key.pem key.pem server-key.pem
             chmod -v 0444 ca.pem server-cert.pem cert.pem
             
-            cd ~/dd-trace-java
-            .circleci/autoforward.py --port 60906 --remote $FORWARDED_DOCKER_HOST --forward remote-docker --secure --server-key $DOCKER_CERT_PATH/server-key.pem --server-cert $DOCKER_CERT_PATH/server-cert.pem --remote-key $DOCKER_CERT_PATH/remote-key.pem --remote-cert $DOCKER_CERT_PATH/remote-cert.pem --remote-ca $DOCKER_CERT_PATH/remote-ca.pem
+            autoforward --port 60906 --remote $FORWARDED_DOCKER_HOST --forward remote-docker --secure --server-key $DOCKER_CERT_PATH/server-key.pem --server-cert $DOCKER_CERT_PATH/server-cert.pem --remote-key $DOCKER_CERT_PATH/remote-key.pem --remote-cert $DOCKER_CERT_PATH/remote-cert.pem --remote-ca $DOCKER_CERT_PATH/remote-ca.pem
 
   early_return_for_forked_pull_requests:
     description: >-
@@ -770,6 +769,22 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 8
       testJvm: "IBM17"
 
+  - xlarge_tests:
+      requires:
+        - build
+      name: test_GRAALVM11_smoke
+      gradleTarget: "stageMainDist :dd-smoke-test:spring-native"
+      stage: smoke
+      testJvm: "GRAALVM11"
+
+  - xlarge_tests:
+      requires:
+        - build
+      name: test_GRAALVM17_smoke
+      gradleTarget: "stageMainDist :dd-smoke-test:spring-native"
+      stage: smoke
+      testJvm: "GRAALVM17"
+
 
   - huge_tests:
       requires:
@@ -861,7 +876,7 @@ build_test_jobs: &build_test_jobs
       name: iast
       stage: iast
 
-  # This job requires all the jobs needed for a successful build, so github only needs to enforce this one
+  # This job requires all the jobs needed for a successful build, so GitHub only needs to enforce this one,
   # and it will be simpler to require different JVM versions for different branches and old releases
   - fan_in:
       requires:

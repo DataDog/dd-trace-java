@@ -6,6 +6,7 @@ import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SnapshotProbe;
+import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.util.ExceptionHelper;
@@ -25,6 +26,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,9 +39,10 @@ import org.slf4j.LoggerFactory;
 public class ConfigurationUpdater
     implements DebuggerContext.ProbeResolver, DebuggerProductChangesListener.ConfigurationAcceptor {
 
-  public static final int MAX_ALLOWED_PROBES = 100;
+  public static final int MAX_ALLOWED_SNAPSHOT_PROBES = 100;
   public static final int MAX_ALLOWED_METRIC_PROBES = 100;
   public static final int MAX_ALLOWED_LOG_PROBES = 100;
+  private static final int MAX_ALLOWED_SPAN_PROBES = 100;
 
   public interface TransformerSupplier {
     DebuggerTransformer supply(
@@ -113,42 +117,39 @@ public class ConfigurationUpdater
   }
 
   private Configuration applyConfigurationFilters(Configuration configuration) {
-    Collection<SnapshotProbe> probes = configuration.getSnapshotProbes();
-    if (probes != null) {
-      probes =
-          probes.stream()
-              .filter(SnapshotProbe::isActive)
-              .filter(envAndVersionCheck::isEnvAndVersionMatch)
-              .limit(MAX_ALLOWED_PROBES)
-              .collect(Collectors.toList());
-      probes = mergeDuplicatedProbes(probes);
-    }
-    Collection<MetricProbe> metricProbes = configuration.getMetricProbes();
-    if (metricProbes != null) {
-      metricProbes =
-          metricProbes.stream()
-              .filter(MetricProbe::isActive)
-              .filter(envAndVersionCheck::isEnvAndVersionMatch)
-              .limit(MAX_ALLOWED_METRIC_PROBES)
-              .collect(Collectors.toList());
-    }
-    Collection<LogProbe> logProbes = configuration.getLogProbes();
-    if (logProbes != null) {
-      logProbes =
-          logProbes.stream()
-              .filter(LogProbe::isActive)
-              .filter(envAndVersionCheck::isEnvAndVersionMatch)
-              .limit(MAX_ALLOWED_LOG_PROBES)
-              .collect(Collectors.toList());
-    }
+    Collection<SnapshotProbe> snapshotProbes =
+        filterProbes(
+            configuration::getSnapshotProbes, SnapshotProbe::isActive, MAX_ALLOWED_SNAPSHOT_PROBES);
+    snapshotProbes = mergeDuplicatedProbes(snapshotProbes);
+    Collection<MetricProbe> metricProbes =
+        filterProbes(
+            configuration::getMetricProbes, MetricProbe::isActive, MAX_ALLOWED_METRIC_PROBES);
+    Collection<LogProbe> logProbes =
+        filterProbes(configuration::getLogProbes, LogProbe::isActive, MAX_ALLOWED_LOG_PROBES);
+    Collection<SpanProbe> spanProbes =
+        filterProbes(configuration::getSpanProbes, SpanProbe::isActive, MAX_ALLOWED_SPAN_PROBES);
     return new Configuration(
         serviceName,
-        probes,
+        snapshotProbes,
         metricProbes,
         logProbes,
+        spanProbes,
         configuration.getAllowList(),
         configuration.getDenyList(),
         configuration.getSampling());
+  }
+
+  private <E extends ProbeDefinition> Collection<E> filterProbes(
+      Supplier<Collection<E>> probeSupplier, Predicate<E> isActive, int maxAllowedProbes) {
+    Collection<E> probes = probeSupplier.get();
+    if (probes == null) {
+      return Collections.emptyList();
+    }
+    return probes.stream()
+        .filter(isActive)
+        .filter(envAndVersionCheck::isEnvAndVersionMatch)
+        .limit(maxAllowedProbes)
+        .collect(Collectors.toList());
   }
 
   Collection<SnapshotProbe> mergeDuplicatedProbes(Collection<SnapshotProbe> probes) {
@@ -213,16 +214,14 @@ public class ConfigurationUpdater
 
   private Configuration createEmptyConfiguration() {
     if (currentConfiguration != null) {
-      return new Configuration(
-          currentConfiguration.getService(),
-          null,
-          null,
-          null,
-          currentConfiguration.getAllowList(),
-          currentConfiguration.getDenyList(),
-          currentConfiguration.getSampling());
+      return Configuration.builder()
+          .setService(currentConfiguration.getService())
+          .addAllowList(currentConfiguration.getAllowList())
+          .addDenyList(currentConfiguration.getDenyList())
+          .setSampling(currentConfiguration.getSampling())
+          .build();
     }
-    return new Configuration(serviceName, null, null, null, null, null, null);
+    return Configuration.builder().setService(serviceName).build();
   }
 
   private void retransformClasses(List<Class<?>> classesToBeTransformed) {
