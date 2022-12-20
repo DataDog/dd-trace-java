@@ -62,7 +62,7 @@ public final class AgentJar {
     System.out.println("usage:");
     System.out.println("  sampleTrace [-c count] [-i interval]");
     System.out.println("  uploadCrash file ...");
-    System.out.println("  scandependencies file/path ...");
+    System.out.println("  scanDependencies <path> ...");
     System.out.println("  [-li | --list-integrations]");
     System.out.println("  [-h  | --help]");
     System.out.println("  [-v  | --version]");
