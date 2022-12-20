@@ -127,6 +127,8 @@ public class HandleRequestVisitor extends MethodVisitor {
       super.visitLabel(afterHandle);
       if (needsStackFrames()) {
         super.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+        // add NOP because if this is followed by another frame asm may not like it
+        super.visitInsn(Opcodes.NOP);
       }
       this.success = true;
       return;
