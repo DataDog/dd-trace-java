@@ -132,7 +132,7 @@ public final class AgentCLI {
                 if (e.getName().endsWith(".jar") || e.getName().endsWith(".war")) {
                   try {
                     log.debug(
-                        "Jar entry found in file:" + file.getName() + " entry:" + e.getName());
+                        "Jar entry found in file: {} entry: {}", file.getName(), e.getName());
                     File temp = File.createTempFile("internal", ".jar");
                     try (InputStream is = jar.getInputStream(e);
                         OutputStream out = new FileOutputStream(temp)) {
