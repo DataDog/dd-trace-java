@@ -55,11 +55,12 @@ public class JsonToExpressionConverter {
         }
       case "!=":
       case "neq":
+      case "ne":
         {
           JsonReader.Token token = reader.peek();
           if (token != BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
-                "Operation 'neq' expects the arguments to be defined as array");
+                "Operation 'ne' expects the arguments to be defined as array");
           }
           reader.beginArray();
           expr = DSL.not(createBinaryValuePredicate(reader, DSL::eq));
@@ -222,8 +223,15 @@ public class JsonToExpressionConverter {
     switch (reader.peek()) {
       case NUMBER:
         {
-          // handle int/long?
-          value = DSL.value(reader.nextDouble());
+          // Moshi always consider numbers as decimal. need to parse it as string and detect if dot
+          // is present
+          // or not to determine ints/longs vs doubles
+          String numberStrValue = reader.nextString();
+          if (numberStrValue.indexOf('.') > 0) {
+            value = DSL.value(Double.parseDouble(numberStrValue));
+          } else {
+            value = DSL.value(Long.parseLong(numberStrValue));
+          }
           break;
         }
       case STRING:
