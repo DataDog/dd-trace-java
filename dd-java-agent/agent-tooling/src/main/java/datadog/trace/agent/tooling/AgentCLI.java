@@ -148,7 +148,7 @@ public final class AgentCLI {
                     throw new RuntimeException(ex);
                   }
                 } else {
-                  log.debug("Entry:" + e.getName() + " ignored in file:" + file.getAbsolutePath());
+                  log.debug("Entry: {} ignored in file: {}",  e.getName() , file.getAbsolutePath());
                 }
               });
     }
