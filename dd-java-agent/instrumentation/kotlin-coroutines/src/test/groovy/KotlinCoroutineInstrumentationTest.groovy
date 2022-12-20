@@ -13,6 +13,11 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
     ThreadPoolDispatcherKt.newSingleThreadContext("Single-Thread"),
   ]
 
+  @Override
+  boolean useStrictTraceWrites() {
+    return false
+  }
+
   def "kotlin traced across channels"() {
     setup:
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
