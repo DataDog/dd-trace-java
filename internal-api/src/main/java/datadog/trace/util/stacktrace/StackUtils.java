@@ -32,6 +32,17 @@ public abstract class StackUtils {
     return filterFirst(exception, AbstractStackWalker::isNotDatadogTraceStackElement);
   }
 
+  public static <E extends Throwable> E removeLast(final E exception) {
+    return update(
+        exception,
+        stack -> {
+          final StackTraceElement[] source = exception.getStackTrace();
+          final StackTraceElement[] result = new StackTraceElement[source.length - 1];
+          System.arraycopy(source, 0, result, 0, result.length);
+          return result;
+        });
+  }
+
   private static class OneTimePredicate<T> implements Predicate<T> {
 
     private final Predicate<T> delegate;

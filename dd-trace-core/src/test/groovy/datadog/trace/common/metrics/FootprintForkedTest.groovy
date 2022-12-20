@@ -11,11 +11,10 @@ import java.nio.ByteBuffer
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ThreadLocalRandom
 
-import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static java.util.concurrent.TimeUnit.SECONDS
 
 @Requires({
-  !System.getProperty("java.vendor").toUpperCase().contains("IBM") && isJavaVersionAtLeast(8)
+  !System.getProperty("java.vendor").toUpperCase().contains("IBM")
 })
 class FootprintForkedTest extends DDSpecification {
 

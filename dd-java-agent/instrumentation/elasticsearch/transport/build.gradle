@@ -5,14 +5,14 @@ muzzle {
     module = "transport"
     versions = "[2.0,)"
     assertInverse = true
-    skipVersions = ["7.11.0"]
+    skipVersions = ["7.11.0", "7.17.8"]
   }
   pass {
     group = "org.elasticsearch"
     module = "elasticsearch"
     versions = "[2.0,)"
     assertInverse = true
-    skipVersions = ["7.11.0"]
+    skipVersions = ["7.11.0", "7.17.8"]
   }
 }
 

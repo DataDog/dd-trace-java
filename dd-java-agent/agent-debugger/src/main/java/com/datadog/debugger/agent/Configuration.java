@@ -4,6 +4,7 @@ import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SnapshotProbe;
+import com.datadog.debugger.probe.SpanProbe;
 import com.squareup.moshi.Json;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -63,20 +64,13 @@ public class Configuration {
   private final Collection<SnapshotProbe> snapshotProbes;
   private final Collection<MetricProbe> metricProbes;
   private final Collection<LogProbe> logProbes;
+  private final Collection<SpanProbe> spanProbes;
   private final FilterList allowList;
   private final FilterList denyList;
   private final SnapshotProbe.Sampling sampling;
 
   public Configuration(String service, Collection<SnapshotProbe> snapshotProbes) {
-    this(service, snapshotProbes, null, null);
-  }
-
-  public Configuration(
-      String serviceName,
-      Collection<SnapshotProbe> snapshotProbes,
-      Collection<MetricProbe> metricProbes,
-      Collection<LogProbe> logProbes) {
-    this(serviceName, snapshotProbes, metricProbes, logProbes, null, null, null);
+    this(service, snapshotProbes, null, null, null);
   }
 
   public Configuration(
@@ -84,6 +78,16 @@ public class Configuration {
       Collection<SnapshotProbe> snapshotProbes,
       Collection<MetricProbe> metricProbes,
       Collection<LogProbe> logProbes,
+      Collection<SpanProbe> spanProbes) {
+    this(serviceName, snapshotProbes, metricProbes, logProbes, spanProbes, null, null, null);
+  }
+
+  public Configuration(
+      String serviceName,
+      Collection<SnapshotProbe> snapshotProbes,
+      Collection<MetricProbe> metricProbes,
+      Collection<LogProbe> logProbes,
+      Collection<SpanProbe> spanProbes,
       FilterList allowList,
       FilterList denyList,
       SnapshotProbe.Sampling sampling) {
@@ -91,6 +95,7 @@ public class Configuration {
     this.snapshotProbes = snapshotProbes;
     this.metricProbes = metricProbes;
     this.logProbes = logProbes;
+    this.spanProbes = spanProbes;
     this.allowList = allowList;
     this.denyList = denyList;
     this.sampling = sampling;
@@ -110,6 +115,10 @@ public class Configuration {
 
   public Collection<LogProbe> getLogProbes() {
     return logProbes;
+  }
+
+  public Collection<SpanProbe> getSpanProbes() {
+    return spanProbes;
   }
 
   public FilterList getAllowList() {
@@ -134,6 +143,9 @@ public class Configuration {
     }
     if (logProbes != null) {
       result.addAll(logProbes);
+    }
+    if (spanProbes != null) {
+      result.addAll(spanProbes);
     }
     return result;
   }
@@ -190,6 +202,7 @@ public class Configuration {
     private List<SnapshotProbe> snapshotProbes = null;
     private List<MetricProbe> metricProbes = null;
     private List<LogProbe> logProbes = null;
+    private List<SpanProbe> spanProbes = null;
     private FilterList allowList = null;
     private FilterList denyList = null;
     private SnapshotProbe.Sampling sampling = null;
@@ -220,6 +233,14 @@ public class Configuration {
         logProbes = new ArrayList<>();
       }
       logProbes.add(probe);
+      return this;
+    }
+
+    public Configuration.Builder add(SpanProbe probe) {
+      if (spanProbes == null) {
+        spanProbes = new ArrayList<>();
+      }
+      spanProbes.add(probe);
       return this;
     }
 
@@ -260,6 +281,16 @@ public class Configuration {
       return this;
     }
 
+    public Configuration.Builder addSpanProbes(Collection<SpanProbe> probes) {
+      if (probes == null) {
+        return this;
+      }
+      for (SpanProbe probe : probes) {
+        add(probe);
+      }
+      return this;
+    }
+
     public Configuration.Builder addAllowList(FilterList newAllowList) {
       if (newAllowList == null) {
         return this;
@@ -284,6 +315,11 @@ public class Configuration {
       return this;
     }
 
+    public Configuration.Builder setSampling(SnapshotProbe.Sampling sampling) {
+      this.sampling = sampling;
+      return this;
+    }
+
     public Configuration.Builder add(Configuration other) {
       if (other.service != null) {
         this.service = other.service;
@@ -299,7 +335,14 @@ public class Configuration {
 
     public Configuration build() {
       return new Configuration(
-          service, snapshotProbes, metricProbes, logProbes, allowList, denyList, sampling);
+          service,
+          snapshotProbes,
+          metricProbes,
+          logProbes,
+          spanProbes,
+          allowList,
+          denyList,
+          sampling);
     }
   }
 }

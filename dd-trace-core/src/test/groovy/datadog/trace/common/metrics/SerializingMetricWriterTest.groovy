@@ -5,18 +5,13 @@ import datadog.trace.api.Pair
 import datadog.trace.test.util.DDSpecification
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
-import spock.lang.Requires
 
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicLongArray
 
-import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.SECONDS
 
-@Requires({
-  isJavaVersionAtLeast(8)
-})
 class SerializingMetricWriterTest extends DDSpecification {
 
   def "should produce correct message" () {
@@ -145,13 +140,9 @@ class SerializingMetricWriterTest extends DDSpecification {
     }
 
     private void validateSketch(MessageUnpacker unpacker) {
-      if (isJavaVersionAtLeast(8)) {
-        int length = unpacker.unpackBinaryHeader()
-        assert length > 0
-        unpacker.readPayload(length)
-      } else {
-        unpacker.skipValue()
-      }
+      int length = unpacker.unpackBinaryHeader()
+      assert length > 0
+      unpacker.readPayload(length)
     }
 
     boolean validatedInput() {

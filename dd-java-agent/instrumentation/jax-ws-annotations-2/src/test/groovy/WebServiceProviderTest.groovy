@@ -53,7 +53,7 @@ class WebServiceProviderTest extends AgentTestRunner {
           parent()
           tags {
             "component" "jax-ws-endpoint"
-            "error.msg" "bad request"
+            "error.message" "bad request"
             "error.type" IllegalArgumentException.name
             "error.stack" String
             defaultTags()

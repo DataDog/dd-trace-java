@@ -4,15 +4,9 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.core.DDSpan
-import spock.lang.Requires
 
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.api.Platform.isJavaVersionAtLeast
-
-@Requires({
-  isJavaVersionAtLeast(8)
-})
 class ProcessImplInstrumentationSpecification extends AgentTestRunner {
   def ss = TEST_TRACER.getSubscriptionService(RequestContextSlot.APPSEC)
 
@@ -109,7 +103,7 @@ class ProcessImplInstrumentationSpecification extends AgentTestRunner {
 
     then:
     span.tags['cmd.exec'] == '["/bin/does-not-exist"]'
-    span.tags['error.msg'] != null
+    span.tags['error.message'] != null
     span.isError() == true
   }
 

@@ -5,9 +5,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_OUTLINE_POOL_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_RESET_INTERVAL;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_TYPE_POOL_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_ENABLED;
@@ -29,10 +27,8 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTIO
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
-import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_OUTLINE_POOL_ENABLED;
-import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_OUTLINE_POOL_SIZE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_CONFIG;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_RESET_INTERVAL;
-import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_TYPE_POOL_SIZE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
@@ -84,9 +80,7 @@ public class InstrumenterConfig {
   private final Set<String> excludedClassLoaders;
   private final List<String> excludedCodeSources;
 
-  private final boolean resolverOutlinePoolEnabled;
-  private final int resolverOutlinePoolSize;
-  private final int resolverTypePoolSize;
+  private final ResolverCacheConfig resolverCacheConfig;
   private final boolean resolverUseLoadClassEnabled;
   private final int resolverResetInterval;
 
@@ -112,23 +106,33 @@ public class InstrumenterConfig {
     logsInjectionEnabled =
         configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
     logsMDCTagsInjectionEnabled = configProvider.getBoolean(LOGS_MDC_TAGS_INJECTION_ENABLED, true);
-    profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT);
-    ciVisibilityEnabled =
-        configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
-    // ConfigProvider.getString currently doesn't fallback to default for empty strings. So we have
-    // special handling here until we have a general solution for empty string value fallback.
-    String appSecEnabled = configProvider.getString(APPSEC_ENABLED);
-    if (appSecEnabled == null || appSecEnabled.isEmpty()) {
-      appSecEnabled =
-          configProvider.getStringExcludingSource(
-              APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED, SystemPropertiesConfigSource.class);
-      if (appSecEnabled.isEmpty()) {
-        appSecEnabled = DEFAULT_APPSEC_ENABLED;
+
+    if (!Platform.isNativeImageBuilder()) {
+      profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT);
+      ciVisibilityEnabled =
+          configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
+      // ConfigProvider.getString currently doesn't fallback to default for empty strings. We have
+      // special handling here until we have a general solution for empty string value fallback.
+      String appSecEnabled = configProvider.getString(APPSEC_ENABLED);
+      if (appSecEnabled == null || appSecEnabled.isEmpty()) {
+        appSecEnabled =
+            configProvider.getStringExcludingSource(
+                APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED, SystemPropertiesConfigSource.class);
+        if (appSecEnabled.isEmpty()) {
+          appSecEnabled = DEFAULT_APPSEC_ENABLED;
+        }
       }
+      appSecActivation = ProductActivation.fromString(appSecEnabled);
+      iastEnabled = configProvider.getBoolean(IAST_ENABLED, DEFAULT_IAST_ENABLED);
+      telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
+    } else {
+      // disable these features in native-image
+      profilingEnabled = false;
+      ciVisibilityEnabled = false;
+      appSecActivation = ProductActivation.FULLY_DISABLED;
+      iastEnabled = false;
+      telemetryEnabled = false;
     }
-    appSecActivation = ProductActivation.fromString(appSecEnabled);
-    iastEnabled = configProvider.getBoolean(IAST_ENABLED, DEFAULT_IAST_ENABLED);
-    telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
 
     traceExecutorsAll = configProvider.getBoolean(TRACE_EXECUTORS_ALL, DEFAULT_TRACE_EXECUTORS_ALL);
     traceExecutors = tryMakeImmutableList(configProvider.getList(TRACE_EXECUTORS));
@@ -148,14 +152,14 @@ public class InstrumenterConfig {
     excludedClassLoaders = tryMakeImmutableSet(configProvider.getList(TRACE_CLASSLOADERS_EXCLUDE));
     excludedCodeSources = tryMakeImmutableList(configProvider.getList(TRACE_CODESOURCES_EXCLUDE));
 
-    resolverOutlinePoolEnabled = configProvider.getBoolean(RESOLVER_OUTLINE_POOL_ENABLED, true);
-    resolverOutlinePoolSize =
-        configProvider.getInteger(RESOLVER_OUTLINE_POOL_SIZE, DEFAULT_RESOLVER_OUTLINE_POOL_SIZE);
-    resolverTypePoolSize =
-        configProvider.getInteger(RESOLVER_TYPE_POOL_SIZE, DEFAULT_RESOLVER_TYPE_POOL_SIZE);
+    resolverCacheConfig =
+        configProvider.getEnum(
+            RESOLVER_CACHE_CONFIG, ResolverCacheConfig.class, ResolverCacheConfig.DEFAULT);
     resolverUseLoadClassEnabled = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
     resolverResetInterval =
-        configProvider.getInteger(RESOLVER_RESET_INTERVAL, DEFAULT_RESOLVER_RESET_INTERVAL);
+        Platform.isNativeImageBuilder()
+            ? 0
+            : configProvider.getInteger(RESOLVER_RESET_INTERVAL, DEFAULT_RESOLVER_RESET_INTERVAL);
 
     runtimeContextFieldInjection =
         configProvider.getBoolean(
@@ -257,16 +261,16 @@ public class InstrumenterConfig {
     return excludedCodeSources;
   }
 
-  public boolean isResolverOutlinePoolEnabled() {
-    return resolverOutlinePoolEnabled;
+  public boolean isResolverOutliningEnabled() {
+    return resolverCacheConfig.outlinePoolSize() > 0;
   }
 
   public int getResolverOutlinePoolSize() {
-    return resolverOutlinePoolSize;
+    return resolverCacheConfig.outlinePoolSize();
   }
 
   public int getResolverTypePoolSize() {
-    return resolverTypePoolSize;
+    return resolverCacheConfig.typePoolSize();
   }
 
   public boolean isResolverUseLoadClassEnabled() {
@@ -274,7 +278,7 @@ public class InstrumenterConfig {
   }
 
   public int getResolverResetInterval() {
-    return Platform.isNativeImageBuilder() ? 0 : resolverResetInterval;
+    return resolverResetInterval;
   }
 
   public boolean isRuntimeContextFieldInjection() {
@@ -354,12 +358,8 @@ public class InstrumenterConfig {
         + excludedClassLoaders
         + ", excludedCodeSources="
         + excludedCodeSources
-        + ", resolverOutlinePoolEnabled="
-        + resolverOutlinePoolEnabled
-        + ", resolverOutlinePoolSize="
-        + resolverOutlinePoolSize
-        + ", resolverTypePoolSize="
-        + resolverTypePoolSize
+        + ", resolverCacheConfig="
+        + resolverCacheConfig
         + ", resolverUseLoadClassEnabled="
         + resolverUseLoadClassEnabled
         + ", resolverResetInterval="
@@ -376,8 +376,6 @@ public class InstrumenterConfig {
         + '\''
         + ", internalExitOnFailure="
         + internalExitOnFailure
-        + ", configProvider="
-        + configProvider
         + '}';
   }
 }

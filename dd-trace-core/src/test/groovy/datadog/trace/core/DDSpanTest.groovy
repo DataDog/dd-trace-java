@@ -9,7 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
-import datadog.trace.common.sampling.RateByServiceSampler
+import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
@@ -17,10 +17,17 @@ import spock.lang.Shared
 
 import java.util.concurrent.TimeUnit
 
+import static datadog.trace.api.sampling.PrioritySampling.UNSET
+import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
+import static datadog.trace.api.sampling.SamplingMechanism.SPAN_SAMPLING_RATE
+import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MAX_PER_SECOND_TAG
+import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG
+import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_RULE_RATE_TAG
+
 class DDSpanTest extends DDCoreSpecification {
 
   @Shared def writer = new ListWriter()
-  @Shared def sampler = new RateByServiceSampler()
+  @Shared def sampler = new RateByServiceTraceSampler()
   @Shared def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
   @Shared def datadogTagsFactory = tracer.getDatadogTagsFactory()
 
@@ -400,5 +407,28 @@ class DDSpanTest extends DDCoreSpecification {
     then:
     !span.isError()
     span.getTag(DDTags.ERROR_STACK) == null
+  }
+
+  def "set single span sampling tags"() {
+    setup:
+    def span = tracer.buildSpan("testSpan").start() as DDSpan
+
+    expect:
+    span.samplingPriority() == UNSET
+
+    when:
+    span.setSpanSamplingPriority(rate, limit)
+
+    then:
+    span.getTag(SPAN_SAMPLING_MECHANISM_TAG) == SPAN_SAMPLING_RATE
+    span.getTag(SPAN_SAMPLING_RULE_RATE_TAG) == rate
+    span.getTag(SPAN_SAMPLING_MAX_PER_SECOND_TAG) == (limit == Integer.MAX_VALUE ? null : limit)
+    span.samplingPriority() == USER_KEEP
+
+    where:
+    rate | limit
+    1.0  | 10
+    0.5  | 100
+    0.25 | Integer.MAX_VALUE
   }
 }

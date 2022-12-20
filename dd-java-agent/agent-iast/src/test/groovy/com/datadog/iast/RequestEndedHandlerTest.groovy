@@ -30,6 +30,7 @@ class RequestEndedHandlerTest extends DDSpecification {
     1 * reqCtx.getData(RequestContextSlot.IAST) >> iastCtx
     1 * reqCtx.getTraceSegment() >> traceSegment
     1 * traceSegment.setTagTop("_dd.iast.enabled", 1)
+    1 * iastCtx.getTaintedObjects() >> null
     1 * overheadController.releaseRequest()
     0 * _
   }
@@ -50,6 +51,8 @@ class RequestEndedHandlerTest extends DDSpecification {
     flow.getAction() == Flow.Action.Noop.INSTANCE
     flow.getResult() == null
     1 * reqCtx.getData(RequestContextSlot.IAST) >> null
+    1 * reqCtx.getTraceSegment() >> traceSegment
+    1 * traceSegment.setTagTop("_dd.iast.enabled", 0)
     0 * overheadController.releaseRequest()
     0 * _
   }

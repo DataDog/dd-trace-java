@@ -1,14 +1,14 @@
 package datadog.trace.instrumentation.java.io
 
-import datadog.trace.api.iast.IastModule
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.sink.PathTraversalModule
 import foo.bar.TestPathSuite
 
 class PathCallSiteTest extends BaseIoCallSiteTest {
 
   def 'test resolve path'() {
     setup:
-    final iastModule = Mock(IastModule)
+    PathTraversalModule iastModule = Mock(PathTraversalModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final path = 'test.txt'
 
@@ -22,7 +22,7 @@ class PathCallSiteTest extends BaseIoCallSiteTest {
 
   def 'test resolve sibling'() {
     setup:
-    final iastModule = Mock(IastModule)
+    PathTraversalModule iastModule = Mock(PathTraversalModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final sibling = newFile('test1.txt').toPath()
     final path = 'test2.txt'

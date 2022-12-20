@@ -14,7 +14,7 @@ public class DDTags {
 
   public static final String USER_NAME = "user.principal";
 
-  public static final String ERROR_MSG = "error.msg"; // string representing the error message
+  public static final String ERROR_MSG = "error.message"; // string representing the error message
   public static final String ERROR_TYPE = "error.type"; // string representing the type of the error
   public static final String ERROR_STACK = "error.stack"; // human-readable version of the stack
 
@@ -41,4 +41,5 @@ public class DDTags {
   public static final String LIBRARY_VERSION_TAG_KEY = "library_version";
   public static final String CI_ENV_VARS = "_dd.ci.env_vars";
   public static final String MEASURED = "_dd.measured";
+  public static final String PID_TAG = "process_id";
 }

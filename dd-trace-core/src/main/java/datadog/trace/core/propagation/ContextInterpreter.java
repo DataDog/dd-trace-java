@@ -32,6 +32,7 @@ import java.util.TreeMap;
 public abstract class ContextInterpreter implements AgentPropagation.KeyClassifier {
 
   protected final Map<String, String> taggedHeaders;
+  protected final Map<String, String> baggageMapping;
 
   protected DDTraceId traceId;
   protected long spanId;
@@ -56,8 +57,10 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     return CACHE.computeIfAbsent(key, Functions.LowerCase.INSTANCE);
   }
 
-  protected ContextInterpreter(Map<String, String> taggedHeaders, Config config) {
+  protected ContextInterpreter(
+      Map<String, String> taggedHeaders, Map<String, String> baggageMapping, Config config) {
     this.taggedHeaders = taggedHeaders;
+    this.baggageMapping = baggageMapping;
     this.customIpHeaderName = config.getTraceClientIpHeader();
     this.clientIpResolutionEnabled = config.isTraceClientIpResolverEnabled();
     this.clientIpWithoutAppSec = config.isClientIpEnabled();
@@ -66,15 +69,17 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
 
   public abstract static class Factory {
 
-    public ContextInterpreter create(Map<String, String> tagsMapping) {
-      return construct(cleanMapping(tagsMapping));
+    public ContextInterpreter create(
+        Map<String, String> tagsMapping, Map<String, String> baggageMapping) {
+      return construct(cleanMapping(tagsMapping), cleanMapping(baggageMapping));
     }
 
-    protected abstract ContextInterpreter construct(Map<String, String> tagsMapping);
+    protected abstract ContextInterpreter construct(
+        Map<String, String> tagsMapping, Map<String, String> baggageMapping);
 
-    protected Map<String, String> cleanMapping(Map<String, String> taggedHeaders) {
-      final Map<String, String> cleanedMapping = new HashMap<>(taggedHeaders.size() * 4 / 3);
-      for (Map.Entry<String, String> association : taggedHeaders.entrySet()) {
+    protected Map<String, String> cleanMapping(Map<String, String> mapping) {
+      final Map<String, String> cleanedMapping = new HashMap<>(mapping.size() * 4 / 3);
+      for (Map.Entry<String, String> association : mapping.entrySet()) {
         cleanedMapping.put(
             association.getKey().trim().toLowerCase(), association.getValue().trim().toLowerCase());
       }
@@ -177,9 +182,9 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     return false;
   }
 
-  protected final void handleTags(String key, String value) {
+  protected final boolean handleTags(String key, String value) {
     if (taggedHeaders.isEmpty() || value == null) {
-      return;
+      return false;
     }
     final String lowerCaseKey = toLowerCase(key);
     final String mappedKey = taggedHeaders.get(lowerCaseKey);
@@ -188,7 +193,25 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
         tags = new TreeMap<>();
       }
       tags.put(mappedKey, HttpCodec.decode(HttpCodec.firstHeaderValue(value)));
+      return true;
     }
+    return false;
+  }
+
+  protected final boolean handleMappedBaggage(String key, String value) {
+    if (baggageMapping.isEmpty() || value == null) {
+      return false;
+    }
+    final String lowerCaseKey = toLowerCase(key);
+    final String mappedKey = baggageMapping.get(lowerCaseKey);
+    if (null != mappedKey) {
+      if (baggage.isEmpty()) {
+        baggage = new TreeMap<>();
+      }
+      baggage.put(mappedKey, HttpCodec.decode(value));
+      return true;
+    }
+    return false;
   }
 
   public ContextInterpreter reset() {

@@ -90,9 +90,10 @@ public final class TraceInstrumentationConfig {
   public static final String SERVLET_ROOT_CONTEXT_SERVICE_NAME =
       "trace.servlet.root-context.service.name";
 
-  public static final String RESOLVER_OUTLINE_POOL_ENABLED = "resolver.outline.pool.enabled";
-  public static final String RESOLVER_OUTLINE_POOL_SIZE = "resolver.outline.pool.size";
-  public static final String RESOLVER_TYPE_POOL_SIZE = "resolver.type.pool.size";
+  public static final String SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME =
+      "spring-data.repository.interface.resource-name";
+
+  public static final String RESOLVER_CACHE_CONFIG = "resolver.cache.config";
   public static final String RESOLVER_USE_LOADCLASS = "resolver.use.loadclass";
   public static final String RESOLVER_RESET_INTERVAL = "resolver.reset.interval";
 

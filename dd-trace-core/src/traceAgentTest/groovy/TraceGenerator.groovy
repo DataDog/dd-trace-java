@@ -322,6 +322,11 @@ class TraceGenerator {
     }
 
     @Override
+    PojoSpan setSpanSamplingPriority(double rate, int limit) {
+      return this
+    }
+
+    @Override
     PojoSpan setMetric(CharSequence name, int value) {
       return this
     }

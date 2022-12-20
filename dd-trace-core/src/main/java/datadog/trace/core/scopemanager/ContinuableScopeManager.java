@@ -17,6 +17,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
+import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.ArrayDeque;
 import java.util.Iterator;
@@ -51,6 +52,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
   final List<ScopeListener> scopeListeners;
   final List<ExtendedScopeListener> extendedScopeListeners;
   final StatsDClient statsDClient;
+  private final HealthMetrics healthMetrics;
 
   private final int depthLimit;
   private final boolean strictMode;
@@ -60,13 +62,15 @@ public final class ContinuableScopeManager implements AgentScopeManager {
       final int depthLimit,
       final StatsDClient statsDClient,
       final boolean strictMode,
-      final boolean inheritAsyncPropagation) {
+      final boolean inheritAsyncPropagation,
+      final HealthMetrics healthMetrics) {
     this(
         depthLimit,
         statsDClient,
         strictMode,
         inheritAsyncPropagation,
-        ProfilingContextIntegration.NoOp.INSTANCE);
+        ProfilingContextIntegration.NoOp.INSTANCE,
+        healthMetrics);
   }
 
   public ContinuableScopeManager(
@@ -74,7 +78,8 @@ public final class ContinuableScopeManager implements AgentScopeManager {
       final StatsDClient statsDClient,
       final boolean strictMode,
       final boolean inheritAsyncPropagation,
-      final ProfilingContextIntegration profilingContextIntegration) {
+      final ProfilingContextIntegration profilingContextIntegration,
+      final HealthMetrics healthMetrics) {
 
     this.depthLimit = depthLimit == 0 ? Integer.MAX_VALUE : depthLimit;
     this.statsDClient = statsDClient;
@@ -82,6 +87,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     this.inheritAsyncPropagation = inheritAsyncPropagation;
     this.scopeListeners = new CopyOnWriteArrayList<>();
     this.extendedScopeListeners = new CopyOnWriteArrayList<>();
+    this.healthMetrics = healthMetrics;
     this.tlsScopeStack = new ScopeStackThreadLocal(profilingContextIntegration);
   }
 
@@ -174,6 +180,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
       scopeStack.cleanup();
       if (finishSpan) {
         top.span.finishWithEndToEnd();
+        healthMetrics.onFinishContinuation();
       }
     }
   }

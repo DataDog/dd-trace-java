@@ -15,12 +15,11 @@ import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.CopyOnWriteArrayList
 
-import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static datadog.trace.common.metrics.EventListener.EventType.OK
 import static datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer.DEFAULT_BUCKET_DURATION_NANOS
 
 @Requires({
-  "true" == System.getenv("CI") && isJavaVersionAtLeast(8)
+  "true" == System.getenv("CI")
 })
 @Ignore("The agent in CI doesn't have a valid API key. Unlike metrics and traces, data streams fails in this case")
 class DataStreamsIntegrationTest extends DDSpecification {

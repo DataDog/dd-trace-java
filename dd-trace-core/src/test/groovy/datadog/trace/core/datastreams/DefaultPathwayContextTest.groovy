@@ -6,16 +6,12 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint
 import datadog.trace.core.test.DDCoreSpecification
-import spock.lang.Requires
 
 import java.util.function.Consumer
 
 import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
-@Requires({
-  jvm.isJava8Compatible()
-})
 class DefaultPathwayContextTest extends DDCoreSpecification {
   def wellKnownTags = new WellKnownTags("runtimeid", "hostname", "testing", "service", "version", "java")
 

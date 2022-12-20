@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.java.lang
 
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.iast.IastModule
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.propagation.StringModule
 import foo.bar.TestStringSuite
 
 class StringCallSiteTest extends AgentTestRunner {
@@ -14,7 +14,7 @@ class StringCallSiteTest extends AgentTestRunner {
 
   def 'test string concat call site'() {
     setup:
-    final iastModule = Mock(IastModule)
+    StringModule iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
 
     when:

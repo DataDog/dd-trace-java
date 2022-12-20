@@ -1,14 +1,14 @@
 package datadog.trace.instrumentation.java.io
 
-import datadog.trace.api.iast.IastModule
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.sink.PathTraversalModule
 import foo.bar.TestFileOutputStreamSuite
 
 class FileOutputStreamCallSiteTest extends BaseIoCallSiteTest {
 
   def 'test new file input stream with path'() {
     setup:
-    final iastModule = Mock(IastModule)
+    PathTraversalModule iastModule = Mock(PathTraversalModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final path = newFile('test.txt').toString()
 

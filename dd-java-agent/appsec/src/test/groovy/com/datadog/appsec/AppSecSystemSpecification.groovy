@@ -174,6 +174,41 @@ class AppSecSystemSpecification extends DDSpecification {
     AppSecSystem.REPLACEABLE_EVENT_PRODUCER.cur != initialEPS
   }
 
+  void 'removing rule toggling config resets waf_rules_override'() {
+    ConfigurationChangesTypedListener<AppSecConfig> savedConfListener
+    AppSecConfig cfg = new AppSecConfig.AppSecConfigV2()
+    cfg.@version = '2.0.1'
+    AppSecConfig origCfg
+
+    when:
+    AppSecSystem.start(subService, sharedCommunicationObjects())
+
+    then:
+    1 * poller.addListener(Product.ASM_DD, _, _) >> {
+      savedConfListener = it[2]
+    }
+    AppSecSystem.APP_SEC_CONFIG_SERVICE.lastConfig['waf'] != null
+
+    when:
+    origCfg = AppSecSystem.APP_SEC_CONFIG_SERVICE.lastConfig['waf']
+    savedConfListener.accept(
+      'ignored config key', cfg, null)
+
+    then:
+    AppSecSystem.APP_SEC_CONFIG_SERVICE.lastConfig['waf']  == cfg
+
+    when:
+    savedConfListener.accept(
+      'ignored config key', null, null)
+
+    then:
+    AppSecSystem.APP_SEC_CONFIG_SERVICE.lastConfig['waf']  == origCfg
+  }
+
+  void 'removing rule config resets to default configuration'() {
+
+  }
+
   private SharedCommunicationObjects sharedCommunicationObjects() {
     def sco = new SharedCommunicationObjects(
       ) {

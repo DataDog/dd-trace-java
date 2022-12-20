@@ -82,6 +82,9 @@ public class AgentTransformerBuilder
             .transform(defaultTransformers());
 
     String[] helperClassNames = instrumenter.helperClassNames();
+    if (instrumenter.injectHelperDependencies()) {
+      helperClassNames = HelperScanner.withClassDependencies(helperClassNames);
+    }
     if (helperClassNames.length > 0) {
       adviceBuilder =
           adviceBuilder.transform(

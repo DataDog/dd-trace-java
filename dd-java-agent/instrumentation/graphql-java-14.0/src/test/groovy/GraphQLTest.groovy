@@ -202,8 +202,8 @@ class GraphQLTest extends AgentTestRunner {
             "$Tags.COMPONENT" "graphql-java"
             "graphql.query" expectedQuery
             "graphql.operation.name" null
-            "error.msg" { it.contains("Field 'title' in type 'Book' is undefined") }
-            "error.msg" { it.contains("(and 1 more errors)") }
+            "error.message" { it.contains("Field 'title' in type 'Book' is undefined") }
+            "error.message" { it.contains("(and 1 more errors)") }
             defaultTags()
           }
         }
@@ -261,7 +261,7 @@ class GraphQLTest extends AgentTestRunner {
             "$Tags.COMPONENT" "graphql-java"
             "graphql.query" query
             "graphql.operation.name" null
-            "error.msg" "Invalid Syntax : offending token ')' at line 2 column 25"
+            "error.message" { it.toLowerCase().startsWith("invalid syntax") }
             defaultTags()
           }
         }
@@ -275,7 +275,7 @@ class GraphQLTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "graphql-java"
             "error.type" "graphql.parser.InvalidSyntaxException"
-            "error.msg" "Invalid Syntax : offending token ')' at line 2 column 25"
+            "error.message" { it.toLowerCase().startsWith("invalid syntax") }
             "error.stack" String
             defaultTags()
           }
@@ -316,7 +316,7 @@ class GraphQLTest extends AgentTestRunner {
             "$Tags.COMPONENT" "graphql-java"
             "graphql.query" expectedQuery
             "graphql.operation.name" "findBookById"
-            "error.msg" "Exception while fetching data (/bookById/cover) : TEST"
+            "error.message" "Exception while fetching data (/bookById/cover) : TEST"
             defaultTags()
           }
         }
@@ -331,7 +331,7 @@ class GraphQLTest extends AgentTestRunner {
             "$Tags.COMPONENT" "graphql-java"
             "graphql.type" "String"
             "error.type" "java.lang.IllegalStateException"
-            "error.msg" "TEST"
+            "error.message" "TEST"
             "error.stack" String
             defaultTags()
           }

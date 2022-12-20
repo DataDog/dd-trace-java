@@ -25,6 +25,8 @@ public abstract class ProfilerSettingsSupport {
   protected final String auxiliaryProfiler;
   protected final String perfEventsParanoid;
 
+  protected final boolean hasNativeStacks;
+
   protected ProfilerSettingsSupport() {
     ConfigProvider configProvider = ConfigProvider.getInstance();
     uploadPeriod =
@@ -73,6 +75,12 @@ public abstract class ProfilerSettingsSupport {
             ProfilingConfig.PROFILING_AUXILIARY_TYPE,
             ProfilingConfig.PROFILING_AUXILIARY_TYPE_DEFAULT);
     perfEventsParanoid = readPerfEventsParanoidSetting();
+    hasNativeStacks =
+        !"no"
+            .equalsIgnoreCase(
+                configProvider.getString(
+                    ProfilingConfig.PROFILING_ASYNC_CSTACK,
+                    ProfilingConfig.PROFILING_ASYNC_CSTACK_DEFAULT));
   }
 
   /** To be defined in controller specific way. Eg. one could emit JFR events. */

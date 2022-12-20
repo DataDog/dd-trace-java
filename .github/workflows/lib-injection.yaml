@@ -24,7 +24,7 @@ jobs:
 
       - name: Build app image
         run: |
-          JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 \
+          JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 JAVA_17_HOME=$JAVA_HOME_17_X64 \
           ./lib-injection/run.sh build-test-app-image push-test-app-image
 
   lib-injection-image-build:
@@ -32,6 +32,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # 2.3.4
+        with:
+          fetch-depth: 0
 
       - name: Log in to the Container registry
         uses: docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b # 2.0.0
@@ -52,7 +54,9 @@ jobs:
               max-parallelism = 1
 
       - name: Build dd-java-agent.jar
-        run: JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 ./gradlew clean shadowJar --build-cache --parallel --no-daemon --max-workers=8
+        run: |
+          JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 JAVA_17_HOME=$JAVA_HOME_17_X64 ./gradlew clean shadowJar --build-cache --parallel --no-daemon --max-workers=8
+          ls -l workspace/dd-java-agent/build/libs/
 
       - name: Build injection image
         run: |

@@ -192,7 +192,7 @@ class SpringBootZuulTest extends HttpServerTest<ConfigurableApplicationContext> 
         "$Tags.HTTP_ROUTE" String
 
         if (endpoint.throwsException) {
-          "error.msg" EXCEPTION.body
+          "error.message" EXCEPTION.body
           "error.type" Exception.name
           "error.stack" String
         }
