@@ -145,15 +145,6 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
     4
   }
 
-  @Trace
-  fun tracedChild(opName: String) {
-    activeSpan().setSpanName(opName)
-  }
-
-  fun childSpan(opName: String): AgentSpan = get().buildSpan(opName)
-    .withResourceName("coroutines-test-span")
-    .start()
-
   /**
    * --- First job starts -------------------------- First job completes ---
    *
@@ -246,6 +237,15 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
 
     3
   }
+
+  @Trace
+  private fun tracedChild(opName: String) {
+    activeSpan().setSpanName(opName)
+  }
+
+  private fun childSpan(opName: String): AgentSpan = get().buildSpan(opName)
+    .withResourceName("coroutines-test-span")
+    .start()
 
   private fun jobContext(jobName: String) = CoroutineName(jobName)
 
