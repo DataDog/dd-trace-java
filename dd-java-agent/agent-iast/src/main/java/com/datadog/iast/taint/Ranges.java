@@ -98,7 +98,7 @@ public final class Ranges {
         newRangeIndex < newRagesSize;
         rangeIndex++, newRangeIndex++) {
       Range range = ranges[rangeIndex];
-      if (offset == 0) {
+      if (offset == 0 && range.getStart() + range.getLength() <= length) {
         newRanges[newRangeIndex] = range;
       } else {
         int newStart = range.getStart() - offset;

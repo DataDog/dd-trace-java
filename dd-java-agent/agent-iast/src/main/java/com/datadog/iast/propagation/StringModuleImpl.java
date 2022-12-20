@@ -169,8 +169,8 @@ public class StringModuleImpl extends IastModuleBase implements StringModule {
   @Override
   @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
   public void onStringSubSequence(
-      @Nullable String self, int beginIndex, int endIndex, @Nullable CharSequence result) {
-    if (!canBeTainted(self) || !canBeTainted(result) || self == result) {
+      @Nonnull String self, int beginIndex, int endIndex, @Nullable CharSequence result) {
+    if (self == result || !canBeTainted(result)) {
       return;
     }
     final IastRequestContext ctx = IastRequestContext.get();

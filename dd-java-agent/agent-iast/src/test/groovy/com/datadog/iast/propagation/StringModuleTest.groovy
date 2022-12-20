@@ -439,28 +439,34 @@ class StringModuleTest extends IastModuleImplTestBase {
     "==>123<==" | "==>456<==" | "==>123<====>456<=="
   }
 
-  void 'onStringSubSequence null ,empty or string not change after subsequence (#self, #beginIndex, #endIndex)'(final String self, final int beginIndex, final int endIndex) {
+  void 'onStringSubSequence null ,empty or string not changed after subsequence (#self, #beginIndex, #endIndex)'(final String self, final int beginIndex, final int endIndex) {
     given:
     final result = self?.substring(beginIndex, endIndex)
+
     when:
     module.onStringSubSequence(self, beginIndex, endIndex, result)
+
     then:
     0 * _
+
     where:
-    self         | beginIndex | endIndex
-    ""           | 0          | 0
-    null         | 0          | 0
-    "not_change" | 0          | 10
+    self          | beginIndex | endIndex
+    ""            | 0          | 0
+    null          | 0          | 0
+    "not_changed" | 0          | 11
   }
 
   void 'onStringSubSequence without span (#self, #beginIndex, #endIndex)'(final String self, final int beginIndex, final int endIndex, final int mockCalls) {
     given:
     final result = self?.substring(beginIndex, endIndex)
+
     when:
     module.onStringSubSequence(self, beginIndex, endIndex, result)
+
     then:
     mockCalls * tracer.activeSpan() >> null
     0 * _
+
     where:
     self  | beginIndex | endIndex | mockCalls
     ""    | 0          | 0        | 0
@@ -476,16 +482,20 @@ class StringModuleTest extends IastModuleImplTestBase {
     span.getRequestContext() >> reqCtx
     final ctx = new IastRequestContext()
     reqCtx.getData(RequestContextSlot.IAST) >> ctx
+
     and:
     final taintedObjects = ctx.getTaintedObjects()
     self = addFromTaintFormat(taintedObjects, self)
     objectHolder.add(self)
+
     and:
     final result = getStringFromTaintFormat(expected)
     objectHolder.add(expected)
     final shouldBeTainted = fromTaintFormat(expected) != null
+
     when:
     module.onStringSubSequence(self, beginIndex, endIndex, result)
+
     then:
     assert result == getStringFromTaintFormat(self).substring(beginIndex, endIndex)
     1 * tracer.activeSpan() >> span
@@ -500,8 +510,15 @@ class StringModuleTest extends IastModuleImplTestBase {
     } else {
       assert to == null
     }
+
     where:
     self                      | beginIndex | endIndex | expected
+    "==>0123<=="              | 0          | 4        | "==>0123<=="
+    "0123==>456<==78"         | 0          | 5        | "0123==>4<=="
+    "01==>234<==5==>678<==90" | 0          | 8        | "01==>234<==5==>67<=="
+    "==>0123<=="              | 0          | 3        | "==>012<=="
+    "==>0123<=="              | 1          | 4        | "==>123<=="
+    "==>0123<=="              | 1          | 3        | "==>12<=="
     "0123==>456<==78"         | 1          | 8        | "123==>456<==7"
     "0123==>456<==78"         | 0          | 4        | "0123"
     "0123==>456<==78"         | 7          | 9        | "78"

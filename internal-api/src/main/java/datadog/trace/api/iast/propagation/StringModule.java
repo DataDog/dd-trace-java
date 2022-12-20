@@ -22,5 +22,5 @@ public interface StringModule extends IastModule {
       @Nonnull int[] recipeOffsets);
 
   void onStringSubSequence(
-      @Nullable String self, int beginIndex, int endIndex, @Nullable CharSequence result);
+      @Nonnull String self, int beginIndex, int endIndex, @Nullable CharSequence result);
 }
