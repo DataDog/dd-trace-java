@@ -1,5 +1,6 @@
 package datadog.smoketest.springboot.controller;
 
+import datadog.smoketest.springboot.model.TestBean;
 import ddtest.client.sources.Hasher;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
@@ -17,7 +18,7 @@ public class IastWebController {
   private final Hasher hasher;
 
   public IastWebController() {
-    this.hasher = new Hasher();
+    hasher = new Hasher();
     hasher.sha1();
   }
 
@@ -80,6 +81,12 @@ public class IastWebController {
   public String pathTraversalPath(final HttpServletRequest request) {
     new File(System.getProperty("user.dir")).toPath().resolve(request.getParameter("path"));
     return "Path Traversal page";
+  }
+
+  @GetMapping("/param_binding/test")
+  public String paramBinding(final TestBean testBean) {
+
+    return "Test bean -> name: " + testBean.getName() + ", value: " + testBean.getValue();
   }
 
   private void withProcess(final Operation<Process> op) {

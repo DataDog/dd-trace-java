@@ -261,6 +261,7 @@
 0 org.springframework.web.context.support.XmlWebApplicationContext
 0 org.springframework.web.reactive.*
 0 org.springframework.web.servlet.*
+0 org.springframework.web.util.WebUtils
 2 org.xml.*
 2 org.yaml.snakeyaml.*
 # saves ~0.5s skipping instrumentation of almost ~470 classes

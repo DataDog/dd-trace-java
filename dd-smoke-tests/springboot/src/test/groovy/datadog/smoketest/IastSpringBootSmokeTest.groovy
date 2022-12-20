@@ -221,6 +221,27 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     waitForSpan(new PollingConditions(timeout: 5), hasVulnerability(type("PATH_TRAVERSAL")))
   }
 
+  def "parameter binding taints bean strings"() {
+    setup:
+    String url = "http://localhost:${httpPort}/param_binding/test?name=parameter&value=binding"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    def responseBodyStr = response.body().string()
+    responseBodyStr != null
+    responseBodyStr.contains("Test bean -> name: parameter, value: binding")
+    Boolean foundTaintedString = false
+    checkLog {
+      if (it.contains('taint') && it.contains('Test bean -> name: parameter, value: binding')) {
+        foundTaintedString = true
+      }
+    }
+    foundTaintedString
+  }
+
   private static Function<DecodedSpan, Boolean> hasMetric(final String name, final Object value) {
     return { span -> value == span.metrics.get(name) }
   }
