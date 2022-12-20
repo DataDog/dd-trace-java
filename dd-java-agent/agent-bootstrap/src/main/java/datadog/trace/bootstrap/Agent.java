@@ -149,10 +149,7 @@ public class Agent {
       setSystemPropertyDefault("dd.prioritization.type", "ENSURE_TRACE");
     }
 
-    if (Platform.isJ9()) {
-      log.debug("OpenJ9 detected, dd.appsec.enabled will default to false");
-      setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
-    } else if (!isSupportedAppSecArch()) {
+    if (!isSupportedAppSecArch()) {
       log.debug(
           "OS and architecture ({}/{}) not supported by AppSec, dd.appsec.enabled will default to false",
           System.getProperty("os.name"),
