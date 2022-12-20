@@ -216,11 +216,8 @@ project.afterEvaluate {
 
   [JavaCompile, ScalaCompile, GroovyCompile].each { type ->
     tasks.withType(type).configureEach {
-      if (options.fork) {
-        options.forkOptions.with {
-          memoryMaximumSize = "256M"
-        }
-      }
+      // The forks will be reused
+      options.fork = true
     }
   }
 

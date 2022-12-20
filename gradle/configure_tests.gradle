@@ -5,10 +5,6 @@ def isTestingInstrumentation(Project project) {
   return ["junit-4.10", "testng-6.4", "junit-5.3"].contains(project.name)
 }
 
-def forkedTestLimit = gradle.sharedServices.registerIfAbsent("forkedTestLimit", BuildService) {
-  maxParallelUsages = 2
-}
-
 // Force timeout after 9 minutes (CircleCI defaults will fail after 10 minutes without output)
 def testTimeoutDuration = Duration.of(9, ChronoUnit.MINUTES)
 
@@ -54,12 +50,12 @@ tasks.withType(Test).configureEach {
     setIncludes(["**/*ForkedTest*"])
     jvmArgs += ["-Xms256M", "-Xmx256M"]
     forkEvery 1
-    // Limit the number of concurrent forked tests
-    usesService(forkedTestLimit)
     onlyIf { !project.rootProject.hasProperty("skipForkedTests") }
   } else {
     exclude("**/*ForkedTest*")
   }
 
+  // This will be limited by the number of workers
+  maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
   timeout = testTimeoutDuration
 }
