@@ -17,12 +17,10 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.IdGenerationStrategy
-import datadog.trace.api.Platform
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.time.SystemTimeSource
-import datadog.trace.api.time.TimeSource
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
@@ -33,7 +31,7 @@ import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.datastreams.DataStreamsCheckpointer
-import datadog.trace.core.datastreams.DatastreamsPayloadWriter
+import datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer
 import datadog.trace.core.datastreams.StubDataStreamsCheckpointer
 import datadog.trace.test.util.DDSpecification
 import de.thetaphi.forbiddenapis.SuppressForbidden
@@ -52,7 +50,6 @@ import spock.lang.Shared
 
 import java.lang.instrument.ClassFileTransformer
 import java.lang.instrument.Instrumentation
-import java.lang.reflect.InvocationTargetException
 import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
@@ -190,19 +187,11 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
         void register(EventListener listener) {}
       }
     TEST_DATA_STREAMS_CHECKPOINTER = new StubDataStreamsCheckpointer()
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      try {
-        // Fast enough so tests don't take forever
-        long bucketDuration = TimeUnit.MILLISECONDS.toNanos(50)
-        WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
-
-        // Use reflection to load the class because it should only be loaded on Java 8+
-        TEST_DATA_STREAMS_CHECKPOINTER = (DataStreamsCheckpointer) Class.forName("datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer")
-          .getDeclaredConstructor(Sink, DDAgentFeaturesDiscovery, TimeSource, WellKnownTags, DatastreamsPayloadWriter, long)
-          .newInstance(sink, features, SystemTimeSource.INSTANCE, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
-      } catch (InstantiationException | InvocationTargetException | NoSuchMethodException | IllegalAccessException | ClassNotFoundException e) {
-        e.printStackTrace()
-      }
+    if (isDataStreamsEnabled()) {
+      // Fast enough so tests don't take forever
+      long bucketDuration = TimeUnit.MILLISECONDS.toNanos(50)
+      WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
+      TEST_DATA_STREAMS_CHECKPOINTER = new DefaultDataStreamsCheckpointer(sink, features, SystemTimeSource.INSTANCE, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
     }
     TEST_WRITER = new ListWriter()
     TEST_TRACER =

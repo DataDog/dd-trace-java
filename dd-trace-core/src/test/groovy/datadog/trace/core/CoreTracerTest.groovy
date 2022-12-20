@@ -1,12 +1,13 @@
 package datadog.trace.core
 
+
 import datadog.trace.api.Config
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.sampling.PrioritySampler
-import datadog.trace.common.sampling.RateByServiceSampler
+import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.sampling.Sampler
 import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.common.writer.DDAgentWriter
@@ -22,6 +23,7 @@ import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME
 import static datadog.trace.api.config.GeneralConfig.VERSION
 import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET
+import static datadog.trace.api.config.TracerConfig.BAGGAGE_MAPPING
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING
@@ -37,7 +39,7 @@ class CoreTracerTest extends DDCoreSpecification {
 
     then:
     tracer.serviceName != ""
-    tracer.sampler instanceof RateByServiceSampler
+    tracer.sampler instanceof RateByServiceTraceSampler
     tracer.writer instanceof DDAgentWriter
     tracer.statsDClient != null && tracer.statsDClient != StatsDClient.NO_OP
 
@@ -181,6 +183,29 @@ class CoreTracerTest extends DDCoreSpecification {
     mapString               | map
     "a:one, a:two, a:three" | [a: "three"]
     "a:b,c:d,e:"            | [a: "b", c: "d"]
+  }
+
+  def "verify baggage mapping configs on tracer"() {
+    setup:
+    injectSysConfig(BAGGAGE_MAPPING, mapString)
+
+    when:
+    def tracer = tracerBuilder().build()
+    // Datadog extractor gets placed first
+    def baggageMapping = tracer.extractor.extractors[0].baggageMapping
+    def invertedBaggageMapping = tracer.injector.injectors[0].invertedBaggageMapping
+
+    then:
+    baggageMapping == map
+    invertedBaggageMapping == invertedMap
+
+    cleanup:
+    tracer.close()
+
+    where:
+    mapString               | map              | invertedMap
+    "a:one, a:two, a:three" | [a: "three"]     | [three: "a"]
+    "a:b,c:d,e:"            | [a: "b", c: "d"] | [b: "a", d: "c"]
   }
 
   def "verify overriding host"() {
@@ -378,16 +403,16 @@ class CoreTracerTest extends DDCoreSpecification {
   }
 }
 
-class ControllableSampler<T extends CoreSpan<T>> implements Sampler<T>, PrioritySampler<T> {
+class ControllableSampler implements Sampler, PrioritySampler {
   protected int nextSamplingPriority = PrioritySampling.SAMPLER_KEEP
 
   @Override
-  void setSamplingPriority(T span) {
+  <T extends CoreSpan<T>> void setSamplingPriority(T span) {
     span.setSamplingPriority(nextSamplingPriority, SamplingMechanism.DEFAULT)
   }
 
   @Override
-  boolean sample(T span) {
+  <T extends CoreSpan<T>> boolean sample(T span) {
     return true
   }
 }

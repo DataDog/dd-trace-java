@@ -22,16 +22,10 @@ import org.apache.synapse.ServerConfigurationInformation
 import org.apache.synapse.ServerContextInformation
 import org.apache.synapse.ServerManager
 import org.apache.synapse.transport.passthru.PassThroughHttpListener
-import spock.lang.Requires
 import spock.lang.Shared
 
 import java.lang.reflect.Field
 
-import static datadog.trace.api.Platform.isJavaVersionAtLeast
-
-@Requires({
-  isJavaVersionAtLeast(8)
-})
 class SynapseTest extends AgentTestRunner {
 
   String expectedServiceName() {
@@ -212,15 +206,15 @@ class SynapseTest extends AgentTestRunner {
     int statusCode = client.newCall(request).execute().code()
 
     then:
-    assertTraces(2) {
-      def parentSpan = null
+    assertTraces(2, SORT_TRACES_BY_NAMES) {
+      def expectedServerSpanParent = trace(1)[1]
+      trace(1) {
+        serverSpan(it, 0, 'POST', statusCode, null, expectedServerSpanParent, true)
+      }
       trace(2) {
         proxySpan(it, 0, 'POST', statusCode)
         clientSpan(it, 1, 'POST', statusCode, span(0))
-        parentSpan = span(1)
-      }
-      trace(1) {
-        serverSpan(it, 0, 'POST', statusCode, null, parentSpan, true)
+        assert span(1).traceId == expectedServerSpanParent.traceId
       }
     }
     statusCode == 200

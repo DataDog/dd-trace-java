@@ -18,7 +18,7 @@ class DDIntakeTrackTypeResolverTest extends DDSpecification {
     where:
     ciVisibilityEnabled | ciVisibilityAgentlessEnabled | expectedTrackType
     false | false | TrackType.NOOP
-    true | false | TrackType.NOOP
+    true | false | TrackType.CITESTCYCLE
     true | true | TrackType.CITESTCYCLE
   }
 }

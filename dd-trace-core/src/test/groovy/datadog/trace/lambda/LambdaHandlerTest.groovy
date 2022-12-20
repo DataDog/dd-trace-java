@@ -11,12 +11,9 @@ import com.amazonaws.services.lambda.runtime.events.SNSEvent
 import com.amazonaws.services.lambda.runtime.events.S3Event
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent
 import com.amazonaws.services.lambda.runtime.events.models.s3.S3EventNotification
-import spock.lang.Requires
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
-// Java8 is the lowest supported version by AWS Lambda
-@Requires({ jvm.java8Compatible })
 class LambdaHandlerTest extends DDCoreSpecification {
 
   class TestObject {
@@ -112,7 +109,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
     }
 
     when:
-    def result = LambdaHandler.notifyEndInvocation(span, boolValue)
+    def result = LambdaHandler.notifyEndInvocation(span, lambdaResult, boolValue)
 
     then:
     server.lastRequest.headers.get("x-datadog-invocation-error") == eHeaderValue
@@ -125,9 +122,9 @@ class LambdaHandlerTest extends DDCoreSpecification {
     server.close()
 
     where:
-    expected | eHeaderValue | tIdHeaderValue | sIdHeaderValue | sPIdHeaderValue | boolValue
-    true     | "true"       | "1234"         | "5678"         | "2"             | true
-    true     | null         | "1234"         | "5678"         | "2"             | false
+    expected | eHeaderValue | tIdHeaderValue | sIdHeaderValue | sPIdHeaderValue | lambdaResult | boolValue
+    true     | "true"       | "1234"         | "5678"         | "2"             | {}           | true
+    true     | null         | "1234"         | "5678"         | "2"             | "12345"      | false
   }
 
   def "test end invocation failure"() {
@@ -149,7 +146,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
     }
 
     when:
-    def result = LambdaHandler.notifyEndInvocation(span, boolValue)
+    def result = LambdaHandler.notifyEndInvocation(span, lambdaResult, boolValue)
 
     then:
     result == expected
@@ -159,9 +156,9 @@ class LambdaHandlerTest extends DDCoreSpecification {
     server.close()
 
     where:
-    expected  | headerValue     | boolValue
-    false     | "true"          | true
-    false     | null            | false
+    expected | headerValue | lambdaResult | boolValue
+    false    | "true"      | {}           | true
+    false    | null        | "12345"      | false
   }
 
   def "test moshi toJson SNSEvent"() {

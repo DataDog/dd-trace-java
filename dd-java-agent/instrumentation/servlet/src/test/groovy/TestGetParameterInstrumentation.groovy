@@ -1,17 +1,12 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.Platform
 import datadog.trace.api.config.TracerConfig
-import datadog.trace.api.iast.IastModule
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.smoketest.controller.TestSuite
-import spock.lang.IgnoreIf
+import datadog.trace.api.iast.source.WebModule
 
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletRequestWrapper
 
-@IgnoreIf({
-  !Platform.isJavaVersionAtLeast(8)
-})
 class TestGetParameterInstrumentation extends AgentTestRunner {
 
   @Override
@@ -23,7 +18,7 @@ class TestGetParameterInstrumentation extends AgentTestRunner {
   def 'test getParameter'() {
 
     setup:
-    IastModule iastModule = Mock(IastModule)
+    WebModule iastModule = Mock(WebModule)
     InstrumentationBridge.registerIastModule(iastModule)
     final List arrayList = new ArrayList()
     arrayList.add("A")

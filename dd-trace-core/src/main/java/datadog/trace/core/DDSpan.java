@@ -582,6 +582,12 @@ public class DDSpan
   }
 
   @Override
+  public DDSpan setSpanSamplingPriority(double rate, int limit) {
+    context.setSpanSamplingPriority(rate, limit);
+    return this;
+  }
+
+  @Override
   public final DDSpan setSpanType(final CharSequence type) {
     context.setSpanType(type);
     return this;

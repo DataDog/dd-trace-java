@@ -36,10 +36,10 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_TAG_QUERY_STR
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DEBUG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DEDUPLICATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONCURRENT_REQUESTS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REQUEST_SAMPLING;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_TAINT_TRACKING_DEBUG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_VULNERABILITIES_PER_REQUEST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS;
@@ -77,11 +77,11 @@ import static datadog.trace.api.DDTags.HOST_TAG;
 import static datadog.trace.api.DDTags.INTERNAL_HOST_NAME;
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY;
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE;
+import static datadog.trace.api.DDTags.PID_TAG;
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
 import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
-import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
@@ -141,10 +141,10 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESO
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
+import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_MAX_CONCURRENT_REQUESTS;
 import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING;
-import static datadog.trace.api.config.IastConfig.IAST_TAINT_TRAKING_DEBUG_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_VULNERABILITIES_PER_REQUEST;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_HASH_ALGORITHMS;
@@ -234,11 +234,13 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGA
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_CONTEXT_SERVICE_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME;
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST;
 import static datadog.trace.api.config.TracerConfig.AGENT_NAMED_PIPE;
 import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY;
 import static datadog.trace.api.config.TracerConfig.AGENT_TIMEOUT;
 import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET;
+import static datadog.trace.api.config.TracerConfig.BAGGAGE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.CLIENT_IP_ENABLED;
 import static datadog.trace.api.config.TracerConfig.CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
@@ -261,6 +263,8 @@ import static datadog.trace.api.config.TracerConfig.SCOPE_ITERATION_KEEP_ALIVE;
 import static datadog.trace.api.config.TracerConfig.SCOPE_STRICT_MODE;
 import static datadog.trace.api.config.TracerConfig.SECURE_RANDOM;
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING;
+import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES;
+import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES_FILE;
 import static datadog.trace.api.config.TracerConfig.SPAN_TAGS;
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_ARGS;
@@ -291,6 +295,7 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
+import datadog.trace.util.PidHelper;
 import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
@@ -394,6 +399,7 @@ public class Config {
   private final Map<String, String> jmxTags;
   private final Map<String, String> requestHeaderTags;
   private final Map<String, String> responseHeaderTags;
+  private final Map<String, String> baggageMapping;
   private final BitSet httpServerErrorStatuses;
   private final BitSet httpClientErrorStatuses;
   private final boolean httpServerTagQueryString;
@@ -454,6 +460,8 @@ public class Config {
   private final String traceSamplingRules;
   private final Double traceSampleRate;
   private final int traceRateLimit;
+  private final String spanSamplingRules;
+  private final String spanSamplingRulesFile;
 
   private final boolean profilingAgentless;
   private final boolean isAsyncProfilerEnabled;
@@ -495,7 +503,7 @@ public class Config {
   private final int iastMaxConcurrentRequests;
   private final int iastVulnerabilitiesPerRequest;
   private final float iastRequestSampling;
-  private final boolean iastTaintTrackingDebugEnabled;
+  private final boolean iastDebugEnabled;
 
   private final boolean ciVisibilityAgentlessEnabled;
   private final String ciVisibilityAgentlessUrl;
@@ -553,6 +561,8 @@ public class Config {
 
   private final boolean servletPrincipalEnabled;
   private final boolean servletAsyncTimeoutError;
+
+  private final boolean springDataRepositoryInterfaceResourceName;
 
   private final int xDatadogTagsMaxLength;
 
@@ -786,6 +796,8 @@ public class Config {
               "http.response.headers.", true, HEADER_TAGS, RESPONSE_HEADER_TAGS);
     }
 
+    baggageMapping = configProvider.getMergedMap(BAGGAGE_MAPPING);
+
     httpServerPathResourceNameMapping =
         configProvider.getOrderedMap(TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING);
 
@@ -827,6 +839,9 @@ public class Config {
             DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX);
 
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
+
+    springDataRepositoryInterfaceResourceName =
+        configProvider.getBoolean(SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME, true);
 
     scopeDepthLimit = configProvider.getInteger(SCOPE_DEPTH_LIMIT, DEFAULT_SCOPE_DEPTH_LIMIT);
 
@@ -901,11 +916,9 @@ public class Config {
     healthMetricsStatsdPort = configProvider.getInteger(HEALTH_METRICS_STATSD_PORT);
     perfMetricsEnabled =
         runtimeMetricsEnabled
-            && isJavaVersionAtLeast(8)
             && configProvider.getBoolean(PERF_METRICS_ENABLED, DEFAULT_PERF_METRICS_ENABLED);
 
-    tracerMetricsEnabled =
-        isJavaVersionAtLeast(8) && configProvider.getBoolean(TRACER_METRICS_ENABLED, false);
+    tracerMetricsEnabled = configProvider.getBoolean(TRACER_METRICS_ENABLED, false);
     tracerMetricsBufferingEnabled =
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
@@ -937,6 +950,8 @@ public class Config {
     traceSamplingRules = configProvider.getString(TRACE_SAMPLING_RULES);
     traceSampleRate = configProvider.getDouble(TRACE_SAMPLE_RATE);
     traceRateLimit = configProvider.getInteger(TRACE_RATE_LIMIT, DEFAULT_TRACE_RATE_LIMIT);
+    spanSamplingRules = configProvider.getString(SPAN_SAMPLING_RULES);
+    spanSamplingRulesFile = configProvider.getString(SPAN_SAMPLING_RULES_FILE);
 
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
@@ -1057,9 +1072,7 @@ public class Config {
     appSecHttpBlockedTemplateJson =
         configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, null);
 
-    iastTaintTrackingDebugEnabled =
-        configProvider.getBoolean(
-            IAST_TAINT_TRAKING_DEBUG_ENABLED, DEFAULT_IAST_TAINT_TRACKING_DEBUG_ENABLED);
+    iastDebugEnabled = configProvider.getBoolean(IAST_DEBUG_ENABLED, DEFAULT_IAST_DEBUG_ENABLED);
 
     iastMaxConcurrentRequests =
         configProvider.getInteger(
@@ -1257,6 +1270,22 @@ public class Config {
     return runtimeIdEnabled ? RuntimeIdHolder.runtimeId : "";
   }
 
+  public Long getProcessId() {
+    String pid = PidHelper.getPid();
+
+    pid = pid == null ? "" : pid.trim();
+    if (pid.isEmpty()) {
+      return 0L;
+    }
+
+    try {
+      return Long.parseLong(pid);
+    } catch (NumberFormatException e) {
+      log.error("Cannot parse pid properly from string {} to long. Default to 0", pid, e);
+      return 0L;
+    }
+  }
+
   public String getRuntimeVersion() {
     return runtimeVersion;
   }
@@ -1363,6 +1392,10 @@ public class Config {
 
   public Map<String, String> getResponseHeaderTags() {
     return responseHeaderTags;
+  }
+
+  public Map<String, String> getBaggageMapping() {
+    return baggageMapping;
   }
 
   public Map<String, String> getHttpServerPathResourceNameMapping() {
@@ -1579,6 +1612,14 @@ public class Config {
     return traceRateLimit;
   }
 
+  public String getSpanSamplingRules() {
+    return spanSamplingRules;
+  }
+
+  public String getSpanSamplingRulesFile() {
+    return spanSamplingRulesFile;
+  }
+
   public boolean isProfilingEnabled() {
     return instrumenterConfig.isProfilingEnabled();
   }
@@ -1745,8 +1786,8 @@ public class Config {
     return instrumenterConfig.isIastEnabled();
   }
 
-  public boolean isIastTaintTrackingDebugEnabled() {
-    return iastTaintTrackingDebugEnabled;
+  public boolean isIastDebugEnabled() {
+    return iastDebugEnabled;
   }
 
   public int getIastMaxConcurrentRequests() {
@@ -1939,6 +1980,10 @@ public class Config {
     return servletPrincipalEnabled;
   }
 
+  public boolean isSpringDataRepositoryInterfaceResourceName() {
+    return springDataRepositoryInterfaceResourceName;
+  }
+
   public int getxDatadogTagsMaxLength() {
     return xDatadogTagsMaxLength;
   }
@@ -2032,6 +2077,8 @@ public class Config {
     if (azureAppServices) {
       result.putAll(getAzureAppServicesTags());
     }
+
+    result.putAll(getProcessIdTag());
 
     return Collections.unmodifiableMap(result);
   }
@@ -2176,6 +2223,10 @@ public class Config {
    */
   private Map<String, String> getRuntimeTags() {
     return Collections.singletonMap(RUNTIME_ID_TAG, getRuntimeId());
+  }
+
+  private Map<String, Long> getProcessIdTag() {
+    return Collections.singletonMap(PID_TAG, getProcessId());
   }
 
   private Map<String, String> getAzureAppServicesTags() {
@@ -2686,6 +2737,8 @@ public class Config {
         + requestHeaderTags
         + ", responseHeaderTags="
         + responseHeaderTags
+        + ", baggageMapping="
+        + baggageMapping
         + ", httpServerErrorStatuses="
         + httpServerErrorStatuses
         + ", httpClientErrorStatuses="
@@ -2785,6 +2838,10 @@ public class Config {
         + traceSampleRate
         + ", traceRateLimit="
         + traceRateLimit
+        + ", spanSamplingRules="
+        + spanSamplingRules
+        + ", spanSamplingRulesFile="
+        + spanSamplingRulesFile
         + ", profilingAgentless="
         + profilingAgentless
         + ", profilingUrl='"
@@ -2917,8 +2974,6 @@ public class Config {
         + grpcServerErrorStatuses
         + ", grpcClientErrorStatuses="
         + grpcClientErrorStatuses
-        + ", configProvider="
-        + configProvider
         + ", clientIpEnabled="
         + clientIpEnabled
         + ", appSecReportingInband="

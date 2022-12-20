@@ -6,7 +6,14 @@ import java.util.concurrent.TimeUnit;
 
 public interface PrioritizationStrategy {
 
-  <T extends CoreSpan<T>> boolean publish(T root, int priority, List<T> trace);
+  enum PublishResult {
+    ENQUEUED_FOR_SERIALIZATION,
+    ENQUEUED_FOR_SINGLE_SPAN_SAMPLING,
+    DROPPED_BY_POLICY,
+    DROPPED_BUFFER_OVERFLOW
+  };
+
+  <T extends CoreSpan<T>> PublishResult publish(T root, int priority, List<T> trace);
 
   boolean flush(long timeout, TimeUnit timeUnit);
 }

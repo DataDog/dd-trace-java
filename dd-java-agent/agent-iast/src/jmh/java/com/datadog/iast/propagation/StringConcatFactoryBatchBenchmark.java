@@ -73,7 +73,7 @@ public class StringConcatFactoryBatchBenchmark
   @Fork(jvmArgsAppend = {"-Ddd.iast.enabled=false"})
   public String iastDisabled() throws Throwable {
     final String result = (String) context.method.invokeWithArguments(context.strings);
-    InstrumentationBridge.onStringConcatFactory(
+    InstrumentationBridge.STRING.onStringConcatFactory(
         result, context.stringArray, context.recipe, context.constants, context.recipeOffsets);
     return result;
   }
@@ -82,7 +82,7 @@ public class StringConcatFactoryBatchBenchmark
   @Fork(jvmArgsAppend = {"-Ddd.iast.enabled=true"})
   public String iastEnabled() throws Throwable {
     final String result = (String) context.method.invokeWithArguments(context.strings);
-    InstrumentationBridge.onStringConcatFactory(
+    InstrumentationBridge.STRING.onStringConcatFactory(
         result, context.stringArray, context.recipe, context.constants, context.recipeOffsets);
     return result;
   }

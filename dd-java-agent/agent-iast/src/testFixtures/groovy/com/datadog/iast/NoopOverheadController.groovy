@@ -1,18 +1,20 @@
 package com.datadog.iast
 
 import com.datadog.iast.overhead.Operation
-import com.datadog.iast.overhead.OverheadContext
 import com.datadog.iast.overhead.OverheadController
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import groovy.transform.CompileStatic
 
-class NoopOverheadController extends OverheadController {
+@CompileStatic
+class NoopOverheadController implements OverheadController {
   @Override
   boolean acquireRequest() {
     true
   }
 
   @Override
-  void releaseRequest() {
+  int releaseRequest() {
+    Integer.MAX_VALUE
   }
 
   @Override
@@ -23,26 +25,6 @@ class NoopOverheadController extends OverheadController {
   @Override
   boolean consumeQuota(Operation operation, AgentSpan span) {
     true
-  }
-
-  @Override
-  OverheadContext getContext(AgentSpan span) {
-    new OverheadContext() {
-        final int availableQuota = Integer.MAX_VALUE
-
-        @Override
-        boolean consumeQuota(int delta) {
-          true
-        }
-
-        @Override
-        void reset() {}
-      }
-  }
-
-  @Override
-  int computeSamplingParameter(float pct) {
-    1
   }
 
   @Override

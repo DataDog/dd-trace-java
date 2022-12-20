@@ -21,7 +21,7 @@ public class IastRequestContext {
     this.vulnerabilityBatch = new VulnerabilityBatch();
     this.spanDataIsSet = new AtomicBoolean(false);
     this.overheadContext = new OverheadContext();
-    this.taintedObjects = new TaintedObjects();
+    this.taintedObjects = TaintedObjects.build();
   }
 
   public VulnerabilityBatch getVulnerabilityBatch() {

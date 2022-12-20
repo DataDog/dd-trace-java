@@ -17,7 +17,7 @@ import static datadog.trace.core.propagation.B3HttpCodec.TRACE_ID_KEY
 
 class B3HttpExtractorTest extends DDSpecification {
 
-  HttpCodec.Extractor extractor = B3HttpCodec.newExtractor(["SOME_HEADER": "some-tag"])
+  HttpCodec.Extractor extractor = B3HttpCodec.newExtractor(["SOME_HEADER": "some-tag"],[:])
 
   boolean origAppSecActive
 

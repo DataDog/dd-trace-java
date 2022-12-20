@@ -34,8 +34,7 @@ class B3HttpCodec {
     // This class should not be created. This also makes code coverage checks happy.
   }
 
-  // Only used in tests
-  static final HttpCodec.Injector INJECTOR =
+  public static final HttpCodec.Injector INJECTOR =
       new HttpCodec.Injector() {
         @Override
         public <C> void inject(
@@ -90,41 +89,51 @@ class B3HttpCodec {
   }
 
   // Only used from tests
-  static HttpCodec.Extractor newExtractor(final Map<String, String> tagMapping) {
+  static HttpCodec.Extractor newExtractor(
+      final Map<String, String> tagMapping, Map<String, String> baggageMapping) {
     Config config = Config.get();
     final List<HttpCodec.Extractor> extractors = new ArrayList<>(2);
-    extractors.add(newSingleExtractor(tagMapping, config));
-    extractors.add(newMultiExtractor(tagMapping, config));
+    extractors.add(newSingleExtractor(tagMapping, baggageMapping, config));
+    extractors.add(newMultiExtractor(tagMapping, baggageMapping, config));
     return new HttpCodec.CompoundExtractor(extractors);
   }
 
   public static HttpCodec.Extractor newMultiExtractor(
-      final Map<String, String> tagMapping, final Config config) {
+      final Map<String, String> tagMapping,
+      Map<String, String> baggageMapping,
+      final Config config) {
     return new TagContextExtractor(
         tagMapping,
+        baggageMapping,
         new ContextInterpreter.Factory() {
           @Override
-          protected ContextInterpreter construct(final Map<String, String> mapping) {
-            return new B3MultiContextInterpreter(mapping, config);
+          protected ContextInterpreter construct(
+              final Map<String, String> mapping, Map<String, String> baggageMapping) {
+            return new B3MultiContextInterpreter(mapping, baggageMapping, config);
           }
         });
   }
 
   public static HttpCodec.Extractor newSingleExtractor(
-      final Map<String, String> tagMapping, final Config config) {
+      final Map<String, String> tagMapping,
+      Map<String, String> baggageMapping,
+      final Config config) {
     return new TagContextExtractor(
         tagMapping,
+        baggageMapping,
         new ContextInterpreter.Factory() {
           @Override
-          protected ContextInterpreter construct(final Map<String, String> mapping) {
-            return new B3SingleContextInterpreter(mapping, config);
+          protected ContextInterpreter construct(
+              final Map<String, String> mapping, Map<String, String> baggageMapping) {
+            return new B3SingleContextInterpreter(mapping, baggageMapping, config);
           }
         });
   }
 
   private abstract static class B3BaseContextInterpreter extends ContextInterpreter {
-    public B3BaseContextInterpreter(Map<String, String> taggedHeaders, Config config) {
-      super(taggedHeaders, config);
+    public B3BaseContextInterpreter(
+        Map<String, String> taggedHeaders, Map<String, String> baggageMapping, Config config) {
+      super(taggedHeaders, baggageMapping, config);
     }
 
     protected void setSpanId(final String sId) {
@@ -153,8 +162,11 @@ class B3HttpCodec {
   }
 
   private static final class B3MultiContextInterpreter extends B3BaseContextInterpreter {
-    private B3MultiContextInterpreter(final Map<String, String> taggedHeaders, Config config) {
-      super(taggedHeaders, config);
+    private B3MultiContextInterpreter(
+        final Map<String, String> taggedHeaders,
+        Map<String, String> baggageMapping,
+        Config config) {
+      super(taggedHeaders, baggageMapping, config);
     }
 
     @Override
@@ -208,8 +220,9 @@ class B3HttpCodec {
   }
 
   private static final class B3SingleContextInterpreter extends B3BaseContextInterpreter {
-    public B3SingleContextInterpreter(Map<String, String> taggedHeaders, Config config) {
-      super(taggedHeaders, config);
+    public B3SingleContextInterpreter(
+        Map<String, String> taggedHeaders, Map<String, String> baggageMapping, Config config) {
+      super(taggedHeaders, baggageMapping, config);
     }
 
     @Override

@@ -209,9 +209,6 @@ dependencies {
   sharedShadowInclude project(':utils:version-utils'), {
     transitive = false
   }
-  sharedShadowInclude project(':utils:process-utils'), {
-    transitive = false
-  }
 }
 
 tasks.withType(Test).configureEach {

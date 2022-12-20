@@ -33,7 +33,7 @@ class IastAgentTestRunner extends AgentTestRunner {
 
   void cleanupSpec() {
     get().getSubscriptionService(RequestContextSlot.IAST).reset()
-    InstrumentationBridge.registerIastModule(null)
+    InstrumentationBridge.clearIastModules()
   }
 
   protected TaintedObjects getTaintedObjects() {

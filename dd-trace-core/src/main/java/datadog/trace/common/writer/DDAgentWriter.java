@@ -10,6 +10,7 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClient;
+import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentMapperDiscovery;
 import datadog.trace.common.writer.ddagent.Prioritization;
@@ -44,6 +45,7 @@ public class DDAgentWriter extends RemoteWriter {
     private DDAgentApi agentApi;
     private Prioritization prioritization;
     private DDAgentFeaturesDiscovery featureDiscovery;
+    private SingleSpanSampler singleSpanSampler;
 
     public DDAgentWriterBuilder agentApi(DDAgentApi agentApi) {
       this.agentApi = agentApi;
@@ -120,6 +122,11 @@ public class DDAgentWriter extends RemoteWriter {
       return this;
     }
 
+    public DDAgentWriterBuilder spanSamplingRules(SingleSpanSampler singleSpanSampler) {
+      this.singleSpanSampler = singleSpanSampler;
+      return this;
+    }
+
     public DDAgentWriter build() {
       final HttpUrl agentUrl = HttpUrl.get("http://" + agentHost + ":" + traceAgentPort);
       final OkHttpClient client =
@@ -147,7 +154,8 @@ public class DDAgentWriter extends RemoteWriter {
               featureDiscovery,
               null == prioritization ? FAST_LANE : prioritization,
               flushFrequencySeconds,
-              TimeUnit.SECONDS);
+              TimeUnit.SECONDS,
+              singleSpanSampler);
 
       return new DDAgentWriter(
           featureDiscovery,

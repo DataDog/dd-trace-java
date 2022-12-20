@@ -48,6 +48,7 @@ import datadog.trace.civisibility.CiVisibilityTraceInterceptor;
 import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
+import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
@@ -55,6 +56,7 @@ import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
 import datadog.trace.core.datastreams.DataStreamsCheckpointer;
 import datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer;
 import datadog.trace.core.datastreams.StubDataStreamsCheckpointer;
+import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.propagation.DatadogTags;
 import datadog.trace.core.propagation.ExtractedContext;
@@ -71,7 +73,10 @@ import java.lang.ref.WeakReference;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -124,7 +129,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   /** Writer is an charge of reporting traces and spans to the desired endpoint */
   final Writer writer;
   /** Sampler defines the sampling policy in order to reduce the number of traces for instance */
-  final Sampler<DDSpan> sampler;
+  final Sampler sampler;
   /** Scope manager is in charge of managing the scopes from which spans are created */
   final AgentScopeManager scopeManager;
 
@@ -143,6 +148,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final StatsDClient statsDClient;
   private final Monitoring monitoring;
   private final Monitoring performanceMonitoring;
+
+  private final HealthMetrics healthMetrics;
   private final Recording traceWriteTimer;
   private final IdGenerationStrategy idGenerationStrategy;
   private final PendingTrace.Factory pendingTraceFactory;
@@ -169,6 +176,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       new ConcurrentSkipListSet<>(Comparator.comparingInt(TraceInterceptor::priority));
 
   private final HttpCodec.Injector injector;
+
+  private final Map<PropagationStyle, HttpCodec.Injector> injectors;
   private final HttpCodec.Extractor extractor;
 
   private final InstrumentationGateway instrumentationGateway;
@@ -206,7 +215,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private SharedCommunicationObjects sharedCommunicationObjects;
     private Writer writer;
     private IdGenerationStrategy idGenerationStrategy;
-    private Sampler<DDSpan> sampler;
+    private Sampler sampler;
+    private SingleSpanSampler singleSpanSampler;
     private HttpCodec.Injector injector;
     private HttpCodec.Extractor extractor;
     private AgentScopeManager scopeManager;
@@ -214,6 +224,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private Map<String, ?> defaultSpanTags;
     private Map<String, String> serviceNameMappings;
     private Map<String, String> taggedHeaders;
+    private Map<String, String> baggageMapping;
     private int partialFlushMinSpans;
     private StatsDClient statsDClient;
     private TagInterceptor tagInterceptor;
@@ -245,8 +256,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
-    public CoreTracerBuilder sampler(Sampler<DDSpan> sampler) {
+    public CoreTracerBuilder sampler(Sampler sampler) {
       this.sampler = sampler;
+      return this;
+    }
+
+    public CoreTracerBuilder singleSpanSampler(SingleSpanSampler singleSpanSampler) {
+      this.singleSpanSampler = singleSpanSampler;
       return this;
     }
 
@@ -282,6 +298,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     public CoreTracerBuilder taggedHeaders(Map<String, String> taggedHeaders) {
       this.taggedHeaders = tryMakeImmutableMap(taggedHeaders);
+      return this;
+    }
+
+    public CoreTracerBuilder baggageMapping(Map<String, String> baggageMapping) {
+      this.baggageMapping = tryMakeImmutableMap(baggageMapping);
       return this;
     }
 
@@ -345,15 +366,21 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.config = config;
       serviceName(config.getServiceName());
       // Explicitly skip setting writer to avoid allocating resources prematurely.
-      sampler(Sampler.Builder.<DDSpan>forConfig(config));
+      sampler(Sampler.Builder.forConfig(config));
+      singleSpanSampler(SingleSpanSampler.Builder.forConfig(config));
       instrumentationGateway(new InstrumentationGateway());
-      injector(HttpCodec.createInjector(config));
-      extractor(HttpCodec.createExtractor(config, config.getRequestHeaderTags()));
+      injector(
+          HttpCodec.createInjector(
+              config.getPropagationStylesToInject(), invertMap(config.getBaggageMapping())));
+      extractor(
+          HttpCodec.createExtractor(
+              config, config.getRequestHeaderTags(), config.getBaggageMapping()));
       // Explicitly skip setting scope manager because it depends on statsDClient
       localRootSpanTags(config.getLocalRootSpanTags());
       defaultSpanTags(config.getMergedSpanTags());
       serviceNameMappings(config.getServiceMapping());
       taggedHeaders(config.getRequestHeaderTags());
+      baggageMapping(config.getBaggageMapping());
       partialFlushMinSpans(config.getPartialFlushMinSpans());
       strictTraceWrites(config.isTraceStrictWritesEnabled());
 
@@ -368,6 +395,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           writer,
           idGenerationStrategy,
           sampler,
+          singleSpanSampler,
           injector,
           extractor,
           scopeManager,
@@ -375,6 +403,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           defaultSpanTags,
           serviceNameMappings,
           taggedHeaders,
+          baggageMapping,
           partialFlushMinSpans,
           statsDClient,
           tagInterceptor,
@@ -393,7 +422,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       SharedCommunicationObjects sharedCommunicationObjects,
       final Writer writer,
       final IdGenerationStrategy idGenerationStrategy,
-      final Sampler<DDSpan> sampler,
+      final Sampler sampler,
+      final SingleSpanSampler singleSpanSampler,
       final HttpCodec.Injector injector,
       final HttpCodec.Extractor extractor,
       final AgentScopeManager scopeManager,
@@ -401,6 +431,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final Map<String, ?> defaultSpanTags,
       final Map<String, String> serviceNameMappings,
       final Map<String, String> taggedHeaders,
+      final Map<String, String> baggageMapping,
       final int partialFlushMinSpans,
       final StatsDClient statsDClient,
       final TagInterceptor tagInterceptor,
@@ -414,6 +445,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     assert defaultSpanTags != null;
     assert serviceNameMappings != null;
     assert taggedHeaders != null;
+    assert baggageMapping != null;
 
     this.timeSource = timeSource == null ? SystemTimeSource.INSTANCE : timeSource;
     this.startTimeNano = this.timeSource.getCurrentTimeNanos();
@@ -448,10 +480,16 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         config.isHealthMetricsEnabled()
             ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
             : Monitoring.DISABLED;
+    this.healthMetrics =
+        config.isHealthMetricsEnabled()
+            ? new HealthMetrics(this.statsDClient)
+            : new HealthMetrics(StatsDClient.NO_OP);
+    this.healthMetrics.start();
     this.performanceMonitoring =
         config.isPerfMetricsEnabled()
             ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
             : Monitoring.DISABLED;
+
     this.traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
     if (scopeManager == null) {
       ContinuableScopeManager csm =
@@ -460,7 +498,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               this.statsDClient,
               config.isScopeStrictMode(),
               config.isScopeInheritAsyncPropagation(),
-              profilingContextIntegration);
+              profilingContextIntegration,
+              this.healthMetrics);
       this.scopeManager = csm;
 
     } else {
@@ -480,7 +519,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (writer == null) {
       this.writer =
           WriterFactory.createWriter(
-              config, sharedCommunicationObjects, sampler, this.statsDClient);
+              config, sharedCommunicationObjects, sampler, singleSpanSampler, this.statsDClient);
     } else {
       this.writer = writer;
     }
@@ -490,7 +529,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             ? PendingTraceBuffer.discarding()
             : PendingTraceBuffer.delaying(this.timeSource);
     pendingTraceFactory =
-        new PendingTrace.Factory(this, pendingTraceBuffer, this.timeSource, strictTraceWrites);
+        new PendingTrace.Factory(
+            this,
+            pendingTraceBuffer,
+            this.timeSource,
+            strictTraceWrites,
+            statsDClient,
+            healthMetrics);
     pendingTraceBuffer.start();
 
     this.writer.start();
@@ -525,6 +570,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         instrumentationGateway.getCallbackProvider(RequestContextSlot.APPSEC);
     this.callbackProviderIast = instrumentationGateway.getCallbackProvider(RequestContextSlot.IAST);
     this.universalCallbackProvider = instrumentationGateway.getUniversalCallbackProvider();
+
+    injectors =
+        HttpCodec.createInjectors(EnumSet.allOf(PropagationStyle.class), invertMap(baggageMapping));
 
     shutdownCallback = new ShutdownHook(this);
     try {
@@ -755,7 +803,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (null == style) {
       injector.inject(ddSpanContext, carrier, setter);
     } else {
-      HttpCodec.inject(ddSpanContext, carrier, setter, style);
+      HttpCodec.inject(ddSpanContext, carrier, setter, injectors.get(style));
     }
   }
 
@@ -785,8 +833,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public void notifyExtensionEnd(AgentSpan span, boolean isError) {
-    LambdaHandler.notifyEndInvocation(span, isError);
+  public void notifyExtensionEnd(AgentSpan span, Object result, boolean isError) {
+    LambdaHandler.notifyEndInvocation(span, result, isError);
   }
 
   private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, MINUTES);
@@ -878,7 +926,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         && rootSpan != null
         && rootSpan.context().getSamplingPriority() == PrioritySampling.UNSET) {
 
-      ((PrioritySampler<DDSpan>) sampler).setSamplingPriority(rootSpan);
+      ((PrioritySampler) sampler).setSamplingPriority(rootSpan);
     }
   }
 
@@ -946,6 +994,23 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     metricsAggregator.close();
     dataStreamsCheckpointer.close();
     externalAgentLauncher.close();
+  }
+
+  @Override
+  public void addScopeListener(
+      Runnable afterScopeActivatedCallback, Runnable afterScopeClosedCallback) {
+    addScopeListener(
+        new ScopeListener() {
+          @Override
+          public void afterScopeActivated() {
+            afterScopeActivatedCallback.run();
+          }
+
+          @Override
+          public void afterScopeClosed() {
+            afterScopeClosedCallback.run();
+          }
+        });
   }
 
   @Override
@@ -1027,6 +1092,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   private static String statsdTag(final String tagPrefix, final String tagValue) {
     return tagPrefix + ":" + tagValue;
+  }
+
+  private static <K, V> Map<V, K> invertMap(Map<K, V> map) {
+    Map<V, K> inverted = new HashMap<>(map.size());
+    for (Map.Entry<K, V> entry : map.entrySet()) {
+      inverted.put(entry.getValue(), entry.getKey());
+    }
+    return Collections.unmodifiableMap(inverted);
   }
 
   /** Spans are built using this builder */

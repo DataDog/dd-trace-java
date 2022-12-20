@@ -1,5 +1,6 @@
 package com.datadog.debugger.agent;
 
+import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -15,6 +16,7 @@ import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SnapshotProbe;
+import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import datadog.trace.api.Config;
@@ -224,7 +226,7 @@ public class ConfigurationUpdaterTest {
     List<MetricProbe> metricProbes =
         Arrays.asList(
             MetricProbe.builder().probeId(METRIC_ID).where("java.lang.String", "concat").build());
-    configurationUpdater.accept(createApp(snapshotProbes, metricProbes, Collections.emptyList()));
+    configurationUpdater.accept(createApp(snapshotProbes, metricProbes, emptyList(), emptyList()));
     verify(inst).addTransformer(any(), eq(true));
     verify(inst).getAllLoadedClasses();
     Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
@@ -514,7 +516,7 @@ public class ConfigurationUpdaterTest {
         new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
     configurationUpdater.accept(createApp(snapshotProbes));
     Assertions.assertEquals(
-        ConfigurationUpdater.MAX_ALLOWED_PROBES,
+        ConfigurationUpdater.MAX_ALLOWED_SNAPSHOT_PROBES,
         configurationUpdater.getAppliedDefinitions().size());
   }
 
@@ -735,8 +737,9 @@ public class ConfigurationUpdaterTest {
   private static Configuration createApp(
       List<SnapshotProbe> snapshotProbes,
       List<MetricProbe> metricProbes,
-      List<LogProbe> logProbes) {
-    return new Configuration(SERVICE_NAME, snapshotProbes, metricProbes, logProbes);
+      List<LogProbe> logProbes,
+      List<SpanProbe> spanProbes) {
+    return new Configuration(SERVICE_NAME, snapshotProbes, metricProbes, logProbes, spanProbes);
   }
 
   private static Configuration createAppMetrics(List<MetricProbe> metricProbes) {

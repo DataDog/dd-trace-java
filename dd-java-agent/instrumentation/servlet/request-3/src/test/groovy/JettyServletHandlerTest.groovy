@@ -107,7 +107,7 @@ class JettyServletHandlerTest extends AbstractServlet3Test<Server, ServletHandle
   @Override
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.throwsException && !dispatch) {
-      ["error.msg": "${endpoint.body}",
+      ["error.message": "${endpoint.body}",
         "error.type": { it == Exception.name || it == InputMismatchException.name },
         "error.stack": String]
     } else {

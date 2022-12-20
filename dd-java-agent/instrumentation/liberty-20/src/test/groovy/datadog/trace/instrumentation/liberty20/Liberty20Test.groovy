@@ -93,7 +93,7 @@ class Liberty20Test extends HttpServerTest<Server> {
   Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
     def res = ['servlet.context': '/testapp']
     if (endpoint == ServerEndpoint.NOT_FOUND) {
-      res['error.msg'] = 'SRVE0190E: File not found: /not-found'
+      res['error.message'] = 'SRVE0190E: File not found: /not-found'
       res['error.type'] = 'java.io.FileNotFoundException'
       res['error.stack'] = ~/java\.io\.FileNotFoundException: SRVE0190E: File not found: \/not-found.*/
     } else {
