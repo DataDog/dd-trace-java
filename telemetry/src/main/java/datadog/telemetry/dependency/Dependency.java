@@ -132,6 +132,14 @@ public final class Dependency {
                 artifactId,
                 version);
           } else {
+            log.debug(
+                "dependency found in pom.properties: "
+                    + "jar={}, entry={}, groupId={}, artifactId={}, version={}",
+                jar.getName(),
+                jarEntry.getName(),
+                groupId,
+                artifactId,
+                version);
             dependencies.add(new Dependency(name, version, (new File(jar.getName())).getName()));
           }
         } catch (IOException e) {
@@ -239,7 +247,7 @@ public final class Dependency {
       while (is.read(buf, 0, buf.length) > 0) {}
       hash = String.format("%040X", new BigInteger(1, md.digest()));
     }
-
+    log.debug("No maven dependency added {}.{} jar name {} hash {}");
     return new Dependency(name, version, source, hash);
   }
 
