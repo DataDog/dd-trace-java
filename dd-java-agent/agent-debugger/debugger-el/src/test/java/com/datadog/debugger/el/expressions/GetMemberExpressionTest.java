@@ -13,8 +13,8 @@ class GetMemberExpressionTest {
   @Test
   void getMemberLevel1() {
     GetMemberExpression expr = new GetMemberExpression(new ValueRefExpression("ref"), "b");
-    Tester parent = new Tester(null, "hello");
-    ExTester instance = new ExTester(parent, "world");
+    ObjectWithRefAndValue parent = new ObjectWithRefAndValue(null, "hello");
+    ExObjectWithRefAndValue instance = new ExObjectWithRefAndValue(parent, "world");
     Value<?> val = expr.evaluate(RefResolverHelper.createResolver(instance));
     assertNotNull(val);
     assertFalse(val.isUndefined());
@@ -26,9 +26,9 @@ class GetMemberExpressionTest {
     // ref.ref.b
     GetMemberExpression expr =
         new GetMemberExpression(new GetMemberExpression(new ValueRefExpression("ref"), "ref"), "b");
-    Tester root = new Tester(null, "hello");
-    Tester parent = new Tester(root, "");
-    ExTester instance = new ExTester(parent, "world");
+    ObjectWithRefAndValue root = new ObjectWithRefAndValue(null, "hello");
+    ObjectWithRefAndValue parent = new ObjectWithRefAndValue(root, "");
+    ExObjectWithRefAndValue instance = new ExObjectWithRefAndValue(parent, "world");
     Value<?> val = expr.evaluate(RefResolverHelper.createResolver(instance));
     assertNotNull(val);
     assertFalse(val.isUndefined());

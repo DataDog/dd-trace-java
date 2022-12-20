@@ -20,7 +20,7 @@ class ValueRefExpressionTest {
   @Test
   void testRef() {
     ValueRefExpression valueRef = new ValueRefExpression("b");
-    ExTester instance = new ExTester(null, "hello");
+    ExObjectWithRefAndValue instance = new ExObjectWithRefAndValue(null, "hello");
     Value<?> val = valueRef.evaluate(RefResolverHelper.createResolver(instance));
     assertNotNull(val);
     assertFalse(val.isUndefined());
@@ -35,7 +35,7 @@ class ValueRefExpressionTest {
     IsEmptyExpression isEmpty = new IsEmptyExpression(valueRef);
     IsEmptyExpression isEmptyInvalid = new IsEmptyExpression(invalidValueRef);
 
-    ExTester instance = new ExTester(null, "hello");
+    ExObjectWithRefAndValue instance = new ExObjectWithRefAndValue(null, "hello");
     ValueReferenceResolver ctx = RefResolverHelper.createResolver(instance);
 
     assertFalse(isEmpty.evaluate(ctx).test());
@@ -47,7 +47,7 @@ class ValueRefExpressionTest {
 
   @Test
   void contextRef() {
-    ExTester instance = new ExTester(null, "hello");
+    ExObjectWithRefAndValue instance = new ExObjectWithRefAndValue(null, "hello");
     long limit = 511L;
     String msg = "Hello there";
     int i = 6;

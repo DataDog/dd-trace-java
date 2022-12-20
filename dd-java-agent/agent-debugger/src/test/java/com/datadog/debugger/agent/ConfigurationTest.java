@@ -197,11 +197,7 @@ public class ConfigurationTest {
         createMetric("metric1", "metric_count", COUNT, "java.lang.String", "indexOf", "(String)");
     LogProbe log1 =
         createLog(
-            "log1",
-            "this is a log line with arg={arg}",
-            "java.lang.String",
-            "indexOf",
-            "(String)");
+            "log1", "this is a log line with arg={arg}", "java.lang.String", "indexOf", "(String)");
     SpanProbe span1 = createSpan("span1", "java.lang.String", "indexOf", "(String)", "span");
     Configuration.FilterList allowList =
         new Configuration.FilterList(
