@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 
 @CallSite(spi = IastAdvice.class)
@@ -103,5 +104,26 @@ public class HttpServletRequestCallSite {
       module.onUnexpectedException("afterGetHeaderNames threw while iterating header names", e);
       throw StackUtils.filterFirstDatadog(e);
     }
+  }
+
+  @CallSite.AfterArray({
+    @CallSite.After(
+        "javax.servlet.http.Cookie[] javax.servlet.http.HttpServletRequest.getCookies()"),
+    @CallSite.After(
+        "javax.servlet.http.Cookie[] javax.servlet.http.HttpServletRequestWrapper.getCookies()")
+  })
+  public static Cookie[] afterGetCookies(
+      @CallSite.This final HttpServletRequest self, @CallSite.Return final Cookie[] cookies) {
+    if (null != cookies && cookies.length > 0) {
+      final WebModule module = InstrumentationBridge.WEB;
+      if (module != null) {
+        try {
+          module.onCookies(cookies);
+        } catch (final Throwable e) {
+          module.onUnexpectedException("afterGetCookies threw", e);
+        }
+      }
+    }
+    return cookies;
   }
 }

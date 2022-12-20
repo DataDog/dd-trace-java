@@ -4,6 +4,7 @@ import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.source.WebModule
 import datadog.trace.instrumentation.servlet.request.HttpServletRequestCallSite
 
+import javax.servlet.http.Cookie
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletRequestWrapper
 
@@ -71,6 +72,29 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     then:
     result == ['header']
     1 * iastModule.onHeaderName('header')
+
+    where:
+    clazz                     | _
+    HttpServletRequest        | _
+    HttpServletRequestWrapper | _
+  }
+
+  def 'test getCookies'(final Class<? extends HttpServletRequest> clazz) {
+    setup:
+    WebModule iastModule = Mock(WebModule)
+    InstrumentationBridge.registerIastModule(iastModule)
+    final cookies = [new Cookie('name1', 'value1'), new Cookie('name2', 'value2')]
+    final testSuite = new TestHttpServletRequestCallSiteSuite(Mock(clazz) {
+      getCookies() >> cookies
+    })
+
+    when:
+    final result = testSuite.getCookies()
+
+    then:
+    result == cookies
+
+    1 * iastModule.onCookies(cookies)
 
     where:
     clazz                     | _

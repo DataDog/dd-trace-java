@@ -1,6 +1,7 @@
 package datadog.smoketest.controller;
 
 import java.util.Enumeration;
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 
 public class TestHttpServletRequestCallSiteSuite {
@@ -21,5 +22,9 @@ public class TestHttpServletRequestCallSiteSuite {
 
   public Enumeration<?> getHeaderNames() {
     return request.getHeaderNames();
+  }
+
+  public Cookie[] getCookies() {
+    return request.getCookies();
   }
 }
