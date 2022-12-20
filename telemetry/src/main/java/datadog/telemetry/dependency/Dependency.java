@@ -247,7 +247,7 @@ public final class Dependency {
       while (is.read(buf, 0, buf.length) > 0) {}
       hash = String.format("%040X", new BigInteger(1, md.digest()));
     }
-    log.debug("No maven dependency added {}.{} jar name {} hash {}");
+    log.debug("No maven dependency added {}.{} jar name {} hash {}", name, version, source, hash);
     return new Dependency(name, version, source, hash);
   }
 

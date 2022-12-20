@@ -98,7 +98,7 @@ public final class AgentCLI {
             addUrlMethod.invoke(depService, file.toURI().toURL());
             resolveOne.invoke(depService);
           } catch (Exception e) {
-            throw new RuntimeException(e);
+            log.error("Error invoking dependencies service", e);
           }
         };
     File origin = new File(args[0]);
@@ -131,8 +131,7 @@ public final class AgentCLI {
               e -> {
                 if (e.getName().endsWith(".jar") || e.getName().endsWith(".war")) {
                   try {
-                    log.debug(
-                        "Jar entry found in file: {} entry: {}", file.getName(), e.getName());
+                    log.debug("Jar entry found in file: {} entry: {}", file.getName(), e.getName());
                     File temp = File.createTempFile("internal", ".jar");
                     try (InputStream is = jar.getInputStream(e);
                         OutputStream out = new FileOutputStream(temp)) {
@@ -143,12 +142,14 @@ public final class AgentCLI {
                     }
                     log.debug("Adding new jar: {}", temp.getAbsolutePath());
                     recursiveDependencySearch(invoker, temp);
-                    temp.delete();
+                    if (!temp.delete()) {
+                      log.error("Error deleting temp file:{}", temp.getAbsolutePath());
+                    }
                   } catch (Exception ex) {
-                    throw new RuntimeException(ex);
+                    log.error("Error unzipping file", ex);
                   }
                 } else {
-                  log.debug("Entry: {} ignored in file: {}",  e.getName() , file.getAbsolutePath());
+                  log.debug("Entry: {} ignored in file: {}", e.getName(), file.getAbsolutePath());
                 }
               });
     }
