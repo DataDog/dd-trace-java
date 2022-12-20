@@ -61,7 +61,7 @@ public class DependencyResolver {
    */
   static List<Dependency> extractDependenciesFromJar(File jar) {
     if (!jar.exists()) {
-      log.warn("unable to find dependency {}", jar);
+      log.warn("unable to find dependency {} (path does not exist)", jar);
       return Collections.emptyList();
     } else if (!jar.getName().endsWith(JAR_SUFFIX)) {
       log.debug("unsupported file dependency type : {}", jar);
