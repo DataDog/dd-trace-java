@@ -8,8 +8,8 @@ muzzle {
     name = "webflux_5.0.0+_with_netty_0.8.0"
     group = "org.springframework"
     module = "spring-webflux"
-    versions = "[5.0.0.RELEASE,)"
-    assertInverse = true
+    versions = "[5.0.0.RELEASE,6)"
+    // assertInverse = true
     extraDependency "io.projectreactor.netty:reactor-netty:0.8.0.RELEASE"
   }
 
@@ -17,8 +17,8 @@ muzzle {
     name = "webflux_5.0.0_with_ipc_0.7.0"
     group = "org.springframework"
     module = "spring-webflux"
-    versions = "[5.0.0.RELEASE,)"
-    assertInverse = true
+    versions = "[5.0.0.RELEASE,6)"
+    // assertInverse = true
     extraDependency "io.projectreactor.ipc:reactor-netty:0.7.0.RELEASE"
   }
 
@@ -26,7 +26,7 @@ muzzle {
     name = "netty_0.8.0+_with_spring-webflux:5.1.0"
     group = "io.projectreactor.netty"
     module = "reactor-netty"
-    versions = "[0.8.0.RELEASE,)"
+    versions = "[0.8.0.RELEASE,1.1.0)"
     extraDependency "org.springframework:spring-webflux:5.1.0.RELEASE"
   }
 

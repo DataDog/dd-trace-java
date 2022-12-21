@@ -2,7 +2,7 @@ muzzle {
   pass {
     group = 'org.springframework'
     module = 'spring-webmvc'
-    versions = "[3.1.0.RELEASE,]"
+    versions = "[3.1.0.RELEASE,6)"
     skipVersions += [
       '1.2.1',
       '1.2.2',
@@ -10,7 +10,7 @@ muzzle {
       '1.2.4'] // broken releases... missing dependencies
     skipVersions += '3.2.1.RELEASE' // missing a required class.  (bad release?)
     extraDependency "javax.servlet:javax.servlet-api:3.0.1"
-    assertInverse = true
+    // assertInverse = true
   }
 
   // FIXME: webmvc depends on web, so we need a separate integration for spring-web specifically.
