@@ -46,9 +46,9 @@ public class AgentInstaller {
     // register weak map/cache suppliers as early as possible
     WeakMaps.registerAsSupplier();
     WeakCaches.registerAsSupplier();
-    // supply PID fall-back on Java 8 as early as possible
+    // register PID fall-back on Java 8 as early as possible
     if (!Platform.isNativeImageBuilder()) {
-      PidHelper.supplyIfAbsent(new PosixPidSupplier());
+      PidHelper.Fallback.set(new PosixPidSupplier());
     }
   }
 
