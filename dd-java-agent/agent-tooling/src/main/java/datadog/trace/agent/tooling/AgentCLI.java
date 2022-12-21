@@ -87,7 +87,11 @@ public final class AgentCLI {
   }
 
   public static void scanDependencies(final String[] args) throws Exception {
-    Class depClass = Class.forName("datadog.telemetry.dependency.DependencyServiceImpl");
+    Class depClass =
+        Class.forName(
+            "datadog.telemetry.dependency.DependencyServiceImpl",
+            true,
+            AgentCLI.class.getClassLoader());
     Object depService = depClass.getConstructor().newInstance();
     Method addUrlMethod = depService.getClass().getMethod("addURL", URL.class);
     Method resolveOne = depService.getClass().getMethod("resolveOneDependency");
