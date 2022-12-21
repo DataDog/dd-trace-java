@@ -3,6 +3,7 @@ package com.datadog.iast;
 import com.datadog.iast.HasDependencies.Dependencies;
 import com.datadog.iast.overhead.OverheadController;
 import com.datadog.iast.propagation.StringModuleImpl;
+import com.datadog.iast.propagation.UrlModuleImpl;
 import com.datadog.iast.sink.*;
 import com.datadog.iast.source.WebModuleImpl;
 import datadog.trace.api.Config;
@@ -59,6 +60,7 @@ public class IastSystem {
     return Stream.of(
         new WebModuleImpl(),
         new StringModuleImpl(),
+        new UrlModuleImpl(),
         new SqlInjectionModuleImpl(),
         new PathTraversalModuleImpl(),
         new CommandInjectionModuleImpl(),
