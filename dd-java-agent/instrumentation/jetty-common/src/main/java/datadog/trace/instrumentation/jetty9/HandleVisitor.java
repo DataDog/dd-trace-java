@@ -159,8 +159,6 @@ public class HandleVisitor extends MethodVisitor {
       super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
       super.visitLabel(afterHandle);
       super.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
-      // add NOP because if this is followed by another frame asm may not like it
-      super.visitInsn(Opcodes.NOP);
       this.success = true;
       return;
     } else if (!success
