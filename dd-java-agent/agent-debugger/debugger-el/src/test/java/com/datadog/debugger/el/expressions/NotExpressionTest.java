@@ -2,7 +2,7 @@ package com.datadog.debugger.el.expressions;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.datadog.debugger.el.StaticValueRefResolver;
+import com.datadog.debugger.el.RefResolverHelper;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -13,7 +13,8 @@ class NotExpressionTest {
   @MethodSource("expressions")
   void testNullPredicate(PredicateExpression expression, boolean expected) {
     assertEquals(
-        expected, new NotExpression(expression).evaluate(StaticValueRefResolver.self(this)).test());
+        expected,
+        new NotExpression(expression).evaluate(RefResolverHelper.createResolver(this)).test());
   }
 
   private static Stream<Arguments> expressions() {

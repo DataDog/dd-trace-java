@@ -1,5 +1,6 @@
 package com.datadog.debugger.probe;
 
+import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ValueScript;
 import org.junit.Assert;
 import org.junit.jupiter.api.Test;
@@ -46,14 +47,14 @@ public class MetricProbeTest {
             .where("java.lang.Object", "toString()", "java.lang.String ()", new String[] {"5-7"})
             .kind(MetricProbe.MetricKind.COUNT)
             .metricName("datadog.debugger.calls")
-            .valueScript(new ValueScript(42))
+            .valueScript(new ValueScript(DSL.value(42), "42"))
             .build();
     MetricProbe metric2 =
         metricBuilder
             .where("java.lang.Object", "toString()", "java.lang.String ()", new String[] {"5-7"})
             .kind(MetricProbe.MetricKind.COUNT)
             .metricName("datadog.debugger.calls")
-            .valueScript(new ValueScript(42))
+            .valueScript(new ValueScript(DSL.value(42), "42"))
             .build();
     Assert.assertEquals(metric1, metric2);
   }
@@ -66,14 +67,14 @@ public class MetricProbeTest {
             .where("java.lang.Object", "toString()", "java.lang.String ()", new String[] {"5-7"})
             .kind(MetricProbe.MetricKind.COUNT)
             .metricName("datadog.debugger.calls")
-            .valueScript(new ValueScript("^arg"))
+            .valueScript(new ValueScript(DSL.ref("arg"), "arg"))
             .build();
     MetricProbe metric2 =
         metricBuilder
             .where("java.lang.Object", "toString()", "java.lang.String ()", new String[] {"5-7"})
             .kind(MetricProbe.MetricKind.COUNT)
             .metricName("datadog.debugger.calls")
-            .valueScript(new ValueScript("^arg"))
+            .valueScript(new ValueScript(DSL.ref("arg"), "arg"))
             .build();
     Assert.assertEquals(metric1, metric2);
   }

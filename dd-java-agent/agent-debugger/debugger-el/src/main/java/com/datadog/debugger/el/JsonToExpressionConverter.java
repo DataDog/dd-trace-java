@@ -8,7 +8,6 @@ import static com.squareup.moshi.JsonReader.Token.STRING;
 import com.datadog.debugger.el.expressions.PredicateExpression;
 import com.datadog.debugger.el.expressions.ValueExpression;
 import com.squareup.moshi.JsonReader;
-import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -230,11 +229,7 @@ public class JsonToExpressionConverter {
       case STRING:
         {
           String textValue = reader.nextString();
-          if (ValueReferences.isRefExpression(textValue)) {
-            value = DSL.ref(textValue);
-          } else {
-            value = DSL.value(textValue);
-          }
+          value = DSL.value(textValue);
           break;
         }
       case BEGIN_OBJECT:
@@ -243,6 +238,28 @@ public class JsonToExpressionConverter {
           try {
             String fieldName = reader.nextName();
             switch (fieldName) {
+              case "ref":
+                {
+                  JsonReader.Token token = reader.peek();
+                  if (token != STRING) {
+                    throw new UnsupportedOperationException(
+                        "Operation 'ref' expect exactly one textual argument");
+                  }
+                  return DSL.ref(reader.nextString());
+                }
+              case "getmember":
+                {
+                  JsonReader.Token token = reader.peek();
+                  if (token == BEGIN_ARRAY) {
+                    reader.beginArray();
+                    ValueExpression<?> target = asValueExpression(reader);
+                    String name = reader.nextString();
+                    reader.endArray();
+                    return DSL.getMember(target, name);
+                  }
+                  throw new UnsupportedOperationException(
+                      "Operation 'getmember' expects the arguments to be defined as array");
+                }
               case "filter":
                 {
                   JsonReader.Token token = reader.peek();

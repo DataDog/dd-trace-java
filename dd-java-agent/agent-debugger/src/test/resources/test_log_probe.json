@@ -1,0 +1,41 @@
+{
+  "id": "petclinic",
+  "orgId": 2,
+  "allowList": {
+    "packagePrefixes": ["com.datadog", "org.apache"],
+    "classes": []
+  },
+  "denyList": {
+    "packagePrefixes": ["java.security", "sun.security"],
+    "classes": []
+  },
+  "logProbes": [{
+    "id": "04692489-c21a-40d3-a378-a602f8205bbe",
+    "created": "2021-03-31T13:26:52.519150+00:00",
+    "active": true,
+    "language": "java",
+    "where": {
+      "typeName": "VetController",
+      "methodName": "showVetList"
+    },
+    "template": "this is a log line customized! uuid={uuid} result={result} garbageStart={garbageStart}",
+    "segments": [
+      {
+        "str": "this is a log line customized! uuid="
+      }, {
+        "dsl": "uuid",
+        "json": {"ref": "uuid"}
+      }, {
+        "str": " result="
+      }, {
+        "dsl": "result",
+        "json": {"ref": "result"}
+      }, {
+        "str": " garbageStart="
+      }, {
+        "dsl": "garbageStart",
+        "json": {"ref": "garbageStart"}
+      }
+    ]
+  }]
+}
