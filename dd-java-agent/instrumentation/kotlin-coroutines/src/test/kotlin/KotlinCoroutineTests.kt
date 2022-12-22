@@ -32,14 +32,14 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
 
   @Trace
   fun tracedAcrossChannels(): Int = runTest {
-    val producer = produce {
+    val producer = produce(jobName("producer")) {
       repeat(3) {
         tracedChild("produce_$it")
         send(it)
       }
     }
 
-    val actor = actor<Int> {
+    val actor = actor<Int>(jobName("consumer")) {
       consumeEach {
         tracedChild("consume_$it")
       }
@@ -58,7 +58,7 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
       runTest {
         tracedChild("preLaunch")
 
-        launch(jobContext("erroring"), start = CoroutineStart.UNDISPATCHED) {
+        launch(jobName("errors"), start = CoroutineStart.UNDISPATCHED) {
           throw Exception("Child Error")
         }
 
@@ -73,11 +73,11 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
 
   @Trace
   fun tracedAcrossThreadsWithNested(): Int = runTest {
-    val goodDeferred = async(jobContext("goodDeferred")) { 1 }
+    val goodDeferred = async(jobName("goodDeferred")) { 1 }
 
-    launch(jobContext("root")) {
+    launch(jobName("root")) {
       goodDeferred.await()
-      launch(jobContext("nested")) {
+      launch(jobName("nested")) {
         tracedChild("nested")
       }
     }
@@ -90,25 +90,25 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
 
     val keptPromise = CompletableDeferred<Boolean>()
     val brokenPromise = CompletableDeferred<Boolean>()
-    val afterPromise = async {
+    val afterPromise = async(jobName("afterPromise")) {
       keptPromise.await()
       tracedChild("keptPromise")
     }
-    val afterPromise2 = async {
+    val afterPromise2 = async(jobName("afterPromise2")) {
       keptPromise.await()
       tracedChild("keptPromise2")
     }
-    val failedAfterPromise = async {
+    val failedAfterPromise = async(jobName("failedAfterPromise")) {
       brokenPromise
         .runCatching { await() }
         .onFailure { tracedChild("brokenPromise") }
     }
 
-    launch {
+    launch(jobName("future1")) {
       tracedChild("future1")
       keptPromise.complete(true)
       brokenPromise.completeExceptionally(IllegalStateException())
-    }.join()
+    }
 
     listOf(afterPromise, afterPromise2, failedAfterPromise).awaitAll()
 
@@ -122,15 +122,15 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
   fun tracedWithDeferredFirstCompletions(): Int = runTest {
 
     val children = listOf(
-      async {
+      async(jobName("timeout1")) {
         tracedChild("timeout1")
         false
       },
-      async {
+      async(jobName("timeout2")) {
         tracedChild("timeout2")
         false
       },
-      async {
+      async(jobName("timeout3")) {
         tracedChild("timeout3")
         true
       }
@@ -168,7 +168,7 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
       }
 
       // this coroutine starts before the second one starts and completes before the second one
-      async(jobContext("first")) {
+      async(jobName("first")) {
         beforeFirstJobStartedMutex.lock()
         childSpan("first-span").activateAndUse {
           afterFirstJobStartedMutex.unlock()
@@ -178,7 +178,7 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
       }.run(jobs::add)
 
       // this coroutine starts after the first one and completes after the first one
-      async(jobContext("second")) {
+      async(jobName("second")) {
         afterFirstJobStartedMutex.withLock {
           childSpan("second-span").activateAndUse {
             beforeFirstJobCompletedMutex.unlock()
@@ -199,13 +199,13 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
     val jobs = mutableListOf<Deferred<Unit>>()
 
     childSpan("top-level").activateAndUse {
-      async(jobContext("first"), CoroutineStart.LAZY) {
+      async(jobName("first"), CoroutineStart.LAZY) {
         childSpan("first-span").activateAndUse {
           delay(1)
         }
       }.run(jobs::add)
 
-      async(jobContext("second"), CoroutineStart.LAZY) {
+      async(jobName("second"), CoroutineStart.LAZY) {
         childSpan("second-span").activateAndUse {
           delay(1)
         }
@@ -222,13 +222,13 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
     val jobs = mutableListOf<Deferred<Unit>>()
 
     childSpan("top-level").activateAndUse {
-      async(jobContext("first")) {
+      async(jobName("first")) {
         childSpan("first-span").activateAndUse {
           delay(1)
         }
       }.run(jobs::add)
 
-      async(jobContext("second")) {
+      async(jobName("second")) {
         childSpan("second-span").activateAndUse {
           delay(1)
         }
@@ -249,7 +249,7 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
     .withResourceName("coroutines-test-span")
     .start()
 
-  private fun jobContext(jobName: String) = CoroutineName(jobName)
+  private fun jobName(jobName: String) = CoroutineName(jobName)
 
   private suspend fun AgentSpan.activateAndUse(block: suspend () -> Unit) {
     get().activateSpan(this, INSTRUMENTATION).use {
@@ -260,6 +260,6 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
 
   private fun <T> runTest(asyncPropagation: Boolean = true, block: suspend CoroutineScope.() -> T): T {
     activeScope()?.setAsyncPropagation(asyncPropagation)
-    return runBlocking(dispatcher, block = block)
+    return runBlocking(jobName("test") + dispatcher, block = block)
   }
 }
