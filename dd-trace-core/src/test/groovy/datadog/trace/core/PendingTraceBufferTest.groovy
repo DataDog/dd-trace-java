@@ -285,31 +285,31 @@ class PendingTraceBufferTest extends DDSpecification {
     def counter = new AtomicInteger(0)
     // Create a fake element that newer gets written
     def element = new PendingTraceBuffer.Element() {
-      @Override
-      long oldestFinishedTime() {
-        return TimeUnit.MILLISECONDS.toNanos(System.currentTimeMillis())
-      }
+        @Override
+        long oldestFinishedTime() {
+          return TimeUnit.MILLISECONDS.toNanos(System.currentTimeMillis())
+        }
 
-      @Override
-      boolean lastReferencedNanosAgo(long nanos) {
-        return false
-      }
+        @Override
+        boolean lastReferencedNanosAgo(long nanos) {
+          return false
+        }
 
-      @Override
-      void write() {
-        counter.incrementAndGet()
-      }
+        @Override
+        void write() {
+          counter.incrementAndGet()
+        }
 
-      @Override
-      DDSpan getRootSpan() {
-        return null
-      }
+        @Override
+        DDSpan getRootSpan() {
+          return null
+        }
 
-      @Override
-      boolean setEnqueued(boolean enqueued) {
-        return true
+        @Override
+        boolean setEnqueued(boolean enqueued) {
+          return true
+        }
       }
-    }
 
     when:
     buffer.enqueue(element)
