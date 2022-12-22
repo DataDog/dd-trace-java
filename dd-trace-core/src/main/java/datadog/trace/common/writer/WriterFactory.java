@@ -23,7 +23,7 @@ import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.common.writer.ddintake.DDEvpProxyApi;
 import datadog.trace.common.writer.ddintake.DDIntakeApi;
 import datadog.trace.common.writer.ddintake.DDIntakeTrackTypeResolver;
-import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.core.monitor.TracerHealthMetrics;
 import datadog.trace.util.Strings;
 import okhttp3.HttpUrl;
 import org.slf4j.Logger;
@@ -128,7 +128,7 @@ public class WriterFactory {
               .intakeApi(remoteApi)
               .trackType(trackType)
               .prioritization(prioritization)
-              .healthMetrics(new HealthMetrics(statsDClient))
+              .healthMetrics(new TracerHealthMetrics(statsDClient))
               .monitoring(commObjects.monitoring)
               .singleSpanSampler(singleSpanSampler)
               .build();
@@ -161,7 +161,7 @@ public class WriterFactory {
               .agentApi(ddAgentApi)
               .featureDiscovery(featuresDiscovery)
               .prioritization(prioritization)
-              .healthMetrics(new HealthMetrics(statsDClient))
+              .healthMetrics(new TracerHealthMetrics(statsDClient))
               .monitoring(commObjects.monitoring)
               .alwaysFlush(alwaysFlush)
               .spanSamplingRules(singleSpanSampler)
