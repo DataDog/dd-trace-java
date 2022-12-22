@@ -28,7 +28,6 @@ import kotlinx.coroutines.yield
 import java.util.concurrent.TimeUnit
 
 @SuppressFBWarnings("NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE")
-@OptIn(kotlinx.coroutines.InternalCoroutinesApi::class)
 class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
 
   @Trace
