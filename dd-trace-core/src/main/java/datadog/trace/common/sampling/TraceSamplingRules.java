@@ -80,7 +80,7 @@ public class TraceSamplingRules {
     try {
       return new TraceSamplingRules(LIST_OF_RULES_ADAPTER.fromJson(json));
     } catch (Throwable ex) {
-      log.error("Couldn't parse Trace Sampling Rules from JSON: " + json, ex);
+      log.error("Couldn't parse Trace Sampling Rules from JSON: {}", json, ex);
       return null;
     }
   }
