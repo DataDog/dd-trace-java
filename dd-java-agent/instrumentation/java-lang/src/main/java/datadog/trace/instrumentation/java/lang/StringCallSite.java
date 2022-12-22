@@ -26,4 +26,54 @@ public class StringCallSite {
     }
     return result;
   }
+
+  @CallSite.After("java.lang.String java.lang.String.substring(int)")
+  public static String afterSubstring(
+      @CallSite.This final String self,
+      @CallSite.Argument final int beginIndex,
+      @CallSite.Return final String result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    try {
+      if (module != null) {
+        module.onStringSubSequence(self, beginIndex, self != null ? self.length() : 0, result);
+      }
+    } catch (final Throwable e) {
+      module.onUnexpectedException("afterSubstring threw", e);
+    }
+    return result;
+  }
+
+  @CallSite.After("java.lang.String java.lang.String.substring(int, int)")
+  public static String afterSubstring(
+      @CallSite.This final String self,
+      @CallSite.Argument final int beginIndex,
+      @CallSite.Argument final int endIndex,
+      @CallSite.Return final String result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    try {
+      if (module != null) {
+        module.onStringSubSequence(self, beginIndex, endIndex, result);
+      }
+    } catch (final Throwable e) {
+      module.onUnexpectedException("afterSubstring threw", e);
+    }
+    return result;
+  }
+
+  @CallSite.After("java.lang.CharSequence java.lang.String.subSequence(int, int)")
+  public static CharSequence afterSubSequence(
+      @CallSite.This final String self,
+      @CallSite.Argument final int beginIndex,
+      @CallSite.Argument final int endIndex,
+      @CallSite.Return final CharSequence result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    try {
+      if (module != null) {
+        module.onStringSubSequence(self, beginIndex, endIndex, result);
+      }
+    } catch (final Throwable e) {
+      module.onUnexpectedException("afterSubSequence threw", e);
+    }
+    return result;
+  }
 }

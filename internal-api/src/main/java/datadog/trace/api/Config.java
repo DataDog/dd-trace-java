@@ -1271,19 +1271,7 @@ public class Config {
   }
 
   public Long getProcessId() {
-    String pid = PidHelper.getPid();
-
-    pid = pid == null ? "" : pid.trim();
-    if (pid.isEmpty()) {
-      return 0L;
-    }
-
-    try {
-      return Long.parseLong(pid);
-    } catch (NumberFormatException e) {
-      log.error("Cannot parse pid properly from string {} to long. Default to 0", pid, e);
-      return 0L;
-    }
+    return PidHelper.getPidAsLong();
   }
 
   public String getRuntimeVersion() {

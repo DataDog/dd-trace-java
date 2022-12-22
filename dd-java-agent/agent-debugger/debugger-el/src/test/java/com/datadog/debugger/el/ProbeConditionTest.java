@@ -1,5 +1,6 @@
 package com.datadog.debugger.el;
 
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -14,7 +15,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import okio.Okio;
@@ -29,15 +29,40 @@ public class ProbeConditionTest {
     ProbeCondition probeCondition = load("/test_conditional_01.json");
 
     Collection<String> tags = Arrays.asList("hello", "world", "ko");
-    ValueReferenceResolver ctx =
-        new StaticValueRefResolver(this, 100, null, Collections.singletonMap("#tags", tags));
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, singletonMap("tags", tags));
 
     assertTrue(probeCondition.execute(ctx));
 
     Collection<String> tags2 = Arrays.asList("hey", "world", "ko");
     ValueReferenceResolver ctx2 =
-        new StaticValueRefResolver(this, 100, null, Collections.singletonMap("#tags", tags2));
+        RefResolverHelper.createResolver(null, singletonMap("tags", tags2));
     assertFalse(probeCondition.execute(ctx2));
+  }
+
+  @Test
+  void testGetMember() throws Exception {
+    ProbeCondition probeCondition = load("/test_conditional_04.json");
+
+    ValueReferenceResolver ctx =
+        RefResolverHelper.createResolver(
+            singletonMap("container", new Container("world")),
+            singletonMap("container", new Container("hello")));
+
+    assertTrue(probeCondition.execute(ctx));
+
+    ValueReferenceResolver ctx2 =
+        RefResolverHelper.createResolver(
+            singletonMap("container", new Container("world")),
+            singletonMap("obj", new Container("hello")));
+    assertFalse(probeCondition.execute(ctx2));
+  }
+
+  @Test
+  void testComparisonOperators() throws Exception {
+    ProbeCondition probeCondition = load("/test_conditional_05.json");
+    ValueReferenceResolver ctx =
+        RefResolverHelper.createResolver(null, singletonMap("intField1", 42));
+    assertTrue(probeCondition.execute(ctx));
   }
 
   @Test
@@ -56,8 +81,7 @@ public class ProbeConditionTest {
   void testJsonParsing() throws IOException {
     ProbeCondition probeCondition = load("/test_conditional_02.json");
     Collection<String> vets = Arrays.asList("vet1", "vet2", "vet3");
-    ValueReferenceResolver ctx =
-        new StaticValueRefResolver(this, 100, null, Collections.singletonMap("#vets", vets));
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, singletonMap("vets", vets));
 
     // the condition checks if length of vets > 2
     assertTrue(probeCondition.execute(ctx));
@@ -101,5 +125,13 @@ public class ProbeConditionTest {
             .add(ProbeCondition.class, new ProbeCondition.ProbeConditionJsonAdapter())
             .build();
     return moshi.adapter(ProbeCondition.class).fromJson(Okio.buffer(Okio.source(input)));
+  }
+
+  static class Container {
+    String msg;
+
+    public Container(String msg) {
+      this.msg = msg;
+    }
   }
 }

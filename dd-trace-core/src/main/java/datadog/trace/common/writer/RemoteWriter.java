@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * This writer buffers traces and sends them to the provided DDApi instance. Buffering is done with
- * a distruptor to limit blocking the application threads. Internally, the trace is serialized and
+ * a disruptor to limit blocking the application threads. Internally, the trace is serialized and
  * put onto a separate disruptor that does block to decouple the CPU intensive from the IO bound
  * threads.
  *
@@ -77,7 +77,7 @@ public abstract class RemoteWriter implements Writer {
     // We can't add events after shutdown otherwise it will never complete shutting down.
     if (!closed) {
       if (trace.isEmpty()) {
-        handleDroppedTrace("Trace was empty", trace);
+        handleDroppedTrace("Trace was empty", trace, UNSET);
       } else {
         final DDSpan root = trace.get(0);
         final int samplingPriority = root.samplingPriority();
@@ -96,17 +96,11 @@ public abstract class RemoteWriter implements Writer {
         }
       }
     } else {
-      handleDroppedTrace("Trace written after shutdown.", trace);
+      handleDroppedTrace("Trace written after shutdown.", trace, UNSET);
     }
     if (alwaysFlush) {
       flush();
     }
-  }
-
-  private void handleDroppedTrace(final String reason, final List<DDSpan> trace) {
-    log.debug("{}. Counted but dropping trace: {}", reason, trace);
-    healthMetrics.onFailedPublish(UNSET);
-    incrementDropCounts(trace.size());
   }
 
   private void handleDroppedTrace(

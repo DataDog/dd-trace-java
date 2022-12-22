@@ -1,6 +1,7 @@
 package datadog.trace.api.iast
 
 import datadog.trace.api.iast.propagation.StringModule
+import datadog.trace.api.iast.propagation.UrlModule
 import datadog.trace.api.iast.sink.CommandInjectionModule
 import datadog.trace.api.iast.sink.LdapInjectionModule
 import datadog.trace.api.iast.sink.PathTraversalModule
@@ -17,10 +18,11 @@ class InstrumentationBridgeTest extends DDSpecification {
     WeakHashModule,
     WebModule,
     StringModule,
+    UrlModule,
     SqlInjectionModule,
     CommandInjectionModule,
     PathTraversalModule,
-    LdapInjectionModule
+    LdapInjectionModule,
   ]
 
   def cleanup() {

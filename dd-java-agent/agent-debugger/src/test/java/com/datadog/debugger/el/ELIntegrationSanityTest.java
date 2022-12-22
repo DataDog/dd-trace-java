@@ -67,7 +67,7 @@ public class ELIntegrationSanityTest {
     capturedContext.addFields(flds.toArray(new Snapshot.CapturedValue[0]));
 
     // '.name.value' is not present in the snapshot - it needs to be retrieved via reflection
-    Value<?> val = DSL.ref(".name.value").evaluate(capturedContext);
+    Value<?> val = DSL.getMember(DSL.ref("name"), "value").evaluate(capturedContext);
     // make sure the nested field was properly resolved
     assertEquals(p.name.value, val.getValue());
 
