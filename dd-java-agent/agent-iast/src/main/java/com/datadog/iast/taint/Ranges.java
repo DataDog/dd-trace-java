@@ -65,7 +65,6 @@ public final class Ranges {
     return ranges;
   }
 
-  @SuppressWarnings("unchecked")
   public static <E> RangesProvider<E> rangesProviderFor(
       @Nonnull final TaintedObjects to, @Nullable final E[] items) {
     if (items == null || items.length == 0) {
@@ -74,13 +73,72 @@ public final class Ranges {
     return new ArrayProvider<>(items, to);
   }
 
-  @SuppressWarnings("unchecked")
   public static <E> RangesProvider<E> rangesProviderFor(
       @Nonnull final TaintedObjects to, @Nullable final List<E> items) {
     if (items == null || items.isEmpty()) {
       return (RangesProvider<E>) EMPTY_PROVIDER;
     }
     return new ListProvider<>(items, to);
+  }
+
+  public static Range[] forSubstring(int offset, int length, final @Nonnull Range[] ranges) {
+
+    int[] includedRangesInterval = getIncludedRangesInterval(offset, length, ranges);
+
+    // No ranges in the interval
+    if (includedRangesInterval[0] == -1) {
+      return null;
+    }
+    final int firstRangeIncludedIndex = includedRangesInterval[0];
+    final int lastRangeIncludedIndex =
+        includedRangesInterval[1] != -1 ? includedRangesInterval[1] : ranges.length;
+    final int newRagesSize = lastRangeIncludedIndex - firstRangeIncludedIndex;
+    Range[] newRanges = new Range[newRagesSize];
+    for (int rangeIndex = firstRangeIncludedIndex, newRangeIndex = 0;
+        newRangeIndex < newRagesSize;
+        rangeIndex++, newRangeIndex++) {
+      Range range = ranges[rangeIndex];
+      if (offset == 0 && range.getStart() + range.getLength() <= length) {
+        newRanges[newRangeIndex] = range;
+      } else {
+        int newStart = range.getStart() - offset;
+        int newLength = range.getLength();
+        final int newEnd = newStart + newLength;
+        if (newStart < 0) {
+          newLength = newLength + newStart;
+          newStart = 0;
+        }
+        if (newEnd > length) {
+          newLength = length - newStart;
+        }
+        if (newLength > 0) {
+          newRanges[newRangeIndex] = new Range(newStart, newLength, range.getSource());
+        }
+      }
+    }
+
+    return newRanges;
+  }
+
+  public static int[] getIncludedRangesInterval(
+      int offset, int length, final @Nonnull Range[] ranges) {
+    // index of the first included range
+    int start = -1;
+    // index of the first not included range
+    int end = -1;
+    for (int rangeIndex = 0; rangeIndex < ranges.length; rangeIndex++) {
+      final Range rangeSelf = ranges[rangeIndex];
+      if (rangeSelf.getStart() < offset + length
+          && rangeSelf.getStart() + rangeSelf.getLength() > offset) {
+        if (start == -1) {
+          start = rangeIndex;
+        }
+      } else if (start != -1) {
+        end = rangeIndex;
+        break;
+      }
+    }
+    return new int[] {start, end};
   }
 
   public interface RangesProvider<E> {
