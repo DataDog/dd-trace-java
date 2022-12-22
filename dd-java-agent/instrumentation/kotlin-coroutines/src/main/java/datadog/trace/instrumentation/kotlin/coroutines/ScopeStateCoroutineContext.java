@@ -30,12 +30,12 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
 
   @Override
   public void restoreThreadContext(
-      @NotNull CoroutineContext coroutineContext, ScopeState oldState) {
+      @NotNull final CoroutineContext coroutineContext, final ScopeState oldState) {
     oldState.activate();
   }
 
   @Override
-  public ScopeState updateThreadContext(@NotNull CoroutineContext coroutineContext) {
+  public ScopeState updateThreadContext(@NotNull final CoroutineContext coroutineContext) {
     final ScopeState oldScopeState = AgentTracer.get().newScopeState();
     oldScopeState.fetchFromActive();
 
@@ -71,7 +71,7 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
     }
 
     @Override
-    public Unit invoke(Throwable throwable) {
+    public Unit invoke(final Throwable throwable) {
       if (continuationScope != null) {
         continuationScope.close();
       }
@@ -83,19 +83,19 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
 
   @Nullable
   @Override
-  public <E extends Element> E get(@NotNull Key<E> key) {
+  public <E extends Element> E get(@NotNull final Key<E> key) {
     return CoroutineContext.Element.DefaultImpls.get(this, key);
   }
 
   @NotNull
   @Override
-  public CoroutineContext minusKey(@NotNull Key<?> key) {
+  public CoroutineContext minusKey(@NotNull final Key<?> key) {
     return CoroutineContext.Element.DefaultImpls.minusKey(this, key);
   }
 
   @NotNull
   @Override
-  public CoroutineContext plus(@NotNull CoroutineContext coroutineContext) {
+  public CoroutineContext plus(@NotNull final CoroutineContext coroutineContext) {
     return CoroutineContext.DefaultImpls.plus(this, coroutineContext);
   }
 
