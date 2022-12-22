@@ -28,6 +28,7 @@ import kotlinx.coroutines.yield
 import java.util.concurrent.TimeUnit
 
 @SuppressFBWarnings("NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE")
+@OptIn(kotlinx.coroutines.InternalCoroutinesApi::class)
 class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
 
   @Trace
@@ -58,7 +59,7 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
       runTest {
         tracedChild("preLaunch")
 
-        launch(start = CoroutineStart.UNDISPATCHED) {
+        launch(jobContext("erroring"), start = CoroutineStart.UNDISPATCHED) {
           throw Exception("Child Error")
         }
 
@@ -73,11 +74,13 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
 
   @Trace
   fun tracedAcrossThreadsWithNested(): Int = runTest {
-    val goodDeferred = async { 1 }
+    val goodDeferred = async(jobContext("goodDeferred")) { 1 }
 
-    launch {
+    launch(jobContext("root")) {
       goodDeferred.await()
-      launch { tracedChild("nested") }
+      launch(jobContext("nested")) {
+        tracedChild("nested")
+      }
     }
 
     2
@@ -106,7 +109,7 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
       tracedChild("future1")
       keptPromise.complete(true)
       brokenPromise.completeExceptionally(IllegalStateException())
-    }
+    }.join()
 
     listOf(afterPromise, afterPromise2, failedAfterPromise).awaitAll()
 

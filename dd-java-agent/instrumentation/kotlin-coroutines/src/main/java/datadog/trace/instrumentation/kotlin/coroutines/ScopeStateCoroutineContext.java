@@ -5,9 +5,10 @@ import static datadog.trace.instrumentation.kotlin.coroutines.CoroutineContextHe
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
+import kotlin.Unit;
 import kotlin.coroutines.CoroutineContext;
+import kotlin.jvm.functions.Function1;
 import kotlin.jvm.functions.Function2;
-import kotlinx.coroutines.Job;
 import kotlinx.coroutines.ThreadContextElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -15,15 +16,14 @@ import org.jetbrains.annotations.Nullable;
 public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeState> {
 
   private static final Key<ScopeStateCoroutineContext> KEY = new ContextElementKey();
-  private AgentScope.Continuation continuation;
-  private AgentScope continuationScope;
   private final ScopeState scopeState;
+  @Nullable private ContinuationHandler continuationHandler;
 
   public ScopeStateCoroutineContext() {
     final AgentScope activeScope = AgentTracer.get().activeScope();
     if (activeScope != null) {
       activeScope.setAsyncPropagation(true);
-      continuation = activeScope.captureConcurrent();
+      continuationHandler = new ContinuationHandler(activeScope.captureConcurrent());
     }
     scopeState = AgentTracer.get().newScopeState();
   }
@@ -31,14 +31,6 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
   @Override
   public void restoreThreadContext(
       @NotNull CoroutineContext coroutineContext, ScopeState oldState) {
-    if (continuation != null) {
-      final Job job = getJob(coroutineContext);
-      if (!job.isActive()) {
-        continuationScope.close();
-        continuation.cancel();
-      }
-    }
-
     oldState.activate();
   }
 
@@ -48,11 +40,45 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
     oldScopeState.fetchFromActive();
 
     scopeState.activate();
-    if (continuation != null && continuationScope == null) {
-      continuationScope = continuation.activate();
+
+    if (continuationHandler != null && !continuationHandler.isActive()) {
+      continuationHandler.activate();
+      continuationHandler.register(coroutineContext);
     }
 
     return oldScopeState;
+  }
+
+  public static class ContinuationHandler implements Function1<Throwable, Unit> {
+
+    private final AgentScope.Continuation continuation;
+    @Nullable private AgentScope continuationScope;
+
+    ContinuationHandler(final AgentScope.Continuation continuation) {
+      this.continuation = continuation;
+    }
+
+    public void activate() {
+      continuationScope = continuation.activate();
+    }
+
+    public boolean isActive() {
+      return continuationScope != null;
+    }
+
+    public void register(final CoroutineContext coroutineContext) {
+      getJob(coroutineContext).invokeOnCompletion(this);
+    }
+
+    @Override
+    public Unit invoke(Throwable throwable) {
+      if (continuationScope != null) {
+        continuationScope.close();
+      }
+      continuation.cancel();
+
+      return Unit.INSTANCE;
+    }
   }
 
   @Nullable
