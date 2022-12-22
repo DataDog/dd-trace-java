@@ -89,7 +89,7 @@ public class InjectorBenchmark {
     System.setProperty("dd.propagation.style.extract", propagations.toString());
     injector =
         HttpCodec.createInjector(
-            Config.get().getPropagationStylesToInject(), Collections.emptyMap());
+            Config.get().getTracePropagationStylesToInject(), Collections.emptyMap());
 
     traceId = DDTraceId.from("12345");
     spanId = DDSpanId.from("23456");

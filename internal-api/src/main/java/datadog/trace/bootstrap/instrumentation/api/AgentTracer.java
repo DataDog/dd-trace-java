@@ -5,7 +5,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
-import datadog.trace.api.PropagationStyle;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -335,7 +335,8 @@ public class AgentTracer {
     public <C> void inject(final Context context, final C carrier, final Setter<C> setter) {}
 
     @Override
-    public <C> void inject(AgentSpan span, C carrier, Setter<C> setter, PropagationStyle style) {}
+    public <C> void inject(
+        AgentSpan span, C carrier, Setter<C> setter, TracePropagationStyle style) {}
 
     @Override
     public <C> void injectBinaryPathwayContext(
@@ -715,7 +716,8 @@ public class AgentTracer {
     public <C> void inject(final Context context, final C carrier, final Setter<C> setter) {}
 
     @Override
-    public <C> void inject(AgentSpan span, C carrier, Setter<C> setter, PropagationStyle style) {}
+    public <C> void inject(
+        AgentSpan span, C carrier, Setter<C> setter, TracePropagationStyle style) {}
 
     @Override
     public <C> void injectBinaryPathwayContext(
