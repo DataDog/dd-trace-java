@@ -128,7 +128,7 @@ public class SpanSamplingRules {
       List<Rule> rules = LIST_OF_RULES_ADAPTER.fromJson(json);
       return filterOutNullRules(rules);
     } catch (Throwable ex) {
-      log.error("Couldn't parse Span Sampling Rules from JSON", ex);
+      log.error("Couldn't parse Span Sampling Rules from JSON: " + json, ex);
       return null;
     }
   }
