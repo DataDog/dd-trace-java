@@ -40,7 +40,7 @@ public class DDIntakeWriter extends RemoteWriter {
     RetryPolicy retryPolicy = RetryPolicy.builder().withMaxRetry(5).withBackoff(100).build();
     private int flushTimeout = 5;
     private TimeUnit flushTimeoutUnit = TimeUnit.SECONDS;
-    private boolean alwaysFlush = true;
+    private boolean alwaysFlush = false;
 
     private RemoteApi intakeApi;
     private String apiKey;
