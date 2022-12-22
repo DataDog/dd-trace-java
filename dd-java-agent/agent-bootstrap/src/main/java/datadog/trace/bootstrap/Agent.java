@@ -57,14 +57,12 @@ public class Agent {
   private static final String SIMPLE_LOGGER_DEFAULT_LOG_LEVEL_PROPERTY =
       "datadog.slf4j.simpleLogger.defaultLogLevel";
 
+  private static final String AGENT_INSTALLER_CLASS_NAME =
+      "datadog.trace.agent.tooling.AgentInstaller";
+
   private static final int DEFAULT_JMX_START_DELAY = 15; // seconds
 
   private static final Logger log;
-
-  private static final String AGENT_INSTALLER_CLASS_NAME =
-      "false".equalsIgnoreCase(ddGetProperty("dd.legacy.agent.enabled"))
-          ? "datadog.trace.agent.installer.AgentInstaller"
-          : "datadog.trace.agent.tooling.AgentInstaller";
 
   private enum AgentFeature {
     TRACING("dd.tracing.enabled", true),

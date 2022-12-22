@@ -31,7 +31,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
   def tracer = Mock(CoreTracer)
   def scopeManager = new ContinuableScopeManager(10, StatsDClient.NO_OP, true, true, HealthMetrics.NO_OP)
-  def factory = new PendingTrace.Factory(tracer, bufferSpy, SystemTimeSource.INSTANCE, false,StatsDClient.NO_OP, HealthMetrics.NO_OP)
+  def factory = new PendingTrace.Factory(tracer, bufferSpy, SystemTimeSource.INSTANCE, false, HealthMetrics.NO_OP)
   List<TraceScope.Continuation> continuations = []
 
   def cleanup() {
@@ -285,31 +285,31 @@ class PendingTraceBufferTest extends DDSpecification {
     def counter = new AtomicInteger(0)
     // Create a fake element that newer gets written
     def element = new PendingTraceBuffer.Element() {
-        @Override
-        long oldestFinishedTime() {
-          return TimeUnit.MILLISECONDS.toNanos(System.currentTimeMillis())
-        }
-
-        @Override
-        boolean lastReferencedNanosAgo(long nanos) {
-          return false
-        }
-
-        @Override
-        void write() {
-          counter.incrementAndGet()
-        }
-
-        @Override
-        DDSpan getRootSpan() {
-          return null
-        }
-
-        @Override
-        boolean setEnqueued(boolean enqueued) {
-          return true
-        }
+      @Override
+      long oldestFinishedTime() {
+        return TimeUnit.MILLISECONDS.toNanos(System.currentTimeMillis())
       }
+
+      @Override
+      boolean lastReferencedNanosAgo(long nanos) {
+        return false
+      }
+
+      @Override
+      void write() {
+        counter.incrementAndGet()
+      }
+
+      @Override
+      DDSpan getRootSpan() {
+        return null
+      }
+
+      @Override
+      boolean setEnqueued(boolean enqueued) {
+        return true
+      }
+    }
 
     when:
     buffer.enqueue(element)

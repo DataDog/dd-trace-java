@@ -5,6 +5,7 @@ import datadog.trace.common.sampling.SingleSpanSampler
 import datadog.trace.core.DDSpan
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.test.util.DDSpecification
+import static SpanSamplingWorker.DefaultSpanSamplingWorker
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingDeque
@@ -151,7 +152,7 @@ class SpanSamplingWorkerTest extends DDSpecification {
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     int expectedTraces = 1
     CountDownLatch latch = new CountDownLatch(expectedTraces)
-    SpanSamplingWorker worker = new SpanSamplingWorker(10, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, droppingPolicy) {
+    SpanSamplingWorker worker = new DefaultSpanSamplingWorker(10, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, droppingPolicy) {
         @Override
         protected void afterOnEvent() {
           latch.countDown()
@@ -197,7 +198,7 @@ class SpanSamplingWorkerTest extends DDSpecification {
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     int expectedTraces = 1
     CountDownLatch latch = new CountDownLatch(expectedTraces)
-    SpanSamplingWorker worker = new SpanSamplingWorker(10, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, droppingPolicy) {
+    SpanSamplingWorker worker = new DefaultSpanSamplingWorker(10, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, droppingPolicy) {
         @Override
         protected void afterOnEvent() {
           latch.countDown()
@@ -311,7 +312,7 @@ class SpanSamplingWorkerTest extends DDSpecification {
     }
     SingleSpanSampler singleSpanSampler = Mock(SingleSpanSampler)
     HealthMetrics healthMetrics = Mock(HealthMetrics)
-    SpanSamplingWorker worker = new SpanSamplingWorker(10, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, { droppingPolicy })
+    SpanSamplingWorker worker = new DefaultSpanSamplingWorker(10, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, { droppingPolicy })
     worker.start()
 
     DDSpan span1 = Mock(DDSpan)
@@ -357,7 +358,7 @@ class SpanSamplingWorkerTest extends DDSpecification {
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     int expectedTraces = 1
     CountDownLatch latch = new CountDownLatch(expectedTraces)
-    SpanSamplingWorker worker = new SpanSamplingWorker(10, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, { droppingPolicy }) {
+    SpanSamplingWorker worker = new DefaultSpanSamplingWorker(10, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, { droppingPolicy }) {
       @Override
       protected void afterOnEvent() {
         latch.countDown()

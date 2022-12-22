@@ -99,6 +99,16 @@ abstract class AbstractSmokeTest extends ProcessManager {
     "-Dorg.slf4j.simpleLogger.defaultLogLevel=${logLevel()}"
   ]
 
+  @Shared
+  protected String[] nativeJavaProperties = [
+    "${getMaxMemoryArgumentForFork()}",
+    "${getMinMemoryArgumentForFork()}",
+    "-Ddd.trace.agent.port=${server.address.port}",
+    "-Ddd.service.name=${SERVICE_NAME}",
+    "-Ddd.env=${ENV}",
+    "-Ddd.version=${VERSION}"
+  ]
+
   def setup() {
     traceCount.set(0)
     decodeTraces.clear()

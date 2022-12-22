@@ -49,6 +49,8 @@ public class TracerHealthMetrics implements HealthMetrics, AutoCloseable {
       CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter samplerKeepDroppedTraces =
       CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter serialFailedDroppedTraces =
+      CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter unsetPriorityDroppedTraces =
       CountersFactory.createFixedSizeStripedCounter(8);
 
@@ -173,8 +175,7 @@ public class TracerHealthMetrics implements HealthMetrics, AutoCloseable {
 
   @Override
   public void onFailedSerialize(final List<DDSpan> trace, final Throwable optionalCause) {
-    // TODO - DQH - make a new stat for serialization failure -- or maybe count this towards
-    // api.errors???
+    serialFailedDroppedTraces.inc();
   }
 
   @Override
@@ -245,6 +246,7 @@ public class TracerHealthMetrics implements HealthMetrics, AutoCloseable {
     private static final String[] USER_KEEP_TAG = new String[] {"priority:user_keep"};
     private static final String[] SAMPLER_DROP_TAG = new String[] {"priority:sampler_drop"};
     private static final String[] SAMPLER_KEEP_TAG = new String[] {"priority:sampler_keep"};
+    private static final String[] SERIAL_FAILED_TAG = new String[] {"failure:serial"};
     private static final String[] UNSET_TAG = new String[] {"priority:unset"};
 
     @Override
@@ -273,6 +275,11 @@ public class TracerHealthMetrics implements HealthMetrics, AutoCloseable {
           target.statsd, "queue.dropped.traces", target.samplerDropDroppedTraces, SAMPLER_DROP_TAG);
       reportIfChanged(
           target.statsd, "queue.dropped.traces", target.samplerKeepDroppedTraces, SAMPLER_KEEP_TAG);
+      reportIfChanged(
+          target.statsd,
+          "queue.dropped.traces",
+          target.serialFailedDroppedTraces,
+          SERIAL_FAILED_TAG);
       reportIfChanged(
           target.statsd, "queue.dropped.traces", target.unsetPriorityDroppedTraces, UNSET_TAG);
       reportIfChanged(target.statsd, "queue.enqueued.spans", target.enqueuedSpans, NO_TAGS);

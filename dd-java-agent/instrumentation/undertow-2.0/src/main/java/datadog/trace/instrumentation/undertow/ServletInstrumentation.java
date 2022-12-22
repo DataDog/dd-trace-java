@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.undertow;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_PATH;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_UNDERTOW_SPAN;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.SERVLET_REQUEST;
@@ -54,6 +56,9 @@ public final class ServletInstrumentation extends Instrumenter.Tracing
         ServletRequest request = servletRequestContext.getServletRequest();
         request.setAttribute(DD_SPAN_ATTRIBUTE, undertow_span);
         undertow_span.setSpanName(SERVLET_REQUEST);
+
+        undertow_span.setTag(SERVLET_CONTEXT, request.getServletContext().getContextPath());
+        undertow_span.setTag(SERVLET_PATH, exchange.getRelativePath());
       }
     }
   }

@@ -8,6 +8,13 @@ ext {
   enableJunitPlatform = true
 }
 
+// sun.misc.SharedSecrets is gone in later versions
+compileJava {
+  javaCompiler = javaToolchains.compilerFor {
+    languageVersion = JavaLanguageVersion.of(8)
+  }
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/tries.gradle"
 
@@ -71,10 +78,12 @@ excludedClassesCoverage += [
   "datadog.trace.util.ClassNameTrie.JavaGenerator",
   "datadog.trace.util.CollectionUtils",
   "datadog.trace.util.PidHelper",
+  "datadog.trace.util.PidHelper.Fallback",
   "datadog.trace.api.IntegrationsCollector.Holder",
   "datadog.trace.api.ConfigCollector.Holder",
   "datadog.trace.api.Config.HostNameHolder",
   "datadog.trace.api.Config.RuntimeIdHolder",
+  "datadog.trace.api.InstrumenterConfig",
   // can't reliably force same identity hash for different instance to cover branch
   "datadog.trace.api.cache.FixedSizeCache.IdentityHash",
   // Interface with default method
@@ -85,7 +94,6 @@ excludedClassesCoverage += [
 excludedClassesBranchCoverage = [
   'datadog.trace.api.ProductActivationConfig',
   'datadog.trace.api.Config',
-  'datadog.trace.api.InstrumenterConfig',
   'datadog.trace.util.stacktrace.HotSpotStackWalker',
   'datadog.trace.util.stacktrace.StackWalkerFactory'
 ]

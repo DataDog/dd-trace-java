@@ -11,24 +11,26 @@ import org.slf4j.LoggerFactory;
 public final class PidHelper {
   private static final Logger log = LoggerFactory.getLogger(PidHelper.class);
 
-  private static String PID = "";
+  private static final String PID = findPid();
+
+  private static final long PID_AS_LONG = parsePid();
 
   public static String getPid() {
     return PID;
   }
 
-  public static void supplyIfAbsent(Supplier<Long> supplier) {
-    if (PID.isEmpty()) {
-      PID = Long.toString(supplier.get());
-    }
+  /** Returns 0 if the PID is not a number. */
+  public static long getPidAsLong() {
+    return PID_AS_LONG;
   }
 
-  static {
+  private static String findPid() {
+    String pid = "";
     if (Platform.isJavaVersionAtLeast(9)) {
       try {
-        PID =
-            Long.toString(
-                ((Supplier<Long>)
+        pid =
+            Strings.trim(
+                ((Supplier<String>)
                         Class.forName("datadog.trace.util.JDK9PidSupplier")
                             .getDeclaredConstructor()
                             .newInstance())
@@ -36,6 +38,29 @@ public final class PidHelper {
       } catch (Throwable e) {
         log.debug("JDK9PidSupplier not available", e);
       }
+    }
+    if (pid.isEmpty()) {
+      pid = Strings.trim(Fallback.supplier.get());
+    }
+    return pid;
+  }
+
+  private static long parsePid() {
+    if (!PID.isEmpty()) {
+      try {
+        return Long.parseLong(PID);
+      } catch (NumberFormatException e) {
+        log.warn("Cannot parse PID {} as number. Default to 0", PID, e);
+      }
+    }
+    return 0L;
+  }
+
+  public static final class Fallback {
+    static Supplier<String> supplier = () -> "";
+
+    public static void set(Supplier<String> supplier) {
+      Fallback.supplier = supplier;
     }
   }
 }

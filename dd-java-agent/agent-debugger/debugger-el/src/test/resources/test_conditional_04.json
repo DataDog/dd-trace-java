@@ -1,0 +1,12 @@
+{
+  "dsl": "this.container.msg == \"hello\"",
+  "json": {
+    "eq": [
+      {"getmember": [
+        {"ref": "this.container"},
+        "msg"
+      ]},
+      "hello"
+    ]
+  }
+}

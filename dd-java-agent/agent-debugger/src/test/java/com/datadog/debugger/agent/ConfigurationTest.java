@@ -8,6 +8,7 @@ import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SnapshotProbe;
+import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
@@ -19,17 +20,60 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import utils.TestHelper;
 
 public class ConfigurationTest {
 
   @Test
   public void getDefinitions() {
     Configuration config1 = createConfig1();
-    assertEquals(3, config1.getDefinitions().size());
+    assertEquals(4, config1.getDefinitions().size());
     Iterator<ProbeDefinition> iterator = config1.getDefinitions().iterator();
     assertEquals("probe1", iterator.next().getId());
     assertEquals("metric1", iterator.next().getId());
     assertEquals("log1", iterator.next().getId());
+    assertEquals("span1", iterator.next().getId());
+  }
+
+  @Test
+  public void deserializeMetricProbes() throws Exception {
+    String content = TestHelper.getFixtureContent("/test_metric_probe.json");
+    JsonAdapter<Configuration> adapter =
+        MoshiHelper.createMoshiConfig().adapter(Configuration.class);
+    Configuration config = adapter.fromJson(content);
+    ArrayList<MetricProbe> metricProbes = new ArrayList<>(config.getMetricProbes());
+    assertEquals(4, metricProbes.size());
+    assertEquals("datadog.debugger.calls", metricProbes.get(0).getMetricName());
+    assertEquals(
+        "ValueScript{expr=NumericLiteral{value=42}, dsl='42'}",
+        metricProbes.get(0).getValue().toString());
+    assertEquals("datadog.debugger.gauge_value", metricProbes.get(1).getMetricName());
+    assertEquals(
+        "ValueScript{expr=ValueRefExpression{symbolName='value'}, dsl='value'}",
+        metricProbes.get(1).getValue().toString());
+    assertEquals("datadog.debugger.refpathvalue", metricProbes.get(2).getMetricName());
+    assertEquals(
+        "ValueScript{expr=GetMemberExpression{target=ValueRefExpression{symbolName='obj'}, memberName='field'}, dsl='obj.field'}",
+        metricProbes.get(2).getValue().toString());
+    assertEquals("datadog.debugger.novalue", metricProbes.get(3).getMetricName());
+  }
+
+  @Test
+  public void deserializeLogProbes() throws Exception {
+    String content = TestHelper.getFixtureContent("/test_log_probe.json");
+    JsonAdapter<Configuration> adapter =
+        MoshiHelper.createMoshiConfig().adapter(Configuration.class);
+    Configuration config = adapter.fromJson(content);
+    ArrayList<LogProbe> logProbes = new ArrayList<>(config.getLogProbes());
+    assertEquals(1, logProbes.size());
+    LogProbe logProbe0 = logProbes.get(0);
+    assertEquals(6, logProbe0.getSegments().size());
+    assertEquals("this is a log line customized! uuid=", logProbe0.getSegments().get(0).getStr());
+    assertEquals("uuid", logProbe0.getSegments().get(1).getExpr());
+    assertEquals(" result=", logProbe0.getSegments().get(2).getStr());
+    assertEquals("result", logProbe0.getSegments().get(3).getExpr());
+    assertEquals(" garbageStart=", logProbe0.getSegments().get(4).getStr());
+    assertEquals("garbageStart", logProbe0.getSegments().get(5).getExpr());
   }
 
   @Test
@@ -137,10 +181,14 @@ public class ConfigurationTest {
     // log probe
     assertEquals(1, config0.getLogProbes().size());
     LogProbe logProbe1 = config0.getLogProbes().iterator().next();
-    assertEquals("this is a log line with arg={^arg}", logProbe1.getTemplate());
+    assertEquals("this is a log line with arg={arg}", logProbe1.getTemplate());
     assertEquals(2, logProbe1.getSegments().size());
     assertEquals("this is a log line with arg=", logProbe1.getSegments().get(0).getStr());
-    assertEquals("^arg", logProbe1.getSegments().get(1).getExpr());
+    assertEquals("arg", logProbe1.getSegments().get(1).getExpr());
+    // span probe
+    assertEquals(1, config0.getSpanProbes().size());
+    SpanProbe spanProbe1 = config0.getSpanProbes().iterator().next();
+    assertEquals("span", spanProbe1.getName());
   }
 
   private Configuration createConfig1() {
@@ -149,11 +197,8 @@ public class ConfigurationTest {
         createMetric("metric1", "metric_count", COUNT, "java.lang.String", "indexOf", "(String)");
     LogProbe log1 =
         createLog(
-            "log1",
-            "this is a log line with arg={^arg}",
-            "java.lang.String",
-            "indexOf",
-            "(String)");
+            "log1", "this is a log line with arg={arg}", "java.lang.String", "indexOf", "(String)");
+    SpanProbe span1 = createSpan("span1", "java.lang.String", "indexOf", "(String)", "span");
     Configuration.FilterList allowList =
         new Configuration.FilterList(
             Arrays.asList("java.lang.util"), Arrays.asList("java.lang.String"));
@@ -166,6 +211,7 @@ public class ConfigurationTest {
         Arrays.asList(probe1),
         Arrays.asList(metric1),
         Arrays.asList(log1),
+        Arrays.asList(span1),
         allowList,
         denyList,
         globalSampling);
@@ -178,10 +224,11 @@ public class ConfigurationTest {
     LogProbe log2 =
         createLog(
             "log2",
-            "{^transactionId}={^transactionStatus}, remaining: {{{count(^transactions)}}}",
+            "{transactionId}={transactionStatus}, remaining: {{{count(transactions)}}}",
             "java.lang.String",
             "indexOf",
             "(String)");
+    SpanProbe span2 = createSpan("span2", "java.lang.String", "indexOf", "(String)", "span");
     Configuration.FilterList allowList =
         new Configuration.FilterList(
             Arrays.asList("java.lang.util"), Arrays.asList("java.lang.String"));
@@ -194,6 +241,7 @@ public class ConfigurationTest {
         Arrays.asList(probe2),
         Arrays.asList(metric2),
         Arrays.asList(log2),
+        Arrays.asList(span2),
         allowList,
         denyList,
         globalSampling);
@@ -246,6 +294,19 @@ public class ConfigurationTest {
         .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
         .template(template)
         .tags("tag1:value1", "tag2:value2")
+        .build();
+  }
+
+  private static SpanProbe createSpan(
+      String id, String typeName, String methodName, String signature, String spanName) {
+    return SpanProbe.builder()
+        .language("java")
+        .probeId(id)
+        .active(true)
+        .where(typeName, methodName, signature)
+        .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
+        .tags("tag1:value1", "tag2:value2")
+        .name(spanName)
         .build();
   }
 }

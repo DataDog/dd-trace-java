@@ -2,7 +2,6 @@ package datadog.trace.core;
 
 import datadog.communication.monitor.Recording;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.api.StatsDClient;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
@@ -51,7 +50,6 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
         PendingTraceBuffer pendingTraceBuffer,
         TimeSource timeSource,
         boolean strictTraceWrites,
-        StatsDClient statsDClient,
         HealthMetrics healthMetrics) {
       this.tracer = tracer;
       this.pendingTraceBuffer = pendingTraceBuffer;
