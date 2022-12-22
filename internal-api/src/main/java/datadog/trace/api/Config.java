@@ -51,8 +51,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_EXTRACT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_INJECT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_INITIAL_POLL_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED;
@@ -275,6 +273,9 @@ import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_RESOLVER_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
+import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE;
+import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE_EXTRACT;
+import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE_INJECT;
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED;
@@ -325,6 +326,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -421,6 +423,8 @@ public class Config {
   private final boolean logExtractHeaderNames;
   private final Set<PropagationStyle> propagationStylesToExtract;
   private final Set<PropagationStyle> propagationStylesToInject;
+  private final Set<TracePropagationStyle> tracePropagationStylesToExtract;
+  private final Set<TracePropagationStyle> tracePropagationStylesToInject;
   private final int clockSyncPeriod;
 
   private final String dogStatsDNamedPipe;
@@ -782,10 +786,10 @@ public class Config {
       requestHeaderTags = configProvider.getMergedMap(HEADER_TAGS);
       responseHeaderTags = Collections.emptyMap();
       if (configProvider.isSet(REQUEST_HEADER_TAGS)) {
-        logIngoredSettingWarning(REQUEST_HEADER_TAGS, HEADER_TAGS, ".legacy.parsing.enabled");
+        logIgnoredSettingWarning(REQUEST_HEADER_TAGS, HEADER_TAGS, ".legacy.parsing.enabled");
       }
       if (configProvider.isSet(RESPONSE_HEADER_TAGS)) {
-        logIngoredSettingWarning(RESPONSE_HEADER_TAGS, HEADER_TAGS, ".legacy.parsing.enabled");
+        logIgnoredSettingWarning(RESPONSE_HEADER_TAGS, HEADER_TAGS, ".legacy.parsing.enabled");
       }
     } else {
       requestHeaderTags =
@@ -862,12 +866,92 @@ public class Config {
             PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED,
             DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED);
 
-    propagationStylesToExtract =
-        getPropagationStyleSetSettingFromEnvironmentOrDefault(
-            PROPAGATION_STYLE_EXTRACT, DEFAULT_PROPAGATION_STYLE_EXTRACT);
-    propagationStylesToInject =
-        getPropagationStyleSetSettingFromEnvironmentOrDefault(
-            PROPAGATION_STYLE_INJECT, DEFAULT_PROPAGATION_STYLE_INJECT);
+    {
+      // The dd.propagation.style.(extract|inject) settings have been deprecated in
+      // favor of dd.trace.propagation.style(|.extract|.inject) settings.
+      // The different propagation settings when set will be applied in the following order of
+      // precedence, and warnings will be logged for both deprecation and overrides.
+      // * dd.trace.propagation.style.(extract|inject)
+      // * dd.trace.propagation.style
+      // * dd.propagation.style.(extract|inject)
+      Set<PropagationStyle> deprecatedExtract =
+          getSettingsSetFromEnvironment(
+              PROPAGATION_STYLE_EXTRACT, PropagationStyle::valueOfConfigName);
+      Set<PropagationStyle> deprecatedInject =
+          getSettingsSetFromEnvironment(
+              PROPAGATION_STYLE_INJECT, PropagationStyle::valueOfConfigName);
+      Set<TracePropagationStyle> common =
+          getSettingsSetFromEnvironment(
+              TRACE_PROPAGATION_STYLE, TracePropagationStyle::valueOfDisplayName);
+      Set<TracePropagationStyle> extract =
+          getSettingsSetFromEnvironment(
+              TRACE_PROPAGATION_STYLE_EXTRACT, TracePropagationStyle::valueOfDisplayName);
+      Set<TracePropagationStyle> inject =
+          getSettingsSetFromEnvironment(
+              TRACE_PROPAGATION_STYLE_INJECT, TracePropagationStyle::valueOfDisplayName);
+      String extractOrigin = TRACE_PROPAGATION_STYLE_EXTRACT;
+      String injectOrigin = TRACE_PROPAGATION_STYLE_INJECT;
+      // Check if we should use the common setting for extraction
+      if (extract.isEmpty()) {
+        extract = common;
+        extractOrigin = TRACE_PROPAGATION_STYLE;
+      } else if (!common.isEmpty()) {
+        // The more specific settings will override the common setting, so log a warning
+        logOverriddenSettingWarning(
+            TRACE_PROPAGATION_STYLE, TRACE_PROPAGATION_STYLE_EXTRACT, extract);
+      }
+      // Check if we should use the common setting for injection
+      if (inject.isEmpty()) {
+        inject = common;
+        injectOrigin = TRACE_PROPAGATION_STYLE;
+      } else if (!common.isEmpty()) {
+        // The more specific settings will override the common setting, so log a warning
+        logOverriddenSettingWarning(
+            TRACE_PROPAGATION_STYLE, TRACE_PROPAGATION_STYLE_INJECT, inject);
+      }
+      // Check if we should use the deprecated setting for extraction
+      if (extract.isEmpty()) {
+        // If we don't have a new setting, we convert the deprecated one
+        extract = convertSettingsSet(deprecatedExtract, PropagationStyle::getNewStyles);
+        if (!extract.isEmpty()) {
+          logDeprecatedConvertedSetting(
+              PROPAGATION_STYLE_EXTRACT,
+              deprecatedExtract,
+              TRACE_PROPAGATION_STYLE_EXTRACT,
+              extract);
+        }
+      } else if (!deprecatedExtract.isEmpty()) {
+        // If we have a new setting, we log a warning
+        logOverriddenDeprecatedSettingWarning(PROPAGATION_STYLE_EXTRACT, extractOrigin, extract);
+      }
+      // Check if we should use the deprecated setting for injection
+      if (inject.isEmpty()) {
+        // If we don't have a new setting, we convert the deprecated one
+        inject = convertSettingsSet(deprecatedInject, PropagationStyle::getNewStyles);
+        if (!inject.isEmpty()) {
+          logDeprecatedConvertedSetting(
+              PROPAGATION_STYLE_INJECT, deprecatedInject, TRACE_PROPAGATION_STYLE_INJECT, inject);
+        }
+      } else if (!deprecatedInject.isEmpty()) {
+        // If we have a new setting, we log a warning
+        logOverriddenDeprecatedSettingWarning(PROPAGATION_STYLE_INJECT, injectOrigin, inject);
+      }
+      // Now we can check if we should pick the default injection/extraction
+      tracePropagationStylesToExtract =
+          extract.isEmpty() ? Collections.singleton(TracePropagationStyle.DATADOG) : extract;
+      tracePropagationStylesToInject =
+          inject.isEmpty() ? Collections.singleton(TracePropagationStyle.DATADOG) : inject;
+      // These setting are here for backwards compatibility until they can be removed in a major
+      // release of the tracer
+      propagationStylesToExtract =
+          deprecatedExtract.isEmpty()
+              ? Collections.singleton(PropagationStyle.DATADOG)
+              : deprecatedExtract;
+      propagationStylesToInject =
+          deprecatedInject.isEmpty()
+              ? Collections.singleton(PropagationStyle.DATADOG)
+              : deprecatedInject;
+    }
 
     clockSyncPeriod = configProvider.getInteger(CLOCK_SYNC_PERIOD, DEFAULT_CLOCK_SYNC_PERIOD);
 
@@ -1474,12 +1558,22 @@ public class Config {
     return logExtractHeaderNames;
   }
 
+  @Deprecated
   public Set<PropagationStyle> getPropagationStylesToExtract() {
     return propagationStylesToExtract;
   }
 
+  @Deprecated
   public Set<PropagationStyle> getPropagationStylesToInject() {
     return propagationStylesToInject;
+  }
+
+  public Set<TracePropagationStyle> getTracePropagationStylesToExtract() {
+    return tracePropagationStylesToExtract;
+  }
+
+  public Set<TracePropagationStyle> getTracePropagationStylesToInject() {
+    return tracePropagationStylesToInject;
   }
 
   public int getClockSyncPeriod() {
@@ -2395,13 +2489,40 @@ public class Config {
         Collections.singletonList(settingName), "", settingSuffix, defaultEnabled);
   }
 
-  private void logIngoredSettingWarning(
+  private void logIgnoredSettingWarning(
       String setting, String overridingSetting, String overridingSuffix) {
     log.warn(
         "Setting {} ignored since {}{} is enabled.",
         propertyNameToSystemPropertyName(setting),
         propertyNameToSystemPropertyName(overridingSetting),
         overridingSuffix);
+  }
+
+  private void logOverriddenSettingWarning(String setting, String overridingSetting, Object value) {
+    log.warn(
+        "Setting {} is overridden by setting {} with value {}.",
+        propertyNameToSystemPropertyName(setting),
+        propertyNameToSystemPropertyName(overridingSetting),
+        value);
+  }
+
+  private void logOverriddenDeprecatedSettingWarning(
+      String setting, String overridingSetting, Object value) {
+    log.warn(
+        "Setting {} is deprecated and overridden by setting {} with value {}.",
+        propertyNameToSystemPropertyName(setting),
+        propertyNameToSystemPropertyName(overridingSetting),
+        value);
+  }
+
+  private void logDeprecatedConvertedSetting(
+      String deprecatedSetting, Object oldValue, String newSetting, Object newValue) {
+    log.warn(
+        "Setting {} is deprecated and the value {} has been converted to {} for setting {}.",
+        propertyNameToSystemPropertyName(deprecatedSetting),
+        oldValue,
+        newValue,
+        propertyNameToSystemPropertyName(newSetting));
   }
 
   public boolean isTraceAnalyticsIntegrationEnabled(
@@ -2452,23 +2573,22 @@ public class Config {
     return Config.get().isTraceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled);
   }
 
-  /**
-   * Calls configProvider.getString(String, String) and converts the result to a set of strings
-   * splitting by space or comma.
-   */
-  private Set<PropagationStyle> getPropagationStyleSetSettingFromEnvironmentOrDefault(
-      final String name, final String defaultValue) {
-    final String value = configProvider.getString(name, defaultValue);
-    Set<PropagationStyle> result =
-        convertStringSetToPropagationStyleSet(parseStringIntoSetOfNonEmptyStrings(value));
+  private <T> Set<T> getSettingsSetFromEnvironment(String name, Function<String, T> mapper) {
+    final String value = configProvider.getString(name, "");
+    return convertStringSetToSet(name, parseStringIntoSetOfNonEmptyStrings(value), mapper);
+  }
 
-    if (result.isEmpty()) {
-      // Treat empty parsing result as no value and use default instead
-      result =
-          convertStringSetToPropagationStyleSet(parseStringIntoSetOfNonEmptyStrings(defaultValue));
+  private <F, T> Set<T> convertSettingsSet(Set<F> fromSet, Function<F, Iterable<T>> mapper) {
+    if (fromSet.isEmpty()) {
+      return Collections.emptySet();
     }
-
-    return result;
+    Set<T> result = new LinkedHashSet<>(fromSet.size());
+    for (F from : fromSet) {
+      for (T to : mapper.apply(from)) {
+        result.add(to);
+      }
+    }
+    return Collections.unmodifiableSet(result);
   }
 
   private static final String PREFIX = "dd.";
@@ -2531,16 +2651,21 @@ public class Config {
     return Collections.unmodifiableSet(result);
   }
 
-  @Nonnull
-  private static Set<PropagationStyle> convertStringSetToPropagationStyleSet(
-      final Set<String> input) {
+  private static <T> Set<T> convertStringSetToSet(
+      String setting, final Set<String> input, Function<String, T> mapper) {
+    if (input.isEmpty()) {
+      return Collections.emptySet();
+    }
     // Using LinkedHashSet to preserve original string order
-    final Set<PropagationStyle> result = new LinkedHashSet<>();
+    final Set<T> result = new LinkedHashSet<>();
     for (final String value : input) {
       try {
-        result.add(PropagationStyle.valueOf(value.toUpperCase()));
+        result.add(mapper.apply(value));
       } catch (final IllegalArgumentException e) {
-        log.debug("Cannot recognize config string value: {}, {}", value, PropagationStyle.class);
+        log.warn(
+            "Cannot recognize config string value {} for setting {}",
+            value,
+            propertyNameToSystemPropertyName(setting));
       }
     }
     return Collections.unmodifiableSet(result);
@@ -2775,10 +2900,10 @@ public class Config {
         + partialFlushMinSpans
         + ", traceStrictWritesEnabled="
         + traceStrictWritesEnabled
-        + ", propagationStylesToExtract="
-        + propagationStylesToExtract
-        + ", propagationStylesToInject="
-        + propagationStylesToInject
+        + ", tracePropagationStylesToExtract="
+        + tracePropagationStylesToExtract
+        + ", tracePropagationStylesToInject="
+        + tracePropagationStylesToInject
         + ", clockSyncPeriod="
         + clockSyncPeriod
         + ", jmxFetchEnabled="
