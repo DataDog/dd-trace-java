@@ -45,7 +45,7 @@ public class ConfigurationTest {
     assertEquals(4, metricProbes.size());
     assertEquals("datadog.debugger.calls", metricProbes.get(0).getMetricName());
     assertEquals(
-        "ValueScript{expr=NumericLiteral{value=42.0}, dsl='42'}",
+        "ValueScript{expr=NumericLiteral{value=42}, dsl='42'}",
         metricProbes.get(0).getValue().toString());
     assertEquals("datadog.debugger.gauge_value", metricProbes.get(1).getMetricName());
     assertEquals(
