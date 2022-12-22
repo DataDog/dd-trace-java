@@ -8,6 +8,13 @@ ext {
   enableJunitPlatform = true
 }
 
+// sun.misc.SharedSecrets is gone in later versions
+compileJava {
+  javaCompiler = javaToolchains.compilerFor {
+    languageVersion = JavaLanguageVersion.of(8)
+  }
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/tries.gradle"
 
