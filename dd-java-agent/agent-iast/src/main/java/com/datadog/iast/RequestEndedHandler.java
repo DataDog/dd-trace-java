@@ -1,7 +1,7 @@
 package com.datadog.iast;
 
-import static com.datadog.iast.IastTag.REQUEST_ANALYZED;
-import static com.datadog.iast.IastTag.REQUEST_SKIPPED;
+import static com.datadog.iast.IastTag.ANALYZED;
+import static com.datadog.iast.IastTag.SKIPPED;
 
 import com.datadog.iast.overhead.OverheadController;
 import com.datadog.iast.taint.TaintedObjects;
@@ -23,14 +23,14 @@ public class RequestEndedHandler implements BiFunction<RequestContext, IGSpanInf
   public Flow<Void> apply(final RequestContext requestContext, final IGSpanInfo igSpanInfo) {
     final IastRequestContext iastRequestContext = getIastRequestContext(requestContext);
     if (iastRequestContext != null) {
-      REQUEST_ANALYZED.setTagTop(requestContext.getTraceSegment());
+      ANALYZED.setTagTop(requestContext.getTraceSegment());
       final TaintedObjects taintedObjects = iastRequestContext.getTaintedObjects();
       if (taintedObjects != null) {
         taintedObjects.release();
       }
       overheadController.releaseRequest();
     } else {
-      REQUEST_SKIPPED.setTagTop(requestContext.getTraceSegment());
+      SKIPPED.setTagTop(requestContext.getTraceSegment());
     }
     return Flow.ResultFlow.empty();
   }
