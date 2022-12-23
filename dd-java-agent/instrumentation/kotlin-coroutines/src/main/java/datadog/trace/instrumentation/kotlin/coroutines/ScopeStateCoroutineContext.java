@@ -24,7 +24,8 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
     final AgentScope activeScope = AgentTracer.get().activeScope();
     if (activeScope != null) {
       activeScope.setAsyncPropagation(true);
-      continuationHandler = new ContinuationHandler(coroutineScopeState, activeScope.captureConcurrent());
+      continuationHandler =
+          new ContinuationHandler(coroutineScopeState, activeScope.captureConcurrent());
     }
   }
 
@@ -55,7 +56,8 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
     private final AgentScope.Continuation continuation;
     @Nullable private AgentScope continuationScope;
 
-    ContinuationHandler(final ScopeState coroutineScopeState, final AgentScope.Continuation continuation) {
+    ContinuationHandler(
+        final ScopeState coroutineScopeState, final AgentScope.Continuation continuation) {
       this.coroutineScopeState = coroutineScopeState;
       this.continuation = continuation;
     }
