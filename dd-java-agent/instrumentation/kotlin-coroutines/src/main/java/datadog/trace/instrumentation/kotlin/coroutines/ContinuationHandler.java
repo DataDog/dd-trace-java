@@ -36,6 +36,12 @@ public class ContinuationHandler implements Function1<Throwable, Unit> {
 
   @Override
   public Unit invoke(final Throwable throwable) {
+    closeScopeAndCancelContinuation();
+
+    return Unit.INSTANCE;
+  }
+
+  private void closeScopeAndCancelContinuation() {
     final ScopeState currentThreadScopeState = AgentTracer.get().newScopeState();
     currentThreadScopeState.fetchFromActive();
 
@@ -47,7 +53,5 @@ public class ContinuationHandler implements Function1<Throwable, Unit> {
     continuation.cancel();
 
     currentThreadScopeState.activate();
-
-    return Unit.INSTANCE;
   }
 }
