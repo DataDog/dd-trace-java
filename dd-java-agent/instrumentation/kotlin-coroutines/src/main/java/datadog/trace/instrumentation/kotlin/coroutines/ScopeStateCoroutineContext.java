@@ -20,12 +20,12 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
   @Nullable private ContinuationHandler continuationHandler;
 
   public ScopeStateCoroutineContext() {
+    scopeState = AgentTracer.get().newScopeState();
     final AgentScope activeScope = AgentTracer.get().activeScope();
     if (activeScope != null) {
       activeScope.setAsyncPropagation(true);
-      continuationHandler = new ContinuationHandler(activeScope.captureConcurrent());
+      continuationHandler = new ContinuationHandler(scopeState, activeScope.captureConcurrent());
     }
-    scopeState = AgentTracer.get().newScopeState();
   }
 
   @Override
@@ -51,10 +51,12 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
 
   public static class ContinuationHandler implements Function1<Throwable, Unit> {
 
+    private final ScopeState scopeState;
     private final AgentScope.Continuation continuation;
     @Nullable private AgentScope continuationScope;
 
-    ContinuationHandler(final AgentScope.Continuation continuation) {
+    ContinuationHandler(final ScopeState scopeState, final AgentScope.Continuation continuation) {
+      this.scopeState = scopeState;
       this.continuation = continuation;
     }
 
@@ -72,10 +74,17 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
 
     @Override
     public Unit invoke(final Throwable throwable) {
+      final ScopeState currentThreadState = AgentTracer.get().newScopeState();
+      currentThreadState.fetchFromActive();
+
+      scopeState.activate();
+
       if (continuationScope != null) {
         continuationScope.close();
       }
       continuation.cancel();
+
+      currentThreadState.activate();
 
       return Unit.INSTANCE;
     }
