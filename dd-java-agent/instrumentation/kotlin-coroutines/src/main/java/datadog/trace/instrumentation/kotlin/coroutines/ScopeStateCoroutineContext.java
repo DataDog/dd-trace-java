@@ -74,8 +74,8 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
 
     @Override
     public Unit invoke(final Throwable throwable) {
-      final ScopeState currentThreadState = AgentTracer.get().newScopeState();
-      currentThreadState.fetchFromActive();
+      final ScopeState currentThreadScopeState = AgentTracer.get().newScopeState();
+      currentThreadScopeState.fetchFromActive();
 
       coroutineScopeState.activate();
 
@@ -84,7 +84,7 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
       }
       continuation.cancel();
 
-      currentThreadState.activate();
+      currentThreadScopeState.activate();
 
       return Unit.INSTANCE;
     }
