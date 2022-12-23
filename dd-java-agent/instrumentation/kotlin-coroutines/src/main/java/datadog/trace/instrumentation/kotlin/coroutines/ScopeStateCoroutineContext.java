@@ -16,15 +16,15 @@ import org.jetbrains.annotations.Nullable;
 public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeState> {
 
   private static final Key<ScopeStateCoroutineContext> KEY = new ContextElementKey();
-  private final ScopeState scopeState;
+  private final ScopeState coroutineScopeState;
   @Nullable private ContinuationHandler continuationHandler;
 
   public ScopeStateCoroutineContext() {
-    scopeState = AgentTracer.get().newScopeState();
+    coroutineScopeState = AgentTracer.get().newScopeState();
     final AgentScope activeScope = AgentTracer.get().activeScope();
     if (activeScope != null) {
       activeScope.setAsyncPropagation(true);
-      continuationHandler = new ContinuationHandler(scopeState, activeScope.captureConcurrent());
+      continuationHandler = new ContinuationHandler(coroutineScopeState, activeScope.captureConcurrent());
     }
   }
 
@@ -39,7 +39,7 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
     final ScopeState oldScopeState = AgentTracer.get().newScopeState();
     oldScopeState.fetchFromActive();
 
-    scopeState.activate();
+    coroutineScopeState.activate();
 
     if (continuationHandler != null && !continuationHandler.isActive()) {
       continuationHandler.activate();
@@ -51,12 +51,12 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
 
   public static class ContinuationHandler implements Function1<Throwable, Unit> {
 
-    private final ScopeState scopeState;
+    private final ScopeState coroutineScopeState;
     private final AgentScope.Continuation continuation;
     @Nullable private AgentScope continuationScope;
 
-    ContinuationHandler(final ScopeState scopeState, final AgentScope.Continuation continuation) {
-      this.scopeState = scopeState;
+    ContinuationHandler(final ScopeState coroutineScopeState, final AgentScope.Continuation continuation) {
+      this.coroutineScopeState = coroutineScopeState;
       this.continuation = continuation;
     }
 
@@ -77,7 +77,7 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
       final ScopeState currentThreadState = AgentTracer.get().newScopeState();
       currentThreadState.fetchFromActive();
 
-      scopeState.activate();
+      coroutineScopeState.activate();
 
       if (continuationScope != null) {
         continuationScope.close();
