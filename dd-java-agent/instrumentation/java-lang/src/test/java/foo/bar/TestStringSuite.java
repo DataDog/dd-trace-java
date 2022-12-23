@@ -34,4 +34,18 @@ public class TestStringSuite {
     LOGGER.debug("After string subSequence {}", result);
     return result;
   }
+
+  public static String join(CharSequence delimiter, CharSequence[] elements) {
+    LOGGER.debug("Before string join {} with {}", elements, delimiter);
+    final String result = String.join(delimiter, elements);
+    LOGGER.debug("After string join {}", result);
+    return result;
+  }
+
+  public static String join(CharSequence delimiter, Iterable<? extends CharSequence> elements) {
+    LOGGER.debug("Before string join {} with {}", elements, delimiter);
+    final String result = String.join(delimiter, elements);
+    LOGGER.debug("After string join {}", result);
+    return result;
+  }
 }

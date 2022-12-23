@@ -23,4 +23,7 @@ public interface StringModule extends IastModule {
 
   void onStringSubSequence(
       @Nonnull String self, int beginIndex, int endIndex, @Nullable CharSequence result);
+
+  void onStringJoin(
+      @Nullable String result, @Nonnull CharSequence delimiter, @Nonnull CharSequence[] elements);
 }
