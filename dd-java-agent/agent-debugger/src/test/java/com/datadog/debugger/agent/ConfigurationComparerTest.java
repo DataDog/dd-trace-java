@@ -4,8 +4,8 @@ import static com.datadog.debugger.agent.Trie.reverseStr;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
-import com.datadog.debugger.probe.SnapshotProbe;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -24,8 +24,8 @@ class ConfigurationComparerTest {
   @Test
   public void newDefinitions() {
     Configuration empty = createConfig(Collections.emptyList());
-    SnapshotProbe probe =
-        SnapshotProbe.builder()
+    LogProbe probe =
+        LogProbe.builder()
             .probeId(PROBE_ID)
             .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
             .build();
@@ -41,8 +41,8 @@ class ConfigurationComparerTest {
   @Test
   public void removeDefinitions() {
     Configuration empty = createConfig(Collections.emptyList());
-    SnapshotProbe probe =
-        SnapshotProbe.builder()
+    LogProbe probe =
+        LogProbe.builder()
             .probeId(PROBE_ID)
             .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
             .build();
@@ -65,8 +65,8 @@ class ConfigurationComparerTest {
 
   @Test
   public void hasProbeRelatedChangesSame() {
-    SnapshotProbe probe =
-        SnapshotProbe.builder()
+    LogProbe probe =
+        LogProbe.builder()
             .probeId(PROBE_ID)
             .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
             .build();
@@ -79,8 +79,8 @@ class ConfigurationComparerTest {
   @Test
   public void hasProbeRelatedChangesAdded() {
     Configuration empty = createConfig(Collections.emptyList());
-    SnapshotProbe probe =
-        SnapshotProbe.builder()
+    LogProbe probe =
+        LogProbe.builder()
             .probeId(PROBE_ID)
             .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
             .build();
@@ -95,8 +95,8 @@ class ConfigurationComparerTest {
   @Test
   public void hasProbeRelatedChangesRemoved() {
     Configuration empty = createConfig(Collections.emptyList());
-    SnapshotProbe probe =
-        SnapshotProbe.builder()
+    LogProbe probe =
+        LogProbe.builder()
             .probeId(PROBE_ID)
             .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
             .build();
@@ -110,14 +110,14 @@ class ConfigurationComparerTest {
 
   @Test
   public void addDuplicate() {
-    SnapshotProbe probe =
-        SnapshotProbe.builder()
+    LogProbe probe =
+        LogProbe.builder()
             .probeId(PROBE_ID)
             .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
             .build();
     Configuration singleProbeConfig = createConfig(Collections.singletonList(probe));
-    SnapshotProbe duplicatedProbe =
-        SnapshotProbe.builder()
+    LogProbe duplicatedProbe =
+        LogProbe.builder()
             .probeId(PROBE_ID)
             .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
             .build();
@@ -136,14 +136,14 @@ class ConfigurationComparerTest {
 
   @Test
   public void removeDuplicate() {
-    SnapshotProbe probe =
-        SnapshotProbe.builder()
+    LogProbe probe =
+        LogProbe.builder()
             .probeId(PROBE_ID)
             .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
             .build();
     Configuration singleProbeConfig = createConfig(Collections.singletonList(probe));
-    SnapshotProbe duplicatedProbe =
-        SnapshotProbe.builder()
+    LogProbe duplicatedProbe =
+        LogProbe.builder()
             .probeId(PROBE_ID)
             .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
             .build();
@@ -176,11 +176,8 @@ class ConfigurationComparerTest {
 
   @Test
   public void hasProbeRelatedChangesWhenAllowListAddedWithProbe() {
-    SnapshotProbe probe =
-        SnapshotProbe.builder()
-            .probeId(PROBE_ID)
-            .where("com.datadog.Blocked", "method", null)
-            .build();
+    LogProbe probe =
+        LogProbe.builder().probeId(PROBE_ID).where("com.datadog.Blocked", "method", null).build();
 
     Map<String, InstrumentationResult> instrumentationResults = new HashMap<>();
     instrumentationResults.put(
@@ -216,11 +213,8 @@ class ConfigurationComparerTest {
 
   @Test
   public void hasProbeRelatedChangesWhenDenyListAddedWithProbe() {
-    SnapshotProbe probe =
-        SnapshotProbe.builder()
-            .probeId(PROBE_ID)
-            .where("com.datadog.Blocked", "method", null)
-            .build();
+    LogProbe probe =
+        LogProbe.builder().probeId(PROBE_ID).where("com.datadog.Blocked", "method", null).build();
 
     Map<String, InstrumentationResult> instrumentationResults = new HashMap<>();
     instrumentationResults.put(
@@ -245,11 +239,8 @@ class ConfigurationComparerTest {
 
   @Test
   public void hasProbeRelatedChangesWhenChangeDenyListAndAddingProbe() {
-    SnapshotProbe probe =
-        SnapshotProbe.builder()
-            .probeId(PROBE_ID)
-            .where("com.datadog.Blocked", "method", null)
-            .build();
+    LogProbe probe =
+        LogProbe.builder().probeId(PROBE_ID).where("com.datadog.Blocked", "method", null).build();
 
     Map<String, InstrumentationResult> instrumentationResults = new HashMap<>();
 
@@ -288,7 +279,7 @@ class ConfigurationComparerTest {
     Configuration config =
         createConfig(
             Arrays.asList(
-                SnapshotProbe.builder()
+                LogProbe.builder()
                     .probeId(PROBE_ID)
                     .where("java.lang.String", "indexOf", null)
                     .build()));
@@ -304,10 +295,7 @@ class ConfigurationComparerTest {
     Configuration config =
         createConfig(
             Arrays.asList(
-                SnapshotProbe.builder()
-                    .probeId(PROBE_ID)
-                    .where("String", "indexOf", null)
-                    .build()));
+                LogProbe.builder().probeId(PROBE_ID).where("String", "indexOf", null).build()));
     ConfigurationComparer configurationComparer =
         new ConfigurationComparer(empty, config, Collections.emptyMap());
     Trie allChangedClasses = configurationComparer.getAllChangedClasses();
@@ -320,7 +308,7 @@ class ConfigurationComparerTest {
     Configuration config =
         createConfig(
             Arrays.asList(
-                SnapshotProbe.builder()
+                LogProbe.builder()
                     .probeId(PROBE_ID)
                     .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
                     .build()));
@@ -333,24 +321,23 @@ class ConfigurationComparerTest {
 
   @Test
   public void allLoadedChangedClassesType() {
-    SnapshotProbe probe =
-        SnapshotProbe.builder().probeId(PROBE_ID).where("java.lang.String", "indexOf").build();
+    LogProbe probe =
+        LogProbe.builder().probeId(PROBE_ID).where("java.lang.String", "indexOf").build();
     doAllLoadedChangedClasses(probe, String.class, false, String.class, HashMap.class);
     doAllLoadedChangedClasses(probe, null, false, HashMap.class);
   }
 
   @Test
   public void allLoadedChangedClassesSimpleType() {
-    SnapshotProbe probe =
-        SnapshotProbe.builder().probeId(PROBE_ID).where("String", "indexOf").build();
+    LogProbe probe = LogProbe.builder().probeId(PROBE_ID).where("String", "indexOf").build();
     doAllLoadedChangedClasses(probe, String.class, false, String.class, HashMap.class);
     doAllLoadedChangedClasses(probe, null, false, HashMap.class);
   }
 
   @Test
   public void allLoadedChangedClasses() {
-    SnapshotProbe probe =
-        SnapshotProbe.builder()
+    LogProbe probe =
+        LogProbe.builder()
             .probeId(PROBE_ID)
             .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
             .build();
@@ -360,19 +347,16 @@ class ConfigurationComparerTest {
 
   @Test
   public void allLoadedChangedClassesSimpleFileName() {
-    SnapshotProbe probe =
-        SnapshotProbe.builder()
-            .probeId(PROBE_ID)
-            .where(null, null, null, 1966, "String.java")
-            .build();
+    LogProbe probe =
+        LogProbe.builder().probeId(PROBE_ID).where(null, null, null, 1966, "String.java").build();
     doAllLoadedChangedClasses(probe, String.class, false, String.class, HashMap.class);
     doAllLoadedChangedClasses(probe, null, false, HashMap.class);
   }
 
   @Test
   public void allLoadedChangedClassesTypeTopLevelClass() {
-    SnapshotProbe probe =
-        SnapshotProbe.builder()
+    LogProbe probe =
+        LogProbe.builder()
             .probeId(PROBE_ID)
             .where("com.datadog.debugger.agent.MyTopLevelClass", "process")
             .build();
@@ -381,15 +365,15 @@ class ConfigurationComparerTest {
 
   @Test
   public void allLoadedChangedClassesSimpleTypeTopLevelClass() {
-    SnapshotProbe probe =
-        SnapshotProbe.builder().probeId(PROBE_ID).where("MyTopLevelClass", "process").build();
+    LogProbe probe =
+        LogProbe.builder().probeId(PROBE_ID).where("MyTopLevelClass", "process").build();
     doAllLoadedChangedClasses(probe, MyTopLevelClass.class, true, MyTopLevelClass.class);
   }
 
   @Test
   public void allLoadedChangedClassesTopLevelClassFileName() {
-    SnapshotProbe probe =
-        SnapshotProbe.builder()
+    LogProbe probe =
+        LogProbe.builder()
             .probeId(PROBE_ID)
             .where(null, null, null, 8, "com/datadog/debugger/agent/TopLevelHelper.java")
             .build();
@@ -398,8 +382,8 @@ class ConfigurationComparerTest {
 
   @Test
   public void allLoadedChangedClassesTopLevelClassSimpleFileName() {
-    SnapshotProbe probe =
-        SnapshotProbe.builder()
+    LogProbe probe =
+        LogProbe.builder()
             .probeId(PROBE_ID)
             .where(null, null, null, 8, "TopLevelHelper.java")
             .build();
@@ -407,7 +391,7 @@ class ConfigurationComparerTest {
   }
 
   private void doAllLoadedChangedClasses(
-      SnapshotProbe probe,
+      LogProbe probe,
       Class<?> expectedClass,
       boolean withInstrumentationResult,
       Class<?>... loadedClass) {
@@ -438,7 +422,7 @@ class ConfigurationComparerTest {
     }
   }
 
-  private static Configuration createConfig(List<SnapshotProbe> snapshotProbes) {
-    return new Configuration(SERVICE_NAME, snapshotProbes);
+  private static Configuration createConfig(List<LogProbe> logProbes) {
+    return new Configuration(SERVICE_NAME, logProbes);
   }
 }

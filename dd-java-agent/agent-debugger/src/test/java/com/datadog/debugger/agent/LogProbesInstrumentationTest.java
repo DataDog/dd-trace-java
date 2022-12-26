@@ -8,7 +8,6 @@ import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
-import com.datadog.debugger.probe.SnapshotProbe;
 import com.datadog.debugger.probe.Where;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -267,11 +266,11 @@ public class LogProbesInstrumentationTest {
                             relatedProbe.getId(),
                             location,
                             Snapshot.MethodLocation.DEFAULT,
-                            relatedProbe instanceof SnapshotProbe
-                                ? ((SnapshotProbe) relatedProbe).getProbeCondition()
+                            relatedProbe instanceof LogProbe
+                                ? ((LogProbe) relatedProbe).getProbeCondition()
                                 : null,
                             relatedProbe.concatTags(),
-                            relatedProbe instanceof SnapshotProbe
+                            relatedProbe instanceof LogProbe
                                 ? new SnapshotSummaryBuilder(location)
                                 : new LogMessageTemplateSummaryBuilder((LogProbe) relatedProbe)))
                 .collect(Collectors.toList()));

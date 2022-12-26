@@ -1,8 +1,8 @@
 package com.datadog.debugger.agent;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
-import com.datadog.debugger.probe.SnapshotProbe;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
@@ -193,8 +193,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
       Set<String> methodNames = new HashSet<>();
       for (MethodNode methodNode : classNode.methods) {
         if (methodNames.add(methodNode.name)) {
-          SnapshotProbe probe =
-              SnapshotProbe.builder()
+          LogProbe probe =
+              LogProbe.builder()
                   .probeId(UUID.randomUUID().toString())
                   .where(classNode.name, methodNode.name)
                   .build();

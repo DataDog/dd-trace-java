@@ -2,7 +2,6 @@ package com.datadog.debugger.agent;
 
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
-import com.datadog.debugger.probe.SnapshotProbe;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.remoteconfig.state.ParsedConfigKey;
@@ -30,9 +29,6 @@ public class DebuggerProductChangesListener implements ProductListener {
     static final JsonAdapter<Configuration> CONFIGURATION_JSON_ADAPTER =
         MoshiHelper.createMoshiConfig().adapter(Configuration.class);
 
-    static final JsonAdapter<SnapshotProbe> SNAPSHOT_PROBE_JSON_ADAPTER =
-        MoshiHelper.createMoshiConfig().adapter(SnapshotProbe.class);
-
     static final JsonAdapter<MetricProbe> METRIC_PROBE_JSON_ADAPTER =
         MoshiHelper.createMoshiConfig().adapter(MetricProbe.class);
 
@@ -41,11 +37,6 @@ public class DebuggerProductChangesListener implements ProductListener {
 
     static Configuration deserializeConfiguration(byte[] content) throws IOException {
       return CONFIGURATION_JSON_ADAPTER.fromJson(
-          Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
-    }
-
-    static SnapshotProbe deserializeSnapshotProbe(byte[] content) throws IOException {
-      return SNAPSHOT_PROBE_JSON_ADAPTER.fromJson(
           Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
     }
 
@@ -83,10 +74,7 @@ public class DebuggerProductChangesListener implements ProductListener {
 
     String configId = configKey.getConfigId();
 
-    if (configId.startsWith("snapshotProbe_")) {
-      SnapshotProbe snapshotProbe = Adapter.deserializeSnapshotProbe(content);
-      configChunks.put(configId, (builder) -> builder.add(snapshotProbe));
-    } else if (configId.startsWith("metricProbe_")) {
+    if (configId.startsWith("metricProbe_")) {
       MetricProbe metricProbe = Adapter.deserializeMetricProbe(content);
       configChunks.put(configId, (builder) -> builder.add(metricProbe));
     } else if (configId.startsWith("logProbe_")) {

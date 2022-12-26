@@ -34,6 +34,9 @@ public class LogMessageTemplateSummaryBuilder implements SummaryBuilder {
 
   @Override
   public String build() {
+    if (logProbe.getSegments() == null) {
+      return "";
+    }
     StringBuilder sb = new StringBuilder();
     for (LogProbe.Segment segment : logProbe.getSegments()) {
       if (segment.getStr() != null) {
@@ -46,6 +49,9 @@ public class LogMessageTemplateSummaryBuilder implements SummaryBuilder {
   }
 
   private void executeExpressions(Snapshot.CapturedContext entry) {
+    if (logProbe.getSegments() == null) {
+      return;
+    }
     for (LogProbe.Segment segment : logProbe.getSegments()) {
       ValueScript parsedExr = segment.getParsedExpr();
       if (parsedExr != null) {
