@@ -26,37 +26,34 @@ public class SpanInstrumentor extends Instrumentor {
   }
 
   public void instrument() {
-    if (isLineProbe) {
-      fillLineMap();
-    } else {
-      spanVar = newVar(DEBUGGER_SPAN_TYPE);
-      processInstructions();
-      InsnList insnList = new InsnList();
-      ldc(insnList, spanName); // stack: [string]
-      pushTags(insnList, definition.getTags()); // stack: [string, tags]
-      invokeStatic(
-          insnList,
-          DEBUGGER_CONTEXT_TYPE,
-          "createSpan",
-          DEBUGGER_SPAN_TYPE,
-          STRING_TYPE,
-          Types.asArray(STRING_TYPE, 1)); // tags
-      // stack: [span]
-      insnList.add(new VarInsnNode(Opcodes.ASTORE, spanVar)); // stack: []
-      LabelNode initSpanLabel = new LabelNode();
-      insnList.add(initSpanLabel);
-      LabelNode endLabel = new LabelNode();
-      methodNode.instructions.insert(methodNode.instructions.getLast(), endLabel);
-      InsnList handler = new InsnList();
-      LabelNode handlerLabel = new LabelNode();
-      handler.add(handlerLabel);
-      debuggerSpanFinish(handler);
-      handler.add(new InsnNode(Opcodes.ATHROW));
-      methodNode.instructions.add(handler);
-      methodNode.tryCatchBlocks.add(
-          new TryCatchBlockNode(initSpanLabel, endLabel, handlerLabel, null));
-      methodNode.instructions.insert(methodEnterLabel, insnList);
-    }
+    // FIXME only method probes for now
+    spanVar = newVar(DEBUGGER_SPAN_TYPE);
+    processInstructions();
+    InsnList insnList = new InsnList();
+    ldc(insnList, spanName); // stack: [string]
+    pushTags(insnList, definition.getTags()); // stack: [string, tags]
+    invokeStatic(
+        insnList,
+        DEBUGGER_CONTEXT_TYPE,
+        "createSpan",
+        DEBUGGER_SPAN_TYPE,
+        STRING_TYPE,
+        Types.asArray(STRING_TYPE, 1)); // tags
+    // stack: [span]
+    insnList.add(new VarInsnNode(Opcodes.ASTORE, spanVar)); // stack: []
+    LabelNode initSpanLabel = new LabelNode();
+    insnList.add(initSpanLabel);
+    LabelNode endLabel = new LabelNode();
+    methodNode.instructions.insert(methodNode.instructions.getLast(), endLabel);
+    InsnList handler = new InsnList();
+    LabelNode handlerLabel = new LabelNode();
+    handler.add(handlerLabel);
+    debuggerSpanFinish(handler);
+    handler.add(new InsnNode(Opcodes.ATHROW));
+    methodNode.instructions.add(handler);
+    methodNode.tryCatchBlocks.add(
+        new TryCatchBlockNode(initSpanLabel, endLabel, handlerLabel, null));
+    methodNode.instructions.insert(methodEnterLabel, insnList);
   }
 
   @Override

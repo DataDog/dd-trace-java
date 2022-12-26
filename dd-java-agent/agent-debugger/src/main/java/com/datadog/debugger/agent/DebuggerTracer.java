@@ -28,9 +28,9 @@ public class DebuggerTracer implements DebuggerContext.Tracer {
     return new DebuggerSpanImpl(dynamicSpan, scope);
   }
 
-  private static class DebuggerSpanImpl implements DebuggerSpan {
-    private final AgentSpan underlyingSpan;
-    private final AgentScope currentScope;
+  static class DebuggerSpanImpl implements DebuggerSpan {
+    final AgentSpan underlyingSpan;
+    final AgentScope currentScope;
 
     public DebuggerSpanImpl(AgentSpan underlyingSpan, AgentScope currentScope) {
       this.underlyingSpan = underlyingSpan;
