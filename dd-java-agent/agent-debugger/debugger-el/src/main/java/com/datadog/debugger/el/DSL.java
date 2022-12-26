@@ -25,6 +25,7 @@ import com.datadog.debugger.el.predicates.OrPredicate;
 import com.datadog.debugger.el.values.BooleanValue;
 import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
+import com.datadog.debugger.el.values.NullValue;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.ObjectValue;
 import com.datadog.debugger.el.values.StringValue;
@@ -126,6 +127,10 @@ public class DSL {
 
   public static ListValue value(Collection<?> value) {
     return new ListValue(value);
+  }
+
+  public static NullValue nullValue() {
+    return NullValue.INSTANCE;
   }
 
   public static MapValue value(Map<?, ?> value) {
