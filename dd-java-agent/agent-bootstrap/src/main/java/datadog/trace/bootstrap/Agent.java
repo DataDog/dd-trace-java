@@ -27,6 +27,7 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
+import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -477,6 +478,8 @@ public class Agent {
           tracerInstallerClass.getMethod(
               "installGlobalTracer", scoClass, ProfilingContextIntegration.class);
       tracerInstallerMethod.invoke(null, sco, createProfilingContextIntegration());
+    } catch (final FatalAgentMisconfigurationError ex) {
+      throw ex;
     } catch (final Throwable ex) {
       log.error("Throwable thrown while installing the Datadog Tracer", ex);
     }

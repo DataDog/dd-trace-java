@@ -102,12 +102,6 @@ public class WriterFactory {
                 .trackType(trackType)
                 .build();
       } else {
-        final String apiKey = config.getApiKey();
-        if (apiKey == null || apiKey.isEmpty()) {
-          log.warn("Api Key has not been detected, using PrinterWriter.");
-          return new PrintingWriter(System.out, true);
-        }
-
         HttpUrl hostUrl = null;
         if (config.getCiVisibilityAgentlessUrl() != null) {
           hostUrl = HttpUrl.get(config.getCiVisibilityAgentlessUrl());

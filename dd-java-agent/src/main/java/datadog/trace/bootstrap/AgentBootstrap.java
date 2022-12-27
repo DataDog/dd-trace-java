@@ -15,7 +15,10 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.CodeSource;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.jar.JarFile;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -43,6 +46,7 @@ import java.util.regex.Pattern;
  */
 public final class AgentBootstrap {
   private static final Class<?> thisClass = AgentBootstrap.class;
+  private static final int MAX_EXCEPTION_CHAIN_LENGTH = 99;
 
   public static void premain(final String agentArgs, final Instrumentation inst) {
     agentmain(agentArgs, inst);
@@ -62,10 +66,27 @@ public final class AgentBootstrap {
       final Method startMethod = agentClass.getMethod("start", Instrumentation.class, URL.class);
       startMethod.invoke(null, inst, agentJarURL);
     } catch (final Throwable ex) {
+      if (exceptionCauseChainContains(
+          ex, "datadog.trace.util.throwable.FatalAgentMisconfigurationError")) {
+        throw new Error(ex);
+      }
       // Don't rethrow.  We don't have a log manager here, so just print.
       System.err.println("ERROR " + thisClass.getName());
       ex.printStackTrace();
     }
+  }
+
+  static boolean exceptionCauseChainContains(Throwable ex, String exClassName) {
+    Set<Throwable> stack = Collections.newSetFromMap(new IdentityHashMap<Throwable, Boolean>());
+    Throwable t = ex;
+    while (t != null && stack.add(t) && stack.size() <= MAX_EXCEPTION_CHAIN_LENGTH) {
+      // cannot do an instanceof check since most of the agent's code is loaded by an isolated CL
+      if (t.getClass().getName().equals(exClassName)) {
+        return true;
+      }
+      t = t.getCause();
+    }
+    return false;
   }
 
   private static boolean checkAndLogIfLessThanJava8() {
