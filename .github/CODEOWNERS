@@ -3,8 +3,14 @@
 
 * @DataDog/apm-java
 
-dd-java-agent/agent-profiling/  @DataDog/profiling-java
-dd-smoke-tests/profiling-integration-tests/ @DataDog/profiling-java
+dd-java-agent/agent-profiling/                                                             @DataDog/profiling-java
+dd-java-agent/agent-crashtracking/                                                         @DataDog/profiling-java
+dd-java-agent/instrumentation/exception-profiling/                                         @DataDog/profiling-java
+dd-java-agent/instrumentation/java-directbytebuffer/                                       @DataDog/profiling-java
+dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/jfr/   @DataDog/profiling-java
+dd-java-agent/agent-bootstrap/src/main/java11/datadog/trace/bootstrap/instrumentation/jfr/ @DataDog/profiling-java
+dd-trace-core/jfr-openjdk/                                                                 @DataDog/profiling-java
+dd-smoke-tests/profiling-integration-tests/                                                @DataDog/profiling-java
 
 # @ValentinZakharov is not in the @DataDog org :( so add him here
 dd-java-agent/appsec/  @DataDog/appsec-java @ValentinZakharov

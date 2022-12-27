@@ -26,7 +26,7 @@ public class MetricProbe extends ProbeDefinition {
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
   public MetricProbe() {
-    this(LANGUAGE, null, true, null, null, MetricKind.COUNT, null, null);
+    this(LANGUAGE, null, true, null, null, MethodLocation.DEFAULT, MetricKind.COUNT, null, null);
   }
 
   public MetricProbe(
@@ -35,10 +35,11 @@ public class MetricProbe extends ProbeDefinition {
       boolean active,
       String[] tagStrs,
       Where where,
+      MethodLocation evaluateAt,
       MetricKind kind,
       String metricName,
       ValueScript value) {
-    super(language, probeId, active, tagStrs, where);
+    super(language, probeId, active, tagStrs, where, evaluateAt);
     this.kind = kind;
     this.metricName = metricName;
     this.value = value;
@@ -69,83 +70,10 @@ public class MetricProbe extends ProbeDefinition {
     return new Builder();
   }
 
-  public static class Builder {
-    private String language = LANGUAGE;
-    private String metricId;
-    private boolean active = true;
-    private String[] tagStrs;
-    private Where where;
+  public static class Builder extends ProbeDefinition.Builder<Builder> {
     private MetricKind kind;
     private String metricName;
     private ValueScript valueScript;
-
-    public Builder language(String language) {
-      this.language = language;
-      return this;
-    }
-
-    public Builder metricId(String metricId) {
-      this.metricId = metricId;
-      return this;
-    }
-
-    public Builder active(boolean active) {
-      this.active = active;
-      return this;
-    }
-
-    public Builder tags(String... tagStrs) {
-      this.tagStrs = tagStrs;
-      return this;
-    }
-
-    public Builder where(Where where) {
-      this.where = where;
-      return this;
-    }
-
-    public Builder where(String typeName, String methodName) {
-      return where(new Where(typeName, methodName, null, (Where.SourceLine[]) null, null));
-    }
-
-    public Builder where(String typeName, String methodName, String signature) {
-      return where(new Where(typeName, methodName, signature, (Where.SourceLine[]) null, null));
-    }
-
-    public Builder where(String typeName, String methodName, String signature, String... lines) {
-      return where(new Where(typeName, methodName, signature, Where.sourceLines(lines), null));
-    }
-
-    public Builder where(String sourceFile, String... lines) {
-      return where(new Where(null, null, null, lines, sourceFile));
-    }
-
-    public Builder where(
-        String typeName, String methodName, String signature, int codeLine, String source) {
-      return where(
-          new Where(
-              typeName,
-              methodName,
-              signature,
-              new Where.SourceLine[] {new Where.SourceLine(codeLine)},
-              source));
-    }
-
-    public Builder where(
-        String typeName,
-        String methodName,
-        String signature,
-        int codeLineFrom,
-        int codeLineTill,
-        String source) {
-      return where(
-          new Where(
-              typeName,
-              methodName,
-              signature,
-              new Where.SourceLine[] {new Where.SourceLine(codeLineFrom, codeLineTill)},
-              source));
-    }
 
     public Builder kind(MetricKind kind) {
       this.kind = kind;
@@ -164,7 +92,7 @@ public class MetricProbe extends ProbeDefinition {
 
     public MetricProbe build() {
       return new MetricProbe(
-          language, metricId, active, tagStrs, where, kind, metricName, valueScript);
+          language, probeId, active, tagStrs, where, evaluateAt, kind, metricName, valueScript);
     }
   }
 
@@ -180,6 +108,7 @@ public class MetricProbe extends ProbeDefinition {
         && Arrays.equals(tags, that.tags)
         && Objects.equals(tagMap, that.tagMap)
         && Objects.equals(where, that.where)
+        && Objects.equals(evaluateAt, that.evaluateAt)
         && kind == that.kind
         && Objects.equals(metricName, that.metricName)
         && Objects.equals(value, that.value);
@@ -188,7 +117,8 @@ public class MetricProbe extends ProbeDefinition {
   @Generated
   @Override
   public int hashCode() {
-    int result = Objects.hash(language, id, active, tagMap, where, kind, metricName, value);
+    int result =
+        Objects.hash(language, id, active, tagMap, where, evaluateAt, kind, metricName, value);
     result = 31 * result + Arrays.hashCode(tags);
     return result;
   }
@@ -211,6 +141,8 @@ public class MetricProbe extends ProbeDefinition {
         + tagMap
         + ", where="
         + where
+        + ", evaluateAt="
+        + evaluateAt
         + ", kind="
         + kind
         + ", metricName='"

@@ -53,6 +53,11 @@ public final class TypePoolFacade implements TypePool, SharedTypePools.Supplier 
   }
 
   @Override
+  public void clear() {
+    TypeFactory.clear();
+  }
+
+  @Override
   public Resolution describe(String name) {
     // describe elements as deferred types, lazily evaluated using the current context
     TypeDescription type = name.charAt(0) == '[' ? findDescriptor(name) : findType(name);
@@ -61,7 +66,4 @@ public final class TypePoolFacade implements TypePool, SharedTypePools.Supplier 
     }
     return new Resolution.Simple(type);
   }
-
-  @Override
-  public void clear() {}
 }

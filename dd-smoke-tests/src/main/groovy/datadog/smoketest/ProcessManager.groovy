@@ -61,15 +61,7 @@ abstract class ProcessManager extends Specification {
   def logFilePath = logFilePaths[0]
 
   def setup() {
-    testedProcesses.each { tp ->
-      try {
-        // TODO: once java7 support is dropped use testedProcess.isAlive() instead
-        tp.exitValue()
-        assert false: "Process not alive before test"
-      } catch (IllegalThreadStateException ignored ) {
-        // expected
-      }
-    }
+    testedProcesses.each { tp -> tp.isAlive() }
   }
 
   def setupSpec() {

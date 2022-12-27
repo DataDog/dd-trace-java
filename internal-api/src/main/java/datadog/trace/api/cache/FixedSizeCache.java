@@ -126,6 +126,20 @@ abstract class FixedSizeCache<K, V> implements DDCache<K, V> {
     }
   }
 
+  static final class IdentityHash<K, V> extends FixedSizeCache<K, V> {
+    IdentityHash(int capacity) {
+      super(capacity);
+    }
+
+    int hash(K key) {
+      return System.identityHashCode(key);
+    }
+
+    boolean equals(K key, Pair<K, V> current) {
+      return key == current.getLeft();
+    }
+  }
+
   static final class ArrayHash<K, V> extends FixedSizeCache<K[], V> {
     ArrayHash(int capacity) {
       super(capacity);

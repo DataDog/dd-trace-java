@@ -4,7 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -21,7 +21,7 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Traci
 
   public static final String EXEC_NAME = "java_concurrent";
 
-  private final boolean TRACE_ALL_EXECUTORS = Config.get().isTraceExecutorsAll();
+  private final boolean TRACE_ALL_EXECUTORS = InstrumenterConfig.get().isTraceExecutorsAll();
 
   /**
    * Only apply executor instrumentation to whitelisted executors. To apply to all executors, use
@@ -43,7 +43,7 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Traci
         "scala.concurrent.impl.ExecutionContextImpl"
       };
 
-      final Set<String> executors = new HashSet<>(Config.get().getTraceExecutors());
+      final Set<String> executors = new HashSet<>(InstrumenterConfig.get().getTraceExecutors());
       executors.addAll(Arrays.asList(whitelist));
 
       PERMITTED_EXECUTORS = executors.toArray(new String[0]);

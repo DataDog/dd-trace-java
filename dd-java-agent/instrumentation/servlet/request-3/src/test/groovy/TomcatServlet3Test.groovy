@@ -4,6 +4,7 @@ import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.api.CorrelationIdentifier
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
+import datadog.trace.instrumentation.servlet3.TestServlet3
 import org.apache.catalina.AccessLog
 import org.apache.catalina.Context
 import org.apache.catalina.connector.Request
@@ -20,13 +21,13 @@ import spock.lang.Unroll
 import javax.servlet.Servlet
 import javax.servlet.ServletException
 
-import static TestServlet3.SERVLET_TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
+import static datadog.trace.instrumentation.servlet3.TestServlet3.SERVLET_TIMEOUT
 
 @Unroll
 abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> {
@@ -115,7 +116,7 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.throwsException) {
       // Exception classes get wrapped in ServletException
-      ["error.msg": { endpoint == EXCEPTION ? "Servlet execution threw an exception" : it == endpoint.body },
+      ["error.message": { endpoint == EXCEPTION ? "Servlet execution threw an exception" : it == endpoint.body },
         "error.type": { it == ServletException.name || it == InputMismatchException.name },
         "error.stack": String]
     } else {
@@ -156,7 +157,7 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
         }
         "servlet.path" "/dispatch$endpoint.path"
         if (endpoint.throwsException) {
-          "error.msg" endpoint.body
+          "error.message" endpoint.body
           "error.type" { it == Exception.name || it == InputMismatchException.name }
           "error.stack" String
         }

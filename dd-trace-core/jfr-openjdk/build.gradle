@@ -11,7 +11,7 @@ apply plugin: 'idea'
 dependencies {
   api deps.slf4j
   api project(':dd-trace-core')
-  api project(':internal-api:internal-api-8')
+  api project(':internal-api')
 
   testImplementation project(':dd-java-agent:agent-profiling:profiling-controller')
   testImplementation project(':dd-java-agent:agent-profiling:profiling-controller-openjdk')
@@ -25,12 +25,11 @@ dependencies {
  * We force IDEA to treat this as Java11 project with 'idea' plugin below.
  * We run tests only on Java11+.
  */
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
-
 [JavaCompile, GroovyCompile].each {
   tasks.withType(it).configureEach {
     setJavaVersion(it, 11)
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
     // Disable '-processing' because some annotations are not claimed.
     // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
     // Disable '-path' because we do not have some of the paths seem to be missing.

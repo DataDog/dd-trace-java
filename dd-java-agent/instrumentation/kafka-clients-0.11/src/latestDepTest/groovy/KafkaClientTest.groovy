@@ -1,5 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.Platform
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
@@ -164,18 +163,22 @@ class KafkaClientTest extends AgentTestRunner {
     new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[0][2].traceId}"
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
 
-    if (Platform.isJavaVersionAtLeast(8)) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-      verifyAll(first) {
-        edgeTags == ["topic:$SHARED_TOPIC".toString(), "type:internal"]
-        edgeTags.size() == 2
-      }
+    StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+    verifyAll(first) {
+      edgeTags == ["direction:out", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
+      edgeTags.size() == 3
+    }
 
-      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
-      verifyAll(second) {
-        edgeTags == ["group:sender", "partition:" + received.partition(), "topic:$SHARED_TOPIC".toString(), "type:kafka"]
-        edgeTags.size() == 4
-      }
+    StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+    verifyAll(second) {
+      edgeTags == [
+        "direction:in",
+        "group:sender",
+        "partition:" + received.partition(),
+        "topic:$SHARED_TOPIC".toString(),
+        "type:kafka"
+      ]
+      edgeTags.size() == 5
     }
 
     cleanup:
@@ -285,18 +288,22 @@ class KafkaClientTest extends AgentTestRunner {
     new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[0][2].traceId}"
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
 
-    if (Platform.isJavaVersionAtLeast(8)) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-      verifyAll(first) {
-        edgeTags == ["topic:$SHARED_TOPIC".toString(), "type:internal"]
-        edgeTags.size() == 2
-      }
+    StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+    verifyAll(first) {
+      edgeTags == ["direction:out", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
+      edgeTags.size() == 3
+    }
 
-      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
-      verifyAll(second) {
-        edgeTags == ["group:sender", "partition:" + received.partition(), "topic:$SHARED_TOPIC".toString(), "type:kafka"]
-        edgeTags.size() == 4
-      }
+    StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+    verifyAll(second) {
+      edgeTags == [
+        "direction:in",
+        "group:sender",
+        "partition:" + received.partition(),
+        "topic:$SHARED_TOPIC".toString(),
+        "type:kafka"
+      ]
+      edgeTags.size() == 5
     }
 
     cleanup:
@@ -868,18 +875,22 @@ class KafkaClientTest extends AgentTestRunner {
       }
     }
 
-    if (Platform.isJavaVersionAtLeast(8)) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-      verifyAll(first) {
-        edgeTags == ["topic:$SHARED_TOPIC".toString(), "type:internal"]
-        edgeTags.size() == 2
-      }
+    StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+    verifyAll(first) {
+      edgeTags == ["direction:out", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
+      edgeTags.size() == 3
+    }
 
-      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
-      verifyAll(second) {
-        edgeTags == ["group:sender", "partition:" + partition, "topic:$SHARED_TOPIC".toString(), "type:kafka"]
-        edgeTags.size() == 4
-      }
+    StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+    verifyAll(second) {
+      edgeTags == [
+        "direction:in",
+        "group:sender",
+        "partition:" + partition,
+        "topic:$SHARED_TOPIC".toString(),
+        "type:kafka"
+      ]
+      edgeTags.size() == 5
     }
 
     cleanup:

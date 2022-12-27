@@ -49,6 +49,10 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
   public static final String SAMPLE_RATE_KEY = "_sample_rate";
 
+  public static final String SPAN_SAMPLING_MECHANISM_TAG = "_dd.span_sampling.mechanism";
+  public static final String SPAN_SAMPLING_RULE_RATE_TAG = "_dd.span_sampling.rule_rate";
+  public static final String SPAN_SAMPLING_MAX_PER_SECOND_TAG = "_dd.span_sampling.max_per_second";
+
   private static final DDCache<String, UTF8BytesString> THREAD_NAMES =
       DDCaches.newFixedSizeCache(256);
 
@@ -286,16 +290,16 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
 
   public void forceKeep() {
     // set trace level sampling priority
-    getRootSpanContextOrThis().forceKeepThisSpan();
+    getRootSpanContextOrThis().forceKeepThisSpan(SamplingMechanism.MANUAL);
   }
 
-  private void forceKeepThisSpan() {
+  private void forceKeepThisSpan(byte samplingMechanism) {
     // if the user really wants to keep this trace chunk, we will let them,
     // even if the old sampling priority and mechanism have already propagated
     if (SAMPLING_PRIORITY_UPDATER.getAndSet(this, PrioritySampling.USER_KEEP)
         == PrioritySampling.UNSET) {
       datadogTags.updateTraceSamplingPriority(
-          PrioritySampling.USER_KEEP, SamplingMechanism.MANUAL, serviceName);
+          PrioritySampling.USER_KEEP, samplingMechanism, serviceName);
     }
   }
 
@@ -369,6 +373,17 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
   /** @return the sampling priority of this span's trace, or null if no priority has been set */
   public int getSamplingPriority() {
     return getRootSpanContextOrThis().samplingPriority;
+  }
+
+  public void setSpanSamplingPriority(double rate, int limit) {
+    synchronized (unsafeTags) {
+      forceKeepThisSpan(SamplingMechanism.SPAN_SAMPLING_RATE);
+      unsafeSetTag(SPAN_SAMPLING_MECHANISM_TAG, SamplingMechanism.SPAN_SAMPLING_RATE);
+      unsafeSetTag(SPAN_SAMPLING_RULE_RATE_TAG, rate);
+      if (limit != Integer.MAX_VALUE) {
+        unsafeSetTag(SPAN_SAMPLING_MAX_PER_SECOND_TAG, limit);
+      }
+    }
   }
 
   /**

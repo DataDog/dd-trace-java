@@ -6,7 +6,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /** A simple way to detect the current operating system */
-enum OperatingSystem {
+public enum OperatingSystem {
   linux("Linux", "linux"),
   macos("Mac OS X", "macOS", "mac"),
   unknown();

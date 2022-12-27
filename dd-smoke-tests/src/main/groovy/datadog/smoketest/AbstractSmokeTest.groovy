@@ -93,8 +93,20 @@ abstract class AbstractSmokeTest extends ProcessManager {
     "-Ddd.profiling.url=${getProfilingUrl()}",
     "-Ddd.profiling.async.enabled=true",
     "-Ddd.profiling.async.wall.enabled=true",
+    "-Ddd.profiling.async.alloc.enabled=" + !isIBM,
+    "-Ddd.profiling.async.cstack=dwarf",
     "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
     "-Dorg.slf4j.simpleLogger.defaultLogLevel=${logLevel()}"
+  ]
+
+  @Shared
+  protected String[] nativeJavaProperties = [
+    "${getMaxMemoryArgumentForFork()}",
+    "${getMinMemoryArgumentForFork()}",
+    "-Ddd.trace.agent.port=${server.address.port}",
+    "-Ddd.service.name=${SERVICE_NAME}",
+    "-Ddd.env=${ENV}",
+    "-Ddd.version=${VERSION}"
   ]
 
   def setup() {

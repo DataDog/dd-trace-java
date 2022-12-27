@@ -4,7 +4,6 @@ plugins {
 }
 
 ext {
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
   // TODO Java 17: This version of spring-boot doesn't support Java 17
   maxJavaVersionForTests = JavaVersion.VERSION_15
 }
@@ -39,16 +38,16 @@ jar {
 }
 
 shadowJar {
-  configurations = [project.configurations.runtimeClasspath, project.configurations.main_java8RuntimeClasspath]
+  configurations = [project.configurations.runtimeClasspath]
 }
 
 dependencies {
-  main_java8Implementation 'org.springframework.boot:spring-boot-starter-web:1.5.18.RELEASE'
-  main_java8Implementation 'io.grpc:grpc-netty-shaded:1.42.2'
-  main_java8Implementation 'io.grpc:grpc-protobuf:1.42.2'
-  main_java8Implementation 'io.grpc:grpc-stub:1.42.2'
-  main_java8Implementation 'org.apache.tomcat:annotations-api:6.0.53'
-  main_java8Implementation 'com.google.cloud:google-cloud-spanner:1.61.0'
+  implementation 'org.springframework.boot:spring-boot-starter-web:1.5.18.RELEASE'
+  implementation 'io.grpc:grpc-netty-shaded:1.42.2'
+  implementation 'io.grpc:grpc-protobuf:1.42.2'
+  implementation 'io.grpc:grpc-stub:1.42.2'
+  implementation 'org.apache.tomcat:annotations-api:6.0.53'
+  implementation 'com.google.cloud:google-cloud-spanner:1.61.0'
 
   testImplementation project(':dd-smoke-tests')
 }

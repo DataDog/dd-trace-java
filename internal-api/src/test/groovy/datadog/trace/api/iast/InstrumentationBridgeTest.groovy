@@ -1,129 +1,58 @@
 package datadog.trace.api.iast
 
-
+import datadog.trace.api.iast.propagation.StringModule
+import datadog.trace.api.iast.sink.CommandInjectionModule
+import datadog.trace.api.iast.sink.LdapInjectionModule
+import datadog.trace.api.iast.sink.PathTraversalModule
+import datadog.trace.api.iast.sink.SqlInjectionModule
+import datadog.trace.api.iast.sink.WeakCipherModule
+import datadog.trace.api.iast.sink.WeakHashModule
+import datadog.trace.api.iast.source.WebModule
 import datadog.trace.test.util.DDSpecification
 
 class InstrumentationBridgeTest extends DDSpecification {
 
-  def "bridge calls module when a new hash is detected"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
+  private final static BRIDGE_MODULES = [
+    WeakCipherModule,
+    WeakHashModule,
+    WebModule,
+    StringModule,
+    SqlInjectionModule,
+    CommandInjectionModule,
+    PathTraversalModule,
+    LdapInjectionModule
+  ]
 
-    when:
-    InstrumentationBridge.onMessageDigestGetInstance('SHA-1')
-
-    then:
-    1 * module.onHashingAlgorithm('SHA-1')
+  def cleanup() {
+    InstrumentationBridge.clearIastModules()
   }
 
-  def "bridge calls don't fail with null module when a new hash is detected"() {
+  void '#module can be registered'(final Class<? extends IastModule> module) {
     setup:
-    InstrumentationBridge.registerIastModule(null)
+    final instance = Mock(module)
+    InstrumentationBridge.registerIastModule(instance)
 
     when:
-    InstrumentationBridge.onMessageDigestGetInstance('SHA-1')
+    def result = InstrumentationBridge.getIastModule(module)
 
     then:
-    noExceptionThrown()
+    instance == result
+
+    where:
+    module << BRIDGE_MODULES
   }
 
-  def "bridge calls don't leak exceptions when a new hash is detected"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
-
+  void 'unsupported modules throw exceptions'() {
     when:
-    InstrumentationBridge.onMessageDigestGetInstance('SHA-1')
+    InstrumentationBridge.registerIastModule(Mock(IastModule))
 
     then:
-    1 * module.onHashingAlgorithm(_) >> { throw new Error('Boom!!!') }
-    noExceptionThrown()
-  }
-
-  def "bridge calls module when a new cipher is detected"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
+    thrown(UnsupportedOperationException)
 
     when:
-    InstrumentationBridge.onCipherGetInstance('AES')
+    InstrumentationBridge.getIastModule(IastModule)
 
     then:
-    1 * module.onCipherAlgorithm('AES')
-  }
-
-  def "bridge calls don't fail with null module when a new cipher is detected"() {
-    setup:
-    InstrumentationBridge.registerIastModule(null)
-
-    when:
-    InstrumentationBridge.onCipherGetInstance('AES')
-
-    then:
-    noExceptionThrown()
-  }
-
-  def "bridge calls don't leak exceptions when a new cipher is detected"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
-
-    when:
-    InstrumentationBridge.onCipherGetInstance('AES')
-
-    then:
-    1 * module.onCipherAlgorithm(_) >> { throw new Error('Boom!!!') }
-    noExceptionThrown()
-  }
-
-  def "bridge calls module when onParameterName"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
-
-    when:
-    InstrumentationBridge.onParameterName('AES')
-
-    then:
-    1 * module.onParameterName('AES')
-  }
-
-  def "bridge calls module when onParameterValue"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
-
-    when:
-    InstrumentationBridge.onParameterValue('KEY','AES')
-
-    then:
-    1 * module.onParameterValue('KEY','AES')
-  }
-
-  def "bridge calls don't leak exceptions when onParameterName"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
-
-    when:
-    InstrumentationBridge.onParameterName("Pepito")
-
-    then:
-    1 * module.onParameterName(_) >> { throw new Error('Boom!!!') }
-    noExceptionThrown()
-  }
-
-  def "bridge calls don't leak exceptions when onParameterValue"() {
-    setup:
-    final module = Mock(IastModule)
-    InstrumentationBridge.registerIastModule(module)
-
-    when:
-    InstrumentationBridge.onParameterValue("pepito", "juanito")
-
-    then:
-    1 * module.onParameterValue(_, _) >> { throw new Error('Boom!!!') }
-    noExceptionThrown()
+    thrown(UnsupportedOperationException)
   }
 }

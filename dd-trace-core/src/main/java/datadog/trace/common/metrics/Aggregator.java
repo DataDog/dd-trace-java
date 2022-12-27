@@ -1,26 +1,28 @@
 package datadog.trace.common.metrics;
 
-import static datadog.trace.common.metrics.Batch.REPORT;
-import static datadog.trace.common.metrics.ConflatingMetricsAggregator.POISON_PILL;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.trace.common.metrics.SignalItem.StopSignal;
 import datadog.trace.core.util.LRUCache;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import org.jctools.maps.NonBlockingHashMap;
+import org.jctools.queues.MessagePassingQueue;
+import org.jctools.queues.MpscCompoundQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 final class Aggregator implements Runnable {
 
+  private static final long DEFAULT_SLEEP_MILLIS = 10;
+
   private static final Logger log = LoggerFactory.getLogger(Aggregator.class);
 
   private final Queue<Batch> batchPool;
-  private final BlockingQueue<Batch> inbox;
+  private final MpscCompoundQueue<InboxItem> inbox;
   private final LRUCache<MetricKey, AggregateMetric> aggregates;
   private final NonBlockingHashMap<MetricKey, Batch> pending;
   private final Set<MetricKey> commonKeys;
@@ -30,17 +32,41 @@ final class Aggregator implements Runnable {
   // buffered by OkHttpSink)
   private final long reportingIntervalNanos;
 
+  private final long sleepMillis;
+
   private boolean dirty;
 
   Aggregator(
       MetricWriter writer,
       Queue<Batch> batchPool,
-      BlockingQueue<Batch> inbox,
+      MpscCompoundQueue<InboxItem> inbox,
       NonBlockingHashMap<MetricKey, Batch> pending,
       final Set<MetricKey> commonKeys,
       int maxAggregates,
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit) {
+    this(
+        writer,
+        batchPool,
+        inbox,
+        pending,
+        commonKeys,
+        maxAggregates,
+        reportingInterval,
+        reportingIntervalTimeUnit,
+        DEFAULT_SLEEP_MILLIS);
+  }
+
+  Aggregator(
+      MetricWriter writer,
+      Queue<Batch> batchPool,
+      MpscCompoundQueue<InboxItem> inbox,
+      NonBlockingHashMap<MetricKey, Batch> pending,
+      final Set<MetricKey> commonKeys,
+      int maxAggregates,
+      long reportingInterval,
+      TimeUnit reportingIntervalTimeUnit,
+      long sleepMillis) {
     this.writer = writer;
     this.batchPool = batchPool;
     this.inbox = inbox;
@@ -50,6 +76,7 @@ final class Aggregator implements Runnable {
             new CommonKeyCleaner(commonKeys), maxAggregates * 4 / 3, 0.75f, maxAggregates);
     this.pending = pending;
     this.reportingIntervalNanos = reportingIntervalTimeUnit.toNanos(reportingInterval);
+    this.sleepMillis = sleepMillis;
   }
 
   public void clearAggregates() {
@@ -59,27 +86,13 @@ final class Aggregator implements Runnable {
   @Override
   public void run() {
     Thread currentThread = Thread.currentThread();
-    while (!currentThread.isInterrupted()) {
+    Drainer drainer = new Drainer();
+    while (!currentThread.isInterrupted() && !drainer.stopped) {
       try {
-        Batch batch = inbox.take();
-        if (batch == POISON_PILL) {
-          report(wallClockTime());
-          break;
-        } else if (batch == REPORT) {
-          report(wallClockTime());
+        if (!inbox.isEmpty()) {
+          inbox.drain(drainer);
         } else {
-          MetricKey key = batch.getKey();
-          // important that it is still *this* batch pending, must not remove otherwise
-          pending.remove(key, batch);
-          AggregateMetric aggregate = aggregates.get(key);
-          if (null == aggregate) {
-            aggregate = new AggregateMetric();
-            aggregates.put(key, aggregate);
-          }
-          batch.contributeTo(aggregate);
-          dirty = true;
-          // return the batch for reuse
-          batchPool.offer(batch);
+          Thread.sleep(sleepMillis);
         }
       } catch (InterruptedException e) {
         currentThread.interrupt();
@@ -90,7 +103,38 @@ final class Aggregator implements Runnable {
     log.debug("metrics aggregator exited");
   }
 
-  private void report(long when) {
+  private final class Drainer implements MessagePassingQueue.Consumer<InboxItem> {
+
+    boolean stopped = false;
+
+    @Override
+    public void accept(InboxItem item) {
+      if (item instanceof SignalItem) {
+        SignalItem signal = (SignalItem) item;
+        if (!stopped) {
+          report(wallClockTime(), signal);
+          stopped = item instanceof StopSignal;
+          if (stopped) {
+            signal.complete();
+          }
+        } else {
+          signal.ignore();
+        }
+      } else if (item instanceof Batch && !stopped) {
+        Batch batch = (Batch) item;
+        MetricKey key = batch.getKey();
+        // important that it is still *this* batch pending, must not remove otherwise
+        pending.remove(key, batch);
+        AggregateMetric aggregate = aggregates.computeIfAbsent(key, k -> new AggregateMetric());
+        batch.contributeTo(aggregate);
+        dirty = true;
+        // return the batch for reuse
+        batchPool.offer(batch);
+      }
+    }
+  }
+
+  private void report(long when, SignalItem signal) {
     boolean skipped = true;
     if (dirty) {
       try {
@@ -111,6 +155,7 @@ final class Aggregator implements Runnable {
       }
       dirty = false;
     }
+    signal.complete();
     if (skipped) {
       log.debug("skipped metrics reporting because no points have changed");
     }

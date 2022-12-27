@@ -33,7 +33,7 @@ dependencies {
   compileOnly deps.autoserviceAnnotation
 
   api project(':dd-trace-api')
-  implementation (project(':dd-trace-core')) {
+  implementation(project(':dd-trace-core')) {
     // why all communication pulls in remote config is beyond me...
     exclude(group: 'com.datadoghq', module: 'remote-config')
   }
@@ -45,26 +45,27 @@ dependencies {
   api group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.0'
 
   api deps.slf4j
+  implementation project(':dd-trace-ot:correlation-id-injection')
 
   testImplementation project(":dd-java-agent:testing")
 
   ot31CompatabilityTestImplementation('io.opentracing:opentracing-api:0.31.0') {
     force = true
   }
-  ot31CompatabilityTestImplementation('io.opentracing:opentracing-util:0.31.0')  {
+  ot31CompatabilityTestImplementation('io.opentracing:opentracing-util:0.31.0') {
     force = true
   }
-  ot31CompatabilityTestImplementation('io.opentracing:opentracing-noop:0.31.0')  {
+  ot31CompatabilityTestImplementation('io.opentracing:opentracing-noop:0.31.0') {
     force = true
   }
 
   ot33CompatabilityTestImplementation('io.opentracing:opentracing-api:0.33.0') {
     force = true
   }
-  ot33CompatabilityTestImplementation('io.opentracing:opentracing-util:0.33.0')  {
+  ot33CompatabilityTestImplementation('io.opentracing:opentracing-util:0.33.0') {
     force = true
   }
-  ot33CompatabilityTestImplementation('io.opentracing:opentracing-noop:0.33.0')  {
+  ot33CompatabilityTestImplementation('io.opentracing:opentracing-noop:0.33.0') {
     force = true
   }
 }
@@ -102,6 +103,7 @@ shadowJar {
     exclude('datadog.trace.api.*')
     exclude('datadog.trace.api.config.*')
     exclude('datadog.trace.api.interceptor.*')
+    exclude('datadog.trace.api.internal.*')
     exclude('datadog.trace.api.sampling.*')
     exclude('datadog.trace.context.*')
   }

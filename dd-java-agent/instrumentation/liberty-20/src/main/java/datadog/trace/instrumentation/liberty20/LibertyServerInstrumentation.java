@@ -18,6 +18,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
+import java.util.EnumSet;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import net.bytebuddy.asm.Advice;
@@ -32,7 +33,7 @@ public final class LibertyServerInstrumentation extends Instrumenter.Tracing
 
   @Override
   public String instrumentedType() {
-    return "com.ibm.ws.webcontainer.webapp.WebApp";
+    return "com.ibm.ws.webcontainer.filter.WebAppFilterManager";
   }
 
   @Override
@@ -51,10 +52,13 @@ public final class LibertyServerInstrumentation extends Instrumenter.Tracing
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         isMethod()
-            .and(named("handleRequest"))
+            .and(named("invokeFilters"))
             .and(takesArgument(0, named("javax.servlet.ServletRequest")))
             .and(takesArgument(1, named("javax.servlet.ServletResponse")))
-            .and(takesArgument(2, named("com.ibm.wsspi.http.HttpInboundConnection"))),
+            .and(takesArgument(2, named("com.ibm.wsspi.webcontainer.servlet.IServletContext")))
+            .and(takesArgument(3, named("com.ibm.wsspi.webcontainer.RequestProcessor")))
+            .and(takesArgument(4, EnumSet.class))
+            .and(takesArgument(5, named("com.ibm.wsspi.http.HttpInboundConnection"))),
         LibertyServerInstrumentation.class.getName() + "$HandleRequestAdvice");
   }
 
@@ -94,6 +98,9 @@ public final class LibertyServerInstrumentation extends Instrumenter.Tracing
       Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
       if (rba != null) {
         ServletBlockingHelper.commitBlockingResponse(request, (SRTServletResponse) resp, rba);
+        // prevent caching of the handler
+        req.setAttribute(
+            "javax.servlet.error.status_code", ((SRTServletResponse) resp).getStatusCode());
         return true; // skip method body
       }
 
@@ -110,6 +117,9 @@ public final class LibertyServerInstrumentation extends Instrumenter.Tracing
       if (scope != null) {
         // we cannot get path at the start because the path/context attributes are not yet
         // initialized
+        // this has the unfortunate consequence that service name (as set via the tag interceptor)
+        // of the top span won't match that of its child spans, because it's instead the original
+        // one that will propagate
         DECORATE.getPath(scope.span(), request);
         scope.close();
       }

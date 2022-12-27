@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling;
 
 import com.blogspot.mydailyjava.weaklockfree.WeakConcurrentMap;
+import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.WeakMap;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentTaskScheduler.Task;
@@ -12,12 +13,14 @@ public class WeakMaps {
 
   public static <K, V> WeakMap<K, V> newWeakMap() {
     final WeakConcurrentMap<K, V> map = new WeakConcurrentMap<>(false, true);
-    AgentTaskScheduler.INSTANCE.weakScheduleAtFixedRate(
-        MapCleaningTask.INSTANCE,
-        map,
-        CLEAN_FREQUENCY_SECONDS,
-        CLEAN_FREQUENCY_SECONDS,
-        TimeUnit.SECONDS);
+    if (!Platform.isNativeImageBuilder()) {
+      AgentTaskScheduler.INSTANCE.weakScheduleAtFixedRate(
+          MapCleaningTask.INSTANCE,
+          map,
+          CLEAN_FREQUENCY_SECONDS,
+          CLEAN_FREQUENCY_SECONDS,
+          TimeUnit.SECONDS);
+    }
     return new Adapter<>(map);
   }
 

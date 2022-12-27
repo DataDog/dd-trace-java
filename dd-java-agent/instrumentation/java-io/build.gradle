@@ -1,0 +1,21 @@
+muzzle {
+  pass {
+    coreJdk()
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+apply plugin: 'call-site-instrumentation'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+dependencies {
+  testRuntimeClasspath project(':dd-java-agent:instrumentation:iast-instrumenter')
+}
+

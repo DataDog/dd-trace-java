@@ -2,11 +2,7 @@ package datadog.trace.bootstrap;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
+import java.io.*;
 import java.lang.instrument.Instrumentation;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Field;
@@ -73,7 +69,6 @@ public final class AgentBootstrap {
       }
       final Class<?> agentClass =
           ClassLoader.getSystemClassLoader().loadClass("datadog.trace.bootstrap.Agent");
-
       if (agentClass.getClassLoader() != null) {
         throw new IllegalStateException("DD Java Agent NOT added to bootstrap classpath.");
       }

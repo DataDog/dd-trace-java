@@ -19,32 +19,11 @@ public class EndpointEvent extends Event implements EndpointTracker {
   @Label("Endpoint")
   private String endpoint = "unknown";
 
-  @Label("Trace Id")
-  private final long traceId;
-
   @Label("Local Root Span Id")
   private final long localRootSpanId;
 
-  /**
-   * Set to {@literal true} if the corresponding trace and checkpoints was kept by agent side
-   * sampler(s)
-   */
-  @Label("Trace Sampled")
-  private boolean traceSampled = false;
-
-  @Label("Trace Sampling Priority (start)")
-  private final int samplingPriorityStart;
-
-  @Label("Trace Sampling Priority (end)")
-  private int samplingPriorityEnd;
-
-  @Label("Checkpoints Sampled")
-  private boolean checkpointsSampled = false;
-
   public EndpointEvent(final DDSpan span) {
-    this.traceId = span.getTraceId().toLong();
     this.localRootSpanId = span.getSpanId();
-    this.samplingPriorityStart = span.samplingPriority();
     begin();
   }
 
@@ -53,9 +32,6 @@ public class EndpointEvent extends Event implements EndpointTracker {
     if (shouldCommit()) {
       end();
       this.endpoint = span.getResourceName().toString();
-      this.samplingPriorityEnd = span.samplingPriority();
-      this.traceSampled = traceSampled;
-      this.checkpointsSampled = checkpointsSampled;
       commit();
     }
   }

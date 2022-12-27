@@ -8,15 +8,15 @@ import static net.bytebuddy.dynamic.loading.ClassLoadingStrategy.BOOTSTRAP_LOADE
 import datadog.trace.agent.tooling.bytebuddy.ClassFileLocators;
 import datadog.trace.agent.tooling.bytebuddy.TypeInfoCache;
 import datadog.trace.agent.tooling.bytebuddy.TypeInfoCache.SharedTypeInfo;
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import java.io.Serializable;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.description.type.TypeList;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.pool.TypePool;
@@ -24,7 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Context-aware factory that provides different kinds of type descriptions:
+ * Context-aware thread-local type factory that provides different kinds of type descriptions:
  *
  * <ul>
  *   <li>minimally parsed type outlines for matching purposes
@@ -41,11 +41,12 @@ final class TypeFactory {
   /** Maintain a reusable type factory for each thread involved in class-loading. */
   static final ThreadLocal<TypeFactory> typeFactory = ThreadLocal.withInitial(TypeFactory::new);
 
-  private static final boolean fallBackToLoadClass = Config.get().isResolverUseLoadClassEnabled();
+  private static final boolean fallBackToLoadClass =
+      InstrumenterConfig.get().isResolverUseLoadClassEnabled();
 
   private static final Map<String, TypeDescription> primitiveDescriptorTypes = new HashMap<>();
 
-  private static final Map<String, TypeDescription> commonLoadedTypes = new HashMap<>();
+  private static final Map<String, TypeDescription> primitiveTypes = new HashMap<>();
 
   static {
     for (Class<?> primitive :
@@ -62,18 +63,7 @@ final class TypeFactory {
         }) {
       TypeDescription primitiveType = TypeDescription.ForLoadedType.of(primitive);
       primitiveDescriptorTypes.put(Type.getDescriptor(primitive), primitiveType);
-      commonLoadedTypes.put(primitive.getName(), primitiveType);
-    }
-    for (TypeDescription loaded :
-        new TypeDescription[] {
-          TypeDescription.OBJECT,
-          TypeDescription.STRING,
-          TypeDescription.CLASS,
-          TypeDescription.THROWABLE,
-          TypeDescription.ForLoadedType.of(Serializable.class),
-          TypeDescription.ForLoadedType.of(Cloneable.class)
-        }) {
-      commonLoadedTypes.put(loaded.getName(), loaded);
+      primitiveTypes.put(primitive.getName(), primitiveType);
     }
   }
 
@@ -82,17 +72,17 @@ final class TypeFactory {
   private static final TypeParser fullTypeParser = new FullTypeParser();
 
   private static final TypeInfoCache<TypeDescription> outlineTypes =
-      new TypeInfoCache<>(Config.get().getResolverOutlinePoolSize());
+      new TypeInfoCache<>(InstrumenterConfig.get().getResolverOutlinePoolSize());
 
   private static final TypeInfoCache<TypeDescription> fullTypes =
-      new TypeInfoCache<>(Config.get().getResolverTypePoolSize());
+      new TypeInfoCache<>(InstrumenterConfig.get().getResolverTypePoolSize());
 
   /** Small local cache to help deduplicate lookups when matching/transforming. */
   private final DDCache<String, LazyType> deferredTypes = DDCaches.newFixedSizeCache(16);
 
   private final Function<String, LazyType> deferType = LazyType::new;
 
-  boolean installing = true;
+  boolean installing = false;
 
   boolean createOutlines = true;
 
@@ -124,6 +114,11 @@ final class TypeFactory {
     installing = false;
     originalClassLoader = null;
     clearReferences();
+  }
+
+  static void clear() {
+    outlineTypes.clear();
+    fullTypes.clear();
   }
 
   /**
@@ -191,11 +186,13 @@ final class TypeFactory {
   }
 
   static TypeDescription findType(String name) {
-    TypeDescription type = commonLoadedTypes.get(name);
-    if (null == type) {
-      type = typeFactory.get().deferTypeResolution(name);
+    if (name.length() < 8) { // possible primitive name
+      TypeDescription type = primitiveTypes.get(name);
+      if (null != type) {
+        return type;
+      }
     }
-    return type;
+    return typeFactory.get().deferTypeResolution(name);
   }
 
   private TypeDescription deferTypeResolution(String name) {
@@ -296,13 +293,46 @@ final class TypeFactory {
     }
 
     @Override
+    public int getModifiers() {
+      return outline().getModifiers();
+    }
+
+    @Override
+    public Generic getSuperClass() {
+      return outline().getSuperClass();
+    }
+
+    @Override
+    public TypeList.Generic getInterfaces() {
+      return outline().getInterfaces();
+    }
+
+    @Override
+    public TypeDescription getDeclaringType() {
+      return outline().getDeclaringType();
+    }
+
+    private TypeDescription outline() {
+      if (createOutlines) {
+        return doResolve(true);
+      }
+      // temporarily switch to outlines as that's all we need
+      createOutlines = true;
+      try {
+        return doResolve(true);
+      } finally {
+        createOutlines = false;
+      }
+    }
+
+    @Override
     protected TypeDescription delegate() {
       return doResolve(true);
     }
 
     TypeDescription doResolve(boolean throwIfMissing) {
       // re-resolve type when switching to full descriptions
-      if (null == delegate || createOutlines != isOutline) {
+      if (null == delegate || (isOutline && !createOutlines)) {
         delegate = resolveType(name);
         isOutline = createOutlines;
         if (throwIfMissing && null == delegate) {

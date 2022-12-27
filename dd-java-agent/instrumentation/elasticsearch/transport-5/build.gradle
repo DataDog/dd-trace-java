@@ -1,6 +1,5 @@
 // Set properties before any plugins get loaded
 ext {
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
   // TODO Java 17: The embedded elastic search server doesn't work on Java 17
   //  This can be changed to use test-containers
   maxJavaVersionForTests = JavaVersion.VERSION_15
@@ -12,14 +11,14 @@ muzzle {
     module = "transport"
     versions = "[5.0.0,5.3.0)"
     assertInverse = true
-    skipVersions = ["7.11.0"]
+    skipVersions = ["7.11.0", "7.17.8"]
   }
   pass {
     group = "org.elasticsearch"
     module = "elasticsearch"
     versions = "[5.0.0,5.3.0)"
     assertInverse = true
-    skipVersions = ["7.11.0"]
+    skipVersions = ["7.11.0", "7.17.8"]
   }
 }
 

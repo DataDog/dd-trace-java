@@ -5,7 +5,7 @@ import static datadog.trace.bootstrap.AgentClassLoading.LOCATING_CLASS;
 
 import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
 import datadog.trace.agent.tooling.WeakCaches;
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.WeakCache;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.ConcurrentMap;
@@ -52,7 +52,7 @@ public final class DDCachingPoolStrategy
 
   static final int CONCURRENCY_LEVEL = 8;
   static final int LOADER_CAPACITY = 64;
-  static final int TYPE_CAPACITY = Config.get().getResolverTypePoolSize();
+  static final int TYPE_CAPACITY = InstrumenterConfig.get().getResolverTypePoolSize();
 
   static final int BOOTSTRAP_HASH = 7236344; // Just a random number
 
@@ -60,7 +60,7 @@ public final class DDCachingPoolStrategy
       WeakReference::new;
 
   public static final DDCachingPoolStrategy INSTANCE =
-      new DDCachingPoolStrategy(Config.get().isResolverUseLoadClassEnabled());
+      new DDCachingPoolStrategy(InstrumenterConfig.get().isResolverUseLoadClassEnabled());
 
   public static void registerAsSupplier() {
     SharedTypePools.registerIfAbsent(INSTANCE);
@@ -135,6 +135,11 @@ public final class DDCachingPoolStrategy
 
   @Override
   public void endTransform() {}
+
+  @Override
+  public void clear() {
+    sharedResolutionCache.clear();
+  }
 
   private TypePool.CacheProvider createCacheProvider(
       final int loaderHash, final WeakReference<ClassLoader> loaderRef) {
@@ -241,7 +246,8 @@ public final class DDCachingPoolStrategy
   static final class SharedResolutionCacheAdapter implements TypePool.CacheProvider {
     private static final String OBJECT_NAME = "java.lang.Object";
     private static final TypePool.Resolution OBJECT_RESOLUTION =
-        new TypePool.Resolution.Simple(new CachingTypeDescription(TypeDescription.OBJECT));
+        new TypePool.Resolution.Simple(
+            new CachingTypeDescription(TypeDescription.ForLoadedType.of(Object.class)));
 
     private final int loaderHash;
     private final WeakReference<ClassLoader> loaderRef;

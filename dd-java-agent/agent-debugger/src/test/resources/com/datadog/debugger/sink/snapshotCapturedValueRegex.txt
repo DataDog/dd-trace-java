@@ -27,6 +27,16 @@
 \{
 "type":"com.sun.management.internal.OperatingSystemImpl.ContainerCpuTicks",
 "notCapturedReason":"java.lang.reflect.InaccessibleObjectException: Unable to make field private com.sun.management.internal.OperatingSystemImpl.ContainerCpuTicks com.sun.management.internal.OperatingSystemImpl.processLoadTicks accessible: module jdk.management does not \\"opens com.sun.management.internal\\" to unnamed module @[0-9a-f]+"
+\},
+"jvm":
+\{
+"type":"sun.management.VMManagement",
+"notCapturedReason":"java.lang.reflect.InaccessibleObjectException: Unable to make field private final sun.management.VMManagement sun.management.BaseOperatingSystemImpl.jvm accessible: module java.management does not \\"opens sun.management\\" to unnamed module @[0-9a-f]+"
+\},
+"loadavg":
+\{
+"type":"double\[\]",
+"notCapturedReason":"java.lang.reflect.InaccessibleObjectException: Unable to make field private double\[\] sun.management.BaseOperatingSystemImpl.loadavg accessible: module java.management does not \\"opens sun.management\\" to unnamed module @[0-9a-f]+"
 \}
 \}\},
 "normalValuedField":\{
@@ -41,6 +51,7 @@
 \},
 "language":"java",
 "probe":\{
+"evaluateAt":"DEFAULT",
 "id":"12fd-8490-c111-4374-ffde",
 "location":\{
 "file":"String.java",

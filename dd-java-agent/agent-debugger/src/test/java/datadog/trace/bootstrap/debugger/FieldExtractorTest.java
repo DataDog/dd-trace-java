@@ -56,11 +56,8 @@ public class FieldExtractorTest {
   }
 
   private static void onMaxFieldCount(
-      Field f, Map<String, Snapshot.CapturedValue> results, int maxFieldCount, int totalFields) {
-    String msg =
-        String.format(
-            "Max %d fields reached, %d fields were not captured",
-            maxFieldCount, totalFields - maxFieldCount);
+      Field f, Map<String, Snapshot.CapturedValue> results, int maxFieldCount) {
+    String msg = String.format("Max %d fields reached", maxFieldCount);
     results.put("@status", Snapshot.CapturedValue.notCapturedReason("@status", "", msg));
   }
 
@@ -71,7 +68,7 @@ public class FieldExtractorTest {
         limits,
         (field, value, maxDepth) -> onField(field, value, maxDepth, results, limits),
         (e, field) -> handleExtractException(e, field, "", results),
-        (field, total) -> onMaxFieldCount(field, results, limits.maxFieldCount, total));
+        (field) -> onMaxFieldCount(field, results, limits.maxFieldCount));
     return results;
   }
 
@@ -159,9 +156,29 @@ public class FieldExtractorTest {
     assertTrue(fields.containsKey("f02"));
     assertTrue(fields.containsKey("f03"));
     assertTrue(fields.containsKey("f04"));
-    assertEquals(
-        "Max 5 fields reached, 6 fields were not captured",
-        fields.get("@status").getNotCapturedReason());
+    assertEquals("Max 5 fields reached", fields.get("@status").getNotCapturedReason());
+  }
+
+  @Test
+  public void parentFields() {
+    Map<String, Snapshot.CapturedValue> fields = extract(new LeafClass(), Limits.DEFAULT);
+    assertEquals(4, fields.size());
+    assertTrue(fields.containsKey("field1"));
+    assertTrue(fields.containsKey("field2"));
+    assertTrue(fields.containsKey("field3"));
+    assertTrue(fields.containsKey("valueField"));
+    assertEquals(1, fields.get("field1").getValue());
+    assertEquals(2, fields.get("field2").getValue());
+    assertEquals(3, fields.get("field3").getValue());
+    assertEquals(4, fields.get("valueField").getValue());
+    fields =
+        extract(
+            new LeafClass(),
+            new Limits(DEFAULT_REFERENCE_DEPTH, DEFAULT_COLLECTION_SIZE, DEFAULT_LENGTH, 2));
+    assertEquals(3, fields.size());
+    assertTrue(fields.containsKey("field3"));
+    assertTrue(fields.containsKey("valueField"));
+    assertEquals("Max 2 fields reached", fields.get("@status").getNotCapturedReason());
   }
 
   static class Person {
@@ -186,5 +203,21 @@ public class FieldExtractorTest {
     private int f08 = 8;
     private int f09 = 9;
     private int f10 = 10;
+  }
+
+  static class Parent1 {
+    private int field1 = 1;
+  }
+
+  static class Parent2 extends Parent1 {
+    private int field2 = 2;
+  }
+
+  static class Parent3 extends Parent2 {
+    private int field3 = 3;
+  }
+
+  static class LeafClass extends Parent3 {
+    private int valueField = 4;
   }
 }

@@ -1,6 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.api.Platform
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -24,7 +23,6 @@ import org.springframework.kafka.test.rule.KafkaEmbedded
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
 import spock.lang.Ignore
-import spock.lang.Requires
 import spock.lang.Unroll
 
 import java.util.concurrent.LinkedBlockingQueue
@@ -108,7 +106,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
       }
       blockUntilChildSpansFinished(2)
     }
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
     }
 
@@ -141,17 +139,23 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[0][2].traceId}"
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
 
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["topic:$SHARED_TOPIC".toString(), "type:internal"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:out", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
+        edgeTags.size() == 3
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["group:sender", "partition:" + received.partition(), "topic:$SHARED_TOPIC".toString(), "type:kafka"]
-        edgeTags.size() == 4
+        edgeTags == [
+          "direction:in",
+          "group:sender",
+          "partition:" + received.partition(),
+          "topic:$SHARED_TOPIC".toString(),
+          "type:kafka"
+        ]
+        edgeTags.size() == 5
       }
     }
 
@@ -206,7 +210,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
       })
       blockUntilChildSpansFinished(2)
     }
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
     }
 
@@ -239,17 +243,23 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[0][2].traceId}"
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
 
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["topic:$SHARED_TOPIC".toString(), "type:internal"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:out", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
+        edgeTags.size() == 3
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["group:sender", "partition:" + received.partition(), "topic:$SHARED_TOPIC".toString(), "type:kafka"]
-        edgeTags.size() == 4
+        edgeTags == [
+          "direction:in",
+          "group:sender",
+          "partition:" + received.partition(),
+          "topic:$SHARED_TOPIC".toString(),
+          "type:kafka"
+        ]
+        edgeTags.size() == 5
       }
     }
 
@@ -435,7 +445,6 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
 
   }
 
-  @Requires({ jvm.java8Compatible })
   def "test records(TopicPartition).forEach kafka consume"() {
     setup:
     // set up the Kafka consumer properties
@@ -639,7 +648,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
       }
       blockUntilChildSpansFinished(2 * greetings.size())
     }
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
     }
 
@@ -694,7 +703,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
       }
     }
 
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags == ["topic:$SHARED_TOPIC".toString(), "type:internal"]

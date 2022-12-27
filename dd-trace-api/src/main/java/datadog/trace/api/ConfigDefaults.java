@@ -32,12 +32,12 @@ public final class ConfigDefaults {
   public static final int DEFAULT_AGENT_TIMEOUT = 10; // timeout in seconds
   public static final String DEFAULT_SERVICE_NAME = "unnamed-java-app";
   public static final String DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME = "root-servlet";
+  public static final String DEFAULT_AGENT_WRITER_TYPE = "DDAgentWriter";
 
   static final String DEFAULT_SITE = "datadoghq.com";
 
   static final boolean DEFAULT_TRACE_ENABLED = true;
   static final boolean DEFAULT_INTEGRATIONS_ENABLED = true;
-  static final String DEFAULT_AGENT_WRITER_TYPE = "DDAgentWriter";
 
   static final boolean DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION = true;
   static final boolean DEFAULT_SERIALVERSIONUID_FIELD_INJECTION = true;
@@ -52,7 +52,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE = false;
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX = false;
   static final int DEFAULT_SCOPE_DEPTH_LIMIT = 100;
-  static final int DEFAULT_SCOPE_ITERATION_KEEP_ALIVE = 10; // in seconds
+  static final int DEFAULT_SCOPE_ITERATION_KEEP_ALIVE = 30; // in seconds
   static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
   static final boolean DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED = false;
   static final String DEFAULT_PROPAGATION_STYLE_EXTRACT = PropagationStyle.DATADOG.name();
@@ -81,7 +81,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_APPSEC_WAF_METRICS = true;
 
   static final boolean DEFAULT_IAST_ENABLED = false;
-  static final boolean DEFAULT_IAST_TAINT_TRACKING_DEBUG_ENABLED = false;
+  static final boolean DEFAULT_IAST_DEBUG_ENABLED = false;
   public static final int DEFAULT_IAST_MAX_CONCURRENT_REQUESTS = 2;
   public static final int DEFAULT_IAST_VULNERABILITIES_PER_REQUEST = 2;
   public static final int DEFAULT_IAST_REQUEST_SAMPLING = 30;
@@ -131,11 +131,12 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;
 
-  static final int DEFAULT_RESOLVER_OUTLINE_POOL_SIZE = 128;
-  static final int DEFAULT_RESOLVER_TYPE_POOL_SIZE = 64;
+  static final int DEFAULT_RESOLVER_RESET_INTERVAL = 300; // seconds
 
   static final boolean DEFAULT_TELEMETRY_ENABLED = true;
   static final int DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL = 60; // in seconds
+
+  static final boolean DEFAULT_SECURE_RANDOM = false;
 
   public static final int DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH = 512;
 

@@ -2,6 +2,12 @@ plugins {
   id 'me.champeau.jmh'
 }
 
+ext {
+  // need access to sun.misc.SharedSecrets
+  skipSettingCompilerRelease = true
+  enableJunitPlatform = true
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/tries.gradle"
 
@@ -19,12 +25,11 @@ excludedClassesCoverage += [
   "datadog.trace.api.WithGlobalTracer.1",
   // an enum
   "datadog.trace.api.sampling.AdaptiveSampler",
-  // this one is covered by tests in internal-api-8 together with AdaptiveSampler8
-  "datadog.trace.api.sampling.AdaptiveSampler7*",
   "datadog.trace.api.sampling.ConstantSampler",
   "datadog.trace.api.EndpointCheckpointerHolder",
   "datadog.trace.bootstrap.ActiveSubsystems",
   "datadog.trace.bootstrap.config.provider.ConfigProvider.Singleton",
+  "datadog.trace.bootstrap.instrumentation.api.java.lang.ProcessImplInstrumentationHelpers",
   "datadog.trace.bootstrap.instrumentation.api.Tags",
   "datadog.trace.bootstrap.instrumentation.api.CommonTagValues",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentPropagation",
@@ -65,10 +70,26 @@ excludedClassesCoverage += [
   "datadog.trace.util.ClassNameTrie.Builder",
   "datadog.trace.util.ClassNameTrie.JavaGenerator",
   "datadog.trace.util.CollectionUtils",
+  "datadog.trace.util.PidHelper",
   "datadog.trace.api.IntegrationsCollector.Holder",
-  "datadog.trace.api.ConfigCollector.Holder"
+  "datadog.trace.api.ConfigCollector.Holder",
+  "datadog.trace.api.Config.HostNameHolder",
+  "datadog.trace.api.Config.RuntimeIdHolder",
+  "datadog.trace.api.InstrumenterConfig",
+  // can't reliably force same identity hash for different instance to cover branch
+  "datadog.trace.api.cache.FixedSizeCache.IdentityHash",
+  // Interface with default method
+  "datadog.trace.api.StatsDClientManager",
+  // a stub
+  "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOp"
 ]
-excludedClassesBranchCoverage = ['datadog.trace.api.ProductActivationConfig',]
+excludedClassesBranchCoverage = [
+  'datadog.trace.api.ProductActivationConfig',
+  'datadog.trace.api.Config',
+  'datadog.trace.util.stacktrace.HotSpotStackWalker',
+  'datadog.trace.util.stacktrace.StackWalkerFactory'
+]
+excludedClassesInstructionCoverage = ['datadog.trace.util.stacktrace.StackWalkerFactory']
 
 compileTestJava.dependsOn 'generateTestClassNameTries'
 
@@ -80,9 +101,15 @@ dependencies {
 
   testImplementation project(":utils:test-utils")
   testImplementation("org.assertj:assertj-core:2.9.1")
+  testImplementation deps.junit5
+  testImplementation("org.junit.vintage:junit-vintage-engine:${versions.junit5}")
+  testImplementation deps.commonsMath
+  testImplementation deps.mockito
+  testImplementation deps.truth
 }
 
 jmh {
   jmhVersion = '1.32'
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
 }
+

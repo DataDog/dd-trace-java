@@ -106,7 +106,7 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.name("debugger_enabled");
     writer.value(config.isDebuggerEnabled());
     writer.name("appsec_enabled");
-    writer.value(config.getAppSecEnabledConfig().toString());
+    writer.value(config.getAppSecActivation().toString());
     writer.name("appsec_rules_file_path");
     writer.value(config.getAppSecRulesFile());
     writer.name("telemetry_enabled");

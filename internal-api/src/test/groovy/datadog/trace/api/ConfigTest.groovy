@@ -83,6 +83,7 @@ import static datadog.trace.api.config.TracerConfig.AGENT_HOST
 import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY
 import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
+import static datadog.trace.api.config.TracerConfig.BAGGAGE_MAPPING
 import static datadog.trace.api.config.TracerConfig.HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.config.TracerConfig.HTTP_SERVER_ERROR_STATUSES
 import static datadog.trace.api.config.TracerConfig.ID_GENERATION_STRATEGY
@@ -161,6 +162,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(SPAN_TAGS, "c:3")
     prop.setProperty(JMX_TAGS, "d:4")
     prop.setProperty(HEADER_TAGS, "e:five")
+    prop.setProperty(BAGGAGE_MAPPING, "f:six")
     prop.setProperty(HTTP_SERVER_ERROR_STATUSES, "123-456,457,124-125,122")
     prop.setProperty(HTTP_CLIENT_ERROR_STATUSES, "111")
     prop.setProperty(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "true")
@@ -244,6 +246,7 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == [b: "2", c: "3"]
     config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.requestHeaderTags == [e: "five"]
+    config.baggageMapping == [f: "six"]
     config.httpServerErrorStatuses == toBitSet((122..457))
     config.httpClientErrorStatuses == toBitSet((111..111))
     config.httpClientSplitByDomain == true
@@ -252,7 +255,6 @@ class ConfigTest extends DDSpecification {
     config.splitByTags == ["some.tag1", "some.tag2"].toSet()
     config.partialFlushMinSpans == 15
     config.reportHostName == true
-    config.runtimeContextFieldInjection == false
     config.propagationStylesToExtract.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
     config.propagationStylesToInject.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
     config.jmxFetchEnabled == false
@@ -329,6 +331,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + SPAN_TAGS, "c:3")
     System.setProperty(PREFIX + JMX_TAGS, "d:4")
     System.setProperty(PREFIX + HEADER_TAGS, "e:five")
+    System.setProperty(PREFIX + BAGGAGE_MAPPING, "f:six")
     System.setProperty(PREFIX + HTTP_SERVER_ERROR_STATUSES, "123-456,457,124-125,122")
     System.setProperty(PREFIX + HTTP_CLIENT_ERROR_STATUSES, "111")
     System.setProperty(PREFIX + HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "true")
@@ -412,6 +415,7 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == [b: "2", c: "3"]
     config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.requestHeaderTags == [e: "five"]
+    config.baggageMapping == [f: "six"]
     config.httpServerErrorStatuses == toBitSet((122..457))
     config.httpClientErrorStatuses == toBitSet((111..111))
     config.httpClientSplitByDomain == true
@@ -420,7 +424,6 @@ class ConfigTest extends DDSpecification {
     config.splitByTags == ["some.tag3", "some.tag2", "some.tag1"].toSet()
     config.partialFlushMinSpans == 25
     config.reportHostName == true
-    config.runtimeContextFieldInjection == false
     config.propagationStylesToExtract.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
     config.propagationStylesToInject.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
     config.jmxFetchEnabled == false
@@ -542,6 +545,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + TRACE_RESOLVER_ENABLED, " ")
     System.setProperty(PREFIX + SERVICE_MAPPING, " ")
     System.setProperty(PREFIX + HEADER_TAGS, "1")
+    System.setProperty(PREFIX + BAGGAGE_MAPPING, "1")
     System.setProperty(PREFIX + SPAN_TAGS, "invalid")
     System.setProperty(PREFIX + HTTP_SERVER_ERROR_STATUSES, "1111")
     System.setProperty(PREFIX + HTTP_CLIENT_ERROR_STATUSES, "1:1")
@@ -565,6 +569,7 @@ class ConfigTest extends DDSpecification {
     config.serviceMapping == [:]
     config.mergedSpanTags == [:]
     config.requestHeaderTags == [:]
+    config.baggageMapping == [:]
     config.httpServerErrorStatuses == toBitSet((500..599))
     config.httpClientErrorStatuses == toBitSet((400..499))
     config.httpClientSplitByDomain == false
@@ -637,6 +642,7 @@ class ConfigTest extends DDSpecification {
     properties.setProperty(SPAN_TAGS, "c:3")
     properties.setProperty(JMX_TAGS, "d:4")
     properties.setProperty(HEADER_TAGS, "e:five")
+    properties.setProperty(BAGGAGE_MAPPING, "f:six")
     properties.setProperty(HTTP_SERVER_ERROR_STATUSES, "123-456,457,124-125,122")
     properties.setProperty(HTTP_CLIENT_ERROR_STATUSES, "111")
     properties.setProperty(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "true")
@@ -668,6 +674,7 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == [b: "2", c: "3"]
     config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.requestHeaderTags == [e: "five"]
+    config.baggageMapping == [f: "six"]
     config.httpServerErrorStatuses == toBitSet((122..457))
     config.httpClientErrorStatuses == toBitSet((111..111))
     config.httpClientSplitByDomain == true
@@ -775,42 +782,6 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == "what actually wants"
-  }
-
-  def "verify integration config"() {
-    setup:
-    environmentVariables.set("DD_INTEGRATION_ORDER_ENABLED", "false")
-    environmentVariables.set("DD_INTEGRATION_TEST_ENV_ENABLED", "true")
-    environmentVariables.set("DD_INTEGRATION_DISABLED_ENV_ENABLED", "false")
-
-    System.setProperty("dd.integration.order.enabled", "true")
-    System.setProperty("dd.integration.test-prop.enabled", "true")
-    System.setProperty("dd.integration.disabled-prop.enabled", "false")
-
-    expect:
-    Config.get().isIntegrationEnabled(integrationNames, defaultEnabled) == expected
-
-    where:
-    // spotless:off
-    names                          | defaultEnabled | expected
-    []                             | true           | true
-    []                             | false          | false
-    ["invalid"]                    | true           | true
-    ["invalid"]                    | false          | false
-    ["test-prop"]                  | false          | true
-    ["test-env"]                   | false          | true
-    ["disabled-prop"]              | true           | false
-    ["disabled-env"]               | true           | false
-    ["other", "test-prop"]         | false          | true
-    ["other", "test-env"]          | false          | true
-    ["order"]                      | false          | true
-    ["test-prop", "disabled-prop"] | false          | true
-    ["disabled-env", "test-env"]   | false          | true
-    ["test-prop", "disabled-prop"] | true           | false
-    ["disabled-env", "test-env"]   | true           | false
-    // spotless:on
-
-    integrationNames = new TreeSet<>(names)
   }
 
   def "verify rule config #name"() {
@@ -2048,52 +2019,78 @@ class ConfigTest extends DDSpecification {
     def config = new Config()
 
     then:
-    config.getAppSecEnabledConfig() == res
+    config.getAppSecActivation() == res
 
     where:
     sys        | env        | res
-    null       | null       | ProductActivationConfig.ENABLED_INACTIVE
-    null       | ""         | ProductActivationConfig.ENABLED_INACTIVE
-    null       | "inactive" | ProductActivationConfig.ENABLED_INACTIVE
-    null       | "false"    | ProductActivationConfig.FULLY_DISABLED
-    null       | "0"        | ProductActivationConfig.FULLY_DISABLED
-    null       | "invalid"  | ProductActivationConfig.FULLY_DISABLED
-    null       | "true"     | ProductActivationConfig.FULLY_ENABLED
-    null       | "1"        | ProductActivationConfig.FULLY_ENABLED
-    ""         | null       | ProductActivationConfig.ENABLED_INACTIVE
-    ""         | ""         | ProductActivationConfig.ENABLED_INACTIVE
-    ""         | "inactive" | ProductActivationConfig.ENABLED_INACTIVE
-    ""         | "false"    | ProductActivationConfig.FULLY_DISABLED
-    ""         | "0"        | ProductActivationConfig.FULLY_DISABLED
-    ""         | "invalid"  | ProductActivationConfig.FULLY_DISABLED
-    ""         | "true"     | ProductActivationConfig.FULLY_ENABLED
-    ""         | "1"        | ProductActivationConfig.FULLY_ENABLED
-    "inactive" | null       | ProductActivationConfig.ENABLED_INACTIVE
-    "inactive" | ""         | ProductActivationConfig.ENABLED_INACTIVE
-    "inactive" | "inactive" | ProductActivationConfig.ENABLED_INACTIVE
-    "inactive" | "false"    | ProductActivationConfig.ENABLED_INACTIVE
-    "inactive" | "0"        | ProductActivationConfig.ENABLED_INACTIVE
-    "inactive" | "invalid"  | ProductActivationConfig.ENABLED_INACTIVE
-    "inactive" | "true"     | ProductActivationConfig.ENABLED_INACTIVE
-    "inactive" | "1"        | ProductActivationConfig.ENABLED_INACTIVE
-    "false"    | null       | ProductActivationConfig.FULLY_DISABLED
-    "false"    | ""         | ProductActivationConfig.FULLY_DISABLED
-    "false"    | "inactive" | ProductActivationConfig.FULLY_DISABLED
-    "false"    | "false"    | ProductActivationConfig.FULLY_DISABLED
-    "false"    | "0"        | ProductActivationConfig.FULLY_DISABLED
-    "false"    | "invalid"  | ProductActivationConfig.FULLY_DISABLED
-    "false"    | "true"     | ProductActivationConfig.FULLY_DISABLED
-    "false"    | "1"        | ProductActivationConfig.FULLY_DISABLED
-    "0"        | null       | ProductActivationConfig.FULLY_DISABLED
-    "true"     | null       | ProductActivationConfig.FULLY_ENABLED
-    "true"     | ""         | ProductActivationConfig.FULLY_ENABLED
-    "true"     | "inactive" | ProductActivationConfig.FULLY_ENABLED
-    "true"     | "false"    | ProductActivationConfig.FULLY_ENABLED
-    "true"     | "0"        | ProductActivationConfig.FULLY_ENABLED
-    "true"     | "invalid"  | ProductActivationConfig.FULLY_ENABLED
-    "true"     | "true"     | ProductActivationConfig.FULLY_ENABLED
-    "true"     | "1"        | ProductActivationConfig.FULLY_ENABLED
-    "1"        | null       | ProductActivationConfig.FULLY_ENABLED
+    null       | null       | ProductActivation.ENABLED_INACTIVE
+    null       | ""         | ProductActivation.ENABLED_INACTIVE
+    null       | "inactive" | ProductActivation.ENABLED_INACTIVE
+    null       | "false"    | ProductActivation.FULLY_DISABLED
+    null       | "0"        | ProductActivation.FULLY_DISABLED
+    null       | "invalid"  | ProductActivation.FULLY_DISABLED
+    null       | "true"     | ProductActivation.FULLY_ENABLED
+    null       | "1"        | ProductActivation.FULLY_ENABLED
+    ""         | null       | ProductActivation.ENABLED_INACTIVE
+    ""         | ""         | ProductActivation.ENABLED_INACTIVE
+    ""         | "inactive" | ProductActivation.ENABLED_INACTIVE
+    ""         | "false"    | ProductActivation.FULLY_DISABLED
+    ""         | "0"        | ProductActivation.FULLY_DISABLED
+    ""         | "invalid"  | ProductActivation.FULLY_DISABLED
+    ""         | "true"     | ProductActivation.FULLY_ENABLED
+    ""         | "1"        | ProductActivation.FULLY_ENABLED
+    "inactive" | null       | ProductActivation.ENABLED_INACTIVE
+    "inactive" | ""         | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "inactive" | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "false"    | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "0"        | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "invalid"  | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "true"     | ProductActivation.ENABLED_INACTIVE
+    "inactive" | "1"        | ProductActivation.ENABLED_INACTIVE
+    "false"    | null       | ProductActivation.FULLY_DISABLED
+    "false"    | ""         | ProductActivation.FULLY_DISABLED
+    "false"    | "inactive" | ProductActivation.FULLY_DISABLED
+    "false"    | "false"    | ProductActivation.FULLY_DISABLED
+    "false"    | "0"        | ProductActivation.FULLY_DISABLED
+    "false"    | "invalid"  | ProductActivation.FULLY_DISABLED
+    "false"    | "true"     | ProductActivation.FULLY_DISABLED
+    "false"    | "1"        | ProductActivation.FULLY_DISABLED
+    "0"        | null       | ProductActivation.FULLY_DISABLED
+    "true"     | null       | ProductActivation.FULLY_ENABLED
+    "true"     | ""         | ProductActivation.FULLY_ENABLED
+    "true"     | "inactive" | ProductActivation.FULLY_ENABLED
+    "true"     | "false"    | ProductActivation.FULLY_ENABLED
+    "true"     | "0"        | ProductActivation.FULLY_ENABLED
+    "true"     | "invalid"  | ProductActivation.FULLY_ENABLED
+    "true"     | "true"     | ProductActivation.FULLY_ENABLED
+    "true"     | "1"        | ProductActivation.FULLY_ENABLED
+    "1"        | null       | ProductActivation.FULLY_ENABLED
+  }
+
+  def "hostname discovery with environment variables"() {
+    setup:
+    final expectedHostname = "myhostname"
+    environmentVariables.set("HOSTNAME", expectedHostname)
+    environmentVariables.set("COMPUTERNAME", expectedHostname)
+
+    when:
+    def hostname = Config.initHostName()
+
+    then:
+    hostname == expectedHostname
+  }
+
+  def "hostname discovery without environment variables"() {
+    setup:
+    environmentVariables.set("HOSTNAME", "")
+    environmentVariables.set("COMPUTERNAME", "")
+
+    when:
+    def hostname = Config.initHostName()
+
+    then:
+    hostname != null
+    !hostname.trim().isEmpty()
   }
 
   static class ClassThrowsExceptionForValueOfMethod {

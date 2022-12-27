@@ -31,8 +31,6 @@ import org.slf4j.LoggerFactory;
 public final class AsyncProfiler {
   private static final Logger log = LoggerFactory.getLogger(AsyncProfiler.class);
 
-  public static final String TYPE = "async";
-
   private static final class Singleton {
     private static final AsyncProfiler INSTANCE = newInstance();
   }
@@ -113,7 +111,7 @@ public final class AsyncProfiler {
 
     long maxheap = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getMax();
     this.memleakIntervalDefault =
-        maxheap <= 0 ? 1 * 1024 * 1024 : maxheap / Math.max(1, getMemleakCapacity());
+        maxheap <= 0 ? 1024 * 1024 : maxheap / Math.max(1, getMemleakCapacity());
   }
 
   public static AsyncProfiler getInstance() {
@@ -172,15 +170,15 @@ public final class AsyncProfiler {
             arch, os));
   }
 
-  void addCurrentThread() {
-    if (asyncProfiler != null) {
-      asyncProfiler.addThread(Thread.currentThread());
+  void addThread(int tid) {
+    if (asyncProfiler != null && tid >= 0) {
+      asyncProfiler.addThread(tid);
     }
   }
 
-  void removeCurrentThread() {
-    if (asyncProfiler != null) {
-      asyncProfiler.removeThread(Thread.currentThread());
+  void removeThread(int tid) {
+    if (asyncProfiler != null && tid >= 0) {
+      asyncProfiler.removeThread(tid);
     }
   }
 
@@ -291,7 +289,18 @@ public final class AsyncProfiler {
     cmd.append(",safemode=").append(getSafeMode());
     if (profilingModes.contains(ProfilingMode.CPU)) {
       // cpu profiling is enabled.
-      cmd.append(",cpu=").append(getCpuInterval()).append('m');
+      String schedulingEvent = getSchedulingEvent();
+      if (schedulingEvent != null && !schedulingEvent.isEmpty()) {
+        // using a user-specified event, e.g. L1-dcache-load-misses
+        cmd.append(",event=").append(schedulingEvent);
+        Integer interval = getSchedulingEventInterval();
+        if (interval != null) {
+          cmd.append(",interval=").append(interval);
+        }
+      } else {
+        // using cpu time schedule
+        cmd.append(",cpu=").append(getCpuInterval()).append('m');
+      }
     }
     if (profilingModes.contains(ProfilingMode.WALL)) {
       // wall profiling is enabled.
@@ -332,6 +341,14 @@ public final class AsyncProfiler {
     return configProvider.getInteger(
         ProfilingConfig.PROFILING_ASYNC_WALL_INTERVAL,
         ProfilingConfig.PROFILING_ASYNC_WALL_INTERVAL_DEFAULT);
+  }
+
+  public String getSchedulingEvent() {
+    return configProvider.getString(ProfilingConfig.PROFILING_ASYNC_SCHEDULING_EVENT);
+  }
+
+  public Integer getSchedulingEventInterval() {
+    return configProvider.getInteger(ProfilingConfig.PROFILING_ASYNC_SCHEDULING_EVENT_INTERVAL);
   }
 
   private int getStackDepth() {
@@ -388,23 +405,20 @@ public final class AsyncProfiler {
     return Math.max(min, Math.min(max, value));
   }
 
-  public void setContext(long spanId, long rootSpanId) {
-    if (asyncProfiler != null) {
+  public void setContext(int tid, long spanId, long rootSpanId) {
+    if (asyncProfiler != null && tid >= 0) {
       try {
-        asyncProfiler.setContext(spanId, rootSpanId);
+        asyncProfiler.setContext(tid, spanId, rootSpanId);
       } catch (IllegalStateException e) {
         log.warn("Failed to set context", e);
       }
     }
   }
 
-  public void clearContext() {
+  public int getNativeThreadId() {
     if (asyncProfiler != null) {
-      try {
-        asyncProfiler.clearContext();
-      } catch (IllegalStateException e) {
-        log.warn("Failed to clear context", e);
-      }
+      return asyncProfiler.getNativeThreadId();
     }
+    return -1;
   }
 }

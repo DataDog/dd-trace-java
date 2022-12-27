@@ -12,7 +12,7 @@ import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEAD
 
 class XRayHttpExtractorTest extends DDSpecification {
 
-  HttpCodec.Extractor extractor = XRayHttpCodec.newExtractor(["SOME_HEADER": "some-tag"])
+  HttpCodec.Extractor extractor = XRayHttpCodec.newExtractor(["SOME_HEADER": "some-tag"], ["SOME_CUSTOM_BAGGAGE_HEADER": "some-baggage"])
 
   boolean origAppSecActive
 
@@ -32,7 +32,8 @@ class XRayHttpExtractorTest extends DDSpecification {
     def headers = [
       'X-Amzn-Trace-Id' : "Root=1-00000000-00000000${traceId.padLeft(16, '0')};" +
       "Parent=${spanId.padLeft(16, '0')}${samplingPriority};=empty key;empty value=;=;;",
-      SOME_HEADER : "my-interesting-info"
+      SOME_HEADER : "my-interesting-info",
+      SOME_CUSTOM_BAGGAGE_HEADER : "my-interesting-baggage-info",
     ]
 
     when:
@@ -42,7 +43,8 @@ class XRayHttpExtractorTest extends DDSpecification {
     context.traceId == DDTraceId.fromHex("$traceId")
     context.spanId == DDSpanId.fromHex("$spanId")
     context.baggage == [
-      "empty value" : ""
+      "empty value" : "",
+      "some-baggage": "my-interesting-baggage-info"
     ]
     context.tags == [
       "some-tag"    : "my-interesting-info"

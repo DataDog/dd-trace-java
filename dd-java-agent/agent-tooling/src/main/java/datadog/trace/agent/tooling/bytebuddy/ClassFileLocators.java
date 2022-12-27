@@ -5,7 +5,7 @@ import static datadog.trace.util.Strings.getResourceName;
 
 import datadog.trace.agent.tooling.Utils;
 import datadog.trace.agent.tooling.WeakCaches;
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.WeakCache;
 import java.io.IOException;
 import java.io.InputStream;
@@ -50,7 +50,7 @@ public final class ClassFileLocators {
       implements ClassFileLocator {
 
     private static final boolean NO_CLASSLOADER_EXCLUDES =
-        Config.get().getExcludedClassLoaders().isEmpty();
+        InstrumenterConfig.get().getExcludedClassLoaders().isEmpty();
 
     public DDClassFileLocator(final ClassLoader classLoader) {
       super(classLoader);
@@ -70,7 +70,9 @@ public final class ClassFileLocators {
         try {
           do {
             if (NO_CLASSLOADER_EXCLUDES
-                || !Config.get().getExcludedClassLoaders().contains(cl.getClass().getName())) {
+                || !InstrumenterConfig.get()
+                    .getExcludedClassLoaders()
+                    .contains(cl.getClass().getName())) {
               resolution = loadClassResource(cl, resourceName);
             }
             cl = cl.getParent();

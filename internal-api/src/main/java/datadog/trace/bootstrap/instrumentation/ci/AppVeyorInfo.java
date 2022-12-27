@@ -19,7 +19,9 @@ class AppVeyorInfo extends CIProviderInfo {
   public static final String APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH =
       "APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH";
   public static final String APPVEYOR_REPO_TAG_NAME = "APPVEYOR_REPO_TAG_NAME";
-  public static final String APPVEYOR_REPO_COMMIT_MESSAGE = "APPVEYOR_REPO_COMMIT_MESSAGE_EXTENDED";
+  public static final String APPVEYOR_REPO_COMMIT_MESSAGE_SUBJECT = "APPVEYOR_REPO_COMMIT_MESSAGE";
+  public static final String APPVEYOR_REPO_COMMIT_MESSAGE_BODY =
+      "APPVEYOR_REPO_COMMIT_MESSAGE_EXTENDED";
   public static final String APPVEYOR_REPO_COMMIT_AUTHOR_NAME = "APPVEYOR_REPO_COMMIT_AUTHOR";
   public static final String APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL =
       "APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL";
@@ -28,6 +30,8 @@ class AppVeyorInfo extends CIProviderInfo {
   protected GitInfo buildCIGitInfo() {
     final String repoProvider = System.getenv(APPVEYOR_REPO_PROVIDER);
     final String tag = buildGitTag(repoProvider);
+    final String messageSubject = System.getenv(APPVEYOR_REPO_COMMIT_MESSAGE_SUBJECT);
+    final String messageBody = System.getenv(APPVEYOR_REPO_COMMIT_MESSAGE_BODY);
     return new GitInfo(
         buildGitRepositoryUrl(repoProvider, System.getenv(APPVEYOR_REPO_NAME)),
         buildGitBranch(repoProvider, tag),
@@ -36,7 +40,7 @@ class AppVeyorInfo extends CIProviderInfo {
             buildGitCommit(),
             buildGitCommitAuthor(),
             PersonInfo.NOOP,
-            System.getenv(APPVEYOR_REPO_COMMIT_MESSAGE)));
+            String.format("%s%n%s", messageSubject, messageBody)));
   }
 
   @Override

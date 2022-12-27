@@ -1,5 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.Platform
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
@@ -69,7 +68,7 @@ class KafkaStreamsTest extends AgentTestRunner {
           // this is the last processing step so we should see 2 traces here
           TEST_WRITER.waitForTraces(2)
           TEST_TRACER.activeSpan().setTag("testing", 123)
-          if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+          if (isDataStreamsEnabled()) {
             TEST_DATA_STREAMS_WRITER.waitForGroups(1)
           }
           records.add(record)
@@ -91,7 +90,7 @@ class KafkaStreamsTest extends AgentTestRunner {
         String apply(String textLine) {
           TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           TEST_TRACER.activeSpan().setTag("asdf", "testing")
-          if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+          if (isDataStreamsEnabled()) {
             TEST_DATA_STREAMS_WRITER.waitForGroups(1)
           }
           return textLine.toLowerCase()
@@ -207,29 +206,35 @@ class KafkaStreamsTest extends AgentTestRunner {
     new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[1][0].traceId}"
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[1][0].spanId}"
 
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup originProducerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(originProducerPoint) {
-        edgeTags == ["topic:$STREAM_PENDING", "type:internal"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:out", "topic:$STREAM_PENDING", "type:kafka"]
+        edgeTags.size() == 3
       }
 
       StatsGroup kafkaStreamsConsumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == originProducerPoint.hash }
       verifyAll(kafkaStreamsConsumerPoint) {
-        edgeTags == ["group:test-application", "partition:0", "topic:$STREAM_PENDING".toString(), "type:kafka"]
-        edgeTags.size() == 4
+        edgeTags == [
+          "direction:in",
+          "group:test-application",
+          "partition:0",
+          "topic:$STREAM_PENDING".toString(),
+          "type:kafka"
+        ]
+        edgeTags.size() == 5
       }
 
       StatsGroup kafkaStreamsProducerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == kafkaStreamsConsumerPoint.hash }
       verifyAll(kafkaStreamsProducerPoint) {
-        edgeTags == ["topic:$STREAM_PROCESSED", "type:internal"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:out", "topic:$STREAM_PROCESSED", "type:kafka"]
+        edgeTags.size() == 3
       }
 
       StatsGroup finalConsumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == kafkaStreamsProducerPoint.hash }
       verifyAll(finalConsumerPoint) {
-        edgeTags == ["group:sender", "partition:0", "topic:$STREAM_PROCESSED".toString(), "type:kafka"]
-        edgeTags.size() == 4
+        edgeTags == ["direction:in", "group:sender", "partition:0", "topic:$STREAM_PROCESSED".toString(), "type:kafka"]
+        edgeTags.size() == 5
       }
     }
 

@@ -9,7 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.security.ProtectionDomain;
@@ -34,14 +34,15 @@ import org.slf4j.LoggerFactory;
  */
 public interface Instrumenter {
   /**
-   * Since several subsystems are sharing the same instrumentation infrastructure in order to enable
-   * only the applicable {@link Instrumenter instrumenters} on startup each {@linkplain
-   * Instrumenter} type must declare its target system. Four systems are currently supported
+   * Since several systems share the same instrumentation infrastructure in order to enable only the
+   * applicable {@link Instrumenter instrumenters} on startup each {@linkplain Instrumenter} type
+   * must declare its target system. Five systems are currently supported:
    *
    * <ul>
    *   <li>{@link TargetSystem#TRACING tracing}
    *   <li>{@link TargetSystem#PROFILING profiling}
    *   <li>{@link TargetSystem#APPSEC appsec}
+   *   <li>{@link TargetSystem#IAST iast}
    *   <li>{@link TargetSystem#CIVISIBILITY ci-visibility}
    * </ul>
    */
@@ -137,7 +138,8 @@ public interface Instrumenter {
       addAll(instrumentationNames, additionalNames);
       instrumentationPrimaryName = instrumentationName;
 
-      enabled = Config.get().isIntegrationEnabled(instrumentationNames, defaultEnabled());
+      enabled =
+          InstrumenterConfig.get().isIntegrationEnabled(instrumentationNames, defaultEnabled());
     }
 
     public int instrumentationId() {
@@ -232,6 +234,11 @@ public interface Instrumenter {
       return new String[0];
     }
 
+    /** Override this to automatically inject all (non-bootstrap) helper dependencies. */
+    public boolean injectHelperDependencies() {
+      return false;
+    }
+
     /** Classes that the muzzle plugin assumes will be injected */
     public String[] muzzleIgnoredClassNames() {
       return helperClassNames();
@@ -281,7 +288,7 @@ public interface Instrumenter {
     }
 
     protected boolean defaultEnabled() {
-      return Config.get().isIntegrationsEnabled();
+      return InstrumenterConfig.get().isIntegrationsEnabled();
     }
 
     public boolean isEnabled() {
@@ -294,7 +301,7 @@ public interface Instrumenter {
     }
 
     protected final boolean isShortcutMatchingEnabled(boolean defaultToShortcut) {
-      return Config.get()
+      return InstrumenterConfig.get()
           .isIntegrationShortcutMatchingEnabled(singletonList(name()), defaultToShortcut);
     }
   }

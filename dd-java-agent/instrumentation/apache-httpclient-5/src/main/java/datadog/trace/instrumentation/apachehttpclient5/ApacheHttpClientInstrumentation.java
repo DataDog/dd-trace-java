@@ -2,9 +2,7 @@ package datadog.trace.instrumentation.apachehttpclient5;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
@@ -69,7 +67,6 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
     transformation.applyAdvice(
         isMethod()
             .and(named("execute"))
-            .and(not(isAbstract()))
             .and(takesArguments(1))
             .and(takesArgument(0, named("org.apache.hc.core5.http.ClassicHttpRequest"))),
         ApacheHttpClientInstrumentation.class.getName() + "$RequestAdvice");
@@ -77,7 +74,6 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
     transformation.applyAdvice(
         isMethod()
             .and(named("execute"))
-            .and(not(isAbstract()))
             .and(takesArguments(2))
             .and(takesArgument(0, named("org.apache.hc.core5.http.ClassicHttpRequest")))
             .and(takesArgument(1, named("org.apache.hc.core5.http.protocol.HttpContext"))),
@@ -86,7 +82,6 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
     transformation.applyAdvice(
         isMethod()
             .and(named("execute"))
-            .and(not(isAbstract()))
             .and(takesArguments(3))
             .and(takesArgument(0, named("org.apache.hc.core5.http.HttpHost")))
             .and(takesArgument(1, named("org.apache.hc.core5.http.ClassicHttpRequest")))
@@ -96,7 +91,6 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
     transformation.applyAdvice(
         isMethod()
             .and(named("execute"))
-            .and(not(isAbstract()))
             .and(takesArguments(2))
             .and(takesArgument(0, named("org.apache.hc.core5.http.HttpHost")))
             .and(takesArgument(1, named("org.apache.hc.core5.http.ClassicHttpRequest"))),
@@ -105,7 +99,6 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
     transformation.applyAdvice(
         isMethod()
             .and(named("execute"))
-            .and(not(isAbstract()))
             .and(takesArguments(4))
             .and(takesArgument(0, named("org.apache.hc.core5.http.HttpHost")))
             .and(takesArgument(1, named("org.apache.hc.core5.http.ClassicHttpRequest")))

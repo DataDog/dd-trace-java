@@ -1,3 +1,7 @@
+plugins {
+  id 'java-test-fixtures'
+}
+
 muzzle {
   pass {
     coreJdk()
@@ -6,8 +10,8 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-
 apply plugin: 'org.unbroken-dome.test-sets'
+apply plugin: 'call-site-instrumentation'
 
 testSets {
   oldH2Test {
@@ -29,6 +33,8 @@ testSets {
 }
 
 dependencies {
+  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+
   // jdbc unit testing
   testImplementation group: 'com.h2database', name: 'h2', version: '[1.3.168,1.3.169]'// first jdk 1.6 compatible
   testImplementation group: 'org.apache.derby', name: 'derby', version: '10.6.1.0'
@@ -45,6 +51,8 @@ dependencies {
 
   testImplementation "org.testcontainers:mysql:${versions.testcontainers}"
   testImplementation "org.testcontainers:postgresql:${versions.testcontainers}"
+
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 
   // Test pre jdk 1.6 H2
   oldH2TestImplementation(group: 'com.h2database', name: 'h2') {
@@ -72,7 +80,7 @@ dependencies {
   latestDepJava11TestImplementation group: 'com.zaxxer', name: 'HikariCP', version: '+'
 }
 
-tasks.named("test").configure {
+tasks.named("check").configure {
   dependsOn "oldH2Test"
   dependsOn "oldPostgresTest"
 }

@@ -20,6 +20,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.bootstrap.instrumentation.decorator.http.SimplePathNormalizer
 import datadog.trace.core.DDSpan
+import datadog.trace.core.datastreams.StatsGroup
 import groovy.transform.CompileStatic
 import okhttp3.HttpUrl
 import okhttp3.MediaType
@@ -66,14 +67,23 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.SERVER_PATHWAY_EDGE_TAGS
 import static org.junit.Assume.assumeTrue
 
 @Unroll
 abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   public static final Logger SERVER_LOGGER = LoggerFactory.getLogger("http-server")
+  protected static final DSM_EDGE_TAGS = SERVER_PATHWAY_EDGE_TAGS.collect { key, value ->
+    return key + ":" + value
+  }
   static {
     ((ch.qos.logback.classic.Logger) SERVER_LOGGER).setLevel(Level.DEBUG)
+  }
+
+  @Override
+  boolean isDataStreamsEnabled() {
+    true
   }
 
   @CompileStatic
@@ -115,6 +125,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME)
   }
 
+  // here to go around a limitation in openliberty, where the service name
+  // is set only at the end of the span and doesn't propagate down
+  String expectedControllerServiceName() {
+    expectedServiceName()
+  }
+
   abstract String expectedOperationName()
 
   String expectedResourceName(ServerEndpoint endpoint, String method, URI address) {
@@ -145,7 +161,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   // Only used if hasExtraErrorInformation is true
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.errored) {
-      ["error.msg"  : { it == null || it == EXCEPTION.body },
+      ["error.message"  : { it == null || it == EXCEPTION.body },
         "error.type" : { it == null || it == Exception.name },
         "error.stack": { it == null || it instanceof String }]
     } else {
@@ -410,6 +426,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     List<Response> responses = (1..count).collect {
       return client.newCall(request).execute()
     }
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     expect:
     responses.each { response ->
@@ -433,6 +452,14 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         }
       }
     }
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
 
     where:
     method = "GET"
@@ -446,6 +473,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def ip = FORWARDED.body
     def request = request(FORWARDED, method, body).header("x-forwarded-for", ip).build()
     def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     expect:
     response.code() == FORWARDED.status
@@ -465,6 +495,14 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         }
       }
     }
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
 
     where:
     method = "GET"
@@ -480,6 +518,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       .header("x-datadog-parent-id", parentId.toString())
       .build()
     def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     expect:
     response.code() == SUCCESS.status
@@ -499,6 +540,14 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         }
       }
     }
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
 
     where:
     method = "GET"
@@ -511,6 +560,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       .header(header, value)
       .build()
     def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     expect:
     response.code() == SUCCESS.status
@@ -531,6 +583,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
     }
 
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
+
     where:
     method | body | header                           | value | tags
     'GET'  | null | 'x-datadog-test-both-header'     | 'foo' | [ 'both_header_tag': 'foo' ]
@@ -548,6 +609,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     expect:
     response.code() == endpoint.status
     response.body().string() == endpoint.body
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     and:
     assertTraces(1) {
@@ -564,6 +628,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
     }
 
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
+
     where:
     endpoint           | method | body | header             | mapping                      | tags
     QUERY_ENCODED_BOTH | 'GET'  | null | IG_RESPONSE_HEADER | 'mapped_response_header_tag' | [ 'mapped_response_header_tag': "$IG_RESPONSE_HEADER_VALUE" ]
@@ -577,6 +650,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     when:
     Response response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     then:
     response.code() == endpoint.status
@@ -594,6 +670,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         if (hasResponseSpan(endpoint)) {
           responseSpan(it, endpoint)
         }
+      }
+    }
+
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
       }
     }
 
@@ -620,6 +705,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     when:
     Response response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     then:
     response.code() == endpoint.status
@@ -640,6 +728,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
     }
 
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
+
     where:
     rawQuery | rawResource | endpoint
     true     | true        | QUERY_ENCODED_BOTH
@@ -656,6 +753,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assumeTrue(testPathParam() != null)
     def request = request(PATH_PARAM, method, body).build()
     def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     expect:
     response.code() == PATH_PARAM.status
@@ -676,6 +776,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
     }
 
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
+
     where:
     method = "GET"
     body = null
@@ -692,10 +801,22 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def response = client.newCall(request).execute()
     response.body().string() == PATH_PARAM.body
     TEST_WRITER.waitForTraces(1)
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     then:
     DDSpan span = TEST_WRITER.flatten().find {it.operationName =='appsec-span' }
     span.getTag(IG_PATH_PARAMS_TAG) == expectedIGPathParams()
+
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
   }
 
   def "test success with multiple header attached parent"() {
@@ -709,6 +830,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       .header("x-datadog-sampling-priority", "1, 1")
       .build()
     def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     expect:
     response.code() == SUCCESS.status
@@ -729,6 +853,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
     }
 
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
+
     where:
     method = "GET"
     body = null
@@ -739,6 +872,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assumeTrue(testRedirect())
     def request = request(REDIRECT, method, body).build()
     def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     expect:
     if (bubblesResponse()) {
@@ -764,6 +900,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
     }
 
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
+
     where:
     method = "GET"
     body = null
@@ -771,12 +916,16 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   def "test error"() {
     setup:
-    def request = request(ERROR, method, body).build()
+    String method = 'GET'
+    def request = request(ERROR, method, null).build()
     def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     expect:
     if (bubblesResponse()) {
-      assert response.body().string() == ERROR.body
+      assert response.body().string().contains(ERROR.body)
       assert response.code() == ERROR.status
     }
 
@@ -795,9 +944,14 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
     }
 
-    where:
-    method = "GET"
-    body = null
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
   }
 
   def "test exception"() {
@@ -805,6 +959,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assumeTrue(testException())
     def request = request(EXCEPTION, method, body).build()
     def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     expect:
     response.code() == EXCEPTION.status
@@ -827,6 +984,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
     }
 
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
+
     where:
     method = "GET"
     body = null
@@ -835,8 +1001,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   def "test notFound"() {
     setup:
     assumeTrue(testNotFound())
+
+    String method = "GET"
+    RequestBody body = null
+
     def request = request(NOT_FOUND, method, body).build()
     def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     expect:
     response.code() == NOT_FOUND.status
@@ -856,9 +1029,14 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
     }
 
-    where:
-    method = "GET"
-    body = null
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
   }
 
   def "test timeout"() {
@@ -869,6 +1047,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     when:
     def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     then:
     response.code() == 500
@@ -890,6 +1071,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
     }
 
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
+
     where:
     method = "GET"
     body = null
@@ -900,6 +1090,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assumeTrue(testTimeout())
     def request = request(TIMEOUT_ERROR, method, body).build()
     def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     expect:
     if (bubblesResponse()) {
@@ -920,6 +1113,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         if (hasResponseSpan(TIMEOUT_ERROR)) {
           responseSpan(it, TIMEOUT_ERROR)
         }
+      }
+    }
+
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
       }
     }
 
@@ -944,6 +1146,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     when:
     def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     then:
     response.code() == endpoint.status
@@ -969,6 +1174,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
     }
 
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
+
     where:
     endpoint            | header         | value       | extraSpan
     QUERY_ENCODED_BOTH  | IG_TEST_HEADER | "something" | true
@@ -986,6 +1200,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       RequestBody.create(MediaType.get('text/plain'), 'my body'))
       .build()
     def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     expect:
     response.body().charStream().text == 'created: my body'
@@ -996,6 +1213,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     then:
     TEST_WRITER.get(0).any {
       it.getTag('request.body') == 'my body'
+    }
+
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
     }
   }
 
@@ -1007,6 +1233,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       RequestBody.create(MediaType.get('text/plain'), 'my body'))
       .build()
     def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     expect:
     response.body().charStream().text == 'created: my body'
@@ -1018,6 +1247,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     TEST_WRITER.get(0).any {
       it.getTag('request.body') == 'my body'
     }
+
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
   }
 
   def 'test instrumentation gateway urlencoded request body'() {
@@ -1028,6 +1266,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       RequestBody.create(MediaType.get('application/x-www-form-urlencoded'), 'a=x'))
       .build()
     def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     expect:
     response.body().charStream().text == '[a:[x]]'
@@ -1039,6 +1280,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     TEST_WRITER.get(0).any {
       it.getTag('request.body.converted') == '[a:[x]]'
     }
+
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
   }
 
   def 'test instrumentation gateway json request body'() {
@@ -1049,6 +1299,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       RequestBody.create(MediaType.get('application/json'), '{"a": "x"}'))
       .build()
     def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     expect:
     response.body().charStream().text == BODY_JSON.body
@@ -1059,6 +1312,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     then:
     TEST_WRITER.get(0).any {
       it.getTag('request.body.converted') == '[a:[x]]'
+    }
+
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
     }
   }
 
@@ -1077,6 +1339,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         it.build()
       }
     def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     expect:
     response.code() == 418
@@ -1096,6 +1361,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     trace.size() == 1
     trace[0].tags['http.status_code'] == 418
 
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
+
     where:
     expectedJson | acceptHeader
     true         | null
@@ -1112,6 +1386,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       .addHeader('Accept', 'text/html')  // preference for html will be ignored
       .build()
     def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
 
     expect:
     response.code() == 418
@@ -1125,13 +1402,21 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     then:
     trace.size() == 1
     trace[0].tags['http.status_code'] == 418
+
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
   }
 
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
     def exception = endpoint == CUSTOM_EXCEPTION ? expectedCustomExceptionType() : expectedExceptionType()
     def errorMessage = endpoint?.body
     trace.span {
-      serviceName expectedServiceName()
       operationName "controller"
       resourceName "controller"
       errored errorMessage != null

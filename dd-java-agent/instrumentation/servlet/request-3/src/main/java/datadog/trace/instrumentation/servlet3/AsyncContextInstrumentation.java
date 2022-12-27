@@ -33,6 +33,11 @@ public final class AsyncContextInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String muzzleDirective() {
+    return "servlet-3.x";
+  }
+
+  @Override
   public String hierarchyMarkerType() {
     return "javax.servlet.AsyncContext";
   }

@@ -66,6 +66,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
 
     @Override
     public void close() {
+      flush();
       closed = true;
       worker.interrupt();
       try {
@@ -85,7 +86,6 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       }
     }
 
-    // Only used from within tests
     @Override
     public void flush() {
       if (worker.isAlive()) {

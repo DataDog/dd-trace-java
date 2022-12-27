@@ -30,9 +30,6 @@ excludedClassesCoverage += ['com.datadog.profiling.controller.jfr.JdkTypeIDs']
 
 // Shared JFR implementation. The earliest Java version JFR is working on is Java 8
 
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
-
 tasks.named("compileTestJava").configure {
   setJavaVersion(it, 11)
   // tests should be compiled in Java 8 compatible way

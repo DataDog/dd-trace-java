@@ -9,7 +9,7 @@ import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
-import datadog.trace.common.sampling.RateByServiceSampler
+import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 
@@ -143,10 +143,10 @@ class DDAgentApiTest extends DDCoreSpecification {
       "error"    : 0,
       "meta"     : ["thread.name": Thread.currentThread().getName(), "_dd.p.usr": "123", "_dd.p.dm": "-1"],
       "metrics"  : [
-        (DDSpanContext.PRIORITY_SAMPLING_KEY)       : 1,
-        (InstrumentationTags.DD_TOP_LEVEL as String): 1,
-        (RateByServiceSampler.SAMPLING_AGENT_RATE)  : 1.0,
-        "thread.id"                                 : Thread.currentThread().id
+        (DDSpanContext.PRIORITY_SAMPLING_KEY)          : 1,
+        (InstrumentationTags.DD_TOP_LEVEL as String)   : 1,
+        (RateByServiceTraceSampler.SAMPLING_AGENT_RATE): 1.0,
+        "thread.id"                                    : Thread.currentThread().id
       ],
       "name"     : "fakeOperation",
       "parent_id": 0,
@@ -163,10 +163,10 @@ class DDAgentApiTest extends DDCoreSpecification {
       "error"    : 0,
       "meta"     : ["thread.name": Thread.currentThread().getName(), "_dd.p.usr": "123", "_dd.p.dm": "-1"],
       "metrics"  : [
-        (DDSpanContext.PRIORITY_SAMPLING_KEY)       : 1,
-        (InstrumentationTags.DD_TOP_LEVEL as String): 1,
-        (RateByServiceSampler.SAMPLING_AGENT_RATE)  : 1.0,
-        "thread.id"                                 : Thread.currentThread().id
+        (DDSpanContext.PRIORITY_SAMPLING_KEY)          : 1,
+        (InstrumentationTags.DD_TOP_LEVEL as String)   : 1,
+        (RateByServiceTraceSampler.SAMPLING_AGENT_RATE): 1.0,
+        "thread.id"                                    : Thread.currentThread().id
       ],
       "name"     : "fakeOperation",
       "parent_id": 0,

@@ -1,9 +1,5 @@
 import org.datanucleus.enhancer.DataNucleusEnhancer
 
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
-}
-
 buildscript {
   repositories {
     mavenCentral()

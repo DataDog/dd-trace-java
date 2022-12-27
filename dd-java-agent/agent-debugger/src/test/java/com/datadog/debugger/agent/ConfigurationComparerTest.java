@@ -20,7 +20,6 @@ import org.objectweb.asm.tree.MethodNode;
 class ConfigurationComparerTest {
   private static final String PROBE_ID = "beae1807-f3b0-4ea8-a74f-826790c5e6f8";
   private static final String SERVICE_NAME = "service-name";
-  private static final long ORG_ID = 2;
 
   @Test
   public void newDefinitions() {
@@ -165,14 +164,11 @@ class ConfigurationComparerTest {
   public void hasProbeRelatedChangesFilteredChanged() {
     Configuration empty = createConfig(Collections.emptyList());
     Configuration config =
-        new Configuration(
-            SERVICE_NAME,
-            ORG_ID,
-            Collections.emptyList(),
-            Collections.emptyList(),
-            new Configuration.FilterList(Arrays.asList("com.datadog"), Collections.emptyList()),
-            null,
-            null);
+        Configuration.builder()
+            .setService(SERVICE_NAME)
+            .addAllowList(
+                new Configuration.FilterList(Arrays.asList("com.datadog"), Collections.emptyList()))
+            .build();
     ConfigurationComparer configurationComparer =
         new ConfigurationComparer(empty, config, Collections.emptyMap());
     Assertions.assertTrue(configurationComparer.hasProbeRelatedChanges());
@@ -191,29 +187,22 @@ class ConfigurationComparerTest {
         probe.getId(), InstrumentationResult.Factory.blocked(probe.getWhere().getTypeName()));
     Configuration noFilterConfig = createConfig(Collections.singletonList(probe));
     Configuration config =
-        new Configuration(
-            SERVICE_NAME,
-            ORG_ID,
-            Collections.singletonList(probe),
-            Collections.emptyList(),
-            new Configuration.FilterList(Arrays.asList("com.datadog"), Collections.emptyList()),
-            null,
-            null);
+        Configuration.builder()
+            .add(probe)
+            .addAllowList(
+                new Configuration.FilterList(Arrays.asList("com.datadog"), Collections.emptyList()))
+            .build();
     ConfigurationComparer configurationComparer =
         new ConfigurationComparer(noFilterConfig, config, instrumentationResults);
     Assertions.assertTrue(configurationComparer.hasProbeRelatedChanges());
     Assertions.assertTrue(configurationComparer.getAllChangedClasses().isEmpty());
 
     Configuration changedAllowedList =
-        new Configuration(
-            SERVICE_NAME,
-            ORG_ID,
-            Collections.singletonList(probe),
-            Collections.emptyList(),
-            new Configuration.FilterList(Arrays.asList("com.datacat"), Collections.emptyList()),
-            null,
-            null);
-
+        Configuration.builder()
+            .add(probe)
+            .addAllowList(
+                new Configuration.FilterList(Arrays.asList("com.datacat"), Collections.emptyList()))
+            .build();
     ConfigurationComparer configurationComparer2 =
         new ConfigurationComparer(config, changedAllowedList, instrumentationResults);
     Assertions.assertTrue(configurationComparer2.hasProbeRelatedChanges());
@@ -240,14 +229,11 @@ class ConfigurationComparerTest {
             InstrumentationResult.Status.INSTALLED, null, "com.datadog.Blocked", "method"));
     Configuration noFilterConfig = createConfig(Collections.singletonList(probe));
     Configuration config =
-        new Configuration(
-            SERVICE_NAME,
-            ORG_ID,
-            Collections.singletonList(probe),
-            Collections.emptyList(),
-            null,
-            new Configuration.FilterList(Arrays.asList("com.datadog"), Collections.emptyList()),
-            null);
+        Configuration.builder()
+            .add(probe)
+            .addDenyList(
+                new Configuration.FilterList(Arrays.asList("com.datadog"), Collections.emptyList()))
+            .build();
     ConfigurationComparer configurationComparer =
         new ConfigurationComparer(noFilterConfig, config, instrumentationResults);
     Assertions.assertTrue(configurationComparer.hasProbeRelatedChanges());
@@ -272,14 +258,11 @@ class ConfigurationComparerTest {
         probe.getId(), InstrumentationResult.Factory.blocked(probe.getWhere().getTypeName()));
     Configuration empty = createConfig(Collections.emptyList());
     Configuration config =
-        new Configuration(
-            SERVICE_NAME,
-            ORG_ID,
-            Collections.singletonList(probe),
-            Collections.emptyList(),
-            null,
-            new Configuration.FilterList(Arrays.asList("com.datadog"), Collections.emptyList()),
-            null);
+        Configuration.builder()
+            .add(probe)
+            .addDenyList(
+                new Configuration.FilterList(Arrays.asList("com.datadog"), Collections.emptyList()))
+            .build();
     ConfigurationComparer configurationComparer =
         new ConfigurationComparer(empty, config, Collections.emptyMap());
     Assertions.assertTrue(configurationComparer.hasProbeRelatedChanges());
@@ -456,6 +439,6 @@ class ConfigurationComparerTest {
   }
 
   private static Configuration createConfig(List<SnapshotProbe> snapshotProbes) {
-    return new Configuration(SERVICE_NAME, ORG_ID, snapshotProbes);
+    return new Configuration(SERVICE_NAME, snapshotProbes);
   }
 }

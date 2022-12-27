@@ -35,22 +35,24 @@ public class Snapshot {
   private final String language;
   private final transient CapturedThread thread;
   private final transient Set<String> capturingProbeIds = new HashSet<>();
+  private final transient Set<String> errorReportingIds = new HashSet<>();
   private final transient String thisClassName;
   private String traceId; // trace_id
   private String spanId; // span_id
-  private final transient SnapshotSummaryBuilder summaryBuilder;
+  private List<EvaluationError> evaluationErrors;
+  private final transient SummaryBuilder summaryBuilder;
 
-  public Snapshot(java.lang.Thread thread, ProbeDetails probe, String thisClassName) {
+  public Snapshot(java.lang.Thread thread, ProbeDetails probeDetails, String thisClassName) {
     this.startTs = System.nanoTime();
     this.version = VERSION;
     this.timestamp = System.currentTimeMillis();
     this.captures = new Captures();
     this.language = LANGUAGE;
     this.thread = new CapturedThread(thread);
-    this.probe = probe;
+    this.probe = probeDetails;
     this.thisClassName = thisClassName;
-    this.summaryBuilder = new SnapshotSummaryBuilder(probe);
-    addCapturingProbeId(probe);
+    this.summaryBuilder = probeDetails.summaryBuilder;
+    addCapturingProbeId(probeDetails);
   }
 
   public Snapshot(
@@ -79,8 +81,8 @@ public class Snapshot {
     this.traceId = traceId;
     this.spanId = spanId;
     this.thisClassName = thisClassName;
-    this.summaryBuilder = new SnapshotSummaryBuilder(probeDetails);
-    addCapturingProbeId(probe);
+    this.summaryBuilder = probeDetails.summaryBuilder;
+    addCapturingProbeId(this.probe);
   }
 
   private void addCapturingProbeId(ProbeDetails probe) {
@@ -92,7 +94,9 @@ public class Snapshot {
   public void setEntry(CapturedContext context) {
     summaryBuilder.addEntry(context);
     context.setThisClassName(thisClassName);
-    if (checkCapture(context)) {
+    if ((probe.getEvaluateAt() == MethodLocation.DEFAULT
+            || probe.getEvaluateAt() == MethodLocation.ENTRY)
+        && checkCapture(context)) {
       captures.setEntry(context);
     }
   }
@@ -102,7 +106,9 @@ public class Snapshot {
     context.addExtension(ValueReferences.DURATION_EXTENSION_NAME, duration);
     summaryBuilder.addExit(context);
     context.setThisClassName(thisClassName);
-    if (checkCapture(context)) {
+    if ((probe.getEvaluateAt() == MethodLocation.DEFAULT
+            || probe.getEvaluateAt() == MethodLocation.EXIT)
+        && checkCapture(context)) {
       captures.setReturn(context);
     }
   }
@@ -169,12 +175,16 @@ public class Snapshot {
     return spanId;
   }
 
+  public List<EvaluationError> getEvaluationErrors() {
+    return evaluationErrors;
+  }
+
   public String getSummary() {
     return summaryBuilder.build();
   }
 
   public void commit() {
-    if (!isCapturing()) {
+    if (!isCapturing() && evaluationErrors == null) {
       DebuggerContext.skipSnapshot(probe.id, DebuggerContext.SkipCause.CONDITION);
       for (ProbeDetails probeDetails : probe.additionalProbes) {
         DebuggerContext.skipSnapshot(probeDetails.id, DebuggerContext.SkipCause.CONDITION);
@@ -182,7 +192,7 @@ public class Snapshot {
       return;
     }
     // only rate limit if a condition is defined
-    if (probe.getScript() != null) {
+    if (probe.getScript() != null && probe.isSnapshotProbe()) {
       if (!ProbeRateLimiter.tryProbe(probe.id)) {
         DebuggerContext.skipSnapshot(probe.id, DebuggerContext.SkipCause.RATE);
         return;
@@ -198,13 +208,14 @@ public class Snapshot {
      * - Snapshot.commit()
      */
     recordStackTrace(3);
-    if (capturingProbeIds.contains(probe.id)) {
+    if (capturingProbeIds.contains(probe.id) || errorReportingIds.contains(probe.id)) {
       DebuggerContext.addSnapshot(this);
     } else {
       DebuggerContext.skipSnapshot(probe.id, DebuggerContext.SkipCause.CONDITION);
     }
     for (ProbeDetails additionalProbe : probe.additionalProbes) {
-      if (capturingProbeIds.contains(additionalProbe.id)) {
+      if (capturingProbeIds.contains(additionalProbe.id)
+          || errorReportingIds.contains(additionalProbe.id)) {
         DebuggerContext.addSnapshot(copy(additionalProbe.id, UUID.randomUUID().toString()));
       } else {
         DebuggerContext.skipSnapshot(additionalProbe.id, DebuggerContext.SkipCause.CONDITION);
@@ -220,7 +231,8 @@ public class Snapshot {
         duration,
         stack,
         captures,
-        new ProbeDetails(probeId, probe.location, probe.script, probe.tags),
+        new ProbeDetails(
+            probeId, probe.location, probe.evaluateAt, probe.script, probe.tags, summaryBuilder),
         language,
         thread,
         thisClassName,
@@ -238,11 +250,22 @@ public class Snapshot {
     if (!executeScript(script, capture, probe.id)) {
       capturingProbeIds.remove(probe.id);
     }
+    if (capture.areEvalErrors()) {
+      errorReportingIds.add(probe.id);
+      if (capture.evaluationErrors != null) {
+        if (evaluationErrors == null) {
+          evaluationErrors = new ArrayList<>();
+        }
+        evaluationErrors.addAll(capture.evaluationErrors);
+      }
+    }
     List<ProbeDetails> additionalProbes = probe.additionalProbes;
     if (!additionalProbes.isEmpty()) {
       for (ProbeDetails additionalProbe : additionalProbes) {
         if (executeScript(additionalProbe.getScript(), capture, additionalProbe.id)) {
           capturingProbeIds.add(additionalProbe.id);
+        } else if (capture.areEvalErrors()) {
+          errorReportingIds.add(additionalProbe.id);
         }
       }
     }
@@ -290,6 +313,12 @@ public class Snapshot {
     AFTER;
   }
 
+  public enum MethodLocation {
+    DEFAULT,
+    ENTRY,
+    EXIT
+  }
+
   /** Probe information associated with a snapshot */
   public static class ProbeDetails {
     public static final String ITW_PROBE_ID = "instrument-the-world-probe";
@@ -299,29 +328,48 @@ public class Snapshot {
 
     private final String id;
     private final ProbeLocation location;
+    private final MethodLocation evaluateAt;
     private final DebuggerScript script;
     private final transient List<ProbeDetails> additionalProbes;
     private final String tags;
+    private final transient SummaryBuilder summaryBuilder;
 
     public ProbeDetails(String id, ProbeLocation location) {
-      this(id, location, null, null, Collections.emptyList());
-    }
-
-    public ProbeDetails(String id, ProbeLocation location, DebuggerScript script, String tags) {
-      this(id, location, script, tags, Collections.emptyList());
+      this(
+          id,
+          location,
+          MethodLocation.DEFAULT,
+          null,
+          null,
+          new SnapshotSummaryBuilder(location),
+          Collections.emptyList());
     }
 
     public ProbeDetails(
         String id,
         ProbeLocation location,
+        MethodLocation evaluateAt,
         DebuggerScript script,
         String tags,
+        SummaryBuilder summaryBuilder) {
+      this(id, location, evaluateAt, script, tags, summaryBuilder, Collections.emptyList());
+    }
+
+    public ProbeDetails(
+        String id,
+        ProbeLocation location,
+        MethodLocation evaluateAt,
+        DebuggerScript script,
+        String tags,
+        SummaryBuilder summaryBuilder,
         List<ProbeDetails> additionalProbes) {
       this.id = id;
       this.location = location;
+      this.evaluateAt = evaluateAt;
       this.script = script;
       this.additionalProbes = additionalProbes;
       this.tags = tags;
+      this.summaryBuilder = summaryBuilder;
     }
 
     public String getId() {
@@ -332,12 +380,20 @@ public class Snapshot {
       return location;
     }
 
+    public MethodLocation getEvaluateAt() {
+      return evaluateAt;
+    }
+
     public DebuggerScript getScript() {
       return script;
     }
 
     public String getTags() {
       return tags;
+    }
+
+    public boolean isSnapshotProbe() {
+      return summaryBuilder instanceof SnapshotSummaryBuilder;
     }
 
     @Override
@@ -530,6 +586,7 @@ public class Snapshot {
     private Map<String, CapturedValue> fields;
     private Limits limits = Limits.DEFAULT;
     private String thisClassName;
+    private List<EvaluationError> evaluationErrors;
 
     public CapturedContext() {}
 
@@ -566,16 +623,26 @@ public class Snapshot {
       Object target = Values.UNDEFINED_OBJECT;
       if (prefix.equals(ValueReferences.FIELD_PREFIX)) {
         target = tryRetrieveField(head);
+        checkUndefined(path, target, head, "Cannot find field: ");
       } else if (prefix.equals(ValueReferences.SYNTHETIC_PREFIX)) {
         target = tryRetrieveSynthetic(head);
+        checkUndefined(path, target, head, "Cannot find synthetic var: ");
       } else if (prefix.equals(ValueReferences.LOCALVAR_PREFIX)) {
         target = tryRetrieveLocalVar(head);
+        checkUndefined(path, target, head, "Cannot find local var: ");
       } else if (prefix.equals(ValueReferences.ARGUMENT_PREFIX)) {
         target = tryRetrieveArgument(head);
+        checkUndefined(path, target, head, "Cannot find argument: ");
       }
-      target = followReferences(target, parts);
+      target = followReferences(path, target, parts);
 
       return target instanceof CapturedValue ? ((CapturedValue) target).getValue() : target;
+    }
+
+    private void checkUndefined(String path, Object target, String name, String msg) {
+      if (target == Values.UNDEFINED_OBJECT) {
+        addEvalError(path, msg + name);
+      }
     }
 
     private Object tryRetrieveField(String name) {
@@ -613,7 +680,7 @@ public class Snapshot {
      * @param parts the reference path
      * @return the resolved value or {@linkplain Values#UNDEFINED_OBJECT}
      */
-    private Object followReferences(Object src, String[] parts) {
+    private Object followReferences(String path, Object src, String[] parts) {
       if (src == Values.UNDEFINED_OBJECT) {
         return src;
       }
@@ -639,8 +706,13 @@ public class Snapshot {
             }
           }
         } else {
-          target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), parts[i]);
+          if (target != null) {
+            target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), parts[i]);
+          } else {
+            target = Values.UNDEFINED_OBJECT;
+          }
         }
+        checkUndefined(path, target, parts[i], "Cannot dereference to field: ");
       }
       return target;
     }
@@ -707,6 +779,20 @@ public class Snapshot {
       for (CapturedValue value : values) {
         fields.put(value.name, value);
       }
+    }
+
+    public void addEvalError(String expr, String message) {
+      if (evaluationErrors == null) {
+        evaluationErrors = new ArrayList<>();
+      }
+      evaluationErrors.add(new EvaluationError(expr, message));
+    }
+
+    boolean areEvalErrors() {
+      if (evaluationErrors != null) {
+        return !evaluationErrors.isEmpty();
+      }
+      return false;
     }
 
     public void setLimits(
@@ -1099,6 +1185,27 @@ public class Snapshot {
           + ", stacktrace="
           + stacktrace
           + '}';
+    }
+  }
+
+  /**
+   * Store evaluation errors from expressions (probe conditions, log template, metric values, ...)
+   */
+  public static class EvaluationError {
+    private final String expr;
+    private final String message;
+
+    public EvaluationError(String expr, String message) {
+      this.expr = expr;
+      this.message = message;
+    }
+
+    public String getExpr() {
+      return expr;
+    }
+
+    public String getMessage() {
+      return message;
     }
   }
 }

@@ -1,11 +1,11 @@
 package com.datadog.iast.taint;
 
+import com.datadog.iast.util.NonBlockingSemaphore;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -30,9 +30,9 @@ public final class DefaultTaintedMap implements TaintedMap {
   /** Default flat mode threshold. */
   public static final int DEFAULT_FLAT_MODE_THRESHOLD = 1 << 13;
   /** Periodicity of table purges, as number of put operations. It MUST be a power of two. */
-  private static final int PURGE_COUNT = 1 << 6;
+  static final int PURGE_COUNT = 1 << 6;
   /** Bitmask for fast modulo with PURGE_COUNT. */
-  private static final int PURGE_MASK = PURGE_COUNT - 1;
+  static final int PURGE_MASK = PURGE_COUNT - 1;
   /** Bitmask to convert hashes to positive integers. */
   static final int POSITIVE_MASK = Integer.MAX_VALUE;
 
@@ -40,14 +40,14 @@ public final class DefaultTaintedMap implements TaintedMap {
   /** Bitmask for fast modulo with table length. */
   private final int lengthMask;
   /** Flag to ensure we do not run multiple purges concurrently. */
-  private final AtomicBoolean isPurging = new AtomicBoolean(false);
+  private final NonBlockingSemaphore purge = NonBlockingSemaphore.withPermitCount(1);
   /**
    * Estimated number of hash table entries. If the hash table switches to flat mode, it stops
    * counting elements.
    */
   private final AtomicInteger estimatedSize = new AtomicInteger(0);
   /** Reference queue for garbage-collected entries. */
-  private ReferenceQueue<Object> referenceQueue = new ReferenceQueue<>();
+  private ReferenceQueue<Object> referenceQueue;
   /**
    * Whether flat mode is enabled or not. Once this is true, it is not set to false again unless
    * {@link #clear()} is called.
@@ -60,7 +60,7 @@ public final class DefaultTaintedMap implements TaintedMap {
    * Default constructor. Uses {@link #DEFAULT_CAPACITY} and {@link #DEFAULT_FLAT_MODE_THRESHOLD}.
    */
   public DefaultTaintedMap() {
-    this(DEFAULT_CAPACITY, DEFAULT_FLAT_MODE_THRESHOLD);
+    this(DEFAULT_CAPACITY, DEFAULT_FLAT_MODE_THRESHOLD, new ReferenceQueue<>());
   }
 
   /**
@@ -68,12 +68,15 @@ public final class DefaultTaintedMap implements TaintedMap {
    *
    * @param capacity Capacity of the internal array. It must be a power of 2.
    * @param flatModeThreshold Limit of entries before switching to flat mode.
+   * @param queue Reference queue. Only for tests.
    */
   @SuppressWarnings("unchecked")
-  private DefaultTaintedMap(final int capacity, final int flatModeThreshold) {
+  DefaultTaintedMap(
+      final int capacity, final int flatModeThreshold, final ReferenceQueue<Object> queue) {
     table = new TaintedObject[capacity];
     lengthMask = table.length - 1;
     this.flatModeThreshold = flatModeThreshold;
+    this.referenceQueue = queue;
   }
 
   /**
@@ -137,7 +140,7 @@ public final class DefaultTaintedMap implements TaintedMap {
    */
   void purge() {
     // Ensure we enter only once concurrently.
-    if (!isPurging.compareAndSet(false, true)) {
+    if (!purge.acquire()) {
       return;
     }
 
@@ -160,7 +163,7 @@ public final class DefaultTaintedMap implements TaintedMap {
       }
     } finally {
       // Reset purging flag.
-      isPurging.set(false);
+      purge.release();
     }
   }
 

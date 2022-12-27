@@ -1,12 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.jfr.exceptions;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.sampling.AdaptiveSampler;
+import datadog.trace.bootstrap.instrumentation.jfr.WindowSampler;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
-import jdk.jfr.EventType;
 
-final class ExceptionSampler {
+final class ExceptionSampler extends WindowSampler<ExceptionSampleEvent> {
   /*
    * Fixed 0.5 second sampling window.
    * Logic in AdaptiveSampler relies on sampling window being small compared to (in our case) recording duration:
@@ -14,36 +13,19 @@ final class ExceptionSampler {
    */
   private static final Duration SAMPLING_WINDOW = Duration.of(500, ChronoUnit.MILLIS);
 
-  private final AdaptiveSampler sampler;
-  private final EventType exceptionSampleType;
-
   ExceptionSampler(final Config config) {
-    this(SAMPLING_WINDOW, getSamplesPerWindow(config), samplingWindowsPerRecording(config));
+    this(
+        SAMPLING_WINDOW,
+        getSamplesPerWindow(config),
+        samplingWindowsPerRecording(config.getProfilingUploadPeriod(), SAMPLING_WINDOW));
   }
 
-  ExceptionSampler(final Duration windowDuration, final int samplesPerWindow, final int lookback) {
-    sampler = new AdaptiveSampler(windowDuration, samplesPerWindow, lookback, 16);
-    exceptionSampleType = EventType.getEventType(ExceptionSampleEvent.class);
+  ExceptionSampler(Duration windowDuration, int samplesPerWindow, int lookback) {
+    super(windowDuration, samplesPerWindow, lookback, ExceptionSampleEvent.class);
   }
 
-  private static int samplingWindowsPerRecording(final Config config) {
-    /*
-     * Java8 doesn't have dividedBy#Duration so we have to implement poor man's version.
-     * None of these durations should be big enough to warrant dealing with bigints.
-     * We also do not care about nanoseconds here.
-     */
-    return (int)
-        Math.min(
-            Duration.of(config.getProfilingUploadPeriod(), ChronoUnit.SECONDS).toMillis()
-                / SAMPLING_WINDOW.toMillis(),
-            Integer.MAX_VALUE);
-  }
-
-  private static int getSamplesPerWindow(final Config config) {
-    return config.getProfilingExceptionSampleLimit() / samplingWindowsPerRecording(config);
-  }
-
-  boolean sample() {
-    return exceptionSampleType.isEnabled() && sampler.sample();
+  protected static int getSamplesPerWindow(final Config config) {
+    return config.getProfilingExceptionSampleLimit()
+        / samplingWindowsPerRecording(config.getProfilingUploadPeriod(), SAMPLING_WINDOW);
   }
 }

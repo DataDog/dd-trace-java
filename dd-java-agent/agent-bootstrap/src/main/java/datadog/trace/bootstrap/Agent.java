@@ -1,35 +1,17 @@
 package datadog.trace.bootstrap;
 
-import static datadog.trace.api.Platform.getRuntimeVendor;
-import static datadog.trace.api.Platform.isJavaVersionAtLeast;
-import static datadog.trace.api.Platform.isOracleJDK8;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED;
-import static datadog.trace.bootstrap.Library.WILDFLY;
-import static datadog.trace.bootstrap.Library.detectLibraries;
-import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
-import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_STARTUP;
-import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_STARTUP;
-import static datadog.trace.util.AgentThreadFactory.newAgentThread;
-import static datadog.trace.util.Strings.getResourceName;
-import static datadog.trace.util.Strings.toEnvVar;
-
-import datadog.trace.api.Config;
-import datadog.trace.api.EndpointCheckpointer;
-import datadog.trace.api.GlobalTracer;
-import datadog.trace.api.Platform;
-import datadog.trace.api.StatsDClientManager;
-import datadog.trace.api.Tracer;
-import datadog.trace.api.WithGlobalTracer;
+import datadog.trace.api.*;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
-import datadog.trace.bootstrap.instrumentation.api.ContextThreadListener;
-import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
-import datadog.trace.bootstrap.instrumentation.exceptions.ExceptionSampling;
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
+import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
@@ -37,12 +19,17 @@ import java.lang.reflect.Method;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.net.URL;
 import java.util.EnumSet;
-import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static datadog.trace.api.Platform.*;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED;
+import static datadog.trace.bootstrap.Library.WILDFLY;
+import static datadog.trace.bootstrap.Library.detectLibraries;
+import static datadog.trace.util.AgentThreadFactory.AgentThread.*;
+import static datadog.trace.util.AgentThreadFactory.newAgentThread;
+import static datadog.trace.util.Strings.getResourceName;
+import static datadog.trace.util.Strings.toEnvVar;
 
 /**
  * Agent start up logic.
@@ -63,14 +50,12 @@ public class Agent {
   private static final String SIMPLE_LOGGER_DEFAULT_LOG_LEVEL_PROPERTY =
       "datadog.slf4j.simpleLogger.defaultLogLevel";
 
+  private static final String AGENT_INSTALLER_CLASS_NAME =
+      "datadog.trace.agent.tooling.AgentInstaller";
+
   private static final int DEFAULT_JMX_START_DELAY = 15; // seconds
 
   private static final Logger log;
-
-  private static final String AGENT_INSTALLER_CLASS_NAME =
-      "false".equalsIgnoreCase(ddGetProperty("dd.legacy.agent.enabled"))
-          ? "datadog.trace.agent.installer.AgentInstaller"
-          : "datadog.trace.agent.tooling.AgentInstaller";
 
   private enum AgentFeature {
     TRACING("dd.tracing.enabled", true),
@@ -129,7 +114,12 @@ public class Agent {
 
   public static void start(final Instrumentation inst, final URL agentJarURL) {
     createAgentClassloader(agentJarURL);
-    System.out.println("-------------------start-------------------");
+
+    if (Platform.isNativeImageBuilder()) {
+      startDatadogAgent(inst);
+      return;
+    }
+
     // Retro-compatibility for the old way to configure CI Visibility
     if ("true".equals(ddGetProperty("dd.integration.junit.enabled"))
         || "true".equals(ddGetProperty("dd.integration.testng.enabled"))) {
@@ -150,11 +140,6 @@ public class Agent {
 
       /*if CI Visibility is enabled, the PrioritizationType should be {@code Prioritization.ENSURE_TRACE} */
       setSystemPropertyDefault("dd.prioritization.type", "ENSURE_TRACE");
-
-      boolean ciVisibilityAgentlessEnabled = isFeatureEnabled(AgentFeature.CIVISIBILITY_AGENTLESS);
-      if (ciVisibilityAgentlessEnabled) {
-        setSystemPropertyDefault("dd.writer.type", WriterConstants.DD_INTAKE_WRITER_TYPE);
-      }
     }
 
     if (Platform.isJ9()) {
@@ -274,8 +259,8 @@ public class Agent {
         registerLogManagerCallback(new StartProfilingAgentCallback());
       } else {
         startProfilingAgent(false);
-        // only enable sampler when we know JFR is ready
-        ExceptionSampling.enableExceptionSampling();
+        // only enable instrumentation based profilers when we know JFR is ready
+        InstrumentationBasedProfiling.enableInstrumentationBasedProfiling();
       }
     }
   }
@@ -394,7 +379,6 @@ public class Agent {
       }
 
       installDatadogTracer(scoClass, sco);
-      installContextThreadListener();
       maybeStartAppSec(scoClass, sco);
       maybeStartIast(scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
@@ -416,8 +400,8 @@ public class Agent {
     @Override
     public void execute() {
       startProfilingAgent(false);
-      // only enable sampler when we know JFR is ready
-      ExceptionSampling.enableExceptionSampling();
+      // only enable instrumentation based profilers when we know JFR is ready
+      InstrumentationBasedProfiling.enableInstrumentationBasedProfiling();
     }
   }
 
@@ -486,8 +470,9 @@ public class Agent {
       final Class<?> tracerInstallerClass =
           AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.TracerInstaller");
       final Method tracerInstallerMethod =
-          tracerInstallerClass.getMethod("installGlobalTracer", scoClass);
-      tracerInstallerMethod.invoke(null, sco);
+          tracerInstallerClass.getMethod(
+              "installGlobalTracer", scoClass, ProfilingContextIntegration.class);
+      tracerInstallerMethod.invoke(null, sco, createProfilingContextIntegration());
     } catch (final Throwable ex) {
       log.error("Throwable thrown while installing the Datadog Tracer", ex);
     }
@@ -715,26 +700,21 @@ public class Agent {
   }
 
   /**
-   * Must be called after tracer is installed, but can't wait until the profiler is installed. {@see
-   * com.datadog.profiling.async.ContextThreadFilter} must not be modified to depend on JFR.
+   * {@see com.datadog.profiling.async.ContextThreadFilter} must not be modified to depend on JFR.
    */
-  private static void installContextThreadListener() {
+  private static ProfilingContextIntegration createProfilingContextIntegration() {
     if (Config.get().isProfilingEnabled()) {
       try {
-        Tracer tracer = GlobalTracer.get();
-        if (tracer instanceof TracerAPI) {
-          ContextThreadListener listener =
-              (ContextThreadListener)
-                  AGENT_CLASSLOADER
-                      .loadClass("com.datadog.profiling.async.ContextThreadFilter")
-                      .getDeclaredConstructor()
-                      .newInstance();
-          ((TracerAPI) tracer).addThreadContextListener(listener);
-        }
+        return (ProfilingContextIntegration)
+            AGENT_CLASSLOADER
+                .loadClass("com.datadog.profiling.async.ContextThreadFilter")
+                .getDeclaredConstructor()
+                .newInstance();
       } catch (Throwable t) {
         log.debug("Profiling context labeling not available. {}", t.getMessage());
       }
     }
+    return ProfilingContextIntegration.NoOp.INSTANCE;
   }
 
   private static void startProfilingAgent(final boolean isStartingFirst) {
@@ -758,12 +738,6 @@ public class Agent {
               public void withTracer(TracerAPI tracer) {
                 log.debug("Initializing profiler tracer integrations");
                 try {
-                  if (Config.get().isAsyncProfilerEnabled()) {
-                    log.debug("Registering async-profiler scope listener");
-                    tracer.addScopeListener(
-                        createScopeListener(
-                            "com.datadog.profiling.context.AsyncProfilerScopeListener"));
-                  }
                   if (Platform.isOracleJDK8() || Platform.isJ9()) {
                     return;
                   }
@@ -774,11 +748,6 @@ public class Agent {
                               .getDeclaredConstructor()
                               .newInstance();
                   tracer.registerCheckpointer(endpointCheckpointer);
-                  if (!Config.get().isAsyncProfilerEnabled()) {
-                    log.debug("Registering scope event factory");
-                    tracer.addScopeListener(
-                        createScopeListener("datadog.trace.core.jfr.openjdk.ScopeEventFactory"));
-                  }
                 } catch (Throwable e) {
                   if (e instanceof InvocationTargetException) {
                     e = e.getCause();
@@ -788,12 +757,6 @@ public class Agent {
               }
             });
       }
-    } catch (final ClassFormatError e) {
-      /*
-      Profiling is compiled for Java8. Loading it on Java7 results in ClassFormatError
-      (more specifically UnsupportedClassVersionError). Just ignore and continue when this happens.
-      */
-      log.debug("Profiling requires OpenJDK 8 or above - skipping");
     } catch (final Throwable ex) {
       log.error("Throwable thrown while starting profiling agent", ex);
     } finally {
@@ -820,12 +783,6 @@ public class Agent {
       final Method profilingInstallerMethod =
           profilingAgentClass.getMethod("shutdown", Boolean.TYPE);
       profilingInstallerMethod.invoke(null, sync);
-    } catch (final ClassFormatError e) {
-      /*
-      Profiling is compiled for Java8. Loading it on Java7 results in ClassFormatError
-      (more specifically UnsupportedClassVersionError). Just ignore and continue when this happens.
-      */
-      log.debug("Profiling requires OpenJDK 8 or above - skipping");
     } catch (final Throwable ex) {
       log.error("Throwable thrown while shutting down profiling agent", ex);
     } finally {
@@ -854,12 +811,6 @@ public class Agent {
       final Method debuggerInstallerMethod =
           debuggerAgentClass.getMethod("run", Instrumentation.class, scoClass);
       debuggerInstallerMethod.invoke(null, inst, sco);
-    } catch (final ClassFormatError e) {
-      /*
-      Debugger is compiled for Java8. Loading it on Java7 results in ClassFormatError
-      (more specifically UnsupportedClassVersionError). Just ignore and continue when this happens.
-      */
-      log.debug("Debugger requires OpenJDK 8 or above - skipping");
     } catch (final Throwable ex) {
       log.error("Throwable thrown while starting debugger agent", ex);
     } finally {
@@ -936,9 +887,7 @@ public class Agent {
     }
   }
 
-  /**
-   * @see datadog.trace.api.ProductActivationConfig#fromString(String)
-   */
+  /** @see datadog.trace.api.ProductActivation#fromString(String) */
   private static boolean isAppSecFullyDisabled() {
     // must be kept in sync with logic from Config!
     final String featureEnabledSysprop = AgentFeature.APPSEC.systemProp;

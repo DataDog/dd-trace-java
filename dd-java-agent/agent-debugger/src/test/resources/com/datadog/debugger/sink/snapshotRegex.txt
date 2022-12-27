@@ -4,7 +4,7 @@
 "snapshot":\{
 "captures":\{\},
 "language":"java",
-"probe":\{"id":"12fd-8490-c111-4374-ffde","location":\{"method":"indexOf","type":"java.lang.String"\}\},
+"probe":\{"evaluateAt":"DEFAULT","id":"12fd-8490-c111-4374-ffde","location":\{"method":"indexOf","type":"java.lang.String"\}\},
 "stack":\[\],
 "timestamp":\d+
 \}\},

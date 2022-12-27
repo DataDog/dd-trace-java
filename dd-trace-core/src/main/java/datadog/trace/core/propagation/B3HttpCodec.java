@@ -26,8 +26,8 @@ class B3HttpCodec {
 
   private static final String B3_TRACE_ID = "b3.traceid";
   private static final String B3_SPAN_ID = "b3.spanid";
-  private static final String TRACE_ID_KEY = "X-B3-TraceId";
-  private static final String SPAN_ID_KEY = "X-B3-SpanId";
+  static final String TRACE_ID_KEY = "X-B3-TraceId";
+  static final String SPAN_ID_KEY = "X-B3-SpanId";
   private static final String SAMPLING_PRIORITY_KEY = "X-B3-Sampled";
   // See https://github.com/openzipkin/b3-propagation#single-header for b3 header documentation
   private static final String B3_KEY = "b3";
@@ -77,13 +77,16 @@ class B3HttpCodec {
     }
   }
 
-  public static HttpCodec.Extractor newExtractor(final Map<String, String> tagMapping) {
+  public static HttpCodec.Extractor newExtractor(
+      final Map<String, String> tagMapping, Map<String, String> baggageMapping) {
     return new TagContextExtractor(
         tagMapping,
+        baggageMapping,
         new ContextInterpreter.Factory() {
           @Override
-          protected ContextInterpreter construct(final Map<String, String> mapping) {
-            return new B3ContextInterpreter(mapping);
+          protected ContextInterpreter construct(
+              final Map<String, String> mapping, Map<String, String> baggageMapping) {
+            return new B3ContextInterpreter(mapping, baggageMapping);
           }
         });
   }
@@ -97,8 +100,9 @@ class B3HttpCodec {
     private static final int B3_ID = 4;
     private static final int IGNORE = -1;
 
-    private B3ContextInterpreter(final Map<String, String> taggedHeaders) {
-      super(taggedHeaders, Config.get());
+    private B3ContextInterpreter(
+        final Map<String, String> taggedHeaders, Map<String, String> baggageMapping) {
+      super(taggedHeaders, baggageMapping, Config.get());
     }
 
     @Override

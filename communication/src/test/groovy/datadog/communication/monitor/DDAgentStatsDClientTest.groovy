@@ -14,7 +14,7 @@ class DDAgentStatsDClientTest extends DDSpecification {
     def server = new StatsDServer()
     server.start()
 
-    def client = statsDClientManager().statsDClient('127.0.0.1', server.socket.localPort, null, namespace, constantTags as String[])
+    def client = statsDClientManager().statsDClient('127.0.0.1', server.socket.localPort, null, namespace, constantTags as String[], false)
 
     String metricName = "test.metric"
     String checkName = "test.check"
@@ -108,10 +108,10 @@ class DDAgentStatsDClientTest extends DDSpecification {
     def server = new StatsDServer()
     server.start()
 
-    def client1 = statsDClientManager().statsDClient('127.0.0.1', server.socket.localPort, null, null, null)
-    def client2 = statsDClientManager().statsDClient('127.0.0.1', server.socket.localPort, null, "example", null)
-    def client3 = statsDClientManager().statsDClient('127.0.0.1', server.socket.localPort, null, null, ["lang:java", "lang_version:1.8.0"] as String[])
-    def client4 = statsDClientManager().statsDClient('127.0.0.1', server.socket.localPort, null, "example", ["lang:java", "lang_version:1.8.0"] as String[])
+    def client1 = statsDClientManager().statsDClient('127.0.0.1', server.socket.localPort, null, null, null, false)
+    def client2 = statsDClientManager().statsDClient('127.0.0.1', server.socket.localPort, null, "example", null, false)
+    def client3 = statsDClientManager().statsDClient('127.0.0.1', server.socket.localPort, null, null, ["lang:java", "lang_version:1.8.0"] as String[], false)
+    def client4 = statsDClientManager().statsDClient('127.0.0.1', server.socket.localPort, null, "example", ["lang:java", "lang_version:1.8.0"] as String[], false)
 
     String metricName = "test.metric"
     String[] metricTags = ["type:BufferPool", "jmx_domain:java.nio"]

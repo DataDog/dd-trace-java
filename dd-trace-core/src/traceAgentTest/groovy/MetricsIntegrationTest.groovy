@@ -14,13 +14,12 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicLongArray
 
-import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static datadog.trace.common.metrics.EventListener.EventType.OK
 import static java.util.concurrent.TimeUnit.SECONDS
 import okhttp3.HttpUrl
 
 @Requires({
-  "true" == System.getenv("CI") && isJavaVersionAtLeast(8)
+  "true" == System.getenv("CI")
 })
 class MetricsIntegrationTest extends DDSpecification {
 

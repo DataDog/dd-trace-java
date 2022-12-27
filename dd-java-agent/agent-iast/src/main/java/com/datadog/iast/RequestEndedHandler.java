@@ -1,7 +1,10 @@
 package com.datadog.iast;
 
+import static com.datadog.iast.IastTag.REQUEST_ANALYZED;
+import static com.datadog.iast.IastTag.REQUEST_SKIPPED;
+
 import com.datadog.iast.overhead.OverheadController;
-import datadog.trace.api.TraceSegment;
+import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
@@ -18,13 +21,24 @@ public class RequestEndedHandler implements BiFunction<RequestContext, IGSpanInf
 
   @Override
   public Flow<Void> apply(final RequestContext requestContext, final IGSpanInfo igSpanInfo) {
-    if (requestContext != null && requestContext.getData(RequestContextSlot.IAST) != null) {
-      final TraceSegment traceSeg = requestContext.getTraceSegment();
-      if (traceSeg != null) {
-        traceSeg.setTagTop("_dd.iast.enabled", 1);
+    final IastRequestContext iastRequestContext = getIastRequestContext(requestContext);
+    if (iastRequestContext != null) {
+      REQUEST_ANALYZED.setTagTop(requestContext.getTraceSegment());
+      final TaintedObjects taintedObjects = iastRequestContext.getTaintedObjects();
+      if (taintedObjects != null) {
+        taintedObjects.release();
       }
       overheadController.releaseRequest();
+    } else {
+      REQUEST_SKIPPED.setTagTop(requestContext.getTraceSegment());
     }
     return Flow.ResultFlow.empty();
+  }
+
+  private static IastRequestContext getIastRequestContext(final RequestContext requestContext) {
+    if (requestContext == null) {
+      return null;
+    }
+    return requestContext.getData(RequestContextSlot.IAST);
   }
 }

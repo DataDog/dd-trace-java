@@ -12,6 +12,7 @@ plugins {
   id "com.github.johnrengelman.shadow" version "7.1.2" apply false
   id "me.champeau.jmh" version "0.6.5" apply false
   id 'org.gradle.playframework' version '0.12' apply false
+  id 'info.solidsoft.pitest' version '1.9.11'  apply false
 }
 
 description = 'dd-trace-java'
@@ -26,7 +27,8 @@ spotless {
 spotlessPredeclare {
   // these need to align with the types and versions in gradle/spotless.gradle
   java {
-    googleJavaFormat()
+    // This is the last Google Java Format version that supports Java 8
+    googleJavaFormat('1.7')
   }
   groovyGradle {
     greclipse()

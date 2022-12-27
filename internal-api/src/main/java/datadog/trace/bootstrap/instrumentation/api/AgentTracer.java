@@ -12,6 +12,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.interceptor.TraceInterceptor;
+import datadog.trace.api.internal.InternalTracer;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
@@ -115,7 +116,7 @@ public class AgentTracer {
   private AgentTracer() {}
 
   public interface TracerAPI
-      extends datadog.trace.api.Tracer, AgentPropagation, EndpointCheckpointer {
+      extends datadog.trace.api.Tracer, InternalTracer, AgentPropagation, EndpointCheckpointer {
     AgentSpan startSpan(CharSequence spanName);
 
     AgentSpan startSpan(CharSequence spanName, long startTimeMicros);
@@ -146,8 +147,6 @@ public class AgentTracer {
 
     void close();
 
-    void flush();
-
     /**
      * Attach a scope listener to the global scope manager
      *
@@ -172,16 +171,7 @@ public class AgentTracer {
 
     AgentSpan.Context notifyExtensionStart(Object event);
 
-    void notifyExtensionEnd(AgentSpan span, boolean isError);
-
-    /**
-     * Registers a listener for notification when context is attached to and detached from a thread
-     *
-     * @param listener listener to context attachment/detachment
-     */
-    void addThreadContextListener(ContextThreadListener listener);
-
-    void detach();
+    void notifyExtensionEnd(AgentSpan span, Object result, boolean isError);
   }
 
   public interface SpanBuilder {
@@ -288,7 +278,14 @@ public class AgentTracer {
     public void close() {}
 
     @Override
+    public void addScopeListener(
+        Runnable afterScopeActivatedCallback, Runnable afterScopeClosedCallback) {}
+
+    @Override
     public void flush() {}
+
+    @Override
+    public void flushMetrics() {}
 
     @Override
     public String getTraceId() {
@@ -382,13 +379,7 @@ public class AgentTracer {
     }
 
     @Override
-    public void notifyExtensionEnd(AgentSpan span, boolean isError) {}
-
-    @Override
-    public void addThreadContextListener(ContextThreadListener listener) {}
-
-    @Override
-    public void detach() {}
+    public void notifyExtensionEnd(AgentSpan span, Object result, boolean isError) {}
   }
 
   public static final class NoopAgentSpan implements AgentSpan {

@@ -3,9 +3,8 @@ package datadog.smoketest
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import spock.lang.Shared
-import spock.lang.Timeout
 
-import java.util.concurrent.TimeUnit
+import static java.util.concurrent.TimeUnit.SECONDS
 
 /**
  * Each smoketest application is expected to log four lines to the log file:
@@ -50,6 +49,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     List<String> command = new ArrayList<>()
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
+    command.add("-Ddd.instrumentation.telemetry.enabled=false")
     command.add("-Ddd.test.logfile=${outputLogFile.absolutePath}" as String)
     command.add("-Ddd.test.jsonlogfile=${outputJsonLogFile.absolutePath}" as String)
     if (noTags) {
@@ -93,7 +93,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
 
   def assertRawLogLinesWithoutInjection(List<String> logLines, String firstTraceId, String firstSpanId, String secondTraceId, String secondSpanId) {
     // Assert log line starts with backend name.
-    // This avoids tests inadvertantly passing because the incorrect backend is logging
+    // This avoids tests inadvertently passing because the incorrect backend is logging
     logLines.every { it.startsWith(backend())}
     assert logLines.size() == 4
     assert logLines[0].endsWith("- BEFORE FIRST SPAN")
@@ -171,11 +171,10 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     return unmangled.split(" ")[1..2]
   }
 
-  // TODO: once java7 support is dropped use waitFor(timeout)
-  @Timeout(value = TIMEOUT_SECS, unit = TimeUnit.SECONDS)
   def "check raw file injection"() {
     when:
-    def exitValue = testedProcess.waitFor()
+    testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
+    def exitValue = testedProcess.exitValue()
     def count = waitForTraceCount(2)
 
     def logLines = outputLogFile.readLines()
@@ -218,12 +217,18 @@ abstract class JULBackend extends LogInjectionSmokeTest {
   def supportsJson() { false }
 
   def setupSpec() {
+    def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
+    def outputLogFilePath = outputLogFile.absolutePath
+    if (isWindows) {
+      // FileHandler pattern only uses / as path delimiter
+      outputLogFilePath = outputLogFilePath.replace("\\", "/")
+    }
     // JUL doesn't support reading a properties file from the classpath so everything needs
     // to be specified in a temp file
     propertiesFile.withPrintWriter {
       it.println ".level=INFO"
       it.println "handlers=java.util.logging.FileHandler"
-      it.println "java.util.logging.FileHandler.pattern=${outputLogFile.absolutePath}"
+      it.println "java.util.logging.FileHandler.pattern=${outputLogFilePath}"
       it.println "java.util.logging.FileHandler.formatter=java.util.logging.SimpleFormatter"
       it.println "java.util.logging.SimpleFormatter.format=JUL:%1\$tF %1\$tT [%4\$-7s] - %5\$s%n"
     }

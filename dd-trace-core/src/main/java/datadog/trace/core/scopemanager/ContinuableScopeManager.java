@@ -15,8 +15,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
-import datadog.trace.bootstrap.instrumentation.api.ContextThreadListener;
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
+import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.ArrayDeque;
 import java.util.Iterator;
@@ -51,6 +52,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
   final List<ScopeListener> scopeListeners;
   final List<ExtendedScopeListener> extendedScopeListeners;
   final StatsDClient statsDClient;
+  private final HealthMetrics healthMetrics;
 
   private final int depthLimit;
   private final boolean strictMode;
@@ -60,7 +62,24 @@ public final class ContinuableScopeManager implements AgentScopeManager {
       final int depthLimit,
       final StatsDClient statsDClient,
       final boolean strictMode,
-      final boolean inheritAsyncPropagation) {
+      final boolean inheritAsyncPropagation,
+      final HealthMetrics healthMetrics) {
+    this(
+        depthLimit,
+        statsDClient,
+        strictMode,
+        inheritAsyncPropagation,
+        ProfilingContextIntegration.NoOp.INSTANCE,
+        healthMetrics);
+  }
+
+  public ContinuableScopeManager(
+      final int depthLimit,
+      final StatsDClient statsDClient,
+      final boolean strictMode,
+      final boolean inheritAsyncPropagation,
+      final ProfilingContextIntegration profilingContextIntegration,
+      final HealthMetrics healthMetrics) {
 
     this.depthLimit = depthLimit == 0 ? Integer.MAX_VALUE : depthLimit;
     this.statsDClient = statsDClient;
@@ -68,7 +87,8 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     this.inheritAsyncPropagation = inheritAsyncPropagation;
     this.scopeListeners = new CopyOnWriteArrayList<>();
     this.extendedScopeListeners = new CopyOnWriteArrayList<>();
-    this.tlsScopeStack = new ScopeStackThreadLocal();
+    this.healthMetrics = healthMetrics;
+    this.tlsScopeStack = new ScopeStackThreadLocal(profilingContextIntegration);
   }
 
   @Override
@@ -160,12 +180,9 @@ public final class ContinuableScopeManager implements AgentScopeManager {
       scopeStack.cleanup();
       if (finishSpan) {
         top.span.finishWithEndToEnd();
+        healthMetrics.onFinishContinuation();
       }
     }
-  }
-
-  public void detach() {
-    tlsScopeStack.detach();
   }
 
   @Override
@@ -209,10 +226,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
   public AgentSpan activeSpan() {
     final ContinuableScope active = scopeStack().active();
     return active == null ? null : active.span;
-  }
-
-  public void addContextThreadListener(ContextThreadListener listener) {
-    tlsScopeStack.register(listener);
   }
 
   /** Attach a listener to scope activation events */
@@ -455,35 +468,15 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
   static final class ScopeStackThreadLocal extends ThreadLocal<ScopeStack> {
 
-    private final List<ContextThreadListener> listeners = new CopyOnWriteArrayList<>();
+    private final ProfilingContextIntegration profilingContextIntegration;
 
-    public void register(ContextThreadListener listener) {
-      listeners.add(listener);
+    ScopeStackThreadLocal(ProfilingContextIntegration profilingContextIntegration) {
+      this.profilingContextIntegration = profilingContextIntegration;
     }
 
     @Override
     protected ScopeStack initialValue() {
-      return new ScopeStack(
-          new Runnable() {
-            @Override
-            public void run() {
-              for (ContextThreadListener listener : listeners) {
-                listener.onAttach();
-              }
-            }
-          });
-    }
-
-    @Override
-    public void remove() {
-      detach();
-      super.remove();
-    }
-
-    private void detach() {
-      for (ContextThreadListener listener : listeners) {
-        listener.onDetach();
-      }
+      return new ScopeStack(profilingContextIntegration);
     }
   }
 
@@ -493,8 +486,9 @@ public final class ContinuableScopeManager implements AgentScopeManager {
    */
   static final class ScopeStack {
 
-    private final Runnable onFirstUsage;
-    private boolean used = false;
+    private final int nativeThreadId;
+
+    private final ProfilingContextIntegration profilingContextIntegration;
     private final ArrayDeque<ContinuableScope> stack = new ArrayDeque<>(); // previous scopes
 
     ContinuableScope top; // current scope
@@ -502,8 +496,9 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     // set by background task when a root iteration scope remains unclosed for too long
     volatile ContinuableScope overdueRootScope;
 
-    ScopeStack(Runnable onFirstUsage) {
-      this.onFirstUsage = onFirstUsage;
+    ScopeStack(ProfilingContextIntegration profilingContextIntegration) {
+      this.profilingContextIntegration = profilingContextIntegration;
+      this.nativeThreadId = profilingContextIntegration.getNativeThreadId();
     }
 
     ContinuableScope active() {
@@ -532,13 +527,20 @@ public final class ContinuableScopeManager implements AgentScopeManager {
           curScope.afterActivated();
         }
       }
+      if (top == null) {
+        onBecomeEmpty();
+      } else {
+        onTopChanged(top);
+      }
     }
 
     /** Marks a new scope as current, pushing the previous onto the stack */
     void push(final ContinuableScope scope) {
-      notifyOnFirstPush();
+      onTopChanged(scope);
       if (top != null) {
         stack.push(top);
+      } else {
+        onBecomeNonEmpty();
       }
       top = scope;
       scope.afterActivated();
@@ -586,11 +588,22 @@ public final class ContinuableScopeManager implements AgentScopeManager {
       top = null;
     }
 
-    private void notifyOnFirstPush() {
-      if (!used) {
-        used = true;
-        onFirstUsage.run();
-      }
+    private void onTopChanged(ContinuableScope top) {
+      long spanId = top.span.getSpanId();
+      AgentSpan rootSpan = top.span.getLocalRootSpan();
+      long rootSpanId = rootSpan == null ? spanId : rootSpan.getSpanId();
+      profilingContextIntegration.setContext(nativeThreadId, rootSpanId, spanId);
+    }
+
+    /** Notifies context thread listeners that this thread has a context now */
+    private void onBecomeNonEmpty() {
+      profilingContextIntegration.onAttach(nativeThreadId);
+    }
+
+    /** Notifies context thread listeners that this thread no longer has a context */
+    private void onBecomeEmpty() {
+      profilingContextIntegration.setContext(nativeThreadId, 0, 0);
+      profilingContextIntegration.onDetach(nativeThreadId);
     }
   }
 

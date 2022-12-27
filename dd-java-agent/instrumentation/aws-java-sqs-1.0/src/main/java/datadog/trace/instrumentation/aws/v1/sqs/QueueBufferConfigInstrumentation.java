@@ -23,11 +23,6 @@ public class QueueBufferConfigInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return super.defaultEnabled() && Config.get().isSqsPropagationEnabled();
-  }
-
-  @Override
   public String instrumentedType() {
     return "com.amazonaws.services.sqs.buffered.QueueBufferConfig";
   }
@@ -52,16 +47,18 @@ public class QueueBufferConfigInstrumentation extends Instrumenter.Tracing
     public static void onExit(
         @Advice.FieldValue(value = "receiveAttributeNames", readOnly = false)
             List<String> receiveAttributeNames) {
-      // QueueBufferConfig maintains an immutable list which we may need to replace
-      for (String name : receiveAttributeNames) {
-        if ("AWSTraceHeader".equals(name) || "All".equals(name)) {
-          return;
+      if (Config.get().isSqsPropagationEnabled()) {
+        // QueueBufferConfig maintains an immutable list which we may need to replace
+        for (String name : receiveAttributeNames) {
+          if ("AWSTraceHeader".equals(name) || "All".equals(name)) {
+            return;
+          }
         }
+        int oldLength = receiveAttributeNames.size();
+        String[] nameArray = receiveAttributeNames.toArray(new String[oldLength + 1]);
+        nameArray[oldLength] = "AWSTraceHeader";
+        receiveAttributeNames = asList(nameArray);
       }
-      int oldLength = receiveAttributeNames.size();
-      String[] nameArray = receiveAttributeNames.toArray(new String[oldLength + 1]);
-      nameArray[oldLength] = "AWSTraceHeader";
-      receiveAttributeNames = asList(nameArray);
     }
   }
 }
