@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.sslsocketimpl;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.instrumentation.usmextractor.UsmExtractor;
+import datadog.trace.bootstrap.instrumentation.usmextractor.UsmMessage;
 import net.bytebuddy.asm.Advice;
 import sun.security.ssl.SSLSocketImpl;
 
@@ -37,8 +39,9 @@ public class SslSocketImplInstrumentation extends Instrumenter.Usm
     public static void close(
         @Advice.This SSLSocketImpl socket
     ){
-
       System.out.println("close socket:");
+      UsmMessage message = new UsmMessage.CloseConnectionUsmMessage(socket);
+      UsmExtractor.send(message);
       System.out.println("src host: " + socket.getLocalSocketAddress().toString() + " src port: " + socket.getLocalPort());
       System.out.println("dst host: " + socket.getRemoteSocketAddress().toString() + " dst port: " + socket.getPeerPort());
     }

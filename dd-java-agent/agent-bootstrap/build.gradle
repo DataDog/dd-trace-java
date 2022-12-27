@@ -22,6 +22,8 @@ dependencies {
   api project(':internal-api:internal-api-9')
   api project(':dd-java-agent:agent-logging')
   api deps.slf4j
+  implementation group: 'net.java.dev.jna', name: 'jna', version: '5.8.0'
+  implementation group: 'net.java.dev.jna', name: 'jna-platform', version: '5.8.0'
   // ^ Generally a bad idea for libraries, but we're shadowing.
 
   testImplementation project(':dd-java-agent:testing')

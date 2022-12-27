@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.sslsocketimpl;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.instrumentation.usmextractor.UsmExtractor;
+import datadog.trace.bootstrap.instrumentation.usmextractor.UsmMessage;
 import net.bytebuddy.asm.Advice;
 import sun.security.ssl.SSLSocketImpl;
 
@@ -51,14 +53,14 @@ public class SslSocketImplStreamsInstrumentation extends Instrumenter.Usm
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void write(
         @Advice.FieldValue("this$0") SSLSocketImpl socket,
-        @Advice.This() Object thiz,
-        @Advice.Argument(0) final byte[] b,
-        @Advice.Argument(1) int off,
+        @Advice.Argument(0) final byte[] buffer,
+        @Advice.Argument(1) int offset,
         @Advice.Argument(2) int len)
     {
 
       System.out.println("Output Stream write:");
-      System.out.println("class type: " + thiz.getClass().toString());
+      UsmMessage message = new UsmMessage.RequestUsmMessage(socket, buffer, offset, len);
+      UsmExtractor.send(message);
       System.out.println("src host: " + socket.getLocalSocketAddress().toString() + " src port: " + socket.getLocalPort());
       System.out.println("dst host: " + socket.getRemoteSocketAddress().toString() + " dst port: " + socket.getPeerPort());
       System.out.println("intercepted write, byte len: " + len);
@@ -68,17 +70,17 @@ public class SslSocketImplStreamsInstrumentation extends Instrumenter.Usm
 
   public static class ReadAdvice {
 
-    @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Advice.OnMethodExit(suppress = Throwable.class)
     public static void read(
         @Advice.FieldValue("this$0") SSLSocketImpl socket,
-        @Advice.This() Object thiz,
-        @Advice.Argument(0) final byte[] b,
-        @Advice.Argument(1) int off,
+        @Advice.Argument(0) final byte[] buffer,
+        @Advice.Argument(1) int offset,
         @Advice.Argument(2) int len)
     {
 
-      System.out.println("Output Stream write:");
-      System.out.println("class type: " + thiz.getClass().toString());
+      System.out.println("Input Stream read:");
+      UsmMessage message = new UsmMessage.RequestUsmMessage(socket, buffer, offset, len);
+      UsmExtractor.send(message);
       System.out.println("src host: " + socket.getLocalSocketAddress().toString() + " src port: " + socket.getLocalPort());
       System.out.println("dst host: " + socket.getRemoteSocketAddress().toString() + " dst port: " + socket.getPeerPort());
       System.out.println("intercepted write, byte len: " + len);
