@@ -1,5 +1,7 @@
 package com.datadog.debugger.instrumentation;
 
+import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
+
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
@@ -19,6 +21,7 @@ import org.objectweb.asm.tree.LineNumberNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.TypeInsnNode;
 
 /** Common class for generating instrumentation */
 public class Instrumentor {
@@ -163,7 +166,9 @@ public class Instrumentor {
       case Opcodes.ARETURN:
         {
           InsnList beforeReturnInsnList = getBeforeReturnInsnList(node);
-          methodNode.instructions.insertBefore(node, beforeReturnInsnList);
+          if (beforeReturnInsnList != null) {
+            methodNode.instructions.insertBefore(node, beforeReturnInsnList);
+          }
           AbstractInsnNode prev = node.getPrevious();
           methodNode.instructions.remove(node);
           methodNode.instructions.insert(
@@ -221,6 +226,53 @@ public class Instrumentor {
 
   protected static void ldc(InsnList insnList, Object val) {
     insnList.add(val == null ? new InsnNode(Opcodes.ACONST_NULL) : new LdcInsnNode(val));
+  }
+
+  protected void pushTags(InsnList insnList, ProbeDefinition.Tag[] tags) {
+    if (tags == null || tags.length == 0) {
+      insnList.add(new InsnNode(Opcodes.ACONST_NULL));
+      return;
+    }
+    ldc(insnList, tags.length); // stack: [int]
+    insnList.add(
+        new TypeInsnNode(Opcodes.ANEWARRAY, STRING_TYPE.getInternalName())); // stack: [array]
+    int counter = 0;
+    for (ProbeDefinition.Tag tag : tags) {
+      insnList.add(new InsnNode(Opcodes.DUP)); // stack: [array, array]
+      ldc(insnList, counter++); // stack: [array, array, int]
+      ldc(insnList, tag.toString()); // stack: [array, array, int, string]
+      insnList.add(new InsnNode(Opcodes.AASTORE)); // stack: [array]
+    }
+  }
+
+  protected int newVar(Type type) {
+    int varId = methodNode.maxLocals + (type.getSize());
+    methodNode.maxLocals = varId;
+    return varId;
+  }
+
+  protected void invokeVirtual(
+      InsnList insnList, Type owner, String name, Type returnType, Type... argTypes) {
+    // expected stack: [this, arg_type_1 ... arg_type_N]
+    insnList.add(
+        new MethodInsnNode(
+            Opcodes.INVOKEVIRTUAL,
+            owner.getInternalName(),
+            name,
+            Type.getMethodDescriptor(returnType, argTypes),
+            false)); // stack: [ret_type]
+  }
+
+  protected void invokeInterface(
+      InsnList insnList, Type owner, String name, Type returnType, Type... argTypes) {
+    // expected stack: [this, arg_type_1 ... arg_type_N]
+    insnList.add(
+        new MethodInsnNode(
+            Opcodes.INVOKEINTERFACE,
+            owner.getInternalName(),
+            name,
+            Type.getMethodDescriptor(returnType, argTypes),
+            true)); // stack: [ret_type]
   }
 
   protected static boolean isStaticField(FieldNode fieldNode) {

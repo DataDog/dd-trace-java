@@ -227,8 +227,12 @@ public abstract class BaseIntegrationTest {
       Collection<SnapshotProbe> snapshotProbes,
       Configuration.FilterList allowList,
       Configuration.FilterList denyList) {
-    return new Configuration(
-        getAppId(), snapshotProbes, null, null, null, allowList, denyList, null);
+    return Configuration.builder()
+        .setService(getAppId())
+        .addSnapshotsProbes(snapshotProbes)
+        .addAllowList(allowList)
+        .addDenyList(denyList)
+        .build();
   }
 
   protected void assertCaptureArgs(
