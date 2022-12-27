@@ -192,8 +192,10 @@ public class ConfigurationTest {
     assertFalse(logProbe0.isCaptureSnapshot());
     // span probe
     assertEquals(1, config0.getSpanProbes().size());
-    SpanProbe spanProbe0 = config0.getSpanProbes().iterator().next();
-    assertEquals("span", spanProbe0.getName());
+    SpanProbe spanProbe1 = config0.getSpanProbes().iterator().next();
+    assertEquals("span", spanProbe1.getName());
+    SpanProbe spanProbe2 = config1.getSpanProbes().iterator().next();
+    assertEquals("12-23", spanProbe2.getWhere().getLines()[0]);
   }
 
   private Configuration createConfig1() {
@@ -232,7 +234,7 @@ public class ConfigurationTest {
             "java.lang.String",
             "indexOf",
             "(String)");
-    SpanProbe span2 = createSpan("span2", "java.lang.String", "indexOf", "(String)", "span");
+    SpanProbe span2 = createSpan("span2", "String.java", 12, 23, "span");
     Configuration.FilterList allowList =
         new Configuration.FilterList(
             Arrays.asList("java.lang.util"), Arrays.asList("java.lang.String"));
@@ -310,6 +312,18 @@ public class ConfigurationTest {
         .active(true)
         .where(typeName, methodName, signature)
         .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
+        .tags("tag1:value1", "tag2:value2")
+        .name(spanName)
+        .build();
+  }
+
+  private static SpanProbe createSpan(
+      String id, String sourceFile, int lineFrom, int lineTill, String spanName) {
+    return SpanProbe.builder()
+        .language("java")
+        .probeId(id)
+        .active(true)
+        .where(sourceFile, lineFrom, lineTill)
         .tags("tag1:value1", "tag2:value2")
         .name(spanName)
         .build();

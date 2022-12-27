@@ -189,6 +189,16 @@ public abstract class ProbeDefinition {
       return where(new Where(null, null, null, new String[] {String.valueOf(line)}, sourceFile));
     }
 
+    public T where(String sourceFile, int lineFrom, int lineTill) {
+      return where(
+          new Where(
+              null,
+              null,
+              null,
+              new Where.SourceLine[] {new Where.SourceLine(lineFrom, lineTill)},
+              sourceFile));
+    }
+
     public T where(
         String typeName, String methodName, String signature, int codeLine, String source) {
       return where(
