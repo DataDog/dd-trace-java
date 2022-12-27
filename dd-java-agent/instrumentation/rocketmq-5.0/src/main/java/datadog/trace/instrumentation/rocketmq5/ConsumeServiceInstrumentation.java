@@ -40,7 +40,6 @@ public class ConsumeServiceInstrumentation extends Instrumenter.Tracing
   }
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    System.out.println("-------ConsumeServiceInstrumentation-----");
   transformation.applyAdvice(
       isConstructor()
           .and(isPublic()
@@ -54,7 +53,6 @@ public class ConsumeServiceInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(value = 1, readOnly = false) MessageListener messageListener) {
       // Replace messageListener by wrapper.
       if (!(messageListener instanceof MessageListenerWrapper)) {
-        System.out.println("----------ConsumeServiceInstrumentation-ConstructorAdvice");
         messageListener = new MessageListenerWrapper(messageListener);
       }
     }

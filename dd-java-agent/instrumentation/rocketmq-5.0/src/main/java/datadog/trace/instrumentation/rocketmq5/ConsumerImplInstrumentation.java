@@ -39,10 +39,8 @@ public  class ConsumerImplInstrumentation extends Instrumenter.Tracing
     return new String[]{
         packageName + ".ReceiveSpanFinishingCallback",
         packageName + ".MessageListenerWrapper",
-        packageName + ".MessageMapGetter",
         packageName + ".MessageMapSetter",
         packageName + ".MessageViewGetter",
-        packageName + ".MessageViewSetter",
         packageName + ".SendSpanFinishingCallback",
         packageName + ".Timer",
     };
@@ -50,7 +48,6 @@ public  class ConsumerImplInstrumentation extends Instrumenter.Tracing
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-System.out.println("-------ConsumerImplInstrumentation-----");
     transformation.applyAdvice(
         isMethod()
         .and(named("receiveMessage"))
@@ -75,8 +72,6 @@ System.out.println("-------ConsumerImplInstrumentation-----");
         @Advice.Argument(0) ReceiveMessageRequest request,
         @Advice.Enter Timer timer,
         @Advice.Return ListenableFuture<ReceiveMessageResult> future) {
-      // 主动拉取的消息
-      System.out.println("-------------ConsumerImplInstrumentation-ReceiveMessageAdvice");
       ReceiveSpanFinishingCallback spanFinishingCallback =
           new ReceiveSpanFinishingCallback(request, timer);
       Futures.addCallback(future, spanFinishingCallback, MoreExecutors.directExecutor());

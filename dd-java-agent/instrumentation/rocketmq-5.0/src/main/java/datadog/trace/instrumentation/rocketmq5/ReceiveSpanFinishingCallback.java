@@ -10,7 +10,7 @@ import org.apache.rocketmq.shaded.com.google.common.util.concurrent.FutureCallba
 import java.util.List;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
-import static datadog.trace.instrumentation.rocketmq5.MessageViewSetter.setterView;
+import static datadog.trace.instrumentation.rocketmq5.MessageViewGetter.GetterView;
 
 public class ReceiveSpanFinishingCallback implements FutureCallback<ReceiveMessageResult> {
 
@@ -30,60 +30,25 @@ public class ReceiveSpanFinishingCallback implements FutureCallback<ReceiveMessa
       return;
     }
     String consumerGroup = request.getGroup().getName();
+    String topic = request.getMessageQueue().getTopic().getName();
 
-//    ContextStore<MessageViewImpl, String> groupStore = InstrumentationContext.get(MessageViewImpl.class, String.class);
-//
-//    for (MessageViewImpl messageView : messageViews) {
-//      //VirtualFieldStore.setConsumerGroupByMessage(messageView, consumerGroup);
-//      // todo  使用 store 存储
-//      groupStore.put(messageView,consumerGroup);
-//    }
-    // 父span start
-    AgentSpan span = startSpan("receive_message");// todo start time
-    AgentScope scope = activateSpan(span);
-    span.setResourceName("rocketmq5");
-    span.setTag("groupID",consumerGroup);
-    //
     for (MessageViewImpl messageView : messageViews) {
-      propagate().inject(span.context(),messageView,setterView);
+    //  propagate().inject(span.context(),messageView,setterView);
+      AgentSpan.Context parentContext = propagate().extract(messageView,GetterView);
+      if (null != parentContext){
+        AgentSpan childSpan = startSpan("receive_message",parentContext);
+        AgentScope scopeC = activateSpan(childSpan);
+        childSpan.setTag("messageID",messageView.getMessageId());
+        scopeC.span().setTag("groupID",consumerGroup);
+        scopeC.span().setTag("topic",topic);
+        scopeC.span().setTag("status","success");
+        scopeC.close();
+        scopeC.span().finish();
+      }
     }
-    scope.close();
-    scope.span().finish();
-    //
-    //
-    /*
-    Instrumenter<ReceiveMessageRequest, List<MessageView>> receiveInstrumenter =
-        RocketMqSingletons.consumerReceiveInstrumenter();
-    Context parentContext = Context.current();
-    if (receiveInstrumenter.shouldStart(parentContext, request)) {
-      Context context =
-          InstrumenterUtil.startAndEnd(
-              receiveInstrumenter,
-              parentContext,
-              request,
-              null,
-              null,
-              timer.startTime(),
-              timer.now());
-
-    }*/
-
   }
 
   @Override
   public void onFailure(Throwable throwable) {
-  /*  Instrumenter<ReceiveMessageRequest, List<MessageView>> receiveInstrumenter =
-        RocketMqSingletons.consumerReceiveInstrumenter();
-    Context parentContext = Context.current();
-    if (receiveInstrumenter.shouldStart(parentContext, request)) {
-      InstrumenterUtil.startAndEnd(
-          receiveInstrumenter,
-          parentContext,
-          request,
-          null,
-          throwable,
-          timer.startTime(),
-          timer.now());
-    }*/
   }
 }
