@@ -2,7 +2,7 @@ package datadog.communication.http;
 
 /**
  * Used to define simple retry policies based on exponential backoff mechanism. Typically used for
- * retrying HTTP calls in the DDIntakeApi class.
+ * retrying HTTP calls.
  */
 public class RetryPolicy {
 
@@ -15,9 +15,9 @@ public class RetryPolicy {
   }
 
   private RetryPolicy(final RetryPolicyBuilder builder) {
-    this.maxRetries = builder.maxRetries;
-    this.delay = builder.delayMs;
-    this.delayFactor = builder.delayFactor;
+    maxRetries = builder.maxRetries;
+    delay = builder.delayMs;
+    delayFactor = builder.delayFactor;
   }
 
   public boolean shouldRetry(int retry) {
@@ -44,7 +44,7 @@ public class RetryPolicy {
 
     public RetryPolicyBuilder withBackoff(long delayMs, double delayMultiplier) {
       this.delayMs = delayMs;
-      this.delayFactor = delayMultiplier;
+      delayFactor = delayMultiplier;
       return this;
     }
 
