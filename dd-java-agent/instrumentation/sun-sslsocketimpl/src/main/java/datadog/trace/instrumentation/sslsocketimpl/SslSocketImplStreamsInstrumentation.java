@@ -5,6 +5,8 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.usmextractor.UsmExtractor;
 import datadog.trace.bootstrap.instrumentation.usmextractor.UsmMessage;
 import net.bytebuddy.asm.Advice;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import sun.security.ssl.SSLSocketImpl;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -15,6 +17,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 @AutoService(Instrumenter.class)
 public class SslSocketImplStreamsInstrumentation extends Instrumenter.Usm
     implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes {
+
+  private static final Logger log = LoggerFactory.getLogger(SslSocketImplStreamsInstrumentation.class);
 
   public SslSocketImplStreamsInstrumentation() {
     super("sun-sslsocketimpl-streams","sslsocketimpl-streams","sslsocket-streams");
