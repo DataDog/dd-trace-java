@@ -66,10 +66,10 @@ class HttpRetryPolicyTest extends Specification {
     responseCode | rateLimitHeader | expectedRetries
     200          | null            | 0
     404          | null            | 0
-    429          | null            | 0
+    429          | null            | 5
+    429          | "corrupted"     | 5
     429          | "2"             | 1
     429          | "20"            | 0
-    429          | "corrupted"     | 0
     500          | null            | 5
     501          | null            | 5
   }

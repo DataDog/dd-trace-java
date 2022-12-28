@@ -4,8 +4,8 @@ import static datadog.trace.api.intake.TrackType.NOOP;
 import static datadog.trace.common.writer.DDIntakeWriter.DEFAULT_INTAKE_TIMEOUT;
 import static datadog.trace.common.writer.DDIntakeWriter.DEFAULT_INTAKE_VERSION;
 
+import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
-import datadog.communication.http.RetryPolicy;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.RemoteApi;
@@ -37,7 +37,6 @@ public class DDEvpProxyApi extends RemoteApi {
 
     HttpUrl agentUrl = null;
     OkHttpClient httpClient = null;
-    RetryPolicy retryPolicy = null;
     String evpProxyEndpoint;
 
     public DDEvpProxyApiBuilder trackType(final TrackType trackType) {
@@ -65,11 +64,6 @@ public class DDEvpProxyApi extends RemoteApi {
       return this;
     }
 
-    public DDEvpProxyApiBuilder retryPolicy(final RetryPolicy retryPolicy) {
-      this.retryPolicy = retryPolicy;
-      return this;
-    }
-
     DDEvpProxyApiBuilder httpClient(final OkHttpClient httpClient) {
       this.httpClient = httpClient;
       return this;
@@ -88,32 +82,32 @@ public class DDEvpProxyApi extends RemoteApi {
               ? httpClient
               : OkHttpUtils.buildHttpClient(proxiedApiUrl, timeoutMillis);
 
-      if (null == retryPolicy) {
-        retryPolicy = RetryPolicy.builder().withMaxRetry(5).withBackoff(100).build();
-      }
+      final HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0);
 
       log.debug("proxiedApiUrl: " + proxiedApiUrl);
-      return new DDEvpProxyApi(client, proxiedApiUrl, subdomain, retryPolicy);
+      return new DDEvpProxyApi(client, proxiedApiUrl, subdomain, retryPolicyFactory);
     }
   }
 
   private final OkHttpClient httpClient;
   private final HttpUrl proxiedApiUrl;
   private final String subdomain;
-  private final RetryPolicy retryPolicy;
+  private final HttpRetryPolicy.Factory retryPolicyFactory;
 
   private DDEvpProxyApi(
-      OkHttpClient httpClient, HttpUrl proxiedApiUrl, String subdomain, RetryPolicy retryPolicy) {
+      OkHttpClient httpClient,
+      HttpUrl proxiedApiUrl,
+      String subdomain,
+      HttpRetryPolicy.Factory retryPolicyFactory) {
     this.httpClient = httpClient;
     this.proxiedApiUrl = proxiedApiUrl;
     this.subdomain = subdomain;
-    this.retryPolicy = retryPolicy;
+    this.retryPolicyFactory = retryPolicyFactory;
   }
 
   @Override
   public Response sendSerializedTraces(Payload payload) {
     final int sizeInBytes = payload.sizeInBytes();
-    int retry = 1;
 
     try {
       final Request request =
@@ -122,38 +116,35 @@ public class DDEvpProxyApi extends RemoteApi {
               .addHeader(DD_EVP_SUBDOMAIN_HEADER, subdomain)
               .post(payload.toRequest())
               .build();
-      this.totalTraces += payload.traceCount();
-      this.receivedTraces += payload.traceCount();
+      totalTraces += payload.traceCount();
+      receivedTraces += payload.traceCount();
 
+      HttpRetryPolicy retryPolicy = retryPolicyFactory.create();
       while (true) {
-        // Exponential backoff retry when http code >= 500 or ConnectException is thrown.
         try (final okhttp3.Response response = httpClient.newCall(request).execute()) {
           if (response.isSuccessful()) {
             countAndLogSuccessfulSend(payload.traceCount(), sizeInBytes);
             return Response.success(response.code());
           }
-          int httpCode = response.code();
-          boolean shouldRetry = httpCode >= 500 && retryPolicy.shouldRetry(retry);
-          if (!shouldRetry) {
+          if (!retryPolicy.shouldRetry(response)) {
             countAndLogFailedSend(payload.traceCount(), sizeInBytes, response, null);
-            return Response.failed(httpCode);
+            return Response.failed(response.code());
           }
         } catch (ConnectException ex) {
-          boolean shouldRetry = retryPolicy.shouldRetry(retry);
+          boolean shouldRetry = retryPolicy.shouldRetry(null);
           if (!shouldRetry) {
             countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, null);
             return Response.failed(ex);
           }
         }
-        // If we get here, there has been an error and we still have retries left
-        long backoffMs = retryPolicy.backoff(retry);
+        // If we get here, there has been an error, and we still have retries left
+        long backoffMs = retryPolicy.backoff();
         try {
           Thread.sleep(backoffMs);
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           throw new IOException(e);
         }
-        retry++;
       }
     } catch (final IOException e) {
       countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, e);
