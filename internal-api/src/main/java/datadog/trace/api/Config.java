@@ -1261,7 +1261,7 @@ public class Config {
         && (apiKey == null || apiKey.isEmpty())) {
       throw new FatalAgentMisconfigurationError(
           "Attempt to start in Agentless mode without API key. "
-              + "Please ensure that either API key is configured, or the tracer is set up to work with Agent");
+              + "Please ensure that either an API key is configured, or the tracer is set up to work with the Agent");
     }
 
     log.debug("New instance: {}", this);
