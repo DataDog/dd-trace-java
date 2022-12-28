@@ -3,14 +3,15 @@ package datadog.trace.bootstrap.instrumentation.usmextractor;
 import com.sun.jna.Pointer;
 import com.sun.jna.Memory;
 import com.sun.jna.NativeLong;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import sun.security.ssl.SSLSocketImpl;
 
-import java.net.Inet4Address;
 import java.net.Inet6Address;
 
 public interface UsmMessage {
 
-  public enum MessageType{
+  enum MessageType{
     //message created from hooks on from read / write functions of AppInputStream and AppOutputStream respectively
     REQUEST,
 
@@ -18,7 +19,7 @@ public interface UsmMessage {
     CLOSE_CONNECTION,
   }
 
-  public enum ProtocolType{
+  enum ProtocolType{
     //message created from hooks on from read / write functions of AppInputStream and AppOutputStream respectively
     IPv4,
 
@@ -31,11 +32,12 @@ public interface UsmMessage {
 
   Pointer getBufferPtr();
 
-  int getMessageSize();
   int dataSize();
   boolean validate();
 
   abstract class BaseUsmMessage implements UsmMessage{
+
+    private static final Logger log = LoggerFactory.getLogger(BaseUsmMessage.class);
 
     //total message size [4 bytes] || Message type [4 bytes]
     static final int PROTOCOL_METADATA_SIZE = 8;
@@ -46,10 +48,10 @@ public interface UsmMessage {
 
     //pointer to native memory buffer
     protected Pointer pointer;
-    protected int totalMessageSize;
+
     protected int offset;
     private MessageType messageType;
-
+    private int totalMessageSize;
 
     @Override
     public final Pointer getBufferPtr(){
@@ -59,13 +61,13 @@ public interface UsmMessage {
     @Override
     public boolean validate() {
       if (offset != getMessageSize()){
-        System.out.println("invalid message size, expected: " + getMessageSize() + " actual: " + offset);
+        log.warn(String.format("invalid message size, expected: %d actual: %d",getMessageSize(), offset));
         return false;
       }
       return true;
     }
 
-    public final int getMessageSize(){
+    private int getMessageSize(){
       return totalMessageSize;
     }
 
@@ -73,7 +75,6 @@ public interface UsmMessage {
       messageType = type;
 
       totalMessageSize = PROTOCOL_METADATA_SIZE + CONNECTION_INFO_SIZE + dataSize();
-      System.out.println("Allocating " + totalMessageSize + " memory");
       pointer = new Memory(totalMessageSize);
       offset = 0;
 
@@ -102,6 +103,8 @@ public interface UsmMessage {
       pointer.setInt(offset,protocolType.ordinal());
       offset+=4;
 
+
+      //TODO: add support to IPv6
       //write local ip + port
       pointer.write(offset,socket.getLocalAddress().getAddress(),0,4);
       offset += 4;
@@ -116,7 +119,7 @@ public interface UsmMessage {
     }
   }
 
-  public class CloseConnectionUsmMessage extends BaseUsmMessage{
+  class CloseConnectionUsmMessage extends BaseUsmMessage{
 
     public CloseConnectionUsmMessage(SSLSocketImpl socket) {
       super(MessageType.CLOSE_CONNECTION, socket);
@@ -124,19 +127,21 @@ public interface UsmMessage {
 
     @Override
     public int dataSize() {
-      //no actual data for close connection message, only the connection tuple
+      //no actual data for closed connection message, only the connection tuple
       return 0;
     }
   }
 
-  public class RequestUsmMessage extends BaseUsmMessage{
+  class RequestUsmMessage extends BaseUsmMessage{
 
     //120 bytes is the max fragment size we allow in SystemProbe
     static final int MAX_HTTPS_BUFFER_SIZE = 120;
     public RequestUsmMessage(SSLSocketImpl socket, byte[] buffer, int bufferOffset, int len) {
       super(MessageType.REQUEST, socket);
-      //write payload actual length
+
+      // check the buffer is not larger than max allowed,
       if (len - bufferOffset <= MAX_HTTPS_BUFFER_SIZE){
+
         pointer.setInt(offset,len);
         offset += 4;
 
@@ -144,6 +149,7 @@ public interface UsmMessage {
         offset+=len;
 
       }
+      // if it is, use only max allowed bytes
       else{
         pointer.setInt(offset,MAX_HTTPS_BUFFER_SIZE);
         offset += 4;
