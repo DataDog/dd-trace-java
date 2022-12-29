@@ -70,8 +70,7 @@ public class AgentTransformerBuilder
   }
 
   private AgentBuilder buildInstrumentation(final Instrumenter.Default instrumenter) {
-    InstrumenterState.registerInstrumentationNames(
-        instrumenter.instrumentationId(), instrumenter.names());
+    InstrumenterState.registerInstrumentation(instrumenter);
 
     ignoreMatcher = instrumenter.methodIgnoreMatcher();
     adviceBuilder =

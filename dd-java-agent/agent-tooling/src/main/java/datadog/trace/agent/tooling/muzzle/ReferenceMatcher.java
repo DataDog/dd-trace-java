@@ -17,6 +17,8 @@ import net.bytebuddy.pool.TypePool;
 
 /** Matches a set of references against a classloader. */
 public class ReferenceMatcher {
+  public static final ReferenceMatcher NO_REFERENCES = new ReferenceMatcher();
+
   private final Reference[] references;
 
   private ReferenceProvider referenceProvider;
@@ -25,8 +27,11 @@ public class ReferenceMatcher {
     this.references = references;
   }
 
-  public void withReferenceProvider(ReferenceProvider referenceProvider) {
-    this.referenceProvider = referenceProvider;
+  public ReferenceMatcher withReferenceProvider(ReferenceProvider referenceProvider) {
+    if (this != NO_REFERENCES) {
+      this.referenceProvider = referenceProvider;
+    }
+    return this;
   }
 
   public Reference[] getReferences() {
