@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.ByteCodeElement;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -382,5 +383,23 @@ public interface Instrumenter {
         ClassLoader classLoader,
         JavaModule module,
         ProtectionDomain pd);
+  }
+
+  final class VisitingTransformer implements AdviceTransformer {
+    private final AsmVisitorWrapper visitor;
+
+    public VisitingTransformer(AsmVisitorWrapper visitor) {
+      this.visitor = visitor;
+    }
+
+    @Override
+    public DynamicType.Builder<?> transform(
+        DynamicType.Builder<?> builder,
+        TypeDescription typeDescription,
+        ClassLoader classLoader,
+        JavaModule module,
+        ProtectionDomain pd) {
+      return builder.visit(visitor);
+    }
   }
 }
