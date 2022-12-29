@@ -4,7 +4,9 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.bootstrap.instrumentation.ci.CIInfo
 import datadog.trace.bootstrap.instrumentation.ci.CITagsProvider
+import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo
 
 class TestDecoratorTest extends BaseDecoratorTest {
 
