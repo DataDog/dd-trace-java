@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.ci
 
-class GitLabInfoTest extends CIProviderInfoTest {
+class GitLabInfoTest extends CITagsProviderImplTest {
 
   @Override
   CIProviderInfo instanceProvider() {

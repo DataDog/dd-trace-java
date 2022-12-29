@@ -6,7 +6,7 @@ import datadog.trace.bootstrap.instrumentation.ci.git.info.UserSuppliedGitInfoBu
 
 import java.nio.file.Paths
 
-class UnknownCIInfoTest extends CIProviderInfoTest {
+class UnknownCIInfoTest extends CITagsProviderImplTest {
 
   def workspaceForTests = Paths.get(getClass().getClassLoader().getResource(CI_WORKSPACE_PATH_FOR_TESTS).toURI())
 
@@ -46,7 +46,7 @@ class UnknownCIInfoTest extends CIProviderInfoTest {
   def "test workspace is null if target folder does not exist"() {
     when:
     def ciInfo = new UnknownCIInfo("this-target-folder-does-not-exist", workspaceForTests)
-    def ciTagsProvider = new CITagsProvider(
+    def ciTagsProvider = new CITagsProviderImpl(
       ciInfo,
       new CILocalGitInfoBuilder(),
       new UserSuppliedGitInfoBuilder(),

@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.ci
 
-class BitriseInfoTest extends CIProviderInfoTest {
+class BitriseInfoTest extends CITagsProviderImplTest {
   @Override
   CIProviderInfo instanceProvider() {
     return new BitriseInfo()

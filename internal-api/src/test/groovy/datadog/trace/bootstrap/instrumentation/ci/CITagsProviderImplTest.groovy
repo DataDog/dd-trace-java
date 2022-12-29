@@ -10,7 +10,7 @@ import spock.lang.Specification
 
 import java.nio.file.Paths
 
-abstract class CIProviderInfoTest extends Specification {
+abstract class CITagsProviderImplTest extends Specification {
 
   static final CI_WORKSPACE_PATH_FOR_TESTS = "ci/ci_workspace_for_tests"
   static final GIT_FOLDER_FOR_TESTS = "git_folder_for_tests"
@@ -114,7 +114,7 @@ abstract class CIProviderInfoTest extends Specification {
   }
 
   CITagsProvider ciTagsProvider() {
-    return new CITagsProvider(
+    return new CITagsProviderImpl(
       instanceProvider(),
       new CILocalGitInfoBuilder(),
       new UserSuppliedGitInfoBuilder(),

@@ -8,6 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.ci.CIProviderInfoFactory;
 import datadog.trace.bootstrap.instrumentation.ci.CITagsProvider;
+import datadog.trace.bootstrap.instrumentation.ci.CITagsProviderImpl;
 import datadog.trace.bootstrap.instrumentation.ci.git.info.CILocalGitInfoBuilder;
 import datadog.trace.bootstrap.instrumentation.ci.git.info.UserSuppliedGitInfoBuilder;
 import java.lang.annotation.Annotation;
@@ -35,7 +36,7 @@ public abstract class TestDecorator extends BaseDecorator {
 
   public TestDecorator() {
     this(
-        new CITagsProvider(
+        new CITagsProviderImpl(
             CIProviderInfoFactory.createCIProviderInfo(),
             new CILocalGitInfoBuilder(),
             new UserSuppliedGitInfoBuilder(),

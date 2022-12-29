@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.ci
 
 
-class AzurePipelinesInfoTest extends CIProviderInfoTest {
+class AzurePipelinesInfoTest extends CITagsProviderImplTest {
 
   @Override
   CIProviderInfo instanceProvider() {
