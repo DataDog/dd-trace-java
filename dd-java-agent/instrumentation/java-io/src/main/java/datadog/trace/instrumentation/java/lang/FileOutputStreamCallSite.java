@@ -7,7 +7,7 @@ import datadog.trace.api.iast.sink.PathTraversalModule;
 import javax.annotation.Nullable;
 
 @CallSite(spi = IastAdvice.class)
-public class FIleOutputStreamCallSite {
+public class FileOutputStreamCallSite {
 
   @CallSite.Before("void java.io.FileOutputStream.<init>(java.lang.String)")
   public static void beforeConstructor(@CallSite.Argument @Nullable final String path) {
