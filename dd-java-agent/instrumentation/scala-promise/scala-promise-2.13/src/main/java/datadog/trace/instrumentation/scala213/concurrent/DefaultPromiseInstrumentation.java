@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.scala.concurrent;
+package datadog.trace.instrumentation.scala213.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
@@ -18,22 +18,22 @@ import net.bytebuddy.asm.Advice;
 import scala.util.Try;
 
 /**
- * A Scala {@code Promise} is always completed with a {@code Try}, so if we want the completing span
- * to take priority over any spans captured while adding computations to a {@code Future} associated
- * with a {@code Promise}, then we capture the active span when the {@code Try} is resolved.
+ * In Scala 2.13+ there is shortcut that bypass the call to {@code resolve} for a {@code Try} when
+ * we know that the value is already resolved, i.e. for some transformations like {@code map}, so
+ * only pick up the completing span if the resolved {@code Try} doesn't have a an existing span set
+ * from the {@code resolve} method.
  */
 @AutoService(Instrumenter.class)
-public class PromiseObjectInstrumentation213 extends Instrumenter.Tracing
+public class DefaultPromiseInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType {
 
-  public PromiseObjectInstrumentation213() {
-    super("scala_promise_resolve", "scala_concurrent");
+  public DefaultPromiseInstrumentation() {
+    super("scala_promise_complete", "scala_concurrent");
   }
 
   @Override
   public String instrumentedType() {
-    // The $ at the end is how Scala encodes a Scala object (as opposed to a class or trait)
-    return "scala.concurrent.impl.Promise$";
+    return "scala.concurrent.impl.Promise$DefaultPromise";
   }
 
   @Override
@@ -44,8 +44,7 @@ public class PromiseObjectInstrumentation213 extends Instrumenter.Tracing
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        isMethod().and(named("scala$concurrent$impl$Promise$$resolve")),
-        getClass().getName() + "$Resolve");
+        isMethod().and(named("tryComplete0")), getClass().getName() + "$TryComplete");
   }
 
   @Override
@@ -63,17 +62,26 @@ public class PromiseObjectInstrumentation213 extends Instrumenter.Tracing
                 Collections.singletonList("scala_promise_completion_priority"), false);
   }
 
-  public static final class Resolve {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static <T> void afterResolve(@Advice.Return(readOnly = false) Try<T> resolved) {
+  public static final class TryComplete {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static <T> void beforeTryComplete(
+        @Advice.Argument(value = 0) Object state,
+        @Advice.Argument(value = 1, readOnly = false) Try<T> resolved) {
+      // If the Promise is already completed, then we don't need to do anything
+      if (state instanceof Try) {
+        return;
+      }
       AgentSpan span = PromiseHelper.getSpan();
       if (null != span) {
         ContextStore<Try, AgentSpan> contextStore =
             InstrumentationContext.get(Try.class, AgentSpan.class);
-        Try<T> next = PromiseHelper.getTry(resolved, span, contextStore.get(resolved));
-        if (next != resolved) {
-          contextStore.put(next, span);
-          resolved = next;
+        AgentSpan existing = contextStore.get(resolved);
+        if (existing == null) {
+          Try<T> next = PromiseHelper.getTry(resolved, span, existing);
+          if (next != resolved) {
+            contextStore.put(next, span);
+            resolved = next;
+          }
         }
       }
     }

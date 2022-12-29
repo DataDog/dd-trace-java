@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.scala.concurrent;
+package datadog.trace.instrumentation.scala213.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;

@@ -10,7 +10,7 @@ import javax.annotation.Nonnull;
  * fetch the instance of the {@link CallSiteAdvice} from SPI according to the specified marker
  * interface.
  */
-public abstract class CallSiteInstrumenter extends Instrumenter.Default
+public abstract class CallSiteInstrumentation extends Instrumenter.Default
     implements Instrumenter.ForCallSite {
 
   private final Advices advices;
@@ -20,14 +20,14 @@ public abstract class CallSiteInstrumenter extends Instrumenter.Default
    *
    * @param spiInterface marker interface implemented by the chosen {@link CallSiteAdvice} instances
    */
-  public CallSiteInstrumenter(
+  public CallSiteInstrumentation(
       @Nonnull final Class<?> spiInterface,
       @Nonnull final String name,
       @Nonnull final String... additionalNames) {
     this(fetchAdvicesFromSpi(spiInterface), name, additionalNames);
   }
 
-  protected CallSiteInstrumenter(
+  protected CallSiteInstrumentation(
       @Nonnull final Iterable<CallSiteAdvice> advices,
       @Nonnull final String name,
       @Nonnull final String... additionalNames) {
@@ -38,7 +38,7 @@ public abstract class CallSiteInstrumenter extends Instrumenter.Default
   @SuppressWarnings("unchecked")
   private static Iterable<CallSiteAdvice> fetchAdvicesFromSpi(
       @Nonnull final Class<?> spiInterface) {
-    final ClassLoader targetClassLoader = CallSiteInstrumenter.class.getClassLoader();
+    final ClassLoader targetClassLoader = CallSiteInstrumentation.class.getClassLoader();
     return (ServiceLoader<CallSiteAdvice>) ServiceLoader.load(spiInterface, targetClassLoader);
   }
 

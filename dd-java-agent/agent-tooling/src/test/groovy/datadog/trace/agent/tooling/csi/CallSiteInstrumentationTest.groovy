@@ -5,19 +5,19 @@ import net.bytebuddy.asm.AsmVisitorWrapper
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.dynamic.DynamicType
 
-class CallSiteInstrumenterTest extends BaseCallSiteTest {
+class CallSiteInstrumentationTest extends BaseCallSiteTest {
 
-  def 'test instrumenter creates transformer'() {
+  def 'test instrumentation creates transformer'() {
     setup:
     final advice = mockInvokeAdvice(stringConcatPointcut())
-    final instrumenter = buildInstrumenter([advice])
+    final instrumentation = buildInstrumentation([advice])
     final builder = Mock(DynamicType.Builder)
     final type = Mock(TypeDescription) {
       getName() >> StringConcatExample.name
     }
 
     when:
-    final transformer = instrumenter.transformer()
+    final transformer = instrumentation.transformer()
     final result = transformer.transform(builder, type, getClass().getClassLoader(), null, null)
 
     then:
@@ -25,14 +25,14 @@ class CallSiteInstrumenterTest extends BaseCallSiteTest {
     1 * builder.visit(_ as AsmVisitorWrapper) >> builder
   }
 
-  def 'test instrumenter adds no transformations'() {
+  def 'test instrumentation adds no transformations'() {
     setup:
     final advice = mockInvokeAdvice(stringConcatPointcut())
-    final instrumenter = buildInstrumenter([advice])
+    final instrumentation = buildInstrumentation([advice])
     final mock = Mock(Instrumenter.AdviceTransformation)
 
     when:
-    instrumenter.adviceTransformations(mock)
+    instrumentation.adviceTransformations(mock)
 
     then:
     0 * mock._
@@ -42,10 +42,10 @@ class CallSiteInstrumenterTest extends BaseCallSiteTest {
     setup:
     final advice1 = mockInvokeAdvice(stringConcatPointcut(), 'foo.bar.Helper1')
     final advice2 = mockInvokeAdvice(messageDigestGetInstancePointcut(), 'foo.bar.Helper1', 'foo.bar.Helper2', 'foo.bar.Helper3')
-    final instrumenter = buildInstrumenter([advice1, advice2])
+    final instrumentation = buildInstrumentation([advice1, advice2])
 
     when:
-    final helpers = instrumenter.helperClassNames()
+    final helpers = instrumentation.helperClassNames()
 
     then:
     helpers.length == 3
@@ -60,8 +60,8 @@ class CallSiteInstrumenterTest extends BaseCallSiteTest {
     }
 
     when:
-    final instrumenter = buildInstrumenter(TestCallSiteAdvice)
-    final transformer = instrumenter.transformer()
+    final instrumentation = buildInstrumentation(TestCallSiteAdvice)
+    final transformer = instrumentation.transformer()
     transformer.transform(builder, type, getClass().getClassLoader(), null, null)
 
     then:
@@ -77,8 +77,8 @@ class CallSiteInstrumenterTest extends BaseCallSiteTest {
     }
 
     when:
-    final instrumenter = buildInstrumenter(CallSiteAdvice)
-    final transformer = instrumenter.transformer()
+    final instrumentation = buildInstrumentation(CallSiteAdvice)
+    final transformer = instrumentation.transformer()
     transformer.transform(builder, type, getClass().getClassLoader(), null, null)
 
     then:
