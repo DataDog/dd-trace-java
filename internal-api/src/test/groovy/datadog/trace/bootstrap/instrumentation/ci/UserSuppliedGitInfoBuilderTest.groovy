@@ -44,10 +44,10 @@ class UserSuppliedGitInfoBuilderTest extends Specification {
     GitInfo.DD_GIT_COMMIT_MESSAGE         | "commit message"           | { it.commit.fullMessage }
     GitInfo.DD_GIT_COMMIT_AUTHOR_NAME     | "commit author"            | { it.commit.author.name }
     GitInfo.DD_GIT_COMMIT_AUTHOR_EMAIL    | "commit author mail"       | { it.commit.author.email }
-    GitInfo.DD_GIT_COMMIT_AUTHOR_DATE     | "2022-12-29T11:38:44.254Z" | { it.commit.author.ISO8601Date }
+    GitInfo.DD_GIT_COMMIT_AUTHOR_DATE     | "2022-12-29T11:38:44.254Z" | { it.commit.author.getIso8601Date }
     GitInfo.DD_GIT_COMMIT_COMMITTER_NAME  | "committer"                | { it.commit.committer.name }
     GitInfo.DD_GIT_COMMIT_COMMITTER_EMAIL | "committer mail"           | { it.commit.committer.email }
-    GitInfo.DD_GIT_COMMIT_COMMITTER_DATE  | "2022-12-29T10:38:44.254Z" | { it.commit.committer.ISO8601Date }
+    GitInfo.DD_GIT_COMMIT_COMMITTER_DATE  | "2022-12-29T10:38:44.254Z" | { it.commit.committer.getIso8601Date }
   }
 
   def "branch name is normalized"() {

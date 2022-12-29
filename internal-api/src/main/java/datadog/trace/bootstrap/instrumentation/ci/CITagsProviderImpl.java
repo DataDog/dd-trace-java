@@ -204,11 +204,11 @@ public class CITagsProviderImpl implements CITagsProvider {
     public CITagsBuilder withGitCommitAuthorDate(
         final GitInfo userSuppliedGitInfo, final GitInfo ciGitInfo, final GitInfo localGitInfo) {
       final String userSuppliedGitAuthorDate =
-          userSuppliedGitInfo.getCommit().getAuthor().getISO8601Date();
-      final String ciGitAuthorDate = ciGitInfo.getCommit().getAuthor().getISO8601Date();
+          userSuppliedGitInfo.getCommit().getAuthor().getIso8601Date();
+      final String ciGitAuthorDate = ciGitInfo.getCommit().getAuthor().getIso8601Date();
       final String localGitAuthorDate =
           isCommitShaEquals(ciGitInfo, localGitInfo)
-              ? localGitInfo.getCommit().getAuthor().getISO8601Date()
+              ? localGitInfo.getCommit().getAuthor().getIso8601Date()
               : null;
       return putTagValue(
           Tags.GIT_COMMIT_AUTHOR_DATE,
@@ -252,11 +252,11 @@ public class CITagsProviderImpl implements CITagsProvider {
     public CITagsBuilder withGitCommitCommitterDate(
         final GitInfo userSuppliedGitInfo, final GitInfo ciGitInfo, final GitInfo localGitInfo) {
       final String userSuppliedGitCommitterDate =
-          userSuppliedGitInfo.getCommit().getCommitter().getISO8601Date();
-      final String ciGitCommitterDate = ciGitInfo.getCommit().getCommitter().getISO8601Date();
+          userSuppliedGitInfo.getCommit().getCommitter().getIso8601Date();
+      final String ciGitCommitterDate = ciGitInfo.getCommit().getCommitter().getIso8601Date();
       final String localGitCommitterDate =
           isCommitShaEquals(ciGitInfo, localGitInfo)
-              ? localGitInfo.getCommit().getCommitter().getISO8601Date()
+              ? localGitInfo.getCommit().getCommitter().getIso8601Date()
               : null;
       return putTagValue(
           Tags.GIT_COMMIT_COMMITTER_DATE,
