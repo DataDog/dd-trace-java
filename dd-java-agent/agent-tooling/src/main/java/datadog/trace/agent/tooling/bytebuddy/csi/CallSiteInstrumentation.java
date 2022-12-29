@@ -13,7 +13,8 @@ import javax.annotation.Nonnull;
 public abstract class CallSiteInstrumentation extends Instrumenter.Default
     implements Instrumenter.ForCallSite {
 
-  private final Advices advices;
+  private final Class<?> spiInterface;
+  private Advices advices;
 
   /**
    * Create a new instance of the instrumenter.
@@ -24,7 +25,9 @@ public abstract class CallSiteInstrumentation extends Instrumenter.Default
       @Nonnull final Class<?> spiInterface,
       @Nonnull final String name,
       @Nonnull final String... additionalNames) {
-    this(fetchAdvicesFromSpi(spiInterface), name, additionalNames);
+    super(name, additionalNames);
+    this.spiInterface = spiInterface;
+    this.advices = null;
   }
 
   protected CallSiteInstrumentation(
@@ -32,6 +35,7 @@ public abstract class CallSiteInstrumentation extends Instrumenter.Default
       @Nonnull final String name,
       @Nonnull final String... additionalNames) {
     super(name, additionalNames);
+    this.spiInterface = null;
     this.advices = Advices.fromCallSites(advices);
   }
 
@@ -44,7 +48,7 @@ public abstract class CallSiteInstrumentation extends Instrumenter.Default
 
   @Override
   public String[] helperClassNames() {
-    return advices.getHelpers();
+    return advices().getHelpers();
   }
 
   @Override
@@ -52,6 +56,13 @@ public abstract class CallSiteInstrumentation extends Instrumenter.Default
 
   @Override
   public AdviceTransformer transformer() {
-    return new CallSiteTransformer(advices);
+    return new CallSiteTransformer(advices());
+  }
+
+  private Advices advices() {
+    if (null == advices) {
+      advices = Advices.fromCallSites(fetchAdvicesFromSpi(spiInterface));
+    }
+    return advices;
   }
 }
