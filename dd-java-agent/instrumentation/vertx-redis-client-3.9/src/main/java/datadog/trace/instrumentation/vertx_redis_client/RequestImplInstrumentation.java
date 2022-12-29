@@ -42,7 +42,7 @@ public class RequestImplInstrumentation extends Instrumenter.Tracing
 
   // This Transformer will add the Cloneable interface to RequestImpl, as well
   // as a clone method that calls the protected shallow clone method in Object
-  static class RequestImplVisitorWrapper implements AsmVisitorWrapper {
+  public static class RequestImplVisitorWrapper implements AsmVisitorWrapper {
     @Override
     public int mergeWriter(int flags) {
       return flags | ClassWriter.COMPUTE_MAXS;

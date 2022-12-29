@@ -98,7 +98,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
     return new VisitingTransformer(new HttpChannelHandleVisitorWrapper());
   }
 
-  private static class HttpChannelHandleVisitorWrapper implements AsmVisitorWrapper {
+  public static class HttpChannelHandleVisitorWrapper implements AsmVisitorWrapper {
 
     @Override
     public int mergeWriter(int flags) {
