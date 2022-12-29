@@ -67,6 +67,16 @@ public abstract class Payload {
     }
   }
 
+  protected int msgpackMapHeaderSize(int count) {
+    if (count < 0x10) {
+      return 1;
+    } else if (count < 0x10000) {
+      return 3;
+    } else {
+      return 5;
+    }
+  }
+
   protected ByteBuffer msgpackArrayHeader(int count) {
     if (count < 0x10) {
       return ByteBuffer.allocate(1).put(0, (byte) (FIXARRAY | count));

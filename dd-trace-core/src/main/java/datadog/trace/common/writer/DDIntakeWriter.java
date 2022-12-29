@@ -38,7 +38,7 @@ public class DDIntakeWriter extends RemoteWriter {
     Prioritization prioritization = Prioritization.FAST_LANE;
     private int flushTimeout = 5;
     private TimeUnit flushTimeoutUnit = TimeUnit.SECONDS;
-    private boolean alwaysFlush = true;
+    private boolean alwaysFlush = false;
 
     private RemoteApi intakeApi;
     private String apiKey;
