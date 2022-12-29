@@ -6,7 +6,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.bootstrap.instrumentation.ci.CIProviderInfo;
+import datadog.trace.bootstrap.instrumentation.ci.CIProviderInfoFactory;
+import datadog.trace.bootstrap.instrumentation.ci.CITagsProvider;
+import datadog.trace.bootstrap.instrumentation.ci.git.info.CILocalGitInfoBuilder;
+import datadog.trace.bootstrap.instrumentation.ci.git.info.UserSuppliedGitInfoBuilder;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -25,16 +28,23 @@ public abstract class TestDecorator extends BaseDecorator {
   public static final String TEST_SKIP = "skip";
   public static final UTF8BytesString CIAPP_TEST_ORIGIN = UTF8BytesString.create("ciapp-test");
 
+  private static final String GIT_FOLDER_NAME = ".git";
+
   private final boolean isCI;
   private final Map<String, String> ciTags;
 
   public TestDecorator() {
-    this(CIProviderInfo.selectCI());
+    this(
+        new CITagsProvider(
+            CIProviderInfoFactory.createCIProviderInfo(),
+            new CILocalGitInfoBuilder(),
+            new UserSuppliedGitInfoBuilder(),
+            GIT_FOLDER_NAME));
   }
 
-  TestDecorator(final CIProviderInfo ciInfo) {
-    this.isCI = ciInfo.isCI();
-    this.ciTags = ciInfo.getCiTags();
+  TestDecorator(final CITagsProvider ciTagsProvider) {
+    isCI = ciTagsProvider.isCI();
+    ciTags = ciTagsProvider.getCiTags();
   }
 
   public boolean isCI() {

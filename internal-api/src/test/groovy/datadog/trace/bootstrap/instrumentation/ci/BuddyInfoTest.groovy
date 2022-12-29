@@ -4,12 +4,7 @@ class BuddyInfoTest extends CIProviderInfoTest {
 
   @Override
   CIProviderInfo instanceProvider() {
-    return new BuddyInfo() {
-        @Override
-        protected String getGitFolderName() {
-          return GIT_FOLDER_FOR_TESTS
-        }
-      }
+    return new BuddyInfo()
   }
 
   @Override

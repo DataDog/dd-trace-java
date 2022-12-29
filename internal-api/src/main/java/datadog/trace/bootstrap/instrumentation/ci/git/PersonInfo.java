@@ -26,13 +26,13 @@ public class PersonInfo {
   public PersonInfo(final String name, final String email, final String iso8601date) {
     this.name = name;
     this.email = email;
-    this.ISO8601Date = iso8601date;
+    ISO8601Date = iso8601date;
   }
 
   public PersonInfo(String name, String email, long when, int tzOffset) {
     this.name = name;
     this.email = email;
-    this.ISO8601Date = buildISO8601Date(when);
+    ISO8601Date = buildISO8601Date(when);
   }
 
   public String getName() {
@@ -44,13 +44,23 @@ public class PersonInfo {
   }
 
   public String getISO8601Date() {
-    return this.ISO8601Date;
+    return ISO8601Date;
+  }
+
+  public boolean isEmpty() {
+    return (name == null || name.isEmpty())
+        && (email == null || email.isEmpty())
+        && (ISO8601Date == null || ISO8601Date.isEmpty());
   }
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     PersonInfo that = (PersonInfo) o;
     return Objects.equals(name, that.name)
         && Objects.equals(email, that.email)

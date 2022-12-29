@@ -1,10 +1,13 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitUtils.normalizeRef;
+import static datadog.trace.bootstrap.instrumentation.ci.utils.PathUtils.expandTilde;
+
 import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.PersonInfo;
 
-class TravisInfo extends CIProviderInfo {
+class TravisInfo implements CIProviderInfo {
 
   // https://docs.travis-ci.com/user/environment-variables/#default-environment-variables
   public static final String TRAVIS = "TRAVIS";
@@ -23,7 +26,7 @@ class TravisInfo extends CIProviderInfo {
   public static final String TRAVIS_GIT_COMMIT_MESSAGE = "TRAVIS_COMMIT_MESSAGE";
 
   @Override
-  protected GitInfo buildCIGitInfo() {
+  public GitInfo buildCIGitInfo() {
     final String gitTag = normalizeRef(System.getenv(TRAVIS_GIT_TAG));
 
     return new GitInfo(
@@ -38,7 +41,7 @@ class TravisInfo extends CIProviderInfo {
   }
 
   @Override
-  protected CIInfo buildCIInfo() {
+  public CIInfo buildCIInfo() {
     return CIInfo.builder()
         .ciProviderName(TRAVIS_PROVIDER_NAME)
         .ciPipelineId(System.getenv(TRAVIS_PIPELINE_ID))
@@ -48,6 +51,11 @@ class TravisInfo extends CIProviderInfo {
         .ciJobUrl(System.getenv(TRAVIS_JOB_URL))
         .ciWorkspace(expandTilde(System.getenv(TRAVIS_WORKSPACE_PATH)))
         .build();
+  }
+
+  @Override
+  public boolean isCI() {
+    return true;
   }
 
   private String buildGitBranch(final String gitTag) {

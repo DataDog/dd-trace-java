@@ -1,6 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.ci
 
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.bootstrap.instrumentation.ci.git.info.CILocalGitInfoBuilder
+import datadog.trace.bootstrap.instrumentation.ci.git.info.UserSuppliedGitInfoBuilder
 import org.junit.Rule
 import org.junit.contrib.java.lang.system.EnvironmentVariables
 import org.junit.contrib.java.lang.system.RestoreSystemProperties
@@ -8,22 +10,10 @@ import spock.lang.Specification
 
 import java.nio.file.Paths
 
-import static AppVeyorInfo.APPVEYOR
-import static AzurePipelinesInfo.AZURE
-import static BitBucketInfo.BITBUCKET
-import static BitriseInfo.BITRISE
-import static BuildkiteInfo.BUILDKITE
-import static CIProviderInfo.selectCI
-import static CircleCIInfo.CIRCLECI
-import static GitLabInfo.GITLAB
-import static GithubActionsInfo.GHACTIONS
-import static JenkinsInfo.JENKINS
-import static TravisInfo.TRAVIS
-
 abstract class CIProviderInfoTest extends Specification {
 
-  protected static final CI_WORKSPACE_PATH_FOR_TESTS = "ci/ci_workspace_for_tests"
-  public static final GIT_FOLDER_FOR_TESTS = "git_folder_for_tests"
+  static final CI_WORKSPACE_PATH_FOR_TESTS = "ci/ci_workspace_for_tests"
+  static final GIT_FOLDER_FOR_TESTS = "git_folder_for_tests"
 
   @Rule
   public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
@@ -50,11 +40,11 @@ abstract class CIProviderInfoTest extends Specification {
     }
 
     when:
-    def ciInfo = instanceProvider()
+    def ciTagsProvider = ciTagsProvider()
 
     then:
-    if (ciInfo.CI) {
-      assert ciSpec.assertTags(ciInfo.ciTags)
+    if (ciTagsProvider.CI) {
+      assert ciSpec.assertTags(ciTagsProvider.ciTags)
     }
 
     where:
@@ -68,11 +58,11 @@ abstract class CIProviderInfoTest extends Specification {
     }
 
     when:
-    def ciInfo = instanceProvider()
+    def ciTagsProvider = ciTagsProvider()
 
     then:
-    if (ciInfo.class != UnknownCIInfo) {
-      def tags = ciInfo.ciTags
+    if (ciTagsProvider.CI) {
+      def tags = ciTagsProvider.ciTags
       tags.get(Tags.GIT_REPOSITORY_URL) == "https://some-host/some-user/some-repo.git"
       tags.get(Tags.GIT_BRANCH) == "master"
       tags.get(Tags.GIT_COMMIT_SHA) == "0797c248e019314fc1d91a483e859b32f4509953"
@@ -93,11 +83,11 @@ abstract class CIProviderInfoTest extends Specification {
     }
 
     when:
-    def ciInfo = instanceProvider()
+    def ciTagsProvider = ciTagsProvider()
 
     then:
-    if (ciInfo.class != UnknownCIInfo) {
-      def tags = ciInfo.ciTags
+    if (ciTagsProvider.CI) {
+      def tags = ciTagsProvider.ciTags
       tags.get(Tags.GIT_REPOSITORY_URL) == "https://some-host/some-user/some-repo.git"
       tags.get(Tags.GIT_BRANCH) == "master"
       tags.get(Tags.GIT_COMMIT_SHA) == "0000000000000000000000000000000000000000"
@@ -111,31 +101,6 @@ abstract class CIProviderInfoTest extends Specification {
     }
   }
 
-  def "test correct info is selected"() {
-    setup:
-    environmentVariables.set(ciKeySelector, "true")
-
-    when:
-    def ciInfo = selectCI()
-
-    then:
-    ciInfo.class == ciInfoClass
-
-    where:
-    ciKeySelector | ciInfoClass
-    JENKINS       | JenkinsInfo
-    GITLAB        | GitLabInfo
-    TRAVIS        | TravisInfo
-    CIRCLECI      | CircleCIInfo
-    APPVEYOR      | AppVeyorInfo
-    AZURE         | AzurePipelinesInfo
-    GHACTIONS     | GithubActionsInfo
-    BITBUCKET     | BitBucketInfo
-    BUILDKITE     | BuildkiteInfo
-    BITRISE       | BitriseInfo
-    "none"        | UnknownCIInfo
-  }
-
   abstract CIProviderInfo instanceProvider()
 
   abstract String getProviderName()
@@ -146,6 +111,14 @@ abstract class CIProviderInfoTest extends Specification {
 
   Map<String, String> buildRemoteGitInfoMismatchLocalGit() {
     return new HashMap<String, String>()
+  }
+
+  CITagsProvider ciTagsProvider() {
+    return new CITagsProvider(
+      instanceProvider(),
+      new CILocalGitInfoBuilder(),
+      new UserSuppliedGitInfoBuilder(),
+      GIT_FOLDER_FOR_TESTS)
   }
 
   def "resolve"(workspace) {

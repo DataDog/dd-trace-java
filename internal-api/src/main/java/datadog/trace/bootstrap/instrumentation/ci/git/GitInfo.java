@@ -46,10 +46,21 @@ public class GitInfo {
     return commit;
   }
 
+  public boolean isEmpty() {
+    return (repositoryURL == null || repositoryURL.isEmpty())
+        && (branch == null || branch.isEmpty())
+        && (tag == null || tag.isEmpty())
+        && (commit == null || commit.isEmpty());
+  }
+
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     GitInfo gitInfo = (GitInfo) o;
     return Objects.equals(repositoryURL, gitInfo.repositoryURL)
         && Objects.equals(branch, gitInfo.branch)

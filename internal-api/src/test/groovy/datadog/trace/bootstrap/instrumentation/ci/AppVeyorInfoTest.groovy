@@ -4,12 +4,7 @@ class AppVeyorInfoTest extends CIProviderInfoTest {
 
   @Override
   CIProviderInfo instanceProvider() {
-    return new AppVeyorInfo() {
-        @Override
-        protected String getGitFolderName() {
-          return GIT_FOLDER_FOR_TESTS
-        }
-      }
+    return new AppVeyorInfo()
   }
 
   @Override

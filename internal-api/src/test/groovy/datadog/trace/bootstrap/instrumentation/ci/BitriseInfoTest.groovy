@@ -3,12 +3,7 @@ package datadog.trace.bootstrap.instrumentation.ci
 class BitriseInfoTest extends CIProviderInfoTest {
   @Override
   CIProviderInfo instanceProvider() {
-    return new BitriseInfo() {
-        @Override
-        protected String getGitFolderName() {
-          return GIT_FOLDER_FOR_TESTS
-        }
-      }
+    return new BitriseInfo()
   }
 
   @Override

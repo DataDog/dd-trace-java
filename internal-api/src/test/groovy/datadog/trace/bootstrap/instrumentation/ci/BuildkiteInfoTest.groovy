@@ -4,12 +4,7 @@ class BuildkiteInfoTest extends CIProviderInfoTest {
 
   @Override
   CIProviderInfo instanceProvider() {
-    return new BuildkiteInfo() {
-        @Override
-        protected String getGitFolderName() {
-          return GIT_FOLDER_FOR_TESTS
-        }
-      }
+    return new BuildkiteInfo()
   }
 
   @Override

@@ -4,12 +4,7 @@ class CircleCIInfoTest extends CIProviderInfoTest {
 
   @Override
   CIProviderInfo instanceProvider() {
-    return new CircleCIInfo() {
-        @Override
-        protected String getGitFolderName() {
-          return GIT_FOLDER_FOR_TESTS
-        }
-      }
+    return new CircleCIInfo()
   }
 
   @Override
