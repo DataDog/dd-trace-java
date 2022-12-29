@@ -10,6 +10,9 @@ import spock.lang.Specification
 
 import java.nio.file.Paths
 
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitInfo.DD_GIT_COMMIT_SHA
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitInfo.DD_GIT_REPOSITORY_URL
+
 abstract class CITagsProviderImplTest extends Specification {
 
   static final CI_WORKSPACE_PATH_FOR_TESTS = "ci/ci_workspace_for_tests"
@@ -49,6 +52,26 @@ abstract class CITagsProviderImplTest extends Specification {
 
     where:
     ciSpec << CISpecExtractor.extract(getProviderName())
+  }
+
+  def "test user supplied git info takes precedence over auto-detected git info"() {
+    setup:
+    buildRemoteGitInfoEmpty().each {
+      environmentVariables.set(it.key, it.value)
+    }
+
+    environmentVariables.set(DD_GIT_COMMIT_SHA, "1234567890123456789012345678901234567890")
+    environmentVariables.set(DD_GIT_REPOSITORY_URL, "local supplied repo url")
+
+    when:
+    def ciTagsProvider = ciTagsProvider()
+
+    then:
+    if (ciTagsProvider.CI) {
+      def tags = ciTagsProvider.ciTags
+      tags.get(Tags.GIT_COMMIT_SHA) == "1234567890123456789012345678901234567890"
+      tags.get(Tags.GIT_REPOSITORY_URL) == "local supplied repo url"
+    }
   }
 
   def "test set local git info if remote git info is not present"() {
