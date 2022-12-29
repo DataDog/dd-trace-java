@@ -1,5 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.ci.utils;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
+
+@SuppressForbidden
 public class PathUtils {
   public static String expandTilde(final String path) {
     if (path == null || !path.startsWith("~")) {
