@@ -12,28 +12,35 @@ import net.bytebuddy.utility.JavaModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class ShouldInjectFieldsRawMatcher implements AgentBuilder.RawMatcher {
-  private static final Logger log = LoggerFactory.getLogger(ShouldInjectFieldsRawMatcher.class);
+public final class InjectContextFieldMatcher implements AgentBuilder.RawMatcher {
+  private static final Logger log = LoggerFactory.getLogger(InjectContextFieldMatcher.class);
 
   private final String keyType;
   private final String valueType;
 
-  private final ElementMatcher.Junction<TypeDescription> shouldInjectContextField;
+  private final ElementMatcher<TypeDescription> shouldInjectContextField;
+  private final ElementMatcher<ClassLoader> activator;
 
-  public ShouldInjectFieldsRawMatcher(String keyType, String valueType) {
+  public InjectContextFieldMatcher(
+      String keyType, String valueType, ElementMatcher<ClassLoader> activator) {
     this.keyType = keyType;
     this.valueType = valueType;
 
-    shouldInjectContextField = declaresContextField(keyType, valueType);
+    this.shouldInjectContextField = declaresContextField(keyType, valueType);
+    this.activator = activator;
   }
 
   @Override
   public boolean matches(
-      TypeDescription typeDescription,
+      TypeDescription target,
       ClassLoader classLoader,
       JavaModule module,
       Class<?> classBeingRedefined,
-      ProtectionDomain protectionDomain) {
+      ProtectionDomain pd) {
+
+    if (!activator.matches(classLoader)) {
+      return false; // skip detailed check if key isn't visible
+    }
 
     /*
      * The idea here is that we can add fields if class is just being loaded
@@ -51,16 +58,16 @@ public final class ShouldInjectFieldsRawMatcher implements AgentBuilder.RawMatch
                 .contains(FieldBackedContextAccessor.class);
 
     if (canInjectContextField) {
-      return shouldInjectContextField.matches(typeDescription);
+      return shouldInjectContextField.matches(target);
     }
 
     if (log.isDebugEnabled()) {
-      // must be a redefine of a class that we weren't able to field-inject on startup
-      // - make sure we'd have field-injected (if we'd had the chance) before tracking
-      if (shouldInjectContextField.matches(typeDescription)) {
+      // must be a re-define of a class that we weren't able to field-inject on startup
+      // - make sure we'd have field-injected (if we'd had the chance) before reporting
+      if (shouldInjectContextField.matches(target)) {
         log.debug(
             "Failed to add context-store field - instrumentation.target.class={} instrumentation.target.context={}->{}",
-            typeDescription.getName(),
+            target.getName(),
             keyType,
             valueType);
       }
