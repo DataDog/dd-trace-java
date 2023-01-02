@@ -268,6 +268,19 @@ public class JsonToExpressionConverter {
                   throw new UnsupportedOperationException(
                       "Operation 'getmember' expects the arguments to be defined as array");
                 }
+              case "index":
+                {
+                  JsonReader.Token token = reader.peek();
+                  if (token == BEGIN_ARRAY) {
+                    reader.beginArray();
+                    ValueExpression<?> target = asValueExpression(reader);
+                    ValueExpression<?> key = asValueExpression(reader);
+                    reader.endArray();
+                    return DSL.index(target, key);
+                  }
+                  throw new UnsupportedOperationException(
+                      "Operation 'index' expects the arguments to be defined as array");
+                }
               case "filter":
                 {
                   JsonReader.Token token = reader.peek();

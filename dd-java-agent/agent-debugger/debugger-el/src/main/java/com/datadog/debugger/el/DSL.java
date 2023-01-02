@@ -8,6 +8,7 @@ import com.datadog.debugger.el.expressions.HasAllExpression;
 import com.datadog.debugger.el.expressions.HasAnyExpression;
 import com.datadog.debugger.el.expressions.IfElseExpression;
 import com.datadog.debugger.el.expressions.IfExpression;
+import com.datadog.debugger.el.expressions.IndexExpression;
 import com.datadog.debugger.el.expressions.IsEmptyExpression;
 import com.datadog.debugger.el.expressions.LenExpression;
 import com.datadog.debugger.el.expressions.NotExpression;
@@ -111,6 +112,10 @@ public class DSL {
 
   public static GetMemberExpression getMember(ValueExpression<?> target, String name) {
     return new GetMemberExpression(target, name);
+  }
+
+  public static IndexExpression index(ValueExpression<?> target, ValueExpression<?> key) {
+    return new IndexExpression(target, key);
   }
 
   public static Literal<Boolean> value(boolean value) {
