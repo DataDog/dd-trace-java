@@ -48,11 +48,16 @@ public final class AgentBootstrap {
   private static final Class<?> thisClass = AgentBootstrap.class;
   private static final int MAX_EXCEPTION_CHAIN_LENGTH = 99;
 
+  private static boolean initialized = false;
+
   public static void premain(final String agentArgs, final Instrumentation inst) {
     agentmain(agentArgs, inst);
   }
 
   public static void agentmain(final String agentArgs, final Instrumentation inst) {
+    if (checkAndLogIfInitializedTwice(System.out)) {
+      return;
+    }
     if (checkAndLogIfLessThanJava8()) {
       return;
     }
@@ -112,6 +117,16 @@ public final class AgentBootstrap {
           "Please upgrade your Java version to 8+ or use the 0.x version of dd-java-agent in your build tool or download it from https://dtdg.co/java-tracer-v0");
       return true;
     }
+    return false;
+  }
+
+  static boolean checkAndLogIfInitializedTwice(final PrintStream output) {
+    if (initialized) {
+      output.println(
+          "Warning: dd-java-agent is being initialized more than once. Please, check that you are defining -javaagent:dd-java-agent.jar only once.");
+      return true;
+    }
+    initialized = true;
     return false;
   }
 
