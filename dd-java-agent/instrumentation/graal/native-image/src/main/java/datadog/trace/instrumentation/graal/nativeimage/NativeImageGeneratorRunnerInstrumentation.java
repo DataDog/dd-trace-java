@@ -69,6 +69,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.bootstrap.CallDepthThreadLocalMap:build_time,"
               + "datadog.trace.bootstrap.DatadogClassLoader:build_time,"
               + "datadog.trace.bootstrap.FieldBackedContextStores:build_time,"
+              + "datadog.trace.bootstrap.benchmark.StaticEventLogger:build_time,"
               + "datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState:build_time,"
               + "datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter:build_time,"
               + "datadog.trace.bootstrap.instrumentation.java.concurrent.TPEHelper:build_time,"
