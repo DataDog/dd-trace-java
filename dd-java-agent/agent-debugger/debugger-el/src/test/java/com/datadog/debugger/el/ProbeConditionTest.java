@@ -66,6 +66,15 @@ public class ProbeConditionTest {
   }
 
   @Test
+  void testNullLiteral() throws Exception {
+    ProbeCondition probeCondition = load("/test_conditional_06.json");
+    ValueReferenceResolver ctx =
+        RefResolverHelper.createResolver(
+            singletonMap("nullField", null), singletonMap("objField", new Object()));
+    assertTrue(probeCondition.execute(ctx));
+  }
+
+  @Test
   void testJsonAdapter() throws IOException {
     Moshi moshi =
         new Moshi.Builder()

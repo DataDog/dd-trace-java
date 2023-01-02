@@ -297,6 +297,12 @@ public class JsonToExpressionConverter {
             reader.endObject();
           }
         }
+      case NULL:
+        {
+          reader.nextNull();
+          value = DSL.nullValue();
+          break;
+        }
       default:
         throw new UnsupportedOperationException("Invalid value definition: ");
     }
