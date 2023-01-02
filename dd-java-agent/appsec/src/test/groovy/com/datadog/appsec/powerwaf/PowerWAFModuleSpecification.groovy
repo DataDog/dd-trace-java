@@ -17,6 +17,7 @@ import com.datadog.appsec.report.raw.events.AppSecEvent100
 import com.datadog.appsec.report.raw.events.Parameter
 import com.datadog.appsec.report.raw.events.Tags
 import com.datadog.appsec.test.StubAppSecConfigService
+import datadog.trace.api.ConfigDefaults
 import datadog.trace.api.TraceSegment
 import datadog.trace.api.gateway.Flow
 import datadog.trace.test.util.DDSpecification
@@ -360,6 +361,26 @@ class PowerWAFModuleSpecification extends DDSpecification {
     then:
     ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
     assert !flow.blocking
+  }
+
+  void 'timeout is honored'() {
+    injectSysConfig('appsec.waf.timeout', '1')
+    PowerWAFModule.createLimitsObject()
+    setupWithStubConfigService()
+    DataBundle db = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
+      new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni/v' + ('a' * 4000)]))
+    ChangeableFlow flow = new ChangeableFlow()
+
+    when:
+    dataListener.onDataAvailable(flow, ctx, db, false)
+
+    then:
+    ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    assert !flow.blocking
+
+    cleanup:
+    injectSysConfig('appsec.waf.timeout', ConfigDefaults.DEFAULT_APPSEC_WAF_TIMEOUT as String)
+    PowerWAFModule.createLimitsObject()
   }
 
   void 'subscribes 1 event'() {

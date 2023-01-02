@@ -7,6 +7,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_METRICS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLIENT_IP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
@@ -92,6 +93,7 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_METRICS;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_TIMEOUT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
@@ -496,6 +498,7 @@ public class Config {
   private final int appSecReportMaxTimeout;
   private final int appSecTraceRateLimit;
   private final boolean appSecWafMetrics;
+  private final int appSecWafTimeout;
   private final String appSecObfuscationParameterKeyRegexp;
   private final String appSecObfuscationParameterValueRegexp;
   private final String appSecHttpBlockedTemplateHtml;
@@ -1062,6 +1065,8 @@ public class Config {
         configProvider.getInteger(APPSEC_TRACE_RATE_LIMIT, DEFAULT_APPSEC_TRACE_RATE_LIMIT);
 
     appSecWafMetrics = configProvider.getBoolean(APPSEC_WAF_METRICS, DEFAULT_APPSEC_WAF_METRICS);
+
+    appSecWafTimeout = configProvider.getInteger(APPSEC_WAF_TIMEOUT, DEFAULT_APPSEC_WAF_TIMEOUT);
 
     appSecObfuscationParameterKeyRegexp =
         configProvider.getString(APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP, null);
@@ -1761,6 +1766,11 @@ public class Config {
 
   public boolean isAppSecWafMetrics() {
     return appSecWafMetrics;
+  }
+
+  // in microseconds
+  public int getAppSecWafTimeout() {
+    return appSecWafTimeout;
   }
 
   public String getAppSecObfuscationParameterKeyRegexp() {
@@ -2980,7 +2990,9 @@ public class Config {
         + "'"
         + ", appSecHttpBlockedTemplateHtml="
         + appSecHttpBlockedTemplateHtml
-        + ", appSecHttpBlockedTemplateJson="
+        + ", appSecWafTimeout="
+        + appSecWafTimeout
+        + " us, appSecHttpBlockedTemplateJson="
         + appSecHttpBlockedTemplateJson
         + ", cwsEnabled="
         + cwsEnabled
