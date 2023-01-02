@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamedOneOf;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresAnnotation;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 import static net.bytebuddy.matcher.ElementMatchers.none;
@@ -13,9 +12,9 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.FailSafeRawMatcher;
+import datadog.trace.agent.tooling.bytebuddy.matcher.InjectContextFieldMatcher;
 import datadog.trace.agent.tooling.bytebuddy.matcher.KnownTypesMatcher;
 import datadog.trace.agent.tooling.bytebuddy.matcher.MuzzleMatcher;
-import datadog.trace.agent.tooling.bytebuddy.matcher.ShouldInjectFieldsRawMatcher;
 import datadog.trace.agent.tooling.bytebuddy.matcher.SingleTypeMatcher;
 import datadog.trace.agent.tooling.context.FieldBackedContextInjector;
 import datadog.trace.agent.tooling.context.FieldBackedContextRequestRewriter;
@@ -279,10 +278,10 @@ public class AgentTransformerBuilder
         contextStoreInjection.entrySet()) {
       String keyClassName = injection.getKey().getKey();
       String contextClassName = injection.getKey().getValue();
+      ElementMatcher<ClassLoader> activator = injection.getValue();
       agentBuilder =
           agentBuilder
-              .type(hasSuperType(named(keyClassName)), injection.getValue())
-              .and(new ShouldInjectFieldsRawMatcher(keyClassName, contextClassName))
+              .type(new InjectContextFieldMatcher(keyClassName, contextClassName, activator))
               .and(AgentTransformerBuilder.NOT_DECORATOR_MATCHER)
               .transform(
                   new VisitingTransformer(
