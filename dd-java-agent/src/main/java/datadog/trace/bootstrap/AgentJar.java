@@ -30,6 +30,9 @@ public final class AgentJar {
           case "uploadCrash":
             uploadCrash(args);
             break;
+          case "scanDependencies":
+            scanDependencies(args);
+            break;
           case "--list-integrations":
           case "-li":
             printIntegrationNames();
@@ -59,6 +62,7 @@ public final class AgentJar {
     System.out.println("usage:");
     System.out.println("  sampleTrace [-c count] [-i interval]");
     System.out.println("  uploadCrash file ...");
+    System.out.println("  scanDependencies <path> ...");
     System.out.println("  [-li | --list-integrations]");
     System.out.println("  [-h  | --help]");
     System.out.println("  [-v  | --version]");
@@ -97,6 +101,16 @@ public final class AgentJar {
 
     installAgentCLI()
         .getMethod("uploadCrash", String[].class)
+        .invoke(null, new Object[] {Arrays.copyOfRange(args, 1, args.length)});
+  }
+
+  private static void scanDependencies(final String[] args) throws Exception {
+    if (args.length < 2) {
+      throw new IllegalArgumentException("missing path");
+    }
+
+    installAgentCLI()
+        .getMethod("scanDependencies", String[].class)
         .invoke(null, new Object[] {Arrays.copyOfRange(args, 1, args.length)});
   }
 
