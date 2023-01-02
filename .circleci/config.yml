@@ -616,6 +616,12 @@ jobs:
           command: >-
             ./gradlew test jacocoTestReport jacocoTestCoverageVerification -PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipIastTests -PskipDebuggerTests
             --continue
+      - run:
+          name: Collect reports
+          when: on_fail
+          command: .circleci/collect_reports.sh
+      - store_artifacts:
+          path: ./reports.tar
 
   system-tests:
     machine:
