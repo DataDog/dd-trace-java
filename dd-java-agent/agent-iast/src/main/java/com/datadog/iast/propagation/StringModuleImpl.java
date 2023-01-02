@@ -281,7 +281,7 @@ public class StringModuleImpl extends IastModuleBase implements StringModule {
   }
 
   private void stringCaseChangedWithReducedSize(
-      final Range[] rangesSelf, final TaintedObjects taintedObjects, @Nullable String result) {
+      final Range[] rangesSelf, final TaintedObjects taintedObjects, @Nonnull String result) {
     int skippedRanges = 0;
     Range adjustedRange = null;
     for (int i = rangesSelf.length - 1; i >= 0; i--) {
