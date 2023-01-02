@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.scala.concurrent;
+package datadog.trace.instrumentation.scala213.concurrent;
 
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
@@ -20,10 +20,10 @@ import scala.util.Try;
  * that context and propagate it forward, which is quite unexpected and not very relevant.
  */
 @AutoService(Instrumenter.class)
-public class FutureObjectInstrumentation213 extends Instrumenter.Tracing
+public class FutureObjectInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType {
 
-  public FutureObjectInstrumentation213() {
+  public FutureObjectInstrumentation() {
     super("scala_future_object", "scala_concurrent");
   }
 

@@ -10,41 +10,45 @@ import javax.annotation.Nonnull;
  * fetch the instance of the {@link CallSiteAdvice} from SPI according to the specified marker
  * interface.
  */
-public abstract class CallSiteInstrumenter extends Instrumenter.Default
+public abstract class CallSiteInstrumentation extends Instrumenter.Default
     implements Instrumenter.ForCallSite {
 
-  private final Advices advices;
+  private final Class<?> spiInterface;
+  private Advices advices;
 
   /**
    * Create a new instance of the instrumenter.
    *
    * @param spiInterface marker interface implemented by the chosen {@link CallSiteAdvice} instances
    */
-  public CallSiteInstrumenter(
+  public CallSiteInstrumentation(
       @Nonnull final Class<?> spiInterface,
       @Nonnull final String name,
       @Nonnull final String... additionalNames) {
-    this(fetchAdvicesFromSpi(spiInterface), name, additionalNames);
+    super(name, additionalNames);
+    this.spiInterface = spiInterface;
+    this.advices = null;
   }
 
-  protected CallSiteInstrumenter(
+  protected CallSiteInstrumentation(
       @Nonnull final Iterable<CallSiteAdvice> advices,
       @Nonnull final String name,
       @Nonnull final String... additionalNames) {
     super(name, additionalNames);
+    this.spiInterface = null;
     this.advices = Advices.fromCallSites(advices);
   }
 
   @SuppressWarnings("unchecked")
   private static Iterable<CallSiteAdvice> fetchAdvicesFromSpi(
       @Nonnull final Class<?> spiInterface) {
-    final ClassLoader targetClassLoader = CallSiteInstrumenter.class.getClassLoader();
+    final ClassLoader targetClassLoader = CallSiteInstrumentation.class.getClassLoader();
     return (ServiceLoader<CallSiteAdvice>) ServiceLoader.load(spiInterface, targetClassLoader);
   }
 
   @Override
   public String[] helperClassNames() {
-    return advices.getHelpers();
+    return advices().getHelpers();
   }
 
   @Override
@@ -52,6 +56,13 @@ public abstract class CallSiteInstrumenter extends Instrumenter.Default
 
   @Override
   public AdviceTransformer transformer() {
-    return new CallSiteTransformer(advices);
+    return new CallSiteTransformer(advices());
+  }
+
+  private Advices advices() {
+    if (null == advices) {
+      advices = Advices.fromCallSites(fetchAdvicesFromSpi(spiInterface));
+    }
+    return advices;
   }
 }

@@ -1,12 +1,12 @@
 import datadog.trace.agent.tooling.Instrumenter
-import datadog.trace.instrumentation.iastinstrumenter.IastInstrumenter
+import datadog.trace.instrumentation.iastinstrumenter.IastInstrumentation
 import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.description.type.TypeDescription
 
-class IastInstrumenterTest extends DDSpecification{
-  def 'test Iast Instrumenter'(){
+class IastInstrumentationTest extends DDSpecification{
+  def 'test Iast Instrumentation'(){
     given:
-    IastInstrumenter instrumenter = new IastInstrumenter()
+    IastInstrumentation instrumentation = new IastInstrumentation()
     TypeDescription typeDescription1 = Mock (TypeDescription)
     typeDescription1.getName() >> "org.jsantos.Tool"
     TypeDescription typeDescription2 = Mock(TypeDescription)
@@ -14,11 +14,11 @@ class IastInstrumenterTest extends DDSpecification{
     Set<Instrumenter.TargetSystem> enabledSystems = Mock(Set)
 
     when:
-    instrumenter.isEnabled()
-    instrumenter.isApplicable(enabledSystems)
-    instrumenter.callerType()
-    boolean description1Matched = instrumenter.matches(typeDescription1)
-    boolean description2Matched = instrumenter.matches(typeDescription2)
+    instrumentation.isEnabled()
+    instrumentation.isApplicable(enabledSystems)
+    instrumentation.callerType()
+    boolean description1Matched = instrumentation.matches(typeDescription1)
+    boolean description2Matched = instrumentation.matches(typeDescription2)
 
     then:
     description1Matched

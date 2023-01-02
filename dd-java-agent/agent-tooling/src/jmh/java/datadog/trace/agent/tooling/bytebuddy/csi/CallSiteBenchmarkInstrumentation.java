@@ -12,10 +12,10 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public class CallSiteBenchmarkInstrumenter extends CallSiteInstrumenter
+public class CallSiteBenchmarkInstrumentation extends CallSiteInstrumentation
     implements ElementMatcher<TypeDescription> {
 
-  public CallSiteBenchmarkInstrumenter() {
+  public CallSiteBenchmarkInstrumentation() {
     super(buildCallSites(), "call-site");
   }
 

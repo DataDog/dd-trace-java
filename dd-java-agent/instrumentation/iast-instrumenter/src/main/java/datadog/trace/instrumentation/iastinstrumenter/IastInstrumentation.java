@@ -2,18 +2,18 @@ package datadog.trace.instrumentation.iastinstrumenter;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteInstrumenter;
+import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteInstrumentation;
 import datadog.trace.api.iast.IastAdvice;
 import java.util.Set;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class IastInstrumenter extends CallSiteInstrumenter
+public class IastInstrumentation extends CallSiteInstrumentation
     implements ElementMatcher<TypeDescription> {
 
-  public IastInstrumenter() {
-    super(IastAdvice.class, "IastInstrumenter");
+  public IastInstrumentation() {
+    super(IastAdvice.class, "IastInstrumentation");
   }
 
   @Override

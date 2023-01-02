@@ -28,7 +28,7 @@ public class SessionFactoryInstrumentation extends AbstractHibernateInstrumentat
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("org.hibernate.SharedSessionContract", SessionState.class.getName());
+    return singletonMap("org.hibernate.SharedSessionContract", SESSION_STATE);
   }
 
   @Override
