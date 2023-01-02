@@ -1006,6 +1006,31 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  public void mergedProbesConditionMixedLocation() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    SnapshotProbe probe1 =
+        createProbeBuilder(PROBE_ID1, CLASS_NAME, "doit", "int (java.lang.String)")
+            .when(new ProbeCondition(DSL.when(DSL.TRUE), "true"))
+            .evaluateAt(ProbeDefinition.MethodLocation.DEFAULT)
+            .build();
+    SnapshotProbe probe2 =
+        createProbeBuilder(PROBE_ID2, CLASS_NAME, "doit", "int (java.lang.String)")
+            .when(
+                new ProbeCondition(
+                    DSL.when(DSL.gt(DSL.ref("@duration"), DSL.value(0))), "@duration > 0"))
+            .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
+            .build();
+    probe1.addAdditionalProbe(probe2);
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe1);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    Assert.assertEquals(3, result);
+    Assert.assertEquals(2, listener.snapshots.size());
+    Assert.assertNull(listener.snapshots.get(0).getEvaluationErrors());
+    Assert.assertNull(listener.snapshots.get(1).getEvaluationErrors());
+  }
+
+  @Test
   public void fields() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot06";
     DebuggerTransformerTest.TestSnapshotListener listener =
