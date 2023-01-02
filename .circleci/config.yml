@@ -13,44 +13,42 @@ defaults: &defaults
 dependency_cache_keys: &dependency_cache_keys
   keys:
     # New branch commits will find this cache
-    - dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
+    - dd-trace-java-dep-{{ .Environment.CACHE_VERSION }}-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
     # New branches fall back on main build caches
-    - dd-trace-java-dep-v1-master-{{ checksum "_circle_ci_cache_base_id" }}-
+    - dd-trace-java-dep-{{ .Environment.CACHE_VERSION }}-master-{{ checksum "_circle_ci_cache_base_id" }}-
     # Fall back on the previous cache scheme to not start from scratch when switching
     - dd-trace-java-v4-master-
 
 dependency_cache_paths: &dependency_cache_paths
   paths:
     # Cached dependencies and wrappers for gradle
-    - .gradle
+    - ~/.gradle
     # Cached dependencies for maven
-    - .m2
+    - ~/.m2
     # Cached launchers and compilers for sbt
-    - .sbt
+    - ~/.sbt
     # Cached dependencies for sbt handled by ivy
-    - .ivy2
+    - ~/.ivy2
     # Cached dependencies for sbt handled by coursier
-    - .cache/coursier
+    - ~/.cache/coursier
 
 build_cache_keys: &build_cache_keys
-  working_directory: ~/
   keys:
     # Dependent steps will find this cache
-    - dd-trace-java-build-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+    - dd-trace-java-build-{{ .Environment.CACHE_VERSION }}-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
     # New branch commits will find this cache
-    - dd-trace-java-build-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
+    - dd-trace-java-build-{{ .Environment.CACHE_VERSION }}-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
     # New branches fall back on main build caches
-    - dd-trace-java-build-v1-master-{{ checksum "_circle_ci_cache_base_id" }}-
+    - dd-trace-java-build-{{ .Environment.CACHE_VERSION }}-master-{{ checksum "_circle_ci_cache_base_id" }}-
 
 build_cache_paths: &build_cache_paths
-  working_directory: ~/
   paths:
     # Gradle version specific cache for incremental builds. Needs to match version in
     # gradle/wrapper/gradle-wrapper.properties
-    - .gradle/caches/7.5.47-20220929220000+0000
+    - ~/.gradle/caches/7.5.47-20220929220000+0000
     # Save the downloaded distribution. Needs to match version in
     # gradle/wrapper/gradle-wrapper.properties
-    - .gradle/wrapper/dists/gradle-7.5.47-all
+    - ~/.gradle/wrapper/dists/gradle-7.5.47-all
 
 test_matrix: &test_matrix
   parameters:
@@ -261,10 +259,10 @@ jobs:
             matches:
               pattern: "^(master|project/.+)$"
               # DEBUG << pipeline.git.branch >>
-              value: master
+              value: << pipeline.git.branch >>
           steps:
             - save_cache:
-                key: dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+                key: dd-trace-java-dep-{{ .Environment.CACHE_VERSION }}-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
                 <<: *dependency_cache_paths
 
       # This part is now disable to speed up builds at the cost of downloading new dependencies a few more times
@@ -284,7 +282,7 @@ jobs:
 
       # Save the small build cache
       - save_cache:
-          key: dd-trace-java-build-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+          key: dd-trace-java-build-{{ .Environment.CACHE_VERSION }}-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
           <<: *build_cache_paths
 
       - display_memory_usage
@@ -598,6 +596,12 @@ jobs:
             #ls $(brew --prefix temurin8)
             #ls $(brew --prefix temurin8)/libexec/openjdk.jdk
       - setup_code
+      - run:
+          name: Prepare for caching
+          command: |
+            sudo sed -i -e 's~^/home~#/home~g' /etc/auto_master
+            sudo automount -cv
+            sudo ln -s /Users/distiller /home/circleci
       - restore_cache:
           <<: *dependency_cache_keys
       - restore_cache:
