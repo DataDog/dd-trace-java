@@ -16,44 +16,47 @@ import java.util.List;
  *   <li>sending to agent
  * </ul>
  */
-public interface HealthMetrics extends AutoCloseable {
-  HealthMetrics NO_OP = new NoOpHealthMetrics();
+public abstract class HealthMetrics implements AutoCloseable {
+  public static HealthMetrics NO_OP = new NoOpHealthMetrics();
 
-  void start();
+  public void start() {};
 
-  void onStart(final int queueCapacity);
+  public void onStart(final int queueCapacity) {};
 
-  void onShutdown(final boolean flushSuccess);
+  public void onShutdown(final boolean flushSuccess) {};
 
-  void onPublish(final List<DDSpan> trace, final int samplingPriority);
+  public void onPublish(final List<DDSpan> trace, final int samplingPriority) {};
 
-  void onFailedPublish(final int samplingPriority);
+  public void onFailedPublish(final int samplingPriority) {};
 
-  void onPartialPublish(final int numberOfDroppedSpans);
+  public void onPartialPublish(final int numberOfDroppedSpans) {};
 
-  void onScheduleFlush(final boolean previousIncomplete);
+  public void onScheduleFlush(final boolean previousIncomplete) {};
 
-  void onFlush(final boolean early);
+  public void onFlush(final boolean early) {};
 
-  void onPartialFlush(final int sizeInBytes);
+  public void onPartialFlush(final int sizeInBytes) {};
 
-  void onSerialize(final int serializedSizeInBytes);
+  public void onSerialize(final int serializedSizeInBytes) {};
 
-  void onFailedSerialize(final List<DDSpan> trace, final Throwable optionalCause);
+  public void onFailedSerialize(final List<DDSpan> trace, final Throwable optionalCause) {};
 
-  void onCreateSpan();
+  public void onCreateSpan() {};
 
-  void onCreateTrace();
+  public void onCreateTrace() {};
 
-  void onCreateManualTrace();
+  public void onCreateManualTrace() {};
 
-  void onCancelContinuation();
+  public void onCancelContinuation() {};
 
-  void onFinishContinuation();
+  public void onFinishContinuation() {};
 
-  void onSend(final int traceCount, final int sizeInBytes, final RemoteApi.Response response);
+  public void onSend(
+      final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {};
 
-  void onFailedSend(final int traceCount, final int sizeInBytes, final RemoteApi.Response response);
+  public void onFailedSend(
+      final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {};
 
-  void close();
+  @Override
+  public void close() {};
 }

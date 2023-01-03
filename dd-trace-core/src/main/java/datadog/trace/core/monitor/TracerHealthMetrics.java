@@ -18,7 +18,7 @@ import java.util.function.IntFunction;
 import org.jctools.counters.CountersFactory;
 import org.jctools.counters.FixedSizeStripedLongCounter;
 
-public class TracerHealthMetrics implements HealthMetrics, AutoCloseable {
+public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable {
 
   private static final IntFunction<String[]> STATUS_TAGS =
       httpStatus -> new String[] {"status:" + httpStatus};
