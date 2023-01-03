@@ -14,15 +14,49 @@ class StringCallSiteTest extends AgentTestRunner {
 
   def 'test string concat call site'() {
     setup:
-    StringModule iastModule = Mock(StringModule)
-    InstrumentationBridge.registerIastModule(iastModule)
+    StringModule stringModule = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(stringModule)
 
     when:
     final result = TestStringSuite.concat('Hello ', 'World!')
 
     then:
     result == 'Hello World!'
-    1 * iastModule.onStringConcat('Hello ', 'World!', 'Hello World!')
+    1 * stringModule.onStringConcat('Hello ', 'World!', 'Hello World!')
+    0 * _
+  }
+
+  def 'test string toUpperCase call site'() {
+    setup:
+    final stringModule = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(stringModule)
+
+    when:
+    final result = TestStringSuite.stringToUpperCase('hello', null)
+    final result2 = TestStringSuite.stringToUpperCase('world', new Locale("en"))
+
+    then:
+    result == 'HELLO'
+    result2 == 'WORLD'
+    1 * stringModule.onStringToUpperCase('hello', 'HELLO')
+    1 * stringModule.onStringToUpperCase('world', 'WORLD')
+    0 * _
+  }
+
+  def 'test string toLowerCase call site'() {
+    setup:
+    final stringModule = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(stringModule)
+
+    when:
+    final result = TestStringSuite.stringToLowerCase('HELLO', null)
+    final result2 = TestStringSuite.stringToLowerCase('WORLD', new Locale("en"))
+
+    then:
+    result == 'hello'
+    result2 == 'world'
+    1 * stringModule.onStringToLowerCase('HELLO', 'hello')
+    1 * stringModule.onStringToLowerCase('WORLD', 'world')
     0 * _
   }
 

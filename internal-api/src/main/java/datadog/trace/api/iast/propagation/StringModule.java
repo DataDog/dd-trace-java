@@ -26,4 +26,8 @@ public interface StringModule extends IastModule {
 
   void onStringJoin(
       @Nullable String result, @Nonnull CharSequence delimiter, @Nonnull CharSequence[] elements);
+
+  void onStringToUpperCase(@Nonnull String self, @Nullable String result);
+
+  void onStringToLowerCase(@Nonnull String self, @Nullable String result);
 }
