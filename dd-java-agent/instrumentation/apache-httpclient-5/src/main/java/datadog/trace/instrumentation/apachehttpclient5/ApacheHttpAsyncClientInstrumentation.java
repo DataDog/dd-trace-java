@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.apachehttpclient5;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.DECORATE;
@@ -86,31 +87,40 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Tracing
   @SuppressWarnings("unused")
   public static class ClientAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentSpan methodEnter(
+    public static AgentScope methodEnter(
         @Advice.Argument(value = 0, readOnly = false) AsyncRequestProducer requestProducer,
         @Advice.Argument(3) HttpContext context,
         @Advice.Argument(value = 4, readOnly = false) FutureCallback<?> futureCallback) {
 
       final AgentScope parentScope = activeScope();
       final AgentSpan clientSpan = startSpan(HTTP_REQUEST);
+      final AgentScope clientScope = activateSpan(clientSpan);
       DECORATE.afterStart(clientSpan);
 
       requestProducer = new DelegatingRequestProducer(clientSpan, requestProducer);
       futureCallback =
           new TraceContinuedFutureCallback<>(parentScope, clientSpan, context, futureCallback);
 
-      return clientSpan;
+      return clientScope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter final AgentSpan span,
+        @Advice.Enter final AgentScope scope,
         @Advice.Return final Object result,
         @Advice.Thrown final Throwable throwable) {
-      if (throwable != null) {
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-        span.finish();
+      if (scope == null) {
+        return;
+      }
+      try {
+        if (throwable != null) {
+          final AgentSpan span = scope.span();
+          DECORATE.onError(span, throwable);
+          DECORATE.beforeFinish(span);
+          span.finish();
+        }
+      } finally {
+        scope.close();
       }
     }
   }
