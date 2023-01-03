@@ -4,8 +4,6 @@
 # This folder will be saved by circleci and available after test runs.
 
 set -e
-#Enable '**' support
-shopt -s globstar
 
 REPORTS_DIR=./reports
 MOVE=false
@@ -64,9 +62,8 @@ function process_reports () {
     fi
 }
 
-shopt -s globstar
-
-for report_path in workspace/**/build/reports; do
+mapfile -t report_paths < <(find workspace -path '*/build/reports' -type d)
+for report_path in "${report_paths[@]}"; do
     report_path=${report_path//workspace\//}
     report_path=${report_path//\/build\/reports/}
     process_reports $report_path
