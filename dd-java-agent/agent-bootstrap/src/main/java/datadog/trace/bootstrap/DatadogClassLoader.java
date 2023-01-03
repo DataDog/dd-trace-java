@@ -32,7 +32,8 @@ public final class DatadogClassLoader extends SecureClassLoader {
   private final String agentResourcePrefix;
   private final AgentJarIndex agentJarIndex;
 
-  private WeakReference<InstrumentationClassLoader> instrumentationClassLoader =
+  private final Object instrumentationClassLoaderLock = new Object();
+  private volatile WeakReference<InstrumentationClassLoader> instrumentationClassLoader =
       new WeakReference<>(new InstrumentationClassLoader(this));
 
   public DatadogClassLoader(final URL agentJarURL, final ClassLoader parent) throws Exception {
@@ -93,11 +94,15 @@ public final class DatadogClassLoader extends SecureClassLoader {
   protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
     if (name.startsWith("datadog.trace.instrumentation.")
         && (name.endsWith("$Muzzle") || name.endsWith("Instrumentation"))) {
-      InstrumentationClassLoader cl = instrumentationClassLoader.get();
-      if (null == cl) {
-        // previous instance was unloaded, create fresh one
-        cl = new InstrumentationClassLoader(this);
-        instrumentationClassLoader = new WeakReference<>(cl);
+      InstrumentationClassLoader cl;
+      if (null == (cl = instrumentationClassLoader.get())) {
+        synchronized (instrumentationClassLoaderLock) {
+          if (null == (cl = instrumentationClassLoader.get())) {
+            // previous instance was unloaded, create fresh one
+            cl = new InstrumentationClassLoader(this);
+            instrumentationClassLoader = new WeakReference<>(cl);
+          }
+        }
       }
       return cl.loadInstrumentationClass(name, agentCodeSource);
     } else {
