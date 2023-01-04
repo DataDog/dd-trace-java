@@ -13,10 +13,12 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.actor
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.channels.toChannel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -25,7 +27,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
+import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 @SuppressFBWarnings("NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE")
 class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
@@ -196,48 +200,113 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
 
   @Trace
   fun tracedWithLazyStarting(): Int = runTest {
-    val jobs = mutableListOf<Deferred<Unit>>()
-
-    childSpan("top-level").activateAndUse {
-      async(jobName("first"), CoroutineStart.LAZY) {
-        childSpan("first-span").activateAndUse {
-          delay(1)
-        }
-      }.run(jobs::add)
-
-      async(jobName("second"), CoroutineStart.LAZY) {
-        childSpan("second-span").activateAndUse {
-          delay(1)
-        }
-      }.run(jobs::add)
-    }
-
-    jobs.forEach { it.start() }
-    jobs.awaitAll()
-
-    4
+    val spans = AtomicInteger(1)
+    createAndWaitForCoroutines(lazy = true, spans = spans)
+    spans.get()
   }
 
-  fun withNoParentTrace(): Int = runTest {
+  fun withNoTraceParentSpan(lazy: Boolean, throwing: Boolean): Int {
+    val spans = AtomicInteger(0)
+    try {
+      runTest {
+        createAndWaitForCoroutines(lazy, throwing, spans)
+        spans.get()
+      }
+    } catch (_: Exception) {
+    }
+    return spans.get()
+  }
+
+  private suspend fun createAndWaitForCoroutines(lazy: Boolean = false, throwing: Boolean = false, spans: AtomicInteger) =
+    coroutineScope {
+      val jobs = mutableListOf<Deferred<Unit>>()
+      val start = if (lazy) CoroutineStart.LAZY else CoroutineStart.DEFAULT
+
+      childSpan("top-level").activateAndUse {
+        spans.incrementAndGet()
+        async(jobName("first"), start) {
+          childSpan("first-span").activateAndUse {
+            spans.incrementAndGet()
+            if (throwing) {
+              throw IllegalStateException("first")
+            }
+            delay(1)
+          }
+        }.run(jobs::add)
+
+        async(jobName("second"), start) {
+          childSpan("second-span").activateAndUse {
+            spans.incrementAndGet()
+            if (throwing) {
+              throw IllegalStateException("second")
+            }
+            delay(1)
+          }
+        }.run(jobs::add)
+      }
+
+      if (lazy) {
+        jobs.forEach { it.start() }
+      }
+
+      jobs.forEach {
+        try {
+          it.await()
+        } catch (_: Exception) {
+        }
+      }
+    }
+
+  fun withNoParentSpan(lazy: Boolean): Int = runTest {
     val jobs = mutableListOf<Deferred<Unit>>()
+    val start = if (lazy) CoroutineStart.LAZY else CoroutineStart.DEFAULT
+
+    async(jobName("first"), start) {
+      childSpan("first-span").activateAndUse {
+        delay(1)
+      }
+    }.run(jobs::add)
+
+    async(jobName("second"), start) {
+      childSpan("second-span").activateAndUse {
+        delay(1)
+      }
+    }.run(jobs::add)
+
+    if (lazy) {
+      jobs.forEach { it.start() }
+    }
+    jobs.awaitAll()
+
+    2
+  }
+
+  fun withParentSpanAndOnlyCanceled(): Int = runTest {
+    val jobs = mutableListOf<Deferred<Unit>>()
+    val start = CoroutineStart.LAZY
 
     childSpan("top-level").activateAndUse {
-      async(jobName("first")) {
+      async(jobName("first"), start) {
         childSpan("first-span").activateAndUse {
           delay(1)
         }
       }.run(jobs::add)
 
-      async(jobName("second")) {
+      async(jobName("second"), start) {
         childSpan("second-span").activateAndUse {
           delay(1)
         }
       }.run(jobs::add)
-
-      jobs.awaitAll()
     }
 
-    3
+    jobs.forEach {
+      try {
+        it.cancelAndJoin()
+      } catch (_: CancellationException) {
+      }
+    }
+
+    1
   }
 
   @Trace
@@ -252,8 +321,11 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
   private fun jobName(jobName: String) = CoroutineName(jobName)
 
   private suspend fun AgentSpan.activateAndUse(block: suspend () -> Unit) {
-    get().activateSpan(this, INSTRUMENTATION).use {
-      block()
+    try {
+      get().activateSpan(this, INSTRUMENTATION).use {
+        block()
+      }
+    } finally {
       finish()
     }
   }

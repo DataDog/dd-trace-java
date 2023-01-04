@@ -58,6 +58,11 @@ class SpanAssert {
     checked.operationName = true
   }
 
+  def operationName(Closure<Boolean> eval) {
+    assert eval(span.operationName.toString())
+    checked.resourceName = true
+  }
+
   def operationNameContains(String... operationNameParts) {
     assertSpanNameContains(span.operationName.toString(), operationNameParts)
     checked.operationName = true

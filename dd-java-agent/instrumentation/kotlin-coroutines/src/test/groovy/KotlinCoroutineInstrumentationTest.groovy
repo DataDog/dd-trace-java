@@ -2,9 +2,11 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.core.DDSpan
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ThreadPoolDispatcherKt
+import spock.lang.Shared
 
 class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
+  @Shared
   static dispatchersToTest = [
     Dispatchers.Default,
     Dispatchers.IO,
@@ -167,26 +169,146 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
     dispatcher << dispatchersToTest
   }
 
-  def "coroutine instrumentation should work even when there is no parent trace when coroutine is created"() {
+  def "coroutine instrumentation should work without an enclosing trace span"() {
     setup:
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
-    int expectedNumberOfSpans = kotlinTest.withNoParentTrace()
+    int expectedNumberOfSpans = kotlinTest.withNoTraceParentSpan(false, false)
+
+    expect:
+    assertTopLevelSpanWithTwoSubSpans(expectedNumberOfSpans)
+
+    where:
+    dispatcher << dispatchersToTest
+  }
+
+  def "coroutine instrumentation should work when started lazily without an enclosing trace span"() {
+    setup:
+    KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
+    int expectedNumberOfSpans = kotlinTest.withNoTraceParentSpan(true, false)
+
+    expect:
+    assertTopLevelSpanWithTwoSubSpans(expectedNumberOfSpans)
+
+    where:
+    dispatcher << dispatchersToTest
+  }
+
+  def "coroutine instrumentation should work without an enclosing trace span and throwing exceptions"() {
+    setup:
+    KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
+    int expectedNumberOfSpans = kotlinTest.withNoTraceParentSpan(false, true)
+
+    expect:
+    assertTopLevelSpanWithTwoSubSpans(expectedNumberOfSpans, true)
+
+    where:
+    dispatcher << dispatchersToTest
+  }
+
+  def "coroutine instrumentation should work when started lazily without an enclosing trace span and throwing exceptions"() {
+    setup:
+    KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
+    int expectedNumberOfSpans = kotlinTest.withNoTraceParentSpan(true, true)
+
+    expect:
+    assertTopLevelSpanWithTwoSubSpans(expectedNumberOfSpans, true)
+
+    where:
+    dispatcher << dispatchersToTest
+  }
+
+  private void assertTopLevelSpanWithTwoSubSpans(int expectedNumberOfSpans, boolean threw = false) {
+    def topLevel = expectedNumberOfSpans - 1
+    assertTraces(1) {
+      trace(expectedNumberOfSpans, true) {
+        def topLevelSpan = span(topLevel)
+        span(topLevel) {
+          operationName "top-level"
+          parent()
+        }
+        if (expectedNumberOfSpans == 3) {
+          span(1) {
+            operationName "second-span"
+            childOf topLevelSpan
+          }
+          span(0) {
+            operationName "first-span"
+            childOf topLevelSpan
+          }
+        } else if (expectedNumberOfSpans == 2) {
+          assert threw
+          span(0) {
+            childOf topLevelSpan
+            // either of the jobs could have been started first, thrown, and canceled the other job
+            operationName { name -> (name == 'first-span' || name == 'second-span') }
+          }
+        }
+      }
+    }
+  }
+
+
+  def "coroutine instrumentation should work without any parent span"() {
+    setup:
+    KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
+    int expectedNumberOfTraces = kotlinTest.withNoParentSpan(false)
+
+    expect:
+    assertTraces(expectedNumberOfTraces, SORT_TRACES_BY_NAMES) {
+      trace(1) {
+        span(0) {
+          operationName "first-span"
+          parent()
+        }
+      }
+      trace(1) {
+        span(0) {
+          operationName "second-span"
+          parent()
+        }
+      }
+    }
+
+    where:
+    dispatcher << dispatchersToTest
+  }
+
+  def "coroutine instrumentation should work when started lazily without any parent span"() {
+    setup:
+    KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
+    int expectedNumberOfTraces = kotlinTest.withNoParentSpan(true)
+
+    expect:
+    assertTraces(expectedNumberOfTraces, SORT_TRACES_BY_NAMES) {
+      trace(1) {
+        span(0) {
+          operationName "first-span"
+          parent()
+        }
+      }
+      trace(1) {
+        span(0) {
+          operationName "second-span"
+          parent()
+        }
+      }
+    }
+
+    where:
+    dispatcher << dispatchersToTest
+  }
+
+  def "coroutine instrumentation should work when started lazily and canceled"() {
+    setup:
+    KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
+    int expectedNumberOfSpans = kotlinTest.withParentSpanAndOnlyCanceled()
 
     expect:
     assertTraces(1) {
       trace(expectedNumberOfSpans, true) {
-        def topLevelSpan = span(2)
-        span(2) {
+        span(0) {
           operationName "top-level"
           parent()
-        }
-        span(1) {
-          operationName "second-span"
-          childOf topLevelSpan
-        }
-        span(0) {
-          operationName "first-span"
-          childOf topLevelSpan
         }
       }
     }
