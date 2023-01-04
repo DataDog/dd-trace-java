@@ -237,4 +237,36 @@ public final class Ranges {
       return items.get(index);
     }
   }
+
+  public static Range createIfDifferent(Range range, int start, int length) {
+    if (start != range.getStart() || length != range.getLength()) {
+      return new Range(start, length, range.getSource());
+    } else {
+      return range;
+    }
+  }
+
+  static int calculateSubstringSkippedRanges(int offset, int length, @Nonnull Range[] ranges) {
+    // calculate how many skipped ranges are there
+    int skippedRanges = 0;
+    for (int rangeIndex = 0; rangeIndex < ranges.length; rangeIndex++) {
+      final Range rangeSelf = ranges[rangeIndex];
+      if (rangeSelf.getStart() + rangeSelf.getLength() <= offset) {
+        skippedRanges++;
+      } else {
+        break;
+      }
+    }
+
+    for (int rangeIndex = ranges.length - 1; rangeIndex >= 0; rangeIndex--) {
+      final Range rangeSelf = ranges[rangeIndex];
+      if (rangeSelf.getStart() - offset >= length) {
+        skippedRanges++;
+      } else {
+        break;
+      }
+    }
+
+    return skippedRanges;
+  }
 }

@@ -342,4 +342,42 @@ public class StringModuleImpl extends IastModuleBase implements StringModule {
   private static Range[] getRanges(final TaintedObject taintedObject) {
     return taintedObject == null ? Ranges.EMPTY : taintedObject.getRanges();
   }
+
+  @Override
+  @SuppressFBWarnings
+  public void onStringTrim(@Nonnull final String self, @Nullable final String result) {
+    if (!canBeTainted(result)) {
+      return;
+    }
+    if (self == result) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject taintedSelf = taintedObjects.get(self);
+    if (taintedSelf == null) {
+      return;
+    }
+
+    int offset = 0;
+    while ((offset < self.length()) && (self.charAt(offset) <= ' ')) {
+      offset++;
+    }
+
+    int resultLength = result.length();
+
+    final Range[] rangesSelf = taintedSelf.getRanges();
+    if (null == rangesSelf || rangesSelf.length == 0) {
+      return;
+    }
+
+    final Range[] newRanges = Ranges.forSubstring(offset, resultLength, rangesSelf);
+
+    if (null != newRanges) {
+      taintedObjects.taint(result, newRanges);
+    }
+  }
 }

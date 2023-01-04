@@ -151,4 +151,18 @@ class StringCallSiteTest extends AgentTestRunner {
     1 * iterable.forEach(_) >> { throw new Error('Boom!!!') }
     thrown Error
   }
+
+  def 'test string trim call site'() {
+    setup:
+    final module = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    final result = TestStringSuite.stringTrim(' hello ')
+
+    then:
+    result == 'hello'
+    1 * module.onStringTrim(' hello ', 'hello')
+    0 * _
+  }
 }
