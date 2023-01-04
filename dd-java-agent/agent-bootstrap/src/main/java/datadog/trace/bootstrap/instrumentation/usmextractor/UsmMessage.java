@@ -38,7 +38,7 @@ public interface UsmMessage {
 
     // size of the connection struct:
     // SrcIP [16 bytes] || DstIP [16 bytes] || Src Port [2 bytes] || Dst port [2 bytes] || Reserved [4 bytes] || Pid [4 bytes] || Metadata [4 bytes]
-    static final int CONNECTION_INFO_SIZE = 16 + 16 + 2 + 2 + 4 + 4 + 4;
+    static final int CONNECTION_INFO_SIZE = 48;
 
     //pointer to native memory buffer
     protected Pointer pointer;
