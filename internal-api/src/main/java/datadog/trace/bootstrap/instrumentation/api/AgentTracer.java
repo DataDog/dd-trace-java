@@ -384,11 +384,6 @@ public class AgentTracer {
 
     @Override
     public void notifyExtensionEnd(AgentSpan span, Object result, boolean isError) {}
-
-    @Override
-    public ScopeState newScopeState() {
-      return null;
-    }
   }
 
   public static final class NoopAgentSpan implements AgentSpan {

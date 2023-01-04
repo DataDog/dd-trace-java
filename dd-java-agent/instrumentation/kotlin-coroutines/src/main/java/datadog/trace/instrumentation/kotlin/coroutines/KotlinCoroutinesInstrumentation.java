@@ -20,7 +20,6 @@ public class KotlinCoroutinesInstrumentation extends Instrumenter.Tracing
     return new String[] {
       packageName + ".ScopeStateCoroutineContext",
       packageName + ".ScopeStateCoroutineContext$ContextElementKey",
-      packageName + ".ContinuationHandler",
       packageName + ".CoroutineContextHelper",
     };
   }

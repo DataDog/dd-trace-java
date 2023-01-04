@@ -71,10 +71,10 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.close()
   }
 
-  def "scope state should be able to fetch and activate state when there is no active span"() {
+  def "scope state should be able to activate and restore state when there is no active span"() {
     when:
     def initialScopeState = scopeManager.newScopeState()
-    initialScopeState.fetchFromActive()
+    initialScopeState.activate()
 
     then:
     scopeManager.active() == null
@@ -95,7 +95,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     scopeManager.active() == scope
 
     when:
-    initialScopeState.activate()
+    newScopeState.restore()
 
     then:
     scopeManager.active() == null
@@ -112,48 +112,98 @@ class ScopeManagerTest extends DDCoreSpecification {
     writer.waitForTraces(1)
 
     then:
-    writer == [[scope.span()]]
+    writer.size() == 1
+    writer.get(0) == [scope.span()]
     scopeManager.active() == null
 
     when:
-    initialScopeState.activate()
+    newScopeState.restore()
+
+    then:
+    scopeManager.active() == null
+
+    when:
+    initialScopeState.restore()
 
     then:
     scopeManager.active() == null
   }
 
-  def "scope state should be able to fetch and activate state when there is an active span"() {
+  def "scope state should be able to activate and restore state when there is an active span"() {
     when:
-    def span = tracer.buildSpan("test").start()
-    def scope = tracer.activateSpan(span)
-    def initialScopeState = scopeManager.newScopeState()
-    initialScopeState.fetchFromActive()
-
-    then:
-    scope.span() == span
-    scopeManager.active() == scope
-
-    when:
-    def newScopeState = scopeManager.newScopeState()
-    newScopeState.activate()
+    def scopeState1 = scopeManager.newScopeState()
+    scopeState1.activate()
 
     then:
     scopeManager.active() == null
 
     when:
-    initialScopeState.activate()
+    def span1 = tracer.buildSpan("test1").start()
+    def scope1 = tracer.activateSpan(span1)
+    def scopeState2 = scopeManager.newScopeState()
 
     then:
-    scopeManager.active() == scope
+    scope1.span() == span1
+    scopeManager.active() == scope1
 
     when:
-    span.finish()
-    scope.close()
+    scopeState2.activate()
+
+    then:
+    scopeManager.active() == null
+
+    when:
+    def span2 = tracer.buildSpan("test2").start()
+    def scope2 = tracer.activateSpan(span2)
+
+    then:
+    scope2.span() == span2
+    scopeManager.active() == scope2
+
+    when:
+    scopeState2.restore()
+
+    then:
+    scopeManager.active() == scope1
+
+    when:
+    span1.finish()
+    scope1.close()
     writer.waitForTraces(1)
 
     then:
     scopeManager.active() == null
-    writer == [[scope.span()]]
+    writer.size() == 1
+    writer.get(0) == [span1]
+
+    when:
+    writer.clear()
+    scopeState1.restore()
+
+    then:
+    scopeManager.active() == null
+
+    when:
+    scopeState2.activate()
+
+    then:
+    scopeManager.active() == scope2
+
+    when:
+    span2.finish()
+    scope2.close()
+    writer.waitForTraces(1)
+
+    then:
+    scopeManager.active() == null
+    writer.size() == 1
+    writer.get(0) == [span2]
+
+    when:
+    scopeState2.restore()
+
+    then:
+    scopeManager.active() == null
   }
 
   def "non-ddspan activation results in a continuable scope"() {

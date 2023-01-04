@@ -263,21 +263,34 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
   @Override
   public ScopeState newScopeState() {
-    return new ContinuableScopeState();
+    return new ContinuableScopeState(this, ScopeStack.emptyStack());
   }
 
-  private class ContinuableScopeState implements ScopeState {
+  private static class ContinuableScopeState implements ScopeState {
 
-    private ScopeStack localScopeStack = tlsScopeStack.initialValue();
+    private final ContinuableScopeManager scopeManager;
+    private final ArrayDeque<ContinuableScope> scopeStack;
+    private volatile ArrayDeque<ContinuableScope> previousStack;
 
-    @Override
-    public void activate() {
-      tlsScopeStack.set(localScopeStack);
+    public ContinuableScopeState(
+        ContinuableScopeManager scopeManager, ArrayDeque<ContinuableScope> scopeStack) {
+      this.scopeManager = scopeManager;
+      this.scopeStack = scopeStack;
+      this.previousStack = null;
     }
 
     @Override
-    public void fetchFromActive() {
-      localScopeStack = tlsScopeStack.get();
+    public void activate() {
+      ArrayDeque<ContinuableScope> previousStack = scopeManager.scopeStack().swap(scopeStack);
+      this.previousStack = previousStack;
+    }
+
+    @Override
+    public void restore() {
+      if (previousStack != null) {
+        scopeManager.scopeStack().swap(scopeStack, previousStack);
+        previousStack = null;
+      }
     }
   }
 
@@ -507,10 +520,14 @@ public final class ContinuableScopeManager implements AgentScopeManager {
    */
   static final class ScopeStack {
 
+    static ArrayDeque<ContinuableScope> emptyStack() {
+      return new ArrayDeque<>();
+    }
+
     private final int nativeThreadId;
 
     private final ProfilingContextIntegration profilingContextIntegration;
-    private final ArrayDeque<ContinuableScope> stack = new ArrayDeque<>(); // previous scopes
+    private ArrayDeque<ContinuableScope> stack = emptyStack(); // previous scopes
 
     ContinuableScope top; // current scope
 
@@ -607,6 +624,31 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     void clear() {
       stack.clear();
       top = null;
+    }
+
+    ArrayDeque<ContinuableScope> swap(ArrayDeque<ContinuableScope> newStack) {
+      return swap(null, newStack);
+    }
+
+    ArrayDeque<ContinuableScope> swap(
+        ArrayDeque<ContinuableScope> expectedStack, ArrayDeque<ContinuableScope> newStack) {
+      ArrayDeque<ContinuableScope> previousStack = stack;
+      if (expectedStack != null && expectedStack != previousStack) {
+        throw new IllegalArgumentException(
+            "Unexpected scope stack " + previousStack + "found instead of " + expectedStack);
+      }
+      if (top != null) {
+        previousStack.push(top);
+      }
+      stack = newStack;
+      if (newStack.isEmpty()) {
+        top = null;
+        onBecomeEmpty();
+      } else {
+        top = newStack.pop();
+        onTopChanged(top);
+      }
+      return previousStack;
     }
 
     private void onTopChanged(ContinuableScope top) {
