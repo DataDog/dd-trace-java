@@ -39,12 +39,12 @@ public interface UsmMessage {
 
     private static final Logger log = LoggerFactory.getLogger(BaseUsmMessage.class);
 
-    //total message size [4 bytes] || Message type [4 bytes]
-    static final int PROTOCOL_METADATA_SIZE = 8;
+    //Message type [1 byte] || Total message size  [4 bytes]
+    static final int HEADER_SIZE = 5;
 
     // size of the connection struct:
-    // Connection Info length [4 bytes] || Protocol Type [4 bytes] || Src IP [4 bytes] || Src Port [4 bytes] || Dst IP [4 bytes] || Dst port [4 bytes]
-    static final int CONNECTION_INFO_SIZE = 24;
+    // Connection Info length [4 bytes] || Protocol Type [1 byte] || Src IP [4 bytes] || Src Port [4 bytes] || Dst IP [4 bytes] || Dst port [4 bytes]
+    static final int CONNECTION_INFO_SIZE = 21;
 
     //pointer to native memory buffer
     protected Pointer pointer;
@@ -74,16 +74,16 @@ public interface UsmMessage {
     public BaseUsmMessage(MessageType type, SSLSocketImpl socket){
       messageType = type;
 
-      totalMessageSize = PROTOCOL_METADATA_SIZE + CONNECTION_INFO_SIZE + dataSize();
+      totalMessageSize = HEADER_SIZE + CONNECTION_INFO_SIZE + dataSize();
       pointer = new Memory(totalMessageSize);
       offset = 0;
 
+      //encode message type
+      pointer.setByte(offset,(byte)messageType.ordinal());
+      offset+=1;
+
       //write totalMessageSize
       pointer.setInt(offset,totalMessageSize);
-      offset+=4;
-
-      //encode message type
-      pointer.setInt(offset,messageType.ordinal());
       offset+=4;
 
       encodeConnection(socket);
@@ -100,8 +100,8 @@ public interface UsmMessage {
       offset+=4;
 
       //write protocol type
-      pointer.setInt(offset,protocolType.ordinal());
-      offset+=4;
+      pointer.setByte(offset,(byte)protocolType.ordinal());
+      offset+=1;
 
 
       //TODO: add support to IPv6
@@ -134,8 +134,9 @@ public interface UsmMessage {
 
   class RequestUsmMessage extends BaseUsmMessage{
 
-    //120 bytes is the max fragment size we allow in SystemProbe
-    static final int MAX_HTTPS_BUFFER_SIZE = 120;
+    // This determines the size of the payload fragment that is captured for each HTTPS request
+    //should be equal to:  https://github.com/DataDog/datadog-agent/blob/main/pkg/network/ebpf/c/protocols/http-types.h#L7
+    static final int MAX_HTTPS_BUFFER_SIZE = 8 * 20;
     public RequestUsmMessage(SSLSocketImpl socket, byte[] buffer, int bufferOffset, int len) {
       super(MessageType.REQUEST, socket);
 
