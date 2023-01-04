@@ -20,6 +20,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
 class UndertowServletTest extends HttpServerTest<Undertow> {
+  private static final CONTEXT = "ctx"
+
   class UndertowServer implements HttpServer {
     def port = 0
     Undertow undertowServer
@@ -30,10 +32,9 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
 
       DeploymentInfo builder = new DeploymentInfo()
         .setClassLoader(UndertowServletTest.getClassLoader())
-        .setContextPath("/")
+        .setContextPath("/$CONTEXT")
         .setDeploymentName("servletContext.war")
-
-      builder.addServlet(new ServletInfo("SuccessServlet", SuccessServlet).addMapping(SUCCESS.getPath()))
+        .addServlet(new ServletInfo("SuccessServlet", SuccessServlet).addMapping(SUCCESS.getPath()))
         .addServlet(new ServletInfo("ForwardedServlet", ForwardedServlet).addMapping(FORWARDED.getPath()))
         .addServlet(new ServletInfo("QueryEncodedBothServlet", QueryEncodedBothServlet).addMapping(QUERY_ENCODED_BOTH.getPath()))
         .addServlet(new ServletInfo("QueryEncodedServlet", QueryEncodedServlet).addMapping(QUERY_ENCODED_QUERY.getPath()))
@@ -44,6 +45,7 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
 
       DeploymentManager manager = container.addDeployment(builder)
       manager.deploy()
+      System.out.println(">>> builder.getContextPath(): " + builder.getContextPath())
       root.addPrefixPath(builder.getContextPath(), manager.start())
 
       undertowServer = Undertow.builder()
@@ -67,7 +69,7 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
 
     @Override
     URI address() {
-      return new URI("http://localhost:$port/")
+      return new URI("http://localhost:$port/$CONTEXT/")
     }
   }
 
@@ -98,6 +100,16 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
 
   boolean hasResponseSpan(ServerEndpoint endpoint) {
     return endpoint == REDIRECT || endpoint == NOT_FOUND
+  }
+
+  @Override
+  String expectedServiceName() {
+    CONTEXT
+  }
+
+  @Override
+  Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
+    ["servlet.path": endpoint.path, "servlet.context": "/$CONTEXT"]
   }
 
   @Override

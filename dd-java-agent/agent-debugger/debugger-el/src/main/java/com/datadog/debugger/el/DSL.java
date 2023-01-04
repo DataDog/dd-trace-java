@@ -3,10 +3,12 @@ package com.datadog.debugger.el;
 import com.datadog.debugger.el.expressions.BinaryExpression;
 import com.datadog.debugger.el.expressions.ComparisonExpression;
 import com.datadog.debugger.el.expressions.FilterCollectionExpression;
+import com.datadog.debugger.el.expressions.GetMemberExpression;
 import com.datadog.debugger.el.expressions.HasAllExpression;
 import com.datadog.debugger.el.expressions.HasAnyExpression;
 import com.datadog.debugger.el.expressions.IfElseExpression;
 import com.datadog.debugger.el.expressions.IfExpression;
+import com.datadog.debugger.el.expressions.IndexExpression;
 import com.datadog.debugger.el.expressions.IsEmptyExpression;
 import com.datadog.debugger.el.expressions.LenExpression;
 import com.datadog.debugger.el.expressions.NotExpression;
@@ -24,6 +26,7 @@ import com.datadog.debugger.el.predicates.OrPredicate;
 import com.datadog.debugger.el.values.BooleanValue;
 import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
+import com.datadog.debugger.el.values.NullValue;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.ObjectValue;
 import com.datadog.debugger.el.values.StringValue;
@@ -107,6 +110,14 @@ public class DSL {
     return new ValueRefExpression(path);
   }
 
+  public static GetMemberExpression getMember(ValueExpression<?> target, String name) {
+    return new GetMemberExpression(target, name);
+  }
+
+  public static IndexExpression index(ValueExpression<?> target, ValueExpression<?> key) {
+    return new IndexExpression(target, key);
+  }
+
   public static Literal<Boolean> value(boolean value) {
     return new BooleanValue(value);
   }
@@ -121,6 +132,10 @@ public class DSL {
 
   public static ListValue value(Collection<?> value) {
     return new ListValue(value);
+  }
+
+  public static NullValue nullValue() {
+    return NullValue.INSTANCE;
   }
 
   public static MapValue value(Map<?, ?> value) {

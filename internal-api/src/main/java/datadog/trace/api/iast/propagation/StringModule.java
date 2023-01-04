@@ -20,4 +20,14 @@ public interface StringModule extends IastModule {
       @Nullable String recipe,
       @Nullable Object[] dynamicConstants,
       @Nonnull int[] recipeOffsets);
+
+  void onStringSubSequence(
+      @Nonnull String self, int beginIndex, int endIndex, @Nullable CharSequence result);
+
+  void onStringJoin(
+      @Nullable String result, @Nonnull CharSequence delimiter, @Nonnull CharSequence[] elements);
+
+  void onStringToUpperCase(@Nonnull String self, @Nullable String result);
+
+  void onStringToLowerCase(@Nonnull String self, @Nullable String result);
 }

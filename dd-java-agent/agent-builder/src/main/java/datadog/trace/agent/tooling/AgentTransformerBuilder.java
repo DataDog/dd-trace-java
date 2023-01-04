@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamedOneOf;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresAnnotation;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 import static net.bytebuddy.matcher.ElementMatchers.none;
@@ -13,14 +12,15 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.FailSafeRawMatcher;
+import datadog.trace.agent.tooling.bytebuddy.matcher.InjectContextFieldMatcher;
 import datadog.trace.agent.tooling.bytebuddy.matcher.KnownTypesMatcher;
 import datadog.trace.agent.tooling.bytebuddy.matcher.MuzzleMatcher;
-import datadog.trace.agent.tooling.bytebuddy.matcher.ShouldInjectFieldsRawMatcher;
 import datadog.trace.agent.tooling.bytebuddy.matcher.SingleTypeMatcher;
 import datadog.trace.agent.tooling.context.FieldBackedContextInjector;
 import datadog.trace.agent.tooling.context.FieldBackedContextRequestRewriter;
 import datadog.trace.api.InstrumenterConfig;
 import java.lang.instrument.Instrumentation;
+import java.security.ProtectionDomain;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.agent.builder.AgentBuilder;
@@ -28,7 +28,9 @@ import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.matcher.ElementMatcher;
+import net.bytebuddy.utility.JavaModule;
 
 public class AgentTransformerBuilder
     implements Instrumenter.TransformerBuilder, Instrumenter.AdviceTransformation {
@@ -70,8 +72,7 @@ public class AgentTransformerBuilder
   }
 
   private AgentBuilder buildInstrumentation(final Instrumenter.Default instrumenter) {
-    InstrumenterState.registerInstrumentationNames(
-        instrumenter.instrumentationId(), instrumenter.names());
+    InstrumenterState.registerInstrumentation(instrumenter);
 
     ignoreMatcher = instrumenter.methodIgnoreMatcher();
     adviceBuilder =
@@ -96,7 +97,7 @@ public class AgentTransformerBuilder
       // rewrite context store access to call FieldBackedContextStores with assigned store-id
       adviceBuilder =
           adviceBuilder.transform(
-              wrapVisitor(
+              new VisitingTransformer(
                   new FieldBackedContextRequestRewriter(contextStore, instrumenter.name())));
 
       registerContextStoreInjection(contextStore, instrumenter);
@@ -192,7 +193,25 @@ public class AgentTransformerBuilder
     return adviceBuilder;
   }
 
-  static class HelperTransformer extends HelperInjector implements AgentBuilder.Transformer {
+  static final class VisitingTransformer implements AgentBuilder.Transformer {
+    private final AsmVisitorWrapper visitor;
+
+    VisitingTransformer(AsmVisitorWrapper visitor) {
+      this.visitor = visitor;
+    }
+
+    @Override
+    public DynamicType.Builder<?> transform(
+        DynamicType.Builder<?> builder,
+        TypeDescription typeDescription,
+        ClassLoader classLoader,
+        JavaModule module,
+        ProtectionDomain pd) {
+      return builder.visit(visitor);
+    }
+  }
+
+  static final class HelperTransformer extends HelperInjector implements AgentBuilder.Transformer {
     HelperTransformer(String requestingName, String... helperClassNames) {
       super(requestingName, helperClassNames);
     }
@@ -206,10 +225,6 @@ public class AgentTransformerBuilder
                 .include(Utils.getBootstrapProxy(), Utils.getAgentClassLoader())
                 .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
                 .advice(not(ignoreMatcher).and(matcher), name));
-  }
-
-  private static AgentBuilder.Transformer wrapVisitor(final AsmVisitorWrapper visitor) {
-    return (builder, typeDescription, classLoader, module, pd) -> builder.visit(visitor);
   }
 
   private static ElementMatcher<ClassLoader> requireBoth(
@@ -263,13 +278,14 @@ public class AgentTransformerBuilder
         contextStoreInjection.entrySet()) {
       String keyClassName = injection.getKey().getKey();
       String contextClassName = injection.getKey().getValue();
+      ElementMatcher<ClassLoader> activator = injection.getValue();
       agentBuilder =
           agentBuilder
-              .type(hasSuperType(named(keyClassName)), injection.getValue())
-              .and(new ShouldInjectFieldsRawMatcher(keyClassName, contextClassName))
+              .type(new InjectContextFieldMatcher(keyClassName, contextClassName, activator))
               .and(AgentTransformerBuilder.NOT_DECORATOR_MATCHER)
               .transform(
-                  wrapVisitor(new FieldBackedContextInjector(keyClassName, contextClassName)));
+                  new VisitingTransformer(
+                      new FieldBackedContextInjector(keyClassName, contextClassName)));
     }
   }
 }

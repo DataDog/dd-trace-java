@@ -1,2 +1,2 @@
-datadog.trace.agent.tooling.bytebuddy.csi.CalleeBenchmarkInstrumenter
-datadog.trace.agent.tooling.bytebuddy.csi.CallSiteBenchmarkInstrumenter
+datadog.trace.agent.tooling.bytebuddy.csi.CalleeBenchmarkInstrumentation
+datadog.trace.agent.tooling.bytebuddy.csi.CallSiteBenchmarkInstrumentation

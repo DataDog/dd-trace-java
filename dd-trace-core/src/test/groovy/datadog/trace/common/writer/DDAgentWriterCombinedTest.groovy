@@ -20,6 +20,7 @@ import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.Mapper
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.trace.core.monitor.TracerHealthMetrics
 import datadog.trace.core.propagation.DatadogTags
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
@@ -713,7 +714,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       numErrors.incrementAndGet()
     }
 
-    def healthMetrics = new HealthMetrics(statsd)
+    def healthMetrics = new TracerHealthMetrics(statsd)
     def writer = DDAgentWriter.builder()
       .traceAgentV05Enabled(true)
       .agentApi(api).monitoring(monitoring)

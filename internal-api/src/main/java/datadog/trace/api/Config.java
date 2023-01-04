@@ -298,6 +298,7 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
 import datadog.trace.util.PidHelper;
 import datadog.trace.util.Strings;
+import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -1026,7 +1027,7 @@ public class Config {
     }
     this.traceClientIpHeader = traceClientIpHeader;
 
-    this.traceClientIpResolverEnabled =
+    traceClientIpResolverEnabled =
         configProvider.getBoolean(TRACE_CLIENT_IP_RESOLVER_ENABLED, true);
 
     traceSamplingServiceRules = configProvider.getMergedMap(TRACE_SAMPLING_SERVICE_RULES);
@@ -1131,7 +1132,7 @@ public class Config {
     }
     telemetryHeartbeatInterval = telemetryInterval;
 
-    this.clientIpEnabled = configProvider.getBoolean(CLIENT_IP_ENABLED, DEFAULT_CLIENT_IP_ENABLED);
+    clientIpEnabled = configProvider.getBoolean(CLIENT_IP_ENABLED, DEFAULT_CLIENT_IP_ENABLED);
 
     appSecReportingInband =
         configProvider.getBoolean(APPSEC_REPORTING_INBAND, DEFAULT_APPSEC_REPORTING_INBAND);
@@ -1339,6 +1340,14 @@ public class Config {
           "Agentless profiling activated but no api key provided. Profile uploading will likely fail");
     }
 
+    if (isCiVisibilityEnabled()
+        && ciVisibilityAgentlessEnabled
+        && (apiKey == null || apiKey.isEmpty())) {
+      throw new FatalAgentMisconfigurationError(
+          "Attempt to start in Agentless mode without API key. "
+              + "Please ensure that either an API key is configured, or the tracer is set up to work with the Agent");
+    }
+
     log.debug("New instance: {}", this);
   }
 
@@ -1355,19 +1364,7 @@ public class Config {
   }
 
   public Long getProcessId() {
-    String pid = PidHelper.getPid();
-
-    pid = pid == null ? "" : pid.trim();
-    if (pid.isEmpty()) {
-      return 0L;
-    }
-
-    try {
-      return Long.parseLong(pid);
-    } catch (NumberFormatException e) {
-      log.error("Cannot parse pid properly from string {} to long. Default to 0", pid, e);
-      return 0L;
-    }
+    return PidHelper.getPidAsLong();
   }
 
   public String getRuntimeVersion() {

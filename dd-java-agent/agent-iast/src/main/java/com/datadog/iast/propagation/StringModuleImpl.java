@@ -11,7 +11,10 @@ import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.iast.propagation.StringModule;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -165,7 +168,178 @@ public class StringModuleImpl extends IastModuleBase implements StringModule {
     taintedObjects.taint(result, targetRanges);
   }
 
-  private static int getToStringLength(@Nullable final String s) {
+  @Override
+  @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
+  public void onStringSubSequence(
+      @Nonnull String self, int beginIndex, int endIndex, @Nullable CharSequence result) {
+    if (self == result || !canBeTainted(result)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject selfTainted = taintedObjects.get(self);
+    if (selfTainted == null) {
+      return;
+    }
+    final Range[] rangesSelf = selfTainted.getRanges();
+    if (rangesSelf.length == 0) {
+      return;
+    }
+    Range[] newRanges = Ranges.forSubstring(beginIndex, result.length(), rangesSelf);
+    if (newRanges != null && newRanges.length > 0) {
+      taintedObjects.taint(result, newRanges);
+    }
+  }
+
+  @Override
+  public void onStringJoin(
+      @Nullable String result, @Nonnull CharSequence delimiter, @Nonnull CharSequence... elements) {
+    if (!canBeTainted(result)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    // String.join may internally call StringJoiner, if StringJoiner did the job don't do it twice
+    if (getTainted(taintedObjects, result) != null) {
+      return;
+    }
+    List<Range> newRanges = new ArrayList<>();
+    int pos = 0;
+    // Delimiter info
+    Range[] delimiterRanges = getRanges(getTainted(taintedObjects, delimiter));
+    boolean delimiterHasRanges = delimiterRanges.length > 0;
+    int delimiterLength = delimiter.length();
+
+    for (int i = 0; i < elements.length; i++) {
+      CharSequence element = elements[i];
+      pos =
+          getPositionAndUpdateRangesInStringJoin(
+              taintedObjects,
+              newRanges,
+              pos,
+              delimiterRanges,
+              delimiterLength,
+              element,
+              delimiterHasRanges && i < elements.length - 1);
+    }
+    if (!newRanges.isEmpty()) {
+      taintedObjects.taint(result, newRanges.toArray(new Range[0]));
+    }
+  }
+
+  private static int getToStringLength(@Nullable final CharSequence s) {
     return s == null ? NULL_STR_LENGTH : s.length();
+  }
+
+  @Override
+  public void onStringToUpperCase(@Nonnull String self, @Nullable String result) {
+    onStringCaseChanged(self, result);
+  }
+
+  @Override
+  public void onStringToLowerCase(@Nonnull String self, @Nullable String result) {
+    onStringCaseChanged(self, result);
+  }
+
+  @SuppressFBWarnings
+  public void onStringCaseChanged(@Nonnull String self, @Nullable String result) {
+    if (!canBeTainted(result)) {
+      return;
+    }
+    if (self == result) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject taintedSelf = taintedObjects.get(self);
+    if (taintedSelf == null) {
+      return;
+    }
+    final Range[] rangesSelf = taintedSelf.getRanges();
+    if (null == rangesSelf || rangesSelf.length == 0) {
+      return;
+    }
+    if (result.length() == self.length()) {
+      taintedObjects.taint(result, rangesSelf);
+      return;
+    }
+    if (result.length() >= self.length()) {
+      taintedObjects.taint(result, rangesSelf);
+    } // Pathological case where the string's length actually becomes smaller
+    else {
+      stringCaseChangedWithReducedSize(rangesSelf, taintedObjects, result);
+    }
+  }
+
+  private void stringCaseChangedWithReducedSize(
+      final Range[] rangesSelf, final TaintedObjects taintedObjects, @Nonnull String result) {
+    int skippedRanges = 0;
+    Range adjustedRange = null;
+    for (int i = rangesSelf.length - 1; i >= 0; i--) {
+      Range currentRange = rangesSelf[i];
+      if (currentRange.getStart() >= result.length()) {
+        skippedRanges++;
+      } else if (currentRange.getStart() + currentRange.getLength() >= result.length()) {
+        adjustedRange =
+            new Range(
+                currentRange.getStart(),
+                result.length() - currentRange.getStart(),
+                currentRange.getSource());
+      }
+    }
+    Range[] newRanges = new Range[rangesSelf.length - skippedRanges];
+    for (int i = 0; i < newRanges.length; i++) {
+      newRanges[i] = rangesSelf[i];
+    }
+    if (null != adjustedRange) {
+      newRanges[newRanges.length - 1] = adjustedRange;
+    }
+    taintedObjects.taint(result, newRanges);
+  }
+
+  /**
+   * Iterates over the element and delimiter ranges (if necessary) to update them and calculate the
+   * new pos value
+   */
+  private static int getPositionAndUpdateRangesInStringJoin(
+      TaintedObjects taintedObjects,
+      List<Range> newRanges,
+      int pos,
+      Range[] delimiterRanges,
+      int delimiterLength,
+      CharSequence element,
+      boolean addDelimiterRanges) {
+    if (canBeTainted(element)) {
+      TaintedObject elementTainted = taintedObjects.get(element);
+      if (elementTainted != null) {
+        Range[] elementRanges = elementTainted.getRanges();
+        if (elementRanges.length > 0) {
+          for (Range range : elementRanges) {
+            newRanges.add(pos == 0 ? range : range.shift(pos));
+          }
+        }
+      }
+    }
+    pos += getToStringLength(element);
+    if (addDelimiterRanges) {
+      for (Range range : delimiterRanges) {
+        newRanges.add(range.shift(pos));
+      }
+    }
+    pos += delimiterLength;
+    return pos;
+  }
+
+  private static Range[] getRanges(final TaintedObject taintedObject) {
+    return taintedObject == null ? Ranges.EMPTY : taintedObject.getRanges();
   }
 }

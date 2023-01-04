@@ -58,6 +58,7 @@ import datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer;
 import datadog.trace.core.datastreams.StubDataStreamsCheckpointer;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
+import datadog.trace.core.monitor.TracerHealthMetrics;
 import datadog.trace.core.propagation.DatadogTags;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
@@ -481,8 +482,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             : Monitoring.DISABLED;
     this.healthMetrics =
         config.isHealthMetricsEnabled()
-            ? new HealthMetrics(this.statsDClient)
-            : new HealthMetrics(StatsDClient.NO_OP);
+            ? new TracerHealthMetrics(this.statsDClient)
+            : HealthMetrics.NO_OP;
     this.healthMetrics.start();
     this.performanceMonitoring =
         config.isPerfMetricsEnabled()
@@ -529,12 +530,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             : PendingTraceBuffer.delaying(this.timeSource);
     pendingTraceFactory =
         new PendingTrace.Factory(
-            this,
-            pendingTraceBuffer,
-            this.timeSource,
-            strictTraceWrites,
-            statsDClient,
-            healthMetrics);
+            this, pendingTraceBuffer, this.timeSource, strictTraceWrites, healthMetrics);
     pendingTraceBuffer.start();
 
     this.writer.start();

@@ -24,7 +24,11 @@ public abstract class TestInstrumentationClasses {
   }
 
   public static class EmptyInst extends BaseInst {
-    public static class Muzzle extends ReferenceMatcher {}
+    public static class Muzzle {
+      public static ReferenceMatcher create() {
+        return ReferenceMatcher.NO_REFERENCES;
+      }
+    }
   }
 
   public static class ValidHelperInst extends BaseInst {
@@ -35,7 +39,11 @@ public abstract class TestInstrumentationClasses {
       };
     }
 
-    public static class Muzzle extends ReferenceMatcher {}
+    public static class Muzzle {
+      public static ReferenceMatcher create() {
+        return ReferenceMatcher.NO_REFERENCES;
+      }
+    }
   }
 
   public static class InvalidOrderHelperInst extends BaseInst {
@@ -46,7 +54,11 @@ public abstract class TestInstrumentationClasses {
       };
     }
 
-    public static class Muzzle extends ReferenceMatcher {}
+    public static class Muzzle {
+      public static ReferenceMatcher create() {
+        return ReferenceMatcher.NO_REFERENCES;
+      }
+    }
   }
 
   public static class InvalidMissingHelperInst extends BaseInst {
@@ -57,13 +69,17 @@ public abstract class TestInstrumentationClasses {
       };
     }
 
-    public static class Muzzle extends ReferenceMatcher {}
+    public static class Muzzle {
+      public static ReferenceMatcher create() {
+        return ReferenceMatcher.NO_REFERENCES;
+      }
+    }
   }
 
   public static class BasicInst extends BaseInst {
-    public static class Muzzle extends ReferenceMatcher {
-      public Muzzle() {
-        super(SOME_ADVICE_REFS);
+    public static class Muzzle {
+      public static ReferenceMatcher create() {
+        return new ReferenceMatcher(SOME_ADVICE_REFS);
       }
     }
   }
@@ -79,9 +95,9 @@ public abstract class TestInstrumentationClasses {
       };
     }
 
-    public static class Muzzle extends ReferenceMatcher {
-      public Muzzle() {
-        super(SOME_ADVICE_REFS);
+    public static class Muzzle {
+      public static ReferenceMatcher create() {
+        return new ReferenceMatcher(SOME_ADVICE_REFS);
       }
     }
   }

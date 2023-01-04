@@ -1,12 +1,13 @@
 package com.datadog.iast;
 
 import datadog.trace.api.TraceSegment;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import javax.annotation.Nullable;
 
 public interface IastTag {
 
-  Enabled REQUEST_SKIPPED = new Enabled(0);
-  Enabled REQUEST_ANALYZED = new Enabled(1);
+  Enabled SKIPPED = new Enabled(0);
+  Enabled ANALYZED = new Enabled(1);
 
   String key();
 
@@ -15,6 +16,12 @@ public interface IastTag {
   default void setTagTop(@Nullable final TraceSegment trace) {
     if (trace != null) {
       trace.setTagTop(key(), value());
+    }
+  }
+
+  default void setTag(@Nullable final AgentSpan span) {
+    if (span != null) {
+      span.setTag(key(), value());
     }
   }
 

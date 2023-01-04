@@ -2,7 +2,9 @@ package datadog.trace.civisibility.writer.ddintake;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 
+import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
+import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.writer.Payload;
@@ -14,6 +16,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -34,10 +37,15 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
 
   private final WellKnownTags wellKnownTags;
   private final int size;
+  private final GrowableBuffer headerBuffer;
+  private final MsgPackWriter headerWriter;
+  private int eventCount = 0;
 
   public CiTestCycleMapperV1(WellKnownTags wellKnownTags, int size) {
     this.wellKnownTags = wellKnownTags;
     this.size = size;
+    this.headerBuffer = new GrowableBuffer(16);
+    this.headerWriter = new MsgPackWriter(this.headerBuffer);
   }
 
   public CiTestCycleMapperV1(WellKnownTags wellKnownTags) {
@@ -46,28 +54,6 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
 
   @Override
   public void map(List<? extends CoreSpan<?>> trace, Writable writable) {
-    writable.startMap(3);
-    /* 1  */
-    writable.writeUTF8(VERSION);
-    writable.writeInt(1);
-    /* 2  */
-    writable.writeUTF8(METADATA);
-    writable.startMap(1);
-    /* 2,1 */
-    writable.writeUTF8(METADATA_ASTERISK);
-    writable.startMap(3);
-    /* 2,1,1 */
-    writable.writeUTF8(ENV);
-    writable.writeUTF8(wellKnownTags.getEnv());
-    /* 2,1,2 */
-    writable.writeUTF8(RUNTIME_ID);
-    writable.writeUTF8(wellKnownTags.getRuntimeId());
-    /* 2,1,3 */
-    writable.writeUTF8(LANGUAGE);
-    writable.writeUTF8(wellKnownTags.getLanguage());
-    /* 3  */
-    writable.writeUTF8(EVENTS);
-    writable.startArray(trace.size());
     for (int i = 0; i < trace.size(); i++) {
       final CoreSpan<?> span = trace.get(i);
 
@@ -115,13 +101,40 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       /* 10 (meta), 11 (metrics) */
       span.processTagsAndBaggage(metaWriter.withWritable(writable));
     }
+    eventCount += trace.size();
   }
 
   private final MetaWriter metaWriter = new MetaWriter();
 
+  private void writeHeader() {
+    headerWriter.startMap(3);
+    /* 1  */
+    headerWriter.writeUTF8(VERSION);
+    headerWriter.writeInt(1);
+    /* 2  */
+    headerWriter.writeUTF8(METADATA);
+    headerWriter.startMap(1);
+    /* 2,1 */
+    headerWriter.writeUTF8(METADATA_ASTERISK);
+    headerWriter.startMap(3);
+    /* 2,1,1 */
+    headerWriter.writeUTF8(ENV);
+    headerWriter.writeUTF8(wellKnownTags.getEnv());
+    /* 2,1,2 */
+    headerWriter.writeUTF8(RUNTIME_ID);
+    headerWriter.writeUTF8(wellKnownTags.getRuntimeId());
+    /* 2,1,3 */
+    headerWriter.writeUTF8(LANGUAGE);
+    headerWriter.writeUTF8(wellKnownTags.getLanguage());
+    /* 3  */
+    headerWriter.writeUTF8(EVENTS);
+    headerWriter.startArray(eventCount);
+  }
+
   @Override
   public Payload newPayload() {
-    return new PayloadV1();
+    writeHeader();
+    return new PayloadV1().withHeader(headerBuffer.slice());
   }
 
   @Override
@@ -130,7 +143,9 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
   }
 
   @Override
-  public void reset() {}
+  public void reset() {
+    eventCount = 0;
+  }
 
   @Override
   public String endpoint() {
@@ -192,20 +207,39 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
 
   private static class PayloadV1 extends Payload {
 
+    ByteBuffer header = null;
+
+    PayloadV1 withHeader(ByteBuffer header) {
+      this.header = header;
+      return this;
+    }
+
     @Override
     public int sizeInBytes() {
-      return body.remaining();
+      if (traceCount() == 0) {
+        return msgpackMapHeaderSize(0);
+      }
+      int size = body.remaining();
+      if (header != null) {
+        size += header.remaining();
+      }
+      return size;
     }
 
     @Override
     public void writeTo(WritableByteChannel channel) throws IOException {
       // If traceCount is 0, we write a map with 0 elements in MsgPack format.
       if (traceCount() == 0) {
-        ByteBuffer header = msgpackMapHeader(0);
-        while (header.hasRemaining()) {
-          channel.write(header);
+        ByteBuffer emptyDict = msgpackMapHeader(0);
+        while (emptyDict.hasRemaining()) {
+          channel.write(emptyDict);
         }
       } else {
+        if (header != null) {
+          while (header.hasRemaining()) {
+            channel.write(header);
+          }
+        }
         while (body.hasRemaining()) {
           channel.write(body);
         }
@@ -217,6 +251,8 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       // If traceCount is 0, we write a map with 0 elements in MsgPack format.
       if (traceCount() == 0) {
         return msgpackRequestBodyOf(Collections.singletonList(msgpackMapHeader(0)));
+      } else if (header != null) {
+        return msgpackRequestBodyOf(Arrays.asList(header, body));
       } else {
         return msgpackRequestBodyOf(Collections.singletonList(body));
       }

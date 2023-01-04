@@ -23,7 +23,6 @@ public class TelemetryRunnable implements Runnable {
   private final List<TelemetryPeriodicAction> actions;
   private final ThreadSleeper sleeper;
 
-  private SendResult lastStatus;
   private int consecutiveFailures;
 
   public TelemetryRunnable(
@@ -85,7 +84,6 @@ public class TelemetryRunnable implements Runnable {
     Request request;
     while ((request = queue.peek()) != null) {
       final SendResult result = sendRequest(request);
-      lastStatus = result;
       if (result == SendResult.DROP) {
         // If we need to drop, clear the queue and return as if it was success.
         // We will not retry if the telemetry endpoint is disabled.
@@ -125,11 +123,7 @@ public class TelemetryRunnable implements Runnable {
     try {
       response = okHttpClient.newCall(request).execute();
     } catch (IOException e) {
-      if (lastStatus != SendResult.FAILURE) {
-        log.warn("IOException on HTTP request to Telemetry Intake Service: {}", e.toString());
-      } else {
-        log.debug("IOException on HTTP request to Telemetry Intake Service: {}", e.toString());
-      }
+      log.debug("IOException on HTTP request to Telemetry Intake Service: {}", e.toString());
       return SendResult.FAILURE;
     }
 
@@ -138,13 +132,8 @@ public class TelemetryRunnable implements Runnable {
       return SendResult.DROP;
     }
     if (response.code() != 202) {
-      if (lastStatus != SendResult.FAILURE) {
-        log.warn(
-            "Telemetry Intake Service responded with: {} {} ", response.code(), response.message());
-      } else {
-        log.debug(
-            "Telemetry Intake Service responded with: {} {} ", response.code(), response.message());
-      }
+      log.debug(
+          "Telemetry Intake Service responded with: {} {} ", response.code(), response.message());
       return SendResult.FAILURE;
     }
 

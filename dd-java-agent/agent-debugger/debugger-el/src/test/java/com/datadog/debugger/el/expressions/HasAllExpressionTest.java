@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.el.Predicate;
-import com.datadog.debugger.el.StaticValueRefResolver;
+import com.datadog.debugger.el.RefResolverHelper;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import datadog.trace.bootstrap.debugger.el.Values;
@@ -21,7 +21,7 @@ class HasAllExpressionTest {
 
   @Test
   void testNullPredicate() {
-    StaticValueRefResolver resolver = StaticValueRefResolver.self(this);
+    ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
     assertFalse(new HasAllExpression(null, null).evaluate(resolver).test());
     assertFalse(
         new HasAllExpression(value(Values.UNDEFINED_OBJECT), null).evaluate(resolver).test());
@@ -38,7 +38,7 @@ class HasAllExpressionTest {
 
   @Test
   void testNullHasAll() {
-    ValueReferenceResolver ctx = StaticValueRefResolver.self(this);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(this);
     HasAllExpression expression = all(null, TRUE);
     Predicate predicate = expression.evaluate(ctx);
     assertNotNull(predicate);
@@ -57,7 +57,7 @@ class HasAllExpressionTest {
 
   @Test
   void testUndefinedHasAll() {
-    ValueReferenceResolver ctx = StaticValueRefResolver.self(this);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(this);
     HasAllExpression expression = all(value(Values.UNDEFINED_OBJECT), TRUE);
     Predicate predicate = expression.evaluate(ctx);
     assertNotNull(predicate);
@@ -76,7 +76,7 @@ class HasAllExpressionTest {
 
   @Test
   void testSingleElementHasAll() {
-    ValueReferenceResolver ctx = StaticValueRefResolver.self(this);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(this);
     ValueExpression<?> targetExpression = value(this);
     HasAllExpression expression = all(targetExpression, TRUE);
     Predicate predicate = expression.evaluate(ctx);
@@ -88,7 +88,7 @@ class HasAllExpressionTest {
     assertNotNull(predicate);
     assertFalse(predicate.test());
 
-    expression = all(targetExpression, eq(ref(".testField"), value(10)));
+    expression = all(targetExpression, eq(ref("testField"), value(10)));
     predicate = expression.evaluate(ctx);
     assertNotNull(predicate);
     assertTrue(predicate.test());
@@ -96,7 +96,7 @@ class HasAllExpressionTest {
 
   @Test
   void testArrayHasAll() {
-    ValueReferenceResolver ctx = StaticValueRefResolver.self(this);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(this);
     ValueExpression<?> targetExpression = value(new Object[] {this, "hello"});
 
     HasAllExpression expression = all(targetExpression, TRUE);
@@ -109,7 +109,7 @@ class HasAllExpressionTest {
     assertNotNull(predicate);
     assertFalse(predicate.test());
 
-    ValueRefExpression fldRef = ref(ValueReferences.ITERATOR_REF + ".testField");
+    GetMemberExpression fldRef = getMember(ref(ValueReferences.ITERATOR_REF), "testField");
     ValueRefExpression itRef = ref(ValueReferences.ITERATOR_REF);
 
     expression = all(targetExpression, eq(fldRef, value(10)));
@@ -130,7 +130,7 @@ class HasAllExpressionTest {
 
   @Test
   void testListHasAll() {
-    ValueReferenceResolver ctx = StaticValueRefResolver.self(this);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(this);
     ValueExpression<?> targetExpression = value(Arrays.asList(this, "hello"));
 
     HasAllExpression expression = all(targetExpression, TRUE);
@@ -164,7 +164,7 @@ class HasAllExpressionTest {
 
   @Test
   void testMapHasAny() {
-    ValueReferenceResolver ctx = new StaticValueRefResolver(this, Long.MAX_VALUE, null, null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
     Map<String, String> valueMap = new HashMap<>();
     valueMap.put("a", "a");
     valueMap.put("b", "a");
@@ -181,13 +181,16 @@ class HasAllExpressionTest {
     assertNotNull(predicate);
     assertFalse(predicate.test());
 
-    expression = all(targetExpression, eq(ref(ValueReferences.ITERATOR_REF + ".key"), value("a")));
+    expression =
+        all(targetExpression, eq(getMember(ref(ValueReferences.ITERATOR_REF), "key"), value("a")));
     predicate = expression.evaluate(ctx);
     assertNotNull(predicate);
     assertFalse(predicate.test());
 
     expression =
-        all(targetExpression, eq(ref(ValueReferences.ITERATOR_REF + ".value"), value("a")));
+        all(
+            targetExpression,
+            eq(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value("a")));
     predicate = expression.evaluate(ctx);
     assertNotNull(predicate);
     assertTrue(predicate.test());
