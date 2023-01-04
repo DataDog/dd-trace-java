@@ -587,6 +587,10 @@ jobs:
       JAVA_17_HOME: /Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home
     steps:
       - run:
+          name: Install recent bash
+          command: |
+            brew install bash
+      - run:
           name: Install JDK 8
           command: |
             brew tap homebrew/cask-versions
