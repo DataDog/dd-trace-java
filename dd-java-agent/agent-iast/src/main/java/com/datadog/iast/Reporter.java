@@ -1,5 +1,7 @@
 package com.datadog.iast;
 
+import static com.datadog.iast.IastTag.ANALYZED;
+
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityBatch;
 import datadog.trace.api.Config;
@@ -7,12 +9,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.TraceSegment;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
-import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.bootstrap.instrumentation.api.*;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
@@ -80,9 +77,12 @@ public class Reporter {
   private AgentSpan startNewSpan() {
     final AgentSpan.Context tagContext =
         new TagContext().withRequestContextDataIast(new IastRequestContext());
-    return tracer()
-        .startSpan(VULNERABILITY_SPAN_NAME, tagContext)
-        .setSpanType(InternalSpanTypes.VULNERABILITY);
+    final AgentSpan span =
+        tracer()
+            .startSpan(VULNERABILITY_SPAN_NAME, tagContext)
+            .setSpanType(InternalSpanTypes.VULNERABILITY);
+    ANALYZED.setTag(span);
+    return span;
   }
 
   protected AgentTracer.TracerAPI tracer() {
