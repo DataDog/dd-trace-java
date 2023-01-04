@@ -9,6 +9,4 @@ public interface DependencyService {
   void addURL(URL uri);
 
   void stop();
-
-  boolean isEnabled();
 }

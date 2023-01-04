@@ -25,12 +25,10 @@ public class TelemetrySystem {
   private static DependencyService DEPENDENCY_SERVICE;
 
   static DependencyService createDependencyService(Instrumentation instrumentation) {
-    if (instrumentation != null) {
+    if (instrumentation != null && Config.get().isTelemetryDependencyServiceEnabled()) {
       DependencyServiceImpl dependencyService = new DependencyServiceImpl();
-      if (dependencyService.isEnabled()) {
-        dependencyService.installOn(instrumentation);
-        dependencyService.schedulePeriodicResolution();
-      }
+      dependencyService.installOn(instrumentation);
+      dependencyService.schedulePeriodicResolution();
       return dependencyService;
     }
     return null;
@@ -44,7 +42,7 @@ public class TelemetrySystem {
 
     List<TelemetryPeriodicAction> actions = new ArrayList<>();
     actions.add(new IntegrationPeriodicAction());
-    if (dependencyService.isEnabled()) {
+    if (Config.get().isTelemetryDependencyServiceEnabled()) {
       actions.add(new DependencyPeriodicAction(dependencyService));
     }
 
