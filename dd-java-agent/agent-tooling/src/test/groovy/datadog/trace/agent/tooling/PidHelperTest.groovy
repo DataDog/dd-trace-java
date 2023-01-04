@@ -7,7 +7,7 @@ class PidHelperTest extends DDSpecification {
 
   def "PID is available everywhere we test"() {
     when:
-    PidHelper.supplyIfAbsent(new PosixPidSupplier())
+    PidHelper.Fallback.set(new PosixPidSupplier())
 
     then:
     !PidHelper.getPid().isEmpty()

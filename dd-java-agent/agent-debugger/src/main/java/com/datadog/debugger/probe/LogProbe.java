@@ -3,8 +3,12 @@ package com.datadog.debugger.probe;
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.instrumentation.SnapshotInstrumentor;
+import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.JsonReader;
+import com.squareup.moshi.JsonWriter;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.util.Strings;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -19,18 +23,15 @@ public class LogProbe extends ProbeDefinition {
   /** Stores part of a templated message either a str or an expression */
   public static class Segment {
     private final String str;
-    private final String expr;
     private final ValueScript parsedExpr;
 
     public Segment(String str) {
       this.str = str;
-      this.expr = null;
       this.parsedExpr = null;
     }
 
-    public Segment(String expr, ValueScript valueScript) {
+    public Segment(ValueScript valueScript) {
       this.str = null;
-      this.expr = expr;
       this.parsedExpr = valueScript;
     }
 
@@ -39,7 +40,7 @@ public class LogProbe extends ProbeDefinition {
     }
 
     public String getExpr() {
-      return expr;
+      return parsedExpr != null ? parsedExpr.getDsl() : null;
     }
 
     public ValueScript getParsedExpr() {
@@ -52,30 +53,60 @@ public class LogProbe extends ProbeDefinition {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
       Segment segment = (Segment) o;
-      return Objects.equals(str, segment.str)
-          && Objects.equals(expr, segment.expr)
-          && Objects.equals(parsedExpr, segment.parsedExpr);
+      return Objects.equals(str, segment.str) && Objects.equals(parsedExpr, segment.parsedExpr);
     }
 
     @Generated
     @Override
     public int hashCode() {
-      return Objects.hash(str, expr, parsedExpr);
+      return Objects.hash(str, parsedExpr);
     }
 
     @Generated
     @Override
     public String toString() {
-      return "Segment{"
-          + "str='"
-          + str
-          + '\''
-          + ", expr='"
-          + expr
-          + '\''
-          + ", parsedExr="
-          + parsedExpr
-          + '}';
+      return "Segment{" + "str='" + str + '\'' + ", parsedExr=" + parsedExpr + '}';
+    }
+
+    public static class SegmentJsonAdapter extends JsonAdapter<Segment> {
+      private final ValueScript.ValueScriptAdapter valueScriptAdapter =
+          new ValueScript.ValueScriptAdapter();
+
+      @Override
+      public Segment fromJson(JsonReader reader) throws IOException {
+        if (reader.peek() != JsonReader.Token.BEGIN_OBJECT) {
+          throw new IOException("Invalid Segment format, expect Json object");
+        }
+        JsonReader peekReader = reader.peekJson();
+        peekReader.beginObject();
+        Segment segment;
+        String fieldName = peekReader.nextName();
+        if ("str".equals(fieldName)) {
+          reader.beginObject();
+          reader.nextName(); // consume str
+          segment = new Segment(reader.nextString());
+          reader.endObject();
+        } else {
+          segment = new Segment(valueScriptAdapter.fromJson(reader));
+        }
+        return segment;
+      }
+
+      @Override
+      public void toJson(JsonWriter writer, Segment value) throws IOException {
+        if (value == null) {
+          writer.nullValue();
+          return;
+        }
+        if (value.str != null) {
+          writer.beginObject();
+          writer.name("str");
+          writer.value(value.str);
+          writer.endObject();
+        } else {
+          valueScriptAdapter.toJson(writer, value.parsedExpr);
+        }
+      }
     }
   }
 
@@ -218,7 +249,8 @@ public class LogProbe extends ProbeDefinition {
             addStrSegment(result, template.substring(startStrIdx, startIdx));
           }
           String expr = template.substring(startIdx + 1, endIdx);
-          result.add(new Segment(expr, new ValueScript(expr)));
+
+          result.add(new Segment(new ValueScript(ValueScript.parseRefPath(expr), expr)));
           currentIdx = endIdx + 1;
           startStrIdx = currentIdx;
         }

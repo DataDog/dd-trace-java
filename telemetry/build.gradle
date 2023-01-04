@@ -7,18 +7,14 @@ ext {
     'datadog.telemetry.TelemetryRunnable.ThreadSleeperImpl',
     'datadog.telemetry.HostInfo',
     'datadog.telemetry.HostInfo.Os',
-    'datadog.telemetry.Uname',
-    'datadog.telemetry.Uname.UtsNameMacOs',
-    'datadog.telemetry.Uname.UtsNameLinux',
-    'datadog.telemetry.Uname.EmptyUtsName',
     'datadog.telemetry.dependency.LocationsCollectingTransformer',
     'datadog.telemetry.dependency.JbossVirtualFileHelper',
+    'datadog.telemetry.RequestBuilder.NumberJsonAdapter',
     'datadog.telemetry.TelemetrySystem',
-    'datadog.telemetry.api.*'
+    'datadog.telemetry.api.*',
   ]
   excludedClassesBranchCoverage = [
     'datadog.telemetry.PolymorphicAdapterFactory.1',
-    'datadog.telemetry.Uname.UtsNameMapper',
     'datadog.telemetry.HostInfo',
     'datadog.telemetry.HostInfo.Os',
   ]

@@ -1,6 +1,7 @@
 package datadog.trace.api.iast;
 
 import datadog.trace.api.iast.propagation.StringModule;
+import datadog.trace.api.iast.propagation.UrlModule;
 import datadog.trace.api.iast.sink.*;
 import datadog.trace.api.iast.source.WebModule;
 
@@ -8,6 +9,7 @@ import datadog.trace.api.iast.source.WebModule;
 public abstract class InstrumentationBridge {
 
   public static volatile StringModule STRING;
+  public static volatile UrlModule URL;
   public static volatile WebModule WEB;
   public static volatile SqlInjectionModule SQL_INJECTION;
   public static volatile PathTraversalModule PATH_TRAVERSAL;
@@ -21,6 +23,8 @@ public abstract class InstrumentationBridge {
   public static void registerIastModule(final IastModule module) {
     if (module instanceof StringModule) {
       STRING = (StringModule) module;
+    } else if (module instanceof UrlModule) {
+      URL = (UrlModule) module;
     } else if (module instanceof WebModule) {
       WEB = (WebModule) module;
     } else if (module instanceof SqlInjectionModule) {
@@ -45,6 +49,9 @@ public abstract class InstrumentationBridge {
   public static <E extends IastModule> E getIastModule(final Class<E> type) {
     if (type == StringModule.class) {
       return (E) STRING;
+    }
+    if (type == UrlModule.class) {
+      return (E) URL;
     }
     if (type == WebModule.class) {
       return (E) WEB;
@@ -73,6 +80,7 @@ public abstract class InstrumentationBridge {
   /** Mainly used for testing empty modules */
   public static void clearIastModules() {
     STRING = null;
+    URL = null;
     WEB = null;
     SQL_INJECTION = null;
     PATH_TRAVERSAL = null;

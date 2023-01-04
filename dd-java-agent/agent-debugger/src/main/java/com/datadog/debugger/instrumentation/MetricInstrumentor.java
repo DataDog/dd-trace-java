@@ -5,8 +5,9 @@ import static com.datadog.debugger.instrumentation.Types.*;
 import com.datadog.debugger.el.InvalidValueException;
 import com.datadog.debugger.el.Literal;
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.values.ObjectValue;
+import com.datadog.debugger.el.values.UndefinedValue;
 import com.datadog.debugger.probe.MetricProbe;
-import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
@@ -14,7 +15,6 @@ import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -28,7 +28,6 @@ import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodNode;
-import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +36,6 @@ import org.slf4j.LoggerFactory;
 public class MetricInstrumentor extends Instrumentor {
   private static final Logger LOGGER = LoggerFactory.getLogger(MetricInstrumentor.class);
   private static final InsnList EMPTY_INSN_LIST = new InsnList();
-  private static final Pattern PERIOD_PATTERN = Pattern.compile("\\.");
 
   private final MetricProbe metricProbe;
 
@@ -87,7 +85,7 @@ public class MetricInstrumentor extends Instrumentor {
       // consider the metric as an increment counter one
       insnList.add(new LdcInsnNode(metricProbe.getMetricName()));
       ldc(insnList, 1L); // stack [long]
-      pushTags(insnList); // stack [long, array]
+      pushTags(insnList, metricProbe.getTags()); // stack [long, array]
       invokeStatic(
           insnList,
           DEBUGGER_CONTEXT_TYPE,
@@ -116,8 +114,16 @@ public class MetricInstrumentor extends Instrumentor {
     if (result.isNull() || result.isUndefined()) {
       return EMPTY_INSN_LIST;
     }
-    if (result instanceof InsnListValue) {
-      insnList.add(((InsnListValue) result).getValue());
+    if (result instanceof ObjectValue) {
+      ResolverResult resolverResult = (ResolverResult) ((ObjectValue) result).getValue();
+      if (!isCompatible(resolverResult.type, Type.LONG_TYPE)) {
+        reportError(
+            String.format(
+                "Incompatible type for expression: %s with expected type: %s",
+                resolverResult.type.getClassName(), Type.LONG_TYPE.getClassName()));
+        return EMPTY_INSN_LIST;
+      }
+      insnList.add(resolverResult.insnList);
     } else if (result instanceof Literal) {
       Object literal = result.getValue();
       if (literal instanceof Integer) {
@@ -127,7 +133,11 @@ public class MetricInstrumentor extends Instrumentor {
         ldc(insnList, literal); // stack [long]
       } else {
         reportError(
-            "Unsupported literal: " + literal + " type: " + literal.getClass().getTypeName() + ".");
+            "Unsupported literal: "
+                + literal
+                + " type: "
+                + literal.getClass().getTypeName()
+                + ", expect integral type (int, long).");
         return EMPTY_INSN_LIST;
       }
     } else {
@@ -136,7 +146,7 @@ public class MetricInstrumentor extends Instrumentor {
     }
     // insert metric name at the beginning of the list
     insnList.insert(new LdcInsnNode(metricProbe.getMetricName())); // stack [string, long]
-    pushTags(insnList); // stack [string, long, array]
+    pushTags(insnList, metricProbe.getTags()); // stack [string, long, array]
     invokeStatic(
         insnList,
         DEBUGGER_CONTEXT_TYPE,
@@ -212,22 +222,11 @@ public class MetricInstrumentor extends Instrumentor {
     }
   }
 
-  private void pushTags(InsnList insnList) {
-    ProbeDefinition.Tag[] tags = metricProbe.getTags();
-    if (tags == null || tags.length == 0) {
-      insnList.add(new InsnNode(Opcodes.ACONST_NULL));
-      return;
+  private boolean isCompatible(Type argType, Type expectedType) {
+    if (expectedType == Type.LONG_TYPE) {
+      return argType == expectedType || argType == Type.INT_TYPE;
     }
-    ldc(insnList, tags.length); // stack: [int]
-    insnList.add(
-        new TypeInsnNode(Opcodes.ANEWARRAY, STRING_TYPE.getInternalName())); // stack: [array]
-    int counter = 0;
-    for (ProbeDefinition.Tag tag : tags) {
-      insnList.add(new InsnNode(Opcodes.DUP)); // stack: [array, array]
-      ldc(insnList, counter++); // stack: [array, array, int]
-      ldc(insnList, tag.toString()); // stack: [array, array, int, string]
-      insnList.add(new InsnNode(Opcodes.AASTORE)); // stack: [array]
-    }
+    return argType == expectedType;
   }
 
   private class CompileToInsnList implements ValueReferenceResolver {
@@ -245,71 +244,83 @@ public class MetricInstrumentor extends Instrumentor {
     }
 
     @Override
-    public Object resolve(String path) {
-      String prefix = path.substring(0, 1);
-      String[] parts = PERIOD_PATTERN.split(path.substring(1));
+    public Object lookup(String name) {
+      if (name == null || name.isEmpty()) {
+        throw new IllegalArgumentException("empty name for lookup operation");
+      }
       InsnList insnList = new InsnList();
-      String head = parts[0];
-      Type currentType = null;
-      if (prefix.equals(ValueReferences.FIELD_PREFIX)) {
-        currentType = tryRetrieveField(head, insnList, parts.length == 1);
-      } else if (prefix.equals(ValueReferences.LOCALVAR_PREFIX)) {
-        currentType = tryRetrieveLocalVar(head, insnList, parts.length == 1);
-      } else if (prefix.equals(ValueReferences.ARGUMENT_PREFIX)) {
-        currentType = tryRetrieveArgument(head, insnList, parts.length == 1);
+      Type currentType;
+      String rawName = name;
+      if (name.startsWith(ValueReferences.FIELD_PREFIX)) {
+        rawName = name.substring(ValueReferences.FIELD_PREFIX.length());
+        currentType = tryRetrieveField(rawName, insnList);
+      } else {
+        currentType = tryRetrieve(name, insnList);
       }
       if (currentType == null) {
+        reportError("Cannot resolve symbol " + rawName);
         return null;
       }
-      if (followReferences(currentType, parts, insnList)) {
-        return new InsnListValue(insnList);
-      }
-      return null;
+      convertIfRequired(currentType, expectedType, insnList);
+      return new ResolverResult(currentType, insnList);
     }
 
-    private boolean followReferences(Type currentType, String[] parts, InsnList insnList) {
-      // the iteration starts with index 1 as the index 0 was used to resolve the 'src' argument
-      // in order to avoid extraneous array copies the original array is passed around as is
-      for (int i = 1; i < parts.length; i++) {
-        Class<?> clazz;
-        try {
-          String className = currentType.getClassName();
-          clazz = Class.forName(className, true, classLoader);
-          Field declaredField = clazz.getDeclaredField(parts[i]);
-          String fieldDesc = Type.getDescriptor(declaredField.getType());
-          currentType = Type.getType(declaredField.getType());
-          if (i == parts.length - 1 && !isCompatible(currentType, expectedType)) {
-            reportError(
-                String.format(
-                    "Incompatible type for field %s: %s with expected type: %s",
-                    parts[i], currentType.getClassName(), expectedType.getClassName()));
-            return false;
-          }
-          insnList.add(new InsnNode(Opcodes.DUP));
-          LabelNode nullNode = new LabelNode();
-          insnList.add(new JumpInsnNode(Opcodes.IFNULL, nullNode));
-          insnList.add(
-              new FieldInsnNode(
-                  Opcodes.GETFIELD, className, parts[i], fieldDesc)); // stack: [field_value]
-          convertIfRequired(currentType, expectedType, insnList);
-          // build null branch which will be added later after the call to emit metric
-          LabelNode gotoNode = new LabelNode();
-          nullBranch.add(new JumpInsnNode(Opcodes.GOTO, gotoNode));
-          nullBranch.add(nullNode);
-          nullBranch.add(new InsnNode(Opcodes.POP));
-          nullBranch.add(new InsnNode(Opcodes.POP));
-          nullBranch.add(gotoNode);
-        } catch (Exception e) {
-          String message = "Cannot resolve field " + parts[i];
-          LOGGER.debug(message, e);
-          reportError(message);
-          return false;
+    @Override
+    public Object getMember(Object target, String name) {
+      if (target instanceof ResolverResult) {
+        ResolverResult result = (ResolverResult) target;
+        Type currentType = followReferences(result.type, name, result.insnList);
+        if (currentType != null) {
+          return new ObjectValue(new ResolverResult(currentType, result.insnList));
         }
       }
-      return true;
+      return UndefinedValue.INSTANCE;
     }
 
-    private Type tryRetrieveArgument(String head, InsnList insnList, boolean isLast) {
+    private Type followReferences(Type currentType, String name, InsnList insnList) {
+      Class<?> clazz;
+      try {
+        String className = currentType.getClassName();
+        clazz = Class.forName(className, true, classLoader);
+        Field declaredField = clazz.getDeclaredField(name); // no parent fields!
+        String fieldDesc = Type.getDescriptor(declaredField.getType());
+        currentType = Type.getType(declaredField.getType());
+        insnList.add(new InsnNode(Opcodes.DUP));
+        LabelNode nullNode = new LabelNode();
+        insnList.add(new JumpInsnNode(Opcodes.IFNULL, nullNode));
+        insnList.add(
+            new FieldInsnNode(
+                Opcodes.GETFIELD, className, name, fieldDesc)); // stack: [field_value]
+        convertIfRequired(currentType, expectedType, insnList);
+        // build null branch which will be added later after the call to emit metric
+        LabelNode gotoNode = new LabelNode();
+        nullBranch.add(new JumpInsnNode(Opcodes.GOTO, gotoNode));
+        nullBranch.add(nullNode);
+        nullBranch.add(new InsnNode(Opcodes.POP));
+        nullBranch.add(new InsnNode(Opcodes.POP));
+        nullBranch.add(gotoNode);
+      } catch (Exception e) {
+        String message = "Cannot resolve field " + name;
+        LOGGER.debug(message, e);
+        reportError(message);
+        return null;
+      }
+      return currentType;
+    }
+
+    private Type tryRetrieve(String head, InsnList insnList) {
+      Type result = tryRetrieveArgument(head, insnList);
+      if (result != null) {
+        return result;
+      }
+      result = tryRetrieveLocalVar(head, insnList);
+      if (result != null) {
+        return result;
+      }
+      return tryRetrieveField(head, insnList);
+    }
+
+    private Type tryRetrieveArgument(String head, InsnList insnList) {
       Type[] argTypes = Type.getArgumentTypes(methodNode.desc);
       if (argTypes.length == 0) {
         // bail out if no args
@@ -324,47 +335,29 @@ public class MetricInstrumentor extends Instrumentor {
           currentArgName = "p" + counter;
         }
         if (currentArgName.equals(head)) {
-          if (isLast && !isCompatible(argType, expectedType)) {
-            reportError(
-                String.format(
-                    "Incompatible type for argument %s: %s with expected type: %s",
-                    head, argType.getClassName(), expectedType.getClassName()));
-            return null;
-          }
           VarInsnNode varInsnNode = new VarInsnNode(argType.getOpcode(Opcodes.ILOAD), slot);
           insnList.add(varInsnNode);
-          convertIfRequired(argType, expectedType, insnList);
           return argType;
         }
         slot += argType.getSize();
       }
-      reportError("Cannot resolve argument " + head);
       return null;
     }
 
-    private Type tryRetrieveLocalVar(String head, InsnList insnList, boolean isLast) {
+    private Type tryRetrieveLocalVar(String head, InsnList insnList) {
       for (LocalVariableNode varNode : methodNode.localVariables) {
         if (varNode.name.equals(head)) {
           Type varType = Type.getType(varNode.desc);
-          if (isLast && !isCompatible(varType, expectedType)) {
-            reportError(
-                String.format(
-                    "Incompatible type for local var %s: %s with expected type: %s",
-                    head, varType.getClassName(), expectedType.getClassName()));
-            return null;
-          }
           VarInsnNode varInsnNode =
               new VarInsnNode(varType.getOpcode(Opcodes.ILOAD), varNode.index);
           insnList.add(varInsnNode);
-          convertIfRequired(varType, expectedType, insnList);
           return varType;
         }
       }
-      reportError("Cannot resolve local var " + head);
       return null;
     }
 
-    private Type tryRetrieveField(String head, InsnList insnList, boolean isLast) {
+    private Type tryRetrieveField(String head, InsnList insnList) {
       List<FieldNode> fieldList = isStatic ? new ArrayList<>() : new ArrayList<>(classNode.fields);
       for (FieldNode fieldNode : fieldList) {
         if (fieldNode.name.equals(head)) {
@@ -372,13 +365,6 @@ public class MetricInstrumentor extends Instrumentor {
             continue; // or break?
           }
           Type fieldType = Type.getType(fieldNode.desc);
-          if (isLast && !isCompatible(fieldType, expectedType)) {
-            reportError(
-                String.format(
-                    "Incompatible type for field %s: %s with expected type: %s",
-                    head, fieldType.getClassName(), expectedType.getClassName()));
-            return null;
-          }
           insnList.add(new VarInsnNode(Opcodes.ALOAD, 0)); // stack: [this]
           insnList.add(
               new FieldInsnNode(
@@ -386,25 +372,26 @@ public class MetricInstrumentor extends Instrumentor {
                   classNode.name,
                   fieldNode.name,
                   fieldNode.desc)); // stack: [field_value]
-          convertIfRequired(fieldType, expectedType, insnList);
           return fieldType;
         }
       }
-      reportError("Cannot resolve field " + head);
       return null;
-    }
-
-    private boolean isCompatible(Type argType, Type expectedType) {
-      if (expectedType == Type.LONG_TYPE) {
-        return argType == expectedType || argType == Type.INT_TYPE;
-      }
-      return argType == expectedType;
     }
 
     private void convertIfRequired(Type currentType, Type expectedType, InsnList insnList) {
       if (expectedType == Type.LONG_TYPE && currentType == Type.INT_TYPE) {
         insnList.add(new InsnNode(Opcodes.I2L));
       }
+    }
+  }
+
+  private static class ResolverResult {
+    final Type type;
+    final InsnList insnList;
+
+    public ResolverResult(Type type, InsnList insnList) {
+      this.type = type;
+      this.insnList = insnList;
     }
   }
 }

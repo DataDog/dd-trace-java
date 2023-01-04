@@ -42,6 +42,10 @@ public class DebuggerContext {
     void histogram(String name, long value, String[] tags);
   }
 
+  public interface Tracer {
+    DebuggerSpan createSpan(String operationName, String[] tags);
+  }
+
   public interface SnapshotSerializer {
     String serializeSnapshot(String serviceName, Snapshot snapshot);
 
@@ -52,12 +56,17 @@ public class DebuggerContext {
   private static volatile ProbeResolver probeResolver;
   private static volatile ClassFilter classFilter;
   private static volatile MetricForwarder metricForwarder;
+  private static volatile Tracer tracer;
   private static volatile SnapshotSerializer snapshotSerializer;
 
   public static void init(Sink sink, ProbeResolver probeResolver, MetricForwarder metricForwarder) {
     DebuggerContext.sink = sink;
     DebuggerContext.probeResolver = probeResolver;
     DebuggerContext.metricForwarder = metricForwarder;
+  }
+
+  public static void initTracer(Tracer tracer) {
+    DebuggerContext.tracer = tracer;
   }
 
   public static void initClassFilter(ClassFilter classFilter) {
@@ -168,5 +177,14 @@ public class DebuggerContext {
       return null;
     }
     return serializer.serializeValue(value);
+  }
+
+  /** Creates a span, returns null if no implementation available */
+  public static DebuggerSpan createSpan(String operationName, String[] tags) {
+    Tracer localTracer = tracer;
+    if (localTracer == null) {
+      return null;
+    }
+    return localTracer.createSpan(operationName, tags);
   }
 }

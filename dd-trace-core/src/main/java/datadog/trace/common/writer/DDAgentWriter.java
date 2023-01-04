@@ -9,7 +9,6 @@ import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
-import datadog.trace.api.StatsDClient;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentMapperDiscovery;
@@ -35,7 +34,7 @@ public class DDAgentWriter extends RemoteWriter {
     String namedPipe = null;
     long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT);
     int traceBufferSize = BUFFER_SIZE;
-    HealthMetrics healthMetrics = new HealthMetrics(StatsDClient.NO_OP);
+    HealthMetrics healthMetrics = HealthMetrics.NO_OP;
     int flushFrequencySeconds = 1;
     Monitoring monitoring = Monitoring.DISABLED;
     boolean traceAgentV05Enabled = Config.get().isTraceAgentV05Enabled();

@@ -23,13 +23,19 @@ class JettyContinuationHandlerTest extends Jetty9Test {
     @Override
     void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
       final Continuation continuation = ContinuationSupport.getContinuation(request)
-      if (continuation.initial) {
-        continuation.suspend()
-        executorService.execute {
-          continuation.resume()
+      // some versions of jetty (like 9.4.15.v20190215) get into a loop:
+      // after an exception from handleRequest, the error will be handled here again;
+      // calling handleRequest will cause a new exception, and the process will repeat.
+      // this happens in the /exception endpoint
+      if (!request.getAttribute('javax.servlet.error.status_code')) {
+        if (continuation.initial) {
+          continuation.suspend()
+          executorService.execute {
+            continuation.resume()
+          }
+        } else {
+          handleRequest(baseRequest, response)
         }
-      } else {
-        handleRequest(baseRequest, response)
       }
       baseRequest.handled = true
     }

@@ -28,7 +28,7 @@ public class QueryInstrumentation extends AbstractHibernateInstrumentation {
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("org.hibernate.Query", SessionState.class.getName());
+    return singletonMap("org.hibernate.Query", SESSION_STATE);
   }
 
   @Override

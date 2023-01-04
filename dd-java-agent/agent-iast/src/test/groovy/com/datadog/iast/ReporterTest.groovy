@@ -22,6 +22,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
+import static com.datadog.iast.IastTag.ANALYZED
 import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED
 
 class ReporterTest extends DDSpecification {
@@ -168,6 +169,7 @@ class ReporterTest extends DDSpecification {
     1 * span.getSpanId() >> spanId
     1 * span.getRequestContext() >> reqCtx
     1 * span.setSpanType(InternalSpanTypes.VULNERABILITY) >> span
+    1 * span.setTag(ANALYZED.key(), ANALYZED.value())
     1 * span.finish()
     1 * scope.close()
     0 * _

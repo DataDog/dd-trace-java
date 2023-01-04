@@ -71,6 +71,7 @@ public class DebuggerAgent {
     DebuggerContext.init(sink, configurationUpdater, statsdMetricForwarder);
     DebuggerContext.initClassFilter(new DenyListHelper(null)); // default hard coded deny list
     DebuggerContext.initSnapshotSerializer(new JsonSnapshotSerializer());
+    DebuggerContext.initTracer(new DebuggerTracer());
     if (config.isDebuggerInstrumentTheWorld()) {
       setupInstrumentTheWorldTransformer(config, instrumentation, sink, statsdMetricForwarder);
     }

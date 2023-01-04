@@ -72,7 +72,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
   public Map<String, String> contextStore() {
     return singletonMap(
         "org.apache.kafka.streams.processor.internals.StreamTask",
-        StreamTaskContext.class.getName());
+        packageName + ".StreamTaskContext");
   }
 
   @Override

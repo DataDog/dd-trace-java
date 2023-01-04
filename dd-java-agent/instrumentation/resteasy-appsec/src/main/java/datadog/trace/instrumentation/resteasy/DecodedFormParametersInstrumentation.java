@@ -69,7 +69,7 @@ public class DecodedFormParametersInstrumentation extends Instrumenter.AppSec
     return new CustomReferenceProvider();
   }
 
-  static class CustomReferenceProvider implements ReferenceProvider {
+  public static class CustomReferenceProvider implements ReferenceProvider {
     @Override
     public Iterable<Reference> buildReferences(TypePool typePool) {
       List<Reference> references = new ArrayList<>();

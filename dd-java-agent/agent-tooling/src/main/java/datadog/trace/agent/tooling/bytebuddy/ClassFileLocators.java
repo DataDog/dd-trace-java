@@ -100,6 +100,7 @@ public final class ClassFileLocators {
 
   public static final class LazyResolution implements Resolution {
     private final URL url;
+    private byte[] bytecode;
 
     LazyResolution(URL url) {
       this.url = url;
@@ -116,15 +117,18 @@ public final class ClassFileLocators {
 
     @Override
     public byte[] resolve() {
-      try {
-        URLConnection uc = url.openConnection();
-        uc.setUseCaches(false);
-        try (InputStream in = uc.getInputStream()) {
-          return StreamDrainer.DEFAULT.drain(in);
+      if (null == bytecode) {
+        try {
+          URLConnection uc = url.openConnection();
+          uc.setUseCaches(false);
+          try (InputStream in = uc.getInputStream()) {
+            bytecode = StreamDrainer.DEFAULT.drain(in);
+          }
+        } catch (IOException e) {
+          throw new IllegalStateException("Error while reading class file", e);
         }
-      } catch (IOException e) {
-        throw new IllegalStateException("Error while reading class file", e);
       }
+      return bytecode;
     }
   }
 }

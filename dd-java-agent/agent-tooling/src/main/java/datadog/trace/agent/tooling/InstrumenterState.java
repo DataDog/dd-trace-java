@@ -1,11 +1,15 @@
 package datadog.trace.agent.tooling;
 
 import datadog.trace.bootstrap.WeakCache;
+import datadog.trace.util.Strings;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLongArray;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Tracks {@link Instrumenter} state, such as where it was applied and where it was blocked. */
 public final class InstrumenterState {
+  private static final Logger log = LoggerFactory.getLogger(InstrumenterState.class);
 
   public interface Observer {
     void applied(Iterable<String> instrumentationNames);
@@ -23,6 +27,7 @@ public final class InstrumenterState {
   private static final int STATUS_BITS = 0b11;
 
   private static Iterable<String>[] instrumentationNames = new Iterable[0];
+  private static String[] instrumentationClasses = new String[0];
 
   private static long[] defaultState = {};
 
@@ -37,15 +42,19 @@ public final class InstrumenterState {
   /** Pre-sizes internal structures to accommodate the highest expected id. */
   public static void setMaxInstrumentationId(int maxInstrumentationId) {
     instrumentationNames = Arrays.copyOf(instrumentationNames, maxInstrumentationId + 1);
+    instrumentationClasses = Arrays.copyOf(instrumentationClasses, instrumentationNames.length);
   }
 
-  /** Registers an instrumentation's primary name plus zero or more aliases. */
-  public static void registerInstrumentationNames(int instrumentationId, Iterable<String> names) {
+  /** Registers an instrumentation's details. */
+  public static void registerInstrumentation(Instrumenter.Default instrumenter) {
+    int instrumentationId = instrumenter.instrumentationId();
     if (instrumentationId >= instrumentationNames.length) {
       // note: setMaxInstrumentationId pre-sizes array to avoid repeated allocations here
       instrumentationNames = Arrays.copyOf(instrumentationNames, instrumentationId + 16);
+      instrumentationClasses = Arrays.copyOf(instrumentationClasses, instrumentationNames.length);
     }
-    instrumentationNames[instrumentationId] = names;
+    instrumentationNames[instrumentationId] = instrumenter.names();
+    instrumentationClasses[instrumentationId] = instrumenter.getClass().getName();
   }
 
   /** Registers an observer to be notified whenever an instrumentation is applied. */
@@ -80,6 +89,13 @@ public final class InstrumenterState {
   /** Records that the instrumentation was applied to the given class-loader. */
   public static void applyInstrumentation(ClassLoader classLoader, int instrumentationId) {
     updateState(classLoader, instrumentationId, APPLIED);
+    if (log.isDebugEnabled()) {
+      log.debug(
+          "Instrumentation applied - instrumentation.names=[{}] instrumentation.class={} instrumentation.target.classloader={}",
+          Strings.join(",", instrumentationNames[instrumentationId]),
+          instrumentationClasses[instrumentationId],
+          classLoader);
+    }
     if (null != observer) {
       observer.applied(instrumentationNames[instrumentationId]);
     }
@@ -88,6 +104,13 @@ public final class InstrumenterState {
   /** Records that the instrumentation is blocked for the given class-loader. */
   public static void blockInstrumentation(ClassLoader classLoader, int instrumentationId) {
     updateState(classLoader, instrumentationId, BLOCKED);
+    if (log.isDebugEnabled()) {
+      log.debug(
+          "Instrumentation blocked - instrumentation.names=[{}] instrumentation.class={} instrumentation.target.classloader={}",
+          Strings.join(",", instrumentationNames[instrumentationId]),
+          instrumentationClasses[instrumentationId],
+          classLoader);
+    }
   }
 
   /** Records that the instrumentation is blocked by default. */

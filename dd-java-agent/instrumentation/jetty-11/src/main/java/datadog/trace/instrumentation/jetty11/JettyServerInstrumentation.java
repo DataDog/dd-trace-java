@@ -14,7 +14,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.instrumentation.jetty9.HttpChannelHandleVisitor;
-import java.security.ProtectionDomain;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -24,13 +23,11 @@ import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.field.FieldList;
 import net.bytebuddy.description.method.MethodList;
 import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.jar.asm.ClassVisitor;
 import net.bytebuddy.jar.asm.ClassWriter;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.pool.TypePool;
-import net.bytebuddy.utility.JavaModule;
 
 @AutoService(Instrumenter.class)
 public final class JettyServerInstrumentation extends Instrumenter.Tracing
@@ -76,20 +73,10 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
   }
 
   public AdviceTransformer transformer() {
-    return new AdviceTransformer() {
-      @Override
-      public DynamicType.Builder<?> transform(
-          DynamicType.Builder<?> builder,
-          TypeDescription typeDescription,
-          ClassLoader classLoader,
-          JavaModule module,
-          ProtectionDomain pd) {
-        return builder.visit(new HttpChannelHandleVisitorWrapper());
-      }
-    };
+    return new VisitingTransformer(new HttpChannelHandleVisitorWrapper());
   }
 
-  private static class HttpChannelHandleVisitorWrapper implements AsmVisitorWrapper {
+  public static class HttpChannelHandleVisitorWrapper implements AsmVisitorWrapper {
 
     @Override
     public int mergeWriter(int flags) {

@@ -6,6 +6,7 @@ import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.predicates.EqualsPredicate;
 import com.datadog.debugger.el.predicates.ValuePredicate;
 import com.datadog.debugger.el.values.NumericValue;
+import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
@@ -16,7 +17,7 @@ class ComparisonExpressionTest {
   private ValuePredicate.Combiner combiner;
 
   @BeforeEach
-  void setup() throws Exception {
+  void setup() {
     combiner = Mockito.mock(ValuePredicate.Combiner.class);
     Mockito.when(combiner.get(ArgumentMatchers.any(), ArgumentMatchers.any()))
         .thenReturn(new EqualsPredicate(Value.of(1), Value.of(2)));
@@ -26,7 +27,7 @@ class ComparisonExpressionTest {
   void evaluate() {
     ComparisonExpression expression =
         new ComparisonExpression(new NumericValue(1), new NumericValue(2), combiner);
-    assertFalse(expression.evaluate(path -> Value.undefinedValue()).test());
+    assertFalse(expression.evaluate(NoopResolver.INSTANCE).test());
     Mockito.verify(combiner, VerificationModeFactory.times(1))
         .get(ArgumentMatchers.any(), ArgumentMatchers.any());
   }
@@ -35,7 +36,7 @@ class ComparisonExpressionTest {
   void evaluateFirstUndefined() {
     ComparisonExpression expression =
         new ComparisonExpression(ValueExpression.UNDEFINED, new NumericValue(2), combiner);
-    assertFalse(expression.evaluate(path -> Value.undefinedValue()).test());
+    assertFalse(expression.evaluate(NoopResolver.INSTANCE).test());
     Mockito.verify(combiner, VerificationModeFactory.noInteractions())
         .get(ArgumentMatchers.any(), ArgumentMatchers.any());
   }
@@ -44,7 +45,7 @@ class ComparisonExpressionTest {
   void evaluateSecondUndefined() {
     ComparisonExpression expression =
         new ComparisonExpression(new NumericValue(1), ValueExpression.UNDEFINED, combiner);
-    assertFalse(expression.evaluate(path -> Value.undefinedValue()).test());
+    assertFalse(expression.evaluate(NoopResolver.INSTANCE).test());
     Mockito.verify(combiner, VerificationModeFactory.noInteractions())
         .get(ArgumentMatchers.any(), ArgumentMatchers.any());
   }
@@ -53,7 +54,7 @@ class ComparisonExpressionTest {
   void evaluateBothUndefined() {
     ComparisonExpression expression =
         new ComparisonExpression(ValueExpression.UNDEFINED, ValueExpression.UNDEFINED, combiner);
-    assertFalse(expression.evaluate(path -> Value.undefinedValue()).test());
+    assertFalse(expression.evaluate(NoopResolver.INSTANCE).test());
     Mockito.verify(combiner, VerificationModeFactory.noInteractions())
         .get(ArgumentMatchers.any(), ArgumentMatchers.any());
   }
@@ -62,7 +63,7 @@ class ComparisonExpressionTest {
   void evaluateFirstNull() {
     ComparisonExpression expression =
         new ComparisonExpression(ValueExpression.NULL, new NumericValue(2), combiner);
-    assertFalse(expression.evaluate(path -> Value.undefinedValue()).test());
+    assertFalse(expression.evaluate(NoopResolver.INSTANCE).test());
     Mockito.verify(combiner, VerificationModeFactory.only())
         .get(ArgumentMatchers.any(), ArgumentMatchers.any());
   }
@@ -71,7 +72,7 @@ class ComparisonExpressionTest {
   void evaluateSecondNull() {
     ComparisonExpression expression =
         new ComparisonExpression(new NumericValue(1), ValueExpression.NULL, combiner);
-    assertFalse(expression.evaluate(path -> Value.undefinedValue()).test());
+    assertFalse(expression.evaluate(NoopResolver.INSTANCE).test());
     Mockito.verify(combiner, VerificationModeFactory.only())
         .get(ArgumentMatchers.any(), ArgumentMatchers.any());
   }
@@ -80,8 +81,22 @@ class ComparisonExpressionTest {
   void evaluateBothNull() {
     ComparisonExpression expression =
         new ComparisonExpression(ValueExpression.NULL, ValueExpression.NULL, combiner);
-    assertFalse(expression.evaluate(path -> Value.undefinedValue()).test());
+    assertFalse(expression.evaluate(NoopResolver.INSTANCE).test());
     Mockito.verify(combiner, VerificationModeFactory.only())
         .get(ArgumentMatchers.any(), ArgumentMatchers.any());
+  }
+
+  private static class NoopResolver implements ValueReferenceResolver {
+    static ValueReferenceResolver INSTANCE = new NoopResolver();
+
+    @Override
+    public Object lookup(String name) {
+      return Value.undefinedValue();
+    }
+
+    @Override
+    public Object getMember(Object target, String name) {
+      return Value.undefinedValue();
+    }
   }
 }
