@@ -1,5 +1,6 @@
 package datadog.telemetry.dependency;
 
+import datadog.trace.api.Config;
 import datadog.trace.util.AgentTaskScheduler;
 import java.lang.instrument.Instrumentation;
 import java.net.URI;
@@ -27,6 +28,12 @@ public class DependencyServiceImpl implements DependencyService, Runnable {
   private final BlockingQueue<Dependency> newDependencies = new LinkedBlockingQueue<>();
 
   private AgentTaskScheduler.Scheduled<Runnable> scheduledTask;
+
+  private static boolean isEnabled = true;
+
+  public DependencyServiceImpl() {
+    isEnabled = Config.get().isTelemetryDependencyServiceEnabled();
+  }
 
   public void schedulePeriodicResolution() {
     scheduledTask =
@@ -104,5 +111,10 @@ public class DependencyServiceImpl implements DependencyService, Runnable {
       scheduledTask.cancel();
       scheduledTask = null;
     }
+  }
+
+  @Override
+  public boolean isEnabled() {
+    return isEnabled;
   }
 }
