@@ -8,12 +8,14 @@ import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.values.ObjectValue;
 import com.datadog.debugger.el.values.UndefinedValue;
 import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
@@ -36,6 +38,7 @@ import org.slf4j.LoggerFactory;
 public class MetricInstrumentor extends Instrumentor {
   private static final Logger LOGGER = LoggerFactory.getLogger(MetricInstrumentor.class);
   private static final InsnList EMPTY_INSN_LIST = new InsnList();
+  private static final String PROBEID_TAG_NAME = "debugger.probeid";
 
   private final MetricProbe metricProbe;
 
@@ -85,7 +88,9 @@ public class MetricInstrumentor extends Instrumentor {
       // consider the metric as an increment counter one
       insnList.add(new LdcInsnNode(metricProbe.getMetricName()));
       ldc(insnList, 1L); // stack [long]
-      pushTags(insnList, metricProbe.getTags()); // stack [long, array]
+      pushTags(
+          insnList,
+          addProbeIdWithTags(metricProbe.getId(), metricProbe.getTags())); // stack [long, array]
       invokeStatic(
           insnList,
           DEBUGGER_CONTEXT_TYPE,
@@ -146,7 +151,10 @@ public class MetricInstrumentor extends Instrumentor {
     }
     // insert metric name at the beginning of the list
     insnList.insert(new LdcInsnNode(metricProbe.getMetricName())); // stack [string, long]
-    pushTags(insnList, metricProbe.getTags()); // stack [string, long, array]
+    pushTags(
+        insnList,
+        addProbeIdWithTags(
+            metricProbe.getId(), metricProbe.getTags())); // stack [string, long, array]
     invokeStatic(
         insnList,
         DEBUGGER_CONTEXT_TYPE,
@@ -157,6 +165,15 @@ public class MetricInstrumentor extends Instrumentor {
         Types.asArray(STRING_TYPE, 1));
     insnList.add(nullBranch);
     return insnList;
+  }
+
+  private ProbeDefinition.Tag[] addProbeIdWithTags(String probeId, ProbeDefinition.Tag[] tags) {
+    if (tags == null) {
+      return new ProbeDefinition.Tag[] {new ProbeDefinition.Tag(PROBEID_TAG_NAME, probeId)};
+    }
+    ProbeDefinition.Tag[] newTags = Arrays.copyOf(tags, tags.length + 1);
+    newTags[newTags.length - 1] = new ProbeDefinition.Tag(PROBEID_TAG_NAME, probeId);
+    return newTags;
   }
 
   private InsnList callGauge(MetricProbe metricProbe) {
