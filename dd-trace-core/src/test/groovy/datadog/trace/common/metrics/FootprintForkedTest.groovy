@@ -1,10 +1,11 @@
 package datadog.trace.common.metrics
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.trace.api.Platform
 import datadog.trace.api.WellKnownTags
 import datadog.trace.test.util.DDSpecification
 import org.openjdk.jol.info.GraphLayout
-import spock.lang.Requires
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 import java.nio.ByteBuffer
@@ -13,8 +14,12 @@ import java.util.concurrent.ThreadLocalRandom
 
 import static java.util.concurrent.TimeUnit.SECONDS
 
-@Requires({
-  !System.getProperty("java.vendor").toUpperCase().contains("IBM")
+
+@IgnoreIf({
+  // needs org.openjdk.jol, not available in IBM
+  Platform.isJ9() ||
+  // HotSpotAgent (used by jol) seems to be buggy on macOS in Circle CI
+  (System.getenv("CI") == "true" && Platform.isMac())
 })
 class FootprintForkedTest extends DDSpecification {
 
