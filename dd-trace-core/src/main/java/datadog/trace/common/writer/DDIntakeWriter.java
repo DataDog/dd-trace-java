@@ -3,7 +3,6 @@ package datadog.trace.common.writer;
 import datadog.communication.ddagent.DroppingPolicy;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
-import datadog.trace.api.StatsDClient;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.common.sampling.SingleSpanSampler;
@@ -31,7 +30,7 @@ public class DDIntakeWriter extends RemoteWriter {
     String apiVersion = DEFAULT_INTAKE_VERSION;
     long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_INTAKE_TIMEOUT);
     int traceBufferSize = BUFFER_SIZE;
-    HealthMetrics healthMetrics = new HealthMetrics(StatsDClient.NO_OP);
+    HealthMetrics healthMetrics = HealthMetrics.NO_OP;
     int flushFrequencySeconds = 1;
     Monitoring monitoring = Monitoring.DISABLED;
     DroppingPolicy droppingPolicy = DroppingPolicy.DISABLED;

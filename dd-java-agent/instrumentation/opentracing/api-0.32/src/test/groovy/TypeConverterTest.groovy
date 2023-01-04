@@ -52,7 +52,7 @@ class TypeConverterTest extends AgentTestRunner {
   }
 
   def "should avoid extra allocation for a scope wrapper"() {
-    def scopeManager = new ContinuableScopeManager(0, StatsDClient.NO_OP, false, true, new HealthMetrics(StatsDClient.NO_OP))
+    def scopeManager = new ContinuableScopeManager(0, StatsDClient.NO_OP, false, true, HealthMetrics.NO_OP)
     def context = createTestSpanContext()
     def span1 = new DDSpan(0, context)
     def span2 = new DDSpan(0, context)
