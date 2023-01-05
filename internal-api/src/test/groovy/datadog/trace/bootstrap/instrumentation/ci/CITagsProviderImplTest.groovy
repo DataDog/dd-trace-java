@@ -43,10 +43,11 @@ abstract class CITagsProviderImplTest extends Specification {
     }
 
     when:
-    def ciTagsProvider = ciTagsProvider()
+    def ciProviderInfo = instanceProvider()
+    def ciTagsProvider = ciTagsProvider(ciProviderInfo)
 
     then:
-    if (ciTagsProvider.CI) {
+    if (ciProviderInfo.CI) {
       assert ciSpec.assertTags(ciTagsProvider.ciTags)
     }
 
@@ -64,10 +65,11 @@ abstract class CITagsProviderImplTest extends Specification {
     environmentVariables.set(DD_GIT_REPOSITORY_URL, "local supplied repo url")
 
     when:
-    def ciTagsProvider = ciTagsProvider()
+    def ciProviderInfo = instanceProvider()
+    def ciTagsProvider = ciTagsProvider(ciProviderInfo)
 
     then:
-    if (ciTagsProvider.CI) {
+    if (ciProviderInfo.CI) {
       def tags = ciTagsProvider.ciTags
       tags.get(Tags.GIT_COMMIT_SHA) == "1234567890123456789012345678901234567890"
       tags.get(Tags.GIT_REPOSITORY_URL) == "local supplied repo url"
@@ -81,10 +83,11 @@ abstract class CITagsProviderImplTest extends Specification {
     }
 
     when:
-    def ciTagsProvider = ciTagsProvider()
+    def ciProviderInfo = instanceProvider()
+    def ciTagsProvider = ciTagsProvider(ciProviderInfo)
 
     then:
-    if (ciTagsProvider.CI) {
+    if (ciProviderInfo.CI) {
       def tags = ciTagsProvider.ciTags
       tags.get(Tags.GIT_REPOSITORY_URL) == "https://some-host/some-user/some-repo.git"
       tags.get(Tags.GIT_BRANCH) == "master"
@@ -106,10 +109,11 @@ abstract class CITagsProviderImplTest extends Specification {
     }
 
     when:
-    def ciTagsProvider = ciTagsProvider()
+    def ciProviderInfo = instanceProvider()
+    def ciTagsProvider = ciTagsProvider(ciProviderInfo)
 
     then:
-    if (ciTagsProvider.CI) {
+    if (ciProviderInfo.CI) {
       def tags = ciTagsProvider.ciTags
       tags.get(Tags.GIT_REPOSITORY_URL) == "https://some-host/some-user/some-repo.git"
       tags.get(Tags.GIT_BRANCH) == "master"
@@ -136,12 +140,16 @@ abstract class CITagsProviderImplTest extends Specification {
     return new HashMap<String, String>()
   }
 
-  CITagsProvider ciTagsProvider() {
-    return new CITagsProviderImpl(
-      instanceProvider(),
-      new CILocalGitInfoBuilder(),
-      new UserSuppliedGitInfoBuilder(),
-      GIT_FOLDER_FOR_TESTS)
+  CITagsProvider ciTagsProvider(CIProviderInfo ciProviderInfo) {
+    def ciLocalGitInfoBuilder = new CILocalGitInfoBuilder()
+    def userSuppliedGitInfoBuilder = new UserSuppliedGitInfoBuilder()
+
+    def ciInfo = ciProviderInfo.buildCIInfo()
+    def ciGitInfo = ciProviderInfo.buildCIGitInfo()
+    def localGitInfo = ciLocalGitInfoBuilder.build(ciInfo.getCiWorkspace(), GIT_FOLDER_FOR_TESTS)
+    def userSuppliedGitInfo = userSuppliedGitInfoBuilder.build()
+
+    return new CITagsProviderImpl(ciInfo, ciGitInfo, localGitInfo, userSuppliedGitInfo)
   }
 
   def "resolve"(workspace) {

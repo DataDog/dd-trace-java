@@ -6,9 +6,13 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.ci.CIInfo;
+import datadog.trace.bootstrap.instrumentation.ci.CIProviderInfo;
 import datadog.trace.bootstrap.instrumentation.ci.CIProviderInfoFactory;
-import datadog.trace.bootstrap.instrumentation.ci.CITagsProvider;
 import datadog.trace.bootstrap.instrumentation.ci.CITagsProviderImpl;
+import datadog.trace.bootstrap.instrumentation.ci.codeowners.Codeowners;
+import datadog.trace.bootstrap.instrumentation.ci.codeowners.CodeownersProvider;
+import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.info.CILocalGitInfoBuilder;
 import datadog.trace.bootstrap.instrumentation.ci.git.info.UserSuppliedGitInfoBuilder;
 import datadog.trace.bootstrap.instrumentation.ci.CIProviderInfoFactory;
@@ -20,12 +24,8 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public abstract class TestDecorator extends BaseDecorator {
-
-  private static final Logger log = LoggerFactory.getLogger(TestDecorator.class);
 
   public static final String TEST_TYPE = "test";
   public static final String TEST_PASS = "pass";
@@ -37,19 +37,32 @@ public abstract class TestDecorator extends BaseDecorator {
 
   private final boolean isCI;
   private final Map<String, String> ciTags;
+  private final Codeowners codeowners;
 
   public TestDecorator() {
-    this(
-        new CITagsProviderImpl(
-            CIProviderInfoFactory.createCIProviderInfo(),
-            new CILocalGitInfoBuilder(),
-            new UserSuppliedGitInfoBuilder(),
-            GIT_FOLDER_NAME));
+    CIProviderInfo ciProviderInfo = CIProviderInfoFactory.createCIProviderInfo();
+    CILocalGitInfoBuilder ciLocalGitInfoBuilder = new CILocalGitInfoBuilder();
+    UserSuppliedGitInfoBuilder userSuppliedGitInfoBuilder = new UserSuppliedGitInfoBuilder();
+
+    CIInfo ciInfo = ciProviderInfo.buildCIInfo();
+    GitInfo ciGitInfo = ciProviderInfo.buildCIGitInfo();
+    GitInfo localGitInfo = ciLocalGitInfoBuilder.build(ciInfo.getCiWorkspace(), GIT_FOLDER_NAME);
+    GitInfo userSuppliedGitInfo = userSuppliedGitInfoBuilder.build();
+
+    CITagsProviderImpl ciTagsProvider =
+        new CITagsProviderImpl(ciInfo, ciGitInfo, localGitInfo, userSuppliedGitInfo);
+    ciTags = ciTagsProvider.getCiTags();
+
+    CodeownersProvider codeownersProvider = new CodeownersProvider();
+    codeowners = codeownersProvider.build(ciInfo.getCiWorkspace());
+
+    isCI = ciProviderInfo.isCI();
   }
 
-  TestDecorator(final CITagsProvider ciTagsProvider) {
-    isCI = ciTagsProvider.isCI();
-    ciTags = ciTagsProvider.getCiTags();
+  TestDecorator(boolean isCI, Map<String, String> ciTags, Codeowners codeowners) {
+    this.isCI = isCI;
+    this.ciTags = ciTags;
+    this.codeowners = codeowners;
   }
 
   public boolean isCI() {
@@ -120,6 +133,8 @@ public abstract class TestDecorator extends BaseDecorator {
     for (final Map.Entry<String, String> ciTag : ciTags.entrySet()) {
       span.setTag(ciTag.getKey(), ciTag.getValue());
     }
+
+    // FIXME set codeowners here?
 
     return super.afterStart(span);
   }
