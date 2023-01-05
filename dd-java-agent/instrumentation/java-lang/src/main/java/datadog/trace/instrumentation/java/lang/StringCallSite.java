@@ -183,4 +183,18 @@ public class StringCallSite {
     }
     return result;
   }
+
+  @CallSite.After("java.lang.String java.lang.String.trim()")
+  public static String afterTrim(
+      @CallSite.This final String self, @CallSite.Return final String result) {
+    final StringModule module = InstrumentationBridge.STRING;
+    try {
+      if (module != null) {
+        module.onStringTrim(self, result);
+      }
+    } catch (final Throwable e) {
+      module.onUnexpectedException("afetConcat threw", e);
+    }
+    return result;
+  }
 }
