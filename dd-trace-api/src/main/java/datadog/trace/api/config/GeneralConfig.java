@@ -56,7 +56,8 @@ public final class GeneralConfig {
 
   public static final String TELEMETRY_ENABLED = "instrumentation.telemetry.enabled";
   public static final String TELEMETRY_HEARTBEAT_INTERVAL = "telemetry.heartbeat.interval";
-  public static final String TELEMETRY_SEND_DEPENDENCIES = "telemetry.send.dependencies";
+  public static final String TELEMETRY_DEPENDENCY_COLLECTION_ENABLED =
+      "telemetry.dependency-collection.enabled";
 
   private GeneralConfig() {}
 }
