@@ -10,7 +10,7 @@ class DisabledDependencyServiceTest extends DDSpecification{
   Instrumentation inst = Mock()
 
   void setup(){
-    injectSysConfig("dd.telemetry.send.dependencies", "false")
+    injectSysConfig("dd.telemetry.dependency-collection.enabled", "false")
   }
 
   void 'installs disabled dependency service and verify transformer'() {
