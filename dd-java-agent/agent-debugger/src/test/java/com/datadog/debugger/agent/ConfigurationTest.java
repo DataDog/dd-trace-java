@@ -165,7 +165,7 @@ public class ConfigurationTest {
     assertEquals(ProbeDefinition.MethodLocation.ENTRY, snapshotProbe0.getEvaluateAt());
     assertEquals(1, snapshotProbe0.getAllProbeIds().count());
     assertEquals(2, snapshotProbe0.getTags().length);
-    assertTrue(snapshotProbe0.isCaptureContext());
+    assertTrue(snapshotProbe0.isCaptureSnapshot());
     assertEquals("tag1:value1", snapshotProbe0.getTags()[0].toString());
     assertEquals("tag2:value2", snapshotProbe0.getTags()[1].toString());
     assertEquals(42.0, snapshotProbe0.getSampling().getSnapshotsPerSecond(), 0.1);
@@ -189,7 +189,7 @@ public class ConfigurationTest {
     assertEquals(2, logProbe0.getSegments().size());
     assertEquals("this is a log line with arg=", logProbe0.getSegments().get(0).getStr());
     assertEquals("arg", logProbe0.getSegments().get(1).getExpr());
-    assertFalse(logProbe0.isCaptureContext());
+    assertFalse(logProbe0.isCaptureSnapshot());
     // span probe
     assertEquals(1, config0.getSpanProbes().size());
     SpanProbe spanProbe0 = config0.getSpanProbes().iterator().next();
@@ -256,7 +256,7 @@ public class ConfigurationTest {
         .language("java")
         .probeId(id)
         .active(true)
-        .captureContext(true)
+        .captureSnapshot(true)
         .where(typeName, methodName, signature)
         .capture(
             Limits.DEFAULT_REFERENCE_DEPTH,
@@ -294,7 +294,7 @@ public class ConfigurationTest {
         .language("java")
         .probeId(id)
         .active(true)
-        .captureContext(false)
+        .captureSnapshot(false)
         .where(typeName, methodName, signature)
         .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
         .template(template)

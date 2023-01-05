@@ -995,12 +995,12 @@ public class CapturedSnapshotTest {
   @Test
   public void mergedProbesConditionMixedLocation() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot08";
-    SnapshotProbe probe1 =
+    LogProbe probe1 =
         createProbeBuilder(PROBE_ID1, CLASS_NAME, "doit", "int (java.lang.String)")
             .when(new ProbeCondition(DSL.when(DSL.TRUE), "true"))
             .evaluateAt(ProbeDefinition.MethodLocation.DEFAULT)
             .build();
-    SnapshotProbe probe2 =
+    LogProbe probe2 =
         createProbeBuilder(PROBE_ID2, CLASS_NAME, "doit", "int (java.lang.String)")
             .when(
                 new ProbeCondition(
@@ -1663,7 +1663,7 @@ public class CapturedSnapshotTest {
         .language(LANGUAGE)
         .probeId(id)
         .active(true)
-        .captureContext(true)
+        .captureSnapshot(true)
         .where(typeName, methodName, signature, lines)
         .sampling(new LogProbe.Sampling(100));
   }
@@ -1673,7 +1673,7 @@ public class CapturedSnapshotTest {
         .language(LANGUAGE)
         .probeId(id)
         .active(true)
-        .captureContext(true)
+        .captureSnapshot(true)
         .where(null, null, null, line, sourceFile)
         .build();
   }

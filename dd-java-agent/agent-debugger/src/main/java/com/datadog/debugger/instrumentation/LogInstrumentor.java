@@ -53,7 +53,7 @@ public final class LogInstrumentor extends Instrumentor {
       List<DiagnosticMessage> diagnostics) {
     super(logProbe, classLoader, classNode, methodNode, diagnostics);
     this.capture = logProbe.getCapture();
-    captureFullState = logProbe.isCaptureContext();
+    captureFullState = logProbe.isCaptureSnapshot();
   }
 
   public void instrument() {

@@ -555,7 +555,7 @@ public class DebuggerTransformerTest {
       String sourceCode, String targetClassName, String targetMethodName, InstrumentationKind kind)
       throws Exception {
     LogProbe.Builder builder =
-        LogProbe.builder().probeId(UUID.randomUUID().toString()).captureContext(true);
+        LogProbe.builder().probeId(UUID.randomUUID().toString()).captureSnapshot(true);
     // add depth 1 field destructuring
     builder.capture(
         Limits.DEFAULT_REFERENCE_DEPTH,

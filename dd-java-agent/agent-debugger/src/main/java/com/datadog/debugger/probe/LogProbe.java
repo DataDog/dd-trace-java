@@ -202,7 +202,7 @@ public class LogProbe extends ProbeDefinition {
 
   private final String template;
   private final List<Segment> segments;
-  private final boolean captureContext;
+  private final boolean captureSnapshot;
 
   @Json(name = "when")
   private final ProbeCondition probeCondition;
@@ -237,14 +237,14 @@ public class LogProbe extends ProbeDefinition {
       MethodLocation evaluateAt,
       String template,
       List<Segment> segments,
-      boolean captureContext,
+      boolean captureSnapshot,
       ProbeCondition probeCondition,
       Capture capture,
       Sampling sampling) {
     super(language, id, active, tagStrs, where, evaluateAt);
     this.template = template;
     this.segments = segments;
-    this.captureContext = captureContext;
+    this.captureSnapshot = captureSnapshot;
     this.probeCondition = probeCondition;
     this.capture = capture;
     this.sampling = sampling;
@@ -258,8 +258,8 @@ public class LogProbe extends ProbeDefinition {
     return segments;
   }
 
-  public boolean isCaptureContext() {
-    return captureContext;
+  public boolean isCaptureSnapshot() {
+    return captureSnapshot;
   }
 
   public ProbeCondition getProbeCondition() {
@@ -298,7 +298,7 @@ public class LogProbe extends ProbeDefinition {
         && Objects.equals(evaluateAt, that.evaluateAt)
         && Objects.equals(template, that.template)
         && Objects.equals(segments, that.segments)
-        && Objects.equals(captureContext, that.captureContext)
+        && Objects.equals(captureSnapshot, that.captureSnapshot)
         && Objects.equals(probeCondition, that.probeCondition)
         && Objects.equals(capture, that.capture)
         && Objects.equals(sampling, that.sampling)
@@ -318,7 +318,7 @@ public class LogProbe extends ProbeDefinition {
             evaluateAt,
             template,
             segments,
-            captureContext,
+            captureSnapshot,
             probeCondition,
             capture,
             sampling,
@@ -352,8 +352,8 @@ public class LogProbe extends ProbeDefinition {
         + '\''
         + ", segments="
         + segments
-        + ", captureContext="
-        + captureContext
+        + ", captureSnapshot="
+        + captureSnapshot
         + ", when="
         + probeCondition
         + ", capture="
@@ -372,7 +372,7 @@ public class LogProbe extends ProbeDefinition {
   public static class Builder extends ProbeDefinition.Builder<Builder> {
     private String template;
     private List<Segment> segments;
-    private boolean captureContext;
+    private boolean captureSnapshot;
     private ProbeCondition probeCondition;
     private Capture capture;
     private Sampling sampling;
@@ -383,8 +383,8 @@ public class LogProbe extends ProbeDefinition {
       return this;
     }
 
-    public Builder captureContext(boolean captureContext) {
-      this.captureContext = captureContext;
+    public Builder captureSnapshot(boolean captureSnapshot) {
+      this.captureSnapshot = captureSnapshot;
       return this;
     }
 
@@ -422,7 +422,7 @@ public class LogProbe extends ProbeDefinition {
           evaluateAt,
           template,
           segments,
-          captureContext,
+          captureSnapshot,
           probeCondition,
           capture,
           sampling);
