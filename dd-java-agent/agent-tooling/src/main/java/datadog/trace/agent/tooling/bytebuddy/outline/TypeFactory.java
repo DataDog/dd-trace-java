@@ -265,10 +265,14 @@ final class TypeFactory {
   private TypeDescription loadType(String name, TypeParser typeParser) {
     LOCATING_CLASS.begin();
     try {
-      Class<?> loadedType =
-          BOOTSTRAP_LOADER == classLoader
-              ? Class.forName(name, false, BOOTSTRAP_LOADER)
-              : classLoader.loadClass(name);
+      Class<?> loadedType;
+      if (BOOTSTRAP_LOADER == classLoader) {
+        loadedType = Class.forName(name, false, BOOTSTRAP_LOADER);
+      } else if (classLoader.getClass().getName().startsWith("groovy.lang.GroovyClassLoader")) {
+        return null; // avoid due to https://issues.apache.org/jira/browse/GROOVY-9742
+      } else {
+        loadedType = classLoader.loadClass(name);
+      }
       log.debug(
           "Direct loadClass type resolution of {} from class loader {} bypasses transformation",
           name,
