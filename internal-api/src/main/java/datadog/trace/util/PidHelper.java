@@ -2,6 +2,7 @@ package datadog.trace.util;
 
 import datadog.trace.api.Platform;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.lang.management.ManagementFactory;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +41,16 @@ public final class PidHelper {
       }
     }
     if (pid.isEmpty()) {
-      pid = Strings.trim(Fallback.supplier.get());
+      try {
+        // assumption: first part of runtime vmId is our process id
+        String vmId = ManagementFactory.getRuntimeMXBean().getName();
+        int pidEnd = vmId.indexOf('@');
+        if (pidEnd > 0) {
+          pid = vmId.substring(0, pidEnd).trim();
+        }
+      } catch (Throwable e) {
+        log.debug("Process id not available", e);
+      }
     }
     return pid;
   }
@@ -54,13 +64,5 @@ public final class PidHelper {
       }
     }
     return 0L;
-  }
-
-  public static final class Fallback {
-    static Supplier<String> supplier = () -> "";
-
-    public static void set(Supplier<String> supplier) {
-      Fallback.supplier = supplier;
-    }
   }
 }
