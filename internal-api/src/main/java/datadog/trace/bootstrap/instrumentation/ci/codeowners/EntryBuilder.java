@@ -47,7 +47,9 @@ public class EntryBuilder {
 
   public @Nullable Entry parse() {
     try {
-      if (c.length == 0 || c[0] == '#') {
+      if (c.length == 0 // empty line
+          || c[0] == '#' // comment
+          || c[0] == '[') { // section header
         return null;
       }
 

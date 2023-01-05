@@ -4,7 +4,7 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.bootstrap.instrumentation.ci.CITagsProvider
+import datadog.trace.bootstrap.instrumentation.ci.codeowners.Codeowners
 
 class TestDecoratorTest extends BaseDecoratorTest {
 
@@ -53,7 +53,11 @@ class TestDecoratorTest extends BaseDecoratorTest {
 
   @Override
   def newDecorator() {
-    return new TestDecorator(newMockCiInfo()) {
+    def ci = true
+    def mockCiTags = Collections.singletonMap("sample-ci-key", "sample-ci-value")
+    def mockCodeowners = Codeowners.EMPTY
+
+    return new TestDecorator(ci, mockCiTags, mockCodeowners) {
         @Override
         protected String testFramework() {
           return "test-framework"
@@ -77,22 +81,6 @@ class TestDecoratorTest extends BaseDecoratorTest {
         @Override
         protected CharSequence component() {
           return "test-component"
-        }
-      }
-  }
-
-  def newMockCiInfo() {
-    return new CITagsProvider() {
-        @Override
-        boolean isCI() {
-          return true
-        }
-
-        @Override
-        Map<String, String> getCiTags() {
-          def mockCiTags = new HashMap()
-          mockCiTags.put("sample-ci-key", "sample-ci-value")
-          return mockCiTags
         }
       }
   }

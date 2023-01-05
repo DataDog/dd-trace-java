@@ -16,6 +16,8 @@ import java.util.Deque;
  */
 public class Codeowners {
 
+  public static final Codeowners EMPTY = new Codeowners("", Collections.emptyList());
+
   private final String repoRoot;
   private final Iterable<Entry> entries;
 
