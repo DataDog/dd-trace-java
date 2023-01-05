@@ -20,8 +20,8 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.EndpointCheckpointerHolder;
 import datadog.trace.api.IdGenerationStrategy;
-import datadog.trace.api.PropagationStyle;
 import datadog.trace.api.StatsDClient;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.InstrumentationGateway;
@@ -76,7 +76,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -178,7 +177,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   private final HttpCodec.Injector injector;
 
-  private final Map<PropagationStyle, HttpCodec.Injector> injectors;
+  private final Map<TracePropagationStyle, HttpCodec.Injector> injectors;
   private final HttpCodec.Extractor extractor;
 
   private final InstrumentationGateway instrumentationGateway;
@@ -372,7 +371,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       instrumentationGateway(new InstrumentationGateway());
       injector(
           HttpCodec.createInjector(
-              config.getPropagationStylesToInject(), invertMap(config.getBaggageMapping())));
+              config.getTracePropagationStylesToInject(), invertMap(config.getBaggageMapping())));
       extractor(
           HttpCodec.createExtractor(
               config, config.getRequestHeaderTags(), config.getBaggageMapping()));
@@ -567,8 +566,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.callbackProviderIast = instrumentationGateway.getCallbackProvider(RequestContextSlot.IAST);
     this.universalCallbackProvider = instrumentationGateway.getUniversalCallbackProvider();
 
-    injectors =
-        HttpCodec.createInjectors(EnumSet.allOf(PropagationStyle.class), invertMap(baggageMapping));
+    injectors = HttpCodec.allInjectorsFor(invertMap(baggageMapping));
 
     shutdownCallback = new ShutdownHook(this);
     try {
@@ -749,7 +747,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public <C> void inject(AgentSpan span, C carrier, Setter<C> setter, PropagationStyle style) {
+  public <C> void inject(AgentSpan span, C carrier, Setter<C> setter, TracePropagationStyle style) {
     inject(span.context(), carrier, setter, style);
   }
 
@@ -787,7 +785,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   private <C> void inject(
-      AgentSpan.Context context, C carrier, Setter<C> setter, PropagationStyle style) {
+      AgentSpan.Context context, C carrier, Setter<C> setter, TracePropagationStyle style) {
     if (!(context instanceof DDSpanContext)) {
       return;
     }
@@ -799,7 +797,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (null == style) {
       injector.inject(ddSpanContext, carrier, setter);
     } else {
-      HttpCodec.inject(ddSpanContext, carrier, setter, injectors.get(style));
+      injectors.get(style).inject(ddSpanContext, carrier, setter);
     }
   }
 
