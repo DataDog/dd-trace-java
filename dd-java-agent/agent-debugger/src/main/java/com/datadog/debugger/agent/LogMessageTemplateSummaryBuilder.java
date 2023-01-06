@@ -35,7 +35,7 @@ public class LogMessageTemplateSummaryBuilder implements SummaryBuilder {
   @Override
   public String build() {
     if (logProbe.getSegments() == null) {
-      return "";
+      return "This is a dynamically created log message.";
     }
     StringBuilder sb = new StringBuilder();
     for (LogProbe.Segment segment : logProbe.getSegments()) {

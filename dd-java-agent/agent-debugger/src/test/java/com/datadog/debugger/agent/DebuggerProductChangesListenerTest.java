@@ -64,7 +64,7 @@ public class DebuggerProductChangesListenerTest {
     Configuration config =
         Configuration.builder()
             .setService(SERVICE_NAME)
-            .add(createSnapshotProbe(UUID.randomUUID().toString()))
+            .add(createLogProbeWithSnapshot(UUID.randomUUID().toString()))
             .addDenyList(createFilteredList())
             .build();
     SimpleAcceptor acceptor = new SimpleAcceptor();
@@ -83,7 +83,7 @@ public class DebuggerProductChangesListenerTest {
     Configuration config =
         Configuration.builder()
             .setService("other-service")
-            .add(createSnapshotProbe(UUID.randomUUID().toString()))
+            .add(createLogProbeWithSnapshot(UUID.randomUUID().toString()))
             .addDenyList(createFilteredList())
             .build();
     SimpleAcceptor acceptor = new SimpleAcceptor();
@@ -144,7 +144,7 @@ public class DebuggerProductChangesListenerTest {
     DebuggerProductChangesListener listener =
         new DebuggerProductChangesListener(tracerConfig, acceptor);
 
-    LogProbe snapshotProbe = createSnapshotProbe("123");
+    LogProbe logProbeWithSnapshot = createLogProbeWithSnapshot("123");
     MetricProbe metricProbe = createMetricProbe("345");
     LogProbe logProbe = createLogProbe("567");
 
@@ -157,14 +157,15 @@ public class DebuggerProductChangesListenerTest {
             .addDenyList(createFilteredList())
             .build();
 
-    acceptLogProbe(listener, snapshotProbe);
+    acceptLogProbe(listener, logProbeWithSnapshot);
     acceptConfig(listener, config, UUID.randomUUID().toString());
     listener.commit(pollingHinter);
-    Configuration expectedConfig = Configuration.builder().add(config).add(snapshotProbe).build();
+    Configuration expectedConfig =
+        Configuration.builder().add(config).add(logProbeWithSnapshot).build();
     Assert.assertEquals(expectedConfig.getService(), acceptor.getConfiguration().getService());
     Assert.assertEquals(
         expectedConfig.getMetricProbes(), acceptor.getConfiguration().getMetricProbes());
-    Assert.assertTrue(acceptor.getConfiguration().getLogProbes().contains(snapshotProbe));
+    Assert.assertTrue(acceptor.getConfiguration().getLogProbes().contains(logProbeWithSnapshot));
     Assert.assertTrue(acceptor.getConfiguration().getLogProbes().contains(logProbe));
   }
 
@@ -228,10 +229,11 @@ public class DebuggerProductChangesListenerTest {
         () -> listener.remove(createConfigKey("logProbe_" + probe.getId()), pollingHinter));
   }
 
-  LogProbe createSnapshotProbe(String id) {
+  LogProbe createLogProbeWithSnapshot(String id) {
     return LogProbe.builder()
         .probeId(id)
         .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
+        .captureSnapshot(true)
         .build();
   }
 
@@ -247,7 +249,7 @@ public class DebuggerProductChangesListenerTest {
     return LogProbe.builder()
         .probeId(id)
         .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
-        .template("hello {^world}")
+        .template("hello {world}")
         .build();
   }
 

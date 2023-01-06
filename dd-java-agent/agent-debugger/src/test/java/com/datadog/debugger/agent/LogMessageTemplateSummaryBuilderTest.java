@@ -13,7 +13,7 @@ class LogMessageTemplateSummaryBuilderTest {
     LogProbe probe = LogProbe.builder().build();
     LogMessageTemplateSummaryBuilder summaryBuilder = new LogMessageTemplateSummaryBuilder(probe);
     summaryBuilder.addEntry(new Snapshot.CapturedContext());
-    assertEquals("", summaryBuilder.build());
+    assertEquals("This is a dynamically created log message.", summaryBuilder.build());
   }
 
   @Test
