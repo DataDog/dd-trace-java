@@ -854,7 +854,7 @@ public class CapturedSnapshotTest {
                                 DSL.getMember(DSL.getMember(DSL.ref("nullTyped"), "fld"), "fld"),
                                 "msg"),
                             DSL.value("hello"))),
-                    ".nullTyped.fld.fld.msg == 'hello'"))
+                    "nullTyped.fld.fld.msg == 'hello'"))
             .build();
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(CLASS_NAME, snapshotProbe);
@@ -906,7 +906,7 @@ public class CapturedSnapshotTest {
     doMergedProbeConditions(null, new ProbeCondition(DSL.when(DSL.FALSE), "false"), 1);
   }
 
-  private void doMergedProbeConditions(
+  private List<Snapshot> doMergedProbeConditions(
       ProbeCondition probeCondition1, ProbeCondition probeCondition2, int expectedSnapshots)
       throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot08";
@@ -924,6 +924,110 @@ public class CapturedSnapshotTest {
     int result = Reflect.on(testClass).call("main", "1").get();
     Assert.assertEquals(3, result);
     Assert.assertEquals(expectedSnapshots, listener.snapshots.size());
+    return listener.snapshots;
+  }
+
+  @Test
+  public void mergedProbesConditionMainErrorAdditionalFalse()
+      throws IOException, URISyntaxException {
+    ProbeCondition condition1 =
+        new ProbeCondition(
+            DSL.when(
+                DSL.eq(
+                    DSL.getMember(
+                        DSL.getMember(DSL.getMember(DSL.ref("nullTyped"), "fld"), "fld"), "msg"),
+                    DSL.value("hello"))),
+            "nullTyped.fld.fld.msg == 'hello'");
+    ProbeCondition condition2 = new ProbeCondition(DSL.when(DSL.FALSE), "false");
+    List<Snapshot> snapshots = doMergedProbeConditions(condition1, condition2, 1);
+    List<Snapshot.EvaluationError> evaluationErrors = snapshots.get(0).getEvaluationErrors();
+    Assert.assertEquals(1, evaluationErrors.size());
+    Assert.assertEquals("fld", evaluationErrors.get(0).getExpr());
+    Assert.assertEquals("Cannot dereference to field: fld", evaluationErrors.get(0).getMessage());
+  }
+
+  @Test
+  public void mergedProbesConditionMainErrorAdditionalTrue()
+      throws IOException, URISyntaxException {
+    ProbeCondition condition1 =
+        new ProbeCondition(
+            DSL.when(
+                DSL.eq(
+                    DSL.getMember(
+                        DSL.getMember(DSL.getMember(DSL.ref("nullTyped"), "fld"), "fld"), "msg"),
+                    DSL.value("hello"))),
+            "nullTyped.fld.fld.msg == 'hello'");
+    ProbeCondition condition2 = new ProbeCondition(DSL.when(DSL.TRUE), "true");
+    List<Snapshot> snapshots = doMergedProbeConditions(condition1, condition2, 2);
+    List<Snapshot.EvaluationError> evaluationErrors = snapshots.get(0).getEvaluationErrors();
+    Assert.assertEquals(1, evaluationErrors.size());
+    Assert.assertEquals("fld", evaluationErrors.get(0).getExpr());
+    Assert.assertEquals("Cannot dereference to field: fld", evaluationErrors.get(0).getMessage());
+    Assert.assertNull(snapshots.get(1).getEvaluationErrors());
+  }
+
+  @Test
+  public void mergedProbesConditionMainFalseAdditionalError()
+      throws IOException, URISyntaxException {
+    ProbeCondition condition1 = new ProbeCondition(DSL.when(DSL.FALSE), "false");
+    ProbeCondition condition2 =
+        new ProbeCondition(
+            DSL.when(
+                DSL.eq(
+                    DSL.getMember(
+                        DSL.getMember(DSL.getMember(DSL.ref("nullTyped"), "fld"), "fld"), "msg"),
+                    DSL.value("hello"))),
+            "nullTyped.fld.fld.msg == 'hello'");
+    List<Snapshot> snapshots = doMergedProbeConditions(condition1, condition2, 1);
+    List<Snapshot.EvaluationError> evaluationErrors = snapshots.get(0).getEvaluationErrors();
+    Assert.assertEquals(1, evaluationErrors.size());
+    Assert.assertEquals("fld", evaluationErrors.get(0).getExpr());
+    Assert.assertEquals("Cannot dereference to field: fld", evaluationErrors.get(0).getMessage());
+  }
+
+  @Test
+  public void mergedProbesConditionMainTrueAdditionalError()
+      throws IOException, URISyntaxException {
+    ProbeCondition condition1 = new ProbeCondition(DSL.when(DSL.TRUE), "true");
+    ProbeCondition condition2 =
+        new ProbeCondition(
+            DSL.when(
+                DSL.eq(
+                    DSL.getMember(
+                        DSL.getMember(DSL.getMember(DSL.ref("nullTyped"), "fld"), "fld"), "msg"),
+                    DSL.value("hello"))),
+            "nullTyped.fld.fld.msg == 'hello'");
+    List<Snapshot> snapshots = doMergedProbeConditions(condition1, condition2, 2);
+    Assert.assertNull(snapshots.get(0).getEvaluationErrors());
+    List<Snapshot.EvaluationError> evaluationErrors = snapshots.get(1).getEvaluationErrors();
+    Assert.assertEquals(1, evaluationErrors.size());
+    Assert.assertEquals("fld", evaluationErrors.get(0).getExpr());
+    Assert.assertEquals("Cannot dereference to field: fld", evaluationErrors.get(0).getMessage());
+  }
+
+  @Test
+  public void mergedProbesConditionMixedLocation() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    SnapshotProbe probe1 =
+        createProbeBuilder(PROBE_ID1, CLASS_NAME, "doit", "int (java.lang.String)")
+            .when(new ProbeCondition(DSL.when(DSL.TRUE), "true"))
+            .evaluateAt(ProbeDefinition.MethodLocation.DEFAULT)
+            .build();
+    SnapshotProbe probe2 =
+        createProbeBuilder(PROBE_ID2, CLASS_NAME, "doit", "int (java.lang.String)")
+            .when(
+                new ProbeCondition(
+                    DSL.when(DSL.gt(DSL.ref("@duration"), DSL.value(0))), "@duration > 0"))
+            .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
+            .build();
+    probe1.addAdditionalProbe(probe2);
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe1);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    Assert.assertEquals(3, result);
+    Assert.assertEquals(2, listener.snapshots.size());
+    Assert.assertNull(listener.snapshots.get(0).getEvaluationErrors());
+    Assert.assertNull(listener.snapshots.get(1).getEvaluationErrors());
   }
 
   @Test
@@ -1331,7 +1435,7 @@ public class CapturedSnapshotTest {
         return new Snapshot.ProbeDetails(
             id,
             location,
-            Snapshot.MethodLocation.DEFAULT,
+            ProbeDefinition.MethodLocation.convert(probe.getEvaluateAt()),
             probe.getProbeCondition(),
             probe.concatTags(),
             new SnapshotSummaryBuilder(location),
@@ -1341,7 +1445,7 @@ public class CapturedSnapshotTest {
                         new Snapshot.ProbeDetails(
                             relatedProbe.getId(),
                             location,
-                            Snapshot.MethodLocation.DEFAULT,
+                            ProbeDefinition.MethodLocation.convert(relatedProbe.getEvaluateAt()),
                             ((SnapshotProbe) relatedProbe).getProbeCondition(),
                             relatedProbe.concatTags(),
                             new SnapshotSummaryBuilder(location)))

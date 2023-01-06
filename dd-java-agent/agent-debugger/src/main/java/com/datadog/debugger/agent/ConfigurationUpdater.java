@@ -286,26 +286,13 @@ public class ConfigurationUpdater
     return new Snapshot.ProbeDetails(
         probe.getId(),
         location,
-        convertMethodLocation(probe.getEvaluateAt()),
+        ProbeDefinition.MethodLocation.convert(probe.getEvaluateAt()),
         probeCondition,
         probe.concatTags(),
         summaryBuilder,
         probe.getAdditionalProbes().stream()
             .map(relatedProbe -> convertToProbeDetails(((SnapshotProbe) relatedProbe), location))
             .collect(Collectors.toList()));
-  }
-
-  private Snapshot.MethodLocation convertMethodLocation(
-      ProbeDefinition.MethodLocation methodLocation) {
-    switch (methodLocation) {
-      case DEFAULT:
-        return Snapshot.MethodLocation.DEFAULT;
-      case ENTRY:
-        return Snapshot.MethodLocation.ENTRY;
-      case EXIT:
-        return Snapshot.MethodLocation.EXIT;
-    }
-    return null;
   }
 
   private void applyRateLimiter(ConfigurationComparer changes) {
