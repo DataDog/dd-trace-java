@@ -265,7 +265,7 @@ public abstract class ProbeDefinition {
     public static Tag[] fromStrings(String[] tagStrs) {
       Tag[] tags = null;
       if (tagStrs != null) {
-        tags = new SnapshotProbe.Tag[tagStrs.length];
+        tags = new ProbeDefinition.Tag[tagStrs.length];
         for (int i = 0; i < tagStrs.length; i++) {
           tags[i] = fromString(tagStrs[i]);
         }

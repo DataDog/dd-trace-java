@@ -13,7 +13,6 @@ import static org.objectweb.asm.Type.INT_TYPE;
 
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
-import com.datadog.debugger.probe.SnapshotProbe;
 import com.datadog.debugger.probe.Where;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CorrelationAccess;
@@ -39,33 +38,22 @@ import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
-/** Handles generating instrumentation for snapshot method & line probes */
-public final class SnapshotInstrumentor extends Instrumentor {
-  private final SnapshotProbe.Capture capture;
+/** Handles generating instrumentation for snapshot/log method & line probes */
+public final class LogInstrumentor extends Instrumentor {
+  private final LogProbe.Capture capture;
   private final boolean captureFullState;
   private final LabelNode snapshotInitLabel = new LabelNode();
   private int snapshotVar = -1;
 
-  public SnapshotInstrumentor(
-      SnapshotProbe snapshotProbe,
-      ClassLoader classLoader,
-      ClassNode classNode,
-      MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics) {
-    super(snapshotProbe, classLoader, classNode, methodNode, diagnostics);
-    this.capture = snapshotProbe.getCapture();
-    captureFullState = true;
-  }
-
-  public SnapshotInstrumentor(
+  public LogInstrumentor(
       LogProbe logProbe,
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics) {
     super(logProbe, classLoader, classNode, methodNode, diagnostics);
-    this.capture = null;
-    this.captureFullState = false;
+    this.capture = logProbe.getCapture();
+    captureFullState = logProbe.isCaptureSnapshot();
   }
 
   public void instrument() {
@@ -656,7 +644,7 @@ public final class SnapshotInstrumentor extends Instrumentor {
     }
   }
 
-  private void addCapturedValueOf(InsnList insnList, SnapshotProbe.Capture capture) {
+  private void addCapturedValueOf(InsnList insnList, LogProbe.Capture capture) {
     if (capture == null) {
       ldc(insnList, Limits.DEFAULT_REFERENCE_DEPTH);
       ldc(insnList, Limits.DEFAULT_COLLECTION_SIZE);

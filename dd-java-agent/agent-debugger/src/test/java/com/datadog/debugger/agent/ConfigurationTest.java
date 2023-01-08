@@ -3,11 +3,12 @@ package com.datadog.debugger.agent;
 import static com.datadog.debugger.probe.MetricProbe.MetricKind.COUNT;
 import static com.datadog.debugger.probe.MetricProbe.MetricKind.GAUGE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
-import com.datadog.debugger.probe.SnapshotProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
@@ -29,8 +30,8 @@ public class ConfigurationTest {
     Configuration config1 = createConfig1();
     assertEquals(4, config1.getDefinitions().size());
     Iterator<ProbeDefinition> iterator = config1.getDefinitions().iterator();
-    assertEquals("probe1", iterator.next().getId());
     assertEquals("metric1", iterator.next().getId());
+    assertEquals("probe1", iterator.next().getId());
     assertEquals("log1", iterator.next().getId());
     assertEquals("span1", iterator.next().getId());
   }
@@ -130,9 +131,9 @@ public class ConfigurationTest {
       int expectedMaxLen,
       int expectedMaxFieldCount)
       throws IOException {
-    JsonAdapter<SnapshotProbe.Capture> adapter =
-        MoshiHelper.createMoshiConfig().adapter(SnapshotProbe.Capture.class);
-    SnapshotProbe.Capture capture = adapter.fromJson(json);
+    JsonAdapter<LogProbe.Capture> adapter =
+        MoshiHelper.createMoshiConfig().adapter(LogProbe.Capture.class);
+    LogProbe.Capture capture = adapter.fromJson(json);
     assertEquals(expectedMaxRef, capture.getMaxReferenceDepth());
     assertEquals(expectedMaxCol, capture.getMaxCollectionSize());
     assertEquals(expectedMaxLen, capture.getMaxLength());
@@ -157,42 +158,46 @@ public class ConfigurationTest {
     assertEquals("service1", config0.getService());
     assertEquals(10.0, config0.getSampling().getSnapshotsPerSecond(), 0.1);
     // snapshot probe
-    assertEquals(1, config0.getSnapshotProbes().size());
-    SnapshotProbe snapshotProbe1 = config0.getSnapshotProbes().iterator().next();
-    assertEquals("java.lang.String", snapshotProbe1.getWhere().getTypeName());
-    assertEquals(ProbeDefinition.MethodLocation.ENTRY, snapshotProbe1.getEvaluateAt());
-    assertEquals(1, snapshotProbe1.getAllProbeIds().count());
-    assertEquals(2, snapshotProbe1.getTags().length);
-    assertEquals("tag1:value1", snapshotProbe1.getTags()[0].toString());
-    assertEquals("tag2:value2", snapshotProbe1.getTags()[1].toString());
-    assertEquals(42.0, snapshotProbe1.getSampling().getSnapshotsPerSecond(), 0.1);
+    assertEquals(2, config0.getLogProbes().size());
+    List<LogProbe> logProbes0 = new ArrayList<>(config0.getLogProbes());
+    LogProbe snapshotProbe0 = logProbes0.get(0);
+    assertEquals("java.lang.String", snapshotProbe0.getWhere().getTypeName());
+    assertEquals(ProbeDefinition.MethodLocation.ENTRY, snapshotProbe0.getEvaluateAt());
+    assertEquals(1, snapshotProbe0.getAllProbeIds().count());
+    assertEquals(2, snapshotProbe0.getTags().length);
+    assertTrue(snapshotProbe0.isCaptureSnapshot());
+    assertEquals("tag1:value1", snapshotProbe0.getTags()[0].toString());
+    assertEquals("tag2:value2", snapshotProbe0.getTags()[1].toString());
+    assertEquals(42.0, snapshotProbe0.getSampling().getSnapshotsPerSecond(), 0.1);
     Configuration config1 = configs.get(1);
     assertEquals("service2", config1.getService());
-    assertEquals(1, config1.getSnapshotProbes().size());
-    SnapshotProbe snapshotProbe2 = config1.getSnapshotProbes().iterator().next();
-    assertEquals("java.util.Map", snapshotProbe2.getWhere().getTypeName());
+    assertEquals(2, config1.getLogProbes().size());
+    List<LogProbe> logProbes1 = new ArrayList<>(config1.getLogProbes());
+    LogProbe logProbe1 = logProbes1.get(0);
+    assertEquals("java.util.Map", logProbe1.getWhere().getTypeName());
     // metric probe
     assertEquals(1, config0.getMetricProbes().size());
-    MetricProbe metricProbe1 = config0.getMetricProbes().iterator().next();
-    assertEquals("metric_count", metricProbe1.getMetricName());
-    assertEquals(COUNT, metricProbe1.getKind());
-    assertEquals(0, metricProbe1.getAdditionalProbes().size());
-    assertEquals(1, metricProbe1.getAllProbeIds().count());
+    MetricProbe metricProbe0 = config0.getMetricProbes().iterator().next();
+    assertEquals("metric_count", metricProbe0.getMetricName());
+    assertEquals(COUNT, metricProbe0.getKind());
+    assertEquals(0, metricProbe0.getAdditionalProbes().size());
+    assertEquals(1, metricProbe0.getAllProbeIds().count());
     // log probe
-    assertEquals(1, config0.getLogProbes().size());
-    LogProbe logProbe1 = config0.getLogProbes().iterator().next();
-    assertEquals("this is a log line with arg={arg}", logProbe1.getTemplate());
-    assertEquals(2, logProbe1.getSegments().size());
-    assertEquals("this is a log line with arg=", logProbe1.getSegments().get(0).getStr());
-    assertEquals("arg", logProbe1.getSegments().get(1).getExpr());
+    assertEquals(2, config0.getLogProbes().size());
+    LogProbe logProbe0 = logProbes0.get(1);
+    assertEquals("this is a log line with arg={arg}", logProbe0.getTemplate());
+    assertEquals(2, logProbe0.getSegments().size());
+    assertEquals("this is a log line with arg=", logProbe0.getSegments().get(0).getStr());
+    assertEquals("arg", logProbe0.getSegments().get(1).getExpr());
+    assertFalse(logProbe0.isCaptureSnapshot());
     // span probe
     assertEquals(1, config0.getSpanProbes().size());
-    SpanProbe spanProbe1 = config0.getSpanProbes().iterator().next();
-    assertEquals("span", spanProbe1.getName());
+    SpanProbe spanProbe0 = config0.getSpanProbes().iterator().next();
+    assertEquals("span", spanProbe0.getName());
   }
 
   private Configuration createConfig1() {
-    SnapshotProbe probe1 = createProbe("probe1", "java.lang.String", "indexOf", "(String)");
+    LogProbe probe1 = createProbe("probe1", "java.lang.String", "indexOf", "(String)");
     MetricProbe metric1 =
         createMetric("metric1", "metric_count", COUNT, "java.lang.String", "indexOf", "(String)");
     LogProbe log1 =
@@ -205,12 +210,11 @@ public class ConfigurationTest {
     Configuration.FilterList denyList =
         new Configuration.FilterList(
             Arrays.asList("java.security"), Arrays.asList("javax.security.auth.AuthPermission"));
-    SnapshotProbe.Sampling globalSampling = new SnapshotProbe.Sampling(10.0);
+    LogProbe.Sampling globalSampling = new LogProbe.Sampling(10.0);
     return new Configuration(
         "service1",
-        Arrays.asList(probe1),
         Arrays.asList(metric1),
-        Arrays.asList(log1),
+        Arrays.asList(probe1, log1),
         Arrays.asList(span1),
         allowList,
         denyList,
@@ -218,7 +222,7 @@ public class ConfigurationTest {
   }
 
   private Configuration createConfig2() {
-    SnapshotProbe probe2 = createProbe("probe2", "java.util.Map", "put", null);
+    LogProbe probe2 = createProbe("probe2", "java.util.Map", "put", null);
     MetricProbe metric2 =
         createMetric("metric2", "metric_gauge", GAUGE, "java.lang.String", "indexOf", "(String)");
     LogProbe log2 =
@@ -235,24 +239,24 @@ public class ConfigurationTest {
     Configuration.FilterList denyList =
         new Configuration.FilterList(
             Arrays.asList("java.security"), Arrays.asList("javax.security.auth.AuthPermission"));
-    SnapshotProbe.Sampling globalSampling = new SnapshotProbe.Sampling(10.0);
+    LogProbe.Sampling globalSampling = new LogProbe.Sampling(10.0);
     return new Configuration(
         "service2",
-        Arrays.asList(probe2),
         Arrays.asList(metric2),
-        Arrays.asList(log2),
+        Arrays.asList(probe2, log2),
         Arrays.asList(span2),
         allowList,
         denyList,
         globalSampling);
   }
 
-  private static SnapshotProbe createProbe(
+  private static LogProbe createProbe(
       String id, String typeName, String methodName, String signature) {
-    return SnapshotProbe.builder()
+    return LogProbe.builder()
         .language("java")
         .probeId(id)
         .active(true)
+        .captureSnapshot(true)
         .where(typeName, methodName, signature)
         .capture(
             Limits.DEFAULT_REFERENCE_DEPTH,
@@ -290,6 +294,7 @@ public class ConfigurationTest {
         .language("java")
         .probeId(id)
         .active(true)
+        .captureSnapshot(false)
         .where(typeName, methodName, signature)
         .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
         .template(template)
