@@ -33,4 +33,11 @@ public class ProfilingSupport {
 
     return (isJavaVersion(8) && isJavaVersionAtLeast(8, 0, 302)) || isJavaVersionAtLeast(11);
   }
+
+  public static boolean isFileWriteDurationCorrect() {
+    return isJavaVersion(8)
+        || isJavaVersion(11)
+        || isJavaVersionAtLeast(17, 0, 6)
+        || isJavaVersionAtLeast(19);
+  }
 }
