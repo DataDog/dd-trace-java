@@ -4,15 +4,21 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.SQL_COMMENT_INJECTION_FULL;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.SQL_COMMENT_INJECTION_MODE;
+import static datadog.trace.instrumentation.jdbc.SQLCommentInjectorAdaptor.SETTER;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -54,6 +60,9 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".JDBCDecorator",
+      packageName + ".SQLCommenter",
+      packageName + ".SQLCommenter$Builder",
+      packageName + ".SQLCommentInjectorAdaptor",
     };
   }
 
@@ -65,10 +74,10 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
   }
 
   public static class StatementAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
-        @Advice.Argument(0) final String sql, @Advice.This final Statement statement) {
+        @Advice.Argument(value = 0, readOnly = false) String sql,
+        @Advice.This Statement statement) {
       // TODO consider matching known non-wrapper implementations to avoid this check
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);
       if (callDepth > 0) {
@@ -80,7 +89,22 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
         DECORATE.afterStart(span);
         DECORATE.onConnection(
             span, connection, InstrumentationContext.get(Connection.class, DBInfo.class));
-        DECORATE.onStatement(span, DBQueryInfo.ofStatement(sql));
+        if (span != null && DECORATE.injectSQLComment()) {
+          // set the dbm trace injected tag on the span
+          span.setTag(DBM_TRACE_INJECTED, true);
+          SQLCommenter.Builder carrier =
+              SQLCommenter.newBuilder()
+                  .withInjectionMode(SQL_COMMENT_INJECTION_MODE)
+                  .withSqlInput(sql)
+                  .withDbService(span.getServiceName());
+          if (SQL_COMMENT_INJECTION_MODE.equals(SQL_COMMENT_INJECTION_FULL)) {
+            // forces a sampling decision & sets the priority on the carrier
+            propagate().inject(span, carrier, SETTER, TracePropagationStyle.SQL_COMMENT);
+            carrier.withTraceId(span.getTraceId()).withSpanId(span.getSpanId());
+          }
+          sql = carrier.build().getCommentedSQL();
+        }
+        DECORATE.onStatement(span, DBQueryInfo.ofStatement(sql, DECORATE.injectSQLComment()));
         return activateSpan(span);
       } catch (SQLException e) {
         // if we can't get the connection for any reason

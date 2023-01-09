@@ -20,7 +20,9 @@ public enum TracePropagationStyle {
   // https://www.w3.org/TR/trace-context-1/
   TRACECONTEXT,
   // None does not extract or inject
-  NONE;
+  NONE,
+  // SQL Comment is used for trace context injection in sql comments
+  SQL_COMMENT;
 
   public static TracePropagationStyle valueOfDisplayName(String displayName) {
     String convertedName = displayName.toUpperCase().replace(' ', '_');

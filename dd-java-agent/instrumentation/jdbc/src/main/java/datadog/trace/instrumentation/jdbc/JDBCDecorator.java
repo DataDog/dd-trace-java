@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -32,6 +33,11 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       UTF8BytesString.create("java-jdbc-statement");
   private static final UTF8BytesString JDBC_PREPARED_STATEMENT =
       UTF8BytesString.create("java-jdbc-prepared_statement");
+
+  public static final String SQL_COMMENT_INJECTION_STATIC = "service";
+  public static final String SQL_COMMENT_INJECTION_FULL = "full";
+
+  public static final String SQL_COMMENT_INJECTION_MODE = Config.get().getSqlCommentInjectionMode();
 
   public static void logMissingQueryInfo(Statement statement) throws SQLException {
     if (log.isDebugEnabled()) {
@@ -98,6 +104,21 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     }
   }
 
+  public String dbService(final DBInfo dbInfo) {
+    String dbService;
+    String dbInstance = dbInstance(dbInfo);
+    // by default, the db service is set to the dbType
+    dbService = dbInfo.getType();
+    if (dbInstance != null && Config.get().isDbClientSplitByInstance()) {
+      dbService =
+          Config.get().isDbClientSplitByInstanceTypeSuffix()
+              ? dbInstance + "-" + dbType()
+              : dbInstance;
+    }
+
+    return dbService;
+  }
+
   @Override
   protected String dbHostname(final DBInfo info) {
     return info.getHost();
@@ -135,22 +156,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
         }
         if (dbInfo == null) {
           // couldn't find DBInfo anywhere, so fall back to default
-          try {
-            final DatabaseMetaData metaData = connection.getMetaData();
-            final String url = metaData.getURL();
-            if (url != null) {
-              try {
-                dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, connection.getClientInfo());
-              } catch (final Throwable ex) {
-                // getClientInfo is likely not allowed.
-                dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, null);
-              }
-            } else {
-              dbInfo = DBInfo.DEFAULT;
-            }
-          } catch (final SQLException se) {
-            dbInfo = DBInfo.DEFAULT;
-          }
+          dbInfo = parseDBInfoFromConnection(connection);
         }
         // store the DBInfo on the outermost connection instance to avoid future searches
         contextStore.put(connection, dbInfo);
@@ -161,6 +167,27 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       processDatabaseType(span, dbInfo.getType());
     }
     return super.onConnection(span, dbInfo);
+  }
+
+  public DBInfo parseDBInfoFromConnection(final Connection connection) {
+    DBInfo dbInfo;
+    try {
+      final DatabaseMetaData metaData = connection.getMetaData();
+      final String url = metaData.getURL();
+      if (url != null) {
+        try {
+          dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, connection.getClientInfo());
+        } catch (final Throwable ex) {
+          // getClientInfo is likely not allowed.
+          dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, null);
+        }
+      } else {
+        dbInfo = DBInfo.DEFAULT;
+      }
+    } catch (final SQLException se) {
+      dbInfo = DBInfo.DEFAULT;
+    }
+    return dbInfo;
   }
 
   public AgentSpan onStatement(AgentSpan span, DBQueryInfo dbQueryInfo) {
@@ -179,5 +206,11 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       span.setResourceName(DB_QUERY);
     }
     return span.setTag(Tags.COMPONENT, component);
+  }
+
+  /** For customers who elect to enable SQL comment injection */
+  public boolean injectSQLComment() {
+    return SQL_COMMENT_INJECTION_MODE.equals(SQL_COMMENT_INJECTION_FULL)
+        || SQL_COMMENT_INJECTION_MODE.equals(SQL_COMMENT_INJECTION_STATIC);
   }
 }
