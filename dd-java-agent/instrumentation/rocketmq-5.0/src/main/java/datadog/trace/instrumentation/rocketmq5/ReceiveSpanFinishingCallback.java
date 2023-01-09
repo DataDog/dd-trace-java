@@ -35,16 +35,21 @@ public class ReceiveSpanFinishingCallback implements FutureCallback<ReceiveMessa
     for (MessageViewImpl messageView : messageViews) {
     //  propagate().inject(span.context(),messageView,setterView);
       AgentSpan.Context parentContext = propagate().extract(messageView,GetterView);
+      AgentSpan childSpan ;
       if (null != parentContext){
-        AgentSpan childSpan = startSpan("receive_message",parentContext);
-        AgentScope scopeC = activateSpan(childSpan);
-        childSpan.setTag("messageID",messageView.getMessageId());
-        scopeC.span().setTag("groupID",consumerGroup);
-        scopeC.span().setTag("topic",topic);
-        scopeC.span().setTag("status","success");
-        scopeC.close();
-        scopeC.span().finish();
+        childSpan = startSpan("receive_message",parentContext);
+      }else {
+        childSpan = startSpan("receive_message");
       }
+      childSpan.setServiceName("rocketmq-consume");
+      childSpan.setTag("messageID",messageView.getMessageId());
+      AgentScope scopeC = activateSpan(childSpan);
+      scopeC.span().setTag("groupID",consumerGroup);
+      scopeC.span().setTag("topic",topic);
+      scopeC.span().setTag("status","success");
+
+      scopeC.close();
+      scopeC.span().finish();
     }
   }
 

@@ -58,8 +58,6 @@ public class MessageImplInstrumentation extends Instrumenter.Tracing
   public static  class BuildAdvice{
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.This MessageBuilderImpl impl){
-      // 添加链路信息
-      System.out.println("---------build-------");
       AgentSpan span = startSpan("message build send");
       AgentScope scope = activateSpan(span);
       propagate().inject(span,impl,SETTER);
@@ -70,6 +68,7 @@ public class MessageImplInstrumentation extends Instrumenter.Tracing
     public static void onExit(
         @Advice.Enter AgentScope scope,
         @Advice.Return Message message) {
+      scope.span().setServiceName("rocketmq-producer");
       scope.span().setTag("topic",message.getTopic());
       scope.span().setTag("tag",message.getTag());
       scope.span().setTag("messageGroup",message.getMessageGroup());

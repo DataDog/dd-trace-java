@@ -30,10 +30,8 @@ public class ConsumeServiceInstrumentation extends Instrumenter.Tracing
     return new String[]{
         packageName + ".ReceiveSpanFinishingCallback",
         packageName + ".MessageListenerWrapper",
-        packageName + ".MessageMapGetter",
         packageName + ".MessageMapSetter",
         packageName + ".MessageViewGetter",
-        packageName + ".MessageViewSetter",
         packageName + ".SendSpanFinishingCallback",
         packageName + ".Timer",
     };

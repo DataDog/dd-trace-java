@@ -25,18 +25,21 @@ public class MessageListenerWrapper implements MessageListener {
     AgentSpan span ;
     if (null != parentContext){
       span = startSpan("messageListener",parentContext);
-      span.setTag("messageID",messageView.getMessageId());
-      span.setTag("topic",messageView.getTopic());
-      span.setTag("tag",messageView.getTag());
-      span.setTag("keys",messageView.getKeys());
-      span.setTag("message_group",messageView.getMessageGroup());
-      AgentScope scope = activateSpan(span);
-      consumeResult = delegator.consume(messageView);
-      scope.close();
-      scope.span().finish();
-      return consumeResult;
+    }else {
+     span =  startSpan("messageListener");
     }
+
+    span.setTag("messageID",messageView.getMessageId());
+    span.setServiceName("rocketmq-consume");
+    span.setTag("topic",messageView.getTopic());
+    span.setTag("tag",messageView.getTag());
+    span.setTag("keys",messageView.getKeys());
+    span.setTag("message_group",messageView.getMessageGroup());
+    AgentScope scope = activateSpan(span);
     consumeResult = delegator.consume(messageView);
+    scope.close();
+    scope.span().finish();
+
     return consumeResult;
   }
 }
