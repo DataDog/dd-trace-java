@@ -1,5 +1,6 @@
 package datadog.opentelemetry.trace;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
@@ -74,7 +75,8 @@ public class DDSpanBuilder implements SpanBuilder {
 
   @Override
   public SpanBuilder setSpanKind(SpanKind spanKind) {
-    return null; // TODO Type conversion required
+    this.delegate.withSpanType(spanKind.toString());
+    return this;
   }
 
   @Override
@@ -85,6 +87,7 @@ public class DDSpanBuilder implements SpanBuilder {
 
   @Override
   public Span startSpan() {
-    return null; // TODO Type conversion required
+    AgentSpan delegate = this.delegate.start();
+    return new DDSpan(delegate);
   }
 }
