@@ -110,7 +110,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
         }
       }
     } catch (final Exception e) {
-      log.debug("Error starting new record span", e)
+      log.debug("Error starting new record span", e);
     }
   }
 
