@@ -80,7 +80,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_IAST_ENABLED = false;
   static final boolean DEFAULT_IAST_DEBUG_ENABLED = false;
-  public static final int DEFAULT_IAST_MAX_CONCURRENT_REQUESTS = 2;
+  public static final int DEFAULT_IAST_MAX_CONCURRENT_REQUESTS = 4;
   public static final int DEFAULT_IAST_VULNERABILITIES_PER_REQUEST = 2;
   public static final int DEFAULT_IAST_REQUEST_SAMPLING = 30;
   static final Set<String> DEFAULT_IAST_WEAK_HASH_ALGORITHMS =
