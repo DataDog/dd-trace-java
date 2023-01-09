@@ -104,14 +104,13 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
         }
         decorator.afterStart(span);
         decorator.onConsume(span, val, group);
-
         activateNext(span);
         if (null != queueSpan) {
           queueSpan.finish();
         }
       }
     } catch (final Exception e) {
-      log.error("Error starting new record span", e);
+      log.debug("Error starting new record span", e)
     }
   }
 

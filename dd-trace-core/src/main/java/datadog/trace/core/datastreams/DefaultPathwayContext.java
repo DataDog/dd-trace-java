@@ -148,6 +148,7 @@ public class DefaultPathwayContext implements PathwayContext {
       hash = newHash;
 
       pointConsumer.accept(point);
+      log.debug("Checkpoint set {}", this);
     } finally {
       lock.unlock();
     }
