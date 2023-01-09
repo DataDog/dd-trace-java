@@ -17,6 +17,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_TLS_REFRESH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_SQL_COMMENT_INJECTION_MODE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_ENABLED;
@@ -209,6 +210,7 @@ import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_SQL_COMMENT_INJECTION_MODE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_INBOUND_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_OUTBOUND_METHODS;
@@ -544,6 +546,8 @@ public class Config {
   private final String remoteConfigTargetsKeyId;
   private final String remoteConfigTargetsKey;
 
+  private final String sqlCommenterInjectionMode;
+
   private final boolean debuggerEnabled;
   private final int debuggerUploadTimeout;
   private final int debuggerUploadFlushInterval;
@@ -876,6 +880,10 @@ public class Config {
         configProvider.getBoolean(
             DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX,
             DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX);
+
+    sqlCommenterInjectionMode =
+        configProvider.getString(
+            DB_CLIENT_SQL_COMMENT_INJECTION_MODE, DEFAULT_DB_CLIENT_SQL_COMMENT_INJECTION_MODE);
 
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
 
@@ -2570,6 +2578,10 @@ public class Config {
         Collections.singletonList(settingName), "", settingSuffix, defaultEnabled);
   }
 
+  public String getSqlCommentInjectionMode() {
+    return sqlCommenterInjectionMode;
+  }
+
   private void logIgnoredSettingWarning(
       String setting, String overridingSetting, String overridingSuffix) {
     log.warn(
@@ -2979,6 +2991,8 @@ public class Config {
         + dbClientSplitByInstance
         + ", dbClientSplitByInstanceTypeSuffix="
         + dbClientSplitByInstanceTypeSuffix
+        + ", sqlCommenterInjectionMode="
+        + sqlCommenterInjectionMode
         + ", splitByTags="
         + splitByTags
         + ", scopeDepthLimit="

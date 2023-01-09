@@ -41,13 +41,23 @@ public final class SQLNormalizer {
   }
 
   public static UTF8BytesString normalize(String sql) {
+    return normalize(sql, false);
+  }
+
+  public static UTF8BytesString normalize(String sql, boolean stripSQLComments) {
+    boolean modified = false;
     byte[] utf8 = sql.getBytes(UTF_8);
     try {
+      // if sql injection is enabled for APM-DBM linking,
+      // strip the comments at the beginning of the array, so they're not set on the span.
+      if (stripSQLComments) {
+        utf8 = stripComments(utf8);
+        modified = true;
+      }
       BitSet splitters = findSplitterPositions(utf8);
       int outputLength = utf8.length;
       int end = outputLength;
       int start = end > 0 ? splitters.previousSetBit(end - 1) : -1;
-      boolean modified = false;
       // strip out anything ending with a quote (covers string and hex literals)
       // or anything starting with a number, a quote, a decimal point, or a sign
       while (end > 0 && start > 0) {
@@ -80,6 +90,41 @@ public final class SQLNormalizer {
       log.debug("Error normalizing sql {}", sql, paranoid);
     }
     return UTF8BytesString.create(sql, utf8);
+  }
+
+  /**
+   * stripComments is used to remove comments that are injected in order to create a link between
+   * APM and the database-monitoring product. This assumes the comments are always appended, which
+   * follows the W3C tracing spec.
+   *
+   * @param utf8
+   * @return
+   */
+  private static byte[] stripComments(byte[] utf8) {
+    boolean foundComment = false;
+    int commentEnd = -1;
+    for (int i = 0; i < utf8.length - 1; i++) {
+      if (!foundComment) {
+        if (utf8[i] == '/' && utf8[i + 1] == '*') {
+          foundComment = true;
+        }
+      } else if (utf8[i] == '*' && utf8[i + 1] == '/') {
+        commentEnd = i + 2; // skip final comment chars
+        break;
+      }
+    }
+
+    if (foundComment) {
+      // If we found a comment, we should strip the extra whitespace that is added while
+      // formatting the comment in the original sql string, so we return it as expected
+      int outputLen = utf8.length - commentEnd;
+      if (outputLen > 0 && Character.isWhitespace((char) utf8[commentEnd])) {
+        commentEnd++;
+      }
+      return Arrays.copyOfRange(utf8, commentEnd, utf8.length);
+    }
+
+    return utf8;
   }
 
   private static boolean isQuoted(byte[] utf8, int start, int end) {
