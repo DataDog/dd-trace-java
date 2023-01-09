@@ -56,8 +56,9 @@ class TestDecoratorTest extends BaseDecoratorTest {
     def ci = true
     def mockCiTags = Collections.singletonMap("sample-ci-key", "sample-ci-value")
     def mockCodeowners = Codeowners.EMPTY
+    def ciWorkspace = null
 
-    return new TestDecorator(ci, mockCiTags, mockCodeowners) {
+    return new TestDecorator(ci, mockCiTags, mockCodeowners, ciWorkspace) {
         @Override
         protected String testFramework() {
           return "test-framework"

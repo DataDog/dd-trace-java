@@ -161,7 +161,9 @@ public final class Strings {
   public static String replaceFirst(String str, String delimiter, String replacement) {
     StringBuilder sb = new StringBuilder(str);
     int i = sb.indexOf(delimiter);
-    if (i != -1) sb.replace(i, i + delimiter.length(), replacement);
+    if (i != -1) {
+      sb.replace(i, i + delimiter.length(), replacement);
+    }
     return sb.toString();
   }
 
@@ -242,5 +244,22 @@ public final class Strings {
     }
     sb.append("}");
     return sb.toString();
+  }
+
+  public static String toJson(final Iterable<String> items) {
+    if (items == null) {
+      return "[]";
+    }
+    StringBuilder json = new StringBuilder("[");
+    Iterator<String> it = items.iterator();
+    while (it.hasNext()) {
+      String item = it.next();
+      json.append('"').append(escapeToJson(item)).append('"');
+      if (it.hasNext()) {
+        json.append(",");
+      }
+    }
+    json.append("]");
+    return json.toString();
   }
 }

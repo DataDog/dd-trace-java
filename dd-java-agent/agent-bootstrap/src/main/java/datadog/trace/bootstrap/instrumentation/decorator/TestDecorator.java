@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
+import static datadog.trace.util.Strings.toJson;
+
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -22,6 +24,7 @@ import datadog.trace.bootstrap.instrumentation.ci.git.info.UserSuppliedGitInfoBu
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -35,9 +38,11 @@ public abstract class TestDecorator extends BaseDecorator {
 
   private static final String GIT_FOLDER_NAME = ".git";
 
+  private final String ciWorkspace;
   private final boolean isCI;
   private final Map<String, String> ciTags;
   private final Codeowners codeowners;
+  private volatile SourcePathResolver sourcePathResolver;
 
   public TestDecorator() {
     CIProviderInfo ciProviderInfo = CIProviderInfoFactory.createCIProviderInfo();
@@ -57,12 +62,16 @@ public abstract class TestDecorator extends BaseDecorator {
     codeowners = codeownersProvider.build(ciInfo.getCiWorkspace());
 
     isCI = ciProviderInfo.isCI();
+
+    ciWorkspace = ciInfo.getCiWorkspace();
   }
 
-  TestDecorator(boolean isCI, Map<String, String> ciTags, Codeowners codeowners) {
+  TestDecorator(
+      boolean isCI, Map<String, String> ciTags, Codeowners codeowners, String ciWorkspace) {
     this.isCI = isCI;
     this.ciTags = ciTags;
     this.codeowners = codeowners;
+    this.ciWorkspace = ciWorkspace;
   }
 
   public boolean isCI() {
@@ -134,17 +143,60 @@ public abstract class TestDecorator extends BaseDecorator {
       span.setTag(ciTag.getKey(), ciTag.getValue());
     }
 
-    // FIXME set codeowners here?
-
     return super.afterStart(span);
   }
 
-  public AgentSpan afterStart(final AgentSpan span, final String version) {
+  public AgentSpan afterStart(
+      final AgentSpan span, final String version, final Class<?> testClass) {
     // Version can be null. The testing framework version extraction is best-effort basis.
     if (version != null) {
       span.setTag(Tags.TEST_FRAMEWORK_VERSION, version);
     }
+    if (testClass != null) {
+      Collection<String> testCodeOwners = getCodeowners(testClass);
+      if (testCodeOwners != null) {
+        span.setTag(Tags.TEST_CODEOWNERS, toJson(testCodeOwners));
+      }
+    }
     return afterStart(span);
+  }
+
+  private Collection<String> getCodeowners(final Class<?> testClass) {
+    String sourcePath = getSourcePathResolver(testClass).getSourcePath(testClass);
+    if (sourcePath != null) {
+      return codeowners.getOwners(sourcePath);
+    } else {
+      return null;
+    }
+  }
+
+  /**
+   * Initializes source path resolver. Depending on whether our compilation plugin was used or not,
+   * the resolver will fetch the source info directly from the test classes or will fall back to
+   * building an index of the client's workspace.
+   *
+   * <p>Building an index can be expensive, so we want to avoid doing it if possible. Similarly,
+   * doing a reflection call every time is a waste of resources if the source path is not there.
+   * Therefore, a check is done once to determine which type of resolver to use going forward.
+   *
+   * <p>Initialization is done lazily since a client's test class needs to be examined in order to
+   * determine whether the compilation was done with or without our plugin.
+   */
+  private SourcePathResolver getSourcePathResolver(final Class<?> testClass) {
+    if (sourcePathResolver == null) {
+      synchronized (this) {
+        if (sourcePathResolver == null) {
+          CompilerAidedSourcePathResolver compilerAidedSourcePathResolver =
+              new CompilerAidedSourcePathResolver();
+          if (compilerAidedSourcePathResolver.isSourcePathInfoAvailable(testClass)) {
+            sourcePathResolver = compilerAidedSourcePathResolver;
+          } else {
+            sourcePathResolver = new RepoIndexSourcePathResolver(ciWorkspace);
+          }
+        }
+      }
+    }
+    return sourcePathResolver;
   }
 
   public List<String> testNames(

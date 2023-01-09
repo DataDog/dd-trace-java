@@ -19,7 +19,7 @@ class CodeownersTest extends Specification {
 
     where:
     path                                               | expectedOwners
-    "/outside/MyClass.java"                            | []
+    "/outside/MyClass.java"                            | null
     "/repo/root/MyClass.java"                          | ["@global-owner1", "@global-owner2"]
     "/repo/root/folder/MyClass.java"                   | ["@global-owner1", "@global-owner2"]
     "/repo/root/script.js"                             | ["@js-owner"]

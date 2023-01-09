@@ -21,7 +21,7 @@ public class TracingListener extends RunListener {
   private final String version;
 
   public TracingListener() {
-    this.version = Version.id();
+    version = Version.id();
   }
 
   @Override
@@ -43,7 +43,7 @@ public class TracingListener extends RunListener {
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
 
-    DECORATE.afterStart(span, version);
+    DECORATE.afterStart(span, version, description.getTestClass());
     DECORATE.onTestStart(span, description);
   }
 
@@ -116,7 +116,7 @@ public class TracingListener extends RunListener {
 
     for (final String testName : testNames) {
       final AgentSpan span = startSpan("junit.test");
-      DECORATE.afterStart(span, version);
+      DECORATE.afterStart(span, version, description.getTestClass());
       DECORATE.onTestIgnored(span, description, testName, reason);
       DECORATE.beforeFinish(span);
       // We set a duration of 1 ns, because a span with duration==0 has a special treatment in the
