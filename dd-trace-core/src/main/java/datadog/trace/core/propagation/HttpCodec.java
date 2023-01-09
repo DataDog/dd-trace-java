@@ -92,6 +92,9 @@ public class HttpCodec {
         case NONE:
           result.put(style, NoneCodec.INJECTOR);
           break;
+        case SQL_COMMENT:
+          result.put(style, SqlCommentInjector.SQL_INJECTOR);
+          break;
         case TRACECONTEXT:
           result.put(style, W3CHttpCodec.newInjector(reverseBaggageMapping));
           break;

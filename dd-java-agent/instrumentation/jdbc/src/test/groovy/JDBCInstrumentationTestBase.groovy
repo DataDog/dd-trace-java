@@ -4,6 +4,7 @@ import com.zaxxer.hikari.HikariDataSource
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.apache.derby.jdbc.EmbeddedDataSource
 import org.h2.jdbcx.JdbcDataSource
@@ -25,6 +26,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
 abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
+
   @Shared
   def dbName = "jdbcUnitTest"
 
@@ -175,6 +177,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     }
 
     then:
+    def addDbmTag = dbmTraceInjected()
     resultSet.next()
     resultSet.getInt(1) == 3
     assertTraces(1) {
@@ -195,6 +198,9 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             "$Tags.DB_INSTANCE" dbName.toLowerCase()
             "$Tags.DB_USER" jdbcUserNames.get(driver)
             "$Tags.DB_OPERATION" operation
+            if (addDbmTag) {
+              "$InstrumentationTags.DBM_TRACE_INJECTED" true
+            }
             defaultTags()
           }
         }
@@ -243,6 +249,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     }
 
     expect:
+    def addDbmTag = dbmTraceInjected()
     resultSet.next()
     resultSet.getInt(1) == 3
     assertTraces(1) {
@@ -266,6 +273,9 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             // since Connection.getClientInfo will not provide the username
             "$Tags.DB_USER" jdbcUserNames.get(driver)
             "$Tags.DB_OPERATION" operation
+            if (addDbmTag) {
+              "$InstrumentationTags.DBM_TRACE_INJECTED" true
+            }
             defaultTags()
           }
         }
@@ -297,6 +307,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     }
 
     expect:
+    def addDbmTag = dbmTraceInjected()
     resultSet.next()
     resultSet.getInt(1) == 3
     assertTraces(1) {
@@ -320,6 +331,9 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             // since Connection.getClientInfo will not provide the username
             "$Tags.DB_USER" jdbcUserNames.get(driver)
             "$Tags.DB_OPERATION" operation
+            if (addDbmTag) {
+              "$InstrumentationTags.DBM_TRACE_INJECTED" true
+            }
             defaultTags()
           }
         }
@@ -351,6 +365,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     }
 
     expect:
+    def addDbmTag = dbmTraceInjected()
     resultSet.next()
     resultSet.getInt(1) == 3
     assertTraces(1) {
@@ -374,6 +389,9 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             // since Connection.getClientInfo will not provide the username
             "$Tags.DB_USER" jdbcUserNames.get(driver)
             "${Tags.DB_OPERATION}" operation
+            if (addDbmTag) {
+              "$InstrumentationTags.DBM_TRACE_INJECTED" true
+            }
             defaultTags()
           }
         }
@@ -406,6 +424,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     runUnderTrace("parent") {
       return !statement.execute(sql)
     }
+    def addDbmTag = dbmTraceInjected()
     statement.updateCount == 0
     assertTraces(1) {
       trace(2) {
@@ -427,6 +446,9 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             // since Connection.getClientInfo will not provide the username
             "$Tags.DB_USER" jdbcUserNames.get(driver)
             "${Tags.DB_OPERATION}" operation
+            if (addDbmTag) {
+              "$InstrumentationTags.DBM_TRACE_INJECTED" true
+            }
             defaultTags()
           }
         }
@@ -463,6 +485,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     runUnderTrace("parent") {
       return statement.executeUpdate() == 0
     }
+    def addDbmTag = dbmTraceInjected()
     assertTraces(1) {
       trace(2) {
         basicSpan(it, "parent")
@@ -481,6 +504,9 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             "$Tags.DB_INSTANCE" dbName.toLowerCase()
             if (username != null) {
               "$Tags.DB_USER" username
+            }
+            if (addDbmTag) {
+              "$InstrumentationTags.DBM_TRACE_INJECTED" true
             }
             "$Tags.DB_OPERATION" operation
             defaultTags()
@@ -529,6 +555,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     }
 
     then:
+    def addDbmTag = dbmTraceInjected()
     rs.next()
     rs.getInt(1) == 3
     assertTraces(1) {
@@ -555,6 +582,9 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.DB_USER" username
             }
             "$Tags.DB_OPERATION" operation
+            if (addDbmTag) {
+              "$InstrumentationTags.DBM_TRACE_INJECTED" true
+            }
             defaultTags()
           }
         }
@@ -649,6 +679,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     }
 
     then:
+    def addDbmTag = dbmTraceInjected()
     assertTraces(1) {
       trace(2) {
         basicSpan(it, "parent")
@@ -665,6 +696,9 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" database
             "$Tags.DB_OPERATION" CharSequence
+            if (addDbmTag) {
+              "$InstrumentationTags.DBM_TRACE_INJECTED" true
+            }
             defaultTags()
           }
         }
@@ -718,6 +752,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     for (int i = 0; i < numQueries; ++i) {
       res[i] == 3
     }
+    def addDbmTag = dbmTraceInjected()
     assertTraces(5) {
       trace(1) {
         span {
@@ -734,6 +769,9 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             "$Tags.DB_INSTANCE" dbName.toLowerCase()
             "$Tags.DB_USER" "SA"
             "$Tags.DB_OPERATION" "SELECT"
+            if (addDbmTag) {
+              "$InstrumentationTags.DBM_TRACE_INJECTED" true
+            }
             defaultTags()
           }
         }
@@ -753,6 +791,9 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.DB_INSTANCE" dbName.toLowerCase()
               "$Tags.DB_USER" "SA"
               "$Tags.DB_OPERATION" "SELECT"
+              if (addDbmTag) {
+                "$InstrumentationTags.DBM_TRACE_INJECTED" true
+              }
               defaultTags()
             }
           }
@@ -802,6 +843,8 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
   protected abstract String service(String dbType)
 
   protected abstract String operation(String dbType)
+
+  protected abstract boolean dbmTraceInjected()
 }
 
 class JDBCInstrumentationV0ForkedTest extends JDBCInstrumentationTest {
@@ -820,6 +863,11 @@ class JDBCInstrumentationV0ForkedTest extends JDBCInstrumentationTest {
   protected String operation(String dbType) {
     return "${dbType}.query"
   }
+
+  @Override
+  protected boolean dbmTraceInjected() {
+    return false
+  }
 }
 
 class JDBCInstrumentationV1ForkedTest extends JDBCInstrumentationTest {
@@ -837,5 +885,39 @@ class JDBCInstrumentationV1ForkedTest extends JDBCInstrumentationTest {
   @Override
   protected String operation(String dbType) {
     return "${dbType}.query"
+  }
+
+  @Override
+  protected boolean dbmTraceInjected() {
+    return false
+  }
+}
+
+class JDBCInstrumentationDBMTraceInjectedForkedTest extends JDBCInstrumentationTest {
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.sql.commenter.injection.mode", "full")
+  }
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  protected String service(String dbType) {
+    return Config.get().getServiceName() + "-${dbType}"
+  }
+
+  @Override
+  protected String operation(String dbType) {
+    return "${dbType}.query"
+  }
+
+  @Override
+  protected boolean dbmTraceInjected() {
+    return true
   }
 }
