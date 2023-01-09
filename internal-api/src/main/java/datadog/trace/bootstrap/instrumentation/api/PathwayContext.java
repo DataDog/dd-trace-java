@@ -17,6 +17,5 @@ public interface PathwayContext {
 
   byte[] encode() throws IOException;
 
-
   String strEncode() throws IOException;
 }
