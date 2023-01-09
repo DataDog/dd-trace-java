@@ -90,6 +90,10 @@ public final class OpenJdkController implements Controller {
       disableEvent(recordingSettings, "jdk.ClassLoaderStatistics", EXPENSIVE_ON_CURRENT_JVM);
     }
 
+    if (!isFileWriteDurationCorrect()) {
+      disableEvent(recordingSettings, "jdk.FileWrite", EXPENSIVE_ON_CURRENT_JVM);
+    }
+
     // Toggle settings from override file
 
     try {
