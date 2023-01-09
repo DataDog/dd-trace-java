@@ -28,6 +28,7 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
 
     List<String> command = new ArrayList<>()
     command.add(javaPath())
+    command.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005")
     command.addAll(defaultJavaProperties)
     command.addAll([
       "-Ddd.iast.enabled=true",
@@ -236,6 +237,48 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     Boolean foundTaintedString = false
     checkLog {
       if (it.contains('taint') && it.contains('Test bean -> name: parameter, value: binding')) {
+        foundTaintedString = true
+      }
+    }
+    foundTaintedString
+  }
+
+  def "request header taint string"() {
+    setup:
+    String url = "http://localhost:${httpPort}/request_header/test"
+    def request = new Request.Builder().url(url).header("test-header", "test").get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    def responseBodyStr = response.body().string()
+    responseBodyStr != null
+    responseBodyStr.contains("Header is: test")
+    Boolean foundTaintedString = false
+    checkLog {
+      if (it.contains('taint') && it.contains('Header is: test')) {
+        foundTaintedString = true
+      }
+    }
+    foundTaintedString
+  }
+
+  def "path param taint string"() {
+    setup:
+    String url = "http://localhost:${httpPort}/path_param/test"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    def responseBodyStr = response.body().string()
+    responseBodyStr != null
+    responseBodyStr.contains("PathParam is: test")
+    Boolean foundTaintedString = false
+    checkLog {
+      if (it.contains('taint') && it.contains('PathParam is: test')) {
         foundTaintedString = true
       }
     }
