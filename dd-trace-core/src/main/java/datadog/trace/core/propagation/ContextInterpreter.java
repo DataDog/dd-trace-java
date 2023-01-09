@@ -71,19 +71,26 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
 
     public ContextInterpreter create(
         Map<String, String> tagsMapping, Map<String, String> baggageMapping) {
-      return construct(cleanMapping(tagsMapping), cleanMapping(baggageMapping));
+      return construct(cleanMapping(tagsMapping), cleanMapping(baggageMapping, true));
     }
 
     protected abstract ContextInterpreter construct(
         Map<String, String> tagsMapping, Map<String, String> baggageMapping);
 
-    protected Map<String, String> cleanMapping(Map<String, String> mapping) {
+    protected Map<String, String> cleanMapping(Map<String, String> mapping, boolean lowerCaseKeys) {
       final Map<String, String> cleanedMapping = new HashMap<>(mapping.size() * 4 / 3);
       for (Map.Entry<String, String> association : mapping.entrySet()) {
-        cleanedMapping.put(
-            association.getKey().trim().toLowerCase(), association.getValue().trim().toLowerCase());
+        String key = association.getKey().trim();
+        if (lowerCaseKeys) {
+          key = key.toLowerCase();
+        }
+        cleanedMapping.put(key, association.getValue().trim().toLowerCase());
       }
       return cleanedMapping;
+    }
+
+    protected Map<String, String> cleanMapping(Map<String, String> mapping) {
+      return cleanMapping(mapping, false);
     }
   }
 

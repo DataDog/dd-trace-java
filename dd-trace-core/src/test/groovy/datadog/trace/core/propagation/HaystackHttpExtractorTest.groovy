@@ -16,7 +16,9 @@ import static datadog.trace.core.propagation.HaystackHttpCodec.TRACE_ID_KEY
 
 class HaystackHttpExtractorTest extends DDSpecification {
 
-  HttpCodec.Extractor extractor = HaystackHttpCodec.newExtractor(["SOME_HEADER": "some-tag"], ["SOME_CUSTOM_BAGGAGE_HEADER": "some-baggage"])
+  HttpCodec.Extractor extractor = HaystackHttpCodec.newExtractor(
+  ["SOME_HEADER": "some-tag"],
+  ["SOME_CUSTOM_BAGGAGE_HEADER": "some-baggage", "SOME_CUSTOM_BAGGAGE_HEADER_2": "some-CaseSensitive-baggage"])
 
   boolean origAppSecActive
 
@@ -42,6 +44,7 @@ class HaystackHttpExtractorTest extends DDSpecification {
       (OT_BAGGAGE_PREFIX.toUpperCase() + "k3"): "%25%37%36%25%33%33", // v3 encoded twice
       SOME_HEADER                             : "my-interesting-info",
       SOME_CUSTOM_BAGGAGE_HEADER              : "my-interesting-baggage-info",
+      SOME_CUSTOM_BAGGAGE_HEADER_2            : "my-interesting-baggage-info-2",
     ]
 
     when:
@@ -53,7 +56,8 @@ class HaystackHttpExtractorTest extends DDSpecification {
     context.baggage == ["k1": "v1", "k2": "v2",
       "k3": "%76%33", // expect value decoded only once
       "Haystack-Trace-ID": traceUuid, "Haystack-Span-ID": spanUuid,
-      "some-baggage": "my-interesting-baggage-info"]
+      "some-baggage": "my-interesting-baggage-info",
+      "some-CaseSensitive-baggage": "my-interesting-baggage-info-2"]
     context.tags == ["some-tag": "my-interesting-info"]
     context.samplingPriority == samplingPriority
     context.origin == origin
