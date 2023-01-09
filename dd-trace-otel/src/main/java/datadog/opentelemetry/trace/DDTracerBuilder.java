@@ -14,11 +14,13 @@ class DDTracerBuilder implements TracerBuilder {
 
   @Override
   public TracerBuilder setSchemaUrl(String schemaUrl) {
+    // Not supported
     return this;
   }
 
   @Override
   public TracerBuilder setInstrumentationVersion(String instrumentationScopeVersion) {
+    // Not supported
     return this;
   }
 

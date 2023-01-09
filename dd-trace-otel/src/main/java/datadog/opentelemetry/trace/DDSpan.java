@@ -1,56 +1,93 @@
 package datadog.opentelemetry.trace;
 
+import static io.opentelemetry.api.trace.StatusCode.ERROR;
+import static io.opentelemetry.api.trace.StatusCode.OK;
+import static io.opentelemetry.api.trace.StatusCode.UNSET;
+
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.StatusCode;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.ParametersAreNonnullByDefault;
 
-public class DDSpan implements Span {
+@ParametersAreNonnullByDefault
+class DDSpan implements Span {
+  private final AgentSpan delegate;
+  private StatusCode statusCode;
+  private boolean recording;
+
+  DDSpan(AgentSpan delegate) {
+    this.delegate = delegate;
+    this.statusCode = UNSET;
+    this.recording = true;
+  }
+
   @Override
   public <T> Span setAttribute(AttributeKey<T> key, T value) {
-    return null;
+    this.delegate.setTag(key.getKey(), value);
+    return this;
   }
 
   @Override
   public Span addEvent(String name, Attributes attributes) {
-    return null;
+    // Not supported
+    return this;
   }
 
   @Override
   public Span addEvent(String name, Attributes attributes, long timestamp, TimeUnit unit) {
-    return null;
+    // Not supported
+    return this;
   }
 
   @Override
   public Span setStatus(StatusCode statusCode, String description) {
-    return null;
+    if (this.statusCode == UNSET) {
+      this.statusCode = statusCode;
+      this.delegate.setError(statusCode == ERROR);
+      this.delegate.setErrorMessage(statusCode == ERROR ? description : null);
+    } else if (this.statusCode == ERROR && statusCode == OK) {
+      this.delegate.setError(false);
+      this.delegate.setErrorMessage(null);
+    }
+    return this;
   }
 
   @Override
   public Span recordException(Throwable exception, Attributes additionalAttributes) {
-    return null;
+    // Not supported
+    return this;
   }
 
   @Override
   public Span updateName(String name) {
-    return null;
+    this.delegate.setOperationName(name);
+    return this;
   }
 
   @Override
-  public void end() {}
+  public void end() {
+    this.recording = false;
+    this.delegate.finish();
+  }
 
   @Override
-  public void end(long timestamp, TimeUnit unit) {}
+  public void end(long timestamp, TimeUnit unit) {
+    this.recording = false;
+    this.delegate.finish(unit.toMicros(timestamp));
+  }
 
   @Override
   public SpanContext getSpanContext() {
-    return null;
+    return DDSpanContext.fromLocalSpan(this.delegate);
   }
 
   @Override
   public boolean isRecording() {
-    return false;
+    // TODO Should we use DDSpan.isFinished()?
+    return this.recording;
   }
 }
