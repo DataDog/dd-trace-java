@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.platform.commons.util.ReflectionUtils;
 import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.UniqueId;
@@ -65,7 +66,11 @@ public class TracingListener implements TestExecutionListener {
                       .getEngineId()
                       .map(versionsByEngineId::get)
                       .orElse(null);
-              DECORATE.afterStart(span, version);
+
+              String className = methodSource.getClassName();
+              Class<?> testClass = ReflectionUtils.loadClass(className).orElse(null);
+
+              DECORATE.afterStart(span, version, testClass);
               DECORATE.onTestStart(span, methodSource, testIdentifier);
             });
   }
@@ -124,12 +129,12 @@ public class TracingListener implements TestExecutionListener {
     // If @Disabled annotation is kept at type level, the instrumentation
     // reports every method annotated with @Test as skipped test.
     final String testSuite = classSource.getClassName();
-    final List<String> testNames =
-        new ArrayList<>(DECORATE.testNames(classSource.getJavaClass(), Test.class));
+    Class<?> testClass = classSource.getJavaClass();
+    final List<String> testNames = new ArrayList<>(DECORATE.testNames(testClass, Test.class));
 
     for (final String testName : testNames) {
       final AgentSpan span = startSpan("junit.test");
-      DECORATE.afterStart(span, version);
+      DECORATE.afterStart(span, version, testClass);
       DECORATE.onTestIgnore(span, testSuite, testName, reason);
       DECORATE.beforeFinish(span);
       // We set a duration of 1 ns, because a span with duration==0 has a special treatment in the
@@ -143,8 +148,11 @@ public class TracingListener implements TestExecutionListener {
     final String testSuite = methodSource.getClassName();
     final String testName = methodSource.getMethodName();
 
+    String className = methodSource.getClassName();
+    Class<?> testClass = ReflectionUtils.loadClass(className).orElse(null);
+
     final AgentSpan span = startSpan("junit.test");
-    DECORATE.afterStart(span, version);
+    DECORATE.afterStart(span, version, testClass);
     DECORATE.onTestIgnore(span, testSuite, testName, reason);
     DECORATE.beforeFinish(span);
     // We set a duration of 1 ns, because a span with duration==0 has a special treatment in the

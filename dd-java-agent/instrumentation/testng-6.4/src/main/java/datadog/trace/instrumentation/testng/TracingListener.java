@@ -7,6 +7,7 @@ import static datadog.trace.instrumentation.testng.TestNGDecorator.DECORATE;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import org.testng.IClass;
 import org.testng.ITestContext;
 import org.testng.ITestListener;
 import org.testng.ITestResult;
@@ -34,7 +35,8 @@ public class TracingListener implements ITestListener {
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
 
-    DECORATE.afterStart(span, version);
+    IClass testClass = result.getTestClass();
+    DECORATE.afterStart(span, version, testClass != null ? testClass.getRealClass() : null);
     DECORATE.onTestStart(span, result);
   }
 

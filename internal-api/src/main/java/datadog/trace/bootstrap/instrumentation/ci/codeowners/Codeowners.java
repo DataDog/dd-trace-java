@@ -8,6 +8,7 @@ import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
+import javax.annotation.Nullable;
 
 /**
  * @see <a
@@ -30,9 +31,9 @@ public class Codeowners {
    * @param path <b>Absolute</b> path to a file/folder inside the repository
    * @return the list of teams/people who own the provided path
    */
-  public Collection<String> getOwners(String path) {
+  public @Nullable Collection<String> getOwners(String path) {
     if (!path.startsWith(repoRoot)) {
-      return Collections.emptyList();
+      return null;
     }
 
     char[] relativePath = new char[path.length() - repoRoot.length()];
@@ -43,7 +44,7 @@ public class Codeowners {
         return entry.getOwners();
       }
     }
-    return Collections.emptyList();
+    return null;
   }
 
   public static Codeowners parse(String repoRoot, Reader r) throws IOException {

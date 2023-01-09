@@ -15,33 +15,28 @@ public class CodeownersProvider {
   private static final String CODEOWNERS_FILE_NAME = "CODEOWNERS";
 
   public Codeowners build(String ciWorkspace) {
-    return firstNonNull(
-        parseIfExists(ciWorkspace, CODEOWNERS_FILE_NAME),
-        parseIfExists(ciWorkspace, ".github", CODEOWNERS_FILE_NAME),
-        parseIfExists(ciWorkspace, ".gitlab", CODEOWNERS_FILE_NAME),
-        parseIfExists(ciWorkspace, "docs", CODEOWNERS_FILE_NAME));
+    return find(
+        ciWorkspace,
+        Paths.get(CODEOWNERS_FILE_NAME),
+        Paths.get(".github", CODEOWNERS_FILE_NAME),
+        Paths.get(".gitlab", CODEOWNERS_FILE_NAME),
+        Paths.get("docs", CODEOWNERS_FILE_NAME));
   }
 
-  private Codeowners firstNonNull(Codeowners... candidates) {
-    for (Codeowners candidate : candidates) {
-      if (candidate != null) {
-        return candidate;
+  private Codeowners find(String repoRoot, Path... possibleRelativePaths) {
+    Path rootPath = Paths.get(repoRoot);
+    for (Path relativePath : possibleRelativePaths) {
+      Path path = rootPath.resolve(relativePath);
+      try {
+        if (Files.exists(path)) {
+          try (Reader reader = Files.newBufferedReader(path)) {
+            return Codeowners.parse(repoRoot, reader);
+          }
+        }
+      } catch (IOException e) {
+        log.error("Could not read CODEOWNERS file from {}", path, e);
       }
     }
     return Codeowners.EMPTY;
-  }
-
-  private Codeowners parseIfExists(String repoRoot, String... relativePath) {
-    Path path = Paths.get(repoRoot, relativePath);
-    try {
-      if (Files.exists(path)) {
-        try (Reader reader = Files.newBufferedReader(path)) {
-          return Codeowners.parse(repoRoot, reader);
-        }
-      }
-    } catch (IOException e) {
-      log.error("Could not read CODEOWNERS file from {}", path, e);
-    }
-    return null;
   }
 }
