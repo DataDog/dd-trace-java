@@ -792,7 +792,7 @@ public class Agent {
                   EndpointCheckpointer endpointCheckpointer =
                       (EndpointCheckpointer)
                           AGENT_CLASSLOADER
-                              .loadClass("datadog.trace.core.jfr.openjdk.JFRCheckpointer")
+                              .loadClass("com.datadog.profiling.controller.openjdk.JFRCheckpointer")
                               .getDeclaredConstructor()
                               .newInstance();
                   tracer.registerCheckpointer(endpointCheckpointer);

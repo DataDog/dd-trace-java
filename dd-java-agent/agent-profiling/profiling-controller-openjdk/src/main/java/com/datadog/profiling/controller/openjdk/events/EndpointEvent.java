@@ -1,7 +1,7 @@
-package datadog.trace.core.jfr.openjdk;
+package com.datadog.profiling.controller.openjdk.events;
 
-import datadog.trace.core.DDSpan;
-import datadog.trace.core.EndpointTracker;
+import datadog.trace.api.EndpointTracker;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.TimeUnit;
 import jdk.jfr.Category;
 import jdk.jfr.Description;
@@ -25,13 +25,13 @@ public class EndpointEvent extends Event implements EndpointTracker {
   @Label("Local Root Span Id")
   private final long localRootSpanId;
 
-  public EndpointEvent(final DDSpan span) {
-    this.localRootSpanId = span.getSpanId();
+  public EndpointEvent(long rootSpanId) {
+    this.localRootSpanId = rootSpanId;
     begin();
   }
 
   @Override
-  public void endpointWritten(DDSpan span, boolean traceSampled, boolean checkpointsSampled) {
+  public void endpointWritten(AgentSpan span) {
     if (span.getDurationNano() >= TEN_MILLISECONDS && shouldCommit()) {
       end();
       this.endpoint = span.getResourceName().toString();

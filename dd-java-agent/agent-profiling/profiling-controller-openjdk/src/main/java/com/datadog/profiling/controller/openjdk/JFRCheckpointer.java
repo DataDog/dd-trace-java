@@ -1,11 +1,12 @@
-package datadog.trace.core.jfr.openjdk;
+package com.datadog.profiling.controller.openjdk;
 
+import com.datadog.profiling.controller.openjdk.events.EndpointEvent;
+import com.datadog.profiling.utils.ExcludedVersions;
 import datadog.trace.api.EndpointCheckpointer;
+import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.core.DDSpan;
-import datadog.trace.core.EndpointTracker;
 import jdk.jfr.EventType;
 
 public class JFRCheckpointer implements EndpointCheckpointer {
@@ -29,26 +30,16 @@ public class JFRCheckpointer implements EndpointCheckpointer {
   }
 
   @Override
-  public final void onRootSpanFinished(final AgentSpan rootSpan, final boolean published) {
-    if (isEndpointCollectionEnabled) {
-      if (rootSpan instanceof DDSpan) {
-        DDSpan span = (DDSpan) rootSpan;
-        EndpointTracker tracker = span.getEndpointTracker();
-        if (tracker != null) {
-          boolean traceSampled = published && !span.eligibleForDropping();
-          tracker.endpointWritten(span, traceSampled, true);
-        }
-      }
+  public final void onRootSpanFinished(final AgentSpan rootSpan, EndpointTracker tracker) {
+    if (isEndpointCollectionEnabled && tracker != null) {
+      tracker.endpointWritten(rootSpan);
     }
   }
 
   @Override
-  public void onRootSpanStarted(AgentSpan rootSpan) {
-    if (isEndpointCollectionEnabled) {
-      if (rootSpan instanceof DDSpan) {
-        DDSpan span = (DDSpan) rootSpan;
-        span.setEndpointTracker(new EndpointEvent(span));
-      }
-    }
+  public EndpointTracker onRootSpanStarted(AgentSpan rootSpan) {
+    return isEndpointCollectionEnabled
+        ? new EndpointEvent(rootSpan.getSpanId())
+        : EndpointTracker.NO_OP;
   }
 }
