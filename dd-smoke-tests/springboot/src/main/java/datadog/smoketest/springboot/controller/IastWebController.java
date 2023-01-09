@@ -95,7 +95,7 @@ public class IastWebController {
     return "Header is: " + header;
   }
 
-  @GetMapping("/path_param/{param}")
+  @GetMapping("/path_param")
   public String pathParam(@PathParam("param") String param) {
     return "PathParam is: " + param;
   }

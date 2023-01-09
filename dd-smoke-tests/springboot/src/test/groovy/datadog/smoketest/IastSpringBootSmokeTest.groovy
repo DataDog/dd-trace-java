@@ -265,7 +265,7 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
 
   def "path param taint string"() {
     setup:
-    String url = "http://localhost:${httpPort}/path_param/test"
+    String url = "http://localhost:${httpPort}/path_param?param=test"
     def request = new Request.Builder().url(url).get().build()
 
     when:
