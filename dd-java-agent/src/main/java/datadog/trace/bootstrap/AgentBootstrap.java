@@ -51,6 +51,8 @@ public final class AgentBootstrap {
     }
 
     try {
+      String agentVersion = AgentJar.getAgentVersion();
+      System.out.println(agentVersion);
       final URL agentJarURL = installAgentJar(inst);
       System.out.println(agentArgs);
       if (agentArgs != null && !agentArgs.equals("")) {
