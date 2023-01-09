@@ -36,7 +36,13 @@ public class DDSpanContext implements SpanContext {
 
   @Override
   public TraceFlags getTraceFlags() {
-    return TraceFlags.getDefault(); // TODO
+    // TODO Get the sampling state
+    // Otherwise, check the current sampling rules for deferred sampling rules:
+    // > If a component deferred or delayed the decision and only a subset of telemetry will be
+    // recorded, the sampled flag should be propagated unchanged.
+    // > It should be set to 0 as the default option when the trace is initiated by this component.
+    // Reference: https://www.w3.org/TR/trace-context/#sampled-flag
+    return TraceFlags.getDefault();
   }
 
   @Override
