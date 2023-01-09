@@ -14,7 +14,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 public class DDSpanBuilder implements SpanBuilder {
-  private AgentTracer.SpanBuilder delegate;
+  private final AgentTracer.SpanBuilder delegate;
 
   public DDSpanBuilder(AgentTracer.SpanBuilder delegate) {
     this.delegate = delegate;
