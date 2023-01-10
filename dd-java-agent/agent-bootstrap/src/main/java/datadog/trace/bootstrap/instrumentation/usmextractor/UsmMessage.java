@@ -6,7 +6,6 @@ import com.sun.jna.NativeLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.security.ssl.SSLSocketImpl;
-//import datadog.common.process.PidHelper;
 
 import java.net.Inet4Address;
 import java.net.Inet6Address;
@@ -100,10 +99,8 @@ public interface UsmMessage {
       //we put 0 as netns
       pointer.setInt(offset, 0);
       offset += Integer.BYTES;
-      //encode Pid
+      //use 0 for Pid, since we determine the Pid on the kernel side using the bpf helper bpf_get_current_pid_tgid
       pointer.setInt(offset, 0);
-      //TODO: uncomment after rebasing with main branch, as PidHelper was moved under internal-api
-      //pointer.setInt(offset, PidHelper.PID.intValue());
       offset += Integer.BYTES;
 
       //we turn on the first bit - indicating it is a tcp connection
