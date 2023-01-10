@@ -38,7 +38,7 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
     if (auxiliaryProfiler.isEnabled()) {
       auxiliaryRecording = auxiliaryProfiler.start();
       if (auxiliaryRecording != null) {
-        disableOverridenEvents();
+        disableOverriddenEvents();
       }
     } else {
       auxiliaryRecording = null;
@@ -53,7 +53,7 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
     if (auxiliaryProfiler.isEnabled()) {
       auxiliaryRecording = auxiliaryProfiler.start();
       if (auxiliaryRecording != null) {
-        disableOverridenEvents();
+        disableOverriddenEvents();
       }
     } else {
       auxiliaryRecording = null;
@@ -62,7 +62,7 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
     log.debug("Recording {} started", recording.getName());
   }
 
-  private void disableOverridenEvents() {
+  private void disableOverriddenEvents() {
     for (ProfilingMode mode : auxiliaryProfiler.enabledModes()) {
       switch (mode) {
         case CPU:
@@ -75,7 +75,10 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
           }
         case WALL:
           {
-            // do nothing here for now - this mode is not really supported yet
+            log.info("Disabling built-in wall-time tracing events");
+            recording.disable("jdk.JavaMonitorWait");
+            recording.disable("jdk.ThreadPark");
+            recording.disable("jdk.ThreadSleep");
             break;
           }
         case ALLOCATION:
