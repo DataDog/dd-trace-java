@@ -843,14 +843,14 @@ class StringModuleTest extends IastModuleImplTestBase {
     "a==>123<==b==>123<==c"               | "A==>123<==B==>123<==C"     | "en"   | 9          | 9            | [[1, 3], [5, 3]]
     "a==>123<==b"                         | "A==>123<==B"               | "en"   | 5          | 5            | [[1, 3]]
     "a==>def<==b"                         | "A==>DEF<==B"               | "en"   | 5          | 5            | [[1, 3]]
-    "i̇̀==>def<==b"                       | "ÌD==>EFB<=="              | "lt"   | 7          | 6            | [[3, 3]]
-    "i̇̀==>def<==b"                       | "İ̀==>DEF<==B"             | "en"   | 7          | 7            | [[3, 3]]
-    "i̇̀==>def<==b==>def<=="              | "İ̀==>DEF<==B==>DEF<=="    | "en"   | 10         | 10           | [[3, 3], [7, 3]]
+    "i̇̀==>def<==b"                         | "ÌD==>EFB<=="               | "lt"   | 7          | 6            | [[3, 3]]
+    "i̇̀==>def<==b"                         | "İ̀==>DEF<==B"               | "en"   | 7          | 7            | [[3, 3]]
+    "i̇̀==>def<==b==>def<=="                | "İ̀==>DEF<==B==>DEF<=="      | "en"   | 10         | 10           | [[3, 3], [7, 3]]
     "\u00cc==>def<==b"                    | "\u00cc==>DEF<==B"          | "lt"   | 5          | 5            | [[1, 3]]
-    "i̇̀i̇̀==>fff<==f123b"                | "ÌÌFF==>FF1<==23B"        | "lt"   | 14         | 12           | [[6, 3]]
-    "i̇̀i̇̀i̇̀i̇̀EEEE==>fff<=="           | "ÌÌÌÌEEEEFFF"           | "lt"   | 19         | 15           | []
-    "i̇̀i̇̀i̇̀i̇̀EEEE==>fff<==H==>GGG<==" | "ÌÌÌÌEEEEFFFH==>GGG<==" | "lt"   | 23         | 19           | [[16, 3]]
-    "i̇̀i̇̀i̇̀EEEE==>fffgggg<=="          | "ÌÌÌEEEEFFF==>GGGG<=="   | "lt"   | 20         | 17           | [[13, 4]]
+    "i̇̀i̇̀==>fff<==f123b"                    | "ÌÌFF==>FF1<==23B"          | "lt"   | 14         | 12           | [[6, 3]]
+    "i̇̀i̇̀i̇̀i̇̀EEEE==>fff<=="                   | "ÌÌÌÌEEEEFFF"               | "lt"   | 19         | 15           | []
+    "i̇̀i̇̀i̇̀i̇̀EEEE==>fff<==H==>GGG<=="         | "ÌÌÌÌEEEEFFFH==>GGG<=="     | "lt"   | 23         | 19           | [[16, 3]]
+    "i̇̀i̇̀i̇̀EEEE==>fffgggg<=="                | "ÌÌÌEEEEFFF==>GGGG<=="      | "lt"   | 20         | 17           | [[13, 4]]
   }
 
 
@@ -888,8 +888,8 @@ class StringModuleTest extends IastModuleImplTestBase {
     testString                   | expected               | locale | lengthSelf | lengthResult | expectedRanges
     "A==>123<==B"                | "a==>123<==b"          | "en"   | 5          | 5            | [[1, 3]]
     "\u00cc\u00cc==>123<==B"     | "ìì==>123<==b"         | "en"   | 6          | 6            | [[2, 3]]
-    "\u00cc\u00cc==>123<==B"     | "i̇==>̀i̇<==̀123b"     | "lt"   | 6          | 10           | [[2, 3]]
-    "\u00cc\u00ccFFFF==>123<==B" | "i̇̀i̇̀==>fff<==f123b" | "lt"   | 10         | 14           | [[6, 3]]
+    "\u00cc\u00cc==>123<==B"     | "i̇==>̀i̇<==̀123b"         | "lt"   | 6          | 10           | [[2, 3]]
+    "\u00cc\u00ccFFFF==>123<==B" | "i̇̀i̇̀==>fff<==f123b"     | "lt"   | 10         | 14           | [[6, 3]]
     "A==>\u00cc\u00cc\u00cc<==B" | "a==>ììì<==b"          | "en"   | 5          | 5            | [[1, 3]]
   }
 }
