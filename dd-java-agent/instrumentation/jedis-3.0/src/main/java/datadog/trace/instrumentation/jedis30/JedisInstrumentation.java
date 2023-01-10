@@ -1,14 +1,5 @@
 package datadog.trace.instrumentation.jedis30;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.jedis30.JedisClientDecorator.DECORATE;
-import static datadog.trace.instrumentation.jedis30.JedisClientDecorator.REDIS_COMMAND;
-import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -16,6 +7,13 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import redis.clients.jedis.Protocol;
 import redis.clients.jedis.commands.ProtocolCommand;
+
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.jedis30.JedisClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.jedis30.JedisClientDecorator.REDIS_COMMAND;
+import static net.bytebuddy.matcher.ElementMatchers.*;
 
 @AutoService(Instrumenter.class)
 public final class JedisInstrumentation extends Instrumenter.Tracing
@@ -61,6 +59,7 @@ public final class JedisInstrumentation extends Instrumenter.Tracing
         // us if that changes
         DECORATE.onStatement(span, new String(command.getRaw()));
       }
+      DECORATE.setRaw(span,new String(command.getRaw()));
       return activateSpan(span);
     }
 
