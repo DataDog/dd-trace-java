@@ -225,6 +225,69 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     waitForSpan(new PollingConditions(timeout: 5), hasVulnerability(type("PATH_TRAVERSAL")))
   }
 
+  def "parameter binding taints bean strings"() {
+    setup:
+    String url = "http://localhost:${httpPort}/param_binding/test?name=parameter&value=binding"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    def responseBodyStr = response.body().string()
+    responseBodyStr != null
+    responseBodyStr.contains("Test bean -> name: parameter, value: binding")
+    Boolean foundTaintedString = false
+    checkLog {
+      if (it.contains('taint') && it.contains('Test bean -> name: parameter, value: binding')) {
+        foundTaintedString = true
+      }
+    }
+    foundTaintedString
+  }
+
+  def "request header taint string"() {
+    setup:
+    String url = "http://localhost:${httpPort}/request_header/test"
+    def request = new Request.Builder().url(url).header("test-header", "test").get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    def responseBodyStr = response.body().string()
+    responseBodyStr != null
+    responseBodyStr.contains("Header is: test")
+    Boolean foundTaintedString = false
+    checkLog {
+      if (it.contains('taint') && it.contains('Header is: test')) {
+        foundTaintedString = true
+      }
+    }
+    foundTaintedString
+  }
+
+  def "path param taint string"() {
+    setup:
+    String url = "http://localhost:${httpPort}/path_param?param=test"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    def responseBodyStr = response.body().string()
+    responseBodyStr != null
+    responseBodyStr.contains("PathParam is: test")
+    Boolean foundTaintedString = false
+    checkLog {
+      if (it.contains('taint') && it.contains('PathParam is: test')) {
+        foundTaintedString = true
+      }
+    }
+    foundTaintedString
+  }
+
   private static Function<DecodedSpan, Boolean> hasMetric(final String name, final Object value) {
     return { span -> value == span.metrics.get(name) }
   }
