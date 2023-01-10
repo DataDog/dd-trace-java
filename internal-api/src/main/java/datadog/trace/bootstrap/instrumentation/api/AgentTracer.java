@@ -2,10 +2,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 
-import datadog.trace.api.DDSpanId;
-import datadog.trace.api.DDTraceId;
-import datadog.trace.api.EndpointCheckpointer;
-import datadog.trace.api.TracePropagationStyle;
+import datadog.trace.api.*;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -366,10 +363,12 @@ public class AgentTracer {
     }
 
     @Override
-    public void onRootSpanFinished(AgentSpan root, boolean published) {}
+    public void onRootSpanFinished(AgentSpan root, EndpointTracker tracker) {}
 
     @Override
-    public void onRootSpanStarted(AgentSpan root) {}
+    public EndpointTracker onRootSpanStarted(AgentSpan root) {
+      return EndpointTracker.NO_OP;
+    }
 
     @Override
     public void setDataStreamCheckpoint(AgentSpan span, LinkedHashMap<String, String> sortedTags) {}

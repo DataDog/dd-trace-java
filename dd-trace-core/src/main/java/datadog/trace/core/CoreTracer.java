@@ -19,6 +19,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.EndpointCheckpointerHolder;
+import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.TracePropagationStyle;
@@ -199,13 +200,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public void onRootSpanFinished(AgentSpan root, boolean published) {
-    endpointCheckpointer.onRootSpanFinished(root, published);
+  public void onRootSpanFinished(AgentSpan root, EndpointTracker tracker) {
+    endpointCheckpointer.onRootSpanFinished(root, tracker);
   }
 
   @Override
-  public void onRootSpanStarted(AgentSpan root) {
-    endpointCheckpointer.onRootSpanStarted(root);
+  public EndpointTracker onRootSpanStarted(AgentSpan root) {
+    return endpointCheckpointer.onRootSpanStarted(root);
   }
 
   public static class CoreTracerBuilder {
@@ -894,7 +895,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         writer.incrementDropCounts(writtenTrace.size());
       }
       if (null != rootSpan) {
-        onRootSpanFinished(rootSpan, published);
+        onRootSpanFinished(rootSpan, rootSpan.getEndpointTracker());
 
         // request context is propagated to contexts in child spans
         // Assume here that if present it will be so starting in the top span
@@ -1125,7 +1126,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private DDSpan buildSpan() {
       DDSpan span = DDSpan.create(timestampMicro, buildSpanContext());
       if (span.isLocalRootSpan()) {
-        tracer.onRootSpanStarted(span);
+        EndpointTracker tracker = tracer.onRootSpanStarted(span);
+        span.setEndpointTracker(tracker);
       }
       return span;
     }
