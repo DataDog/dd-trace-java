@@ -19,6 +19,7 @@ import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.MonitoringImpl
+import datadog.trace.core.monitor.TracerHealthMetrics
 import datadog.trace.core.propagation.DatadogTags
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
@@ -700,7 +701,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
       numErrors.incrementAndGet()
     }
 
-    def healthMetrics = new HealthMetrics(statsd)
+    def healthMetrics = new TracerHealthMetrics(statsd)
     def writer = DDIntakeWriter.builder()
       .intakeApi(api)
       .trackType(trackType)

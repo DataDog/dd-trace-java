@@ -17,7 +17,7 @@ import static datadog.trace.core.propagation.B3HttpCodec.TRACE_ID_KEY
 
 class B3HttpExtractorTest extends DDSpecification {
 
-  HttpCodec.Extractor extractor = B3HttpCodec.newExtractor(["SOME_HEADER": "some-tag"])
+  HttpCodec.Extractor extractor = B3HttpCodec.newExtractor(["SOME_HEADER": "some-tag"],[:])
 
   boolean origAppSecActive
 
@@ -101,9 +101,9 @@ class B3HttpExtractorTest extends DDSpecification {
     where:
     b3      | expectedTraceId | expectedSpanId | expectedSamplingPriority
     "2-3-0" | 2G              | 3G             | PrioritySampling.SAMPLER_DROP
-    "2-3"   | 2G              | 3G             | PrioritySampling.SAMPLER_KEEP
-    "0"     | 1G              | 2G             | PrioritySampling.SAMPLER_DROP
-    null    | 1G              | 2G             | PrioritySampling.SAMPLER_KEEP
+    "2-3"   | 2G              | 3G             | PrioritySampling.UNSET
+    "0"     | 1G              | 2G             | PrioritySampling.SAMPLER_KEEP // B3 Multi used instead
+    null    | 1G              | 2G             | PrioritySampling.SAMPLER_KEEP // B3 Multi used instead
 
     traceId = 1G
     spanId = 2G
@@ -125,12 +125,12 @@ class B3HttpExtractorTest extends DDSpecification {
     }
 
     when:
-    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    final TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
 
     then:
     context.traceId == DDTraceId.from("$expectedTraceId")
     context.spanId == DDSpanId.from("$expectedSpanId")
-    context.baggage == [:]
+    context.baggageItems().empty
     context.tags == [
       "b3.traceid": context.traceId.toHexStringOrOriginal(),
       "b3.spanid" : DDSpanId.toHexString(context.spanId),
@@ -142,9 +142,9 @@ class B3HttpExtractorTest extends DDSpecification {
     where:
     b3      | expectedTraceId | expectedSpanId | expectedSamplingPriority
     "2-3-0" | 2G              | 3G             | PrioritySampling.SAMPLER_DROP
-    "2-3"   | 2G              | 3G             | PrioritySampling.SAMPLER_KEEP
-    "0"     | 1G              | 2G             | PrioritySampling.SAMPLER_DROP
-    null    | 1G              | 2G             | PrioritySampling.SAMPLER_KEEP
+    "2-3"   | 2G              | 3G             | PrioritySampling.UNSET
+    "0"     | 1G              | 2G             | PrioritySampling.SAMPLER_KEEP // B3 Multi used instead
+    null    | 1G              | 2G             | PrioritySampling.SAMPLER_KEEP // B3 Multi used instead
 
     traceId = 1G
     spanId = 2G

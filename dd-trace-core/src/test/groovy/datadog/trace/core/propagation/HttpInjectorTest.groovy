@@ -11,18 +11,19 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.test.DDCoreSpecification
 
-import static datadog.trace.api.PropagationStyle.B3
-import static datadog.trace.api.PropagationStyle.DATADOG
+import static datadog.trace.api.TracePropagationStyle.B3
+import static datadog.trace.api.TracePropagationStyle.B3MULTI
+import static datadog.trace.api.TracePropagationStyle.DATADOG
 import static datadog.trace.core.propagation.B3HttpCodec.B3_KEY
 
 class HttpInjectorTest extends DDCoreSpecification {
 
-  def "inject http headers"() {
+  def "inject http headers using #styles"() {
     setup:
     Config config = Mock(Config) {
-      getPropagationStylesToInject() >> styles
+      getTracePropagationStylesToInject() >> styles
     }
-    HttpCodec.Injector injector = HttpCodec.createInjector(config)
+    HttpCodec.Injector injector = HttpCodec.createInjector(config.getTracePropagationStylesToInject(), [:])
 
     def traceId = DDTraceId.ONE
     def spanId = 2
@@ -70,11 +71,15 @@ class HttpInjectorTest extends DDCoreSpecification {
       }
       1 * carrier.put('x-datadog-tags', '_dd.p.usr=123')
     }
-    if (styles.contains(B3)) {
+    if (styles.contains(B3MULTI)) {
       1 * carrier.put(B3HttpCodec.TRACE_ID_KEY, traceId.toString())
       1 * carrier.put(B3HttpCodec.SPAN_ID_KEY, spanId.toString())
       if (samplingPriority != UNSET) {
         1 * carrier.put(B3HttpCodec.SAMPLING_PRIORITY_KEY, "1")
+      }
+    }
+    if (styles.contains(B3)) {
+      if (samplingPriority != UNSET) {
         1 * carrier.put(B3_KEY, traceId.toString() + "-" + spanId.toString() + "-1")
       } else {
         1 * carrier.put(B3_KEY, traceId.toString() + "-" + spanId.toString())
@@ -87,14 +92,21 @@ class HttpInjectorTest extends DDCoreSpecification {
 
     where:
     // spotless:off
-    styles        | samplingPriority | samplingMechanism | origin
-    [DATADOG, B3] | UNSET            | UNKNOWN           | null
-    [DATADOG, B3] | SAMPLER_KEEP     | DEFAULT           | "saipan"
-    [DATADOG]     | UNSET            | UNKNOWN           | null
-    [DATADOG]     | SAMPLER_KEEP     | DEFAULT           | "saipan"
-    [B3]          | UNSET            | UNKNOWN           | null
-    [B3]          | SAMPLER_KEEP     | DEFAULT           | "saipan"
-    [B3, DATADOG] | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    styles                 | samplingPriority | samplingMechanism | origin
+    [DATADOG, B3]          | UNSET            | UNKNOWN           | null
+    [DATADOG, B3]          | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    [DATADOG]              | UNSET            | UNKNOWN           | null
+    [DATADOG]              | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    [B3]                   | UNSET            | UNKNOWN           | null
+    [B3]                   | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    [B3, DATADOG]          | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    [DATADOG, B3MULTI, B3] | UNSET            | UNKNOWN           | null
+    [DATADOG, B3MULTI, B3] | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    [DATADOG, B3MULTI]     | UNSET            | UNKNOWN           | null
+    [DATADOG, B3MULTI]     | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    [B3MULTI]              | UNSET            | UNKNOWN           | null
+    [B3MULTI]              | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    [B3MULTI, DATADOG]     | SAMPLER_KEEP     | DEFAULT           | "saipan"
     // spotless:on
   }
 
@@ -116,7 +128,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       "fakeResource",
       samplingPriority,
       origin,
-      ["k1": "v1", "k2": "v2"],
+      ["k1": "v1", "k2": "v2","some-baggage-item":"some-baggage-value"],
       false,
       "fakeType",
       0,
@@ -130,7 +142,8 @@ class HttpInjectorTest extends DDCoreSpecification {
     final Map<String, String> carrier = Mock()
 
     when:
-    HttpCodec.inject(mockedContext, carrier, MapSetter.INSTANCE, style)
+    def injector = HttpCodec.createInjector([style].toSet(), ["some-baggage-item": "SOME_HEADER"],)
+    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
 
     then:
     if (style == DATADOG) {
@@ -138,6 +151,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       1 * carrier.put(DatadogHttpCodec.SPAN_ID_KEY, spanId.toString())
       1 * carrier.put(DatadogHttpCodec.OT_BAGGAGE_PREFIX + "k1", "v1")
       1 * carrier.put(DatadogHttpCodec.OT_BAGGAGE_PREFIX + "k2", "v2")
+      1 * carrier.put("SOME_HEADER", "some-baggage-value")
       if (samplingPriority != UNSET) {
         1 * carrier.put(DatadogHttpCodec.SAMPLING_PRIORITY_KEY, "$samplingPriority")
       }
@@ -145,11 +159,14 @@ class HttpInjectorTest extends DDCoreSpecification {
         1 * carrier.put(DatadogHttpCodec.ORIGIN_KEY, origin)
       }
       1 * carrier.put('x-datadog-tags', '_dd.p.usr=123')
-    } else if (style == B3) {
+    } else if (style == B3MULTI) {
       1 * carrier.put(B3HttpCodec.TRACE_ID_KEY, traceId.toString())
       1 * carrier.put(B3HttpCodec.SPAN_ID_KEY, spanId.toString())
       if (samplingPriority != UNSET) {
         1 * carrier.put(B3HttpCodec.SAMPLING_PRIORITY_KEY, "1")
+      }
+    } else if (style == B3) {
+      if (samplingPriority != UNSET) {
         1 * carrier.put(B3_KEY, traceId.toString() + "-" + spanId.toString() + "-1")
       } else {
         1 * carrier.put(B3_KEY, traceId.toString() + "-" + spanId.toString())
@@ -169,6 +186,9 @@ class HttpInjectorTest extends DDCoreSpecification {
     B3      | UNSET            | UNKNOWN           | null
     B3      | SAMPLER_KEEP     | DEFAULT           | null
     B3      | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    B3MULTI | UNSET            | UNKNOWN           | null
+    B3MULTI | SAMPLER_KEEP     | DEFAULT           | null
+    B3MULTI | SAMPLER_KEEP     | DEFAULT           | "saipan"
     // spotless:on
   }
 }

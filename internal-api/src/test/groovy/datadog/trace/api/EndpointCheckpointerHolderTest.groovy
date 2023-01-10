@@ -19,7 +19,6 @@ class EndpointCheckpointerHolderTest extends DDSpecification {
     AgentSpan rootSpan = Stub(AgentSpan)
     rootSpan.getSpanId() >> localRootSpanId
     rootSpan.getResourceName() >> UTF8BytesString.create(resource)
-    rootSpan.isEmittingCheckpoints() >> emitCheckpoints
 
     AgentSpan span = Stub(AgentSpan)
     span.getSpanId() >> spanId
@@ -28,29 +27,20 @@ class EndpointCheckpointerHolderTest extends DDSpecification {
     int rootSpanCount = register ? 1 : 0
 
     when:
-    sut.onRootSpanStarted(rootSpan)
+    def tracker = sut.onRootSpanStarted(rootSpan)
     then:
     rootSpanCount * rootSpanCheckpointer.onRootSpanStarted(rootSpan)
 
     when:
-    sut.onRootSpanFinished(rootSpan, true)
+    sut.onRootSpanFinished(rootSpan, tracker)
     then:
-    rootSpanCount * rootSpanCheckpointer.onRootSpanFinished(rootSpan, true)
-
-    when:
-    sut.onRootSpanFinished(rootSpan, false)
-    then:
-    rootSpanCount * rootSpanCheckpointer.onRootSpanFinished(rootSpan, false)
+    rootSpanCount * rootSpanCheckpointer.onRootSpanFinished(rootSpan, tracker)
 
     where:
-    drop  | register | emitCheckpoints
-    true  | true     | true
-    true  | true     | false
-    true  | false    | true
-    true  | false    | false
-    false | true     | true
-    false | true     | false
-    false | false    | true
-    false | false    | false
+    drop  | register
+    true  | true
+    true  | false
+    false | true
+    false | false
   }
 }

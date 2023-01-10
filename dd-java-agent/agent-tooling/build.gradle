@@ -48,7 +48,6 @@ dependencies {
   api deps.bytebuddyagent
 
   api project(':dd-trace-core')
-  api project(':dd-trace-core:jfr-openjdk')
 
   implementation project(':dd-java-agent:agent-crashtracking')
 

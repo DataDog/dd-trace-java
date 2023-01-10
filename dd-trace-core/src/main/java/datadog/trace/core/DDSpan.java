@@ -13,6 +13,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.profiling.TracingContextTracker;
@@ -578,6 +579,12 @@ public class DDSpan
     if (context.setSamplingPriority(samplingPriority, samplingMechanism)) {
       setMetric(rate, sampleRate);
     }
+    return this;
+  }
+
+  @Override
+  public DDSpan setSpanSamplingPriority(double rate, int limit) {
+    context.setSpanSamplingPriority(rate, limit);
     return this;
   }
 

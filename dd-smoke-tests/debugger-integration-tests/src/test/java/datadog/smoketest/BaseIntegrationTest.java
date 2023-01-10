@@ -7,7 +7,7 @@ import static org.junit.Assert.assertNotNull;
 import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.ProbeStatus;
-import com.datadog.debugger.probe.SnapshotProbe;
+import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
@@ -215,19 +215,24 @@ public abstract class BaseIntegrationTest {
     }
   }
 
-  protected Configuration createConfig(SnapshotProbe snapshotProbe) {
-    return createConfig(Arrays.asList(snapshotProbe));
+  protected Configuration createConfig(LogProbe logProbe) {
+    return createConfig(Arrays.asList(logProbe));
   }
 
-  protected Configuration createConfig(Collection<SnapshotProbe> snapshotProbes) {
-    return new Configuration(getAppId(), snapshotProbes);
+  protected Configuration createConfig(Collection<LogProbe> logProbes) {
+    return new Configuration(getAppId(), logProbes);
   }
 
   protected Configuration createConfig(
-      Collection<SnapshotProbe> snapshotProbes,
+      Collection<LogProbe> logProbes,
       Configuration.FilterList allowList,
       Configuration.FilterList denyList) {
-    return new Configuration(getAppId(), snapshotProbes, null, null, allowList, denyList, null);
+    return Configuration.builder()
+        .setService(getAppId())
+        .addLogProbes(logProbes)
+        .addAllowList(allowList)
+        .addDenyList(denyList)
+        .build();
   }
 
   protected void assertCaptureArgs(

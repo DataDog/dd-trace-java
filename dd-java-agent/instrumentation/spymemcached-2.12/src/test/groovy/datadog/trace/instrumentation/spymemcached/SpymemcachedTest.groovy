@@ -14,7 +14,6 @@ import net.spy.memcached.internal.CheckedOperationTimeoutException
 import net.spy.memcached.ops.Operation
 import net.spy.memcached.ops.OperationQueueFactory
 import org.testcontainers.containers.GenericContainer
-import spock.lang.Requires
 import spock.lang.Shared
 
 import java.time.Duration
@@ -30,8 +29,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static net.spy.memcached.ConnectionFactoryBuilder.Protocol.BINARY
 
-// Do not run tests on Java7 since testcontainers are not compatible with Java7
-@Requires({ jvm.java8Compatible })
 class SpymemcachedTest extends AgentTestRunner {
 
   @Shared

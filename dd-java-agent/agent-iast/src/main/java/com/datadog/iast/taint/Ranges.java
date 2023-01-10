@@ -52,12 +52,19 @@ public final class Ranges {
     }
   }
 
-  public static <E> RangesProvider<E> rangesProviderFor(
-      @Nonnull final TaintedObjects to, @Nonnull final E item) {
-    return new SingletonProvider<>(item, to);
+  public static Range[] mergeRanges(
+      final int offset, @Nonnull final Range[] rangesLeft, @Nonnull final Range[] rangesRight) {
+    final int nRanges = rangesLeft.length + rangesRight.length;
+    final Range[] ranges = new Range[nRanges];
+    if (rangesLeft.length > 0) {
+      System.arraycopy(rangesLeft, 0, ranges, 0, rangesLeft.length);
+    }
+    if (rangesRight.length > 0) {
+      Ranges.copyShift(rangesRight, ranges, rangesLeft.length, offset);
+    }
+    return ranges;
   }
 
-  @SuppressWarnings("unchecked")
   public static <E> RangesProvider<E> rangesProviderFor(
       @Nonnull final TaintedObjects to, @Nullable final E[] items) {
     if (items == null || items.length == 0) {
@@ -66,13 +73,72 @@ public final class Ranges {
     return new ArrayProvider<>(items, to);
   }
 
-  @SuppressWarnings("unchecked")
   public static <E> RangesProvider<E> rangesProviderFor(
       @Nonnull final TaintedObjects to, @Nullable final List<E> items) {
     if (items == null || items.isEmpty()) {
       return (RangesProvider<E>) EMPTY_PROVIDER;
     }
     return new ListProvider<>(items, to);
+  }
+
+  public static Range[] forSubstring(int offset, int length, final @Nonnull Range[] ranges) {
+
+    int[] includedRangesInterval = getIncludedRangesInterval(offset, length, ranges);
+
+    // No ranges in the interval
+    if (includedRangesInterval[0] == -1) {
+      return null;
+    }
+    final int firstRangeIncludedIndex = includedRangesInterval[0];
+    final int lastRangeIncludedIndex =
+        includedRangesInterval[1] != -1 ? includedRangesInterval[1] : ranges.length;
+    final int newRagesSize = lastRangeIncludedIndex - firstRangeIncludedIndex;
+    Range[] newRanges = new Range[newRagesSize];
+    for (int rangeIndex = firstRangeIncludedIndex, newRangeIndex = 0;
+        newRangeIndex < newRagesSize;
+        rangeIndex++, newRangeIndex++) {
+      Range range = ranges[rangeIndex];
+      if (offset == 0 && range.getStart() + range.getLength() <= length) {
+        newRanges[newRangeIndex] = range;
+      } else {
+        int newStart = range.getStart() - offset;
+        int newLength = range.getLength();
+        final int newEnd = newStart + newLength;
+        if (newStart < 0) {
+          newLength = newLength + newStart;
+          newStart = 0;
+        }
+        if (newEnd > length) {
+          newLength = length - newStart;
+        }
+        if (newLength > 0) {
+          newRanges[newRangeIndex] = new Range(newStart, newLength, range.getSource());
+        }
+      }
+    }
+
+    return newRanges;
+  }
+
+  public static int[] getIncludedRangesInterval(
+      int offset, int length, final @Nonnull Range[] ranges) {
+    // index of the first included range
+    int start = -1;
+    // index of the first not included range
+    int end = -1;
+    for (int rangeIndex = 0; rangeIndex < ranges.length; rangeIndex++) {
+      final Range rangeSelf = ranges[rangeIndex];
+      if (rangeSelf.getStart() < offset + length
+          && rangeSelf.getStart() + rangeSelf.getLength() > offset) {
+        if (start == -1) {
+          start = rangeIndex;
+        }
+      } else if (start != -1) {
+        end = rangeIndex;
+        break;
+      }
+    }
+    return new int[] {start, end};
   }
 
   public interface RangesProvider<E> {
@@ -83,42 +149,6 @@ public final class Ranges {
     E value(final int index);
 
     Range[] ranges(final E value);
-  }
-
-  private static class SingletonProvider<E> implements RangesProvider<E> {
-    private final E item;
-    private final Range[] ranges;
-
-    private final int rangeCount;
-
-    private SingletonProvider(@Nonnull final E item, @Nonnull final TaintedObjects to) {
-      this.item = item;
-      final TaintedObject tainted = to.get(item);
-      this.ranges = tainted == null ? null : tainted.getRanges();
-      this.rangeCount = tainted == null ? 0 : this.ranges.length;
-    }
-
-    @Override
-    public int rangeCount() {
-      return rangeCount;
-    }
-
-    @Override
-    public int size() {
-      return 1;
-    }
-
-    @Override
-    public E value(final int index) {
-      assert index == 0;
-      return item;
-    }
-
-    @Override
-    public Range[] ranges(final E value) {
-      assert value == item;
-      return ranges;
-    }
   }
 
   private abstract static class IterableProvider<E, LIST> implements RangesProvider<E> {
@@ -206,5 +236,37 @@ public final class Ranges {
     protected E item(@Nonnull final List<E> items, final int index) {
       return items.get(index);
     }
+  }
+
+  public static Range createIfDifferent(Range range, int start, int length) {
+    if (start != range.getStart() || length != range.getLength()) {
+      return new Range(start, length, range.getSource());
+    } else {
+      return range;
+    }
+  }
+
+  static int calculateSubstringSkippedRanges(int offset, int length, @Nonnull Range[] ranges) {
+    // calculate how many skipped ranges are there
+    int skippedRanges = 0;
+    for (int rangeIndex = 0; rangeIndex < ranges.length; rangeIndex++) {
+      final Range rangeSelf = ranges[rangeIndex];
+      if (rangeSelf.getStart() + rangeSelf.getLength() <= offset) {
+        skippedRanges++;
+      } else {
+        break;
+      }
+    }
+
+    for (int rangeIndex = ranges.length - 1; rangeIndex >= 0; rangeIndex--) {
+      final Range rangeSelf = ranges[rangeIndex];
+      if (rangeSelf.getStart() - offset >= length) {
+        skippedRanges++;
+      } else {
+        break;
+      }
+    }
+
+    return skippedRanges;
   }
 }

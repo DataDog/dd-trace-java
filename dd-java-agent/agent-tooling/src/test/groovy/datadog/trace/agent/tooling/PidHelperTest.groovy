@@ -6,10 +6,7 @@ import datadog.trace.util.PidHelper
 class PidHelperTest extends DDSpecification {
 
   def "PID is available everywhere we test"() {
-    when:
-    PidHelper.supplyIfAbsent(new PosixPidSupplier())
-
-    then:
+    expect:
     !PidHelper.getPid().isEmpty()
   }
 }

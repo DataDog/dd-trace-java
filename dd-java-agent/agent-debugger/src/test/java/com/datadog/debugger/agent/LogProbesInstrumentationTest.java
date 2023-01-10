@@ -8,7 +8,6 @@ import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
-import com.datadog.debugger.probe.SnapshotProbe;
 import com.datadog.debugger.probe.Where;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -62,7 +61,7 @@ public class LogProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot01";
     DebuggerTransformerTest.TestSnapshotListener listener =
         installSingleProbe(
-            "this is log line with arg={^arg}", CLASS_NAME, "main", "int (java.lang.String)");
+            "this is log line with arg={arg}", CLASS_NAME, "main", "int (java.lang.String)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assert.assertEquals(3, result);
@@ -99,7 +98,7 @@ public class LogProbesInstrumentationTest {
   public void lineTemplateVarLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     DebuggerTransformerTest.TestSnapshotListener listener =
-        installSingleProbe("this is log line with local var={#var1}", CLASS_NAME, null, null, "9");
+        installSingleProbe("this is log line with local var={var1}", CLASS_NAME, null, null, "9");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assert.assertEquals(3, result);
@@ -112,7 +111,7 @@ public class LogProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot04";
     DebuggerTransformerTest.TestSnapshotListener listener =
         installSingleProbe(
-            "nullObject={#nullObject} sdata={#sdata.strValue} cdata={#cdata.s1.intValue}",
+            "nullObject={nullObject} sdata={sdata.strValue} cdata={cdata.s1.intValue}",
             CLASS_NAME,
             null,
             null,
@@ -129,7 +128,7 @@ public class LogProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot01";
     DebuggerTransformerTest.TestSnapshotListener listener =
         installSingleProbe(
-            "this is log line with {{curly braces}} and with local var={{{#var1}}}",
+            "this is log line with {{curly braces}} and with local var={{{var1}}}",
             CLASS_NAME,
             null,
             null,
@@ -146,16 +145,15 @@ public class LogProbesInstrumentationTest {
   public void lineTemplateInvalidVarLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     DebuggerTransformerTest.TestSnapshotListener listener =
-        installSingleProbe("this is log line with local var={#var42}", CLASS_NAME, null, null, "9");
+        installSingleProbe("this is log line with local var={var42}", CLASS_NAME, null, null, "9");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assert.assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertEquals("this is log line with local var=UNDEFINED", snapshot.getSummary());
     assertEquals(1, snapshot.getEvaluationErrors().size());
-    assertEquals("#var42", snapshot.getEvaluationErrors().get(0).getExpr());
-    assertEquals(
-        "Cannot find local var: var42", snapshot.getEvaluationErrors().get(0).getMessage());
+    assertEquals("var42", snapshot.getEvaluationErrors().get(0).getExpr());
+    assertEquals("Cannot find symbol: var42", snapshot.getEvaluationErrors().get(0).getMessage());
   }
 
   @Test
@@ -163,14 +161,14 @@ public class LogProbesInstrumentationTest {
     final String CLASS_NAME = "CapturedSnapshot04";
     DebuggerTransformerTest.TestSnapshotListener listener =
         installSingleProbe(
-            "this is log line with field={#nullObject.intValue}", CLASS_NAME, null, null, "25");
+            "this is log line with field={nullObject.intValue}", CLASS_NAME, null, null, "25");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "").get();
     Assert.assertEquals(143, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertEquals("this is log line with field=UNDEFINED", snapshot.getSummary());
     assertEquals(1, snapshot.getEvaluationErrors().size());
-    assertEquals("#nullObject.intValue", snapshot.getEvaluationErrors().get(0).getExpr());
+    assertEquals("intValue", snapshot.getEvaluationErrors().get(0).getExpr());
     assertEquals(
         "Cannot dereference to field: intValue",
         snapshot.getEvaluationErrors().get(0).getMessage());
@@ -268,11 +266,11 @@ public class LogProbesInstrumentationTest {
                             relatedProbe.getId(),
                             location,
                             Snapshot.MethodLocation.DEFAULT,
-                            relatedProbe instanceof SnapshotProbe
-                                ? ((SnapshotProbe) relatedProbe).getProbeCondition()
+                            relatedProbe instanceof LogProbe
+                                ? ((LogProbe) relatedProbe).getProbeCondition()
                                 : null,
                             relatedProbe.concatTags(),
-                            relatedProbe instanceof SnapshotProbe
+                            relatedProbe instanceof LogProbe
                                 ? new SnapshotSummaryBuilder(location)
                                 : new LogMessageTemplateSummaryBuilder((LogProbe) relatedProbe)))
                 .collect(Collectors.toList()));

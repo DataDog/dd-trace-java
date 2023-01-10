@@ -194,7 +194,7 @@ public class DefaultPathwayContext implements PathwayContext {
     try {
       if (started) {
         return "PathwayContext[ Hash "
-            + toUnsignedString(hash)
+            + Long.toUnsignedString(hash)
             + ", Start: "
             + pathwayStartNanos
             + ", StartTicks: "
@@ -210,18 +210,6 @@ public class DefaultPathwayContext implements PathwayContext {
     } finally {
       lock.unlock();
     }
-  }
-
-  // TODO Can be removed when Java7 support is removed
-  private static String toUnsignedString(long l) {
-    if (l >= 0) {
-      return Long.toString(l);
-    }
-
-    // shift left once and divide by 5 results in an unsigned divide by 10
-    long quot = (l >>> 1) / 5;
-    long rem = l - quot * 10;
-    return Long.toString(quot) + rem;
   }
 
   private static class PathwayContextExtractor implements AgentPropagation.KeyClassifier {

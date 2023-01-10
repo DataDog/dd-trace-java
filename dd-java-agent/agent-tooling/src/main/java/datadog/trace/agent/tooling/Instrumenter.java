@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.ByteCodeElement;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -168,70 +169,33 @@ public interface Instrumenter {
       }
     }
 
-    /** Matches classes for which instrumentation is not muzzled. */
-    public final boolean muzzleMatches(
-        final ClassLoader classLoader, final Class<?> classBeingRedefined) {
-      // Optimization: we delay calling getInstrumentationMuzzle() until we need the references
-      ReferenceMatcher muzzle = getInstrumentationMuzzle();
-      if (null != muzzle) {
-        final boolean isMatch = muzzle.matches(classLoader);
-        if (!isMatch) {
-          if (log.isDebugEnabled()) {
-            final List<Reference.Mismatch> mismatches =
-                muzzle.getMismatchedReferenceSources(classLoader);
-            log.debug(
-                "Muzzled - instrumentation.names=[{}] instrumentation.class={} instrumentation.target.classloader={}",
-                Strings.join(",", instrumentationNames),
-                getClass().getName(),
-                classLoader);
-            for (final Reference.Mismatch mismatch : mismatches) {
-              log.debug(
-                  "Muzzled mismatch - instrumentation.names=[{}] instrumentation.class={} instrumentation.target.classloader={} muzzle.mismatch=\"{}\"",
-                  Strings.join(",", instrumentationNames),
-                  getClass().getName(),
-                  classLoader,
-                  mismatch);
-            }
-          }
-        } else {
-          if (log.isDebugEnabled()) {
-            log.debug(
-                "Instrumentation applied - instrumentation.names=[{}] instrumentation.class={} instrumentation.target.classloader={} instrumentation.target.class={}",
-                Strings.join(",", instrumentationNames),
-                getClass().getName(),
-                classLoader,
-                classBeingRedefined == null ? "null" : classBeingRedefined.getName());
-          }
-        }
-        return isMatch;
-      }
-      return true;
+    public final ReferenceMatcher getInstrumentationMuzzle() {
+      return loadStaticMuzzleReferences(getClass().getClassLoader(), getClass().getName())
+          .withReferenceProvider(runtimeMuzzleReferences());
     }
 
-    public final ReferenceMatcher getInstrumentationMuzzle() {
-      String muzzleClassName = getClass().getName() + "$Muzzle";
+    public static ReferenceMatcher loadStaticMuzzleReferences(
+        ClassLoader classLoader, String instrumentationClass) {
+      String muzzleClass = instrumentationClass + "$Muzzle";
       try {
         // Muzzle class contains static references captured at build-time
         // see datadog.trace.agent.tooling.muzzle.MuzzleGenerator
-        ReferenceMatcher muzzle =
-            (ReferenceMatcher)
-                getClass()
-                    .getClassLoader()
-                    .loadClass(muzzleClassName)
-                    .getConstructor()
-                    .newInstance();
-        // mix in any additional references captured at runtime
-        muzzle.withReferenceProvider(runtimeMuzzleReferences());
-        return muzzle;
+        return (ReferenceMatcher)
+            classLoader.loadClass(muzzleClass).getMethod("create").invoke(null);
       } catch (Throwable e) {
-        log.warn("Failed to load - muzzle.class={}", muzzleClassName, e);
-        return null;
+        log.warn("Failed to load - muzzle.class={}", muzzleClass, e);
+        return ReferenceMatcher.NO_REFERENCES;
       }
     }
 
     /** @return Class names of helpers to inject into the user's classloader */
     public String[] helperClassNames() {
       return new String[0];
+    }
+
+    /** Override this to automatically inject all (non-bootstrap) helper dependencies. */
+    public boolean injectHelperDependencies() {
+      return false;
     }
 
     /** Classes that the muzzle plugin assumes will be injected */
@@ -377,5 +341,23 @@ public interface Instrumenter {
         ClassLoader classLoader,
         JavaModule module,
         ProtectionDomain pd);
+  }
+
+  final class VisitingTransformer implements AdviceTransformer {
+    private final AsmVisitorWrapper visitor;
+
+    public VisitingTransformer(AsmVisitorWrapper visitor) {
+      this.visitor = visitor;
+    }
+
+    @Override
+    public DynamicType.Builder<?> transform(
+        DynamicType.Builder<?> builder,
+        TypeDescription typeDescription,
+        ClassLoader classLoader,
+        JavaModule module,
+        ProtectionDomain pd) {
+      return builder.visit(visitor);
+    }
   }
 }

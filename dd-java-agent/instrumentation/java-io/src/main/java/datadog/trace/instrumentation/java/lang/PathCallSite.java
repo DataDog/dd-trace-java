@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.java.lang;
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.sink.PathTraversalModule;
 import javax.annotation.Nullable;
 
 @CallSite(spi = IastAdvice.class)
@@ -14,7 +15,14 @@ public class PathCallSite {
   })
   public static void beforeResolve(@CallSite.Argument @Nullable final String other) {
     if (other != null) {
-      InstrumentationBridge.onPathTraversal(other);
+      final PathTraversalModule module = InstrumentationBridge.PATH_TRAVERSAL;
+      if (module != null) {
+        try {
+          module.onPathTraversal(other);
+        } catch (final Throwable e) {
+          module.onUnexpectedException("beforeResolve threw", e);
+        }
+      }
     }
   }
 }

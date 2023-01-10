@@ -12,11 +12,12 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.TimeUnit
 
+
 class HealthMetricsTest extends DDSpecification {
   def statsD = Mock(StatsDClient)
 
   @Subject
-  def healthMetrics = new HealthMetrics(statsD)
+  def healthMetrics = new TracerHealthMetrics(statsD)
 
   // This fails because RemoteWriter isn't an interface and the mock doesn't prevent the call.
   @Ignore
@@ -46,7 +47,7 @@ class HealthMetricsTest extends DDSpecification {
   def "test onPublish"() {
     setup:
     def latch = new CountDownLatch(trace.isEmpty() ? 1 : 2)
-    def healthMetrics = new HealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
     healthMetrics.start()
 
     when:
@@ -73,7 +74,7 @@ class HealthMetricsTest extends DDSpecification {
   def "test onFailedPublish"() {
     setup:
     def latch = new CountDownLatch(1)
-    def healthMetrics = new HealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
     healthMetrics.start()
 
     when:
@@ -95,6 +96,31 @@ class HealthMetricsTest extends DDSpecification {
       PrioritySampling.SAMPLER_DROP,
       PrioritySampling.UNSET
     ]
+  }
+
+  def "test onPartialPublish"() {
+    setup:
+    def latch = new CountDownLatch(1)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    healthMetrics.start()
+
+    when:
+    healthMetrics.onPartialPublish(droppedSpans)
+    latch.await(10, TimeUnit.SECONDS)
+
+    then:
+    1 * statsD.count('queue.partial.traces', 1)
+    1 * statsD.count('queue.dropped.spans', droppedSpans)
+    0 * _
+
+    cleanup:
+    healthMetrics.close()
+
+    where:
+    droppedSpans | traces
+    1            | 4
+    42           | 1
+    3            | 5
   }
 
   def "test onScheduleFlush"() {
@@ -187,6 +213,60 @@ class HealthMetricsTest extends DDSpecification {
 
     traceCount = ThreadLocalRandom.current().nextInt(1, 100)
     sendSize = ThreadLocalRandom.current().nextInt(1, 100)
+  }
+
+  def "test onCreateTrace"() {
+    setup:
+    def latch = new CountDownLatch(1)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    healthMetrics.start()
+    when:
+    healthMetrics.onCreateTrace()
+    latch.await(5, TimeUnit.SECONDS)
+    then:
+    1 * statsD.count("trace.pending.created", 1, _)
+    cleanup:
+    healthMetrics.close()
+  }
+
+  def "test onCreateSpan"() {
+    setup:
+    def latch = new CountDownLatch(1)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    healthMetrics.start()
+    when:
+    healthMetrics.onCreateSpan()
+    latch.await(5, TimeUnit.SECONDS)
+    then:
+    1 * statsD.count("span.pending.created", 1, _)
+    cleanup:
+    healthMetrics.close()
+  }
+  def "test onCancelContinuation"() {
+    setup:
+    def latch = new CountDownLatch(1)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    healthMetrics.start()
+    when:
+    healthMetrics.onCancelContinuation()
+    latch.await(5, TimeUnit.SECONDS)
+    then:
+    1 * statsD.count("span.continuations.canceled", 1, _)
+    cleanup:
+    healthMetrics.close()
+  }
+  def "test onFinishContinuation"() {
+    setup:
+    def latch = new CountDownLatch(1)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    healthMetrics.start()
+    when:
+    healthMetrics.onFinishContinuation()
+    latch.await(5, TimeUnit.SECONDS)
+    then:
+    1 * statsD.count("span.continuations.finished", 1, _)
+    cleanup:
+    healthMetrics.close()
   }
 
   private static class Latched implements StatsDClient {

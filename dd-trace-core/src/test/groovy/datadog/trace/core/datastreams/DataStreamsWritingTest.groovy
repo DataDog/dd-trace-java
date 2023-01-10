@@ -16,7 +16,6 @@ import okio.Okio
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
 import spock.lang.AutoCleanup
-import spock.lang.Requires
 import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
 
@@ -28,9 +27,6 @@ import static java.util.concurrent.TimeUnit.SECONDS
 /**
  * This test class exists because a real integration test is not possible. see DataStreamsIntegrationTest
  */
-@Requires({
-  jvm.isJava8Compatible()
-})
 class DataStreamsWritingTest extends DDCoreSpecification {
   @Shared
   List<byte[]> requestBodies

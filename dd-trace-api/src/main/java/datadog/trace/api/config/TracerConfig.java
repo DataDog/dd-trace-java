@@ -40,6 +40,8 @@ public final class TracerConfig {
   public static final String TRACE_SAMPLING_OPERATION_RULES = "trace.sampling.operation.rules";
   // JSON rules
   public static final String TRACE_SAMPLING_RULES = "trace.sampling.rules";
+  public static final String SPAN_SAMPLING_RULES = "span.sampling.rules";
+  public static final String SPAN_SAMPLING_RULES_FILE = "span.sampling.rules.file";
   // a global rate used for all services (that don’t have a dedicated rule defined).
   public static final String TRACE_SAMPLE_RATE = "trace.sample.rate";
   public static final String TRACE_RATE_LIMIT = "trace.rate.limit";
@@ -49,6 +51,7 @@ public final class TracerConfig {
   public static final String HEADER_TAGS = "trace.header.tags";
   public static final String REQUEST_HEADER_TAGS = "trace.request_header.tags";
   public static final String RESPONSE_HEADER_TAGS = "trace.response_header.tags";
+  public static final String BAGGAGE_MAPPING = "trace.header.baggage";
   public static final String TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING =
       "trace.http.server.path-resource-name-mapping";
   public static final String HTTP_SERVER_ERROR_STATUSES = "http.server.error.statuses";
@@ -67,6 +70,10 @@ public final class TracerConfig {
       "propagation.extract.log_header_names.enabled";
   public static final String PROPAGATION_STYLE_EXTRACT = "propagation.style.extract";
   public static final String PROPAGATION_STYLE_INJECT = "propagation.style.inject";
+
+  public static final String TRACE_PROPAGATION_STYLE = "trace.propagation.style";
+  public static final String TRACE_PROPAGATION_STYLE_EXTRACT = "trace.propagation.style.extract";
+  public static final String TRACE_PROPAGATION_STYLE_INJECT = "trace.propagation.style.inject";
 
   public static final String ENABLE_TRACE_AGENT_V05 = "trace.agent.v0.5.enabled";
 

@@ -10,6 +10,7 @@ import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
+import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.propagation.DatadogTags
 import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.test.util.DDSpecification
@@ -53,7 +54,7 @@ class TypeConverterTest extends DDSpecification {
   }
 
   def "should avoid extra allocation for a scope wrapper"() {
-    def scopeManager = new ContinuableScopeManager(0, StatsDClient.NO_OP, false, true)
+    def scopeManager = new ContinuableScopeManager(0, StatsDClient.NO_OP, false, true, HealthMetrics.NO_OP)
     def context = createTestSpanContext()
     def span1 = new DDSpan(0, context)
     def span2 = new DDSpan(0, context)

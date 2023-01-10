@@ -44,9 +44,17 @@ class HaystackHttpCodec {
     // This class should not be created. This also makes code coverage checks happy.
   }
 
-  public static final HttpCodec.Injector INJECTOR = new Injector();
+  public static HttpCodec.Injector newInjector(Map<String, String> invertedBaggageMapping) {
+    return new Injector(invertedBaggageMapping);
+  }
 
   private static class Injector implements HttpCodec.Injector {
+
+    private final Map<String, String> invertedBaggageMapping;
+
+    public Injector(Map<String, String> invertedBaggageMapping) {
+      this.invertedBaggageMapping = invertedBaggageMapping;
+    }
 
     @Override
     public <C> void inject(
@@ -86,8 +94,9 @@ class HaystackHttpCodec {
             HttpCodec.encode(DDSpanId.toString(context.getParentId())));
 
         for (final Map.Entry<String, String> entry : context.baggageItems()) {
-          setter.set(
-              carrier, OT_BAGGAGE_PREFIX + entry.getKey(), HttpCodec.encode(entry.getValue()));
+          String header = invertedBaggageMapping.get(entry.getKey());
+          header = header != null ? header : OT_BAGGAGE_PREFIX + entry.getKey();
+          setter.set(carrier, header, HttpCodec.encode(entry.getValue()));
         }
         log.debug(
             "{} - Haystack parent context injected - {}", context.getTraceId(), injectedTraceId);
@@ -107,13 +116,16 @@ class HaystackHttpCodec {
     }
   }
 
-  public static HttpCodec.Extractor newExtractor(final Map<String, String> tagMapping) {
+  public static HttpCodec.Extractor newExtractor(
+      final Map<String, String> tagMapping, Map<String, String> baggageMapping) {
     return new TagContextExtractor(
         tagMapping,
+        baggageMapping,
         new ContextInterpreter.Factory() {
           @Override
-          protected ContextInterpreter construct(Map<String, String> mapping) {
-            return new HaystackContextInterpreter(mapping);
+          protected ContextInterpreter construct(
+              Map<String, String> mapping, Map<String, String> baggageMapping) {
+            return new HaystackContextInterpreter(mapping, baggageMapping);
           }
         });
   }
@@ -125,12 +137,12 @@ class HaystackHttpCodec {
     private static final int TRACE_ID = 0;
     private static final int SPAN_ID = 1;
     private static final int PARENT_ID = 2;
-    private static final int TAGS = 3;
-    private static final int BAGGAGE = 4;
+    private static final int BAGGAGE = 3;
     private static final int IGNORE = -1;
 
-    private HaystackContextInterpreter(Map<String, String> taggedHeaders) {
-      super(taggedHeaders, Config.get());
+    private HaystackContextInterpreter(
+        Map<String, String> taggedHeaders, Map<String, String> baggageMapping) {
+      super(taggedHeaders, baggageMapping, Config.get());
     }
 
     @Override
@@ -184,16 +196,6 @@ class HaystackHttpCodec {
         default:
       }
 
-      if (handledIpHeaders(key, value)) {
-        return true;
-      }
-
-      if (!taggedHeaders.isEmpty() && classification == IGNORE) {
-        lowerCaseKey = toLowerCase(key);
-        if (taggedHeaders.containsKey(lowerCaseKey)) {
-          classification = TAGS;
-        }
-      }
       if (IGNORE != classification) {
         try {
           String firstValue = firstHeaderValue(value);
@@ -210,17 +212,6 @@ class HaystackHttpCodec {
               case PARENT_ID:
                 addBaggageItem(HAYSTACK_PARENT_ID_BAGGAGE_KEY, value);
                 break;
-              case TAGS:
-                {
-                  String mappedKey = taggedHeaders.get(lowerCaseKey);
-                  if (null != mappedKey) {
-                    if (tags.isEmpty()) {
-                      tags = new TreeMap<>();
-                    }
-                    tags.put(mappedKey, HttpCodec.decode(value));
-                  }
-                  break;
-                }
               case BAGGAGE:
                 {
                   addBaggageItem(lowerCaseKey.substring(BAGGAGE_PREFIX_LC.length()), value);
@@ -234,6 +225,14 @@ class HaystackHttpCodec {
           log.debug("Exception when extracting context", e);
           return false;
         }
+      } else {
+        if (handledIpHeaders(key, value)) {
+          return true;
+        }
+        if (handleTags(key, value)) {
+          return true;
+        }
+        handleMappedBaggage(key, value);
       }
       return true;
     }

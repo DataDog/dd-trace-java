@@ -3,9 +3,8 @@ package datadog.smoketest
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import spock.lang.Shared
-import spock.lang.Timeout
 
-import java.util.concurrent.TimeUnit
+import static java.util.concurrent.TimeUnit.SECONDS
 
 /**
  * Each smoketest application is expected to log four lines to the log file:
@@ -50,7 +49,10 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     List<String> command = new ArrayList<>()
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
+    // turn off these features as their debug output can break up our expected logging lines on IBM JVMs
+    // causing random test failures (we are not testing these features here so they don't need to be on)
     command.add("-Ddd.instrumentation.telemetry.enabled=false")
+    command.add("-Ddd.remote_config.enabled=false")
     command.add("-Ddd.test.logfile=${outputLogFile.absolutePath}" as String)
     command.add("-Ddd.test.jsonlogfile=${outputJsonLogFile.absolutePath}" as String)
     if (noTags) {
@@ -94,7 +96,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
 
   def assertRawLogLinesWithoutInjection(List<String> logLines, String firstTraceId, String firstSpanId, String secondTraceId, String secondSpanId) {
     // Assert log line starts with backend name.
-    // This avoids tests inadvertantly passing because the incorrect backend is logging
+    // This avoids tests inadvertently passing because the incorrect backend is logging
     logLines.every { it.startsWith(backend())}
     assert logLines.size() == 4
     assert logLines[0].endsWith("- BEFORE FIRST SPAN")
@@ -172,11 +174,10 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     return unmangled.split(" ")[1..2]
   }
 
-  // TODO: once java7 support is dropped use waitFor(timeout)
-  @Timeout(value = TIMEOUT_SECS, unit = TimeUnit.SECONDS)
   def "check raw file injection"() {
     when:
-    def exitValue = testedProcess.waitFor()
+    testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
+    def exitValue = testedProcess.exitValue()
     def count = waitForTraceCount(2)
 
     def logLines = outputLogFile.readLines()

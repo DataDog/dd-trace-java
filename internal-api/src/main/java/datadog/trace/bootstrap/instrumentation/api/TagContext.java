@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.sampling.PrioritySampling;
 import java.util.Collections;
 import java.util.Map;
 
@@ -11,24 +12,33 @@ import java.util.Map;
  */
 public class TagContext implements AgentSpan.Context.Extracted {
 
+  private static final HttpHeaders EMPTY_HTTP_HEADERS = new HttpHeaders();
+
   private final String origin;
   private final Map<String, String> tags;
   private Object requestContextDataAppSec;
   private Object requestContextDataIast;
   private final HttpHeaders httpHeaders;
 
+  private final int samplingPriority;
+
   public TagContext() {
     this(null, null);
   }
 
   public TagContext(final String origin, final Map<String, String> tags) {
-    this(origin, tags, null);
+    this(origin, tags, null, PrioritySampling.UNSET);
   }
 
-  public TagContext(final String origin, final Map<String, String> tags, HttpHeaders httpHeaders) {
+  public TagContext(
+      final String origin,
+      final Map<String, String> tags,
+      HttpHeaders httpHeaders,
+      int samplingPriority) {
     this.origin = origin;
     this.tags = tags;
-    this.httpHeaders = httpHeaders;
+    this.httpHeaders = httpHeaders == null ? EMPTY_HTTP_HEADERS : httpHeaders;
+    this.samplingPriority = samplingPriority;
   }
 
   public final String getOrigin() {
@@ -37,118 +47,80 @@ public class TagContext implements AgentSpan.Context.Extracted {
 
   @Override
   public String getForwarded() {
-    if (httpHeaders == null) {
-      return null;
-    }
     return httpHeaders.forwarded;
   }
 
   @Override
   public String getXForwardedProto() {
-    if (httpHeaders == null) {
-      return null;
-    }
     return httpHeaders.xForwardedProto;
   }
 
   @Override
   public String getXForwardedHost() {
-    if (httpHeaders == null) {
-      return null;
-    }
     return httpHeaders.xForwardedHost;
   }
 
   @Override
   public String getXForwardedPort() {
-    if (httpHeaders == null) {
-      return null;
-    }
     return httpHeaders.xForwardedPort;
   }
 
   @Override
   public String getForwardedFor() {
-    if (httpHeaders == null) {
-      return null;
-    }
     return httpHeaders.forwardedFor;
   }
 
   @Override
   public String getXForwarded() {
-    if (httpHeaders == null) {
-      return null;
-    }
     return httpHeaders.xForwarded;
   }
 
   @Override
   public String getXForwardedFor() {
-    if (httpHeaders == null) {
-      return null;
-    }
     return httpHeaders.xForwardedFor;
   }
 
   @Override
   public String getXClusterClientIp() {
-    if (httpHeaders == null) {
-      return null;
-    }
     return httpHeaders.xClusterClientIp;
   }
 
   @Override
   public String getXRealIp() {
-    if (httpHeaders == null) {
-      return null;
-    }
     return httpHeaders.xRealIp;
   }
 
   @Override
   public String getClientIp() {
-    if (httpHeaders == null) {
-      return null;
-    }
     return httpHeaders.clientIp;
   }
 
   @Override
   public String getUserAgent() {
-    if (httpHeaders == null) {
-      return null;
-    }
     return httpHeaders.userAgent;
   }
 
   @Override
   public String getVia() {
-    if (httpHeaders == null) {
-      return null;
-    }
     return httpHeaders.via;
   }
 
   @Override
   public String getTrueClientIp() {
-    if (httpHeaders == null) {
-      return null;
-    }
     return httpHeaders.trueClientIp;
   }
 
   @Override
   public String getCustomIpHeader() {
-    if (httpHeaders == null) {
-      return null;
-    }
     return httpHeaders.customIpHeader;
   }
 
   public final Map<String, String> getTags() {
     return tags;
+  }
+
+  public final int getSamplingPriority() {
+    return samplingPriority;
   }
 
   @Override

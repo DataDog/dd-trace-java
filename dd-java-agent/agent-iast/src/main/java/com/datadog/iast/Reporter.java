@@ -1,5 +1,7 @@
 package com.datadog.iast;
 
+import static com.datadog.iast.IastTag.ANALYZED;
+
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityBatch;
 import datadog.trace.api.Config;
@@ -7,13 +9,17 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.TraceSegment;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.*;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /** Reports IAST vulnerabilities. */
 public class Reporter {
+
+  private static final String VULNERABILITY_SPAN_NAME = "vulnerability";
 
   private final Predicate<Vulnerability> duplicated;
 
@@ -29,10 +35,22 @@ public class Reporter {
     this.duplicated = duplicate;
   }
 
-  public void report(final AgentSpan span, final Vulnerability vulnerability) {
+  public void report(@Nullable final AgentSpan span, @Nonnull final Vulnerability vulnerability) {
     if (span == null) {
-      return;
+      final AgentSpan newSpan = startNewSpan();
+      try (final AgentScope autoClosed = tracer().activateSpan(newSpan, ScopeSource.MANUAL)) {
+        vulnerability.getLocation().updateSpan(newSpan.getSpanId());
+        reportVulnerability(newSpan, vulnerability);
+      } finally {
+        newSpan.finish();
+      }
+    } else {
+      reportVulnerability(span, vulnerability);
     }
+  }
+
+  private void reportVulnerability(
+      @Nonnull final AgentSpan span, @Nonnull final Vulnerability vulnerability) {
     final RequestContext reqCtx = span.getRequestContext();
     if (reqCtx == null) {
       return;
@@ -54,6 +72,21 @@ public class Reporter {
       // are kept.
       segment.setTagTop(DDTags.MANUAL_KEEP, true);
     }
+  }
+
+  private AgentSpan startNewSpan() {
+    final AgentSpan.Context tagContext =
+        new TagContext().withRequestContextDataIast(new IastRequestContext());
+    final AgentSpan span =
+        tracer()
+            .startSpan(VULNERABILITY_SPAN_NAME, tagContext)
+            .setSpanType(InternalSpanTypes.VULNERABILITY);
+    ANALYZED.setTag(span);
+    return span;
+  }
+
+  protected AgentTracer.TracerAPI tracer() {
+    return AgentTracer.get();
   }
 
   /**

@@ -31,8 +31,8 @@ class ShouldInjectFieldsState {
    * Searches for the earliest class in the hierarchy to have fields injected under the given key.
    */
   public static String findInjectionTarget(TypeDescription typeDescription, String keyType) {
-    // precondition: typeDescription must be a sub type of the key class
-    // verifying this isn't free so the caller (in the same package) is trusted
+    // precondition: typeDescription must be a subtype of the key class
+    // (checked in ShouldInjectContextFieldMatcher before calling here)
 
     // The flag takes 3 values:
     // true: the key type is a class, so should be the injection target

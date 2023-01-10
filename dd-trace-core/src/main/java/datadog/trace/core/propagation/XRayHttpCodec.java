@@ -50,9 +50,17 @@ class XRayHttpCodec {
     // This class should not be created. This also makes code coverage checks happy.
   }
 
-  public static final HttpCodec.Injector INJECTOR = new Injector();
+  public static HttpCodec.Injector newInjector(Map<String, String> invertedBaggageMapping) {
+    return new Injector(invertedBaggageMapping);
+  }
 
   private static class Injector implements HttpCodec.Injector {
+
+    private final Map<String, String> invertedBaggageMapping;
+
+    public Injector(Map<String, String> invertedBaggageMapping) {
+      this.invertedBaggageMapping = invertedBaggageMapping;
+    }
 
     @Override
     public <C> void inject(DDSpanContext context, C carrier, AgentPropagation.Setter<C> setter) {
@@ -90,8 +98,9 @@ class XRayHttpCodec {
       }
 
       for (Map.Entry<String, String> entry : context.baggageItems()) {
-        if (!isReserved(entry.getKey())) {
-          additionalPart(buf, entry.getKey(), HttpCodec.encode(entry.getValue()), maxCapacity);
+        String header = invertedBaggageMapping.getOrDefault(entry.getKey(), entry.getKey());
+        if (!isReserved(header)) {
+          additionalPart(buf, header, HttpCodec.encode(entry.getValue()), maxCapacity);
         }
       }
 
@@ -113,21 +122,25 @@ class XRayHttpCodec {
     }
   }
 
-  public static HttpCodec.Extractor newExtractor(Map<String, String> tagMapping) {
+  public static HttpCodec.Extractor newExtractor(
+      Map<String, String> tagMapping, Map<String, String> baggageMapping) {
     return new TagContextExtractor(
         tagMapping,
+        baggageMapping,
         new ContextInterpreter.Factory() {
           @Override
-          protected ContextInterpreter construct(Map<String, String> mapping) {
-            return new XRayContextInterpreter(mapping);
+          protected ContextInterpreter construct(
+              Map<String, String> mapping, Map<String, String> baggageMapping) {
+            return new XRayContextInterpreter(mapping, baggageMapping);
           }
         });
   }
 
   static class XRayContextInterpreter extends ContextInterpreter {
 
-    private XRayContextInterpreter(Map<String, String> taggedHeaders) {
-      super(taggedHeaders, Config.get());
+    private XRayContextInterpreter(
+        Map<String, String> taggedHeaders, Map<String, String> baggageMapping) {
+      super(taggedHeaders, baggageMapping, Config.get());
     }
 
     @Override
@@ -164,15 +177,14 @@ class XRayHttpCodec {
 
         if (handledIpHeaders(key, value)) {
           return true;
+        } else {
+          handleTags(key, value);
         }
 
-        if (!taggedHeaders.isEmpty()) {
-          String mappedKey = taggedHeaders.get(toLowerCase(key));
+        if (!baggageMapping.isEmpty()) {
+          String mappedKey = baggageMapping.get(toLowerCase(key));
           if (null != mappedKey) {
-            if (tags.isEmpty()) {
-              tags = new TreeMap<>();
-            }
-            tags.put(mappedKey, HttpCodec.decode(value));
+            addBaggageItem(this, mappedKey, HttpCodec.decode(value));
           }
         }
         return true;

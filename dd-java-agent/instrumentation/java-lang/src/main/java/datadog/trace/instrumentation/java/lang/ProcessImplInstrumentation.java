@@ -17,13 +17,13 @@ public class ProcessImplInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public String instrumentedType() {
-    return "java.lang.ProcessImpl";
+  protected boolean defaultEnabled() {
+    return !Platform.isNativeImageBuilder(); // not applicable in native-image
   }
 
   @Override
-  public boolean isEnabled() {
-    return Platform.isJavaVersionAtLeast(8) && super.isEnabled();
+  public String instrumentedType() {
+    return "java.lang.ProcessImpl";
   }
 
   @Override

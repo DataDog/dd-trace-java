@@ -31,7 +31,7 @@ public class StringConcatFactoryBenchmark
     final String first = context.notTainted;
     final String second = context.notTainted;
     final String result = first + " " + second;
-    InstrumentationBridge.onStringConcatFactory(
+    InstrumentationBridge.STRING.onStringConcatFactory(
         result,
         new String[] {first, second},
         context.recipe,
@@ -46,7 +46,7 @@ public class StringConcatFactoryBenchmark
     final String first = context.notTainted;
     final String second = context.notTainted;
     final String result = first + " " + second;
-    InstrumentationBridge.onStringConcatFactory(
+    InstrumentationBridge.STRING.onStringConcatFactory(
         result,
         new String[] {first, second},
         context.recipe,
@@ -61,7 +61,7 @@ public class StringConcatFactoryBenchmark
     final String first = context.tainted;
     final String second = context.notTainted;
     final String result = first + " " + second;
-    InstrumentationBridge.onStringConcatFactory(
+    InstrumentationBridge.STRING.onStringConcatFactory(
         result,
         new String[] {first, second},
         context.recipe,
@@ -76,7 +76,7 @@ public class StringConcatFactoryBenchmark
     final String first = context.notTainted;
     final String second = context.tainted;
     final String result = first + " " + second;
-    InstrumentationBridge.onStringConcatFactory(
+    InstrumentationBridge.STRING.onStringConcatFactory(
         result,
         new String[] {first, second},
         context.recipe,
@@ -91,7 +91,7 @@ public class StringConcatFactoryBenchmark
     final String first = context.tainted;
     final String second = context.tainted;
     final String result = first + " " + second;
-    InstrumentationBridge.onStringConcatFactory(
+    InstrumentationBridge.STRING.onStringConcatFactory(
         result,
         new String[] {first, second},
         context.recipe,

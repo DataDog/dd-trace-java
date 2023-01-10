@@ -13,7 +13,7 @@ import static datadog.trace.instrumentation.netty40.client.NettyHttpClientDecora
 import static datadog.trace.instrumentation.netty40.client.NettyResponseInjectAdapter.SETTER;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.PropagationStyle;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
@@ -75,7 +75,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
             .injectPathwayContext(
                 span, request.headers(), SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
       } else if (Config.get().isAwsPropagationEnabled()) {
-        propagate().inject(span, request.headers(), SETTER, PropagationStyle.XRAY);
+        propagate().inject(span, request.headers(), SETTER, TracePropagationStyle.XRAY);
       }
 
       ctx.channel().attr(SPAN_ATTRIBUTE_KEY).set(span);

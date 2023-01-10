@@ -86,6 +86,7 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:servlet')
   testImplementation project(':dd-java-agent:instrumentation:servlet:request-2')
   testImplementation project(':dd-java-agent:instrumentation:servlet:request-3')
+  testImplementation project(':dd-java-agent:instrumentation:servlet:request-5')
 
   latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '10+'
   latestDepTestImplementation group: 'org.apache.tomcat', name: 'jakartaee-migration', version: '1.+'

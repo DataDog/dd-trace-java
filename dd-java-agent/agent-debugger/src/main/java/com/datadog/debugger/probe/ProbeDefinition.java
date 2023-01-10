@@ -5,6 +5,7 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
+import datadog.trace.bootstrap.debugger.Snapshot;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -24,6 +25,18 @@ public abstract class ProbeDefinition {
     DEFAULT,
     ENTRY,
     EXIT;
+
+    public static Snapshot.MethodLocation convert(MethodLocation methodLocation) {
+      switch (methodLocation) {
+        case DEFAULT:
+          return Snapshot.MethodLocation.DEFAULT;
+        case ENTRY:
+          return Snapshot.MethodLocation.ENTRY;
+        case EXIT:
+          return Snapshot.MethodLocation.EXIT;
+      }
+      return null;
+    }
   }
 
   protected final String language;
@@ -252,7 +265,7 @@ public abstract class ProbeDefinition {
     public static Tag[] fromStrings(String[] tagStrs) {
       Tag[] tags = null;
       if (tagStrs != null) {
-        tags = new SnapshotProbe.Tag[tagStrs.length];
+        tags = new ProbeDefinition.Tag[tagStrs.length];
         for (int i = 0; i < tagStrs.length; i++) {
           tags[i] = fromString(tagStrs[i]);
         }

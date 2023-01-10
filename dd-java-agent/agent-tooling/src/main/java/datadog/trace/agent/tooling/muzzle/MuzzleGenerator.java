@@ -125,14 +125,22 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
         Opcodes.ACC_PUBLIC | Opcodes.ACC_FINAL,
         Type.getInternalName(instrumenter.getClass()) + "$Muzzle",
         null,
-        "datadog/trace/agent/tooling/muzzle/ReferenceMatcher",
+        "java/lang/Object",
         null);
 
-    MethodVisitor mv = cw.visitMethod(Opcodes.ACC_PUBLIC, "<init>", "()V", null, null);
+    MethodVisitor mv =
+        cw.visitMethod(
+            Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+            "create",
+            "()Ldatadog/trace/agent/tooling/muzzle/ReferenceMatcher;",
+            null,
+            null);
 
     mv.visitCode();
 
-    mv.visitIntInsn(Opcodes.ALOAD, 0);
+    mv.visitTypeInsn(Opcodes.NEW, "datadog/trace/agent/tooling/muzzle/ReferenceMatcher");
+    mv.visitInsn(Opcodes.DUP);
+
     mv.visitLdcInsn(references.size());
     mv.visitTypeInsn(Opcodes.ANEWARRAY, "datadog/trace/agent/tooling/muzzle/Reference");
 
@@ -151,7 +159,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
         "([Ldatadog/trace/agent/tooling/muzzle/Reference;)V",
         false);
 
-    mv.visitInsn(Opcodes.RETURN);
+    mv.visitInsn(Opcodes.ARETURN);
 
     mv.visitMaxs(0, 0);
     mv.visitEnd();

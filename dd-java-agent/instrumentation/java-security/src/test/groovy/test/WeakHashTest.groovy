@@ -1,8 +1,8 @@
 package test
 
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.iast.IastModule
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.sink.WeakHashModule
 import foo.bar.TestSuite
 
 import java.security.MessageDigest
@@ -26,7 +26,7 @@ class WeakHashTest extends AgentTestRunner {
 
   def "test weak hash instrumentation"() {
     setup:
-    IastModule module = Mock(IastModule)
+    WeakHashModule module = Mock(WeakHashModule)
     InstrumentationBridge.registerIastModule(module)
 
     when:
@@ -38,7 +38,7 @@ class WeakHashTest extends AgentTestRunner {
 
   def "test weak hash instrumentation with provider"() {
     setup:
-    IastModule module = Mock(IastModule)
+    WeakHashModule module = Mock(WeakHashModule)
     InstrumentationBridge.registerIastModule(module)
     final provider = providerFor('MD2')
 
@@ -51,7 +51,7 @@ class WeakHashTest extends AgentTestRunner {
 
   def "test weak hash instrumentation with provider string"() {
     setup:
-    IastModule module = Mock(IastModule)
+    WeakHashModule module = Mock(WeakHashModule)
     InstrumentationBridge.registerIastModule(module)
     final provider = providerFor('MD2')
 

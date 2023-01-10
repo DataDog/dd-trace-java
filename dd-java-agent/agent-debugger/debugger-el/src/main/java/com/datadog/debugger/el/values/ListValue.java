@@ -80,6 +80,9 @@ public class ListValue implements CollectionValue<ListValue>, ValueExpression<Li
     if (key instanceof Integer) {
       return get((int) key);
     }
+    if (key instanceof Long) {
+      return get(((Long) key).intValue());
+    }
     return Value.undefinedValue();
   }
 

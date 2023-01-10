@@ -10,6 +10,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;
+import java.util.concurrent.CompletionException;
 import play.api.mvc.Headers;
 import play.api.mvc.Request;
 import play.api.mvc.Result;
@@ -96,10 +97,7 @@ public class PlayHttpServerDecorator
     if (REPORT_HTTP_STATUS) {
       span.setHttpStatusCode(500);
     }
-    if (throwable != null
-        // This can be moved to instanceof check when using Java 8.
-        && throwable.getClass().getName().equals("java.util.concurrent.CompletionException")
-        && throwable.getCause() != null) {
+    if (throwable instanceof CompletionException && throwable.getCause() != null) {
       throwable = throwable.getCause();
     }
     while ((throwable instanceof InvocationTargetException

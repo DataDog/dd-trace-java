@@ -3,13 +3,14 @@ package com.datadog.iast.overhead
 import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.AgentTaskScheduler
+import com.datadog.iast.overhead.OverheadController.OverheadControllerImpl
 
 class OverheadContextTest extends DDSpecification {
 
   void 'Can reset global overhead context'() {
     given:
     def taskSchedler = Stub(AgentTaskScheduler)
-    def overheadController = new OverheadController(Config.get(), taskSchedler)
+    def overheadController = new OverheadControllerImpl(Config.get(), taskSchedler)
 
     when:
     overheadController.globalContext.consumeQuota(1)

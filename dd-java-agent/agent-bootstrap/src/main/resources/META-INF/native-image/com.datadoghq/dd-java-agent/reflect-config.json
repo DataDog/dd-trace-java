@@ -1,0 +1,63 @@
+[
+  {
+    "name" : "java.lang.Boolean",
+    "methods": [
+      {"name": "booleanValueOf", "parameterTypes": ["java.lang.String"]}
+    ]
+  },
+  {
+    "name" : "java.lang.Integer",
+    "methods": [
+      {"name": "valueOf", "parameterTypes": ["java.lang.String"]}
+    ]
+  },
+  {
+    "name" : "java.lang.Long",
+    "methods": [
+      {"name": "valueOf", "parameterTypes": ["java.lang.String"]}
+    ]
+  },
+  {
+    "name" : "java.lang.Float",
+    "methods": [
+      {"name": "valueOf", "parameterTypes": ["java.lang.String"]}
+    ]
+  },
+  {
+    "name" : "java.lang.Double",
+    "methods": [
+      {"name": "valueOf", "parameterTypes": ["java.lang.String"]}
+    ]
+  },
+  {
+    "name" : "datadog.trace.instrumentation.springweb.HandlerMappingResourceNameFilter",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []}
+    ]
+  },
+  {
+    "name" : "datadog.trace.instrumentation.springweb.OrderedServletPathRequestFilter",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []}
+    ]
+  },
+  {
+    "name" : "org.jctools.queues.MpscBlockingConsumerArrayQueueColdProducerFields",
+    "fields": [
+      {"name": "producerLimit", "allowUnsafeAccess": true}
+    ]
+  },
+  {
+    "name" : "org.jctools.queues.MpscBlockingConsumerArrayQueueProducerFields",
+    "fields": [
+      {"name": "producerIndex", "allowUnsafeAccess": true}
+    ]
+  },
+  {
+    "name" : "org.jctools.queues.MpscBlockingConsumerArrayQueueConsumerFields",
+    "fields": [
+      {"name": "consumerIndex", "allowUnsafeAccess": true},
+      {"name": "blocked", "allowUnsafeAccess": true}
+    ]
+  }
+]

@@ -15,7 +15,7 @@ import static datadog.trace.core.propagation.HaystackHttpCodec.*
 
 class HaystackHttpInjectorTest extends DDCoreSpecification {
 
-  HttpCodec.Injector injector = HaystackHttpCodec.INJECTOR
+  HttpCodec.Injector injector = HaystackHttpCodec.newInjector(["some-baggage-key":"SOME_CUSTOM_HEADER"])
 
   def "inject http headers"() {
     setup:
@@ -32,7 +32,7 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
       "fakeResource",
       samplingPriority,
       origin,
-      ["k1" : "v1", "k2" : "v2"],
+      ["k1" : "v1", "k2" : "v2", "some-baggage-key": "some-value"],
       false,
       "fakeType",
       0,
@@ -56,6 +56,7 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
     1 * carrier.put(DD_SPAN_ID_BAGGAGE_KEY, spanId.toString())
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k1", "v1")
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
+    1 * carrier.put("SOME_CUSTOM_HEADER", "some-value")
     1 * carrier.put(DD_PARENT_ID_BAGGAGE_KEY, "0")
 
     cleanup:

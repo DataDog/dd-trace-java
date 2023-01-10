@@ -5,7 +5,6 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.server.http.HttpProxy
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
-import datadog.trace.api.Platform
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
@@ -136,7 +135,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     when:
     injectSysConfig(HTTP_CLIENT_TAG_QUERY_STRING, "$tagQueryString")
     def status = doRequest(method, url)
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -149,7 +148,7 @@ abstract class HttpClientTest extends AgentTestRunner {
       server.distributedRequestTrace(it, trace(0).last())
     }
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -178,7 +177,7 @@ abstract class HttpClientTest extends AgentTestRunner {
 
     when:
     def status = doRequest(method, url)
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -192,7 +191,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -220,7 +219,7 @@ abstract class HttpClientTest extends AgentTestRunner {
       doRequest(method, url, [:], body)
     }
     println("RESPONSE: $status")
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -240,7 +239,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -259,7 +258,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     def status = runUnderTrace("parent") {
       doRequest(method, server.address.resolve("/success"), [:], body)
     }
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -274,7 +273,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -295,7 +294,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     def status = runUnderTrace("parent") {
       doRequest(method, uri)
     }
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -310,7 +309,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -332,7 +331,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     def status = runUnderTrace("parent") {
       doRequest(method, uri)
     }
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -347,7 +346,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -367,7 +366,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     when:
     injectSysConfig(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "true")
     def status = doRequest(method, server.address.resolve("/success"))
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -381,7 +380,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -399,7 +398,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     def status = runUnderTrace("parent") {
       doRequest(method, server.address.resolve("/success"), ["is-dd-server": "false"])
     }
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -414,7 +413,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -439,7 +438,7 @@ abstract class HttpClientTest extends AgentTestRunner {
         }
       }
     }
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -456,7 +455,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -490,7 +489,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     for (int i = 0; i < traces.size(); i++) {
       TEST_WRITER.set(i, traces.get(i))
     }
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -507,7 +506,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -529,7 +528,7 @@ abstract class HttpClientTest extends AgentTestRunner {
 
     when:
     def status = doRequest(method, uri)
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -544,7 +543,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -563,7 +562,7 @@ abstract class HttpClientTest extends AgentTestRunner {
 
     when:
     def status = doRequest(method, uri)
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -579,7 +578,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -623,7 +622,7 @@ abstract class HttpClientTest extends AgentTestRunner {
 
     when:
     def status = doRequest(method, uri, [(BASIC_AUTH_KEY): BASIC_AUTH_VAL])
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -638,7 +637,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -709,7 +708,7 @@ abstract class HttpClientTest extends AgentTestRunner {
 
     when:
     def status = doRequest(method, uri)
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
@@ -722,7 +721,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)

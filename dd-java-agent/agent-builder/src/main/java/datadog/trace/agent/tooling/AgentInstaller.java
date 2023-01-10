@@ -13,7 +13,6 @@ import datadog.trace.api.ProductActivation;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.util.AgentTaskScheduler;
-import datadog.trace.util.PidHelper;
 import java.lang.instrument.Instrumentation;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -45,8 +44,6 @@ public class AgentInstaller {
     // register weak map/cache suppliers as early as possible
     WeakMaps.registerAsSupplier();
     WeakCaches.registerAsSupplier();
-    // supply PID fall-back on Java 8 as early as possible
-    PidHelper.supplyIfAbsent(new PosixPidSupplier());
   }
 
   public static void installBytebuddyAgent(final Instrumentation inst) {

@@ -111,6 +111,11 @@ public final class NameMatchers {
     protected boolean doMatch(NamedElement target) {
       return name.equals(target.getActualName());
     }
+
+    @Override
+    public String toString() {
+      return "named(" + name + ")";
+    }
   }
 
   public static final class StartsWith<T extends NamedElement>

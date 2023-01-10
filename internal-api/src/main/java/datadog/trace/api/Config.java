@@ -7,6 +7,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_METRICS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLIENT_IP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
@@ -36,10 +37,10 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_TAG_QUERY_STR
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DEBUG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DEDUPLICATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONCURRENT_REQUESTS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REQUEST_SAMPLING;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_TAINT_TRACKING_DEBUG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_VULNERABILITIES_PER_REQUEST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS;
@@ -51,8 +52,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_EXTRACT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_INJECT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_INITIAL_POLL_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED;
@@ -82,7 +81,6 @@ import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
 import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
-import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
@@ -93,6 +91,7 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_METRICS;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_TIMEOUT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
@@ -142,10 +141,10 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESO
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
+import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_MAX_CONCURRENT_REQUESTS;
 import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING;
-import static datadog.trace.api.config.IastConfig.IAST_TAINT_TRAKING_DEBUG_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_VULNERABILITIES_PER_REQUEST;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_HASH_ALGORITHMS;
@@ -235,11 +234,13 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGA
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_CONTEXT_SERVICE_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME;
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST;
 import static datadog.trace.api.config.TracerConfig.AGENT_NAMED_PIPE;
 import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY;
 import static datadog.trace.api.config.TracerConfig.AGENT_TIMEOUT;
 import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET;
+import static datadog.trace.api.config.TracerConfig.BAGGAGE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.CLIENT_IP_ENABLED;
 import static datadog.trace.api.config.TracerConfig.CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
@@ -262,6 +263,8 @@ import static datadog.trace.api.config.TracerConfig.SCOPE_ITERATION_KEEP_ALIVE;
 import static datadog.trace.api.config.TracerConfig.SCOPE_STRICT_MODE;
 import static datadog.trace.api.config.TracerConfig.SECURE_RANDOM;
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING;
+import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES;
+import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES_FILE;
 import static datadog.trace.api.config.TracerConfig.SPAN_TAGS;
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_ARGS;
@@ -272,6 +275,9 @@ import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_RESOLVER_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
+import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE;
+import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE_EXTRACT;
+import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE_INJECT;
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED;
@@ -294,6 +300,7 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
 import datadog.trace.util.PidHelper;
 import datadog.trace.util.Strings;
+import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -322,6 +329,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -396,6 +404,7 @@ public class Config {
   private final Map<String, String> jmxTags;
   private final Map<String, String> requestHeaderTags;
   private final Map<String, String> responseHeaderTags;
+  private final Map<String, String> baggageMapping;
   private final BitSet httpServerErrorStatuses;
   private final BitSet httpClientErrorStatuses;
   private final boolean httpServerTagQueryString;
@@ -417,6 +426,8 @@ public class Config {
   private final boolean logExtractHeaderNames;
   private final Set<PropagationStyle> propagationStylesToExtract;
   private final Set<PropagationStyle> propagationStylesToInject;
+  private final Set<TracePropagationStyle> tracePropagationStylesToExtract;
+  private final Set<TracePropagationStyle> tracePropagationStylesToInject;
   private final int clockSyncPeriod;
 
   private final String dogStatsDNamedPipe;
@@ -456,6 +467,8 @@ public class Config {
   private final String traceSamplingRules;
   private final Double traceSampleRate;
   private final int traceRateLimit;
+  private final String spanSamplingRules;
+  private final String spanSamplingRulesFile;
 
   private final boolean profilingAgentless;
   private final boolean isAsyncProfilerEnabled;
@@ -489,6 +502,7 @@ public class Config {
   private final int appSecReportMaxTimeout;
   private final int appSecTraceRateLimit;
   private final boolean appSecWafMetrics;
+  private final int appSecWafTimeout;
   private final String appSecObfuscationParameterKeyRegexp;
   private final String appSecObfuscationParameterValueRegexp;
   private final String appSecHttpBlockedTemplateHtml;
@@ -497,7 +511,7 @@ public class Config {
   private final int iastMaxConcurrentRequests;
   private final int iastVulnerabilitiesPerRequest;
   private final float iastRequestSampling;
-  private final boolean iastTaintTrackingDebugEnabled;
+  private final boolean iastDebugEnabled;
 
   private final boolean ciVisibilityAgentlessEnabled;
   private final String ciVisibilityAgentlessUrl;
@@ -555,6 +569,8 @@ public class Config {
 
   private final boolean servletPrincipalEnabled;
   private final boolean servletAsyncTimeoutError;
+
+  private final boolean springDataRepositoryInterfaceResourceName;
 
   private final int xDatadogTagsMaxLength;
 
@@ -774,10 +790,10 @@ public class Config {
       requestHeaderTags = configProvider.getMergedMap(HEADER_TAGS);
       responseHeaderTags = Collections.emptyMap();
       if (configProvider.isSet(REQUEST_HEADER_TAGS)) {
-        logIngoredSettingWarning(REQUEST_HEADER_TAGS, HEADER_TAGS, ".legacy.parsing.enabled");
+        logIgnoredSettingWarning(REQUEST_HEADER_TAGS, HEADER_TAGS, ".legacy.parsing.enabled");
       }
       if (configProvider.isSet(RESPONSE_HEADER_TAGS)) {
-        logIngoredSettingWarning(RESPONSE_HEADER_TAGS, HEADER_TAGS, ".legacy.parsing.enabled");
+        logIgnoredSettingWarning(RESPONSE_HEADER_TAGS, HEADER_TAGS, ".legacy.parsing.enabled");
       }
     } else {
       requestHeaderTags =
@@ -787,6 +803,8 @@ public class Config {
           configProvider.getMergedMapWithOptionalMappings(
               "http.response.headers.", true, HEADER_TAGS, RESPONSE_HEADER_TAGS);
     }
+
+    baggageMapping = configProvider.getMergedMap(BAGGAGE_MAPPING);
 
     httpServerPathResourceNameMapping =
         configProvider.getOrderedMap(TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING);
@@ -830,6 +848,9 @@ public class Config {
 
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
 
+    springDataRepositoryInterfaceResourceName =
+        configProvider.getBoolean(SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME, true);
+
     scopeDepthLimit = configProvider.getInteger(SCOPE_DEPTH_LIMIT, DEFAULT_SCOPE_DEPTH_LIMIT);
 
     scopeStrictMode = configProvider.getBoolean(SCOPE_STRICT_MODE, false);
@@ -849,12 +870,92 @@ public class Config {
             PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED,
             DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED);
 
-    propagationStylesToExtract =
-        getPropagationStyleSetSettingFromEnvironmentOrDefault(
-            PROPAGATION_STYLE_EXTRACT, DEFAULT_PROPAGATION_STYLE_EXTRACT);
-    propagationStylesToInject =
-        getPropagationStyleSetSettingFromEnvironmentOrDefault(
-            PROPAGATION_STYLE_INJECT, DEFAULT_PROPAGATION_STYLE_INJECT);
+    {
+      // The dd.propagation.style.(extract|inject) settings have been deprecated in
+      // favor of dd.trace.propagation.style(|.extract|.inject) settings.
+      // The different propagation settings when set will be applied in the following order of
+      // precedence, and warnings will be logged for both deprecation and overrides.
+      // * dd.trace.propagation.style.(extract|inject)
+      // * dd.trace.propagation.style
+      // * dd.propagation.style.(extract|inject)
+      Set<PropagationStyle> deprecatedExtract =
+          getSettingsSetFromEnvironment(
+              PROPAGATION_STYLE_EXTRACT, PropagationStyle::valueOfConfigName);
+      Set<PropagationStyle> deprecatedInject =
+          getSettingsSetFromEnvironment(
+              PROPAGATION_STYLE_INJECT, PropagationStyle::valueOfConfigName);
+      Set<TracePropagationStyle> common =
+          getSettingsSetFromEnvironment(
+              TRACE_PROPAGATION_STYLE, TracePropagationStyle::valueOfDisplayName);
+      Set<TracePropagationStyle> extract =
+          getSettingsSetFromEnvironment(
+              TRACE_PROPAGATION_STYLE_EXTRACT, TracePropagationStyle::valueOfDisplayName);
+      Set<TracePropagationStyle> inject =
+          getSettingsSetFromEnvironment(
+              TRACE_PROPAGATION_STYLE_INJECT, TracePropagationStyle::valueOfDisplayName);
+      String extractOrigin = TRACE_PROPAGATION_STYLE_EXTRACT;
+      String injectOrigin = TRACE_PROPAGATION_STYLE_INJECT;
+      // Check if we should use the common setting for extraction
+      if (extract.isEmpty()) {
+        extract = common;
+        extractOrigin = TRACE_PROPAGATION_STYLE;
+      } else if (!common.isEmpty()) {
+        // The more specific settings will override the common setting, so log a warning
+        logOverriddenSettingWarning(
+            TRACE_PROPAGATION_STYLE, TRACE_PROPAGATION_STYLE_EXTRACT, extract);
+      }
+      // Check if we should use the common setting for injection
+      if (inject.isEmpty()) {
+        inject = common;
+        injectOrigin = TRACE_PROPAGATION_STYLE;
+      } else if (!common.isEmpty()) {
+        // The more specific settings will override the common setting, so log a warning
+        logOverriddenSettingWarning(
+            TRACE_PROPAGATION_STYLE, TRACE_PROPAGATION_STYLE_INJECT, inject);
+      }
+      // Check if we should use the deprecated setting for extraction
+      if (extract.isEmpty()) {
+        // If we don't have a new setting, we convert the deprecated one
+        extract = convertSettingsSet(deprecatedExtract, PropagationStyle::getNewStyles);
+        if (!extract.isEmpty()) {
+          logDeprecatedConvertedSetting(
+              PROPAGATION_STYLE_EXTRACT,
+              deprecatedExtract,
+              TRACE_PROPAGATION_STYLE_EXTRACT,
+              extract);
+        }
+      } else if (!deprecatedExtract.isEmpty()) {
+        // If we have a new setting, we log a warning
+        logOverriddenDeprecatedSettingWarning(PROPAGATION_STYLE_EXTRACT, extractOrigin, extract);
+      }
+      // Check if we should use the deprecated setting for injection
+      if (inject.isEmpty()) {
+        // If we don't have a new setting, we convert the deprecated one
+        inject = convertSettingsSet(deprecatedInject, PropagationStyle::getNewStyles);
+        if (!inject.isEmpty()) {
+          logDeprecatedConvertedSetting(
+              PROPAGATION_STYLE_INJECT, deprecatedInject, TRACE_PROPAGATION_STYLE_INJECT, inject);
+        }
+      } else if (!deprecatedInject.isEmpty()) {
+        // If we have a new setting, we log a warning
+        logOverriddenDeprecatedSettingWarning(PROPAGATION_STYLE_INJECT, injectOrigin, inject);
+      }
+      // Now we can check if we should pick the default injection/extraction
+      tracePropagationStylesToExtract =
+          extract.isEmpty() ? Collections.singleton(TracePropagationStyle.DATADOG) : extract;
+      tracePropagationStylesToInject =
+          inject.isEmpty() ? Collections.singleton(TracePropagationStyle.DATADOG) : inject;
+      // These setting are here for backwards compatibility until they can be removed in a major
+      // release of the tracer
+      propagationStylesToExtract =
+          deprecatedExtract.isEmpty()
+              ? Collections.singleton(PropagationStyle.DATADOG)
+              : deprecatedExtract;
+      propagationStylesToInject =
+          deprecatedInject.isEmpty()
+              ? Collections.singleton(PropagationStyle.DATADOG)
+              : deprecatedInject;
+    }
 
     clockSyncPeriod = configProvider.getInteger(CLOCK_SYNC_PERIOD, DEFAULT_CLOCK_SYNC_PERIOD);
 
@@ -903,11 +1004,9 @@ public class Config {
     healthMetricsStatsdPort = configProvider.getInteger(HEALTH_METRICS_STATSD_PORT);
     perfMetricsEnabled =
         runtimeMetricsEnabled
-            && isJavaVersionAtLeast(8)
             && configProvider.getBoolean(PERF_METRICS_ENABLED, DEFAULT_PERF_METRICS_ENABLED);
 
-    tracerMetricsEnabled =
-        isJavaVersionAtLeast(8) && configProvider.getBoolean(TRACER_METRICS_ENABLED, false);
+    tracerMetricsEnabled = configProvider.getBoolean(TRACER_METRICS_ENABLED, false);
     tracerMetricsBufferingEnabled =
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
@@ -931,7 +1030,7 @@ public class Config {
     }
     this.traceClientIpHeader = traceClientIpHeader;
 
-    this.traceClientIpResolverEnabled =
+    traceClientIpResolverEnabled =
         configProvider.getBoolean(TRACE_CLIENT_IP_RESOLVER_ENABLED, true);
 
     traceSamplingServiceRules = configProvider.getMergedMap(TRACE_SAMPLING_SERVICE_RULES);
@@ -939,6 +1038,8 @@ public class Config {
     traceSamplingRules = configProvider.getString(TRACE_SAMPLING_RULES);
     traceSampleRate = configProvider.getDouble(TRACE_SAMPLE_RATE);
     traceRateLimit = configProvider.getInteger(TRACE_RATE_LIMIT, DEFAULT_TRACE_RATE_LIMIT);
+    spanSamplingRules = configProvider.getString(SPAN_SAMPLING_RULES);
+    spanSamplingRulesFile = configProvider.getString(SPAN_SAMPLING_RULES_FILE);
 
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
@@ -1034,7 +1135,7 @@ public class Config {
     }
     telemetryHeartbeatInterval = telemetryInterval;
 
-    this.clientIpEnabled = configProvider.getBoolean(CLIENT_IP_ENABLED, DEFAULT_CLIENT_IP_ENABLED);
+    clientIpEnabled = configProvider.getBoolean(CLIENT_IP_ENABLED, DEFAULT_CLIENT_IP_ENABLED);
 
     appSecReportingInband =
         configProvider.getBoolean(APPSEC_REPORTING_INBAND, DEFAULT_APPSEC_REPORTING_INBAND);
@@ -1049,6 +1150,8 @@ public class Config {
 
     appSecWafMetrics = configProvider.getBoolean(APPSEC_WAF_METRICS, DEFAULT_APPSEC_WAF_METRICS);
 
+    appSecWafTimeout = configProvider.getInteger(APPSEC_WAF_TIMEOUT, DEFAULT_APPSEC_WAF_TIMEOUT);
+
     appSecObfuscationParameterKeyRegexp =
         configProvider.getString(APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP, null);
     appSecObfuscationParameterValueRegexp =
@@ -1059,9 +1162,7 @@ public class Config {
     appSecHttpBlockedTemplateJson =
         configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, null);
 
-    iastTaintTrackingDebugEnabled =
-        configProvider.getBoolean(
-            IAST_TAINT_TRAKING_DEBUG_ENABLED, DEFAULT_IAST_TAINT_TRACKING_DEBUG_ENABLED);
+    iastDebugEnabled = configProvider.getBoolean(IAST_DEBUG_ENABLED, DEFAULT_IAST_DEBUG_ENABLED);
 
     iastMaxConcurrentRequests =
         configProvider.getInteger(
@@ -1244,6 +1345,14 @@ public class Config {
           "Agentless profiling activated but no api key provided. Profile uploading will likely fail");
     }
 
+    if (isCiVisibilityEnabled()
+        && ciVisibilityAgentlessEnabled
+        && (apiKey == null || apiKey.isEmpty())) {
+      throw new FatalAgentMisconfigurationError(
+          "Attempt to start in Agentless mode without API key. "
+              + "Please ensure that either an API key is configured, or the tracer is set up to work with the Agent");
+    }
+
     log.debug("New instance: {}", this);
   }
 
@@ -1260,19 +1369,7 @@ public class Config {
   }
 
   public Long getProcessId() {
-    String pid = PidHelper.getPid();
-
-    pid = pid == null ? "" : pid.trim();
-    if (pid.isEmpty()) {
-      return 0L;
-    }
-
-    try {
-      return Long.parseLong(pid);
-    } catch (NumberFormatException e) {
-      log.error("Cannot parse pid properly from string {} to long. Default to 0", pid, e);
-      return 0L;
-    }
+    return PidHelper.getPidAsLong();
   }
 
   public String getRuntimeVersion() {
@@ -1383,6 +1480,10 @@ public class Config {
     return responseHeaderTags;
   }
 
+  public Map<String, String> getBaggageMapping() {
+    return baggageMapping;
+  }
+
   public Map<String, String> getHttpServerPathResourceNameMapping() {
     return httpServerPathResourceNameMapping;
   }
@@ -1459,12 +1560,22 @@ public class Config {
     return logExtractHeaderNames;
   }
 
+  @Deprecated
   public Set<PropagationStyle> getPropagationStylesToExtract() {
     return propagationStylesToExtract;
   }
 
+  @Deprecated
   public Set<PropagationStyle> getPropagationStylesToInject() {
     return propagationStylesToInject;
+  }
+
+  public Set<TracePropagationStyle> getTracePropagationStylesToExtract() {
+    return tracePropagationStylesToExtract;
+  }
+
+  public Set<TracePropagationStyle> getTracePropagationStylesToInject() {
+    return tracePropagationStylesToInject;
   }
 
   public int getClockSyncPeriod() {
@@ -1595,6 +1706,14 @@ public class Config {
 
   public int getTraceRateLimit() {
     return traceRateLimit;
+  }
+
+  public String getSpanSamplingRules() {
+    return spanSamplingRules;
+  }
+
+  public String getSpanSamplingRulesFile() {
+    return spanSamplingRulesFile;
   }
 
   public boolean isProfilingEnabled() {
@@ -1743,6 +1862,11 @@ public class Config {
     return appSecWafMetrics;
   }
 
+  // in microseconds
+  public int getAppSecWafTimeout() {
+    return appSecWafTimeout;
+  }
+
   public String getAppSecObfuscationParameterKeyRegexp() {
     return appSecObfuscationParameterKeyRegexp;
   }
@@ -1763,8 +1887,8 @@ public class Config {
     return instrumenterConfig.isIastEnabled();
   }
 
-  public boolean isIastTaintTrackingDebugEnabled() {
-    return iastTaintTrackingDebugEnabled;
+  public boolean isIastDebugEnabled() {
+    return iastDebugEnabled;
   }
 
   public int getIastMaxConcurrentRequests() {
@@ -1955,6 +2079,10 @@ public class Config {
 
   public boolean isServletPrincipalEnabled() {
     return servletPrincipalEnabled;
+  }
+
+  public boolean isSpringDataRepositoryInterfaceResourceName() {
+    return springDataRepositoryInterfaceResourceName;
   }
 
   public int getxDatadogTagsMaxLength() {
@@ -2368,13 +2496,40 @@ public class Config {
         Collections.singletonList(settingName), "", settingSuffix, defaultEnabled);
   }
 
-  private void logIngoredSettingWarning(
+  private void logIgnoredSettingWarning(
       String setting, String overridingSetting, String overridingSuffix) {
     log.warn(
         "Setting {} ignored since {}{} is enabled.",
         propertyNameToSystemPropertyName(setting),
         propertyNameToSystemPropertyName(overridingSetting),
         overridingSuffix);
+  }
+
+  private void logOverriddenSettingWarning(String setting, String overridingSetting, Object value) {
+    log.warn(
+        "Setting {} is overridden by setting {} with value {}.",
+        propertyNameToSystemPropertyName(setting),
+        propertyNameToSystemPropertyName(overridingSetting),
+        value);
+  }
+
+  private void logOverriddenDeprecatedSettingWarning(
+      String setting, String overridingSetting, Object value) {
+    log.warn(
+        "Setting {} is deprecated and overridden by setting {} with value {}.",
+        propertyNameToSystemPropertyName(setting),
+        propertyNameToSystemPropertyName(overridingSetting),
+        value);
+  }
+
+  private void logDeprecatedConvertedSetting(
+      String deprecatedSetting, Object oldValue, String newSetting, Object newValue) {
+    log.warn(
+        "Setting {} is deprecated and the value {} has been converted to {} for setting {}.",
+        propertyNameToSystemPropertyName(deprecatedSetting),
+        oldValue,
+        newValue,
+        propertyNameToSystemPropertyName(newSetting));
   }
 
   public boolean isTraceAnalyticsIntegrationEnabled(
@@ -2425,23 +2580,22 @@ public class Config {
     return Config.get().isTraceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled);
   }
 
-  /**
-   * Calls configProvider.getString(String, String) and converts the result to a set of strings
-   * splitting by space or comma.
-   */
-  private Set<PropagationStyle> getPropagationStyleSetSettingFromEnvironmentOrDefault(
-      final String name, final String defaultValue) {
-    final String value = configProvider.getString(name, defaultValue);
-    Set<PropagationStyle> result =
-        convertStringSetToPropagationStyleSet(parseStringIntoSetOfNonEmptyStrings(value));
+  private <T> Set<T> getSettingsSetFromEnvironment(String name, Function<String, T> mapper) {
+    final String value = configProvider.getString(name, "");
+    return convertStringSetToSet(name, parseStringIntoSetOfNonEmptyStrings(value), mapper);
+  }
 
-    if (result.isEmpty()) {
-      // Treat empty parsing result as no value and use default instead
-      result =
-          convertStringSetToPropagationStyleSet(parseStringIntoSetOfNonEmptyStrings(defaultValue));
+  private <F, T> Set<T> convertSettingsSet(Set<F> fromSet, Function<F, Iterable<T>> mapper) {
+    if (fromSet.isEmpty()) {
+      return Collections.emptySet();
     }
-
-    return result;
+    Set<T> result = new LinkedHashSet<>(fromSet.size());
+    for (F from : fromSet) {
+      for (T to : mapper.apply(from)) {
+        result.add(to);
+      }
+    }
+    return Collections.unmodifiableSet(result);
   }
 
   private static final String PREFIX = "dd.";
@@ -2504,16 +2658,21 @@ public class Config {
     return Collections.unmodifiableSet(result);
   }
 
-  @Nonnull
-  private static Set<PropagationStyle> convertStringSetToPropagationStyleSet(
-      final Set<String> input) {
+  private static <T> Set<T> convertStringSetToSet(
+      String setting, final Set<String> input, Function<String, T> mapper) {
+    if (input.isEmpty()) {
+      return Collections.emptySet();
+    }
     // Using LinkedHashSet to preserve original string order
-    final Set<PropagationStyle> result = new LinkedHashSet<>();
+    final Set<T> result = new LinkedHashSet<>();
     for (final String value : input) {
       try {
-        result.add(PropagationStyle.valueOf(value.toUpperCase()));
+        result.add(mapper.apply(value));
       } catch (final IllegalArgumentException e) {
-        log.debug("Cannot recognize config string value: {}, {}", value, PropagationStyle.class);
+        log.warn(
+            "Cannot recognize config string value {} for setting {}",
+            value,
+            propertyNameToSystemPropertyName(setting));
       }
     }
     return Collections.unmodifiableSet(result);
@@ -2710,6 +2869,8 @@ public class Config {
         + requestHeaderTags
         + ", responseHeaderTags="
         + responseHeaderTags
+        + ", baggageMapping="
+        + baggageMapping
         + ", httpServerErrorStatuses="
         + httpServerErrorStatuses
         + ", httpClientErrorStatuses="
@@ -2746,10 +2907,10 @@ public class Config {
         + partialFlushMinSpans
         + ", traceStrictWritesEnabled="
         + traceStrictWritesEnabled
-        + ", propagationStylesToExtract="
-        + propagationStylesToExtract
-        + ", propagationStylesToInject="
-        + propagationStylesToInject
+        + ", tracePropagationStylesToExtract="
+        + tracePropagationStylesToExtract
+        + ", tracePropagationStylesToInject="
+        + tracePropagationStylesToInject
         + ", clockSyncPeriod="
         + clockSyncPeriod
         + ", jmxFetchEnabled="
@@ -2809,6 +2970,10 @@ public class Config {
         + traceSampleRate
         + ", traceRateLimit="
         + traceRateLimit
+        + ", spanSamplingRules="
+        + spanSamplingRules
+        + ", spanSamplingRulesFile="
+        + spanSamplingRulesFile
         + ", profilingAgentless="
         + profilingAgentless
         + ", profilingUrl='"
@@ -2950,7 +3115,9 @@ public class Config {
         + "'"
         + ", appSecHttpBlockedTemplateHtml="
         + appSecHttpBlockedTemplateHtml
-        + ", appSecHttpBlockedTemplateJson="
+        + ", appSecWafTimeout="
+        + appSecWafTimeout
+        + " us, appSecHttpBlockedTemplateJson="
         + appSecHttpBlockedTemplateJson
         + ", cwsEnabled="
         + cwsEnabled
