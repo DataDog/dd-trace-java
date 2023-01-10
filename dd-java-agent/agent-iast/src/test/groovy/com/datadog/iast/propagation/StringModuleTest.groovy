@@ -246,9 +246,9 @@ class StringModuleTest extends IastModuleImplTestBase {
   }
 
   void 'onStringConcatFactory null or empty (#args)'(final List<String> args,
-                                                     final String recipe,
-                                                     final List<Object> constants,
-                                                     final List<Integer> recipeOffsets) {
+    final String recipe,
+    final List<Object> constants,
+    final List<Integer> recipeOffsets) {
     given:
     final result = args.inject('') { res, item -> res + item }
 
@@ -269,9 +269,9 @@ class StringModuleTest extends IastModuleImplTestBase {
   }
 
   void 'onStringConcatFactory without span (#args)'(final List<String> args,
-                                                    final String recipe,
-                                                    final List<Object> constants,
-                                                    final List<Integer> recipeOffsets) {
+    final String recipe,
+    final List<Object> constants,
+    final List<Integer> recipeOffsets) {
     given:
     final result = args.inject('') { res, item -> res + item }
 
@@ -290,10 +290,10 @@ class StringModuleTest extends IastModuleImplTestBase {
   }
 
   void 'onStringConcatFactory (#args, #recipe, #constants)'(List<String> args,
-                                                            final String recipe,
-                                                            final List<Object> constants,
-                                                            final List<Integer> recipeOffsets,
-                                                            final String expected) {
+    final String recipe,
+    final List<Object> constants,
+    final List<Integer> recipeOffsets,
+    final String expected) {
     given:
     final span = Mock(AgentSpan)
     tracer.activeSpan() >> span
