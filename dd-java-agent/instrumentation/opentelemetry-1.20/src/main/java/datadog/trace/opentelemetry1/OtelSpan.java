@@ -1,4 +1,4 @@
-package datadog.opentelemetry.trace;
+package datadog.trace.opentelemetry1;
 
 import static io.opentelemetry.api.trace.StatusCode.ERROR;
 import static io.opentelemetry.api.trace.StatusCode.OK;
@@ -14,12 +14,12 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
-class DDSpan implements Span {
+class OtelSpan implements Span {
   private final AgentSpan delegate;
   private StatusCode statusCode;
   private boolean recording;
 
-  DDSpan(AgentSpan delegate) {
+  OtelSpan(AgentSpan delegate) {
     this.delegate = delegate;
     this.statusCode = UNSET;
     this.recording = true;
@@ -82,7 +82,7 @@ class DDSpan implements Span {
 
   @Override
   public SpanContext getSpanContext() {
-    return DDSpanContext.fromLocalSpan(this.delegate);
+    return OtelSpanContext.fromLocalSpan(this.delegate);
   }
 
   @Override

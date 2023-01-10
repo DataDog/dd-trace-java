@@ -1,14 +1,14 @@
-package datadog.opentelemetry.trace;
+package datadog.trace.opentelemetry1;
 
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.api.trace.TracerBuilder;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
-class DDTracerBuilder implements TracerBuilder {
+class OtelTracerBuilder implements TracerBuilder {
   private final String instrumentationScopeName;
 
-  public DDTracerBuilder(String instrumentationScopeName) {
+  public OtelTracerBuilder(String instrumentationScopeName) {
     this.instrumentationScopeName = instrumentationScopeName;
   }
 
@@ -26,6 +26,6 @@ class DDTracerBuilder implements TracerBuilder {
 
   @Override
   public Tracer build() {
-    return new DDTracer(this.instrumentationScopeName);
+    return new OtelTracer(this.instrumentationScopeName);
   }
 }

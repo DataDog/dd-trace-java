@@ -1,4 +1,4 @@
-package datadog.opentelemetry.trace;
+package datadog.trace.opentelemetry1;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -13,10 +13,10 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
-public class DDSpanBuilder implements SpanBuilder {
+public class OtelSpanBuilder implements SpanBuilder {
   private final AgentTracer.SpanBuilder delegate;
 
-  public DDSpanBuilder(AgentTracer.SpanBuilder delegate) {
+  public OtelSpanBuilder(AgentTracer.SpanBuilder delegate) {
     this.delegate = delegate;
   }
 
@@ -88,6 +88,6 @@ public class DDSpanBuilder implements SpanBuilder {
   @Override
   public Span startSpan() {
     AgentSpan delegate = this.delegate.start();
-    return new DDSpan(delegate);
+    return new OtelSpan(delegate);
   }
 }

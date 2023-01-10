@@ -1,4 +1,4 @@
-package datadog.opentelemetry.trace;
+package datadog.trace.opentelemetry1;
 
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.api.trace.TracerBuilder;
@@ -9,15 +9,17 @@ import java.util.logging.Logger;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
-public class DDTracerProvider implements TracerProvider {
-  private static final Logger logger = Logger.getLogger(DDTracerProvider.class.getName());
+public class OtelTracerProvider implements TracerProvider {
+  private static final Logger logger = Logger.getLogger(OtelTracerProvider.class.getName());
   private static final String DEFAULT_TRACER_NAME = "";
   private static final Tracer NOOP_TRACER = spanName -> null;
+
+  static final OtelTracerProvider INSTANCE = new OtelTracerProvider();
 
   /** Tracer instances, indexed by instrumentation scope name. */
   private final Map<String, Tracer> tracers;
 
-  public DDTracerProvider() {
+  public OtelTracerProvider() {
     this.tracers = new HashMap<>();
   }
 
@@ -50,6 +52,6 @@ public class DDTracerProvider implements TracerProvider {
       logger.fine("Tracer requested without instrumentation scope name.");
       instrumentationScopeName = DEFAULT_TRACER_NAME;
     }
-    return new DDTracerBuilder(instrumentationScopeName);
+    return new OtelTracerBuilder(instrumentationScopeName);
   }
 }

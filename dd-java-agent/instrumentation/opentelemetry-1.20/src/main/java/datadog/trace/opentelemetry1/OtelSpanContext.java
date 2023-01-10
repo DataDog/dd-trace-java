@@ -1,4 +1,4 @@
-package datadog.opentelemetry.trace;
+package datadog.trace.opentelemetry1;
 
 import datadog.trace.api.DDSpanId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -6,12 +6,12 @@ import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.TraceFlags;
 import io.opentelemetry.api.trace.TraceState;
 
-public class DDSpanContext implements SpanContext {
+public class OtelSpanContext implements SpanContext {
   private final String traceId;
   private final String spanId;
   private final boolean remote;
 
-  public DDSpanContext(String traceId, String spanId, boolean remote) {
+  public OtelSpanContext(String traceId, String spanId, boolean remote) {
     this.traceId = traceId;
     this.spanId = spanId;
     this.remote = remote;
@@ -21,7 +21,7 @@ public class DDSpanContext implements SpanContext {
     // TODO Lazily create String ID
     String traceId = delegate.getTraceId().toHexStringPadded(32);
     String spanId = DDSpanId.toHexString(delegate.getSpanId());
-    return new DDSpanContext(traceId, spanId, false);
+    return new OtelSpanContext(traceId, spanId, false);
   }
 
   @Override
