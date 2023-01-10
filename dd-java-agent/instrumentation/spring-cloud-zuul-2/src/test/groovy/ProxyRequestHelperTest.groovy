@@ -135,7 +135,7 @@ class ProxyRequestHelperTest extends WithHttpServer<ConfigurableApplicationConte
     }
   }
 
-  def "Test baggage headers to be correctly ignored through proxy"() {
+  def "Test baggage headers to be propagated through proxy"() {
     setup:
     def hsBaggageHeader = "Baggage-test"
     def ddBaggageHeader = "ot-baggage-test"
@@ -148,7 +148,7 @@ class ProxyRequestHelperTest extends WithHttpServer<ConfigurableApplicationConte
       .header(PARENT_ID_HEADER, PARENT_ID)
       .header(TRACE_ID_HEADER, TRACE_ID)
       .header(hsBaggageHeader, "shouldnotappear")
-      .header(ddBaggageHeader, "shouldnotappear")
+      .header(ddBaggageHeader, "shouldAppear")
       .header(nonTracerHeader, "shouldAppear")
       .build()
 
@@ -158,7 +158,7 @@ class ProxyRequestHelperTest extends WithHttpServer<ConfigurableApplicationConte
 
     then:
     !receivedHeaders.containsKey(hsBaggageHeader)
-    !receivedHeaders.containsKey(ddBaggageHeader)
+    receivedHeaders.containsKey(ddBaggageHeader)
     receivedHeaders.containsKey(nonTracerHeader)
 
     receivedHeaders.containsKey(defaultParentHeader)
