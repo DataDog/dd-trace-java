@@ -202,20 +202,18 @@ public class MetricInstrumentor extends Instrumentor {
     for (Where.SourceLine sourceLine : targetLines) {
       int from = sourceLine.getFrom();
       int till = sourceLine.getTill();
-
-      boolean isSingleLine = from == till;
-
       LabelNode beforeLabel = lineMap.getLineLabel(from);
       // single line N capture translates to line range (N, N+1)
-      LabelNode afterLabel = lineMap.getLineLabel(till + (isSingleLine ? 1 : 0));
+      LabelNode afterLabel = lineMap.getLineLabel(till + (sourceLine.isSingleLine() ? 1 : 0));
       if (beforeLabel == null && afterLabel == null) {
-        reportError("No line info for " + (isSingleLine ? "line " : "range ") + sourceLine);
+        reportError(
+            "No line info for " + (sourceLine.isSingleLine() ? "line " : "range ") + sourceLine);
       }
       if (beforeLabel != null) {
         InsnList insnList = callMetric(metricProbe);
         methodNode.instructions.insertBefore(beforeLabel.getNext(), insnList);
       }
-      if (afterLabel != null && !isSingleLine) {
+      if (afterLabel != null && !sourceLine.isSingleLine()) {
         InsnList insnList = callMetric(metricProbe);
         methodNode.instructions.insert(afterLabel, insnList);
       }
