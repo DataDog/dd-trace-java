@@ -765,11 +765,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       if (encodedContext != null) {
         log.debug("Injecting pathway context {}", pathwayContext);
         setter.set(carrier, PathwayContext.PROPAGATION_KEY, encodedContext);
-        span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayContext.getHash()));
+        injectPathwayTags(span, pathwayContext);
       }
     } catch (IOException e) {
       log.debug("Unable to set encode pathway context", e);
     }
+  }
+
+  private static void injectPathwayTags(AgentSpan span, PathwayContext pathwayContext) {
+    span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayContext.getHash()));
   }
 
   @Override
@@ -781,7 +785,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       String encodedContext = pathwayContext.strEncode();
       if (encodedContext != null) {
         setter.set(carrier, PathwayContext.PROPAGATION_KEY_BASE64, encodedContext);
-        span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayContext.getHash()));
+        injectPathwayTags(span, pathwayContext);
       }
     } catch (IOException e) {
       log.debug("Unable to set encode pathway context", e);
@@ -824,8 +828,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public void setDataStreamCheckpoint(AgentSpan span, LinkedHashMap<String, String> sortedTags) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
     pathwayContext.setCheckpoint(sortedTags, dataStreamsCheckpointer);
-
-    span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayContext.getHash()));
+    injectPathwayTags(span, pathwayContext);
   }
 
   @Override

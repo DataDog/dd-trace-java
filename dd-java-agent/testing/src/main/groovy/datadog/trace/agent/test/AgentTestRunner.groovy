@@ -14,16 +14,13 @@ import datadog.trace.agent.tooling.AgentInstaller
 import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
-import datadog.trace.api.Config
-import datadog.trace.api.DDSpanId
-import datadog.trace.api.IdGenerationStrategy
-import datadog.trace.api.StatsDClient
-import datadog.trace.api.WellKnownTags
+import datadog.trace.api.*
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
+import datadog.trace.bootstrap.instrumentation.api.PathwayContext
 import datadog.trace.common.metrics.EventListener
 import datadog.trace.common.metrics.Sink
 import datadog.trace.common.writer.ListWriter
@@ -56,7 +53,6 @@ import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
-
 /**
  * A spock test runner which automatically applies instrumentation and exposes a global trace
  * writer.
@@ -335,6 +331,12 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     final AgentSpan span = TEST_TRACER.activeSpan()
 
     blockUntilChildSpansFinished(span, numberOfSpans)
+  }
+
+  String getDefaultPathwayHash(final LinkedHashMap<String, String> tags) {
+    PathwayContext pathwayContext = TEST_DATA_STREAMS_CHECKPOINTER.newPathwayContext()
+    pathwayContext.setCheckpoint(tags, { p -> })
+    return Long.toUnsignedString(pathwayContext.getHash())
   }
 
   static void blockUntilChildSpansFinished(AgentSpan span, int numberOfSpans) {

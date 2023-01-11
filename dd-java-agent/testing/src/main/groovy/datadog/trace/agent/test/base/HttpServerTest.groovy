@@ -9,11 +9,7 @@ import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
-import datadog.trace.api.gateway.Events
-import datadog.trace.api.gateway.Flow
-import datadog.trace.api.gateway.IGSpanInfo
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.gateway.*
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
@@ -22,11 +18,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.http.SimplePathNormaliz
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
 import groovy.transform.CompileStatic
-import okhttp3.HttpUrl
-import okhttp3.MediaType
-import okhttp3.Request
-import okhttp3.RequestBody
-import okhttp3.Response
+import okhttp3.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import spock.lang.Shared
@@ -36,37 +28,12 @@ import java.util.function.BiFunction
 import java.util.function.Function
 import java.util.function.Supplier
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.*
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING
-import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
-import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
-import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR
-import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
-import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS
-import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
+import static datadog.trace.api.config.TraceInstrumentationConfig.*
+import static datadog.trace.api.config.TracerConfig.*
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.SERVER_PATHWAY_EDGE_TAGS
 import static org.junit.Assume.assumeTrue
 
@@ -1465,6 +1432,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def expectedStatus = expectedStatus(endpoint)
     def expectedQueryTag = expectedQueryTag(endpoint)
     def expectedUrl = expectedUrl(endpoint, address)
+    String pathwayHash = ""
+    if (isDataStreamsEnabled()) {
+      pathwayHash = getDefaultPathwayHash(SERVER_PATHWAY_EDGE_TAGS)
+    }
     trace.span {
       serviceName expectedServiceName()
       operationName expectedOperationName()
@@ -1505,6 +1476,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         }
         if (endpoint.query) {
           "$DDTags.HTTP_QUERY" expectedQueryTag
+        }
+        if (pathwayHash != "") {
+          "$DDTags.PATHWAY_HASH" pathwayHash
         }
         // OkHttp never sends the fragment in the request.
         //        if (endpoint.fragment) {

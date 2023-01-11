@@ -735,6 +735,10 @@ abstract class HttpClientTest extends AgentTestRunner {
 
   // parent span must be cast otherwise it breaks debugging classloading (junit loads it early)
   void clientSpan(TraceAssert trace, Object parentSpan, String method = "GET", boolean renameService = false, boolean tagQueryString = false, URI uri = server.address.resolve("/success"), Integer status = 200, boolean error = false, Throwable exception = null, boolean ignorePeer = false) {
+    String pathwayHash = ""
+    if (isDataStreamsEnabled()) {
+      pathwayHash = getDefaultPathwayHash(CLIENT_PATHWAY_EDGE_TAGS)
+    }
     trace.span {
       if (parentSpan == null) {
         parent()
@@ -763,6 +767,9 @@ abstract class HttpClientTest extends AgentTestRunner {
         if (tagQueryString) {
           "$DDTags.HTTP_QUERY" uri.query
           "$DDTags.HTTP_FRAGMENT" { it == null || it == uri.fragment } // Optional
+        }
+        if (pathwayHash != "") {
+          "$DDTags.PATHWAY_HASH" pathwayHash
         }
         if (exception) {
           errorTags(exception.class, exception.message)
