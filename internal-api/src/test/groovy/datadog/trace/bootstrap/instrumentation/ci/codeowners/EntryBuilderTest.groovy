@@ -48,6 +48,7 @@ class EntryBuilderTest extends Specification {
     "someTok*n"           | ["owner"]                 | "parent/someTokkn"                              | true
     "someTok*n"           | ["owner"]                 | "grandparent/parent/someTokkn"                  | true
     "/someTok*n"          | ["owner"]                 | "someTokkn"                                     | true
+    "someTok[a-b]n"       | ["owner"]                 | "someToken"                                     | false
     "someTok[a-z]n"       | ["owner"]                 | "someToken"                                     | true
     "someTok[a-z]n"       | ["owner"]                 | "someTokEn"                                     | false
     "someTok[a-z]n"       | ["owner"]                 | "someTok9n"                                     | false
@@ -139,6 +140,7 @@ class EntryBuilderTest extends Specification {
     "**/test*.java"       | ["owner"]                 | "parent/testFile.java"                          | true
     "**/test*.java"       | ["owner"]                 | "grandparent/parent/test.java"                  | true
     "**/test*.java"       | ["owner"]                 | "grandparent/parent/testFile.java"              | true
+    "\\#someToken"        | ["owner"]                 | "#someToken"                                    | true
   }
 
   private static String ownersToString(Collection<String> owners) {
@@ -149,5 +151,16 @@ class EntryBuilderTest extends Specification {
     }
 
     return result.toString()
+  }
+
+  def "test invalid range parsing"() {
+    setup:
+    def matcherFactory = new CharacterMatcher.Factory()
+
+    when:
+    def entry = new EntryBuilder(matcherFactory, "token[z-a] owner").parse()
+
+    then:
+    entry == null
   }
 }
