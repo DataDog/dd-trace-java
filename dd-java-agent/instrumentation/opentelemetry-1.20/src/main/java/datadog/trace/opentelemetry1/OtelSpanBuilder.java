@@ -22,7 +22,14 @@ public class OtelSpanBuilder implements SpanBuilder {
 
   @Override
   public SpanBuilder setParent(Context context) {
-    return null; // TODO Type conversion required
+    Span span = Span.fromContext(context);
+    SpanContext spanContext = span.getSpanContext();
+    AgentSpan.Context ddContext = AgentTracer.NoopContext.INSTANCE;
+    if (spanContext instanceof OtelSpanContext) {
+      ddContext = ((OtelSpanContext) spanContext).delegate;
+    }
+    this.delegate.asChildOf(ddContext);
+    return this;
   }
 
   @Override
