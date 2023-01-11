@@ -7,30 +7,34 @@ import io.opentelemetry.api.trace.TraceFlags;
 import io.opentelemetry.api.trace.TraceState;
 
 public class OtelSpanContext implements SpanContext {
-  private final String traceId;
-  private final String spanId;
+  final AgentSpan.Context delegate;
+  private String traceId;
+  private String spanId;
   private final boolean remote;
 
-  public OtelSpanContext(String traceId, String spanId, boolean remote) {
-    this.traceId = traceId;
-    this.spanId = spanId;
+  public OtelSpanContext(AgentSpan.Context delegate, boolean remote) {
+    this.delegate = delegate;
     this.remote = remote;
   }
 
-  public static SpanContext fromLocalSpan(AgentSpan delegate) {
-    // TODO Lazily create String ID
-    String traceId = delegate.getTraceId().toHexStringPadded(32);
-    String spanId = DDSpanId.toHexString(delegate.getSpanId());
-    return new OtelSpanContext(traceId, spanId, false);
+  public static SpanContext fromLocalSpan(AgentSpan span) {
+    AgentSpan.Context delegate = span.context();
+    return new OtelSpanContext(delegate, false);
   }
 
   @Override
   public String getTraceId() {
+    if (this.traceId == null) {
+      this.traceId = this.delegate.getTraceId().toHexStringPadded(32);
+    }
     return this.traceId;
   }
 
   @Override
   public String getSpanId() {
+    if (this.spanId == null) {
+      this.spanId = DDSpanId.toHexString(this.delegate.getSpanId());
+    }
     return this.spanId;
   }
 

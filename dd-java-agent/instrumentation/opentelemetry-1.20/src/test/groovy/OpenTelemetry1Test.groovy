@@ -5,23 +5,16 @@ import datadog.trace.opentelemetry1.OtelSpanBuilder
 import datadog.trace.opentelemetry1.OtelTracer
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.trace.StatusCode
+import io.opentelemetry.context.Context
 import spock.lang.Subject
 
 import static io.opentelemetry.api.trace.StatusCode.ERROR
 import static io.opentelemetry.api.trace.StatusCode.OK
 import static io.opentelemetry.api.trace.StatusCode.UNSET
 
-class OpenTelemetryTest extends AgentTestRunner {
+class OpenTelemetry1Test extends AgentTestRunner {
   @Subject
   def tracer = GlobalOpenTelemetry.get().tracerProvider.get("some-instrumentation")
-  //  def httpPropagator = OpenTelemetry.getPropagators().httpTextFormat
-
-  //  @Override
-  //  void configurePreAgent() {
-  //    super.configurePreAgent()
-  // Required if instrumentation is not enabled by default
-  //    injectSysConfig("dd.integration.opentelemetry.enabled", "true")
-  //  }
 
   def "test injection"() {
     setup:
@@ -32,6 +25,33 @@ class OpenTelemetryTest extends AgentTestRunner {
     tracer instanceof OtelTracer
     builder instanceof OtelSpanBuilder
     result instanceof OtelSpan
+  }
+
+  def "test parent span"() {
+    setup:
+    def builder = tracer.spanBuilder("some-name")
+    def parentSpan = builder.startSpan()
+
+    when:
+    def child = tracer.spanBuilder("other-name")
+      .setParent(Context.current().with(parentSpan))
+      .startSpan()
+    child.end()
+    parentSpan.end()
+
+    then:
+    assertTraces(1) {
+      trace(2) {
+        span {
+          parent()
+          operationName "some-name"
+        }
+        span {
+          childOfPrevious()
+          operationName "other-name"
+        }
+      }
+    }
   }
 
   def "test span attributes"() {
