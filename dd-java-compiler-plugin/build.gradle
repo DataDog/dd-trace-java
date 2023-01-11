@@ -10,6 +10,8 @@ dependencies {
   implementation files(Jvm.current().toolsJar)
 }
 
+excludedClassesCoverage = ['datadog.compiler.*']
+
 project.afterEvaluate {
 
   tasks.withType(Test).configureEach {
