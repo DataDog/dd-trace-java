@@ -16,6 +16,7 @@ import org.springframework.web.reactive.function.client.WebClient
 import reactor.core.publisher.Mono
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS
 
 abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
 
@@ -90,6 +91,9 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
           }
           if (exception) {
             errorTags(exception.class, exception.message)
+          }
+          if ({ isDataStreamsEnabled() }) {
+            "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(CLIENT_PATHWAY_EDGE_TAGS)}
           }
           defaultTags()
         }

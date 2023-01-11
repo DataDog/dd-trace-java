@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -16,6 +17,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS
 import static org.junit.Assume.assumeTrue
 
 abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERVER> {
@@ -180,6 +182,9 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
           "error.type" { it == Exception.name || it == InputMismatchException.name }
           "error.stack" String
         }
+        if ({ isDataStreamsEnabled() }){
+          "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(CLIENT_PATHWAY_EDGE_TAGS) }
+        }
         defaultTags()
       }
     }
@@ -209,6 +214,9 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
           "error.message" endpoint.body
           "error.type" { it == Exception.name || it == InputMismatchException.name }
           "error.stack" String
+        }
+        if ({ isDataStreamsEnabled() }){
+          "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(CLIENT_PATHWAY_EDGE_TAGS) }
         }
         defaultTags()
       }

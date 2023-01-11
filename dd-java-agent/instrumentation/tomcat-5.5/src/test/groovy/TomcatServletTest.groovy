@@ -1,6 +1,7 @@
 import com.google.common.io.Files
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
+import datadog.trace.api.DDTags
 import org.apache.catalina.Context
 import org.apache.catalina.Engine
 import org.apache.catalina.Wrapper
@@ -22,6 +23,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FO
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS
 import static org.junit.Assume.assumeTrue
 
 @Unroll
@@ -166,6 +168,9 @@ class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
           childOfPrevious()
           tags {
             "component" "java-web-servlet-response"
+            if ({isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" {getDefaultPathwayHash(CLIENT_PATHWAY_EDGE_TAGS)}
+            }
             defaultTags()
           }
         }
