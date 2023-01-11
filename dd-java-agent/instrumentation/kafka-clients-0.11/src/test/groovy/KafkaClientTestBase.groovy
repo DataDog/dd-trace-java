@@ -51,7 +51,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
   public static final LinkedHashMap<String, String> PRODUCER_PATHWAY_EDGE_TAGS
 
   static {
-    PRODUCER_PATHWAY_EDGE_TAGS = new LinkedHashMap<>(2)
+    PRODUCER_PATHWAY_EDGE_TAGS = new LinkedHashMap<>(3)
     PRODUCER_PATHWAY_EDGE_TAGS.put("direction", "out")
     PRODUCER_PATHWAY_EDGE_TAGS.put("topic", SHARED_TOPIC)
     PRODUCER_PATHWAY_EDGE_TAGS.put("type", "kafka")
