@@ -42,7 +42,7 @@ public class TelemetrySystem {
 
     List<TelemetryPeriodicAction> actions = new ArrayList<>();
     actions.add(new IntegrationPeriodicAction());
-    if (Config.get().isTelemetryDependencyServiceEnabled()) {
+    if (null != dependencyService) {
       actions.add(new DependencyPeriodicAction(dependencyService));
     }
 
