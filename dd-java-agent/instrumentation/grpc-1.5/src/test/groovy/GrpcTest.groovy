@@ -14,12 +14,7 @@ import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.instrumentation.grpc.server.GrpcExtractAdapter
 import example.GreeterGrpc
 import example.Helloworld
-import io.grpc.BindableService
-import io.grpc.ManagedChannel
-import io.grpc.Metadata
-import io.grpc.Server
-import io.grpc.Status
-import io.grpc.StatusRuntimeException
+import io.grpc.*
 import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
 import io.grpc.stub.StreamObserver
@@ -369,6 +364,9 @@ abstract class GrpcTest extends AgentTestRunner {
             "status.code" "UNKNOWN"
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
+            if ({isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "out", "type": "grpc"]) }
+            }
             defaultTags()
           }
         }
@@ -385,6 +383,9 @@ abstract class GrpcTest extends AgentTestRunner {
             "$Tags.COMPONENT" "grpc-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             errorTags error.class, error.message
+            if ({isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "in", "type": "grpc"]) }
+            }
             defaultTags(true)
           }
         }
