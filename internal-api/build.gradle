@@ -110,6 +110,8 @@ dependencies {
   api deps.slf4j
   api project(":utils:time-utils")
 
+  implementation project(':dd-java-compiler-plugin:client')
+
   testImplementation project(":utils:test-utils")
   testImplementation("org.assertj:assertj-core:2.9.1")
   testImplementation deps.junit5
