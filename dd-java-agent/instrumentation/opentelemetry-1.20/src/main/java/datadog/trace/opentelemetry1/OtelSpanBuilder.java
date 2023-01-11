@@ -2,6 +2,7 @@ package datadog.trace.opentelemetry1;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
@@ -82,8 +83,24 @@ public class OtelSpanBuilder implements SpanBuilder {
 
   @Override
   public SpanBuilder setSpanKind(SpanKind spanKind) {
-    this.delegate.withSpanType(spanKind.toString());
+    this.delegate.withSpanType(toSpanType(spanKind));
     return this;
+  }
+
+  private static String toSpanType(SpanKind spanKind) {
+    switch (spanKind) {
+      case CLIENT:
+        return Tags.SPAN_KIND_CLIENT;
+      case SERVER:
+        return Tags.SPAN_KIND_SERVER;
+      case PRODUCER:
+        return Tags.SPAN_KIND_PRODUCER;
+      case CONSUMER:
+        return Tags.SPAN_KIND_CONSUMER;
+      default:
+      case INTERNAL:
+        return spanKind.toString().toLowerCase();
+    }
   }
 
   @Override
