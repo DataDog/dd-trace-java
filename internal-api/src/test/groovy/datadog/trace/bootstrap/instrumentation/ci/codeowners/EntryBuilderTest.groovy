@@ -117,6 +117,10 @@ class EntryBuilderTest extends Specification {
     "*"                   | ["owner"]                 | "parent/someToken"                              | true
     "*"                   | ["owner"]                 | "parent/someToken/child"                        | true
     "*"                   | ["owner"]                 | "someFile.java"                                 | true
+    "**"                  | ["owner"]                 | "someToken"                                     | true
+    "**"                  | ["owner"]                 | "parent/someToken"                              | true
+    "**"                  | ["owner"]                 | "parent/someToken/child"                        | true
+    "**"                  | ["owner"]                 | "someFile.java"                                 | true
     "*.java"              | ["owner"]                 | "someFile.java"                                 | true
     "*.java"              | ["owner"]                 | "parent/someFile.java"                          | true
     "*.java"              | ["owner"]                 | "grandparent/parent/someFile.java"              | true
