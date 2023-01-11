@@ -104,6 +104,9 @@ public class MergedAsmData extends AbstractList<Map<String, Object>> {
           Object value = d.get("value");
           Long expiration = null;
           Object expirationValue = d.get("expiration");
+          if (expirationValue instanceof String) {
+            expirationValue = Long.parseLong((String) expirationValue);
+          }
           if (expirationValue != null) {
             expiration = ((Number) expirationValue).longValue();
           }
