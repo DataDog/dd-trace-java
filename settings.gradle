@@ -79,6 +79,8 @@ include ':dd-java-agent:cws-tls'
 
 // misc
 include ':dd-java-agent:testing'
+include ':dd-java-compiler-plugin'
+include ':dd-java-compiler-plugin:client'
 include ':utils:container-utils'
 include ':utils:socket-utils'
 include ':utils:test-agent-utils:decoder'
