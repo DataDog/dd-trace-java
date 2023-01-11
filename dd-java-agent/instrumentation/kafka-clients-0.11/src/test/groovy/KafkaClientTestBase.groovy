@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -45,6 +46,15 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
 
     injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
     injectSysConfig("dd.data.streams.enabled", "true")
+  }
+
+  public static final LinkedHashMap<String, String> PRODUCER_PATHWAY_EDGE_TAGS
+
+  static {
+    PRODUCER_PATHWAY_EDGE_TAGS = new LinkedHashMap<>(2)
+    PRODUCER_PATHWAY_EDGE_TAGS.put("direction", "out")
+    PRODUCER_PATHWAY_EDGE_TAGS.put("topic", SHARED_TOPIC)
+    PRODUCER_PATHWAY_EDGE_TAGS.put("type", "kafka")
   }
 
   abstract String expectedServiceName()
@@ -816,6 +826,9 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
         if (tombstone) {
           "$InstrumentationTags.TOMBSTONE" true
         }
+        if ({isDataStreamsEnabled()}) {
+          "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(PRODUCER_PATHWAY_EDGE_TAGS) }
+        }
         defaultTags()
       }
     }
@@ -874,6 +887,9 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
         "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
         if (tombstone) {
           "$InstrumentationTags.TOMBSTONE" true
+        }
+        if ({isDataStreamsEnabled()}) {
+          "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(PRODUCER_PATHWAY_EDGE_TAGS) }
         }
         defaultTags(distributedRootSpan)
       }

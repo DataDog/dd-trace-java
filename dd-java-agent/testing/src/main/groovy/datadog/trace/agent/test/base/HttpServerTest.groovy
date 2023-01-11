@@ -1432,10 +1432,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def expectedStatus = expectedStatus(endpoint)
     def expectedQueryTag = expectedQueryTag(endpoint)
     def expectedUrl = expectedUrl(endpoint, address)
-    String pathwayHash = ""
-    if (isDataStreamsEnabled()) {
-      pathwayHash = getDefaultPathwayHash(SERVER_PATHWAY_EDGE_TAGS)
-    }
     trace.span {
       serviceName expectedServiceName()
       operationName expectedOperationName()
@@ -1477,8 +1473,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         if (endpoint.query) {
           "$DDTags.HTTP_QUERY" expectedQueryTag
         }
-        if (pathwayHash != "") {
-          "$DDTags.PATHWAY_HASH" pathwayHash
+        if ({ isDataStreamsEnabled() }) {
+          "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(SERVER_PATHWAY_EDGE_TAGS) }
         }
         // OkHttp never sends the fragment in the request.
         //        if (endpoint.fragment) {

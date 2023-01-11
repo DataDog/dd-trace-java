@@ -346,6 +346,11 @@ public class DefaultPathwayContext implements PathwayContext {
     public long generateHash() {
       return FNV64Hash.generateHash(builder.toString(), FNV64Hash.Version.v1);
     }
+
+    @Override
+    public String toString() {
+      return builder.toString();
+    }
   }
 
   private long generateNodeHash(PathwayHashBuilder pathwayHashBuilder) {

@@ -773,7 +773,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   private static void injectPathwayTags(AgentSpan span, PathwayContext pathwayContext) {
-    span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayContext.getHash()));
+    long pathwayHash = pathwayContext.getHash();
+    if (pathwayHash != 0) {
+      span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayHash));
+    }
   }
 
   @Override
