@@ -1,9 +1,11 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDTags
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.opentelemetry1.OtelSpan
 import datadog.trace.opentelemetry1.OtelSpanBuilder
 import datadog.trace.opentelemetry1.OtelTracer
 import io.opentelemetry.api.GlobalOpenTelemetry
+import io.opentelemetry.api.trace.SpanKind
 import io.opentelemetry.api.trace.StatusCode
 import io.opentelemetry.context.Context
 import spock.lang.Subject
@@ -33,10 +35,10 @@ class OpenTelemetry1Test extends AgentTestRunner {
     def parentSpan = builder.startSpan()
 
     when:
-    def child = tracer.spanBuilder("other-name")
+    def childSpan = tracer.spanBuilder("other-name")
       .setParent(Context.current().with(parentSpan))
       .startSpan()
-    child.end()
+    childSpan.end()
     parentSpan.end()
 
     then:
@@ -110,6 +112,33 @@ class OpenTelemetry1Test extends AgentTestRunner {
     true       | true
     false      | false
     false      | true
+  }
+
+  def "test span kinds"() {
+    setup:
+    def builder = tracer.spanBuilder("some-name")
+    builder.setSpanKind(otelSpanKind)
+    def result = builder.startSpan()
+
+    when:
+    result.end()
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          spanType(tagSpanKind)
+        }
+      }
+    }
+
+    where:
+    otelSpanKind | tagSpanKind
+    SpanKind.CLIENT | Tags.SPAN_KIND_CLIENT
+    SpanKind.CONSUMER | Tags.SPAN_KIND_CONSUMER
+    SpanKind.INTERNAL | "internal"
+    SpanKind.PRODUCER | Tags.SPAN_KIND_PRODUCER
+    SpanKind.SERVER | Tags.SPAN_KIND_SERVER
   }
 
   def "test span error status"() {
