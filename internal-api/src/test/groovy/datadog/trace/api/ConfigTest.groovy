@@ -74,7 +74,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_PERIOD
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_ENABLED
-import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_INITIAL_POLL_INTERVAL
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_POLL_INTERVAL_SECONDS
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_MAX_PAYLOAD_SIZE
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
@@ -212,7 +212,7 @@ class ConfigTest extends DDSpecification {
 
     prop.setProperty(REMOTE_CONFIG_ENABLED, "true")
     prop.setProperty(REMOTE_CONFIG_URL, "remote config url")
-    prop.setProperty(REMOTE_CONFIG_INITIAL_POLL_INTERVAL, "3")
+    prop.setProperty(REMOTE_CONFIG_POLL_INTERVAL_SECONDS, "3")
     prop.setProperty(REMOTE_CONFIG_MAX_PAYLOAD_SIZE, "2")
 
     prop.setProperty(DEBUGGER_ENABLED, "true")
@@ -298,7 +298,7 @@ class ConfigTest extends DDSpecification {
 
     config.remoteConfigEnabled == true
     config.finalRemoteConfigUrl == 'remote config url'
-    config.remoteConfigInitialPollInterval == 3
+    config.remoteConfigPollIntervalSeconds == 3
     config.remoteConfigMaxPayloadSizeBytes == 2048
 
     config.debuggerEnabled == true
@@ -383,7 +383,7 @@ class ConfigTest extends DDSpecification {
 
     System.setProperty(PREFIX + REMOTE_CONFIG_ENABLED, "true")
     System.setProperty(PREFIX + REMOTE_CONFIG_URL, "remote config url")
-    System.setProperty(PREFIX + REMOTE_CONFIG_INITIAL_POLL_INTERVAL, "3")
+    System.setProperty(PREFIX + REMOTE_CONFIG_POLL_INTERVAL_SECONDS, "3")
     System.setProperty(PREFIX + REMOTE_CONFIG_MAX_PAYLOAD_SIZE, "2")
 
     System.setProperty(PREFIX + DEBUGGER_ENABLED, "true")
@@ -469,7 +469,7 @@ class ConfigTest extends DDSpecification {
 
     config.remoteConfigEnabled == true
     config.finalRemoteConfigUrl == 'remote config url'
-    config.remoteConfigInitialPollInterval == 3
+    config.remoteConfigPollIntervalSeconds == 3
     config.remoteConfigMaxPayloadSizeBytes == 2 * 1024
 
     config.debuggerEnabled == true

@@ -54,9 +54,9 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_INITIAL_POLL_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_POLL_INTERVAL_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
@@ -206,9 +206,9 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_ENABLED;
-import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_INITIAL_POLL_INTERVAL;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_MAX_PAYLOAD_SIZE;
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_POLL_INTERVAL_SECONDS;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY_ID;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL;
@@ -537,7 +537,7 @@ public class Config {
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
   private final String remoteConfigUrl;
-  private final int remoteConfigInitialPollInterval;
+  private final int remoteConfigPollIntervalSeconds;
   private final long remoteConfigMaxPayloadSize;
   private final String remoteConfigTargetsKeyId;
   private final String remoteConfigTargetsKey;
@@ -1244,9 +1244,9 @@ public class Config {
         configProvider.getBoolean(
             REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED, DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED);
     remoteConfigUrl = configProvider.getString(REMOTE_CONFIG_URL);
-    remoteConfigInitialPollInterval =
+    remoteConfigPollIntervalSeconds =
         configProvider.getInteger(
-            REMOTE_CONFIG_INITIAL_POLL_INTERVAL, DEFAULT_REMOTE_CONFIG_INITIAL_POLL_INTERVAL);
+            REMOTE_CONFIG_POLL_INTERVAL_SECONDS, DEFAULT_REMOTE_CONFIG_POLL_INTERVAL_SECONDS);
     remoteConfigMaxPayloadSize =
         configProvider.getInteger(
                 REMOTE_CONFIG_MAX_PAYLOAD_SIZE, DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE)
@@ -1972,8 +1972,8 @@ public class Config {
     return remoteConfigUrl;
   }
 
-  public int getRemoteConfigInitialPollInterval() {
-    return remoteConfigInitialPollInterval;
+  public int getRemoteConfigPollIntervalSeconds() {
+    return remoteConfigPollIntervalSeconds;
   }
 
   public String getRemoteConfigTargetsKeyId() {
@@ -3087,8 +3087,8 @@ public class Config {
         + remoteConfigEnabled
         + ", remoteConfigUrl="
         + remoteConfigUrl
-        + ", remoteConfigInitialPollInterval="
-        + remoteConfigInitialPollInterval
+        + ", remoteConfigPollIntervalSeconds="
+        + remoteConfigPollIntervalSeconds
         + ", remoteConfigMaxPayloadSize="
         + remoteConfigMaxPayloadSize
         + ", remoteConfigIntegrityCheckEnabled="
