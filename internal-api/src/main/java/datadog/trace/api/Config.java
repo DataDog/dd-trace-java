@@ -1043,9 +1043,16 @@ public class Config {
 
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
+    boolean isAsyncProfilerSafe = isAsyncProfilerSafeInCurrentEnvironment();
     isAsyncProfilerEnabled =
         configProvider.getBoolean(
             PROFILING_ASYNC_ENABLED, isAsyncProfilerSafeInCurrentEnvironment());
+    log.info(
+        "version: {} safe: {}, explicitly enabled: {}, enabled: {}",
+        System.getProperty("java.version"),
+        isAsyncProfilerSafe,
+        configProvider.getBoolean(PROFILING_ASYNC_ENABLED),
+        isAsyncProfilerEnabled);
     profilingUrl = configProvider.getString(PROFILING_URL);
 
     if (tmpApiKey == null) {
