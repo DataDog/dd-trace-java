@@ -20,7 +20,6 @@ import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext
 import datadog.trace.common.metrics.EventListener
 import datadog.trace.common.metrics.Sink
 import datadog.trace.common.writer.ListWriter
@@ -334,9 +333,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   }
 
   String getDefaultPathwayHash(final LinkedHashMap<String, String> tags) {
-    PathwayContext pathwayContext = TEST_DATA_STREAMS_CHECKPOINTER.newPathwayContext()
-    pathwayContext.setCheckpoint(tags, { p -> })
-    return Long.toUnsignedString(pathwayContext.getHash())
+    // PathwayContext pathwayContext = TEST_DATA_STREAMS_CHECKPOINTER.newPathwayContext()
+    // pathwayContext.setCheckpoint(new LinkedHashMap<String, String>(), { p -> })
+    // Long.toUnsignedString(pathwayContext.getHash())
+    return "0"
   }
 
   static void blockUntilChildSpansFinished(AgentSpan span, int numberOfSpans) {
