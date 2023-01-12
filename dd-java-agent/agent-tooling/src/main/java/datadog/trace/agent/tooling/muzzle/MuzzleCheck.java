@@ -4,10 +4,11 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterState;
 import datadog.trace.util.Strings;
 import java.util.List;
+import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MuzzleCheck {
+public class MuzzleCheck implements ElementMatcher<ClassLoader> {
   private static final Logger log = LoggerFactory.getLogger(MuzzleCheck.class);
 
   private final int instrumentationId;
@@ -24,7 +25,7 @@ public class MuzzleCheck {
     this.instrumentationNames = instrumenter.names();
   }
 
-  public boolean allow(ClassLoader classLoader) {
+  public boolean matches(ClassLoader classLoader) {
     Boolean applicable = InstrumenterState.isApplicable(classLoader, instrumentationId);
     if (null != applicable) {
       return applicable;

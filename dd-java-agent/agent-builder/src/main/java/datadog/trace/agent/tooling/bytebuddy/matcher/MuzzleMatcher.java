@@ -21,6 +21,6 @@ public final class MuzzleMatcher implements AgentBuilder.RawMatcher {
       JavaModule module,
       Class<?> classBeingRedefined,
       ProtectionDomain protectionDomain) {
-    return muzzleCheck.allow(classLoader);
+    return muzzleCheck.matches(classLoader);
   }
 }
