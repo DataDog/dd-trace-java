@@ -1792,13 +1792,12 @@ public class Config {
     return isAsyncProfilerEnabled;
   }
 
-  private static boolean isAsyncProfilerSafeInCurrentEnvironment() {
+  public static boolean isAsyncProfilerSafeInCurrentEnvironment() {
     // don't want to put this logic (which will evolve) in the public ProfilingConfig, and can't
     // access Platform there
-    if (Platform.isJ9()) {
-      return true;
-    }
-    return Platform.isJavaVersionAtLeast(18)
+    // don't want to put this logic (which will evolve) in the public ProfilingConfig, and can't
+    // access Platform there
+    return Platform.isJ9()
         || Platform.isJavaVersionAtLeast(17, 0, 5)
         || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 17))
         || (Platform.isJavaVersion(8) && Platform.isJavaVersionAtLeast(8, 0, 352));
