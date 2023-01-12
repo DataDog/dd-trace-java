@@ -12,6 +12,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.datadog.debugger.el.DSL;
+import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -474,12 +476,19 @@ public class ConfigurationUpdaterTest {
         new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
     List<LogProbe> logProbes =
         Collections.singletonList(
-            LogProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build());
+            LogProbe.builder()
+                .probeId(PROBE_ID)
+                .where("java.lang.String", "concat")
+                .when(
+                    new ProbeCondition(
+                        DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("foo"))), "arg == 'foo'"))
+                .build());
     configurationUpdater.accept(createApp(logProbes));
     Snapshot.ProbeDetails probeDetails = configurationUpdater.resolve(PROBE_ID, String.class);
     Assertions.assertEquals(PROBE_ID, probeDetails.getId());
     Assertions.assertEquals("java.lang.String", probeDetails.getLocation().getType());
     Assertions.assertEquals("concat", probeDetails.getLocation().getMethod());
+    Assertions.assertNotNull(probeDetails.getScript());
   }
 
   @Test
