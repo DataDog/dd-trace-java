@@ -1795,24 +1795,6 @@ public class Config {
   private static boolean isAsyncProfilerSafeInCurrentEnvironment() {
     // don't want to put this logic (which will evolve) in the public ProfilingConfig, and can't
     // access Platform there
-    boolean isSafeArchitecture = false;
-    String architecture = System.getProperty("os.arch", "").toLowerCase();
-    switch (architecture) {
-      case "x86_64":
-      case "amd64":
-      case "k8":
-      case "x86":
-      case "i386":
-      case "i486":
-      case "i586":
-      case "i686":
-        isSafeArchitecture = true;
-        break;
-      default:
-    }
-    if (!isSafeArchitecture) {
-      return false;
-    }
     if (Platform.isJ9()) {
       return true;
     }
