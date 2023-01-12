@@ -59,6 +59,7 @@ public class MessageImplInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.This MessageBuilderImpl impl){
       AgentSpan span = startSpan("message build send");
+      span.setSpanType("rocketmq");
       AgentScope scope = activateSpan(span);
       propagate().inject(span,impl,SETTER);
       return scope;

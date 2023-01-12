@@ -44,6 +44,7 @@ public class ReceiveSpanFinishingCallback implements FutureCallback<ReceiveMessa
       childSpan.setServiceName("rocketmq-consume");
       childSpan.setTag("messageID",messageView.getMessageId());
       AgentScope scopeC = activateSpan(childSpan);
+      scopeC.span().setSpanType("rocketmq");
       scopeC.span().setTag("groupID",consumerGroup);
       scopeC.span().setTag("topic",topic);
       scopeC.span().setTag("status","success");

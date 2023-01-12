@@ -18,6 +18,7 @@ public class SendSpanFinishingCallback implements FutureCallback<SendReceiptImpl
   @Override
   public void onSuccess(SendReceiptImpl result) {
     scope.setTag("MessageID",result.getMessageId());
+    scope.setSpanType("rocketmq");
     scope.finish();
   }
 

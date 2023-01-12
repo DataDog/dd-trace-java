@@ -28,7 +28,7 @@ public class MessageListenerWrapper implements MessageListener {
     }else {
      span =  startSpan("messageListener");
     }
-
+    span.setSpanType("rocketmq");
     span.setTag("messageID",messageView.getMessageId());
     span.setServiceName("rocketmq-consume");
     span.setTag("topic",messageView.getTopic());
