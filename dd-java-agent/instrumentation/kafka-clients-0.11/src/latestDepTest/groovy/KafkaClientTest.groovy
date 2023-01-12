@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
@@ -129,6 +130,9 @@ class KafkaClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "out", "group": "sender", "topic": SHARED_TOPIC, "type": "kafka"])}
+            }
             defaultTags()
           }
         }
@@ -151,7 +155,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             // TODO - test with and without feature enabled once Config is easier to control
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "in", "group": "sender", "topic": SHARED_TOPIC, "type": "kafka"])}
+            }
             defaultTags(true)
           }
         }
@@ -254,6 +260,9 @@ class KafkaClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "out", "topic": SHARED_TOPIC, "type": "kafka"])}
+            }
             defaultTags()
           }
         }
@@ -276,7 +285,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             // TODO - test with and without feature enabled once Config is easier to control
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "in", "topic": SHARED_TOPIC, "type": "kafka"])}
+            }
             defaultTags(true)
           }
         }
@@ -372,6 +383,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
             "$InstrumentationTags.TOMBSTONE" true
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "out", "topic": SHARED_TOPIC, "type": "kafka"])}
+            }
             defaultTags()
           }
         }
@@ -395,7 +409,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.TOMBSTONE" true
             // TODO - test with and without feature enabled once Config is easier to control
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "in", "topic": SHARED_TOPIC, "type": "kafka"])}
+            }
             defaultTags(true)
           }
         }
@@ -456,6 +472,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
             "$InstrumentationTags.PARTITION" { it >= 0 }
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "out", "topic": SHARED_TOPIC, "type": "kafka"])}
+            }
             defaultTags(true)
           }
         }
@@ -478,7 +497,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             // TODO - test with and without feature enabled once Config is easier to control
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "in", "topic": SHARED_TOPIC, "type": "kafka"])}
+            }
             defaultTags(true)
           }
         }
@@ -542,6 +563,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
             "$InstrumentationTags.PARTITION" { it >= 0 }
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "out", "topic": SHARED_TOPIC, "type": "kafka"])}
+            }
             defaultTags(true)
           }
         }
@@ -558,6 +582,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
             "$InstrumentationTags.PARTITION" { it >= 0 }
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "out", "topic": SHARED_TOPIC, "type": "kafka"])}
+            }
             defaultTags(true)
           }
         }
@@ -574,6 +601,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
             "$InstrumentationTags.PARTITION" { it >= 0 }
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "out", "topic": SHARED_TOPIC, "type": "kafka"])}
+            }
             defaultTags(true)
           }
         }
@@ -596,6 +626,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "in", "topic": SHARED_TOPIC, "type": "kafka"])}
+            }
             defaultTags(true)
           }
         }
@@ -616,6 +649,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "in", "topic": SHARED_TOPIC, "type": "kafka"])}
+            }
             defaultTags(true)
           }
         }
@@ -636,6 +672,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "in", "topic": SHARED_TOPIC, "type": "kafka"])}
+            }
             defaultTags(true)
           }
         }
@@ -658,6 +697,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "in", "topic": SHARED_TOPIC, "type": "kafka"])}
+            }
             defaultTags(true)
           }
         }
@@ -678,6 +720,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "in", "topic": SHARED_TOPIC, "type": "kafka"])}
+            }
             defaultTags(true)
           }
         }
@@ -698,6 +743,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "in", "topic": SHARED_TOPIC, "type": "kafka"])}
+            }
             defaultTags(true)
           }
         }
@@ -781,6 +829,9 @@ class KafkaClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "out", "topic": SHARED_TOPIC, "type": "kafka"])}
+            }
             defaultTags()
           }
         }
@@ -795,6 +846,9 @@ class KafkaClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "out", "topic": SHARED_TOPIC, "type": "kafka"])}
+            }
             defaultTags()
           }
         }
@@ -809,6 +863,9 @@ class KafkaClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "out", "topic": SHARED_TOPIC, "type": "kafka"])}
+            }
             defaultTags()
           }
         }
@@ -828,7 +885,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "in", "topic": SHARED_TOPIC, "type": "kafka"])}
+            }
             defaultTags(true)
           }
         }
@@ -848,7 +907,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "in", "topic": SHARED_TOPIC, "type": "kafka"])}
+            }
             defaultTags(true)
           }
         }
@@ -868,7 +929,9 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-
+            if ({ isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "in", "topic": SHARED_TOPIC, "type": "kafka"])}
+            }
             defaultTags(true)
           }
         }
