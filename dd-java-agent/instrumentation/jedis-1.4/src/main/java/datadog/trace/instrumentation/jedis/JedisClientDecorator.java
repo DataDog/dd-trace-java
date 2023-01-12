@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.jedis;
 
+import datadog.trace.api.Config;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
@@ -9,6 +11,8 @@ public class JedisClientDecorator
     extends DBTypeProcessingDatabaseClientDecorator<Protocol.Command> {
   public static final CharSequence COMPONENT_NAME = UTF8BytesString.create("redis-command");
   public static final CharSequence REDIS_COMMAND = UTF8BytesString.create("redis.command");
+
+  public boolean RedisCommandRaw = Config.get().getRedisCommandArgs();
   public static final JedisClientDecorator DECORATE = new JedisClientDecorator();
 
   @Override
@@ -49,5 +53,12 @@ public class JedisClientDecorator
   @Override
   protected String dbHostname(Protocol.Command command) {
     return null;
+  }
+
+  public AgentSpan setRaw(AgentSpan span, String raw) {
+    if (RedisCommandRaw){
+      span.setTag("redis.command.args",raw);
+    }
+    return span;
   }
 }

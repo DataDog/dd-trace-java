@@ -51,8 +51,11 @@ public final class AgentBootstrap {
     }
 
     try {
+      String agentVersion = AgentJar.getAgentVersion();
+      System.out.println(agentVersion);
+     // System.setProperty("dd.version", agentVersion);
       final URL agentJarURL = installAgentJar(inst);
-      System.out.println(agentArgs);
+    //  System.out.println(agentArgs);
       if (agentArgs != null && !agentArgs.equals("")) {
         String[] split = agentArgs.split(",");
         for (int i = 0; i < split.length; i++) {

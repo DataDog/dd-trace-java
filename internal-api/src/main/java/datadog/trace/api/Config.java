@@ -325,6 +325,8 @@ public class Config {
 
   private final boolean jdbcSqlObfuscation;
 
+  private final boolean redisCommandArgs;
+
   private String env;
   private String version;
   private final String primaryTag;
@@ -895,6 +897,8 @@ public class Config {
     debuggerExcludeFile = configProvider.getString(DEBUGGER_EXCLUDE_FILE);
 
     jdbcSqlObfuscation = configProvider.getBoolean(JDBC_SQL_OBFUSCATION, DEFAULT_JDBC_SQL_OBFUSCATION);
+
+    redisCommandArgs = configProvider.getBoolean(REDIS_COMMAND_ARGS, DEFAULT_REDIS_COMMAND_ARGS);
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws");
     sqsPropagationEnabled = awsPropagationEnabled && isPropagationEnabled(true, "sqs");
@@ -2417,6 +2421,10 @@ public class Config {
 
   public boolean getJdbcSqlObfuscation() {
     return jdbcSqlObfuscation;
+  }
+
+  public boolean getRedisCommandArgs(){
+    return redisCommandArgs;
   }
 
   @Override
