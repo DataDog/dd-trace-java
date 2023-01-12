@@ -79,8 +79,10 @@ public abstract class ProfilerSettingsSupport {
         !"no"
             .equalsIgnoreCase(
                 configProvider.getString(
-                    ProfilingConfig.PROFILING_ASYNC_CSTACK,
-                    ProfilingConfig.PROFILING_ASYNC_CSTACK_DEFAULT));
+                    ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK,
+                    configProvider.getString(
+                        "profiling.async.cstack",
+                        ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT)));
   }
 
   /** To be defined in controller specific way. Eg. one could emit JFR events. */

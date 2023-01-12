@@ -35,21 +35,21 @@ final class SmokeTestUtils {
                 "-Ddd.profiling.async.enabled=true",
                 "-Ddd." + ProfilingConfig.PROFILING_AUXILIARY_TYPE + "=async",
                 "-Ddd."
-                    + ProfilingConfig.PROFILING_ASYNC_LIBPATH
+                    + ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH
                     + "="
                     + System.getenv("TEST_LIBASYNC"),
                 "-Ddd."
-                    + ProfilingConfig.PROFILING_ASYNC_CPU_INTERVAL
+                    + ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_INTERVAL
                     + "="
                     + cpuSamplerIntervalMs
                     + "ms",
-                "-Ddd." + ProfilingConfig.PROFILING_ASYNC_WALL_ENABLED + "=true",
+                "-Ddd." + ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED + "=true",
                 "-Ddd."
-                    + ProfilingConfig.PROFILING_ASYNC_WALL_INTERVAL
+                    + ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_INTERVAL
                     + "="
                     + wallSamplerIntervalMs
                     + "ms",
-                "-Ddd." + ProfilingConfig.PROFILING_ASYNC_LOG_LEVEL + "=debug",
+                "-Ddd." + ProfilingConfig.PROFILING_DATADOG_PROFILER_LOG_LEVEL + "=debug",
                 "-Ddd.profiling.agentless=false",
                 "-Ddd.profiling.start-delay=" + profilingStartDelaySecs,
                 "-Ddd." + ProfilingConfig.PROFILING_START_FORCE_FIRST + "=true",

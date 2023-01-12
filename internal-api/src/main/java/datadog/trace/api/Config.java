@@ -167,7 +167,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OL
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_VERY_OLD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_OLD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_VERY_OLD;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_ASYNC_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
@@ -471,7 +471,7 @@ public class Config {
   private final String spanSamplingRulesFile;
 
   private final boolean profilingAgentless;
-  private final boolean isAsyncProfilerEnabled;
+  private final boolean isDatadogProfilerEnabled;
   @Deprecated private final String profilingUrl;
   private final Map<String, String> profilingTags;
   private final int profilingStartDelay;
@@ -1043,9 +1043,9 @@ public class Config {
 
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
-    isAsyncProfilerEnabled =
+    isDatadogProfilerEnabled =
         configProvider.getBoolean(
-            PROFILING_ASYNC_ENABLED, isAsyncProfilerSafeInCurrentEnvironment());
+            PROFILING_DATADOG_PROFILER_ENABLED, isDatadogProfilerSafeInCurrentEnvironment());
     profilingUrl = configProvider.getString(PROFILING_URL);
 
     if (tmpApiKey == null) {
@@ -1788,13 +1788,11 @@ public class Config {
     return profilingUploadSummaryOn413Enabled;
   }
 
-  public boolean isAsyncProfilerEnabled() {
-    return isAsyncProfilerEnabled;
+  public boolean isDatadogProfilerEnabled() {
+    return isDatadogProfilerEnabled;
   }
 
-  public static boolean isAsyncProfilerSafeInCurrentEnvironment() {
-    // don't want to put this logic (which will evolve) in the public ProfilingConfig, and can't
-    // access Platform there
+  public static boolean isDatadogProfilerSafeInCurrentEnvironment() {
     // don't want to put this logic (which will evolve) in the public ProfilingConfig, and can't
     // access Platform there
     return Platform.isJ9()
