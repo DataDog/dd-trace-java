@@ -8,15 +8,10 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator
 import datadog.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientDecorator
 import org.springframework.http.HttpMethod
-import org.springframework.web.reactive.function.client.ClientRequest
-import org.springframework.web.reactive.function.client.ClientResponse
-import org.springframework.web.reactive.function.client.ExchangeFilterFunction
-import org.springframework.web.reactive.function.client.ExchangeFunction
-import org.springframework.web.reactive.function.client.WebClient
+import org.springframework.web.reactive.function.client.*
 import reactor.core.publisher.Mono
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS
 
 abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
 
@@ -93,7 +88,7 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
             errorTags(exception.class, exception.message)
           }
           if ({ isDataStreamsEnabled() }) {
-            "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(CLIENT_PATHWAY_EDGE_TAGS)}
+            "$DDTags.PATHWAY_HASH" { String }
           }
           defaultTags()
         }

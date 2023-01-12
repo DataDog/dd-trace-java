@@ -774,18 +774,12 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
             }
             "amqp.delivery_mode" { it == null || it == 2 }
             "message.size" Integer
-            if ({ isDataStreamsEnabled() }){
-              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "out", "exchange": it, "type": "rabbitmq"]) }
-            }
             break
           case "basic.get":
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "amqp.command" "basic.get"
             "amqp.queue" { it == "some-queue" || it == "some-routing-queue" || it.startsWith("amq.gen-") || it == "queueNameTest" }
             "message.size" { it == null || it instanceof Integer }
-            if ({ isDataStreamsEnabled() }){
-              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "out", "queue": it, "type": "rabbitmq"]) }
-            }
             break
           case "basic.deliver":
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
@@ -795,9 +789,6 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
               it == null || it == "some-routing-key" || it == "some-routing-queue" || it.startsWith("amq.gen-")
             }
             "message.size" Integer
-            if ({ isDataStreamsEnabled() }){
-              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "out", "exchange": it, "type": "rabbitmq"]) }
-            }
             break
           default:
             if (operation == "amqp.deliver") {
@@ -808,12 +799,12 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             }
             "amqp.command" { it == null || it == resource }
-            if ({ isDataStreamsEnabled() }){
-              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "out", "queue": it, "type": "rabbitmq"]) }
-            }
         }
         if (exception) {
           errorTags(exception.class, errorMsg)
+        }
+        if ({ isDataStreamsEnabled() }){
+          "$DDTags.PATHWAY_HASH" { String } 
         }
         defaultTags(distributedRootSpan)
       }

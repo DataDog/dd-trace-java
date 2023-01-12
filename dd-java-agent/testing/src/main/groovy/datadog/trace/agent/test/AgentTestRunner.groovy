@@ -332,13 +332,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     blockUntilChildSpansFinished(span, numberOfSpans)
   }
 
-  String getDefaultPathwayHash(final LinkedHashMap<String, String> tags) {
-    // PathwayContext pathwayContext = TEST_DATA_STREAMS_CHECKPOINTER.newPathwayContext()
-    // pathwayContext.setCheckpoint(new LinkedHashMap<String, String>(), { p -> })
-    // Long.toUnsignedString(pathwayContext.getHash())
-    return "0"
-  }
-
   static void blockUntilChildSpansFinished(AgentSpan span, int numberOfSpans) {
     if (span instanceof DDSpan) {
       final PendingTrace pendingTrace = ((DDSpan) span).context().getTrace()

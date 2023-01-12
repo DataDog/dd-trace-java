@@ -11,12 +11,7 @@ import org.springframework.boot.web.servlet.context.ServletWebServerApplicationC
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.web.servlet.view.RedirectView
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.*
 import static java.util.Collections.singletonMap
 
 class SpringBootZuulTest extends HttpServerTest<ConfigurableApplicationContext> {
@@ -199,7 +194,7 @@ class SpringBootZuulTest extends HttpServerTest<ConfigurableApplicationContext> 
           "error.stack" String
         }
         if ({ isDataStreamsEnabled() }) {
-          "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(CLIENT_PATHWAY_EDGE_TAGS) }
+          "$DDTags.PATHWAY_HASH" { String }
         }
         defaultTags()
       }

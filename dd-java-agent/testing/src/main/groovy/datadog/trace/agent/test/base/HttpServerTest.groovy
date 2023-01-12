@@ -1474,7 +1474,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           "$DDTags.HTTP_QUERY" expectedQueryTag
         }
         if ({ isDataStreamsEnabled() }) {
-          "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(SERVER_PATHWAY_EDGE_TAGS) }
+          "$DDTags.PATHWAY_HASH" { String }
         }
         // OkHttp never sends the fragment in the request.
         //        if (endpoint.fragment) {

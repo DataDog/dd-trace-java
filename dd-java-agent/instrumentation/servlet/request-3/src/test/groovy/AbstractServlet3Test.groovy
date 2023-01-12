@@ -183,7 +183,7 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
           "error.stack" String
         }
         if ({ isDataStreamsEnabled() }){
-          "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(CLIENT_PATHWAY_EDGE_TAGS) }
+          "$DDTags.PATHWAY_HASH" { String }
         }
         defaultTags()
       }
@@ -216,7 +216,7 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
           "error.stack" String
         }
         if ({ isDataStreamsEnabled() }){
-          "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(CLIENT_PATHWAY_EDGE_TAGS) }
+          "$DDTags.PATHWAY_HASH" { String }
         }
         defaultTags()
       }

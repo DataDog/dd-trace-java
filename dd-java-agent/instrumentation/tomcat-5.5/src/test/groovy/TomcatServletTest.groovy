@@ -169,7 +169,7 @@ class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
           tags {
             "component" "java-web-servlet-response"
             if ({isDataStreamsEnabled()}) {
-              "$DDTags.PATHWAY_HASH" {getDefaultPathwayHash(CLIENT_PATHWAY_EDGE_TAGS)}
+              "$DDTags.PATHWAY_HASH" { String }
             }
             defaultTags()
           }

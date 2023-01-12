@@ -827,7 +827,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
           "$InstrumentationTags.TOMBSTONE" true
         }
         if ({isDataStreamsEnabled()}) {
-          "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(PRODUCER_PATHWAY_EDGE_TAGS) }
+          "$DDTags.PATHWAY_HASH" { String }
         }
         defaultTags()
       }
@@ -889,7 +889,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
           "$InstrumentationTags.TOMBSTONE" true
         }
         if ({isDataStreamsEnabled()}) {
-          "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(PRODUCER_PATHWAY_EDGE_TAGS) }
+          "$DDTags.PATHWAY_HASH" { String }
         }
         defaultTags(distributedRootSpan)
       }

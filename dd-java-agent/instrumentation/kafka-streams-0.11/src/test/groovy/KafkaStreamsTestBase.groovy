@@ -137,7 +137,7 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
             if ({ isDataStreamsEnabled() }){
-              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["!": "!"]) }
+              "$DDTags.PATHWAY_HASH" { String }
             }
             defaultTags()
           }
@@ -182,7 +182,7 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
             "$InstrumentationTags.PROCESSOR_NAME" "KSTREAM-SOURCE-0000000000"
             "asdf" "testing"
             if ({isDataStreamsEnabled()}) {
-              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(new LinkedHashMap<String, String>()) }
+              "$DDTags.PATHWAY_HASH" { String }
             }
             defaultTags(!hasQueueSpan)
           }
@@ -203,7 +203,7 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
             if ({isDataStreamsEnabled()}) {
-              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(new LinkedHashMap<String, String>()) }
+              "$DDTags.PATHWAY_HASH" { String }
             }
             defaultTags()
           }
@@ -248,7 +248,7 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "testing" 123
             if ({isDataStreamsEnabled()}) {
-              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(new LinkedHashMap<String, String>()) }
+              "$DDTags.PATHWAY_HASH" { String }
             }
             defaultTags(!hasQueueSpan)
           }

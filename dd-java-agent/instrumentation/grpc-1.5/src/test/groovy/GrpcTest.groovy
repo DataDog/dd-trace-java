@@ -127,7 +127,7 @@ abstract class GrpcTest extends AgentTestRunner {
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
             if ({ isDataStreamsEnabled() }) {
-              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "in", "type": "grpc"])}
+              "$DDTags.PATHWAY_HASH" { String }
             }
             defaultTags()
           }
@@ -160,7 +160,7 @@ abstract class GrpcTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "status.code" "OK"
             if ({ isDataStreamsEnabled() }) {
-              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "out", "type": "grpc"])}
+              "$DDTags.PATHWAY_HASH" { String }
             }
             defaultTags(true)
           }
@@ -266,7 +266,7 @@ abstract class GrpcTest extends AgentTestRunner {
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
             if ({ isDataStreamsEnabled() }) {
-              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "in", "type": "grpc"])}
+              "$DDTags.PATHWAY_HASH" { String }
             }
             defaultTags()
           }
@@ -289,7 +289,7 @@ abstract class GrpcTest extends AgentTestRunner {
               errorTags status.cause.class, status.cause.message
             }
             if ({ isDataStreamsEnabled() }) {
-              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "out", "type": "grpc"])}
+              "$DDTags.PATHWAY_HASH" { String }
             }
             defaultTags(true)
           }
@@ -365,7 +365,7 @@ abstract class GrpcTest extends AgentTestRunner {
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
             if ({isDataStreamsEnabled()}) {
-              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "out", "type": "grpc"]) }
+              "$DDTags.PATHWAY_HASH" { String }
             }
             defaultTags()
           }
@@ -384,7 +384,7 @@ abstract class GrpcTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             errorTags error.class, error.message
             if ({isDataStreamsEnabled()}) {
-              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "in", "type": "grpc"]) }
+              "$DDTags.PATHWAY_HASH" { String }
             }
             defaultTags(true)
           }
@@ -485,7 +485,7 @@ abstract class GrpcTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "status.code" "OK"
             if ({ isDataStreamsEnabled() }) {
-              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "in", "type": "grpc"])}
+              "$DDTags.PATHWAY_HASH" { String }
             }
             defaultTags(true)
           }
@@ -552,7 +552,7 @@ abstract class GrpcTest extends AgentTestRunner {
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
             if ({ isDataStreamsEnabled() }) {
-              "$DDTags.PATHWAY_HASH" { getDefaultPathwayHash(["direction": "out", "type": "grpc"])}
+              "$DDTags.PATHWAY_HASH" { String }
             }
             defaultTags()
           }
