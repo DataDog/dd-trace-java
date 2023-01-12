@@ -1,5 +1,7 @@
 package com.datadog.profiling.auxiliary;
 
+import static datadog.trace.api.Config.isAsyncProfilerSafeInCurrentEnvironment;
+
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.utils.ProfilingMode;
 import datadog.trace.api.Platform;
@@ -41,7 +43,7 @@ public final class AuxiliaryProfiler {
         Platform.isLinux()
                 && configProvider.getBoolean(
                     ProfilingConfig.PROFILING_ASYNC_ENABLED,
-                    ProfilingConfig.PROFILING_ASYNC_ENABLED_DEFAULT)
+                    isAsyncProfilerSafeInCurrentEnvironment())
             ? "async"
             : configProvider.getString(
                 ProfilingConfig.PROFILING_AUXILIARY_TYPE,
@@ -61,7 +63,7 @@ public final class AuxiliaryProfiler {
         break;
       }
     }
-    this.implementation = impl != null ? impl : AuxiliaryImplementation.NULL;
+    this.implementation = impl;
   }
 
   AuxiliaryProfiler(AuxiliaryImplementation impl) {
