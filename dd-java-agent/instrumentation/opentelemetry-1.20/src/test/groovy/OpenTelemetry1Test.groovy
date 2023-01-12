@@ -56,6 +56,31 @@ class OpenTelemetry1Test extends AgentTestRunner {
     }
   }
 
+  def "test non-supported features do not crash"() {
+    setup:
+    def builder = tracer.spanBuilder("some-name")
+    def anotherSpan = tracer.spanBuilder("another-name").startSpan()
+    anotherSpan.end()
+
+    when:
+    // Adding link is not supported
+    builder.addLink(anotherSpan.getSpanContext())
+    // Adding event is not supported
+    def result = builder.startSpan()
+    result.addEvent("some-event")
+    result.end()
+
+    then:
+    assertTraces(2) {
+      trace(1) {
+        span {}
+      }
+      trace(1) {
+        span {}
+      }
+    }
+  }
+
   def "test span attributes"() {
     setup:
     def builder = tracer.spanBuilder("some-name")
