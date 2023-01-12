@@ -59,11 +59,17 @@ public final class JedisInstrumentation extends Instrumenter.Tracing
   public static class JedisAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.Argument(1) final Command command) {
+    public static AgentScope onEnter(@Advice.Argument(1) final Command command, @Advice.Argument(2)final byte[][] args) {
       final AgentSpan span = startSpan(REDIS_COMMAND);
       DECORATE.afterStart(span);
       DECORATE.onStatement(span, command.name());
-      DECORATE.setRaw(span,new String(command.raw));
+      //System.out.println("------- set raw "+ new String(command.raw));
+      StringBuilder args1 = new StringBuilder();
+      for(int i = 0; i < args.length; i++) {
+        args1.append(new String(args[i]));
+        args1.append(" ");
+      }
+      DECORATE.setRaw(span,args1.toString());
       return activateSpan(span);
     }
 

@@ -5,8 +5,10 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
+import redis.clients.jedis.CommandArguments;
 import redis.clients.jedis.CommandObject;
 import redis.clients.jedis.Protocol;
+import redis.clients.jedis.args.Rawable;
 import redis.clients.jedis.commands.ProtocolCommand;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -54,7 +56,12 @@ public final class JedisInstrumentation extends Instrumenter.Tracing
       DECORATE.afterStart(span);
 
       final ProtocolCommand command = commandObject.getArguments().getCommand();
-
+      final CommandArguments args = commandObject.getArguments();
+      StringBuilder args1 = new StringBuilder();
+      for (Rawable arg : args){
+        args1.append(new String(arg.getRaw()));
+      }
+      DECORATE.setRaw(span,args1.toString());
       if (command instanceof Protocol.Command) {
         DECORATE.onStatement(span, ((Protocol.Command) command).name());
       } else {
@@ -62,7 +69,6 @@ public final class JedisInstrumentation extends Instrumenter.Tracing
         // us if that changes
         DECORATE.onStatement(span, new String(command.getRaw()));
       }
-      DECORATE.setRaw(span,new String(command.getRaw()));
       return activateSpan(span);
     }
 

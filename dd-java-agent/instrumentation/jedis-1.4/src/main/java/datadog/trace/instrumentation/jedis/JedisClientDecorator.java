@@ -12,7 +12,7 @@ public class JedisClientDecorator
   public static final CharSequence COMPONENT_NAME = UTF8BytesString.create("redis-command");
   public static final CharSequence REDIS_COMMAND = UTF8BytesString.create("redis.command");
 
-  public boolean RedisCommandRaw = Config.get().getRedisCommandRaw();
+  public boolean RedisCommandRaw = Config.get().getRedisCommandArgs();
   public static final JedisClientDecorator DECORATE = new JedisClientDecorator();
 
   @Override
@@ -57,7 +57,7 @@ public class JedisClientDecorator
 
   public AgentSpan setRaw(AgentSpan span, String raw) {
     if (RedisCommandRaw){
-      span.setTag("redis.command.raw",raw);
+      span.setTag("redis.command.args",raw);
     }
     return span;
   }
