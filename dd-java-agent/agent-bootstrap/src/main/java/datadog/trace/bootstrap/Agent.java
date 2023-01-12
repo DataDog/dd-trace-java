@@ -1,23 +1,6 @@
 package datadog.trace.bootstrap;
 
-import static datadog.trace.api.Platform.getRuntimeVendor;
-import static datadog.trace.api.Platform.isJavaVersionAtLeast;
-import static datadog.trace.api.Platform.isOracleJDK8;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED;
-import static datadog.trace.bootstrap.Library.WILDFLY;
-import static datadog.trace.bootstrap.Library.detectLibraries;
-import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
-import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_STARTUP;
-import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_STARTUP;
-import static datadog.trace.util.AgentThreadFactory.newAgentThread;
-import static datadog.trace.util.Strings.getResourceName;
-import static datadog.trace.util.Strings.toEnvVar;
-
-import datadog.trace.api.Config;
-import datadog.trace.api.EndpointCheckpointer;
-import datadog.trace.api.Platform;
-import datadog.trace.api.StatsDClientManager;
-import datadog.trace.api.WithGlobalTracer;
+import datadog.trace.api.*;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.scopemanager.ScopeListener;
@@ -29,6 +12,9 @@ import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -37,8 +23,15 @@ import java.net.URL;
 import java.util.EnumSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import static datadog.trace.api.Platform.*;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED;
+import static datadog.trace.bootstrap.Library.WILDFLY;
+import static datadog.trace.bootstrap.Library.detectLibraries;
+import static datadog.trace.util.AgentThreadFactory.AgentThread.*;
+import static datadog.trace.util.AgentThreadFactory.newAgentThread;
+import static datadog.trace.util.Strings.getResourceName;
+import static datadog.trace.util.Strings.toEnvVar;
 
 /**
  * Agent start up logic.
@@ -389,10 +382,10 @@ public class Agent {
             AGENT_CLASSLOADER.loadClass("datadog.communication.ddagent.SharedCommunicationObjects");
         sco = scoClass.getConstructor().newInstance();
       } catch (ClassNotFoundException
-          | NoSuchMethodException
-          | InstantiationException
-          | IllegalAccessException
-          | InvocationTargetException e) {
+               | NoSuchMethodException
+               | InstantiationException
+               | IllegalAccessException
+               | InvocationTargetException e) {
         throw new UndeclaredThrowableException(e);
       }
 
@@ -567,15 +560,17 @@ public class Agent {
       final Method registerMethod = deadlockFactoryClass.getMethod("registerEvents");
       registerMethod.invoke(null);
     } catch (final NoClassDefFoundError
-        | ClassNotFoundException
-        | UnsupportedClassVersionError ignored) {
+                   | ClassNotFoundException
+                   | UnsupportedClassVersionError ignored) {
       log.debug("JMX deadlock detection not supported");
     } catch (final Throwable ex) {
       log.error("Unable to initialize JMX thread deadlock detector", ex);
     }
   }
 
-  /** Enable JMX based system access provider once it is safe to touch JMX */
+  /**
+   * Enable JMX based system access provider once it is safe to touch JMX
+   */
   private static synchronized void initializeJmxSystemAccessProvider(
       final ClassLoader classLoader) {
     if (log.isDebugEnabled()) {
@@ -921,7 +916,9 @@ public class Agent {
     return false;
   }
 
-  /** @return {@code true} if the agent feature is enabled */
+  /**
+   * @return {@code true} if the agent feature is enabled
+   */
   private static boolean isFeatureEnabled(AgentFeature feature) {
     // must be kept in sync with logic from Config!
     final String featureEnabledSysprop = feature.getSystemProp();
@@ -1055,7 +1052,9 @@ public class Agent {
     return false;
   }
 
-  /** Looks for the "dd." system property first then the "DD_" environment variable equivalent. */
+  /**
+   * Looks for the "dd." system property first then the "DD_" environment variable equivalent.
+   */
   private static String ddGetProperty(final String sysProp) {
     String value = System.getProperty(sysProp);
     if (null == value) {
@@ -1064,7 +1063,9 @@ public class Agent {
     return value;
   }
 
-  /** Looks for the "DD_" environment variable equivalent of the given "dd." system property. */
+  /**
+   * Looks for the "DD_" environment variable equivalent of the given "dd." system property.
+   */
   private static String ddGetEnv(final String sysProp) {
     return System.getenv(toEnvVar(sysProp));
   }

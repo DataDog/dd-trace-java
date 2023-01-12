@@ -25,7 +25,7 @@ public final class ConfigDefaults {
 
   /* These fields are made public because they're referenced elsewhere internally.  They're not intended as public API. */
   public static final String DEFAULT_AGENT_HOST = "localhost";
-  public static final int DEFAULT_TRACE_AGENT_PORT = 8126;
+  public static final int DEFAULT_TRACE_AGENT_PORT = 9529;
   public static final int DEFAULT_DOGSTATSD_PORT = 8125;
   public static final String DEFAULT_TRACE_AGENT_SOCKET_PATH = "/var/run/datadog/apm.socket";
   public static final String DEFAULT_DOGSTATSD_SOCKET_PATH = "/var/run/datadog/dsd.socket";
@@ -139,5 +139,10 @@ public final class ConfigDefaults {
 
   public static final int DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH = 512;
 
+  static final boolean DEFAULT_JDBC_SQL_OBFUSCATION = false;
+
+  static final boolean DEFAULT_REDIS_COMMAND_ARGS = false;
+
+  static final String DEFAULT_LOG_PATTERN="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger - [%method,%line] %X{dd.service} %X{dd.trace_id} %X{dd.span_id} - %msg%n";
   private ConfigDefaults() {}
 }

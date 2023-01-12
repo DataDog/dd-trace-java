@@ -1,298 +1,5 @@
 package datadog.trace.api;
 
-import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_REPORTING_INBAND;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_METRICS;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_TIMEOUT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_CLIENT_IP_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_TLS_REFRESH;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_CLASSFILE_DUMP_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_DIAGNOSTICS_INTERVAL;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_METRICS_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_POLL_INTERVAL;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_UPLOAD_BATCH_SIZE;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_UPLOAD_FLUSH_INTERVAL;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_UPLOAD_TIMEOUT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_VERIFY_BYTECODE;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_START_DELAY;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_CLIENT_ERROR_STATUSES;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_SERVER_ERROR_STATUSES;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_HEALTH_METRICS_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DEBUG_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DEDUPLICATION_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONCURRENT_REQUESTS;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REQUEST_SAMPLING;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_VULNERABILITIES_PER_REQUEST;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_INITIAL_POLL_INTERVAL;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_ITERATION_KEEP_ALIVE;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_SECURE_RANDOM;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RATE_LIMIT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
-import static datadog.trace.api.DDTags.HOST_TAG;
-import static datadog.trace.api.DDTags.INTERNAL_HOST_NAME;
-import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY;
-import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE;
-import static datadog.trace.api.DDTags.PID_TAG;
-import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
-import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG;
-import static datadog.trace.api.DDTags.SERVICE;
-import static datadog.trace.api.DDTags.SERVICE_TAG;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORTING_INBAND;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_TRACE_RATE_LIMIT;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_METRICS;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_TIMEOUT;
-import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED;
-import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL;
-import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
-import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
-import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_TAGS;
-import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
-import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCLUDE_FILE;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_INSTRUMENT_THE_WORLD;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_PAYLOAD_SIZE;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_METRICS_ENABLED;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_POLL_INTERVAL;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_PROBE_FILE_LOCATION;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_BATCH_SIZE;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_FLUSH_INTERVAL;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_TIMEOUT;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_VERIFY_BYTECODE;
-import static datadog.trace.api.config.GeneralConfig.API_KEY;
-import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
-import static datadog.trace.api.config.GeneralConfig.AZURE_APP_SERVICES;
-import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
-import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_ARGS;
-import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_HOST;
-import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_NAMED_PIPE;
-import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_PATH;
-import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_PORT;
-import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_START_DELAY;
-import static datadog.trace.api.config.GeneralConfig.ENV;
-import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS;
-import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED;
-import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST;
-import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_PORT;
-import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED;
-import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG;
-import static datadog.trace.api.config.GeneralConfig.RUNTIME_ID_ENABLED;
-import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
-import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
-import static datadog.trace.api.config.GeneralConfig.SITE;
-import static datadog.trace.api.config.GeneralConfig.TAGS;
-import static datadog.trace.api.config.GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL;
-import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_BUFFERING_ENABLED;
-import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
-import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES;
-import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
-import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
-import static datadog.trace.api.config.GeneralConfig.VERSION;
-import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED;
-import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED;
-import static datadog.trace.api.config.IastConfig.IAST_MAX_CONCURRENT_REQUESTS;
-import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING;
-import static datadog.trace.api.config.IastConfig.IAST_VULNERABILITIES_PER_REQUEST;
-import static datadog.trace.api.config.IastConfig.IAST_WEAK_CIPHER_ALGORITHMS;
-import static datadog.trace.api.config.IastConfig.IAST_WEAK_HASH_ALGORITHMS;
-import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD;
-import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CONFIG;
-import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CONFIG_DIR;
-import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_ENABLED;
-import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_INITIAL_REFRESH_BEANS_PERIOD;
-import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_METRICS_CONFIGS;
-import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED;
-import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT;
-import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_REFRESH_BEANS_PERIOD;
-import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_START_DELAY;
-import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_HOST;
-import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT;
-import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OLD;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_VERY_OLD;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_OLD;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_VERY_OLD;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_ASYNC_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCLUDE_AGENT_THREADS;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_HOST;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PASSWORD;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_USERNAME;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_TAGS;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_COMPRESSION;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_COMPRESSION_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_PERIOD;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_PERIOD_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_SUMMARY_ON_413;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_SUMMARY_ON_413_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
-import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_ENABLED;
-import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_INITIAL_POLL_INTERVAL;
-import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED;
-import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_MAX_PAYLOAD_SIZE;
-import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY;
-import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY_ID;
-import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL;
-import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
-import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
-import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_CLIENT_ERROR_STATUSES;
-import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_INBOUND_METHODS;
-import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_OUTBOUND_METHODS;
-import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_ERROR_STATUSES;
-import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_TRIM_PACKAGE_RESOURCE;
-import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN;
-import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING;
-import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING;
-import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE;
-import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_ROUTE_BASED_NAMING;
-import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING;
-import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_MEASURED_ENABLED;
-import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED;
-import static datadog.trace.api.config.TraceInstrumentationConfig.IGNITE_CACHE_INCLUDE_KEYS;
-import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME;
-import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES;
-import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS;
-import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED;
-import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS;
-import static datadog.trace.api.config.TraceInstrumentationConfig.MESSAGE_BROKER_SPLIT_BY_DESTINATION;
-import static datadog.trace.api.config.TraceInstrumentationConfig.OBFUSCATION_QUERY_STRING_REGEXP;
-import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HTTP_STATUS;
-import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_INCLUDE_ROUTINGKEY_IN_RESOURCE;
-import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES;
-import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES;
-import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
-import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
-import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_CONTEXT_SERVICE_NAME;
-import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME;
-import static datadog.trace.api.config.TracerConfig.AGENT_HOST;
-import static datadog.trace.api.config.TracerConfig.AGENT_NAMED_PIPE;
-import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY;
-import static datadog.trace.api.config.TracerConfig.AGENT_TIMEOUT;
-import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET;
-import static datadog.trace.api.config.TracerConfig.BAGGAGE_MAPPING;
-import static datadog.trace.api.config.TracerConfig.CLIENT_IP_ENABLED;
-import static datadog.trace.api.config.TracerConfig.CLOCK_SYNC_PERIOD;
-import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
-import static datadog.trace.api.config.TracerConfig.HEADER_TAGS;
-import static datadog.trace.api.config.TracerConfig.HTTP_CLIENT_ERROR_STATUSES;
-import static datadog.trace.api.config.TracerConfig.HTTP_SERVER_ERROR_STATUSES;
-import static datadog.trace.api.config.TracerConfig.ID_GENERATION_STRATEGY;
-import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_MIN_SPANS;
-import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING;
-import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING_FORCE;
-import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
-import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_EXTRACT;
-import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_INJECT;
-import static datadog.trace.api.config.TracerConfig.PROXY_NO_PROXY;
-import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS;
-import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS;
-import static datadog.trace.api.config.TracerConfig.SCOPE_DEPTH_LIMIT;
-import static datadog.trace.api.config.TracerConfig.SCOPE_INHERIT_ASYNC_PROPAGATION;
-import static datadog.trace.api.config.TracerConfig.SCOPE_ITERATION_KEEP_ALIVE;
-import static datadog.trace.api.config.TracerConfig.SCOPE_STRICT_MODE;
-import static datadog.trace.api.config.TracerConfig.SECURE_RANDOM;
-import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING;
-import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES;
-import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES_FILE;
-import static datadog.trace.api.config.TracerConfig.SPAN_TAGS;
-import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
-import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_ARGS;
-import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PATH;
-import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT;
-import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL;
-import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
-import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER;
-import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_RESOLVER_ENABLED;
-import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
-import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE;
-import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE_EXTRACT;
-import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE_INJECT;
-import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT;
-import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
-import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED;
-import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
-import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RULES;
-import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_RULES;
-import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES;
-import static datadog.trace.api.config.TracerConfig.TRACE_STRICT_WRITES_ENABLED;
-import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH;
-import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
-import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
-import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
-import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
-import static datadog.trace.util.Strings.toEnvVar;
-
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
@@ -302,38 +9,44 @@ import datadog.trace.util.PidHelper;
 import datadog.trace.util.Strings;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nonnull;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.InetAddress;
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.UnknownHostException;
+import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.BitSet;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.SortedSet;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Function;
 import java.util.regex.Pattern;
-import javax.annotation.Nonnull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import static datadog.trace.api.ConfigDefaults.*;
+import static datadog.trace.api.DDTags.*;
+import static datadog.trace.api.config.AppSecConfig.*;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL;
+import static datadog.trace.api.config.CrashTrackingConfig.*;
+import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
+import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
+import static datadog.trace.api.config.DebuggerConfig.*;
+import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
+import static datadog.trace.api.config.GeneralConfig.*;
+import static datadog.trace.api.config.IastConfig.*;
+import static datadog.trace.api.config.JmxFetchConfig.*;
+import static datadog.trace.api.config.ProfilingConfig.*;
+import static datadog.trace.api.config.RemoteConfigConfig.*;
+import static datadog.trace.api.config.TraceInstrumentationConfig.*;
+import static datadog.trace.api.config.TracerConfig.*;
+import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
+import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
+import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
+import static datadog.trace.util.Strings.toEnvVar;
 
 /**
  * Config reads values with the following priority: 1) system properties, 2) environment variables,
@@ -368,7 +81,9 @@ public class Config {
 
   private final boolean runtimeIdEnabled;
 
-  /** This is the version of the runtime, ex: 1.8.0_332, 11.0.15, 17.0.3 */
+  /**
+   * This is the version of the runtime, ex: 1.8.0_332, 11.0.15, 17.0.3
+   */
   private final String runtimeVersion;
 
   /**
@@ -436,7 +151,8 @@ public class Config {
   private final boolean jmxFetchEnabled;
   private final String jmxFetchConfigDir;
   private final List<String> jmxFetchConfigs;
-  @Deprecated private final List<String> jmxFetchMetricsConfigs;
+  @Deprecated
+  private final List<String> jmxFetchMetricsConfigs;
   private final Integer jmxFetchCheckPeriod;
   private final Integer jmxFetchInitialRefreshBeansPeriod;
   private final Integer jmxFetchRefreshBeansPeriod;
@@ -457,6 +173,7 @@ public class Config {
   private final int tracerMetricsMaxPending;
 
   private final boolean reportHostName;
+  private final String logPattern;
 
   private final boolean traceAnalyticsEnabled;
   private final String traceClientIpHeader;
@@ -472,7 +189,8 @@ public class Config {
 
   private final boolean profilingAgentless;
   private final boolean isAsyncProfilerEnabled;
-  @Deprecated private final String profilingUrl;
+  @Deprecated
+  private final String profilingUrl;
   private final Map<String, String> profilingTags;
   private final int profilingStartDelay;
   private final boolean profilingStartForceFirst;
@@ -490,6 +208,8 @@ public class Config {
   private final int profilingExceptionHistogramMaxCollectionSize;
   private final boolean profilingExcludeAgentThreads;
   private final boolean profilingUploadSummaryOn413Enabled;
+  private final boolean logsInjectionEnabled;
+  private final boolean logsMDCTagsInjectionEnabled;
 
   private final boolean crashTrackingAgentless;
   private final Map<String, String> crashTrackingTags;
@@ -607,6 +327,10 @@ public class Config {
   private final List<String> traceAgentArgs;
   private final String dogStatsDPath;
   private final List<String> dogStatsDArgs;
+
+  private final boolean jdbcSqlObfuscation;
+
+  private final boolean redisCommandArgs;
 
   private String env;
   private String version;
@@ -1012,6 +736,13 @@ public class Config {
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
     tracerMetricsMaxPending = configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048);
 
+    logsInjectionEnabled =
+        configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
+
+    logPattern = configProvider.getString(LOGS_PATTERN, DEFAULT_LOG_PATTERN);
+
+    logsMDCTagsInjectionEnabled = configProvider.getBoolean(LOGS_MDC_TAGS_INJECTION_ENABLED, true);
+
     reportHostName =
         configProvider.getBoolean(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
 
@@ -1055,7 +786,7 @@ public class Config {
         try {
           tmpApiKey =
               new String(
-                      Files.readAllBytes(Paths.get(oldProfilingApiKeyFile)), StandardCharsets.UTF_8)
+                  Files.readAllBytes(Paths.get(oldProfilingApiKeyFile)), StandardCharsets.UTF_8)
                   .trim();
         } catch (final IOException e) {
           log.error("Cannot read API key from file {}, skipping", oldProfilingApiKeyFile, e);
@@ -1070,8 +801,8 @@ public class Config {
         try {
           tmpApiKey =
               new String(
-                      Files.readAllBytes(Paths.get(veryOldProfilingApiKeyFile)),
-                      StandardCharsets.UTF_8)
+                  Files.readAllBytes(Paths.get(veryOldProfilingApiKeyFile)),
+                  StandardCharsets.UTF_8)
                   .trim();
         } catch (final IOException e) {
           log.error("Cannot read API key from file {}, skipping", veryOldProfilingApiKeyFile, e);
@@ -1213,7 +944,7 @@ public class Config {
             REMOTE_CONFIG_INITIAL_POLL_INTERVAL, DEFAULT_REMOTE_CONFIG_INITIAL_POLL_INTERVAL);
     remoteConfigMaxPayloadSize =
         configProvider.getInteger(
-                REMOTE_CONFIG_MAX_PAYLOAD_SIZE, DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE)
+            REMOTE_CONFIG_MAX_PAYLOAD_SIZE, DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE)
             * 1024;
     remoteConfigTargetsKeyId =
         configProvider.getString(
@@ -1238,7 +969,7 @@ public class Config {
     debuggerMetricEnabled =
         runtimeMetricsEnabled
             && configProvider.getBoolean(
-                DEBUGGER_METRICS_ENABLED, DEFAULT_DEBUGGER_METRICS_ENABLED);
+            DEBUGGER_METRICS_ENABLED, DEFAULT_DEBUGGER_METRICS_ENABLED);
     debuggerProbeFileLocation = configProvider.getString(DEBUGGER_PROBE_FILE_LOCATION);
     debuggerUploadBatchSize =
         configProvider.getInteger(DEBUGGER_UPLOAD_BATCH_SIZE, DEFAULT_DEBUGGER_UPLOAD_BATCH_SIZE);
@@ -1251,6 +982,10 @@ public class Config {
         configProvider.getBoolean(
             DEBUGGER_INSTRUMENT_THE_WORLD, DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD);
     debuggerExcludeFile = configProvider.getString(DEBUGGER_EXCLUDE_FILE);
+
+    jdbcSqlObfuscation = configProvider.getBoolean(JDBC_SQL_OBFUSCATION, DEFAULT_JDBC_SQL_OBFUSCATION);
+
+    redisCommandArgs = configProvider.getBoolean(REDIS_COMMAND_ARGS, DEFAULT_REDIS_COMMAND_ARGS);
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws");
     sqsPropagationEnabled = awsPropagationEnabled && isPropagationEnabled(true, "sqs");
@@ -1667,7 +1402,15 @@ public class Config {
   }
 
   public boolean isLogsInjectionEnabled() {
-    return instrumenterConfig.isLogsInjectionEnabled();
+    return logsInjectionEnabled;
+  }
+
+  public String getLogPattern() {
+    return logPattern;
+  }
+
+  public boolean isLogsMDCTagsInjectionEnabled() {
+    return logsMDCTagsInjectionEnabled;
   }
 
   public boolean isReportHostName() {
@@ -2032,7 +1775,7 @@ public class Config {
   public boolean isJmsPropagationDisabledForDestination(final String queueOrTopic) {
     return null != queueOrTopic
         && (jmsPropagationDisabledQueues.contains(queueOrTopic)
-            || jmsPropagationDisabledTopics.contains(queueOrTopic));
+        || jmsPropagationDisabledTopics.contains(queueOrTopic));
   }
 
   public boolean isKafkaClientBase64DecodingEnabled() {
@@ -2046,7 +1789,7 @@ public class Config {
   public boolean isRabbitPropagationDisabledForDestination(final String queueOrExchange) {
     return null != queueOrExchange
         && (rabbitPropagationDisabledQueues.contains(queueOrExchange)
-            || rabbitPropagationDisabledExchanges.contains(queueOrExchange));
+        || rabbitPropagationDisabledExchanges.contains(queueOrExchange));
   }
 
   public boolean isRabbitIncludeRoutingKeyInResource() {
@@ -2161,7 +1904,9 @@ public class Config {
     return grpcClientErrorStatuses;
   }
 
-  /** @return A map of tags to be applied only to the local application root span. */
+  /**
+   * @return A map of tags to be applied only to the local application root span.
+   */
   public Map<String, Object> getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
     final Map<String, Object> result = new HashMap<>(runtimeTags.size() + 1);
@@ -2465,7 +2210,7 @@ public class Config {
    * @param defaultEnabled
    * @return
    * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   *     #isJmxFetchIntegrationEnabled(Iterable, boolean)}.
+   * #isJmxFetchIntegrationEnabled(Iterable, boolean)}.
    */
   public static boolean jmxFetchIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
@@ -2573,7 +2318,7 @@ public class Config {
    * @param defaultEnabled
    * @return
    * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   *     #isTraceAnalyticsIntegrationEnabled(SortedSet, boolean)}.
+   * #isTraceAnalyticsIntegrationEnabled(SortedSet, boolean)}.
    */
   public static boolean traceAnalyticsIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
@@ -2715,8 +2460,8 @@ public class Config {
 
     // Try hostname command
     try (final BufferedReader reader =
-        new BufferedReader(
-            new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))) {
+             new BufferedReader(
+                 new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))) {
       possibleHostname = reader.readLine();
     } catch (final Throwable ignore) {
       // Ignore.  Hostname command is not always available
@@ -2801,6 +2546,14 @@ public class Config {
     } else {
       return new Config(ConfigProvider.withPropertiesOverride(properties));
     }
+  }
+
+  public boolean getJdbcSqlObfuscation() {
+    return jdbcSqlObfuscation;
+  }
+
+  public boolean getRedisCommandArgs(){
+    return redisCommandArgs;
   }
 
   @Override
@@ -2956,6 +2709,12 @@ public class Config {
         + tracerMetricsMaxAggregates
         + ", tracerMetricsMaxPending="
         + tracerMetricsMaxPending
+        + ", logsInjectionEnabled="
+        + logsInjectionEnabled
+        + ", logsMDCTagsInjectionEnabled="
+        + logsMDCTagsInjectionEnabled
+        + ", logPattern="
+        + logPattern
         + ", reportHostName="
         + reportHostName
         + ", traceAnalyticsEnabled="

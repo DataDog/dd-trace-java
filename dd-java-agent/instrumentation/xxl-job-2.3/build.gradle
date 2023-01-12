@@ -1,0 +1,26 @@
+muzzle {
+  pass {
+    group = "com.xuxueli"
+    module = "xxl-job-core"
+    versions = "[2.3.0,)"
+//    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+dependencies {
+  compileOnly(group: 'com.xuxueli', name: 'xxl-job-core', version: '2.3.0')
+}
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}
