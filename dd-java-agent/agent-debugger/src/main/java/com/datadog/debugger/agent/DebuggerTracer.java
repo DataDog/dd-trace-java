@@ -42,5 +42,11 @@ public class DebuggerTracer implements DebuggerContext.Tracer {
       currentScope.close();
       underlyingSpan.finish();
     }
+
+    @Override
+    public void setError(Throwable t) {
+      underlyingSpan.setError(true);
+      underlyingSpan.addThrowable(t);
+    }
   }
 }
