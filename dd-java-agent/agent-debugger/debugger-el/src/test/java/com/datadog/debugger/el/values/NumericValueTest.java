@@ -10,7 +10,6 @@ class NumericValueTest {
     NumericValue instance = new NumericValue(null);
     assertTrue(instance.isNull());
     assertFalse(instance.isUndefined());
-    assertFalse(instance.test());
 
     assertNull(instance.getValue());
   }

@@ -1,6 +1,5 @@
 package com.datadog.debugger.el.expressions;
 
-import com.datadog.debugger.el.Predicate;
 import com.datadog.debugger.el.Value;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
@@ -17,11 +16,11 @@ public final class IsUndefinedExpression implements PredicateExpression {
   }
 
   @Override
-  public Predicate evaluate(ValueReferenceResolver valueRefResolver) {
+  public Boolean evaluate(ValueReferenceResolver valueRefResolver) {
     if (valueExpression == null) {
-      return Predicate.FALSE;
+      return Boolean.FALSE;
     }
     Value<?> value = valueExpression.evaluate(valueRefResolver);
-    return value.isUndefined() ? Predicate.TRUE : Predicate.FALSE;
+    return value.isUndefined() ? Boolean.TRUE : Boolean.FALSE;
   }
 }

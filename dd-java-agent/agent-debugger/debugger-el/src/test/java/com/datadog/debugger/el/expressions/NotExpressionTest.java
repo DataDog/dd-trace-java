@@ -13,8 +13,7 @@ class NotExpressionTest {
   @MethodSource("expressions")
   void testNullPredicate(PredicateExpression expression, boolean expected) {
     assertEquals(
-        expected,
-        new NotExpression(expression).evaluate(RefResolverHelper.createResolver(this)).test());
+        expected, new NotExpression(expression).evaluate(RefResolverHelper.createResolver(this)));
   }
 
   private static Stream<Arguments> expressions() {

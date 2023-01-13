@@ -22,15 +22,14 @@ class IsUndefinedExpressionTest {
 
   @Test
   void testNullValue() {
-    assertFalse(new IsUndefinedExpression(null).evaluate(resolver).test());
-    assertFalse(new IsUndefinedExpression(DSL.value(Values.NULL_OBJECT)).evaluate(resolver).test());
-    assertFalse(new IsUndefinedExpression(DSL.value(Value.nullValue())).evaluate(resolver).test());
+    assertFalse(new IsUndefinedExpression(null).evaluate(resolver));
+    assertFalse(new IsUndefinedExpression(DSL.value(Values.NULL_OBJECT)).evaluate(resolver));
+    assertFalse(new IsUndefinedExpression(DSL.value(Value.nullValue())).evaluate(resolver));
   }
 
   @Test
   void testUndefinedValue() {
-    assertTrue(
-        new IsUndefinedExpression(DSL.value(Values.UNDEFINED_OBJECT)).evaluate(resolver).test());
+    assertTrue(new IsUndefinedExpression(DSL.value(Values.UNDEFINED_OBJECT)).evaluate(resolver));
   }
 
   @Test
@@ -39,9 +38,9 @@ class IsUndefinedExpressionTest {
     NumericValue one = new NumericValue(1);
     NumericValue none = new NumericValue(null);
 
-    assertFalse(new IsUndefinedExpression(zero).evaluate(resolver).test());
-    assertFalse(new IsUndefinedExpression(one).evaluate(resolver).test());
-    assertFalse(new IsUndefinedExpression(none).evaluate(resolver).test());
+    assertFalse(new IsUndefinedExpression(zero).evaluate(resolver));
+    assertFalse(new IsUndefinedExpression(one).evaluate(resolver));
+    assertFalse(new IsUndefinedExpression(none).evaluate(resolver));
   }
 
   @Test
@@ -50,9 +49,9 @@ class IsUndefinedExpressionTest {
     BooleanValue no = BooleanValue.FALSE;
     BooleanValue none = new BooleanValue(null);
 
-    assertFalse(new IsUndefinedExpression(yes).evaluate(resolver).test());
-    assertFalse(new IsUndefinedExpression(no).evaluate(resolver).test());
-    assertFalse(new IsUndefinedExpression(none).evaluate(resolver).test());
+    assertFalse(new IsUndefinedExpression(yes).evaluate(resolver));
+    assertFalse(new IsUndefinedExpression(no).evaluate(resolver));
+    assertFalse(new IsUndefinedExpression(none).evaluate(resolver));
   }
 
   @Test
@@ -65,9 +64,9 @@ class IsUndefinedExpressionTest {
     IsUndefinedExpression isUndefined2 = new IsUndefinedExpression(emptyString);
     IsUndefinedExpression isUndefined3 = new IsUndefinedExpression(nullString);
 
-    assertFalse(isUndefined1.evaluate(resolver).test());
-    assertFalse(isUndefined2.evaluate(resolver).test());
-    assertFalse(isUndefined3.evaluate(resolver).test());
+    assertFalse(isUndefined1.evaluate(resolver));
+    assertFalse(isUndefined2.evaluate(resolver));
+    assertFalse(isUndefined3.evaluate(resolver));
   }
 
   @Test
@@ -82,10 +81,10 @@ class IsUndefinedExpressionTest {
     IsUndefinedExpression isUndefined3 = new IsUndefinedExpression(nullList);
     IsUndefinedExpression isUndefined4 = new IsUndefinedExpression(undefinedList);
 
-    assertFalse(isUndefined1.evaluate(resolver).test());
-    assertFalse(isUndefined2.evaluate(resolver).test());
-    assertFalse(isUndefined3.evaluate(resolver).test());
-    assertTrue(isUndefined4.evaluate(resolver).test());
+    assertFalse(isUndefined1.evaluate(resolver));
+    assertFalse(isUndefined2.evaluate(resolver));
+    assertFalse(isUndefined3.evaluate(resolver));
+    assertTrue(isUndefined4.evaluate(resolver));
   }
 
   @Test
@@ -101,9 +100,9 @@ class IsUndefinedExpressionTest {
     IsUndefinedExpression isUndefined3 = new IsUndefinedExpression(nullMao);
     IsUndefinedExpression isUndefined4 = new IsUndefinedExpression(undefinedMap);
 
-    assertFalse(isUndefined1.evaluate(resolver).test());
-    assertFalse(isUndefined2.evaluate(resolver).test());
-    assertFalse(isUndefined3.evaluate(resolver).test());
-    assertTrue(isUndefined4.evaluate(resolver).test());
+    assertFalse(isUndefined1.evaluate(resolver));
+    assertFalse(isUndefined2.evaluate(resolver));
+    assertFalse(isUndefined3.evaluate(resolver));
+    assertTrue(isUndefined4.evaluate(resolver));
   }
 }

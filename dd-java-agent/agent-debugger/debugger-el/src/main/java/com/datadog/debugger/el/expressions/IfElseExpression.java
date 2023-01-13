@@ -18,7 +18,7 @@ public final class IfElseExpression implements Expression<Void> {
 
   @Override
   public Void evaluate(ValueReferenceResolver valueRefResolver) {
-    if (test.evaluate(valueRefResolver).test()) {
+    if (test.evaluate(valueRefResolver)) {
       thenExpression.evaluate(valueRefResolver);
     } else {
       elseExpression.evaluate(valueRefResolver);

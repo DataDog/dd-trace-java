@@ -1,7 +1,9 @@
 package com.datadog.debugger.el;
 
 import com.datadog.debugger.el.expressions.BinaryExpression;
+import com.datadog.debugger.el.expressions.BinaryOperator;
 import com.datadog.debugger.el.expressions.ComparisonExpression;
+import com.datadog.debugger.el.expressions.ComparisonOperator;
 import com.datadog.debugger.el.expressions.FilterCollectionExpression;
 import com.datadog.debugger.el.expressions.GetMemberExpression;
 import com.datadog.debugger.el.expressions.HasAllExpression;
@@ -16,13 +18,6 @@ import com.datadog.debugger.el.expressions.PredicateExpression;
 import com.datadog.debugger.el.expressions.ValueExpression;
 import com.datadog.debugger.el.expressions.ValueRefExpression;
 import com.datadog.debugger.el.expressions.WhenExpression;
-import com.datadog.debugger.el.predicates.AndPredicate;
-import com.datadog.debugger.el.predicates.EqualsPredicate;
-import com.datadog.debugger.el.predicates.GreaterOrEqualPredicate;
-import com.datadog.debugger.el.predicates.GreaterThanPredicate;
-import com.datadog.debugger.el.predicates.LessOrEqualPredicate;
-import com.datadog.debugger.el.predicates.LessThanPredicate;
-import com.datadog.debugger.el.predicates.OrPredicate;
 import com.datadog.debugger.el.values.BooleanValue;
 import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
@@ -55,7 +50,7 @@ public class DSL {
   }
 
   public static PredicateExpression and(PredicateExpression left, PredicateExpression right) {
-    return new BinaryExpression(left, right, AndPredicate::new);
+    return new BinaryExpression(left, right, BinaryOperator.AND);
   }
 
   public static PredicateExpression or(PredicateExpression... expressions) {
@@ -70,27 +65,27 @@ public class DSL {
   }
 
   public static PredicateExpression or(PredicateExpression left, PredicateExpression right) {
-    return new BinaryExpression(left, right, OrPredicate::new);
+    return new BinaryExpression(left, right, BinaryOperator.OR);
   }
 
   public static PredicateExpression gt(ValueExpression<?> left, ValueExpression<?> right) {
-    return new ComparisonExpression(left, right, GreaterThanPredicate::new);
+    return new ComparisonExpression(left, right, ComparisonOperator.GT);
   }
 
   public static PredicateExpression ge(ValueExpression<?> left, ValueExpression<?> right) {
-    return new ComparisonExpression(left, right, GreaterOrEqualPredicate::new);
+    return new ComparisonExpression(left, right, ComparisonOperator.GE);
   }
 
   public static PredicateExpression lt(ValueExpression<?> left, ValueExpression<?> right) {
-    return new ComparisonExpression(left, right, LessThanPredicate::new);
+    return new ComparisonExpression(left, right, ComparisonOperator.LT);
   }
 
   public static PredicateExpression le(ValueExpression<?> left, ValueExpression<?> right) {
-    return new ComparisonExpression(left, right, LessOrEqualPredicate::new);
+    return new ComparisonExpression(left, right, ComparisonOperator.LE);
   }
 
   public static PredicateExpression eq(ValueExpression<?> left, ValueExpression<?> right) {
-    return new ComparisonExpression(left, right, EqualsPredicate::new);
+    return new ComparisonExpression(left, right, ComparisonOperator.EQ);
   }
 
   public static PredicateExpression not(PredicateExpression expression) {

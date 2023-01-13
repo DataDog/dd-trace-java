@@ -26,4 +26,9 @@ public final class NullValue extends Literal<Object> {
   public boolean isNull() {
     return true;
   }
+
+  @Override
+  public String toString() {
+    return "NULL";
+  }
 }
