@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.ons_client;
 
-
 import com.aliyun.openservices.ons.api.Message;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -9,19 +8,18 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
+import java.util.List;
+
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.instrumentation.ons_client.MqDecorator.DECORATOR;
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
 @AutoService(Instrumenter.class)
-public class MqNormalInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForTypeHierarchy {
-  // 普通消息
-  public static final String CLASS_NAME = "com.aliyun.openservices.ons.api.MessageListener";
+public class MqBatchInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy{
+  public static final String CLASS_NAME = "com.aliyun.openservices.ons.api.batch.BatchMessageListener";
 
-  public MqNormalInstrumentation() {
-    super("rocketmq", "ons-client");
-  }
+  public MqBatchInstrumentation() {super("rocketmq", "ons-client");}
 
   @Override
   public String hierarchyMarkerType() {
@@ -43,19 +41,17 @@ public class MqNormalInstrumentation extends Instrumenter.Tracing
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-
     transformation.applyAdvice(
         isMethod().
             and(named("consume")).
             and(takesArguments(2)),
-        MqNormalInstrumentation.class.getName() + "$AdviceStart");
+        MqBatchInstrumentation.class.getName() + "$AdviceStart");
   }
-
 
   public static class AdviceStart {
     @Advice.OnMethodEnter
-    public static AgentScope onEnter(@Advice.Argument(0) Message message) {
-     return DECORATOR.OnStart(message);
+    public static AgentScope onEnter(@Advice.Argument(0) List<Message> messages) {
+      return DECORATOR.OnStart(messages);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
