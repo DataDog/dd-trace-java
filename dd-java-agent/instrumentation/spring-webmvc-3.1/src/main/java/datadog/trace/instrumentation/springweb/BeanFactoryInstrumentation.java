@@ -25,6 +25,7 @@ import org.springframework.beans.factory.support.RootBeanDefinition;
 @AutoService(Instrumenter.class)
 public class BeanFactoryInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForTypeHierarchy {
+
   public BeanFactoryInstrumentation() {
     super("spring-web");
   }
@@ -62,14 +63,17 @@ public class BeanFactoryInstrumentation extends Instrumenter.Tracing
   }
 
   public static class BeanResolvingAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(@Advice.Argument(0) final RootBeanDefinition beanDefinition) {
-      if (!beanDefinition.hasBeanClass()
-          && HandlerMappingResourceNameFilter.class
-              .getName()
-              .equals(beanDefinition.getBeanClassName())) {
 
-        beanDefinition.setBeanClass(HandlerMappingResourceNameFilter.class);
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(@Advice.Argument(0) final RootBeanDefinition beanDefinition)
+        throws ClassNotFoundException {
+      if (!beanDefinition.hasBeanClass()
+          && beanDefinition.getBeanClassName() != null
+          && beanDefinition.getBeanClassName().startsWith("datadog.trace.instrumentation")) {
+        beanDefinition.setBeanClass(
+            SpringWebHttpServerDecorator.class
+                .getClassLoader()
+                .loadClass(beanDefinition.getBeanClassName()));
       }
     }
   }
