@@ -267,8 +267,9 @@ public class ConfigurationUpdater
     SummaryBuilder summaryBuilder;
     ProbeCondition probeCondition;
     if (probe instanceof LogProbe) {
-      summaryBuilder = new LogMessageTemplateSummaryBuilder((LogProbe) probe);
-      probeCondition = null;
+      LogProbe logProbe = (LogProbe) probe;
+      summaryBuilder = new LogMessageTemplateSummaryBuilder(logProbe);
+      probeCondition = logProbe.getProbeCondition();
     } else {
       log.warn("definition id={} has unsupported probe type: {}", probe.getId(), probe.getClass());
       return null;
