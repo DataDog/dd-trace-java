@@ -1,10 +1,14 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitUtils.filterSensitiveInfo;
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitUtils.normalizeRef;
+import static datadog.trace.bootstrap.instrumentation.ci.utils.PathUtils.expandTilde;
+
 import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.PersonInfo;
 
-class BuildkiteInfo extends CIProviderInfo {
+class BuildkiteInfo implements CIProviderInfo {
 
   // https://buildkite.com/docs/pipelines/environment-variables
   public static final String BUILDKITE = "BUILDKITE";
@@ -24,7 +28,7 @@ class BuildkiteInfo extends CIProviderInfo {
   public static final String BUILDKITE_GIT_AUTHOR_EMAIL = "BUILDKITE_BUILD_AUTHOR_EMAIL";
 
   @Override
-  protected GitInfo buildCIGitInfo() {
+  public GitInfo buildCIGitInfo() {
     return new GitInfo(
         filterSensitiveInfo(System.getenv(BUILDKITE_GIT_REPOSITORY_URL)),
         normalizeRef(System.getenv(BUILDKITE_GIT_BRANCH)),
@@ -37,7 +41,7 @@ class BuildkiteInfo extends CIProviderInfo {
   }
 
   @Override
-  protected CIInfo buildCIInfo() {
+  public CIInfo buildCIInfo() {
     final String ciPipelineUrl = System.getenv(BUILDKITE_BUILD_URL);
 
     return CIInfo.builder()
@@ -50,6 +54,11 @@ class BuildkiteInfo extends CIProviderInfo {
         .ciWorkspace(expandTilde(System.getenv(BUILDKITE_WORKSPACE_PATH)))
         .ciEnvVars(BUILDKITE_PIPELINE_ID, BUILDKITE_JOB_ID)
         .build();
+  }
+
+  @Override
+  public boolean isCI() {
+    return true;
   }
 
   private PersonInfo buildGitCommitAuthor() {

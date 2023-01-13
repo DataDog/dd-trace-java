@@ -1,5 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitUtils.filterSensitiveInfo;
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitUtils.normalizeRef;
+import static datadog.trace.bootstrap.instrumentation.ci.utils.PathUtils.expandTilde;
+
 import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -7,7 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @SuppressForbidden
-class JenkinsInfo extends CIProviderInfo {
+class JenkinsInfo implements CIProviderInfo {
 
   // https://wiki.jenkins.io/display/JENKINS/Building+a+software+project
   public static final String JENKINS = "JENKINS_URL";
@@ -25,7 +29,7 @@ class JenkinsInfo extends CIProviderInfo {
   public static final String JENKINS_DD_CUSTOM_TRACE_ID = "DD_CUSTOM_TRACE_ID";
 
   @Override
-  protected GitInfo buildCIGitInfo() {
+  public GitInfo buildCIGitInfo() {
     return new GitInfo(
         filterSensitiveInfo(buildGitRepositoryUrl()),
         buildGitBranch(),
@@ -34,7 +38,7 @@ class JenkinsInfo extends CIProviderInfo {
   }
 
   @Override
-  protected CIInfo buildCIInfo() {
+  public CIInfo buildCIInfo() {
     final String gitBranch = buildGitBranch();
 
     return CIInfo.builder()
@@ -46,6 +50,11 @@ class JenkinsInfo extends CIProviderInfo {
         .ciWorkspace(expandTilde(System.getenv(JENKINS_WORKSPACE_PATH)))
         .ciEnvVars(JENKINS_DD_CUSTOM_TRACE_ID)
         .build();
+  }
+
+  @Override
+  public boolean isCI() {
+    return true;
   }
 
   private String buildGitRepositoryUrl() {

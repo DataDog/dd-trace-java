@@ -1,10 +1,14 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitUtils.filterSensitiveInfo;
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitUtils.normalizeRef;
+import static datadog.trace.bootstrap.instrumentation.ci.utils.PathUtils.expandTilde;
+
 import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
 import datadog.trace.util.Strings;
 
-class BitBucketInfo extends CIProviderInfo {
+class BitBucketInfo implements CIProviderInfo {
 
   // https://support.atlassian.com/bitbucket-cloud/docs/variables-and-secrets/
   public static final String BITBUCKET = "BITBUCKET_BUILD_NUMBER";
@@ -19,7 +23,7 @@ class BitBucketInfo extends CIProviderInfo {
   public static final String BITBUCKET_GIT_TAG = "BITBUCKET_TAG";
 
   @Override
-  protected GitInfo buildCIGitInfo() {
+  public GitInfo buildCIGitInfo() {
     return new GitInfo(
         filterSensitiveInfo(System.getenv(BITBUCKET_GIT_REPOSITORY_URL)),
         normalizeRef(System.getenv(BITBUCKET_GIT_BRANCH)),
@@ -28,7 +32,7 @@ class BitBucketInfo extends CIProviderInfo {
   }
 
   @Override
-  protected CIInfo buildCIInfo() {
+  public CIInfo buildCIInfo() {
     final String repo = System.getenv(BITBUCKET_REPO_FULL_NAME);
     final String number = System.getenv(BITBUCKET_BUILD_NUMBER);
     final String url = buildPipelineUrl(repo, number);
@@ -42,6 +46,11 @@ class BitBucketInfo extends CIProviderInfo {
         .ciJobUrl(url)
         .ciWorkspace(expandTilde(System.getenv(BITBUCKET_WORKSPACE_PATH)))
         .build();
+  }
+
+  @Override
+  public boolean isCI() {
+    return true;
   }
 
   private String buildPipelineUrl(final String repo, final String number) {

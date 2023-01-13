@@ -44,7 +44,7 @@ public class DependencyResolver {
         }
       }
     } catch (RuntimeException rte) {
-      log.warn("Failed to determine dependency for uri {}", uri, rte);
+      log.debug("Failed to determine dependency for uri {}", uri, rte);
     }
     // TODO : moving jboss vfs here is probably a idea
     // it might however require to do somme checks to make sure it's only applied to jboss
@@ -61,7 +61,7 @@ public class DependencyResolver {
    */
   static List<Dependency> extractDependenciesFromJar(File jar) {
     if (!jar.exists()) {
-      log.warn("unable to find dependency {} (path does not exist)", jar);
+      log.debug("unable to find dependency {} (path does not exist)", jar);
       return Collections.emptyList();
     } else if (!jar.getName().endsWith(JAR_SUFFIX)) {
       log.debug("unsupported file dependency type : {}", jar);
@@ -103,7 +103,7 @@ public class DependencyResolver {
       String jarFileName = jarFile.getName();
       int posSep = jarFileName.indexOf("!/");
       if (posSep == -1) {
-        log.warn("Unable to guess nested dependency for uri '{}': '!/' not found", uri);
+        log.debug("Unable to guess nested dependency for uri '{}': '!/' not found", uri);
         return null;
       }
       lastPart = jarFileName.substring(posSep + 1);
@@ -113,7 +113,7 @@ public class DependencyResolver {
     } catch (IOException e) {
       log.debug("unable to open nested jar manifest for {}", uri, e);
     }
-    log.info(
+    log.debug(
         "Unable to guess nested dependency for uri '{}', lastPart: '{}', fileName: '{}'",
         uri,
         lastPart,

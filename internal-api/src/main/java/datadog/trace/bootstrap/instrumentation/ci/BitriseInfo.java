@@ -1,10 +1,14 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitUtils.filterSensitiveInfo;
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitUtils.normalizeRef;
+import static datadog.trace.bootstrap.instrumentation.ci.utils.PathUtils.expandTilde;
+
 import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.PersonInfo;
 
-class BitriseInfo extends CIProviderInfo {
+class BitriseInfo implements CIProviderInfo {
 
   public static final String BITRISE = "BITRISE_BUILD_SLUG";
   public static final String BITRISE_PROVIDER_NAME = "bitrise";
@@ -25,7 +29,7 @@ class BitriseInfo extends CIProviderInfo {
   public static final String BITRISE_GIT_COMMITER_EMAIL = "GIT_CLONE_COMMIT_COMMITER_EMAIL";
 
   @Override
-  protected GitInfo buildCIGitInfo() {
+  public GitInfo buildCIGitInfo() {
     final String gitTag = normalizeRef(System.getenv(BITRISE_GIT_TAG));
     return new GitInfo(
         filterSensitiveInfo(System.getenv(BITRISE_GIT_REPOSITORY_URL)),
@@ -42,7 +46,7 @@ class BitriseInfo extends CIProviderInfo {
   }
 
   @Override
-  protected CIInfo buildCIInfo() {
+  public CIInfo buildCIInfo() {
     return CIInfo.builder()
         .ciProviderName(BITRISE_PROVIDER_NAME)
         .ciPipelineId(System.getenv(BITRISE_PIPELINE_ID))
@@ -51,6 +55,11 @@ class BitriseInfo extends CIProviderInfo {
         .ciPipelineUrl(System.getenv(BITRISE_PIPELINE_URL))
         .ciWorkspace(expandTilde(System.getenv(BITRISE_WORKSPACE_PATH)))
         .build();
+  }
+
+  @Override
+  public boolean isCI() {
+    return true;
   }
 
   private String buildGitBranch(final String gitTag) {

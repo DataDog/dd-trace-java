@@ -164,4 +164,28 @@ public class GitUtils {
   private static void logErrorInflating(final String reason) {
     log.warn("Could not decompressed git object: Reason {}", reason);
   }
+
+  /**
+   * Checks if the provided string is a valid commit SHA:
+   *
+   * <ul>
+   *   <li>length >= 40
+   *   <li>every character is a hexadecimal digit
+   * </ul>
+   */
+  public static boolean isValidCommitSha(final String commitSha) {
+    if (commitSha == null || commitSha.length() < 40) {
+      return false;
+    }
+    for (char c : commitSha.toCharArray()) {
+      if (!isHex(c)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static boolean isHex(char c) {
+    return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+  }
 }

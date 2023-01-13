@@ -1,9 +1,13 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitUtils.filterSensitiveInfo;
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitUtils.normalizeRef;
+import static datadog.trace.bootstrap.instrumentation.ci.utils.PathUtils.expandTilde;
+
 import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
 
-class CircleCIInfo extends CIProviderInfo {
+class CircleCIInfo implements CIProviderInfo {
 
   // https://circleci.com/docs/2.0/env-vars/#built-in-environment-variables
   public static final String CIRCLECI = "CIRCLECI";
@@ -20,7 +24,7 @@ class CircleCIInfo extends CIProviderInfo {
   public static final String CIRCLECI_JOB_NAME = "CIRCLE_JOB";
 
   @Override
-  protected GitInfo buildCIGitInfo() {
+  public GitInfo buildCIGitInfo() {
     final String gitTag = normalizeRef(System.getenv(CIRCLECI_GIT_TAG));
     return new GitInfo(
         filterSensitiveInfo(System.getenv(CIRCLECI_GIT_REPOSITORY_URL)),
@@ -30,7 +34,7 @@ class CircleCIInfo extends CIProviderInfo {
   }
 
   @Override
-  protected CIInfo buildCIInfo() {
+  public CIInfo buildCIInfo() {
     final String pipelineId = System.getenv(CIRCLECI_PIPELINE_ID);
     return CIInfo.builder()
         .ciProviderName(CIRCLECI_PROVIDER_NAME)
@@ -42,6 +46,11 @@ class CircleCIInfo extends CIProviderInfo {
         .ciWorkspace(expandTilde(System.getenv(CIRCLECI_WORKSPACE_PATH)))
         .ciEnvVars(CIRCLECI_PIPELINE_ID, CIRCLECI_BUILD_NUM)
         .build();
+  }
+
+  @Override
+  public boolean isCI() {
+    return true;
   }
 
   private String buildGitBranch(final String gitTag) {
