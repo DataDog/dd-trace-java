@@ -659,7 +659,7 @@ public class Snapshot {
 
     private void checkUndefined(String expr, Object target, String name, String msg) {
       if (target == Values.UNDEFINED_OBJECT) {
-        addEvalError(expr, msg + name);
+        addEvaluationError(expr, msg + name);
       }
     }
 
@@ -788,7 +788,7 @@ public class Snapshot {
       }
     }
 
-    public void addEvalError(String expr, String message) {
+    public void addEvaluationError(String expr, String message) {
       if (evaluationErrors == null) {
         evaluationErrors = new ArrayList<>();
       }

@@ -322,7 +322,7 @@ public class DebuggerSinkTest {
   public void addSnapshotWithEvalErrors() throws URISyntaxException, IOException {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     Snapshot.CapturedContext entry = new Snapshot.CapturedContext();
-    entry.addEvalError("obj.field", "Cannot dereference obj");
+    entry.addEvaluationError("obj.field", "Cannot dereference obj");
     Snapshot snapshot =
         new Snapshot(
             Thread.currentThread(),
