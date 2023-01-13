@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,7 +92,7 @@ public class Snapshot {
   }
 
   public void setEntry(CapturedContext context) {
-    summaryBuilder.addEntry(context);
+    processSummaries(SummaryBuilder::addEntry, context);
     context.setThisClassName(thisClassName);
     if (checkCapture(context, MethodLocation.ENTRY)) {
       captures.setEntry(context);
@@ -101,7 +102,7 @@ public class Snapshot {
   public void setExit(CapturedContext context) {
     duration = System.nanoTime() - startTs;
     context.addExtension(ValueReferences.DURATION_EXTENSION_NAME, duration);
-    summaryBuilder.addExit(context);
+    processSummaries(SummaryBuilder::addExit, context);
     context.setThisClassName(thisClassName);
     if (checkCapture(context, MethodLocation.EXIT)) {
       captures.setReturn(context);
@@ -109,7 +110,7 @@ public class Snapshot {
   }
 
   public void addLine(CapturedContext context, int line) {
-    summaryBuilder.addLine(context);
+    processSummaries(SummaryBuilder::addLine, context);
     context.setThisClassName(thisClassName);
     if (checkCapture(context, MethodLocation.DEFAULT)) {
       captures.addLine(line, context);
@@ -211,14 +212,14 @@ public class Snapshot {
     for (ProbeDetails additionalProbe : probe.additionalProbes) {
       if (capturingProbeIds.contains(additionalProbe.id)
           || errorsByProbeIds.containsKey(additionalProbe.id)) {
-        DebuggerContext.addSnapshot(copy(additionalProbe.id, UUID.randomUUID().toString()));
+        DebuggerContext.addSnapshot(copy(additionalProbe, UUID.randomUUID().toString()));
       } else {
         DebuggerContext.skipSnapshot(additionalProbe.id, DebuggerContext.SkipCause.CONDITION);
       }
     }
   }
 
-  private Snapshot copy(String probeId, String newSnapshotId) {
+  private Snapshot copy(ProbeDetails additionalProbe, String newSnapshotId) {
     Snapshot snapshot =
         new Snapshot(
             newSnapshotId,
@@ -227,19 +228,13 @@ public class Snapshot {
             duration,
             stack,
             captures,
-            new ProbeDetails(
-                probeId,
-                probe.location,
-                probe.evaluateAt,
-                probe.script,
-                probe.tags,
-                summaryBuilder),
+            additionalProbe,
             language,
             thread,
             thisClassName,
             traceId,
             spanId);
-    List<EvaluationError> evalErrors = errorsByProbeIds.get(probeId);
+    List<EvaluationError> evalErrors = errorsByProbeIds.get(additionalProbe.id);
     if (evalErrors != null) {
       snapshot.evaluationErrors = new ArrayList<>(evalErrors);
     }
@@ -321,6 +316,17 @@ public class Snapshot {
       stack.add(CapturedStackFrame.from(ste));
     }
     summaryBuilder.addStack(stack);
+    for (ProbeDetails additionalProbe : this.probe.additionalProbes) {
+      additionalProbe.summaryBuilder.addStack(stack);
+    }
+  }
+
+  private void processSummaries(
+      BiConsumer<SummaryBuilder, CapturedContext> contextConsumer, CapturedContext context) {
+    contextConsumer.accept(summaryBuilder, context);
+    for (ProbeDetails additionalProbe : this.probe.additionalProbes) {
+      contextConsumer.accept(additionalProbe.summaryBuilder, context);
+    }
   }
 
   public enum Kind {
