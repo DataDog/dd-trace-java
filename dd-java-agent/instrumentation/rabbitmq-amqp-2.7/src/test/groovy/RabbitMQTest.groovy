@@ -804,7 +804,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
           errorTags(exception.class, errorMsg)
         }
         if ({ isDataStreamsEnabled() }){
-          "$DDTags.PATHWAY_HASH" { String } 
+          "$DDTags.PATHWAY_HASH" { String }
         }
         defaultTags(distributedRootSpan)
       }
