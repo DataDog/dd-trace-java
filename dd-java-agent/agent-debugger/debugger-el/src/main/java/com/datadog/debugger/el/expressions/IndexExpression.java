@@ -34,4 +34,9 @@ public class IndexExpression implements ValueExpression {
     }
     return result;
   }
+
+  @Override
+  public String prettyPrint() {
+    return target.prettyPrint() + "[" + key.prettyPrint() + "]";
+  }
 }

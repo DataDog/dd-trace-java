@@ -14,4 +14,9 @@ public final class WhenExpression implements BooleanExpression {
   public Boolean evaluate(ValueReferenceResolver valueRefResolver) {
     return expression.evaluate(valueRefResolver);
   }
+
+  @Override
+  public String prettyPrint() {
+    return "when(" + expression.prettyPrint() + ")";
+  }
 }

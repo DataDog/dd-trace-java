@@ -20,4 +20,9 @@ public final class IfExpression implements Expression<Void> {
     }
     return null;
   }
+
+  @Override
+  public String prettyPrint() {
+    return "if " + test.prettyPrint() + " then " + expression.prettyPrint();
+  }
 }

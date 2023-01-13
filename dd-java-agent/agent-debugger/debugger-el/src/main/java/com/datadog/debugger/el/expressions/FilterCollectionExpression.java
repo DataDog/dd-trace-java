@@ -72,4 +72,9 @@ public final class FilterCollectionExpression implements ValueExpression<Collect
     log.warn("Unsupported collection type {}", collectionValue.getValue().getClass().getTypeName());
     return CollectionValue.UNDEFINED;
   }
+
+  @Override
+  public String prettyPrint() {
+    return "filter(" + source.prettyPrint() + ")";
+  }
 }

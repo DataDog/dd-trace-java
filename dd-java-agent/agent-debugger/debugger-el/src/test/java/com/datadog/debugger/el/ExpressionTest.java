@@ -53,4 +53,29 @@ class ExpressionTest {
     assertTrue(or(isEmpty1, isEmpty2).evaluate(resolver));
     assertFalse(and(isEmpty1, isEmpty2).evaluate(resolver));
   }
+
+  @Test
+  void testPrettyPrint() {
+    assertEquals("\"foo\" == \"bar\"", eq(value("foo"), value("bar")).prettyPrint());
+    assertEquals("1 == 1", eq(value(1), value(1)).prettyPrint());
+    assertEquals("1 > 1", gt(value(1), value(1)).prettyPrint());
+    assertEquals("1 >= 1", ge(value(1), value(1)).prettyPrint());
+    assertEquals("1 < 1", lt(value(1), value(1)).prettyPrint());
+    assertEquals("1 <= 1", le(value(1), value(1)).prettyPrint());
+    assertEquals(
+        "when(this.strField == \"foo\" && @duration > 0)",
+        when(and(eq(ref("this.strField"), value("foo")), gt(ref("@duration"), value(0))))
+            .prettyPrint());
+    assertEquals(
+        "len(list[idx].map)", len(getMember(index(ref("list"), ref("idx")), "map")).prettyPrint());
+    assertTrue(new MyExpression().prettyPrint().contains("MyExpression"));
+  }
+
+  static class MyExpression implements Expression {
+
+    @Override
+    public Object evaluate(ValueReferenceResolver valueRefResolver) {
+      return null;
+    }
+  }
 }

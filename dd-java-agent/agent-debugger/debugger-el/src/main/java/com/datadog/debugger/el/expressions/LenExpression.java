@@ -42,4 +42,9 @@ public final class LenExpression implements ValueExpression<Value<? extends Numb
   public ValueExpression<?> getSource() {
     return source;
   }
+
+  @Override
+  public String prettyPrint() {
+    return "len(" + source.prettyPrint() + ")";
+  }
 }

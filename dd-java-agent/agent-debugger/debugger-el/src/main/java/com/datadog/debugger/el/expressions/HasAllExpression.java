@@ -67,4 +67,9 @@ public final class HasAllExpression extends MatchingExpression {
               Collections.singletonMap(ValueReferences.ITERATOR_EXTENSION_NAME, value)));
     }
   }
+
+  @Override
+  public String prettyPrint() {
+    return "hasAll(" + this.valueExpression.prettyPrint() + ")";
+  }
 }

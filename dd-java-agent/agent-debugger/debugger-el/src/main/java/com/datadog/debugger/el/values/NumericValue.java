@@ -22,4 +22,9 @@ public final class NumericValue extends Literal<Number> {
   public String toString() {
     return "NumericLiteral{" + "value=" + value + '}';
   }
+
+  @Override
+  public String prettyPrint() {
+    return String.valueOf(value.longValue());
+  }
 }

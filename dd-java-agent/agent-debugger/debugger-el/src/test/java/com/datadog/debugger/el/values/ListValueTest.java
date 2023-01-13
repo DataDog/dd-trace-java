@@ -26,8 +26,8 @@ class ListValueTest {
         assertEquals(Value.nullValue(), v);
       }
     }
-    assertEquals(Value.undefinedValue(), listValue.get(-1));
-    assertEquals(Value.undefinedValue(), listValue.get(stringList.size()));
+    assertThrows(IllegalArgumentException.class, () -> listValue.get(-1));
+    assertThrows(IllegalArgumentException.class, () -> listValue.get(stringList.size()));
   }
 
   @Test
@@ -35,7 +35,7 @@ class ListValueTest {
     ListValue listValue = new ListValue("a");
     assertTrue(listValue.isEmpty());
 
-    assertEquals(Value.undefinedValue(), listValue.get(-1));
+    assertThrows(IllegalArgumentException.class, () -> listValue.get(-1));
   }
 
   @Test
@@ -56,8 +56,8 @@ class ListValueTest {
         assertEquals(Value.nullValue(), v);
       }
     }
-    assertEquals(Value.undefinedValue(), listValue.get(-1));
-    assertEquals(Value.undefinedValue(), listValue.get(array.length));
+    assertThrows(IllegalArgumentException.class, () -> listValue.get(-1));
+    assertThrows(IllegalArgumentException.class, () -> listValue.get(array.length));
   }
 
   @Test
@@ -77,7 +77,7 @@ class ListValueTest {
         assertEquals((long) intArray[i][j], v1.getValue()); // int is automatically widened to long
       }
     }
-    assertEquals(Value.undefinedValue(), listValue.get(-1));
-    assertEquals(Value.undefinedValue(), listValue.get(intArray.length));
+    assertThrows(IllegalArgumentException.class, () -> listValue.get(-1));
+    assertThrows(IllegalArgumentException.class, () -> listValue.get(intArray.length));
   }
 }

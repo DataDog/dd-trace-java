@@ -29,4 +29,9 @@ public final class IsEmptyExpression implements BooleanExpression {
     }
     return Boolean.FALSE;
   }
+
+  @Override
+  public String prettyPrint() {
+    return "isEmpty(" + this.valueExpression.prettyPrint() + ")";
+  }
 }

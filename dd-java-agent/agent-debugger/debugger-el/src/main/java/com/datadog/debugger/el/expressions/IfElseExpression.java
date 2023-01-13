@@ -25,4 +25,14 @@ public final class IfElseExpression implements Expression<Void> {
     }
     return null;
   }
+
+  @Override
+  public String prettyPrint() {
+    return "if "
+        + test.prettyPrint()
+        + " then "
+        + thenExpression.prettyPrint()
+        + " else "
+        + elseExpression.prettyPrint();
+  }
 }

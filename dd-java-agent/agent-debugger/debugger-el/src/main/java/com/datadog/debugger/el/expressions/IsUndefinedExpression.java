@@ -23,4 +23,9 @@ public final class IsUndefinedExpression implements BooleanExpression {
     Value<?> value = valueExpression.evaluate(valueRefResolver);
     return value.isUndefined() ? Boolean.TRUE : Boolean.FALSE;
   }
+
+  @Override
+  public String prettyPrint() {
+    return "isUndefined(" + valueExpression.prettyPrint() + ")";
+  }
 }

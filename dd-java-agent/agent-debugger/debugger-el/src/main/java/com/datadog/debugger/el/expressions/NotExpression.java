@@ -14,4 +14,9 @@ public final class NotExpression implements BooleanExpression {
   public Boolean evaluate(ValueReferenceResolver valueRefResolver) {
     return !predicate.evaluate(valueRefResolver);
   }
+
+  @Override
+  public String prettyPrint() {
+    return "not(" + predicate.prettyPrint() + ")";
+  }
 }

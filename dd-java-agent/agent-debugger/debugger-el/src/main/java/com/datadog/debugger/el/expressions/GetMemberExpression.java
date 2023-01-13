@@ -51,4 +51,9 @@ public class GetMemberExpression implements ValueExpression {
   public String getMemberName() {
     return memberName;
   }
+
+  @Override
+  public String prettyPrint() {
+    return target.prettyPrint() + "." + memberName;
+  }
 }
