@@ -11,7 +11,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 class NotExpressionTest {
   @ParameterizedTest
   @MethodSource("expressions")
-  void testNullPredicate(PredicateExpression expression, boolean expected) {
+  void testNullPredicate(BooleanExpression expression, boolean expected) {
     assertEquals(
         expected, new NotExpression(expression).evaluate(RefResolverHelper.createResolver(this)));
   }
@@ -19,7 +19,7 @@ class NotExpressionTest {
   private static Stream<Arguments> expressions() {
     return Stream.of(
         Arguments.of(null, true),
-        Arguments.of(PredicateExpression.TRUE, false),
-        Arguments.of(PredicateExpression.FALSE, true));
+        Arguments.of(BooleanExpression.TRUE, false),
+        Arguments.of(BooleanExpression.FALSE, true));
   }
 }

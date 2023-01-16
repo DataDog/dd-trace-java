@@ -8,15 +8,15 @@ import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import java.util.Collections;
 
 /**
- * Checks a {@linkplain Value} against the given {@link PredicateExpression filter expression} to
- * make sure that any of the elements are conforming to the filter.<br>
+ * Checks a {@linkplain Value} against the given {@link BooleanExpression filter expression} to make
+ * sure that any of the elements are conforming to the filter.<br>
  * If the provided value is of {@linkplain com.datadog.debugger.el.values.CollectionValue} type the
  * check will be performed for each contained element. Otherwise, the value itself would be matched
  * using the filter.
  */
 public final class HasAnyExpression extends MatchingExpression {
   public HasAnyExpression(
-      ValueExpression<?> valueExpression, PredicateExpression filterPredicateExpression) {
+      ValueExpression<?> valueExpression, BooleanExpression filterPredicateExpression) {
     super(valueExpression, filterPredicateExpression);
   }
 

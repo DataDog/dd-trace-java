@@ -33,10 +33,10 @@ class HasAnyExpressionTest {
   @Test
   void testNullHasAny() {
     ValueReferenceResolver ctx = RefResolverHelper.createResolver(this);
-    HasAnyExpression expression = any(null, PredicateExpression.TRUE);
+    HasAnyExpression expression = any(null, BooleanExpression.TRUE);
     assertFalse(expression.evaluate(ctx));
 
-    expression = any(null, PredicateExpression.FALSE);
+    expression = any(null, BooleanExpression.FALSE);
     assertFalse(expression.evaluate(ctx));
 
     expression = any(null, eq(ref(".testField"), value(10)));

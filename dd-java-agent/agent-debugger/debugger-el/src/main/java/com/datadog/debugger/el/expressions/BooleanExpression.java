@@ -4,9 +4,9 @@ import com.datadog.debugger.el.Expression;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
 /** A generic interface for expressions resolving to {@linkplain Boolean} */
-public interface PredicateExpression extends Expression<Boolean> {
-  PredicateExpression TRUE =
-      new PredicateExpression() {
+public interface BooleanExpression extends Expression<Boolean> {
+  BooleanExpression TRUE =
+      new BooleanExpression() {
         @Override
         public Boolean evaluate(ValueReferenceResolver valueRefResolver) {
           return Boolean.TRUE;
@@ -17,8 +17,8 @@ public interface PredicateExpression extends Expression<Boolean> {
           return "TRUE";
         }
       };
-  PredicateExpression FALSE =
-      new PredicateExpression() {
+  BooleanExpression FALSE =
+      new BooleanExpression() {
         @Override
         public Boolean evaluate(ValueReferenceResolver valueRefResolver) {
           return Boolean.FALSE;

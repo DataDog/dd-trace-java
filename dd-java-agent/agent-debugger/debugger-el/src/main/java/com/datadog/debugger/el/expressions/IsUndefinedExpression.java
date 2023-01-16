@@ -8,7 +8,7 @@ import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
  * This can happen when the {@linkplain ValueReferenceResolver} is not able to properly resolve a
  * reference or an expression is using {@linkplain Value#UNDEFINED} value in its computation.
  */
-public final class IsUndefinedExpression implements PredicateExpression {
+public final class IsUndefinedExpression implements BooleanExpression {
   private final ValueExpression<?> valueExpression;
 
   public IsUndefinedExpression(ValueExpression<?> valueExpression) {

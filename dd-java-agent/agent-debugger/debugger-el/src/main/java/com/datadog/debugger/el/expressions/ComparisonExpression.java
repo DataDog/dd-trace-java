@@ -7,7 +7,7 @@ import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
  * Takes two {@linkplain ValueExpression} instances and compares them using the given {@link
  * ComparisonOperator operator}.
  */
-public class ComparisonExpression implements PredicateExpression {
+public class ComparisonExpression implements BooleanExpression {
   private final ValueExpression<?> left;
   private final ValueExpression<?> right;
   private final ComparisonOperator operator;

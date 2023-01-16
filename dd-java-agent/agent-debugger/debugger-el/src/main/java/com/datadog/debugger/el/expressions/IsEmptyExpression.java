@@ -9,7 +9,7 @@ import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
  * Checks whether a {@linkplain Value} is empty.<br>
  * The result will be {@literal true} for empty string or collection, {@literal false} otherwise.
  */
-public final class IsEmptyExpression implements PredicateExpression {
+public final class IsEmptyExpression implements BooleanExpression {
   private final ValueExpression<?> valueExpression;
 
   public IsEmptyExpression(ValueExpression<?> valueExpression) {

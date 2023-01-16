@@ -2,11 +2,11 @@ package com.datadog.debugger.el.expressions;
 
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
-/** Will negate the resolved {@linkplain PredicateExpression} */
-public final class NotExpression implements PredicateExpression {
-  private final PredicateExpression predicate;
+/** Will negate the resolved {@linkplain BooleanExpression} */
+public final class NotExpression implements BooleanExpression {
+  private final BooleanExpression predicate;
 
-  public NotExpression(PredicateExpression predicate) {
+  public NotExpression(BooleanExpression predicate) {
     this.predicate = predicate == null ? (ctx -> Boolean.FALSE) : predicate;
   }
 

@@ -34,8 +34,12 @@ class ComparisonExpressionTest {
   private static Stream<Arguments> expressions() {
     return Stream.of(
         Arguments.of(new NumericValue(1), new NumericValue(1), EQ, true),
+        Arguments.of(new NumericValue(1L), new NumericValue(1L), EQ, true),
+        Arguments.of(new NumericValue(1.0F), new NumericValue(1.0F), EQ, true),
+        Arguments.of(new NumericValue(1.0), new NumericValue(1.0), EQ, true),
         Arguments.of(new NumericValue(1), new NumericValue(2), EQ, false),
         Arguments.of(new StringValue("foo"), new NumericValue(2), EQ, false),
+        Arguments.of(new NumericValue(1), new StringValue("foo"), EQ, false),
         Arguments.of(new StringValue("foo"), new StringValue("foo"), EQ, true),
         Arguments.of(ValueExpression.NULL, new NumericValue(2), EQ, false),
         Arguments.of(new NumericValue(1), new NumericValue(1), GT, false),

@@ -16,16 +16,15 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Filters a {@link CollectionValue collection} (list or map) using the given {@linkplain
- * PredicateExpression} filter.
+ * BooleanExpression} filter.
  */
 public final class FilterCollectionExpression implements ValueExpression<CollectionValue<?>> {
   private static final Logger log = LoggerFactory.getLogger(FilterCollectionExpression.class);
 
   private final ValueExpression<?> source;
-  private final PredicateExpression filterExpression;
+  private final BooleanExpression filterExpression;
 
-  public FilterCollectionExpression(
-      ValueExpression<?> source, PredicateExpression filterExpression) {
+  public FilterCollectionExpression(ValueExpression<?> source, BooleanExpression filterExpression) {
     this.source = source;
     this.filterExpression = filterExpression;
   }

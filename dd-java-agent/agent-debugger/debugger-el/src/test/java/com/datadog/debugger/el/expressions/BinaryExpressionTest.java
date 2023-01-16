@@ -8,14 +8,14 @@ class BinaryExpressionTest {
   @Test
   void testLeftNull() {
     BinaryExpression expression =
-        new BinaryExpression(null, PredicateExpression.TRUE, BinaryOperator.AND);
+        new BinaryExpression(null, BooleanExpression.TRUE, BinaryOperator.AND);
     Assertions.assertFalse(expression.evaluate(RefResolverHelper.createResolver(this)));
   }
 
   @Test
   void testRightNull() {
     BinaryExpression expression =
-        new BinaryExpression(PredicateExpression.TRUE, null, BinaryOperator.AND);
+        new BinaryExpression(BooleanExpression.TRUE, null, BinaryOperator.AND);
     Assertions.assertFalse(expression.evaluate(RefResolverHelper.createResolver(this)));
   }
 }
