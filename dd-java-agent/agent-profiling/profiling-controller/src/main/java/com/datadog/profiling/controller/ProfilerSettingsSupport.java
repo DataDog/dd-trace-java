@@ -1,5 +1,6 @@
 package com.datadog.profiling.controller;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -72,8 +73,7 @@ public abstract class ProfilerSettingsSupport {
             ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT);
     auxiliaryProfiler =
         configProvider.getString(
-            ProfilingConfig.PROFILING_AUXILIARY_TYPE,
-            ProfilingConfig.PROFILING_AUXILIARY_TYPE_DEFAULT);
+            ProfilingConfig.PROFILING_AUXILIARY_TYPE, getDefaultAuxiliaryProfiler());
     perfEventsParanoid = readPerfEventsParanoidSetting();
     hasNativeStacks =
         !"no"
@@ -83,6 +83,12 @@ public abstract class ProfilerSettingsSupport {
                     configProvider.getString(
                         "profiling.async.cstack",
                         ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT)));
+  }
+
+  private static String getDefaultAuxiliaryProfiler() {
+    return Config.get().isDatadogProfilerEnabled()
+        ? "ddprof"
+        : ProfilingConfig.PROFILING_AUXILIARY_TYPE_DEFAULT;
   }
 
   /** To be defined in controller specific way. Eg. one could emit JFR events. */
