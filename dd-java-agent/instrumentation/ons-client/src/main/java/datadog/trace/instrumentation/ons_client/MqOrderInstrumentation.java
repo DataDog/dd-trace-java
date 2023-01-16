@@ -43,7 +43,6 @@ public class MqOrderInstrumentation extends Instrumenter.Tracing
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-
     transformation.applyAdvice(
         isMethod().
             and(named("consume")).

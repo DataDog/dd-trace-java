@@ -14,12 +14,13 @@ import static datadog.trace.instrumentation.ons_client.ExtractAdapter.GETTER;
 
 public class MqDecorator extends BaseDecorator {
   public static final CharSequence ROCKETMQ_NAME = UTF8BytesString.create("rocketmq");
+  private static final String MESSAGE_ID = "message.id";
   public static final CharSequence MESSAGE_LISTENER = UTF8BytesString.create("messageListener");
   private static final String LOCAL_SERVICE_NAME = Config.get().getServiceName();
   private static final String MESSAGING_ROCKETMQ_BROKER_ADDRESS = "messaging.broker_address";
   private static final String MESSAGE_TAG = "message.tag";
   private static final String MESSAGE_LEN = "message_len";
-  public static final MqDecorator DECORATOR= new MqDecorator(){};
+  public static final MqDecorator DECORATOR= new MqDecorator();
 
   @Override
   protected String[] instrumentationNames() {
@@ -39,16 +40,24 @@ public class MqDecorator extends BaseDecorator {
   public AgentScope OnStart(Message message) {
     AgentSpan.Context parentContext = propagate().extract(message,GETTER);
     String topic = message.getTopic();
-    UTF8BytesString spanName = UTF8BytesString.create(topic + " send");
+    UTF8BytesString spanName = UTF8BytesString.create("producer send");
     AgentSpan span;
     if (parentContext == null) {
        span = startSpan(spanName);
     }else {
       span = startSpan(spanName,parentContext);
     }
-    span.setResourceName(LOCAL_SERVICE_NAME);
+
+    span.setTag("topic",topic);
+    span.setServiceName("ons-client");
+    span.setResourceName("consumer");
     if (message.getTag() != null){
       span.setTag(MESSAGE_TAG,message.getTag());
+    }
+    span.setTag(MESSAGE_ID,message.getMsgID());
+    String key = message.getKey();
+    if (key != null){
+      span.setTag("key",key);
     }
     String brokerAddr =message.getBornHost();
     if (brokerAddr != null) {

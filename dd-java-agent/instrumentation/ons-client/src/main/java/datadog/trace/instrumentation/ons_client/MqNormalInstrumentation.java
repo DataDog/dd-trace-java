@@ -43,14 +43,12 @@ public class MqNormalInstrumentation extends Instrumenter.Tracing
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-
     transformation.applyAdvice(
         isMethod().
             and(named("consume")).
             and(takesArguments(2)),
         MqNormalInstrumentation.class.getName() + "$AdviceStart");
   }
-
 
   public static class AdviceStart {
     @Advice.OnMethodEnter
