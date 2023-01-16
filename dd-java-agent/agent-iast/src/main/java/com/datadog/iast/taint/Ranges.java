@@ -41,6 +41,10 @@ public final class Ranges {
     return new Range[] {new Range(0, obj.length(), source)};
   }
 
+  public static Range[] forObject(final @Nonnull Source source) {
+    return new Range[] {new Range(0, Integer.MAX_VALUE, source)};
+  }
+
   public static void copyShift(
       final @Nonnull Range[] src, final @Nonnull Range[] dst, final int dstPos, final int shift) {
     if (shift == 0) {

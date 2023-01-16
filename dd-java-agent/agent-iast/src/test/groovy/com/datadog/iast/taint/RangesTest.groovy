@@ -157,6 +157,21 @@ class RangesTest extends DDSpecification {
     4      | 4      | [[2, 3], [6, 3], [15, 1]] | [0, 2]
   }
 
+  def 'forObject'() {
+    given:
+    final source = new Source(SourceType.NONE, null, null)
+
+    when:
+    final result = Ranges.forObject(source)
+
+    then:
+    result != null
+    result.length == 1
+    result[0].start == 0
+    result[0].length == Integer.MAX_VALUE
+    result[0].source == source
+  }
+
   Range[] rangesFromSpec(List<List<Object>> spec) {
     def ranges = new Range[spec.size()]
     int j = 0
