@@ -3,9 +3,6 @@ package datadog.trace.agent.tooling;
 import static datadog.trace.agent.tooling.bytebuddy.DDTransformers.defaultTransformers;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.ANY_CLASS_LOADER;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamedOneOf;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresAnnotation;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 import static net.bytebuddy.matcher.ElementMatchers.none;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -21,28 +18,13 @@ import datadog.trace.agent.tooling.context.FieldBackedContextRequestRewriter;
 import datadog.trace.api.InstrumenterConfig;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
-import java.security.ProtectionDomain;
-import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.agent.builder.AgentBuilder;
-import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.utility.JavaModule;
 
-public class AgentTransformerBuilder
-    implements Instrumenter.TransformerBuilder, Instrumenter.AdviceTransformation {
-
-  // Added here instead of byte-buddy's ignores because it's relatively
-  // expensive. https://github.com/DataDog/dd-trace-java/pull/1045
-  public static final ElementMatcher.Junction<TypeDescription> NOT_DECORATOR_MATCHER =
-      not(declaresAnnotation(named("javax.decorator.Decorator")));
-
-  /** Associates context stores with the class-loader matchers to activate them. */
-  private final Map<Map.Entry<String, String>, ElementMatcher<ClassLoader>> contextStoreInjection =
-      new HashMap<>();
+public final class AgentTransformerBuilder extends AbstractTransformerBuilder {
 
   private AgentBuilder agentBuilder;
   private ElementMatcher<? super MethodDescription> ignoreMatcher;
@@ -53,16 +35,6 @@ public class AgentTransformerBuilder
   }
 
   @Override
-  public void applyInstrumentation(Instrumenter.HasAdvice instrumenter) {
-    if (instrumenter instanceof Instrumenter.Default) {
-      agentBuilder = buildInstrumentation((Instrumenter.Default) instrumenter);
-    } else if (instrumenter instanceof Instrumenter.ForSingleType) {
-      agentBuilder = buildSingleAdvice(instrumenter); // for testing purposes
-    } else {
-      throw new IllegalArgumentException("Unexpected Instrumenter type");
-    }
-  }
-
   public ClassFileTransformer installOn(Instrumentation instrumentation) {
     if (InstrumenterConfig.get().isRuntimeContextFieldInjection()) {
       applyContextStoreInjection();
@@ -71,7 +43,8 @@ public class AgentTransformerBuilder
     return agentBuilder.installOn(instrumentation);
   }
 
-  private AgentBuilder buildInstrumentation(final Instrumenter.Default instrumenter) {
+  @Override
+  protected void buildInstrumentation(Instrumenter.Default instrumenter) {
     InstrumenterState.registerInstrumentation(instrumenter);
 
     ignoreMatcher = instrumenter.methodIgnoreMatcher();
@@ -100,7 +73,7 @@ public class AgentTransformerBuilder
               new VisitingTransformer(
                   new FieldBackedContextRequestRewriter(contextStore, instrumenter.name())));
 
-      registerContextStoreInjection(contextStore, instrumenter);
+      registerContextStoreInjection(instrumenter, contextStore);
     }
 
     final Instrumenter.AdviceTransformer customTransformer = instrumenter.transformer();
@@ -108,8 +81,11 @@ public class AgentTransformerBuilder
       adviceBuilder = adviceBuilder.transform(customTransformer::transform);
     }
 
-    instrumenter.adviceTransformations(this);
+    agentBuilder = registerAdvice(instrumenter);
+  }
 
+  private AgentBuilder registerAdvice(Instrumenter.HasAdvice instrumenter) {
+    instrumenter.adviceTransformations(this);
     return adviceBuilder;
   }
 
@@ -180,41 +156,15 @@ public class AgentTransformerBuilder
             + instrumenter.getClass().getName());
   }
 
-  private AgentBuilder buildSingleAdvice(Instrumenter.HasAdvice instrumenter) {
-    AgentBuilder.RawMatcher matcher =
-        new SingleTypeMatcher(((Instrumenter.ForSingleType) instrumenter).instrumentedType());
+  @Override
+  protected void buildSingleAdvice(Instrumenter.ForSingleType instrumenter) {
+    AgentBuilder.RawMatcher matcher = new SingleTypeMatcher(instrumenter.instrumentedType());
 
     ignoreMatcher = isSynthetic();
     adviceBuilder =
         agentBuilder.type(matcher).and(NOT_DECORATOR_MATCHER).transform(defaultTransformers());
 
-    instrumenter.adviceTransformations(this);
-
-    return adviceBuilder;
-  }
-
-  static final class VisitingTransformer implements AgentBuilder.Transformer {
-    private final AsmVisitorWrapper visitor;
-
-    VisitingTransformer(AsmVisitorWrapper visitor) {
-      this.visitor = visitor;
-    }
-
-    @Override
-    public DynamicType.Builder<?> transform(
-        DynamicType.Builder<?> builder,
-        TypeDescription typeDescription,
-        ClassLoader classLoader,
-        JavaModule module,
-        ProtectionDomain pd) {
-      return builder.visit(visitor);
-    }
-  }
-
-  static final class HelperTransformer extends HelperInjector implements AgentBuilder.Transformer {
-    HelperTransformer(String requestingName, String... helperClassNames) {
-      super(requestingName, helperClassNames);
-    }
+    agentBuilder = registerAdvice((Instrumenter.HasAdvice) instrumenter);
   }
 
   @Override
@@ -227,65 +177,17 @@ public class AgentTransformerBuilder
                 .advice(not(ignoreMatcher).and(matcher), name));
   }
 
-  private static ElementMatcher<ClassLoader> requireBoth(
-      ElementMatcher<ClassLoader> lhs, ElementMatcher<ClassLoader> rhs) {
-    if (ANY_CLASS_LOADER == lhs) {
-      return rhs;
-    } else if (ANY_CLASS_LOADER == rhs) {
-      return lhs;
-    } else {
-      return new ElementMatcher.Junction.Conjunction<>(lhs, rhs);
-    }
-  }
-
-  /** Tracks which class-loader matchers are associated with each store request. */
-  private void registerContextStoreInjection(
-      Map<String, String> contextStore, Instrumenter.Default instrumenter) {
-    ElementMatcher<ClassLoader> activation;
-
-    if (instrumenter instanceof Instrumenter.ForBootstrap) {
-      activation = ANY_CLASS_LOADER;
-    } else if (instrumenter instanceof Instrumenter.ForTypeHierarchy) {
-      String hierarchyHint = ((Instrumenter.ForTypeHierarchy) instrumenter).hierarchyMarkerType();
-      activation = null != hierarchyHint ? hasClassNamed(hierarchyHint) : ANY_CLASS_LOADER;
-    } else if (instrumenter instanceof Instrumenter.ForSingleType) {
-      activation = hasClassNamed(((Instrumenter.ForSingleType) instrumenter).instrumentedType());
-    } else if (instrumenter instanceof Instrumenter.ForKnownTypes) {
-      activation =
-          hasClassNamedOneOf(((Instrumenter.ForKnownTypes) instrumenter).knownMatchingTypes());
-    } else {
-      activation = ANY_CLASS_LOADER;
-    }
-
-    activation = requireBoth(activation, instrumenter.classLoaderMatcher());
-
-    for (Map.Entry<String, String> storeEntry : contextStore.entrySet()) {
-      ElementMatcher<ClassLoader> oldActivation = contextStoreInjection.get(storeEntry);
-      // optimization: treat 'any' as if there wasn't an old matcher
-      if (null == oldActivation || ANY_CLASS_LOADER == activation) {
-        contextStoreInjection.put(storeEntry, activation);
-      } else if (ANY_CLASS_LOADER != oldActivation) {
-        // store can be activated by either the old OR new matcher
-        contextStoreInjection.put(
-            storeEntry, new ElementMatcher.Junction.Disjunction<>(oldActivation, activation));
-      }
-    }
-  }
-
-  /** Applies context store injection guarded by the associated class-loader matchers. */
-  private void applyContextStoreInjection() {
-    for (Map.Entry<Map.Entry<String, String>, ElementMatcher<ClassLoader>> injection :
-        contextStoreInjection.entrySet()) {
-      String keyClassName = injection.getKey().getKey();
-      String contextClassName = injection.getKey().getValue();
-      ElementMatcher<ClassLoader> activator = injection.getValue();
-      agentBuilder =
-          agentBuilder
-              .type(new InjectContextFieldMatcher(keyClassName, contextClassName, activator))
-              .and(AgentTransformerBuilder.NOT_DECORATOR_MATCHER)
-              .transform(
-                  new VisitingTransformer(
-                      new FieldBackedContextInjector(keyClassName, contextClassName)));
-    }
+  @Override
+  protected void applyContextStoreInjection(
+      Map.Entry<String, String> contextStore, ElementMatcher<ClassLoader> activation) {
+    String keyClassName = contextStore.getKey();
+    String contextClassName = contextStore.getValue();
+    agentBuilder =
+        agentBuilder
+            .type(new InjectContextFieldMatcher(keyClassName, contextClassName, activation))
+            .and(NOT_DECORATOR_MATCHER)
+            .transform(
+                new VisitingTransformer(
+                    new FieldBackedContextInjector(keyClassName, contextClassName)));
   }
 }
