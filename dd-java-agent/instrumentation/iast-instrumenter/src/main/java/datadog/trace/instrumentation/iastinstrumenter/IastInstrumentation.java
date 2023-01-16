@@ -9,8 +9,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class IastInstrumentation extends CallSiteInstrumentation
-    implements ElementMatcher<TypeDescription> {
+public class IastInstrumentation extends CallSiteInstrumentation {
 
   public IastInstrumentation() {
     super(IastAdvice.class, "IastInstrumentation");
@@ -18,16 +17,21 @@ public class IastInstrumentation extends CallSiteInstrumentation
 
   @Override
   public ElementMatcher<TypeDescription> callerType() {
-    return this;
-  }
-
-  @Override
-  public boolean matches(final TypeDescription target) {
-    return IastExclusionTrie.apply(target.getName()) != 1;
+    return IastMatcher.INSTANCE;
   }
 
   @Override
   public boolean isApplicable(final Set<TargetSystem> enabledSystems) {
     return enabledSystems.contains(TargetSystem.IAST);
+  }
+
+  public static final class IastMatcher
+      extends ElementMatcher.Junction.ForNonNullValues<TypeDescription> {
+    public static final IastMatcher INSTANCE = new IastMatcher();
+
+    @Override
+    protected boolean doMatch(TypeDescription target) {
+      return IastExclusionTrie.apply(target.getName()) != 1;
+    }
   }
 }
