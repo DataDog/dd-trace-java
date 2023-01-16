@@ -12,11 +12,6 @@ public final class BooleanValue extends Literal<Boolean> {
   }
 
   @Override
-  public boolean test() {
-    return super.test() && value;
-  }
-
-  @Override
   public String toString() {
     return "BooleanLiteral{" + "value=" + value + '}';
   }

@@ -38,11 +38,11 @@ class ValueRefExpressionTest {
     ExObjectWithRefAndValue instance = new ExObjectWithRefAndValue(null, "hello");
     ValueReferenceResolver ctx = RefResolverHelper.createResolver(instance);
 
-    assertFalse(isEmpty.evaluate(ctx).test());
+    assertFalse(isEmpty.evaluate(ctx));
 
-    assertTrue(isEmptyInvalid.evaluate(ctx).test());
-    assertFalse(and(isEmptyInvalid, isEmpty).evaluate(ctx).test());
-    assertTrue(or(isEmptyInvalid, isEmpty).evaluate(ctx).test());
+    assertTrue(isEmptyInvalid.evaluate(ctx));
+    assertFalse(and(isEmptyInvalid, isEmpty).evaluate(ctx));
+    assertTrue(or(isEmptyInvalid, isEmpty).evaluate(ctx));
   }
 
   @Test
