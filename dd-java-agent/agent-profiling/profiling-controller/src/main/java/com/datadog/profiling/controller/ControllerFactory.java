@@ -75,7 +75,7 @@ public final class ControllerFactory {
       }
     }
     if (impl == Implementation.NONE) {
-      if (Platform.isLinux() && Config.get().isDatadogProfilerEnabled()) {
+      if ((Platform.isLinux() || Platform.isMac()) && Config.get().isDatadogProfilerEnabled()) {
         try {
           Class<?> datadogProfilerClass =
               Class.forName("com.datadog.profiling.ddprof.DatadogProfiler");

@@ -52,6 +52,7 @@ shadowJar {
     rslt |= it.path == "native-libs" || it.path.startsWith("native-libs/linux-x64")
     || it.path.startsWith("native-libs/linux-musl-x64")
     || it.path.startsWith("native-libs/linux-arm64")
+    || it.path.startsWith("native-libs/macos-arm64")
     rslt |= (it.path.contains("jplib") && it.path.endsWith(".jar"))
     return rslt
   }

@@ -166,8 +166,14 @@ public final class DatadogProfiler {
 
   private static JavaProfiler profilerForOsAndArch(OperatingSystem os, Arch arch, boolean musl)
       throws IOException {
-    String libDir =
-        os.name() + (os.name().equals("macos") ? "" : (musl ? "-musl-" : "-") + arch.name());
+    String libDir = os.name();
+    if (os.name().equals("macos")) {
+      if (arch.name().equals("aarch64")) {
+        libDir += "-arm64";
+      }
+    } else {
+      libDir += (musl ? "-musl-" : "-") + arch.name();
+    }
     File localLib =
         LibraryHelper.libraryFromClasspath("/native-libs/" + libDir + "/libjavaProfiler.so");
     return JavaProfiler.getInstance(localLib.getAbsolutePath());
