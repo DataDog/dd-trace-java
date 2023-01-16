@@ -56,4 +56,19 @@ class WildflySmokeTest extends AbstractServerSmokeTest {
     where:
     n << (1..200)
   }
+
+  def "spring context loaded successfully"() {
+    setup:
+    String url = "http://localhost:$httpPort/war/hello"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    def responseBodyStr = response.body().string()
+    responseBodyStr != null
+    responseBodyStr.contentEquals("hello world")
+    response.code() == 200
+  }
 }
