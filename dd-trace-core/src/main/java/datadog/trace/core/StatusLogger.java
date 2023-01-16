@@ -1,6 +1,6 @@
 package datadog.trace.core;
 
-import static datadog.trace.api.Config.isAsyncProfilerSafeInCurrentEnvironment;
+import static datadog.trace.api.Config.isDatadogProfilerSafeInCurrentEnvironment;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import com.squareup.moshi.JsonAdapter;
@@ -126,10 +126,10 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.value(config.isCwsEnabled());
     writer.name("cws_tls_refresh");
     writer.value(config.getCwsTlsRefresh());
-    writer.name("async_profiler_enabled");
-    writer.value(config.isAsyncProfilerEnabled());
-    writer.name("async_profiler_safe");
-    writer.value(isAsyncProfilerSafeInCurrentEnvironment());
+    writer.name("datadog_profiler_enabled");
+    writer.value(config.isDatadogProfilerEnabled());
+    writer.name("datadog_profiler_safe");
+    writer.value(isDatadogProfilerSafeInCurrentEnvironment());
     writer.endObject();
   }
 

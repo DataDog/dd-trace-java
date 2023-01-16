@@ -40,6 +40,7 @@ cp /tmp/java_pid*.hprof $REPORTS_DIR || true
 cp /tmp/javacore.* $REPORTS_DIR || true
 cp /tmp/*.trc $REPORTS_DIR || true
 cp /tmp/*.dmp $REPORTS_DIR || true
+cp /tmp/dd-profiler/*.jfr $REPORTS_DIR || true
 
 function process_reports () {
     project_to_save=$1

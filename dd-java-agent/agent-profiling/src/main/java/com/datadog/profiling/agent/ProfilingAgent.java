@@ -120,7 +120,7 @@ public class ProfilingAgent {
       try {
         final Controller controller = ControllerFactory.createController(configProvider);
 
-        if (!config.isAsyncProfilerEnabled()
+        if (!config.isDatadogProfilerEnabled()
             && PerSpanTracingContextTrackerFactory.isEnabled(configProvider)) {
           PerSpanTracingContextTrackerFactory.register(configProvider);
         }
