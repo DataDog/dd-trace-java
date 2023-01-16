@@ -133,6 +133,8 @@
 0 com.couchbase.client.deps.org.LatencyUtils.*
 2 com.fasterxml.classmate.*
 2 com.fasterxml.jackson.*
+# Included for IAST
+0 com.fasterxml.jackson.core.JsonParser
 0 com.fasterxml.jackson.module.afterburner.util.MyClassLoader
 2 com.github.mustachejava.*
 2 com.google.api.*

@@ -1,8 +1,14 @@
 package datadog.trace.api.iast;
 
+import datadog.trace.api.iast.propagation.JacksonModule;
 import datadog.trace.api.iast.propagation.StringModule;
 import datadog.trace.api.iast.propagation.UrlModule;
-import datadog.trace.api.iast.sink.*;
+import datadog.trace.api.iast.sink.CommandInjectionModule;
+import datadog.trace.api.iast.sink.LdapInjectionModule;
+import datadog.trace.api.iast.sink.PathTraversalModule;
+import datadog.trace.api.iast.sink.SqlInjectionModule;
+import datadog.trace.api.iast.sink.WeakCipherModule;
+import datadog.trace.api.iast.sink.WeakHashModule;
 import datadog.trace.api.iast.source.WebModule;
 
 /** Bridge between instrumentations and {@link IastModule} instances. */
@@ -17,6 +23,7 @@ public abstract class InstrumentationBridge {
   public static volatile WeakCipherModule WEAK_CIPHER;
   public static volatile WeakHashModule WEAK_HASH;
   public static volatile LdapInjectionModule LDAP_INJECTION;
+  public static volatile JacksonModule JACKSON;
 
   private InstrumentationBridge() {}
 
@@ -39,13 +46,14 @@ public abstract class InstrumentationBridge {
       WEAK_HASH = (WeakHashModule) module;
     } else if (module instanceof LdapInjectionModule) {
       LDAP_INJECTION = (LdapInjectionModule) module;
+    } else if (module instanceof JacksonModule) {
+      JACKSON = (JacksonModule) module;
     } else {
       throw new UnsupportedOperationException("Module not yet supported: " + module);
     }
   }
 
   /** Mainly used for testing modules */
-  @SuppressWarnings("unchecked")
   public static <E extends IastModule> E getIastModule(final Class<E> type) {
     if (type == StringModule.class) {
       return (E) STRING;
@@ -74,6 +82,9 @@ public abstract class InstrumentationBridge {
     if (type == LdapInjectionModule.class) {
       return (E) LDAP_INJECTION;
     }
+    if (type == JacksonModule.class) {
+      return (E) JACKSON;
+    }
     throw new UnsupportedOperationException("Module not yet supported: " + type);
   }
 
@@ -88,5 +99,6 @@ public abstract class InstrumentationBridge {
     WEAK_CIPHER = null;
     WEAK_HASH = null;
     LDAP_INJECTION = null;
+    JACKSON = null;
   }
 }
