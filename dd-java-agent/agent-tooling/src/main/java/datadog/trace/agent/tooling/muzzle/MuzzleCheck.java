@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling.muzzle;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterState;
-import datadog.trace.util.Strings;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,7 +12,6 @@ public class MuzzleCheck {
   private final int instrumentationId;
   private final String instrumentationClass;
   private final ReferenceProvider runtimeMuzzleReferences;
-  private final Iterable<String> instrumentationNames;
 
   private ReferenceMatcher muzzle;
 
@@ -21,7 +19,6 @@ public class MuzzleCheck {
     this.instrumentationId = instrumenter.instrumentationId();
     this.instrumentationClass = instrumenter.getClass().getName();
     this.runtimeMuzzleReferences = instrumenter.runtimeMuzzleReferences();
-    this.instrumentationNames = instrumenter.names();
   }
 
   public boolean allow(ClassLoader classLoader) {
@@ -38,15 +35,13 @@ public class MuzzleCheck {
         final List<Reference.Mismatch> mismatches =
             muzzle.getMismatchedReferenceSources(classLoader);
         log.debug(
-            "Muzzled - instrumentation.names=[{}] instrumentation.class={} instrumentation.target.classloader={}",
-            Strings.join(",", instrumentationNames),
-            instrumentationClass,
+            "Muzzled - {} instrumentation.target.classloader={}",
+            InstrumenterState.describe(instrumentationId),
             classLoader);
         for (final Reference.Mismatch mismatch : mismatches) {
           log.debug(
-              "Muzzled mismatch - instrumentation.names=[{}] instrumentation.class={} instrumentation.target.classloader={} muzzle.mismatch=\"{}\"",
-              Strings.join(",", instrumentationNames),
-              instrumentationClass,
+              "Muzzled mismatch - {} instrumentation.target.classloader={} muzzle.mismatch=\"{}\"",
+              InstrumenterState.describe(instrumentationId),
               classLoader,
               mismatch);
         }
