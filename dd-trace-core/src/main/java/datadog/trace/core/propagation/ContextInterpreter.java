@@ -71,7 +71,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
 
     public ContextInterpreter create(
         Map<String, String> tagsMapping, Map<String, String> baggageMapping) {
-      return construct(cleanMapping(tagsMapping), cleanMapping(baggageMapping, true));
+      return construct(cleanMapping(tagsMapping), cleanMapping(baggageMapping, false));
     }
 
     protected abstract ContextInterpreter construct(
@@ -90,7 +90,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     }
 
     protected Map<String, String> cleanMapping(Map<String, String> mapping) {
-      return cleanMapping(mapping, false);
+      return cleanMapping(mapping, true);
     }
   }
 
