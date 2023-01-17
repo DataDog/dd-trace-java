@@ -15,6 +15,8 @@ public interface TaintedObjects {
 
   TaintedObject taintInputString(@Nonnull String obj, @Nonnull Source source);
 
+  TaintedObject taintInputObject(@Nonnull Object obj, @Nonnull Source source);
+
   TaintedObject taint(@Nonnull Object obj, @Nonnull Range[] ranges);
 
   TaintedObject get(@Nonnull Object obj);
@@ -38,6 +40,7 @@ public interface TaintedObjects {
       this.map = map;
     }
 
+    @Override
     public TaintedObject taintInputString(final @Nonnull String obj, final @Nonnull Source source) {
       final TaintedObject tainted =
           new TaintedObject(obj, Ranges.forString(obj, source), map.getReferenceQueue());
@@ -45,16 +48,27 @@ public interface TaintedObjects {
       return tainted;
     }
 
+    @Override
+    public TaintedObject taintInputObject(@Nonnull Object obj, @Nonnull Source source) {
+      final TaintedObject tainted =
+          new TaintedObject(obj, Ranges.forObject(source), map.getReferenceQueue());
+      map.put(tainted);
+      return tainted;
+    }
+
+    @Override
     public TaintedObject taint(final @Nonnull Object obj, final @Nonnull Range[] ranges) {
       final TaintedObject tainted = new TaintedObject(obj, ranges, map.getReferenceQueue());
       map.put(tainted);
       return tainted;
     }
 
+    @Override
     public TaintedObject get(final @Nonnull Object obj) {
       return map.get(obj);
     }
 
+    @Override
     public void release() {}
   }
 
@@ -66,26 +80,37 @@ public interface TaintedObjects {
 
     public TaintedObjectsDebugAdapter(final TaintedObjectsImpl delegated) {
       this.delegated = delegated;
-      this.id = UUID.randomUUID();
+      id = UUID.randomUUID();
       LOGGER.debug("new: id={}", id);
     }
 
+    @Override
     public TaintedObject taintInputString(final @Nonnull String obj, final @Nonnull Source source) {
       final TaintedObject tainted = delegated.taintInputString(obj, source);
       logTainted(tainted);
       return tainted;
     }
 
+    @Override
+    public TaintedObject taintInputObject(@Nonnull Object obj, @Nonnull Source source) {
+      final TaintedObject tainted = delegated.taintInputObject(obj, source);
+      logTainted(tainted);
+      return tainted;
+    }
+
+    @Override
     public TaintedObject taint(final @Nonnull Object obj, final @Nonnull Range[] ranges) {
       final TaintedObject tainted = delegated.taint(obj, ranges);
       logTainted(tainted);
       return tainted;
     }
 
+    @Override
     public TaintedObject get(final @Nonnull Object obj) {
       return delegated.get(obj);
     }
 
+    @Override
     public void release() {
       if (IastSystem.DEBUG && LOGGER.isDebugEnabled()) {
         try {
