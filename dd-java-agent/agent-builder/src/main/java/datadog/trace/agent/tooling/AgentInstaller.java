@@ -146,7 +146,12 @@ public class AgentInstaller {
       }
     }
 
-    Instrumenter.TransformerBuilder transformerBuilder = new LegacyTransformerBuilder(agentBuilder);
+    Instrumenter.TransformerBuilder transformerBuilder;
+    if (InstrumenterConfig.get().isLegacyInstallerEnabled()) {
+      transformerBuilder = new LegacyTransformerBuilder(agentBuilder);
+    } else {
+      transformerBuilder = null;
+    }
 
     int installedCount = 0;
     for (Instrumenter instrumenter : instrumenters) {
