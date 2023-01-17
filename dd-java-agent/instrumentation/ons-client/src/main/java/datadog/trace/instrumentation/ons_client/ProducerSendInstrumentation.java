@@ -8,7 +8,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.matcher.ElementMatchers;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -80,7 +79,6 @@ public class ProducerSendInstrumentation extends Instrumenter.Tracing
         return;
       }
       PRODUCER_DECORATOR.OnEnd(scope,throwable);
-
     }
   }
 
@@ -113,12 +111,4 @@ public class ProducerSendInstrumentation extends Instrumenter.Tracing
 
     }
   }
-//    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-//    public static void onExit(@Advice.Enter final AgentScope scope){
-//      if (scope == null){
-//        return;
-//      }
-//      DECORATOR.OnEnd(scope);
-//    }
-
 }

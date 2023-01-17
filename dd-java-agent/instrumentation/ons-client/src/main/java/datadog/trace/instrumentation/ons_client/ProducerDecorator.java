@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.ons_client;
 
 import com.aliyun.openservices.ons.api.Message;
-import com.aliyun.openservices.ons.api.SendResult;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
