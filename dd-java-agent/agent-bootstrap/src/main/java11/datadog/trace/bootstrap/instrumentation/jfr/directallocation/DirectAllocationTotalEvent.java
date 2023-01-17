@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.jfr.directallocation;
 
 import jdk.jfr.Category;
+import jdk.jfr.DataAmount;
 import jdk.jfr.Description;
 import jdk.jfr.Enabled;
 import jdk.jfr.Event;
@@ -25,6 +26,7 @@ public class DirectAllocationTotalEvent extends Event {
   private final String source;
 
   @Label("Allocated")
+  @DataAmount
   private final long allocated;
 
   public DirectAllocationTotalEvent(String allocatingClass, String allocationType, long allocated) {

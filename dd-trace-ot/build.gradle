@@ -83,6 +83,7 @@ shadowJar {
 
   dependencies {
     // direct dependencies
+    exclude(project(':dd-trace-api'))
     exclude(dependency('io.opentracing:'))
     exclude(dependency('io.opentracing.contrib:'))
     exclude(dependency('org.slf4j:'))

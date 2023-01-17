@@ -1,7 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.jfr.directallocation;
 
-import static datadog.trace.bootstrap.instrumentation.jfr.directallocation.DirectAllocationProfiling.className;
-
 import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.List;
@@ -49,7 +47,7 @@ public class AllocatorHistogram extends ClassValue<AtomicLong[]> {
       if (clazz != null) {
         AtomicLong[] counts = get(clazz);
         if (counts != null) {
-          String name = className(clazz);
+          String name = clazz.getName();
           for (DirectAllocationSource source : DirectAllocationSource.VALUES) {
             long size = counts[source.ordinal()].getAndSet(0);
             if (size > 0) {

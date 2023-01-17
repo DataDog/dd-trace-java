@@ -46,11 +46,11 @@ class ExpressionTest {
     IsEmptyExpression isEmpty1 = new IsEmptyExpression(string);
     IsEmptyExpression isEmpty2 = new IsEmptyExpression(emptyString);
 
-    assertFalse(isEmpty1.evaluate(resolver).test());
-    assertTrue(isEmpty2.evaluate(resolver).test());
+    assertFalse(isEmpty1.evaluate(resolver));
+    assertTrue(isEmpty2.evaluate(resolver));
 
-    assertTrue(not(isEmpty1).evaluate(resolver).test());
-    assertTrue(or(isEmpty1, isEmpty2).evaluate(resolver).test());
-    assertFalse(and(isEmpty1, isEmpty2).evaluate(resolver).test());
+    assertTrue(not(isEmpty1).evaluate(resolver));
+    assertTrue(or(isEmpty1, isEmpty2).evaluate(resolver));
+    assertFalse(and(isEmpty1, isEmpty2).evaluate(resolver));
   }
 }

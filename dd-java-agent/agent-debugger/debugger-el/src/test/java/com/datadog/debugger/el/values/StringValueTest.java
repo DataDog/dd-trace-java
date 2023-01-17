@@ -13,7 +13,6 @@ class StringValueTest {
     assertTrue(instance.isNull());
     assertFalse(instance.isUndefined());
     assertFalse(instance.isEmpty());
-    assertFalse(instance.test());
 
     assertNull(instance.getValue());
     assertEquals(-1, instance.length());
@@ -26,7 +25,6 @@ class StringValueTest {
     assertFalse(instance.isNull());
     assertFalse(instance.isUndefined());
     assertEquals(expected.isEmpty(), instance.isEmpty());
-    assertEquals(!expected.isEmpty(), instance.test());
 
     assertEquals(expected, instance.getValue());
     assertEquals(expected.length(), instance.length());

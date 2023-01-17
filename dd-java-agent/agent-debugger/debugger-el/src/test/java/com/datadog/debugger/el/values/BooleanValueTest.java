@@ -12,7 +12,6 @@ class BooleanValueTest {
     BooleanValue instance = new BooleanValue(null);
     assertTrue(instance.isNull());
     assertFalse(instance.isUndefined());
-    assertFalse(instance.test());
 
     assertNull(instance.getValue());
   }
@@ -23,7 +22,6 @@ class BooleanValueTest {
     BooleanValue instance = new BooleanValue(expected);
     assertFalse(instance.isNull());
     assertFalse(instance.isUndefined());
-    assertEquals(expected, instance.test());
 
     assertEquals(expected, instance.getValue());
   }

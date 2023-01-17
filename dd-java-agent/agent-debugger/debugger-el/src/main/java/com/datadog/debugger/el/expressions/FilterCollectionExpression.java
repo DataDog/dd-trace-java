@@ -16,16 +16,15 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Filters a {@link CollectionValue collection} (list or map) using the given {@linkplain
- * PredicateExpression} filter.
+ * BooleanExpression} filter.
  */
 public final class FilterCollectionExpression implements ValueExpression<CollectionValue<?>> {
   private static final Logger log = LoggerFactory.getLogger(FilterCollectionExpression.class);
 
   private final ValueExpression<?> source;
-  private final PredicateExpression filterExpression;
+  private final BooleanExpression filterExpression;
 
-  public FilterCollectionExpression(
-      ValueExpression<?> source, PredicateExpression filterExpression) {
+  public FilterCollectionExpression(ValueExpression<?> source, BooleanExpression filterExpression) {
     this.source = source;
     this.filterExpression = filterExpression;
   }
@@ -48,11 +47,9 @@ public final class FilterCollectionExpression implements ValueExpression<Collect
       int len = materialized.count();
       for (int i = 0; i < len; i++) {
         Object value = materialized.get(i).getValue();
-        if (filterExpression
-            .evaluate(
-                valueRefResolver.withExtensions(
-                    Collections.singletonMap(ValueReferences.ITERATOR_EXTENSION_NAME, value)))
-            .test()) {
+        if (filterExpression.evaluate(
+            valueRefResolver.withExtensions(
+                Collections.singletonMap(ValueReferences.ITERATOR_EXTENSION_NAME, value)))) {
           filtered.add(value);
         }
       }
@@ -63,12 +60,10 @@ public final class FilterCollectionExpression implements ValueExpression<Collect
 
       for (Value<?> key : materialized.getKeys()) {
         Value<?> value = key.isUndefined() ? Value.undefinedValue() : materialized.get(key);
-        if (filterExpression
-            .evaluate(
-                valueRefResolver.withExtensions(
-                    Collections.singletonMap(
-                        ValueReferences.ITERATOR_EXTENSION_NAME, new MapValue.Entry(key, value))))
-            .test()) {
+        if (filterExpression.evaluate(
+            valueRefResolver.withExtensions(
+                Collections.singletonMap(
+                    ValueReferences.ITERATOR_EXTENSION_NAME, new MapValue.Entry(key, value))))) {
           filtered.put(key.getValue(), value.getValue());
         }
       }
