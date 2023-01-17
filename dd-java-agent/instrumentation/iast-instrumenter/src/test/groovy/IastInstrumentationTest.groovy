@@ -17,8 +17,8 @@ class IastInstrumentationTest extends DDSpecification{
     instrumentation.isEnabled()
     instrumentation.isApplicable(enabledSystems)
     instrumentation.callerType()
-    boolean description1Matched = instrumentation.matches(typeDescription1)
-    boolean description2Matched = instrumentation.matches(typeDescription2)
+    boolean description1Matched = instrumentation.callerType().matches(typeDescription1)
+    boolean description2Matched = instrumentation.callerType().matches(typeDescription2)
 
     then:
     description1Matched
