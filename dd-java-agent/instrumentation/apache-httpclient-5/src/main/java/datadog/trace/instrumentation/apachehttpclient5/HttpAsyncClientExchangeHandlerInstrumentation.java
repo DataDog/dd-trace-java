@@ -8,7 +8,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.ByteCodeElement;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.hc.core5.concurrent.FutureCallback;
@@ -42,7 +41,7 @@ public class HttpAsyncClientExchangeHandlerInstrumentation extends Instrumenter.
   }
 
   @Override
-  public ElementMatcher<? extends ByteCodeElement> structureMatcher() {
+  public ElementMatcher<TypeDescription> structureMatcher() {
     // must ensure the field is declared (if it is no longer declared
     // we miss a profiler event, but tracing is unaffected)
     return declaresField(named("resultCallback"));

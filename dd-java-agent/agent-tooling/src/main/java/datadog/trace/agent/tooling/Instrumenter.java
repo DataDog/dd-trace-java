@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import net.bytebuddy.asm.AsmVisitorWrapper;
-import net.bytebuddy.description.ByteCodeElement;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
@@ -90,7 +89,7 @@ public interface Instrumenter {
 
   /** Instrumentation that wants to apply additional structure checks after type matching. */
   interface WithTypeStructure {
-    ElementMatcher<? extends ByteCodeElement> structureMatcher();
+    ElementMatcher<TypeDescription> structureMatcher();
   }
 
   /** Instrumentation that provides method advice. */
