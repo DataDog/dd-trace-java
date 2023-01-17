@@ -24,13 +24,13 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public final class AgentTransformerBuilder extends AbstractTransformerBuilder {
+public final class LegacyTransformerBuilder extends AbstractTransformerBuilder {
 
   private AgentBuilder agentBuilder;
   private ElementMatcher<? super MethodDescription> ignoreMatcher;
   private AgentBuilder.Identified.Extendable adviceBuilder;
 
-  AgentTransformerBuilder(AgentBuilder agentBuilder) {
+  LegacyTransformerBuilder(AgentBuilder agentBuilder) {
     this.agentBuilder = agentBuilder;
   }
 

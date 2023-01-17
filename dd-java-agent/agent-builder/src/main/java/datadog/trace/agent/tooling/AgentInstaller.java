@@ -146,7 +146,7 @@ public class AgentInstaller {
       }
     }
 
-    Instrumenter.TransformerBuilder transformerBuilder = new AgentTransformerBuilder(agentBuilder);
+    Instrumenter.TransformerBuilder transformerBuilder = new LegacyTransformerBuilder(agentBuilder);
 
     int installedCount = 0;
     for (Instrumenter instrumenter : instrumenters) {
