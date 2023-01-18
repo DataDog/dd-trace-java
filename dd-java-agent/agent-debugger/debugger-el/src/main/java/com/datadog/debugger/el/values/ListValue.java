@@ -145,4 +145,15 @@ public class ListValue implements CollectionValue<ListValue>, ValueExpression<Li
   public ListValue evaluate(ValueReferenceResolver valueRefResolver) {
     return this;
   }
+
+  @Override
+  public String prettyPrint() {
+    if (arrayHolder != null) {
+      return arrayType.getTypeName() + "[]";
+    }
+    if (listHolder instanceof List) {
+      return "List";
+    }
+    return "null";
+  }
 }

@@ -1,6 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
 import static com.datadog.debugger.el.DSL.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -20,13 +21,23 @@ class HasAllExpressionTest {
   @Test
   void testNullPredicate() {
     ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
-    assertFalse(new HasAllExpression(null, null).evaluate(resolver));
-    assertFalse(new HasAllExpression(value(Values.UNDEFINED_OBJECT), null).evaluate(resolver));
-    assertTrue(new HasAllExpression(value(this), null).evaluate(resolver));
-    assertTrue(
-        new HasAllExpression(value(Collections.singletonList(this)), null).evaluate(resolver));
-    assertTrue(
-        new HasAllExpression(value(Collections.singletonMap(this, this)), null).evaluate(resolver));
+    HasAllExpression expression = new HasAllExpression(null, null);
+    assertFalse(expression.evaluate(resolver));
+    assertEquals("hasAll(null, TRUE)", expression.prettyPrint());
+    expression = new HasAllExpression(value(Values.UNDEFINED_OBJECT), null);
+    assertFalse(expression.evaluate(resolver));
+    assertEquals("hasAll(UNDEFINED, TRUE)", expression.prettyPrint());
+    expression = new HasAllExpression(value(this), null);
+    assertTrue(expression.evaluate(resolver));
+    assertEquals(
+        "hasAll(com.datadog.debugger.el.expressions.HasAllExpressionTest, TRUE)",
+        expression.prettyPrint());
+    expression = new HasAllExpression(value(Collections.singletonList(this)), null);
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("hasAll(List, TRUE)", expression.prettyPrint());
+    expression = new HasAllExpression(value(Collections.singletonMap(this, this)), null);
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("hasAll(Map, TRUE)", expression.prettyPrint());
   }
 
   @Test
@@ -34,12 +45,15 @@ class HasAllExpressionTest {
     ValueReferenceResolver ctx = RefResolverHelper.createResolver(this);
     HasAllExpression expression = all(null, TRUE);
     assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAll(null, TRUE)", expression.prettyPrint());
 
     expression = all(null, FALSE);
     assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAll(null, FALSE)", expression.prettyPrint());
 
-    expression = all(null, eq(ref(".testField"), value(10)));
+    expression = all(null, eq(ref("testField"), value(10)));
     assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAll(null, testField == 10)", expression.prettyPrint());
   }
 
   @Test
@@ -47,12 +61,15 @@ class HasAllExpressionTest {
     ValueReferenceResolver ctx = RefResolverHelper.createResolver(this);
     HasAllExpression expression = all(value(Values.UNDEFINED_OBJECT), TRUE);
     assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAll(UNDEFINED, TRUE)", expression.prettyPrint());
 
     expression = all(null, FALSE);
     assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAll(null, FALSE)", expression.prettyPrint());
 
-    expression = all(value(Values.UNDEFINED_OBJECT), eq(ref(".testField"), value(10)));
+    expression = all(value(Values.UNDEFINED_OBJECT), eq(ref("testField"), value(10)));
     assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAll(UNDEFINED, testField == 10)", expression.prettyPrint());
   }
 
   @Test
@@ -61,12 +78,21 @@ class HasAllExpressionTest {
     ValueExpression<?> targetExpression = value(this);
     HasAllExpression expression = all(targetExpression, TRUE);
     assertTrue(expression.evaluate(ctx));
+    assertEquals(
+        "hasAll(com.datadog.debugger.el.expressions.HasAllExpressionTest, TRUE)",
+        expression.prettyPrint());
 
     expression = all(targetExpression, FALSE);
     assertFalse(expression.evaluate(ctx));
+    assertEquals(
+        "hasAll(com.datadog.debugger.el.expressions.HasAllExpressionTest, FALSE)",
+        expression.prettyPrint());
 
     expression = all(targetExpression, eq(ref("testField"), value(10)));
     assertTrue(expression.evaluate(ctx));
+    assertEquals(
+        "hasAll(com.datadog.debugger.el.expressions.HasAllExpressionTest, testField == 10)",
+        expression.prettyPrint());
   }
 
   @Test

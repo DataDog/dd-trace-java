@@ -26,66 +26,77 @@ class ComparisonExpressionTest {
       ValueExpression<?> left,
       ValueExpression<?> right,
       ComparisonOperator operator,
-      boolean expected) {
+      boolean expected,
+      String prettyPrint) {
     ComparisonExpression expression = new ComparisonExpression(left, right, operator);
     assertEquals(expected, expression.evaluate(NoopResolver.INSTANCE));
+    assertEquals(prettyPrint, expression.prettyPrint());
   }
 
   private static Stream<Arguments> expressions() {
     return Stream.of(
-        Arguments.of(new NumericValue(1), new NumericValue(1), EQ, true),
-        Arguments.of(new NumericValue(1L), new NumericValue(1L), EQ, true),
-        Arguments.of(new NumericValue(1.0F), new NumericValue(1.0F), EQ, true),
-        Arguments.of(new NumericValue(1.0), new NumericValue(1.0), EQ, true),
-        Arguments.of(new NumericValue(1), new NumericValue(2), EQ, false),
-        Arguments.of(new StringValue("foo"), new NumericValue(2), EQ, false),
-        Arguments.of(new NumericValue(1), new StringValue("foo"), EQ, false),
-        Arguments.of(new StringValue("foo"), new StringValue("foo"), EQ, true),
-        Arguments.of(ValueExpression.NULL, new NumericValue(2), EQ, false),
-        Arguments.of(new NumericValue(1), new NumericValue(1), GT, false),
-        Arguments.of(new NumericValue(1), new NumericValue(2), GT, false),
-        Arguments.of(new NumericValue(2), new NumericValue(1), GT, true),
-        Arguments.of(new NumericValue(1.1), new NumericValue(1.0), GT, true),
-        Arguments.of(ValueExpression.NULL, new NumericValue(2), GT, false),
-        Arguments.of(new NumericValue(2), ValueExpression.NULL, GT, false),
-        Arguments.of(new NumericValue(Double.NaN), new NumericValue(Double.NaN), GT, false),
+        Arguments.of(new NumericValue(1), new NumericValue(1), EQ, true, "1 == 1"),
+        Arguments.of(new NumericValue(1L), new NumericValue(1L), EQ, true, "1 == 1"),
+        Arguments.of(new NumericValue(1.0F), new NumericValue(1.0F), EQ, true, "1.0 == 1.0"),
+        Arguments.of(new NumericValue(1.0), new NumericValue(1.0), EQ, true, "1.0 == 1.0"),
+        Arguments.of(new NumericValue(1), new NumericValue(2), EQ, false, "1 == 2"),
+        Arguments.of(new StringValue("foo"), new NumericValue(2), EQ, false, "\"foo\" == 2"),
+        Arguments.of(new NumericValue(1), new StringValue("foo"), EQ, false, "1 == \"foo\""),
+        Arguments.of(
+            new StringValue("foo"), new StringValue("foo"), EQ, true, "\"foo\" == \"foo\""),
+        Arguments.of(ValueExpression.NULL, new NumericValue(2), EQ, false, "null == 2"),
+        Arguments.of(new NumericValue(1), new NumericValue(1), GT, false, "1 > 1"),
+        Arguments.of(new NumericValue(1), new NumericValue(2), GT, false, "1 > 2"),
+        Arguments.of(new NumericValue(2), new NumericValue(1), GT, true, "2 > 1"),
+        Arguments.of(new NumericValue(1.1), new NumericValue(1.0), GT, true, "1.1 > 1.0"),
+        Arguments.of(ValueExpression.NULL, new NumericValue(2), GT, false, "null > 2"),
+        Arguments.of(new NumericValue(2), ValueExpression.NULL, GT, false, "2 > null"),
+        Arguments.of(
+            new NumericValue(Double.NaN), new NumericValue(Double.NaN), GT, false, "NaN > NaN"),
         Arguments.of(
             new NumericValue(BigDecimal.valueOf(2)),
             new NumericValue(BigDecimal.valueOf(1)),
             GT,
-            true),
-        Arguments.of(new NumericValue(1), new NumericValue(2), GE, false),
-        Arguments.of(new NumericValue(2), new NumericValue(1), GE, true),
-        Arguments.of(new NumericValue(1.1), new NumericValue(1.0), GE, true),
-        Arguments.of(ValueExpression.NULL, new NumericValue(2), GE, false),
-        Arguments.of(new NumericValue(Double.NaN), new NumericValue(Double.NaN), GE, true),
+            true,
+            "2 > 1"),
+        Arguments.of(new NumericValue(1), new NumericValue(2), GE, false, "1 >= 2"),
+        Arguments.of(new NumericValue(2), new NumericValue(1), GE, true, "2 >= 1"),
+        Arguments.of(new NumericValue(1.1), new NumericValue(1.0), GE, true, "1.1 >= 1.0"),
+        Arguments.of(ValueExpression.NULL, new NumericValue(2), GE, false, "null >= 2"),
+        Arguments.of(
+            new NumericValue(Double.NaN), new NumericValue(Double.NaN), GE, true, "NaN >= NaN"),
         Arguments.of(
             new NumericValue(BigDecimal.valueOf(2)),
             new NumericValue(BigDecimal.valueOf(1)),
             GE,
-            true),
-        Arguments.of(new NumericValue(1), new NumericValue(1), LT, false),
-        Arguments.of(new NumericValue(1), new NumericValue(2), LT, true),
-        Arguments.of(new NumericValue(2), new NumericValue(1), LT, false),
-        Arguments.of(new NumericValue(1.0), new NumericValue(1.1), LT, true),
-        Arguments.of(ValueExpression.NULL, new NumericValue(2), LT, false),
-        Arguments.of(new NumericValue(Double.NaN), new NumericValue(Double.NaN), LT, false),
+            true,
+            "2 >= 1"),
+        Arguments.of(new NumericValue(1), new NumericValue(1), LT, false, "1 < 1"),
+        Arguments.of(new NumericValue(1), new NumericValue(2), LT, true, "1 < 2"),
+        Arguments.of(new NumericValue(2), new NumericValue(1), LT, false, "2 < 1"),
+        Arguments.of(new NumericValue(1.0), new NumericValue(1.1), LT, true, "1.0 < 1.1"),
+        Arguments.of(ValueExpression.NULL, new NumericValue(2), LT, false, "null < 2"),
+        Arguments.of(
+            new NumericValue(Double.NaN), new NumericValue(Double.NaN), LT, false, "NaN < NaN"),
         Arguments.of(
             new NumericValue(BigDecimal.valueOf(1)),
             new NumericValue(BigDecimal.valueOf(2)),
             LT,
-            true),
-        Arguments.of(new NumericValue(1), new NumericValue(1), LE, true),
-        Arguments.of(new NumericValue(1), new NumericValue(2), LE, true),
-        Arguments.of(new NumericValue(2), new NumericValue(1), LE, false),
-        Arguments.of(new NumericValue(1.0), new NumericValue(1.1), LE, true),
-        Arguments.of(ValueExpression.NULL, new NumericValue(2), LE, false),
-        Arguments.of(new NumericValue(Double.NaN), new NumericValue(Double.NaN), LE, true),
+            true,
+            "1 < 2"),
+        Arguments.of(new NumericValue(1), new NumericValue(1), LE, true, "1 <= 1"),
+        Arguments.of(new NumericValue(1), new NumericValue(2), LE, true, "1 <= 2"),
+        Arguments.of(new NumericValue(2), new NumericValue(1), LE, false, "2 <= 1"),
+        Arguments.of(new NumericValue(1.0), new NumericValue(1.1), LE, true, "1.0 <= 1.1"),
+        Arguments.of(ValueExpression.NULL, new NumericValue(2), LE, false, "null <= 2"),
+        Arguments.of(
+            new NumericValue(Double.NaN), new NumericValue(Double.NaN), LE, true, "NaN <= NaN"),
         Arguments.of(
             new NumericValue(BigDecimal.valueOf(1)),
             new NumericValue(BigDecimal.valueOf(2)),
             LE,
-            true));
+            true,
+            "1 <= 2"));
   }
 
   @Test

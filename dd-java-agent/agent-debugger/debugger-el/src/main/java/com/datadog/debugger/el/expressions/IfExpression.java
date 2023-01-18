@@ -1,5 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.Expression.nullSafePrettyPrint;
+
 import com.datadog.debugger.el.Expression;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
@@ -23,6 +25,6 @@ public final class IfExpression implements Expression<Void> {
 
   @Override
   public String prettyPrint() {
-    return "if " + test.prettyPrint() + " then " + expression.prettyPrint();
+    return "if " + nullSafePrettyPrint(test) + " then " + nullSafePrettyPrint(expression);
   }
 }

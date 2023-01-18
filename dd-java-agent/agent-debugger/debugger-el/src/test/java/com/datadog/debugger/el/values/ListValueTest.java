@@ -28,6 +28,7 @@ class ListValueTest {
     }
     assertThrows(IllegalArgumentException.class, () -> listValue.get(-1));
     assertThrows(IllegalArgumentException.class, () -> listValue.get(stringList.size()));
+    assertEquals("List", listValue.prettyPrint());
   }
 
   @Test
@@ -36,6 +37,7 @@ class ListValueTest {
     assertTrue(listValue.isEmpty());
 
     assertThrows(IllegalArgumentException.class, () -> listValue.get(-1));
+    assertEquals("null", listValue.prettyPrint());
   }
 
   @Test
@@ -58,6 +60,7 @@ class ListValueTest {
     }
     assertThrows(IllegalArgumentException.class, () -> listValue.get(-1));
     assertThrows(IllegalArgumentException.class, () -> listValue.get(array.length));
+    assertEquals("java.lang.Object[]", listValue.prettyPrint());
   }
 
   @Test
@@ -79,5 +82,6 @@ class ListValueTest {
     }
     assertThrows(IllegalArgumentException.class, () -> listValue.get(-1));
     assertThrows(IllegalArgumentException.class, () -> listValue.get(intArray.length));
+    assertEquals("int[][]", listValue.prettyPrint());
   }
 }

@@ -13,8 +13,8 @@ public final class BinaryExpression implements BooleanExpression {
 
   public BinaryExpression(
       BooleanExpression left, BooleanExpression right, BinaryOperator operator) {
-    this.left = left == null ? ctx -> Boolean.FALSE : left;
-    this.right = right == null ? ctx -> Boolean.FALSE : right;
+    this.left = left == null ? BooleanExpression.FALSE : left;
+    this.right = right == null ? BooleanExpression.FALSE : right;
     this.operator = operator;
   }
 

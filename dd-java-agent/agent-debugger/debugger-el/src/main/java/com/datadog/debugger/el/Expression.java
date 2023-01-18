@@ -10,4 +10,8 @@ public interface Expression<ReturnType> {
   default String prettyPrint() {
     return this.toString();
   }
+
+  static String nullSafePrettyPrint(Expression expr) {
+    return expr != null ? expr.prettyPrint() : "null";
+  }
 }

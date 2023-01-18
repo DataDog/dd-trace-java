@@ -18,6 +18,9 @@ public final class BooleanValue extends Literal<Boolean> {
 
   @Override
   public String prettyPrint() {
+    if (value == null) {
+      return "null";
+    }
     return String.valueOf(value.booleanValue());
   }
 }

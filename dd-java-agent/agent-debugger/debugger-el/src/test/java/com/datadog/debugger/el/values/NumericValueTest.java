@@ -10,8 +10,8 @@ class NumericValueTest {
     NumericValue instance = new NumericValue(null);
     assertTrue(instance.isNull());
     assertFalse(instance.isUndefined());
-
     assertNull(instance.getValue());
+    assertEquals("null", instance.prettyPrint());
   }
 
   @Test
@@ -20,9 +20,9 @@ class NumericValueTest {
     NumericValue instance = new NumericValue(expected);
     assertFalse(instance.isNull());
     assertFalse(instance.isUndefined());
-
     assertNotEquals(expected, instance.getValue());
     assertEquals((long) expected, instance.getValue());
+    assertEquals("1", instance.prettyPrint());
   }
 
   @Test
@@ -31,9 +31,9 @@ class NumericValueTest {
     NumericValue instance = new NumericValue(expected);
     assertFalse(instance.isNull());
     assertFalse(instance.isUndefined());
-
     assertNotEquals(expected, instance.getValue());
     assertEquals((long) expected, instance.getValue());
+    assertEquals("1", instance.prettyPrint());
   }
 
   @Test
@@ -42,9 +42,9 @@ class NumericValueTest {
     NumericValue instance = new NumericValue(expected);
     assertFalse(instance.isNull());
     assertFalse(instance.isUndefined());
-
     assertNotEquals(expected, instance.getValue());
     assertEquals((long) expected, instance.getValue());
+    assertEquals("1", instance.prettyPrint());
   }
 
   @Test
@@ -53,8 +53,8 @@ class NumericValueTest {
     NumericValue instance = new NumericValue(expected);
     assertFalse(instance.isNull());
     assertFalse(instance.isUndefined());
-
     assertEquals(expected, instance.getValue());
+    assertEquals("1", instance.prettyPrint());
   }
 
   @Test
@@ -63,8 +63,8 @@ class NumericValueTest {
     NumericValue instance = new NumericValue(expected);
     assertFalse(instance.isNull());
     assertFalse(instance.isUndefined());
-
     assertEquals((double) expected, instance.getValue());
+    assertEquals("1.0", instance.prettyPrint());
   }
 
   @Test
@@ -73,7 +73,7 @@ class NumericValueTest {
     NumericValue instance = new NumericValue(expected);
     assertFalse(instance.isNull());
     assertFalse(instance.isUndefined());
-
     assertEquals(expected, instance.getValue());
+    assertEquals("1.0", instance.prettyPrint());
   }
 }

@@ -1,6 +1,8 @@
 package com.datadog.debugger.el.values;
 
 import com.datadog.debugger.el.Literal;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 
 /** A numeric {@linkplain com.datadog.debugger.el.Value} */
 public final class NumericValue extends Literal<Number> {
@@ -25,6 +27,15 @@ public final class NumericValue extends Literal<Number> {
 
   @Override
   public String prettyPrint() {
-    return String.valueOf(value.longValue());
+    if (value instanceof Double) {
+      return String.valueOf(value.doubleValue());
+    }
+    if (value instanceof Long) {
+      return String.valueOf(value.longValue());
+    }
+    if (value instanceof BigDecimal || value instanceof BigInteger) {
+      return value.toString();
+    }
+    return "null";
   }
 }
