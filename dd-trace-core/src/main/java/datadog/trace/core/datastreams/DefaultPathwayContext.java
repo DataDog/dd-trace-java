@@ -124,7 +124,7 @@ public class DefaultPathwayContext implements PathwayContext {
       // will cause a `cardinality explosion` for hash / parentHash tag values
       if (sortedTags.containsKey(TagsProcessor.DIRECTION_TAG)) {
         String direction = sortedTags.get(TagsProcessor.DIRECTION_TAG);
-        if (direction == previousDirection) {
+        if (direction.equals(previousDirection)) {
           hash = closestOppositeDirectionHash;
         } else {
           previousDirection = direction;
