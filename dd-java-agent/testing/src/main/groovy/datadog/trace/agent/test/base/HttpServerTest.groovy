@@ -28,7 +28,10 @@ import java.util.function.BiFunction
 import java.util.function.Function
 import java.util.function.Supplier
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.*
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.*
