@@ -2,7 +2,6 @@ package com.datadog.iast.source;
 
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 
-import com.datadog.iast.IastModuleBase;
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.model.SourceType;
@@ -14,7 +13,7 @@ import java.io.InputStream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class WebModuleImpl extends IastModuleBase implements WebModule {
+public class WebModuleImpl implements WebModule {
 
   @Override
   public void onParameterName(@Nullable final String paramName) {

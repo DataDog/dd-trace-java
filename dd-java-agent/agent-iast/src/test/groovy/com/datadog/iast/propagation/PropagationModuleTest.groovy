@@ -8,10 +8,12 @@ import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import groovy.transform.CompileDynamic
 
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.fromTaintFormat
 
+@CompileDynamic
 class PropagationModuleTest extends IastModuleImplTestBase {
 
   private PropagationModule module
@@ -19,7 +21,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
   private List<Object> objectHolder
 
   def setup() {
-    module = registerDependencies(new PropagationModuleImpl())
+    module = new PropagationModuleImpl()
     objectHolder = []
   }
 
