@@ -3,6 +3,7 @@ package com.datadog.appsec.config;
 import static com.datadog.appsec.util.StandardizedLogging.RulesInvalidReason.INVALID_JSON_FILE;
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_ACTIVATION;
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_DD_RULES;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_EXCLUSIONS;
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_IP_BLOCKING;
 
 import com.datadog.appsec.AppSecSystem;
@@ -143,7 +144,10 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     this.configurationPoller.addConfigurationEndListener(applyWAFChangesAsListener);
 
     this.configurationPoller.addCapabilities(
-        CAPABILITY_ASM_ACTIVATION | CAPABILITY_ASM_DD_RULES | CAPABILITY_ASM_IP_BLOCKING);
+        CAPABILITY_ASM_ACTIVATION
+            | CAPABILITY_ASM_DD_RULES
+            | CAPABILITY_ASM_IP_BLOCKING
+            | CAPABILITY_ASM_EXCLUSIONS);
   }
 
   private void distributeSubConfigurations(
@@ -289,7 +293,10 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       return;
     }
     this.configurationPoller.removeCapabilities(
-        CAPABILITY_ASM_ACTIVATION | CAPABILITY_ASM_DD_RULES | CAPABILITY_ASM_IP_BLOCKING);
+        CAPABILITY_ASM_ACTIVATION
+            | CAPABILITY_ASM_DD_RULES
+            | CAPABILITY_ASM_IP_BLOCKING
+            | CAPABILITY_ASM_EXCLUSIONS);
     this.configurationPoller.removeListener(Product.ASM_DD);
     this.configurationPoller.removeListener(Product.ASM_DATA);
     this.configurationPoller.removeListener(Product.ASM);

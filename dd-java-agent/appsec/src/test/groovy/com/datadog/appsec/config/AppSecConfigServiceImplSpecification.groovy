@@ -136,7 +136,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       true
     }
     1 * poller.addConfigurationEndListener(_) >> { listeners.savedConfEndListener = it[0] }
-    1 * poller.addCapabilities(14L)
+    1 * poller.addCapabilities(30L)
     0 * _._
     initialWafConfig.get() != null
 
@@ -267,7 +267,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       true
     }
     1 * poller.addConfigurationEndListener(_) >> { listeners.savedConfEndListener = it[0] }
-    1 * poller.addCapabilities(14L)
+    1 * poller.addCapabilities(30L)
     0 * _._
 
     when:
@@ -314,7 +314,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     poller = null
 
     then:
-    1 * poller.removeCapabilities(14)
+    1 * poller.removeCapabilities(30)
     4 * poller.removeListener(_)
     1 * poller.removeConfigurationEndListener(_)
     1 * poller.stop()
