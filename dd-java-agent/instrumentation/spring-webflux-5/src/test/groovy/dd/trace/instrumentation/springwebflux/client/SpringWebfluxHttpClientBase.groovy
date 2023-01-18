@@ -8,7 +8,11 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator
 import datadog.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientDecorator
 import org.springframework.http.HttpMethod
-import org.springframework.web.reactive.function.client.*
+import org.springframework.web.reactive.function.client.ClientRequest
+import org.springframework.web.reactive.function.client.ClientResponse
+import org.springframework.web.reactive.function.client.ExchangeFilterFunction
+import org.springframework.web.reactive.function.client.ExchangeFunction
+import org.springframework.web.reactive.function.client.WebClient
 import reactor.core.publisher.Mono
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan

@@ -1,4 +1,11 @@
-import com.rabbitmq.client.*
+import com.rabbitmq.client.AMQP
+import com.rabbitmq.client.AlreadyClosedException
+import com.rabbitmq.client.Channel
+import com.rabbitmq.client.ConnectionFactory
+import com.rabbitmq.client.Consumer
+import com.rabbitmq.client.DefaultConsumer
+import com.rabbitmq.client.Envelope
+import com.rabbitmq.client.GetResponse
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.utils.PortUtils

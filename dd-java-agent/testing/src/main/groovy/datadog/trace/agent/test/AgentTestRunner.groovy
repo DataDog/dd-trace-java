@@ -14,7 +14,11 @@ import datadog.trace.agent.tooling.AgentInstaller
 import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
-import datadog.trace.api.*
+import datadog.trace.api.Config
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.IdGenerationStrategy
+import datadog.trace.api.StatsDClient
+import datadog.trace.api.WellKnownTags
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.ActiveSubsystems
