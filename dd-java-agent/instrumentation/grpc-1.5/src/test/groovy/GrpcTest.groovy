@@ -14,7 +14,12 @@ import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.instrumentation.grpc.server.GrpcExtractAdapter
 import example.GreeterGrpc
 import example.Helloworld
-import io.grpc.*
+import io.grpc.BindableService
+import io.grpc.ManagedChannel
+import io.grpc.Metadata
+import io.grpc.Server
+import io.grpc.Status
+import io.grpc.StatusRuntimeException
 import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
 import io.grpc.stub.StreamObserver
