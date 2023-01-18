@@ -102,11 +102,10 @@ class DatadogProfilerTest {
     DatadogProfiler profiler =
         new DatadogProfiler(
             configProvider(true, true, true, true), new HashSet<>(Arrays.asList("foo", "bar")));
-    int tid = profiler.getNativeThreadId();
-    assertTrue(profiler.setContextValue(tid, "foo", "abc"));
-    assertTrue(profiler.setContextValue(tid, "bar", "abc"));
-    assertTrue(profiler.setContextValue(tid, "foo", "xyz"));
-    assertFalse(profiler.setContextValue(tid, "xyz", "foo"));
+    assertTrue(profiler.setContextValue("foo", "abc"));
+    assertTrue(profiler.setContextValue("bar", "abc"));
+    assertTrue(profiler.setContextValue("foo", "xyz"));
+    assertFalse(profiler.setContextValue("xyz", "foo"));
   }
 
   private static ConfigProvider configProvider(

@@ -13,33 +13,26 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
       DatadogProfilerConfig.isWallClockProfilerEnabled();
 
   @Override
-  public void onAttach(int tid) {
+  public void onAttach() {
     if (WALLCLOCK_ENABLED) {
-      DDPROF.addThread(tid);
+      DDPROF.addThread();
     }
   }
 
   @Override
-  public void onDetach(int tid) {
+  public void onDetach() {
     if (WALLCLOCK_ENABLED) {
-      DDPROF.removeThread(tid);
+      DDPROF.removeThread();
     }
   }
 
   @Override
-  public void setContext(int tid, long rootSpanId, long spanId) {
-    DDPROF.setContext(tid, spanId, rootSpanId);
+  public void setContext(long rootSpanId, long spanId) {
+    DDPROF.setContext(spanId, rootSpanId);
   }
 
   @Override
   public void setContextValue(String attribute, String value) {
-    // FIXME just move the tid back to the profiler instead of polluting
-    //  the java agent with this implementation detail
-    DDPROF.setContextValue(DDPROF.getNativeThreadId(), attribute, value);
-  }
-
-  @Override
-  public int getNativeThreadId() {
-    return DDPROF.getNativeThreadId();
+    DDPROF.setContextValue(attribute, value);
   }
 }
