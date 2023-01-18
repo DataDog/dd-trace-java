@@ -52,6 +52,10 @@ public final class FieldBackedContextMatcher {
     return false;
   }
 
+  public String describe() {
+    return "contextStore(" + keyType + "," + valueType + ")";
+  }
+
   /**
    * Assumes that {@link Class#getInterfaces()} returns list of interfaces defined immediately on a
    * given class, not inherited from its parents.

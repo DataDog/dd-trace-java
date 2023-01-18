@@ -126,9 +126,10 @@ public class AgentInstaller {
     }
 
     Instrumenters instrumenters = Instrumenters.load(AgentInstaller.class.getClassLoader());
+    int maxInstrumentationId = instrumenters.maxInstrumentationId();
 
     // pre-size state before registering instrumentations to reduce number of allocations
-    InstrumenterState.setMaxInstrumentationId(instrumenters.maxInstrumentationId());
+    InstrumenterState.setMaxInstrumentationId(maxInstrumentationId);
 
     // This needs to be a separate loop through all the instrumenters before we start adding
     // advice so that we can exclude field injection, since that will try to check exclusion
@@ -150,7 +151,7 @@ public class AgentInstaller {
     if (InstrumenterConfig.get().isLegacyInstallerEnabled()) {
       transformerBuilder = new LegacyTransformerBuilder(agentBuilder);
     } else {
-      transformerBuilder = null;
+      transformerBuilder = new CombiningTransformerBuilder(agentBuilder, maxInstrumentationId);
     }
 
     int installedCount = 0;
