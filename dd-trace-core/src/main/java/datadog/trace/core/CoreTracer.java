@@ -841,11 +841,57 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    * @param trace a list of the spans related to the same trace
    */
   void write(final List<DDSpan> trace) {
-    if (trace.isEmpty()) {
+    List<DDSpan> writtenTrace = interceptCompleteTrace(trace);
+    if (writtenTrace.isEmpty()) {
       return;
     }
-    List<DDSpan> writtenTrace = trace;
-    if (!interceptors.isEmpty()) {
+    boolean forceKeep = metricsAggregator.publish(writtenTrace);
+
+    DDSpan rootSpan = writtenTrace.get(0).getLocalRootSpan();
+    setSamplingPriorityIfNecessary(rootSpan);
+
+    DDSpan spanToSample = rootSpan == null ? writtenTrace.get(0) : rootSpan;
+    spanToSample.forceKeep(forceKeep);
+    boolean published = forceKeep || sampler.sample(spanToSample);
+    if (published) {
+      if (TracingContextTrackerFactory.isTrackingAvailable()) {
+        for (DDSpan span : writtenTrace) {
+          int stored = span.storeContextToTag();
+          if (stored > -1) {
+            log.trace(
+                "Sending statsd metric 'tracing.context.size'={} (client={})",
+                stored,
+                statsDClient);
+            statsDClient.histogram("tracing.context.size", stored);
+          }
+        }
+      }
+      writer.write(writtenTrace);
+    } else {
+      // with span streaming this won't work - it needs to be changed
+      // to track an effective sampling rate instead, however, tests
+      // checking that a hard reference on a continuation prevents
+      // reporting fail without this, so will need to be fixed first.
+      writer.incrementDropCounts(writtenTrace.size());
+    }
+    if (null != rootSpan) {
+      onRootSpanFinished(rootSpan, rootSpan.getEndpointTracker());
+
+      // request context is propagated to contexts in child spans
+      // Assume here that if present it will be so starting in the top span
+      RequestContext requestContext = rootSpan.getRequestContext();
+      if (requestContext != null) {
+        try {
+          requestContext.close();
+        } catch (IOException e) {
+          log.warn("Error closing request context data", e);
+        }
+      }
+    }
+  }
+
+  private List<DDSpan> interceptCompleteTrace(List<DDSpan> trace) {
+    if (!interceptors.isEmpty() && !trace.isEmpty()) {
       Collection<? extends MutableSpan> interceptedTrace = new ArrayList<>(trace);
       for (final TraceInterceptor interceptor : interceptors) {
         try {
@@ -856,59 +902,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           rlLog.warn("Exception in TraceInterceptor {}", interceptorName, e);
         }
       }
-      writtenTrace = new ArrayList<>(interceptedTrace.size());
+      trace = new ArrayList<>(interceptedTrace.size());
       for (final MutableSpan span : interceptedTrace) {
         if (span instanceof DDSpan) {
-          writtenTrace.add((DDSpan) span);
+          trace.add((DDSpan) span);
         }
       }
     }
-
-    if (!writtenTrace.isEmpty()) {
-      boolean forceKeep = metricsAggregator.publish(writtenTrace);
-
-      DDSpan rootSpan = writtenTrace.get(0).getLocalRootSpan();
-      setSamplingPriorityIfNecessary(rootSpan);
-
-      DDSpan spanToSample = rootSpan == null ? writtenTrace.get(0) : rootSpan;
-      spanToSample.forceKeep(forceKeep);
-      boolean published = forceKeep || sampler.sample(spanToSample);
-      if (published) {
-        if (TracingContextTrackerFactory.isTrackingAvailable()) {
-          for (DDSpan span : writtenTrace) {
-            int stored = span.storeContextToTag();
-            if (stored > -1) {
-              log.trace(
-                  "Sending statsd metric 'tracing.context.size'={} (client={})",
-                  stored,
-                  statsDClient);
-              statsDClient.histogram("tracing.context.size", stored);
-            }
-          }
-        }
-        writer.write(writtenTrace);
-      } else {
-        // with span streaming this won't work - it needs to be changed
-        // to track an effective sampling rate instead, however, tests
-        // checking that a hard reference on a continuation prevents
-        // reporting fail without this, so will need to be fixed first.
-        writer.incrementDropCounts(writtenTrace.size());
-      }
-      if (null != rootSpan) {
-        onRootSpanFinished(rootSpan, rootSpan.getEndpointTracker());
-
-        // request context is propagated to contexts in child spans
-        // Assume here that if present it will be so starting in the top span
-        RequestContext requestContext = rootSpan.getRequestContext();
-        if (requestContext != null) {
-          try {
-            requestContext.close();
-          } catch (IOException e) {
-            log.warn("Error closing request context data", e);
-          }
-        }
-      }
-    }
+    return trace;
   }
 
   @SuppressWarnings("unchecked")

@@ -41,13 +41,7 @@ public class BeanFactoryInstrumentation extends Instrumenter.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SpringWebHttpServerDecorator",
-      packageName + ".ServletRequestURIAdapter",
-      packageName + ".HandlerMappingResourceNameFilter",
-      packageName + ".HandlerMappingResourceNameFilter$BeanDefinition",
-      packageName + ".PathMatchingHttpServletRequestWrapper",
-    };
+    return new String[] {packageName + ".BeanDefinitionRepairer"};
   }
 
   @Override
@@ -64,13 +58,12 @@ public class BeanFactoryInstrumentation extends Instrumenter.Tracing
   public static class BeanResolvingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(0) final RootBeanDefinition beanDefinition) {
-      if (!beanDefinition.hasBeanClass()
-          && HandlerMappingResourceNameFilter.class
-              .getName()
-              .equals(beanDefinition.getBeanClassName())) {
-
-        beanDefinition.setBeanClass(HandlerMappingResourceNameFilter.class);
-      }
+      BeanDefinitionRepairer.repair(beanDefinition);
     }
+  }
+
+  @Override
+  public String muzzleDirective() {
+    return "spring-webmvc"; // only check against the main 'spring-webmvc' muzzle directive
   }
 }
