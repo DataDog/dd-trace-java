@@ -2,9 +2,10 @@ package datadog.trace.bootstrap.instrumentation.ci.codeowners;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,19 +13,29 @@ public class CodeownersProvider {
 
   private static final Logger log = LoggerFactory.getLogger(CodeownersProvider.class);
 
-  private static final String CODEOWNERS_FILE_NAME = "CODEOWNERS";
+  static final String CODEOWNERS_FILE_NAME = "CODEOWNERS";
+
+  private final FileSystem fileSystem;
+
+  public CodeownersProvider() {
+    this(FileSystems.getDefault());
+  }
+
+  CodeownersProvider(FileSystem fileSystem) {
+    this.fileSystem = fileSystem;
+  }
 
   public Codeowners build(String ciWorkspace) {
     return find(
         ciWorkspace,
-        Paths.get(CODEOWNERS_FILE_NAME),
-        Paths.get(".github", CODEOWNERS_FILE_NAME),
-        Paths.get(".gitlab", CODEOWNERS_FILE_NAME),
-        Paths.get("docs", CODEOWNERS_FILE_NAME));
+        fileSystem.getPath(CODEOWNERS_FILE_NAME),
+        fileSystem.getPath(".github", CODEOWNERS_FILE_NAME),
+        fileSystem.getPath(".gitlab", CODEOWNERS_FILE_NAME),
+        fileSystem.getPath("docs", CODEOWNERS_FILE_NAME));
   }
 
   private Codeowners find(String repoRoot, Path... possibleRelativePaths) {
-    Path rootPath = Paths.get(repoRoot);
+    Path rootPath = fileSystem.getPath(repoRoot);
     for (Path relativePath : possibleRelativePaths) {
       Path path = rootPath.resolve(relativePath);
       try {
