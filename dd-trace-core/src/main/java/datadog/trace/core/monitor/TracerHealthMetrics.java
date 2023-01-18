@@ -135,10 +135,9 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   private void checkForClientSpansWithoutContext(final List<DDSpan> trace) {
     for (DDSpan span : trace) {
-      if (span != null) {
-        long parentId = span.getParentId();
-        String tag = span.getTag(SPAN_KIND, "undefined");
-        if (parentId == ZERO && SPAN_KIND_CLIENT.equals(tag)) {
+      if (span != null && span.getParentId() == ZERO) {
+        String spanKind = span.getTag(SPAN_KIND, "undefined");
+        if (SPAN_KIND_CLIENT.equals(spanKind)) {
           this.clientSpansWithoutContext.inc();
         }
       }
