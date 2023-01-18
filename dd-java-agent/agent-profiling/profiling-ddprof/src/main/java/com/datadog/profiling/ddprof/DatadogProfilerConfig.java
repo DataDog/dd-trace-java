@@ -5,6 +5,8 @@ import static datadog.trace.api.config.ProfilingConfig.*;
 
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.lang.management.ManagementFactory;
+import java.util.Collections;
+import java.util.Set;
 
 public class DatadogProfilerConfig {
 
@@ -182,6 +184,10 @@ public class DatadogProfilerConfig {
 
   public static String getLogLevel() {
     return getLogLevel(ConfigProvider.getInstance());
+  }
+
+  public static Set<String> getContextAttributes(ConfigProvider configProvider) {
+    return configProvider.getSet(PROFILING_CONTEXT_ATTRIBUTES, Collections.emptySet());
   }
 
   public static String getString(ConfigProvider configProvider, String key, String defaultValue) {

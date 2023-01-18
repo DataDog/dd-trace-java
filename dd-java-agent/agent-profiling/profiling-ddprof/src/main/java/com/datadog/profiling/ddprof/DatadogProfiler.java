@@ -1,13 +1,33 @@
 package com.datadog.profiling.ddprof;
 
-import static com.datadog.profiling.ddprof.DatadogProfilerConfig.*;
-import static com.datadog.profiling.utils.ProfilingMode.*;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getAllocationInterval;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getCStack;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getContextAttributes;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getCpuInterval;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getLogLevel;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getMemleakCapacity;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getMemleakInterval;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSafeMode;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSchedulingEvent;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSchedulingEventInterval;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getStackDepth;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallInterval;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isAllocationProfilingEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isCpuProfilerEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isMemoryLeakProfilingEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabled;
+import static com.datadog.profiling.utils.ProfilingMode.ALLOCATION;
+import static com.datadog.profiling.utils.ProfilingMode.CPU;
+import static com.datadog.profiling.utils.ProfilingMode.MEMLEAK;
+import static com.datadog.profiling.utils.ProfilingMode.WALL;
+import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.utils.LibraryHelper;
 import com.datadog.profiling.utils.ProfilingMode;
+import com.datadoghq.profiler.ContextAttribute;
 import com.datadoghq.profiler.JavaProfiler;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -17,8 +37,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
 import javax.annotation.Nullable;
@@ -62,6 +86,10 @@ public final class DatadogProfiler {
   private final JavaProfiler profiler;
   private final Set<ProfilingMode> profilingModes = EnumSet.noneOf(ProfilingMode.class);
 
+  // TODO these can be made more efficient, and could probably live within the profiler instead
+  private final Map<String, ContextAttribute> registeredAttributes;
+  private final Map<ContextAttribute, ConcurrentHashMap<String, Integer>> contextEncodings;
+
   private DatadogProfiler() throws UnsupportedEnvironmentException {
     this(ConfigProvider.getInstance());
   }
@@ -69,9 +97,17 @@ public final class DatadogProfiler {
   private DatadogProfiler(Void dummy) {
     this.configProvider = null;
     this.profiler = null;
+    this.registeredAttributes = Collections.emptyMap();
+    this.contextEncodings = Collections.emptyMap();
   }
 
   private DatadogProfiler(ConfigProvider configProvider) throws UnsupportedEnvironmentException {
+    this(configProvider, getContextAttributes(configProvider));
+  }
+
+  // visible for testing
+  DatadogProfiler(ConfigProvider configProvider, Set<String> contextAttributes)
+      throws UnsupportedEnvironmentException {
     this.configProvider = configProvider;
     String libDir = configProvider.getString(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH);
     if (libDir != null && Files.exists(Paths.get(libDir))) {
@@ -93,6 +129,12 @@ public final class DatadogProfiler {
     }
     if (isWallClockProfilerEnabled(configProvider)) {
       profilingModes.add(WALL);
+    }
+    this.registeredAttributes = registerContextAttributes(profiler, contextAttributes);
+    this.contextEncodings =
+        registeredAttributes.isEmpty() ? Collections.emptyMap() : new HashMap<>();
+    for (ContextAttribute contextAttribute : registeredAttributes.values()) {
+      contextEncodings.put(contextAttribute, new ConcurrentHashMap<>());
     }
     try {
       // sanity test - force load Datadog profiler to catch it not being available early
@@ -328,5 +370,40 @@ public final class DatadogProfiler {
       return profiler.getNativeThreadId();
     }
     return -1;
+  }
+
+  public boolean setContextValue(int tid, String attribute, String value) {
+    if (profiler != null && tid >= 0) {
+      ContextAttribute contextAttribute = registeredAttributes.get(attribute);
+      if (contextAttribute != null) {
+        int encoding = contextEncodings.get(contextAttribute).computeIfAbsent(value, this::encode);
+        if (encoding >= 0) {
+          profiler.setContextValue(tid, contextAttribute, encoding);
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private int encode(String value) {
+    return profiler.registerContextValue(value);
+  }
+
+  private static Map<String, ContextAttribute> registerContextAttributes(
+      JavaProfiler profiler, Set<String> attributes) {
+    Map<String, ContextAttribute> registry = new HashMap<>();
+    for (String attribute : attributes) {
+      ContextAttribute contextAttribute = profiler.registerContextAttribute(attribute);
+      if (contextAttribute == null) {
+        log.warn(
+            "profiling context attribute {} rejected because limit of {} was reached",
+            attribute,
+            registry.size());
+      } else {
+        registry.put(attribute, contextAttribute);
+      }
+    }
+    return tryMakeImmutableMap(registry);
   }
 }

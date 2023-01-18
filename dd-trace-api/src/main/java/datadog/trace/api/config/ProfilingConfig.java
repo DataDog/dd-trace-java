@@ -159,5 +159,8 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_DEBUG_DUMP_PATH = "profiling.debug.dump_path";
 
+  public static final String PROFILING_CONTEXT_ATTRIBUTES =
+      "profiling.experimental.context.attributes";
+
   private ProfilingConfig() {}
 }

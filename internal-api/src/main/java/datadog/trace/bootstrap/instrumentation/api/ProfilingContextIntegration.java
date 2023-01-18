@@ -9,6 +9,8 @@ public interface ProfilingContextIntegration {
 
   void setContext(int tid, long rootSpanId, long spanId);
 
+  void setContextValue(String attribute, String value);
+
   int getNativeThreadId();
 
   final class NoOp implements ProfilingContextIntegration {
@@ -23,6 +25,9 @@ public interface ProfilingContextIntegration {
 
     @Override
     public void setContext(int tid, long rootSpanId, long spanId) {}
+
+    @Override
+    public void setContextValue(String attribute, String value) {}
 
     @Override
     public int getNativeThreadId() {
