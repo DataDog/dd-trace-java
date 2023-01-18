@@ -117,6 +117,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
   static final String DEFAULT_TRACE_ANNOTATIONS = null;
+  static final boolean DEFAULT_TRACE_ANNOTATION_OPERATION_NAME_NEW = false;
   static final boolean DEFAULT_TRACE_EXECUTORS_ALL = false;
   static final String DEFAULT_TRACE_METHODS = null;
   static final boolean DEFAULT_TRACE_ANALYTICS_ENABLED = false;
