@@ -1,23 +1,16 @@
 package datadog.trace.instrumentation.trace_annotation;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-
-import datadog.trace.api.InstrumenterConfig;
-import datadog.trace.api.Trace;
+import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
-import java.lang.reflect.Method;
 
 public class TraceDecorator extends BaseDecorator {
   public static TraceDecorator DECORATE = new TraceDecorator();
-
-  private static final boolean useLegacyOperationName =
-      InstrumenterConfig.get().isLegacyInstrumentationEnabled(true, "trace.annotations");
-
+  public static final Boolean useLegacyOperationName =
+      Config.get().isLegacyTracingEnabled(true, "trace.annotations");
   private static final CharSequence TRACE = UTF8BytesString.create("trace");
-
-  private static final String DEFAULT_OPERATION_NAME = "trace.annotation";
 
   @Override
   protected String[] instrumentationNames() {
@@ -39,36 +32,8 @@ public class TraceDecorator extends BaseDecorator {
     return useLegacyOperationName;
   }
 
-  public AgentSpan startMethodSpan(Method method) {
-    CharSequence operationName = null;
-    CharSequence resourceName = null;
-
-    Trace traceAnnotation = method.getAnnotation(Trace.class);
-    if (null != traceAnnotation) {
-      operationName = traceAnnotation.operationName();
-      try {
-        resourceName = traceAnnotation.resourceName();
-      } catch (Throwable ignore) {
-        // dd-trace-api < 0.31.0 on classpath
-      }
-    }
-
-    if (operationName == null || operationName.length() == 0) {
-      if (DECORATE.useLegacyOperationName()) {
-        operationName = DEFAULT_OPERATION_NAME;
-      } else {
-        operationName = DECORATE.spanNameForMethod(method);
-      }
-    }
-
-    if (resourceName == null || resourceName.length() == 0) {
-      resourceName = DECORATE.spanNameForMethod(method);
-    }
-
-    AgentSpan span = startSpan(operationName);
-    DECORATE.afterStart(span);
-    span.setResourceName(resourceName);
-
+  public AgentSpan measureSpan(final AgentSpan span) {
+    span.setTag(DDTags.MEASURED, 1);
     return span;
   }
 }
