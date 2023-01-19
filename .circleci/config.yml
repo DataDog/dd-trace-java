@@ -586,7 +586,8 @@ jobs:
           name: Copy jar file to docker folder
           command: |
             ls -la workspace/dd-java-agent/build/libs
-            cp workspace/dd-java-agent/build/libs/*.jar workspace/docker/dd-java-agent.jar
+            cp workspace/dd-java-agent/build/libs/*.jar workspace/docker/
+            mv workspace/docker/*.jar workspace/docker/dd-java-agent.jar
       
       - run:
           name: Publish tracer image to ghcr.io
@@ -859,7 +860,7 @@ build_test_jobs: &build_test_jobs
   - publish_docker:
         requires:
         - build
-        
+
   - system-tests:
       requires:
         - build
