@@ -591,14 +591,14 @@ jobs:
             ls -la workspace/dd-java-agent/build/libs
             echo "Now, listing workspace"
             ls -la workspace/
-            cp workspace/dd-java-agent/build/libs/*.jar workspace/dd-trace-java/dd-java-agent/docker/
-            mv workspace/dd-trace-java/dd-java-agent/docker/*.jar workspace/dd-trace-java/dd-java-agent/docker/dd-java-agent.jar   
+            cp workspace/dd-java-agent/build/libs/*.jar base-docker-image/
+            mv base-docker-image/*.jar base-docker-image/dd-java-agent.jar   
 
       - run:
           name: Publish tracer image to ghcr.io
           command: |
             echo "we are working on branch::: ${CIRCLE_BRANCH}"
-            cd workspace/dd-trace-java/dd-java-agent/docker/
+            cd base-docker-image/
             echo $GH_TOKEN_TMP|docker login ghcr.io/datadog -u robertomonteromiguel --password-stdin
             docker build -t ghcr.io/datadog/system-tests/dd-java-agent:LATEST_SNAPSHOT .
             docker push ghcr.io/datadog/system-tests/dd-java-agent:LATEST_SNAPSHOT 
