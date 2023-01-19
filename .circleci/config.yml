@@ -574,6 +574,27 @@ jobs:
           path: workspace/build/muzzle-test-results
 
       - display_memory_usage
+  publish_docker:
+    machine:
+      image: ubuntu-2004:current
+    resource_class: large
+    steps:
+
+      - setup_code
+
+      - run:
+          name: Copy jar file to docker folder
+          command: |
+            ls -la workspace/dd-java-agent/build/libs
+            cp workspace/dd-java-agent/build/libs/*.jar workspace/docker/dd-java-agent.jar
+      
+      - run:
+          name: Publish tracer image to ghcr.io
+          command: |
+            echo "we are working on branch::: ${CIRCLE_BRANCH}"
+            echo $GH_TOKEN_TMP|docker login ghcr.io/datadog -u robertomonteromiguel --password-stdin
+            docker build -t ghcr.io/datadog/system-tests/dd-java-agent:LATEST_SNAPSHOT .
+            docker push ghcr.io/datadog/system-tests/dd-java-agent:LATEST_SNAPSHOT 
 
   system-tests:
     machine:
@@ -835,6 +856,10 @@ build_test_jobs: &build_test_jobs
             - project/*
             - release/*
 
+  - publish_docker:
+        requires:
+        - build
+        
   - system-tests:
       requires:
         - build
