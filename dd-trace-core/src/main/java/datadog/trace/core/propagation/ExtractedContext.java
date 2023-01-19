@@ -12,7 +12,7 @@ public class ExtractedContext extends TagContext {
   private final long spanId;
   private final long endToEndStartTime;
   private final Map<String, String> baggage;
-  private final DatadogTags datadogTags;
+  private final PropagationTags propagationTags;
 
   public ExtractedContext(
       final DDTraceId traceId,
@@ -23,13 +23,13 @@ public class ExtractedContext extends TagContext {
       final Map<String, String> baggage,
       final Map<String, String> tags,
       final HttpHeaders httpHeaders,
-      final DatadogTags datadogTags) {
+      final PropagationTags propagationTags) {
     super(origin, tags, httpHeaders, samplingPriority);
     this.traceId = traceId;
     this.spanId = spanId;
     this.endToEndStartTime = endToEndStartTime;
     this.baggage = baggage;
-    this.datadogTags = datadogTags;
+    this.propagationTags = propagationTags;
   }
 
   @Override
@@ -55,7 +55,7 @@ public class ExtractedContext extends TagContext {
     return baggage;
   }
 
-  public DatadogTags getDatadogTags() {
-    return datadogTags;
+  public PropagationTags getDatadogTags() {
+    return propagationTags;
   }
 }

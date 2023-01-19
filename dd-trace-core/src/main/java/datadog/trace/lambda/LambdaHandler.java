@@ -8,8 +8,8 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.core.propagation.DatadogTags;
 import datadog.trace.core.propagation.ExtractedContext;
+import datadog.trace.core.propagation.PropagationTags;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -63,7 +63,7 @@ public class LambdaHandler {
   private static String EXTENSION_BASE_URL = "http://127.0.0.1:8124";
 
   public static AgentSpan.Context notifyStartInvocation(
-      Object event, DatadogTags.Factory datadogTagsFactory) {
+      Object event, PropagationTags.Factory datadogTagsFactory) {
     RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(event));
     try (Response response =
         HTTP_CLIENT
@@ -88,7 +88,7 @@ public class LambdaHandler {
               "notifyStartInvocation success, found traceID = {} and samplingPriority = {}",
               traceID,
               samplingPriority);
-          DatadogTags datadogTags =
+          PropagationTags propagationTags =
               datadogTagsFactory.fromHeaderValue(response.headers().get(DATADOG_TAGS_KEY));
           return new ExtractedContext(
               DDTraceId.from(traceID),
@@ -99,7 +99,7 @@ public class LambdaHandler {
               null,
               null,
               null,
-              datadogTags);
+              propagationTags);
         } else {
           log.debug(
               "could not find traceID or sampling priority in notifyStartInvocation, not injecting the context");

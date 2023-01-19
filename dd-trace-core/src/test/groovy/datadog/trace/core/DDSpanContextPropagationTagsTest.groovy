@@ -9,7 +9,7 @@ import datadog.trace.core.test.DDCoreSpecification
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
 
-class DDSpanContextDatadogTagsTest extends DDCoreSpecification {
+class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
 
   def writer = new ListWriter()
   def tracer

@@ -51,7 +51,7 @@ public class InjectorBenchmark {
   long spanId;
   CoreTracer tracer;
   DDSpanContext spanContext;
-  DatadogTags datadogTags;
+  PropagationTags propagationTags;
   boolean modifyDatadogTags = false;
 
   @Setup(Level.Trial)
@@ -72,12 +72,14 @@ public class InjectorBenchmark {
         String feature = propagationAndFeatures[i];
         switch (feature) {
           case "x-dth":
-            datadogTags =
-                DatadogTags.factory().fromHeaderValue("_dd.p.anytag=value,_dd.p.dm=934086a686-4");
+            propagationTags =
+                PropagationTags.factory()
+                    .fromHeaderValue("_dd.p.anytag=value,_dd.p.dm=934086a686-4");
             break;
           case "x-dth-mod":
-            datadogTags =
-                DatadogTags.factory().fromHeaderValue("_dd.p.anytag=value,_dd.p.dm=934086a686-4");
+            propagationTags =
+                PropagationTags.factory()
+                    .fromHeaderValue("_dd.p.anytag=value,_dd.p.dm=934086a686-4");
             modifyDatadogTags = true;
             break;
           default:
@@ -120,7 +122,7 @@ public class InjectorBenchmark {
             null,
             null,
             false,
-            datadogTags);
+            propagationTags);
   }
 
   int mechanism = 0;
@@ -131,7 +133,7 @@ public class InjectorBenchmark {
     blackhole.consume(headers);
     if (modifyDatadogTags) {
       int sm = mechanism = (mechanism + 1) % 4;
-      datadogTags.updateTraceSamplingPriority(1, sm, "service");
+      propagationTags.updateTraceSamplingPriority(1, sm, "service");
     }
   }
 

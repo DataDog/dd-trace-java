@@ -6,13 +6,13 @@ import datadog.trace.core.test.DDCoreSpecification
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
 
-class DatadogTagsTest extends DDCoreSpecification {
+class PropagationTagsTest extends DDCoreSpecification {
 
   def createDatadogTagsFromHeaderValue() {
     setup:
     def config = Mock(Config)
     config.getxDatadogTagsMaxLength() >> 512
-    def datadogTagsFactory = DatadogTags.factory(config)
+    def datadogTagsFactory = PropagationTags.factory(config)
 
     when:
     def datadogTags = datadogTagsFactory.fromHeaderValue(headerValue)
@@ -71,7 +71,7 @@ class DatadogTagsTest extends DDCoreSpecification {
     setup:
     def config = Mock(Config)
     config.getxDatadogTagsMaxLength() >> 512
-    def datadogTagsFactory = DatadogTags.factory(config)
+    def datadogTagsFactory = PropagationTags.factory(config)
     def datadogTags = datadogTagsFactory.fromHeaderValue(originalTagSet)
 
     when:
@@ -112,7 +112,7 @@ class DatadogTagsTest extends DDCoreSpecification {
     setup:
     def tags = "_dd.p.anytag=value"
     def limit = tags.length() - 1
-    def datadogTags = DatadogTags.factory(limit).fromHeaderValue(tags)
+    def datadogTags = PropagationTags.factory(limit).fromHeaderValue(tags)
 
     when:
     datadogTags.updateTraceSamplingPriority(USER_KEEP, MANUAL, "service-name")
@@ -126,7 +126,7 @@ class DatadogTagsTest extends DDCoreSpecification {
     setup:
     def tags = "_dd.p.anytag=value"
     def limit = tags.length()
-    def datadogTags = DatadogTags.factory(limit).fromHeaderValue(tags)
+    def datadogTags = PropagationTags.factory(limit).fromHeaderValue(tags)
 
     when:
     datadogTags.updateTraceSamplingPriority(USER_KEEP, MANUAL, "service-name")
@@ -138,7 +138,7 @@ class DatadogTagsTest extends DDCoreSpecification {
 
   def injectionLimitExceededLimit0() {
     setup:
-    def datadogTags = DatadogTags.factory(0).fromHeaderValue("")
+    def datadogTags = PropagationTags.factory(0).fromHeaderValue("")
 
     when:
     datadogTags.updateTraceSamplingPriority(USER_KEEP, MANUAL, "service-name")

@@ -20,7 +20,7 @@ import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.DDSpanHelper;
 import datadog.trace.core.PendingTrace;
-import datadog.trace.core.propagation.DatadogTags;
+import datadog.trace.core.propagation.PropagationTags;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -60,7 +60,7 @@ public class TraceMapperBenchmark {
 
   @Setup(Level.Trial)
   public void init(Blackhole blackhole) {
-    DatadogTags datadogTags = null;
+    PropagationTags propagationTags = null;
     String[] mapperAndFeatures = mapperName.split(":");
     switch (mapperAndFeatures[0]) {
       case "v04":
@@ -76,8 +76,8 @@ public class TraceMapperBenchmark {
       String feature = mapperAndFeatures[i];
       switch (feature) {
         case "x-dth":
-          datadogTags =
-              DatadogTags.factory().fromHeaderValue("_dd.p.anytag=value,_dd.p.dm=934086a686-4");
+          propagationTags =
+              PropagationTags.factory().fromHeaderValue("_dd.p.anytag=value,_dd.p.dm=934086a686-4");
           break;
         default:
           throw new IllegalArgumentException("Unknown benchmark feature " + feature + ".");
@@ -119,7 +119,7 @@ public class TraceMapperBenchmark {
             null,
             NoopPathwayContext.INSTANCE,
             false,
-            datadogTags);
+            propagationTags);
     DDSpanHelper.setAllTags(rootContext, tags);
     DDSpan root = DDSpanHelper.create(System.currentTimeMillis() * 1000, rootContext);
     root.setResourceName(UTF8BytesString.create("benchmark"));

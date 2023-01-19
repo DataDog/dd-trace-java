@@ -20,7 +20,7 @@ import datadog.trace.core.PendingTrace
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.MonitoringImpl
 import datadog.trace.core.monitor.TracerHealthMetrics
-import datadog.trace.core.propagation.DatadogTags
+import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
 import spock.lang.Retry
@@ -752,7 +752,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
       null,
       AgentTracer.NoopPathwayContext.INSTANCE,
       false,
-      DatadogTags.factory().empty())
+      PropagationTags.factory().empty())
   }
 
   def createMinimalTrace() {

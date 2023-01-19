@@ -9,10 +9,10 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Captures configuration required for DatadogTags logic */
-final class DatadogTagsFactory implements DatadogTags.Factory {
+/** Captures configuration required for PropagationTags logic */
+final class DatadogPropagationTagsFactory implements PropagationTags.Factory {
 
-  private static final Logger log = LoggerFactory.getLogger(DatadogTagsFactory.class);
+  private static final Logger log = LoggerFactory.getLogger(DatadogPropagationTagsFactory.class);
 
   private static final String ALLOWED_TAG_PREFIX = "_dd.p.";
   private static final String DECISION_MAKER_TAG = ALLOWED_TAG_PREFIX + "dm";
@@ -33,12 +33,12 @@ final class DatadogTagsFactory implements DatadogTags.Factory {
 
   private final int datadogTagsLimit;
 
-  DatadogTagsFactory(int datadogTagsLimit) {
+  DatadogPropagationTagsFactory(int datadogTagsLimit) {
     this.datadogTagsLimit = datadogTagsLimit;
   }
 
-  public DatadogTags empty() {
-    return new ValidDatadogTags(Collections.<String>emptyList());
+  public PropagationTags empty() {
+    return new ValidPropagationTags(Collections.<String>emptyList());
   }
 
   /**
@@ -56,16 +56,17 @@ final class DatadogTagsFactory implements DatadogTags.Factory {
    * All tags prefixed with `_dd.p.` are extracted from tagSet except for `_dd.p.upstream_services`.
    * TagSet that doesn't respect the format will be dropped and a warning will be logged.
    *
-   * @return a DatadogTags containing only _dd.p.* tags or an error if the header value is invalid
+   * @return a PropagationTags containing only _dd.p.* tags or an error if the header value is
+   *     invalid
    */
-  public DatadogTags fromHeaderValue(String value) {
+  public PropagationTags fromHeaderValue(String value) {
     if (value == null) {
       return empty();
     }
     if (value.length() > datadogTagsLimit) {
       // Incoming x-datadog-tags value length exceeds datadogTagsLimit
       // Set _dd.propagation_error:extract_max_size
-      return new InvalidDatadogTags(PROPAGATION_ERROR_EXTRACT_MAX_SIZE);
+      return new InvalidPropagationTags(PROPAGATION_ERROR_EXTRACT_MAX_SIZE);
     }
 
     List<String> tagPairs = new ArrayList<>(10);
@@ -76,7 +77,7 @@ final class DatadogTagsFactory implements DatadogTags.Factory {
       if (tagKeyEndsAt < 0 || tagKeyEndsAt == len) {
         log.warn(
             "Invalid datadog tags header value: '{}' tag without a value at {}", value, tagPos);
-        return new InvalidDatadogTags(PROPAGATION_ERROR_DECODING_ERROR);
+        return new InvalidPropagationTags(PROPAGATION_ERROR_DECODING_ERROR);
       }
       int tagValuePos = tagKeyEndsAt + 1;
       int tagValueEndsAt = value.indexOf(TAGS_SEPARATOR, tagKeyEndsAt);
@@ -87,7 +88,7 @@ final class DatadogTagsFactory implements DatadogTags.Factory {
       String tagValue = value.substring(tagValuePos, tagValueEndsAt);
       if (!validateTagKey(tagKey)) {
         log.warn("Invalid datadog tags header value: '{}' invalid tag key at {}", value, tagPos);
-        return new InvalidDatadogTags(PROPAGATION_ERROR_DECODING_ERROR);
+        return new InvalidPropagationTags(PROPAGATION_ERROR_DECODING_ERROR);
       }
       if (tagKey.startsWith(ALLOWED_TAG_PREFIX)
           && !tagKey.startsWith(UPSTREAM_SERVICES_DEPRECATED_TAG)) {
@@ -96,14 +97,14 @@ final class DatadogTagsFactory implements DatadogTags.Factory {
               "Invalid datadog tags header value: '{}' invalid tag value at {}",
               value,
               tagValuePos);
-          return new InvalidDatadogTags(PROPAGATION_ERROR_DECODING_ERROR);
+          return new InvalidPropagationTags(PROPAGATION_ERROR_DECODING_ERROR);
         }
         tagPairs.add(tagKey);
         tagPairs.add(tagValue);
       }
       tagPos = tagValueEndsAt + 1;
     }
-    return new ValidDatadogTags(tagPairs);
+    return new ValidPropagationTags(tagPairs);
   }
 
   private static boolean validateTagKey(String tagKey) {
@@ -191,10 +192,10 @@ final class DatadogTagsFactory implements DatadogTags.Factory {
   }
 
   // This implementation is used for errors and doesn't allow any modifications
-  private static final class InvalidDatadogTags extends DatadogTags {
+  private static final class InvalidPropagationTags extends PropagationTags {
     private final String error;
 
-    private InvalidDatadogTags(String error) {
+    private InvalidPropagationTags(String error) {
       this.error = error;
     }
 
@@ -214,7 +215,7 @@ final class DatadogTagsFactory implements DatadogTags.Factory {
   }
 
   // This implementation is used when service propagation is enabled
-  private final class ValidDatadogTags extends DatadogTags {
+  private final class ValidPropagationTags extends PropagationTags {
     // tags that don't require any modifications and propagated as-is
     private final List<String> propagatedTagPairs;
     // pre-calc header size
@@ -225,7 +226,7 @@ final class DatadogTagsFactory implements DatadogTags.Factory {
     // extracted decision maker tag for easier updates
     private volatile String decisionMakerTagValue;
 
-    private ValidDatadogTags(List<String> tagPairs) {
+    private ValidPropagationTags(List<String> tagPairs) {
       assert tagPairs.size() % 2 == 0;
       propagatedTagPairs = tagPairs;
       propagatedTagsSize = calcTagsLength(tagPairs);

@@ -14,7 +14,7 @@ import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.MonitoringImpl
-import datadog.trace.core.propagation.DatadogTags
+import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 import spock.lang.Timeout
@@ -173,7 +173,7 @@ class PayloadDispatcherTest extends DDSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      DatadogTags.factory().empty())
+      PropagationTags.factory().empty())
     return new DDSpan(0, context)
   }
 }

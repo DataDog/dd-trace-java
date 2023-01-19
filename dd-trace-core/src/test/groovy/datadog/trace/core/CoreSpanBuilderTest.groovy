@@ -9,7 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.core.propagation.DatadogTags
+import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
 
@@ -329,8 +329,8 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
 
     where:
     extractedContext | _
-    new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, null, 0, [:], [:], null, DatadogTags.factory().fromHeaderValue("_dd.p.dm=934086a686-4,_dd.p.anytag=value"))                 | _
-    new ExtractedContext(DDTraceId.from(3), 4, PrioritySampling.SAMPLER_KEEP, "some-origin", 0, ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"], null, DatadogTags.factory().empty()) | _
+    new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, null, 0, [:], [:], null, PropagationTags.factory().fromHeaderValue("_dd.p.dm=934086a686-4,_dd.p.anytag=value"))                 | _
+    new ExtractedContext(DDTraceId.from(3), 4, PrioritySampling.SAMPLER_KEEP, "some-origin", 0, ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"], null, PropagationTags.factory().empty()) | _
   }
 
   def "TagContext should populate default span details"() {

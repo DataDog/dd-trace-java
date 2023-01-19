@@ -18,24 +18,24 @@ import java.util.Map;
  *   - producing meta tags to be sent to the agent
  * </pre>
  */
-public abstract class DatadogTags {
+public abstract class PropagationTags {
 
-  public static DatadogTags.Factory factory(Config config) {
+  public static PropagationTags.Factory factory(Config config) {
     return factory(config.getxDatadogTagsMaxLength());
   }
 
-  public static DatadogTags.Factory factory(int datadogTagsLimit) {
-    return new DatadogTagsFactory(datadogTagsLimit);
+  public static PropagationTags.Factory factory(int datadogTagsLimit) {
+    return new DatadogPropagationTagsFactory(datadogTagsLimit);
   }
 
-  public static DatadogTags.Factory factory() {
+  public static PropagationTags.Factory factory() {
     return factory(DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH);
   }
 
   public interface Factory {
-    DatadogTags empty();
+    PropagationTags empty();
 
-    DatadogTags fromHeaderValue(String value);
+    PropagationTags fromHeaderValue(String value);
   }
 
   /**
