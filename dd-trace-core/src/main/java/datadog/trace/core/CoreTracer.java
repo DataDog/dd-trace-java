@@ -209,6 +209,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return endpointCheckpointer.onRootSpanStarted(root);
   }
 
+  @Override
+  public void setContextValue(String attribute, String value) {
+    profilingContextIntegration.setContextValue(attribute, value);
+  }
+
   public static class CoreTracerBuilder {
 
     private Config config;

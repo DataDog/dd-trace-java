@@ -17,7 +17,7 @@ excludedClassesCoverage += [
   // enums with no additional functionality
   'com.datadog.profiling.controller.ddprof.Arch',
   'com.datadog.profiling.controller.ddprof.OperatingSystem',
-  'com.datadog.profiling.ddprof.ContextThreadFilter',
+  'com.datadog.profiling.ddprof.DatadogProfilingIntegration',
   'com.datadog.profiling.ddprof.DatadogProfilerConfig',
   // --
   'com.datadog.profiling.ddprof.DatadogProfiler.Singleton',

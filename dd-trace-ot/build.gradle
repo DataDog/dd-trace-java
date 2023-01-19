@@ -103,6 +103,7 @@ shadowJar {
     exclude('datadog.opentracing.resolver.*')
     exclude('datadog.trace.api.*')
     exclude('datadog.trace.api.config.*')
+    exclude('datadog.trace.api.experimental.*')
     exclude('datadog.trace.api.interceptor.*')
     exclude('datadog.trace.api.internal.*')
     exclude('datadog.trace.api.sampling.*')

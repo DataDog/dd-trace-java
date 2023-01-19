@@ -1,13 +1,32 @@
 package com.datadog.profiling.ddprof;
 
-import static com.datadog.profiling.ddprof.DatadogProfilerConfig.*;
-import static com.datadog.profiling.utils.ProfilingMode.*;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getAllocationInterval;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getCStack;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getContextAttributes;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getCpuInterval;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getLogLevel;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getMemleakCapacity;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getMemleakInterval;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSafeMode;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSchedulingEvent;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSchedulingEventInterval;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getStackDepth;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallInterval;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isAllocationProfilingEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isCpuProfilerEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isMemoryLeakProfilingEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabled;
+import static com.datadog.profiling.utils.ProfilingMode.ALLOCATION;
+import static com.datadog.profiling.utils.ProfilingMode.CPU;
+import static com.datadog.profiling.utils.ProfilingMode.MEMLEAK;
+import static com.datadog.profiling.utils.ProfilingMode.WALL;
 
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.utils.LibraryHelper;
 import com.datadog.profiling.utils.ProfilingMode;
+import com.datadoghq.profiler.ContextSetter;
 import com.datadoghq.profiler.JavaProfiler;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -17,6 +36,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -62,6 +82,8 @@ public final class DatadogProfiler {
   private final JavaProfiler profiler;
   private final Set<ProfilingMode> profilingModes = EnumSet.noneOf(ProfilingMode.class);
 
+  private final ContextSetter contextSetter;
+
   private DatadogProfiler() throws UnsupportedEnvironmentException {
     this(ConfigProvider.getInstance());
   }
@@ -69,9 +91,16 @@ public final class DatadogProfiler {
   private DatadogProfiler(Void dummy) {
     this.configProvider = null;
     this.profiler = null;
+    this.contextSetter = null;
   }
 
   private DatadogProfiler(ConfigProvider configProvider) throws UnsupportedEnvironmentException {
+    this(configProvider, getContextAttributes(configProvider));
+  }
+
+  // visible for testing
+  DatadogProfiler(ConfigProvider configProvider, Set<String> contextAttributes)
+      throws UnsupportedEnvironmentException {
     this.configProvider = configProvider;
     String libDir = configProvider.getString(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH);
     if (libDir != null && Files.exists(Paths.get(libDir))) {
@@ -94,6 +123,7 @@ public final class DatadogProfiler {
     if (isWallClockProfilerEnabled(configProvider)) {
       profilingModes.add(WALL);
     }
+    this.contextSetter = new ContextSetter(profiler, new ArrayList<>(contextAttributes));
     try {
       // sanity test - force load Datadog profiler to catch it not being available early
       profiler.execute("status");
@@ -152,15 +182,15 @@ public final class DatadogProfiler {
         + os;
   }
 
-  void addThread(int tid) {
-    if (profiler != null && tid >= 0) {
-      profiler.addThread(tid);
+  void addThread() {
+    if (profiler != null) {
+      profiler.addThread();
     }
   }
 
-  void removeThread(int tid) {
-    if (profiler != null && tid >= 0) {
-      profiler.removeThread(tid);
+  void removeThread() {
+    if (profiler != null) {
+      profiler.removeThread();
     }
   }
 
@@ -313,20 +343,20 @@ public final class DatadogProfiler {
     return cmdString;
   }
 
-  public void setContext(int tid, long spanId, long rootSpanId) {
-    if (profiler != null && tid >= 0) {
+  public void setContext(long spanId, long rootSpanId) {
+    if (profiler != null) {
       try {
-        profiler.setContext(tid, spanId, rootSpanId);
+        profiler.setContext(spanId, rootSpanId);
       } catch (IllegalStateException e) {
         log.warn("Failed to set context", e);
       }
     }
   }
 
-  public int getNativeThreadId() {
-    if (profiler != null) {
-      return profiler.getNativeThreadId();
+  public boolean setContextValue(String attribute, String value) {
+    if (contextSetter != null) {
+      return contextSetter.setContextValue(attribute, value);
     }
-    return -1;
+    return false;
   }
 }

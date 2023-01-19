@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.openjdk.jmc.common.item.Attribute.attr;
 import static org.openjdk.jmc.common.unit.UnitLookup.NUMBER;
+import static org.openjdk.jmc.common.unit.UnitLookup.PLAIN_TEXT;
 
 import com.datadog.profiling.testing.ProfilingTestUtils;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -91,6 +92,9 @@ class JFRBasedProfilingIntegrationTest {
   public static final IAttribute<IQuantity> LOCAL_ROOT_SPAN_ID =
       attr("localRootSpanId", "localRootSpanId", "localRootSpanId", NUMBER);
   public static final IAttribute<IQuantity> SPAN_ID = attr("spanId", "spanId", "spanId", NUMBER);
+
+  public static final IAttribute<String> ATTR_1 = attr("attribute1", "", "", PLAIN_TEXT);
+  public static final IAttribute<String> VALUE_1 = attr("value1", "", "", PLAIN_TEXT);
 
   private MockWebServer profilingServer;
   private MockWebServer tracingServer;
@@ -512,11 +516,25 @@ class JFRBasedProfilingIntegrationTest {
         IItemCollection executionSamples =
             events.apply(ItemFilters.type("datadog.ExecutionSample"));
         Set<Long> rootSpanIds = new HashSet<>();
+        Set<String> tags = new HashSet<>();
+        Set<String> values = new HashSet<>();
         for (IItemIterable executionSampleEvents : executionSamples) {
           IMemberAccessor<IQuantity, IItem> rootSpanIdAccessor =
               LOCAL_ROOT_SPAN_ID.getAccessor(executionSampleEvents.getType());
+          IMemberAccessor<String, IItem> tagAttributeAccessor =
+              ATTR_1.getAccessor(executionSampleEvents.getType());
+          IMemberAccessor<String, IItem> tagValueAccessor =
+              VALUE_1.getAccessor(executionSampleEvents.getType());
           for (IItem executionSample : executionSampleEvents) {
             rootSpanIds.add(rootSpanIdAccessor.getMember(executionSample).longValue());
+            String attribute = tagAttributeAccessor.getMember(executionSample);
+            if (attribute != null) {
+              tags.add(attribute);
+            }
+            String value = tagValueAccessor.getMember(executionSample);
+            if (value != null) {
+              values.add(value);
+            }
           }
         }
         int matches = 0;
@@ -530,6 +548,12 @@ class JFRBasedProfilingIntegrationTest {
         }
         // we expect a rough correspondence between these events
         assertTrue(matches > 0);
+        assertEquals(1, tags.size());
+        assertEquals("foo", tags.iterator().next());
+        assertFalse(values.isEmpty());
+        for (String value : values) {
+          assertTrue(value.startsWith("context"));
+        }
       }
     }
     if (asyncProfilerEnabled) {
@@ -648,6 +672,7 @@ class JFRBasedProfilingIntegrationTest {
             "-Ddd.profiling.upload.timeout=" + PROFILING_UPLOAD_TIMEOUT_SECONDS,
             "-Ddd.profiling.debug.dump_path=/tmp/dd-profiler",
             "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
+            "-Ddd.profiling.experimental.context.attributes=foo",
             "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",
             "-XX:+IgnoreUnrecognizedVMOptions",
             "-XX:+UnlockCommercialFeatures",

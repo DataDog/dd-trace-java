@@ -6,33 +6,33 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
  * This class must be installed early to be able to see all scope initialisations, which means it
  * must not be modified to depend on JFR, so that it can be installed before tracing starts.
  */
-public class ContextThreadFilter implements ProfilingContextIntegration {
+public class DatadogProfilingIntegration implements ProfilingContextIntegration {
 
   private static final DatadogProfiler DDPROF = DatadogProfiler.getInstance();
   private static final boolean WALLCLOCK_ENABLED =
       DatadogProfilerConfig.isWallClockProfilerEnabled();
 
   @Override
-  public void onAttach(int tid) {
+  public void onAttach() {
     if (WALLCLOCK_ENABLED) {
-      DDPROF.addThread(tid);
+      DDPROF.addThread();
     }
   }
 
   @Override
-  public void onDetach(int tid) {
+  public void onDetach() {
     if (WALLCLOCK_ENABLED) {
-      DDPROF.removeThread(tid);
+      DDPROF.removeThread();
     }
   }
 
   @Override
-  public void setContext(int tid, long rootSpanId, long spanId) {
-    DDPROF.setContext(tid, spanId, rootSpanId);
+  public void setContext(long rootSpanId, long spanId) {
+    DDPROF.setContext(spanId, rootSpanId);
   }
 
   @Override
-  public int getNativeThreadId() {
-    return DDPROF.getNativeThreadId();
+  public void setContextValue(String attribute, String value) {
+    DDPROF.setContextValue(attribute, value);
   }
 }
