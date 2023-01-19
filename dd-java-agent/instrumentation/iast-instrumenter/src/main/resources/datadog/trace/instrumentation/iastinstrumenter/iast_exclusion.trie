@@ -53,6 +53,7 @@
 1 com.ecwid.consul.*
 1 com.esotericsoftware.kryo.*
 1 com.fasterxml.*
+0 com.fasterxml.jackson.databind.*
 1 com.filenet.*
 1 com.github.benmanes.caffeine.*
 1 com.google.*
@@ -174,6 +175,7 @@
 0 org.springframework.web.context.request.*
 0 org.springframework.samples.*
 0 org.springframework.web.util.WebUtils
+0 org.springframework.http.server.*
 1 org.synchronoss.*
 1 org.terracotta.*
 1 org.testcontainers.*

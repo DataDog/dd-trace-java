@@ -2,9 +2,16 @@ package com.datadog.iast;
 
 import com.datadog.iast.HasDependencies.Dependencies;
 import com.datadog.iast.overhead.OverheadController;
+import com.datadog.iast.propagation.IOModuleImpl;
+import com.datadog.iast.propagation.JacksonModuleImpl;
 import com.datadog.iast.propagation.StringModuleImpl;
 import com.datadog.iast.propagation.UrlModuleImpl;
-import com.datadog.iast.sink.*;
+import com.datadog.iast.sink.CommandInjectionModuleImpl;
+import com.datadog.iast.sink.LdapInjectionModuleImpl;
+import com.datadog.iast.sink.PathTraversalModuleImpl;
+import com.datadog.iast.sink.SqlInjectionModuleImpl;
+import com.datadog.iast.sink.WeakCipherModuleImpl;
+import com.datadog.iast.sink.WeakHashModuleImpl;
 import com.datadog.iast.source.WebModuleImpl;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.EventType;
@@ -66,7 +73,9 @@ public class IastSystem {
         new CommandInjectionModuleImpl(),
         new WeakCipherModuleImpl(),
         new WeakHashModuleImpl(),
-        new LdapInjectionModuleImpl());
+        new LdapInjectionModuleImpl(),
+        new JacksonModuleImpl(),
+        new IOModuleImpl());
   }
 
   private static void registerRequestStartedCallback(

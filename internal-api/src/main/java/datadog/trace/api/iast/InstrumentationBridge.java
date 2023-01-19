@@ -1,5 +1,6 @@
 package datadog.trace.api.iast;
 
+import datadog.trace.api.iast.propagation.IOModule;
 import datadog.trace.api.iast.propagation.JacksonModule;
 import datadog.trace.api.iast.propagation.StringModule;
 import datadog.trace.api.iast.propagation.UrlModule;
@@ -25,6 +26,8 @@ public abstract class InstrumentationBridge {
   public static volatile LdapInjectionModule LDAP_INJECTION;
   public static volatile JacksonModule JACKSON;
 
+  public static volatile IOModule IO;
+
   private InstrumentationBridge() {}
 
   public static void registerIastModule(final IastModule module) {
@@ -48,6 +51,8 @@ public abstract class InstrumentationBridge {
       LDAP_INJECTION = (LdapInjectionModule) module;
     } else if (module instanceof JacksonModule) {
       JACKSON = (JacksonModule) module;
+    } else if (module instanceof IOModule) {
+      IO = (IOModule) module;
     } else {
       throw new UnsupportedOperationException("Module not yet supported: " + module);
     }
@@ -85,6 +90,9 @@ public abstract class InstrumentationBridge {
     if (type == JacksonModule.class) {
       return (E) JACKSON;
     }
+    if (type == IOModule.class) {
+      return (E) IO;
+    }
     throw new UnsupportedOperationException("Module not yet supported: " + type);
   }
 
@@ -100,5 +108,6 @@ public abstract class InstrumentationBridge {
     WEAK_HASH = null;
     LDAP_INJECTION = null;
     JACKSON = null;
+    IO = null;
   }
 }
