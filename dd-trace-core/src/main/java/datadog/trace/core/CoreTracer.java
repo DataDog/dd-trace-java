@@ -186,10 +186,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final CallbackProvider callbackProviderIast;
   private final CallbackProvider universalCallbackProvider;
 
-  private final PropagationTags.Factory datadogTagsFactory;
+  private final PropagationTags.Factory propagationTagsFactory;
 
-  PropagationTags.Factory getDatadogTagsFactory() {
-    return datadogTagsFactory;
+  PropagationTags.Factory getPropagationTagsFactory() {
+    return propagationTagsFactory;
   }
 
   @Override
@@ -585,7 +585,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     StatusLogger.logStatus(config);
 
-    datadogTagsFactory = PropagationTags.factory(config);
+    propagationTagsFactory = PropagationTags.factory(config);
     this.profilingContextIntegration = profilingContextIntegration;
   }
 
@@ -829,7 +829,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public AgentSpan.Context notifyExtensionStart(Object event) {
-    return LambdaHandler.notifyStartInvocation(event, datadogTagsFactory);
+    return LambdaHandler.notifyStartInvocation(event, propagationTagsFactory);
   }
 
   @Override
@@ -1280,7 +1280,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             ddsc.getPathwayContext().isStarted()
                 ? ddsc.getPathwayContext()
                 : dataStreamsCheckpointer.newPathwayContext();
-        propagationTags = datadogTagsFactory.empty();
+        propagationTags = propagationTagsFactory.empty();
       } else {
         long endToEndStartTime;
 
@@ -1292,7 +1292,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           samplingPriority = extractedContext.getSamplingPriority();
           endToEndStartTime = extractedContext.getEndToEndStartTime();
           baggage = extractedContext.getBaggage();
-          propagationTags = extractedContext.getDatadogTags();
+          propagationTags = extractedContext.getPropagationTags();
         } else {
           // Start a new trace
           traceId = idGenerationStrategy.generateTraceId();
@@ -1300,7 +1300,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           samplingPriority = PrioritySampling.UNSET;
           endToEndStartTime = 0;
           baggage = null;
-          propagationTags = datadogTagsFactory.empty();
+          propagationTags = propagationTagsFactory.empty();
         }
 
         // Get header tags and set origin whether propagating or not.

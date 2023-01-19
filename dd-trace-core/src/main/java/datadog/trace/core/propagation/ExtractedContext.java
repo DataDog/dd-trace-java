@@ -55,7 +55,7 @@ public class ExtractedContext extends TagContext {
     return baggage;
   }
 
-  public PropagationTags getDatadogTags() {
+  public PropagationTags getPropagationTags() {
     return propagationTags;
   }
 }

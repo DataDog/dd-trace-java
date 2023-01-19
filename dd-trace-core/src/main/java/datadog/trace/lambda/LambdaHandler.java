@@ -63,7 +63,7 @@ public class LambdaHandler {
   private static String EXTENSION_BASE_URL = "http://127.0.0.1:8124";
 
   public static AgentSpan.Context notifyStartInvocation(
-      Object event, PropagationTags.Factory datadogTagsFactory) {
+      Object event, PropagationTags.Factory propagationTagsFactory) {
     RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(event));
     try (Response response =
         HTTP_CLIENT
@@ -89,7 +89,7 @@ public class LambdaHandler {
               traceID,
               samplingPriority);
           PropagationTags propagationTags =
-              datadogTagsFactory.fromHeaderValue(
+              propagationTagsFactory.fromHeaderValue(
                   PropagationTags.HeaderType.DATADOG, response.headers().get(DATADOG_TAGS_KEY));
           return new ExtractedContext(
               DDTraceId.from(traceID),

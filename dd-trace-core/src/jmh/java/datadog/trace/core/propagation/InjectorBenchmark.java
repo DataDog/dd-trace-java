@@ -52,7 +52,7 @@ public class InjectorBenchmark {
   CoreTracer tracer;
   DDSpanContext spanContext;
   PropagationTags propagationTags;
-  boolean modifyDatadogTags = false;
+  boolean modifyPropagationTags = false;
 
   @Setup(Level.Trial)
   public void setUp(Blackhole blackhole) {
@@ -84,7 +84,7 @@ public class InjectorBenchmark {
                     .fromHeaderValue(
                         PropagationTags.HeaderType.DATADOG,
                         "_dd.p.anytag=value,_dd.p.dm=934086a686-4");
-            modifyDatadogTags = true;
+            modifyPropagationTags = true;
             break;
           default:
             System.out.println("Unknown benchmark feature " + feature + ". Will be ignored!");
@@ -135,7 +135,7 @@ public class InjectorBenchmark {
   public void injectContext(Blackhole blackhole) {
     injector.inject(spanContext, headers, MAP_SETTER);
     blackhole.consume(headers);
-    if (modifyDatadogTags) {
+    if (modifyPropagationTags) {
       int sm = mechanism = (mechanism + 1) % 4;
       propagationTags.updateTraceSamplingPriority(1, sm, "service");
     }

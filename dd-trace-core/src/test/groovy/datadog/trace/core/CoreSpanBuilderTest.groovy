@@ -325,7 +325,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     }
     span.getTag(THREAD_ID) == thread.id
     span.getTag(THREAD_NAME) == thread.name
-    span.context().datadogTags.headerValue(PropagationTags.HeaderType.DATADOG) == extractedContext.datadogTags.headerValue(PropagationTags.HeaderType.DATADOG)
+    span.context().propagationTags.headerValue(PropagationTags.HeaderType.DATADOG) == extractedContext.propagationTags.headerValue(PropagationTags.HeaderType.DATADOG)
 
     where:
     extractedContext | _

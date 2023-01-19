@@ -190,7 +190,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
     this.propagationTags =
         propagationTags != null
             ? propagationTags
-            : trace.getTracer().getDatadogTagsFactory().empty();
+            : trace.getTracer().getPropagationTagsFactory().empty();
 
     if (samplingPriority != PrioritySampling.UNSET) {
       setSamplingPriority(samplingPriority, SamplingMechanism.UNKNOWN);
@@ -586,14 +586,14 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
 
   public void processTagsAndBaggage(final MetadataConsumer consumer) {
     synchronized (unsafeTags) {
-      Map<String, String> baggageItemsWithDatadogTags = new HashMap<>(baggageItems);
-      propagationTags.fillTagMap(baggageItemsWithDatadogTags);
+      Map<String, String> baggageItemsWithPropagationTags = new HashMap<>(baggageItems);
+      propagationTags.fillTagMap(baggageItemsWithPropagationTags);
       consumer.accept(
           new Metadata(
               threadId,
               threadName,
               postProcessor.processTags(unsafeTags),
-              baggageItemsWithDatadogTags,
+              baggageItemsWithPropagationTags,
               samplingPriority != PrioritySampling.UNSET ? samplingPriority : getSamplingPriority(),
               measured,
               topLevel,
@@ -674,7 +674,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
     return this;
   }
 
-  public PropagationTags getDatadogTags() {
+  public PropagationTags getPropagationTags() {
     return propagationTags;
   }
 

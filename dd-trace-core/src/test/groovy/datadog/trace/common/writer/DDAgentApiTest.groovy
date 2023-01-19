@@ -423,7 +423,7 @@ class DDAgentApiTest extends DDCoreSpecification {
     return [discovery, new DDAgentApi(client, agentUrl, discovery, monitoring, false)]
   }
 
-  DDSpan buildSpan(long timestamp, String tag, String value, PropagationTags datadogTags) {
+  DDSpan buildSpan(long timestamp, String tag, String value, PropagationTags propagationTags) {
     def tracer = tracerBuilder().writer(new ListWriter()).build()
     def context = new DDSpanContext(
       DDTraceId.ONE,
@@ -444,7 +444,7 @@ class DDAgentApiTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      datadogTags)
+      propagationTags)
 
     def span = DDSpan.create(timestamp, context)
     span.setTag(tag, value)
