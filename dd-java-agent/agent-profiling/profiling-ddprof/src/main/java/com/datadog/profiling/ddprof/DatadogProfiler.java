@@ -11,6 +11,8 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSafeMode;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSchedulingEvent;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSchedulingEventInterval;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getStackDepth;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallCollapsing;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallContextFilter;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallInterval;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isAllocationProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isCpuProfilerEnabled;
@@ -322,9 +324,16 @@ public final class DatadogProfiler {
     }
     if (profilingModes.contains(WALL)) {
       // wall profiling is enabled.
-      cmd.append(",wall=~").append(getWallInterval(configProvider)).append('m').append(",filter=0");
-      cmd.append(",loglevel=").append(getLogLevel(configProvider));
+      cmd.append(",wall=");
+      if (getWallCollapsing(configProvider)) {
+        cmd.append("~");
+      }
+      cmd.append(getWallInterval(configProvider)).append('m');
+      if (getWallContextFilter(configProvider)) {
+        cmd.append(",filter=0");
+      }
     }
+    cmd.append(",loglevel=").append(getLogLevel(configProvider));
     if (profilingModes.contains(ALLOCATION)) {
       // allocation profiling is enabled
       cmd.append(",alloc=").append(getAllocationInterval(configProvider)).append('b');

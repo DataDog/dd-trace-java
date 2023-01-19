@@ -78,6 +78,20 @@ public class DatadogProfilerConfig {
     return getWallInterval(ConfigProvider.getInstance());
   }
 
+  public static boolean getWallCollapsing(ConfigProvider configProvider) {
+    return getBoolean(
+        configProvider,
+        PROFILING_DATADOG_PROFILER_WALL_COLLAPSING,
+        PROFILING_DATADOG_PROFILER_WALL_COLLAPSING_DEFAULT);
+  }
+
+  public static boolean getWallContextFilter(ConfigProvider configProvider) {
+    return getBoolean(
+        configProvider,
+        PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER,
+        PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER_DEFAULT);
+  }
+
   public static boolean isAllocationProfilingEnabled(ConfigProvider configProvider) {
     return getBoolean(
         configProvider,
