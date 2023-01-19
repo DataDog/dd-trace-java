@@ -2,7 +2,9 @@ package datadog.smoketest
 
 import datadog.trace.test.agent.decoder.DecodedSpan
 import groovy.json.JsonSlurper
+import okhttp3.MediaType
 import okhttp3.Request
+import okhttp3.RequestBody
 import spock.util.concurrent.PollingConditions
 
 import java.util.function.Function
@@ -15,6 +17,8 @@ import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING
 class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
 
   private static final String TAG_NAME = '_dd.iast.json'
+
+  private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8")
 
   @Override
   def logLevel() {
@@ -32,6 +36,7 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
 
     List<String> command = new ArrayList<>()
     command.add(javaPath())
+    command.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005")
     command.addAll(defaultJavaProperties)
     command.addAll([
       withSystemProperty(IAST_ENABLED, true),
@@ -282,6 +287,27 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     Boolean foundTaintedString = false
     checkLog {
       if (it.contains('taint') && it.contains('PathParam is: test')) {
+        foundTaintedString = true
+      }
+    }
+    foundTaintedString
+  }
+
+  def "request body taint json"() {
+    setup:
+    String url = "http://localhost:${httpPort}/request_body/test"
+    def request = new Request.Builder().url(url).post(RequestBody.create(JSON, '{"name": "nameTest", "value" : "valueTest"}')).build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    def responseBodyStr = response.body().string()
+    responseBodyStr != null
+    responseBodyStr.contains('@RequestBody to Test bean -> name: nameTest, value: valueTest')
+    Boolean foundTaintedString = false
+    checkLog {
+      if (it.contains('taint') && it.contains('@RequestBody to Test bean -> name: nameTest, value: valueTest')) {
         foundTaintedString = true
       }
     }
