@@ -1,6 +1,5 @@
 package com.datadog.debugger.agent;
 
-import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
@@ -13,7 +12,6 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.Snapshot;
-import datadog.trace.bootstrap.debugger.SummaryBuilder;
 import datadog.trace.util.TagsHelper;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
@@ -264,23 +262,19 @@ public class ConfigurationUpdater
 
   private Snapshot.ProbeDetails convertToProbeDetails(
       ProbeDefinition probe, Snapshot.ProbeLocation location) {
-    SummaryBuilder summaryBuilder;
-    ProbeCondition probeCondition;
-    if (probe instanceof LogProbe) {
-      LogProbe logProbe = (LogProbe) probe;
-      summaryBuilder = new LogMessageTemplateSummaryBuilder(logProbe);
-      probeCondition = logProbe.getProbeCondition();
-    } else {
+    if (!(probe instanceof LogProbe)) {
       log.warn("definition id={} has unsupported probe type: {}", probe.getId(), probe.getClass());
       return null;
     }
+    LogProbe logProbe = (LogProbe) probe;
     return new Snapshot.ProbeDetails(
         probe.getId(),
         location,
         ProbeDefinition.MethodLocation.convert(probe.getEvaluateAt()),
-        probeCondition,
+        logProbe.isCaptureSnapshot(),
+        logProbe.getProbeCondition(),
         probe.concatTags(),
-        summaryBuilder,
+        new LogMessageTemplateSummaryBuilder(logProbe),
         probe.getAdditionalProbes().stream()
             .map(relatedProbe -> convertToProbeDetails(relatedProbe, location))
             .collect(Collectors.toList()));

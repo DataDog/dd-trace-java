@@ -1419,6 +1419,7 @@ public class CapturedSnapshotTest {
             id,
             location,
             ProbeDefinition.MethodLocation.convert(probe.getEvaluateAt()),
+            true,
             probe.getProbeCondition(),
             probe.concatTags(),
             new SnapshotSummaryBuilder(location),
@@ -1429,6 +1430,7 @@ public class CapturedSnapshotTest {
                             relatedProbe.getId(),
                             location,
                             ProbeDefinition.MethodLocation.convert(relatedProbe.getEvaluateAt()),
+                            true,
                             ((LogProbe) relatedProbe).getProbeCondition(),
                             relatedProbe.concatTags(),
                             new SnapshotSummaryBuilder(location)))

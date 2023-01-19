@@ -50,6 +50,7 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
                 "org.springframework.web.servlet.DispatcherServlet",
                 "doService",
                 "(HttpServletRequest, HttpServletResponse)")
+            .captureSnapshot(true)
             .build();
     setCurrentConfiguration(createConfig(logProbe));
     String httpPort = String.valueOf(PortUtils.randomOpenPort());
