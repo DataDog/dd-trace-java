@@ -24,6 +24,7 @@ import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.config.GeneralConfig;
+import datadog.trace.api.experimental.ProfilingContext;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.InstrumentationGateway;
 import datadog.trace.api.gateway.RequestContext;
@@ -207,11 +208,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public EndpointTracker onRootSpanStarted(AgentSpan root) {
     return endpointCheckpointer.onRootSpanStarted(root);
-  }
-
-  @Override
-  public void setContextValue(String attribute, String value) {
-    profilingContextIntegration.setContextValue(attribute, value);
   }
 
   public static class CoreTracerBuilder {
@@ -1027,6 +1023,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     } catch (InterruptedException | ExecutionException | TimeoutException e) {
       log.debug("Failed to wait for metrics flush.", e);
     }
+  }
+
+  @Override
+  public ProfilingContext getProfilingContext() {
+    return profilingContextIntegration;
   }
 
   private static StatsDClient createStatsDClient(final Config config) {

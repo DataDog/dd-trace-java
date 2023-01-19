@@ -24,4 +24,16 @@ class TestProfilingContextIntegration implements ProfilingContextIntegration {
   @Override
   void setContextValue(String attribute, String value) {
   }
+
+  @Override
+  void clearContextValue(String attribute) {
+  }
+
+  @Override
+  <T extends Enum<T>> void setContextValue(T attribute, String value) {
+  }
+
+  @Override
+  <T extends Enum<T>> void clearContextValue(T attribute) {
+  }
 }

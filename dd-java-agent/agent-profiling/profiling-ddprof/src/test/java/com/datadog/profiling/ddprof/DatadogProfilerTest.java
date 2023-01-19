@@ -12,7 +12,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Properties;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -99,6 +101,10 @@ class DatadogProfilerTest {
 
   @Test
   public void testContextRegistration() throws UnsupportedEnvironmentException {
+    // warning - the profiler is a process wide singleton and can't be reinitialised
+    // so there is only one shot to test it here, 'foo,bar' need to be kept in the same
+    // order whether in the list or the enum, and any other test which tries to register
+    // context attributes will fail
     DatadogProfiler profiler =
         new DatadogProfiler(
             configProvider(true, true, true, true), new HashSet<>(Arrays.asList("foo", "bar")));
@@ -106,6 +112,22 @@ class DatadogProfilerTest {
     assertTrue(profiler.setContextValue("bar", "abc"));
     assertTrue(profiler.setContextValue("foo", "xyz"));
     assertFalse(profiler.setContextValue("xyz", "foo"));
+    assertTrue(profiler.setContextValue(ContextEnum.FOO, "abc"));
+    assertTrue(profiler.setContextValue(ContextEnum.BAR, "abc"));
+    assertTrue(profiler.setContextValue(ContextEnum.FOO, "xyz"));
+  }
+
+  @Test
+  public void testGetEnumConstants() {
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_CONTEXT_ENUM, ContextEnum.class.getName());
+    Set<String> attributes =
+        DatadogProfilerConfig.getContextAttributes(ConfigProvider.withPropertiesOverride(props));
+    assertEquals(ContextEnum.values().length, attributes.size());
+    Iterator<String> it = attributes.iterator();
+    for (ContextEnum attr : ContextEnum.values()) {
+      assertEquals(attr.toString(), it.next());
+    }
   }
 
   private static ConfigProvider configProvider(

@@ -162,5 +162,7 @@ public final class ProfilingConfig {
   public static final String PROFILING_CONTEXT_ATTRIBUTES =
       "profiling.experimental.context.attributes";
 
+  public static final String PROFILING_CONTEXT_ENUM = "profiling.experimental.context.enum";
+
   private ProfilingConfig() {}
 }

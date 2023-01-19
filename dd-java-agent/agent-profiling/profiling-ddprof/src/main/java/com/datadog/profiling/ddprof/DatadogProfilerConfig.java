@@ -6,9 +6,13 @@ import static datadog.trace.api.config.ProfilingConfig.*;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.lang.management.ManagementFactory;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DatadogProfilerConfig {
+  private static final Logger log = LoggerFactory.getLogger(DatadogProfilerConfig.class);
 
   public static boolean isCpuProfilerEnabled(ConfigProvider configProvider) {
     return getBoolean(
@@ -186,7 +190,48 @@ public class DatadogProfilerConfig {
     return getLogLevel(ConfigProvider.getInstance());
   }
 
+  public static Class<?> getContextEnum(ConfigProvider configProvider) {
+    String contextEnumClass = configProvider.getString(PROFILING_CONTEXT_ENUM);
+    if (contextEnumClass != null) {
+      try {
+        Class<?> clazz =
+            Class.forName(contextEnumClass, false, DatadogProfilerConfig.class.getClassLoader());
+        if (clazz.isEnum()) {
+          return clazz;
+        }
+      } catch (Throwable error) {
+        log.debug(
+            "{}. Invalid value of {} supplied, context fields unavailable.",
+            error.getMessage(),
+            PROFILING_CONTEXT_ENUM);
+      }
+    }
+    return null;
+  }
+
+  @SuppressWarnings("rawtypes")
+  private static Set<String> convertEnumClassToAttributes(Class<?> contextEnumClass) {
+    Enum[] constants = (Enum[]) contextEnumClass.getEnumConstants();
+    LinkedHashSet<String> attributes = new LinkedHashSet<>();
+    for (Enum<?> constant : constants) {
+      if (!attributes.add(constant.toString())) {
+        // unlikely but toString collides, so we'll have to use the name instead
+        attributes.clear();
+      }
+    }
+    if (attributes.isEmpty()) {
+      for (Enum<?> constant : constants) {
+        attributes.add(constant.name());
+      }
+    }
+    return attributes;
+  }
+
   public static Set<String> getContextAttributes(ConfigProvider configProvider) {
+    Class<?> contextEnumClass = getContextEnum(configProvider);
+    if (contextEnumClass != null) {
+      return convertEnumClassToAttributes(contextEnumClass);
+    }
     return configProvider.getSet(PROFILING_CONTEXT_ATTRIBUTES, Collections.emptySet());
   }
 

@@ -38,6 +38,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
@@ -84,6 +85,8 @@ public final class DatadogProfiler {
 
   private final ContextSetter contextSetter;
 
+  private final List<String> orderedContextAttributes;
+
   private DatadogProfiler() throws UnsupportedEnvironmentException {
     this(ConfigProvider.getInstance());
   }
@@ -92,6 +95,7 @@ public final class DatadogProfiler {
     this.configProvider = null;
     this.profiler = null;
     this.contextSetter = null;
+    this.orderedContextAttributes = null;
   }
 
   private DatadogProfiler(ConfigProvider configProvider) throws UnsupportedEnvironmentException {
@@ -123,7 +127,8 @@ public final class DatadogProfiler {
     if (isWallClockProfilerEnabled(configProvider)) {
       profilingModes.add(WALL);
     }
-    this.contextSetter = new ContextSetter(profiler, new ArrayList<>(contextAttributes));
+    this.orderedContextAttributes = new ArrayList<>(contextAttributes);
+    this.contextSetter = new ContextSetter(profiler, orderedContextAttributes);
     try {
       // sanity test - force load Datadog profiler to catch it not being available early
       profiler.execute("status");
@@ -305,6 +310,7 @@ public final class DatadogProfiler {
     cmd.append(",jstackdepth=").append(getStackDepth(configProvider));
     cmd.append(",cstack=").append(getCStack(configProvider));
     cmd.append(",safemode=").append(getSafeMode(configProvider));
+    cmd.append(",attributes=").append(String.join(";", orderedContextAttributes));
     if (profilingModes.contains(CPU)) {
       // cpu profiling is enabled.
       String schedulingEvent = getSchedulingEvent(configProvider);
@@ -356,6 +362,27 @@ public final class DatadogProfiler {
   public boolean setContextValue(String attribute, String value) {
     if (contextSetter != null) {
       return contextSetter.setContextValue(attribute, value);
+    }
+    return false;
+  }
+
+  public boolean clearContextValue(String attribute) {
+    if (contextSetter != null) {
+      return contextSetter.clearContextValue(attribute);
+    }
+    return false;
+  }
+
+  public <T extends Enum<T>> boolean setContextValue(T attribute, String value) {
+    if (contextSetter != null) {
+      return contextSetter.setContextValue(attribute.ordinal(), value);
+    }
+    return false;
+  }
+
+  public <T extends Enum<T>> boolean clearContextValue(T attribute) {
+    if (contextSetter != null) {
+      return contextSetter.clearContextValue(attribute.ordinal());
     }
     return false;
   }

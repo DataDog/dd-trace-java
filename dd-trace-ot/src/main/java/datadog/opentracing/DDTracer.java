@@ -38,8 +38,7 @@ import org.slf4j.LoggerFactory;
  * DDTracer implements the <code>io.opentracing.Tracer</code> interface to make it easy to send
  * traces and spans to Datadog using the OpenTracing API.
  */
-public class DDTracer
-    implements Tracer, datadog.trace.api.Tracer, InternalTracer, ProfilingContext {
+public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTracer {
 
   private static final Logger log = LoggerFactory.getLogger(DDTracer.class);
 
@@ -73,13 +72,6 @@ public class DDTracer
   // each depend on each other so scopeManager can't be final
   // Perhaps the api can change so that CoreTracer doesn't need to implement scope methods directly
   private ScopeManager scopeManager;
-
-  @Override
-  public void setContextValue(String attribute, String value) {
-    if (tracer != null) {
-      tracer.setContextValue(attribute, value);
-    }
-  }
 
   public static class DDTracerBuilder {
 
@@ -502,6 +494,11 @@ public class DDTracer
   @Override
   public void flushMetrics() {
     tracer.flushMetrics();
+  }
+
+  @Override
+  public ProfilingContext getProfilingContext() {
+    return tracer != null ? tracer.getProfilingContext() : ProfilingContext.NoOp.INSTANCE;
   }
 
   @Override
