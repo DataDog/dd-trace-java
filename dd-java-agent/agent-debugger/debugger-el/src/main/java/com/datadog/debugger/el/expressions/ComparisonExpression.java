@@ -31,4 +31,9 @@ public class ComparisonExpression implements BooleanExpression {
     }
     return operator.apply(leftValue, rightValue);
   }
+
+  @Override
+  public String prettyPrint() {
+    return left.prettyPrint() + " " + operator.prettyPrint() + " " + right.prettyPrint();
+  }
 }

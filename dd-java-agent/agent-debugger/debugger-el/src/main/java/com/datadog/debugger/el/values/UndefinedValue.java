@@ -37,4 +37,9 @@ public final class UndefinedValue extends Literal<Object> {
   public String toString() {
     return "UNDEFINED";
   }
+
+  @Override
+  public String prettyPrint() {
+    return "undefined";
+  }
 }

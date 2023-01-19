@@ -25,6 +25,7 @@ class ListLiteralTest {
     assertTrue(literal.isNull());
     assertTrue(literal.isEmpty());
     assertFalse(literal.isUndefined());
+    assertEquals(String.valueOf((Object) null), literal.prettyPrint());
   }
 
   private void checkUndefinedLiteral(Object undefinedValue) {
@@ -32,5 +33,6 @@ class ListLiteralTest {
     assertFalse(literal.isNull());
     assertTrue(literal.isEmpty());
     assertTrue(literal.isUndefined());
+    assertEquals(String.valueOf((Object) null), literal.prettyPrint());
   }
 }

@@ -43,4 +43,9 @@ public final class ValueRefExpression implements ValueExpression {
   public String getSymbolName() {
     return symbolName;
   }
+
+  @Override
+  public String prettyPrint() {
+    return symbolName;
+  }
 }
