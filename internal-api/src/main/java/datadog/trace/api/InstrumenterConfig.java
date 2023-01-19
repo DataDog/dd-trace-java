@@ -176,7 +176,7 @@ public class InstrumenterConfig {
 
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
 
-    legacyInstallerEnabled = configProvider.getBoolean(LEGACY_INSTALLER_ENABLED, true);
+    legacyInstallerEnabled = configProvider.getBoolean(LEGACY_INSTALLER_ENABLED, false);
   }
 
   public boolean isIntegrationsEnabled() {
