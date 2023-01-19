@@ -19,8 +19,8 @@ class NotExpressionTest {
 
   private static Stream<Arguments> expressions() {
     return Stream.of(
-        Arguments.of(null, true, "not(FALSE)"),
-        Arguments.of(BooleanExpression.TRUE, false, "not(TRUE)"),
-        Arguments.of(BooleanExpression.FALSE, true, "not(FALSE)"));
+        Arguments.of(null, true, "not(false)"),
+        Arguments.of(BooleanExpression.TRUE, false, "not(true)"),
+        Arguments.of(BooleanExpression.FALSE, true, "not(false)"));
   }
 }

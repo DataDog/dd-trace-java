@@ -14,7 +14,7 @@ public interface BooleanExpression extends Expression<Boolean> {
 
         @Override
         public String toString() {
-          return "TRUE";
+          return "true";
         }
       };
   BooleanExpression FALSE =
@@ -26,7 +26,7 @@ public interface BooleanExpression extends Expression<Boolean> {
 
         @Override
         public String toString() {
-          return "FALSE";
+          return "false";
         }
       };
 }

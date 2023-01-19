@@ -23,21 +23,21 @@ class HasAllExpressionTest {
     ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
     HasAllExpression expression = new HasAllExpression(null, null);
     assertFalse(expression.evaluate(resolver));
-    assertEquals("hasAll(null, TRUE)", expression.prettyPrint());
+    assertEquals("hasAll(null, true)", expression.prettyPrint());
     expression = new HasAllExpression(value(Values.UNDEFINED_OBJECT), null);
     assertFalse(expression.evaluate(resolver));
-    assertEquals("hasAll(UNDEFINED, TRUE)", expression.prettyPrint());
+    assertEquals("hasAll(UNDEFINED, true)", expression.prettyPrint());
     expression = new HasAllExpression(value(this), null);
     assertTrue(expression.evaluate(resolver));
     assertEquals(
-        "hasAll(com.datadog.debugger.el.expressions.HasAllExpressionTest, TRUE)",
+        "hasAll(com.datadog.debugger.el.expressions.HasAllExpressionTest, true)",
         expression.prettyPrint());
     expression = new HasAllExpression(value(Collections.singletonList(this)), null);
     assertTrue(expression.evaluate(resolver));
-    assertEquals("hasAll(List, TRUE)", expression.prettyPrint());
+    assertEquals("hasAll(List, true)", expression.prettyPrint());
     expression = new HasAllExpression(value(Collections.singletonMap(this, this)), null);
     assertTrue(expression.evaluate(resolver));
-    assertEquals("hasAll(Map, TRUE)", expression.prettyPrint());
+    assertEquals("hasAll(Map, true)", expression.prettyPrint());
   }
 
   @Test
@@ -45,11 +45,11 @@ class HasAllExpressionTest {
     ValueReferenceResolver ctx = RefResolverHelper.createResolver(this);
     HasAllExpression expression = all(null, TRUE);
     assertFalse(expression.evaluate(ctx));
-    assertEquals("hasAll(null, TRUE)", expression.prettyPrint());
+    assertEquals("hasAll(null, true)", expression.prettyPrint());
 
     expression = all(null, FALSE);
     assertFalse(expression.evaluate(ctx));
-    assertEquals("hasAll(null, FALSE)", expression.prettyPrint());
+    assertEquals("hasAll(null, false)", expression.prettyPrint());
 
     expression = all(null, eq(ref("testField"), value(10)));
     assertFalse(expression.evaluate(ctx));
@@ -61,11 +61,11 @@ class HasAllExpressionTest {
     ValueReferenceResolver ctx = RefResolverHelper.createResolver(this);
     HasAllExpression expression = all(value(Values.UNDEFINED_OBJECT), TRUE);
     assertFalse(expression.evaluate(ctx));
-    assertEquals("hasAll(UNDEFINED, TRUE)", expression.prettyPrint());
+    assertEquals("hasAll(UNDEFINED, true)", expression.prettyPrint());
 
     expression = all(null, FALSE);
     assertFalse(expression.evaluate(ctx));
-    assertEquals("hasAll(null, FALSE)", expression.prettyPrint());
+    assertEquals("hasAll(null, false)", expression.prettyPrint());
 
     expression = all(value(Values.UNDEFINED_OBJECT), eq(ref("testField"), value(10)));
     assertFalse(expression.evaluate(ctx));
@@ -79,13 +79,13 @@ class HasAllExpressionTest {
     HasAllExpression expression = all(targetExpression, TRUE);
     assertTrue(expression.evaluate(ctx));
     assertEquals(
-        "hasAll(com.datadog.debugger.el.expressions.HasAllExpressionTest, TRUE)",
+        "hasAll(com.datadog.debugger.el.expressions.HasAllExpressionTest, true)",
         expression.prettyPrint());
 
     expression = all(targetExpression, FALSE);
     assertFalse(expression.evaluate(ctx));
     assertEquals(
-        "hasAll(com.datadog.debugger.el.expressions.HasAllExpressionTest, FALSE)",
+        "hasAll(com.datadog.debugger.el.expressions.HasAllExpressionTest, false)",
         expression.prettyPrint());
 
     expression = all(targetExpression, eq(ref("testField"), value(10)));
@@ -130,7 +130,7 @@ class HasAllExpressionTest {
     expression = all(targetExpression, FALSE);
     assertFalse(expression.evaluate(ctx));
 
-    ValueRefExpression fldRef = ref(ValueReferences.ITERATOR_REF + ".testField");
+    ValueRefExpression fldRef = ref(ValueReferences.ITERATOR_REF + "testField");
     ValueRefExpression itRef = ref(ValueReferences.ITERATOR_REF);
 
     expression = all(targetExpression, eq(fldRef, value(10)));

@@ -12,7 +12,7 @@ class BinaryExpressionTest {
     BinaryExpression expression =
         new BinaryExpression(null, BooleanExpression.TRUE, BinaryOperator.AND);
     assertFalse(expression.evaluate(RefResolverHelper.createResolver(this)));
-    assertEquals("FALSE && TRUE", expression.prettyPrint());
+    assertEquals("false && true", expression.prettyPrint());
   }
 
   @Test
@@ -20,6 +20,6 @@ class BinaryExpressionTest {
     BinaryExpression expression =
         new BinaryExpression(BooleanExpression.TRUE, null, BinaryOperator.AND);
     assertFalse(expression.evaluate(RefResolverHelper.createResolver(this)));
-    assertEquals("TRUE && FALSE", expression.prettyPrint());
+    assertEquals("true && false", expression.prettyPrint());
   }
 }
