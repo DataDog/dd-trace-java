@@ -10,7 +10,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJ
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATIONS;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATION_OPERATION_NAME_NEW;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_METHODS;
@@ -34,7 +33,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_L
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATIONS;
-import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATIONS_OPERATION_NAME_NEW;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE_FILE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSLOADERS_EXCLUDE;
@@ -90,7 +88,6 @@ public class InstrumenterConfig {
   private final boolean serialVersionUIDFieldInjection;
 
   private final String traceAnnotations;
-  private final boolean traceAnnotationOperationNameNew;
   private final String traceMethods;
 
   private final boolean internalExitOnFailure;
@@ -172,9 +169,7 @@ public class InstrumenterConfig {
             SERIALVERSIONUID_FIELD_INJECTION, DEFAULT_SERIALVERSIONUID_FIELD_INJECTION);
 
     traceAnnotations = configProvider.getString(TRACE_ANNOTATIONS, DEFAULT_TRACE_ANNOTATIONS);
-    traceAnnotationOperationNameNew =
-        configProvider.getBoolean(
-            TRACE_ANNOTATIONS_OPERATION_NAME_NEW, DEFAULT_TRACE_ANNOTATION_OPERATION_NAME_NEW);
+
     traceMethods = configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS);
 
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
@@ -299,10 +294,6 @@ public class InstrumenterConfig {
     return traceAnnotations;
   }
 
-  public Boolean useNewTraceAnnotationOperationName() {
-    return traceAnnotationOperationNameNew;
-  }
-
   public String getTraceMethods() {
     return traceMethods;
   }
@@ -380,9 +371,6 @@ public class InstrumenterConfig {
         + serialVersionUIDFieldInjection
         + ", traceAnnotations='"
         + traceAnnotations
-        + '\''
-        + ", newTraceAnnotationOperationName='"
-        + traceAnnotationOperationNameNew
         + '\''
         + ", traceMethods='"
         + traceMethods

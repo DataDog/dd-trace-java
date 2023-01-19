@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.trace_annotation.TraceDecorator.DECORATE;
 
-import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Trace;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -17,18 +16,14 @@ public class TraceAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Origin final Method method) {
     final Trace traceAnnotation = method.getAnnotation(Trace.class);
-    CharSequence operationName;
-    if (InstrumenterConfig.get().useNewTraceAnnotationOperationName()) {
-      operationName =
-          traceAnnotation == null
-              ? DECORATE.spanNameForMethod(method)
-              : traceAnnotation.operationName();
-    } else {
-      operationName = traceAnnotation == null ? null : traceAnnotation.operationName();
-    }
+    CharSequence operationName = traceAnnotation == null ? null : traceAnnotation.operationName();
 
     if (operationName == null || operationName.length() == 0) {
-      operationName = DEFAULT_OPERATION_NAME;
+      if (DECORATE.useLegacyOperationName()) {
+        operationName = DEFAULT_OPERATION_NAME;
+      } else {
+        operationName = DECORATE.spanNameForMethod(method);
+      }
     }
 
     final AgentSpan span = startSpan(operationName);
