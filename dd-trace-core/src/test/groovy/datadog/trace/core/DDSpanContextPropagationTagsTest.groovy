@@ -4,6 +4,7 @@ import datadog.trace.api.DDTraceId
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
+import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.sampling.PrioritySampling.*
@@ -21,7 +22,7 @@ class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
   def "update span DatadogTags"() {
     setup:
     tracer = tracerBuilder().writer(writer).build()
-    def datadogTags = tracer.datadogTagsFactory.fromHeaderValue(header)
+    def datadogTags = tracer.datadogTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, header)
     def extracted = new ExtractedContext(DDTraceId.from(123), 456, priority, "789", 0, [:], [:], null, datadogTags)
     .withRequestContextDataAppSec("dummy")
     def span = (DDSpan) tracer.buildSpan("top")
@@ -34,7 +35,7 @@ class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
     span.getSamplingPriority() == newPriority
 
     then:
-    dd.headerValue() == newHeader
+    dd.headerValue(PropagationTags.HeaderType.DATADOG) == newHeader
     dd.createTagMap() == tagMap
 
     where:
@@ -50,7 +51,7 @@ class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
   def "update trace DatadogTags"() {
     setup:
     tracer = tracerBuilder().writer(writer).build()
-    def datadogTags = tracer.datadogTagsFactory.fromHeaderValue(header)
+    def datadogTags = tracer.datadogTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, header)
     def extracted = new ExtractedContext(DDTraceId.from(123), 456, priority, "789", 0, [:], [:], null, datadogTags)
     .withRequestContextDataAppSec("dummy")
     def rootSpan = (DDSpan) tracer.buildSpan("top")
@@ -65,9 +66,9 @@ class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
     span.getSamplingPriority() == newPriority
 
     then:
-    dd.headerValue() == null
+    dd.headerValue(PropagationTags.HeaderType.DATADOG) == null
     dd.createTagMap() == spanTagMap
-    ddRoot.headerValue() == rootHeader
+    ddRoot.headerValue(PropagationTags.HeaderType.DATADOG) == rootHeader
     ddRoot.createTagMap() == rootTagMap
 
     where:
@@ -83,7 +84,7 @@ class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
   def "forceKeep span DatadogTags"() {
     setup:
     tracer = tracerBuilder().writer(writer).build()
-    def datadogTags = tracer.datadogTagsFactory.fromHeaderValue(header)
+    def datadogTags = tracer.datadogTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, header)
     def extracted = new ExtractedContext(DDTraceId.from(123), 456, priority, "789", 0, [:], [:], null, datadogTags)
     .withRequestContextDataAppSec("dummy")
     def span = (DDSpan) tracer.buildSpan("top")
@@ -96,7 +97,7 @@ class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
     span.getSamplingPriority() == USER_KEEP
 
     then:
-    dd.headerValue() == newHeader
+    dd.headerValue(PropagationTags.HeaderType.DATADOG) == newHeader
     dd.createTagMap() == tagMap
 
     where:
@@ -110,7 +111,7 @@ class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
   def "forceKeep trace DatadogTags"() {
     setup:
     tracer = tracerBuilder().writer(writer).build()
-    def datadogTags = tracer.datadogTagsFactory.fromHeaderValue(header)
+    def datadogTags = tracer.datadogTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, header)
     def extracted = new ExtractedContext(DDTraceId.from(123), 456, priority, "789", 0, [:], [:], null, datadogTags)
     .withRequestContextDataAppSec("dummy")
     def rootSpan = (DDSpan) tracer.buildSpan("top")
@@ -125,9 +126,9 @@ class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
     span.getSamplingPriority() == USER_KEEP
 
     then:
-    dd.headerValue() == null
+    dd.headerValue(PropagationTags.HeaderType.DATADOG) == null
     dd.createTagMap() == spanTagMap
-    ddRoot.headerValue() == rootHeader
+    ddRoot.headerValue(PropagationTags.HeaderType.DATADOG) == rootHeader
     ddRoot.createTagMap() == rootTagMap
 
     where:

@@ -71,7 +71,7 @@ class DatadogHttpCodec {
       }
 
       // inject x-datadog-tags
-      String datadogTags = context.getDatadogTags().headerValue();
+      String datadogTags = context.getDatadogTags().headerValue(PropagationTags.HeaderType.DATADOG);
       if (datadogTags != null) {
         setter.set(carrier, DATADOG_TAGS_KEY, datadogTags);
       }
@@ -191,7 +191,8 @@ class DatadogHttpCodec {
                 endToEndStartTime = extractEndToEndStartTime(firstHeaderValue(value));
                 break;
               case DD_TAGS:
-                propagationTags = datadogTagsFactory.fromHeaderValue(value);
+                propagationTags =
+                    datadogTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, value);
                 break;
               case OT_BAGGAGE:
                 {

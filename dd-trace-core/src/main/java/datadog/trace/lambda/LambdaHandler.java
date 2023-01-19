@@ -89,7 +89,8 @@ public class LambdaHandler {
               traceID,
               samplingPriority);
           PropagationTags propagationTags =
-              datadogTagsFactory.fromHeaderValue(response.headers().get(DATADOG_TAGS_KEY));
+              datadogTagsFactory.fromHeaderValue(
+                  PropagationTags.HeaderType.DATADOG, response.headers().get(DATADOG_TAGS_KEY));
           return new ExtractedContext(
               DDTraceId.from(traceID),
               DDSpanId.ZERO,

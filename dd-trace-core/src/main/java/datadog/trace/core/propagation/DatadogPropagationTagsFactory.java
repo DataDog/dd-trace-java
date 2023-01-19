@@ -1,8 +1,8 @@
 package datadog.trace.core.propagation;
 
-import datadog.trace.api.sampling.PrioritySampling;
+import static datadog.trace.core.propagation.PropagationTagsFactory.PROPAGATION_ERROR_TAG_KEY;
+
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -10,7 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Captures configuration required for PropagationTags logic */
-final class DatadogPropagationTagsFactory implements PropagationTags.Factory {
+final class DatadogPropagationTagsFactory {
 
   private static final Logger log = LoggerFactory.getLogger(DatadogPropagationTagsFactory.class);
 
@@ -19,7 +19,6 @@ final class DatadogPropagationTagsFactory implements PropagationTags.Factory {
   private static final String UPSTREAM_SERVICES_DEPRECATED_TAG =
       ALLOWED_TAG_PREFIX + "upstream_services";
 
-  private static final String PROPAGATION_ERROR_TAG_KEY = "_dd.propagation_error";
   private static final String PROPAGATION_ERROR_EXTRACT_MAX_SIZE = "extract_max_size";
   private static final String PROPAGATION_ERROR_INJECT_MAX_SIZE = "inject_max_size";
   private static final String PROPAGATION_ERROR_DISABLED = "disabled";
@@ -35,10 +34,6 @@ final class DatadogPropagationTagsFactory implements PropagationTags.Factory {
 
   DatadogPropagationTagsFactory(int datadogTagsLimit) {
     this.datadogTagsLimit = datadogTagsLimit;
-  }
-
-  public PropagationTags empty() {
-    return new ValidPropagationTags(Collections.<String>emptyList());
   }
 
   /**
@@ -59,14 +54,14 @@ final class DatadogPropagationTagsFactory implements PropagationTags.Factory {
    * @return a PropagationTags containing only _dd.p.* tags or an error if the header value is
    *     invalid
    */
-  public PropagationTags fromHeaderValue(String value) {
+  public PropagationTags fromHeaderValue(PropagationTagsFactory tagsFactory, String value) {
     if (value == null) {
-      return empty();
+      return tagsFactory.empty();
     }
     if (value.length() > datadogTagsLimit) {
       // Incoming x-datadog-tags value length exceeds datadogTagsLimit
       // Set _dd.propagation_error:extract_max_size
-      return new InvalidPropagationTags(PROPAGATION_ERROR_EXTRACT_MAX_SIZE);
+      return tagsFactory.createInvalid(PROPAGATION_ERROR_EXTRACT_MAX_SIZE);
     }
 
     List<String> tagPairs = new ArrayList<>(10);
@@ -77,7 +72,7 @@ final class DatadogPropagationTagsFactory implements PropagationTags.Factory {
       if (tagKeyEndsAt < 0 || tagKeyEndsAt == len) {
         log.warn(
             "Invalid datadog tags header value: '{}' tag without a value at {}", value, tagPos);
-        return new InvalidPropagationTags(PROPAGATION_ERROR_DECODING_ERROR);
+        return tagsFactory.createInvalid(PROPAGATION_ERROR_DECODING_ERROR);
       }
       int tagValuePos = tagKeyEndsAt + 1;
       int tagValueEndsAt = value.indexOf(TAGS_SEPARATOR, tagKeyEndsAt);
@@ -88,7 +83,7 @@ final class DatadogPropagationTagsFactory implements PropagationTags.Factory {
       String tagValue = value.substring(tagValuePos, tagValueEndsAt);
       if (!validateTagKey(tagKey)) {
         log.warn("Invalid datadog tags header value: '{}' invalid tag key at {}", value, tagPos);
-        return new InvalidPropagationTags(PROPAGATION_ERROR_DECODING_ERROR);
+        return tagsFactory.createInvalid(PROPAGATION_ERROR_DECODING_ERROR);
       }
       if (tagKey.startsWith(ALLOWED_TAG_PREFIX)
           && !tagKey.startsWith(UPSTREAM_SERVICES_DEPRECATED_TAG)) {
@@ -97,14 +92,112 @@ final class DatadogPropagationTagsFactory implements PropagationTags.Factory {
               "Invalid datadog tags header value: '{}' invalid tag value at {}",
               value,
               tagValuePos);
-          return new InvalidPropagationTags(PROPAGATION_ERROR_DECODING_ERROR);
+          return tagsFactory.createInvalid(PROPAGATION_ERROR_DECODING_ERROR);
         }
         tagPairs.add(tagKey);
         tagPairs.add(tagValue);
       }
       tagPos = tagValueEndsAt + 1;
     }
-    return new ValidPropagationTags(tagPairs);
+    return tagsFactory.createValid(
+        tagPairs, calcTagsLength(tagPairs), containsTag(tagPairs, DECISION_MAKER_TAG));
+  }
+
+  String headerValue(PropagationTags propagationTags) {
+    int newSize =
+        countTagSize(
+            propagationTags.tagsSize(),
+            DECISION_MAKER_TAG,
+            propagationTags.decisionMakerTagValue());
+
+    if (newSize > datadogTagsLimit) {
+      // Drop all the tags when the outgoing value length exceeds the configured limit
+      return null;
+    }
+    // No encoding validation here because we don't allow arbitrary tag change
+
+    Iterator<String> it = propagationTags.tagPairs().iterator();
+    StringBuilder sb = new StringBuilder();
+    while (it.hasNext()) {
+      String tagKey = it.next();
+      String tagValue = it.next();
+      appendTag(sb, tagKey, tagValue);
+    }
+    if (propagationTags.missingDecisionMaker() && propagationTags.decisionMakerTagValue() != null) {
+      appendTag(sb, DECISION_MAKER_TAG, propagationTags.decisionMakerTagValue());
+    }
+    return sb.length() > 0 ? sb.toString() : null;
+  }
+
+  public void fillTagMap(PropagationTags propagationTags, Map<String, String> tagMap) {
+    int newSize =
+        countTagSize(
+            propagationTags.tagsSize(),
+            DECISION_MAKER_TAG,
+            propagationTags.decisionMakerTagValue());
+
+    if (newSize > datadogTagsLimit) {
+      // Outgoing x-datadog-tags value length exceeds the configured limit
+      // Set _dd.propagation_error:inject_max_size if the configured limit is greater than zero,
+      // else set _dd.propagation_error:disabled
+      if (datadogTagsLimit == 0) {
+        tagMap.put(PROPAGATION_ERROR_TAG_KEY, PROPAGATION_ERROR_DISABLED);
+      } else {
+        tagMap.put(PROPAGATION_ERROR_TAG_KEY, PROPAGATION_ERROR_INJECT_MAX_SIZE);
+      }
+      return;
+    }
+
+    Iterator<String> it = propagationTags.tagPairs().iterator();
+    while (it.hasNext()) {
+      String tagKey = it.next();
+      String tagValue = it.next();
+      tagMap.put(tagKey, tagValue);
+    }
+    if (propagationTags.missingDecisionMaker() && propagationTags.decisionMakerTagValue() != null) {
+      tagMap.put(DECISION_MAKER_TAG, propagationTags.decisionMakerTagValue());
+    }
+  }
+
+  private static boolean containsTag(List<String> tagPairs, String tagName) {
+    for (int i = 0; i < tagPairs.size(); i += 2) {
+      if (tagPairs.get(i).equals(tagName)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static int calcTagsLength(List<String> tagPairs) {
+    int size = 0;
+    for (String tagPair : tagPairs) {
+      size += tagPair.length();
+      size += 1; // tag or key separator
+    }
+    return size - 1; // exclude last separator
+  }
+
+  private static void appendTag(StringBuilder sb, String tagKey, String tagValue) {
+    if (sb.length() > 0) {
+      sb.append(TAGS_SEPARATOR);
+    }
+    sb.append(tagKey);
+    sb.append(TAG_KEY_SEPARATOR);
+    sb.append(tagValue);
+  }
+
+  private static int countTagSize(int size, String tagKey, String tagValue) {
+    if (tagValue != null) {
+      if (size > 0) {
+        // tag separator
+        size += 1;
+      }
+      size += tagKey.length();
+      // tag key separator
+      size += 1;
+      size += tagValue.length();
+    }
+    return size;
   }
 
   private static boolean validateTagKey(String tagKey) {
@@ -189,159 +282,5 @@ final class DatadogPropagationTagsFactory implements PropagationTags.Factory {
 
   private static boolean isHexDigit(char c) {
     return c >= 'a' && c <= 'f' || isDigit(c);
-  }
-
-  // This implementation is used for errors and doesn't allow any modifications
-  private static final class InvalidPropagationTags extends PropagationTags {
-    private final String error;
-
-    private InvalidPropagationTags(String error) {
-      this.error = error;
-    }
-
-    @Override
-    public void updateTraceSamplingPriority(
-        int samplingPriority, int samplingMechanism, String serviceName) {}
-
-    @Override
-    public String headerValue() {
-      return null;
-    }
-
-    @Override
-    public void fillTagMap(Map<String, String> tagMap) {
-      tagMap.put(PROPAGATION_ERROR_TAG_KEY, error);
-    }
-  }
-
-  // This implementation is used when service propagation is enabled
-  private final class ValidPropagationTags extends PropagationTags {
-    // tags that don't require any modifications and propagated as-is
-    private final List<String> propagatedTagPairs;
-    // pre-calc header size
-    private final int propagatedTagsSize;
-
-    private final boolean isDecisionMakerTagMissing;
-
-    // extracted decision maker tag for easier updates
-    private volatile String decisionMakerTagValue;
-
-    private ValidPropagationTags(List<String> tagPairs) {
-      assert tagPairs.size() % 2 == 0;
-      propagatedTagPairs = tagPairs;
-      propagatedTagsSize = calcTagsLength(tagPairs);
-
-      // extract the decision maker tag
-      isDecisionMakerTagMissing = !containsTag(tagPairs, DECISION_MAKER_TAG);
-    }
-
-    private int calcTagsLength(List<String> tagPairs) {
-      int size = 0;
-      for (String tagPair : tagPairs) {
-        size += tagPair.length();
-        size += 1; // tag or key separator
-      }
-      return size - 1; // exclude last separator
-    }
-
-    private boolean containsTag(List<String> tagPairs, String tagName) {
-      for (int i = 0; i < tagPairs.size(); i += 2) {
-        if (tagPairs.get(i).equals(tagName)) {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    @Override
-    public void updateTraceSamplingPriority(
-        int samplingPriority, int samplingMechanism, String serviceName) {
-
-      if (samplingPriority != PrioritySampling.UNSET && isDecisionMakerTagMissing) {
-        if (samplingPriority > 0) {
-          // protected against possible SamplingMechanism.UNKNOWN (-1) that doesn't comply with the
-          // format
-          if (samplingMechanism >= 0) {
-            decisionMakerTagValue = "-" + samplingMechanism;
-          }
-        } else {
-          // drop decision maker tag
-          decisionMakerTagValue = null;
-        }
-      }
-    }
-
-    @Override
-    public String headerValue() {
-      int newSize = countTagSize(propagatedTagsSize, DECISION_MAKER_TAG, decisionMakerTagValue);
-
-      if (newSize > datadogTagsLimit) {
-        // Drop all the tags when the outgoing value length exceeds the configured limit
-        return null;
-      }
-      // No encoding validation here because we don't allow arbitrary tag change
-
-      Iterator<String> it = propagatedTagPairs.iterator();
-      StringBuilder sb = new StringBuilder();
-      while (it.hasNext()) {
-        String tagKey = it.next();
-        String tagValue = it.next();
-        appendTag(sb, tagKey, tagValue);
-      }
-      if (isDecisionMakerTagMissing && decisionMakerTagValue != null) {
-        appendTag(sb, DECISION_MAKER_TAG, decisionMakerTagValue);
-      }
-      return sb.length() > 0 ? sb.toString() : null;
-    }
-
-    private int countTagSize(int size, String tagKey, String tagValue) {
-      if (tagValue != null) {
-        if (size > 0) {
-          // tag separator
-          size += 1;
-        }
-        size += tagKey.length();
-        // tag key separator
-        size += 1;
-        size += tagValue.length();
-      }
-      return size;
-    }
-
-    private void appendTag(StringBuilder sb, String tagKey, String tagValue) {
-      if (sb.length() > 0) {
-        sb.append(TAGS_SEPARATOR);
-      }
-      sb.append(tagKey);
-      sb.append(TAG_KEY_SEPARATOR);
-      sb.append(tagValue);
-    }
-
-    @Override
-    public void fillTagMap(Map<String, String> tagMap) {
-      int newSize = countTagSize(propagatedTagsSize, DECISION_MAKER_TAG, decisionMakerTagValue);
-
-      if (newSize > datadogTagsLimit) {
-        // Outgoing x-datadog-tags value length exceeds the configured limit
-        // Set _dd.propagation_error:inject_max_size if the configured limit is greater than zero,
-        // else set _dd.propagation_error:disabled
-        if (datadogTagsLimit == 0) {
-          tagMap.put(PROPAGATION_ERROR_TAG_KEY, PROPAGATION_ERROR_DISABLED);
-        } else {
-          tagMap.put(PROPAGATION_ERROR_TAG_KEY, PROPAGATION_ERROR_INJECT_MAX_SIZE);
-        }
-        return;
-      }
-
-      Iterator<String> it = propagatedTagPairs.iterator();
-      while (it.hasNext()) {
-        String tagKey = it.next();
-        String tagValue = it.next();
-        tagMap.put(tagKey, tagValue);
-      }
-      if (isDecisionMakerTagMissing && decisionMakerTagValue != null) {
-        tagMap.put(DECISION_MAKER_TAG, decisionMakerTagValue);
-      }
-    }
   }
 }

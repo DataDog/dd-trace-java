@@ -138,7 +138,7 @@ class DDAgentApiTest extends DDCoreSpecification {
     traces                                                                                                           | expectedRequestBody
     []                                                                                                               | []
     // service propagation enabled
-    [[buildSpan(1L, "service.name", "my-service", PropagationTags.factory().fromHeaderValue("_dd.p.usr=123"))]]     | [[new TreeMap<>([
+    [[buildSpan(1L, "service.name", "my-service", PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.usr=123"))]] | [[new TreeMap<>([
       "duration" : 10,
       "error"    : 0,
       "meta"     : ["thread.name": Thread.currentThread().getName(), "_dd.p.usr": "123", "_dd.p.dm": "-1"],
@@ -158,7 +158,7 @@ class DDAgentApiTest extends DDCoreSpecification {
       "type"     : "fakeType"
     ])]]
     // service propagation disabled
-    [[buildSpan(100L, "resource.name", "my-resource", PropagationTags.factory().fromHeaderValue("_dd.p.usr=123"))]] | [[new TreeMap<>([
+    [[buildSpan(100L, "resource.name", "my-resource", PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.usr=123"))]] | [[new TreeMap<>([
       "duration" : 10,
       "error"    : 0,
       "meta"     : ["thread.name": Thread.currentThread().getName(), "_dd.p.usr": "123", "_dd.p.dm": "-1"],

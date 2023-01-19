@@ -77,7 +77,10 @@ public class TraceMapperBenchmark {
       switch (feature) {
         case "x-dth":
           propagationTags =
-              PropagationTags.factory().fromHeaderValue("_dd.p.anytag=value,_dd.p.dm=934086a686-4");
+              PropagationTags.factory()
+                  .fromHeaderValue(
+                      PropagationTags.HeaderType.DATADOG,
+                      "_dd.p.anytag=value,_dd.p.dm=934086a686-4");
           break;
         default:
           throw new IllegalArgumentException("Unknown benchmark feature " + feature + ".");

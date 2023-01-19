@@ -74,12 +74,16 @@ public class InjectorBenchmark {
           case "x-dth":
             propagationTags =
                 PropagationTags.factory()
-                    .fromHeaderValue("_dd.p.anytag=value,_dd.p.dm=934086a686-4");
+                    .fromHeaderValue(
+                        PropagationTags.HeaderType.DATADOG,
+                        "_dd.p.anytag=value,_dd.p.dm=934086a686-4");
             break;
           case "x-dth-mod":
             propagationTags =
                 PropagationTags.factory()
-                    .fromHeaderValue("_dd.p.anytag=value,_dd.p.dm=934086a686-4");
+                    .fromHeaderValue(
+                        PropagationTags.HeaderType.DATADOG,
+                        "_dd.p.anytag=value,_dd.p.dm=934086a686-4");
             modifyDatadogTags = true;
             break;
           default:
