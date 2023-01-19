@@ -19,7 +19,10 @@ public class TraceAdvice {
     final Trace traceAnnotation = method.getAnnotation(Trace.class);
     CharSequence operationName;
     if (InstrumenterConfig.get().useNewTraceAnnotationOperationName()) {
-      operationName = DECORATE.spanNameForMethod(method);
+      operationName =
+          traceAnnotation == null
+              ? DECORATE.spanNameForMethod(method)
+              : traceAnnotation.operationName();
     } else {
       operationName = traceAnnotation == null ? null : traceAnnotation.operationName();
     }
