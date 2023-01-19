@@ -586,6 +586,8 @@ jobs:
           name: Copy jar file to docker folder
           command: |
             ls -la workspace/dd-java-agent/build/libs
+            echo "Now, listing workspace"
+            ls -la workspace/
             cp workspace/dd-java-agent/build/libs/*.jar workspace/docker/
             mv workspace/docker/*.jar workspace/docker/dd-java-agent.jar
       
