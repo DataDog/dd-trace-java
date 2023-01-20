@@ -1,6 +1,8 @@
 package com.datadog.profiling.ddprof;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.RecordingData;
@@ -99,6 +101,10 @@ class DatadogProfilerTest {
 
   @Test
   public void testContextRegistration() throws UnsupportedEnvironmentException {
+    // warning - the profiler is a process wide singleton and can't be reinitialised
+    // so there is only one shot to test it here, 'foo,bar' need to be kept in the same
+    // order whether in the list or the enum, and any other test which tries to register
+    // context attributes will fail
     DatadogProfiler profiler =
         new DatadogProfiler(
             configProvider(true, true, true, true), new HashSet<>(Arrays.asList("foo", "bar")));
