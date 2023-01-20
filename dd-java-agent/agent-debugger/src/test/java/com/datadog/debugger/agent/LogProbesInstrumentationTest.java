@@ -204,6 +204,23 @@ public class LogProbesInstrumentationTest {
         snapshot.getEvaluationErrors().get(0).getMessage());
   }
 
+  @Test
+  public void lineTemplateIndexOutOfBoundsLog() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot06";
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installSingleProbe(
+            "this is log line with element of list={strList[10]}", CLASS_NAME, null, null, "24");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assert.assertEquals(42, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertEquals("this is log line with element of list=UNDEFINED", snapshot.getSummary());
+    assertEquals(1, snapshot.getEvaluationErrors().size());
+    assertEquals("strList[10]", snapshot.getEvaluationErrors().get(0).getExpr());
+    assertEquals(
+        "index[10] out of bounds: [0-3]", snapshot.getEvaluationErrors().get(0).getMessage());
+  }
+
   private DebuggerTransformerTest.TestSnapshotListener installSingleProbe(
       String template, String typeName, String methodName, String signature, String... lines) {
     LogProbe logProbe = createProbe(LOG_ID, template, typeName, methodName, signature, lines);
