@@ -47,19 +47,14 @@ jobs:
           name: CodeQL Analysis Sarif
           path: /home/runner/work/dd-trace-java/results/java.sarif
 
-      - name: Debug
-        run:  |
-          echo "/home/runner/work/dd-trace-java"
-          ls /home/runner/work/dd-trace-java
-          echo "/home/runner/work/dd-trace-java/dd-trace-java/"
-          ls /home/runner/work/dd-trace-java/dd-trace-java/
-          echo "/home/runner/work/dd-trace-java/dd-trace-java/dd-java-agent"
-          ls /home/runner/work/dd-trace-java/dd-trace-java/dd-java-agent/
-          echo "workspace/dd-java-agent"
-          ls workspace/dd-java-agent/
-
       - name: upload dd-java-agent
         uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # 2.3.1
         with:
           name: dd-java-agent
-          path: workspace/dd-java-agent/build/
+          path: |
+            workspace/dd-java-agent/build/libs/
+            workspace/dd-java-agent/build/resources/main/dd-java-agent.version
+            workspace/dd-java-agent/build/resources/main/iast/agent-iast.version
+            workspace/dd-java-agent/build/resources/main/appsec/appsec.version
+            workspace/dd-java-agent/build/resources/main/appsec/default_config.json
+

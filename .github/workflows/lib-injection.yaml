@@ -1,14 +1,10 @@
 name: "Lib Injection Test"
+
 on:
-  push:
-    branches:
-      - master
-      - 'release/*'
-    tags:
-      - '*'
-  pull_request:
-    branches:
-      - master
+  workflow_run:
+    workflows: [CodeQL]
+    types:
+      - completed
 
 jobs:
 
