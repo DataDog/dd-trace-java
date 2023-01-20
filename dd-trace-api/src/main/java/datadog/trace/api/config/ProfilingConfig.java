@@ -79,10 +79,18 @@ public final class ProfilingConfig {
   public static final int PROFILING_DATADOG_PROFILER_CPU_INTERVAL_DEFAULT = 10;
   public static final String PROFILING_DATADOG_PROFILER_WALL_ENABLED =
       "profiling.ddprof.wall.enabled";
-  public static final boolean PROFILING_DATADOG_PROFILER_WALL_ENABLED_DEFAULT = false;
+  public static final boolean PROFILING_DATADOG_PROFILER_WALL_ENABLED_DEFAULT = true;
   public static final String PROFILING_DATADOG_PROFILER_WALL_INTERVAL =
       "profiling.ddprof.wall.interval.ms";
   public static final int PROFILING_DATADOG_PROFILER_WALL_INTERVAL_DEFAULT = 10;
+
+  public static final String PROFILING_DATADOG_PROFILER_WALL_COLLAPSING =
+      "profiling.ddprof.wall.collapsing";
+  public static final boolean PROFILING_DATADOG_PROFILER_WALL_COLLAPSING_DEFAULT = false;
+
+  public static final String PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER =
+      "profiling.ddprof.wall.context.filter";
+  public static final boolean PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER_DEFAULT = true;
 
   public static final String PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT =
       "profiling.experimental.ddprof.scheduling.event";
