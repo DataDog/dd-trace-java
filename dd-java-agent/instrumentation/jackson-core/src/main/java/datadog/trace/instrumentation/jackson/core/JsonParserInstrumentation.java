@@ -14,6 +14,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.propagation.JacksonModule;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -62,7 +63,14 @@ public class JsonParserInstrumentation extends Instrumenter.Iast
 
     @Advice.OnMethodExit
     public static void onExit(@Advice.This JsonParser jsonParser, @Advice.Return String result) {
-      InstrumentationBridge.JACKSON.onJsonParserGetString(jsonParser, result);
+      final JacksonModule module = InstrumentationBridge.JACKSON;
+      try {
+        if (module != null) {
+          module.onJsonParserGetString(jsonParser, result);
+        }
+      } catch (final Throwable e) {
+        module.onUnexpectedException("JsonParserAdvice onExit threw", e);
+      }
     }
   }
 }
