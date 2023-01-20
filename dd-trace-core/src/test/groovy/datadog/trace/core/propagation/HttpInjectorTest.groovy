@@ -50,7 +50,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      DatadogTags.factory().fromHeaderValue("_dd.p.usr=123"))
+      PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.usr=123"))
 
     final Map<String, String> carrier = Mock()
 
@@ -137,7 +137,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      DatadogTags.factory().fromHeaderValue("_dd.p.usr=123"))
+      PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.usr=123"))
 
     final Map<String, String> carrier = Mock()
 

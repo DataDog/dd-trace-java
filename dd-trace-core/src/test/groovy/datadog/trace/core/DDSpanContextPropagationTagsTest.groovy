@@ -4,12 +4,13 @@ import datadog.trace.api.DDTraceId
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
+import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
 
-class DDSpanContextDatadogTagsTest extends DDCoreSpecification {
+class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
 
   def writer = new ListWriter()
   def tracer
@@ -18,23 +19,23 @@ class DDSpanContextDatadogTagsTest extends DDCoreSpecification {
     tracer.close()
   }
 
-  def "update span DatadogTags"() {
+  def "update span PropagationTags"() {
     setup:
     tracer = tracerBuilder().writer(writer).build()
-    def datadogTags = tracer.datadogTagsFactory.fromHeaderValue(header)
-    def extracted = new ExtractedContext(DDTraceId.from(123), 456, priority, "789", 0, [:], [:], null, datadogTags)
+    def propagationTags = tracer.propagationTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, header)
+    def extracted = new ExtractedContext(DDTraceId.from(123), 456, priority, "789", 0, [:], [:], null, propagationTags)
     .withRequestContextDataAppSec("dummy")
     def span = (DDSpan) tracer.buildSpan("top")
       .asChildOf((AgentSpan.Context) extracted)
       .start()
-    def dd = span.context().getDatadogTags()
+    def dd = span.context().getPropagationTags()
 
     when:
     span.setSamplingPriority(newPriority, newMechanism)
     span.getSamplingPriority() == newPriority
 
     then:
-    dd.headerValue() == newHeader
+    dd.headerValue(PropagationTags.HeaderType.DATADOG) == newHeader
     dd.createTagMap() == tagMap
 
     where:
@@ -47,27 +48,27 @@ class DDSpanContextDatadogTagsTest extends DDCoreSpecification {
     SAMPLER_KEEP | "_dd.p.usr=123"                       | USER_KEEP    | MANUAL       | "_dd.p.usr=123"                       | ["_dd.p.usr": "123"]
   }
 
-  def "update trace DatadogTags"() {
+  def "update trace PropagationTags"() {
     setup:
     tracer = tracerBuilder().writer(writer).build()
-    def datadogTags = tracer.datadogTagsFactory.fromHeaderValue(header)
-    def extracted = new ExtractedContext(DDTraceId.from(123), 456, priority, "789", 0, [:], [:], null, datadogTags)
+    def propagationTags = tracer.propagationTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, header)
+    def extracted = new ExtractedContext(DDTraceId.from(123), 456, priority, "789", 0, [:], [:], null, propagationTags)
     .withRequestContextDataAppSec("dummy")
     def rootSpan = (DDSpan) tracer.buildSpan("top")
       .asChildOf((AgentSpan.Context) extracted)
       .start()
-    def ddRoot = rootSpan.context().getDatadogTags()
+    def ddRoot = rootSpan.context().getPropagationTags()
     def span = (DDSpan) tracer.buildSpan("current").asChildOf(rootSpan).start()
-    def dd = span.context().getDatadogTags()
+    def dd = span.context().getPropagationTags()
 
     when:
     span.setSamplingPriority(newPriority, newMechanism)
     span.getSamplingPriority() == newPriority
 
     then:
-    dd.headerValue() == null
+    dd.headerValue(PropagationTags.HeaderType.DATADOG) == null
     dd.createTagMap() == spanTagMap
-    ddRoot.headerValue() == rootHeader
+    ddRoot.headerValue(PropagationTags.HeaderType.DATADOG) == rootHeader
     ddRoot.createTagMap() == rootTagMap
 
     where:
@@ -80,23 +81,23 @@ class DDSpanContextDatadogTagsTest extends DDCoreSpecification {
     SAMPLER_KEEP | "_dd.p.usr=123"                       | USER_KEEP    | MANUAL       | "_dd.p.usr=123"                       | [:]        | ["_dd.p.usr": "123"]
   }
 
-  def "forceKeep span DatadogTags"() {
+  def "forceKeep span PropagationTags"() {
     setup:
     tracer = tracerBuilder().writer(writer).build()
-    def datadogTags = tracer.datadogTagsFactory.fromHeaderValue(header)
-    def extracted = new ExtractedContext(DDTraceId.from(123), 456, priority, "789", 0, [:], [:], null, datadogTags)
+    def propagationTags = tracer.propagationTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, header)
+    def extracted = new ExtractedContext(DDTraceId.from(123), 456, priority, "789", 0, [:], [:], null, propagationTags)
     .withRequestContextDataAppSec("dummy")
     def span = (DDSpan) tracer.buildSpan("top")
       .asChildOf((AgentSpan.Context) extracted)
       .start()
-    def dd = span.context().getDatadogTags()
+    def dd = span.context().getPropagationTags()
 
     when:
     span.context().forceKeep()
     span.getSamplingPriority() == USER_KEEP
 
     then:
-    dd.headerValue() == newHeader
+    dd.headerValue(PropagationTags.HeaderType.DATADOG) == newHeader
     dd.createTagMap() == tagMap
 
     where:
@@ -107,27 +108,27 @@ class DDSpanContextDatadogTagsTest extends DDCoreSpecification {
     SAMPLER_KEEP | "_dd.p.usr=123"                       | "_dd.p.usr=123"                       | ["_dd.p.usr": "123"]
   }
 
-  def "forceKeep trace DatadogTags"() {
+  def "forceKeep trace PropagationTags"() {
     setup:
     tracer = tracerBuilder().writer(writer).build()
-    def datadogTags = tracer.datadogTagsFactory.fromHeaderValue(header)
-    def extracted = new ExtractedContext(DDTraceId.from(123), 456, priority, "789", 0, [:], [:], null, datadogTags)
+    def propagationTags = tracer.propagationTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, header)
+    def extracted = new ExtractedContext(DDTraceId.from(123), 456, priority, "789", 0, [:], [:], null, propagationTags)
     .withRequestContextDataAppSec("dummy")
     def rootSpan = (DDSpan) tracer.buildSpan("top")
       .asChildOf((AgentSpan.Context) extracted)
       .start()
-    def ddRoot = rootSpan.context().getDatadogTags()
+    def ddRoot = rootSpan.context().getPropagationTags()
     def span = (DDSpan) tracer.buildSpan("current").asChildOf(rootSpan).start()
-    def dd = span.context().getDatadogTags()
+    def dd = span.context().getPropagationTags()
 
     when:
     span.context().forceKeep()
     span.getSamplingPriority() == USER_KEEP
 
     then:
-    dd.headerValue() == null
+    dd.headerValue(PropagationTags.HeaderType.DATADOG) == null
     dd.createTagMap() == spanTagMap
-    ddRoot.headerValue() == rootHeader
+    ddRoot.headerValue(PropagationTags.HeaderType.DATADOG) == rootHeader
     ddRoot.createTagMap() == rootTagMap
 
     where:

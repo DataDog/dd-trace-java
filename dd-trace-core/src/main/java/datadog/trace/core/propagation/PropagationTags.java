@@ -4,6 +4,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_
 
 import datadog.trace.api.Config;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -18,24 +19,28 @@ import java.util.Map;
  *   - producing meta tags to be sent to the agent
  * </pre>
  */
-public abstract class DatadogTags {
+public abstract class PropagationTags {
 
-  public static DatadogTags.Factory factory(Config config) {
+  public static PropagationTags.Factory factory(Config config) {
     return factory(config.getxDatadogTagsMaxLength());
   }
 
-  public static DatadogTags.Factory factory(int datadogTagsLimit) {
-    return new DatadogTagsFactory(datadogTagsLimit);
+  public static PropagationTags.Factory factory(int datadogTagsLimit) {
+    return new PropagationTagsFactory(datadogTagsLimit);
   }
 
-  public static DatadogTags.Factory factory() {
+  public static PropagationTags.Factory factory() {
     return factory(DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH);
   }
 
-  public interface Factory {
-    DatadogTags empty();
+  public enum HeaderType {
+    DATADOG
+  }
 
-    DatadogTags fromHeaderValue(String value);
+  public interface Factory {
+    PropagationTags empty();
+
+    PropagationTags fromHeaderValue(HeaderType headerType, String value);
   }
 
   /**
@@ -50,7 +55,7 @@ public abstract class DatadogTags {
    * sampling decision tag _dd.p.dm based on the current state. Returns null if the value length
    * exceeds a configured limit or empty.
    */
-  public abstract String headerValue();
+  public abstract String headerValue(HeaderType headerType);
 
   /**
    * Fills a provided tagMap with valid propagated _dd.p.* tags and possibly a new sampling decision
@@ -64,4 +69,13 @@ public abstract class DatadogTags {
     fillTagMap(result);
     return result;
   }
+
+  // Internal methods used by the different HeaderType implementations
+  abstract List<String> tagPairs();
+
+  abstract int tagsSize();
+
+  abstract boolean missingDecisionMaker();
+
+  abstract String decisionMakerTagValue();
 }

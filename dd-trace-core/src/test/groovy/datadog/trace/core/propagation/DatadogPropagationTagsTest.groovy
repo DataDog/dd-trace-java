@@ -6,20 +6,20 @@ import datadog.trace.core.test.DDCoreSpecification
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
 
-class DatadogTagsTest extends DDCoreSpecification {
+class DatadogPropagationTagsTest extends DDCoreSpecification {
 
-  def createDatadogTagsFromHeaderValue() {
+  def createPropagationTagsFromHeaderValue() {
     setup:
     def config = Mock(Config)
     config.getxDatadogTagsMaxLength() >> 512
-    def datadogTagsFactory = DatadogTags.factory(config)
+    def propagationTagsFactory = PropagationTags.factory(config)
 
     when:
-    def datadogTags = datadogTagsFactory.fromHeaderValue(headerValue)
+    def propagationTags = propagationTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, headerValue)
 
     then:
-    datadogTags.headerValue() == expectedHeaderValue
-    datadogTags.createTagMap() == tags
+    propagationTags.headerValue(PropagationTags.HeaderType.DATADOG) == expectedHeaderValue
+    propagationTags.createTagMap() == tags
 
     where:
     headerValue                                                                                                                  | expectedHeaderValue                        | tags
@@ -67,19 +67,19 @@ class DatadogTagsTest extends DDCoreSpecification {
     "_dd.p.dm=934086a665-12b"                                                                                                    | null                                       | ["_dd.propagation_error": "decoding_error"] // invalid dm tag value sampling mechanism contains invalid char
   }
 
-  def updateDatadogTagsSamplingMechanism() {
+  def updatePropagationTagsSamplingMechanism() {
     setup:
     def config = Mock(Config)
     config.getxDatadogTagsMaxLength() >> 512
-    def datadogTagsFactory = DatadogTags.factory(config)
-    def datadogTags = datadogTagsFactory.fromHeaderValue(originalTagSet)
+    def propagationTagsFactory = PropagationTags.factory(config)
+    def propagationTags = propagationTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, originalTagSet)
 
     when:
-    datadogTags.updateTraceSamplingPriority(priority, mechanism, "service-1")
+    propagationTags.updateTraceSamplingPriority(priority, mechanism, "service-1")
 
     then:
-    datadogTags.headerValue() == expectedHeaderValue
-    datadogTags.createTagMap() == tags
+    propagationTags.headerValue(PropagationTags.HeaderType.DATADOG) == expectedHeaderValue
+    propagationTags.createTagMap() == tags
 
     where:
     originalTagSet                                              | priority     | mechanism  | expectedHeaderValue                                         | tags
@@ -112,39 +112,39 @@ class DatadogTagsTest extends DDCoreSpecification {
     setup:
     def tags = "_dd.p.anytag=value"
     def limit = tags.length() - 1
-    def datadogTags = DatadogTags.factory(limit).fromHeaderValue(tags)
+    def propagationTags = PropagationTags.factory(limit).fromHeaderValue(PropagationTags.HeaderType.DATADOG, tags)
 
     when:
-    datadogTags.updateTraceSamplingPriority(USER_KEEP, MANUAL, "service-name")
+    propagationTags.updateTraceSamplingPriority(USER_KEEP, MANUAL, "service-name")
 
     then:
-    datadogTags.headerValue() == null
-    datadogTags.createTagMap() == ["_dd.propagation_error": "extract_max_size"]
+    propagationTags.headerValue(PropagationTags.HeaderType.DATADOG) == null
+    propagationTags.createTagMap() == ["_dd.propagation_error": "extract_max_size"]
   }
 
   def injectionLimitExceeded() {
     setup:
     def tags = "_dd.p.anytag=value"
     def limit = tags.length()
-    def datadogTags = DatadogTags.factory(limit).fromHeaderValue(tags)
+    def propagationTags = PropagationTags.factory(limit).fromHeaderValue(PropagationTags.HeaderType.DATADOG, tags)
 
     when:
-    datadogTags.updateTraceSamplingPriority(USER_KEEP, MANUAL, "service-name")
+    propagationTags.updateTraceSamplingPriority(USER_KEEP, MANUAL, "service-name")
 
     then:
-    datadogTags.headerValue() == null
-    datadogTags.createTagMap() == ["_dd.propagation_error": "inject_max_size"]
+    propagationTags.headerValue(PropagationTags.HeaderType.DATADOG) == null
+    propagationTags.createTagMap() == ["_dd.propagation_error": "inject_max_size"]
   }
 
   def injectionLimitExceededLimit0() {
     setup:
-    def datadogTags = DatadogTags.factory(0).fromHeaderValue("")
+    def propagationTags = PropagationTags.factory(0).fromHeaderValue(PropagationTags.HeaderType.DATADOG, "")
 
     when:
-    datadogTags.updateTraceSamplingPriority(USER_KEEP, MANUAL, "service-name")
+    propagationTags.updateTraceSamplingPriority(USER_KEEP, MANUAL, "service-name")
 
     then:
-    datadogTags.headerValue() == null
-    datadogTags.createTagMap() == ["_dd.propagation_error": "disabled"]
+    propagationTags.headerValue(PropagationTags.HeaderType.DATADOG) == null
+    propagationTags.createTagMap() == ["_dd.propagation_error": "disabled"]
   }
 }

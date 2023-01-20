@@ -3,7 +3,7 @@ package datadog.trace.lambda
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
-import datadog.trace.core.propagation.DatadogTags
+import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
 import datadog.trace.core.DDSpan
 import com.amazonaws.services.lambda.runtime.events.SQSEvent
@@ -46,7 +46,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
     LambdaHandler.setExtensionBaseUrl(server.address.toString())
 
     when:
-    def objTest = LambdaHandler.notifyStartInvocation(obj, DatadogTags.factory(config))
+    def objTest = LambdaHandler.notifyStartInvocation(obj, PropagationTags.factory(config))
 
     then:
     objTest.getTraceId().toString() == traceId
@@ -77,7 +77,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
     LambdaHandler.setExtensionBaseUrl(server.address.toString())
 
     when:
-    def objTest = LambdaHandler.notifyStartInvocation(obj, DatadogTags.factory(config))
+    def objTest = LambdaHandler.notifyStartInvocation(obj, PropagationTags.factory(config))
 
     then:
     objTest == expected
