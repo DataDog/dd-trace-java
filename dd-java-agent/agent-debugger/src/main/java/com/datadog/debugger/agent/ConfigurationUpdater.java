@@ -40,6 +40,8 @@ public class ConfigurationUpdater
   public static final int MAX_ALLOWED_METRIC_PROBES = 100;
   public static final int MAX_ALLOWED_LOG_PROBES = 100;
   private static final int MAX_ALLOWED_SPAN_PROBES = 100;
+  private static final double RATE_LIMIT_PER_SNAPSHOT_PROBE = 1.0;
+  private static final double RATE_LIMIT_PER_LOG_PROBE = 5000.0;
 
   public interface TransformerSupplier {
     DebuggerTransformer supply(
@@ -297,7 +299,10 @@ public class ConfigurationUpdater
         LogProbe probe = (LogProbe) addedDefinitions;
         LogProbe.Sampling sampling = probe.getSampling();
         ProbeRateLimiter.setRate(
-            probe.getId(), sampling != null ? sampling.getSnapshotsPerSecond() : 1.0);
+            probe.getId(),
+            sampling != null
+                ? sampling.getSnapshotsPerSecond()
+                : getDefaultRateLimitPerProbe(probe));
       }
     }
     // remove rate for all removed probes
@@ -311,6 +316,10 @@ public class ConfigurationUpdater
     if (sampling != null) {
       ProbeRateLimiter.setGlobalRate(sampling.getSnapshotsPerSecond());
     }
+  }
+
+  private double getDefaultRateLimitPerProbe(LogProbe probe) {
+    return probe.isCaptureSnapshot() ? RATE_LIMIT_PER_SNAPSHOT_PROBE : RATE_LIMIT_PER_LOG_PROBE;
   }
 
   private void removeCurrentTransformer() {
