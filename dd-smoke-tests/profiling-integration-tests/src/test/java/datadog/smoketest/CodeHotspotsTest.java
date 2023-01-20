@@ -58,9 +58,9 @@ public final class CodeHotspotsTest {
 
   @BeforeAll
   static void setupAll() throws Exception {
-    if (Platform.isMac() && System.getenv("TEST_LIBASYNC") == null) {
+    if (Platform.isMac() && System.getenv("TEST_LIBDDPROF") == null) {
       throw new UnsupportedOperationException(
-          "Set TEST_LIBASYNC env variable to point to MacOS version of libasyncProfiler.so, and rerun.");
+          "Set TEST_LIBDDPROF env variable to point to MacOS version of libjavaProfiler.so, and rerun.");
     }
     Files.createDirectories(LOG_FILE_BASE);
   }

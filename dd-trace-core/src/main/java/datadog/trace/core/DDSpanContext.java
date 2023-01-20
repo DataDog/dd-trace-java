@@ -19,7 +19,7 @@ import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.core.propagation.DatadogTags;
+import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.tagprocessor.QueryObfuscator;
 import datadog.trace.core.tagprocessor.TagsPostProcessor;
@@ -123,7 +123,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
 
   private final boolean disableSamplingMechanismValidation;
 
-  private final DatadogTags datadogTags;
+  private final PropagationTags propagationTags;
 
   private volatile PathwayContext pathwayContext;
 
@@ -146,7 +146,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
       final Object requestContextDataIast,
       final PathwayContext pathwayContext,
       final boolean disableSamplingMechanismValidation,
-      final DatadogTags datadogTags) {
+      final PropagationTags propagationTags) {
 
     assert trace != null;
     this.trace = trace;
@@ -187,8 +187,10 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
     this.threadName = THREAD_NAMES.computeIfAbsent(current.getName(), Functions.UTF8_ENCODE);
 
     this.disableSamplingMechanismValidation = disableSamplingMechanismValidation;
-    this.datadogTags =
-        datadogTags != null ? datadogTags : trace.getTracer().getDatadogTagsFactory().empty();
+    this.propagationTags =
+        propagationTags != null
+            ? propagationTags
+            : trace.getTracer().getPropagationTagsFactory().empty();
 
     if (samplingPriority != PrioritySampling.UNSET) {
       setSamplingPriority(samplingPriority, SamplingMechanism.UNKNOWN);
@@ -298,7 +300,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
     // even if the old sampling priority and mechanism have already propagated
     if (SAMPLING_PRIORITY_UPDATER.getAndSet(this, PrioritySampling.USER_KEEP)
         == PrioritySampling.UNSET) {
-      datadogTags.updateTraceSamplingPriority(
+      propagationTags.updateTraceSamplingPriority(
           PrioritySampling.USER_KEEP, samplingMechanism, serviceName);
     }
   }
@@ -339,8 +341,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
       }
       return false;
     }
-    // set trace level sampling priority tag datadogTags
-    datadogTags.updateTraceSamplingPriority(newPriority, newMechanism, serviceName);
+    // set trace level sampling priority tag propagationTags
+    propagationTags.updateTraceSamplingPriority(newPriority, newMechanism, serviceName);
     return true;
   }
 
@@ -584,14 +586,14 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
 
   public void processTagsAndBaggage(final MetadataConsumer consumer) {
     synchronized (unsafeTags) {
-      Map<String, String> baggageItemsWithDatadogTags = new HashMap<>(baggageItems);
-      datadogTags.fillTagMap(baggageItemsWithDatadogTags);
+      Map<String, String> baggageItemsWithPropagationTags = new HashMap<>(baggageItems);
+      propagationTags.fillTagMap(baggageItemsWithPropagationTags);
       consumer.accept(
           new Metadata(
               threadId,
               threadName,
               postProcessor.processTags(unsafeTags),
-              baggageItemsWithDatadogTags,
+              baggageItemsWithPropagationTags,
               samplingPriority != PrioritySampling.UNSET ? samplingPriority : getSamplingPriority(),
               measured,
               topLevel,
@@ -672,8 +674,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
     return this;
   }
 
-  public DatadogTags getDatadogTags() {
-    return datadogTags;
+  public PropagationTags getPropagationTags() {
+    return propagationTags;
   }
 
   /** TraceSegment Implementation */

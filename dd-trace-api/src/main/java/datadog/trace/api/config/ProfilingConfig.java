@@ -58,47 +58,56 @@ public final class ProfilingConfig {
   public static final String PROFILING_AUXILIARY_TYPE = "profiling.auxiliary";
   public static final String PROFILING_AUXILIARY_TYPE_DEFAULT = "none";
 
-  public static final String PROFILING_ASYNC_ENABLED = "profiling.async.enabled";
-  public static final boolean PROFILING_ASYNC_ENABLED_DEFAULT = false;
+  public static final String PROFILING_DATADOG_PROFILER_ENABLED = "profiling.ddprof.enabled";
 
   public static final String PROFILING_DIRECT_ALLOCATION_ENABLED =
       "profiling.directallocation.enabled";
   public static final boolean PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT = false;
 
-  public static final String PROFILING_ASYNC_LIBPATH = "profiling.async.lib";
-  public static final String PROFILING_ASYNC_ALLOC_ENABLED = "profiling.async.alloc.enabled";
-  public static final boolean PROFILING_ASYNC_ALLOC_ENABLED_DEFAULT = false;
-  public static final String PROFILING_ASYNC_ALLOC_INTERVAL = "profiling.async.alloc.interval";
-  public static final int PROFILING_ASYNC_ALLOC_INTERVAL_DEFAULT = 256 * 1024;
-  public static final String PROFILING_ASYNC_CPU_ENABLED = "profiling.async.cpu.enabled";
-  public static final boolean PROFILING_ASYNC_CPU_ENABLED_DEFAULT = true;
-  public static final String PROFILING_ASYNC_CPU_INTERVAL = "profiling.async.cpu.interval.ms";
-  public static final int PROFILING_ASYNC_CPU_INTERVAL_DEFAULT = 10;
-  public static final String PROFILING_ASYNC_WALL_ENABLED = "profiling.async.wall.enabled";
-  public static final boolean PROFILING_ASYNC_WALL_ENABLED_DEFAULT = false;
-  public static final String PROFILING_ASYNC_WALL_INTERVAL = "profiling.async.wall.interval.ms";
-  public static final int PROFILING_ASYNC_WALL_INTERVAL_DEFAULT = 10;
+  public static final String PROFILING_DATADOG_PROFILER_LIBPATH = "profiling.ddprof.debug.lib";
+  public static final String PROFILING_DATADOG_PROFILER_ALLOC_ENABLED =
+      "profiling.ddprof.alloc.enabled";
+  public static final boolean PROFILING_DATADOG_PROFILER_ALLOC_ENABLED_DEFAULT = false;
+  public static final String PROFILING_DATADOG_PROFILER_ALLOC_INTERVAL =
+      "profiling.ddprof.alloc.interval";
+  public static final int PROFILING_DATADOG_PROFILER_ALLOC_INTERVAL_DEFAULT = 256 * 1024;
+  public static final String PROFILING_DATADOG_PROFILER_CPU_ENABLED =
+      "profiling.ddprof.cpu.enabled";
+  public static final boolean PROFILING_DATADOG_PROFILER_CPU_ENABLED_DEFAULT = true;
+  public static final String PROFILING_DATADOG_PROFILER_CPU_INTERVAL =
+      "profiling.ddprof.cpu.interval.ms";
+  public static final int PROFILING_DATADOG_PROFILER_CPU_INTERVAL_DEFAULT = 10;
+  public static final String PROFILING_DATADOG_PROFILER_WALL_ENABLED =
+      "profiling.ddprof.wall.enabled";
+  public static final boolean PROFILING_DATADOG_PROFILER_WALL_ENABLED_DEFAULT = false;
+  public static final String PROFILING_DATADOG_PROFILER_WALL_INTERVAL =
+      "profiling.ddprof.wall.interval.ms";
+  public static final int PROFILING_DATADOG_PROFILER_WALL_INTERVAL_DEFAULT = 10;
 
-  public static final String PROFILING_ASYNC_SCHEDULING_EVENT =
-      "profiling.experimental.async.scheduling.event";
+  public static final String PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT =
+      "profiling.experimental.ddprof.scheduling.event";
 
-  public static final String PROFILING_ASYNC_SCHEDULING_EVENT_INTERVAL =
-      "profiling.experimental.async.scheduling.event.interval";
+  public static final String PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT_INTERVAL =
+      "profiling.experimental.ddprof.scheduling.event.interval";
 
-  public static final String PROFILING_ASYNC_LOG_LEVEL = "profiling.async.loglevel";
+  public static final String PROFILING_DATADOG_PROFILER_LOG_LEVEL = "profiling.ddprof.loglevel";
 
-  public static final String PROFILING_ASYNC_LOG_LEVEL_DEFAULT = "NONE";
-  public static final String PROFILING_ASYNC_STACKDEPTH = "profiling.async.stackdepth";
-  public static final int PROFILING_ASYNC_STACKDEPTH_DEFAULT = 512;
-  public static final String PROFILING_ASYNC_CSTACK = "profiling.async.cstack";
-  public static final String PROFILING_ASYNC_CSTACK_DEFAULT = "no";
-  public static final String PROFILING_ASYNC_SAFEMODE = "profiling.async.safemode";
-  public static final int PROFILING_ASYNC_SAFEMODE_DEFAULT = 12; // POP_METHOD|UNWIND_NATIVE
-  public static final String PROFILING_ASYNC_MEMLEAK_ENABLED = "profiling.async.memleak.enabled";
-  public static final boolean PROFILING_ASYNC_MEMLEAK_ENABLED_DEFAULT = false;
-  public static final String PROFILING_ASYNC_MEMLEAK_INTERVAL = "profiling.async.memleak.interval";
-  public static final String PROFILING_ASYNC_MEMLEAK_CAPACITY = "profiling.async.memleak.capacity";
-  public static final int PROFILING_ASYNC_MEMLEAK_CAPACITY_DEFAULT = 1024;
+  public static final String PROFILING_DATADOG_PROFILER_LOG_LEVEL_DEFAULT = "NONE";
+  public static final String PROFILING_DATADOG_PROFILER_STACKDEPTH = "profiling.ddprof.stackdepth";
+  public static final int PROFILING_DATADOG_PROFILER_STACKDEPTH_DEFAULT = 512;
+  public static final String PROFILING_DATADOG_PROFILER_CSTACK = "profiling.ddprof.cstack";
+  public static final String PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT = "no";
+  public static final String PROFILING_DATADOG_PROFILER_SAFEMODE = "profiling.ddprof.safemode";
+  public static final int PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT =
+      12; // POP_METHOD|UNWIND_NATIVE
+  public static final String PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED =
+      "profiling.ddprof.memleak.enabled";
+  public static final boolean PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED_DEFAULT = false;
+  public static final String PROFILING_DATADOG_PROFILER_MEMLEAK_INTERVAL =
+      "profiling.ddprof.memleak.interval";
+  public static final String PROFILING_DATADOG_PROFILER_MEMLEAK_CAPACITY =
+      "profiling.ddprof.memleak.capacity";
+  public static final int PROFILING_DATADOG_PROFILER_MEMLEAK_CAPACITY_DEFAULT = 1024;
   public static final String PROFILING_TRACING_CONTEXT_ENABLED =
       "profiling.tracing_context.enabled";
   public static final boolean PROFILING_TRACING_CONTEXT_ENABLED_DEFAULT = true;
@@ -149,6 +158,9 @@ public final class ProfilingConfig {
   public static final String PROFILING_ENABLED_EVENTS = "profiling.enabled.events";
 
   public static final String PROFILING_DEBUG_DUMP_PATH = "profiling.debug.dump_path";
+
+  public static final String PROFILING_CONTEXT_ATTRIBUTES =
+      "profiling.experimental.context.attributes";
 
   private ProfilingConfig() {}
 }

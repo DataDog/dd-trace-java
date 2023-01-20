@@ -20,19 +20,29 @@ import java.nio.file.Paths;
  * <p>The workspace path will be used in the CIProviderInfo constructor to access the `.git` folder
  * and calculate the git information properly.
  */
-class UnknownCIInfo extends CIProviderInfo {
+class UnknownCIInfo implements CIProviderInfo {
 
   public static final String UNKNOWN_PROVIDER_NAME = "unknown";
 
-  UnknownCIInfo() {}
+  private final String targetFolder;
+  private final Path currentPath;
+
+  UnknownCIInfo() {
+    this(".git", Paths.get("").toAbsolutePath());
+  }
+
+  UnknownCIInfo(String targetFolder, Path currentPath) {
+    this.targetFolder = targetFolder;
+    this.currentPath = currentPath;
+  }
 
   @Override
-  protected GitInfo buildCIGitInfo() {
+  public GitInfo buildCIGitInfo() {
     return GitInfo.NOOP;
   }
 
   @Override
-  protected CIInfo buildCIInfo() {
+  public CIInfo buildCIInfo() {
     final Path workspace = findParentPathBackwards(getCurrentPath(), getTargetFolder(), true);
     if (workspace == null) {
       return CIInfo.NOOP;
@@ -42,11 +52,11 @@ class UnknownCIInfo extends CIProviderInfo {
   }
 
   protected String getTargetFolder() {
-    return ".git";
+    return targetFolder;
   }
 
   protected Path getCurrentPath() {
-    return Paths.get("").toAbsolutePath();
+    return currentPath;
   }
 
   @Override

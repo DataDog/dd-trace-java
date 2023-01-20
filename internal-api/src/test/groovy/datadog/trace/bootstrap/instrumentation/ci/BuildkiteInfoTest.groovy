@@ -1,15 +1,10 @@
 package datadog.trace.bootstrap.instrumentation.ci
 
-class BuildkiteInfoTest extends CIProviderInfoTest {
+class BuildkiteInfoTest extends CITagsProviderImplTest {
 
   @Override
   CIProviderInfo instanceProvider() {
-    return new BuildkiteInfo() {
-        @Override
-        protected String getGitFolderName() {
-          return GIT_FOLDER_FOR_TESTS
-        }
-      }
+    return new BuildkiteInfo()
   }
 
   @Override

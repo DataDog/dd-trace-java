@@ -1,12 +1,15 @@
 package com.datadog.debugger.probe;
 
 import com.datadog.debugger.agent.Generated;
+import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.ValueScript;
-import com.datadog.debugger.instrumentation.SnapshotInstrumentor;
+import com.datadog.debugger.instrumentation.LogInstrumentor;
+import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
+import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.util.Strings;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -110,13 +113,119 @@ public class LogProbe extends ProbeDefinition {
     }
   }
 
+  /** Stores capture limits */
+  public static final class Capture {
+    private int maxReferenceDepth = Limits.DEFAULT_REFERENCE_DEPTH;
+    private int maxCollectionSize = Limits.DEFAULT_COLLECTION_SIZE;
+    private int maxLength = Limits.DEFAULT_LENGTH;
+    private int maxFieldCount = Limits.DEFAULT_FIELD_COUNT;
+
+    private Capture() {
+      // for Moshi to assign default values
+    }
+
+    public Capture(int maxReferenceDepth, int maxCollectionSize, int maxLength, int maxFieldCount) {
+      this.maxReferenceDepth = maxReferenceDepth;
+      this.maxCollectionSize = maxCollectionSize;
+      this.maxLength = maxLength;
+      this.maxFieldCount = maxFieldCount;
+    }
+
+    public int getMaxReferenceDepth() {
+      return maxReferenceDepth;
+    }
+
+    public int getMaxCollectionSize() {
+      return maxCollectionSize;
+    }
+
+    public int getMaxLength() {
+      return maxLength;
+    }
+
+    public int getMaxFieldCount() {
+      return maxFieldCount;
+    }
+
+    @Generated
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      Capture capture = (Capture) o;
+      return maxReferenceDepth == capture.maxReferenceDepth
+          && maxCollectionSize == capture.maxCollectionSize
+          && maxLength == capture.maxLength
+          && maxFieldCount == capture.maxFieldCount;
+    }
+
+    @Generated
+    @Override
+    public int hashCode() {
+      return Objects.hash(maxReferenceDepth, maxCollectionSize, maxLength, maxFieldCount);
+    }
+  }
+
+  /** Stores sampling configuration */
+  public static final class Sampling {
+    private final double snapshotsPerSecond;
+
+    public Sampling(double snapshotsPerSecond) {
+      this.snapshotsPerSecond = snapshotsPerSecond;
+    }
+
+    public double getSnapshotsPerSecond() {
+      return snapshotsPerSecond;
+    }
+
+    @Generated
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      Sampling sampling = (Sampling) o;
+      return Double.compare(sampling.snapshotsPerSecond, snapshotsPerSecond) == 0;
+    }
+
+    @Generated
+    @Override
+    public int hashCode() {
+      return Objects.hash(snapshotsPerSecond);
+    }
+
+    @Generated
+    @Override
+    public String toString() {
+      return "Sampling{" + "snapshotsPerSecond=" + snapshotsPerSecond + '}';
+    }
+  }
+
   private final String template;
   private final List<Segment> segments;
+  private final boolean captureSnapshot;
+
+  @Json(name = "when")
+  private final ProbeCondition probeCondition;
+
+  private final Capture capture;
+  private final Sampling sampling;
 
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
   public LogProbe() {
-    this(LANGUAGE, null, true, null, null, MethodLocation.DEFAULT, null, new ArrayList<>());
+    this(
+        LANGUAGE,
+        null,
+        true,
+        null,
+        null,
+        MethodLocation.DEFAULT,
+        null,
+        null,
+        false,
+        null,
+        null,
+        null);
   }
 
   public LogProbe(
@@ -127,10 +236,18 @@ public class LogProbe extends ProbeDefinition {
       Where where,
       MethodLocation evaluateAt,
       String template,
-      List<Segment> segments) {
+      List<Segment> segments,
+      boolean captureSnapshot,
+      ProbeCondition probeCondition,
+      Capture capture,
+      Sampling sampling) {
     super(language, id, active, tagStrs, where, evaluateAt);
     this.template = template;
     this.segments = segments;
+    this.captureSnapshot = captureSnapshot;
+    this.probeCondition = probeCondition;
+    this.capture = capture;
+    this.sampling = sampling;
   }
 
   public String getTemplate() {
@@ -141,13 +258,29 @@ public class LogProbe extends ProbeDefinition {
     return segments;
   }
 
+  public boolean isCaptureSnapshot() {
+    return captureSnapshot;
+  }
+
+  public ProbeCondition getProbeCondition() {
+    return probeCondition;
+  }
+
+  public Capture getCapture() {
+    return capture;
+  }
+
+  public Sampling getSampling() {
+    return sampling;
+  }
+
   @Override
   public void instrument(
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics) {
-    new SnapshotInstrumentor(this, classLoader, classNode, methodNode, diagnostics).instrument();
+    new LogInstrumentor(this, classLoader, classNode, methodNode, diagnostics).instrument();
   }
 
   @Generated
@@ -164,13 +297,32 @@ public class LogProbe extends ProbeDefinition {
         && Objects.equals(where, that.where)
         && Objects.equals(evaluateAt, that.evaluateAt)
         && Objects.equals(template, that.template)
-        && Objects.equals(segments, that.segments);
+        && Objects.equals(segments, that.segments)
+        && Objects.equals(captureSnapshot, that.captureSnapshot)
+        && Objects.equals(probeCondition, that.probeCondition)
+        && Objects.equals(capture, that.capture)
+        && Objects.equals(sampling, that.sampling)
+        && Objects.equals(additionalProbes, that.additionalProbes);
   }
 
   @Generated
   @Override
   public int hashCode() {
-    int result = Objects.hash(language, id, active, tagMap, where, evaluateAt, template, segments);
+    int result =
+        Objects.hash(
+            language,
+            id,
+            active,
+            tagMap,
+            where,
+            evaluateAt,
+            template,
+            segments,
+            captureSnapshot,
+            probeCondition,
+            capture,
+            sampling,
+            additionalProbes);
     result = 31 * result + Arrays.hashCode(tags);
     return result;
   }
@@ -200,6 +352,16 @@ public class LogProbe extends ProbeDefinition {
         + '\''
         + ", segments="
         + segments
+        + ", captureSnapshot="
+        + captureSnapshot
+        + ", when="
+        + probeCondition
+        + ", capture="
+        + capture
+        + ", sampling="
+        + sampling
+        + ", additionalProbes="
+        + additionalProbes
         + "} ";
   }
 
@@ -210,6 +372,10 @@ public class LogProbe extends ProbeDefinition {
   public static class Builder extends ProbeDefinition.Builder<Builder> {
     private String template;
     private List<Segment> segments;
+    private boolean captureSnapshot;
+    private ProbeCondition probeCondition;
+    private Capture capture;
+    private Sampling sampling;
 
     public Builder template(String template) {
       this.template = template;
@@ -217,9 +383,49 @@ public class LogProbe extends ProbeDefinition {
       return this;
     }
 
+    public Builder captureSnapshot(boolean captureSnapshot) {
+      this.captureSnapshot = captureSnapshot;
+      return this;
+    }
+
+    public Builder capture(Capture capture) {
+      this.capture = capture;
+      return this;
+    }
+
+    public Builder sampling(Sampling sampling) {
+      this.sampling = sampling;
+      return this;
+    }
+
+    public Builder when(ProbeCondition probeCondition) {
+      this.probeCondition = probeCondition;
+      return this;
+    }
+
+    public Builder capture(
+        int maxReferenceDepth, int maxCollectionSize, int maxLength, int maxFieldCount) {
+      return capture(new Capture(maxReferenceDepth, maxCollectionSize, maxLength, maxFieldCount));
+    }
+
+    public Builder sampling(double rateLimit) {
+      return sampling(new Sampling(rateLimit));
+    }
+
     public LogProbe build() {
       return new LogProbe(
-          language, probeId, active, tagStrs, where, evaluateAt, template, segments);
+          language,
+          probeId,
+          active,
+          tagStrs,
+          where,
+          evaluateAt,
+          template,
+          segments,
+          captureSnapshot,
+          probeCondition,
+          capture,
+          sampling);
     }
 
     private static List<Segment> parseTemplate(String template) {

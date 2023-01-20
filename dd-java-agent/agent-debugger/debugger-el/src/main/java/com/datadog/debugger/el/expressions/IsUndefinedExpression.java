@@ -1,6 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
-import com.datadog.debugger.el.Predicate;
+import static com.datadog.debugger.el.Expression.nullSafePrettyPrint;
+
 import com.datadog.debugger.el.Value;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
@@ -9,7 +10,7 @@ import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
  * This can happen when the {@linkplain ValueReferenceResolver} is not able to properly resolve a
  * reference or an expression is using {@linkplain Value#UNDEFINED} value in its computation.
  */
-public final class IsUndefinedExpression implements PredicateExpression {
+public final class IsUndefinedExpression implements BooleanExpression {
   private final ValueExpression<?> valueExpression;
 
   public IsUndefinedExpression(ValueExpression<?> valueExpression) {
@@ -17,11 +18,16 @@ public final class IsUndefinedExpression implements PredicateExpression {
   }
 
   @Override
-  public Predicate evaluate(ValueReferenceResolver valueRefResolver) {
+  public Boolean evaluate(ValueReferenceResolver valueRefResolver) {
     if (valueExpression == null) {
-      return Predicate.FALSE;
+      return Boolean.FALSE;
     }
     Value<?> value = valueExpression.evaluate(valueRefResolver);
-    return value.isUndefined() ? Predicate.TRUE : Predicate.FALSE;
+    return value.isUndefined() ? Boolean.TRUE : Boolean.FALSE;
+  }
+
+  @Override
+  public String prettyPrint() {
+    return "isUndefined(" + nullSafePrettyPrint(valueExpression) + ")";
   }
 }

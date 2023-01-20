@@ -23,4 +23,14 @@ class DebuggerTracerTest {
     span.finish();
     assertNotEquals(0, underlyingSpan.getDurationNano());
   }
+
+  @Test
+  public void setError() {
+    AgentTracer.forceRegister(CoreTracer.builder().build());
+    DebuggerTracer debuggerTracer = new DebuggerTracer();
+    DebuggerSpan span = debuggerTracer.createSpan("a-span", new String[] {"foo:bar"});
+    span.setError(new IllegalArgumentException("oops"));
+    AgentSpan underlyingSpan = ((DebuggerTracer.DebuggerSpanImpl) span).underlyingSpan;
+    assertTrue(underlyingSpan.isError());
+  }
 }

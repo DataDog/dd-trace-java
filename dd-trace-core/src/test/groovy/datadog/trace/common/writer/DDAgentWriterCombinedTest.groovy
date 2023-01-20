@@ -21,7 +21,7 @@ import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.Mapper
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.core.monitor.TracerHealthMetrics
-import datadog.trace.core.propagation.DatadogTags
+import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
 import spock.lang.Retry
@@ -285,7 +285,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      DatadogTags.factory().empty())
+      PropagationTags.factory().empty())
   }
 
   def createMinimalTrace() {

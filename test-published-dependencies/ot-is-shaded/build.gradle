@@ -21,18 +21,23 @@ abstract class CheckJarContentsTask extends DefaultTask {
   @Input
   String[] expectedPatterns
 
-  def buildExpectedPatterns() {
-    return this.expectedPatterns.collect { it ->
-      Pattern::compile(it)
-    }
-  }
+  @Input
+  String[] excludedPatterns
 
   @TaskAction
   def check() {
     def contents = listJarFileContents(this.file)
-    def expectedPatterns = buildExpectedPatterns()
+    def expectedPatterns = buildPatterns(this.expectedPatterns)
+    def excludedPatterns = buildPatterns(this.excludedPatterns)
     checkAllExpectedContentIsPresent(contents, expectedPatterns)
-    checkNoUnexpectedContent(contents, expectedPatterns)
+    checkUnexpectedContent(contents, expectedPatterns, true)
+    checkUnexpectedContent(contents, excludedPatterns, false)
+  }
+
+  static def buildPatterns(String[] patterns) {
+    return patterns.collect { it ->
+      Pattern::compile(it)
+    }
   }
 
   static def listJarFileContents(File jarFile) {
@@ -62,11 +67,11 @@ abstract class CheckJarContentsTask extends DefaultTask {
     }
   }
 
-  static def checkNoUnexpectedContent(Collection<String> contents, Collection<Pattern> expectedPatterns) {
+  static def checkUnexpectedContent(Collection<String> contents, Collection<Pattern> patterns, boolean isExpected) {
     def unexpectedContent = []
     for (final def file in contents) {
-      def isExpected = expectedPatterns.any( it -> it.matcher(file).matches())
-      if (!isExpected) {
+      def matches = patterns.any( it -> it.matcher(file).matches())
+      if (matches != isExpected) {
         unexpectedContent << file
       }
     }
@@ -88,6 +93,16 @@ tasks.register('checkJarContents', CheckJarContentsTask) {
     '^META-INF/.*$',
     '^datadog/.*$',
     '^ddtrot/.*$'
+  ]
+  excludedPatterns = [
+    '^dd-trace-api.version$',
+    '^datadog/trace/api/Trace.class$',
+    '^datadog/trace/api/Tracer.class$',
+    '^datadog/trace/api/config/TracerConfig.class$',
+    '^datadog/trace/api/interception/TraceInterceptor.class$',
+    '^datadog/trace/api/internal/InternalApi.class$',
+    '^datadog/trace/api/sampling/PrioritySampling.class$',
+    '^datadog/trace/context/TraceScope.class$',
   ]
 }
 

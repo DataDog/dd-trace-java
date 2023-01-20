@@ -36,6 +36,7 @@ class AuxiliaryProfilerTest {
   @Test
   void testAuxiliaryFromServiceLoader() {
     Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_ENABLED, "false");
     props.put(ProfilingConfig.PROFILING_AUXILIARY_TYPE, TestAuxiliaryProfilerImplementation.TYPE);
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 

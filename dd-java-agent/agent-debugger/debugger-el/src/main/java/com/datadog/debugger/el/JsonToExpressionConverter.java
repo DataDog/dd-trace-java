@@ -5,7 +5,7 @@ import static com.squareup.moshi.JsonReader.Token.END_ARRAY;
 import static com.squareup.moshi.JsonReader.Token.NUMBER;
 import static com.squareup.moshi.JsonReader.Token.STRING;
 
-import com.datadog.debugger.el.expressions.PredicateExpression;
+import com.datadog.debugger.el.expressions.BooleanExpression;
 import com.datadog.debugger.el.expressions.ValueExpression;
 import com.squareup.moshi.JsonReader;
 import java.io.IOException;
@@ -17,18 +17,18 @@ public class JsonToExpressionConverter {
 
   @FunctionalInterface
   interface BinaryPredicateExpressionFunction<T extends Expression> {
-    PredicateExpression apply(T left, T right);
+    BooleanExpression apply(T left, T right);
   }
 
   @FunctionalInterface
   interface CompositePredicateExpressionFunction<T extends Expression> {
-    PredicateExpression apply(T... values);
+    BooleanExpression apply(T... values);
   }
 
-  public static PredicateExpression createPredicate(JsonReader reader) throws IOException {
+  public static BooleanExpression createPredicate(JsonReader reader) throws IOException {
     reader.beginObject();
     String predicateType = reader.nextName();
-    PredicateExpression expr = null;
+    BooleanExpression expr = null;
     switch (predicateType) {
       case "not":
         {
@@ -184,11 +184,11 @@ public class JsonToExpressionConverter {
     return expr;
   }
 
-  public static PredicateExpression createHasAnyPredicate(JsonReader reader) throws IOException {
+  public static BooleanExpression createHasAnyPredicate(JsonReader reader) throws IOException {
     return DSL.any(asValueExpression(reader), createPredicate(reader));
   }
 
-  public static PredicateExpression createHasAllPredicate(JsonReader reader) throws IOException {
+  public static BooleanExpression createHasAllPredicate(JsonReader reader) throws IOException {
     return DSL.all(asValueExpression(reader), createPredicate(reader));
   }
 
@@ -196,26 +196,26 @@ public class JsonToExpressionConverter {
     return DSL.filter(asValueExpression(reader), createPredicate(reader));
   }
 
-  public static PredicateExpression createBinaryValuePredicate(
+  public static BooleanExpression createBinaryValuePredicate(
       JsonReader reader, BinaryPredicateExpressionFunction<ValueExpression<?>> function)
       throws IOException {
     return function.apply(asValueExpression(reader), asValueExpression(reader));
   }
 
-  public static PredicateExpression createBinaryLogicalPredicate(
-      JsonReader reader, BinaryPredicateExpressionFunction<PredicateExpression> function)
+  public static BooleanExpression createBinaryLogicalPredicate(
+      JsonReader reader, BinaryPredicateExpressionFunction<BooleanExpression> function)
       throws IOException {
     return function.apply(createPredicate(reader), createPredicate(reader));
   }
 
-  public static PredicateExpression createCompositeLogicalPredicate(
-      JsonReader reader, CompositePredicateExpressionFunction<PredicateExpression> function)
+  public static BooleanExpression createCompositeLogicalPredicate(
+      JsonReader reader, CompositePredicateExpressionFunction<BooleanExpression> function)
       throws IOException {
-    List<PredicateExpression> expressions = new ArrayList<>(2);
+    List<BooleanExpression> expressions = new ArrayList<>(2);
     while (reader.hasNext() && reader.peek() != END_ARRAY) {
       expressions.add(createPredicate(reader));
     }
-    return function.apply(expressions.toArray(new PredicateExpression[0]));
+    return function.apply(expressions.toArray(new BooleanExpression[0]));
   }
 
   public static ValueExpression<?> asValueExpression(JsonReader reader) throws IOException {

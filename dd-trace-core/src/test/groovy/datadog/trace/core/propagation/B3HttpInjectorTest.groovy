@@ -46,7 +46,7 @@ class B3HttpInjectorTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      DatadogTags.factory().empty())
+      PropagationTags.factory().empty())
 
     final Map<String, String> carrier = Mock()
 
@@ -108,7 +108,7 @@ class B3HttpInjectorTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      DatadogTags.factory().empty())
+      PropagationTags.factory().empty())
     final Map<String, String> carrier = Mock()
 
     when:

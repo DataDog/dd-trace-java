@@ -1,5 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitUtils.filterSensitiveInfo;
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitUtils.normalizeRef;
+import static datadog.trace.bootstrap.instrumentation.ci.utils.PathUtils.expandTilde;
+
 import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitUtils;
@@ -7,7 +11,7 @@ import datadog.trace.bootstrap.instrumentation.ci.git.PersonInfo;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 
 @SuppressForbidden
-class GitLabInfo extends CIProviderInfo {
+class GitLabInfo implements CIProviderInfo {
 
   // https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
   public static final String GITLAB = "GITLAB_CI";
@@ -31,7 +35,7 @@ class GitLabInfo extends CIProviderInfo {
   public static final String GITLAB_GIT_COMMIT_TIMESTAMP = "CI_COMMIT_TIMESTAMP";
 
   @Override
-  protected GitInfo buildCIGitInfo() {
+  public GitInfo buildCIGitInfo() {
     return new GitInfo(
         filterSensitiveInfo(System.getenv(GITLAB_GIT_REPOSITORY_URL)),
         normalizeRef(System.getenv(GITLAB_GIT_BRANCH)),
@@ -44,7 +48,7 @@ class GitLabInfo extends CIProviderInfo {
   }
 
   @Override
-  protected CIInfo buildCIInfo() {
+  public CIInfo buildCIInfo() {
     return CIInfo.builder()
         .ciProviderName(GITLAB_PROVIDER_NAME)
         .ciPipelineId(System.getenv(GITLAB_PIPELINE_ID))
@@ -57,6 +61,11 @@ class GitLabInfo extends CIProviderInfo {
         .ciWorkspace(expandTilde(System.getenv(GITLAB_WORKSPACE_PATH)))
         .ciEnvVars(GITLAB_PROJECT_URL, GITLAB_PIPELINE_ID, GITLAB_JOB_ID)
         .build();
+  }
+
+  @Override
+  public boolean isCI() {
+    return true;
   }
 
   private String buildPipelineUrl() {

@@ -622,11 +622,6 @@ public class MoshiSnapshotHelper {
         BiConsumer<Exception, Field> exHandling =
             (ex, field) -> {
               String fieldName = field.getName();
-              LOG.debug(
-                  "Cannot extract field[{}] from class[{}]",
-                  fieldName,
-                  field.getDeclaringClass().getName(),
-                  ex);
               try {
                 jsonWriter.name(fieldName);
                 jsonWriter.beginObject();

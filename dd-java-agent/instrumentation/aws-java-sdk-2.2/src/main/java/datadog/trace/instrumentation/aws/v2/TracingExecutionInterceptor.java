@@ -24,15 +24,11 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
   @Override
   public void beforeExecution(
       final Context.BeforeExecution context, final ExecutionAttributes executionAttributes) {
-    boolean isPolling = isPollingRequest(context.request());
-    if (isPolling) {
+    if (isPollingRequest(context.request())) {
       closePrevious(true);
     }
     final AgentSpan span = startSpan(AWS_HTTP);
     DECORATE.afterStart(span);
-    if (isPolling) {
-      activateNext(span); // this scope will last until next poll
-    }
     executionAttributes.putAttribute(SPAN_ATTRIBUTE, span);
   }
 
@@ -68,7 +64,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       DECORATE.onResponse(span, context.httpResponse());
       DECORATE.beforeFinish(span);
       if (isPollingRequest(context.request())) {
-        // will be finished on next poll
+        activateNext(span); // remains active until next poll or iteration scope timeout
       } else {
         span.finish();
       }
@@ -83,11 +79,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       executionAttributes.putAttribute(SPAN_ATTRIBUTE, null);
       DECORATE.onError(span, context.exception());
       DECORATE.beforeFinish(span);
-      if (isPollingRequest(context.request())) {
-        // will be finished on next poll
-      } else {
-        span.finish();
-      }
+      span.finish();
     }
   }
 

@@ -1,12 +1,18 @@
 package datadog.trace.agent.test.checkpoints
 
 import datadog.trace.api.EndpointCheckpointer
+import datadog.trace.api.EndpointTracker
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
 class TestEndpointCheckpointer implements EndpointCheckpointer {
 
-  void onRootSpanFinished(AgentSpan rootSpan, boolean published) {
+
+  @Override
+  void onRootSpanFinished(AgentSpan rootSpan, EndpointTracker tracker) {
   }
 
-  void onRootSpanStarted(AgentSpan rootSpan) {}
+  @Override
+  EndpointTracker onRootSpanStarted(AgentSpan rootSpan) {
+    return EndpointTracker.NO_OP
+  }
 }

@@ -1,10 +1,14 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitUtils.filterSensitiveInfo;
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitUtils.normalizeRef;
+import static datadog.trace.bootstrap.instrumentation.ci.utils.PathUtils.expandTilde;
+
 import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.PersonInfo;
 
-class AzurePipelinesInfo extends CIProviderInfo {
+class AzurePipelinesInfo implements CIProviderInfo {
 
   // https://docs.microsoft.com/en-us/azure/devops/pipelines/build/variables?view=azure-devops
   public static final String AZURE = "TF_BUILD";
@@ -33,7 +37,7 @@ class AzurePipelinesInfo extends CIProviderInfo {
   public static final String AZURE_BUILD_REQUESTED_FOR_EMAIL = "BUILD_REQUESTEDFOREMAIL";
 
   @Override
-  protected GitInfo buildCIGitInfo() {
+  public GitInfo buildCIGitInfo() {
     return new GitInfo(
         buildGitRepositoryUrl(),
         buildGitBranch(),
@@ -46,7 +50,7 @@ class AzurePipelinesInfo extends CIProviderInfo {
   }
 
   @Override
-  protected CIInfo buildCIInfo() {
+  public CIInfo buildCIInfo() {
     final String uri = System.getenv(AZURE_SYSTEM_TEAMFOUNDATIONSERVERURI);
     final String project = System.getenv(AZURE_SYSTEM_TEAMPROJECTID);
     final String buildId = System.getenv(AZURE_BUILD_BUILDID);
@@ -64,6 +68,11 @@ class AzurePipelinesInfo extends CIProviderInfo {
         .ciJobUrl(buildCiJobUrl(uri, project, buildId, jobId, taskId))
         .ciWorkspace(expandTilde(System.getenv(AZURE_WORKSPACE_PATH)))
         .build();
+  }
+
+  @Override
+  public boolean isCI() {
+    return true;
   }
 
   private String buildGitTag() {

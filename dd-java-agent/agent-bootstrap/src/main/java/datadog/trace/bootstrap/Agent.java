@@ -746,14 +746,15 @@ public class Agent {
   }
 
   /**
-   * {@see com.datadog.profiling.async.ContextThreadFilter} must not be modified to depend on JFR.
+   * {@see com.datadog.profiling.ddprof.DatadogProfilingIntegration} must not be modified to depend
+   * on JFR.
    */
   private static ProfilingContextIntegration createProfilingContextIntegration() {
     if (Config.get().isProfilingEnabled()) {
       try {
         return (ProfilingContextIntegration)
             AGENT_CLASSLOADER
-                .loadClass("com.datadog.profiling.async.ContextThreadFilter")
+                .loadClass("com.datadog.profiling.ddprof.DatadogProfilingIntegration")
                 .getDeclaredConstructor()
                 .newInstance();
       } catch (Throwable t) {
@@ -792,7 +793,7 @@ public class Agent {
                   EndpointCheckpointer endpointCheckpointer =
                       (EndpointCheckpointer)
                           AGENT_CLASSLOADER
-                              .loadClass("datadog.trace.core.jfr.openjdk.JFRCheckpointer")
+                              .loadClass("com.datadog.profiling.controller.openjdk.JFRCheckpointer")
                               .getDeclaredConstructor()
                               .newInstance();
                   tracer.registerCheckpointer(endpointCheckpointer);

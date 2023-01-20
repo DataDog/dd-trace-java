@@ -12,8 +12,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public class CallSiteBenchmarkInstrumentation extends CallSiteInstrumentation
-    implements ElementMatcher<TypeDescription> {
+public class CallSiteBenchmarkInstrumentation extends CallSiteInstrumentation {
 
   public CallSiteBenchmarkInstrumentation() {
     super(buildCallSites(), "call-site");
@@ -21,12 +20,7 @@ public class CallSiteBenchmarkInstrumentation extends CallSiteInstrumentation
 
   @Override
   public ElementMatcher<TypeDescription> callerType() {
-    return this;
-  }
-
-  @Override
-  public boolean matches(final TypeDescription target) {
-    return CallSiteTrie.apply(target.getName()) != 1;
+    return CallSiteMatcher.INSTANCE;
   }
 
   @Override
@@ -41,6 +35,16 @@ public class CallSiteBenchmarkInstrumentation extends CallSiteInstrumentation
 
   private static List<CallSiteAdvice> buildCallSites() {
     return Collections.<CallSiteAdvice>singletonList(new GetParameterCallSite());
+  }
+
+  public static final class CallSiteMatcher
+      extends ElementMatcher.Junction.ForNonNullValues<TypeDescription> {
+    public static final CallSiteMatcher INSTANCE = new CallSiteMatcher();
+
+    @Override
+    protected boolean doMatch(TypeDescription target) {
+      return CallSiteTrie.apply(target.getName()) != 1;
+    }
   }
 
   private static class GetParameterCallSite implements InvokeAdvice, HasHelpers, Pointcut {

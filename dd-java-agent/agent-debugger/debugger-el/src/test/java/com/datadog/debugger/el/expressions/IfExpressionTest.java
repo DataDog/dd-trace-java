@@ -14,7 +14,7 @@ class IfExpressionTest {
   @Test
   void testIfTrue() {
     boolean[] executed = new boolean[] {false};
-    PredicateExpression test = PredicateExpression.TRUE;
+    BooleanExpression test = BooleanExpression.TRUE;
     Expression<Void> expression =
         context -> {
           executed[0] = true;
@@ -27,7 +27,7 @@ class IfExpressionTest {
   @Test
   void testIfFalse() {
     boolean[] executed = new boolean[] {false};
-    PredicateExpression test = PredicateExpression.FALSE;
+    BooleanExpression test = BooleanExpression.FALSE;
     Expression<Void> expression =
         context -> {
           executed[0] = true;
@@ -40,7 +40,7 @@ class IfExpressionTest {
   @Test
   void testFromContext() {
     boolean[] executed = new boolean[] {false};
-    PredicateExpression test = DSL.eq(DSL.ref("guardFlag"), BooleanValue.TRUE);
+    BooleanExpression test = DSL.eq(DSL.ref("guardFlag"), BooleanValue.TRUE);
     Expression<Void> expression =
         context -> {
           executed[0] = true;

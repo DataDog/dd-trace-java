@@ -1,10 +1,13 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitUtils.normalizeRef;
+import static datadog.trace.bootstrap.instrumentation.ci.utils.PathUtils.expandTilde;
+
 import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.PersonInfo;
 
-class AppVeyorInfo extends CIProviderInfo {
+class AppVeyorInfo implements CIProviderInfo {
 
   // https://www.appveyor.com/docs/environment-variables/
   public static final String APPVEYOR = "APPVEYOR";
@@ -27,7 +30,7 @@ class AppVeyorInfo extends CIProviderInfo {
       "APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL";
 
   @Override
-  protected GitInfo buildCIGitInfo() {
+  public GitInfo buildCIGitInfo() {
     final String repoProvider = System.getenv(APPVEYOR_REPO_PROVIDER);
     final String tag = buildGitTag(repoProvider);
     final String messageSubject = System.getenv(APPVEYOR_REPO_COMMIT_MESSAGE_SUBJECT);
@@ -44,7 +47,7 @@ class AppVeyorInfo extends CIProviderInfo {
   }
 
   @Override
-  protected CIInfo buildCIInfo() {
+  public CIInfo buildCIInfo() {
     final String url =
         buildPipelineUrl(System.getenv(APPVEYOR_REPO_NAME), System.getenv(APPVEYOR_BUILD_ID));
     return CIInfo.builder()
@@ -56,6 +59,11 @@ class AppVeyorInfo extends CIProviderInfo {
         .ciJobUrl(url)
         .ciWorkspace(expandTilde(System.getenv(APPVEYOR_WORKSPACE_PATH)))
         .build();
+  }
+
+  @Override
+  public boolean isCI() {
+    return true;
   }
 
   private String buildGitTag(final String repoProvider) {

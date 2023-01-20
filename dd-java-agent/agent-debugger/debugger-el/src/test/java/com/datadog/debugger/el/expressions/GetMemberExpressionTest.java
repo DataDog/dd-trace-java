@@ -19,6 +19,7 @@ class GetMemberExpressionTest {
     assertNotNull(val);
     assertFalse(val.isUndefined());
     assertEquals(parent.getB(), val.getValue());
+    assertEquals("ref.b", expr.prettyPrint());
   }
 
   @Test
@@ -33,5 +34,6 @@ class GetMemberExpressionTest {
     assertNotNull(val);
     assertFalse(val.isUndefined());
     assertEquals(root.getB(), val.getValue());
+    assertEquals("ref.ref.b", expr.prettyPrint());
   }
 }

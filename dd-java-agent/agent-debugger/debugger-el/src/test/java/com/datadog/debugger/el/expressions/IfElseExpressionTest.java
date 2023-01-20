@@ -14,7 +14,7 @@ class IfElseExpressionTest {
   @Test
   void testIfTrue() {
     boolean[] executed = new boolean[] {false, false};
-    PredicateExpression test = PredicateExpression.TRUE;
+    BooleanExpression test = BooleanExpression.TRUE;
     Expression<Void> thenExpression =
         context -> {
           executed[0] = true;
@@ -25,7 +25,8 @@ class IfElseExpressionTest {
           executed[1] = true;
           return null;
         };
-    DSL.doif(test, thenExpression, elseExpression).evaluate(RefResolverHelper.createResolver(this));
+    IfElseExpression expression = DSL.doif(test, thenExpression, elseExpression);
+    expression.evaluate(RefResolverHelper.createResolver(this));
     assertTrue(executed[0]);
     assertFalse(executed[1]);
   }
@@ -33,7 +34,7 @@ class IfElseExpressionTest {
   @Test
   void testIfFalse() {
     boolean[] executed = new boolean[] {false, false};
-    PredicateExpression test = PredicateExpression.FALSE;
+    BooleanExpression test = BooleanExpression.FALSE;
     Expression<Void> thenExpression =
         context -> {
           executed[0] = true;
@@ -52,7 +53,7 @@ class IfElseExpressionTest {
   @Test
   void testFromContext() {
     boolean[] executed = new boolean[] {false, false};
-    PredicateExpression test = DSL.eq(DSL.ref("guardFlag"), BooleanValue.TRUE);
+    BooleanExpression test = DSL.eq(DSL.ref("guardFlag"), BooleanValue.TRUE);
     Expression<Void> thenExpression =
         context -> {
           executed[0] = true;
