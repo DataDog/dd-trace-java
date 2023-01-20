@@ -294,7 +294,7 @@ public class DebuggerSinkTest {
   }
 
   @Test
-  public void addSnapshotWithCorrelationIds() throws URISyntaxException, IOException {
+  public void addSnapshotWithCorrelationIdsMethodProbe() throws URISyntaxException, IOException {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     Snapshot.CapturedContext entry = new Snapshot.CapturedContext();
     entry.addFields(
@@ -319,6 +319,31 @@ public class DebuggerSinkTest {
   }
 
   @Test
+  public void addSnapshotWithCorrelationIdsLineProbe() throws URISyntaxException, IOException {
+    DebuggerSink sink = new DebuggerSink(config, batchUploader);
+    Snapshot.CapturedContext line = new Snapshot.CapturedContext();
+    line.addFields(
+        new Snapshot.CapturedValue[] {
+          Snapshot.CapturedValue.of("dd.trace_id", "java.lang.String", "123"),
+          Snapshot.CapturedValue.of("dd.span_id", "java.lang.String", "456"),
+        });
+    Snapshot snapshot =
+        new Snapshot(
+            Thread.currentThread(),
+            new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+            String.class.getTypeName());
+    snapshot.addLine(line, 25);
+    sink.addSnapshot(snapshot);
+    String fixtureContent =
+        getFixtureContent(SINK_FIXTURE_PREFIX + "/snapshotWithCorrelationIdsLineRegex.txt");
+    String regex = fixtureContent.replaceAll("\\n", "");
+    sink.flush(sink);
+    verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
+    String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
+    assertTrue(strPayload.matches(regex), strPayload);
+  }
+
+  @Test
   public void addSnapshotWithEvalErrors() throws URISyntaxException, IOException {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     Snapshot.CapturedContext entry = new Snapshot.CapturedContext();
@@ -329,6 +354,8 @@ public class DebuggerSinkTest {
             new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
             String.class.getTypeName());
     snapshot.setEntry(entry);
+    snapshot.commit();
+    snapshot.getStack().clear();
     sink.addSnapshot(snapshot);
     String fixtureContent =
         getFixtureContent(SINK_FIXTURE_PREFIX + "/snapshotWithEvalErrorRegex.txt");

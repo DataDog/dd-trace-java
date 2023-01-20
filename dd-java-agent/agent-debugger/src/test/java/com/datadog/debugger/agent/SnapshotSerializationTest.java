@@ -210,6 +210,7 @@ public class SnapshotSerializationTest {
                 PROBE_ID,
                 PROBE_LOCATION,
                 Snapshot.MethodLocation.DEFAULT,
+                true,
                 new ProbeCondition(DSL.when(DSL.gt(DSL.ref("^n"), DSL.value(0))), "^n > 0"),
                 "",
                 new SnapshotSummaryBuilder(PROBE_LOCATION)),
