@@ -56,7 +56,6 @@ import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
-
 /**
  * A spock test runner which automatically applies instrumentation and exposes a global trace
  * writer.

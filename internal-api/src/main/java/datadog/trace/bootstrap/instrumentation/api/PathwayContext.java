@@ -10,6 +10,8 @@ public interface PathwayContext {
 
   boolean isStarted();
 
+  long getHash();
+
   // The input tags should be sorted.
   void setCheckpoint(LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer);
 

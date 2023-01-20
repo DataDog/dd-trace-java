@@ -2,6 +2,7 @@ package datadog.trace.core;
 
 import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDClientManager;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
+import static datadog.trace.api.DDTags.PATHWAY_HASH;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
@@ -157,7 +158,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final EndpointCheckpointerHolder endpointCheckpointer;
   private final DataStreamsCheckpointer dataStreamsCheckpointer;
   private final ExternalAgentLauncher externalAgentLauncher;
-  private boolean disableSamplingMechanismValidation;
+  private final boolean disableSamplingMechanismValidation;
   private final TimeSource timeSource;
   private final ProfilingContextIntegration profilingContextIntegration;
 
@@ -769,9 +770,17 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       if (encodedContext != null) {
         log.debug("Injecting pathway context {}", pathwayContext);
         setter.set(carrier, PathwayContext.PROPAGATION_KEY, encodedContext);
+        injectPathwayTags(span, pathwayContext);
       }
     } catch (IOException e) {
       log.debug("Unable to set encode pathway context", e);
+    }
+  }
+
+  private static void injectPathwayTags(AgentSpan span, PathwayContext pathwayContext) {
+    long pathwayHash = pathwayContext.getHash();
+    if (pathwayHash != 0) {
+      span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayHash));
     }
   }
 
@@ -784,6 +793,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       String encodedContext = pathwayContext.strEncode();
       if (encodedContext != null) {
         setter.set(carrier, PathwayContext.PROPAGATION_KEY_BASE64, encodedContext);
+        injectPathwayTags(span, pathwayContext);
       }
     } catch (IOException e) {
       log.debug("Unable to set encode pathway context", e);
@@ -824,7 +834,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void setDataStreamCheckpoint(AgentSpan span, LinkedHashMap<String, String> sortedTags) {
-    span.context().getPathwayContext().setCheckpoint(sortedTags, dataStreamsCheckpointer);
+    PathwayContext pathwayContext = span.context().getPathwayContext();
+    pathwayContext.setCheckpoint(sortedTags, dataStreamsCheckpointer);
+    injectPathwayTags(span, pathwayContext);
   }
 
   @Override

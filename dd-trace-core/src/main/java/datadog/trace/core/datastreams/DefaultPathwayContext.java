@@ -85,6 +85,11 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   @Override
+  public long getHash() {
+    return hash;
+  }
+
+  @Override
   public void setCheckpoint(
       LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer) {
     long startNanos = timeSource.getCurrentTimeNanos();
@@ -143,7 +148,7 @@ public class DefaultPathwayContext implements PathwayContext {
       hash = newHash;
 
       pointConsumer.accept(point);
-      log.debug("Checkpoint set {}", this);
+      log.debug("Checkpoint set {}, hash source: {}", this, pathwayHashBuilder);
     } finally {
       lock.unlock();
     }
@@ -340,6 +345,11 @@ public class DefaultPathwayContext implements PathwayContext {
 
     public long generateHash() {
       return FNV64Hash.generateHash(builder.toString(), FNV64Hash.Version.v1);
+    }
+
+    @Override
+    public String toString() {
+      return builder.toString();
     }
   }
 
