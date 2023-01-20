@@ -55,11 +55,11 @@ jobs:
           ls /home/runner/work/dd-trace-java/dd-trace-java/
           echo "/home/runner/work/dd-trace-java/dd-trace-java/dd-java-agent"
           ls /home/runner/work/dd-trace-java/dd-trace-java/dd-java-agent/
-          echo "workspace"
-          ls workspace/
+          echo "workspace/dd-java-agent"
+          ls workspace/dd-java-agent/
 
       - name: upload dd-java-agent
         uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # 2.3.1
         with:
           name: dd-java-agent
-          path: /home/runner/work/dd-trace-java/dd-trace-java/dd-java-agent/build/libs/dd-java-agent-*.jar
+          path: workspace/dd-java-agent/build/
