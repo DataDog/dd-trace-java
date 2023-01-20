@@ -1,4 +1,4 @@
-name: "Lib Injection Test"
+name: "base-docker-image"
 
 on:
   workflow_run:
