@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.vertx_3_4.server.VertxDecorator.DECORATE;
 import static datadog.trace.instrumentation.vertx_3_4.server.VertxDecorator.INSTRUMENTATION_NAME;
 
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -29,6 +30,7 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
   @Override
   public void handle(final RoutingContext routingContext) {
     AgentSpan span = routingContext.get(HANDLER_SPAN_CONTEXT_KEY);
+    Flow.Action.RequestBlockingAction rba = null;
     if (span == null) {
       AgentSpan parentSpan = activeSpan();
       routingContext.put(PARENT_SPAN_CONTEXT_KEY, parentSpan);
@@ -39,6 +41,8 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
       routingContext.response().endHandler(new EndHandlerWrapper(routingContext));
       DECORATE.afterStart(span);
       span.setResourceName(DECORATE.className(actual.getClass()));
+
+      rba = parentSpan.getRequestBlockingAction();
     }
 
     updateRoutingContextWithRoute(routingContext);
@@ -46,7 +50,12 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
     try (final AgentScope scope = activateSpan(span)) {
       scope.setAsyncPropagation(true);
       try {
-        actual.handle(routingContext);
+        if (rba == null) {
+          actual.handle(routingContext);
+        } else {
+          routingContext.put(VertxBlockingHandler.REQUEST_BLOCKING_ACTION_KEY, rba);
+          VertxBlockingHandler.INSTANCE.handle(routingContext);
+        }
       } catch (final Throwable t) {
         DECORATE.onError(span, t);
         throw t;

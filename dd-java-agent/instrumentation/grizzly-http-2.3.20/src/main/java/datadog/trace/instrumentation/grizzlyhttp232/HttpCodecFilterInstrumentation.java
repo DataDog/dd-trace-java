@@ -29,6 +29,8 @@ public final class HttpCodecFilterInstrumentation extends Instrumenter.Tracing
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".GrizzlyDecorator",
+      packageName + ".GrizzlyHttpBlockingHelper",
+      packageName + ".GrizzlyHttpBlockingHelper$CloseCompletionHandler",
       packageName + ".HTTPRequestPacketURIDataAdapter",
       packageName + ".ExtractAdapter"
     };
