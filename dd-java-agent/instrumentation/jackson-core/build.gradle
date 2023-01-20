@@ -19,6 +19,7 @@ testSets {
 }
 
 dependencies {
-  implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.14.1'
+  compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.14.1')
+  testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.14.1')
   testRuntimeClasspath project(':dd-java-agent:instrumentation:iast-instrumenter')
 }
