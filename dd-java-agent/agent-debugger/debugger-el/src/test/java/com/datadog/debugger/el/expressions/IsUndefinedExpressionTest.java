@@ -1,5 +1,6 @@
 package com.datadog.debugger.el.expressions;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -22,15 +23,23 @@ class IsUndefinedExpressionTest {
 
   @Test
   void testNullValue() {
-    assertFalse(new IsUndefinedExpression(null).evaluate(resolver).test());
-    assertFalse(new IsUndefinedExpression(DSL.value(Values.NULL_OBJECT)).evaluate(resolver).test());
-    assertFalse(new IsUndefinedExpression(DSL.value(Value.nullValue())).evaluate(resolver).test());
+    IsUndefinedExpression expression = new IsUndefinedExpression(null);
+    assertFalse(expression.evaluate(resolver));
+    assertEquals("isUndefined(null)", expression.prettyPrint());
+    expression = new IsUndefinedExpression(DSL.value(Values.NULL_OBJECT));
+    assertFalse(expression.evaluate(resolver));
+    assertEquals("isUndefined(null)", expression.prettyPrint());
+    expression = new IsUndefinedExpression(DSL.value(Value.nullValue()));
+    assertFalse(expression.evaluate(resolver));
+    assertEquals("isUndefined(com.datadog.debugger.el.values.NullValue)", expression.prettyPrint());
   }
 
   @Test
   void testUndefinedValue() {
-    assertTrue(
-        new IsUndefinedExpression(DSL.value(Values.UNDEFINED_OBJECT)).evaluate(resolver).test());
+    IsUndefinedExpression expression =
+        new IsUndefinedExpression(DSL.value(Values.UNDEFINED_OBJECT));
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("isUndefined(UNDEFINED)", expression.prettyPrint());
   }
 
   @Test
@@ -39,9 +48,15 @@ class IsUndefinedExpressionTest {
     NumericValue one = new NumericValue(1);
     NumericValue none = new NumericValue(null);
 
-    assertFalse(new IsUndefinedExpression(zero).evaluate(resolver).test());
-    assertFalse(new IsUndefinedExpression(one).evaluate(resolver).test());
-    assertFalse(new IsUndefinedExpression(none).evaluate(resolver).test());
+    IsUndefinedExpression expression = new IsUndefinedExpression(zero);
+    assertFalse(expression.evaluate(resolver));
+    assertEquals("isUndefined(0)", expression.prettyPrint());
+    expression = new IsUndefinedExpression(one);
+    assertFalse(expression.evaluate(resolver));
+    assertEquals("isUndefined(1)", expression.prettyPrint());
+    expression = new IsUndefinedExpression(none);
+    assertFalse(expression.evaluate(resolver));
+    assertEquals("isUndefined(null)", expression.prettyPrint());
   }
 
   @Test
@@ -50,9 +65,15 @@ class IsUndefinedExpressionTest {
     BooleanValue no = BooleanValue.FALSE;
     BooleanValue none = new BooleanValue(null);
 
-    assertFalse(new IsUndefinedExpression(yes).evaluate(resolver).test());
-    assertFalse(new IsUndefinedExpression(no).evaluate(resolver).test());
-    assertFalse(new IsUndefinedExpression(none).evaluate(resolver).test());
+    IsUndefinedExpression expression = new IsUndefinedExpression(yes);
+    assertFalse(expression.evaluate(resolver));
+    assertEquals("isUndefined(true)", expression.prettyPrint());
+    expression = new IsUndefinedExpression(no);
+    assertFalse(expression.evaluate(resolver));
+    assertEquals("isUndefined(false)", expression.prettyPrint());
+    expression = new IsUndefinedExpression(none);
+    assertFalse(expression.evaluate(resolver));
+    assertEquals("isUndefined(null)", expression.prettyPrint());
   }
 
   @Test
@@ -65,9 +86,12 @@ class IsUndefinedExpressionTest {
     IsUndefinedExpression isUndefined2 = new IsUndefinedExpression(emptyString);
     IsUndefinedExpression isUndefined3 = new IsUndefinedExpression(nullString);
 
-    assertFalse(isUndefined1.evaluate(resolver).test());
-    assertFalse(isUndefined2.evaluate(resolver).test());
-    assertFalse(isUndefined3.evaluate(resolver).test());
+    assertFalse(isUndefined1.evaluate(resolver));
+    assertEquals("isUndefined(\"Hello World\")", isUndefined1.prettyPrint());
+    assertFalse(isUndefined2.evaluate(resolver));
+    assertEquals("isUndefined(\"\")", isUndefined2.prettyPrint());
+    assertFalse(isUndefined3.evaluate(resolver));
+    assertEquals("isUndefined(\"null\")", isUndefined3.prettyPrint());
   }
 
   @Test
@@ -82,10 +106,14 @@ class IsUndefinedExpressionTest {
     IsUndefinedExpression isUndefined3 = new IsUndefinedExpression(nullList);
     IsUndefinedExpression isUndefined4 = new IsUndefinedExpression(undefinedList);
 
-    assertFalse(isUndefined1.evaluate(resolver).test());
-    assertFalse(isUndefined2.evaluate(resolver).test());
-    assertFalse(isUndefined3.evaluate(resolver).test());
-    assertTrue(isUndefined4.evaluate(resolver).test());
+    assertFalse(isUndefined1.evaluate(resolver));
+    assertEquals("isUndefined(List)", isUndefined1.prettyPrint());
+    assertFalse(isUndefined2.evaluate(resolver));
+    assertEquals("isUndefined(List)", isUndefined2.prettyPrint());
+    assertFalse(isUndefined3.evaluate(resolver));
+    assertEquals("isUndefined(null)", isUndefined3.prettyPrint());
+    assertTrue(isUndefined4.evaluate(resolver));
+    assertEquals("isUndefined(null)", isUndefined4.prettyPrint());
   }
 
   @Test
@@ -101,9 +129,13 @@ class IsUndefinedExpressionTest {
     IsUndefinedExpression isUndefined3 = new IsUndefinedExpression(nullMao);
     IsUndefinedExpression isUndefined4 = new IsUndefinedExpression(undefinedMap);
 
-    assertFalse(isUndefined1.evaluate(resolver).test());
-    assertFalse(isUndefined2.evaluate(resolver).test());
-    assertFalse(isUndefined3.evaluate(resolver).test());
-    assertTrue(isUndefined4.evaluate(resolver).test());
+    assertFalse(isUndefined1.evaluate(resolver));
+    assertEquals("isUndefined(Map)", isUndefined1.prettyPrint());
+    assertFalse(isUndefined2.evaluate(resolver));
+    assertEquals("isUndefined(Map)", isUndefined2.prettyPrint());
+    assertFalse(isUndefined3.evaluate(resolver));
+    assertEquals("isUndefined(null)", isUndefined3.prettyPrint());
+    assertTrue(isUndefined4.evaluate(resolver));
+    assertEquals("isUndefined(null)", isUndefined4.prettyPrint());
   }
 }

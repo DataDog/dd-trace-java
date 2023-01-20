@@ -12,7 +12,6 @@ import datadog.trace.bootstrap.debugger.el.Values;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 class ValueRefExpressionTest {
@@ -25,6 +24,7 @@ class ValueRefExpressionTest {
     assertNotNull(val);
     assertFalse(val.isUndefined());
     assertEquals(instance.getB(), val.getValue());
+    assertEquals("b", valueRef.prettyPrint());
   }
 
   @Test
@@ -38,11 +38,13 @@ class ValueRefExpressionTest {
     ExObjectWithRefAndValue instance = new ExObjectWithRefAndValue(null, "hello");
     ValueReferenceResolver ctx = RefResolverHelper.createResolver(instance);
 
-    assertFalse(isEmpty.evaluate(ctx).test());
+    assertFalse(isEmpty.evaluate(ctx));
+    assertEquals("isEmpty(b)", isEmpty.prettyPrint());
 
-    assertTrue(isEmptyInvalid.evaluate(ctx).test());
-    assertFalse(and(isEmptyInvalid, isEmpty).evaluate(ctx).test());
-    assertTrue(or(isEmptyInvalid, isEmpty).evaluate(ctx).test());
+    assertTrue(isEmptyInvalid.evaluate(ctx));
+    assertFalse(and(isEmptyInvalid, isEmpty).evaluate(ctx));
+    assertTrue(or(isEmptyInvalid, isEmpty).evaluate(ctx));
+    assertEquals("isEmpty(x)", isEmptyInvalid.prettyPrint());
   }
 
   @Test
@@ -69,15 +71,24 @@ class ValueRefExpressionTest {
     ValueReferenceResolver resolver = RefResolverHelper.createResolver(null, values);
     resolver = resolver.withExtensions(exts);
 
-    Assertions.assertEquals(
-        duration, DSL.ref(ValueReferences.DURATION_REF).evaluate(resolver).getValue());
-    assertEquals(returnVal, DSL.ref(ValueReferences.RETURN_REF).evaluate(resolver).getValue());
-    assertEquals(limit, DSL.ref(limitArg).evaluate(resolver).getValue());
-    assertEquals(msg, DSL.ref(msgArg).evaluate(resolver).getValue());
+    ValueRefExpression expression = DSL.ref(ValueReferences.DURATION_REF);
+    assertEquals(duration, expression.evaluate(resolver).getValue());
+    assertEquals("@duration", expression.prettyPrint());
+    expression = DSL.ref(ValueReferences.RETURN_REF);
+    assertEquals(returnVal, expression.evaluate(resolver).getValue());
+    assertEquals("@return", expression.prettyPrint());
+    expression = DSL.ref(limitArg);
+    assertEquals(limit, expression.evaluate(resolver).getValue());
+    assertEquals("limit", expression.prettyPrint());
+    expression = DSL.ref(msgArg);
+    assertEquals(msg, expression.evaluate(resolver).getValue());
+    assertEquals("msg", expression.prettyPrint());
+    expression = DSL.ref(iVar);
     assertEquals(
-        (long) i, DSL.ref(iVar).evaluate(resolver).getValue()); // int value is widened to long
-    assertEquals(
-        Values.UNDEFINED_OBJECT,
-        DSL.ref(ValueReferences.synthetic("invalid")).evaluate(resolver).getValue());
+        (long) i, expression.evaluate(resolver).getValue()); // int value is widened to long
+    assertEquals("i", expression.prettyPrint());
+    expression = DSL.ref(ValueReferences.synthetic("invalid"));
+    assertEquals(Values.UNDEFINED_OBJECT, expression.evaluate(resolver).getValue());
+    assertEquals("@invalid", expression.prettyPrint());
   }
 }

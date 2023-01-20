@@ -94,7 +94,7 @@ public final class ProbeCondition implements DebuggerScript {
     if (when == null) {
       return true;
     }
-    if (when.evaluate(valueRefResolver).test()) {
+    if (when.evaluate(valueRefResolver)) {
       then.evaluate(valueRefResolver);
       return true;
     }

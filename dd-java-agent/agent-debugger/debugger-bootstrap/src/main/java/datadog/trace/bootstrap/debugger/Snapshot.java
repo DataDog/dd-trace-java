@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +35,7 @@ public class Snapshot {
   private final String language;
   private final transient CapturedThread thread;
   private final transient Set<String> capturingProbeIds = new HashSet<>();
-  private final transient Set<String> errorReportingIds = new HashSet<>();
+  private final transient Map<String, List<EvaluationError>> errorsByProbeIds = new HashMap<>();
   private final transient String thisClassName;
   private String traceId; // trace_id
   private String spanId; // span_id
@@ -91,11 +92,9 @@ public class Snapshot {
   }
 
   public void setEntry(CapturedContext context) {
-    summaryBuilder.addEntry(context);
+    processSummaries(SummaryBuilder::addEntry, context);
     context.setThisClassName(thisClassName);
-    if ((probe.getEvaluateAt() == MethodLocation.DEFAULT
-            || probe.getEvaluateAt() == MethodLocation.ENTRY)
-        && checkCapture(context)) {
+    if (checkCapture(context, MethodLocation.ENTRY)) {
       captures.setEntry(context);
     }
   }
@@ -103,19 +102,17 @@ public class Snapshot {
   public void setExit(CapturedContext context) {
     duration = System.nanoTime() - startTs;
     context.addExtension(ValueReferences.DURATION_EXTENSION_NAME, duration);
-    summaryBuilder.addExit(context);
+    processSummaries(SummaryBuilder::addExit, context);
     context.setThisClassName(thisClassName);
-    if ((probe.getEvaluateAt() == MethodLocation.DEFAULT
-            || probe.getEvaluateAt() == MethodLocation.EXIT)
-        && checkCapture(context)) {
+    if (checkCapture(context, MethodLocation.EXIT)) {
       captures.setReturn(context);
     }
   }
 
   public void addLine(CapturedContext context, int line) {
-    summaryBuilder.addLine(context);
+    processSummaries(SummaryBuilder::addLine, context);
     context.setThisClassName(thisClassName);
-    if (checkCapture(context)) {
+    if (checkCapture(context, MethodLocation.DEFAULT)) {
       captures.addLine(line, context);
     }
   }
@@ -183,7 +180,7 @@ public class Snapshot {
   }
 
   public void commit() {
-    if (!isCapturing() && evaluationErrors == null) {
+    if (!isCapturing() && errorsByProbeIds.isEmpty()) {
       DebuggerContext.skipSnapshot(probe.id, DebuggerContext.SkipCause.CONDITION);
       for (ProbeDetails probeDetails : probe.additionalProbes) {
         DebuggerContext.skipSnapshot(probeDetails.id, DebuggerContext.SkipCause.CONDITION);
@@ -207,36 +204,41 @@ public class Snapshot {
      * - Snapshot.commit()
      */
     recordStackTrace(3);
-    if (capturingProbeIds.contains(probe.id) || errorReportingIds.contains(probe.id)) {
+    if (capturingProbeIds.contains(probe.id) || errorsByProbeIds.containsKey(probe.id)) {
       DebuggerContext.addSnapshot(this);
     } else {
       DebuggerContext.skipSnapshot(probe.id, DebuggerContext.SkipCause.CONDITION);
     }
     for (ProbeDetails additionalProbe : probe.additionalProbes) {
       if (capturingProbeIds.contains(additionalProbe.id)
-          || errorReportingIds.contains(additionalProbe.id)) {
-        DebuggerContext.addSnapshot(copy(additionalProbe.id, UUID.randomUUID().toString()));
+          || errorsByProbeIds.containsKey(additionalProbe.id)) {
+        DebuggerContext.addSnapshot(copy(additionalProbe, UUID.randomUUID().toString()));
       } else {
         DebuggerContext.skipSnapshot(additionalProbe.id, DebuggerContext.SkipCause.CONDITION);
       }
     }
   }
 
-  private Snapshot copy(String probeId, String newSnapshotId) {
-    return new Snapshot(
-        newSnapshotId,
-        version,
-        timestamp,
-        duration,
-        stack,
-        captures,
-        new ProbeDetails(
-            probeId, probe.location, probe.evaluateAt, probe.script, probe.tags, summaryBuilder),
-        language,
-        thread,
-        thisClassName,
-        traceId,
-        spanId);
+  private Snapshot copy(ProbeDetails additionalProbe, String newSnapshotId) {
+    Snapshot snapshot =
+        new Snapshot(
+            newSnapshotId,
+            version,
+            timestamp,
+            duration,
+            stack,
+            captures,
+            additionalProbe,
+            language,
+            thread,
+            thisClassName,
+            traceId,
+            spanId);
+    List<EvaluationError> evalErrors = errorsByProbeIds.get(additionalProbe.id);
+    if (evalErrors != null) {
+      snapshot.evaluationErrors = new ArrayList<>(evalErrors);
+    }
+    return snapshot;
   }
 
   // /!\ Called by instrumentation /!\
@@ -244,27 +246,25 @@ public class Snapshot {
     return !capturingProbeIds.isEmpty();
   }
 
-  private boolean checkCapture(CapturedContext capture) {
-    DebuggerScript script = probe.getScript();
-    if (!executeScript(script, capture, probe.id)) {
-      capturingProbeIds.remove(probe.id);
-    }
-    if (capture.areEvalErrors()) {
-      errorReportingIds.add(probe.id);
-      if (capture.evaluationErrors != null) {
-        if (evaluationErrors == null) {
-          evaluationErrors = new ArrayList<>();
-        }
-        evaluationErrors.addAll(capture.evaluationErrors);
+  private boolean checkCapture(CapturedContext capture, MethodLocation methodLocation) {
+    if (evaluateConditions(probe, methodLocation)) {
+      DebuggerScript script = probe.getScript();
+      if (!executeScript(script, capture, probe.id)) {
+        capturingProbeIds.remove(probe.id);
+      }
+      if (capture.hasEvaluationErrors()) {
+        evaluationErrors = extractEvaluationErrors(capture);
+        errorsByProbeIds.put(probe.id, evaluationErrors);
       }
     }
     List<ProbeDetails> additionalProbes = probe.additionalProbes;
     if (!additionalProbes.isEmpty()) {
       for (ProbeDetails additionalProbe : additionalProbes) {
-        if (executeScript(additionalProbe.getScript(), capture, additionalProbe.id)) {
+        if (evaluateConditions(additionalProbe, methodLocation)
+            && executeScript(additionalProbe.getScript(), capture, additionalProbe.id)) {
           capturingProbeIds.add(additionalProbe.id);
-        } else if (capture.areEvalErrors()) {
-          errorReportingIds.add(additionalProbe.id);
+        } else if (capture.hasEvaluationErrors()) {
+          errorsByProbeIds.put(additionalProbe.id, extractEvaluationErrors(capture));
         }
       }
     }
@@ -273,6 +273,21 @@ public class Snapshot {
       capture.freeze();
     }
     return ret;
+  }
+
+  private boolean evaluateConditions(ProbeDetails probe, MethodLocation methodLocation) {
+    if (methodLocation == MethodLocation.DEFAULT || methodLocation == MethodLocation.ENTRY) {
+      return probe.getEvaluateAt() == MethodLocation.DEFAULT
+          || probe.getEvaluateAt() == MethodLocation.ENTRY;
+    }
+    return probe.getEvaluateAt() == methodLocation;
+  }
+
+  private List<EvaluationError> extractEvaluationErrors(CapturedContext capture) {
+    List<EvaluationError> evalErrors = new ArrayList<>();
+    evalErrors.addAll(capture.evaluationErrors);
+    capture.evaluationErrors.clear();
+    return evalErrors;
   }
 
   private static boolean executeScript(
@@ -301,6 +316,17 @@ public class Snapshot {
       stack.add(CapturedStackFrame.from(ste));
     }
     summaryBuilder.addStack(stack);
+    for (ProbeDetails additionalProbe : this.probe.additionalProbes) {
+      additionalProbe.summaryBuilder.addStack(stack);
+    }
+  }
+
+  private void processSummaries(
+      BiConsumer<SummaryBuilder, CapturedContext> contextConsumer, CapturedContext context) {
+    contextConsumer.accept(summaryBuilder, context);
+    for (ProbeDetails additionalProbe : this.probe.additionalProbes) {
+      contextConsumer.accept(additionalProbe.summaryBuilder, context);
+    }
   }
 
   public enum Kind {
@@ -769,7 +795,7 @@ public class Snapshot {
       evaluationErrors.add(new EvaluationError(expr, message));
     }
 
-    boolean areEvalErrors() {
+    boolean hasEvaluationErrors() {
       if (evaluationErrors != null) {
         return !evaluationErrors.isEmpty();
       }

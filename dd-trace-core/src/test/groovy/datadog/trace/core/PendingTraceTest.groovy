@@ -5,7 +5,7 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.time.TimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.core.monitor.HealthMetrics
-import datadog.trace.core.propagation.DatadogTags
+import datadog.trace.core.propagation.PropagationTags
 import spock.lang.Timeout
 
 import java.util.concurrent.TimeUnit
@@ -37,7 +37,7 @@ class PendingTraceTest extends PendingTraceTestBase {
       null,
       AgentTracer.NoopPathwayContext.INSTANCE,
       false,
-      DatadogTags.factory().empty()))
+      PropagationTags.factory().empty()))
   }
 
   @Timeout(value = 60, unit = TimeUnit.SECONDS)

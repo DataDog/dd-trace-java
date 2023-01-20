@@ -1,0 +1,53 @@
+plugins {
+  id 'idea'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'org.unbroken-dome.test-sets'
+apply plugin: 'call-site-instrumentation'
+
+muzzle {
+  pass {
+    coreJdk()
+  }
+}
+
+idea {
+  module {
+    jdkName = '11'
+  }
+}
+
+if (!JavaVersion.current().java11Compatible) {
+  project.afterEvaluate {
+    tasks.each {
+      logger.info("Disabling task $it.path (requires Java 11)")
+      it.enabled = false
+    }
+  }
+}
+
+csi {
+  javaVersion = JavaLanguageVersion.of(11)
+}
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+dependencies {
+  testRuntimeClasspath project(':dd-java-agent:instrumentation:iast-instrumenter')
+}
+
+project.tasks.withType(AbstractCompile).configureEach {
+  if (it.name != 'compileCsiJava') {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+    setJavaVersion(it, 11)
+    if (it instanceof JavaCompile) {
+      it.options.release.set(11)
+    }
+  }
+}

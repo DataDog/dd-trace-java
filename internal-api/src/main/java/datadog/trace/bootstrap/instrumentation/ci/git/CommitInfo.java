@@ -43,6 +43,13 @@ public class CommitInfo {
     return fullMessage;
   }
 
+  public boolean isEmpty() {
+    return (sha == null || sha.isEmpty())
+        && (author == null || author.isEmpty())
+        && (committer == null || committer.isEmpty())
+        && (fullMessage == null || fullMessage.isEmpty());
+  }
+
   @Override
   public boolean equals(final Object o) {
     if (this == o) {

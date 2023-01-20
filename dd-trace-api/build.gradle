@@ -14,7 +14,8 @@ excludedClassesCoverage += [
   'datadog.trace.api.PropagationStyle',
   'datadog.trace.api.TracePropagationStyle',
   'datadog.trace.api.SpanCorrelation*',
-  'datadog.trace.api.interceptor.MutableSpan'
+  'datadog.trace.api.interceptor.MutableSpan',
+  'datadog.trace.api.experimental.ProfilingContext'
 ]
 
 description = 'dd-trace-api'

@@ -7,6 +7,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_METRICS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLIENT_IP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
@@ -90,6 +91,7 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_METRICS;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_TIMEOUT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
@@ -165,7 +167,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OL
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_VERY_OLD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_OLD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_VERY_OLD;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_ASYNC_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
@@ -469,7 +471,7 @@ public class Config {
   private final String spanSamplingRulesFile;
 
   private final boolean profilingAgentless;
-  private final boolean isAsyncProfilerEnabled;
+  private final boolean isDatadogProfilerEnabled;
   @Deprecated private final String profilingUrl;
   private final Map<String, String> profilingTags;
   private final int profilingStartDelay;
@@ -500,6 +502,7 @@ public class Config {
   private final int appSecReportMaxTimeout;
   private final int appSecTraceRateLimit;
   private final boolean appSecWafMetrics;
+  private final int appSecWafTimeout;
   private final String appSecObfuscationParameterKeyRegexp;
   private final String appSecObfuscationParameterValueRegexp;
   private final String appSecHttpBlockedTemplateHtml;
@@ -1040,9 +1043,9 @@ public class Config {
 
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
-    isAsyncProfilerEnabled =
+    isDatadogProfilerEnabled =
         configProvider.getBoolean(
-            PROFILING_ASYNC_ENABLED, isAsyncProfilerSafeInCurrentEnvironment());
+            PROFILING_DATADOG_PROFILER_ENABLED, isDatadogProfilerSafeInCurrentEnvironment());
     profilingUrl = configProvider.getString(PROFILING_URL);
 
     if (tmpApiKey == null) {
@@ -1146,6 +1149,8 @@ public class Config {
         configProvider.getInteger(APPSEC_TRACE_RATE_LIMIT, DEFAULT_APPSEC_TRACE_RATE_LIMIT);
 
     appSecWafMetrics = configProvider.getBoolean(APPSEC_WAF_METRICS, DEFAULT_APPSEC_WAF_METRICS);
+
+    appSecWafTimeout = configProvider.getInteger(APPSEC_WAF_TIMEOUT, DEFAULT_APPSEC_WAF_TIMEOUT);
 
     appSecObfuscationParameterKeyRegexp =
         configProvider.getString(APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP, null);
@@ -1783,35 +1788,14 @@ public class Config {
     return profilingUploadSummaryOn413Enabled;
   }
 
-  public boolean isAsyncProfilerEnabled() {
-    return isAsyncProfilerEnabled;
+  public boolean isDatadogProfilerEnabled() {
+    return isDatadogProfilerEnabled;
   }
 
-  private static boolean isAsyncProfilerSafeInCurrentEnvironment() {
+  public static boolean isDatadogProfilerSafeInCurrentEnvironment() {
     // don't want to put this logic (which will evolve) in the public ProfilingConfig, and can't
     // access Platform there
-    boolean isSafeArchitecture = false;
-    String architecture = System.getProperty("os.arch", "").toLowerCase();
-    switch (architecture) {
-      case "x86_64":
-      case "amd64":
-      case "k8":
-      case "x86":
-      case "i386":
-      case "i486":
-      case "i586":
-      case "i686":
-        isSafeArchitecture = true;
-        break;
-      default:
-    }
-    if (!isSafeArchitecture) {
-      return false;
-    }
-    if (Platform.isJ9()) {
-      return true;
-    }
-    return Platform.isJavaVersionAtLeast(18)
+    return Platform.isJ9()
         || Platform.isJavaVersionAtLeast(17, 0, 5)
         || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 17))
         || (Platform.isJavaVersion(8) && Platform.isJavaVersionAtLeast(8, 0, 352));
@@ -1855,6 +1839,11 @@ public class Config {
 
   public boolean isAppSecWafMetrics() {
     return appSecWafMetrics;
+  }
+
+  // in microseconds
+  public int getAppSecWafTimeout() {
+    return appSecWafTimeout;
   }
 
   public String getAppSecObfuscationParameterKeyRegexp() {
@@ -3105,7 +3094,9 @@ public class Config {
         + "'"
         + ", appSecHttpBlockedTemplateHtml="
         + appSecHttpBlockedTemplateHtml
-        + ", appSecHttpBlockedTemplateJson="
+        + ", appSecWafTimeout="
+        + appSecWafTimeout
+        + " us, appSecHttpBlockedTemplateJson="
         + appSecHttpBlockedTemplateJson
         + ", cwsEnabled="
         + cwsEnabled

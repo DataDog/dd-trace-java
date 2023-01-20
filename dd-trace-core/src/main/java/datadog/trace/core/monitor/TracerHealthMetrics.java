@@ -1,9 +1,12 @@
 package datadog.trace.core.monitor;
 
+import static datadog.trace.api.DDSpanId.ZERO;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.api.StatsDClient;
@@ -74,6 +77,8 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
       CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter droppedSpans =
       CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter clientSpansWithoutContext =
+      CountersFactory.createFixedSizeStripedCounter(8);
 
   private final StatsDClient statsd;
   private final long interval;
@@ -125,6 +130,18 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
         unsetPriorityEnqueuedTraces.inc();
     }
     enqueuedSpans.inc(trace.size());
+    checkForClientSpansWithoutContext(trace);
+  }
+
+  private void checkForClientSpansWithoutContext(final List<DDSpan> trace) {
+    for (DDSpan span : trace) {
+      if (span != null && span.getParentId() == ZERO) {
+        String spanKind = span.getTag(SPAN_KIND, "undefined");
+        if (SPAN_KIND_CLIENT.equals(spanKind)) {
+          this.clientSpansWithoutContext.inc();
+        }
+      }
+    }
   }
 
   @Override
@@ -291,6 +308,8 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
           target.statsd, "span.continuations.finished", target.finishedContinuations, NO_TAGS);
       reportIfChanged(target.statsd, "queue.partial.traces", target.partialTraces, NO_TAGS);
       reportIfChanged(target.statsd, "queue.dropped.spans", target.droppedSpans, NO_TAGS);
+      reportIfChanged(
+          target.statsd, "span.client.no-context", target.clientSpansWithoutContext, NO_TAGS);
     }
 
     private void reportIfChanged(

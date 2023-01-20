@@ -31,7 +31,7 @@ public final class ControllerFactory {
     NONE(),
     ORACLE("com.datadog.profiling.controller.oracle.OracleJdkController"),
     OPENJDK("com.datadog.profiling.controller.openjdk.OpenJdkController"),
-    ASYNC("com.datadog.profiling.controller.async.AsyncController");
+    ASYNC("com.datadog.profiling.controller.ddprof.DatadogProfilerController");
 
     private final String className;
 
@@ -75,22 +75,23 @@ public final class ControllerFactory {
       }
     }
     if (impl == Implementation.NONE) {
-      if (Platform.isLinux() && Config.get().isAsyncProfilerEnabled()) {
+      if ((Platform.isLinux() || Platform.isMac()) && Config.get().isDatadogProfilerEnabled()) {
         try {
-          Class<?> asyncProfilerClass = Class.forName("com.datadog.profiling.async.AsyncProfiler");
+          Class<?> datadogProfilerClass =
+              Class.forName("com.datadog.profiling.ddprof.DatadogProfiler");
           if ((boolean)
-              asyncProfilerClass
+              datadogProfilerClass
                   .getMethod("isAvailable")
-                  .invoke(asyncProfilerClass.getMethod("getInstance").invoke(null))) {
+                  .invoke(datadogProfilerClass.getMethod("getInstance").invoke(null))) {
             impl = Implementation.ASYNC;
           } else {
-            log.debug("Failed to load async profiler, it is not available");
+            log.debug("Failed to load Datadog profiler, it is not available");
           }
         } catch (final ClassNotFoundException
             | NoSuchMethodException
             | IllegalAccessException
             | InvocationTargetException ignored) {
-          log.debug("Failed to load async profiler", ignored);
+          log.debug("Failed to load Datadog profiler", ignored);
         }
       }
     }

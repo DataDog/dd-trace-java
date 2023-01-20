@@ -13,7 +13,7 @@ public class PersonInfo {
 
   private final String name;
   private final String email;
-  private final String ISO8601Date;
+  private final String iso8601Date;
 
   public PersonInfo() {
     this(null, null, 0, 0);
@@ -26,13 +26,13 @@ public class PersonInfo {
   public PersonInfo(final String name, final String email, final String iso8601date) {
     this.name = name;
     this.email = email;
-    this.ISO8601Date = iso8601date;
+    iso8601Date = iso8601date;
   }
 
   public PersonInfo(String name, String email, long when, int tzOffset) {
     this.name = name;
     this.email = email;
-    this.ISO8601Date = buildISO8601Date(when);
+    iso8601Date = buildISO8601Date(when);
   }
 
   public String getName() {
@@ -43,18 +43,28 @@ public class PersonInfo {
     return email;
   }
 
-  public String getISO8601Date() {
-    return this.ISO8601Date;
+  public String getIso8601Date() {
+    return iso8601Date;
+  }
+
+  public boolean isEmpty() {
+    return (name == null || name.isEmpty())
+        && (email == null || email.isEmpty())
+        && (iso8601Date == null || iso8601Date.isEmpty());
   }
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     PersonInfo that = (PersonInfo) o;
     return Objects.equals(name, that.name)
         && Objects.equals(email, that.email)
-        && Objects.equals(ISO8601Date, that.ISO8601Date);
+        && Objects.equals(iso8601Date, that.iso8601Date);
   }
 
   @Override
@@ -62,7 +72,7 @@ public class PersonInfo {
     int hash = 1;
     hash = 31 * hash + (name == null ? 0 : name.hashCode());
     hash = 31 * hash + (email == null ? 0 : email.hashCode());
-    hash = 31 * hash + (ISO8601Date == null ? 0 : ISO8601Date.hashCode());
+    hash = 31 * hash + (iso8601Date == null ? 0 : iso8601Date.hashCode());
     return hash;
   }
 
@@ -76,7 +86,7 @@ public class PersonInfo {
         + email
         + '\''
         + ", ISO8601Date='"
-        + ISO8601Date
+        + iso8601Date
         + '\''
         + '}';
   }

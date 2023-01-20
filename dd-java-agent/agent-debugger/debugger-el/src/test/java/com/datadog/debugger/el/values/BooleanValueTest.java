@@ -12,9 +12,8 @@ class BooleanValueTest {
     BooleanValue instance = new BooleanValue(null);
     assertTrue(instance.isNull());
     assertFalse(instance.isUndefined());
-    assertFalse(instance.test());
-
     assertNull(instance.getValue());
+    assertEquals("null", instance.prettyPrint());
   }
 
   @ParameterizedTest
@@ -23,8 +22,7 @@ class BooleanValueTest {
     BooleanValue instance = new BooleanValue(expected);
     assertFalse(instance.isNull());
     assertFalse(instance.isUndefined());
-    assertEquals(expected, instance.test());
-
     assertEquals(expected, instance.getValue());
+    assertEquals(String.valueOf(expected), instance.prettyPrint());
   }
 }

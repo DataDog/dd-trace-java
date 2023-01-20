@@ -105,4 +105,12 @@ public final class MapValue implements CollectionValue<MapValue>, ValueExpressio
   public MapValue evaluate(ValueReferenceResolver valueRefResolver) {
     return this;
   }
+
+  @Override
+  public String prettyPrint() {
+    if (mapHolder instanceof HashMap) {
+      return "Map";
+    }
+    return "null";
+  }
 }

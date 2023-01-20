@@ -21,9 +21,9 @@ class GitInfoTest extends DDSpecification {
     gitInfo.commit.fullMessage == "some commit message\n"
     gitInfo.commit.author.name == "author-name"
     gitInfo.commit.author.email == "author@email.com"
-    gitInfo.commit.author.getISO8601Date() == "2021-02-24T12:23:17.000Z"
+    gitInfo.commit.author.getIso8601Date() == "2021-02-24T12:23:17.000Z"
     gitInfo.commit.committer.name == "committer-name"
     gitInfo.commit.committer.email == "committer@email.com"
-    gitInfo.commit.committer.getISO8601Date() == "2021-02-24T12:23:17.000Z"
+    gitInfo.commit.committer.getIso8601Date() == "2021-02-24T12:23:17.000Z"
   }
 }

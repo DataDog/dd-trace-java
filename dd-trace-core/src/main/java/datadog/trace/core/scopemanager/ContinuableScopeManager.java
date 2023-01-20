@@ -486,8 +486,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
    */
   static final class ScopeStack {
 
-    private final int nativeThreadId;
-
     private final ProfilingContextIntegration profilingContextIntegration;
     private final ArrayDeque<ContinuableScope> stack = new ArrayDeque<>(); // previous scopes
 
@@ -498,7 +496,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
     ScopeStack(ProfilingContextIntegration profilingContextIntegration) {
       this.profilingContextIntegration = profilingContextIntegration;
-      this.nativeThreadId = profilingContextIntegration.getNativeThreadId();
     }
 
     ContinuableScope active() {
@@ -592,18 +589,18 @@ public final class ContinuableScopeManager implements AgentScopeManager {
       long spanId = top.span.getSpanId();
       AgentSpan rootSpan = top.span.getLocalRootSpan();
       long rootSpanId = rootSpan == null ? spanId : rootSpan.getSpanId();
-      profilingContextIntegration.setContext(nativeThreadId, rootSpanId, spanId);
+      profilingContextIntegration.setContext(rootSpanId, spanId);
     }
 
     /** Notifies context thread listeners that this thread has a context now */
     private void onBecomeNonEmpty() {
-      profilingContextIntegration.onAttach(nativeThreadId);
+      profilingContextIntegration.onAttach();
     }
 
     /** Notifies context thread listeners that this thread no longer has a context */
     private void onBecomeEmpty() {
-      profilingContextIntegration.setContext(nativeThreadId, 0, 0);
-      profilingContextIntegration.onDetach(nativeThreadId);
+      profilingContextIntegration.setContext(0, 0);
+      profilingContextIntegration.onDetach();
     }
   }
 

@@ -108,6 +108,9 @@ public interface OverheadController {
   }
 
   class OverheadControllerImpl implements OverheadController {
+
+    private static final int RESET_PERIOD_SECONDS = 30;
+
     private final int maxConcurrentRequests;
     private final int sampling;
 
@@ -123,7 +126,8 @@ public interface OverheadController {
       availableRequests =
           NonBlockingSemaphore.withPermitCount(config.getIastMaxConcurrentRequests());
       if (taskScheduler != null) {
-        taskScheduler.scheduleAtFixedRate(this::reset, 60, 60, TimeUnit.SECONDS);
+        taskScheduler.scheduleAtFixedRate(
+            this::reset, 2 * RESET_PERIOD_SECONDS, RESET_PERIOD_SECONDS, TimeUnit.SECONDS);
       }
     }
 

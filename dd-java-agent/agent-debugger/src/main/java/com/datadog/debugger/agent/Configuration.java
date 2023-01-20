@@ -3,7 +3,6 @@ package com.datadog.debugger.agent;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
-import com.datadog.debugger.probe.SnapshotProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import com.squareup.moshi.Json;
 import java.util.ArrayList;
@@ -61,38 +60,34 @@ public class Configuration {
   @Json(name = "id")
   private final String service;
 
-  private final Collection<SnapshotProbe> snapshotProbes;
   private final Collection<MetricProbe> metricProbes;
   private final Collection<LogProbe> logProbes;
   private final Collection<SpanProbe> spanProbes;
   private final FilterList allowList;
   private final FilterList denyList;
-  private final SnapshotProbe.Sampling sampling;
+  private final LogProbe.Sampling sampling;
 
-  public Configuration(String service, Collection<SnapshotProbe> snapshotProbes) {
-    this(service, snapshotProbes, null, null, null);
+  public Configuration(String service, Collection<LogProbe> logProbes) {
+    this(service, null, logProbes, null);
   }
 
   public Configuration(
       String serviceName,
-      Collection<SnapshotProbe> snapshotProbes,
       Collection<MetricProbe> metricProbes,
       Collection<LogProbe> logProbes,
       Collection<SpanProbe> spanProbes) {
-    this(serviceName, snapshotProbes, metricProbes, logProbes, spanProbes, null, null, null);
+    this(serviceName, metricProbes, logProbes, spanProbes, null, null, null);
   }
 
   public Configuration(
       String serviceName,
-      Collection<SnapshotProbe> snapshotProbes,
       Collection<MetricProbe> metricProbes,
       Collection<LogProbe> logProbes,
       Collection<SpanProbe> spanProbes,
       FilterList allowList,
       FilterList denyList,
-      SnapshotProbe.Sampling sampling) {
+      LogProbe.Sampling sampling) {
     this.service = serviceName;
-    this.snapshotProbes = snapshotProbes;
     this.metricProbes = metricProbes;
     this.logProbes = logProbes;
     this.spanProbes = spanProbes;
@@ -103,10 +98,6 @@ public class Configuration {
 
   public String getService() {
     return service;
-  }
-
-  public Collection<SnapshotProbe> getSnapshotProbes() {
-    return snapshotProbes;
   }
 
   public Collection<MetricProbe> getMetricProbes() {
@@ -129,15 +120,12 @@ public class Configuration {
     return denyList;
   }
 
-  public SnapshotProbe.Sampling getSampling() {
+  public LogProbe.Sampling getSampling() {
     return sampling;
   }
 
   public Collection<ProbeDefinition> getDefinitions() {
     Collection<ProbeDefinition> result = new ArrayList<>();
-    if (snapshotProbes != null) {
-      result.addAll(snapshotProbes);
-    }
     if (metricProbes != null) {
       result.addAll(metricProbes);
     }
@@ -156,8 +144,6 @@ public class Configuration {
     return "DebuggerConfiguration{"
         + "service="
         + service
-        + ", snapshotProbes="
-        + snapshotProbes
         + ", metricProbes="
         + metricProbes
         + ", logProbes="
@@ -178,7 +164,6 @@ public class Configuration {
     if (o == null || getClass() != o.getClass()) return false;
     Configuration that = (Configuration) o;
     return Objects.equals(service, that.service)
-        && Objects.equals(snapshotProbes, that.snapshotProbes)
         && Objects.equals(metricProbes, that.metricProbes)
         && Objects.equals(logProbes, that.logProbes)
         && Objects.equals(allowList, that.allowList)
@@ -189,8 +174,7 @@ public class Configuration {
   @Generated
   @Override
   public int hashCode() {
-    return Objects.hash(
-        service, snapshotProbes, metricProbes, logProbes, allowList, denyList, sampling);
+    return Objects.hash(service, metricProbes, logProbes, allowList, denyList, sampling);
   }
 
   public static Configuration.Builder builder() {
@@ -199,24 +183,15 @@ public class Configuration {
 
   public static class Builder {
     private String service = null;
-    private List<SnapshotProbe> snapshotProbes = null;
     private List<MetricProbe> metricProbes = null;
     private List<LogProbe> logProbes = null;
     private List<SpanProbe> spanProbes = null;
     private FilterList allowList = null;
     private FilterList denyList = null;
-    private SnapshotProbe.Sampling sampling = null;
+    private LogProbe.Sampling sampling = null;
 
     public Configuration.Builder setService(String service) {
       this.service = service;
-      return this;
-    }
-
-    public Configuration.Builder add(SnapshotProbe probe) {
-      if (snapshotProbes == null) {
-        snapshotProbes = new ArrayList<>();
-      }
-      snapshotProbes.add(probe);
       return this;
     }
 
@@ -244,19 +219,9 @@ public class Configuration {
       return this;
     }
 
-    public Configuration.Builder add(SnapshotProbe.Sampling newSampling) {
+    public Configuration.Builder add(LogProbe.Sampling newSampling) {
       if (newSampling != null) {
         sampling = newSampling;
-      }
-      return this;
-    }
-
-    public Configuration.Builder addSnapshotsProbes(Collection<SnapshotProbe> probes) {
-      if (probes == null) {
-        return this;
-      }
-      for (SnapshotProbe probe : probes) {
-        add(probe);
       }
       return this;
     }
@@ -315,7 +280,7 @@ public class Configuration {
       return this;
     }
 
-    public Configuration.Builder setSampling(SnapshotProbe.Sampling sampling) {
+    public Configuration.Builder setSampling(LogProbe.Sampling sampling) {
       this.sampling = sampling;
       return this;
     }
@@ -324,7 +289,6 @@ public class Configuration {
       if (other.service != null) {
         this.service = other.service;
       }
-      addSnapshotsProbes(other.getSnapshotProbes());
       addMetricProbes(other.getMetricProbes());
       addLogProbes(other.getLogProbes());
       addAllowList(other.getAllowList());
@@ -335,14 +299,7 @@ public class Configuration {
 
     public Configuration build() {
       return new Configuration(
-          service,
-          snapshotProbes,
-          metricProbes,
-          logProbes,
-          spanProbes,
-          allowList,
-          denyList,
-          sampling);
+          service, metricProbes, logProbes, spanProbes, allowList, denyList, sampling);
     }
   }
 }

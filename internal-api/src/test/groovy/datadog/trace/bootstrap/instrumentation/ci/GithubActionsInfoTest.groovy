@@ -1,15 +1,10 @@
 package datadog.trace.bootstrap.instrumentation.ci
 
-class GithubActionsInfoTest extends CIProviderInfoTest {
+class GithubActionsInfoTest extends CITagsProviderImplTest {
 
   @Override
   CIProviderInfo instanceProvider() {
-    return new GithubActionsInfo() {
-        @Override
-        protected String getGitFolderName() {
-          return GIT_FOLDER_FOR_TESTS
-        }
-      }
+    return new GithubActionsInfo()
   }
 
   @Override

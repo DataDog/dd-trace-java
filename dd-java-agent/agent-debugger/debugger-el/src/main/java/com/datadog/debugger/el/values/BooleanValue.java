@@ -12,12 +12,15 @@ public final class BooleanValue extends Literal<Boolean> {
   }
 
   @Override
-  public boolean test() {
-    return super.test() && value;
+  public String toString() {
+    return "BooleanLiteral{" + "value=" + value + '}';
   }
 
   @Override
-  public String toString() {
-    return "BooleanLiteral{" + "value=" + value + '}';
+  public String prettyPrint() {
+    if (value == null) {
+      return "null";
+    }
+    return String.valueOf(value.booleanValue());
   }
 }

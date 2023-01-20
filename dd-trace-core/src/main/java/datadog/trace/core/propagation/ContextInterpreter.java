@@ -42,7 +42,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected String origin;
   protected long endToEndStartTime;
   protected boolean valid;
-  protected DatadogTags datadogTags;
+  protected PropagationTags propagationTags;
 
   private TagContext.HttpHeaders httpHeaders;
   private final String customIpHeaderName;
@@ -244,7 +244,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
                 baggage,
                 tags,
                 httpHeaders,
-                datadogTags);
+                propagationTags);
         return context;
       } else if (origin != null
           || !tags.isEmpty()

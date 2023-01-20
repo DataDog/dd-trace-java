@@ -2,10 +2,8 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 
-import datadog.trace.api.DDSpanId;
-import datadog.trace.api.DDTraceId;
-import datadog.trace.api.EndpointCheckpointer;
-import datadog.trace.api.TracePropagationStyle;
+import datadog.trace.api.*;
+import datadog.trace.api.experimental.ProfilingContext;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -116,7 +114,11 @@ public class AgentTracer {
   private AgentTracer() {}
 
   public interface TracerAPI
-      extends datadog.trace.api.Tracer, InternalTracer, AgentPropagation, EndpointCheckpointer {
+      extends datadog.trace.api.Tracer,
+          InternalTracer,
+          AgentPropagation,
+          EndpointCheckpointer,
+          ProfilingContext {
     AgentSpan startSpan(CharSequence spanName);
 
     AgentSpan startSpan(CharSequence spanName, long startTimeMicros);
@@ -366,10 +368,12 @@ public class AgentTracer {
     }
 
     @Override
-    public void onRootSpanFinished(AgentSpan root, boolean published) {}
+    public void onRootSpanFinished(AgentSpan root, EndpointTracker tracker) {}
 
     @Override
-    public void onRootSpanStarted(AgentSpan root) {}
+    public EndpointTracker onRootSpanStarted(AgentSpan root) {
+      return EndpointTracker.NO_OP;
+    }
 
     @Override
     public void setDataStreamCheckpoint(AgentSpan span, LinkedHashMap<String, String> sortedTags) {}
@@ -381,6 +385,9 @@ public class AgentTracer {
 
     @Override
     public void notifyExtensionEnd(AgentSpan span, Object result, boolean isError) {}
+
+    @Override
+    public void setContextValue(String attribute, String value) {}
   }
 
   public static final class NoopAgentSpan implements AgentSpan {

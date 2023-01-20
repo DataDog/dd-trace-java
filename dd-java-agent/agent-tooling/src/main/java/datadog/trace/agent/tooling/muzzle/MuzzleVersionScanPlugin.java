@@ -7,7 +7,6 @@ import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -149,24 +148,11 @@ public class MuzzleVersionScanPlugin {
   public static void printMuzzleReferences(final ClassLoader instrumentationLoader) {
     for (final Instrumenter instrumenter : Instrumenters.load(instrumentationLoader)) {
       if (instrumenter instanceof Instrumenter.Default) {
-        try {
-          final Method getMuzzleMethod =
-              instrumenter.getClass().getDeclaredMethod("getInstrumentationMuzzle");
-          final ReferenceMatcher muzzle;
-          try {
-            getMuzzleMethod.setAccessible(true);
-            muzzle = (ReferenceMatcher) getMuzzleMethod.invoke(instrumenter);
-          } finally {
-            getMuzzleMethod.setAccessible(false);
-          }
-          System.out.println(instrumenter.getClass().getName());
-          for (final Reference ref : muzzle.getReferences()) {
-            System.out.println(prettyPrint("  ", ref));
-          }
-        } catch (final Exception e) {
-          System.out.println(
-              "Unexpected exception printing references for " + instrumenter.getClass().getName());
-          throw new RuntimeException(e);
+        final ReferenceMatcher muzzle =
+            ((Instrumenter.Default) instrumenter).getInstrumentationMuzzle();
+        System.out.println(instrumenter.getClass().getName());
+        for (final Reference ref : muzzle.getReferences()) {
+          System.out.println(prettyPrint("  ", ref));
         }
       } else {
         throw new RuntimeException(

@@ -233,6 +233,28 @@ public class StringModuleImpl extends IastModuleBase implements StringModule {
     }
   }
 
+  @Override
+  @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
+  public void onStringRepeat(String self, int count, String result) {
+    if (!canBeTainted(self) || !canBeTainted(result) || self == result) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final Range[] selfRanges = getRanges(taintedObjects.get(self));
+    if (selfRanges.length == 0) {
+      return;
+    }
+    final Range[] ranges = new Range[selfRanges.length * count];
+    for (int i = 0; i < count; i++) {
+      Ranges.copyShift(selfRanges, ranges, i * selfRanges.length, i * self.length());
+    }
+    taintedObjects.taint(result, ranges);
+  }
+
   private static int getToStringLength(@Nullable final CharSequence s) {
     return s == null ? NULL_STR_LENGTH : s.length();
   }

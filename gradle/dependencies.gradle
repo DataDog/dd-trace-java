@@ -15,7 +15,7 @@ final class CachedData {
     junit4        : "4.13.2",
     junit5        : "5.8.1",
     logback       : "1.2.3",
-    bytebuddy     : "1.12.20",
+    bytebuddy     : "1.12.22",
     scala         : "2.11.12",  // Last version to support Java 7 (2.12+ require Java 8+)
     scala210      : "2.10.7",
     scala211      : "2.11.12",
@@ -34,8 +34,8 @@ final class CachedData {
     testcontainers: '1.17.3',
     jmc           : "8.1.0-SNAPSHOT",
     autoservice   : "1.0-rc7",
-    asyncprofiler : "2.8.3-DD-20221216",
-    asm           : "9.2"
+    jplib         : "0.11.0",
+    asm           : "9.4"
   ]
 
   static deps = [
@@ -52,7 +52,7 @@ final class CachedData {
     autoserviceProcessor : "com.google.auto.service:auto-service:${versions.autoservice}",
     autoserviceAnnotation: "com.google.auto.service:auto-service-annotations:${versions.autoservice}",
     commonsMath          : "org.apache.commons:commons-math3:${versions.commons}",
-    asyncprofiler        : "com.datadoghq:ap-tools:${versions.asyncprofiler}",
+    jplib                : "com.datadoghq:jplib:${versions.jplib}",
     asm                  : "org.ow2.asm:asm:${versions.asm}",
     asmcommons           : "org.ow2.asm:asm-commons:${versions.asm}",
     dogstatsd            : "com.datadoghq:java-dogstatsd-client:${versions.dogstatsd}",

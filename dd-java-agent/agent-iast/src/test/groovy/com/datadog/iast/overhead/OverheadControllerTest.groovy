@@ -1,6 +1,7 @@
 package com.datadog.iast.overhead
 
 import com.datadog.iast.IastRequestContext
+import com.datadog.iast.overhead.OverheadController.OverheadControllerImpl
 import datadog.trace.api.Config
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
@@ -9,13 +10,7 @@ import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.AgentTaskScheduler
 import spock.lang.Shared
 
-import java.util.concurrent.Callable
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.Executors
-import java.util.concurrent.Future
-import java.util.concurrent.Semaphore
-
-import com.datadog.iast.overhead.OverheadController.OverheadControllerImpl
+import java.util.concurrent.*
 
 class OverheadControllerTest extends DDSpecification {
 
@@ -232,40 +227,35 @@ class OverheadControllerTest extends DDSpecification {
     def taskSchedler = Stub(AgentTaskScheduler)
     injectSysConfig("dd.iast.request-sampling", "100")
     rebuildConfig()
+    def maxConcurrentRequests = Config.get().getIastMaxConcurrentRequests()
+    def releaseCount = maxConcurrentRequests - 1
     def overheadController = OverheadController.build(Config.get(), taskSchedler)
 
     when:
-    def acquired1 = overheadController.acquireRequest()
-    def acquired2 = overheadController.acquireRequest()
-    def acquired3 = overheadController.acquireRequest()
+    def acquiredValues = (1..maxConcurrentRequests).collect { overheadController.acquireRequest() }
+    def lastAcquired = overheadController.acquireRequest()
 
     then:
-    acquired1
-    acquired2
-    !acquired3
+    acquiredValues.every { it == true }
+    !lastAcquired
 
     when:
     overheadController.reset()
-    acquired1 = overheadController.acquireRequest()
-    acquired2 = overheadController.acquireRequest()
-    acquired3 = overheadController.acquireRequest()
+    acquiredValues = (1..maxConcurrentRequests).collect { overheadController.acquireRequest() }
+    lastAcquired = overheadController.acquireRequest()
 
     then:
-    acquired1
-    acquired2
-    !acquired3
+    acquiredValues.every { it == true }
+    !lastAcquired
 
     when:
-    overheadController.releaseRequest()
-    overheadController.releaseRequest()
-    acquired1 = overheadController.acquireRequest()
-    acquired2 = overheadController.acquireRequest()
-    acquired3 = overheadController.acquireRequest()
+    (1..releaseCount).each { overheadController.releaseRequest() }
+    acquiredValues = (1..releaseCount).collect { overheadController.acquireRequest() }
+    lastAcquired = overheadController.acquireRequest()
 
     then:
-    acquired1
-    acquired2
-    !acquired3
+    acquiredValues.every { it == true }
+    !lastAcquired
   }
 
   private AgentSpan getAgentSpanWithOverheadContext() {

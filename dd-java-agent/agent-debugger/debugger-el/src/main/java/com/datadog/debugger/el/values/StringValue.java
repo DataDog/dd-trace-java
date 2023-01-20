@@ -8,11 +8,6 @@ public final class StringValue extends Literal<String> {
     super(value);
   }
 
-  @Override
-  public boolean test() {
-    return super.test() && !value.isEmpty();
-  }
-
   public boolean isEmpty() {
     return value != null && value.isEmpty();
   }
@@ -29,5 +24,10 @@ public final class StringValue extends Literal<String> {
   @Override
   public String toString() {
     return "StringLiteral{" + "value=" + value + '}';
+  }
+
+  @Override
+  public String prettyPrint() {
+    return "\"" + value + "\"";
   }
 }
