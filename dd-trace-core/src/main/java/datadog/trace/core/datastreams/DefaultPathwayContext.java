@@ -13,7 +13,6 @@ import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.core.Base64Decoder;
 import datadog.trace.core.Base64Encoder;
-import datadog.trace.core.util.LRUCache;
 import datadog.trace.util.FNV64Hash;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -46,8 +45,10 @@ public class DefaultPathwayContext implements PathwayContext {
   private long edgeStartNanoTicks;
   private long hash;
   private boolean started;
-  // used to detect and prevent loops in case of inaccurate / incomplete instrumentation
-  private final LRUCache<Long, Long> history = new LRUCache<Long, Long>(10000);
+  // state variables used to memoize the pathway hash with
+  // direction != current direction
+  private long closestOppositeDirectionHash;
+  private String previousDirection;
 
   private static final Set<String> hashableTagKeys =
       new HashSet<String>(
@@ -76,6 +77,7 @@ public class DefaultPathwayContext implements PathwayContext {
     this.pathwayStartNanoTicks = pathwayStartNanoTicks;
     this.edgeStartNanoTicks = edgeStartNanoTicks;
     this.hash = hash;
+    this.closestOppositeDirectionHash = hash;
     this.started = true;
   }
 
@@ -123,12 +125,16 @@ public class DefaultPathwayContext implements PathwayContext {
 
       long nodeHash = generateNodeHash(pathwayHashBuilder);
       // loop protection - a node should not be chosen as parent
-      // for an identical node within a single pathway context, as this
+      // for a sequential node with the same direction, as this
       // will cause a `cardinality explosion` for hash / parentHash tag values
-      if (hash != 0 && history.containsKey(nodeHash)) {
-        hash = history.get(nodeHash);
-      } else {
-        history.put(nodeHash, hash);
+      if (sortedTags.containsKey(TagsProcessor.DIRECTION_TAG)) {
+        String direction = sortedTags.get(TagsProcessor.DIRECTION_TAG);
+        if (direction.equals(previousDirection)) {
+          hash = closestOppositeDirectionHash;
+        } else {
+          previousDirection = direction;
+          closestOppositeDirectionHash = hash;
+        }
       }
 
       long newHash = generatePathwayHash(nodeHash, hash);
