@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.java.lang;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -7,30 +9,30 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.propagation.IOModule;
 import java.io.InputStream;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public class InputStreamInstrumentation extends Instrumenter.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForTypeHierarchy {
 
   public InputStreamInstrumentation() {
     super("inputStream");
   }
 
-  /*
   @Override
   public String hierarchyMarkerType() {
-    return "java.io.InputStream";
+    return null;
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return nameEndsWith("InputStream");
+    return extendsClass(named("java.io.InputStream"));
   }
-
-   */
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
@@ -44,17 +46,19 @@ public class InputStreamInstrumentation extends Instrumenter.Iast
     return enabledSystems.contains(TargetSystem.IAST);
   }
 
-  @Override
-  public String instrumentedType() {
-    return "java.io.PushbackInputStream";
-  }
-
   public static class InputStreamAdvice {
 
     @Advice.OnMethodExit
     public static void onExit(
         @Advice.This final InputStream self, @Advice.Argument(0) final InputStream param) {
-      InstrumentationBridge.IO.onConstruct(param, self);
+      final IOModule module = InstrumentationBridge.IO;
+      try {
+        if (module != null) {
+          module.onConstruct(param, self);
+        }
+      } catch (final Throwable e) {
+        module.onUnexpectedException("InputStreamAdvice onExit threw", e);
+      }
     }
   }
 }
