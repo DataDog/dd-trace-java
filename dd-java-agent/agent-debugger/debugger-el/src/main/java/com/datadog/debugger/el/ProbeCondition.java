@@ -71,6 +71,11 @@ public final class ProbeCondition implements DebuggerScript {
     return getDslExpression().hashCode();
   }
 
+  @Override
+  public String toString() {
+    return "ProbeCondition{" + "dslExpression='" + dslExpression + '\'' + '}';
+  }
+
   public static ProbeCondition load(JsonReader reader) throws IOException {
     // reader is expected to be inside "when"
     String dsl = null;
