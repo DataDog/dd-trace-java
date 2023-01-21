@@ -6,7 +6,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 
 public class TraceDecorator extends BaseDecorator {
   public static TraceDecorator DECORATE = new TraceDecorator();
-  public static final Boolean useLegacyOperationName =
+  private static final boolean useLegacyOperationName =
       Config.get().isLegacyTracingEnabled(true, "trace.annotations");
   private static final CharSequence TRACE = UTF8BytesString.create("trace");
 
