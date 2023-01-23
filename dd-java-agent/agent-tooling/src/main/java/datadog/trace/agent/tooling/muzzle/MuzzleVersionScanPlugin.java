@@ -32,7 +32,7 @@ public class MuzzleVersionScanPlugin {
 
   public static void assertInstrumentationMuzzled(
       final ClassLoader instrumentationLoader,
-      final ClassLoader userClassLoader,
+      final ClassLoader testApplicationLoader,
       final boolean assertPass,
       final String muzzleDirective)
       throws Exception {
@@ -42,13 +42,14 @@ public class MuzzleVersionScanPlugin {
       // verify muzzle result matches expectation
       final ReferenceMatcher muzzle = instrumenter.getInstrumentationMuzzle();
       final List<Reference.Mismatch> mismatches =
-          muzzle.getMismatchedReferenceSources(userClassLoader);
+          muzzle.getMismatchedReferenceSources(testApplicationLoader);
 
       ClassLoaderMatchers.reset();
 
-      final boolean classLoaderMatch = instrumenter.classLoaderMatcher().matches(userClassLoader);
-      final boolean passed = mismatches.isEmpty() && classLoaderMatch;
+      final boolean classLoaderMatch =
+          instrumenter.classLoaderMatcher().matches(testApplicationLoader);
 
+      final boolean passed = mismatches.isEmpty() && classLoaderMatch;
       if (passed && !assertPass) {
         System.err.println(
             "MUZZLE PASSED "
@@ -76,7 +77,7 @@ public class MuzzleVersionScanPlugin {
           if (helperClassNames.length > 0) {
             new HelperInjector(
                     MuzzleVersionScanPlugin.class.getSimpleName(), createHelperMap(instrumenter))
-                .transform(null, null, userClassLoader, null, null);
+                .transform(null, null, testApplicationLoader, null, null);
           }
         } catch (final Exception e) {
           System.err.println(
