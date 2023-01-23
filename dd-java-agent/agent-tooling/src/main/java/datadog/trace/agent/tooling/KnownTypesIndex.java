@@ -147,6 +147,9 @@ public final class KnownTypesIndex {
       }
     }
 
+    /**
+     * Called from 'generateKnownTypesIndex' task in 'dd-java-agent/instrumentation/build.gradle'.
+     */
     public static void main(String[] args) throws IOException {
       if (args.length < 1) {
         throw new IllegalArgumentException("Expected: resources-dir");
