@@ -21,7 +21,8 @@ excludedClassesCoverage += [
   'com.datadog.debugger.agent.DebuggerAgent.ShutdownHook',
   'com.datadog.debugger.agent.DebuggerAgent',
   // too old for this coverage (JDK 1.2)
-  'antlr.*'
+  'antlr.*',
+  'com.datadog.debugger.util.MoshiSnapshotHelper' // only static classes
 ]
 
 dependencies {
