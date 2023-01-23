@@ -18,7 +18,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 import net.bytebuddy.jar.asm.ClassReader;
 import net.bytebuddy.jar.asm.ClassVisitor;
-import net.bytebuddy.jar.asm.Opcodes;
+import net.bytebuddy.utility.OpenedClassReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -100,7 +100,8 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
     try {
       SourceFileAttributeVisitor sourceFileAttributeVisitor = new SourceFileAttributeVisitor();
       ClassReader classReader = new ClassReader(c.getName());
-      classReader.accept(sourceFileAttributeVisitor, 0);
+      classReader.accept(
+          sourceFileAttributeVisitor, ClassReader.SKIP_CODE | ClassReader.SKIP_FRAMES);
 
       String source = sourceFileAttributeVisitor.getSource();
       String packageName = c.getPackage().getName();
@@ -281,7 +282,7 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
     private String source;
 
     SourceFileAttributeVisitor() {
-      super(Opcodes.ASM8);
+      super(OpenedClassReader.ASM_API);
     }
 
     @Override
