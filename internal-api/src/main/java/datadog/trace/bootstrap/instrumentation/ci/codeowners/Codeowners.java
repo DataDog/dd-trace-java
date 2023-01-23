@@ -17,37 +17,29 @@ import javax.annotation.Nullable;
  */
 public class Codeowners {
 
-  public static final Codeowners EMPTY = new Codeowners("", Collections.emptyList());
+  public static final Codeowners EMPTY = new Codeowners(Collections.emptyList());
 
-  private final String repoRoot;
   private final Iterable<Entry> entries;
 
-  private Codeowners(String repoRoot, Iterable<Entry> entries) {
-    this.repoRoot = repoRoot + (repoRoot.endsWith("/") ? "" : "/");
+  private Codeowners(Iterable<Entry> entries) {
     this.entries = entries;
   }
 
   /**
-   * @param path <b>Absolute</b> path to a file/folder inside the repository
+   * @param path path to a file/folder relative to the repository root
    * @return the list of teams/people who own the provided path
    */
   public @Nullable Collection<String> getOwners(String path) {
-    if (!path.startsWith(repoRoot)) {
-      return null;
-    }
-
-    char[] relativePath = new char[path.length() - repoRoot.length()];
-    path.getChars(repoRoot.length(), path.length(), relativePath, 0);
-
+    char[] pathCharacters = path.toCharArray();
     for (Entry entry : entries) {
-      if (entry.getMatcher().consume(relativePath, 0) >= 0) {
+      if (entry.getMatcher().consume(pathCharacters, 0) >= 0) {
         return entry.getOwners();
       }
     }
     return null;
   }
 
-  public static Codeowners parse(String repoRoot, Reader r) throws IOException {
+  public static Codeowners parse(Reader r) throws IOException {
     Deque<Entry> entries = new ArrayDeque<>();
 
     CharacterMatcher.Factory characterMatcherFactory = new CharacterMatcher.Factory();
@@ -62,6 +54,6 @@ public class Codeowners {
       }
     }
 
-    return new Codeowners(repoRoot, entries);
+    return new Codeowners(entries);
   }
 }

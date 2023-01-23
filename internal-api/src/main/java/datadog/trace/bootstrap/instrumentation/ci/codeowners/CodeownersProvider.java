@@ -27,21 +27,18 @@ public class CodeownersProvider {
 
   public Codeowners build(String ciWorkspace) {
     return find(
-        ciWorkspace,
-        fileSystem.getPath(CODEOWNERS_FILE_NAME),
-        fileSystem.getPath(".github", CODEOWNERS_FILE_NAME),
-        fileSystem.getPath(".gitlab", CODEOWNERS_FILE_NAME),
-        fileSystem.getPath("docs", CODEOWNERS_FILE_NAME));
+        fileSystem.getPath(ciWorkspace, CODEOWNERS_FILE_NAME),
+        fileSystem.getPath(ciWorkspace, ".github", CODEOWNERS_FILE_NAME),
+        fileSystem.getPath(ciWorkspace, ".gitlab", CODEOWNERS_FILE_NAME),
+        fileSystem.getPath(ciWorkspace, "docs", CODEOWNERS_FILE_NAME));
   }
 
-  private Codeowners find(String repoRoot, Path... possibleRelativePaths) {
-    Path rootPath = fileSystem.getPath(repoRoot);
-    for (Path relativePath : possibleRelativePaths) {
-      Path path = rootPath.resolve(relativePath);
+  private Codeowners find(Path... possiblePaths) {
+    for (Path path : possiblePaths) {
       try {
         if (Files.exists(path)) {
           try (Reader reader = Files.newBufferedReader(path)) {
-            return Codeowners.parse(repoRoot, reader);
+            return Codeowners.parse(reader);
           }
         }
       } catch (IOException e) {
