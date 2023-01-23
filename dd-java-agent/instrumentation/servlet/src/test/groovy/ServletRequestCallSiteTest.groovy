@@ -29,6 +29,7 @@ class ServletRequestCallSiteTest extends  AgentTestRunner{
     final result = testSuite.getInputStream()
 
     then:
+    result == is
     1 * iastModule.onGetInputStream(is)
 
     where:
@@ -52,6 +53,7 @@ class ServletRequestCallSiteTest extends  AgentTestRunner{
     final result = testSuite.getReader()
 
     then:
+    result == reader
     1 * iastModule.onGetReader(reader)
 
     where:
