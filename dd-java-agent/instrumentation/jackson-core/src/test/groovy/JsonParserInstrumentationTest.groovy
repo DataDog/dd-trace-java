@@ -32,7 +32,6 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
     ]
   }
 
-  //abstract
   def 'test getCurrentName()'() {
     setup:
     final jacksonModule = Mock(JacksonModule)
@@ -52,7 +51,6 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
     ]
   }
 
-  //abstract
   def 'test getText()'() {
     setup:
     final jacksonModule = Mock(JacksonModule)
@@ -72,8 +70,6 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
       new JsonFactory().createParser(new ByteArrayInputStream(JSON_STRING.getBytes()))
     ]
   }
-
-
 
   def 'test getValueAsString()'() {
     setup:
@@ -95,23 +91,6 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
     ]
   }
 
-  /*
-   //abstract
-   def 'test getValueAsString(String)'() {
-   setup:
-   final jacksonModule = Mock(JacksonModule)
-   InstrumentationBridge.registerIastModule(jacksonModule)
-   final jsonParserTestSuite = new JsonParserTestSuite(jsonParser)
-   when:
-   final result = jsonParserTestSuite.getValueAsString("test")
-   then:
-   result == 'key1'
-   1 * jacksonModule.onJsonParserGetString(jsonParser, 'key1')
-   where:
-   jsonParser << [new JsonFactory().createParser(JSON_STRING), new JsonFactory().createParser(new ByteArrayInputStream(JSON_STRING.getBytes()))]
-   }
-   */
-
   def 'test nextFieldName()'() {
     setup:
     final jacksonModule = Mock(JacksonModule)
@@ -131,7 +110,6 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
       new JsonFactory().createParser(new ByteArrayInputStream(JSON_STRING.getBytes()))
     ]
   }
-
 
   def 'test nextTextValue()'() {
     setup:

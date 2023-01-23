@@ -37,6 +37,7 @@ class JacksonModuleTest extends IastModuleImplTestBase {
     null    | new Object()
     'test'  | null
   }
+
   void 'onJsonFactoryCreateParser without span (#content, #result)'(final String content, final Object result) {
     when:
     module.onJsonFactoryCreateParser(content, result)
@@ -49,6 +50,7 @@ class JacksonModuleTest extends IastModuleImplTestBase {
     content | result
     'test' | new Object()
   }
+
   void 'onJsonFactoryCreateParser (#content, #result)'(final Object content, final Object result, final int mockCalls) {
     given:
     final span = Mock(AgentSpan)

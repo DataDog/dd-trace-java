@@ -26,6 +26,7 @@ class JsonFactoryCallSiteTest extends AgentTestRunner {
     result != null
     1 * jacksonModule.onJsonFactoryCreateParser(content, _ as JsonParser)
   }
+
   def 'test createParser(InputStream)'() {
     setup:
     final jacksonModule = Mock(JacksonModule)

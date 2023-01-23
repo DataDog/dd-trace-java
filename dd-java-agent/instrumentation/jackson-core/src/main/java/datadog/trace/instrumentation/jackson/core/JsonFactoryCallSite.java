@@ -12,11 +12,8 @@ import javax.annotation.Nullable;
 @CallSite(spi = IastAdvice.class)
 public class JsonFactoryCallSite {
 
-  @CallSite.AfterArray(
-      value = {
-        @CallSite.After(
-            "com.fasterxml.jackson.core.JsonParser com.fasterxml.jackson.core.JsonFactory.createParser(java.io.InputStream)")
-      })
+  @CallSite.After(
+      "com.fasterxml.jackson.core.JsonParser com.fasterxml.jackson.core.JsonFactory.createParser(java.io.InputStream)")
   public static JsonParser afterCreate(
       @CallSite.This @Nonnull final JsonFactory self,
       @CallSite.Argument @Nullable final Object input,

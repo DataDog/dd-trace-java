@@ -37,16 +37,6 @@ public class JsonParserTestSuite {
     return null;
   }
 
-  public String getValueAsString(final String def) throws IOException {
-    while (jsonParser.nextToken() != JsonToken.END_OBJECT) {
-      String value = jsonParser.getValueAsString(def);
-      if (value != null) {
-        return value;
-      }
-    }
-    return null;
-  }
-
   public String nextFieldName() throws IOException {
     while (jsonParser.nextToken() != JsonToken.END_OBJECT) {
       return jsonParser.nextFieldName();
