@@ -1,15 +1,19 @@
 name: "Lib Injection Test"
 
 on:
-  workflow_run:
-    workflows: [CodeQL]
-    types:
-      - completed
+  push:
+    branches:
+      - master
+      - 'release/*'
+    tags:
+      - '*'
+  pull_request:
+    branches:
+      - master
 
 jobs:
 
   build-and-publish-init-image:
-    if: ${{ false }}  # disable for now
     runs-on: ubuntu-latest
     steps:
     
@@ -54,7 +58,6 @@ jobs:
         context: ./lib-injection
 
   injection-tests:
-    if: ${{ false }}  # disable for now
     needs:
       - build-and-publish-init-image
     runs-on: ubuntu-latest
