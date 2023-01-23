@@ -10,6 +10,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.communication.monitor.Counter
 import datadog.communication.monitor.Monitoring
 import datadog.remoteconfig.ConfigurationChangesTypedListener
+import datadog.remoteconfig.ConfigurationEndListener
 import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.Product
 import datadog.trace.api.Config
@@ -133,6 +134,8 @@ class AppSecSystemSpecification extends DDSpecification {
 
   void 'updating configuration replaces the EventProducer'() {
     ConfigurationChangesTypedListener<AppSecConfig> savedAsmListener
+    ConfigurationEndListener savedConfEndListener
+
     when:
     AppSecSystem.start(subService, sharedCommunicationObjects())
     EventProducerService initialEPS = AppSecSystem.REPLACEABLE_EVENT_PRODUCER.cur
@@ -140,6 +143,9 @@ class AppSecSystemSpecification extends DDSpecification {
     then:
     1 * poller.addListener(Product.ASM_DD, _, _) >> {
       savedAsmListener = it[2]
+    }
+    1 * poller.addConfigurationEndListener(_) >> {
+      savedConfEndListener = it[0]
     }
 
     when:
@@ -169,44 +175,10 @@ class AppSecSystemSpecification extends DDSpecification {
             action: 'record',
           ]
         ]]), null)
+    savedConfEndListener.onConfigurationEnd()
 
     then:
     AppSecSystem.REPLACEABLE_EVENT_PRODUCER.cur != initialEPS
-  }
-
-  void 'removing rule toggling config resets waf_rules_override'() {
-    ConfigurationChangesTypedListener<AppSecConfig> savedConfListener
-    AppSecConfig cfg = new AppSecConfig.AppSecConfigV2()
-    cfg.@version = '2.0.1'
-    AppSecConfig origCfg
-
-    when:
-    AppSecSystem.start(subService, sharedCommunicationObjects())
-
-    then:
-    1 * poller.addListener(Product.ASM_DD, _, _) >> {
-      savedConfListener = it[2]
-    }
-    AppSecSystem.APP_SEC_CONFIG_SERVICE.lastConfig['waf'] != null
-
-    when:
-    origCfg = AppSecSystem.APP_SEC_CONFIG_SERVICE.lastConfig['waf']
-    savedConfListener.accept(
-      'ignored config key', cfg, null)
-
-    then:
-    AppSecSystem.APP_SEC_CONFIG_SERVICE.lastConfig['waf']  == cfg
-
-    when:
-    savedConfListener.accept(
-      'ignored config key', null, null)
-
-    then:
-    AppSecSystem.APP_SEC_CONFIG_SERVICE.lastConfig['waf']  == origCfg
-  }
-
-  void 'removing rule config resets to default configuration'() {
-
   }
 
   private SharedCommunicationObjects sharedCommunicationObjects() {

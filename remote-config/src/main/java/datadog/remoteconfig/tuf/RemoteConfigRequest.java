@@ -55,6 +55,7 @@ public class RemoteConfigRequest {
     public static final long CAPABILITY_ASM_ACTIVATION = 1 << 1;
     public static final long CAPABILITY_ASM_IP_BLOCKING = 1 << 2;
     public static final long CAPABILITY_ASM_DD_RULES = 1 << 3;
+    public static final long CAPABILITY_ASM_EXCLUSIONS = 1 << 4;
 
     @Json(name = "state")
     private final ClientState clientState;
