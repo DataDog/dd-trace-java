@@ -32,9 +32,15 @@ class MatchesExpressionTest {
     MatchesExpression expression = new MatchesExpression(DSL.value("abc"), new StringValue("abc"));
     assertTrue(expression.evaluate(resolver));
     assertEquals("matches(\"abc\", \"abc\")", expression.prettyPrint());
+    expression = new MatchesExpression(DSL.value("abc"), new StringValue("^ab.*"));
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("matches(\"abc\", \"^ab.*\")", expression.prettyPrint());
 
     expression = new MatchesExpression(DSL.value("abc"), new StringValue("bc"));
     assertFalse(expression.evaluate(resolver));
     assertEquals("matches(\"abc\", \"bc\")", expression.prettyPrint());
+    expression = new MatchesExpression(DSL.value("abc"), new StringValue("[def]+"));
+    assertFalse(expression.evaluate(resolver));
+    assertEquals("matches(\"abc\", \"[def]+\")", expression.prettyPrint());
   }
 }
