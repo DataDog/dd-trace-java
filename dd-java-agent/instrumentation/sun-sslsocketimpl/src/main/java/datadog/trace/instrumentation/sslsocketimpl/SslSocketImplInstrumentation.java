@@ -19,6 +19,7 @@ public class SslSocketImplInstrumentation extends Instrumenter.Usm
     super("sun-sslsocketimpl","sslsocketimpl","sslsocket");
   }
 
+
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
@@ -42,8 +43,8 @@ public class SslSocketImplInstrumentation extends Instrumenter.Usm
       System.out.println("close socket:");
       UsmMessage message = new UsmMessage.CloseConnectionUsmMessage(socket);
       UsmExtractor.send(message);
-      System.out.println("src host: " + socket.getLocalSocketAddress().toString() + " src port: " + socket.getLocalPort());
-      System.out.println("dst host: " + socket.getRemoteSocketAddress().toString() + " dst port: " + socket.getPeerPort());
+      System.out.println("src host: " + socket.getLocalAddress().toString() + " src port: " + socket.getLocalPort());
+      System.out.println("dst host: " + socket.getInetAddress().toString() + " dst port: " + socket.getPeerPort());
     }
   }
 }

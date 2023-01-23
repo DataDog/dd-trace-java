@@ -17,7 +17,12 @@ public class UsmExtractor {
 
   public static void send(UsmMessage message) {
     if (message.validate()){
+      System.out.println(" sending ioctl: " + String.format("%08x", UsmMessage.USM_IOCTL_ID.intValue()));
       NativeLong res = CLibrary.Instance.ioctl(new NativeLong(0), UsmMessage.USM_IOCTL_ID, Pointer.nativeValue(message.getBufferPtr()));
+      System.out.println("ioctl result: " + String.format("%08x", res.intValue()));
+    }
+    else{
+      System.out.println("INVALID MESSAGE: " + message.getClass().toString());
     }
   }
 

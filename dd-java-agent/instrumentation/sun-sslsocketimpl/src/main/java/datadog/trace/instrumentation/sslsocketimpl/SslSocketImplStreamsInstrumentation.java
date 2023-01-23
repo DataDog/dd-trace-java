@@ -65,8 +65,8 @@ public class SslSocketImplStreamsInstrumentation extends Instrumenter.Usm
       System.out.println("Output Stream write:");
       UsmMessage message = new UsmMessage.RequestUsmMessage(socket, buffer, offset, len);
       UsmExtractor.send(message);
-      System.out.println("src host: " + socket.getLocalSocketAddress().toString() + " src port: " + socket.getLocalPort());
-      System.out.println("dst host: " + socket.getRemoteSocketAddress().toString() + " dst port: " + socket.getPeerPort());
+      System.out.println("src host: " + socket.getLocalAddress().toString() + " src port: " + socket.getLocalPort());
+      System.out.println("dst host: " + socket.getInetAddress().toString() + " dst port: " + socket.getPeerPort());
       System.out.println("intercepted write, byte len: " + len);
     }
 
@@ -85,8 +85,8 @@ public class SslSocketImplStreamsInstrumentation extends Instrumenter.Usm
       System.out.println("Input Stream read:");
       UsmMessage message = new UsmMessage.RequestUsmMessage(socket, buffer, offset, len);
       UsmExtractor.send(message);
-      System.out.println("src host: " + socket.getLocalSocketAddress().toString() + " src port: " + socket.getLocalPort());
-      System.out.println("dst host: " + socket.getRemoteSocketAddress().toString() + " dst port: " + socket.getPeerPort());
+      System.out.println("src host: " + socket.getLocalAddress().toString() + " src port: " + socket.getLocalPort());
+      System.out.println("dst host: " + socket.getInetAddress().toString() + " dst port: " + socket.getPeerPort());
       System.out.println("intercepted write, byte len: " + len);
     }
 
