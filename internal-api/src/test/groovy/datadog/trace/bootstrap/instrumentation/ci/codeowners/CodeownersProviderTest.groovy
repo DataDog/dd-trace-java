@@ -23,7 +23,7 @@ class CodeownersProviderTest extends Specification {
     when:
     def codeownersProvider = new CodeownersProvider(fileSystem)
     def codeowners = codeownersProvider.build(REPO_ROOT)
-    def owners = codeowners.getOwners(REPO_ROOT + "folder/MyClass.java")
+    def owners = codeowners.getOwners("folder/MyClass.java")
 
     then:
     owners == ["@global-owner1", "@global-owner2"]

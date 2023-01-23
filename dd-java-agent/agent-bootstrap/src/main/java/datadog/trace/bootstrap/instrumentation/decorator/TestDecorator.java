@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 
 import static datadog.trace.util.Strings.toJson;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -49,8 +50,10 @@ public abstract class TestDecorator extends BaseDecorator {
     UserSuppliedGitInfoBuilder userSuppliedGitInfoBuilder = new UserSuppliedGitInfoBuilder();
 
     CIInfo ciInfo = ciProviderInfo.buildCIInfo();
+    String repoRoot = ciInfo.getCiWorkspace();
+
     GitInfo ciGitInfo = ciProviderInfo.buildCIGitInfo();
-    GitInfo localGitInfo = ciLocalGitInfoBuilder.build(ciInfo.getCiWorkspace(), GIT_FOLDER_NAME);
+    GitInfo localGitInfo = ciLocalGitInfoBuilder.build(repoRoot, GIT_FOLDER_NAME);
     GitInfo userSuppliedGitInfo = userSuppliedGitInfoBuilder.build();
 
     CITagsProviderImpl ciTagsProvider =
@@ -58,14 +61,14 @@ public abstract class TestDecorator extends BaseDecorator {
     ciTags = ciTagsProvider.getCiTags();
 
     CodeownersProvider codeownersProvider = new CodeownersProvider();
-    codeowners = codeownersProvider.build(ciInfo.getCiWorkspace());
+    codeowners = codeownersProvider.build(repoRoot);
 
     isCI = ciProviderInfo.isCI();
 
     sourcePathResolver =
         new BestEfforSourcePathResolver(
-            new CompilerAidedSourcePathResolver(),
-            new RepoIndexSourcePathResolver(ciInfo.getCiWorkspace()));
+            new CompilerAidedSourcePathResolver(repoRoot),
+            new RepoIndexSourcePathResolver(repoRoot));
   }
 
   TestDecorator(
@@ -157,22 +160,18 @@ public abstract class TestDecorator extends BaseDecorator {
     if (version != null) {
       span.setTag(Tags.TEST_FRAMEWORK_VERSION, version);
     }
-    if (testClass != null) {
-      Collection<String> testCodeOwners = getCodeowners(testClass);
-      if (testCodeOwners != null) {
-        span.setTag(Tags.TEST_CODEOWNERS, toJson(testCodeOwners));
+    if (Config.get().isCiVisibilitySourceDataEnabled() && testClass != null) {
+      String sourcePath = sourcePathResolver.getSourcePath(testClass);
+      if (sourcePath != null) {
+        span.setTag(Tags.TEST_SOURCE_FILE, sourcePath);
+
+        Collection<String> testCodeOwners = codeowners.getOwners(sourcePath);
+        if (testCodeOwners != null) {
+          span.setTag(Tags.TEST_CODEOWNERS, toJson(testCodeOwners));
+        }
       }
     }
     return afterStart(span);
-  }
-
-  private Collection<String> getCodeowners(final Class<?> testClass) {
-    String sourcePath = sourcePathResolver.getSourcePath(testClass);
-    if (sourcePath != null) {
-      return codeowners.getOwners(sourcePath);
-    } else {
-      return null;
-    }
   }
 
   public List<String> testNames(
