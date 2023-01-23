@@ -176,6 +176,7 @@
 2 org.apache.xerces.*
 2 org.apache.xml.*
 2 org.apache.xpath.*
+2 org.bouncycastle.*
 2 org.h2.*
 0 org.h2.Driver
 # Some runnables that get instrumented
