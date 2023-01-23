@@ -110,8 +110,7 @@ dependencies {
   api deps.slf4j
   api project(":utils:time-utils")
 
-  // FIXME update version to 0.1.0 after plugin release
-  implementation "com.datadoghq:dd-javac-plugin-client:0.1.0-SNAPSHOT"
+  implementation "com.datadoghq:dd-javac-plugin-client:0.1.0"
   implementation deps.bytebuddy
 
   testImplementation project(":utils:test-utils")
