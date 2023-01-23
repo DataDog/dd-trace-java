@@ -7,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.security.ssl.SSLSocketImpl;
 
-import java.net.Inet4Address;
 import java.net.Inet6Address;
 
 public interface UsmMessage {
@@ -53,7 +52,7 @@ public interface UsmMessage {
 
     @Override
     public boolean validate() {
-      if (offset != getMessageSize()){
+      if (offset > getMessageSize()){
         log.warn(String.format("invalid message size, expected: %d actual: %d",getMessageSize(), offset));
         return false;
       }
@@ -69,6 +68,7 @@ public interface UsmMessage {
 
       totalMessageSize = HEADER_SIZE + CONNECTION_INFO_SIZE + dataSize();
       pointer = new Memory(totalMessageSize);
+      pointer.clear(totalMessageSize);
       offset = 0;
 
       //encode message type
@@ -80,15 +80,16 @@ public interface UsmMessage {
 
     private void encodeConnection(SSLSocketImpl socket){
 
-      //we reserve 16 bytes for src IP (in case it is IPv6)
+      //we reserve 2 long for the ip, as IPv6 takes 128 bytes
+      int ipReservedSize = Long.BYTES * 2;
       byte[] srcIPBuffer = socket.getLocalAddress().getAddress();
       pointer.write(offset,srcIPBuffer,0,srcIPBuffer.length);
-      offset += 16;
+      offset+=ipReservedSize;
 
-      //we reserve 16 bytes for dst IP (in case it is IPv6)
+
       byte[] dstIPBuffer = socket.getInetAddress().getAddress();
       pointer.write(offset,dstIPBuffer,0,dstIPBuffer.length);
-      offset += 16;
+      offset+=ipReservedSize;
 
       //encode src and dst ports
       pointer.setShort(offset, (short)socket.getLocalPort());
@@ -137,7 +138,6 @@ public interface UsmMessage {
 
       // check the buffer is not larger than max allowed,
       if (len - bufferOffset <= MAX_HTTPS_BUFFER_SIZE){
-
         pointer.setInt(offset,len);
         offset += Integer.BYTES;
 
