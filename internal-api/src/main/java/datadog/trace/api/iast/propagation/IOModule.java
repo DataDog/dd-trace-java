@@ -6,5 +6,5 @@ import javax.annotation.Nullable;
 
 public interface IOModule extends IastModule {
 
-  void onConstruct(@Nullable InputStream inputStream, @Nullable InputStream result);
+  void onConstruct(@Nullable InputStream param, @Nullable InputStream self);
 }

@@ -10,8 +10,8 @@ import javax.annotation.Nullable;
 
 public class IOModuleImpl extends IastModuleBase implements IOModule {
   @Override
-  public void onConstruct(@Nullable InputStream inputStream, @Nullable InputStream result) {
-    if (inputStream == null || result == null) {
+  public void onConstruct(@Nullable InputStream param, @Nullable InputStream self) {
+    if (param == null || self == null) {
       return;
     }
     final IastRequestContext ctx = IastRequestContext.get();
@@ -19,8 +19,8 @@ public class IOModuleImpl extends IastModuleBase implements IOModule {
       return;
     }
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    if (taintedObjects.get(inputStream) != null && taintedObjects.get(result) == null) {
-      taintedObjects.taint(result, Ranges.EMPTY);
+    if (taintedObjects.get(param) != null && taintedObjects.get(self) == null) {
+      taintedObjects.taint(self, Ranges.EMPTY);
     }
   }
 }
