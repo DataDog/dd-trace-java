@@ -2,7 +2,7 @@ package com.datadog.iast.propagation;
 
 import com.datadog.iast.IastModuleBase;
 import com.datadog.iast.IastRequestContext;
-import com.datadog.iast.taint.Ranges;
+import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.iast.propagation.IOModule;
 import java.io.InputStream;
@@ -19,8 +19,9 @@ public class IOModuleImpl extends IastModuleBase implements IOModule {
       return;
     }
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    if (taintedObjects.get(param) != null && taintedObjects.get(self) == null) {
-      taintedObjects.taint(self, Ranges.EMPTY);
+    TaintedObject taintedParam = taintedObjects.get(param);
+    if (taintedParam != null && taintedObjects.get(self) == null) {
+      taintedObjects.taint(self, taintedParam.getRanges());
     }
   }
 }

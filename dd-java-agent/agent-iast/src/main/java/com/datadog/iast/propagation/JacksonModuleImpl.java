@@ -4,7 +4,7 @@ import static com.datadog.iast.taint.Tainteds.canBeTainted;
 
 import com.datadog.iast.IastModuleBase;
 import com.datadog.iast.IastRequestContext;
-import com.datadog.iast.taint.Ranges;
+import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.iast.propagation.JacksonModule;
 import javax.annotation.Nonnull;
@@ -42,8 +42,9 @@ public class JacksonModuleImpl extends IastModuleBase implements JacksonModule {
       return;
     }
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    if (taintedObjects.get(parameter) != null) {
-      taintedObjects.taint(toTaint, Ranges.EMPTY);
+    TaintedObject taintedParameter = taintedObjects.get(parameter);
+    if (taintedParameter != null) {
+      taintedObjects.taint(toTaint, taintedParameter.getRanges());
     }
   }
 }
