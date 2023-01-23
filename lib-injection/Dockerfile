@@ -1,4 +1,4 @@
-FROM scratch AS java_agent
+FROM scratch AS java_tracer_agent
 COPY dd-java-agent.jar /
 
 FROM busybox
@@ -11,5 +11,5 @@ WORKDIR /datadog-init
 COPY copy-lib.sh /datadog-init/copy-lib.sh
 # using a separate stage for holding a jar - can allow us to build this dockerfile remotely, 
 # and replace the jar - when needed
-COPY --from=java_agent dd-java-agent.jar /datadog-init/dd-java-agent.jar
+COPY --from=java_tracer_agent dd-java-agent.jar /datadog-init/dd-java-agent.jar
 USER ${UID}
