@@ -53,7 +53,7 @@
 1 com.ecwid.consul.*
 1 com.esotericsoftware.kryo.*
 1 com.fasterxml.*
-0 com.fasterxml.jackson.databind.*
+0 com.fasterxml.jackson.databind.ObjectMapper
 1 com.filenet.*
 1 com.github.benmanes.caffeine.*
 1 com.google.*
