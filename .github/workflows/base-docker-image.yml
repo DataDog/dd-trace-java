@@ -77,12 +77,6 @@ jobs:
       uses: docker/build-push-action@c56af957549030174b10d6867f20e78cfd7debc5 # 3.2.0
       with:
         push: true
-        tags: ghcr.io/datadog/dd-trace-java/dd-java-agent:test_latest_snapshot
+        tags: ghcr.io/datadog/dd-trace-java/dd-java-agent:test_latest_snapshot,ghcr.io/datadog/dd-trace-java/dd-java-agent:test_latest,ghcr.io/datadog/dd-trace-java/${{ env.CI_COMMIT_SHA }}
         platforms: ${{ steps.buildx-platforms.outputs.platforms }}
         context: ./base-docker-image
-
-    - name: TEST Download dd-java-agent
-      uses: actions/github-script@v6
-      with:
-          script: |
-            let fs = require('fs');
