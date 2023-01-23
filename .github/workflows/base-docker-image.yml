@@ -1,10 +1,12 @@
 name: "base-docker-image"
 
 on:
-  workflow_run:
-    workflows: [CodeQL]
-    types:
-      - completed
+  pull_request:
+    branches:
+    - '**'
+  push:
+    branches:
+    - main
 
 jobs:
 
@@ -34,33 +36,42 @@ jobs:
     - name: Login to Docker
       run: docker login -u publisher -p ${{ secrets.GITHUB_TOKEN }} ghcr.io
 
-    - name: 'Download dd-java-agent'
-      uses: actions/github-script@v6
-      with:
-          script: |
-            let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               run_id: context.payload.workflow_run.id,
-            });
-            let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
-              return artifact.name == "dd-java-agent"
-            })[0];
-            let download = await github.rest.actions.downloadArtifact({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               artifact_id: matchArtifact.id,
-               archive_format: 'zip',
-            });
-            let fs = require('fs');
-            fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/dd-java-agent.zip`, Buffer.from(download.data));
+    - name: Build dd-trace-java for creating the CodeQL database
+      run: JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 JAVA_17_HOME=$JAVA_HOME_17_X64 ./gradlew clean :dd-java-agent:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=8
 
-    - name: 'Unzip dd-java-agent'
-      run: |
-        unzip dd-java-agent.zip
-        echo "debug ls"
-        ls
-        mv dd-java-agent*.jar base-docker-image/
+    - name: prepare-image
+      run: |   
+
+          mv workspace/dd-java-agent/build/libs/dd-java-agent*.jar base-docker-image/dd-java-agent.jar
+          
+          #Library version
+          cat workspace/dd-java-agent/build/resources/main/dd-java-agent.version > base-docker-image/LIBRARY_VERSION
+          LIBRARY_VERSION=$(cat base-docker-image/LIBRARY_VERSION)
+
+          #WAF version
+          touch base-docker-image/LIBDDWAF_VERSION
+
+          #AppSec and IAST
+          cat workspace/dd-java-agent/build/resources/main/appsec/appsec.version > base-docker-image/APPSEC_VERSION
+          cat workspace/dd-java-agent/build/resources/main/iast/agent-iast.version > base-docker-image/IAST_VERSION
+
+          #Event rules
+          if [[ $LIBRARY_VERSION == 0.96* ]]; then
+            echo "1.2.5" > base-docker-image/APPSEC_EVENT_RULES_VERSION
+          else
+            cat workspace/dd-java-agent/build/resources/main/appsec/default_config.json | \
+              grep rules_version | head -1 | awk -F'"' '{print $4;}' \
+              > base-docker-image/APPSEC_EVENT_RULES_VERSION
+          fi
+
+          #Debug 
+          echo "Building base docker image with content:"
+          ls
+          echo "LIBRARY version: ${LIBRARY_VERSION}"
+          echo "WAF version: $(cat base-docker-image/LIBDDWAF_VERSION)"
+          echo "APPSEC version: $(cat base-docker-image/APPSEC_VERSION)"
+          echo "IAST version: $(cat base-docker-image/IAST_VERSION)"
+          echo "APPSEC RULES version: $(cat base-docker-image/APPSEC_EVENT_RULES_VERSION)"
 
     - name: Docker Build
       uses: docker/build-push-action@c56af957549030174b10d6867f20e78cfd7debc5 # 3.2.0
@@ -69,3 +80,9 @@ jobs:
         tags: ghcr.io/datadog/dd-trace-java/dd-java-agent:test_latest_snapshot
         platforms: ${{ steps.buildx-platforms.outputs.platforms }}
         context: ./base-docker-image
+
+    - name: TEST Download dd-java-agent
+      uses: actions/github-script@v6
+      with:
+          script: |
+            let fs = require('fs');
