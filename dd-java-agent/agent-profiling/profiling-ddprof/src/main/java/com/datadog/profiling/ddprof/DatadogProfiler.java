@@ -217,7 +217,10 @@ public final class DatadogProfiler {
   }
 
   public String getVersion() {
-    return profiler.getVersion();
+    if (profiler != null) {
+      return profiler.getVersion();
+    }
+    return "profiler not loaded";
   }
 
   @Nullable
