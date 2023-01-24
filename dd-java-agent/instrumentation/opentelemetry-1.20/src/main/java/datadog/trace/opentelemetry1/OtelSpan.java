@@ -14,7 +14,6 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.context.Scope;
-
 import java.util.concurrent.TimeUnit;
 import javax.annotation.ParametersAreNonnullByDefault;
 
@@ -99,7 +98,8 @@ class OtelSpan implements Span {
   @Override
   public Scope makeCurrent() {
     Scope scope = Span.super.makeCurrent();
-    AgentScope agentScope = AgentTracer.get().activateSpan(this.delegate, ScopeSource.INSTRUMENTATION);
+    AgentScope agentScope =
+        AgentTracer.get().activateSpan(this.delegate, ScopeSource.INSTRUMENTATION);
     return new OtelScope(scope, agentScope);
   }
 }
