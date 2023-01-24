@@ -4,6 +4,7 @@ import static datadog.trace.util.Strings.toJson;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.ci.InstrumentationBridge;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -18,10 +19,7 @@ import datadog.trace.bootstrap.instrumentation.ci.codeowners.CodeownersProvider;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.info.CILocalGitInfoBuilder;
 import datadog.trace.bootstrap.instrumentation.ci.git.info.UserSuppliedGitInfoBuilder;
-import datadog.trace.bootstrap.instrumentation.ci.source.BestEfforSourcePathResolver;
-import datadog.trace.bootstrap.instrumentation.ci.source.CompilerAidedSourcePathResolver;
 import datadog.trace.bootstrap.instrumentation.ci.source.MethodLinesResolver;
-import datadog.trace.bootstrap.instrumentation.ci.source.RepoIndexSourcePathResolver;
 import datadog.trace.bootstrap.instrumentation.ci.source.SourcePathResolver;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -67,12 +65,8 @@ public abstract class TestDecorator extends BaseDecorator {
 
     isCI = ciProviderInfo.isCI();
 
-    sourcePathResolver =
-        new BestEfforSourcePathResolver(
-            new CompilerAidedSourcePathResolver(repoRoot),
-            new RepoIndexSourcePathResolver(repoRoot));
-
-    methodLinesResolver = new MethodLinesResolver();
+    sourcePathResolver = InstrumentationBridge.createSourcePathResolver(repoRoot);
+    methodLinesResolver = InstrumentationBridge.createMethodLinesResolver();
   }
 
   TestDecorator(

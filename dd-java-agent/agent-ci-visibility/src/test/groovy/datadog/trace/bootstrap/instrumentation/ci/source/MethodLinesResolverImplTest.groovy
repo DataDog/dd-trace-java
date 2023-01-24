@@ -2,7 +2,7 @@ package datadog.trace.bootstrap.instrumentation.ci.source
 
 import spock.lang.Specification
 
-class MethodLinesResolverTest extends Specification {
+class MethodLinesResolverImplTest extends Specification {
 
   private static abstract class NestedClass {
     static double aTestMethod() {
@@ -18,7 +18,7 @@ class MethodLinesResolverTest extends Specification {
     def aTestMethod = NestedClass.getDeclaredMethod("aTestMethod")
 
     when:
-    def methodLinesResolver = new MethodLinesResolver()
+    def methodLinesResolver = new MethodLinesResolverImpl()
     def methodLines = methodLinesResolver.getLines(aTestMethod)
 
     then:
@@ -32,7 +32,7 @@ class MethodLinesResolverTest extends Specification {
     def aTestMethod = NestedClass.getDeclaredMethod("abstractMethod")
 
     when:
-    def methodLinesResolver = new MethodLinesResolver()
+    def methodLinesResolver = new MethodLinesResolverImpl()
     def methodLines = methodLinesResolver.getLines(aTestMethod)
 
     then:

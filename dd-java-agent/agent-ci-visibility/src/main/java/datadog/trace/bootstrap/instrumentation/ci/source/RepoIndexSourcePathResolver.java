@@ -16,9 +16,9 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import javax.annotation.Nullable;
-import net.bytebuddy.jar.asm.ClassReader;
-import net.bytebuddy.jar.asm.ClassVisitor;
-import net.bytebuddy.utility.OpenedClassReader;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.Opcodes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +37,7 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
   private volatile RepoIndex index;
 
   public RepoIndexSourcePathResolver(String repoRoot) {
-    this(repoRoot, new SourceRootResolver(), FileSystems.getDefault());
+    this(repoRoot, new SourceRootResolverImpl(), FileSystems.getDefault());
   }
 
   RepoIndexSourcePathResolver(
@@ -282,7 +282,7 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
     private String source;
 
     SourceFileAttributeVisitor() {
-      super(OpenedClassReader.ASM_API);
+      super(Opcodes.ASM9);
     }
 
     @Override

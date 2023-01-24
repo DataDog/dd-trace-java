@@ -1,6 +1,11 @@
 package com.datadog.ci;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.ci.InstrumentationBridge;
+import datadog.trace.bootstrap.instrumentation.ci.source.BestEfforSourcePathResolver;
+import datadog.trace.bootstrap.instrumentation.ci.source.CompilerAidedSourcePathResolver;
+import datadog.trace.bootstrap.instrumentation.ci.source.MethodLinesResolverImpl;
+import datadog.trace.bootstrap.instrumentation.ci.source.RepoIndexSourcePathResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,5 +19,13 @@ public class CiVisibilitySystem {
       LOGGER.debug("CI Visibility is disabled");
       return;
     }
+
+    InstrumentationBridge.setMethodLinesResolverFactory(MethodLinesResolverImpl::new);
+
+    InstrumentationBridge.setSourcePathResolverFactory(
+        repoRoot ->
+            new BestEfforSourcePathResolver(
+                new CompilerAidedSourcePathResolver(repoRoot),
+                new RepoIndexSourcePathResolver(repoRoot)));
   }
 }

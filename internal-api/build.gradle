@@ -110,9 +110,6 @@ dependencies {
   api deps.slf4j
   api project(":utils:time-utils")
 
-  implementation "com.datadoghq:dd-javac-plugin-client:0.1.0"
-  implementation deps.bytebuddy
-
   testImplementation project(":utils:test-utils")
   testImplementation("org.assertj:assertj-core:2.9.1")
   testImplementation deps.junit5
@@ -120,7 +117,6 @@ dependencies {
   testImplementation deps.commonsMath
   testImplementation deps.mockito
   testImplementation deps.truth
-  testImplementation("com.google.jimfs:jimfs:1.1") // an in-memory file system for testing code that works with files
 }
 
 jmh {

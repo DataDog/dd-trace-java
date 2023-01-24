@@ -9,16 +9,16 @@ import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 
-class SourceRootResolver {
+class SourceRootResolverImpl implements SourceRootResolver {
 
   private static final String PACKAGE_KEYWORD = "package";
   private final FileSystem fileSystem;
 
-  public SourceRootResolver() {
+  public SourceRootResolverImpl() {
     this(FileSystems.getDefault());
   }
 
-  SourceRootResolver(FileSystem fileSystem) {
+  SourceRootResolverImpl(FileSystem fileSystem) {
     this.fileSystem = fileSystem;
   }
 
@@ -37,6 +37,7 @@ class SourceRootResolver {
    * extracted part looks plausible by checking the actual file path (package path is the suffix
    * that is stripped from the full path in order to get the source root).
    */
+  @Override
   public Path getSourceRoot(Path sourceFile) throws IOException {
     Path folder = sourceFile.getParent();
 

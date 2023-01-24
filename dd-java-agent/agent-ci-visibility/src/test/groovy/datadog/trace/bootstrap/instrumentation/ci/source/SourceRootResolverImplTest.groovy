@@ -6,7 +6,7 @@ import spock.lang.Specification
 
 import java.nio.file.Files
 
-class SourceRootResolverTest extends Specification {
+class SourceRootResolverImplTest extends Specification {
 
   def "test source root resolution"() {
     setup:
@@ -17,7 +17,7 @@ class SourceRootResolverTest extends Specification {
     Files.write(javaFilePath, contents.getBytes())
 
     when:
-    def sourceRootResolver = new SourceRootResolver(fileSystem)
+    def sourceRootResolver = new SourceRootResolverImpl(fileSystem)
     def sourceRoot = sourceRootResolver.getSourceRoot(javaFilePath)
 
     then:

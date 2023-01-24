@@ -10,4 +10,8 @@ public interface SourcePathResolver {
    */
   @Nullable
   String getSourcePath(Class<?> c);
+
+  interface Factory {
+    SourcePathResolver create(String repoRoot);
+  }
 }
