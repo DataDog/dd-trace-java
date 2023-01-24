@@ -1,0 +1,24 @@
+plugins {
+  id 'com.github.johnrengelman.shadow'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/version.gradle"
+
+dependencies {
+  api deps.slf4j
+
+  implementation project(':internal-api')
+  implementation project(':internal-api:internal-api-9')
+
+  implementation deps.asm
+  implementation deps.asmcommons
+}
+
+shadowJar {
+  dependencies deps.excludeShared
+}
+
+jar {
+  archiveClassifier = 'unbundled'
+}
