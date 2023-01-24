@@ -49,6 +49,7 @@ public class TestDecoratorInitDataFactory {
 
     MethodLinesResolver methodLinesResolver = new MethodLinesResolverImpl();
 
-    return new TestDecorator.TestDecoratorInitData(isCI, ciTags, codeowners, sourcePathResolver, methodLinesResolver);
+    return new TestDecorator.TestDecoratorInitData(
+        isCI, ciTags, codeowners, sourcePathResolver, methodLinesResolver);
   }
 }

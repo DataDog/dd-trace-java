@@ -21,7 +21,7 @@ public class TestNGDecorator extends TestDecorator {
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[]{"testng"};
+    return new String[] {"testng"};
   }
 
   @Override

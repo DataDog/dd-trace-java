@@ -12,8 +12,8 @@ import javax.annotation.Nullable;
 
 /**
  * @see <a
- * href="https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners">CODEOWNERS
- * file description</a>
+ *     href="https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners">CODEOWNERS
+ *     file description</a>
  */
 public class CodeownersImpl implements Codeowners {
 

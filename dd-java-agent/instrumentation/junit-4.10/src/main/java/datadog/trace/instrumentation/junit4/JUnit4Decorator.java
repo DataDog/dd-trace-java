@@ -23,7 +23,7 @@ public class JUnit4Decorator extends TestDecorator {
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[]{"junit", "junit-4"};
+    return new String[] {"junit", "junit-4"};
   }
 
   @Override
@@ -34,7 +34,7 @@ public class JUnit4Decorator extends TestDecorator {
   public boolean skipTrace(final Description description) {
     return description.getAnnotation(DisableTestTrace.class) != null
         || (description.getTestClass() != null
-        && description.getTestClass().getAnnotation(DisableTestTrace.class) != null);
+            && description.getTestClass().getAnnotation(DisableTestTrace.class) != null);
   }
 
   public void onTestStart(final AgentSpan span, final Description description) {
@@ -77,8 +77,7 @@ public class JUnit4Decorator extends TestDecorator {
     span.setTag(Tags.TEST_STATUS, TEST_PASS);
   }
 
-  public void onTestFinish(final AgentSpan span) {
-  }
+  public void onTestFinish(final AgentSpan span) {}
 
   public void onTestFailure(final AgentSpan span, final Failure failure) {
     final Throwable throwable = failure.getException();

@@ -34,11 +34,12 @@ public abstract class TestDecorator extends BaseDecorator {
     private final SourcePathResolver sourcePathResolver;
     private final MethodLinesResolver methodLinesResolver;
 
-    public TestDecoratorInitData(boolean isCI,
-                                 Map<String, String> ciTags,
-                                 Codeowners codeowners,
-                                 SourcePathResolver sourcePathResolver,
-                                 MethodLinesResolver methodLinesResolver) {
+    public TestDecoratorInitData(
+        boolean isCI,
+        Map<String, String> ciTags,
+        Codeowners codeowners,
+        SourcePathResolver sourcePathResolver,
+        MethodLinesResolver methodLinesResolver) {
       this.isCI = isCI;
       this.ciTags = ciTags;
       this.codeowners = codeowners;

@@ -63,30 +63,30 @@ class TestDecoratorTest extends DDSpecification {
     def testDecoratorInitData = new TestDecorator.TestDecoratorInitData(ci, mockCiTags, mockCodeowners, mockSourcePathResolver, mockMethodLinesResolver)
 
     return new TestDecorator(testDecoratorInitData) {
-      @Override
-      protected String testFramework() {
-        return "test-framework"
-      }
+        @Override
+        protected String testFramework() {
+          return "test-framework"
+        }
 
-      @Override
-      protected String[] instrumentationNames() {
-        return ["test1", "test2"]
-      }
+        @Override
+        protected String[] instrumentationNames() {
+          return ["test1", "test2"]
+        }
 
-      @Override
-      protected CharSequence spanType() {
-        return "test-type"
-      }
+        @Override
+        protected CharSequence spanType() {
+          return "test-type"
+        }
 
-      @Override
-      protected String spanKind() {
-        return "test-type"
-      }
+        @Override
+        protected String spanKind() {
+          return "test-type"
+        }
 
-      @Override
-      protected CharSequence component() {
-        return "test-component"
+        @Override
+        protected CharSequence component() {
+          return "test-component"
+        }
       }
-    }
   }
 }

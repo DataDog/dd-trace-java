@@ -24,7 +24,7 @@ public class JUnit5Decorator extends TestDecorator {
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[]{"junit", "junit-5"};
+    return new String[] {"junit", "junit-5"};
   }
 
   @Override

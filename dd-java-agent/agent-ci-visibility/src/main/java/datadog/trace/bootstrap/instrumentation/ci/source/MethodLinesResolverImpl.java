@@ -72,5 +72,4 @@ public class MethodLinesResolverImpl implements MethodLinesResolver {
       finishLineNumber = Math.max(finishLineNumber, line);
     }
   }
-
 }
