@@ -68,6 +68,8 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.ci.git.GitObject.GitObjectBuilder",
   "datadog.trace.bootstrap.instrumentation.ci.CIProviderInfo.CIInfo",
   "datadog.trace.bootstrap.instrumentation.ci.CIProviderInfo.CIInfo.CIInfoBuilder",
+  "datadog.trace.bootstrap.instrumentation.ci.source.MethodLinesResolver.MethodLines",
+  "datadog.trace.api.ci.InstrumentationBridge",
   "datadog.trace.logging.LoggingSettingsDescription",
   "datadog.trace.util.AgentProxySelector",
   "datadog.trace.util.AgentTaskScheduler",

@@ -5,6 +5,11 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
 
+minimumBranchCoverage = 0.7
+minimumInstructionCoverage = 0.8
+
+excludedClassesCoverage += ["com.datadog.ci.CiVisibilitySystem"]
+
 dependencies {
   api deps.slf4j
 
