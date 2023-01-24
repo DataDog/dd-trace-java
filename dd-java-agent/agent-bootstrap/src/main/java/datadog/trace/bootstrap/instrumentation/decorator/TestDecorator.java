@@ -15,7 +15,6 @@ import datadog.trace.bootstrap.instrumentation.ci.CIProviderInfo;
 import datadog.trace.bootstrap.instrumentation.ci.CIProviderInfoFactory;
 import datadog.trace.bootstrap.instrumentation.ci.CITagsProviderImpl;
 import datadog.trace.bootstrap.instrumentation.ci.codeowners.Codeowners;
-import datadog.trace.bootstrap.instrumentation.ci.codeowners.CodeownersProvider;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.info.CILocalGitInfoBuilder;
 import datadog.trace.bootstrap.instrumentation.ci.git.info.UserSuppliedGitInfoBuilder;
@@ -60,11 +59,9 @@ public abstract class TestDecorator extends BaseDecorator {
         new CITagsProviderImpl(ciInfo, ciGitInfo, localGitInfo, userSuppliedGitInfo);
     ciTags = ciTagsProvider.getCiTags();
 
-    CodeownersProvider codeownersProvider = new CodeownersProvider();
-    codeowners = codeownersProvider.build(repoRoot);
-
     isCI = ciProviderInfo.isCI();
 
+    codeowners = InstrumentationBridge.createCodeowners(repoRoot);
     sourcePathResolver = InstrumentationBridge.createSourcePathResolver(repoRoot);
     methodLinesResolver = InstrumentationBridge.createMethodLinesResolver();
   }
@@ -175,7 +172,7 @@ public abstract class TestDecorator extends BaseDecorator {
     }
 
     String sourcePath = sourcePathResolver.getSourcePath(testClass);
-    if (sourcePath == null) {
+    if (sourcePath == null || sourcePath.isEmpty()) {
       return;
     }
 

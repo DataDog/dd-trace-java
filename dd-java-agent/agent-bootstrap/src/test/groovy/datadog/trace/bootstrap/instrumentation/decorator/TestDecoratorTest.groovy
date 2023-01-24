@@ -5,7 +5,7 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.ci.codeowners.Codeowners
-import datadog.trace.bootstrap.instrumentation.ci.source.MethodLinesResolverImpl
+import datadog.trace.bootstrap.instrumentation.ci.source.MethodLinesResolver
 import datadog.trace.bootstrap.instrumentation.ci.source.SourcePathResolver
 
 class TestDecoratorTest extends BaseDecoratorTest {
@@ -57,9 +57,9 @@ class TestDecoratorTest extends BaseDecoratorTest {
   def newDecorator() {
     def ci = true
     def mockCiTags = Collections.singletonMap("sample-ci-key", "sample-ci-value")
-    def mockCodeowners = Codeowners.EMPTY
+    def mockCodeowners = Mock(Codeowners)
     def mockSourcePathResolver = Mock(SourcePathResolver)
-    def mockMethodLinesResolver = Mock(MethodLinesResolverImpl)
+    def mockMethodLinesResolver = Mock(MethodLinesResolver)
 
     return new TestDecorator(ci, mockCiTags, mockCodeowners, mockSourcePathResolver, mockMethodLinesResolver) {
         @Override

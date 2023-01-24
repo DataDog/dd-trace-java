@@ -2,6 +2,7 @@ package com.datadog.ci;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.ci.InstrumentationBridge;
+import datadog.trace.bootstrap.instrumentation.ci.codeowners.CodeownersProvider;
 import datadog.trace.bootstrap.instrumentation.ci.source.BestEfforSourcePathResolver;
 import datadog.trace.bootstrap.instrumentation.ci.source.CompilerAidedSourcePathResolver;
 import datadog.trace.bootstrap.instrumentation.ci.source.MethodLinesResolverImpl;
@@ -21,6 +22,9 @@ public class CiVisibilitySystem {
     }
 
     InstrumentationBridge.setMethodLinesResolverFactory(MethodLinesResolverImpl::new);
+
+    InstrumentationBridge.setCodeownersFactory(
+        repoRoot -> new CodeownersProvider().build(repoRoot));
 
     InstrumentationBridge.setSourcePathResolverFactory(
         repoRoot ->

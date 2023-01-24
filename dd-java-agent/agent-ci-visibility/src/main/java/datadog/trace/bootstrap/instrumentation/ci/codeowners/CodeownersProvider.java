@@ -25,12 +25,12 @@ public class CodeownersProvider {
     this.fileSystem = fileSystem;
   }
 
-  public Codeowners build(String ciWorkspace) {
+  public Codeowners build(String repoRoot) {
     return find(
-        fileSystem.getPath(ciWorkspace, CODEOWNERS_FILE_NAME),
-        fileSystem.getPath(ciWorkspace, ".github", CODEOWNERS_FILE_NAME),
-        fileSystem.getPath(ciWorkspace, ".gitlab", CODEOWNERS_FILE_NAME),
-        fileSystem.getPath(ciWorkspace, "docs", CODEOWNERS_FILE_NAME));
+        fileSystem.getPath(repoRoot, CODEOWNERS_FILE_NAME),
+        fileSystem.getPath(repoRoot, ".github", CODEOWNERS_FILE_NAME),
+        fileSystem.getPath(repoRoot, ".gitlab", CODEOWNERS_FILE_NAME),
+        fileSystem.getPath(repoRoot, "docs", CODEOWNERS_FILE_NAME));
   }
 
   private Codeowners find(Path... possiblePaths) {
@@ -38,13 +38,13 @@ public class CodeownersProvider {
       try {
         if (Files.exists(path)) {
           try (Reader reader = Files.newBufferedReader(path)) {
-            return Codeowners.parse(reader);
+            return CodeownersImpl.parse(reader);
           }
         }
       } catch (IOException e) {
         log.error("Could not read CODEOWNERS file from {}", path, e);
       }
     }
-    return Codeowners.EMPTY;
+    return CodeownersImpl.EMPTY;
   }
 }

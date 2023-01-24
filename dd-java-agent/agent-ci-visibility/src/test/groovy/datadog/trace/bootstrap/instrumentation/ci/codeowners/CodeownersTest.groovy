@@ -8,7 +8,7 @@ class CodeownersTest extends Specification {
   def "test codeowners matching: #path"() {
     setup:
     def codeowners = new InputStreamReader(CodeownersTest.getClassLoader().getResourceAsStream("ci/codeowners/CODEOWNERS_sample"), Charsets.UTF_8).withCloseable { reader ->
-      Codeowners.parse(reader)
+      CodeownersImpl.parse(reader)
     }
 
     when:
