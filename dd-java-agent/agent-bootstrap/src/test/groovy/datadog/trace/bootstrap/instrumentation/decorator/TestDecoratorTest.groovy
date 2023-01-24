@@ -7,8 +7,9 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.ci.codeowners.Codeowners
 import datadog.trace.bootstrap.instrumentation.ci.source.MethodLinesResolver
 import datadog.trace.bootstrap.instrumentation.ci.source.SourcePathResolver
+import datadog.trace.test.util.DDSpecification
 
-class TestDecoratorTest extends BaseDecoratorTest {
+class TestDecoratorTest extends DDSpecification {
 
   def span = Mock(AgentSpan)
 
@@ -53,39 +54,39 @@ class TestDecoratorTest extends BaseDecoratorTest {
     0 * _
   }
 
-  @Override
   def newDecorator() {
     def ci = true
     def mockCiTags = Collections.singletonMap("sample-ci-key", "sample-ci-value")
-    def mockCodeowners = Codeowners.EMPTY
+    def mockCodeowners = Mock(Codeowners)
     def mockSourcePathResolver = Mock(SourcePathResolver)
     def mockMethodLinesResolver = Mock(MethodLinesResolver)
+    def testDecoratorInitData = new TestDecorator.TestDecoratorInitData(ci, mockCiTags, mockCodeowners, mockSourcePathResolver, mockMethodLinesResolver)
 
-    return new TestDecorator(ci, mockCiTags, mockCodeowners, mockSourcePathResolver, mockMethodLinesResolver) {
-        @Override
-        protected String testFramework() {
-          return "test-framework"
-        }
-
-        @Override
-        protected String[] instrumentationNames() {
-          return ["test1", "test2"]
-        }
-
-        @Override
-        protected CharSequence spanType() {
-          return "test-type"
-        }
-
-        @Override
-        protected String spanKind() {
-          return "test-type"
-        }
-
-        @Override
-        protected CharSequence component() {
-          return "test-component"
-        }
+    return new TestDecorator(testDecoratorInitData) {
+      @Override
+      protected String testFramework() {
+        return "test-framework"
       }
+
+      @Override
+      protected String[] instrumentationNames() {
+        return ["test1", "test2"]
+      }
+
+      @Override
+      protected CharSequence spanType() {
+        return "test-type"
+      }
+
+      @Override
+      protected String spanKind() {
+        return "test-type"
+      }
+
+      @Override
+      protected CharSequence component() {
+        return "test-component"
+      }
+    }
   }
 }

@@ -4,12 +4,17 @@ import datadog.trace.api.DisableTestTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.TestDecoratorInitDataFactory;
 import datadog.trace.util.Strings;
 import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
 
 public class JUnit4Decorator extends TestDecorator {
   public static final JUnit4Decorator DECORATE = new JUnit4Decorator();
+
+  public JUnit4Decorator() {
+    super(TestDecoratorInitDataFactory.create());
+  }
 
   @Override
   public String testFramework() {
@@ -18,7 +23,7 @@ public class JUnit4Decorator extends TestDecorator {
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[] {"junit", "junit-4"};
+    return new String[]{"junit", "junit-4"};
   }
 
   @Override
@@ -29,7 +34,7 @@ public class JUnit4Decorator extends TestDecorator {
   public boolean skipTrace(final Description description) {
     return description.getAnnotation(DisableTestTrace.class) != null
         || (description.getTestClass() != null
-            && description.getTestClass().getAnnotation(DisableTestTrace.class) != null);
+        && description.getTestClass().getAnnotation(DisableTestTrace.class) != null);
   }
 
   public void onTestStart(final AgentSpan span, final Description description) {
@@ -72,7 +77,8 @@ public class JUnit4Decorator extends TestDecorator {
     span.setTag(Tags.TEST_STATUS, TEST_PASS);
   }
 
-  public void onTestFinish(final AgentSpan span) {}
+  public void onTestFinish(final AgentSpan span) {
+  }
 
   public void onTestFailure(final AgentSpan span, final Failure failure) {
     final Throwable throwable = failure.getException();

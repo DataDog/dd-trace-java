@@ -38,13 +38,13 @@ public class CodeownersProvider {
       try {
         if (Files.exists(path)) {
           try (Reader reader = Files.newBufferedReader(path)) {
-            return Codeowners.parse(reader);
+            return CodeownersImpl.parse(reader);
           }
         }
       } catch (IOException e) {
         log.error("Could not read CODEOWNERS file from {}", path, e);
       }
     }
-    return Codeowners.EMPTY;
+    return CodeownersImpl.EMPTY;
   }
 }

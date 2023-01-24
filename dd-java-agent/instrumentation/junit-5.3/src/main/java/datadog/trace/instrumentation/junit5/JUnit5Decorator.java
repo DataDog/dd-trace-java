@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.junit5;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.TestDecoratorInitDataFactory;
 import datadog.trace.util.Strings;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.support.descriptor.MethodSource;
@@ -12,6 +13,10 @@ public class JUnit5Decorator extends TestDecorator {
 
   public static final JUnit5Decorator DECORATE = new JUnit5Decorator();
 
+  public JUnit5Decorator() {
+    super(TestDecoratorInitDataFactory.create());
+  }
+
   @Override
   public String testFramework() {
     return "junit5";
@@ -19,7 +24,7 @@ public class JUnit5Decorator extends TestDecorator {
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[] {"junit", "junit-5"};
+    return new String[]{"junit", "junit-5"};
   }
 
   @Override

@@ -54,8 +54,8 @@ class RepoIndexSourcePathResolverTest extends Specification {
     when:
     def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, sourceRootResolver, fileSystem)
     def r = new Runnable() {
-        void run() {}
-      }
+      void run() {}
+    }
 
     then:
     sourcePathResolver.getSourcePath(r.getClass()) == expectedSourcePath

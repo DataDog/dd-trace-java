@@ -18,7 +18,7 @@ class MethodLinesResolverTest extends Specification {
     def aTestMethod = NestedClass.getDeclaredMethod("aTestMethod")
 
     when:
-    def methodLinesResolver = new MethodLinesResolver()
+    def methodLinesResolver = new MethodLinesResolverImpl()
     def methodLines = methodLinesResolver.getLines(aTestMethod)
 
     then:
@@ -32,7 +32,7 @@ class MethodLinesResolverTest extends Specification {
     def aTestMethod = NestedClass.getDeclaredMethod("abstractMethod")
 
     when:
-    def methodLinesResolver = new MethodLinesResolver()
+    def methodLinesResolver = new MethodLinesResolverImpl()
     def methodLines = methodLinesResolver.getLines(aTestMethod)
 
     then:

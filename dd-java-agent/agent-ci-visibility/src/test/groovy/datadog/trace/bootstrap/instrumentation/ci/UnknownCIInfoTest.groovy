@@ -8,11 +8,11 @@ import java.nio.file.Paths
 
 class UnknownCIInfoTest extends CITagsProviderImplTest {
 
-  def workspaceForTests = Paths.get(getClass().getClassLoader().getResource(CI_WORKSPACE_PATH_FOR_TESTS).toURI())
+  def workspaceForTests = Paths.get(getClass().getClassLoader().getResource(CITagsProviderImplTest.CI_WORKSPACE_PATH_FOR_TESTS).toURI())
 
   @Override
   CIProviderInfo instanceProvider() {
-    return new UnknownCIInfo(GIT_FOLDER_FOR_TESTS, workspaceForTests)
+    return new UnknownCIInfo(CITagsProviderImplTest.GIT_FOLDER_FOR_TESTS, workspaceForTests)
   }
 
   @Override
@@ -52,7 +52,7 @@ class UnknownCIInfoTest extends CITagsProviderImplTest {
 
     def ciInfo = ciProviderInfo.buildCIInfo()
     def ciGitInfo = ciProviderInfo.buildCIGitInfo()
-    def localGitInfo = ciLocalGitInfoBuilder.build(ciInfo.getCiWorkspace(), GIT_FOLDER_FOR_TESTS)
+    def localGitInfo = ciLocalGitInfoBuilder.build(ciInfo.getCiWorkspace(), CITagsProviderImplTest.GIT_FOLDER_FOR_TESTS)
     def userSuppliedGitInfo = userSuppliedGitInfoBuilder.build()
 
     def ciTagsProvider = new CITagsProviderImpl(ciInfo, ciGitInfo, localGitInfo, userSuppliedGitInfo)

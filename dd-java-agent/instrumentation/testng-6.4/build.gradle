@@ -16,6 +16,8 @@ muzzle {
 dependencies {
   compileOnly group: 'org.testng', name: 'testng', version: '6.4'
 
+  implementation project(":dd-java-agent:agent-ci-visibility")
+
   testImplementation(group: 'org.testng', name: 'testng') {
     version {
       strictly '6.4'

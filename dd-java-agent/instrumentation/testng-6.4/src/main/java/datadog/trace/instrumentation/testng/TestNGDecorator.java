@@ -3,11 +3,16 @@ package datadog.trace.instrumentation.testng;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.TestDecoratorInitDataFactory;
 import datadog.trace.util.Strings;
 import org.testng.ITestResult;
 
 public class TestNGDecorator extends TestDecorator {
   public static final TestNGDecorator DECORATE = new TestNGDecorator();
+
+  public TestNGDecorator() {
+    super(TestDecoratorInitDataFactory.create());
+  }
 
   @Override
   public String testFramework() {
@@ -16,7 +21,7 @@ public class TestNGDecorator extends TestDecorator {
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[] {"testng"};
+    return new String[]{"testng"};
   }
 
   @Override

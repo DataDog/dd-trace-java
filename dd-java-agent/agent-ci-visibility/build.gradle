@@ -1,0 +1,24 @@
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/dependencies.gradle"
+
+minimumBranchCoverage = 0.7
+minimumInstructionCoverage = 0.8
+
+excludedClassesCoverage += [
+  "datadog.trace.bootstrap.instrumentation.ci.git.GitInfo",
+  "datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo",
+  "datadog.trace.bootstrap.instrumentation.ci.git.PersonInfo",
+  "datadog.trace.bootstrap.instrumentation.ci.git.GitObject",
+  "datadog.trace.bootstrap.instrumentation.ci.CIInfo",
+  "datadog.trace.bootstrap.instrumentation.decorator.TestDecoratorInitDataFactory"
+]
+
+dependencies {
+  implementation "com.datadoghq:dd-javac-plugin-client:0.1.0"
+  implementation deps.bytebuddy
+  implementation project(":dd-java-agent:agent-bootstrap")
+  implementation project(":internal-api")
+
+  testImplementation project(":utils:test-utils")
+  testImplementation("com.google.jimfs:jimfs:1.1") // an in-memory file system for testing code that works with files
+}

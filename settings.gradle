@@ -77,6 +77,9 @@ include ':dd-java-agent:agent-iast'
 
 include ':dd-java-agent:cws-tls'
 
+// CI visibility
+include ':dd-java-agent:agent-ci-visibility'
+
 // misc
 include ':dd-java-agent:testing'
 include ':utils:container-utils'
