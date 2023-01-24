@@ -1,6 +1,6 @@
 package datadog.trace.api.gateway;
 
-import datadog.trace.api.TraceSegment;
+import datadog.trace.api.internal.TraceSegment;
 import java.io.Closeable;
 
 /**
