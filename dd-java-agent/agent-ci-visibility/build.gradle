@@ -20,5 +20,5 @@ dependencies {
   implementation project(":internal-api")
 
   testImplementation project(":utils:test-utils")
-  testImplementation("com.google.jimfs:jimfs:1.1") // an in-memory file system for testing code that works with files
+  testImplementation("com.google.jimfs:jimfs:1.2") // an in-memory file system for testing code that works with files
 }
