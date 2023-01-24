@@ -4,12 +4,17 @@ import static io.opentelemetry.api.trace.StatusCode.ERROR;
 import static io.opentelemetry.api.trace.StatusCode.OK;
 import static io.opentelemetry.api.trace.StatusCode.UNSET;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.StatusCode;
+import io.opentelemetry.context.Scope;
+
 import java.util.concurrent.TimeUnit;
 import javax.annotation.ParametersAreNonnullByDefault;
 
@@ -89,5 +94,12 @@ class OtelSpan implements Span {
   public boolean isRecording() {
     // TODO Should we use DDSpan.isFinished()?
     return this.recording;
+  }
+
+  @Override
+  public Scope makeCurrent() {
+    Scope scope = Span.super.makeCurrent();
+    AgentScope agentScope = AgentTracer.get().activateSpan(this.delegate, ScopeSource.INSTRUMENTATION);
+    return new OtelScope(scope, agentScope);
   }
 }
