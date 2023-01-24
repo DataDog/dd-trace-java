@@ -450,7 +450,12 @@ public class ReferenceCreator extends ClassVisitor {
     String dottedName = name.replace('/', '.');
     // drop any array prefix, so we can check the actual component type
     if (dottedName.startsWith("[")) {
-      dottedName = dottedName.substring(dottedName.lastIndexOf("[L") + 2);
+      int componentMarker = dottedName.lastIndexOf("[L");
+      if (componentMarker < 0) {
+        return true; // ignore primitive array references
+      } else {
+        dottedName = dottedName.substring(componentMarker + 2);
+      }
     }
     // ignore references to core JDK types (see existing check in addReference)
     if (dottedName.startsWith("java.")) {
