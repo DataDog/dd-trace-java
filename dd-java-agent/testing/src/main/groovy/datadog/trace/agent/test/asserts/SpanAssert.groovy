@@ -9,6 +9,7 @@ import groovy.transform.stc.SimpleType
 import java.util.regex.Pattern
 
 import static TagsAssert.assertTags
+import static BaggageAssert.assertBaggage
 
 class SpanAssert {
   private final DDSpan span
@@ -168,5 +169,10 @@ class SpanAssert {
   void tags(@ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TagsAssert'])
     @DelegatesTo(value = TagsAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
     assertTags(span, spec)
+  }
+
+  void baggage(@ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.BaggageAssert'])
+    @DelegatesTo(value = BaggageAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
+    assertBaggage(span, spec)
   }
 }
