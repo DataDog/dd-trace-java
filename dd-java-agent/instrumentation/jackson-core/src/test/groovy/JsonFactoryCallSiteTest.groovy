@@ -1,7 +1,7 @@
 import com.fasterxml.jackson.core.JsonParser
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
-import datadog.trace.api.iast.propagation.JacksonModule
+import datadog.trace.api.iast.propagation.PropagationModule
 import foo.bar.JsonFactoryTestSuite
 
 class JsonFactoryCallSiteTest extends AgentTestRunner {
@@ -14,8 +14,8 @@ class JsonFactoryCallSiteTest extends AgentTestRunner {
 
   def 'test createParser(String)'() {
     setup:
-    final jacksonModule = Mock(JacksonModule)
-    InstrumentationBridge.registerIastModule(jacksonModule)
+    final propagationModule = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(propagationModule)
     final jsonFactoryTestSuite = new JsonFactoryTestSuite()
     final content = '{"key":"value"}'
 
@@ -24,21 +24,21 @@ class JsonFactoryCallSiteTest extends AgentTestRunner {
 
     then:
     result != null
-    1 * jacksonModule.onJsonFactoryCreateParser(content, _ as JsonParser)
+    1 * propagationModule.taintParam1IfParam2IsTainted(_ as JsonParser, content)
   }
 
   def 'test createParser(InputStream)'() {
     setup:
-    final jacksonModule = Mock(JacksonModule)
-    InstrumentationBridge.registerIastModule(jacksonModule)
+    final propagationModule = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(propagationModule)
     final jsonFactoryTestSuite = new JsonFactoryTestSuite()
-    final is = new ByteArrayInputStream('{"key":"value"}'.getBytes())
+    final is = Mock(InputStream)
 
     when:
     final result = jsonFactoryTestSuite.createParser(is)
 
     then:
     result != null
-    1 * jacksonModule.onJsonFactoryCreateParser(is, _ as JsonParser)
+    1 * propagationModule.taintParam1IfParam2IsTainted(_ as JsonParser, is)
   }
 }

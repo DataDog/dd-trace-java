@@ -1,7 +1,7 @@
 import com.fasterxml.jackson.core.JsonFactory
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
-import datadog.trace.api.iast.propagation.JacksonModule
+import datadog.trace.api.iast.propagation.PropagationModule
 import foo.bar.JsonParserTestSuite
 
 class JsonParserInstrumentationTest extends AgentTestRunner {
@@ -15,15 +15,15 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
 
   def 'test currentName()'() {
     setup:
-    final jacksonModule = Mock(JacksonModule)
-    InstrumentationBridge.registerIastModule(jacksonModule)
+    final propagationModule = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(propagationModule)
     final jsonParserTestSuite = new JsonParserTestSuite(jsonParser)
 
     when:
     jsonParserTestSuite.currentName()
 
     then:
-    1 * jacksonModule.onJsonParserGetString(jsonParser, _)
+    1 * propagationModule.taintParam1IfParam2IsTainted( _ , jsonParser)
 
     where:
     jsonParser << [
@@ -34,15 +34,15 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
 
   def 'test getCurrentName()'() {
     setup:
-    final jacksonModule = Mock(JacksonModule)
-    InstrumentationBridge.registerIastModule(jacksonModule)
+    final propagationModule = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(propagationModule)
     final jsonParserTestSuite = new JsonParserTestSuite(jsonParser)
 
     when:
     jsonParserTestSuite.getCurrentName()
 
     then:
-    1 * jacksonModule.onJsonParserGetString(jsonParser, null)
+    1 * propagationModule.taintParam1IfParam2IsTainted(_, jsonParser)
 
     where:
     jsonParser << [
@@ -53,8 +53,8 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
 
   def 'test getText()'() {
     setup:
-    final jacksonModule = Mock(JacksonModule)
-    InstrumentationBridge.registerIastModule(jacksonModule)
+    final propagationModule = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(propagationModule)
     final jsonParserTestSuite = new JsonParserTestSuite(jsonParser)
 
     when:
@@ -62,7 +62,7 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
 
     then:
     result == '{'
-    1 * jacksonModule.onJsonParserGetString(jsonParser, '{')
+    1 * propagationModule.taintParam1IfParam2IsTainted('{', jsonParser)
 
     where:
     jsonParser << [
@@ -73,8 +73,8 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
 
   def 'test getValueAsString()'() {
     setup:
-    final jacksonModule = Mock(JacksonModule)
-    InstrumentationBridge.registerIastModule(jacksonModule)
+    final propagationModule = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(propagationModule)
     final jsonParserTestSuite = new JsonParserTestSuite(jsonParser)
 
     when:
@@ -82,7 +82,7 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
 
     then:
     result == 'key1'
-    1 * jacksonModule.onJsonParserGetString(jsonParser, 'key1')
+    1 * propagationModule.taintParam1IfParam2IsTainted('key1', jsonParser)
 
     where:
     jsonParser << [
@@ -93,8 +93,8 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
 
   def 'test nextFieldName()'() {
     setup:
-    final jacksonModule = Mock(JacksonModule)
-    InstrumentationBridge.registerIastModule(jacksonModule)
+    final propagationModule = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(propagationModule)
     final jsonParserTestSuite = new JsonParserTestSuite(jsonParser)
 
     when:
@@ -102,7 +102,7 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
 
     then:
     result == 'key1'
-    1 * jacksonModule.onJsonParserGetString(jsonParser, 'key1')
+    1 * propagationModule.taintParam1IfParam2IsTainted('key1', jsonParser)
 
     where:
     jsonParser << [
@@ -113,15 +113,15 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
 
   def 'test nextTextValue()'() {
     setup:
-    final jacksonModule = Mock(JacksonModule)
-    InstrumentationBridge.registerIastModule(jacksonModule)
+    final propagationModule = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(propagationModule)
     final jsonParserTestSuite = new JsonParserTestSuite(jsonParser)
 
     when:
     jsonParserTestSuite.nextTextValue()
 
     then:
-    1 * jacksonModule.onJsonParserGetString(jsonParser, null)
+    1 * propagationModule.taintParam1IfParam2IsTainted(null, jsonParser)
 
     where:
     jsonParser << [

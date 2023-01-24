@@ -1,9 +1,8 @@
 package datadog.trace.instrumentation.java.io
 
-
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
-import datadog.trace.api.iast.propagation.IOModule
+import datadog.trace.api.iast.propagation.PropagationModule
 import foo.bar.TestInputStreamSuite
 
 class InputStreamInstrumentationTest extends AgentTestRunner {
@@ -16,14 +15,14 @@ class InputStreamInstrumentationTest extends AgentTestRunner {
 
   def 'test constructor with IS as arg()'() {
     setup:
-    final ioModule = Mock(IOModule)
-    InstrumentationBridge.registerIastModule(ioModule)
+    final propagationModule = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(propagationModule)
     final is = Mock(InputStream)
 
     when:
     TestInputStreamSuite.pushbackInputStreamFromIS(is)
 
     then:
-    (1.._) * ioModule.onConstruct(is, _ as InputStream)
+    (1.._) * propagationModule.taintParam1IfParam2IsTainted(_ as InputStream, is)
   }
 }

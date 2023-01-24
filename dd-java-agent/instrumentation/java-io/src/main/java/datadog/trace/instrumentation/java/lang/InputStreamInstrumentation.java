@@ -9,7 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.propagation.IOModule;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import java.io.InputStream;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
@@ -51,10 +51,10 @@ public class InputStreamInstrumentation extends Instrumenter.Iast
     @Advice.OnMethodExit
     public static void onExit(
         @Advice.This final InputStream self, @Advice.Argument(0) final InputStream param) {
-      final IOModule module = InstrumentationBridge.IO;
+      final PropagationModule module = InstrumentationBridge.PROPAGATION;
       try {
         if (module != null) {
-          module.onConstruct(param, self);
+          module.taintParam1IfParam2IsTainted(self, param);
         }
       } catch (final Throwable e) {
         module.onUnexpectedException("InputStreamAdvice onExit threw", e);

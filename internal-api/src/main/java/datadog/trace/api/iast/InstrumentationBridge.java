@@ -1,7 +1,6 @@
 package datadog.trace.api.iast;
 
-import datadog.trace.api.iast.propagation.IOModule;
-import datadog.trace.api.iast.propagation.JacksonModule;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.propagation.StringModule;
 import datadog.trace.api.iast.propagation.UrlModule;
 import datadog.trace.api.iast.sink.CommandInjectionModule;
@@ -24,9 +23,7 @@ public abstract class InstrumentationBridge {
   public static volatile WeakCipherModule WEAK_CIPHER;
   public static volatile WeakHashModule WEAK_HASH;
   public static volatile LdapInjectionModule LDAP_INJECTION;
-  public static volatile JacksonModule JACKSON;
-
-  public static volatile IOModule IO;
+  public static volatile PropagationModule PROPAGATION;
 
   private InstrumentationBridge() {}
 
@@ -49,10 +46,8 @@ public abstract class InstrumentationBridge {
       WEAK_HASH = (WeakHashModule) module;
     } else if (module instanceof LdapInjectionModule) {
       LDAP_INJECTION = (LdapInjectionModule) module;
-    } else if (module instanceof JacksonModule) {
-      JACKSON = (JacksonModule) module;
-    } else if (module instanceof IOModule) {
-      IO = (IOModule) module;
+    } else if (module instanceof PropagationModule) {
+      PROPAGATION = (PropagationModule) module;
     } else {
       throw new UnsupportedOperationException("Module not yet supported: " + module);
     }
@@ -87,11 +82,8 @@ public abstract class InstrumentationBridge {
     if (type == LdapInjectionModule.class) {
       return (E) LDAP_INJECTION;
     }
-    if (type == JacksonModule.class) {
-      return (E) JACKSON;
-    }
-    if (type == IOModule.class) {
-      return (E) IO;
+    if (type == PropagationModule.class) {
+      return (E) PROPAGATION;
     }
     throw new UnsupportedOperationException("Module not yet supported: " + type);
   }
@@ -107,7 +99,6 @@ public abstract class InstrumentationBridge {
     WEAK_CIPHER = null;
     WEAK_HASH = null;
     LDAP_INJECTION = null;
-    JACKSON = null;
-    IO = null;
+    PROPAGATION = null;
   }
 }

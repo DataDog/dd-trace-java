@@ -5,7 +5,7 @@ import com.fasterxml.jackson.core.JsonParser;
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.propagation.JacksonModule;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -18,10 +18,10 @@ public class JsonFactoryCallSite {
       @CallSite.This @Nonnull final JsonFactory self,
       @CallSite.Argument @Nullable final Object input,
       @CallSite.Return @Nullable final JsonParser jsonParser) {
-    final JacksonModule module = InstrumentationBridge.JACKSON;
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.onJsonFactoryCreateParser(input, jsonParser);
+        module.taintParam1IfParam2IsTainted(jsonParser, input);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterCreate threw", e);
       }
@@ -35,10 +35,10 @@ public class JsonFactoryCallSite {
       @CallSite.This @Nonnull final JsonFactory self,
       @CallSite.Argument @Nullable final String content,
       @CallSite.Return @Nullable final JsonParser jsonParser) {
-    final JacksonModule module = InstrumentationBridge.JACKSON;
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.onJsonFactoryCreateParser(content, jsonParser);
+        module.taintParam1IfParam2IsTainted(jsonParser, content);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterCreate threw", e);
       }

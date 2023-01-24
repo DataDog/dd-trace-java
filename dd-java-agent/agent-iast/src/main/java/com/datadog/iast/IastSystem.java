@@ -2,8 +2,7 @@ package com.datadog.iast;
 
 import com.datadog.iast.HasDependencies.Dependencies;
 import com.datadog.iast.overhead.OverheadController;
-import com.datadog.iast.propagation.IOModuleImpl;
-import com.datadog.iast.propagation.JacksonModuleImpl;
+import com.datadog.iast.propagation.PropagationModuleImpl;
 import com.datadog.iast.propagation.StringModuleImpl;
 import com.datadog.iast.propagation.UrlModuleImpl;
 import com.datadog.iast.sink.CommandInjectionModuleImpl;
@@ -74,8 +73,7 @@ public class IastSystem {
         new WeakCipherModuleImpl(),
         new WeakHashModuleImpl(),
         new LdapInjectionModuleImpl(),
-        new JacksonModuleImpl(),
-        new IOModuleImpl());
+        new PropagationModuleImpl());
   }
 
   private static void registerRequestStartedCallback(
