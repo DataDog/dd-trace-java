@@ -33,6 +33,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.profiling.TracingContextTrackerFactory;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
@@ -1040,6 +1041,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public ProfilingContext getProfilingContext() {
     return profilingContextIntegration;
+  }
+
+  @Override
+  public TraceSegment getTraceSegment() {
+    AgentSpan.Context ctx = this.activeSpan().context();
+    if (ctx instanceof DDSpanContext) {
+      return ((DDSpanContext) ctx).getTraceSegment();
+    }
+    return null;
   }
 
   private static StatsDClient createStatsDClient(final Config config) {
