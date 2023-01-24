@@ -89,6 +89,8 @@ public class AgentInstaller {
     }
 
     DDElementMatchers.registerAsSupplier();
+    UsmMessageFactoryImpl.registerAsSupplier();
+    UsmExtractorImpl.registerAsSupplier();
 
     // By default ByteBuddy will skip all methods that are synthetic or default finalizer
     // but we need to instrument some synthetic methods in Scala, so change the ignore matcher
