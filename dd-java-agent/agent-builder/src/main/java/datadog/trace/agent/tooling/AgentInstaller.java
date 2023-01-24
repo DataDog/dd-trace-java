@@ -102,6 +102,8 @@ public class AgentInstaller {
     }
 
     DDElementMatchers.registerAsSupplier();
+    UsmMessageFactoryImpl.registerAsSupplier();
+    UsmExtractorImpl.registerAsSupplier();
 
     if (enabledSystems.contains(Instrumenter.TargetSystem.USM)) {
       UsmMessageFactoryImpl.registerAsSupplier();

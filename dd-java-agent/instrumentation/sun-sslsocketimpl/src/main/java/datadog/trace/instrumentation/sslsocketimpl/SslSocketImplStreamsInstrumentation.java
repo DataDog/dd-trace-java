@@ -2,8 +2,9 @@ package datadog.trace.instrumentation.sslsocketimpl;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.instrumentation.usmextractor.UsmExtractor;
-import datadog.trace.bootstrap.instrumentation.usmextractor.UsmMessage;
+import datadog.trace.bootstrap.instrumentation.api.UsmExtractor;
+import datadog.trace.bootstrap.instrumentation.api.UsmMessageFactory;
+import datadog.trace.bootstrap.instrumentation.api.UsmMessage;
 import net.bytebuddy.asm.Advice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,8 +64,8 @@ public class SslSocketImplStreamsInstrumentation extends Instrumenter.Usm
     {
 
       System.out.println("Output Stream write:");
-      UsmMessage message = new UsmMessage.RequestUsmMessage(socket, buffer, offset, len);
-      UsmExtractor.send(message);
+      UsmMessage message = UsmMessageFactory.Supplier.getRequestMessage(socket, buffer, offset, len);
+      UsmExtractor.Supplier.send(message);
       System.out.println("src host: " + socket.getLocalAddress().toString() + " src port: " + socket.getLocalPort());
       System.out.println("dst host: " + socket.getInetAddress().toString() + " dst port: " + socket.getPeerPort());
       System.out.println("intercepted write, byte len: " + len);
@@ -83,8 +84,8 @@ public class SslSocketImplStreamsInstrumentation extends Instrumenter.Usm
     {
 
       System.out.println("Input Stream read:");
-      UsmMessage message = new UsmMessage.RequestUsmMessage(socket, buffer, offset, len);
-      UsmExtractor.send(message);
+      UsmMessage message = UsmMessageFactory.Supplier.getRequestMessage(socket, buffer, offset, len);
+      UsmExtractor.Supplier.send(message);
       System.out.println("src host: " + socket.getLocalAddress().toString() + " src port: " + socket.getLocalPort());
       System.out.println("dst host: " + socket.getInetAddress().toString() + " dst port: " + socket.getPeerPort());
       System.out.println("intercepted write, byte len: " + len);

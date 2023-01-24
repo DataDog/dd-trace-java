@@ -2,8 +2,9 @@ package datadog.trace.instrumentation.sslsocketimpl;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.instrumentation.usmextractor.UsmExtractor;
-import datadog.trace.bootstrap.instrumentation.usmextractor.UsmMessage;
+import datadog.trace.bootstrap.instrumentation.api.UsmMessageFactory;
+import datadog.trace.bootstrap.instrumentation.api.UsmExtractor;
+import datadog.trace.bootstrap.instrumentation.api.UsmMessage;
 import net.bytebuddy.asm.Advice;
 import sun.security.ssl.SSLSocketImpl;
 
@@ -41,8 +42,8 @@ public class SslSocketImplInstrumentation extends Instrumenter.Usm
         @Advice.This SSLSocketImpl socket
     ){
       System.out.println("close socket:");
-      UsmMessage message = new UsmMessage.CloseConnectionUsmMessage(socket);
-      UsmExtractor.send(message);
+      UsmMessage message = UsmMessageFactory.Supplier.getCloseMessage(socket);
+      UsmExtractor.Supplier.send(message);
       System.out.println("src host: " + socket.getLocalAddress().toString() + " src port: " + socket.getLocalPort());
       System.out.println("dst host: " + socket.getInetAddress().toString() + " dst port: " + socket.getPeerPort());
     }
