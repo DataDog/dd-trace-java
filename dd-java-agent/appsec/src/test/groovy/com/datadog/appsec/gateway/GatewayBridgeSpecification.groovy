@@ -10,7 +10,7 @@ import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.SingletonDataBundle
 import com.datadog.appsec.report.AppSecEventWrapper
 import com.datadog.appsec.report.raw.events.AppSecEvent100
-import datadog.trace.api.TraceSegment
+import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
 import datadog.trace.api.gateway.Flow

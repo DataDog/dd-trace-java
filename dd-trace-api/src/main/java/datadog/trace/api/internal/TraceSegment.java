@@ -1,4 +1,4 @@
-package datadog.trace.api;
+package datadog.trace.api.internal;
 
 /**
  * A {@code TraceSegment} represents the local, i.e. in the scope of this {@code Tracer}, part of a

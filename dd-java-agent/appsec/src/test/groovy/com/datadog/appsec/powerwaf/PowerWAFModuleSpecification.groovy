@@ -20,7 +20,7 @@ import com.datadog.appsec.report.raw.events.Parameter
 import com.datadog.appsec.report.raw.events.Tags
 import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.trace.api.ConfigDefaults
-import datadog.trace.api.TraceSegment
+import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.gateway.Flow
 import datadog.trace.test.util.DDSpecification
 import io.sqreen.powerwaf.Powerwaf
