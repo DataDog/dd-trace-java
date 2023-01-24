@@ -46,6 +46,7 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".OtelScope",
       packageName + ".OtelSpan",
       packageName + ".OtelSpanBuilder",
       packageName + ".OtelSpanContext",
@@ -57,7 +58,6 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-
     // TracerProvider getTracerProvider();
     transformation.applyAdvice(
         isMethod()
