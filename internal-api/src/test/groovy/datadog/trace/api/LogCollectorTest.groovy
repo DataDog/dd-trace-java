@@ -33,7 +33,7 @@ class LogCollectorTest  extends Specification {
     !messageList.get(0).getStackTrace().contains("Exception Message 2")
     messageList.get(1).getMessage() == "here {} are"
     messageList.get(1).getLevel() == "DEBUG"
-    messageList.get(3).getMessage() == "[A, B, C]"
+    messageList.get(3).getMessage() == "{}"
     messageList.get(3).getStackTrace().contains("Exception Message")
     messageList.get(3).getTags() == null
     messageList.get(4).toString().contains("stack_trace")
