@@ -98,10 +98,10 @@ public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
     public static void current(@Advice.Return(readOnly = false) Context result) {
       AgentSpan activeSpan = AgentTracer.activeSpan();
       if (activeSpan != null) {
-        System.out.println(">>> Injecting active span");
+        System.out.println(">>> [Context.current()] Injecting active span");
         InstrumentationContext.get(Context.class, AgentSpan.class).putIfAbsent(result, activeSpan);
       } else {
-        System.out.println(">>> No active span to inject");
+        System.out.println(">>> [Context.current()] No active span to inject");
       }
     }
   }
@@ -109,28 +109,20 @@ public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
   public static class ContextGetAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void get(
-        @Advice.Argument(0) ContextKey key, @Advice.Return(readOnly = false) Object result) {
-      if (result == null) {
-        System.out.println(">>> Null result");
-        return;
-      }
+        @Advice.This Context zis,
+        @Advice.Argument(0) ContextKey<?> key,
+        @Advice.Return(readOnly = false) Object result) {
       if (!"opentelemetry-baggage-key".equals(key.toString())) {
-        System.out.println(">>> Skipping key " + key);
+        System.out.println(">>> [Context.get()] Skipping key " + key);
         return;
       }
-      if (!(result instanceof Context)) {
-        System.out.println(">>> Result not a Context: " + result.getClass().getName());
-        return;
-      }
-      Context context = (Context) result;
-      AgentSpan agentSpan = InstrumentationContext.get(Context.class, AgentSpan.class).get(context);
+      AgentSpan agentSpan = InstrumentationContext.get(Context.class, AgentSpan.class).get(zis);
       if (agentSpan != null) {
-        System.out.println(">>> Creating OtelBaggage");
-        result =
-            OtelBaggage.fromContext(
-                agentSpan.context()); // TODO Can I use provided ImmutableContext instead?
+        System.out.println(">>> [Context.get()] Creating OtelBaggage");
+        // TODO Can I use the provided ImmutableContext instead?
+        result = OtelBaggage.fromContext(agentSpan.context());
       } else {
-        System.out.println(">>> No AgentSpan injected into OTel Context");
+        System.out.println(">>> [Context.get()] No AgentSpan injected into OTel Context");
       }
     }
   }
@@ -139,29 +131,28 @@ public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void with(
         @Advice.This Context zis,
-        @Advice.Argument(0) ContextKey key,
+        @Advice.Argument(0) ContextKey<?> key,
         @Advice.Argument(1) Object value) {
-      if (value == null) {
-        System.out.println(">>> Null value");
-        return;
-      }
       if (!"opentelemetry-baggage-key".equals(key.toString())) {
-        System.out.println(">>> Skipping key " + key);
+        System.out.println(">>> [Context.with()] Skipping key " + key);
         return;
       }
       if (!(value instanceof Baggage)) {
-        System.out.println(">>> Result not a Baggage: " + value.getClass().getName());
+        System.out.println(
+            ">>> [Context.with()] Result not a Baggage: "
+                + (value == null ? "null value" : value.getClass().getName()));
         return;
       }
       Baggage baggage = (Baggage) value;
       AgentSpan agentSpan = InstrumentationContext.get(Context.class, AgentSpan.class).get(zis);
       if (agentSpan != null) {
-        System.out.println(">>> Storing baggage into span");
+        System.out.println(">>> [Context.with()] Storing baggage into span");
+        // TODO Need a way to remove baggage item from DD span that are not present in OTel baggage
         for (Map.Entry<String, BaggageEntry> mapEntry : baggage.asMap().entrySet()) {
           agentSpan.setBaggageItem(mapEntry.getKey(), mapEntry.getValue().getValue());
         }
       } else {
-        System.out.println(">>> No AgentSpan injected into OTel Context");
+        System.out.println(">>> [Context.with()] No AgentSpan injected into OTel Context");
       }
     }
   }
