@@ -8,7 +8,6 @@ import datadog.trace.instrumentation.junit4.JUnit4Decorator
 import org.example.TestDisableTestTrace
 import org.example.TestSucceed
 import org.junit.runner.Description
-import spock.lang.Shared
 
 @DisableTestTrace(reason = "avoid self-tracing")
 class JUnit4DecoratorTest extends AgentTestRunner {
@@ -19,7 +18,6 @@ class JUnit4DecoratorTest extends AgentTestRunner {
     InstrumentationBridge.setMethodLinesResolverFactory { -> Stub(MethodLinesResolver) }
   }
 
-  @Shared
   def decorator = new JUnit4Decorator()
 
   def "skip trace false in test class without annotation"() {
