@@ -77,7 +77,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     protected abstract ContextInterpreter construct(
         Map<String, String> tagsMapping, Map<String, String> baggageMapping);
 
-    protected Map<String, String> cleanMapping(Map<String, String> mapping, boolean lowerCaseValues) {
+    protected Map<String, String> cleanMapping(
+        Map<String, String> mapping, boolean lowerCaseValues) {
       final Map<String, String> cleanedMapping = new HashMap<>(mapping.size() * 4 / 3);
       for (Map.Entry<String, String> association : mapping.entrySet()) {
         String value = association.getValue().trim();
