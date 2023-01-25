@@ -69,11 +69,7 @@ public class LogCollector {
       log.setMessage(msg);
     } else {
       if (null != format) {
-        if (isDDCode) {
-          log.setMessage(MessageFormatter.arrayFormat(format, args).getMessage());
-        } else {
-          log.setMessage(format);
-        }
+        log.setMessage(format);
       }
     }
     log.setLevel(level);
