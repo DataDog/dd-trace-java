@@ -9,7 +9,7 @@ class OpenTelemetry1BaggageTest extends AgentTestRunner {
   @Subject
   def tracer = GlobalOpenTelemetry.get().tracerProvider.get("some-instrumentation")
 
-  def "test baggage"() {
+  def "test baggage storage in span"() {
     setup:
     def builder = tracer.spanBuilder("some-name")
     def aSpan = builder.startSpan()
@@ -50,7 +50,7 @@ class OpenTelemetry1BaggageTest extends AgentTestRunner {
     }
   }
 
-  def "test baggage inheritance"() {
+  def "test baggage inheritance from span"() {
     setup:
     def parentSpan = tracer.spanBuilder("some-name").startSpan()
     def parentScope = parentSpan.makeCurrent()
@@ -120,5 +120,40 @@ class OpenTelemetry1BaggageTest extends AgentTestRunner {
         }
       }
     }
+  }
+
+  def "test baggage retrieval"() {
+    setup:
+    def aSpan = null
+    def scope = null
+    if (withSpan) {
+      aSpan = tracer.spanBuilder("some-name").startSpan()
+      scope = aSpan.makeCurrent()
+      if (withEntry) {
+        Baggage.current()
+          .toBuilder()
+          .put("key1", "value1")
+          .put("key2", "value2")
+          .build()
+          .storeInContext(Context.current())
+      }
+    }
+
+    when:
+    def currentBaggage = Baggage.current()
+    def currentContext = Context.current()
+    def baggageFromCurrentContext = Baggage.fromContext(currentContext)
+    scope?.close()
+    aSpan?.end()
+
+    then:
+    currentBaggage == baggageFromCurrentContext
+    currentBaggage.size() == (withEntry ? 2 : 0)
+
+    where:
+    withSpan | withEntry
+    false    | false
+    true     | false
+    true     | true
   }
 }

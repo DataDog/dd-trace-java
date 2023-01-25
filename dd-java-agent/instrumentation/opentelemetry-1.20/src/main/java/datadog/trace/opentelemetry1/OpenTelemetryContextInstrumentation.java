@@ -24,6 +24,8 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
+// TODO Supporting Context.makeCurrent() requires to change the internal ScopeManager
+
 @AutoService(Instrumenter.class)
 public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
@@ -118,7 +120,7 @@ public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
     }
 
     public static Baggage fromContext(AgentSpan.Context context) {
-      BaggageBuilder builder = Baggage.empty().toBuilder();
+      BaggageBuilder builder = Baggage.builder();
       for (Map.Entry<String, String> baggageItem : context.baggageItems()) {
         builder.put(baggageItem.getKey(), baggageItem.getValue());
       }
