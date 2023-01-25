@@ -58,17 +58,13 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    // TracerProvider getTracerProvider();
+    // TracerProvider.getTracerProvider()
     transformation.applyAdvice(
         isMethod()
             .and(named("getTracerProvider"))
             .and(takesNoArguments())
             .and(returns(named("io.opentelemetry.api.trace.TracerProvider"))),
         OpenTelemetryInstrumentation.class.getName() + "$TracerProviderAdvice");
-    //    transformation.applyAdvice(
-    //        named("getPropagators")
-    //            .and(returns(named("io.opentelemetry.context.propagation.ContextPropagators"))),
-    //        OpenTelemetryInstrumentation.class.getName() + "$ContextPropagatorsAdvice");
   }
 
   public static class TracerProviderAdvice {
@@ -77,17 +73,4 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
       result = OtelTracerProvider.INSTANCE;
     }
   }
-
-  //  public static class ContextPropagatorsAdvice {
-  //    @Advice.OnMethodExit(suppress = Throwable.class)
-  //    public static void returnProvider(@Advice.Return(readOnly = false) ContextPropagators
-  // result) {
-  //      result = OtelContextPropagators.INSTANCE;
-  //    }
-  //
-  //    // Muzzle doesn't detect the advice method's argument type, so we have to help it a bit.
-  //    public static void muzzleCheck(final ContextPropagators propagators) {
-  //      propagators.getHttpTextFormat();
-  //    }
-  //  }
 }

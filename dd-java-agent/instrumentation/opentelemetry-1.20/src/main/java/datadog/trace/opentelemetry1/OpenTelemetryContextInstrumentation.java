@@ -15,6 +15,7 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.opentelemetry.api.baggage.Baggage;
+import io.opentelemetry.api.baggage.BaggageBuilder;
 import io.opentelemetry.api.baggage.BaggageEntry;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.ContextKey;
@@ -61,30 +62,21 @@ public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      //      packageName + ".OtelBaggage",
-      //      packageName + ".OtelSpanBuilder",
-      //      packageName + ".OtelSpanContext",
-      //      packageName + ".OtelTracer",
-      //      packageName + ".OtelTracerBuilder",
-      //      packageName + ".OtelTracerProvider",
-    };
-  }
-
-  @Override
   public void adviceTransformations(AdviceTransformation transformation) {
+    // Context.current()
     transformation.applyAdvice(
         isMethod()
             .and(named("current"))
             .and(takesNoArguments())
             .and(returns(named(OTEL_CONTEXT_CLASSNAME))),
         OpenTelemetryContextInstrumentation.class.getName() + "$ContextCurrentAdvice");
+    // Context.get(ContextKey)
     transformation.applyAdvice(
         isMethod()
             .and(named("get"))
             .and(takesArgument(0, named("io.opentelemetry.context.ContextKey"))),
         OpenTelemetryContextInstrumentation.class.getName() + "$ContextGetAdvice");
+    // Context.with(ContextKey, V)
     transformation.applyAdvice(
         isMethod()
             .and(named("with"))
@@ -118,12 +110,19 @@ public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
       }
       AgentSpan agentSpan = InstrumentationContext.get(Context.class, AgentSpan.class).get(zis);
       if (agentSpan != null) {
-        System.out.println(">>> [Context.get()] Creating OtelBaggage");
-        // TODO Can I use the provided ImmutableContext instead?
-        result = OtelBaggage.fromContext(agentSpan.context());
+        System.out.println(">>> [Context.get()] Creating baggage from context");
+        result = fromContext(agentSpan.context());
       } else {
         System.out.println(">>> [Context.get()] No AgentSpan injected into OTel Context");
       }
+    }
+
+    public static Baggage fromContext(AgentSpan.Context context) {
+      BaggageBuilder builder = Baggage.empty().toBuilder();
+      for (Map.Entry<String, String> baggageItem : context.baggageItems()) {
+        builder.put(baggageItem.getKey(), baggageItem.getValue());
+      }
+      return builder.build();
     }
   }
 
@@ -138,9 +137,8 @@ public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
         return;
       }
       if (!(value instanceof Baggage)) {
-        System.out.println(
-            ">>> [Context.with()] Result not a Baggage: "
-                + (value == null ? "null value" : value.getClass().getName()));
+        String valueType = value == null ? "null value" : value.getClass().getName();
+        System.out.println(">>> [Context.with()] Result not a Baggage: " + valueType);
         return;
       }
       Baggage baggage = (Baggage) value;
