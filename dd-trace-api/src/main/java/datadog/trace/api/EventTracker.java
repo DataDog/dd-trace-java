@@ -24,10 +24,6 @@ public class EventTracker {
       throw new IllegalArgumentException("UserId is null or empty");
     }
 
-    if (tracer == null) {
-      return;
-    }
-
     TraceSegment segment = this.tracer.getTraceSegment();
     if (segment == null) {
       return;
@@ -55,10 +51,6 @@ public class EventTracker {
       throw new IllegalArgumentException("UserId is null or empty");
     }
 
-    if (tracer == null) {
-      return;
-    }
-
     TraceSegment segment = this.tracer.getTraceSegment();
     if (segment == null) {
       return;
@@ -84,10 +76,6 @@ public class EventTracker {
   public void trackCustomEvent(String eventName, Map<String, String> metadata) {
     if (eventName == null || eventName.isEmpty()) {
       throw new IllegalArgumentException("EventName is null or empty");
-    }
-
-    if (tracer == null) {
-      return;
     }
 
     TraceSegment segment = this.tracer.getTraceSegment();
