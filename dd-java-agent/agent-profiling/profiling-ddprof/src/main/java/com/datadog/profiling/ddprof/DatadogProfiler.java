@@ -60,11 +60,28 @@ public final class DatadogProfiler {
     private static final DatadogProfiler INSTANCE = newInstance();
   }
 
+  private static void logFailedInstantiation(Throwable error) {
+    if (log.isDebugEnabled()) {
+      log.warn(
+          String.format(
+              "failed to instantiate Datadog profiler on %s %s",
+              OperatingSystem.current(), Arch.current()),
+          error);
+    } else {
+      log.warn(
+          "failed to instantiate Datadog profiler on {} {} because: {}",
+          OperatingSystem.current(),
+          Arch.current(),
+          error.getMessage());
+    }
+  }
+
   static DatadogProfiler newInstance() {
     DatadogProfiler instance = null;
     try {
       instance = new DatadogProfiler();
     } catch (Throwable t) {
+      logFailedInstantiation(t);
       instance = new DatadogProfiler((Void) null);
     }
     return instance;
@@ -75,6 +92,7 @@ public final class DatadogProfiler {
     try {
       instance = new DatadogProfiler(configProvider);
     } catch (Throwable t) {
+      logFailedInstantiation(t);
       instance = new DatadogProfiler((Void) null);
     }
     return instance;
