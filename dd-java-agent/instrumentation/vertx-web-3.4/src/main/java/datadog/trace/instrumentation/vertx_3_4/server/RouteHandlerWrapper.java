@@ -41,8 +41,6 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
       routingContext.response().endHandler(new EndHandlerWrapper(routingContext));
       DECORATE.afterStart(span);
       span.setResourceName(DECORATE.className(actual.getClass()));
-
-      rba = parentSpan.getRequestBlockingAction();
     }
 
     updateRoutingContextWithRoute(routingContext);
@@ -50,12 +48,7 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
     try (final AgentScope scope = activateSpan(span)) {
       scope.setAsyncPropagation(true);
       try {
-        if (rba == null) {
-          actual.handle(routingContext);
-        } else {
-          routingContext.put(VertxBlockingHandler.REQUEST_BLOCKING_ACTION_KEY, rba);
-          VertxBlockingHandler.INSTANCE.handle(routingContext);
-        }
+        actual.handle(routingContext);
       } catch (final Throwable t) {
         DECORATE.onError(span, t);
         throw t;

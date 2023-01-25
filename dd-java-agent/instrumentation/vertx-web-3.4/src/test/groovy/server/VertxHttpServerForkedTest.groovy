@@ -120,8 +120,6 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
     true
   }
 
-  final int numSpansBlocking = 2
-
   @Override
   Class<? extends Exception> expectedExceptionType() {
     return RuntimeException

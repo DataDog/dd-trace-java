@@ -39,10 +39,6 @@ public final class TracingHandler implements Handler {
     DECORATE.afterStart(ratpackSpan);
     DECORATE.onRequest(ratpackSpan, request, request, null);
     ctx.getExecution().add(ratpackSpan);
-    Flow.Action.RequestBlockingAction rba = nettySpan.getRequestBlockingAction();
-    if (rba == null) {
-      rba = ratpackSpan.getRequestBlockingAction();
-    }
     try (final AgentScope scope = activateSpan(ratpackSpan)) {
       scope.setAsyncPropagation(true);
 
@@ -61,12 +57,7 @@ public final class TracingHandler implements Handler {
                 }
               });
 
-      if (rba != null) {
-        ctx.getExecution().add(RBA_CLASS_TOKEN, rba);
-        ctx.insert(BlockRequestHandler.INSTANCE);
-      } else {
-        ctx.next();
-      }
+      ctx.next();
     } catch (final Throwable e) {
       DECORATE.onError(ratpackSpan, e);
       DECORATE.beforeFinish(ratpackSpan);
