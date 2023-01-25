@@ -29,7 +29,36 @@ class OpenTelemetry1Test extends AgentTestRunner {
     result instanceof OtelSpan
   }
 
-  def "test parent span"() {
+  def "test parent span using active span"() {
+    setup:
+    def builder = tracer.spanBuilder("some-name")
+    def parentSpan = builder.startSpan()
+    def scope = parentSpan.makeCurrent()
+
+    when:
+    def childSpan = tracer.spanBuilder("other-name")
+      .setParent(Context.current().with(parentSpan))
+      .startSpan()
+    childSpan.end()
+    scope.close()
+    parentSpan.end()
+
+    then:
+    assertTraces(1) {
+      trace(2) {
+        span {
+          parent()
+          operationName "some-name"
+        }
+        span {
+          childOfPrevious()
+          operationName "other-name"
+        }
+      }
+    }
+  }
+
+  def "test parent span using reference"() {
     setup:
     def builder = tracer.spanBuilder("some-name")
     def parentSpan = builder.startSpan()
