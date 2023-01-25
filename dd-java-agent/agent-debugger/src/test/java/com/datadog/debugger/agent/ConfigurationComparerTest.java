@@ -6,12 +6,14 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentMap;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.tree.ClassNode;
@@ -372,22 +374,27 @@ class ConfigurationComparerTest {
 
   @Test
   public void allLoadedChangedClassesTopLevelClassFileName() {
+    final String CLASS_FILENAME = "com/datadog/debugger/agent/TopLevelHelper.java";
+    Map<String, List<String>> sourceFileMapping = new HashMap<>();
+    String simpleSourceFile = CLASS_FILENAME.substring(CLASS_FILENAME.lastIndexOf('/') + 1);
+    sourceFileMapping.put(simpleSourceFile, Arrays.asList(MyTopLevelClass.class.getTypeName()));
+    setupSourceFileTracking(sourceFileMapping);
     LogProbe probe =
-        LogProbe.builder()
-            .probeId(PROBE_ID)
-            .where(null, null, null, 8, "com/datadog/debugger/agent/TopLevelHelper.java")
-            .build();
+        LogProbe.builder().probeId(PROBE_ID).where(null, null, null, 8, CLASS_FILENAME).build();
     doAllLoadedChangedClasses(probe, MyTopLevelClass.class, true, MyTopLevelClass.class);
+    doAllLoadedChangedClasses(probe, MyTopLevelClass.class, false, MyTopLevelClass.class);
   }
 
   @Test
   public void allLoadedChangedClassesTopLevelClassSimpleFileName() {
+    final String CLASS_FILENAME = "TopLevelHelper.java";
+    Map<String, List<String>> sourceFileMapping = new HashMap<>();
+    sourceFileMapping.put(CLASS_FILENAME, Arrays.asList(MyTopLevelClass.class.getTypeName()));
+    setupSourceFileTracking(sourceFileMapping);
     LogProbe probe =
-        LogProbe.builder()
-            .probeId(PROBE_ID)
-            .where(null, null, null, 8, "TopLevelHelper.java")
-            .build();
+        LogProbe.builder().probeId(PROBE_ID).where(null, null, null, 8, CLASS_FILENAME).build();
     doAllLoadedChangedClasses(probe, TopLevelHelper.class, false, TopLevelHelper.class);
+    doAllLoadedChangedClasses(probe, MyTopLevelClass.class, false, MyTopLevelClass.class);
   }
 
   private void doAllLoadedChangedClasses(
@@ -424,5 +431,21 @@ class ConfigurationComparerTest {
 
   private static Configuration createConfig(List<LogProbe> logProbes) {
     return new Configuration(SERVICE_NAME, logProbes);
+  }
+
+  private void setupSourceFileTracking(Map<String, List<String>> map) {
+    try {
+      Field classNamesBySourceFileField =
+          SourceFileTrackingTransformer.INSTANCE
+              .getClass()
+              .getDeclaredField("classNamesBySourceFile");
+      classNamesBySourceFileField.setAccessible(true);
+      ConcurrentMap<String, List<String>> classNamesBySourceFile =
+          (ConcurrentMap<String, List<String>>)
+              classNamesBySourceFileField.get(SourceFileTrackingTransformer.INSTANCE);
+      classNamesBySourceFile.putAll(map);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+    }
   }
 }

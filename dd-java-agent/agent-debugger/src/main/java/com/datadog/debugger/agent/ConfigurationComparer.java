@@ -90,11 +90,8 @@ public class ConfigurationComparer {
           if (key == null || key.equals("")) {
             continue;
           }
-          // remove extension if any
-          int idx = key.lastIndexOf('.');
-          if (idx > -1) {
-            key = key.substring(0, idx);
-          }
+          processAdditionalClasses(key, changedClasses);
+          key = removeExtension(key);
           key = normalizeFilePath(key);
         }
       } else {
@@ -111,6 +108,30 @@ public class ConfigurationComparer {
       changedClasses.insert(reverseStr(typeName));
     }
     return changedClasses;
+  }
+
+  private void processAdditionalClasses(String sourceFile, Trie changedClasses) {
+    int idx = sourceFile.lastIndexOf('/');
+    if (idx != -1) {
+      sourceFile = sourceFile.substring(idx + 1);
+    }
+    List<String> additionalClasses =
+        SourceFileTrackingTransformer.INSTANCE.getClassNameBySourceFile(sourceFile);
+    if (additionalClasses == null) {
+      return;
+    }
+    for (String additionalClass : additionalClasses) {
+      additionalClass = normalizeFilePath(additionalClass);
+      changedClasses.insert(reverseStr(additionalClass));
+    }
+  }
+
+  private String removeExtension(String fileName) {
+    int idx = fileName.lastIndexOf('.');
+    if (idx > -1) {
+      fileName = fileName.substring(0, idx);
+    }
+    return fileName;
   }
 
   private String normalizeFilePath(String filePath) {
@@ -151,21 +172,26 @@ public class ConfigurationComparer {
     List<Class<?>> classesToBeTransformed = new ArrayList<>();
     Trie changedClasses = getAllChangedClasses();
     for (Class<?> clazz : allLoadedClasses) {
-      // try first with FQN (java.lang.String)
-      String typeName = clazz.getName();
-      if (!changedClasses.contains(reverseStr(typeName))) {
-        // fallback to matching on SimpleName (String)
-        String simpleName = extractSimpleName(clazz);
-        if (!changedClasses.contains(reverseStr(simpleName))) {
-          // prefix match with FQN
-          if (!changedClasses.containsPrefix(reverseStr(typeName))) {
-            continue;
-          }
-        }
+      if (lookupClass(changedClasses, clazz)) {
+        classesToBeTransformed.add(clazz);
       }
-      classesToBeTransformed.add(clazz);
     }
     return classesToBeTransformed;
+  }
+
+  private static boolean lookupClass(Trie changedClasses, Class<?> clazz) {
+    String reversedTypeName = reverseStr(clazz.getName());
+    // try first with FQN (java.lang.String)
+    if (changedClasses.contains(reversedTypeName)) {
+      return true;
+    }
+    // fallback to matching on SimpleName (String)
+    String simpleName = extractSimpleName(clazz);
+    if (changedClasses.contains(reverseStr(simpleName))) {
+      return true;
+    }
+    // prefix match with FQN
+    return changedClasses.containsPrefix(reversedTypeName);
   }
 
   List<String> findChangesInBlockedTypes() {

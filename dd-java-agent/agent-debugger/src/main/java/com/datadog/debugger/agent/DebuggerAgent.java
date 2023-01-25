@@ -40,6 +40,7 @@ public class DebuggerAgent {
       return;
     }
     log.info("Starting Dynamic Instrumentation");
+    setupSourceFileTracking(instrumentation);
     String finalDebuggerSnapshotUrl = config.getFinalDebuggerSnapshotUrl();
     String agentUrl = config.getAgentUrl();
     boolean isSnapshotUploadThroughAgent = Objects.equals(finalDebuggerSnapshotUrl, agentUrl);
@@ -101,6 +102,10 @@ public class DebuggerAgent {
     } else {
       log.debug("No configuration poller available from SharedCommunicationObjects");
     }
+  }
+
+  private static void setupSourceFileTracking(Instrumentation instrumentation) {
+    instrumentation.addTransformer(SourceFileTrackingTransformer.INSTANCE);
   }
 
   private static void loadFromFile(
