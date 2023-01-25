@@ -62,6 +62,19 @@ public final class AgentBootstrap {
       return;
     }
 
+    //for dynamic injection flow, we need to "register" the args since jvm doesn't handle them as it does in a startup flow via -D flag
+    if (agentArgs != ""){
+       //split arguments by space character
+       String[] args = agentArgs.split(" ");
+       for (String arg : args){
+         //we only parse the arguments of the form "arg=value" (e.g: dd.debug.enabled=true)
+         String[] keyValTuple = arg.split("=");
+         if (keyValTuple.length == 2) {
+           System.setProperty(keyValTuple[0], keyValTuple[1]);
+         }
+      }
+    }
+
     try {
       final URL agentJarURL = installAgentJar(inst);
       final Class<?> agentClass = Class.forName("datadog.trace.bootstrap.Agent", true, null);

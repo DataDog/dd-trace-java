@@ -81,11 +81,11 @@ public abstract class UsmMessageImpl {
       // we reserve 2 long for ip, as IPv6 takes 128 bytes
       int ipReservedSize = Long.BYTES * 2;
       byte[] srcIPBuffer = socket.getLocalAddress().getAddress();
-      pointer.write(offset, srcIPBuffer, 0, srcIPBuffer.length);
+      pointer.write(offset+Long.BYTES, srcIPBuffer, 0, srcIPBuffer.length);
       offset += ipReservedSize;
 
       byte[] dstIPBuffer = socket.getInetAddress().getAddress();
-      pointer.write(offset, dstIPBuffer, 0, dstIPBuffer.length);
+      pointer.write(offset+Long.BYTES, dstIPBuffer, 0, dstIPBuffer.length);
       offset += ipReservedSize;
 
       // encode src and dst ports
