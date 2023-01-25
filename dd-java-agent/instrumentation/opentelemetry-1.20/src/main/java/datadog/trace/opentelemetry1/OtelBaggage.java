@@ -57,7 +57,7 @@ public class OtelBaggage implements Baggage {
 
   @Override
   public BaggageBuilder toBuilder() {
-    return new OtelBaggageBuilder();
+    return new OtelBaggageBuilder(new HashMap<>(this.items));
   }
 
   private static class OtelBaggageEntry implements BaggageEntry {
