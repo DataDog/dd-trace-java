@@ -19,6 +19,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class InputStreamInstrumentation extends Instrumenter.Iast
     implements Instrumenter.ForTypeHierarchy {
 
+  private static final String[] FORCE_LOADING = {"java.io.PushbackInputStream"};
+
   public InputStreamInstrumentation() {
     super("inputStream");
   }
@@ -38,6 +40,11 @@ public class InputStreamInstrumentation extends Instrumenter.Iast
     transformation.applyAdvice(
         isConstructor().and(isPublic()).and(takesArgument(0, InputStream.class)),
         InputStreamInstrumentation.class.getName() + "$InputStreamAdvice");
+  }
+
+  @Override
+  public String[] getClassesToBeForced() {
+    return FORCE_LOADING;
   }
 
   public static class InputStreamAdvice {
