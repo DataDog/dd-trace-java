@@ -349,13 +349,15 @@ public class DebuggerTransformer implements ClassFileTransformer {
 
   private void reportLocationNotFound(
       ProbeDefinition definition, String className, String methodName, String[] lines) {
-    String format = CANNOT_FIND_LINE;
-    String location = "0";
+    String format;
+    String location;
     if (methodName != null) {
       format = CANNOT_FIND_METHOD;
       location = methodName;
-    } else if (lines != null && lines.length > 0) {
-      location = lines[0];
+    } else {
+      // This is a line probe, so we don't report line not found because the line may be found later
+      // on a separate class files because probe was set on an inner/top-level class
+      return;
     }
     String msg = String.format(format, className, location);
     DiagnosticMessage diagnosticMessage = new DiagnosticMessage(DiagnosticMessage.Kind.ERROR, msg);
