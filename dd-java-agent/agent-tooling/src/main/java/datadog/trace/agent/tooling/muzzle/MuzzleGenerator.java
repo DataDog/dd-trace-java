@@ -58,8 +58,8 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
     try {
       instrumenter =
           (Instrumenter.Default)
-              MuzzleGenerator.class
-                  .getClassLoader()
+              Thread.currentThread()
+                  .getContextClassLoader()
                   .loadClass(instrumentedType.getName())
                   .getConstructor()
                   .newInstance();
@@ -83,12 +83,11 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
     final Map<String, Reference> references = new LinkedHashMap<>();
     final Set<String> adviceClasses = new HashSet<>();
     instrumenter.adviceTransformations((matcher, name) -> adviceClasses.add(name));
+    ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
     for (String adviceClass : adviceClasses) {
       if (referenceSources.add(adviceClass)) {
         for (Map.Entry<String, Reference> entry :
-            ReferenceCreator.createReferencesFrom(
-                    adviceClass, ReferenceMatcher.class.getClassLoader())
-                .entrySet()) {
+            ReferenceCreator.createReferencesFrom(adviceClass, contextClassLoader).entrySet()) {
           Reference toMerge = references.get(entry.getKey());
           if (null == toMerge) {
             references.put(entry.getKey(), entry.getValue());
