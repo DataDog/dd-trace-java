@@ -75,6 +75,8 @@
 1 org.springframework.core.$Proxy*
 1 org.springframework.instrument.classloading.ShadowingClassLoader
 1 org.springframework.instrument.classloading.SimpleThrowawayClassLoader
+1 org.springframework.util.ConcurrentLruCache$*
+1 com.fasterxml.jackson.databind.util.internal.PrivateMaxEntriesMap$*
 1 org.eclipse.osgi.framework.internal.protocol.*
 1 sun.*
 0 sun.net.www.http.HttpClient
@@ -86,8 +88,6 @@
 # Prevent IllegalAccessError in OpenJDK 17.0.4
 1 javax.management.*
 1 javax.swing.*
-1 org.springframework.util.ConcurrentLruCache$AddTask
-1 com.fasterxml.jackson.databind.util.internal.PrivateMaxEntriesMap$AddTask
 
 # -------- ADDITIONAL IGNORES --------
 
