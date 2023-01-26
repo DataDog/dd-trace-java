@@ -11,7 +11,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import java.io.InputStream;
-import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -39,11 +38,6 @@ public class InputStreamInstrumentation extends Instrumenter.Iast
     transformation.applyAdvice(
         isConstructor().and(isPublic()).and(takesArgument(0, InputStream.class)),
         InputStreamInstrumentation.class.getName() + "$InputStreamAdvice");
-  }
-
-  @Override
-  public boolean isApplicable(final Set<TargetSystem> enabledSystems) {
-    return enabledSystems.contains(TargetSystem.IAST);
   }
 
   public static class InputStreamAdvice {

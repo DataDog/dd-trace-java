@@ -15,7 +15,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -52,11 +51,6 @@ public class JsonParserInstrumentation extends Instrumenter.Iast
         .and(
             extendsClass(named(hierarchyMarkerType()))
                 .and(namedNoneOf("com.fasterxml.jackson.core.base.ParserMinimalBase")));
-  }
-
-  @Override
-  public boolean isApplicable(final Set<TargetSystem> enabledSystems) {
-    return enabledSystems.contains(TargetSystem.IAST);
   }
 
   public static class JsonParserAdvice {
