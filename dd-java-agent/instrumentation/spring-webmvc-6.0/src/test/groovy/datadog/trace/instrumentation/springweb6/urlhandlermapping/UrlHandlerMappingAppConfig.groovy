@@ -1,36 +1,33 @@
-package test.urlhandlermapping
+package datadog.trace.instrumentation.springweb6.urlhandlermapping
 
 import datadog.trace.agent.test.base.HttpServerTest
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletResponse
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.context.annotation.Bean
 import org.springframework.core.Ordered
 import org.springframework.stereotype.Controller
+import org.springframework.util.AntPathMatcher
 import org.springframework.web.servlet.HandlerMapping
 import org.springframework.web.servlet.ModelAndView
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 import org.springframework.web.servlet.handler.SimpleUrlHandlerMapping
 import org.springframework.web.servlet.mvc.AbstractController
 
-import jakarta.servlet.http.HttpServletRequest
-import jakarta.servlet.http.HttpServletResponse
-
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.*
 
 @SpringBootApplication
-class UrlHandlerMappingAppConfig extends WebMvcConfigurerAdapter {
+class UrlHandlerMappingAppConfig implements WebMvcConfigurer {
   @Bean
   SimpleUrlHandlerMapping sampleServletMapping() {
 
-    Properties urlProperties = new Properties()
+    Map<String, ?> urlProperties = new HashMap<>()
     urlProperties.put('/path/{id:\\d+}/param', 'testPathParamController')
     urlProperties.put('/**', 'testRestController')
 
-    new SimpleUrlHandlerMapping(
-      order: Ordered.HIGHEST_PRECEDENCE,
-      mappings: urlProperties
-      )
+    def ret = new SimpleUrlHandlerMapping(urlProperties, Ordered.HIGHEST_PRECEDENCE)
+    ret.setPatternParser(null)
+    ret
   }
 }
 
@@ -40,8 +37,8 @@ class TestPathParamController extends AbstractController {
   protected ModelAndView handleRequestInternal(HttpServletRequest request,
     HttpServletResponse response) throws Exception {
     HttpServerTest.controller(PATH_PARAM) {
-      def attribute = request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE)
-      response.writer << attribute['id'].toString()
+      def pattern = request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE).toString()
+      response.writer << new AntPathMatcher().extractUriTemplateVariables(pattern, request.getRequestURI())['id'].toString()
       null
     }
   }
@@ -58,7 +55,7 @@ class TestRestController extends AbstractController {
       return null
     }
 
-    HttpServerTest.ServerEndpoint endpoint = HttpServerTest.ServerEndpoint.forPath(request.requestURI)
+    HttpServerTest.ServerEndpoint endpoint = forPath(request.requestURI)
     HttpServerTest.controller(endpoint) {
       switch (endpoint) {
         case EXCEPTION:

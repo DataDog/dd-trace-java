@@ -1,23 +1,20 @@
-package test.urlhandlermapping
+package datadog.trace.instrumentation.springweb6.urlhandlermapping
 
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.api.ConfigDefaults
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator
+import datadog.trace.instrumentation.springweb6.boot.SecurityConfig
+import datadog.trace.instrumentation.tomcat.TomcatDecorator
 import org.springframework.boot.SpringApplication
-import org.springframework.boot.context.embedded.EmbeddedWebApplicationContext
+import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
-import test.boot.SecurityConfig
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.*
 import static java.util.Collections.singletonMap
 
 /**
@@ -31,11 +28,13 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
     def context
     final app = new SpringApplication(UrlHandlerMappingAppConfig, SecurityConfig)
 
+
+
     @Override
     void start() {
       app.setDefaultProperties(singletonMap("server.port", 0))
-      context = app.run() as EmbeddedWebApplicationContext
-      port = context.embeddedServletContainer.port
+      context = app.run()
+      port = (context as ServletWebServerApplicationContext).webServer.port
       assert port > 0
     }
 
@@ -62,7 +61,7 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
 
   @Override
   String component() {
-    Servlet3Decorator.DECORATE.component()
+    TomcatDecorator.DECORATE.component()
   }
 
   @Override
@@ -93,6 +92,11 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
   }
 
   @Override
+  String expectedServiceName() {
+    return ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME
+  }
+
+  @Override
   Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
     switch (endpoint) {
       case LOGIN:
@@ -112,7 +116,9 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
 
   @Override
   Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
-    ['servlet.path': endpoint.path]
+    ['servlet.path': endpoint.path,
+      'servlet.context': "/"
+    ]
   }
 
   @Override
@@ -137,7 +143,7 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
 
   def 'template var is pushed to IG'() {
     setup:
-    def request = request(PATH_PARAM, 'GET', null).header(IG_EXTRA_SPAN_NAME_HEADER, 'appsec-span').build()
+    def request = request(PATH_PARAM, 'GET', null).header(HttpServerTest.IG_EXTRA_SPAN_NAME_HEADER, 'appsec-span').build()
 
     when:
     def response = client.newCall(request).execute()
@@ -146,6 +152,6 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
 
     then:
     response.code() == PATH_PARAM.status
-    span.getTag(IG_PATH_PARAMS_TAG) == [id: '123']
+    span.getTag(HttpServerTest.IG_PATH_PARAMS_TAG) == [id: '123']
   }
 }

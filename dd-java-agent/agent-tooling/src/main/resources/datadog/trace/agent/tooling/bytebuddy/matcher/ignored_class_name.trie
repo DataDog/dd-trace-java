@@ -86,6 +86,8 @@
 # Prevent IllegalAccessError in OpenJDK 17.0.4
 1 javax.management.*
 1 javax.swing.*
+1 org.springframework.util.ConcurrentLruCache$AddTask
+1 com.fasterxml.jackson.databind.util.internal.PrivateMaxEntriesMap$AddTask
 
 # -------- ADDITIONAL IGNORES --------
 

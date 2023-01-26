@@ -29,7 +29,7 @@ public class ServletPathRequestFilterInstrumentation extends Instrumenter.Tracin
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     return hasClassNamed("org.springframework.web.filter.ServletRequestPathFilter")
-        .and(hasClassNamed("javax.servlet.Filter"));
+        .and(hasClassNamed("javax.servlet.Filter").or(hasClassNamed("jakarta.servlet.Filter")));
   }
 
   @Override

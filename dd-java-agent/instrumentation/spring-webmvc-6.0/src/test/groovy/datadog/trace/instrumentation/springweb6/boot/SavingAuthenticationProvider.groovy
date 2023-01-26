@@ -1,4 +1,4 @@
-package test.boot
+package datadog.trace.instrumentation.springweb6.boot
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.authentication.dao.AbstractUserDetailsAuthenticationProvider
@@ -7,6 +7,7 @@ import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.userdetails.UserDetails
 
 class SavingAuthenticationProvider extends AbstractUserDetailsAuthenticationProvider {
+
   List<TestUserDetails> latestAuthentications = new ArrayList<>()
 
   @Override
