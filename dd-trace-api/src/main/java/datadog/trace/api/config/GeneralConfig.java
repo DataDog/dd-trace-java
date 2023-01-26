@@ -57,7 +57,7 @@ public final class GeneralConfig {
   public static final String TELEMETRY_ENABLED = "instrumentation.telemetry.enabled";
   public static final String TELEMETRY_DEBUG_ENABLED = "instrumentation.telemetry.debug";
   public static final String TELEMETRY_LOG_COLLECTION_ENABLED =
-      "instrumentation.telemetry.log.collection.enabled";
+      "instrumentation.telemetry.log-collection.enabled";
   public static final String TELEMETRY_HEARTBEAT_INTERVAL = "telemetry.heartbeat.interval";
 
   private GeneralConfig() {}
