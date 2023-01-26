@@ -165,7 +165,7 @@ public class LogProbesInstrumentationTest {
     Assert.assertEquals(143, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
-    assertEquals("nullObject=NULL sdata=foo cdata=101", snapshot.getSummary());
+    assertEquals("nullObject=null sdata=foo cdata=101", snapshot.getSummary());
   }
 
   @Test
