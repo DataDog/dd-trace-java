@@ -1,10 +1,13 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitUtils.filterSensitiveInfo;
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitUtils.normalizeRef;
+
 import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.PersonInfo;
 
-class BuddyInfo extends CIProviderInfo {
+class BuddyInfo implements CIProviderInfo {
 
   // https://buddy.works/docs/pipelines/environment-variables
   public static final String BUDDY = "BUDDY";
@@ -22,7 +25,7 @@ class BuddyInfo extends CIProviderInfo {
   public static final String BUDDY_GIT_COMMIT_EMAIL = "BUDDY_EXECUTION_REVISION_COMMITTER_EMAIL";
 
   @Override
-  protected GitInfo buildCIGitInfo() {
+  public GitInfo buildCIGitInfo() {
     return new GitInfo(
         filterSensitiveInfo(System.getenv(BUDDY_GIT_REPOSITORY_URL)),
         normalizeRef(System.getenv(BUDDY_GIT_BRANCH)),
@@ -35,7 +38,7 @@ class BuddyInfo extends CIProviderInfo {
   }
 
   @Override
-  protected CIInfo buildCIInfo() {
+  public CIInfo buildCIInfo() {
     String pipelineNumber = System.getenv(BUDDY_PIPELINE_EXECUTION_ID);
     return CIInfo.builder()
         .ciProviderName(BUDDY_PROVIDER_NAME)
@@ -44,6 +47,11 @@ class BuddyInfo extends CIProviderInfo {
         .ciPipelineNumber(pipelineNumber)
         .ciPipelineUrl(System.getenv(BUDDY_PIPELINE_EXECUTION_URL))
         .build();
+  }
+
+  @Override
+  public boolean isCI() {
+    return true;
   }
 
   private PersonInfo buildGitCommiter() {

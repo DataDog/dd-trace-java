@@ -16,10 +16,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,7 +29,6 @@ import org.slf4j.LoggerFactory;
 
 /** Helper for creating Moshi adapters for (de)serializing snapshots */
 public class MoshiSnapshotHelper {
-  private static final Logger LOG = LoggerFactory.getLogger(MoshiSnapshotHelper.class);
   public static final String CAPTURES = "captures";
   public static final String ENTRY = "entry";
   public static final String RETURN = "return";
@@ -53,31 +50,6 @@ public class MoshiSnapshotHelper {
   public static final String IS_NULL = "isNull";
   public static final String TRUNCATED = "truncated";
   public static final String SIZE = "size";
-
-  public static boolean isPrimitive(String type) {
-    switch (type) {
-      case "byte":
-      case "short":
-      case "char":
-      case "int":
-      case "long":
-      case "boolean":
-      case "float":
-      case "double":
-      case "java.lang.Byte":
-      case "java.lang.Short":
-      case "java.lang.Character":
-      case "java.lang.Integer":
-      case "java.lang.Long":
-      case "java.lang.Boolean":
-      case "java.lang.Float":
-      case "java.lang.Double":
-      case "String":
-      case "java.lang.String":
-        return true;
-    }
-    return false;
-  }
 
   public static class SnapshotJsonFactory implements JsonAdapter.Factory {
     @Override
@@ -382,7 +354,7 @@ public class MoshiSnapshotHelper {
                 value = list;
               } else if (type.endsWith("[]")) {
                 String componentType = type.substring(0, type.indexOf('['));
-                if (isPrimitive(componentType)) {
+                if (ValueSerializer.isPrimitive(componentType)) {
                   value = createPrimitiveArray(componentType, values);
                 } else {
                   value = values.stream().map(Snapshot.CapturedValue::getValue).toArray();
@@ -543,347 +515,11 @@ public class MoshiSnapshotHelper {
 
     private void serializeValue(JsonWriter jsonWriter, Object value, String type, Limits limits)
         throws IOException {
-      jsonWriter.beginObject();
-      jsonWriter.name(TYPE);
-      jsonWriter.value(type);
-      if (value == null) {
-        jsonWriter.name(IS_NULL);
-        jsonWriter.value(true);
-      } else if (isPrimitive(type)) {
-        jsonWriter.name(VALUE);
-        writePrimitive(jsonWriter, value, limits);
-      } else if (value.getClass().isArray() && (limits.maxReferenceDepth > 0)) {
-        jsonWriter.name(ELEMENTS);
-        jsonWriter.beginArray();
-        SerializationResult result;
-        if (value.getClass().getComponentType().isPrimitive()) {
-          result = serializePrimitiveArray(jsonWriter, value, limits);
-        } else {
-          result = serializeObjectArray(jsonWriter, (Object[]) value, limits);
-        }
-        jsonWriter.endArray();
-        if (!result.isComplete) {
-          jsonWriter.name(NOT_CAPTURED_REASON);
-          jsonWriter.value(COLLECTION_SIZE_REASON);
-        }
-        jsonWriter.name(SIZE);
-        jsonWriter.value(String.valueOf(result.size));
-      } else if (value instanceof Collection && (limits.maxReferenceDepth > 0)) {
-        Collection<?> col = (Collection<?>) value;
-        jsonWriter.name(ELEMENTS);
-        jsonWriter.beginArray();
-        SerializationResult result = serializeCollection(jsonWriter, col, limits);
-        jsonWriter.endArray();
-        if (!result.isComplete) {
-          jsonWriter.name(NOT_CAPTURED_REASON);
-          jsonWriter.value(COLLECTION_SIZE_REASON);
-        }
-        jsonWriter.name(SIZE);
-        jsonWriter.value(String.valueOf(result.size));
-      } else if (value instanceof Map && (limits.maxReferenceDepth > 0)) {
-        Map<?, ?> map = (Map<?, ?>) value;
-        Set<? extends Map.Entry<?, ?>> entries = map.entrySet();
-        jsonWriter.name(ENTRIES);
-        jsonWriter.beginArray();
-        boolean isComplete = serializeMap(jsonWriter, entries, limits);
-        jsonWriter.endArray();
-        if (!isComplete) {
-          jsonWriter.name(NOT_CAPTURED_REASON);
-          jsonWriter.value(COLLECTION_SIZE_REASON);
-        }
-        jsonWriter.name(SIZE);
-        jsonWriter.value(String.valueOf(map.size()));
-      } else if (limits.maxReferenceDepth > 0) {
-        jsonWriter.name(FIELDS);
-        jsonWriter.beginObject();
-        Fields.ProcessField onField =
-            (field, val, maxDepth) -> {
-              try {
-                jsonWriter.name(field.getName());
-                Limits newLimits = Limits.decDepthLimits(maxDepth, limits);
-                String typeName;
-                if (isPrimitive(field.getType().getTypeName())) {
-                  typeName = field.getType().getTypeName();
-                } else {
-                  typeName =
-                      val != null ? val.getClass().getTypeName() : field.getType().getTypeName();
-                }
-                serializeValue(
-                    jsonWriter,
-                    val instanceof Snapshot.CapturedValue
-                        ? ((Snapshot.CapturedValue) val).getValue()
-                        : val,
-                    typeName,
-                    newLimits);
-              } catch (IOException ex) {
-                LOG.debug("Exception when extracting field={}", field.getName(), ex);
-              }
-            };
-        BiConsumer<Exception, Field> exHandling =
-            (ex, field) -> {
-              String fieldName = field.getName();
-              LOG.debug(
-                  "Cannot extract field[{}] from class[{}]",
-                  fieldName,
-                  field.getDeclaringClass().getName(),
-                  ex);
-              try {
-                jsonWriter.name(fieldName);
-                jsonWriter.beginObject();
-                jsonWriter.name(TYPE);
-                jsonWriter.value(field.getType().getTypeName());
-                jsonWriter.name(NOT_CAPTURED_REASON);
-                jsonWriter.value(ex.toString());
-                jsonWriter.endObject();
-              } catch (IOException e) {
-                LOG.debug("Error during serializing reason for failed field extraction", e);
-              }
-            };
-        Consumer<Field> maxFieldCount =
-            (field) -> {
-              try {
-                jsonWriter.name(NOT_CAPTURED_REASON);
-                jsonWriter.value(FIELD_COUNT_REASON);
-              } catch (IOException e) {
-                LOG.debug("Error during serializing reason for reaching max field count", e);
-              }
-            };
-        FieldExtractor.extract(value, limits, onField, exHandling, maxFieldCount);
-        jsonWriter.endObject();
-      } else {
-        jsonWriter.name(NOT_CAPTURED_REASON);
-        jsonWriter.value(DEPTH_REASON);
-      }
-      jsonWriter.endObject();
-    }
-
-    private boolean serializeMap(
-        JsonWriter jsonWriter, Set<? extends Map.Entry<?, ?>> entries, Limits limits)
-        throws IOException {
-      int mapSize = entries.size();
-      int maxSize = Math.min(mapSize, limits.maxCollectionSize);
-      Limits newLimits = Limits.decDepthLimits(limits.maxReferenceDepth, limits);
-      int i = 0;
-      Iterator<?> it = entries.iterator();
-      while (i < maxSize && it.hasNext()) {
-        Map.Entry<?, ?> entry = (Map.Entry<?, ?>) it.next();
-        jsonWriter.beginArray();
-        Object keyObj = entry.getKey();
-        Object valObj = entry.getValue();
-        serializeValue(jsonWriter, keyObj, keyObj.getClass().getTypeName(), newLimits);
-        serializeValue(jsonWriter, valObj, valObj.getClass().getTypeName(), newLimits);
-        jsonWriter.endArray();
-        i++;
-      }
-      return maxSize == mapSize;
-    }
-
-    private SerializationResult serializeCollection(
-        JsonWriter jsonWriter, Collection<?> collection, Limits limits) throws IOException {
-      // /!\ here we assume that Collection#Size is O(1) /!\
-      int colSize = collection.size();
-      int maxSize = Math.min(colSize, limits.maxCollectionSize);
-      Limits newLimits = Limits.decDepthLimits(limits.maxReferenceDepth, limits);
-      int i = 0;
-      Iterator<?> it = collection.iterator();
-      while (i < maxSize && it.hasNext()) {
-        Object val = it.next();
-        serializeValue(jsonWriter, val, val.getClass().getTypeName(), newLimits);
-        i++;
-      }
-      return new SerializationResult(colSize, maxSize == colSize);
-    }
-
-    private SerializationResult serializeObjectArray(
-        JsonWriter jsonWriter, Object[] objArray, Limits limits) throws IOException {
-      int maxSize = Math.min(objArray.length, limits.maxCollectionSize);
-      Limits newLimits = Limits.decDepthLimits(limits.maxReferenceDepth, limits);
-      int i = 0;
-      while (i < maxSize) {
-        Object val = objArray[i];
-        serializeValue(
-            jsonWriter,
-            val,
-            val != null ? val.getClass().getTypeName() : "java.lang.Object",
-            newLimits);
-        i++;
-      }
-      return new SerializationResult(objArray.length, maxSize == objArray.length);
-    }
-
-    private SerializationResult serializePrimitiveArray(
-        JsonWriter jsonWriter, Object value, Limits limits) throws IOException {
-      Class<?> componentType = value.getClass().getComponentType();
-      if (componentType == long.class) {
-        return serializeLongArray(jsonWriter, (long[]) value, limits.maxCollectionSize);
-      }
-      if (componentType == int.class) {
-        return serializeIntArray(jsonWriter, (int[]) value, limits.maxCollectionSize);
-      }
-      if (componentType == short.class) {
-        return serializeShortArray(jsonWriter, (short[]) value, limits.maxCollectionSize);
-      }
-      if (componentType == char.class) {
-        return serializeCharArray(jsonWriter, (char[]) value, limits.maxCollectionSize);
-      }
-      if (componentType == byte.class) {
-        return serializeByteArray(jsonWriter, (byte[]) value, limits.maxCollectionSize);
-      }
-      if (componentType == boolean.class) {
-        return serializeBooleanArray(jsonWriter, (boolean[]) value, limits.maxCollectionSize);
-      }
-      if (componentType == float.class) {
-        return serializeFloatArray(jsonWriter, (float[]) value, limits.maxCollectionSize);
-      }
-      if (componentType == double.class) {
-        return serializeDoubleArray(jsonWriter, (double[]) value, limits.maxCollectionSize);
-      }
-      throw new IllegalArgumentException("Unsupported primitive array: " + value.getClass());
-    }
-
-    private static SerializationResult serializeLongArray(
-        JsonWriter jsonWriter, long[] longArray, int maxSize) throws IOException {
-      maxSize = Math.min(longArray.length, maxSize);
-      int i = 0;
-      while (i < maxSize) {
-        long val = longArray[i];
-        String strVal = String.valueOf(val);
-        serializeArrayItem(jsonWriter, "long", strVal);
-        i++;
-      }
-      return new SerializationResult(longArray.length, maxSize == longArray.length);
-    }
-
-    private static SerializationResult serializeIntArray(
-        JsonWriter jsonWriter, int[] intArray, int maxSize) throws IOException {
-      maxSize = Math.min(intArray.length, maxSize);
-      int i = 0;
-      while (i < maxSize) {
-        long val = intArray[i];
-        String strVal = String.valueOf(val);
-        serializeArrayItem(jsonWriter, "int", strVal);
-        i++;
-      }
-      return new SerializationResult(intArray.length, maxSize == intArray.length);
-    }
-
-    private static SerializationResult serializeShortArray(
-        JsonWriter jsonWriter, short[] shortArray, int maxSize) throws IOException {
-      maxSize = Math.min(shortArray.length, maxSize);
-      int i = 0;
-      while (i < maxSize) {
-        short val = shortArray[i];
-        String strVal = String.valueOf(val);
-        serializeArrayItem(jsonWriter, "short", strVal);
-        i++;
-      }
-      return new SerializationResult(shortArray.length, maxSize == shortArray.length);
-    }
-
-    private static SerializationResult serializeCharArray(
-        JsonWriter jsonWriter, char[] charArray, int maxSize) throws IOException {
-      maxSize = Math.min(charArray.length, maxSize);
-      int i = 0;
-      while (i < maxSize) {
-        char val = charArray[i];
-        String strVal = String.valueOf(val);
-        serializeArrayItem(jsonWriter, "char", strVal);
-        i++;
-      }
-      return new SerializationResult(charArray.length, maxSize == charArray.length);
-    }
-
-    private static SerializationResult serializeByteArray(
-        JsonWriter jsonWriter, byte[] byteArray, int maxSize) throws IOException {
-      maxSize = Math.min(byteArray.length, maxSize);
-      int i = 0;
-      while (i < maxSize) {
-        byte val = byteArray[i];
-        String strVal = String.valueOf(val);
-        serializeArrayItem(jsonWriter, "byte", strVal);
-        i++;
-      }
-      return new SerializationResult(byteArray.length, maxSize == byteArray.length);
-    }
-
-    private static SerializationResult serializeBooleanArray(
-        JsonWriter jsonWriter, boolean[] booleanArray, int maxSize) throws IOException {
-      maxSize = Math.min(booleanArray.length, maxSize);
-      int i = 0;
-      while (i < maxSize) {
-        boolean val = booleanArray[i];
-        String strVal = String.valueOf(val);
-        serializeArrayItem(jsonWriter, "boolean", strVal);
-        i++;
-      }
-      return new SerializationResult(booleanArray.length, maxSize == booleanArray.length);
-    }
-
-    private static SerializationResult serializeFloatArray(
-        JsonWriter jsonWriter, float[] floatArray, int maxSize) throws IOException {
-      maxSize = Math.min(floatArray.length, maxSize);
-      int i = 0;
-      while (i < maxSize) {
-        float val = floatArray[i];
-        String strVal = String.valueOf(val);
-        serializeArrayItem(jsonWriter, "float", strVal);
-        i++;
-      }
-      return new SerializationResult(floatArray.length, maxSize == floatArray.length);
-    }
-
-    private static SerializationResult serializeDoubleArray(
-        JsonWriter jsonWriter, double[] doubleArray, int maxSize) throws IOException {
-      maxSize = Math.min(doubleArray.length, maxSize);
-      int i = 0;
-      while (i < maxSize) {
-        double val = doubleArray[i];
-        String strVal = String.valueOf(val);
-        serializeArrayItem(jsonWriter, "double", strVal);
-        i++;
-      }
-      return new SerializationResult(doubleArray.length, maxSize == doubleArray.length);
-    }
-
-    private static void serializeArrayItem(JsonWriter jsonWriter, String type, String value)
-        throws IOException {
-      jsonWriter.beginObject();
-      jsonWriter.name(TYPE);
-      jsonWriter.value(type);
-      jsonWriter.name(VALUE);
-      jsonWriter.value(value);
-      jsonWriter.endObject();
-    }
-
-    private static void writePrimitive(JsonWriter jsonWriter, Object value, Limits limits)
-        throws IOException {
-      // primitive values are stored as String
-      if (value instanceof String) {
-        String strValue = (String) value;
-        int originalLength = strValue.length();
-        boolean isComplete = true;
-        if (originalLength > limits.maxLength) {
-          strValue = strValue.substring(0, limits.maxLength);
-          isComplete = false;
-        }
-        jsonWriter.value(strValue);
-        if (!isComplete) {
-          jsonWriter.name(TRUNCATED);
-          jsonWriter.value(true);
-          jsonWriter.name(SIZE);
-          jsonWriter.value(String.valueOf(originalLength));
-        }
-      } else if (value instanceof Long
-          || value instanceof Integer
-          || value instanceof Double
-          || value instanceof Boolean
-          || value instanceof Byte
-          || value instanceof Short
-          || value instanceof Float
-          || value instanceof Character) {
-        jsonWriter.value(String.valueOf(value));
-      } else {
-        throw new IOException("Cannot convert value: " + value);
+      ValueSerializer serializer = new ValueSerializer(new JsonTypeSerializer(jsonWriter));
+      try {
+        serializer.serialize(value, type, limits);
+      } catch (Exception ex) {
+        throw new IOException(ex);
       }
     }
 
@@ -923,13 +559,185 @@ public class MoshiSnapshotHelper {
       return null;
     }
 
-    private static class SerializationResult {
-      final int size;
-      final boolean isComplete;
+    private static class JsonTypeSerializer implements ValueSerializer.TypeSerializer {
+      private static final Logger LOG = LoggerFactory.getLogger(JsonTypeSerializer.class);
 
-      public SerializationResult(int size, boolean isComplete) {
-        this.size = size;
-        this.isComplete = isComplete;
+      private final JsonWriter jsonWriter;
+
+      public JsonTypeSerializer(JsonWriter jsonWriter) {
+        this.jsonWriter = jsonWriter;
+      }
+
+      @Override
+      public void prologue(Object value, String type) throws Exception {
+        jsonWriter.beginObject();
+        jsonWriter.name(TYPE);
+        jsonWriter.value(type);
+      }
+
+      @Override
+      public void epilogue(Object value) throws IOException {
+        jsonWriter.endObject();
+      }
+
+      @Override
+      public void nullValue() throws Exception {
+        jsonWriter.name(IS_NULL);
+        jsonWriter.value(true);
+      }
+
+      @Override
+      public void string(String value, boolean isComplete, int originalLength) throws Exception {
+        jsonWriter.name(VALUE);
+        jsonWriter.value(value);
+        if (!isComplete) {
+          jsonWriter.name(TRUNCATED);
+          jsonWriter.value(true);
+          jsonWriter.name(SIZE);
+          jsonWriter.value(String.valueOf(originalLength));
+        }
+      }
+
+      @Override
+      public void primitiveValue(Object value) throws Exception {
+        jsonWriter.name(VALUE);
+        if (WellKnownClasses.isToStringSafe(value.getClass().getTypeName())) {
+          jsonWriter.value(String.valueOf(value));
+        } else {
+          throw new IOException("Cannot convert value: " + value);
+        }
+      }
+
+      @Override
+      public void arrayPrologue(Object value) throws Exception {
+        jsonWriter.name(ELEMENTS);
+        jsonWriter.beginArray();
+      }
+
+      @Override
+      public void arrayEpilogue(Object value, boolean isComplete, int arraySize) throws Exception {
+        jsonWriter.endArray();
+        if (!isComplete) {
+          jsonWriter.name(NOT_CAPTURED_REASON);
+          jsonWriter.value(COLLECTION_SIZE_REASON);
+        }
+        jsonWriter.name(SIZE);
+        jsonWriter.value(String.valueOf(arraySize));
+      }
+
+      @Override
+      public void primitiveArrayElement(String value, String type) throws Exception {
+        jsonWriter.beginObject();
+        jsonWriter.name(TYPE);
+        jsonWriter.value(type);
+        jsonWriter.name(VALUE);
+        jsonWriter.value(value);
+        jsonWriter.endObject();
+      }
+
+      @Override
+      public void collectionPrologue(Object value) throws Exception {
+        jsonWriter.name(ELEMENTS);
+        jsonWriter.beginArray();
+      }
+
+      @Override
+      public void collectionEpilogue(Object value, boolean isComplete, int size) throws Exception {
+        jsonWriter.endArray();
+        if (!isComplete) {
+          jsonWriter.name(NOT_CAPTURED_REASON);
+          jsonWriter.value(COLLECTION_SIZE_REASON);
+        }
+        jsonWriter.name(SIZE);
+        jsonWriter.value(String.valueOf(size));
+      }
+
+      @Override
+      public void mapPrologue(Object value) throws Exception {
+        jsonWriter.name(ENTRIES);
+        jsonWriter.beginArray();
+      }
+
+      @Override
+      public void mapEntryPrologue(Map.Entry<?, ?> entry) throws Exception {
+        jsonWriter.beginArray();
+      }
+
+      @Override
+      public void mapEntryEpilogue(Map.Entry<?, ?> entry) throws Exception {
+        jsonWriter.endArray();
+      }
+
+      @Override
+      public void mapEpilogue(Map<?, ?> map, boolean isComplete) throws Exception {
+        jsonWriter.endArray();
+        if (!isComplete) {
+          jsonWriter.name(NOT_CAPTURED_REASON);
+          jsonWriter.value(COLLECTION_SIZE_REASON);
+        }
+        jsonWriter.name(SIZE);
+        jsonWriter.value(String.valueOf(map.size()));
+      }
+
+      @Override
+      public void objectValue(Object value, ValueSerializer valueSerializer, Limits limits)
+          throws Exception {
+        jsonWriter.name(FIELDS);
+        jsonWriter.beginObject();
+        Fields.ProcessField onField =
+            (field, val, maxDepth) -> {
+              try {
+                jsonWriter.name(field.getName());
+                Limits newLimits = Limits.decDepthLimits(maxDepth, limits);
+                String typeName;
+                if (ValueSerializer.isPrimitive(field.getType().getTypeName())) {
+                  typeName = field.getType().getTypeName();
+                } else {
+                  typeName =
+                      val != null ? val.getClass().getTypeName() : field.getType().getTypeName();
+                }
+                valueSerializer.serialize(
+                    val instanceof Snapshot.CapturedValue
+                        ? ((Snapshot.CapturedValue) val).getValue()
+                        : val,
+                    typeName,
+                    newLimits);
+              } catch (Exception ex) {
+                LOG.debug("Exception when extracting field={}", field.getName(), ex);
+              }
+            };
+        BiConsumer<Exception, Field> exHandling =
+            (ex, field) -> {
+              String fieldName = field.getName();
+              try {
+                jsonWriter.name(fieldName);
+                jsonWriter.beginObject();
+                jsonWriter.name(TYPE);
+                jsonWriter.value(field.getType().getTypeName());
+                jsonWriter.name(NOT_CAPTURED_REASON);
+                jsonWriter.value(ex.toString());
+                jsonWriter.endObject();
+              } catch (IOException e) {
+                LOG.debug("Error during serializing reason for failed field extraction", e);
+              }
+            };
+        Consumer<Field> maxFieldCount =
+            (field) -> {
+              try {
+                jsonWriter.name(NOT_CAPTURED_REASON);
+                jsonWriter.value(FIELD_COUNT_REASON);
+              } catch (IOException e) {
+                LOG.debug("Error during serializing reason for reaching max field count", e);
+              }
+            };
+        FieldExtractor.extract(value, limits, onField, exHandling, maxFieldCount);
+        jsonWriter.endObject();
+      }
+
+      @Override
+      public void reachedMaxDepth() throws Exception {
+        jsonWriter.name(NOT_CAPTURED_REASON);
+        jsonWriter.value(DEPTH_REASON);
       }
     }
   }

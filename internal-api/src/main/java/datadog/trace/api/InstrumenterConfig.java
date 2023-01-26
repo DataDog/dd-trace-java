@@ -25,6 +25,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_INSTALLER_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_CONFIG;
@@ -91,6 +92,8 @@ public class InstrumenterConfig {
   private final String traceMethods;
 
   private final boolean internalExitOnFailure;
+
+  private final boolean legacyInstallerEnabled;
 
   private InstrumenterConfig() {
     this(ConfigProvider.createDefault());
@@ -172,6 +175,8 @@ public class InstrumenterConfig {
     traceMethods = configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS);
 
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
+
+    legacyInstallerEnabled = configProvider.getBoolean(LEGACY_INSTALLER_ENABLED, false);
   }
 
   public boolean isIntegrationsEnabled() {
@@ -301,6 +306,10 @@ public class InstrumenterConfig {
     return internalExitOnFailure;
   }
 
+  public boolean isLegacyInstallerEnabled() {
+    return legacyInstallerEnabled;
+  }
+
   public boolean isLegacyInstrumentationEnabled(
       final boolean defaultEnabled, final String... integrationNames) {
     return configProvider.isEnabled(
@@ -376,6 +385,8 @@ public class InstrumenterConfig {
         + '\''
         + ", internalExitOnFailure="
         + internalExitOnFailure
+        + ", legacyInstallerEnabled="
+        + legacyInstallerEnabled
         + '}';
   }
 }

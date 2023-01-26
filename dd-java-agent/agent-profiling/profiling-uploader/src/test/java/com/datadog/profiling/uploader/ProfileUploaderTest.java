@@ -105,9 +105,6 @@ public class ProfileUploaderTest {
   private static final Map<String, String> TAGS;
 
   static {
-    // register static PID for testing as we're not running as an agent
-    PidHelper.Fallback.set(() -> "54321");
-
     // Not using Guava's ImmutableMap because we want to test null value
     final Map<String, String> tags = new HashMap<>();
     tags.put("foo", "bar");

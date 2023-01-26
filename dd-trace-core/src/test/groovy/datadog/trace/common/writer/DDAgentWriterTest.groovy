@@ -13,7 +13,7 @@ import datadog.trace.core.PendingTrace
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.MonitoringImpl
-import datadog.trace.core.propagation.DatadogTags
+import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Subject
 
@@ -213,7 +213,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      DatadogTags.factory().empty())
+      PropagationTags.factory().empty())
     return new DDSpan(0, context)
   }
 }

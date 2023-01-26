@@ -7,7 +7,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
-import com.datadog.debugger.probe.SnapshotProbe;
+import com.datadog.debugger.probe.LogProbe;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.debugger.Snapshot;
@@ -47,7 +47,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   @Test
   @DisplayName("testLatestJdk")
   void testLatestJdk() throws Exception {
-    SnapshotProbe probe = SnapshotProbe.builder().where("App", "getGreeting").build();
+    LogProbe probe = LogProbe.builder().where("App", "getGreeting").build();
     setCurrentConfiguration(createConfig(probe));
     String classpath = System.getProperty("datadog.smoketest.shadowJar.external.path");
     if (classpath == null) {
@@ -71,11 +71,8 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   @DisplayName("testShutdown")
   void testShutdown() throws Exception {
     final String METHOD_NAME = "emptyMethod";
-    SnapshotProbe probe =
-        SnapshotProbe.builder()
-            .probeId(PROBE_ID)
-            .where("DebuggerTestApplication", METHOD_NAME)
-            .build();
+    LogProbe probe =
+        LogProbe.builder().probeId(PROBE_ID).where("DebuggerTestApplication", METHOD_NAME).build();
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, "3").start();
 
@@ -93,11 +90,8 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   @DisplayName("testDestroy")
   void testDestroy() throws Exception {
     final String METHOD_NAME = "fullMethod";
-    SnapshotProbe probe =
-        SnapshotProbe.builder()
-            .probeId(PROBE_ID)
-            .where("DebuggerTestApplication", METHOD_NAME)
-            .build();
+    LogProbe probe =
+        LogProbe.builder().probeId(PROBE_ID).where("DebuggerTestApplication", METHOD_NAME).build();
     setCurrentConfiguration(createConfig(probe));
     datadogAgentServer.enqueue(
         new MockResponse()
@@ -120,11 +114,8 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   @DisplayName("testInaccessibleObject")
   void testInaccessibleObject() throws Exception {
     final String METHOD_NAME = "managementMethod";
-    SnapshotProbe probe =
-        SnapshotProbe.builder()
-            .probeId(PROBE_ID)
-            .where("DebuggerTestApplication", METHOD_NAME)
-            .build();
+    LogProbe probe =
+        LogProbe.builder().probeId(PROBE_ID).where("DebuggerTestApplication", METHOD_NAME).build();
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, "3").start();
     RecordedRequest request = retrieveSnapshotRequest();
@@ -137,10 +128,11 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   @DisplayName("testFullMethod")
   void testFullMethod() throws Exception {
     final String METHOD_NAME = "fullMethod";
-    SnapshotProbe probe =
-        SnapshotProbe.builder()
+    LogProbe probe =
+        LogProbe.builder()
             .probeId(PROBE_ID)
             .where("DebuggerTestApplication", METHOD_NAME)
+            .captureSnapshot(true)
             .build();
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, "3").start();
@@ -183,10 +175,10 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   @DisplayName("testMultiProbes")
   void testMultiProbes() throws Exception {
     final String METHOD_NAME = "fullMethod";
-    List<SnapshotProbe> probes = new ArrayList<>();
+    List<LogProbe> probes = new ArrayList<>();
     for (int i = 0; i < 10; i++) {
       probes.add(
-          SnapshotProbe.builder()
+          LogProbe.builder()
               .probeId("12335653" + i)
               .where("DebuggerTestApplication", METHOD_NAME)
               .build());

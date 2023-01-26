@@ -11,7 +11,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContex
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.context.TraceScope
 import datadog.trace.core.monitor.HealthMetrics
-import datadog.trace.core.propagation.DatadogTags
+import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Subject
@@ -30,8 +30,8 @@ class PendingTraceBufferTest extends DDSpecification {
   def bufferSpy = Spy(buffer)
 
   def tracer = Mock(CoreTracer)
-  def scopeManager = new ContinuableScopeManager(10, StatsDClient.NO_OP, true, true, new HealthMetrics(StatsDClient.NO_OP))
-  def factory = new PendingTrace.Factory(tracer, bufferSpy, SystemTimeSource.INSTANCE, false, new HealthMetrics(StatsDClient.NO_OP))
+  def scopeManager = new ContinuableScopeManager(10, StatsDClient.NO_OP, true, true, HealthMetrics.NO_OP)
+  def factory = new PendingTrace.Factory(tracer, bufferSpy, SystemTimeSource.INSTANCE, false, HealthMetrics.NO_OP)
   List<TraceScope.Continuation> continuations = []
 
   def cleanup() {
@@ -400,7 +400,7 @@ class PendingTraceBufferTest extends DDSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      DatadogTags.factory().empty())
+      PropagationTags.factory().empty())
     return DDSpan.create(0, context)
   }
 
@@ -425,7 +425,7 @@ class PendingTraceBufferTest extends DDSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      DatadogTags.factory().empty())
+      PropagationTags.factory().empty())
     return DDSpan.create(0, context)
   }
 }

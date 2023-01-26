@@ -86,15 +86,15 @@ final class TypeFactory {
 
   boolean createOutlines = true;
 
-  private ClassLoader originalClassLoader;
+  ClassLoader originalClassLoader;
 
-  private ClassLoader classLoader;
+  ClassLoader classLoader;
 
-  private ClassFileLocator classFileLocator;
+  ClassFileLocator classFileLocator;
 
-  private String targetName;
+  String targetName;
 
-  private byte[] targetBytecode;
+  byte[] targetBytecode;
 
   /** Sets the current class-loader context of this type-factory. */
   void switchContext(ClassLoader classLoader) {
@@ -104,6 +104,10 @@ final class TypeFactory {
       // clear local type cache whenever the class-loader context changes
       deferredTypes.clear();
     }
+  }
+
+  ClassLoader currentContext() {
+    return classLoader;
   }
 
   void beginInstall() {
@@ -143,13 +147,22 @@ final class TypeFactory {
     createOutlines = false;
   }
 
+  /** Temporarily turn off full description parsing; returns {@code true} if it was enabled. */
+  boolean disableFullDescriptions() {
+    boolean wasEnabled = !createOutlines;
+    createOutlines = true;
+    return wasEnabled;
+  }
+
   /** Cleans-up local caches to minimise memory use once we're done with the type-factory. */
   void endTransform() {
+    if (null == targetName) {
+      return; // transformation didn't reach resolve step
+    }
+
     if (installing) {
-      // was there a nested transform during install?
-      if (null != targetName) {
-        switchContext(originalClassLoader);
-      }
+      // just finished transforming a support type, restore the original matching context
+      switchContext(originalClassLoader);
     } else {
       clearReferences();
     }
@@ -200,48 +213,32 @@ final class TypeFactory {
   }
 
   /** Attempts to resolve the named type using the current context. */
-  TypeDescription resolveType(String name) {
-    if (null == classFileLocator) {
-      return TypeDescription.UNDEFINED;
+  TypeDescription resolveType(LazyType request) {
+    if (null != classFileLocator) {
+      TypeDescription result =
+          createOutlines
+              ? lookupType(request, outlineTypes, outlineTypeParser)
+              : lookupType(request, fullTypes, fullTypeParser);
+
+      if (null != result) {
+        return new CachingType(result);
+      }
     }
-
-    TypeDescription type =
-        createOutlines
-            ? lookupType(name, outlineTypes, outlineTypeParser)
-            : lookupType(name, fullTypes, fullTypeParser);
-
-    return null != type ? new CachingType(type) : null;
+    return null;
   }
 
   /** Looks up the type in the current context before falling back to parsing the class-file. */
   private TypeDescription lookupType(
-      String name, TypeInfoCache<TypeDescription> types, TypeParser typeParser) {
+      LazyType request, TypeInfoCache<TypeDescription> types, TypeParser typeParser) {
+    String name = request.name;
 
     // existing info from same classloader?
     SharedTypeInfo<TypeDescription> typeInfo = types.find(name);
-    if (null != typeInfo && typeInfo.sameClassLoader(classLoader)) {
+    if (null != typeInfo && (name.startsWith("java.") || typeInfo.sameClassLoader(classLoader))) {
       return typeInfo.get();
     }
 
-    // are we looking up the target of this transformation?
-    if (name.equals(targetName)) {
-      TypeDescription type = typeParser.parse(targetBytecode);
-      types.share(name, classLoader, UNKNOWN_CLASS_FILE, type);
-      return type;
-    }
-
-    // try to find the class file resource
-    ClassFileLocator.Resolution classFileResolution;
-    try {
-      classFileResolution = classFileLocator.locate(name);
-    } catch (Throwable ignored) {
-      return null;
-    }
-
-    URL classFile =
-        classFileResolution instanceof ClassFileLocators.LazyResolution
-            ? ((ClassFileLocators.LazyResolution) classFileResolution).url()
-            : UNKNOWN_CLASS_FILE;
+    URL classFile = request.getClassFile();
 
     // existing info from same class file?
     if (null != typeInfo && typeInfo.sameClassFile(classFile)) {
@@ -250,9 +247,10 @@ final class TypeFactory {
 
     TypeDescription type = null;
 
-    // try to parse the class file resource
-    if (classFileResolution.isResolved()) {
-      type = typeParser.parse(classFileResolution.resolve());
+    // try to parse the original bytecode
+    byte[] bytecode = request.getBytecode();
+    if (null != bytecode) {
+      type = typeParser.parse(bytecode);
     } else if (fallBackToLoadClass) {
       type = loadType(name, typeParser);
     }
@@ -267,10 +265,14 @@ final class TypeFactory {
   private TypeDescription loadType(String name, TypeParser typeParser) {
     LOCATING_CLASS.begin();
     try {
-      Class<?> loadedType =
-          BOOTSTRAP_LOADER == classLoader
-              ? Class.forName(name, false, BOOTSTRAP_LOADER)
-              : classLoader.loadClass(name);
+      Class<?> loadedType;
+      if (BOOTSTRAP_LOADER == classLoader) {
+        loadedType = Class.forName(name, false, BOOTSTRAP_LOADER);
+      } else if (classLoader.getClass().getName().startsWith("groovy.lang.GroovyClassLoader")) {
+        return null; // avoid due to https://issues.apache.org/jira/browse/GROOVY-9742
+      } else {
+        loadedType = classLoader.loadClass(name);
+      }
       log.debug(
           "Direct loadClass type resolution of {} from class loader {} bypasses transformation",
           name,
@@ -284,12 +286,51 @@ final class TypeFactory {
   }
 
   /** Type description that begins with a name and provides more details on-demand. */
-  final class LazyType extends WithName {
-    TypeDescription delegate;
-    boolean isOutline;
+  final class LazyType extends WithName implements WithLocation {
+    private ClassFileLocator.Resolution location;
+    private TypeDescription delegate;
+    private boolean isOutline;
 
     LazyType(String name) {
       super(name);
+    }
+
+    @Override
+    public ClassLoader getClassLoader() {
+      return classLoader;
+    }
+
+    @Override
+    public URL getClassFile() {
+      if (null == location) {
+        location = locateClassFile();
+      }
+      if (location instanceof ClassFileLocators.LazyResolution) {
+        return ((ClassFileLocators.LazyResolution) location).url();
+      }
+      return UNKNOWN_CLASS_FILE;
+    }
+
+    @Override
+    public byte[] getBytecode() {
+      if (null == location) {
+        location = locateClassFile();
+      }
+      if (location.isResolved()) {
+        return location.resolve();
+      }
+      return null;
+    }
+
+    private ClassFileLocator.Resolution locateClassFile() {
+      if (name.equals(targetName)) {
+        return new ClassFileLocator.Resolution.Explicit(targetBytecode);
+      }
+      try {
+        return classFileLocator.locate(name);
+      } catch (Throwable ignored) {
+        return new ClassFileLocator.Resolution.Illegal(name);
+      }
     }
 
     @Override
@@ -313,10 +354,13 @@ final class TypeFactory {
     }
 
     private TypeDescription outline() {
+      if (null != delegate) {
+        return delegate; // will be at least an outline, no need to re-resolve
+      }
       if (createOutlines) {
         return doResolve(true);
       }
-      // temporarily switch to outlines as that's all we need
+      // temporarily switch to generating (fast) outlines as that's all we need
       createOutlines = true;
       try {
         return doResolve(true);
@@ -333,7 +377,7 @@ final class TypeFactory {
     TypeDescription doResolve(boolean throwIfMissing) {
       // re-resolve type when switching to full descriptions
       if (null == delegate || (isOutline && !createOutlines)) {
-        delegate = resolveType(name);
+        delegate = resolveType(this);
         isOutline = createOutlines;
         if (throwIfMissing && null == delegate) {
           throw new TypePool.Resolution.NoSuchTypeException(name);

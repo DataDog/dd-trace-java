@@ -6,7 +6,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
-import com.datadog.debugger.probe.SnapshotProbe;
+import com.datadog.debugger.probe.LogProbe;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.agent.test.utils.PortUtils;
 import datadog.trace.bootstrap.debugger.Snapshot;
@@ -43,15 +43,16 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
   @Test
   @DisplayName("testTracer")
   void testTracer() throws Exception {
-    SnapshotProbe snapshotProbe =
-        SnapshotProbe.builder()
+    LogProbe logProbe =
+        LogProbe.builder()
             .probeId(PROBE_ID)
             .where(
                 "org.springframework.web.servlet.DispatcherServlet",
                 "doService",
                 "(HttpServletRequest, HttpServletResponse)")
+            .captureSnapshot(true)
             .build();
-    setCurrentConfiguration(createConfig(snapshotProbe));
+    setCurrentConfiguration(createConfig(logProbe));
     String httpPort = String.valueOf(PortUtils.randomOpenPort());
     targetProcess = createProcessBuilder(logFilePath, "--server.port=" + httpPort).start();
     // assert in logs app started
@@ -73,7 +74,7 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
           System.out.println("Empty config was not provided!");
         }
       }
-      setCurrentConfiguration(createConfig(snapshotProbe));
+      setCurrentConfiguration(createConfig(logProbe));
       snapshotRequest = retrieveSnapshotRequest();
     }
     assertNotNull(snapshotRequest);

@@ -2,10 +2,8 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 
-import datadog.trace.api.DDSpanId;
-import datadog.trace.api.DDTraceId;
-import datadog.trace.api.EndpointCheckpointer;
-import datadog.trace.api.PropagationStyle;
+import datadog.trace.api.*;
+import datadog.trace.api.experimental.ProfilingContext;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -292,6 +290,11 @@ public class AgentTracer {
     public void flushMetrics() {}
 
     @Override
+    public ProfilingContext getProfilingContext() {
+      return ProfilingContext.NoOp.INSTANCE;
+    }
+
+    @Override
     public String getTraceId() {
       return null;
     }
@@ -339,7 +342,8 @@ public class AgentTracer {
     public <C> void inject(final Context context, final C carrier, final Setter<C> setter) {}
 
     @Override
-    public <C> void inject(AgentSpan span, C carrier, Setter<C> setter, PropagationStyle style) {}
+    public <C> void inject(
+        AgentSpan span, C carrier, Setter<C> setter, TracePropagationStyle style) {}
 
     @Override
     public <C> void injectBinaryPathwayContext(
@@ -369,10 +373,12 @@ public class AgentTracer {
     }
 
     @Override
-    public void onRootSpanFinished(AgentSpan root, boolean published) {}
+    public void onRootSpanFinished(AgentSpan root, EndpointTracker tracker) {}
 
     @Override
-    public void onRootSpanStarted(AgentSpan root) {}
+    public EndpointTracker onRootSpanStarted(AgentSpan root) {
+      return EndpointTracker.NO_OP;
+    }
 
     @Override
     public void setDataStreamCheckpoint(AgentSpan span, LinkedHashMap<String, String> sortedTags) {}
@@ -518,12 +524,6 @@ public class AgentTracer {
     public boolean eligibleForDropping() {
       return true;
     }
-
-    @Override
-    public void startWork() {}
-
-    @Override
-    public void finishWork() {}
 
     @Override
     public RequestContext getRequestContext() {
@@ -724,7 +724,8 @@ public class AgentTracer {
     public <C> void inject(final Context context, final C carrier, final Setter<C> setter) {}
 
     @Override
-    public <C> void inject(AgentSpan span, C carrier, Setter<C> setter, PropagationStyle style) {}
+    public <C> void inject(
+        AgentSpan span, C carrier, Setter<C> setter, TracePropagationStyle style) {}
 
     @Override
     public <C> void injectBinaryPathwayContext(
@@ -888,6 +889,11 @@ public class AgentTracer {
     @Override
     public boolean isStarted() {
       return false;
+    }
+
+    @Override
+    public long getHash() {
+      return 0L;
     }
 
     @Override

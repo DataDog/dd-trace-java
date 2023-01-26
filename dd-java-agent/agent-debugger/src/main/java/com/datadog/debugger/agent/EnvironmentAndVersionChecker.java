@@ -1,7 +1,6 @@
 package com.datadog.debugger.agent;
 
 import com.datadog.debugger.probe.ProbeDefinition;
-import com.datadog.debugger.probe.SnapshotProbe;
 import datadog.trace.api.Config;
 import datadog.trace.util.TagsHelper;
 import java.util.Arrays;
@@ -11,8 +10,8 @@ import org.slf4j.LoggerFactory;
 /** Checks of definition tags matches the configured environment and version */
 public class EnvironmentAndVersionChecker {
   private static final Logger log = LoggerFactory.getLogger(EnvironmentAndVersionChecker.class);
-  private static final SnapshotProbe.Tag VERSION_TAG = new SnapshotProbe.Tag("version");
-  private static final SnapshotProbe.Tag ENV_TAG = new SnapshotProbe.Tag("env");
+  private static final ProbeDefinition.Tag VERSION_TAG = new ProbeDefinition.Tag("version");
+  private static final ProbeDefinition.Tag ENV_TAG = new ProbeDefinition.Tag("env");
   private final String environment;
   private final String version;
 
@@ -26,12 +25,12 @@ public class EnvironmentAndVersionChecker {
       return true;
     }
 
-    SnapshotProbe.Tag probeEnv =
+    ProbeDefinition.Tag probeEnv =
         Arrays.stream(definition.getTags())
             .filter(t -> t.getKey().equals("env"))
             .findFirst()
             .orElse(ENV_TAG);
-    SnapshotProbe.Tag probeVersion =
+    ProbeDefinition.Tag probeVersion =
         Arrays.stream(definition.getTags())
             .filter(t -> t.getKey().equals("version"))
             .findFirst()

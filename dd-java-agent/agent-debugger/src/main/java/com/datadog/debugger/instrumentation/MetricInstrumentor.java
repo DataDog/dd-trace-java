@@ -15,6 +15,7 @@ import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
@@ -29,7 +30,6 @@ import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodNode;
-import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
 public class MetricInstrumentor extends Instrumentor {
   private static final Logger LOGGER = LoggerFactory.getLogger(MetricInstrumentor.class);
   private static final InsnList EMPTY_INSN_LIST = new InsnList();
+  private static final String PROBEID_TAG_NAME = "debugger.probeid";
 
   private final MetricProbe metricProbe;
 
@@ -87,7 +88,9 @@ public class MetricInstrumentor extends Instrumentor {
       // consider the metric as an increment counter one
       insnList.add(new LdcInsnNode(metricProbe.getMetricName()));
       ldc(insnList, 1L); // stack [long]
-      pushTags(insnList); // stack [long, array]
+      pushTags(
+          insnList,
+          addProbeIdWithTags(metricProbe.getId(), metricProbe.getTags())); // stack [long, array]
       invokeStatic(
           insnList,
           DEBUGGER_CONTEXT_TYPE,
@@ -148,7 +151,10 @@ public class MetricInstrumentor extends Instrumentor {
     }
     // insert metric name at the beginning of the list
     insnList.insert(new LdcInsnNode(metricProbe.getMetricName())); // stack [string, long]
-    pushTags(insnList); // stack [string, long, array]
+    pushTags(
+        insnList,
+        addProbeIdWithTags(
+            metricProbe.getId(), metricProbe.getTags())); // stack [string, long, array]
     invokeStatic(
         insnList,
         DEBUGGER_CONTEXT_TYPE,
@@ -159,6 +165,15 @@ public class MetricInstrumentor extends Instrumentor {
         Types.asArray(STRING_TYPE, 1));
     insnList.add(nullBranch);
     return insnList;
+  }
+
+  private ProbeDefinition.Tag[] addProbeIdWithTags(String probeId, ProbeDefinition.Tag[] tags) {
+    if (tags == null) {
+      return new ProbeDefinition.Tag[] {new ProbeDefinition.Tag(PROBEID_TAG_NAME, probeId)};
+    }
+    ProbeDefinition.Tag[] newTags = Arrays.copyOf(tags, tags.length + 1);
+    newTags[newTags.length - 1] = new ProbeDefinition.Tag(PROBEID_TAG_NAME, probeId);
+    return newTags;
   }
 
   private InsnList callGauge(MetricProbe metricProbe) {
@@ -204,41 +219,21 @@ public class MetricInstrumentor extends Instrumentor {
     for (Where.SourceLine sourceLine : targetLines) {
       int from = sourceLine.getFrom();
       int till = sourceLine.getTill();
-
-      boolean isSingleLine = from == till;
-
       LabelNode beforeLabel = lineMap.getLineLabel(from);
       // single line N capture translates to line range (N, N+1)
-      LabelNode afterLabel = lineMap.getLineLabel(till + (isSingleLine ? 1 : 0));
+      LabelNode afterLabel = lineMap.getLineLabel(till + (sourceLine.isSingleLine() ? 1 : 0));
       if (beforeLabel == null && afterLabel == null) {
-        reportError("No line info for " + (isSingleLine ? "line " : "range ") + sourceLine);
+        reportError(
+            "No line info for " + (sourceLine.isSingleLine() ? "line " : "range ") + sourceLine);
       }
       if (beforeLabel != null) {
         InsnList insnList = callMetric(metricProbe);
         methodNode.instructions.insertBefore(beforeLabel.getNext(), insnList);
       }
-      if (afterLabel != null && !isSingleLine) {
+      if (afterLabel != null && !sourceLine.isSingleLine()) {
         InsnList insnList = callMetric(metricProbe);
         methodNode.instructions.insert(afterLabel, insnList);
       }
-    }
-  }
-
-  private void pushTags(InsnList insnList) {
-    ProbeDefinition.Tag[] tags = metricProbe.getTags();
-    if (tags == null || tags.length == 0) {
-      insnList.add(new InsnNode(Opcodes.ACONST_NULL));
-      return;
-    }
-    ldc(insnList, tags.length); // stack: [int]
-    insnList.add(
-        new TypeInsnNode(Opcodes.ANEWARRAY, STRING_TYPE.getInternalName())); // stack: [array]
-    int counter = 0;
-    for (ProbeDefinition.Tag tag : tags) {
-      insnList.add(new InsnNode(Opcodes.DUP)); // stack: [array, array]
-      ldc(insnList, counter++); // stack: [array, array, int]
-      ldc(insnList, tag.toString()); // stack: [array, array, int, string]
-      insnList.add(new InsnNode(Opcodes.AASTORE)); // stack: [array]
     }
   }
 
@@ -296,6 +291,9 @@ public class MetricInstrumentor extends Instrumentor {
       }
       return UndefinedValue.INSTANCE;
     }
+
+    @Override
+    public void addEvaluationError(String expr, String message) {}
 
     private Type followReferences(Type currentType, String name, InsnList insnList) {
       Class<?> clazz;

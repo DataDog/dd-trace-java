@@ -20,17 +20,23 @@ class IsEmptyExpressionTest {
   @Test
   void testNullValue() {
     ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
-
-    assertTrue(new IsEmptyExpression(null).evaluate(resolver).test());
-    assertTrue(new IsEmptyExpression(DSL.value(Values.NULL_OBJECT)).evaluate(resolver).test());
-    assertTrue(new IsEmptyExpression(DSL.value(Value.nullValue())).evaluate(resolver).test());
+    IsEmptyExpression expression = new IsEmptyExpression(null);
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("isEmpty(null)", expression.prettyPrint());
+    expression = new IsEmptyExpression(DSL.value(Values.NULL_OBJECT));
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("isEmpty(null)", expression.prettyPrint());
+    expression = new IsEmptyExpression(DSL.value(Value.nullValue()));
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("isEmpty(com.datadog.debugger.el.values.NullValue)", expression.prettyPrint());
   }
 
   @Test
   void testUndefinedValue() {
     ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
-
-    assertTrue(new IsEmptyExpression(DSL.value(Values.UNDEFINED_OBJECT)).evaluate(resolver).test());
+    IsEmptyExpression expression = new IsEmptyExpression(DSL.value(Values.UNDEFINED_OBJECT));
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("isEmpty(UNDEFINED)", expression.prettyPrint());
   }
 
   @Test
@@ -40,9 +46,15 @@ class IsEmptyExpressionTest {
     NumericValue none = new NumericValue(null);
 
     ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
-    assertFalse(new IsEmptyExpression(zero).evaluate(resolver).test());
-    assertFalse(new IsEmptyExpression(one).evaluate(resolver).test());
-    assertTrue(new IsEmptyExpression(none).evaluate(resolver).test());
+    IsEmptyExpression expression = new IsEmptyExpression(zero);
+    assertFalse(expression.evaluate(resolver));
+    assertEquals("isEmpty(0)", expression.prettyPrint());
+    expression = new IsEmptyExpression(one);
+    assertFalse(expression.evaluate(resolver));
+    assertEquals("isEmpty(1)", expression.prettyPrint());
+    expression = new IsEmptyExpression(none);
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("isEmpty(null)", expression.prettyPrint());
   }
 
   @Test
@@ -52,9 +64,15 @@ class IsEmptyExpressionTest {
     BooleanValue none = new BooleanValue(null);
 
     ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
-    assertFalse(new IsEmptyExpression(yes).evaluate(resolver).test());
-    assertFalse(new IsEmptyExpression(no).evaluate(resolver).test());
-    assertTrue(new IsEmptyExpression(none).evaluate(resolver).test());
+    IsEmptyExpression expression = new IsEmptyExpression(yes);
+    assertFalse(expression.evaluate(resolver));
+    assertEquals("isEmpty(true)", expression.prettyPrint());
+    expression = new IsEmptyExpression(no);
+    assertFalse(expression.evaluate(resolver));
+    assertEquals("isEmpty(false)", expression.prettyPrint());
+    expression = new IsEmptyExpression(none);
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("isEmpty(null)", expression.prettyPrint());
   }
 
   @Test
@@ -68,9 +86,12 @@ class IsEmptyExpressionTest {
     IsEmptyExpression isEmpty2 = new IsEmptyExpression(emptyString);
     IsEmptyExpression isEmpty3 = new IsEmptyExpression(nullString);
 
-    assertFalse(isEmpty1.evaluate(resolver).test());
-    assertTrue(isEmpty2.evaluate(resolver).test());
-    assertTrue(isEmpty3.evaluate(resolver).test());
+    assertFalse(isEmpty1.evaluate(resolver));
+    assertEquals("isEmpty(\"Hello World\")", isEmpty1.prettyPrint());
+    assertTrue(isEmpty2.evaluate(resolver));
+    assertEquals("isEmpty(\"\")", isEmpty2.prettyPrint());
+    assertTrue(isEmpty3.evaluate(resolver));
+    assertEquals("isEmpty(\"null\")", isEmpty3.prettyPrint());
   }
 
   @Test
@@ -86,10 +107,14 @@ class IsEmptyExpressionTest {
     IsEmptyExpression isEmpty3 = new IsEmptyExpression(nullList);
     IsEmptyExpression isEmpty4 = new IsEmptyExpression(undefinedList);
 
-    assertFalse(isEmpty1.evaluate(resolver).test());
-    assertTrue(isEmpty2.evaluate(resolver).test());
-    assertTrue(isEmpty3.evaluate(resolver).test());
-    assertTrue(isEmpty4.evaluate(resolver).test());
+    assertFalse(isEmpty1.evaluate(resolver));
+    assertEquals("isEmpty(List)", isEmpty1.prettyPrint());
+    assertTrue(isEmpty2.evaluate(resolver));
+    assertEquals("isEmpty(List)", isEmpty2.prettyPrint());
+    assertTrue(isEmpty3.evaluate(resolver));
+    assertEquals("isEmpty(null)", isEmpty3.prettyPrint());
+    assertTrue(isEmpty4.evaluate(resolver));
+    assertEquals("isEmpty(null)", isEmpty4.prettyPrint());
   }
 
   @Test
@@ -105,9 +130,13 @@ class IsEmptyExpressionTest {
     IsEmptyExpression isEmpty3 = new IsEmptyExpression(nullMao);
     IsEmptyExpression isEmpty4 = new IsEmptyExpression(undefinedMap);
 
-    assertFalse(isEmpty1.evaluate(resolver).test());
-    assertTrue(isEmpty2.evaluate(resolver).test());
-    assertTrue(isEmpty3.evaluate(resolver).test());
-    assertTrue(isEmpty4.evaluate(resolver).test());
+    assertFalse(isEmpty1.evaluate(resolver));
+    assertEquals("isEmpty(Map)", isEmpty1.prettyPrint());
+    assertTrue(isEmpty2.evaluate(resolver));
+    assertEquals("isEmpty(Map)", isEmpty2.prettyPrint());
+    assertTrue(isEmpty3.evaluate(resolver));
+    assertEquals("isEmpty(null)", isEmpty3.prettyPrint());
+    assertTrue(isEmpty4.evaluate(resolver));
+    assertEquals("isEmpty(null)", isEmpty4.prettyPrint());
   }
 }

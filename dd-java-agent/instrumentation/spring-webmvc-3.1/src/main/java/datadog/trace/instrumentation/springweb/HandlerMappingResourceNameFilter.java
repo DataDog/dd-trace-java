@@ -90,6 +90,7 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
 
     public BeanDefinition() {
       super(HandlerMappingResourceNameFilter.class);
+      BeanDefinitionRepairer.register(HandlerMappingResourceNameFilter.class);
       setBeanClassName(HandlerMappingResourceNameFilter.class.getName());
       setScope(SCOPE_SINGLETON);
       setLazyInit(true);

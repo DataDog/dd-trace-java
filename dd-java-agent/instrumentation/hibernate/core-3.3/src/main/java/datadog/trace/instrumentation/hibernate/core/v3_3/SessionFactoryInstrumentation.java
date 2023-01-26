@@ -34,9 +34,9 @@ public class SessionFactoryInstrumentation extends AbstractHibernateInstrumentat
   @Override
   public Map<String, String> contextStore() {
     final Map<String, String> stores = new HashMap<>();
-    stores.put("org.hibernate.Session", SessionState.class.getName());
-    stores.put("org.hibernate.StatelessSession", SessionState.class.getName());
-    stores.put("org.hibernate.SharedSessionContract", SessionState.class.getName());
+    stores.put("org.hibernate.Session", SESSION_STATE);
+    stores.put("org.hibernate.StatelessSession", SESSION_STATE);
+    stores.put("org.hibernate.SharedSessionContract", SESSION_STATE);
     return Collections.unmodifiableMap(stores);
   }
 

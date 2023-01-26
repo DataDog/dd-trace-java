@@ -1,7 +1,7 @@
 package datadog.trace.agent.tooling.csi
 
 import datadog.trace.agent.tooling.bytebuddy.csi.Advices
-import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteInstrumenter
+import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteInstrumentation
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteTransformer
 import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.agent.builder.AgentBuilder
@@ -162,9 +162,9 @@ class BaseCallSiteTest extends DDSpecification {
       }
   }
 
-  protected static CallSiteInstrumenter buildInstrumenter(final Iterable<CallSiteAdvice> advices,
+  protected static CallSiteInstrumentation buildInstrumentation(final Iterable<CallSiteAdvice> advices,
     final ElementMatcher<TypeDescription> callerType = any()) {
-    return new CallSiteInstrumenter(advices, 'csi') {
+    return new CallSiteInstrumentation(advices, 'csi') {
         @Override
         ElementMatcher<TypeDescription> callerType() {
           return callerType
@@ -172,9 +172,9 @@ class BaseCallSiteTest extends DDSpecification {
       }
   }
 
-  protected static CallSiteInstrumenter buildInstrumenter(final Class<?> spiClass,
+  protected static CallSiteInstrumentation buildInstrumentation(final Class<?> spiClass,
     final ElementMatcher<TypeDescription> callerType = any()) {
-    return new CallSiteInstrumenter(spiClass, 'csi') {
+    return new CallSiteInstrumentation(spiClass, 'csi') {
         @Override
         ElementMatcher<TypeDescription> callerType() {
           return callerType

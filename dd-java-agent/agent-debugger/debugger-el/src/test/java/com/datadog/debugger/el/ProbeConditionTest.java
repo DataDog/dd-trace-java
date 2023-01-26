@@ -66,6 +66,39 @@ public class ProbeConditionTest {
   }
 
   @Test
+  void testNullLiteral() throws Exception {
+    ProbeCondition probeCondition = load("/test_conditional_06.json");
+    ValueReferenceResolver ctx =
+        RefResolverHelper.createResolver(
+            singletonMap("nullField", null), singletonMap("objField", new Object()));
+    assertTrue(probeCondition.execute(ctx));
+  }
+
+  @Test
+  void testIndex() throws Exception {
+    ProbeCondition probeCondition = load("/test_conditional_07.json");
+    Map<String, Object> fields = new HashMap<>();
+    fields.put("intArray", new int[] {1, 1, 1});
+    fields.put("strArray", new String[] {"foo", "bar"});
+    Map<String, String> strMap = new HashMap<>();
+    strMap.put("foo", "bar");
+    strMap.put("bar", "foobar");
+    fields.put("strMap", strMap);
+    fields.put("idx", 1);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, fields);
+    assertTrue(probeCondition.execute(ctx));
+  }
+
+  @Test
+  void testStringOperation() throws Exception {
+    ProbeCondition probeCondition = load("/test_conditional_08.json");
+    Map<String, Object> fields = new HashMap<>();
+    fields.put("strField", "foobar");
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, fields);
+    assertTrue(probeCondition.execute(ctx));
+  }
+
+  @Test
   void testJsonAdapter() throws IOException {
     Moshi moshi =
         new Moshi.Builder()

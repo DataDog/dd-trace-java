@@ -24,7 +24,7 @@ dependencies {
   implementation project(':internal-api')
   implementation project(':communication')
   implementation project(':telemetry')
-  implementation group: 'io.sqreen', name: 'libsqreen', version: '5.1.0'
+  implementation group: 'io.sqreen', name: 'libsqreen', version: '5.3.0'
   implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
 
   annotationProcessor deps.autoserviceProcessor
@@ -129,6 +129,9 @@ ext {
   excludedClassesBranchCoverage = [
     'com.datadog.appsec.gateway.GatewayBridge',
     'com.datadog.appsec.event.data.Address',
+    'com.datadog.appsec.config.CurrentAppSecConfig',
+    // equals() / hashCode() are not well covered
+    'com.datadog.appsec.config.AppSecConfig.Helper',
     'com.datadog.appsec.powerwaf.PowerWAFModule.PowerWAFDataCallback',
     'com.datadog.appsec.powerwaf.PowerWAFModule.PowerWAFEventsCallback',
     // assert never fails

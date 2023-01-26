@@ -137,9 +137,7 @@ class HaystackHttpCodec {
     private static final int TRACE_ID = 0;
     private static final int SPAN_ID = 1;
     private static final int PARENT_ID = 2;
-    private static final int TAGS = 3;
-    private static final int BAGGAGE = 4;
-    private static final int MAPPED_OT_BAGGAGE = 5;
+    private static final int BAGGAGE = 3;
     private static final int IGNORE = -1;
 
     private HaystackContextInterpreter(
@@ -198,24 +196,6 @@ class HaystackHttpCodec {
         default:
       }
 
-      if (handledIpHeaders(key, value)) {
-        return true;
-      }
-
-      if (!taggedHeaders.isEmpty() && classification == IGNORE) {
-        lowerCaseKey = toLowerCase(key);
-        if (taggedHeaders.containsKey(lowerCaseKey)) {
-          classification = TAGS;
-        }
-      }
-
-      if (!baggageMapping.isEmpty() && classification == IGNORE) {
-        lowerCaseKey = toLowerCase(key);
-        if (baggageMapping.containsKey(lowerCaseKey)) {
-          classification = MAPPED_OT_BAGGAGE;
-        }
-      }
-
       if (IGNORE != classification) {
         try {
           String firstValue = firstHeaderValue(value);
@@ -232,25 +212,9 @@ class HaystackHttpCodec {
               case PARENT_ID:
                 addBaggageItem(HAYSTACK_PARENT_ID_BAGGAGE_KEY, value);
                 break;
-              case TAGS:
-                {
-                  String mappedKey = taggedHeaders.get(lowerCaseKey);
-                  if (null != mappedKey) {
-                    if (tags.isEmpty()) {
-                      tags = new TreeMap<>();
-                    }
-                    tags.put(mappedKey, HttpCodec.decode(value));
-                  }
-                  break;
-                }
               case BAGGAGE:
                 {
                   addBaggageItem(lowerCaseKey.substring(BAGGAGE_PREFIX_LC.length()), value);
-                  break;
-                }
-              case MAPPED_OT_BAGGAGE:
-                {
-                  addBaggageItem(baggageMapping.get(lowerCaseKey), value);
                   break;
                 }
               default:
@@ -261,6 +225,14 @@ class HaystackHttpCodec {
           log.debug("Exception when extracting context", e);
           return false;
         }
+      } else {
+        if (handledIpHeaders(key, value)) {
+          return true;
+        }
+        if (handleTags(key, value)) {
+          return true;
+        }
+        handleMappedBaggage(key, value);
       }
       return true;
     }

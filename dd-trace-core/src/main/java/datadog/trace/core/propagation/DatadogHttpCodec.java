@@ -71,7 +71,8 @@ class DatadogHttpCodec {
       }
 
       // inject x-datadog-tags
-      String datadogTags = context.getDatadogTags().headerValue();
+      String datadogTags =
+          context.getPropagationTags().headerValue(PropagationTags.HeaderType.DATADOG);
       if (datadogTags != null) {
         setter.set(carrier, DATADOG_TAGS_KEY, datadogTags);
       }
@@ -105,21 +106,19 @@ class DatadogHttpCodec {
     private static final int SPAN_ID = 1;
     private static final int ORIGIN = 2;
     private static final int SAMPLING_PRIORITY = 3;
-    private static final int TAGS = 4;
-    private static final int OT_BAGGAGE = 5;
-    private static final int E2E_START = 6;
-    private static final int DD_TAGS = 7;
-    private static final int MAPPED_OT_BAGGAGE = 8;
+    private static final int OT_BAGGAGE = 4;
+    private static final int E2E_START = 5;
+    private static final int DD_TAGS = 6;
     private static final int IGNORE = -1;
 
     private final boolean isAwsPropagationEnabled;
-    private final DatadogTags.Factory datadogTagsFactory;
+    private final PropagationTags.Factory datadogTagsFactory;
 
     private DatadogContextInterpreter(
         Map<String, String> taggedHeaders, Map<String, String> baggageMapping, Config config) {
       super(taggedHeaders, baggageMapping, config);
       isAwsPropagationEnabled = config.isAwsPropagationEnabled();
-      datadogTagsFactory = DatadogTags.factory(config);
+      datadogTagsFactory = PropagationTags.factory(config);
     }
 
     @Override
@@ -173,24 +172,6 @@ class DatadogHttpCodec {
         default:
       }
 
-      if (handledIpHeaders(key, value)) {
-        return true;
-      }
-
-      if (!taggedHeaders.isEmpty() && classification == IGNORE) {
-        lowerCaseKey = toLowerCase(key);
-        if (taggedHeaders.containsKey(lowerCaseKey)) {
-          classification = TAGS;
-        }
-      }
-
-      if (!baggageMapping.isEmpty() && classification == IGNORE) {
-        lowerCaseKey = toLowerCase(key);
-        if (baggageMapping.containsKey(lowerCaseKey)) {
-          classification = MAPPED_OT_BAGGAGE;
-        }
-      }
-
       if (classification != IGNORE) {
         try {
           if (null != value) {
@@ -211,19 +192,9 @@ class DatadogHttpCodec {
                 endToEndStartTime = extractEndToEndStartTime(firstHeaderValue(value));
                 break;
               case DD_TAGS:
-                datadogTags = datadogTagsFactory.fromHeaderValue(value);
+                propagationTags =
+                    datadogTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, value);
                 break;
-              case TAGS:
-                {
-                  String mappedKey = taggedHeaders.get(lowerCaseKey);
-                  if (null != mappedKey) {
-                    if (tags.isEmpty()) {
-                      tags = new TreeMap<>();
-                    }
-                    tags.put(mappedKey, HttpCodec.decode(value));
-                  }
-                  break;
-                }
               case OT_BAGGAGE:
                 {
                   if (baggage.isEmpty()) {
@@ -231,19 +202,8 @@ class DatadogHttpCodec {
                   }
                   baggage.put(
                       lowerCaseKey.substring(OT_BAGGAGE_PREFIX.length()), HttpCodec.decode(value));
-                  break;
                 }
-              case MAPPED_OT_BAGGAGE:
-                {
-                  String mappedKey = baggageMapping.get(lowerCaseKey);
-                  if (null != mappedKey) {
-                    if (baggage.isEmpty()) {
-                      baggage = new TreeMap<>();
-                    }
-                    baggage.put(mappedKey, HttpCodec.decode(value));
-                  }
-                  break;
-                }
+                break;
               default:
             }
           }
@@ -252,6 +212,14 @@ class DatadogHttpCodec {
           log.debug("Exception when extracting context", e);
           return false;
         }
+      } else {
+        if (handledIpHeaders(key, value)) {
+          return true;
+        }
+        if (handleTags(key, value)) {
+          return true;
+        }
+        handleMappedBaggage(key, value);
       }
       return true;
     }

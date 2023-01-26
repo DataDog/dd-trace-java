@@ -1,16 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.ci
 
 
-class AzurePipelinesInfoTest extends CIProviderInfoTest {
+class AzurePipelinesInfoTest extends CITagsProviderImplTest {
 
   @Override
   CIProviderInfo instanceProvider() {
-    return new AzurePipelinesInfo() {
-        @Override
-        protected String getGitFolderName() {
-          return GIT_FOLDER_FOR_TESTS
-        }
-      }
+    return new AzurePipelinesInfo()
   }
 
   @Override

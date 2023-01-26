@@ -10,6 +10,7 @@ excludedClassesCoverage += [// an enum with no additional functionality
   'com.datadog.profiling.utils.ProfilingMode',]
 
 dependencies {
+  api project(':internal-api')
   implementation deps.slf4j
 
   testImplementation deps.junit5

@@ -55,8 +55,6 @@ public final class ConfigDefaults {
   static final int DEFAULT_SCOPE_ITERATION_KEEP_ALIVE = 30; // in seconds
   static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
   static final boolean DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED = false;
-  static final String DEFAULT_PROPAGATION_STYLE_EXTRACT = PropagationStyle.DATADOG.name();
-  static final String DEFAULT_PROPAGATION_STYLE_INJECT = PropagationStyle.DATADOG.name();
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
   static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
 
@@ -79,10 +77,11 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_APPSEC_REPORTING_INBAND = false;
   static final int DEFAULT_APPSEC_TRACE_RATE_LIMIT = 100;
   static final boolean DEFAULT_APPSEC_WAF_METRICS = true;
+  static final int DEFAULT_APPSEC_WAF_TIMEOUT = 100000; // 0.1 s
 
   static final boolean DEFAULT_IAST_ENABLED = false;
   static final boolean DEFAULT_IAST_DEBUG_ENABLED = false;
-  public static final int DEFAULT_IAST_MAX_CONCURRENT_REQUESTS = 2;
+  public static final int DEFAULT_IAST_MAX_CONCURRENT_REQUESTS = 4;
   public static final int DEFAULT_IAST_VULNERABILITIES_PER_REQUEST = 2;
   public static final int DEFAULT_IAST_REQUEST_SAMPLING = 30;
   static final Set<String> DEFAULT_IAST_WEAK_HASH_ALGORITHMS =

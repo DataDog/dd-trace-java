@@ -69,6 +69,7 @@ public class ConfigurationPoller
 
   private final Map<Product, ProductState> productStates = new HashMap<>();
   private final Map<File, ConfigurationChangesListener> fileListeners = new HashMap<>();
+  private final List<ConfigurationEndListener> configurationEndListeners = new ArrayList<>();
 
   private final ClientState nextClientState = new ClientState();
   private final AtomicInteger startCount = new AtomicInteger(0);
@@ -146,6 +147,14 @@ public class ConfigurationPoller
       ConfigurationDeserializer<T> deserializer,
       ConfigurationChangesTypedListener<T> listener) {
     this.fileListeners.put(file, useDeserializer(deserializer, listener));
+  }
+
+  public synchronized void addConfigurationEndListener(ConfigurationEndListener listener) {
+    this.configurationEndListeners.add(listener);
+  }
+
+  public synchronized void removeConfigurationEndListener(ConfigurationEndListener listener) {
+    this.configurationEndListeners.removeIf(l -> l == listener);
   }
 
   public synchronized void addCapabilities(long flags) {
@@ -361,20 +370,42 @@ public class ConfigurationPoller
       }
     }
 
+    boolean appliedAny = false;
     for (Map.Entry<Product, ProductState> entry : productStates.entrySet()) {
       Product product = entry.getKey();
       ProductState state = entry.getValue();
       List<ParsedConfigKey> relevantKeys =
           parsedKeysByProduct.getOrDefault(product, Collections.EMPTY_LIST);
-      state.apply(fleetResponse, relevantKeys, this);
+      appliedAny = state.apply(fleetResponse, relevantKeys, this) || appliedAny;
       if (state.hasError()) {
         errors.addAll(state.getErrors());
+      }
+    }
+
+    if (appliedAny) {
+      for (ConfigurationEndListener listener : this.configurationEndListeners) {
+        runConfigurationEndListener(listener, errors);
       }
     }
 
     updateNextState(fleetResponse, buildErrorMessage(errors));
 
     rescheduleBaseOnConfiguration(this.durationHint);
+  }
+
+  private void runConfigurationEndListener(
+      ConfigurationEndListener listener, List<ReportableException> errors) {
+    try {
+      listener.onConfigurationEnd();
+    } catch (ReportableException re) {
+      errors.add(re);
+    } catch (RuntimeException rte) {
+      // XXX: we have no way to report this error back
+      // This is because errors are scoped to a specific config key and this listener
+      // is about combining configuration from different products
+      ratelimitedLogger.warn(
+          "Error running configuration listener {}: {}", listener, rte.getMessage(), rte);
+    }
   }
 
   private String buildErrorMessage(List<ReportableException> errors) {

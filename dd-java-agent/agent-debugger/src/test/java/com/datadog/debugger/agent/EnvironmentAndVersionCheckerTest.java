@@ -3,8 +3,8 @@ package com.datadog.debugger.agent;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.lenient;
 
+import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
-import com.datadog.debugger.probe.SnapshotProbe;
 import datadog.trace.api.Config;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -107,6 +107,6 @@ public class EnvironmentAndVersionCheckerTest {
   }
 
   private ProbeDefinition getProbeWithTags(String... tags) {
-    return SnapshotProbe.builder().probeId("1").tags(tags).build();
+    return LogProbe.builder().probeId("1").tags(tags).build();
   }
 }

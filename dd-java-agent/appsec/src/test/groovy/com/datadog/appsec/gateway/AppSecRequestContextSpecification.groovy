@@ -1,6 +1,7 @@
 package com.datadog.appsec.gateway
 
-import com.datadog.appsec.config.AppSecConfig
+
+import com.datadog.appsec.config.CurrentAppSecConfig
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.report.raw.events.AppSecEvent100
@@ -165,9 +166,9 @@ class AppSecRequestContextSpecification extends DDSpecification {
     Powerwaf.initialize false
     def service = new StubAppSecConfigService()
     service.init()
-    AppSecConfig config = service.lastConfig['waf']
+    CurrentAppSecConfig config = service.lastConfig['waf']
     String uniqueId = UUID.randomUUID() as String
-    PowerwafContext context = Powerwaf.createContext(uniqueId, config.rawConfig)
+    PowerwafContext context = Powerwaf.createContext(uniqueId, config.mergedAppSecConfig.rawConfig)
     new Additive(context)
   }
 

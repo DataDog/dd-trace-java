@@ -1,3 +1,15 @@
+buildscript {
+  dependencies {
+    classpath "pl.allegro.tech.build:axion-release-plugin:1.14.2"
+  }
+
+  configurations.all {
+    resolutionStrategy.dependencySubstitution {
+      substitute module("com.jcraft:jsch") using module("com.github.mwiede:jsch:0.2.6") because "jcraft jsch has been unmaintained for years."
+    }
+  }
+}
+
 plugins {
   id 'com.github.ben-manes.versions' version '0.27.0'
 

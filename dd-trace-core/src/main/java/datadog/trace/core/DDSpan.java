@@ -13,10 +13,9 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.profiling.TracingContextTracker;
-import datadog.trace.api.profiling.TracingContextTrackerFactory;
 import datadog.trace.api.profiling.TransientProfilingContextHolder;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -24,15 +23,12 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import java.util.function.ToIntFunction;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -54,7 +50,6 @@ public class DDSpan
     final DDSpan span = new DDSpan(timestampMicro, context);
     log.debug("Started span: {}", span);
     context.getTrace().registerSpan(span);
-    span.tracingContextTracker = TracingContextTrackerFactory.instance(span);
     return span;
   }
 
@@ -114,28 +109,6 @@ public class DDSpan
       context.getTrace().touch(); // external clock: explicitly update lastReferenced
     }
   }
-
-  private volatile TracingContextTracker tracingContextTracker;
-  // custom function to persist tracing context in the span tag with minimum number of extra
-  // allocations
-  private final ToIntFunction<ByteBuffer> tracingContextPersistor =
-      new ToIntFunction<ByteBuffer>() {
-        @Override
-        public int applyAsInt(ByteBuffer byteBuffer) {
-          String contextTagName = "_dd_tracing_context_" + tracingContextTracker.getVersion();
-          UTF8BytesString encodedString =
-              UTF8BytesString.create(Base64Encoder.INSTANCE.encode(byteBuffer));
-          if (log.isTraceEnabled()) {
-            log.trace(
-                "Tracing context data for s_id:{}, tag:{}={}",
-                getSpanId(),
-                contextTagName,
-                encodedString);
-          }
-          context.setTag(contextTagName, encodedString);
-          return encodedString.encodedLength();
-        }
-      };
 
   public boolean isFinished() {
     return durationNano != 0;
@@ -258,17 +231,6 @@ public class DDSpan
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
       log.debug("Published span ({}): {}", publishState, this);
     }
-  }
-
-  public int storeContextToTag() {
-    try {
-      return tracingContextTracker.persist(tracingContextPersistor);
-    } catch (Throwable t) {
-      log.error("", t);
-    } finally {
-      tracingContextTracker.release();
-    }
-    return -1;
   }
 
   @Override
@@ -528,20 +490,6 @@ public class DDSpan
   public boolean eligibleForDropping() {
     int samplingPriority = context.getSamplingPriority();
     return samplingPriority == USER_DROP || samplingPriority == SAMPLER_DROP;
-  }
-
-  @Override
-  public void startWork() {
-    if (tracingContextTracker != null) {
-      tracingContextTracker.activateContext();
-    }
-  }
-
-  @Override
-  public void finishWork() {
-    if (tracingContextTracker != null) {
-      tracingContextTracker.deactivateContext();
-    }
   }
 
   @Override

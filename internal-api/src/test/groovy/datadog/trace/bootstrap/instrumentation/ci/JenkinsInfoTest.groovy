@@ -1,15 +1,10 @@
 package datadog.trace.bootstrap.instrumentation.ci
 
-class JenkinsInfoTest extends CIProviderInfoTest {
+class JenkinsInfoTest extends CITagsProviderImplTest {
 
   @Override
   CIProviderInfo instanceProvider() {
-    return new JenkinsInfo() {
-        @Override
-        protected String getGitFolderName() {
-          return GIT_FOLDER_FOR_TESTS
-        }
-      }
+    return new JenkinsInfo()
   }
 
   @Override

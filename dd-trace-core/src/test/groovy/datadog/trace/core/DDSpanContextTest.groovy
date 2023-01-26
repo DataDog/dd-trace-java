@@ -176,7 +176,7 @@ class DDSpanContextTest extends DDCoreSpecification {
 
   def "set TraceSegment tags and data on correct span"() {
     setup:
-    def extracted = new ExtractedContext(DDTraceId.from(123), 456, SAMPLER_KEEP, "789", 0, [:], [:], null, tracer.getDatadogTagsFactory().empty())
+    def extracted = new ExtractedContext(DDTraceId.from(123), 456, SAMPLER_KEEP, "789", 0, [:], [:], null, tracer.getPropagationTagsFactory().empty())
     .withRequestContextDataAppSec("dummy")
 
     def top = tracer.buildSpan("top").asChildOf((AgentSpan.Context) extracted).start()
@@ -226,7 +226,7 @@ class DDSpanContextTest extends DDCoreSpecification {
     context.getTag(SPAN_SAMPLING_RULE_RATE_TAG) == rate
     context.getTag(SPAN_SAMPLING_MAX_PER_SECOND_TAG) == (limit == Integer.MAX_VALUE ? null : limit)
     context.getSamplingPriority() == USER_KEEP
-    context.getDatadogTags().createTagMap() == ["_dd.p.dm":"-" + SPAN_SAMPLING_RATE]
+    context.getPropagationTags().createTagMap() == ["_dd.p.dm":"-" + SPAN_SAMPLING_RATE]
 
     where:
     rate | limit

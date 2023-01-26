@@ -22,7 +22,7 @@ import datadog.trace.core.monitor.MonitoringImpl
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
-import datadog.trace.core.propagation.DatadogTags
+import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
@@ -138,7 +138,7 @@ class DDAgentApiTest extends DDCoreSpecification {
     traces                                                                                                           | expectedRequestBody
     []                                                                                                               | []
     // service propagation enabled
-    [[buildSpan(1L, "service.name", "my-service", DatadogTags.factory().fromHeaderValue("_dd.p.usr=123"))]]          | [[new TreeMap<>([
+    [[buildSpan(1L, "service.name", "my-service", PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.usr=123"))]] | [[new TreeMap<>([
       "duration" : 10,
       "error"    : 0,
       "meta"     : ["thread.name": Thread.currentThread().getName(), "_dd.p.usr": "123", "_dd.p.dm": "-1"],
@@ -158,7 +158,7 @@ class DDAgentApiTest extends DDCoreSpecification {
       "type"     : "fakeType"
     ])]]
     // service propagation disabled
-    [[buildSpan(100L, "resource.name", "my-resource", DatadogTags.factory().fromHeaderValue("_dd.p.usr=123"))]] | [[new TreeMap<>([
+    [[buildSpan(100L, "resource.name", "my-resource", PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.usr=123"))]] | [[new TreeMap<>([
       "duration" : 10,
       "error"    : 0,
       "meta"     : ["thread.name": Thread.currentThread().getName(), "_dd.p.usr": "123", "_dd.p.dm": "-1"],
@@ -423,7 +423,7 @@ class DDAgentApiTest extends DDCoreSpecification {
     return [discovery, new DDAgentApi(client, agentUrl, discovery, monitoring, false)]
   }
 
-  DDSpan buildSpan(long timestamp, String tag, String value, DatadogTags datadogTags) {
+  DDSpan buildSpan(long timestamp, String tag, String value, PropagationTags propagationTags) {
     def tracer = tracerBuilder().writer(new ListWriter()).build()
     def context = new DDSpanContext(
       DDTraceId.ONE,
@@ -444,7 +444,7 @@ class DDAgentApiTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      datadogTags)
+      propagationTags)
 
     def span = DDSpan.create(timestamp, context)
     span.setTag(tag, value)

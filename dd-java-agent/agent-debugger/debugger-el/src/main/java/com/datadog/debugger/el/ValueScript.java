@@ -11,11 +11,13 @@ import datadog.trace.bootstrap.debugger.el.DebuggerScript;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import java.io.IOException;
 import java.util.Objects;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /** Implements expression language for capturing values for metric probes */
 public class ValueScript implements DebuggerScript {
   private static final Pattern PERIOD_PATTERN = Pattern.compile("\\.");
+  private static final Pattern INDEX_PATTERN = Pattern.compile("(.+)\\[([^]]+)]");
   private final ValueExpression<?> expr;
   private final String dsl;
   private Value<?> result;
@@ -54,7 +56,7 @@ public class ValueScript implements DebuggerScript {
 
   @Override
   public String toString() {
-    return "ValueScript{" + "expr=" + expr + ", dsl='" + dsl + '\'' + '}';
+    return "ValueScript{dsl='" + dsl + '\'' + '}';
   }
 
   public static ValueExpression<?> parseRefPath(String refPath) {
@@ -67,7 +69,16 @@ public class ValueScript implements DebuggerScript {
     } else {
       head = parts[0];
     }
-    ValueExpression<?> current = DSL.ref(head);
+    ValueExpression<?> current;
+    Matcher matcher = INDEX_PATTERN.matcher(head);
+    if (matcher.matches()) {
+      String key = matcher.group(2);
+      ValueExpression<?> keyExpr =
+          key.matches("[0-9]+") ? DSL.value(Integer.parseInt(key)) : DSL.value(key);
+      current = DSL.index(DSL.ref(matcher.group(1)), keyExpr);
+    } else {
+      current = DSL.ref(head);
+    }
     for (int i = startIdx; i < parts.length; i++) {
       current = DSL.getMember(current, parts[i]);
     }

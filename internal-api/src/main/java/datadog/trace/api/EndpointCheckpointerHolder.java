@@ -41,13 +41,13 @@ public final class EndpointCheckpointerHolder implements EndpointCheckpointer {
   }
 
   @Override
-  public void onRootSpanFinished(final AgentSpan rootSpan, final boolean published) {
-    endpointCheckpointer.onRootSpanFinished(rootSpan, published);
+  public void onRootSpanFinished(AgentSpan rootSpan, EndpointTracker tracker) {
+    endpointCheckpointer.onRootSpanFinished(rootSpan, tracker);
   }
 
   @Override
-  public void onRootSpanStarted(AgentSpan root) {
-    endpointCheckpointer.onRootSpanStarted(root);
+  public EndpointTracker onRootSpanStarted(AgentSpan root) {
+    return endpointCheckpointer.onRootSpanStarted(root);
   }
 
   private static final class NoOpCheckpointer implements EndpointCheckpointer {
@@ -55,9 +55,11 @@ public final class EndpointCheckpointerHolder implements EndpointCheckpointer {
     static final NoOpCheckpointer NO_OP = new NoOpCheckpointer();
 
     @Override
-    public void onRootSpanFinished(final AgentSpan rootSpan, final boolean published) {}
+    public void onRootSpanFinished(AgentSpan rootSpan, EndpointTracker tracker) {}
 
     @Override
-    public void onRootSpanStarted(AgentSpan rootSpan) {}
+    public EndpointTracker onRootSpanStarted(AgentSpan rootSpan) {
+      return null;
+    }
   }
 }

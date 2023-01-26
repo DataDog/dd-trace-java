@@ -91,6 +91,9 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
           if (exception) {
             errorTags(exception.class, exception.message)
           }
+          if ({ isDataStreamsEnabled() }) {
+            "$DDTags.PATHWAY_HASH" { String }
+          }
           defaultTags()
         }
       }

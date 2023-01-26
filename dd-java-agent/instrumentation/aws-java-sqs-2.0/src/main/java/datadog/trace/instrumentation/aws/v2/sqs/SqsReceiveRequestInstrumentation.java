@@ -10,7 +10,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.ByteCodeElement;
+import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
@@ -26,7 +26,7 @@ public class SqsReceiveRequestInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<? extends ByteCodeElement> structureMatcher() {
+  public ElementMatcher<TypeDescription> structureMatcher() {
     return declaresField(named("attributeNames"));
   }
 

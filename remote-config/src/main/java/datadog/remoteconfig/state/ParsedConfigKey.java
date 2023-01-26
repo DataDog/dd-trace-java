@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
 public class ParsedConfigKey {
 
   private static final Pattern EXTRACT_PRODUCT_REGEX =
-      Pattern.compile("([^/]+)(/\\d+)?/([^/]+)/([^/]+)/config");
+      Pattern.compile("([^/]+)(/\\d+)?/([^/]+)/([^/]+)/[^/]+");
 
   private final String orginalKey;
   private final String org;

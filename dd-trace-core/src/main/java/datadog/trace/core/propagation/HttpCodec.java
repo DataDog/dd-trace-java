@@ -1,7 +1,7 @@
 package datadog.trace.core.propagation;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.PropagationStyle;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
@@ -10,6 +10,7 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -45,35 +46,37 @@ public class HttpCodec {
     <C> TagContext extract(final C carrier, final AgentPropagation.ContextVisitor<C> getter);
   }
 
-  public static <C> void inject(
-      DDSpanContext context, C carrier, AgentPropagation.Setter<C> setter, Injector injector) {
-    injector.inject(context, carrier, setter);
-  }
-
   public static Injector createInjector(
-      Set<PropagationStyle> styles, Map<String, String> invertedBaggageMapping) {
+      Set<TracePropagationStyle> styles, Map<String, String> invertedBaggageMapping) {
     ArrayList<Injector> injectors =
         new ArrayList<>(createInjectors(styles, invertedBaggageMapping).values());
     return new CompoundInjector(injectors);
   }
 
-  public static Map<PropagationStyle, Injector> createInjectors(
-      Set<PropagationStyle> propagationStyles, Map<String, String> reverseBaggageMapping) {
-    EnumMap<PropagationStyle, Injector> result = new EnumMap<>(PropagationStyle.class);
-    for (PropagationStyle style : propagationStyles) {
+  public static Map<TracePropagationStyle, Injector> allInjectorsFor(
+      Map<String, String> reverseBaggageMapping) {
+    return createInjectors(EnumSet.allOf(TracePropagationStyle.class), reverseBaggageMapping);
+  }
+
+  private static Map<TracePropagationStyle, Injector> createInjectors(
+      Set<TracePropagationStyle> propagationStyles, Map<String, String> reverseBaggageMapping) {
+    EnumMap<TracePropagationStyle, Injector> result = new EnumMap<>(TracePropagationStyle.class);
+    for (TracePropagationStyle style : propagationStyles) {
       switch (style) {
         case DATADOG:
-          result.put(PropagationStyle.DATADOG, DatadogHttpCodec.newInjector(reverseBaggageMapping));
+          result.put(style, DatadogHttpCodec.newInjector(reverseBaggageMapping));
           break;
         case B3:
-          result.put(PropagationStyle.B3, B3HttpCodec.INJECTOR);
+          result.put(style, B3HttpCodec.SINGLE_INJECTOR);
+          break;
+        case B3MULTI:
+          result.put(style, B3HttpCodec.MULTI_INJECTOR);
           break;
         case HAYSTACK:
-          result.put(
-              PropagationStyle.HAYSTACK, HaystackHttpCodec.newInjector(reverseBaggageMapping));
+          result.put(style, HaystackHttpCodec.newInjector(reverseBaggageMapping));
           break;
         case XRAY:
-          result.put(PropagationStyle.XRAY, XRayHttpCodec.newInjector(reverseBaggageMapping));
+          result.put(style, XRayHttpCodec.newInjector(reverseBaggageMapping));
           break;
         default:
           log.debug("No implementation found to inject propagation style: {}", style);
@@ -88,13 +91,16 @@ public class HttpCodec {
       final Map<String, String> taggedHeaders,
       final Map<String, String> baggageMapping) {
     final List<Extractor> extractors = new ArrayList<>();
-    for (final PropagationStyle style : config.getPropagationStylesToExtract()) {
+    for (final TracePropagationStyle style : config.getTracePropagationStylesToExtract()) {
       switch (style) {
         case DATADOG:
           extractors.add(DatadogHttpCodec.newExtractor(taggedHeaders, baggageMapping, config));
           break;
         case B3:
-          extractors.add(B3HttpCodec.newExtractor(taggedHeaders, baggageMapping));
+          extractors.add(B3HttpCodec.newSingleExtractor(taggedHeaders, baggageMapping, config));
+          break;
+        case B3MULTI:
+          extractors.add(B3HttpCodec.newMultiExtractor(taggedHeaders, baggageMapping, config));
           break;
         case HAYSTACK:
           extractors.add(HaystackHttpCodec.newExtractor(taggedHeaders, baggageMapping));

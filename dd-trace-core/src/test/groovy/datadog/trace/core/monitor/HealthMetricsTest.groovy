@@ -17,7 +17,7 @@ class HealthMetricsTest extends DDSpecification {
   def statsD = Mock(StatsDClient)
 
   @Subject
-  def healthMetrics = new HealthMetrics(statsD)
+  def healthMetrics = new TracerHealthMetrics(statsD)
 
   // This fails because RemoteWriter isn't an interface and the mock doesn't prevent the call.
   @Ignore
@@ -47,7 +47,7 @@ class HealthMetricsTest extends DDSpecification {
   def "test onPublish"() {
     setup:
     def latch = new CountDownLatch(trace.isEmpty() ? 1 : 2)
-    def healthMetrics = new HealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
     healthMetrics.start()
 
     when:
@@ -74,7 +74,7 @@ class HealthMetricsTest extends DDSpecification {
   def "test onFailedPublish"() {
     setup:
     def latch = new CountDownLatch(1)
-    def healthMetrics = new HealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
     healthMetrics.start()
 
     when:
@@ -101,7 +101,7 @@ class HealthMetricsTest extends DDSpecification {
   def "test onPartialPublish"() {
     setup:
     def latch = new CountDownLatch(1)
-    def healthMetrics = new HealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
     healthMetrics.start()
 
     when:
@@ -218,7 +218,7 @@ class HealthMetricsTest extends DDSpecification {
   def "test onCreateTrace"() {
     setup:
     def latch = new CountDownLatch(1)
-    def healthMetrics = new HealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
     healthMetrics.start()
     when:
     healthMetrics.onCreateTrace()
@@ -232,7 +232,7 @@ class HealthMetricsTest extends DDSpecification {
   def "test onCreateSpan"() {
     setup:
     def latch = new CountDownLatch(1)
-    def healthMetrics = new HealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
     healthMetrics.start()
     when:
     healthMetrics.onCreateSpan()
@@ -245,7 +245,7 @@ class HealthMetricsTest extends DDSpecification {
   def "test onCancelContinuation"() {
     setup:
     def latch = new CountDownLatch(1)
-    def healthMetrics = new HealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
     healthMetrics.start()
     when:
     healthMetrics.onCancelContinuation()
@@ -258,7 +258,7 @@ class HealthMetricsTest extends DDSpecification {
   def "test onFinishContinuation"() {
     setup:
     def latch = new CountDownLatch(1)
-    def healthMetrics = new HealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
     healthMetrics.start()
     when:
     healthMetrics.onFinishContinuation()

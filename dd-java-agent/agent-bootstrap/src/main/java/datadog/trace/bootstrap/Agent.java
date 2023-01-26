@@ -21,12 +21,14 @@ import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.scopemanager.ScopeListener;
+import datadog.trace.bootstrap.benchmark.StaticEventLogger;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
+import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -120,6 +122,9 @@ public class Agent {
   private static boolean debuggerEnabled = false;
 
   public static void start(final Instrumentation inst, final URL agentJarURL) {
+    StaticEventLogger.begin("Agent");
+    StaticEventLogger.begin("Agent.start");
+
     createAgentClassloader(agentJarURL);
 
     if (Platform.isNativeImageBuilder()) {
@@ -258,6 +263,8 @@ public class Agent {
      * in turn loads LogManager. This is not a problem on newer JDKs because there JFR uses different logging facility.
      */
     if (profilingEnabled && !isOracleJDK8()) {
+      StaticEventLogger.begin("Profiling");
+
       if (delayOkHttp) {
         log.debug("Custom logger detected. Delaying Profiling initialization.");
         registerLogManagerCallback(new StartProfilingAgentCallback());
@@ -266,10 +273,17 @@ public class Agent {
         // only enable instrumentation based profilers when we know JFR is ready
         InstrumentationBasedProfiling.enableInstrumentationBasedProfiling();
       }
+
+      StaticEventLogger.end("Profiling");
     }
+
+    StaticEventLogger.end("Agent.start");
   }
 
   public static void shutdown(final boolean sync) {
+    StaticEventLogger.end("Agent");
+    StaticEventLogger.stop();
+
     if (profilingEnabled) {
       shutdownProfilingAgent(sync);
     }
@@ -433,11 +447,14 @@ public class Agent {
       return;
     }
 
+    StaticEventLogger.begin("Remote Config");
+
     try {
       Method pollerMethod = scoClass.getMethod("configurationPoller", Config.class);
       Object poller = pollerMethod.invoke(sco, Config.get());
       if (poller == null) {
         log.debug("Remote config is not enabled");
+        StaticEventLogger.end("Remote Config");
         return;
       }
       Class<?> pollerCls = AGENT_CLASSLOADER.loadClass("datadog.remoteconfig.ConfigurationPoller");
@@ -447,10 +464,15 @@ public class Agent {
     } catch (Exception e) {
       log.error("Error starting remote config", e);
     }
+
+    StaticEventLogger.end("Remote Config");
   }
 
   private static synchronized void startDatadogAgent(final Instrumentation inst) {
     if (null != inst) {
+
+      StaticEventLogger.begin("BytebuddyAgent");
+
       try {
         final Class<?> agentInstallerClass =
             AGENT_CLASSLOADER.loadClass(AGENT_INSTALLER_CLASS_NAME);
@@ -460,6 +482,8 @@ public class Agent {
       } catch (final Throwable ex) {
         log.error("Throwable thrown while installing the Datadog Agent", ex);
       }
+
+      StaticEventLogger.end("BytebuddyAgent");
     }
   }
 
@@ -467,6 +491,9 @@ public class Agent {
     if (AGENT_CLASSLOADER == null) {
       throw new IllegalStateException("Datadog agent should have been started already");
     }
+
+    StaticEventLogger.begin("GlobalTracer");
+
     // TracerInstaller.installGlobalTracer can be called multiple times without any problem
     // so there is no need to have a 'datadogTracerInstalled' flag here.
     try {
@@ -477,9 +504,13 @@ public class Agent {
           tracerInstallerClass.getMethod(
               "installGlobalTracer", scoClass, ProfilingContextIntegration.class);
       tracerInstallerMethod.invoke(null, sco, createProfilingContextIntegration());
+    } catch (final FatalAgentMisconfigurationError ex) {
+      throw ex;
     } catch (final Throwable ex) {
       log.error("Throwable thrown while installing the Datadog Tracer", ex);
     }
+
+    StaticEventLogger.end("GlobalTracer");
   }
 
   private static void scheduleJmxStart(final int jmxStartDelay) {
@@ -589,12 +620,16 @@ public class Agent {
       return;
     }
 
+    StaticEventLogger.begin("AppSec");
+
     try {
       SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC);
       startAppSec(ss, scoClass, o);
     } catch (Exception e) {
       log.error("Error starting AppSec System", e);
     }
+
+    StaticEventLogger.end("AppSec");
   }
 
   private static void startAppSec(SubscriptionService ss, Class<?> scoClass, Object sco) {
@@ -626,12 +661,17 @@ public class Agent {
 
   private static void maybeStartIast(Class<?> scoClass, Object o) {
     if (iastEnabled) {
+
+      StaticEventLogger.begin("IAST");
+
       try {
         SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST);
         startIast(ss, scoClass, o);
       } catch (Exception e) {
         log.error("Error starting IAST subsystem", e);
       }
+
+      StaticEventLogger.end("IAST");
     }
   }
 
@@ -647,6 +687,8 @@ public class Agent {
   }
 
   private static void startTelemetry(Instrumentation inst, Class<?> scoClass, Object sco) {
+    StaticEventLogger.begin("Telemetry");
+
     try {
       final Class<?> telemetrySystem =
           AGENT_CLASSLOADER.loadClass("datadog.telemetry.TelemetrySystem");
@@ -656,6 +698,8 @@ public class Agent {
     } catch (final Throwable ex) {
       log.warn("Unable start telemetry", ex);
     }
+
+    StaticEventLogger.end("Telemetry");
   }
 
   private static void initializeCrashUploader() {
@@ -702,14 +746,15 @@ public class Agent {
   }
 
   /**
-   * {@see com.datadog.profiling.async.ContextThreadFilter} must not be modified to depend on JFR.
+   * {@see com.datadog.profiling.ddprof.DatadogProfilingIntegration} must not be modified to depend
+   * on JFR.
    */
   private static ProfilingContextIntegration createProfilingContextIntegration() {
     if (Config.get().isProfilingEnabled()) {
       try {
         return (ProfilingContextIntegration)
             AGENT_CLASSLOADER
-                .loadClass("com.datadog.profiling.async.ContextThreadFilter")
+                .loadClass("com.datadog.profiling.ddprof.DatadogProfilingIntegration")
                 .getDeclaredConstructor()
                 .newInstance();
       } catch (Throwable t) {
@@ -720,6 +765,8 @@ public class Agent {
   }
 
   private static void startProfilingAgent(final boolean isStartingFirst) {
+    StaticEventLogger.begin("ProfilingAgent");
+
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
       Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
@@ -746,7 +793,7 @@ public class Agent {
                   EndpointCheckpointer endpointCheckpointer =
                       (EndpointCheckpointer)
                           AGENT_CLASSLOADER
-                              .loadClass("datadog.trace.core.jfr.openjdk.JFRCheckpointer")
+                              .loadClass("com.datadog.profiling.controller.openjdk.JFRCheckpointer")
                               .getDeclaredConstructor()
                               .newInstance();
                   tracer.registerCheckpointer(endpointCheckpointer);
@@ -764,6 +811,8 @@ public class Agent {
     } finally {
       Thread.currentThread().setContextClassLoader(contextLoader);
     }
+
+    StaticEventLogger.end("ProfilingAgent");
   }
 
   private static ScopeListener createScopeListener(String className) throws Throwable {
@@ -805,6 +854,8 @@ public class Agent {
 
   private static synchronized void startDebuggerAgent(
       Instrumentation inst, Class<?> scoClass, Object sco) {
+    StaticEventLogger.begin("Debugger");
+
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
       Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
@@ -818,6 +869,8 @@ public class Agent {
     } finally {
       Thread.currentThread().setContextClassLoader(contextLoader);
     }
+
+    StaticEventLogger.end("Debugger");
   }
 
   private static void configureLogger() {

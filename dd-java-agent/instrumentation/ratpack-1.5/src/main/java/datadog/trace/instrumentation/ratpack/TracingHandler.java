@@ -5,6 +5,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.ratpack.RatpackServerDecorator.DECORATE;
 
+import com.google.common.reflect.TypeToken;
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.netty.util.Attribute;
@@ -12,9 +14,13 @@ import io.netty.util.AttributeKey;
 import ratpack.handling.Context;
 import ratpack.handling.Handler;
 import ratpack.http.Request;
+import ratpack.util.Types;
 
 public final class TracingHandler implements Handler {
   public static Handler INSTANCE = new TracingHandler();
+
+  private static final TypeToken<Flow.Action.RequestBlockingAction> RBA_CLASS_TOKEN =
+      Types.token(Flow.Action.RequestBlockingAction.class);
 
   /** This constant must stay in sync with datadog.trace.instrumentation.netty41.AttributeKeys. */
   public static final AttributeKey<AgentSpan> SERVER_ATTRIBUTE_KEY =
@@ -33,7 +39,10 @@ public final class TracingHandler implements Handler {
     DECORATE.afterStart(ratpackSpan);
     DECORATE.onRequest(ratpackSpan, request, request, null);
     ctx.getExecution().add(ratpackSpan);
-
+    Flow.Action.RequestBlockingAction rba = nettySpan.getRequestBlockingAction();
+    if (rba == null) {
+      rba = ratpackSpan.getRequestBlockingAction();
+    }
     try (final AgentScope scope = activateSpan(ratpackSpan)) {
       scope.setAsyncPropagation(true);
 
@@ -52,7 +61,12 @@ public final class TracingHandler implements Handler {
                 }
               });
 
-      ctx.next();
+      if (rba != null) {
+        ctx.getExecution().add(RBA_CLASS_TOKEN, rba);
+        ctx.insert(BlockRequestHandler.INSTANCE);
+      } else {
+        ctx.next();
+      }
     } catch (final Throwable e) {
       DECORATE.onError(ratpackSpan, e);
       DECORATE.beforeFinish(ratpackSpan);

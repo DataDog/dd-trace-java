@@ -1,15 +1,15 @@
 package com.datadog.appsec.test
 
-import com.datadog.appsec.config.AppSecConfig
 import com.datadog.appsec.config.AppSecConfigDeserializer
 import com.datadog.appsec.config.AppSecConfigService
 import com.datadog.appsec.config.AppSecModuleConfigurer
+import com.datadog.appsec.config.CurrentAppSecConfig
 import com.datadog.appsec.config.TraceSegmentPostProcessor
 
 class StubAppSecConfigService implements AppSecConfigService, AppSecConfigService.TransactionalAppSecModuleConfigurer {
   Map<String, AppSecModuleConfigurer.SubconfigListener> listeners = [:]
 
-  Map<String, AppSecConfig> lastConfig
+  Map<String, Object> lastConfig
   final String location
   final traceSegmentPostProcessors = []
 
@@ -23,6 +23,10 @@ class StubAppSecConfigService implements AppSecConfigService, AppSecConfigServic
     this.hardcodedConfig = config
   }
 
+  CurrentAppSecConfig getCurrentAppSecConfig() {
+    lastConfig['waf']
+  }
+
   @Override
   void init() {
     if (hardcodedConfig) {
@@ -30,8 +34,9 @@ class StubAppSecConfigService implements AppSecConfigService, AppSecConfigServic
     } else {
       def loader = getClass().classLoader
       def stream = loader.getResourceAsStream(location)
-      lastConfig = Collections.singletonMap('waf',
-        AppSecConfigDeserializer.INSTANCE.deserialize(stream))
+      def casc = new CurrentAppSecConfig()
+      casc.ddConfig = AppSecConfigDeserializer.INSTANCE.deserialize(stream)
+      lastConfig = Collections.singletonMap('waf', casc)
     }
   }
 

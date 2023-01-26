@@ -5,24 +5,27 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers
 import spock.lang.Shared
 import spock.lang.Specification
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresContextField
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperMethod
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named
 
 class TypeFactoryForkedTest extends Specification {
+  static {
+    DDElementMatchers.registerAsSupplier()
+  }
 
   @Shared
   def typeFactory = TypeFactory.typeFactory.get()
 
   @Shared
-  def matchers = new DDElementMatchers()
+  def hasSuperType = hasSuperType(named('java.util.concurrent.Future'))
 
   @Shared
-  def hasSuperType = matchers.hasSuperType(named('java.util.concurrent.Future'))
+  def hasSuperMethod = hasSuperMethod(named('tryFire'))
 
   @Shared
-  def hasSuperMethod = matchers.hasSuperMethod(named('tryFire'))
-
-  @Shared
-  def hasContextField = matchers.declaresContextField('java.lang.Runnable', 'java.lang.String')
+  def hasContextField = declaresContextField('java.lang.Runnable', 'java.lang.String')
 
   def "can mix full types with outlines"() {
     when:

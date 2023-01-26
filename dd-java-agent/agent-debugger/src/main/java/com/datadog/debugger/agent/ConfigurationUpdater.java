@@ -1,11 +1,9 @@
 package com.datadog.debugger.agent;
 
-import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
-import com.datadog.debugger.probe.SnapshotProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.DebuggerSink;
@@ -14,8 +12,6 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.Snapshot;
-import datadog.trace.bootstrap.debugger.SnapshotSummaryBuilder;
-import datadog.trace.bootstrap.debugger.SummaryBuilder;
 import datadog.trace.util.TagsHelper;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
@@ -39,10 +35,11 @@ import org.slf4j.LoggerFactory;
 public class ConfigurationUpdater
     implements DebuggerContext.ProbeResolver, DebuggerProductChangesListener.ConfigurationAcceptor {
 
-  public static final int MAX_ALLOWED_SNAPSHOT_PROBES = 100;
   public static final int MAX_ALLOWED_METRIC_PROBES = 100;
   public static final int MAX_ALLOWED_LOG_PROBES = 100;
   private static final int MAX_ALLOWED_SPAN_PROBES = 100;
+  private static final double RATE_LIMIT_PER_SNAPSHOT_PROBE = 1.0;
+  private static final double RATE_LIMIT_PER_LOG_PROBE = 5000.0;
 
   public interface TransformerSupplier {
     DebuggerTransformer supply(
@@ -117,20 +114,16 @@ public class ConfigurationUpdater
   }
 
   private Configuration applyConfigurationFilters(Configuration configuration) {
-    Collection<SnapshotProbe> snapshotProbes =
-        filterProbes(
-            configuration::getSnapshotProbes, SnapshotProbe::isActive, MAX_ALLOWED_SNAPSHOT_PROBES);
-    snapshotProbes = mergeDuplicatedProbes(snapshotProbes);
     Collection<MetricProbe> metricProbes =
         filterProbes(
             configuration::getMetricProbes, MetricProbe::isActive, MAX_ALLOWED_METRIC_PROBES);
     Collection<LogProbe> logProbes =
         filterProbes(configuration::getLogProbes, LogProbe::isActive, MAX_ALLOWED_LOG_PROBES);
+    logProbes = mergeDuplicatedProbes(logProbes);
     Collection<SpanProbe> spanProbes =
         filterProbes(configuration::getSpanProbes, SpanProbe::isActive, MAX_ALLOWED_SPAN_PROBES);
     return new Configuration(
         serviceName,
-        snapshotProbes,
         metricProbes,
         logProbes,
         spanProbes,
@@ -152,9 +145,9 @@ public class ConfigurationUpdater
         .collect(Collectors.toList());
   }
 
-  Collection<SnapshotProbe> mergeDuplicatedProbes(Collection<SnapshotProbe> probes) {
-    Map<Where, SnapshotProbe> mergedProbes = new HashMap<>();
-    for (SnapshotProbe probe : probes) {
+  Collection<LogProbe> mergeDuplicatedProbes(Collection<LogProbe> probes) {
+    Map<Where, LogProbe> mergedProbes = new HashMap<>();
+    for (LogProbe probe : probes) {
       ProbeDefinition existingProbe = mergedProbes.putIfAbsent(probe.getWhere(), probe);
       if (existingProbe != null) {
         existingProbe.addAdditionalProbe(probe);
@@ -271,68 +264,56 @@ public class ConfigurationUpdater
 
   private Snapshot.ProbeDetails convertToProbeDetails(
       ProbeDefinition probe, Snapshot.ProbeLocation location) {
-    SummaryBuilder summaryBuilder;
-    ProbeCondition probeCondition;
-    if (probe instanceof SnapshotProbe) {
-      summaryBuilder = new SnapshotSummaryBuilder(location);
-      probeCondition = ((SnapshotProbe) probe).getProbeCondition();
-    } else if (probe instanceof LogProbe) {
-      summaryBuilder = new LogMessageTemplateSummaryBuilder((LogProbe) probe);
-      probeCondition = null;
-    } else {
+    if (!(probe instanceof LogProbe)) {
       log.warn("definition id={} has unsupported probe type: {}", probe.getId(), probe.getClass());
       return null;
     }
+    LogProbe logProbe = (LogProbe) probe;
     return new Snapshot.ProbeDetails(
         probe.getId(),
         location,
-        convertMethodLocation(probe.getEvaluateAt()),
-        probeCondition,
+        ProbeDefinition.MethodLocation.convert(probe.getEvaluateAt()),
+        logProbe.isCaptureSnapshot(),
+        logProbe.getProbeCondition(),
         probe.concatTags(),
-        summaryBuilder,
+        new LogMessageTemplateSummaryBuilder(logProbe),
         probe.getAdditionalProbes().stream()
-            .map(relatedProbe -> convertToProbeDetails(((SnapshotProbe) relatedProbe), location))
+            .map(relatedProbe -> convertToProbeDetails(relatedProbe, location))
             .collect(Collectors.toList()));
   }
 
-  private Snapshot.MethodLocation convertMethodLocation(
-      ProbeDefinition.MethodLocation methodLocation) {
-    switch (methodLocation) {
-      case DEFAULT:
-        return Snapshot.MethodLocation.DEFAULT;
-      case ENTRY:
-        return Snapshot.MethodLocation.ENTRY;
-      case EXIT:
-        return Snapshot.MethodLocation.EXIT;
-    }
-    return null;
-  }
-
   private void applyRateLimiter(ConfigurationComparer changes) {
-    Collection<SnapshotProbe> probes = currentConfiguration.getSnapshotProbes();
+    Collection<LogProbe> probes = currentConfiguration.getLogProbes();
     if (probes == null) {
       return;
     }
     // ensure rate is up-to-date for all new probes
     for (ProbeDefinition addedDefinitions : changes.getAddedDefinitions()) {
-      if (addedDefinitions instanceof SnapshotProbe) {
-        SnapshotProbe probe = (SnapshotProbe) addedDefinitions;
-        SnapshotProbe.Sampling sampling = probe.getSampling();
+      if (addedDefinitions instanceof LogProbe) {
+        LogProbe probe = (LogProbe) addedDefinitions;
+        LogProbe.Sampling sampling = probe.getSampling();
         ProbeRateLimiter.setRate(
-            probe.getId(), sampling != null ? sampling.getSnapshotsPerSecond() : 1.0);
+            probe.getId(),
+            sampling != null
+                ? sampling.getSnapshotsPerSecond()
+                : getDefaultRateLimitPerProbe(probe));
       }
     }
     // remove rate for all removed probes
     for (ProbeDefinition removedDefinition : changes.getRemovedDefinitions()) {
-      if (removedDefinition instanceof SnapshotProbe) {
+      if (removedDefinition instanceof LogProbe) {
         ProbeRateLimiter.resetRate(removedDefinition.getId());
       }
     }
     // set global sampling
-    SnapshotProbe.Sampling sampling = currentConfiguration.getSampling();
+    LogProbe.Sampling sampling = currentConfiguration.getSampling();
     if (sampling != null) {
       ProbeRateLimiter.setGlobalRate(sampling.getSnapshotsPerSecond());
     }
+  }
+
+  private double getDefaultRateLimitPerProbe(LogProbe probe) {
+    return probe.isCaptureSnapshot() ? RATE_LIMIT_PER_SNAPSHOT_PROBE : RATE_LIMIT_PER_LOG_PROBE;
   }
 
   private void removeCurrentTransformer() {

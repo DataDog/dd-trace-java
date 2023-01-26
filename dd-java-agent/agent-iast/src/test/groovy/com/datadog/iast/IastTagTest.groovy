@@ -1,10 +1,11 @@
 package com.datadog.iast
 
 import datadog.trace.api.TraceSegment
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.test.util.DDSpecification
 
-import static com.datadog.iast.IastTag.REQUEST_ANALYZED
-import static com.datadog.iast.IastTag.REQUEST_SKIPPED
+import static com.datadog.iast.IastTag.ANALYZED
+import static com.datadog.iast.IastTag.SKIPPED
 
 class IastTagTest extends DDSpecification {
 
@@ -19,9 +20,9 @@ class IastTagTest extends DDSpecification {
     1 * segment.setTagTop(tag.key(), tag.value())
 
     where:
-    tag              | _
-    REQUEST_ANALYZED | _
-    REQUEST_SKIPPED  | _
+    tag      | _
+    ANALYZED | _
+    SKIPPED  | _
   }
 
   void 'tags dont fail with null segment'(final IastTag tag) {
@@ -32,8 +33,37 @@ class IastTagTest extends DDSpecification {
     noExceptionThrown()
 
     where:
-    tag              | _
-    REQUEST_ANALYZED | _
-    REQUEST_SKIPPED  | _
+    tag      | _
+    ANALYZED | _
+    SKIPPED  | _
+  }
+
+  void 'tags are sent on the span'(final IastTag tag) {
+    given:
+    final span = Mock(AgentSpan)
+
+    when:
+    tag.setTag(span)
+
+    then:
+    1 * span.setTag(tag.key(), tag.value())
+
+    where:
+    tag      | _
+    ANALYZED | _
+    SKIPPED  | _
+  }
+
+  void 'tags dont fail with null span'(final IastTag tag) {
+    when:
+    tag.setTag(null)
+
+    then:
+    noExceptionThrown()
+
+    where:
+    tag      | _
+    ANALYZED | _
+    SKIPPED  | _
   }
 }

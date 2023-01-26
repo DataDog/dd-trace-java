@@ -84,6 +84,7 @@ shadowJar {
 
   dependencies {
     // direct dependencies
+    exclude(project(':dd-trace-api'))
     exclude(dependency('io.opentracing:'))
     exclude(dependency('io.opentracing.contrib:'))
     exclude(dependency('org.slf4j:'))
@@ -103,6 +104,7 @@ shadowJar {
     exclude('datadog.opentracing.resolver.*')
     exclude('datadog.trace.api.*')
     exclude('datadog.trace.api.config.*')
+    exclude('datadog.trace.api.experimental.*')
     exclude('datadog.trace.api.interceptor.*')
     exclude('datadog.trace.api.internal.*')
     exclude('datadog.trace.api.sampling.*')

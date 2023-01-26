@@ -1,9 +1,12 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitUtils.normalizeRef;
+import static datadog.trace.bootstrap.instrumentation.ci.utils.PathUtils.expandTilde;
+
 import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
 
-class GithubActionsInfo extends CIProviderInfo {
+class GithubActionsInfo implements CIProviderInfo {
 
   // https://docs.github.com/en/free-pro-team@latest/actions/reference/environment-variables#default-environment-variables
   public static final String GHACTIONS = "GITHUB_ACTION";
@@ -20,7 +23,7 @@ class GithubActionsInfo extends CIProviderInfo {
   public static final String GHACTIONS_URL = "GITHUB_SERVER_URL";
 
   @Override
-  protected GitInfo buildCIGitInfo() {
+  public GitInfo buildCIGitInfo() {
     return new GitInfo(
         buildGitRepositoryUrl(System.getenv(GHACTIONS_URL), System.getenv(GHACTIONS_REPOSITORY)),
         buildGitBranch(),
@@ -29,7 +32,7 @@ class GithubActionsInfo extends CIProviderInfo {
   }
 
   @Override
-  protected CIInfo buildCIInfo() {
+  public CIInfo buildCIInfo() {
     final String pipelineUrl =
         buildPipelineUrl(
             System.getenv(GHACTIONS_URL),
@@ -53,6 +56,11 @@ class GithubActionsInfo extends CIProviderInfo {
         .ciEnvVars(
             GHACTIONS_URL, GHACTIONS_REPOSITORY, GHACTIONS_PIPELINE_ID, GHACTIONS_PIPELINE_RETRY)
         .build();
+  }
+
+  @Override
+  public boolean isCI() {
+    return true;
   }
 
   private String buildGitTag() {

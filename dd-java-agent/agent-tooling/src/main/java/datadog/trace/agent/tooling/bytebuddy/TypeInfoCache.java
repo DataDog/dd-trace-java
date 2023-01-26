@@ -93,8 +93,8 @@ public final class TypeInfoCache<T> {
     }
 
     public boolean sameClassFile(URL classFile) {
-      return UNKNOWN_CLASS_FILE != this.classFile
-          && UNKNOWN_CLASS_FILE != classFile
+      return UNKNOWN_CLASS_FILE != classFile
+          && UNKNOWN_CLASS_FILE != this.classFile
           && sameClassFile(this.classFile, classFile);
     }
 

@@ -4,6 +4,7 @@ import datadog.trace.api.env.FixedCapturedEnvironment
 import datadog.trace.bootstrap.config.provider.ConfigConverter
 import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.test.util.DDSpecification
+import datadog.trace.util.throwable.FatalAgentMisconfigurationError
 import org.junit.Rule
 import spock.lang.Unroll
 
@@ -17,6 +18,8 @@ import static datadog.trace.api.DDTags.RUNTIME_ID_TAG
 import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG
 import static datadog.trace.api.DDTags.SERVICE
 import static datadog.trace.api.DDTags.SERVICE_TAG
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED
@@ -82,8 +85,8 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST
 import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY
 import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET
-import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.BAGGAGE_MAPPING
+import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.config.TracerConfig.HTTP_SERVER_ERROR_STATUSES
 import static datadog.trace.api.config.TracerConfig.ID_GENERATION_STRATEGY
@@ -105,8 +108,9 @@ import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RULES
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
-import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH
+import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
+import static datadog.trace.api.TracePropagationStyle.*
 
 class ConfigTest extends DDSpecification {
 
@@ -257,6 +261,8 @@ class ConfigTest extends DDSpecification {
     config.reportHostName == true
     config.propagationStylesToExtract.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
     config.propagationStylesToInject.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
+    config.tracePropagationStylesToExtract.toList() == [DATADOG, B3, B3MULTI]
+    config.tracePropagationStylesToInject.toList() == [B3, B3MULTI, DATADOG]
     config.jmxFetchEnabled == false
     config.jmxFetchMetricsConfigs == ["/foo.yaml", "/bar.yaml"]
     config.jmxFetchCheckPeriod == 100
@@ -274,7 +280,7 @@ class ConfigTest extends DDSpecification {
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"
-    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(),  (RUNTIME_VERSION_TAG): config.getRuntimeVersion(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): config.getRuntimeVersion(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingStartDelay == 1111
     config.profilingStartForceFirst == true
     config.profilingUploadPeriod == 1112
@@ -426,6 +432,8 @@ class ConfigTest extends DDSpecification {
     config.reportHostName == true
     config.propagationStylesToExtract.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
     config.propagationStylesToInject.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
+    config.tracePropagationStylesToExtract.toList() == [DATADOG, B3, B3MULTI]
+    config.tracePropagationStylesToInject.toList() == [B3, B3MULTI, DATADOG]
     config.jmxFetchEnabled == false
     config.jmxFetchMetricsConfigs == ["/foo.yaml", "/bar.yaml"]
     config.jmxFetchCheckPeriod == 100
@@ -503,6 +511,8 @@ class ConfigTest extends DDSpecification {
     config.writerType == "LoggingWriter"
     config.propagationStylesToExtract.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
     config.propagationStylesToInject.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
+    config.tracePropagationStylesToExtract.toList() == [B3, B3MULTI, DATADOG]
+    config.tracePropagationStylesToInject.toList() == [DATADOG, B3, B3MULTI]
     config.jmxFetchMetricsConfigs == ["some/file"]
     config.reportHostName == true
     config.xDatadogTagsMaxLength == 42
@@ -578,6 +588,8 @@ class ConfigTest extends DDSpecification {
     config.splitByTags == [].toSet()
     config.propagationStylesToExtract.toList() == [PropagationStyle.DATADOG]
     config.propagationStylesToInject.toList() == [PropagationStyle.DATADOG]
+    config.tracePropagationStylesToExtract.toList() == [DATADOG]
+    config.tracePropagationStylesToInject.toList() == [DATADOG]
   }
 
   def "sys props and env vars overrides for trace_agent_port and agent_port_legacy as expected"() {
@@ -684,6 +696,8 @@ class ConfigTest extends DDSpecification {
     config.partialFlushMinSpans == 15
     config.propagationStylesToExtract.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
     config.propagationStylesToInject.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
+    config.tracePropagationStylesToExtract.toList() == [B3, B3MULTI, DATADOG]
+    config.tracePropagationStylesToInject.toList() == [DATADOG, B3, B3MULTI]
     config.jmxFetchMetricsConfigs == ["/foo.yaml", "/bar.yaml"]
     config.jmxFetchCheckPeriod == 100
     config.jmxFetchRefreshBeansPeriod == 200
@@ -2093,6 +2107,35 @@ class ConfigTest extends DDSpecification {
     !hostname.trim().isEmpty()
   }
 
+  def "config instantiation should fail if CI visibility agentless mode is enabled and API key is not set"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(CIVISIBILITY_ENABLED, "true")
+    properties.setProperty(CIVISIBILITY_AGENTLESS_ENABLED, "true")
+
+    when:
+    new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    thrown FatalAgentMisconfigurationError
+  }
+
+  def "config instantiation should NOT fail if CI visibility agentless mode is enabled and API key is set"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(CIVISIBILITY_ENABLED, "true")
+    properties.setProperty(CIVISIBILITY_AGENTLESS_ENABLED, "true")
+    properties.setProperty(API_KEY, "123456789")
+
+    when:
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    noExceptionThrown()
+    config.isCiVisibilityEnabled()
+    config.isCiVisibilityAgentlessEnabled()
+  }
+
   static class ClassThrowsExceptionForValueOfMethod {
     static ClassThrowsExceptionForValueOfMethod valueOf(String ignored) {
       throw new Throwable()
@@ -2105,5 +2148,50 @@ class ConfigTest extends DDSpecification {
       bs.set(i)
     }
     return bs
+  }
+
+  def "check trace propagation style overrides for "() {
+    setup:
+    if (pse) {
+      environmentVariables.set('DD_PROPAGATION_STYLE_EXTRACT', pse.toString())
+    }
+    if (psi) {
+      environmentVariables.set('DD_PROPAGATION_STYLE_INJECT', psi.toString())
+    }
+    if (tps) {
+      environmentVariables.set('DD_TRACE_PROPAGATION_STYLE', tps.toString())
+    }
+    if (tpse) {
+      environmentVariables.set('DD_TRACE_PROPAGATION_STYLE_EXTRACT', tpse.toString())
+    }
+    if (tpsi) {
+      environmentVariables.set('DD_TRACE_PROPAGATION_STYLE_INJECT', tpsi.toString())
+    }
+    when:
+    Config config = new Config()
+
+    then:
+    config.propagationStylesToExtract.asList() == ePSE
+    config.propagationStylesToInject.asList() == ePSI
+    config.tracePropagationStylesToExtract.asList() == eTPSE
+    config.tracePropagationStylesToInject.asList() == eTPSI
+
+    where:
+    // spotless:off
+    pse                      | psi                      | tps      | tpse               | tpsi    | ePSE                       | ePSI                       | eTPSE         | eTPSI
+    PropagationStyle.DATADOG | PropagationStyle.B3      | null     | null               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.B3]      | [DATADOG]     | [B3, B3MULTI]
+    PropagationStyle.B3      | PropagationStyle.DATADOG | null     | null               | null    | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [B3, B3MULTI] | [DATADOG]
+    PropagationStyle.B3      | PropagationStyle.DATADOG | HAYSTACK | null               | null    | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [HAYSTACK]    | [HAYSTACK]
+    PropagationStyle.B3      | PropagationStyle.DATADOG | HAYSTACK | B3                 | null    | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [B3]          | [HAYSTACK]
+    PropagationStyle.B3      | PropagationStyle.DATADOG | HAYSTACK | null               | B3MULTI | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [HAYSTACK]    | [B3MULTI]
+    PropagationStyle.B3      | PropagationStyle.DATADOG | HAYSTACK | B3                 | B3MULTI | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [B3]          | [B3MULTI]
+    PropagationStyle.B3      | PropagationStyle.DATADOG | null     | B3                 | B3MULTI | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [B3]          | [B3MULTI]
+    null                     | null                     | HAYSTACK | null               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [HAYSTACK]    | [HAYSTACK]
+    null                     | null                     | HAYSTACK | B3                 | B3MULTI | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3]          | [B3MULTI]
+    null                     | null                     | null     | B3                 | B3MULTI | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3]          | [B3MULTI]
+    null                     | null                     | null     | null               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [DATADOG]     | [DATADOG]
+    null                     | null                     | null     | null               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [DATADOG]     | [DATADOG]
+    null                     | null                     | null     | "b3 single header" | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3]          | [DATADOG]
+    // spotless:on
   }
 }

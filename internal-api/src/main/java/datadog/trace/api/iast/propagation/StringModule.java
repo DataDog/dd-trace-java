@@ -23,4 +23,15 @@ public interface StringModule extends IastModule {
 
   void onStringSubSequence(
       @Nonnull String self, int beginIndex, int endIndex, @Nullable CharSequence result);
+
+  void onStringJoin(
+      @Nullable String result, @Nonnull CharSequence delimiter, @Nonnull CharSequence[] elements);
+
+  void onStringToUpperCase(@Nonnull String self, @Nullable String result);
+
+  void onStringToLowerCase(@Nonnull String self, @Nullable String result);
+
+  void onStringTrim(@Nonnull String self, @Nullable String result);
+
+  void onStringRepeat(@Nonnull String self, int count, @Nonnull String result);
 }

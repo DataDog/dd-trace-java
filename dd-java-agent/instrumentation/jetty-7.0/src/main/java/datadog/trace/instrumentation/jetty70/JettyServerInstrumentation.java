@@ -19,7 +19,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.jetty.ConnectionHandleRequestVisitor;
-import java.security.ProtectionDomain;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.AsmVisitorWrapper;
@@ -27,13 +26,11 @@ import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.field.FieldList;
 import net.bytebuddy.description.method.MethodList;
 import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.jar.asm.ClassVisitor;
 import net.bytebuddy.jar.asm.ClassWriter;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.pool.TypePool;
-import net.bytebuddy.utility.JavaModule;
 import org.eclipse.jetty.http.Generator;
 import org.eclipse.jetty.server.HttpConnection;
 import org.eclipse.jetty.server.Request;
@@ -84,20 +81,10 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
 
   @Override
   public AdviceTransformer transformer() {
-    return new AdviceTransformer() {
-      @Override
-      public DynamicType.Builder<?> transform(
-          DynamicType.Builder<?> builder,
-          TypeDescription typeDescription,
-          ClassLoader classLoader,
-          JavaModule module,
-          ProtectionDomain pd) {
-        return builder.visit(new ConnectionHandleRequestVisitorWrapper());
-      }
-    };
+    return new VisitingTransformer(new ConnectionHandleRequestVisitorWrapper());
   }
 
-  private static class ConnectionHandleRequestVisitorWrapper implements AsmVisitorWrapper {
+  public static class ConnectionHandleRequestVisitorWrapper implements AsmVisitorWrapper {
 
     @Override
     public int mergeWriter(int flags) {

@@ -21,6 +21,11 @@ class MapValueTest {
   }
 
   @Test
+  void prettyPrint() {
+    assertEquals("Map", instance.prettyPrint());
+  }
+
+  @Test
   void isEmpty() {
     assertFalse(instance.isEmpty());
   }

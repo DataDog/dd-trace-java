@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -180,6 +181,9 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
           "error.type" { it == Exception.name || it == InputMismatchException.name }
           "error.stack" String
         }
+        if ({ isDataStreamsEnabled() }){
+          "$DDTags.PATHWAY_HASH" { String }
+        }
         defaultTags()
       }
     }
@@ -209,6 +213,9 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
           "error.message" endpoint.body
           "error.type" { it == Exception.name || it == InputMismatchException.name }
           "error.stack" String
+        }
+        if ({ isDataStreamsEnabled() }){
+          "$DDTags.PATHWAY_HASH" { String }
         }
         defaultTags()
       }
