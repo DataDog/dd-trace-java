@@ -12,7 +12,7 @@ import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEAD
 
 class XRayHttpExtractorTest extends DDSpecification {
 
-  HttpCodec.Extractor extractor = XRayHttpCodec.newExtractor(["SOME_HEADER": "some-tag"], ["SOME_CUSTOM_BAGGAGE_HEADER": "some-baggage"])
+  HttpCodec.Extractor extractor = XRayHttpCodec.newExtractor(["SOME_HEADER": "some-tag"], ["SOME_CUSTOM_BAGGAGE_HEADER": "some-baggage", "SOME_CUSTOM_BAGGAGE_HEADER_2": "some-CaseSensitive-baggage"])
 
   boolean origAppSecActive
 
@@ -34,6 +34,7 @@ class XRayHttpExtractorTest extends DDSpecification {
       "Parent=${spanId.padLeft(16, '0')}${samplingPriority};=empty key;empty value=;=;;",
       SOME_HEADER : "my-interesting-info",
       SOME_CUSTOM_BAGGAGE_HEADER : "my-interesting-baggage-info",
+      SOME_CUSTOM_BAGGAGE_HEADER_2 : "my-interesting-baggage-info-2",
     ]
 
     when:
@@ -44,7 +45,8 @@ class XRayHttpExtractorTest extends DDSpecification {
     context.spanId == DDSpanId.fromHex("$spanId")
     context.baggage == [
       "empty value" : "",
-      "some-baggage": "my-interesting-baggage-info"
+      "some-baggage": "my-interesting-baggage-info",
+      "some-CaseSensitive-baggage": "my-interesting-baggage-info-2"
     ]
     context.tags == [
       "some-tag"    : "my-interesting-info"
