@@ -7,7 +7,6 @@ import com.google.common.collect.Sets
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.checkpoints.TestEndpointCheckpointer
-import datadog.trace.agent.test.checkpoints.TimelineTracingContextTracker
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
 import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter
 import datadog.trace.agent.tooling.AgentInstaller
@@ -123,10 +122,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   @SuppressWarnings('PropertyName')
   @Shared
-  TimelineTracingContextTracker TEST_TRACKER = Spy(TimelineTracingContextTracker.register())
-
-  @SuppressWarnings('PropertyName')
-  @Shared
   Set<DDSpanId> TEST_SPANS = Sets.newHashSet()
 
   @SuppressWarnings('PropertyName')
@@ -225,9 +220,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   }
 
   void setup() {
-    // re-register in case a new JVM is spawned
-    TimelineTracingContextTracker.register()
-
     configureLoggingLevels()
 
     assertThreadsEachCleanup = false
@@ -242,7 +234,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     println "Starting test: ${getSpecificationContext().getCurrentIteration().getName()}"
     TEST_TRACER.flush()
     TEST_SPANS.clear()
-    TEST_TRACKER.clear()
     TEST_WRITER.start()
     TEST_DATA_STREAMS_WRITER.clear()
     TEST_DATA_STREAMS_CHECKPOINTER.clear()
@@ -250,7 +241,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     def util = new MockUtil()
     util.attachMock(STATS_D_CLIENT, this)
     util.attachMock(TEST_CHECKPOINTER, this)
-    util.attachMock(TEST_TRACKER, this)
 
     originalAppSecRuntimeValue = ActiveSubsystems.APPSEC_ACTIVE
     ActiveSubsystems.APPSEC_ACTIVE = true
@@ -261,10 +251,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     def util = new MockUtil()
     util.detachMock(STATS_D_CLIENT)
     util.detachMock(TEST_CHECKPOINTER)
-    util.detachMock(TEST_TRACKER)
-
-
-    TEST_TRACKER.print()
 
     ActiveSubsystems.APPSEC_ACTIVE = originalAppSecRuntimeValue
   }

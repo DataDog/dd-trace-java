@@ -523,12 +523,6 @@ public class AgentTracer {
     }
 
     @Override
-    public void startWork() {}
-
-    @Override
-    public void finishWork() {}
-
-    @Override
     public RequestContext getRequestContext() {
       return null;
     }

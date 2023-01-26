@@ -328,8 +328,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
      * I would hope this becomes unnecessary.
      */
     final void onProperClose() {
-      span.finishWork();
-
       for (final ScopeListener listener : scopeManager.scopeListeners) {
         try {
           listener.afterScopeClosed();
@@ -541,7 +539,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
       }
       top = scope;
       scope.afterActivated();
-      top.span.startWork();
     }
 
     /** Fast check to see if the expectedScope is on top */
@@ -740,9 +737,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     @Override
     public AgentScope activate() {
       if (tryActivate()) {
-        AgentScope scope = scopeManager.continueSpan(this, spanUnderScope, source);
-        spanUnderScope.startWork();
-        return scope;
+        return scopeManager.continueSpan(this, spanUnderScope, source);
       } else {
         return null;
       }
@@ -763,7 +758,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
     @Override
     void cancelFromContinuedScopeClose() {
-      spanUnderScope.finishWork();
       cancel();
     }
 
