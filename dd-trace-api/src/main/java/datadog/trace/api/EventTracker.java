@@ -82,11 +82,11 @@ public class EventTracker {
       return;
     }
 
-    segment.setTagTop("appsec.events." + eventName + ".track", true);
+    segment.setTagTop("appsec.events." + eventName + ".track", true, true);
     segment.setTagTop(DDTags.MANUAL_KEEP, true);
 
     if (metadata != null && !metadata.isEmpty()) {
-      segment.setTagTop("appsec.events." + eventName, metadata);
+      segment.setTagTop("appsec.events." + eventName, metadata, true);
     }
   }
 }
