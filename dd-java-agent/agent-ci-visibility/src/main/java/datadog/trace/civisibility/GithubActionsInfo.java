@@ -21,6 +21,7 @@ class GithubActionsInfo implements CIProviderInfo {
   public static final String GHACTIONS_HEAD_REF = "GITHUB_HEAD_REF";
   public static final String GHACTIONS_REF = "GITHUB_REF";
   public static final String GHACTIONS_URL = "GITHUB_SERVER_URL";
+  public static final String GHACTIONS_JOB = "GITHUB_JOB";
 
   @Override
   public GitInfo buildCIGitInfo() {
@@ -51,6 +52,7 @@ class GithubActionsInfo implements CIProviderInfo {
         .ciPipelineName(System.getenv(GHACTIONS_PIPELINE_NAME))
         .ciPipelineNumber(System.getenv(GHACTIONS_PIPELINE_NUMBER))
         .ciPipelineUrl(pipelineUrl)
+        .ciJobName(System.getenv(GHACTIONS_JOB))
         .ciJobUrl(jobUrl)
         .ciWorkspace(expandTilde(System.getenv(GHACTIONS_WORKSPACE_PATH)))
         .ciEnvVars(
