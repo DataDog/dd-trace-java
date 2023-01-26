@@ -549,7 +549,7 @@ public class MoshiSnapshotHelper {
       if (value == null) {
         jsonWriter.name(IS_NULL);
         jsonWriter.value(true);
-      } else if (isPrimitive(type)) {
+      } else if (isPrimitive(type) || WellKnownClasses.isToStringSafe(type)) {
         jsonWriter.name(VALUE);
         writePrimitive(jsonWriter, value, limits);
       } else if (value.getClass().isArray() && (limits.maxReferenceDepth > 0)) {
@@ -868,14 +868,7 @@ public class MoshiSnapshotHelper {
           jsonWriter.name(SIZE);
           jsonWriter.value(String.valueOf(originalLength));
         }
-      } else if (value instanceof Long
-          || value instanceof Integer
-          || value instanceof Double
-          || value instanceof Boolean
-          || value instanceof Byte
-          || value instanceof Short
-          || value instanceof Float
-          || value instanceof Character) {
+      } else if (WellKnownClasses.isToStringSafe(value.getClass().getTypeName())) {
         jsonWriter.value(String.valueOf(value));
       } else {
         throw new IOException("Cannot convert value: " + value);

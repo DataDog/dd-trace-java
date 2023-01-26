@@ -56,7 +56,7 @@ public class ValueScript implements DebuggerScript {
 
   @Override
   public String toString() {
-    return "ValueScript{" + "expr=" + expr + ", dsl='" + dsl + '\'' + '}';
+    return "ValueScript{dsl='" + dsl + '\'' + '}';
   }
 
   public static ValueExpression<?> parseRefPath(String refPath) {

@@ -90,6 +90,15 @@ public class ProbeConditionTest {
   }
 
   @Test
+  void testStringOperation() throws Exception {
+    ProbeCondition probeCondition = load("/test_conditional_08.json");
+    Map<String, Object> fields = new HashMap<>();
+    fields.put("strField", "foobar");
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, fields);
+    assertTrue(probeCondition.execute(ctx));
+  }
+
+  @Test
   void testJsonAdapter() throws IOException {
     Moshi moshi =
         new Moshi.Builder()

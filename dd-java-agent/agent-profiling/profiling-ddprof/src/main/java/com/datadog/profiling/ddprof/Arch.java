@@ -9,8 +9,8 @@ import java.util.Set;
 public enum Arch {
   x64("x86_64", "amd64", "k8"),
   x86("x86", "i386", "i486", "i586", "i686"),
-  arm("ARM", "arm64"),
-  aarch64("aarch64"),
+  arm("ARM", "aarch32"),
+  arm64("arm64", "aarch64"),
   unknown();
 
   private final Set<String> identifiers;

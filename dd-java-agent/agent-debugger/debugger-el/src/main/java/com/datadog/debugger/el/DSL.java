@@ -5,6 +5,8 @@ import com.datadog.debugger.el.expressions.BinaryOperator;
 import com.datadog.debugger.el.expressions.BooleanExpression;
 import com.datadog.debugger.el.expressions.ComparisonExpression;
 import com.datadog.debugger.el.expressions.ComparisonOperator;
+import com.datadog.debugger.el.expressions.ContainsExpression;
+import com.datadog.debugger.el.expressions.EndsWithExpression;
 import com.datadog.debugger.el.expressions.FilterCollectionExpression;
 import com.datadog.debugger.el.expressions.GetMemberExpression;
 import com.datadog.debugger.el.expressions.HasAllExpression;
@@ -15,6 +17,9 @@ import com.datadog.debugger.el.expressions.IndexExpression;
 import com.datadog.debugger.el.expressions.IsEmptyExpression;
 import com.datadog.debugger.el.expressions.LenExpression;
 import com.datadog.debugger.el.expressions.NotExpression;
+import com.datadog.debugger.el.expressions.StartsWithExpression;
+import com.datadog.debugger.el.expressions.StringPredicateExpression;
+import com.datadog.debugger.el.expressions.SubStringExpression;
 import com.datadog.debugger.el.expressions.ValueExpression;
 import com.datadog.debugger.el.expressions.ValueRefExpression;
 import com.datadog.debugger.el.expressions.WhenExpression;
@@ -163,8 +168,28 @@ public class DSL {
     return new FilterCollectionExpression(valueExpression, filter);
   }
 
-  public static ValueExpression<Value<? extends Number>> len(ValueExpression<?> valueExpression) {
+  public static LenExpression len(ValueExpression<?> valueExpression) {
     return new LenExpression(valueExpression);
+  }
+
+  public static SubStringExpression subString(
+      ValueExpression<?> valueExpression, int startIndex, int endIndex) {
+    return new SubStringExpression(valueExpression, startIndex, endIndex);
+  }
+
+  public static StringPredicateExpression startsWith(
+      ValueExpression<?> valueExpression, StringValue str) {
+    return new StartsWithExpression(valueExpression, str);
+  }
+
+  public static StringPredicateExpression endsWith(
+      ValueExpression<?> valueExpression, StringValue str) {
+    return new EndsWithExpression(valueExpression, str);
+  }
+
+  public static StringPredicateExpression contains(
+      ValueExpression<?> valueExpression, StringValue str) {
+    return new ContainsExpression(valueExpression, str);
   }
 
   public static WhenExpression when(BooleanExpression expression) {

@@ -40,7 +40,7 @@ public class ProductState {
         new RatelimitedLogger(log, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
   }
 
-  public void apply(
+  public boolean apply(
       RemoteConfigResponse fleetResponse,
       List<ParsedConfigKey> relevantKeys,
       ConfigurationChangesListener.PollingRateHinter hinter) {
@@ -60,7 +60,6 @@ public class ProductState {
           byte[] content = getTargetFileContent(fleetResponse, configKey);
           callListenerApplyTarget(fleetResponse, hinter, configKey, content);
         }
-
       } catch (ConfigurationPoller.ReportableException e) {
         recordError(e);
       }
@@ -83,6 +82,8 @@ public class ProductState {
         log.error("Error committing changes for product" + product, ex);
       }
     }
+
+    return changesDetected;
   }
 
   private void callListenerApplyTarget(
