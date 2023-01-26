@@ -56,12 +56,13 @@ final class AuxiliaryDatadogProfiler implements AuxiliaryImplementation {
       instance = null;
     }
     datadogProfiler = instance;
-    if (datadogProfiler != null) {
+    if (datadogProfiler != null && datadogProfiler.isAvailable()) {
       FlightRecorder.addPeriodicEvent(DatadogProfilerConfigEvent.class, this::emitConfiguration);
     }
   }
 
   private void emitConfiguration() {
+    assert datadogProfiler.isAvailable();
     try {
       new DatadogProfilerConfigEvent(
               datadogProfiler.getVersion(),
@@ -79,7 +80,6 @@ final class AuxiliaryDatadogProfiler implements AuxiliaryImplementation {
       } else {
         log.warn("Exception occurred while attempting to emit config event: {}", t.toString());
       }
-      throw t;
     }
   }
 
@@ -91,7 +91,7 @@ final class AuxiliaryDatadogProfiler implements AuxiliaryImplementation {
   @Override
   @Nullable
   public OngoingRecording start() {
-    if (datadogProfiler != null) {
+    if (datadogProfiler != null && datadogProfiler.isAvailable()) {
       return datadogProfiler.start();
     }
     return null;

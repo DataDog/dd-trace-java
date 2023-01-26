@@ -868,18 +868,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     spanToSample.forceKeep(forceKeep);
     boolean published = forceKeep || sampler.sample(spanToSample);
     if (published) {
-      if (TracingContextTrackerFactory.isTrackingAvailable()) {
-        for (DDSpan span : writtenTrace) {
-          int stored = span.storeContextToTag();
-          if (stored > -1) {
-            log.trace(
-                "Sending statsd metric 'tracing.context.size'={} (client={})",
-                stored,
-                statsDClient);
-            statsDClient.histogram("tracing.context.size", stored);
-          }
-        }
-      }
       writer.write(writtenTrace);
     } else {
       // with span streaming this won't work - it needs to be changed

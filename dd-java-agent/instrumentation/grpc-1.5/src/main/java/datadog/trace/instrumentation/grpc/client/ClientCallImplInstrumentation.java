@@ -19,6 +19,7 @@ import io.grpc.ClientCall;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.Status;
+import io.grpc.StatusException;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -108,9 +109,13 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
 
   public static final class Cancel {
     @Advice.OnMethodEnter
-    public static void before(@Advice.This ClientCall<?, ?> call) {
+    public static void before(
+        @Advice.This ClientCall<?, ?> call, @Advice.Argument(1) Throwable cause) {
       AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
       if (null != span) {
+        if (cause instanceof StatusException) {
+          DECORATE.onClose(span, ((StatusException) cause).getStatus());
+        }
         span.finish();
       }
     }

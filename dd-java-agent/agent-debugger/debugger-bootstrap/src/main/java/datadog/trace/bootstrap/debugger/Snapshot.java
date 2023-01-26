@@ -182,7 +182,15 @@ public class Snapshot {
   }
 
   public String getSummary() {
-    return summaryBuilder.build();
+    String summary = summaryBuilder.build();
+    List<EvaluationError> errors = summaryBuilder.getEvaluationErrors();
+    if (!errors.isEmpty()) {
+      if (evaluationErrors == null) {
+        evaluationErrors = new ArrayList<>();
+      }
+      evaluationErrors.addAll(errors);
+    }
+    return summary;
   }
 
   public void commit() {
