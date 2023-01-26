@@ -14,4 +14,9 @@ public class CoroutineContextHelper {
   public static Job getJob(final CoroutineContext context) {
     return context.get((CoroutineContext.Key<Job>) Job.Key);
   }
+
+  @Nullable
+  public static ScopeStateCoroutineContext getScopeStateContext(final CoroutineContext context) {
+    return context.get(ScopeStateCoroutineContext.KEY);
+  }
 }

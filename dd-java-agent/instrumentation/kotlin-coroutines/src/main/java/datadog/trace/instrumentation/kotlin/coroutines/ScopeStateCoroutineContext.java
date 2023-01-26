@@ -11,17 +11,27 @@ import org.jetbrains.annotations.Nullable;
 
 public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeState> {
 
-  private static final Key<ScopeStateCoroutineContext> KEY = new ContextElementKey();
+  public static final Key<ScopeStateCoroutineContext> KEY = new ContextElementKey();
   private final ScopeState coroutineScopeState;
-  @Nullable private ContinuationHandler continuationHandler;
+  @Nullable private AgentScope.Continuation continuation;
+  @Nullable private AgentScope continuationScope;
+  private boolean isInitialized = false;
 
   public ScopeStateCoroutineContext() {
     coroutineScopeState = AgentTracer.get().newScopeState();
-    final AgentScope activeScope = AgentTracer.get().activeScope();
-    if (activeScope != null) {
-      activeScope.setAsyncPropagation(true);
-      continuationHandler =
-          new ContinuationHandler(coroutineScopeState, activeScope.captureConcurrent());
+  }
+
+  /**
+   * If there is an active scope at the time of invocation, and it is async propagated, then
+   * captures the scope's continuation
+   */
+  public void maybeInitialize() {
+    if (!isInitialized) {
+      final AgentScope activeScope = AgentTracer.get().activeScope();
+      if (activeScope != null && activeScope.isAsyncPropagating()) {
+        continuation = activeScope.captureConcurrent();
+      }
+      isInitialized = true;
     }
   }
 
@@ -38,12 +48,31 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
 
     coroutineScopeState.activate();
 
-    if (continuationHandler != null && !continuationHandler.isActive()) {
-      continuationHandler.activate();
-      continuationHandler.register(coroutineContext);
+    if (continuation != null && continuationScope == null) {
+      continuationScope = continuation.activate();
     }
 
     return oldScopeState;
+  }
+
+  /**
+   * If the context element has a captured scope continuation and an active scope, then closes the
+   * scope and cancels the continuation.
+   */
+  public void maybeCloseScopeAndCancelContinuation() {
+    final ScopeState currentThreadScopeState = AgentTracer.get().newScopeState();
+    currentThreadScopeState.fetchFromActive();
+
+    coroutineScopeState.activate();
+
+    if (continuationScope != null) {
+      continuationScope.close();
+    }
+    if (continuation != null) {
+      continuation.cancel();
+    }
+
+    currentThreadScopeState.activate();
   }
 
   @Nullable
