@@ -16,10 +16,8 @@ variables:
 .ci_authenticated_job:
   needs: []
   before_script:
-    - export DD_API_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.system-tests.dd_api_key --with-decryption --query "Parameter.Value" --out text)
-    - export GL_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.system-tests.gl_token --with-decryption --query "Parameter.Value" --out text)
-    - export CIRCLECI_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.system-tests.circleci_token --with-decryption --query "Parameter.Value" --out text)
-    - export GH_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.system-tests.gh_ghcr_token --with-decryption --query "Parameter.Value" --out text)
+    - export CIRCLECI_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.circleci_token --with-decryption --query "Parameter.Value" --out text)
+    - export GH_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.gh_token --with-decryption --query "Parameter.Value" --out text)
 
 .common: &common
   tags: [ "runner:main", "size:large" ]
