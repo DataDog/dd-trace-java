@@ -18,6 +18,13 @@ public interface TraceSegment {
     setTagTop(key, value, false);
   }
 
+  /**
+   * Add a tag to the top of this {@code TraceSegment} with optional key sanitization.
+   *
+   * @param key key of the tag
+   * @param value value of the tag
+   * @param sanitize indicates is key need to be sanitized
+   */
   void setTagTop(String key, Object value, boolean sanitize);
 
   /**
@@ -30,6 +37,13 @@ public interface TraceSegment {
     setTagCurrent(key, value, false);
   }
 
+  /**
+   * Add a tag to the current span in this {@code TraceSegment}. with optional key sanitization.
+   *
+   * @param key key of the tag
+   * @param value value of the tag
+   * @param sanitize indicates is key need to be sanitized
+   */
   void setTagCurrent(String key, Object value, boolean sanitize);
 
   /**
