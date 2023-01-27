@@ -3,7 +3,7 @@ package datadog.trace.agent.tooling.bytebuddy.csi;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.agent.tooling.AgentInstaller;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.lang.instrument.Instrumentation;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -17,8 +17,6 @@ import org.openjdk.jmh.annotations.State;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.web.client.RestTemplate;
-
-import java.lang.instrument.Instrumentation;
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.SingleShotTime)
@@ -48,7 +46,6 @@ public class CallSiteBenchmark {
     runBenchmark(Type.CALL_SITE);
   }
 
-  @SuppressForbidden
   private void runBenchmark(final Type type) throws Exception {
     type.apply(instrumentation);
     final Class<?> server = Class.forName("foo.bar.DummyApplication");
