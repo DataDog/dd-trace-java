@@ -27,11 +27,7 @@ public class FieldExtractorTest {
       new Limits(1, DEFAULT_COLLECTION_SIZE, DEFAULT_LENGTH, DEFAULT_FIELD_COUNT);
 
   private static void onField(
-      Field field,
-      Object value,
-      int maxDepth,
-      Map<String, Snapshot.CapturedValue> results,
-      Limits limits) {
+      Field field, Object value, Map<String, Snapshot.CapturedValue> results, Limits limits) {
     Map<String, Snapshot.CapturedValue> subFields =
         extract(
             value,
@@ -66,7 +62,7 @@ public class FieldExtractorTest {
     FieldExtractor.extract(
         obj,
         limits,
-        (field, value, maxDepth) -> onField(field, value, maxDepth, results, limits),
+        (field, value, maxDepth) -> onField(field, value, results, limits),
         (e, field) -> handleExtractException(e, field, "", results),
         (field) -> onMaxFieldCount(field, results, limits.maxFieldCount));
     return results;

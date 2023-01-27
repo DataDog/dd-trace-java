@@ -42,21 +42,21 @@ public class ELIntegrationSanityTest {
     DebuggerContext.initSnapshotSerializer(serializer);
     Person p = new Person();
     // set the limit not to follow references to fields
-    Limits limits = new Limits(1, 0, Integer.MAX_VALUE, Integer.MAX_VALUE);
+    Limits initialLimits = new Limits(1, 0, Integer.MAX_VALUE, Integer.MAX_VALUE);
     // create new captured context
     Snapshot.CapturedContext capturedContext = new Snapshot.CapturedContext();
     // this will resolve only the first-level fields of the given object
     List<Snapshot.CapturedValue> flds = new ArrayList<>();
     FieldExtractor.extract(
         p,
-        limits,
-        (field, value, maxDepth) -> {
+        initialLimits,
+        (field, value, limits) -> {
           flds.add(
               Snapshot.CapturedValue.of(
                   field.getName(),
                   field.getType().getName(),
                   value,
-                  maxDepth,
+                  limits.maxReferenceDepth,
                   limits.maxCollectionSize,
                   limits.maxLength,
                   limits.maxFieldCount));

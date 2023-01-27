@@ -3,10 +3,8 @@ package com.datadog.debugger.agent;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.probe.LogProbe;
-import com.datadog.debugger.util.ValueSerializer;
+import com.datadog.debugger.util.SerializerWithLimits;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
-import datadog.trace.bootstrap.debugger.FieldExtractor;
-import datadog.trace.bootstrap.debugger.Fields;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.bootstrap.debugger.SummaryBuilder;
@@ -14,11 +12,16 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 public class LogMessageTemplateSummaryBuilder implements SummaryBuilder {
-  private static final Logger LOG = LoggerFactory.getLogger(LogMessageTemplateSummaryBuilder.class);
+  /**
+   * Serialization limits for log messages. Most values are lower than snapshot because you can
+   * directly reference vlaues that are in your interest with Expression Language:
+   * obj.field.deepfield or array[1001]
+   */
+  private static final Limits LIMITS = new Limits(1, 3, 255, 5);
 
   private final LogProbe logProbe;
   private final List<Snapshot.EvaluationError> evaluationErrors = new ArrayList<>();
@@ -85,26 +88,24 @@ public class LogMessageTemplateSummaryBuilder implements SummaryBuilder {
     message = sb.toString();
   }
 
-  private void serializeValue(StringBuilder sb, String expr, Object value, Limits limits) {
-    ValueSerializer serializer =
-        new ValueSerializer(new StringTypeSerializer(sb, evaluationErrors));
+  private void serializeValue(StringBuilder sb, String expr, Object value) {
+    SerializerWithLimits serializer =
+        new SerializerWithLimits(new StringTokenWriter(sb, evaluationErrors));
     try {
-      serializer.serialize(
-          value, value != null ? value.getClass().getTypeName() : "java.lang.Object", limits);
+      serializer.serialize(value, value != null ? value.getClass().getTypeName() : null, LIMITS);
     } catch (Exception ex) {
       evaluationErrors.add(new Snapshot.EvaluationError(expr, ex.toString()));
     }
   }
 
-  private static class StringTypeSerializer implements ValueSerializer.TypeSerializer {
-
+  private static class StringTokenWriter implements SerializerWithLimits.TokenWriter {
     private final StringBuilder sb;
     private final List<Snapshot.EvaluationError> evalErrors;
     private boolean initial;
     private boolean inCollection;
     private boolean inMapEntry;
 
-    public StringTypeSerializer(StringBuilder sb, List<Snapshot.EvaluationError> evalErrors) {
+    public StringTokenWriter(StringBuilder sb, List<Snapshot.EvaluationError> evalErrors) {
       this.sb = sb;
       this.evalErrors = evalErrors;
     }
@@ -202,42 +203,36 @@ public class LogMessageTemplateSummaryBuilder implements SummaryBuilder {
     }
 
     @Override
-    public void objectValue(Object value, ValueSerializer valueSerializer, Limits limits)
-        throws Exception {
+    public void objectPrologue(Object value) throws Exception {
       sb.append("{");
       initial = true;
-      Fields.ProcessField onField =
-          (field, val, maxDepth) -> {
-            try {
-              if (!initial) {
-                sb.append(", ");
-              }
-              initial = false;
-              sb.append(field.getName()).append("=");
-              Limits newLimits = Limits.decDepthLimits(maxDepth, limits);
-              String typeName;
-              if (ValueSerializer.isPrimitive(field.getType().getTypeName())) {
-                typeName = field.getType().getTypeName();
-              } else {
-                typeName =
-                    val != null ? val.getClass().getTypeName() : field.getType().getTypeName();
-              }
-              valueSerializer.serialize(
-                  val instanceof Snapshot.CapturedValue
-                      ? ((Snapshot.CapturedValue) val).getValue()
-                      : val,
-                  typeName,
-                  newLimits);
-            } catch (Exception ex) {
-              LOG.debug("Exception when extracting field={}", field.getName(), ex);
-            }
-          };
-      FieldExtractor.extract(
-          value, limits, onField, this::fieldExceptionHandling, this::maxFieldCount);
+    }
+
+    @Override
+    public void fieldPrologue(Field field, Object value, int maxDepth) throws Exception {
+      if (!initial) {
+        sb.append(", ");
+      }
+      initial = false;
+      sb.append(field.getName()).append("=");
+    }
+
+    @Override
+    public BiConsumer<Exception, Field> getFieldExceptionHandler() {
+      return this::fieldExceptionHandler;
+    }
+
+    @Override
+    public Consumer<Field> getMaxFieldCountHandler() {
+      return this::maxFieldCountHandler;
+    }
+
+    @Override
+    public void objectEpilogue(Object value) throws Exception {
       sb.append("}");
     }
 
-    private void fieldExceptionHandling(Exception ex, Field field) {
+    private void fieldExceptionHandler(Exception ex, Field field) {
       if (!initial) {
         sb.append(", ");
       }

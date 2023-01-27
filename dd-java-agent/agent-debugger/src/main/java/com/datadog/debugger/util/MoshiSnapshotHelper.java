@@ -1,12 +1,12 @@
 package com.datadog.debugger.util;
 
+import static datadog.trace.api.iast.IastModule.LOG;
+
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
-import datadog.trace.bootstrap.debugger.FieldExtractor;
-import datadog.trace.bootstrap.debugger.Fields;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import java.io.ByteArrayInputStream;
@@ -358,7 +358,7 @@ public class MoshiSnapshotHelper {
                 value = list;
               } else if (type.endsWith("[]")) {
                 String componentType = type.substring(0, type.indexOf('['));
-                if (ValueSerializer.isPrimitive(componentType)) {
+                if (SerializerWithLimits.isPrimitive(componentType)) {
                   value = createPrimitiveArray(componentType, values);
                 } else {
                   value = values.stream().map(Snapshot.CapturedValue::getValue).toArray();
@@ -519,7 +519,7 @@ public class MoshiSnapshotHelper {
 
     private void serializeValue(JsonWriter jsonWriter, Object value, String type, Limits limits)
         throws IOException {
-      ValueSerializer serializer = new ValueSerializer(new JsonTypeSerializer(jsonWriter));
+      SerializerWithLimits serializer = new SerializerWithLimits(new JsonTokenWriter(jsonWriter));
       try {
         serializer.serialize(value, type, limits);
       } catch (Exception ex) {
@@ -563,12 +563,12 @@ public class MoshiSnapshotHelper {
       return null;
     }
 
-    private static class JsonTypeSerializer implements ValueSerializer.TypeSerializer {
-      private static final Logger LOG = LoggerFactory.getLogger(JsonTypeSerializer.class);
+    private static class JsonTokenWriter implements SerializerWithLimits.TokenWriter {
+      private static final Logger LOG = LoggerFactory.getLogger(JsonTokenWriter.class);
 
       private final JsonWriter jsonWriter;
 
-      public JsonTypeSerializer(JsonWriter jsonWriter) {
+      public JsonTokenWriter(JsonWriter jsonWriter) {
         this.jsonWriter = jsonWriter;
       }
 
@@ -684,57 +684,52 @@ public class MoshiSnapshotHelper {
       }
 
       @Override
-      public void objectValue(Object value, ValueSerializer valueSerializer, Limits limits)
-          throws Exception {
+      public void objectPrologue(Object value) throws Exception {
         jsonWriter.name(FIELDS);
         jsonWriter.beginObject();
-        Fields.ProcessField onField =
-            (field, val, maxDepth) -> {
-              try {
-                jsonWriter.name(field.getName());
-                Limits newLimits = Limits.decDepthLimits(maxDepth, limits);
-                String typeName;
-                if (ValueSerializer.isPrimitive(field.getType().getTypeName())) {
-                  typeName = field.getType().getTypeName();
-                } else {
-                  typeName =
-                      val != null ? val.getClass().getTypeName() : field.getType().getTypeName();
-                }
-                valueSerializer.serialize(
-                    val instanceof Snapshot.CapturedValue
-                        ? ((Snapshot.CapturedValue) val).getValue()
-                        : val,
-                    typeName,
-                    newLimits);
-              } catch (Exception ex) {
-                LOG.debug("Exception when extracting field={}", field.getName(), ex);
-              }
-            };
-        BiConsumer<Exception, Field> exHandling =
-            (ex, field) -> {
-              String fieldName = field.getName();
-              try {
-                jsonWriter.name(fieldName);
-                jsonWriter.beginObject();
-                jsonWriter.name(TYPE);
-                jsonWriter.value(field.getType().getTypeName());
-                jsonWriter.name(NOT_CAPTURED_REASON);
-                jsonWriter.value(ex.toString());
-                jsonWriter.endObject();
-              } catch (IOException e) {
-                LOG.debug("Error during serializing reason for failed field extraction", e);
-              }
-            };
-        Consumer<Field> maxFieldCount =
-            (field) -> {
-              try {
-                jsonWriter.name(NOT_CAPTURED_REASON);
-                jsonWriter.value(FIELD_COUNT_REASON);
-              } catch (IOException e) {
-                LOG.debug("Error during serializing reason for reaching max field count", e);
-              }
-            };
-        FieldExtractor.extract(value, limits, onField, exHandling, maxFieldCount);
+      }
+
+      @Override
+      public void fieldPrologue(Field field, Object value, int maxDepth) throws Exception {
+        jsonWriter.name(field.getName());
+      }
+
+      @Override
+      public BiConsumer<Exception, Field> getFieldExceptionHandler() {
+        return this::fieldExceptionHandler;
+      }
+
+      private void fieldExceptionHandler(Exception ex, Field field) {
+        String fieldName = field.getName();
+        try {
+          jsonWriter.name(fieldName);
+          jsonWriter.beginObject();
+          jsonWriter.name(TYPE);
+          jsonWriter.value(field.getType().getTypeName());
+          jsonWriter.name(NOT_CAPTURED_REASON);
+          jsonWriter.value(ex.toString());
+          jsonWriter.endObject();
+        } catch (IOException e) {
+          LOG.debug("Error during serializing reason for failed field extraction", e);
+        }
+      }
+
+      @Override
+      public Consumer<Field> getMaxFieldCountHandler() {
+        return this::maxFieldCountHandler;
+      }
+
+      private void maxFieldCountHandler(Field field) {
+        try {
+          jsonWriter.name(NOT_CAPTURED_REASON);
+          jsonWriter.value(FIELD_COUNT_REASON);
+        } catch (IOException e) {
+          LOG.debug("Error during serializing reason for reaching max field count", e);
+        }
+      }
+
+      @Override
+      public void objectEpilogue(Object value) throws Exception {
         jsonWriter.endObject();
       }
 

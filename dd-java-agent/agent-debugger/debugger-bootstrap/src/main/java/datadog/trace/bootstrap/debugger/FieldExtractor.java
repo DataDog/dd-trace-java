@@ -39,13 +39,6 @@ public class FieldExtractor {
     if (declaredFields.length == 0) {
       return;
     }
-    Fields.processFields(
-        obj,
-        FieldExtractor::filterIn,
-        onField,
-        exHandling,
-        maxFieldCount,
-        limits.maxFieldCount,
-        limits.maxReferenceDepth);
+    Fields.processFields(obj, FieldExtractor::filterIn, onField, exHandling, maxFieldCount, limits);
   }
 }

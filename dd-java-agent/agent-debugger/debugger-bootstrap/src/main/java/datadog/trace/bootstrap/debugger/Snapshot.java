@@ -181,7 +181,7 @@ public class Snapshot {
     return evaluationErrors;
   }
 
-  public String getSummary() {
+  public String buildSummary() {
     String summary = summaryBuilder.build();
     List<EvaluationError> errors = summaryBuilder.getEvaluationErrors();
     if (!errors.isEmpty()) {

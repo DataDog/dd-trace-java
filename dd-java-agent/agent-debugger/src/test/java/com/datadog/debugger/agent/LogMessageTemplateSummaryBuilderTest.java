@@ -185,6 +185,20 @@ class LogMessageTemplateSummaryBuilderTest {
   }
 
   @Test
+  public void argComplexObjectArrayTemplate() {
+    LogProbe probe = LogProbe.builder().template("{array}").build();
+    LogMessageTemplateSummaryBuilder summaryBuilder = new LogMessageTemplateSummaryBuilder(probe);
+    Snapshot.CapturedContext capturedContext = new Snapshot.CapturedContext();
+    capturedContext.addArguments(
+        new Snapshot.CapturedValue[] {
+          Snapshot.CapturedValue.of(
+              "array", Level0[].class.getTypeName(), new Level0[] {new Level0(), new Level0()})
+        });
+    summaryBuilder.addEntry(capturedContext);
+    assertEquals("[..., ...]", summaryBuilder.build());
+  }
+
+  @Test
   @EnabledOnJre(JRE.JAVA_17)
   public void argInaccessibleFieldTemplate() {
     LogProbe probe = LogProbe.builder().template("{obj}").build();

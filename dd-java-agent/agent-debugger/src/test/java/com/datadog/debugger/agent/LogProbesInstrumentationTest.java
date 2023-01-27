@@ -56,7 +56,7 @@ public class LogProbesInstrumentationTest {
     Assert.assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
-    assertEquals("this is log line", snapshot.getSummary());
+    assertEquals("this is log line", snapshot.buildSummary());
   }
 
   @Test
@@ -70,7 +70,7 @@ public class LogProbesInstrumentationTest {
     Assert.assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
-    assertEquals("this is log line with arg=1", snapshot.getSummary());
+    assertEquals("this is log line with arg=1", snapshot.buildSummary());
   }
 
   @Test
@@ -91,7 +91,7 @@ public class LogProbesInstrumentationTest {
     Assert.assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
-    assertEquals("this is log line with return=3", snapshot.getSummary());
+    assertEquals("this is log line with return=3", snapshot.buildSummary());
   }
 
   @Test
@@ -119,10 +119,10 @@ public class LogProbesInstrumentationTest {
     Assert.assertEquals(2, listener.snapshots.size());
     Snapshot snapshot0 = listener.snapshots.get(0);
     assertCapturesNull(snapshot0);
-    assertEquals("this is log line #1 with arg=1", snapshot0.getSummary());
+    assertEquals("this is log line #1 with arg=1", snapshot0.buildSummary());
     Snapshot snapshot1 = listener.snapshots.get(1);
     assertCapturesNull(snapshot1);
-    assertEquals("this is log line #2 with arg=1", snapshot1.getSummary());
+    assertEquals("this is log line #2 with arg=1", snapshot1.buildSummary());
   }
 
   @Test
@@ -195,7 +195,7 @@ public class LogProbesInstrumentationTest {
     Assert.assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
-    assertEquals("this is log line", snapshot.getSummary());
+    assertEquals("this is log line", snapshot.buildSummary());
   }
 
   @Test
@@ -208,7 +208,7 @@ public class LogProbesInstrumentationTest {
     Assert.assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
-    assertEquals("this is log line with local var=3", snapshot.getSummary());
+    assertEquals("this is log line with local var=3", snapshot.buildSummary());
   }
 
   @Test
@@ -226,7 +226,7 @@ public class LogProbesInstrumentationTest {
     Assert.assertEquals(143, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
-    assertEquals("nullObject=null sdata=foo cdata=101", snapshot.getSummary());
+    assertEquals("nullObject=null sdata=foo cdata=101", snapshot.buildSummary());
   }
 
   @Test
@@ -245,7 +245,7 @@ public class LogProbesInstrumentationTest {
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
     assertEquals(
-        "this is log line with {curly braces} and with local var={3}", snapshot.getSummary());
+        "this is log line with {curly braces} and with local var={3}", snapshot.buildSummary());
   }
 
   @Test
@@ -258,7 +258,7 @@ public class LogProbesInstrumentationTest {
     Assert.assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
-    assertEquals("this is log line with local var=UNDEFINED", snapshot.getSummary());
+    assertEquals("this is log line with local var=UNDEFINED", snapshot.buildSummary());
     assertEquals(1, snapshot.getEvaluationErrors().size());
     assertEquals("var42", snapshot.getEvaluationErrors().get(0).getExpr());
     assertEquals("Cannot find symbol: var42", snapshot.getEvaluationErrors().get(0).getMessage());
@@ -275,7 +275,7 @@ public class LogProbesInstrumentationTest {
     Assert.assertEquals(143, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
-    assertEquals("this is log line with field=UNDEFINED", snapshot.getSummary());
+    assertEquals("this is log line with field=UNDEFINED", snapshot.buildSummary());
     assertEquals(1, snapshot.getEvaluationErrors().size());
     assertEquals("intValue", snapshot.getEvaluationErrors().get(0).getExpr());
     assertEquals(
@@ -293,7 +293,7 @@ public class LogProbesInstrumentationTest {
     int result = Reflect.on(testClass).call("main", "f").get();
     Assert.assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
-    assertEquals("this is log line with element of list=UNDEFINED", snapshot.getSummary());
+    assertEquals("this is log line with element of list=UNDEFINED", snapshot.buildSummary());
     assertEquals(1, snapshot.getEvaluationErrors().size());
     assertEquals("strList[10]", snapshot.getEvaluationErrors().get(0).getExpr());
     assertEquals(
