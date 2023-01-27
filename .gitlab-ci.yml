@@ -183,8 +183,8 @@ tracer-base-image:
   image: datadog/dd-trace-java-docker-build:latest
   stage: deploy
   rules:
-    - if: '$CI_COMMIT_BRANCH == "robertomonteromiguel/docker_base_image_poc_v2"'
-      when: always
+   # - if: '$CI_COMMIT_BRANCH == "robertomonteromiguel/docker_base_image_poc_v2"'
+   #   when: always
     - when: manual
   script:
     - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
@@ -196,4 +196,16 @@ tracer-base-image:
     - docker build -t ghcr.io/datadog/system-tests/dd-trace-java:latest -f ./tooling/ci/Dockerfile .
     - docker push ghcr.io/datadog/system-tests/dd-trace-java:latest  
 
-
+tracer-base-image-snapshot:
+  <<: *gradle_build
+  extends: .ci_authenticated_job
+  stage: deploy
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "robertomonteromiguel/docker_base_image_poc_v2"'
+      when: on_success
+    - when: manual
+      allow_failure: true
+  script:
+    - mkdir -p ./tooling/ci/binaries/ && cp workspace/dd-java-agent/build/libs/*.jar ./tooling/ci/binaries/dd-java-agent.jar
+    - docker build -t ghcr.io/datadog/system-tests/dd-trace-java:latest_snapshot -f ./tooling/ci/Dockerfile .
+    - docker push ghcr.io/datadog/system-tests/dd-trace-java:latest_snapshot  
