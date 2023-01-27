@@ -702,8 +702,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public AgentScope.Continuation captureSpan(final AgentSpan span, ScopeSource source) {
-    return scopeManager.captureSpan(span, source);
+  public AgentScope.Continuation captureSpan(final AgentSpan span) {
+    return scopeManager.captureSpan(span);
   }
 
   @Override

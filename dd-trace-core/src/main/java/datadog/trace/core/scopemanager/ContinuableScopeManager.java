@@ -104,8 +104,8 @@ public final class ContinuableScopeManager implements AgentScopeManager {
   }
 
   @Override
-  public AgentScope.Continuation captureSpan(final AgentSpan span, final ScopeSource source) {
-    AbstractContinuation continuation = new SingleContinuation(this, span, source.id());
+  public AgentScope.Continuation captureSpan(final AgentSpan span) {
+    AbstractContinuation continuation = new SingleContinuation(this, span, ScopeSource.INSTRUMENTATION.id());
     continuation.register();
     return continuation;
   }
