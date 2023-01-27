@@ -201,6 +201,8 @@ tracer-base-image-snapshot:
       when: on_success
     - when: manual
       allow_failure: true
+  dependencies:
+  - gradle_build
   script:
     - echo "Debug.Current folder:"
     - pwd
