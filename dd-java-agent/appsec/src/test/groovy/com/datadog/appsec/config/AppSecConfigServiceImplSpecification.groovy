@@ -102,6 +102,42 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     ConfigurationEndListener savedConfEndListener
   }
 
+  void 'activation without custom config provides valid configuration'() {
+    AppSecModuleConfigurer.SubconfigListener subconfigListener = Mock()
+    SavedListeners listeners = new SavedListeners()
+
+    when:
+    AppSecSystem.active = false
+    appSecConfigService.init()
+    appSecConfigService.maybeSubscribeConfigPolling()
+    def configurer = appSecConfigService.createAppSecModuleConfigurer()
+    configurer.addSubConfigListener("waf", subconfigListener)
+    configurer.commit()
+
+    then:
+    1 * config.getAppSecRulesFile() >> null
+    1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
+      listeners.savedFeaturesDeserializer = it[1]
+      listeners.savedFeaturesListener = it[2]
+      true
+    }
+    1 * poller.addConfigurationEndListener(_) >> { listeners.savedConfEndListener = it[0] }
+    _ * poller._
+    0 * _._
+
+    when:
+    listeners.savedFeaturesListener.accept(
+      'ignored config key',
+      listeners.savedFeaturesDeserializer.deserialize(
+      '{"asm":{"enabled": true}}'.bytes), null)
+    listeners.savedConfEndListener.onConfigurationEnd()
+
+    then:
+    1 * subconfigListener.onNewSubconfig({ CurrentAppSecConfig casc -> casc.ddConfig != null }, _)
+    0 * _._
+    AppSecSystem.active == true
+  }
+
   void 'provides updated configuration to waf subscription'() {
     AppSecModuleConfigurer.SubconfigListener subconfigListener = Mock()
     SavedListeners listeners = new SavedListeners()
