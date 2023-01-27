@@ -6,18 +6,15 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
-
-import javax.annotation.Nonnull;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import javax.annotation.Nonnull;
 
 class ContinuableScope implements AgentScope, AttachableWrapper {
   private final ContinuableScopeManager scopeManager;
 
   final AgentSpan span; // package-private so scopeManager can access it directly
 
-  /**
-   * Flag to propagate this scope across async boundaries.
-   */
+  /** Flag to propagate this scope across async boundaries. */
   private boolean isAsyncPropagating;
 
   private final byte flags;
@@ -25,8 +22,7 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
   private short referenceCount = 1;
 
   private volatile Object wrapper;
-  private static final AtomicReferenceFieldUpdater<ContinuableScope, Object>
-      WRAPPER_FIELD_UPDATER =
+  private static final AtomicReferenceFieldUpdater<ContinuableScope, Object> WRAPPER_FIELD_UPDATER =
       AtomicReferenceFieldUpdater.newUpdater(ContinuableScope.class, Object.class, "wrapper");
 
   ContinuableScope(
@@ -101,9 +97,7 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
     ++referenceCount;
   }
 
-  /**
-   * Decrements ref count -- returns true if the scope is still alive
-   */
+  /** Decrements ref count -- returns true if the scope is still alive */
   final boolean decrementReferences() {
     return --referenceCount > 0;
   }
@@ -112,9 +106,7 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
     referenceCount = 0;
   }
 
-  /**
-   * Returns true if the scope is still alive (non-zero ref count)
-   */
+  /** Returns true if the scope is still alive (non-zero ref count) */
   final boolean alive() {
     return referenceCount > 0;
   }
@@ -177,7 +169,8 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
         listener.afterScopeActivated(
             span.getTraceId(), span.getLocalRootSpan().getSpanId(), span.context().getSpanId());
       } catch (Throwable e) {
-        ContinuableScopeManager.log.debug("ExtendedScopeListener threw exception in afterActivated()", e);
+        ContinuableScopeManager.log.debug(
+            "ExtendedScopeListener threw exception in afterActivated()", e);
       }
     }
   }

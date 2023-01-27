@@ -2,7 +2,6 @@ package datadog.trace.core.scopemanager;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 /**
@@ -67,7 +66,8 @@ final class ConcurrentContinuation extends AbstractContinuation {
     if (tryClose()) {
       trace.cancelContinuation(this);
     }
-    ContinuableScopeManager.log.debug("t_id={} -> canceling continuation {}", spanUnderScope.getTraceId(), this);
+    ContinuableScopeManager.log.debug(
+        "t_id={} -> canceling continuation {}", spanUnderScope.getTraceId(), this);
   }
 
   @Override

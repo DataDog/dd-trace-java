@@ -18,7 +18,6 @@ import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.AgentTaskScheduler;
-
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +25,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,47 +35,53 @@ import org.slf4j.LoggerFactory;
  * ScopeInterceptors to provide additional functionality.
  */
 public final class ContinuableScopeManager implements AgentScopeManager {
-
   static final Logger log = LoggerFactory.getLogger(ContinuableScopeManager.class);
-  final ScopeStackThreadLocal tlsScopeStack;
-
   static final long iterationKeepAlive =
       SECONDS.toMillis(Config.get().getScopeIterationKeepAlive());
-
   volatile ConcurrentMap<ScopeStack, ContinuableScope> rootIterationScopes;
-
   final List<ScopeListener> scopeListeners;
   final List<ExtendedScopeListener> extendedScopeListeners;
   final StatsDClient statsDClient;
   final boolean strictMode;
-  private final HealthMetrics healthMetrics;
-
+  private final ScopeStackThreadLocal tlsScopeStack;
   private final int depthLimit;
   private final boolean inheritAsyncPropagation;
+  private final HealthMetrics healthMetrics;
 
+  /**
+   * Constructor with NOOP StatsD, Profiling and HealthMetrics implementation.
+   *
+   * @param depthLimit The maximum scope depth limit, <code>0</code> for unlimited.
+   * @param strictMode Whether check if the closed spans are the active ones or not.
+   * @param inheritAsyncPropagation Whether the next span should inherit the active span
+   *     asyncPropagation flag.
+   */
   public ContinuableScopeManager(
-      final int depthLimit,
-      final StatsDClient statsDClient,
-      final boolean strictMode,
-      final boolean inheritAsyncPropagation,
-      final HealthMetrics healthMetrics) {
+      final int depthLimit, final boolean strictMode, final boolean inheritAsyncPropagation) {
     this(
         depthLimit,
-        statsDClient,
         strictMode,
         inheritAsyncPropagation,
+        StatsDClient.NO_OP,
         ProfilingContextIntegration.NoOp.INSTANCE,
-        healthMetrics);
+        HealthMetrics.NO_OP);
   }
 
+  /**
+   * Default constructor.
+   *
+   * @param depthLimit The maximum scope depth limit, <code>0</code> for unlimited.
+   * @param strictMode Whether check if the closed spans are the active ones or not.
+   * @param inheritAsyncPropagation Whether the next span should inherit the active span
+   *     asyncPropagation flag.
+   */
   public ContinuableScopeManager(
       final int depthLimit,
-      final StatsDClient statsDClient,
       final boolean strictMode,
       final boolean inheritAsyncPropagation,
+      final StatsDClient statsDClient,
       final ProfilingContextIntegration profilingContextIntegration,
       final HealthMetrics healthMetrics) {
-
     this.depthLimit = depthLimit == 0 ? Integer.MAX_VALUE : depthLimit;
     this.statsDClient = statsDClient;
     this.strictMode = strictMode;

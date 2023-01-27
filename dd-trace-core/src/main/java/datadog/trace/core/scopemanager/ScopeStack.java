@@ -3,7 +3,6 @@ package datadog.trace.core.scopemanager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
-
 import java.util.ArrayDeque;
 
 /**
@@ -29,9 +28,7 @@ final class ScopeStack {
     return top != overdueRootScope ? top : null;
   }
 
-  /**
-   * Removes and closes all scopes up to the nearest live scope
-   */
+  /** Removes and closes all scopes up to the nearest live scope */
   void cleanup() {
     ContinuableScope curScope = top;
     boolean changedTop = false;
@@ -59,9 +56,7 @@ final class ScopeStack {
     }
   }
 
-  /**
-   * Marks a new scope as current, pushing the previous onto the stack
-   */
+  /** Marks a new scope as current, pushing the previous onto the stack */
   void push(final ContinuableScope scope) {
     onTopChanged(scope);
     if (top != null) {
@@ -73,9 +68,7 @@ final class ScopeStack {
     scope.afterActivated();
   }
 
-  /**
-   * Fast check to see if the expectedScope is on top
-   */
+  /** Fast check to see if the expectedScope is on top */
   boolean checkTop(final ContinuableScope expectedScope) {
     return expectedScope.equals(top);
   }
@@ -105,9 +98,7 @@ final class ScopeStack {
     return false; // we didn't find the expected scope
   }
 
-  /**
-   * Returns the current depth, including the top scope
-   */
+  /** Returns the current depth, including the top scope */
   int depth() {
     return top != null ? 1 + stack.size() : 0;
   }
@@ -125,16 +116,12 @@ final class ScopeStack {
     profilingContextIntegration.setContext(rootSpanId, spanId);
   }
 
-  /**
-   * Notifies context thread listeners that this thread has a context now
-   */
+  /** Notifies context thread listeners that this thread has a context now */
   private void onBecomeNonEmpty() {
     profilingContextIntegration.onAttach();
   }
 
-  /**
-   * Notifies context thread listeners that this thread no longer has a context
-   */
+  /** Notifies context thread listeners that this thread no longer has a context */
   private void onBecomeEmpty() {
     profilingContextIntegration.setContext(0, 0);
     profilingContextIntegration.onDetach();

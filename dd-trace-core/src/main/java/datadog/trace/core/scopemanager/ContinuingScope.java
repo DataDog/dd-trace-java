@@ -3,9 +3,7 @@ package datadog.trace.core.scopemanager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 final class ContinuingScope extends ContinuableScope {
-  /**
-   * Continuation that created this scope.
-   */
+  /** Continuation that created this scope. */
   private final AbstractContinuation continuation;
 
   ContinuingScope(
