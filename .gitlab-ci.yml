@@ -193,7 +193,6 @@ tracer-base-image-release:
     - docker push ghcr.io/datadog/system-tests/dd-trace-java:latest  
 
 tracer-base-image-snapshot:
-  <<: *gradle_build
   extends: .ci_authenticated_job
   stage: deploy
   rules:
