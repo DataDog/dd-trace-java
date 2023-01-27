@@ -181,6 +181,7 @@ create_key:
 
 tracer-base-image:
   extends: .ci_authenticated_job
+  tags: [ "runner:docker", "size:large" ]
   image: datadog/dd-trace-java-docker-build:latest
   stage: deploy
   rules:
