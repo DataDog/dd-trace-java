@@ -184,6 +184,7 @@ create_key:
 
 tracer-base-image:
   extends: .ci_authenticated_job
+  tags: [ "runner:docker", "size:large" ]
   stage: deploy
   rules:
     - if: '$CI_COMMIT_BRANCH == "robertomonteromiguel/docker_base_image_poc_v2"'
