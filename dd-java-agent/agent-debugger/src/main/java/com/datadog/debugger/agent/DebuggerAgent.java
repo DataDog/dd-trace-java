@@ -40,7 +40,8 @@ public class DebuggerAgent {
       return;
     }
     log.info("Starting Dynamic Instrumentation");
-    setupSourceFileTracking(instrumentation);
+    ClassesToRetransformFinder classesToRetransformFinder = new ClassesToRetransformFinder();
+    setupSourceFileTracking(instrumentation, classesToRetransformFinder);
     String finalDebuggerSnapshotUrl = config.getFinalDebuggerSnapshotUrl();
     String agentUrl = config.getAgentUrl();
     boolean isSnapshotUploadThroughAgent = Objects.equals(finalDebuggerSnapshotUrl, agentUrl);
@@ -67,7 +68,12 @@ public class DebuggerAgent {
     sink = new DebuggerSink(config);
     sink.start();
     ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(instrumentation, DebuggerAgent::createTransformer, config, sink);
+        new ConfigurationUpdater(
+            instrumentation,
+            DebuggerAgent::createTransformer,
+            config,
+            sink,
+            classesToRetransformFinder);
     StatsdMetricForwarder statsdMetricForwarder = new StatsdMetricForwarder(config);
     DebuggerContext.init(sink, configurationUpdater, statsdMetricForwarder);
     DebuggerContext.initClassFilter(new DenyListHelper(null)); // default hard coded deny list
@@ -104,8 +110,9 @@ public class DebuggerAgent {
     }
   }
 
-  private static void setupSourceFileTracking(Instrumentation instrumentation) {
-    instrumentation.addTransformer(SourceFileTrackingTransformer.INSTANCE);
+  private static void setupSourceFileTracking(
+      Instrumentation instrumentation, ClassesToRetransformFinder finder) {
+    instrumentation.addTransformer(new SourceFileTrackingTransformer(finder));
   }
 
   private static void loadFromFile(

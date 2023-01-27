@@ -12,4 +12,25 @@ public class ClassFileHelper {
     classReader.accept(classNode, ClassReader.SKIP_FRAMES);
     return classNode.sourceFile;
   }
+
+  public static String removeExtension(String fileName) {
+    int idx = fileName.lastIndexOf('.');
+    if (idx > -1) {
+      fileName = fileName.substring(0, idx);
+    }
+    return fileName;
+  }
+
+  public static String normalizeFilePath(String filePath) {
+    filePath = filePath.replace('/', '.');
+    return filePath;
+  }
+
+  public static String stripPackagePath(String classPath) {
+    int idx = classPath.lastIndexOf('/');
+    if (idx != -1) {
+      classPath = classPath.substring(idx + 1);
+    }
+    return classPath;
+  }
 }
