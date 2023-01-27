@@ -624,62 +624,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
   /**
    * This class must not be a nested class of ContinuableScope to avoid an unconstrained chain of
    * references (using too much memory).
-   */
-  private static final class SingleContinuation extends AbstractContinuation {
-    private static final AtomicIntegerFieldUpdater<SingleContinuation> USED =
-        AtomicIntegerFieldUpdater.newUpdater(SingleContinuation.class, "used");
-    private volatile int used = 0;
-
-    private SingleContinuation(
-        final ContinuableScopeManager scopeManager,
-        final AgentSpan spanUnderScope,
-        final byte source) {
-      super(scopeManager, spanUnderScope, source);
-    }
-
-    @Override
-    public AgentScope activate() {
-      if (USED.compareAndSet(this, 0, 1)) {
-        return scopeManager.continueSpan(this, spanUnderScope, source);
-      } else {
-        log.debug(
-            "Failed to activate continuation. Reusing a continuation not allowed. Spans may be reported separately.");
-        return scopeManager.continueSpan(null, spanUnderScope, source);
-      }
-    }
-
-    @Override
-    public void cancel() {
-      if (USED.compareAndSet(this, 0, 1)) {
-        trace.cancelContinuation(this);
-      } else {
-        log.debug("Failed to close continuation {}. Already used.", this);
-      }
-    }
-
-    @Override
-    public AgentSpan getSpan() {
-      return spanUnderScope;
-    }
-
-    @Override
-    void cancelFromContinuedScopeClose() {
-      trace.cancelContinuation(this);
-    }
-
-    @Override
-    public String toString() {
-      return getClass().getSimpleName()
-          + "@"
-          + Integer.toHexString(hashCode())
-          + "->"
-          + spanUnderScope;
-    }
-  }
-
-  /**
-   * This class must not be a nested class of ContinuableScope to avoid an unconstrained chain of
-   * references (using too much memory).
    *
    * <p>This {@link AbstractContinuation} differs from the {@link SingleContinuation} in that if it is
    * activated, it needs to be canceled in addition to the returned {@link AgentScope} being closed.
