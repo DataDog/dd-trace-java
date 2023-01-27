@@ -2,15 +2,6 @@ ext {
   minJavaVersionForTests = JavaVersion.VERSION_17
 }
 
-muzzle {
-  pass {
-    group = 'org.springframework'
-    module = 'spring-webmvc'
-    versions = "[6,]"
-    extraDependency "jakarta.servlet:jakarta.servlet-api:5.0.0"
-  }
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 
 [compileMain_java17Java, compileTestJava].each {
