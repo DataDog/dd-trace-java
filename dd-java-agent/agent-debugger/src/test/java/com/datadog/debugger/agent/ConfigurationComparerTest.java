@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -19,7 +20,7 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
 class ConfigurationComparerTest {
-  private static final String PROBE_ID = "beae1807-f3b0-4ea8-a74f-826790c5e6f8";
+  private static final ProbeId PROBE_ID = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
   private static final String SERVICE_NAME = "service-name";
 
   @Test
@@ -422,7 +423,7 @@ class ConfigurationComparerTest {
       ClassNode classNode = new ClassNode();
       classNode.name = expectedClass.getName().replace('.', '/'); // ASM stores with '/' notation
       resultMap.put(
-          PROBE_ID,
+          PROBE_ID.getId(),
           new InstrumentationResult(
               InstrumentationResult.Status.INSTALLED,
               Collections.emptyList(),

@@ -38,6 +38,7 @@ public class SnapshotSummaryTest {
     ProbeDetails probeDetails =
         new ProbeDetails(
             UUID.randomUUID().toString(),
+            0,
             PROBE_LOCATION,
             Snapshot.MethodLocation.EXIT,
             true,
@@ -83,6 +84,7 @@ public class SnapshotSummaryTest {
     ProbeDetails probeDetails =
         new ProbeDetails(
             UUID.randomUUID().toString(),
+            0,
             PROBE_LOCATION,
             Snapshot.MethodLocation.EXIT,
             true,

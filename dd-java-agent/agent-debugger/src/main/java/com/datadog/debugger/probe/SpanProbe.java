@@ -3,6 +3,7 @@ package com.datadog.debugger.probe;
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.instrumentation.SpanInstrumentor;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -16,8 +17,9 @@ public class SpanProbe extends ProbeDefinition {
     this(LANGUAGE, null, true, null, null);
   }
 
-  public SpanProbe(String language, String id, boolean active, String[] tagStrs, Where where) {
-    super(language, id, active, tagStrs, where, MethodLocation.DEFAULT);
+  public SpanProbe(
+      String language, ProbeId probeId, boolean active, String[] tagStrs, Where where) {
+    super(language, probeId, active, tagStrs, where, MethodLocation.DEFAULT);
   }
 
   @Override
@@ -32,7 +34,7 @@ public class SpanProbe extends ProbeDefinition {
   @Generated
   @Override
   public int hashCode() {
-    int result = Objects.hash(language, id, active, tagMap, where, evaluateAt);
+    int result = Objects.hash(language, id, version, active, tagMap, where, evaluateAt);
     result = 31 * result + Arrays.hashCode(tags);
     return result;
   }
@@ -46,6 +48,7 @@ public class SpanProbe extends ProbeDefinition {
     return active == that.active
         && Objects.equals(language, that.language)
         && Objects.equals(id, that.id)
+        && version == that.version
         && Arrays.equals(tags, that.tags)
         && Objects.equals(tagMap, that.tagMap)
         && Objects.equals(where, that.where)
@@ -62,6 +65,8 @@ public class SpanProbe extends ProbeDefinition {
         + ", id='"
         + id
         + '\''
+        + ", version="
+        + version
         + ", active="
         + active
         + ", tags="

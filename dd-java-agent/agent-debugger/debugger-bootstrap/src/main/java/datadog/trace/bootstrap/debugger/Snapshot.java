@@ -235,6 +235,7 @@ public class Snapshot {
         new ProbeDetails(ITW_PROBE_ID, ProbeLocation.UNKNOWN);
 
     private final String id;
+    private final int version;
     private final ProbeLocation location;
     private final MethodLocation evaluateAt;
     private final transient boolean captureSnapshot;
@@ -246,6 +247,7 @@ public class Snapshot {
     public ProbeDetails(String id, ProbeLocation location) {
       this(
           id,
+          0,
           location,
           MethodLocation.DEFAULT,
           true,
@@ -257,6 +259,7 @@ public class Snapshot {
 
     public ProbeDetails(
         String id,
+        int version,
         ProbeLocation location,
         MethodLocation evaluateAt,
         boolean captureSnapshot,
@@ -265,6 +268,7 @@ public class Snapshot {
         SummaryBuilder summaryBuilder) {
       this(
           id,
+          version,
           location,
           evaluateAt,
           captureSnapshot,
@@ -276,6 +280,7 @@ public class Snapshot {
 
     public ProbeDetails(
         String id,
+        int version,
         ProbeLocation location,
         MethodLocation evaluateAt,
         boolean captureSnapshot,
@@ -284,6 +289,7 @@ public class Snapshot {
         SummaryBuilder summaryBuilder,
         List<ProbeDetails> additionalProbes) {
       this.id = id;
+      this.version = version;
       this.location = location;
       this.evaluateAt = evaluateAt;
       this.captureSnapshot = captureSnapshot;
@@ -295,6 +301,10 @@ public class Snapshot {
 
     public String getId() {
       return id;
+    }
+
+    public int getVersion() {
+      return version;
     }
 
     public ProbeLocation getLocation() {

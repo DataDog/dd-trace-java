@@ -107,6 +107,6 @@ public class EnvironmentAndVersionCheckerTest {
   }
 
   private ProbeDefinition getProbeWithTags(String... tags) {
-    return LogProbe.builder().probeId("1").tags(tags).build();
+    return LogProbe.builder().probeId("1", 0).tags(tags).build();
   }
 }

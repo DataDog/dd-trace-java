@@ -55,6 +55,7 @@ import org.junit.jupiter.api.condition.JRE;
 public class SnapshotSerializationTest {
 
   private static final String PROBE_ID = "12fd-8490-c111-4374-ffde";
+  private static final int PROBE_VERSION = 42;
   private static final Snapshot.ProbeLocation PROBE_LOCATION =
       new Snapshot.ProbeLocation(
           "java.lang.String", "indexOf", "String.java", Arrays.asList("12-15", "23"));
@@ -222,6 +223,7 @@ public class SnapshotSerializationTest {
             Thread.currentThread(),
             new Snapshot.ProbeDetails(
                 PROBE_ID,
+                PROBE_VERSION,
                 PROBE_LOCATION,
                 Snapshot.MethodLocation.DEFAULT,
                 true,
