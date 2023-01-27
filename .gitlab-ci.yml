@@ -13,6 +13,17 @@ variables:
     value: "false"
     description: "Set to true to override rules in the reliability-env pipeline (e.g. override 'only deploy master')"
 
+.ci_authenticated_job:
+  needs: []
+  before_script:
+    - apk add bash jq git unzip curl
+    - pip install pyyaml awscli
+    - aws --version && docker --version && docker-compose --version
+    - export DD_API_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.system-tests.dd_api_key --with-decryption --query "Parameter.Value" --out text)
+    - export GL_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.system-tests.gl_token --with-decryption --query "Parameter.Value" --out text)
+    - export CIRCLECI_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.system-tests.circleci_token --with-decryption --query "Parameter.Value" --out text)
+    - export GH_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.system-tests.gh_ghcr_token --with-decryption --query "Parameter.Value" --out text)
+
 .common: &common
   tags: [ "runner:main", "size:large" ]
 
@@ -170,3 +181,22 @@ create_key:
     expire_in: 13 mos
     paths:
       - pubkeys
+
+tracer-base-image:
+  extends: .ci_authenticated_job
+  stage: deploy
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "robertomonteromiguel/docker_base_image_poc_v2"'
+      when: always
+    - when: manual
+  script:
+    - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
+    - ./tooling/ci/download-binary-java.sh dev
+    - docker build -t ghcr.io/datadog/system-tests/dd-trace-java:latest_snapshot -f ./tooling/ci/Dockerfile .
+    - docker push ghcr.io/datadog/system-tests/dd-trace-java:latest_snapshot  
+    - rm -rf ./tooling/ci/binaries
+    - ./tooling/ci/download-binary-java.sh prod
+    - docker build -t ghcr.io/datadog/system-tests/dd-trace-java:latest -f ./tooling/ci/Dockerfile .
+    - docker push ghcr.io/datadog/system-tests/dd-trace-java:latest  
+
+
