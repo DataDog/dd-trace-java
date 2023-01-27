@@ -19,6 +19,7 @@ public class TagContext implements AgentSpan.Context.Extracted {
   private Object requestContextDataAppSec;
   private Object requestContextDataIast;
   private final HttpHeaders httpHeaders;
+  private final Map<String, String> baggage;
 
   private final int samplingPriority;
 
@@ -27,17 +28,19 @@ public class TagContext implements AgentSpan.Context.Extracted {
   }
 
   public TagContext(final String origin, final Map<String, String> tags) {
-    this(origin, tags, null, PrioritySampling.UNSET);
+    this(origin, tags, null, null, PrioritySampling.UNSET);
   }
 
   public TagContext(
       final String origin,
       final Map<String, String> tags,
       HttpHeaders httpHeaders,
+      final Map<String, String> baggage,
       int samplingPriority) {
     this.origin = origin;
     this.tags = tags;
     this.httpHeaders = httpHeaders == null ? EMPTY_HTTP_HEADERS : httpHeaders;
+    this.baggage = baggage == null ? Collections.emptyMap() : baggage;
     this.samplingPriority = samplingPriority;
   }
 
@@ -123,9 +126,13 @@ public class TagContext implements AgentSpan.Context.Extracted {
     return samplingPriority;
   }
 
+  public final Map<String, String> getBaggage() {
+    return baggage;
+  }
+
   @Override
   public Iterable<Map.Entry<String, String>> baggageItems() {
-    return Collections.emptyList();
+    return baggage.entrySet();
   }
 
   @Override

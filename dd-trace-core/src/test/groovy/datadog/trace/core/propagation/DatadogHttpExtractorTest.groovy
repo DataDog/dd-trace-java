@@ -343,6 +343,40 @@ class DatadogHttpExtractorTest extends DDSpecification {
     "2"     | "3"    | 1610001234
   }
 
+  def "baggage is mapped on context creation"() {
+    setup:
+    def headers = [
+      (TRACE_ID_KEY.toUpperCase())            : traceId,
+      (SPAN_ID_KEY.toUpperCase())             : spanId,
+      SOME_CUSTOM_BAGGAGE_HEADER              : "mappedBaggageValue",
+      (OT_BAGGAGE_PREFIX.toUpperCase() + "k1"): "v1",
+      (OT_BAGGAGE_PREFIX.toUpperCase() + "k2"): "v2",
+      SOME_ARBITRARY_HEADER                             : "my-interesting-info",
+    ]
+
+    when:
+    final TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+
+    then:
+    if (ctxCreated) {
+      assert context != null
+      assert context.getBaggage() == [
+        "some-baggage"     : "mappedBaggageValue",
+        "k1"               : "v1",
+        "k2"               : "v2",
+      ]
+    } else {
+      assert context == null
+    }
+
+    where:
+    ctxCreated     | traceId                                | spanId
+    false          | "-1"                                   | "1"
+    false          | "1"                                    | "-1"
+    true           | "0"                                    | "1"
+    true           | "${TRACE_ID_MAX - 1}" | "${TRACE_ID_MAX - 1}"
+  }
+
   def "extract common http headers"() {
     setup:
     def headers = [

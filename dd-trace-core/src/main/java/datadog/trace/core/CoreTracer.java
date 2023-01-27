@@ -1291,7 +1291,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           parentSpanId = extractedContext.getSpanId();
           samplingPriority = extractedContext.getSamplingPriority();
           endToEndStartTime = extractedContext.getEndToEndStartTime();
-          baggage = extractedContext.getBaggage();
           propagationTags = extractedContext.getPropagationTags();
         } else {
           // Start a new trace
@@ -1299,7 +1298,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           parentSpanId = DDSpanId.ZERO;
           samplingPriority = PrioritySampling.UNSET;
           endToEndStartTime = 0;
-          baggage = null;
           propagationTags = propagationTagsFactory.empty();
         }
 
@@ -1308,11 +1306,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           TagContext tc = (TagContext) parentContext;
           coreTags = tc.getTags();
           origin = tc.getOrigin();
+          baggage = tc.getBaggage();
           requestContextDataAppSec = tc.getRequestContextDataAppSec();
           requestContextDataIast = tc.getRequestContextDataIast();
         } else {
           coreTags = null;
           origin = null;
+          baggage = null;
           requestContextDataAppSec = null;
           requestContextDataIast = null;
         }

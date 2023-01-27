@@ -39,6 +39,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected int samplingPriority;
   protected Map<String, String> tags;
   protected Map<String, String> baggage;
+
   protected String origin;
   protected long endToEndStartTime;
   protected boolean valid;
@@ -257,9 +258,10 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
       } else if (origin != null
           || !tags.isEmpty()
           || httpHeaders != null
+          || !baggage.isEmpty()
           || samplingPriority != PrioritySampling.UNSET) {
         return new TagContext(
-            origin, tags, httpHeaders, samplingPriorityOrDefault(samplingPriority));
+            origin, tags, httpHeaders, baggage, samplingPriorityOrDefault(samplingPriority));
       }
     }
     return null;
