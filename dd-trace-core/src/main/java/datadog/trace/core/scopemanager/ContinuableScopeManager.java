@@ -12,7 +12,6 @@ import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
@@ -105,7 +104,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
   @Override
   public AgentScope.Continuation captureSpan(final AgentSpan span, final ScopeSource source) {
-    Continuation continuation = new SingleContinuation(this, span, source.id());
+    AbstractContinuation continuation = new SingleContinuation(this, span, source.id());
     continuation.register();
     return continuation;
   }
@@ -148,12 +147,12 @@ public final class ContinuableScopeManager implements AgentScopeManager {
   }
 
   /**
-   * Creates a new scope when a {@link Continuation} is activated.
+   * Creates a new scope when a {@link AbstractContinuation} is activated.
    *
    * @param continuation {@code null} if a continuation is re-used
    */
   ContinuableScope continueSpan(
-      final Continuation continuation, final AgentSpan span, final byte source) {
+      final AbstractContinuation continuation, final AgentSpan span, final byte source) {
 
     final ContinuableScope scope;
     if (continuation != null) {
@@ -405,7 +404,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
      * @return The new continuation, or null if this scope is not async propagating.
      */
     @Override
-    public final ContinuableScopeManager.Continuation capture() {
+    public final AbstractContinuation capture() {
       return isAsyncPropagating
           ? new SingleContinuation(scopeManager, span, source()).register()
           : null;
@@ -417,7 +416,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
      * @return The new continuation, or null if this scope is not async propagating.
      */
     @Override
-    public final ContinuableScopeManager.Continuation captureConcurrent() {
+    public final AbstractContinuation captureConcurrent() {
       return isAsyncPropagating
           ? new ConcurrentContinuation(scopeManager, span, source()).register()
           : null;
@@ -465,14 +464,14 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
   private static final class ContinuingScope extends ContinuableScope {
     /** Continuation that created this scope. */
-    private final ContinuableScopeManager.Continuation continuation;
+    private final AbstractContinuation continuation;
 
     ContinuingScope(
         final ContinuableScopeManager scopeManager,
         final AgentSpan span,
         final byte source,
         final boolean isAsyncPropagating,
-        final ContinuableScopeManager.Continuation continuation) {
+        final AbstractContinuation continuation) {
       super(scopeManager, span, source, isAsyncPropagating);
       this.continuation = continuation;
     }
@@ -626,36 +625,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
    * This class must not be a nested class of ContinuableScope to avoid an unconstrained chain of
    * references (using too much memory).
    */
-  private abstract static class Continuation implements AgentScope.Continuation {
-
-    final ContinuableScopeManager scopeManager;
-    final AgentSpan spanUnderScope;
-    final byte source;
-    final AgentTrace trace;
-
-    public Continuation(
-        ContinuableScopeManager scopeManager, AgentSpan spanUnderScope, byte source) {
-      this.scopeManager = scopeManager;
-      this.spanUnderScope = spanUnderScope;
-      this.source = source;
-      this.trace = spanUnderScope.context().getTrace();
-    }
-
-    Continuation register() {
-      trace.registerContinuation(this);
-      return this;
-    }
-
-    // Called by ContinuableScopeManager when a continued scope is closed
-    // Can't use cancel() for SingleContinuation because of the "used" check
-    abstract void cancelFromContinuedScopeClose();
-  }
-
-  /**
-   * This class must not be a nested class of ContinuableScope to avoid an unconstrained chain of
-   * references (using too much memory).
-   */
-  private static final class SingleContinuation extends Continuation {
+  private static final class SingleContinuation extends AbstractContinuation {
     private static final AtomicIntegerFieldUpdater<SingleContinuation> USED =
         AtomicIntegerFieldUpdater.newUpdater(SingleContinuation.class, "used");
     private volatile int used = 0;
@@ -711,12 +681,12 @@ public final class ContinuableScopeManager implements AgentScopeManager {
    * This class must not be a nested class of ContinuableScope to avoid an unconstrained chain of
    * references (using too much memory).
    *
-   * <p>This {@link Continuation} differs from the {@link SingleContinuation} in that if it is
+   * <p>This {@link AbstractContinuation} differs from the {@link SingleContinuation} in that if it is
    * activated, it needs to be canceled in addition to the returned {@link AgentScope} being closed.
    * This is to allow multiple concurrent threads that activate the continuation to race in a safe
    * way, and close the scopes without fear of closing the related {@link AgentSpan} prematurely.
    */
-  private static final class ConcurrentContinuation extends Continuation {
+  private static final class ConcurrentContinuation extends AbstractContinuation {
     private static final int START = 1;
     private static final int CLOSED = Integer.MIN_VALUE >> 1;
     private static final int BARRIER = Integer.MIN_VALUE >> 2;
