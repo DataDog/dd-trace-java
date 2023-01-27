@@ -206,6 +206,7 @@ tracer-base-image-snapshot:
   script:
     - echo "Debug.Current folder:"
     - pwd
+    - ls
     - ls dd-java-agent/
     - echo "ok. Buid?:"
     - ls dd-java-agent/build/libs/
