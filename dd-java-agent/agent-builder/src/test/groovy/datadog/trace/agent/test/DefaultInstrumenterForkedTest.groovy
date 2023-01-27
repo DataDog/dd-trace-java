@@ -6,6 +6,9 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
+import java.lang.instrument.ClassFileTransformer
+import java.lang.instrument.Instrumentation
+
 class DefaultInstrumenterForkedTest extends DDSpecification {
   static {
     DDCachingPoolStrategy.registerAsSupplier()
@@ -13,7 +16,17 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
   }
 
   @Shared
-  Instrumenter.TransformerBuilder testAdviceBuilder = { it.adviceTransformations({}) }
+  Instrumenter.TransformerBuilder testAdviceBuilder = new Instrumenter.TransformerBuilder() {
+    @Override
+    void applyInstrumentation(Instrumenter.HasAdvice instrumenter) {
+      instrumenter.adviceTransformations {}
+    }
+
+    @Override
+    ClassFileTransformer installOn(Instrumentation instrumentation) {
+      return null
+    }
+  }
 
   def "default enabled"() {
     setup:

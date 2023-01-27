@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
@@ -19,8 +20,8 @@ import org.springframework.kafka.listener.config.ContainerProperties
 import org.springframework.kafka.test.rule.KafkaEmbedded
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
-import spock.lang.Ignore
 import spock.lang.Shared
+import spock.lang.Ignore
 
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
@@ -135,6 +136,9 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            if ({ isDataStreamsEnabled() }){
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags()
           }
         }
@@ -177,6 +181,9 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.PROCESSOR_NAME" "KSTREAM-SOURCE-0000000000"
             "asdf" "testing"
+            if ({isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(!hasQueueSpan)
           }
         }
@@ -195,6 +202,9 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            if ({isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags()
           }
         }
@@ -237,6 +247,9 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "testing" 123
+            if ({isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(!hasQueueSpan)
           }
         }
@@ -251,26 +264,32 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
     if (isDataStreamsEnabled()) {
       StatsGroup originProducerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(originProducerPoint) {
-        edgeTags == ["topic:$STREAM_PENDING", "type:internal"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:out", "topic:$STREAM_PENDING", "type:kafka"]
+        edgeTags.size() == 3
       }
 
       StatsGroup kafkaStreamsConsumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == originProducerPoint.hash }
       verifyAll(kafkaStreamsConsumerPoint) {
-        edgeTags == ["group:test-application", "partition:0", "topic:$STREAM_PENDING".toString(), "type:kafka"]
-        edgeTags.size() == 4
+        edgeTags == [
+          "direction:in",
+          "group:test-application",
+          "partition:0",
+          "topic:$STREAM_PENDING".toString(),
+          "type:kafka"
+        ]
+        edgeTags.size() == 5
       }
 
       StatsGroup kafkaStreamsProducerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == kafkaStreamsConsumerPoint.hash }
       verifyAll(kafkaStreamsProducerPoint) {
-        edgeTags == ["topic:$STREAM_PROCESSED", "type:internal"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:out", "topic:$STREAM_PROCESSED", "type:kafka"]
+        edgeTags.size() == 3
       }
 
       StatsGroup finalConsumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == kafkaStreamsProducerPoint.hash }
       verifyAll(finalConsumerPoint) {
-        edgeTags == ["group:sender", "partition:0", "topic:$STREAM_PROCESSED".toString(), "type:kafka"]
-        edgeTags.size() == 4
+        edgeTags == ["direction:in", "group:sender", "partition:0", "topic:$STREAM_PROCESSED".toString(), "type:kafka"]
+        edgeTags.size() == 5
       }
     }
 

@@ -116,6 +116,11 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
   }
 
   @Override
+  boolean testBlocking() {
+    true
+  }
+
+  @Override
   Class<? extends Exception> expectedExceptionType() {
     return RuntimeException
   }

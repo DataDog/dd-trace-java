@@ -26,7 +26,6 @@ public class ServerRegistryInstrumentation extends Instrumenter.Tracing
       packageName + ".RatpackServerDecorator",
       packageName + ".RequestURIAdapterAdapter",
       packageName + ".TracingHandler",
-      packageName + ".BlockRequestHandler",
     };
   }
 

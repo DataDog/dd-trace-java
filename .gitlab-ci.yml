@@ -103,6 +103,26 @@ deploy_to_profiling_backend:
     UPSTREAM_TAG: $CI_COMMIT_TAG
     FORCE_TRIGGER: $FORCE_TRIGGER
 
+deploy_to_di_backend:
+  stage: deploy
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - when: manual
+      allow_failure: true
+  trigger:
+    project: DataDog/debugger-backend
+    branch: main
+  variables:
+    UPSTREAM_PACKAGE_JOB: build
+    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
+    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
+    UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
+    UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
+    UPSTREAM_TAG: $CI_COMMIT_TAG
+    UPSTREAM_COMMIT_AUTHOR: $CI_COMMIT_AUTHOR
+    FORCE_TRIGGER: $FORCE_TRIGGER
+
 deploy_to_sonatype:
   <<: *gradle_build
   stage: deploy

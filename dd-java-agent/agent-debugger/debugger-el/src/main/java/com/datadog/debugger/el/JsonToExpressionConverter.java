@@ -6,11 +6,14 @@ import static com.squareup.moshi.JsonReader.Token.NUMBER;
 import static com.squareup.moshi.JsonReader.Token.STRING;
 
 import com.datadog.debugger.el.expressions.BooleanExpression;
+import com.datadog.debugger.el.expressions.StringPredicateExpression;
 import com.datadog.debugger.el.expressions.ValueExpression;
+import com.datadog.debugger.el.values.StringValue;
 import com.squareup.moshi.JsonReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiFunction;
 
 /** Converts json representation to object model */
 public class JsonToExpressionConverter {
@@ -177,6 +180,21 @@ public class JsonToExpressionConverter {
           expr = DSL.isEmpty(asValueExpression(reader));
           break;
         }
+      case "startsWith":
+        {
+          expr = createStringPredicateExpression(reader, DSL::startsWith);
+          break;
+        }
+      case "endsWith":
+        {
+          expr = createStringPredicateExpression(reader, DSL::endsWith);
+          break;
+        }
+      case "contains":
+        {
+          expr = createStringPredicateExpression(reader, DSL::contains);
+          break;
+        }
       default:
         throw new UnsupportedOperationException("Unsupported operation '" + predicateType + "'");
     }
@@ -303,6 +321,20 @@ public class JsonToExpressionConverter {
                   }
                   return DSL.len(asValueExpression(reader));
                 }
+              case "substring":
+                {
+                  JsonReader.Token token = reader.peek();
+                  if (token == BEGIN_ARRAY) {
+                    reader.beginArray();
+                    ValueExpression<?> target = asValueExpression(reader);
+                    int startIndex = reader.nextInt();
+                    int endIndex = reader.nextInt();
+                    reader.endArray();
+                    return DSL.subString(target, startIndex, endIndex);
+                  }
+                  throw new UnsupportedOperationException(
+                      "Operation 'substring' expects the arguments to be defined as array");
+                }
               default:
                 throw new UnsupportedOperationException("Invalid value definition: " + fieldName);
             }
@@ -320,5 +352,22 @@ public class JsonToExpressionConverter {
         throw new UnsupportedOperationException("Invalid value definition: ");
     }
     return value;
+  }
+
+  private static StringPredicateExpression createStringPredicateExpression(
+      JsonReader reader,
+      BiFunction<ValueExpression<?>, StringValue, StringPredicateExpression> predicateFunc)
+      throws IOException {
+    JsonReader.Token token = reader.peek();
+    if (token != BEGIN_ARRAY) {
+      throw new UnsupportedOperationException(
+          "Operation 'startsWith' expects the arguments to be defined as array");
+    }
+    reader.beginArray();
+    ValueExpression<?> source = asValueExpression(reader);
+    StringValue str = new StringValue(reader.nextString());
+    StringPredicateExpression expr = predicateFunc.apply(source, str);
+    reader.endArray();
+    return expr;
   }
 }

@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.instrumentation.netty41.AttributeKeys.SPAN_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.DECORATE;
 
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
@@ -44,6 +45,11 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
       scope.setAsyncPropagation(true);
 
       ctx.channel().attr(SPAN_ATTRIBUTE_KEY).set(span);
+
+      Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
+      if (rba != null) {
+        ctx.pipeline().addAfter(ctx.name(), "blocking_handler", new BlockingResponseHandler(rba));
+      }
 
       try {
         ctx.fireChannelRead(msg);

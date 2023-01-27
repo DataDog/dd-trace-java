@@ -1,5 +1,6 @@
 package datadog.trace.api.cache
 
+
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 import spock.util.concurrent.AsyncConditions
@@ -186,6 +187,48 @@ class FixedSizeCacheTest extends DDSpecification {
     ]
   }
 
+  def "fixed size partial key should store and retrieve values"() {
+    setup:
+    def fsCache = DDCaches.newFixedSizePartialKeyCache(15)
+    def creationCount = new AtomicInteger(0)
+    def tkbh = new TKeyBHash()
+    def tkbc = new TKeyBComparator()
+    def tkbp = new TKeyBProducer(creationCount)
+    // we will use m and n in the hash, compare and produce functions
+    def tk1 = tKeyB(1, 17, 29, "one")
+    def tk6 = tKeyB(1, 47, 11, "six")
+    def tk10 = tKeyB(1, 10, 66, "ten")
+    // insert some values that happen to be the chain of hashes 1 -> 6 -> 10
+    fsCache.computeIfAbsent(tk1, 17, 29, tkbh, tkbc, tkbp)
+    fsCache.computeIfAbsent(tk6, 47, 11, tkbh, tkbc, tkbp)
+    fsCache.computeIfAbsent(tk10, 10, 66, tkbh, tkbc, tkbp)
+    def tk = h == 0 ? null : tKeyB(h, m, n, s)
+
+    when:
+    def v1 = fsCache.computeIfAbsent(tk, m, n, tkbh, tkbc, tkbp)
+
+    then:
+    v1 == value
+    creationCount.get() == count
+    fsCache.computeIfAbsent(tk1, 17, 29, tkbh, tkbc, tkbp) == "one_17_29"
+    fsCache.computeIfAbsent(tk6, 47, 11, tkbh, tkbc, tkbp) == "six_47_11"
+    fsCache.computeIfAbsent(tk10, 10, 66, tkbh, tkbc, tkbp) == "ten_10_66"
+    creationCount.get() == count + (overwritten ? 1 : 0)
+
+    where:
+    h | m      | n     | s        | value          | overwritten | count
+    1 |  18527 | 76397 | "foo"    | "one_17_29"    | false       | 3     // used the cached tk1
+    1 | -14685 | 55725 | "foo"    | "six_47_11"    | false       | 3     // used the cached tk6
+    1 | -19379 | 1712  | "foo"    | "ten_10_66"    | false       | 3     // used the cached tk10
+    1 |  13    | 37    | "eleven" | "eleven_13_37" | true        | 4     // create new value in 1st occupied slot
+    4 |  88    | 11    | "four"   | "four_88_11"   | false       | 4     // create new value in empty slot
+    0 |  0     | 0     | null     | null           | false       | 3     // do nothing
+  }
+
+  private static TKeyB tKeyB(int hash, int m, int n, String s) {
+    new TKeyB((hash * m) + n, s)
+  }
+
   private static class TVC implements Function<TKey, String> {
     private final AtomicInteger count
 
@@ -214,15 +257,50 @@ class FixedSizeCacheTest extends DDSpecification {
     }
   }
 
-  private static class TKey {
-    private final int hash
+  private static class TKeyBHash implements DDPartialKeyCache.Hasher<TKeyB> {
+    @Override
+    int apply(TKeyB key, int m, int n) {
+      return (key.hash - n) / m
+    }
+  }
+
+  private static class TKeyBComparator implements DDPartialKeyCache.Comparator<TKeyB, String> {
+    @Override
+    boolean test(TKeyB key, int m, int n, String s) {
+      return "${key.string}_${m}_${n}" == s || (key.string.hashCode() * m) + n == s.hashCode()
+    }
+  }
+
+  private static class TKeyBProducer implements DDPartialKeyCache.Producer<TKeyB, String> {
+    private final AtomicInteger count
+
+    TKeyBProducer(AtomicInteger count) {
+      this.count = count
+    }
+
+    @Override
+    String apply(TKeyB key, int m, int n) {
+      count.incrementAndGet()
+      return "${key.string}_${m}_${n}"
+    }
+  }
+
+  private static class TKeyB {
+    protected final int hash
+    protected final String string
+
+    TKeyB(int hash, String string) {
+      this.hash = hash
+      this.string = string
+    }
+  }
+
+  private static class TKey extends TKeyB {
     private final int eq
-    private final String string
 
     TKey(int hash, int eq, String string) {
-      this.hash = hash
+      super(hash, string)
       this.eq = eq
-      this.string = string
     }
 
     boolean equals(o) {

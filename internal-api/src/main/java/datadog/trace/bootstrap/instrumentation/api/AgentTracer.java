@@ -114,11 +114,7 @@ public class AgentTracer {
   private AgentTracer() {}
 
   public interface TracerAPI
-      extends datadog.trace.api.Tracer,
-          InternalTracer,
-          AgentPropagation,
-          EndpointCheckpointer,
-          ProfilingContext {
+      extends datadog.trace.api.Tracer, InternalTracer, AgentPropagation, EndpointCheckpointer {
     AgentSpan startSpan(CharSequence spanName);
 
     AgentSpan startSpan(CharSequence spanName, long startTimeMicros);
@@ -290,6 +286,11 @@ public class AgentTracer {
     public void flushMetrics() {}
 
     @Override
+    public ProfilingContext getProfilingContext() {
+      return ProfilingContext.NoOp.INSTANCE;
+    }
+
+    @Override
     public String getTraceId() {
       return null;
     }
@@ -385,9 +386,6 @@ public class AgentTracer {
 
     @Override
     public void notifyExtensionEnd(AgentSpan span, Object result, boolean isError) {}
-
-    @Override
-    public void setContextValue(String attribute, String value) {}
   }
 
   public static final class NoopAgentSpan implements AgentSpan {
@@ -517,12 +515,6 @@ public class AgentTracer {
     public boolean eligibleForDropping() {
       return true;
     }
-
-    @Override
-    public void startWork() {}
-
-    @Override
-    public void finishWork() {}
 
     @Override
     public RequestContext getRequestContext() {
@@ -888,6 +880,11 @@ public class AgentTracer {
     @Override
     public boolean isStarted() {
       return false;
+    }
+
+    @Override
+    public long getHash() {
+      return 0L;
     }
 
     @Override

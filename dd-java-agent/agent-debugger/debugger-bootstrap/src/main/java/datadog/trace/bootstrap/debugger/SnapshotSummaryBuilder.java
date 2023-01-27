@@ -87,6 +87,11 @@ public class SnapshotSummaryBuilder implements SummaryBuilder {
     return sb.toString();
   }
 
+  @Override
+  public List<Snapshot.EvaluationError> getEvaluationErrors() {
+    return Collections.emptyList();
+  }
+
   private static String formatMethod(List<CapturedStackFrame> stack, ProbeLocation probeLocation) {
     if (stack != null && stack.size() > 0) {
       // we first try to use the top frame on the stacktrace, if available

@@ -12,4 +12,6 @@ public interface SummaryBuilder {
   void addStack(List<CapturedStackFrame> stack);
 
   String build();
+
+  List<Snapshot.EvaluationError> getEvaluationErrors();
 }

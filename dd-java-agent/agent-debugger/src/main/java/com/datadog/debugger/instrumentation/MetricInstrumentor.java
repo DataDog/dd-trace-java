@@ -292,6 +292,9 @@ public class MetricInstrumentor extends Instrumentor {
       return UndefinedValue.INSTANCE;
     }
 
+    @Override
+    public void addEvaluationError(String expr, String message) {}
+
     private Type followReferences(Type currentType, String name, InsnList insnList) {
       Class<?> clazz;
       try {

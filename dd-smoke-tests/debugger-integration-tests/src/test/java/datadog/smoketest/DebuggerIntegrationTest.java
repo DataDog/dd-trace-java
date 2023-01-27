@@ -129,7 +129,11 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   void testFullMethod() throws Exception {
     final String METHOD_NAME = "fullMethod";
     LogProbe probe =
-        LogProbe.builder().probeId(PROBE_ID).where("DebuggerTestApplication", METHOD_NAME).build();
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            .where("DebuggerTestApplication", METHOD_NAME)
+            .captureSnapshot(true)
+            .build();
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, "3").start();
     RecordedRequest request = retrieveSnapshotRequest();

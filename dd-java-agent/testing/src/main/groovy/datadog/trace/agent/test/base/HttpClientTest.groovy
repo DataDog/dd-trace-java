@@ -764,6 +764,9 @@ abstract class HttpClientTest extends AgentTestRunner {
           "$DDTags.HTTP_QUERY" uri.query
           "$DDTags.HTTP_FRAGMENT" { it == null || it == uri.fragment } // Optional
         }
+        if ({ isDataStreamsEnabled() }) {
+          "$DDTags.PATHWAY_HASH" { String }
+        }
         if (exception) {
           errorTags(exception.class, exception.message)
         }

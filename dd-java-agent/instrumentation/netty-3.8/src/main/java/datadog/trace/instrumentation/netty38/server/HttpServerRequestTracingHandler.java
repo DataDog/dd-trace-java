@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.netty38.server;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.netty38.server.NettyHttpServerDecorator.DECORATE;
 
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -55,6 +56,12 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
       scope.setAsyncPropagation(true);
 
       channelTraceContext.setServerSpan(span);
+
+      Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
+      if (rba != null) {
+        ctx.getPipeline()
+            .addAfter(ctx.getName(), "blocking_handler", new BlockingResponseHandler(rba));
+      }
 
       try {
         ctx.sendUpstream(msg);

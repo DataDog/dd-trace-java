@@ -1,6 +1,7 @@
 import com.google.common.io.Files
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
+import datadog.trace.api.DDTags
 import org.apache.catalina.Context
 import org.apache.catalina.Engine
 import org.apache.catalina.Wrapper
@@ -166,6 +167,9 @@ class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
           childOfPrevious()
           tags {
             "component" "java-web-servlet-response"
+            if ({isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags()
           }
         }
