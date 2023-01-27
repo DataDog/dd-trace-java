@@ -1,7 +1,5 @@
 package com.datadog.debugger.util;
 
-import static datadog.trace.api.iast.IastModule.LOG;
-
 import datadog.trace.bootstrap.debugger.FieldExtractor;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.Snapshot;
@@ -13,9 +11,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** serialize Java Object value with applied {@link Limits} and following references */
 public class SerializerWithLimits {
+  private static final Logger LOG = LoggerFactory.getLogger(SerializerWithLimits.class);
 
   public static boolean isPrimitive(String type) {
     switch (type) {

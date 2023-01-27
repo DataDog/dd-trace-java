@@ -1,7 +1,5 @@
 package com.datadog.debugger.util;
 
-import static datadog.trace.api.iast.IastModule.LOG;
-
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
@@ -710,7 +708,7 @@ public class MoshiSnapshotHelper {
           jsonWriter.value(ex.toString());
           jsonWriter.endObject();
         } catch (IOException e) {
-          LOG.debug("Error during serializing reason for failed field extraction", e);
+          LOG.debug("Serialization error: failed to extract field", e);
         }
       }
 

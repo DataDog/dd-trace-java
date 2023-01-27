@@ -18,7 +18,7 @@ import java.util.function.Consumer;
 public class LogMessageTemplateSummaryBuilder implements SummaryBuilder {
   /**
    * Serialization limits for log messages. Most values are lower than snapshot because you can
-   * directly reference vlaues that are in your interest with Expression Language:
+   * directly reference values that are in your interest with Expression Language:
    * obj.field.deepfield or array[1001]
    */
   private static final Limits LIMITS = new Limits(1, 3, 255, 5);
