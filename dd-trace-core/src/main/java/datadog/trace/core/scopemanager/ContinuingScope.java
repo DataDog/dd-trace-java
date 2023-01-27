@@ -19,7 +19,7 @@ final class ContinuingScope extends ContinuableScope {
   }
 
   @Override
-  void cleanup(final ContinuableScopeManager.ScopeStack scopeStack) {
+  void cleanup(final ScopeStack scopeStack) {
     super.cleanup(scopeStack);
 
     continuation.cancelFromContinuedScopeClose();

@@ -42,7 +42,7 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
 
   @Override
   public final void close() {
-    final ContinuableScopeManager.ScopeStack scopeStack = scopeManager.scopeStack();
+    final ScopeStack scopeStack = scopeManager.scopeStack();
 
     // fast check first, only perform slower check when there's an inconsistency with the stack
     if (!scopeStack.checkTop(this) && !scopeStack.checkOverdueScopes(this)) {
@@ -68,7 +68,7 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
     }
   }
 
-  void cleanup(final ContinuableScopeManager.ScopeStack scopeStack) {
+  void cleanup(final ScopeStack scopeStack) {
     scopeStack.cleanup();
   }
 
