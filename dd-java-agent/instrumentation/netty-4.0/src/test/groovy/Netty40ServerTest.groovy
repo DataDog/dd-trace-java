@@ -143,4 +143,9 @@ class Netty40ServerTest extends HttpServerTest<EventLoopGroup> {
   String expectedOperationName() {
     "netty.request"
   }
+
+  @Override
+  boolean testBlocking() {
+    true
+  }
 }

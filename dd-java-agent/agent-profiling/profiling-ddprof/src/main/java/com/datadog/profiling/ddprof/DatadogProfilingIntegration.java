@@ -35,4 +35,9 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   public void setContextValue(String attribute, String value) {
     DDPROF.setContextValue(attribute, value);
   }
+
+  @Override
+  public void clearContextValue(String attribute) {
+    DDPROF.clearContextValue(attribute);
+  }
 }

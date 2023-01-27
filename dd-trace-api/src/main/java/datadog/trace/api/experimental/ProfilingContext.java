@@ -2,17 +2,19 @@ package datadog.trace.api.experimental;
 
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Tracer;
+import datadog.trace.api.internal.InternalTracer;
 
 /** This class is experimental and is subject to change and may be removed. */
 public interface ProfilingContext {
 
   static ProfilingContext get() {
     Tracer tracer = GlobalTracer.get();
-    if (tracer instanceof ProfilingContext) {
-      return (ProfilingContext) tracer;
+    if (tracer instanceof InternalTracer) {
+      return ((InternalTracer) tracer).getProfilingContext();
     }
-    return (attribute, value) -> {};
+    return NoOp.INSTANCE;
   }
+
   /**
    * Sets a context value to be appended to profiling data
    *
@@ -20,4 +22,22 @@ public interface ProfilingContext {
    * @param value the value
    */
   void setContextValue(String attribute, String value);
+
+  /**
+   * Clears a context value
+   *
+   * @param attribute the attribute (must have been registered at startup)
+   */
+  void clearContextValue(String attribute);
+
+  final class NoOp implements ProfilingContext {
+
+    public static final NoOp INSTANCE = new NoOp();
+
+    @Override
+    public void setContextValue(String attribute, String value) {}
+
+    @Override
+    public void clearContextValue(String attribute) {}
+  }
 }

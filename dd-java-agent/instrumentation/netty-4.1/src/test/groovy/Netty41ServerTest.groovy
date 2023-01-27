@@ -178,4 +178,9 @@ class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
   boolean testBodyUrlencoded() {
     true
   }
+
+  @Override
+  boolean testBlocking() {
+    true
+  }
 }

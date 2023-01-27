@@ -16,9 +16,14 @@ public class TraceAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Origin final Method method) {
     final Trace traceAnnotation = method.getAnnotation(Trace.class);
-    String operationName = traceAnnotation == null ? null : traceAnnotation.operationName();
-    if (operationName == null || operationName.isEmpty()) {
-      operationName = DEFAULT_OPERATION_NAME;
+    CharSequence operationName = traceAnnotation == null ? null : traceAnnotation.operationName();
+
+    if (operationName == null || operationName.length() == 0) {
+      if (DECORATE.useLegacyOperationName()) {
+        operationName = DEFAULT_OPERATION_NAME;
+      } else {
+        operationName = DECORATE.spanNameForMethod(method);
+      }
     }
 
     final AgentSpan span = startSpan(operationName);

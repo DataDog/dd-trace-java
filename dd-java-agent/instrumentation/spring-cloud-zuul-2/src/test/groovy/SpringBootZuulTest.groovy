@@ -2,6 +2,7 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
@@ -195,6 +196,9 @@ class SpringBootZuulTest extends HttpServerTest<ConfigurableApplicationContext> 
           "error.message" EXCEPTION.body
           "error.type" Exception.name
           "error.stack" String
+        }
+        if ({ isDataStreamsEnabled() }) {
+          "$DDTags.PATHWAY_HASH" { String }
         }
         defaultTags()
       }

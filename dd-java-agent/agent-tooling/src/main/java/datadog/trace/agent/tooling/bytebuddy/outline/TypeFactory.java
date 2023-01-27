@@ -234,7 +234,7 @@ final class TypeFactory {
 
     // existing info from same classloader?
     SharedTypeInfo<TypeDescription> typeInfo = types.find(name);
-    if (null != typeInfo && typeInfo.sameClassLoader(classLoader)) {
+    if (null != typeInfo && (name.startsWith("java.") || typeInfo.sameClassLoader(classLoader))) {
       return typeInfo.get();
     }
 

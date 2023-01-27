@@ -23,7 +23,9 @@ class DatadogHttpExtractorTest extends DDSpecification {
 
   private HttpCodec.Extractor getExtractor() {
     _extractor ?: (
-      _extractor = DatadogHttpCodec.newExtractor(["SOME_HEADER": "some-tag"], ["SOME_CUSTOM_BAGGAGE_HEADER": "some-baggage"])
+      _extractor = DatadogHttpCodec.newExtractor(
+      ["SOME_HEADER": "some-tag"],
+      ["SOME_CUSTOM_BAGGAGE_HEADER": "some-baggage", "SOME_CUSTOM_BAGGAGE_HEADER_2": "some-CaseSensitive-baggage"])
       )
   }
 
@@ -50,6 +52,7 @@ class DatadogHttpExtractorTest extends DDSpecification {
       (OT_BAGGAGE_PREFIX.toUpperCase() + "k2"): "v2",
       SOME_HEADER                             : "my-interesting-info",
       SOME_CUSTOM_BAGGAGE_HEADER              : "my-interesting-baggage-info",
+      SOME_CUSTOM_BAGGAGE_HEADER_2            : "my-interesting-baggage-info-2",
     ]
 
     if (samplingPriority != PrioritySampling.UNSET) {
@@ -66,7 +69,10 @@ class DatadogHttpExtractorTest extends DDSpecification {
     then:
     context.traceId == DDTraceId.from(traceId)
     context.spanId == DDSpanId.from(spanId)
-    context.baggage == ["k1": "v1", "k2": "v2", "some-baggage": "my-interesting-baggage-info"]
+    context.baggage == ["k1"                        : "v1",
+      "k2"                        : "v2",
+      "some-baggage"              : "my-interesting-baggage-info",
+      "some-CaseSensitive-baggage": "my-interesting-baggage-info-2"]
     context.tags == ["some-tag": "my-interesting-info"]
     context.samplingPriority == samplingPriority
     context.origin == origin
@@ -315,6 +321,7 @@ class DatadogHttpExtractorTest extends DDSpecification {
       (OT_BAGGAGE_PREFIX.toUpperCase() + "k2"): "v2",
       SOME_HEADER                             : "my-interesting-info",
       SOME_CUSTOM_BAGGAGE_HEADER              : "my-interesting-baggage-info",
+      SOME_CUSTOM_BAGGAGE_HEADER_2            : "my-interesting-baggage-info-2",
     ]
 
     when:
@@ -323,7 +330,10 @@ class DatadogHttpExtractorTest extends DDSpecification {
     then:
     context.traceId == DDTraceId.from(traceId)
     context.spanId == DDSpanId.from(spanId)
-    context.baggage == ["k1": "v1", "k2": "v2", "some-baggage": "my-interesting-baggage-info"]
+    context.baggage == ["k1": "v1",
+      "k2": "v2",
+      "some-baggage": "my-interesting-baggage-info",
+      "some-CaseSensitive-baggage": "my-interesting-baggage-info-2"]
     context.tags == ["some-tag": "my-interesting-info"]
     context.endToEndStartTime == endToEndStartTime * 1000000L
 
@@ -331,6 +341,40 @@ class DatadogHttpExtractorTest extends DDSpecification {
     traceId | spanId | endToEndStartTime
     "1"     | "2"    | 0
     "2"     | "3"    | 1610001234
+  }
+
+  def "baggage is mapped on context creation"() {
+    setup:
+    def headers = [
+      (TRACE_ID_KEY.toUpperCase())            : traceId,
+      (SPAN_ID_KEY.toUpperCase())             : spanId,
+      SOME_CUSTOM_BAGGAGE_HEADER              : "mappedBaggageValue",
+      (OT_BAGGAGE_PREFIX.toUpperCase() + "k1"): "v1",
+      (OT_BAGGAGE_PREFIX.toUpperCase() + "k2"): "v2",
+      SOME_ARBITRARY_HEADER                             : "my-interesting-info",
+    ]
+
+    when:
+    final TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+
+    then:
+    if (ctxCreated) {
+      assert context != null
+      assert context.getBaggage() == [
+        "some-baggage"     : "mappedBaggageValue",
+        "k1"               : "v1",
+        "k2"               : "v2",
+      ]
+    } else {
+      assert context == null
+    }
+
+    where:
+    ctxCreated     | traceId                                | spanId
+    false          | "-1"                                   | "1"
+    false          | "1"                                    | "-1"
+    true           | "0"                                    | "1"
+    true           | "${TRACE_ID_MAX - 1}" | "${TRACE_ID_MAX - 1}"
   }
 
   def "extract common http headers"() {

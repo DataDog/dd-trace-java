@@ -64,10 +64,10 @@ public final class InstrumenterState {
 
   /** Resets the default instrumentation state so nothing is blocked or applied. */
   public static void resetDefaultState() {
-    int instrumentationCount = instrumentationNames.length;
+    int maxInstrumentationCount = instrumentationNames.length;
 
     int wordsPerClassLoaderState =
-        ((instrumentationCount << 1) + BITS_PER_WORD - 1) >> ADDRESS_BITS_PER_WORD;
+        ((maxInstrumentationCount << 1) + BITS_PER_WORD - 1) >> ADDRESS_BITS_PER_WORD;
 
     if (defaultState.length > 0) { // optimization: skip clear if there's no old state
       classLoaderStates.clear();

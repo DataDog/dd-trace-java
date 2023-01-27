@@ -12,6 +12,8 @@ import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.lang.instrument.ClassFileTransformer;
+import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.List;
@@ -327,6 +329,8 @@ public interface Instrumenter {
 
   interface TransformerBuilder {
     void applyInstrumentation(HasAdvice instrumenter);
+
+    ClassFileTransformer installOn(Instrumentation instrumentation);
   }
 
   interface AdviceTransformation {

@@ -20,6 +20,7 @@ import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.MoshiSnapshotHelper;
+import com.datadog.debugger.util.ValueSerializer;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CorrelationAccess;
@@ -1419,6 +1420,7 @@ public class CapturedSnapshotTest {
             id,
             location,
             ProbeDefinition.MethodLocation.convert(probe.getEvaluateAt()),
+            true,
             probe.getProbeCondition(),
             probe.concatTags(),
             new SnapshotSummaryBuilder(location),
@@ -1429,6 +1431,7 @@ public class CapturedSnapshotTest {
                             relatedProbe.getId(),
                             location,
                             ProbeDefinition.MethodLocation.convert(relatedProbe.getEvaluateAt()),
+                            true,
                             ((LogProbe) relatedProbe).getProbeCondition(),
                             relatedProbe.concatTags(),
                             new SnapshotSummaryBuilder(location)))
@@ -1618,7 +1621,7 @@ public class CapturedSnapshotTest {
         if (type == null) {
           Assert.fail("no type for element");
         }
-        if (MoshiSnapshotHelper.isPrimitive(type)) {
+        if (ValueSerializer.isPrimitive(type)) {
           result.add(element.get("value"));
         } else {
           Assert.fail("not implemented");

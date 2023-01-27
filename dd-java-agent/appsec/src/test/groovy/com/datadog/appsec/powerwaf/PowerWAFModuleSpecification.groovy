@@ -3,6 +3,8 @@ package com.datadog.appsec.powerwaf
 import com.datadog.appsec.AppSecModule
 import com.datadog.appsec.config.AppSecConfig
 import com.datadog.appsec.config.AppSecModuleConfigurer
+import com.datadog.appsec.config.AppSecUserConfig
+import com.datadog.appsec.config.CurrentAppSecConfig
 import com.datadog.appsec.config.TraceSegmentPostProcessor
 import com.datadog.appsec.event.ChangeableFlow
 import com.datadog.appsec.event.DataListener
@@ -53,7 +55,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener = pwafModule.eventSubscriptions.first()
   }
 
-  void 'use default actions if no defined in config'() {
+  void 'use default actions if none defined in config'() {
     when:
     PowerWAFModule powerWAFModule = new PowerWAFModule()
     StubAppSecConfigService confService = new StubAppSecConfigService("no_actions_config.json")
@@ -84,6 +86,255 @@ class PowerWAFModuleSpecification extends DDSpecification {
       status_code: 500,
       type:'html',
     ]
+  }
+
+  void 'override actions through reconfiguration'() {
+    when:
+    PowerWAFModule powerWAFModule = new PowerWAFModule()
+    StubAppSecConfigService confService = new StubAppSecConfigService("override_actions_config.json")
+    confService.init()
+    powerWAFModule.config(confService)
+
+    def actions = [
+      [
+        id: 'block',
+        type: 'block_request',
+        parameters: [
+          status_code: 501,
+          type: 'json'
+        ]
+      ]
+    ]
+    AppSecModuleConfigurer.Reconfiguration reconf = Mock()
+    confService.currentAppSecConfig.with {
+      def dirtyStatus = userConfigs.addConfig(
+        new AppSecUserConfig('b', [:], [:], actions, [], []))
+      dirtyToggling = dirtyStatus.toggling // false
+      dirtyWafRules = dirtyStatus.rules // true
+
+      confService.listeners['waf'].onNewSubconfig(it, reconf)
+      clearDirty()
+    }
+
+    then:
+    powerWAFModule.ctxAndAddresses.get().actionInfoMap.size() == 1
+    powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('block') != null
+    powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('block').parameters == [
+      status_code: 501,
+      type: 'json',
+    ]
+  }
+
+
+  void 'override on_match through reconfiguration'() {
+    ChangeableFlow flow = Mock()
+    AppSecModuleConfigurer.Reconfiguration reconf = Mock()
+
+    when:
+    PowerWAFModule powerWAFModule = new PowerWAFModule()
+    StubAppSecConfigService confService = new StubAppSecConfigService('override_actions_config.json')
+    confService.init()
+    powerWAFModule.config(confService)
+    dataListener = powerWAFModule.dataSubscriptions.first()
+    eventListener = powerWAFModule.eventSubscriptions.first()
+
+    def actions = [
+      [
+        id: 'block2',
+        type: 'block_request',
+        parameters: [
+          status_code: 501,
+          type: 'json'
+        ]
+      ]
+    ]
+    def ruleOverride = [
+      id: 'ip_match_rule',
+      on_match: ['block2']
+    ]
+    def ipData = [
+      [
+        id  : 'ip_data',
+        type: 'ip_with_expiration',
+        data: [[
+            value     : '1.2.3.4',
+            expiration: '0',
+          ]]
+      ]
+    ]
+    confService.currentAppSecConfig.with {
+      def dirtyStatus = userConfigs.addConfig(
+        new AppSecUserConfig('b', [:], [ip_match_rule: ruleOverride], actions, [], []))
+      mergedAsmData.addConfig('c', ipData)
+      dirtyWafData = true
+      dirtyToggling = dirtyStatus.toggling // false
+      dirtyWafRules = dirtyStatus.rules // true
+
+      confService.listeners['waf'].onNewSubconfig(it, reconf)
+      clearDirty()
+    }
+    def newBundle = MapDataBundle.of(
+      KnownAddresses.REQUEST_INFERRED_CLIENT_IP,
+      '1.2.3.4'
+      )
+    dataListener.onDataAvailable(flow, ctx, newBundle, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    1 * reconf.reloadSubscriptions()
+    1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
+      rba.statusCode == 501
+      rba.blockingContentType == Flow.Action.BlockingContentType.JSON
+    })
+    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.getWafMetrics()
+    1 * ctx.closeAdditive()
+    0 * _
+  }
+
+  void 'add exclusions through reconfiguration'() {
+    ChangeableFlow flow = new ChangeableFlow()
+    AppSecModuleConfigurer.Reconfiguration reconf = Mock()
+
+    when:
+    setupWithStubConfigService()
+
+    def exclusions = [
+      [
+        id          : 1,
+        rules_target: [
+          [
+            tags: [
+              type    : 'security_scanner',
+            ]
+          ]
+        ],
+        conditions  : [
+          [
+            operator  : 'exact_match',
+            parameters: [
+              inputs: [[
+                  address: 'http.client_ip'
+                ]],
+              list  : ['192.168.0.1']
+            ]
+          ]
+        ]
+      ]
+    ]
+
+    service.currentAppSecConfig.with {
+      def dirtyStatus = userConfigs.addConfig(
+        new AppSecUserConfig('b', [:], [:], [], exclusions, []))
+      dirtyToggling = dirtyStatus.toggling // false
+      dirtyWafRules = dirtyStatus.rules // true
+
+      service.listeners['waf'].onNewSubconfig(it, reconf)
+      clearDirty()
+    }
+
+    then:
+    1 * reconf.reloadSubscriptions()
+
+    when:
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.getWafMetrics()
+    1 * ctx.closeAdditive()
+    0 * _
+
+    when:
+    def newBundle = MapDataBundle.of(
+      KnownAddresses.HEADERS_NO_COOKIES,
+      new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni/v0']),
+      KnownAddresses.REQUEST_INFERRED_CLIENT_IP,
+      '192.168.0.1'
+      )
+    dataListener.onDataAvailable(flow, ctx, newBundle, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.getWafMetrics()
+    1 * ctx.closeAdditive()
+    0 * _
+  }
+
+  void 'add custom rule through reconfiguration'() {
+    ChangeableFlow flow = new ChangeableFlow()
+    AppSecModuleConfigurer.Reconfiguration reconf = Mock()
+
+    when:
+    setupWithStubConfigService()
+
+    def customRules = [
+      [
+        id: 'ua0-600-12x',
+        name: 'Arachni',
+        tags: [
+          category: 'attack_attempt',
+          type: 'security_scanner'
+        ],
+        conditions: [
+          [
+            operator: 'match_regex',
+            parameters: [
+              inputs: [
+                [
+                  address: 'server.request.headers.no_cookies',
+                  key_path:['user-agent']
+                ]
+              ],
+              regex: '^Arachni2/v'
+            ]
+          ]
+        ]
+      ]
+    ]
+
+    service.currentAppSecConfig.with {
+      def dirtyStatus = userConfigs.addConfig(
+        new AppSecUserConfig('b', [:], [:], [], [], customRules))
+      dirtyToggling = dirtyStatus.toggling // false
+      dirtyWafRules = dirtyStatus.rules // true
+
+      service.listeners['waf'].onNewSubconfig(it, reconf)
+      clearDirty()
+    }
+
+    then:
+    1 * reconf.reloadSubscriptions()
+
+    when:
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    // original rule is replaced; no attack
+    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.getWafMetrics()
+    1 * ctx.closeAdditive()
+    0 * _
+
+    when:
+    def newBundle = MapDataBundle.of(
+      KnownAddresses.HEADERS_NO_COOKIES,
+      new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni2/v0']),
+      )
+    dataListener.onDataAvailable(flow, ctx, newBundle, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.getWafMetrics()
+    1 * ctx.closeAdditive()
+    0 * _
   }
 
   void 'append actions in addition to default'() {
@@ -417,20 +668,25 @@ class PowerWAFModuleSpecification extends DDSpecification {
     setupWithStubConfigService()
     AppSecModuleConfigurer.Reconfiguration reconf = Mock()
     ChangeableFlow flow = Mock()
-
-    when:
-    service.listeners['waf_data'].onNewSubconfig([
+    def ipData = [
       [
-        id: 'ip_data',
+        id  : 'ip_data',
         type: 'ip_with_expiration',
         data: [[
-            value: '1.2.3.4',
+            value     : '1.2.3.4',
             expiration: '0',
           ]]
       ]
-    ],
-    reconf
-    )
+    ]
+
+    when:
+    service.currentAppSecConfig.with {
+      mergedAsmData.addConfig('my_config', ipData)
+      dirtyWafData = true
+      service.listeners['waf'].onNewSubconfig(it, reconf)
+      clearDirty()
+    }
+
     dataListener = pwafModule.dataSubscriptions.first()
     eventListener = pwafModule.eventSubscriptions.first()
     def bundle = MapDataBundle.of(KnownAddresses.REQUEST_INFERRED_CLIENT_IP, '1.2.3.4')
@@ -446,44 +702,205 @@ class PowerWAFModuleSpecification extends DDSpecification {
     0 * _
   }
 
+  void 'reloading rules clears waf data and rule toggling'() {
+    setupWithStubConfigService()
+    AppSecModuleConfigurer.Reconfiguration reconf = Mock()
+    ChangeableFlow flow = Mock()
+    def ipData = [
+      [
+        id  : 'ip_data',
+        type: 'ip_with_expiration',
+        data: [[
+            value     : '1.2.3.4',
+            expiration: '0',
+          ]]
+      ]
+    ]
+
+    when:
+    service.currentAppSecConfig.with {
+      mergedAsmData.addConfig('my_config', ipData)
+      dirtyWafData = true
+      def dirtyStatus = userConfigs.addConfig(
+        new AppSecUserConfig('my_config', [ip_match_rule: false], [:], [], [], []))
+      dirtyToggling = dirtyStatus.toggling // true
+      dirtyWafRules = dirtyStatus.rules // false
+
+      service.listeners['waf'].onNewSubconfig(it, reconf)
+      clearDirty()
+    }
+
+    dataListener = pwafModule.dataSubscriptions.first()
+    eventListener = pwafModule.eventSubscriptions.first()
+    def bundle = MapDataBundle.of(KnownAddresses.REQUEST_INFERRED_CLIENT_IP, '1.2.3.4')
+    dataListener.onDataAvailable(flow, ctx, bundle, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    // nothing, rule is disabled
+    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.getWafMetrics()
+    1 * ctx.closeAdditive()
+    0 * _
+
+    when:
+    service.currentAppSecConfig.with {
+      mergedAsmData.removeConfig('my_config')
+      userConfigs.removeConfig('my_config')
+      dirtyWafRules = dirtyWafData = dirtyToggling = true
+
+      service.listeners['waf'].onNewSubconfig(it, reconf)
+      clearDirty()
+    }
+
+    dataListener.onDataAvailable(flow, ctx, bundle, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    // nothing, waf data was cleared (though rule is no longer disabled)
+    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.getWafMetrics()
+    1 * ctx.closeAdditive()
+    1 * reconf.reloadSubscriptions()
+    0 * _
+
+    when:
+    service.currentAppSecConfig.with {
+      mergedAsmData.addConfig('my_config', ipData)
+      dirtyWafData = true
+      service.listeners['waf'].onNewSubconfig(it, reconf)
+      clearDirty()
+    }
+
+    dataListener.onDataAvailable(flow, ctx, bundle, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    // now we have a match
+    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.getWafMetrics()
+    1 * flow.setAction({ it.blocking })
+    1 * ctx.closeAdditive()
+    0 * _
+
+    when:
+    service.currentAppSecConfig.with {
+      def dirtyStatus = userConfigs.addConfig(
+        new AppSecUserConfig('my_config', [ip_match_rule: false], [:], [], [], []))
+      dirtyToggling = dirtyStatus.toggling // true
+      dirtyWafRules = dirtyStatus.rules // false
+
+      service.listeners['waf'].onNewSubconfig(it, reconf)
+      clearDirty()
+    }
+
+    dataListener.onDataAvailable(flow, ctx, bundle, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    // nothing again, we disabled the rule
+    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.getWafMetrics()
+    1 * ctx.closeAdditive()
+    0 * _
+  }
+
   void 'rule toggling data given through configuration'() {
     setupWithStubConfigService()
     AppSecModuleConfigurer.Reconfiguration reconf = Mock()
     ChangeableFlow flow = Mock()
 
     when:
-    service.listeners['waf_rules_override'].onNewSubconfig([
-      'ua0-600-12x': false
-    ],
-    reconf
-    )
+    service.currentAppSecConfig.with {
+      def dirtyStatus = userConfigs.addConfig(
+        new AppSecUserConfig('b', ['ua0-600-12x': false], [:], [], [], []))
+      dirtyToggling = dirtyStatus.toggling // true
+      dirtyWafRules = dirtyStatus.rules // false
+
+      service.listeners['waf'].onNewSubconfig(it, reconf)
+      clearDirty()
+    }
     dataListener = pwafModule.dataSubscriptions.first()
     eventListener = pwafModule.eventSubscriptions.first()
     dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false)
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
+    // no attack
     1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
     0 * _
 
     when:
-    service.listeners['waf_rules_override'].onNewSubconfig([:], reconf )
+    // later configurations have precedence (b > a)
+    service.currentAppSecConfig.with {
+      def dirtyStatus = userConfigs.addConfig(
+        new AppSecUserConfig('a', ['ua0-600-12x': true], [:], [], [], []))
+      dirtyToggling = dirtyStatus.toggling // true
+      dirtyWafRules = dirtyStatus.rules // false
+
+      service.listeners['waf'].onNewSubconfig(it, reconf)
+      clearDirty()
+    }
     dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false)
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
+    // no attack
+    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.getWafMetrics()
+    1 * ctx.closeAdditive()
+    0 * _
+
+    when:
+    // later configurations have precedence (c > a)
+    service.currentAppSecConfig.with {
+      def dirtyStatus = userConfigs.addConfig(
+        new AppSecUserConfig('c', ['ua0-600-12x': true], [:], [], [], []))
+      dirtyToggling = dirtyStatus.toggling // true
+      dirtyWafRules = dirtyStatus.rules // false
+
+      service.listeners['waf'].onNewSubconfig(it, reconf)
+      clearDirty()
+    }
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    // attack found
     1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
     1 * ctx.getWafMetrics()
     1 * flow.setAction({ it.blocking })
     1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
     1 * ctx.closeAdditive()
     0 * _
+
+    when:
+    service.currentAppSecConfig.with {
+      def dirtyStatus = userConfigs.removeConfig('c')
+      dirtyToggling = dirtyStatus.toggling // true
+      dirtyWafRules = dirtyStatus.rules // false
+
+      service.listeners['waf'].onNewSubconfig(it, reconf)
+      clearDirty()
+    }
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    // no attack
+    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.getWafMetrics()
+    1 * ctx.closeAdditive()
+    0 * _
   }
 
   void 'initial configuration has unknown addresses'() {
-    def cfgService = new StubAppSecConfigService(waf: AppSecConfig.valueOf([
+    def cfgService = new StubAppSecConfigService(waf:
+    new CurrentAppSecConfig(
+    ddConfig: AppSecConfig.valueOf([
       version: '2.1',
       rules: [
         [
@@ -508,7 +925,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
           ],
         ]
       ]
-    ]))
+    ])))
 
     when:
     cfgService.init()

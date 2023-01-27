@@ -28,12 +28,17 @@ public class IndexExpression implements ValueExpression {
     if (keyValue == Value.undefined()) {
       return result;
     }
-    if (targetValue instanceof MapValue) {
-      result = ((MapValue) targetValue).get(keyValue.getValue());
+    try {
+      if (targetValue instanceof MapValue) {
+        result = ((MapValue) targetValue).get(keyValue.getValue());
+      }
+      if (targetValue instanceof ListValue) {
+        result = ((ListValue) targetValue).get(keyValue.getValue());
+      }
+    } catch (IllegalArgumentException ex) {
+      valueRefResolver.addEvaluationError(prettyPrint(), ex.getMessage());
     }
-    if (targetValue instanceof ListValue) {
-      result = ((ListValue) targetValue).get(keyValue.getValue());
-    }
+
     return result;
   }
 

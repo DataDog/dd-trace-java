@@ -146,5 +146,8 @@ class ComparisonExpressionTest {
     public Object getMember(Object target, String name) {
       return Value.undefinedValue();
     }
+
+    @Override
+    public void addEvaluationError(String expr, String message) {}
   }
 }
