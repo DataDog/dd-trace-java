@@ -250,7 +250,7 @@ public class ConfigurationTest {
       String id, String typeName, String methodName, String signature) {
     return LogProbe.builder()
         .language("java")
-        .probeId(id)
+        .probeId(id, 0)
         .active(true)
         .captureSnapshot(true)
         .where(typeName, methodName, signature)
@@ -274,7 +274,7 @@ public class ConfigurationTest {
       String signature) {
     return MetricProbe.builder()
         .language("java")
-        .probeId(id)
+        .probeId(id, 0)
         .active(true)
         .where(typeName, methodName, signature)
         .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
@@ -288,7 +288,7 @@ public class ConfigurationTest {
       String id, String template, String typeName, String methodName, String signature) {
     return LogProbe.builder()
         .language("java")
-        .probeId(id)
+        .probeId(id, 0)
         .active(true)
         .captureSnapshot(false)
         .where(typeName, methodName, signature)
@@ -302,7 +302,7 @@ public class ConfigurationTest {
       String id, String typeName, String methodName, String signature) {
     return SpanProbe.builder()
         .language("java")
-        .probeId(id)
+        .probeId(id, 0)
         .active(true)
         .where(typeName, methodName, signature)
         .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
@@ -313,7 +313,7 @@ public class ConfigurationTest {
   private static SpanProbe createSpan(String id, String sourceFile, int lineFrom, int lineTill) {
     return SpanProbe.builder()
         .language("java")
-        .probeId(id)
+        .probeId(id, 0)
         .active(true)
         .where(sourceFile, lineFrom, lineTill)
         .tags("tag1:value1", "tag2:value2")

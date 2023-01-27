@@ -21,7 +21,7 @@ public class DebuggerContext {
   public interface Sink {
     void addSnapshot(Snapshot snapshot);
 
-    void addDiagnostics(String probeId, List<DiagnosticMessage> messages);
+    void addDiagnostics(ProbeId probeId, List<DiagnosticMessage> messages);
 
     default void skipSnapshot(String probeId, SkipCause cause) {}
   }
@@ -99,7 +99,7 @@ public class DebuggerContext {
   }
 
   /** Add diagnostics message to the underlying sink No-op if not implementation available */
-  public static void reportDiagnostics(String probeId, List<DiagnosticMessage> messages) {
+  public static void reportDiagnostics(ProbeId probeId, List<DiagnosticMessage> messages) {
     Sink localSink = sink;
     if (localSink == null) {
       return;

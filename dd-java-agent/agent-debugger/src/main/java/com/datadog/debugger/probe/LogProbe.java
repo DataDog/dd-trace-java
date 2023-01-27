@@ -10,6 +10,7 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.Limits;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -227,7 +228,7 @@ public class LogProbe extends ProbeDefinition {
 
   public LogProbe(
       String language,
-      String id,
+      ProbeId probeId,
       boolean active,
       String[] tagStrs,
       Where where,
@@ -240,7 +241,7 @@ public class LogProbe extends ProbeDefinition {
       Sampling sampling) {
     this(
         language,
-        id,
+        probeId,
         active,
         Tag.fromStrings(tagStrs),
         where,
@@ -255,7 +256,7 @@ public class LogProbe extends ProbeDefinition {
 
   private LogProbe(
       String language,
-      String id,
+      ProbeId probeId,
       boolean active,
       Tag[] tags,
       Where where,
@@ -266,7 +267,7 @@ public class LogProbe extends ProbeDefinition {
       ProbeCondition probeCondition,
       Capture capture,
       Sampling sampling) {
-    super(language, id, active, tags, where, evaluateAt);
+    super(language, probeId, active, tags, where, evaluateAt);
     this.template = template;
     this.segments = segments;
     this.captureSnapshot = captureSnapshot;
@@ -278,7 +279,7 @@ public class LogProbe extends ProbeDefinition {
   public LogProbe copy() {
     return new LogProbe(
         language,
-        id,
+        new ProbeId(id, version),
         active,
         tags,
         where,
@@ -333,6 +334,7 @@ public class LogProbe extends ProbeDefinition {
     return active == that.active
         && Objects.equals(language, that.language)
         && Objects.equals(id, that.id)
+        && version == that.version
         && Arrays.equals(tags, that.tags)
         && Objects.equals(tagMap, that.tagMap)
         && Objects.equals(where, that.where)
@@ -353,6 +355,7 @@ public class LogProbe extends ProbeDefinition {
         Objects.hash(
             language,
             id,
+            version,
             active,
             tagMap,
             where,
@@ -378,6 +381,8 @@ public class LogProbe extends ProbeDefinition {
         + ", id='"
         + id
         + '\''
+        + ", version="
+        + version
         + ", active="
         + active
         + ", tags="

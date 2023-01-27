@@ -5,6 +5,7 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -41,6 +42,7 @@ public abstract class ProbeDefinition {
 
   protected final String language;
   protected final String id;
+  protected final int version;
   protected final boolean active;
   protected final Tag[] tags;
   protected final Map<String, String> tagMap = new HashMap<>();
@@ -51,13 +53,14 @@ public abstract class ProbeDefinition {
 
   public ProbeDefinition(
       String language,
-      String id,
+      ProbeId probeId,
       boolean active,
       String[] tagStrs,
       Where where,
       MethodLocation evaluateAt) {
     this.language = language;
-    this.id = id;
+    this.id = probeId != null ? probeId.getId() : null;
+    this.version = probeId != null ? probeId.getVersion() : 0;
     this.active = active;
     tags = Tag.fromStrings(tagStrs);
     initTagMap(tagMap, tags);
@@ -67,13 +70,14 @@ public abstract class ProbeDefinition {
 
   protected ProbeDefinition(
       String language,
-      String id,
+      ProbeId probeId,
       boolean active,
       Tag[] tags,
       Where where,
       MethodLocation evaluateAt) {
     this.language = language;
-    this.id = id;
+    this.id = probeId != null ? probeId.getId() : null;
+    this.version = probeId != null ? probeId.getVersion() : 0;
     this.active = active;
     this.tags = tags;
     initTagMap(tagMap, tags);
@@ -83,6 +87,10 @@ public abstract class ProbeDefinition {
 
   public String getId() {
     return id;
+  }
+
+  public ProbeId getProbeId() {
+    return new ProbeId(id, version);
   }
 
   public String getLanguage() {
@@ -131,9 +139,9 @@ public abstract class ProbeDefinition {
     return additionalProbes;
   }
 
-  public Stream<String> getAllProbeIds() {
+  public Stream<ProbeId> getAllProbeIds() {
     return Stream.concat(Stream.of(this), getAdditionalProbes().stream())
-        .map(ProbeDefinition::getId);
+        .map(ProbeDefinition::getProbeId);
   }
 
   private static void initTagMap(Map<String, String> tagMap, Tag[] tags) {
@@ -153,7 +161,7 @@ public abstract class ProbeDefinition {
 
   public abstract static class Builder<T extends Builder> {
     protected String language = LANGUAGE;
-    protected String probeId;
+    protected ProbeId probeId;
     protected boolean active = true;
     protected String[] tagStrs;
     protected Where where;
@@ -164,7 +172,12 @@ public abstract class ProbeDefinition {
       return (T) this;
     }
 
-    public T probeId(String probeId) {
+    public T probeId(String id, int version) {
+      this.probeId = new ProbeId(id, version);
+      return (T) this;
+    }
+
+    public T probeId(ProbeId probeId) {
       this.probeId = probeId;
       return (T) this;
     }

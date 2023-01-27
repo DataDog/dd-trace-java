@@ -16,13 +16,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.config.TraceInstrumentationConfig;
-import datadog.trace.bootstrap.debugger.CapturedStackFrame;
-import datadog.trace.bootstrap.debugger.CorrelationAccess;
-import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.DiagnosticMessage;
-import datadog.trace.bootstrap.debugger.Limits;
-import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
-import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.bootstrap.debugger.*;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import java.io.BufferedReader;
@@ -67,7 +61,7 @@ import utils.SourceCompiler;
 
 public class DebuggerTransformerTest {
   private static final String LANGUAGE = "java";
-  private static final String PROBE_ID = "beae1807-f3b0-4ea8-a74f-826790c5e6f8";
+  private static final ProbeId PROBE_ID = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
   private static final boolean FAST_TESTS = Boolean.getBoolean("fast-tests");
   private static final String SERVICE_NAME = "service-name";
 
@@ -100,8 +94,8 @@ public class DebuggerTransformerTest {
     }
 
     @Override
-    public void addDiagnostics(String probeId, List<DiagnosticMessage> messages) {
-      errors.computeIfAbsent(probeId, k -> new ArrayList<>()).addAll(messages);
+    public void addDiagnostics(ProbeId probeId, List<DiagnosticMessage> messages) {
+      errors.computeIfAbsent(probeId.getId(), k -> new ArrayList<>()).addAll(messages);
     }
   }
 
@@ -219,7 +213,8 @@ public class DebuggerTransformerTest {
     if (origClassFile.exists()) {
       origClassFile.delete();
     }
-    LogProbe logProbe = LogProbe.builder().where("java.util.ArrayList", "add").build();
+    LogProbe logProbe =
+        LogProbe.builder().where("java.util.ArrayList", "add").probeId("", 0).build();
     DebuggerTransformer debuggerTransformer =
         new DebuggerTransformer(
             config, new Configuration(SERVICE_NAME, Collections.singletonList(logProbe)), null);
@@ -258,7 +253,10 @@ public class DebuggerTransformerTest {
     for (ProbeTestInfo probeInfo : probeInfos) {
       String className = getClassName.apply(probeInfo.clazz);
       LogProbe logProbe =
-          LogProbe.builder().where(className, probeInfo.methodName, probeInfo.signature).build();
+          LogProbe.builder()
+              .where(className, probeInfo.methodName, probeInfo.signature)
+              .probeId("", 0)
+              .build();
       logProbes.add(logProbe);
     }
     Configuration configuration = new Configuration(SERVICE_NAME, logProbes);
@@ -369,7 +367,7 @@ public class DebuggerTransformerTest {
   @Test
   public void classBeingRedefinedNull() {
     Config config = mock(Config.class);
-    LogProbe logProbe = LogProbe.builder().where("ArrayList", "add").build();
+    LogProbe logProbe = LogProbe.builder().where("ArrayList", "add").probeId("", 0).build();
     Configuration configuration =
         new Configuration(SERVICE_NAME, Collections.singletonList(logProbe));
     AtomicReference<InstrumentationResult> lastResult = new AtomicReference<>(null);
@@ -537,7 +535,7 @@ public class DebuggerTransformerTest {
       String sourceCode, String targetClassName, String targetMethodName, InstrumentationKind kind)
       throws Exception {
     LogProbe.Builder builder =
-        LogProbe.builder().probeId(UUID.randomUUID().toString()).captureSnapshot(true);
+        LogProbe.builder().probeId(UUID.randomUUID().toString(), 0).captureSnapshot(true);
     // add depth 1 field destructuring
     builder.capture(
         Limits.DEFAULT_REFERENCE_DEPTH,

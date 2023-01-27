@@ -14,6 +14,7 @@ import com.datadog.debugger.probe.ProbeDefinition;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
@@ -32,9 +33,9 @@ import org.junit.jupiter.api.Test;
 
 public class MetricProbesInstrumentationTest {
   private static final String LANGUAGE = "java";
-  private static final String METRIC_ID = "beae1807-f3b0-4ea8-a74f-826790c5e6f8";
-  private static final String METRIC_ID1 = "beae1807-f3b0-4ea8-a74f-826790c5e6f6";
-  private static final String METRIC_ID2 = "beae1807-f3b0-4ea8-a74f-826790c5e6f7";
+  private static final ProbeId METRIC_ID = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
+  private static final ProbeId METRIC_ID1 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f6", 0);
+  private static final ProbeId METRIC_ID2 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f7", 0);
   private static final String SERVICE_NAME = "service-name";
   private static final String METRIC_PROBEID_TAG =
       "debugger.probeid:beae1807-f3b0-4ea8-a74f-826790c5e6f8";
@@ -698,7 +699,7 @@ public class MetricProbesInstrumentationTest {
   }
 
   private static MetricProbe createMetric(
-      String id,
+      ProbeId id,
       String metricName,
       MetricProbe.MetricKind metricKind,
       String typeName,
@@ -716,7 +717,7 @@ public class MetricProbesInstrumentationTest {
   }
 
   private static MetricProbe createMetric(
-      String id,
+      ProbeId id,
       String metricName,
       MetricProbe.MetricKind metricKind,
       String sourceFile,
@@ -730,7 +731,7 @@ public class MetricProbesInstrumentationTest {
   }
 
   private static MetricProbe.Builder createMetricBuilder(
-      String id, String metricName, MetricProbe.MetricKind metricKind) {
+      ProbeId id, String metricName, MetricProbe.MetricKind metricKind) {
     return MetricProbe.builder()
         .language(LANGUAGE)
         .probeId(id)
@@ -788,7 +789,7 @@ public class MetricProbesInstrumentationTest {
     public void addSnapshot(Snapshot snapshot) {}
 
     @Override
-    public void addDiagnostics(String probeId, List<DiagnosticMessage> messages) {
+    public void addDiagnostics(ProbeId probeId, List<DiagnosticMessage> messages) {
       for (DiagnosticMessage msg : messages) {
         System.out.println(msg);
       }

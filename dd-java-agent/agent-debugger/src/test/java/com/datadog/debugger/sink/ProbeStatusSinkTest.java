@@ -9,6 +9,7 @@ import com.datadog.debugger.agent.ProbeStatus.Builder;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.Duration;
@@ -28,8 +29,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ProbeStatusSinkTest {
 
   private static final String SERVICE_NAME = "service-name";
-  private static final String PROBE_ID = UUID.randomUUID().toString();
-  private static final String PROBE_ID2 = UUID.randomUUID().toString();
+  private static final ProbeId PROBE_ID = new ProbeId(UUID.randomUUID().toString(), 12);
+  private static final ProbeId PROBE_ID_NEW_VERSION = new ProbeId(PROBE_ID.getId(), 21);
+  private static final ProbeId PROBE_ID2 = new ProbeId(UUID.randomUUID().toString(), 21);
   private static final String MESSAGE = "Foo";
   private static final int DIAGNOSTICS_INTERVAL = 60 * 60; // in seconds = 1h
   private static final Instant AFTER_INTERVAL_HAS_PASSED =
@@ -124,6 +126,25 @@ class ProbeStatusSinkTest {
   }
 
   @Test
+  void addReceivedThenInstalledThenNewVersion() {
+    probeStatusSink.addReceived(PROBE_ID);
+    probeStatusSink.addInstalled(PROBE_ID);
+    probeStatusSink.addReceived(PROBE_ID_NEW_VERSION);
+    probeStatusSink.addInstalled(PROBE_ID_NEW_VERSION);
+    assertEquals(
+        Arrays.asList(
+            builder.receivedMessage(PROBE_ID),
+            builder.installedMessage(PROBE_ID),
+            builder.receivedMessage(PROBE_ID_NEW_VERSION),
+            builder.installedMessage(PROBE_ID_NEW_VERSION)),
+        probeStatusSink.getDiagnostics());
+    Clock fixed = Clock.fixed(AFTER_INTERVAL_HAS_PASSED, ZoneId.systemDefault());
+    assertEquals(
+        Collections.singletonList(builder.installedMessage(PROBE_ID_NEW_VERSION)),
+        probeStatusSink.getDiagnostics(fixed));
+  }
+
+  @Test
   void addErrorWithThrowable() {
     Throwable throwable = new Exception("test");
     probeStatusSink.addError(PROBE_ID, throwable);
@@ -203,7 +224,7 @@ class ProbeStatusSinkTest {
 
   @Test
   void multipleProbes() {
-    String secondProbeId = UUID.randomUUID().toString();
+    ProbeId secondProbeId = new ProbeId(UUID.randomUUID().toString(), 123);
 
     // Emit both right-away after adding the messages
     probeStatusSink.addReceived(PROBE_ID);

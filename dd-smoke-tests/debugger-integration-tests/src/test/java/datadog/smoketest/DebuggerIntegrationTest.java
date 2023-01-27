@@ -16,6 +16,7 @@ import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.probe.LogProbe;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Platform;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.util.TagsHelper;
 import java.io.IOException;
@@ -37,7 +38,8 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   private static final Logger LOG = LoggerFactory.getLogger(DebuggerIntegrationTest.class);
   private static final String DEBUGGER_TEST_APP_CLASS =
       "datadog.smoketest.debugger.DebuggerTestApplication";
-  private static final String PROBE_ID = "123356536";
+  private static final ProbeId PROBE_ID = new ProbeId("123356536", 0);
+  private static final ProbeId PROBE_ID2 = new ProbeId("1233565368", 12);
   private static final String MAIN_CLASS_NAME = "Main";
 
   @Override
@@ -239,7 +241,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
     List<LogProbe> probes = new ArrayList<>();
     for (int i = 0; i < 10; i++) {
       probes.add(
-          LogProbe.builder().probeId("12335653" + i).where(MAIN_CLASS_NAME, METHOD_NAME).build());
+          LogProbe.builder().probeId(getProbeId(i)).where(MAIN_CLASS_NAME, METHOD_NAME).build());
     }
     setCurrentConfiguration(createConfig(probes));
     final int NB_SNAPSHOTS = 10;
@@ -264,9 +266,13 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
     }
     assertEquals(NB_SNAPSHOTS, probeIds.size());
     for (int i = 0; i < NB_SNAPSHOTS; i++) {
-      assertTrue(probeIds.contains("12335653" + i));
+      assertTrue(probeIds.contains(String.valueOf(i)));
     }
     assertFalse(logHasErrors(logFilePath, it -> false));
+  }
+
+  private ProbeId getProbeId(int i) {
+    return new ProbeId(String.valueOf(i), 0);
   }
 
   private static void assertContainsLogLine(Path logFilePath, String containsLine)

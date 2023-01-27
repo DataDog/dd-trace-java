@@ -71,7 +71,7 @@ class SourceFileTrackingTransformerTest {
     Configuration newConfig =
         Configuration.builder()
             .setService("service-name")
-            .add(new LogProbe.Builder().where(sourceFile, 42).build())
+            .add(new LogProbe.Builder().probeId("", 1).where(sourceFile, 42).build())
             .build();
     return new ConfigurationComparer(emptyConfig, newConfig, new HashMap<>());
   }
