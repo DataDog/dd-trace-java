@@ -1,6 +1,10 @@
 package datadog.trace.bootstrap.instrumentation.ci.source;
 
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Label;
@@ -14,47 +18,81 @@ public class MethodLinesResolverImpl implements MethodLinesResolver {
 
   private static final Logger log = LoggerFactory.getLogger(MethodLinesResolverImpl.class);
 
+  private final DDCache<Class<?>, ClassMethodLines> methodLinesCache =
+      DDCaches.newFixedSizeIdentityCache(16);
+
   @Override
   public MethodLines getLines(Method method) {
     try {
-      String methodName = method.getName();
-      String methodDescriptor = Type.getMethodDescriptor(method);
-      MethodLocator methodLocator = new MethodLocator(methodName, methodDescriptor);
+      ClassMethodLines classMethodLines =
+          methodLinesCache.computeIfAbsent(method.getDeclaringClass(), ClassMethodLines::parse);
+      return classMethodLines.get(method);
 
-      Class<?> declaringClass = method.getDeclaringClass();
-      String declaringClassName = declaringClass.getName();
-      ClassReader classReader = new ClassReader(declaringClassName);
-      classReader.accept(methodLocator, ClassReader.SKIP_FRAMES);
-
-      MethodLinesRecorder methodLinesRecorder = methodLocator.methodLinesRecorder;
-      return new MethodLines(
-          methodLinesRecorder.startLineNumber, methodLinesRecorder.finishLineNumber);
     } catch (Exception e) {
       log.error("Could not determine method borders for {}", method, e);
       return MethodLines.EMPTY;
     }
   }
 
-  private static class MethodLocator extends ClassVisitor {
-    private final String methodName;
-    private final String methodDescriptor;
-    private final MethodLinesRecorder methodLinesRecorder;
+  private static final class ClassMethodLines {
+    private final Map<String, MethodLinesRecorder> recordersByMethodFingerprint = new HashMap<>();
 
-    MethodLocator(String methodName, String methodDescriptor) {
+    public MethodLinesRecorder createRecorder(String methodFingerprint) {
+      MethodLinesRecorder recorder = new MethodLinesRecorder();
+      recordersByMethodFingerprint.put(methodFingerprint, recorder);
+      return recorder;
+    }
+
+    public MethodLines get(Method method) {
+      String methodFingerprint = getFingerprint(method);
+      MethodLinesRecorder methodLinesRecorder = recordersByMethodFingerprint.get(methodFingerprint);
+      if (methodLinesRecorder != null) {
+        return new MethodLines(
+            methodLinesRecorder.startLineNumber, methodLinesRecorder.finishLineNumber);
+      } else {
+        return MethodLines.EMPTY;
+      }
+    }
+
+    public static ClassMethodLines parse(Class<?> clazz) {
+      try {
+        ClassMethodLines classMethodLines = new ClassMethodLines();
+
+        String declaringClassName = clazz.getName();
+        ClassReader classReader = new ClassReader(declaringClassName);
+        MethodLocator methodLocator = new MethodLocator(classMethodLines);
+        classReader.accept(methodLocator, ClassReader.SKIP_FRAMES);
+
+        return classMethodLines;
+      } catch (Exception e) {
+        // do not cache failure
+        throw new RuntimeException(e);
+      }
+    }
+
+    public static String getFingerprint(Method method) {
+      String methodName = method.getName();
+      String methodDescriptor = Type.getMethodDescriptor(method);
+      return getFingerprint(methodName, methodDescriptor);
+    }
+
+    public static String getFingerprint(String methodName, String methodDescriptor) {
+      return methodName + ';' + methodDescriptor;
+    }
+  }
+
+  private static class MethodLocator extends ClassVisitor {
+    private final ClassMethodLines classMethodLines;
+
+    MethodLocator(ClassMethodLines classMethodLines) {
       super(Opcodes.ASM9);
-      this.methodName = methodName;
-      this.methodDescriptor = methodDescriptor;
-      methodLinesRecorder = new MethodLinesRecorder();
+      this.classMethodLines = classMethodLines;
     }
 
     @Override
     public MethodVisitor visitMethod(
         int access, String name, String descriptor, String signature, String[] exceptions) {
-      if (name.equals(methodName) && descriptor.equals(methodDescriptor)) {
-        return methodLinesRecorder;
-      } else {
-        return null;
-      }
+      return classMethodLines.createRecorder(ClassMethodLines.getFingerprint(name, descriptor));
     }
   }
 
