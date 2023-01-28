@@ -10,7 +10,11 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.time.TimeSource;
-import datadog.trace.bootstrap.instrumentation.api.*;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.KafkaOffset;
+import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
+import datadog.trace.bootstrap.instrumentation.api.StatsPayload;
+import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.OkHttpSink;
 import datadog.trace.common.metrics.Sink;
@@ -142,12 +146,10 @@ public class DefaultDataStreamsCheckpointer
   }
 
   public void trackKafkaProduce(String topic, int partition, long offset) {
-    System.out.println("tracking produce");
     inbox.offer(new KafkaOffset(topic, partition, offset, timeSource.getCurrentTimeNanos()));
   }
 
   public void trackKafkaCommit(String consumerGroup, String topic, int partition, long offset) {
-    System.out.println("tracking commit");
     inbox.offer(
         new KafkaOffset(consumerGroup, topic, partition, offset, timeSource.getCurrentTimeNanos()));
   }

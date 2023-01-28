@@ -113,7 +113,6 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   }
 
   private void writeBucket(StatsBucket bucket, Writable packer) {
-    System.out.println("printing bucket");
     Collection<StatsGroup> groups = bucket.getGroups();
     packer.startArray(groups.size());
     for (StatsGroup group : groups) {
@@ -152,13 +151,11 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       Collection<Map.Entry<TopicPartitionGroup, Long>> latestCommitOffsets,
       Collection<Map.Entry<TopicPartition, Long>> latestProduceOffsets,
       Writable packer) {
-    System.out.println("has kafka!");
     packer.writeUTF8(KAFKA);
     boolean hasCommitOffsets = !latestCommitOffsets.isEmpty();
     boolean hasProduceOffsets = !latestProduceOffsets.isEmpty();
     packer.startMap((hasCommitOffsets ? 1 : 0) + (hasProduceOffsets ? 1 : 0));
     if (hasCommitOffsets) {
-      System.out.println("has commit");
       packer.writeUTF8(LATEST_COMMIT_OFFSETS);
       packer.startArray(latestCommitOffsets.size());
       for (Map.Entry<TopicPartitionGroup, Long> entry : latestCommitOffsets) {
@@ -174,7 +171,6 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       }
     }
     if (hasProduceOffsets) {
-      System.out.println("has produce");
       packer.writeUTF8(LATEST_PRODUCE_OFFSETS);
       packer.startArray(latestProduceOffsets.size());
       for (Map.Entry<TopicPartition, Long> entry : latestProduceOffsets) {

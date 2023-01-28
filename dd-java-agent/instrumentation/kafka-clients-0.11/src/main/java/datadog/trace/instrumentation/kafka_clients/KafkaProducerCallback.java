@@ -8,14 +8,11 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.RecordMetadata;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class KafkaProducerCallback implements Callback {
   private final Callback callback;
   private final AgentSpan parent;
   private final AgentSpan span;
-  private static final Logger log = LoggerFactory.getLogger(KafkaProducerCallback.class);
 
   public KafkaProducerCallback(
       final Callback callback, final AgentSpan parent, final AgentSpan span) {
@@ -29,10 +26,6 @@ public class KafkaProducerCallback implements Callback {
     PRODUCER_DECORATE.onError(span, exception);
     PRODUCER_DECORATE.beforeFinish(span);
     AgentTracer.get().trackKafkaProduce(metadata.topic(), metadata.partition(), metadata.offset());
-    span.setTag("partition", metadata.partition());
-    span.setTag("topic", metadata.topic());
-    span.setTag("offset", metadata.offset());
-    log.warn("Produced a message.");
     span.finish();
     if (callback != null) {
       if (parent != null) {

@@ -10,11 +10,11 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.internals.ConsumerCoordinator;
 import org.apache.kafka.common.TopicPartition;
 
-/** This instrumentation saves the co */
 @AutoService(Instrumenter.class)
 public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType {
@@ -26,7 +26,6 @@ public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Traci
   @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStores = new HashMap<>();
-    // for each ConsumerCoordinator, we store the consumer group
     contextStores.put(
         "org.apache.kafka.clients.consumer.internals.ConsumerCoordinator", "java.lang.String");
     return contextStores;
@@ -56,8 +55,6 @@ public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Traci
         @Advice.Argument(0) final Map<TopicPartition, OffsetAndMetadata> offsets) {
       String consumerGroup =
           InstrumentationContext.get(ConsumerCoordinator.class, String.class).get(coordinator);
-      System.out.printf("___________________________________\n");
-      System.out.printf("committing offsets %s\n", consumerGroup);
       for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : offsets.entrySet()) {
         AgentTracer.get()
             .trackKafkaCommit(
@@ -65,10 +62,13 @@ public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Traci
                 entry.getKey().topic(),
                 entry.getKey().partition(),
                 entry.getValue().offset());
-        System.out.printf(
-            "partition %d, topic %s, offset %d\n",
-            entry.getKey().partition(), entry.getKey().topic(), entry.getValue().offset());
       }
+    }
+
+    public static void muzzleCheck(ConsumerRecord record) {
+      // KafkaConsumerInstrumentation only applies for kafka versions with headers
+      // Make an explicit call so ConsumerCoordinatorInstrumentation does the same
+      record.headers();
     }
   }
 }

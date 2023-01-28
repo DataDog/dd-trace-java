@@ -220,6 +220,62 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     payloadWriter.close()
   }
 
+  def "Kafka offsets are tracked"() {
+    given:
+    def conditions = new PollingConditions(timeout: 1)
+    def features = Stub(DDAgentFeaturesDiscovery) {
+      supportsDataStreams() >> true
+    }
+    def timeSource = new ControllableTimeSource()
+    def sink = Mock(Sink)
+    def payloadWriter = new CapturingPayloadWriter()
+
+    when:
+    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    checkpointer.start()
+    checkpointer.trackKafkaCommit("testGroup", "testTopic", 2, 23)
+    checkpointer.trackKafkaCommit("testGroup", "testTopic", 2, 24)
+    checkpointer.trackKafkaProduce("testTopic", 2, 23)
+    checkpointer.trackKafkaProduce("testTopic2", 2, 23)
+    checkpointer.trackKafkaProduce("testTopic2", 2, 45)
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
+    checkpointer.report()
+
+    then:
+    conditions.eventually {
+      assert checkpointer.inbox.isEmpty()
+      assert checkpointer.thread.state != Thread.State.RUNNABLE
+      assert payloadWriter.buckets.size() == 1
+    }
+
+    with(payloadWriter.buckets.get(0)) {
+      latestKafkaCommitOffsets.size() == 1
+      with(latestKafkaCommitOffsets.iterator().next()) {
+        key.group == "testGroup"
+        key.topic == "testTopic"
+        key.partition == 2
+        value == 24
+      }
+      latestKafkaProduceOffsets.size() == 2
+      List<Map.Entry<TopicPartition, Long>> sortedOffsets = new ArrayList<>(latestKafkaProduceOffsets)
+      sortedOffsets.sort({ it.key.topic })
+      with(sortedOffsets[0]) {
+        key.topic == "testTopic"
+        key.partition == 2
+        value == 23
+      }
+      with(sortedOffsets[1]) {
+        key.topic == "testTopic2"
+        key.partition == 2
+        value == 45
+      }
+    }
+
+    cleanup:
+    payloadWriter.close()
+    checkpointer.close()
+  }
+
   def "Groups from multiple buckets are reported"() {
     given:
     def conditions = new PollingConditions(timeout: 1)

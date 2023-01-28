@@ -76,6 +76,9 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     checkpointer.start()
     checkpointer.accept(new StatsPoint([], 9, 0, timeSource.currentTimeNanos, 0, 0))
     checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    checkpointer.trackKafkaProduce("testTopic", 1, 100)
+    checkpointer.trackKafkaProduce("testTopic", 1, 130)
+    checkpointer.trackKafkaCommit("testGroup", "testTopic", 1, 130)
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100l)
     checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10)))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
@@ -115,7 +118,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     assert unpacker.unpackArrayHeader() == 2  // 2 time buckets
 
     // FIRST BUCKET
-    assert unpacker.unpackMapHeader() == 3
+    assert unpacker.unpackMapHeader() == 4
     assert unpacker.unpackString() == "Start"
     unpacker.skipValue()
     assert unpacker.unpackString() == "Duration"
@@ -152,6 +155,30 @@ class DataStreamsWritingTest extends DDCoreSpecification {
         assert unpacker.unpackString() == "topic:testTopic"
       }
     }
+
+    // Kafka stats
+    assert unpacker.unpackString() == "Kafka"
+    assert unpacker.unpackMapHeader() == 2
+    assert unpacker.unpackString() == "LatestCommitOffsets"
+    assert unpacker.unpackArrayHeader() == 1
+    assert unpacker.unpackMapHeader() == 4
+    assert unpacker.unpackString() == "ConsumerGroup"
+    assert unpacker.unpackString() == "testGroup"
+    assert unpacker.unpackString() == "Topic"
+    assert unpacker.unpackString() == "testTopic"
+    assert unpacker.unpackString() == "Partition"
+    assert unpacker.unpackInt() == 1
+    assert unpacker.unpackString() == "Offset"
+    assert unpacker.unpackLong() == 130
+    assert unpacker.unpackString() == "LatestProduceOffsets"
+    assert unpacker.unpackArrayHeader() == 1
+    assert unpacker.unpackMapHeader() == 3
+    assert unpacker.unpackString() == "Topic"
+    assert unpacker.unpackString() == "testTopic"
+    assert unpacker.unpackString() == "Partition"
+    assert unpacker.unpackInt() == 1
+    assert unpacker.unpackString() == "Offset"
+    assert unpacker.unpackLong() == 130
 
     // SECOND BUCKET
     assert unpacker.unpackMapHeader() == 3

@@ -6,6 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.test.util.Flaky
+import datadog.trace.core.datastreams.TopicPartitionGroup
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
@@ -118,6 +119,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     }
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+      TEST_DATA_STREAMS_WRITER.waitForKafkaOffsets(1, 1)
     }
 
     then:
@@ -166,6 +168,18 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
           "type:kafka"
         ]
         edgeTags.size() == 5
+      }
+      verifyAll(TEST_DATA_STREAMS_WRITER.producerOffsets.get(0)) {
+        key.topic == SHARED_TOPIC
+        key.partition == received.partition()
+        value == received.offset()
+      }
+      Map.Entry<TopicPartitionGroup, Long> commitOffset = TEST_DATA_STREAMS_WRITER.commitOffsets.find { it.key.partition == received.partition() }
+      verifyAll(commitOffset) {
+        key.group == "sender"
+        key.topic == SHARED_TOPIC
+        key.partition == received.partition()
+        value == received.offset() + 1
       }
     }
 
@@ -222,6 +236,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     }
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+      TEST_DATA_STREAMS_WRITER.waitForKafkaOffsets(1, 1)
     }
 
     then:
@@ -270,6 +285,18 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
           "type:kafka"
         ]
         edgeTags.size() == 5
+      }
+      verifyAll(TEST_DATA_STREAMS_WRITER.producerOffsets.get(0)) {
+        key.topic == SHARED_TOPIC
+        key.partition == received.partition()
+        value == received.offset()
+      }
+      Map.Entry<TopicPartitionGroup, Long> commitOffset = TEST_DATA_STREAMS_WRITER.commitOffsets.find { it.key.partition == received.partition() }
+      verifyAll(commitOffset) {
+        key.group == "sender"
+        key.topic == SHARED_TOPIC
+        key.partition == received.partition()
+        value == received.offset() + 1
       }
     }
 
@@ -660,6 +687,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     }
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+      TEST_DATA_STREAMS_WRITER.waitForKafkaOffsets(1, 1)
     }
 
     then:

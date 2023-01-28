@@ -20,7 +20,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.internals.ConsumerCoordinator;
 
-/** This instrumentation saves the co */
+/** This instrumentation saves the consumer group in the context store for later use. */
 @AutoService(Instrumenter.class)
 public final class KafkaConsumerGroupInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType {
@@ -76,7 +76,6 @@ public final class KafkaConsumerGroupInstrumentation extends Instrumenter.Tracin
         @Advice.FieldValue("coordinator") ConsumerCoordinator coordinator,
         @Advice.Argument(0) ConsumerConfig consumerConfig) {
       String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
-      System.out.printf("getting consumer group %s\n", consumerGroup);
 
       if (consumerGroup != null && !consumerGroup.isEmpty()) {
         InstrumentationContext.get(KafkaConsumer.class, String.class).put(consumer, consumerGroup);
