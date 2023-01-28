@@ -174,6 +174,10 @@ public class AgentTracer {
     AgentSpan.Context notifyExtensionStart(Object event);
 
     void notifyExtensionEnd(AgentSpan span, Object result, boolean isError);
+
+    void trackKafkaProduce(String topic, int partition, long offset);
+
+    void trackKafkaCommit(String consumerGroup, String topic, int partition, long offset);
   }
 
   public interface SpanBuilder {
@@ -395,6 +399,12 @@ public class AgentTracer {
     public ScopeState newScopeState() {
       return null;
     }
+
+    @Override
+    public void trackKafkaProduce(String topic, int partition, long offset) {}
+
+    @Override
+    public void trackKafkaCommit(String consumerGroup, String topic, int partition, long offset) {}
   }
 
   public static final class NoopAgentSpan implements AgentSpan {

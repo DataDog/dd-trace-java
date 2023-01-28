@@ -850,6 +850,16 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     LambdaHandler.notifyEndInvocation(span, result, isError);
   }
 
+  @Override
+  public void trackKafkaProduce(String topic, int partition, long offset) {
+    dataStreamsCheckpointer.trackKafkaProduce(topic, partition, offset);
+  }
+
+  @Override
+  public void trackKafkaCommit(String consumerGroup, String topic, int partition, long offset) {
+    dataStreamsCheckpointer.trackKafkaCommit(consumerGroup, topic, partition, offset);
+  }
+
   private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, MINUTES);
 
   /**

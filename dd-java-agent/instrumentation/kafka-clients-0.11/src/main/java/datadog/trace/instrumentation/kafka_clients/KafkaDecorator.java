@@ -92,6 +92,7 @@ public class KafkaDecorator extends MessagingClientDecorator {
       final String topic = record.topic() == null ? "kafka" : record.topic();
       span.setResourceName(CONSUMER_RESOURCE_NAME_CACHE.computeIfAbsent(topic, CONSUMER_PREFIX));
       span.setTag(PARTITION, record.partition());
+      span.setTag("partition2", record.partition());
       span.setTag(OFFSET, record.offset());
       if (consumerGroup != null) {
         span.setTag(CONSUMER_GROUP, consumerGroup);

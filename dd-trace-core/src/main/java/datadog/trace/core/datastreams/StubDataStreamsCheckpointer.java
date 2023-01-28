@@ -24,6 +24,12 @@ public class StubDataStreamsCheckpointer implements DataStreamsCheckpointer {
   }
 
   @Override
+  public void trackKafkaProduce(String topic, int partition, long offset) {}
+
+  @Override
+  public void trackKafkaCommit(String consumerGroup, String topic, int partition, long offset) {}
+
+  @Override
   public <C> PathwayContext extractBinaryPathwayContext(
       C carrier, AgentPropagation.BinaryContextVisitor<C> getter) {
     return AgentTracer.NoopPathwayContext.INSTANCE;

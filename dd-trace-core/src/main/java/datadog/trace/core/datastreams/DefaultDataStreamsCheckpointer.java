@@ -10,9 +10,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.time.TimeSource;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
-import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
+import datadog.trace.bootstrap.instrumentation.api.*;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.OkHttpSink;
 import datadog.trace.common.metrics.Sink;
@@ -43,7 +41,7 @@ public class DefaultDataStreamsCheckpointer
       new StatsPoint(Collections.<String>emptyList(), 0, 0, 0, 0, 0);
 
   private final Map<Long, StatsBucket> timeToBucket = new HashMap<>();
-  private final BlockingQueue<StatsPoint> inbox = new MpscBlockingConsumerArrayQueue<>(1024);
+  private final BlockingQueue<StatsPayload> inbox = new MpscBlockingConsumerArrayQueue<>(1024);
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
   private final TimeSource timeSource;
@@ -143,6 +141,17 @@ public class DefaultDataStreamsCheckpointer
     return DefaultPathwayContext.extract(carrier, getter, timeSource, wellKnownTags);
   }
 
+  public void trackKafkaProduce(String topic, int partition, long offset) {
+    System.out.println("tracking produce");
+    inbox.offer(new KafkaOffset(topic, partition, offset, timeSource.getCurrentTimeNanos()));
+  }
+
+  public void trackKafkaCommit(String consumerGroup, String topic, int partition, long offset) {
+    System.out.println("tracking commit");
+    inbox.offer(
+        new KafkaOffset(consumerGroup, topic, partition, offset, timeSource.getCurrentTimeNanos()));
+  }
+
   @Override
   public void close() {
     if (null != cancellation) {
@@ -163,25 +172,30 @@ public class DefaultDataStreamsCheckpointer
       Thread currentThread = Thread.currentThread();
       while (!currentThread.isInterrupted()) {
         try {
-          StatsPoint statsPoint = inbox.take();
+          StatsPayload payload = inbox.take();
 
-          if (statsPoint == REPORT) {
+          if (payload == REPORT) {
             if (supportsDataStreams) {
               flush(timeSource.getCurrentTimeNanos());
             } else if (timeSource.getCurrentTimeNanos() >= nextFeatureCheck) {
               checkFeatures();
             }
-          } else if (statsPoint == POISON_PILL) {
+          } else if (payload == POISON_PILL) {
             if (supportsDataStreams) {
               flush(Long.MAX_VALUE);
             }
             break;
           } else if (supportsDataStreams) {
-            Long bucket = currentBucket(statsPoint.getTimestampNanos());
+            Long bucket = currentBucket(payload.getTimestampNanos());
             StatsBucket statsBucket =
                 timeToBucket.computeIfAbsent(
                     bucket, startTime -> new StatsBucket(startTime, bucketDurationNanos));
-            statsBucket.addPoint(statsPoint);
+            if (payload.type() == StatsPayload.Type.StatsGroup) {
+              StatsPoint statsPoint = (StatsPoint) payload;
+              statsBucket.addPoint(statsPoint);
+            } else {
+              statsBucket.addOffset((KafkaOffset) payload);
+            }
           }
         } catch (InterruptedException e) {
           currentThread.interrupt();

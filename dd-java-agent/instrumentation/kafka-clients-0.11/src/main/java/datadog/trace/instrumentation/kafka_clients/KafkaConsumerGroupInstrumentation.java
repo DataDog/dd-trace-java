@@ -18,6 +18,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.internals.ConsumerCoordinator;
 
 /** This instrumentation saves the co */
 @AutoService(Instrumenter.class)
@@ -33,7 +34,8 @@ public final class KafkaConsumerGroupInstrumentation extends Instrumenter.Tracin
     Map<String, String> contextStores = new HashMap<>();
     contextStores.put("org.apache.kafka.clients.consumer.KafkaConsumer", "java.lang.String");
     contextStores.put("org.apache.kafka.clients.consumer.ConsumerRecords", "java.lang.String");
-
+    contextStores.put(
+        "org.apache.kafka.clients.consumer.internals.ConsumerCoordinator", "java.lang.String");
     return contextStores;
   }
 
@@ -70,11 +72,16 @@ public final class KafkaConsumerGroupInstrumentation extends Instrumenter.Tracin
   public static class ConstructorAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void captureGroup(
-        @Advice.This KafkaConsumer consumer, @Advice.Argument(0) ConsumerConfig consumerConfig) {
+        @Advice.This KafkaConsumer consumer,
+        @Advice.FieldValue("coordinator") ConsumerCoordinator coordinator,
+        @Advice.Argument(0) ConsumerConfig consumerConfig) {
       String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
+      System.out.printf("getting consumer group %s\n", consumerGroup);
 
       if (consumerGroup != null && !consumerGroup.isEmpty()) {
         InstrumentationContext.get(KafkaConsumer.class, String.class).put(consumer, consumerGroup);
+        InstrumentationContext.get(ConsumerCoordinator.class, String.class)
+            .put(coordinator, consumerGroup);
       }
     }
 
@@ -85,6 +92,9 @@ public final class KafkaConsumerGroupInstrumentation extends Instrumenter.Tracin
     }
   }
 
+  // this method transfers the consumer group from the KafkaConsumer class key to the
+  // ConsumerRecords key. This is because in the poll method, we actually don't have access to the
+  // KafkaConsumer class.
   public static class RecordsAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void captureGroup(

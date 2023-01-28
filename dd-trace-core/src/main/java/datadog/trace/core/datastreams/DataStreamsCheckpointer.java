@@ -15,6 +15,10 @@ public interface DataStreamsCheckpointer extends Consumer<StatsPoint>, AutoClose
 
   <C> PathwayContext extractPathwayContext(C carrier, AgentPropagation.ContextVisitor<C> getter);
 
+  void trackKafkaProduce(String topic, int partition, long offset);
+
+  void trackKafkaCommit(String consumerGroup, String topic, int partition, long offset);
+
   @Override
   void close();
 
