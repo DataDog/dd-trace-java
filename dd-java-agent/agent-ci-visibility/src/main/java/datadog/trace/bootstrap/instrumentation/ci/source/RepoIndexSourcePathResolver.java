@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.ci.source;
 import datadog.trace.util.ClassNameTrie;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Modifier;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
@@ -99,9 +100,12 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
   private String getSourcePathForPackagePrivateClass(Class<?> c) {
     try {
       SourceFileAttributeVisitor sourceFileAttributeVisitor = new SourceFileAttributeVisitor();
-      ClassReader classReader = new ClassReader(c.getName());
-      classReader.accept(
-          sourceFileAttributeVisitor, ClassReader.SKIP_CODE | ClassReader.SKIP_FRAMES);
+
+      try (InputStream classStream = Utils.getClassStream(c)) {
+        ClassReader classReader = new ClassReader(classStream);
+        classReader.accept(
+            sourceFileAttributeVisitor, ClassReader.SKIP_CODE | ClassReader.SKIP_FRAMES);
+      }
 
       String source = sourceFileAttributeVisitor.getSource();
       String packageName = c.getPackage().getName();

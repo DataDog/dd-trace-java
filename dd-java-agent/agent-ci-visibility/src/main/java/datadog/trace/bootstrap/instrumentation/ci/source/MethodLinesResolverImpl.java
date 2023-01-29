@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.ci.source;
 
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
@@ -57,13 +58,13 @@ public class MethodLinesResolverImpl implements MethodLinesResolver {
     public static ClassMethodLines parse(Class<?> clazz) {
       try {
         ClassMethodLines classMethodLines = new ClassMethodLines();
-
-        String declaringClassName = clazz.getName();
-        ClassReader classReader = new ClassReader(declaringClassName);
-        MethodLocator methodLocator = new MethodLocator(classMethodLines);
-        classReader.accept(methodLocator, ClassReader.SKIP_FRAMES);
-
+        try (InputStream classStream = Utils.getClassStream(clazz)) {
+          ClassReader classReader = new ClassReader(classStream);
+          MethodLocator methodLocator = new MethodLocator(classMethodLines);
+          classReader.accept(methodLocator, ClassReader.SKIP_FRAMES);
+        }
         return classMethodLines;
+
       } catch (Exception e) {
         // do not cache failure
         throw new RuntimeException(e);
