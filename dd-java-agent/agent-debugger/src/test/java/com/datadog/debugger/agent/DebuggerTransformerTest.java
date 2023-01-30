@@ -1,5 +1,6 @@
 package com.datadog.debugger.agent;
 
+import static com.datadog.debugger.util.ClassFileHelperTest.getClassFileBytes;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -25,10 +26,8 @@ import datadog.trace.bootstrap.debugger.Snapshot;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.StringReader;
@@ -37,7 +36,6 @@ import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Field;
-import java.net.URL;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -208,21 +206,6 @@ public class DebuggerTransformerTest {
   @BeforeEach
   void setup() {
     DebuggerContext.init(null, null, null);
-  }
-
-  private byte[] getClassFileBytes(Class<?> clazz) {
-    URL resource = clazz.getResource(clazz.getSimpleName() + ".class");
-    byte[] buffer = new byte[4096];
-    ByteArrayOutputStream os = new ByteArrayOutputStream();
-    try (InputStream is = resource.openStream()) {
-      int readBytes;
-      while ((readBytes = is.read(buffer)) != -1) {
-        os.write(buffer, 0, readBytes);
-      }
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-    return os.toByteArray();
   }
 
   @Test
