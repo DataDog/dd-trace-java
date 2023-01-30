@@ -18,6 +18,7 @@ variables:
   before_script:
     - export CIRCLECI_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.circleci_token --with-decryption --query "Parameter.Value" --out text)
     - export GH_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.gh_ghcr_token --with-decryption --query "Parameter.Value" --out text)
+    - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
 
 .common: &common
   tags: [ "runner:main", "size:large" ]
@@ -187,12 +188,13 @@ tracer-base-image-release:
       when: always
     - when: manual
   script:
-    - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
     - mkdir -p ./tooling/ci/binaries/ && cp workspace/dd-java-agent/build/libs/*.jar ./tooling/ci/binaries/dd-java-agent.jar
     - docker build -t ghcr.io/datadog/system-tests/dd-trace-java:latest -f ./tooling/ci/Dockerfile .
     - docker push ghcr.io/datadog/system-tests/dd-trace-java:latest  
 
 tracer-base-image-snapshot:
+  image: datadog/dd-trace-java-docker-build:latest
+  tags: [ "runner:docker", "size:large" ]
   extends: .ci_authenticated_job
   stage: deploy
   rules:
@@ -208,8 +210,7 @@ tracer-base-image-snapshot:
     - ls ../
     - ls dd-java-agent/
     - echo "ok. Buid?:"
-    - ls dd-java-agent/build/libs/
-    - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
+    - ls dd-java-agent/build/libs/  
     - mkdir -p ./tooling/ci/binaries/ && cp workspace/dd-java-agent/build/libs/*.jar ./tooling/ci/binaries/dd-java-agent.jar
     - docker build -t ghcr.io/datadog/system-tests/dd-trace-java:latest_snapshot -f ./tooling/ci/Dockerfile .
     - docker push ghcr.io/datadog/system-tests/dd-trace-java:latest_snapshot  
