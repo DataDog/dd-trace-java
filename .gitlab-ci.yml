@@ -194,6 +194,8 @@ tracer-base-image-release:
 
 tracer-base-image-snapshot:
   <<: *build
+  variables:  # prevent checkout of repository
+    GIT_STRATEGY: none 
   extends: .ci_authenticated_job
   stage: deploy
   rules:
@@ -206,7 +208,8 @@ tracer-base-image-snapshot:
   script:
     - echo "Debug.Current folder:"
     - pwd
-    - ls ../
+    - ls 
+    - echo "now dd-java-agent"
     - ls dd-java-agent/
     - echo "ok. Buid?:"
     - ls dd-java-agent/build/libs/  
