@@ -14,7 +14,7 @@ variables:
     description: "Set to true to override rules in the reliability-env pipeline (e.g. override 'only deploy master')"
 
 .ci_authenticated_job:
- # tags: [ "runner:main", "size:large" ]
+  tags: [ "runner:main", "size:large" ]
  # image: datadog/dd-trace-java-docker-build:latest
   image: docker:latest  # this sets default image for jobs
   services:
