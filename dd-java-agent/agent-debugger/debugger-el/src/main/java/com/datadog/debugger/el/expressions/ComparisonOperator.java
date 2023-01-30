@@ -2,6 +2,7 @@ package com.datadog.debugger.el.expressions;
 
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.values.NumericValue;
+import com.datadog.debugger.el.values.StringValue;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Objects;
@@ -35,6 +36,9 @@ public enum ComparisonOperator {
         }
         return compare(leftNumber, rightNumber) >= 0;
       }
+      if (left instanceof StringValue && right instanceof StringValue) {
+        return ((StringValue) left).getValue().compareTo(((StringValue) right).getValue()) >= 0;
+      }
       return Boolean.FALSE;
     }
   },
@@ -48,6 +52,9 @@ public enum ComparisonOperator {
           return Boolean.FALSE;
         }
         return compare(leftNumber, rightNumber) > 0;
+      }
+      if (left instanceof StringValue && right instanceof StringValue) {
+        return ((StringValue) left).getValue().compareTo(((StringValue) right).getValue()) > 0;
       }
       return Boolean.FALSE;
     }
@@ -63,6 +70,9 @@ public enum ComparisonOperator {
         }
         return compare(leftNumber, rightNumber) <= 0;
       }
+      if (left instanceof StringValue && right instanceof StringValue) {
+        return ((StringValue) left).getValue().compareTo(((StringValue) right).getValue()) <= 0;
+      }
       return Boolean.FALSE;
     }
   },
@@ -76,6 +86,9 @@ public enum ComparisonOperator {
           return Boolean.FALSE;
         }
         return compare(leftNumber, rightNumber) < 0;
+      }
+      if (left instanceof StringValue && right instanceof StringValue) {
+        return ((StringValue) left).getValue().compareTo(((StringValue) right).getValue()) < 0;
       }
       return Boolean.FALSE;
     }
