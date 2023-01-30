@@ -376,6 +376,56 @@ class TaintedMapTest extends DDSpecification {
     executorService?.shutdown()
   }
 
+  def 'clear is thread-safe (does not throw)'() {
+    given:
+    int capacity = 128
+    int flatModeThreshold = 64
+    def queue = new MockReferenceQueue()
+    def map = new DefaultTaintedMap(capacity, flatModeThreshold, queue)
+
+    and:
+    int nThreads = 16
+    def gen = new ObjectGen(capacity)
+    def executorService = Executors.newFixedThreadPool(nThreads)
+    def latch = new CountDownLatch(nThreads)
+
+    when: 'puts from different threads to any buckets'
+    def futures = (0..nThreads-1).collect { thread ->
+      // Each thread has multiple objects for each bucket
+      def objects = gen.genBuckets(capacity, 32).flatten()
+      def taintedObjects = objects.collect {o ->
+        final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
+        queue.hold(o, to)
+        return to
+      }
+      Collections.shuffle(taintedObjects)
+
+      executorService.submit({
+        ->
+        latch.countDown()
+        latch.await()
+        taintedObjects.each { to ->
+          if (System.identityHashCode(to) % 10 == 0) {
+            map.clear()
+          }
+          map.put(to)
+        }
+      } as Runnable)
+    }
+    futures.collect({
+      it.get()
+    })
+    map.clear()
+
+    then:
+    map.size() == 0
+    map.toList().size() == 0
+    !map.isFlat()
+
+    cleanup:
+    executorService?.shutdown()
+  }
+
   private static class MockReferenceQueue extends ReferenceQueue<Object> {
     private List<Reference<?>> queue = new ArrayList()
     private Map<Object, Reference<?>> objects = new HashMap<>()

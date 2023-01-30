@@ -4,9 +4,11 @@ import com.datadog.iast.IastSystem;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.model.json.TaintedObjectEncoding;
+import datadog.trace.api.Config;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ArrayBlockingQueue;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,12 +23,18 @@ public interface TaintedObjects {
 
   void release();
 
-  static TaintedObjects build() {
-    final TaintedObjectsImpl taintedObjects = new TaintedObjectsImpl();
+  static TaintedObjects acquire() {
+    TaintedObjectsImpl taintedObjects = TaintedObjectsImpl.pool.poll();
+    if (taintedObjects == null) {
+      taintedObjects = new TaintedObjectsImpl();
+    }
     return IastSystem.DEBUG ? new TaintedObjectsDebugAdapter(taintedObjects) : taintedObjects;
   }
 
   class TaintedObjectsImpl implements TaintedObjects {
+
+    private static final ArrayBlockingQueue<TaintedObjectsImpl> pool =
+        new ArrayBlockingQueue<>(Config.get().getIastMaxConcurrentRequests());
 
     private final TaintedMap map;
 
@@ -34,7 +42,7 @@ public interface TaintedObjects {
       this(new DefaultTaintedMap());
     }
 
-    public TaintedObjectsImpl(final @Nonnull TaintedMap map) {
+    private TaintedObjectsImpl(final @Nonnull TaintedMap map) {
       this.map = map;
     }
 
@@ -55,7 +63,10 @@ public interface TaintedObjects {
       return map.get(obj);
     }
 
-    public void release() {}
+    public void release() {
+      map.clear();
+      pool.offer(this);
+    }
   }
 
   class TaintedObjectsDebugAdapter implements TaintedObjects {
@@ -98,6 +109,7 @@ public interface TaintedObjects {
           LOGGER.error("Failed to debug tainted objects release", e);
         }
       }
+      delegated.release();
     }
 
     private void logTainted(final TaintedObject tainted) {
