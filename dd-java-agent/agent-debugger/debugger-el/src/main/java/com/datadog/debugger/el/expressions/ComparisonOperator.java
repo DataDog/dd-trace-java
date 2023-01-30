@@ -10,7 +10,13 @@ public enum ComparisonOperator {
   EQ("==") {
     @Override
     public Boolean apply(Value<?> left, Value<?> right) {
-      return Objects.equals(left.getValue(), right.getValue());
+      if (left.getValue().getClass() == right.getValue().getClass()) {
+        return Objects.equals(left.getValue(), right.getValue());
+      } else if (left instanceof NumericValue && right instanceof NumericValue) {
+        return compare(left, right) == 0;
+      } else {
+        return Boolean.FALSE;
+      }
     }
   },
   GE(">=") {
