@@ -26,7 +26,7 @@ variables:
     - aws --version && docker --version
     - export CIRCLECI_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.circleci_token --with-decryption --query "Parameter.Value" --out text)
     - export GH_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.gh_ghcr_token --with-decryption --query "Parameter.Value" --out text)
-    - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
+
 
 .common: &common
   tags: [ "runner:main", "size:large" ]
@@ -213,6 +213,7 @@ tracer-base-image-snapshot:
   dependencies:
   - build
   script:
+    - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
     - echo "Debug.Current folder:"
     - ls workspace/dd-java-agent/build/libs/ 
     - echo "Docker version"
