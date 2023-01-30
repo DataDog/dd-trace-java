@@ -14,8 +14,6 @@ variables:
     description: "Set to true to override rules in the reliability-env pipeline (e.g. override 'only deploy master')"
 
 .ci_authenticated_job:
-  tags: [ "runner:main", "size:large" ]
-  image: tiangolo/docker-with-compose
  # image: datadog/dd-trace-java-docker-build:latest
   #image: docker:latest  # this sets default image for jobs
  # services:
@@ -203,6 +201,8 @@ tracer-base-image-release:
     - docker push ghcr.io/datadog/system-tests/dd-trace-java:latest  
 
 tracer-base-image-snapshot:
+  image: tiangolo/docker-with-compose
+  tags: ["runner:docker"]
   extends: .ci_authenticated_job
   stage: deploy
   rules:
