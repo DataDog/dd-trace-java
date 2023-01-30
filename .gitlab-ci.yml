@@ -193,8 +193,7 @@ tracer-base-image-release:
     - docker push ghcr.io/datadog/system-tests/dd-trace-java:latest  
 
 tracer-base-image-snapshot:
-  image: datadog/dd-trace-java-docker-build:latest
-  tags: [ "runner:docker", "size:large" ]
+  <<: *build
   extends: .ci_authenticated_job
   stage: deploy
   rules:
