@@ -19,6 +19,22 @@ public interface Baggage {
   Map<String, String> getItems();
 
   /**
+   * Get the baggage item count.
+   *
+   * @return The baggage item count.
+   */
+  int size();
+
+  /**
+   * Check whether the baggage is empty.
+   *
+   * @return <code>true</code> if the baggage is empty, <code>false</code> otherwise.
+   */
+  default boolean isEmpty() {
+    return size() == 0;
+  }
+
+  /**
    * Create a {@link BaggageBuilder} with all the items of the {@link Baggage} instance.
    *
    * @return A {@link BaggageBuilder} with all the items of this instance.

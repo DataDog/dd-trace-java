@@ -1,6 +1,7 @@
 package datadog.trace.core.scopemanager;
 
 import static java.util.Collections.emptyMap;
+import static java.util.Collections.unmodifiableMap;
 
 import datadog.trace.api.Baggage;
 import java.util.HashMap;
@@ -12,6 +13,10 @@ public class DDBaggage implements Baggage {
 
   private final Map<String, String> items;
 
+  private DDBaggage(Map<String, String> items) {
+    this.items = items;
+  }
+
   public static Baggage empty() {
     return EMPTY;
   }
@@ -20,18 +25,19 @@ public class DDBaggage implements Baggage {
     return new DDBaggageBuilder(emptyMap());
   }
 
-  private DDBaggage(Map<String, String> items) {
-    this.items = items;
-  }
-
   @Override
   public String getItemValue(String key) {
-    return null;
+    return this.items.get(key);
   }
 
   @Override
   public Map<String, String> getItems() {
-    return null;
+    return unmodifiableMap(this.items);
+  }
+
+  @Override
+  public int size() {
+    return this.items.size();
   }
 
   @Override
@@ -61,7 +67,7 @@ public class DDBaggage implements Baggage {
 
     @Override
     public Baggage build() {
-      return new DDBaggage(this.items);
+      return new DDBaggage(new HashMap<>(this.items));
     }
   }
 }
