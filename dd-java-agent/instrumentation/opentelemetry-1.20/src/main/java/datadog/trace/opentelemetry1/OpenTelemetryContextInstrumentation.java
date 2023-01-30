@@ -113,18 +113,15 @@ public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
       AgentSpan agentSpan = InstrumentationContext.get(Context.class, AgentSpan.class).get(zis);
       if (agentSpan != null) {
         System.out.println(">>> [Context.get()] Creating baggage from context");
-        result = fromContext(agentSpan.context());
+        AgentSpan.Context context = agentSpan.context();
+        BaggageBuilder builder = Baggage.builder();
+        for (Map.Entry<String, String> baggageItem : context.baggageItems()) {
+          builder.put(baggageItem.getKey(), baggageItem.getValue());
+        }
+        result = builder.build();
       } else {
         System.out.println(">>> [Context.get()] No AgentSpan injected into OTel Context");
       }
-    }
-
-    public static Baggage fromContext(AgentSpan.Context context) {
-      BaggageBuilder builder = Baggage.builder();
-      for (Map.Entry<String, String> baggageItem : context.baggageItems()) {
-        builder.put(baggageItem.getKey(), baggageItem.getValue());
-      }
-      return builder.build();
     }
   }
 
