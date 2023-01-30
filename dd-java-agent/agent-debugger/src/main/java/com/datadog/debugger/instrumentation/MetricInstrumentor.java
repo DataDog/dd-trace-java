@@ -107,15 +107,16 @@ public class MetricInstrumentor extends Instrumentor {
   private InsnList internalCallMetric(
       String metricMethodName, MetricProbe metricProbe, InsnList insnList) {
     InsnList nullBranch = new InsnList();
+    Value<?> result;
     try {
-      metricProbe
-          .getValue()
-          .execute(new CompileToInsnList(classNode, methodNode, Type.LONG_TYPE, nullBranch));
+      result =
+          metricProbe
+              .getValue()
+              .execute(new CompileToInsnList(classNode, methodNode, Type.LONG_TYPE, nullBranch));
     } catch (InvalidValueException ex) {
       reportError(ex.getMessage());
       return EMPTY_INSN_LIST;
     }
-    Value<?> result = metricProbe.getValue().getResult();
     if (result.isNull() || result.isUndefined()) {
       return EMPTY_INSN_LIST;
     }

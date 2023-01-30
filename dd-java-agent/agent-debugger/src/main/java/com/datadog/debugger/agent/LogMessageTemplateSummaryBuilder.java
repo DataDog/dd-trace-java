@@ -22,6 +22,7 @@ public class LogMessageTemplateSummaryBuilder implements SummaryBuilder {
 
   private final LogProbe logProbe;
   private final List<Snapshot.EvaluationError> evaluationErrors = new ArrayList<>();
+  private String message;
 
   public LogMessageTemplateSummaryBuilder(LogProbe logProbe) {
     this.logProbe = logProbe;
@@ -47,26 +48,10 @@ public class LogMessageTemplateSummaryBuilder implements SummaryBuilder {
 
   @Override
   public String build() {
-    if (logProbe.getSegments() == null) {
+    if (message == null) {
       return "This is a dynamically created log message.";
     }
-    StringBuilder sb = new StringBuilder();
-    for (LogProbe.Segment segment : logProbe.getSegments()) {
-      if (segment.getStr() != null) {
-        sb.append(segment.getStr());
-      } else {
-        Value<?> result = segment.getParsedExpr().getResult();
-        if (result.isUndefined()) {
-          sb.append(result.getValue());
-        } else if (result.isNull()) {
-          sb.append("null");
-        } else {
-          Limits limits = new Limits(1, 3, 255, 5);
-          serializeValue(sb, segment.getParsedExpr().getDsl(), result.getValue(), limits);
-        }
-      }
-    }
-    return sb.toString();
+    return message;
   }
 
   @Override
@@ -75,15 +60,29 @@ public class LogMessageTemplateSummaryBuilder implements SummaryBuilder {
   }
 
   private void executeExpressions(Snapshot.CapturedContext entry) {
+    StringBuilder sb = new StringBuilder();
     if (logProbe.getSegments() == null) {
       return;
     }
     for (LogProbe.Segment segment : logProbe.getSegments()) {
       ValueScript parsedExr = segment.getParsedExpr();
-      if (parsedExr != null) {
-        parsedExr.execute(entry);
+      if (segment.getStr() != null) {
+        sb.append(segment.getStr());
+      } else {
+        if (parsedExr != null) {
+          Value<?> result = parsedExr.execute(entry);
+          if (result.isUndefined()) {
+            sb.append(result.getValue());
+          } else if (result.isNull()) {
+            sb.append("null");
+          } else {
+            Limits limits = new Limits(1, 3, 255, 5);
+            serializeValue(sb, segment.getParsedExpr().getDsl(), result.getValue(), limits);
+          }
+        }
       }
     }
+    message = sb.toString();
   }
 
   private void serializeValue(StringBuilder sb, String expr, Object value, Limits limits) {
