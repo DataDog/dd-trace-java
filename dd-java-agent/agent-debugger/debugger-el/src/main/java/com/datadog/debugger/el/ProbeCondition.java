@@ -13,7 +13,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;
 
 /** Implements expression language for probe condition */
-public final class ProbeCondition implements DebuggerScript {
+public final class ProbeCondition implements DebuggerScript<Boolean> {
   public static final ProbeCondition NONE = new ProbeCondition(null, "");
 
   private final String dslExpression;
@@ -95,7 +95,7 @@ public final class ProbeCondition implements DebuggerScript {
   }
 
   @Override
-  public boolean execute(ValueReferenceResolver valueRefResolver) {
+  public Boolean execute(ValueReferenceResolver valueRefResolver) {
     if (when == null) {
       return true;
     }
