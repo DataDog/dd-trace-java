@@ -208,6 +208,8 @@ tracer-base-image-snapshot:
   script:
     - echo "Debug.Current folder:"
     - ls workspace/dd-java-agent/build/libs/ 
+    - echo "Docker version"
+    - docker --version
     - mkdir -p ./tooling/ci/binaries/ && cp workspace/dd-java-agent/build/libs/*.jar ./tooling/ci/binaries/dd-java-agent.jar
     - docker build -t ghcr.io/datadog/system-tests/dd-trace-java:latest_snapshot -f ./tooling/ci/Dockerfile .
     - docker push ghcr.io/datadog/system-tests/dd-trace-java:latest_snapshot  
