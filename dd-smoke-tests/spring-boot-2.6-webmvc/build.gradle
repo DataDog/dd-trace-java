@@ -1,7 +1,9 @@
 plugins {
   id "com.github.johnrengelman.shadow"
 }
-import com.github.jengelman.gradle.plugins.shadow.transformers.*
+
+
+import com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTransformer
 
 apply from: "$rootDir/gradle/java.gradle"
 description = 'Spring Boot 2.6 Webmvc Smoke Tests.'
@@ -34,7 +36,7 @@ dependencies {
   implementation group: 'com.sun.xml.bind', name: 'jaxb-ri', version: '2.3.3'
 
 
-  testImplementation project(':dd-smoke-tests')
+  implementation project(':dd-smoke-tests')
 }
 
 tasks.withType(Test).configureEach {

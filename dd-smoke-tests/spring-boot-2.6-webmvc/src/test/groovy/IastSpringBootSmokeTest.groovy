@@ -1,6 +1,4 @@
-package datadog.smoketest
-
-
+import datadog.smoketest.AbstractIastSpringBootSmokeTest
 import okhttp3.Request
 
 import java.util.function.Predicate
