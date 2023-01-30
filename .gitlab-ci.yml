@@ -14,6 +14,8 @@ variables:
     description: "Set to true to override rules in the reliability-env pipeline (e.g. override 'only deploy master')"
 
 .ci_authenticated_job:
+  tags: [ "runner:main", "size:large" ]
+  image: datadog/dd-trace-java-docker-build:latest
   needs: []
   before_script:
     - export CIRCLECI_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.circleci_token --with-decryption --query "Parameter.Value" --out text)
@@ -53,6 +55,8 @@ build: &build
   script:
     - GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms512M' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M" ./gradlew clean :dd-java-agent:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=8
     - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
+    - echo "TEST CONTENT:"
+    - ls
   artifacts:
     paths:
       - 'workspace/dd-java-agent/build/libs/*.jar'
@@ -193,9 +197,6 @@ tracer-base-image-release:
     - docker push ghcr.io/datadog/system-tests/dd-trace-java:latest  
 
 tracer-base-image-snapshot:
-  <<: *build
-  variables:  # prevent checkout of repository
-    GIT_STRATEGY: none 
   extends: .ci_authenticated_job
   stage: deploy
   rules:
