@@ -187,15 +187,18 @@ create_key:
       - pubkeys
 
 tracer-base-image-release:
-  <<: *gradle_build
+  image: tiangolo/docker-with-compose
+  tags: ["runner:docker"]
   extends: .ci_authenticated_job
-  #image: datadog/dd-trace-java-docker-build:latest
   stage: deploy
   rules:
     - if: '$CI_COMMIT_BRANCH == "robertomonteromiguel/docker_base_image_poc_v2" && $CI_COMMIT_TAG =~ /^v1\..*/'
-      when: always
+      when: on_success
     - when: manual
+  dependencies:
+  - build
   script:
+    - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
     - mkdir -p ./tooling/ci/binaries/ && cp workspace/dd-java-agent/build/libs/*.jar ./tooling/ci/binaries/dd-java-agent.jar
     - docker build -t ghcr.io/datadog/system-tests/dd-trace-java:latest -f ./tooling/ci/Dockerfile .
     - docker push ghcr.io/datadog/system-tests/dd-trace-java:latest  
@@ -209,16 +212,10 @@ tracer-base-image-snapshot:
     - if: '$CI_COMMIT_BRANCH == "robertomonteromiguel/docker_base_image_poc_v2"'
       when: on_success
     - when: manual
-      allow_failure: true
   dependencies:
   - build
   script:
     - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
-    - echo "Debug.Current folder:"
-    - ls workspace/dd-java-agent/build/libs/ 
-    - echo "Docker version"
-    - docker --version
     - mkdir -p ./tooling/ci/binaries/ && cp workspace/dd-java-agent/build/libs/*.jar ./tooling/ci/binaries/dd-java-agent.jar
-    - ls ./tooling/ci/binaries/
     - docker build -t ghcr.io/datadog/system-tests/dd-trace-java:latest_snapshot -f ./tooling/ci/Dockerfile .
     - docker push ghcr.io/datadog/system-tests/dd-trace-java:latest_snapshot  
