@@ -15,11 +15,15 @@ variables:
 
 .ci_authenticated_job:
   tags: [ "runner:main", "size:large" ]
+  image: tiangolo/docker-with-compose
  # image: datadog/dd-trace-java-docker-build:latest
-  image: docker:latest  # this sets default image for jobs
-  services:
-    - docker:dind
+  #image: docker:latest  # this sets default image for jobs
+ # services:
+ #   - docker:dind
   before_script:
+    - apk add bash jq git unzip curl
+    - pip install pyyaml awscli
+    - aws --version && docker --version
     - export CIRCLECI_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.circleci_token --with-decryption --query "Parameter.Value" --out text)
     - export GH_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.gh_ghcr_token --with-decryption --query "Parameter.Value" --out text)
     - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
