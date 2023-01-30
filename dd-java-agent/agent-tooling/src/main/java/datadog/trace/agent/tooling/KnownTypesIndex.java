@@ -70,7 +70,7 @@ public final class KnownTypesIndex {
         }
         return new KnownTypesIndex(multipleIdTable, ClassNameTrie.readFrom(in));
       } catch (Throwable e) {
-        log.error("Problem reading " + KNOWN_TYPES_INDEX_NAME, e);
+        log.error("Problem reading {}", KNOWN_TYPES_INDEX_NAME, e);
       }
     }
     return buildIndex(); // fallback to runtime generation when testing

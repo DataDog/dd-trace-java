@@ -799,7 +799,8 @@ public class Config {
         tmpApiKey =
             new String(Files.readAllBytes(Paths.get(apiKeyFile)), StandardCharsets.UTF_8).trim();
       } catch (final IOException e) {
-        log.error("Cannot read API key from file {}, skipping", apiKeyFile, e);
+        log.error(
+            "Cannot read API key from file {}, skipping. Exception {}", apiKeyFile, e.getMessage());
       }
     }
     site = configProvider.getString(SITE, DEFAULT_SITE);

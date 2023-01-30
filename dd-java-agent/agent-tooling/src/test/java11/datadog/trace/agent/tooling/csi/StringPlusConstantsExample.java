@@ -11,7 +11,7 @@ public class StringPlusConstantsExample implements TriFunction<String, String, S
   public String apply(final String first, final String second, final String third) {
     LOGGER.debug("Before apply");
     final String result = first + " " + second + " " + third;
-    LOGGER.debug("After apply " + result);
+    LOGGER.debug("After apply {}", result);
     return result;
   }
 }
