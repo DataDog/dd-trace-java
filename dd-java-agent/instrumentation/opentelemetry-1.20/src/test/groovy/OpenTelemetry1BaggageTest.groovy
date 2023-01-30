@@ -7,7 +7,7 @@ import spock.lang.Subject
 
 class OpenTelemetry1BaggageTest extends AgentTestRunner {
   @Subject
-  def tracer = GlobalOpenTelemetry.get().tracerProvider.get("some-instrumentation")
+  def tracer = GlobalOpenTelemetry.get().tracerProvider.get("baggage-test")
 
   def "test baggage storage in span"() {
     setup:
