@@ -11,11 +11,11 @@ import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer.DEFAULT_BUCKET_DURATION_NANOS
-import static datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer.FEATURE_CHECK_INTERVAL_NANOS
+import static DefaultDataStreamsMonitoring.DEFAULT_BUCKET_DURATION_NANOS
+import static DefaultDataStreamsMonitoring.FEATURE_CHECK_INTERVAL_NANOS
 import static java.util.concurrent.TimeUnit.SECONDS
 
-class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
+class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
   def wellKnownTags = new WellKnownTags("runtimeid", "hostname", "testing", "service", "version", "java")
 
   def "No payloads written if data streams not supported"() {
@@ -29,7 +29,7 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     def sink = Mock(Sink)
 
     when:
-    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def checkpointer = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.start()
     checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 0, 0, timeSource.currentTimeNanos, 0, 0))
     checkpointer.report()
@@ -56,7 +56,7 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     def payloadWriter = new CapturingPayloadWriter()
 
     when:
-    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def checkpointer = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.start()
     checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
@@ -98,7 +98,7 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     def bucketDuration = TimeUnit.MILLISECONDS.toNanos(200)
 
     when:
-    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, wellKnownTags, payloadWriter, bucketDuration)
+    def checkpointer = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, bucketDuration)
     checkpointer.start()
     checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(bucketDuration)
@@ -137,7 +137,7 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     def payloadWriter = new CapturingPayloadWriter()
 
     when:
-    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def checkpointer = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.start()
     checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
@@ -179,7 +179,7 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     def payloadWriter = new CapturingPayloadWriter()
 
     when:
-    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def checkpointer = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.start()
     checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
@@ -231,7 +231,7 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     def payloadWriter = new CapturingPayloadWriter()
 
     when:
-    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def checkpointer = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.start()
     checkpointer.trackKafkaCommit("testGroup", "testTopic", 2, 23)
     checkpointer.trackKafkaCommit("testGroup", "testTopic", 2, 24)
@@ -287,7 +287,7 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     def payloadWriter = new CapturingPayloadWriter()
 
     when:
-    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def checkpointer = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.start()
     checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
@@ -340,7 +340,7 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     def payloadWriter = new CapturingPayloadWriter()
 
     when:
-    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def checkpointer = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.start()
     checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100l)
@@ -413,7 +413,7 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     def payloadWriter = new CapturingPayloadWriter()
 
     when: "reporting points when data streams is not supported"
-    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def checkpointer = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.start()
     checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
@@ -483,7 +483,7 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     def payloadWriter = new CapturingPayloadWriter()
 
     when: "reporting points after a downgrade"
-    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def checkpointer = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.start()
     supportsDataStreaming = false
     checkpointer.onEvent(EventListener.EventType.DOWNGRADED, "")

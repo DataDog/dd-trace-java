@@ -175,9 +175,7 @@ public class AgentTracer {
 
     void notifyExtensionEnd(AgentSpan span, Object result, boolean isError);
 
-    void trackKafkaProduce(String topic, int partition, long offset);
-
-    void trackKafkaCommit(String consumerGroup, String topic, int partition, long offset);
+    DataStreamsMonitoring getDataStreamsMonitoring();
   }
 
   public interface SpanBuilder {
@@ -209,6 +207,8 @@ public class AgentTracer {
   static class NoopTracerAPI implements TracerAPI {
 
     protected NoopTracerAPI() {}
+
+    private final DataStreamsMonitoring dataStreamsMonitoring = new NoopDataStreamsMonitoring();
 
     @Override
     public AgentSpan startSpan(final CharSequence spanName) {
@@ -401,10 +401,9 @@ public class AgentTracer {
     }
 
     @Override
-    public void trackKafkaProduce(String topic, int partition, long offset) {}
-
-    @Override
-    public void trackKafkaCommit(String consumerGroup, String topic, int partition, long offset) {}
+    public DataStreamsMonitoring getDataStreamsMonitoring() {
+      return dataStreamsMonitoring;
+    }
   }
 
   public static final class NoopAgentSpan implements AgentSpan {

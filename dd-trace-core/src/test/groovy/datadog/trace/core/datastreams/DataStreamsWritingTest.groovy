@@ -20,7 +20,7 @@ import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
-import static datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer.DEFAULT_BUCKET_DURATION_NANOS
+import static DefaultDataStreamsMonitoring.DEFAULT_BUCKET_DURATION_NANOS
 import static java.util.concurrent.TimeUnit.SECONDS
 
 
@@ -72,7 +72,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     def timeSource = new ControllableTimeSource()
 
     when:
-    def checkpointer = new DefaultDataStreamsCheckpointer(fakeConfig, sharedCommObjects, timeSource)
+    def checkpointer = new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource)
     checkpointer.start()
     checkpointer.accept(new StatsPoint([], 9, 0, timeSource.currentTimeNanos, 0, 0))
     checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))

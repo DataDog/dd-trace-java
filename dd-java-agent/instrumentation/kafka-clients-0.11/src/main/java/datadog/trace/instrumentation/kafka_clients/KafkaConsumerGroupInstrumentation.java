@@ -91,9 +91,11 @@ public final class KafkaConsumerGroupInstrumentation extends Instrumenter.Tracin
     }
   }
 
-  /** this method transfers the consumer group from the KafkaConsumer class key to the
-      ConsumerRecords key. This is necessary because in the poll method, we don't have access to the
-      KafkaConsumer class. */
+  /**
+   * this method transfers the consumer group from the KafkaConsumer class key to the
+   * ConsumerRecords key. This is necessary because in the poll method, we don't have access to the
+   * KafkaConsumer class.
+   */
   public static class RecordsAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void captureGroup(

@@ -1,11 +1,8 @@
-package datadog.trace.core.datastreams;
+package datadog.trace.bootstrap.instrumentation.api;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
-import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import java.util.function.Consumer;
 
-public interface DataStreamsCheckpointer extends Consumer<StatsPoint>, AutoCloseable {
+public interface DataStreamsMonitoring extends Consumer<StatsPoint>, AutoCloseable {
   void start();
 
   PathwayContext newPathwayContext();

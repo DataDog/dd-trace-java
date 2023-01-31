@@ -29,9 +29,9 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.PendingTrace
-import datadog.trace.core.datastreams.DataStreamsCheckpointer
-import datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer
-import datadog.trace.core.datastreams.StubDataStreamsCheckpointer
+import datadog.trace.bootstrap.instrumentation.api.DataStreamsMonitoring
+import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring
+import datadog.trace.bootstrap.instrumentation.api.NoopDataStreamsMonitoring
 import datadog.trace.test.util.DDSpecification
 import de.thetaphi.forbiddenapis.SuppressForbidden
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
@@ -130,7 +130,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   @SuppressWarnings('PropertyName')
   @Shared
-  DataStreamsCheckpointer TEST_DATA_STREAMS_CHECKPOINTER
+  DataStreamsMonitoring TEST_DATA_STREAMS_CHECKPOINTER
 
   @Shared
   ClassFileTransformer activeTransformer
@@ -180,12 +180,12 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
         void register(EventListener listener) {}
       }
-    TEST_DATA_STREAMS_CHECKPOINTER = new StubDataStreamsCheckpointer()
+    TEST_DATA_STREAMS_CHECKPOINTER = new NoopDataStreamsMonitoring()
     if (isDataStreamsEnabled()) {
       // Fast enough so tests don't take forever
       long bucketDuration = TimeUnit.MILLISECONDS.toNanos(50)
       WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
-      TEST_DATA_STREAMS_CHECKPOINTER = new DefaultDataStreamsCheckpointer(sink, features, SystemTimeSource.INSTANCE, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
+      TEST_DATA_STREAMS_CHECKPOINTER = new DefaultDataStreamsMonitoring(sink, features, SystemTimeSource.INSTANCE, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
     }
     TEST_WRITER = new ListWriter()
     TEST_TRACER =

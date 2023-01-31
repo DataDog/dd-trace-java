@@ -1,11 +1,6 @@
-package datadog.trace.core.datastreams;
+package datadog.trace.bootstrap.instrumentation.api;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
-import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
-
-public class StubDataStreamsCheckpointer implements DataStreamsCheckpointer {
+public class NoopDataStreamsMonitoring implements DataStreamsMonitoring {
   @Override
   public void start() {}
 

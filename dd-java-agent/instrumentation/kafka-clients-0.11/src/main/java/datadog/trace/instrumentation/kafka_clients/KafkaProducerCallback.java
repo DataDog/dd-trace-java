@@ -25,7 +25,9 @@ public class KafkaProducerCallback implements Callback {
   public void onCompletion(final RecordMetadata metadata, final Exception exception) {
     PRODUCER_DECORATE.onError(span, exception);
     PRODUCER_DECORATE.beforeFinish(span);
-    AgentTracer.get().trackKafkaProduce(metadata.topic(), metadata.partition(), metadata.offset());
+    AgentTracer.get()
+        .getDataStreamsMonitoring()
+        .trackKafkaProduce(metadata.topic(), metadata.partition(), metadata.offset());
     span.finish();
     if (callback != null) {
       if (parent != null) {

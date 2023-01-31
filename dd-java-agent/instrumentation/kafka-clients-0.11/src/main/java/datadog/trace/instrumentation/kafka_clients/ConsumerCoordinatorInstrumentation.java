@@ -62,6 +62,7 @@ public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Traci
           InstrumentationContext.get(ConsumerCoordinator.class, String.class).get(coordinator);
       for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : offsets.entrySet()) {
         AgentTracer.get()
+            .getDataStreamsMonitoring()
             .trackKafkaCommit(
                 consumerGroup,
                 entry.getKey().topic(),
