@@ -61,16 +61,17 @@ public final class DatadogProfiler {
   }
 
   private static void logFailedInstantiation(Throwable error) {
-    if (log.isDebugEnabled()) {
+    OperatingSystem os = OperatingSystem.current();
+    if (os != OperatingSystem.linux) {
+      log.debug("Datadog profiler only supported on Linux", error);
+    } else if (log.isDebugEnabled()) {
       log.warn(
-          String.format(
-              "failed to instantiate Datadog profiler on %s %s",
-              OperatingSystem.current(), Arch.current()),
+          String.format("failed to instantiate Datadog profiler on %s %s", os, Arch.current()),
           error);
     } else {
       log.warn(
           "failed to instantiate Datadog profiler on {} {} because: {}",
-          OperatingSystem.current(),
+          os,
           Arch.current(),
           error.getMessage());
     }
