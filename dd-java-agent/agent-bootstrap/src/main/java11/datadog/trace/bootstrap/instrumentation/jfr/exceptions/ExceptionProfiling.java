@@ -24,14 +24,22 @@ public final class ExceptionProfiling {
 
   private final ExceptionHistogram histogram;
   private final ExceptionSampler sampler;
+  private final boolean recordExceptionMessage;
 
   private ExceptionProfiling(final Config config) {
-    this(new ExceptionSampler(config), new ExceptionHistogram(config));
+    this(
+        new ExceptionSampler(config),
+        new ExceptionHistogram(config),
+        config.isProfilingRecordExceptionMessage());
   }
 
-  ExceptionProfiling(final ExceptionSampler sampler, final ExceptionHistogram histogram) {
+  ExceptionProfiling(
+      final ExceptionSampler sampler,
+      final ExceptionHistogram histogram,
+      boolean recordExceptionMessage) {
     this.sampler = sampler;
     this.histogram = histogram;
+    this.recordExceptionMessage = recordExceptionMessage;
   }
 
   public ExceptionSampleEvent process(final Throwable t) {
@@ -43,5 +51,9 @@ public final class ExceptionProfiling {
       return new ExceptionSampleEvent(t, sampled, firstHit);
     }
     return null;
+  }
+
+  boolean recordExceptionMessage() {
+    return recordExceptionMessage;
   }
 }

@@ -50,10 +50,12 @@ public class ExceptionSampleEvent extends Event implements ContextualEvent {
   }
 
   private static String getMessage(Throwable t) {
-    try {
-      return t.getMessage();
-    } catch (Throwable ignored) {
-      // apparently there might be exceptions throwing at least NPE when trying to get the message
+    if (ExceptionProfiling.getInstance().recordExceptionMessage()) {
+      try {
+        return t.getMessage();
+      } catch (Throwable ignored) {
+        // apparently there might be exceptions throwing at least NPE when trying to get the message
+      }
     }
     return null;
   }
