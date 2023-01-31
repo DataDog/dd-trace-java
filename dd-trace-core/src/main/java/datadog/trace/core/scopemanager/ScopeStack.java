@@ -109,21 +109,6 @@ final class ScopeStack {
     top = null;
   }
 
-  ScopeContext findContextWithSpan(AgentSpan span) {
-    if (this.top == null || span == null) {
-      return null;
-    }
-    if (span.equals(this.top.context.span())) {
-      return this.top.context;
-    }
-    for (ContinuableScope scope : this.stack) {
-      if (span.equals(scope.context.span())) {
-        return scope.context;
-      }
-    }
-    return null;
-  }
-
   private void onTopChanged(ContinuableScope top) {
     long spanId = top.context.span().getSpanId(); // TODO Check null span
     AgentSpan rootSpan = top.context.span().getLocalRootSpan(); // TODO Check null span
