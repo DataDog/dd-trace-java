@@ -314,11 +314,11 @@ abstract class AbstractIastSpringBootSmokeTest extends AbstractServerSmokeTest {
     hasVulnerabilityInLogs(type('WEAK_HASH').and(evidence('SHA1')).and(withSpan()))
   }
 
-  private static Function<DecodedSpan, Boolean> hasMetric(final String name, final Object value) {
+  static Function<DecodedSpan, Boolean> hasMetric(final String name, final Object value) {
     return { span -> value == span.metrics.get(name) }
   }
 
-  private static Function<DecodedSpan, Boolean> hasVulnerability(final Predicate<?> predicate) {
+  static Function<DecodedSpan, Boolean> hasVulnerability(final Predicate<?> predicate) {
     return { span ->
       final iastMeta = span.meta.get(TAG_NAME)
       if (!iastMeta) {
@@ -331,7 +331,7 @@ abstract class AbstractIastSpringBootSmokeTest extends AbstractServerSmokeTest {
 
 
 
-  private static Collection<?> parseVulnerabilities(final String log, final int startIndex) {
+  static Collection<?> parseVulnerabilities(final String log, final int startIndex) {
     final chars = log.toCharArray()
     final builder = new StringBuilder()
     def level = 0
@@ -350,31 +350,31 @@ abstract class AbstractIastSpringBootSmokeTest extends AbstractServerSmokeTest {
     return parseVulnerabilities(builder.toString())
   }
 
-  private static Collection<?> parseVulnerabilities(final String iastJson) {
+  static Collection<?> parseVulnerabilities(final String iastJson) {
     final slurper = new JsonSlurper()
     final parsed = slurper.parseText(iastJson)
     return parsed['vulnerabilities'] as Collection
   }
 
-  private static Predicate<?> type(final String type) {
+  static Predicate<?> type(final String type) {
     return { vul ->
       vul.type == type
     }
   }
 
-  private static Predicate<?> evidence(final String value) {
+  static Predicate<?> evidence(final String value) {
     return { vul ->
       vul.evidence.value == value
     }
   }
 
-  private static Predicate<?> withSpan() {
+  static Predicate<?> withSpan() {
     return { vul ->
       vul.location.spanId > 0
     }
   }
 
-  private static String withSystemProperty(final String config, final Object value) {
+  static String withSystemProperty(final String config, final Object value) {
     return "-Ddd.${config}=${value}"
   }
 
