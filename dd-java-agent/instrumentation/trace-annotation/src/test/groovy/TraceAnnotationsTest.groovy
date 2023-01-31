@@ -417,7 +417,7 @@ class TraceAnnotationNewOpNameForkedTest extends AgentTestRunner {
       }
     }
   }
-  def "test simple case with only resource name set"() {
+  def "test simple case with only resource name set with new operation name"() {
     setup:
     // Test single span in new trace
     SayTracedHello.sayHelloOnlyResourceSet()
@@ -439,7 +439,7 @@ class TraceAnnotationNewOpNameForkedTest extends AgentTestRunner {
       }
     }
   }
-  def "test anonymous class annotations"() {
+  def "test anonymous class annotations with new operation name"() {
     setup:
     // Test anonymous classes with package.
     SayTracedHello.fromCallable()
@@ -461,12 +461,12 @@ class TraceAnnotationNewOpNameForkedTest extends AgentTestRunner {
     when:
     // Test anonymous classes with no package.
     new Callable<String>() {
-      @Trace
-      @Override
-      String call() throws Exception {
-        return "Howdy!"
-      }
-    }.call()
+        @Trace
+        @Override
+        String call() throws Exception {
+          return "Howdy!"
+        }
+      }.call()
     TEST_WRITER.waitForTraces(2)
 
     then:
@@ -493,7 +493,7 @@ class TraceAnnotationNewOpNameForkedTest extends AgentTestRunner {
       }
     }
   }
-  def "test simple inheritance"() {
+  def "test simple inheritance with new operation name"() {
     setup:
     def test = new TracedSubClass()
     when:
