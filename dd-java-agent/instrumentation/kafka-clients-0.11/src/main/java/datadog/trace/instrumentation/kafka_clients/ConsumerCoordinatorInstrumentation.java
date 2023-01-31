@@ -13,6 +13,7 @@ import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.internals.ConsumerCoordinator;
+import org.apache.kafka.clients.consumer.internals.RequestFuture;
 import org.apache.kafka.common.TopicPartition;
 
 @AutoService(Instrumenter.class)
@@ -49,10 +50,14 @@ public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Traci
   }
 
   public static class CommitOffsetAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Advice.OnMethodExit(suppress = Throwable.class)
     public static void trackCommitOffset(
         @Advice.This ConsumerCoordinator coordinator,
+        @Advice.Return RequestFuture<Void> requestFuture,
         @Advice.Argument(0) final Map<TopicPartition, OffsetAndMetadata> offsets) {
+      if (requestFuture.failed()) {
+        return;
+      }
       String consumerGroup =
           InstrumentationContext.get(ConsumerCoordinator.class, String.class).get(coordinator);
       for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : offsets.entrySet()) {
