@@ -2,7 +2,8 @@ package com.datadog.iast.propagation
 
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.IastRequestContext
-import com.datadog.iast.taint.Ranges
+import com.datadog.iast.model.Range
+import com.datadog.iast.model.Source
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.propagation.PropagationModule
@@ -87,7 +88,9 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     }
 
     if(shouldBeTainted){
-      taintedObjects.taint(secondParam, Ranges.EMPTY)
+      def ranges = new Range[1]
+      ranges[0] = new Range(0, Integer.MAX_VALUE, new Source((byte) 1, "test", "test"))
+      taintedObjects.taint(secondParam, ranges)
     }
 
 
@@ -103,6 +106,17 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     if (shouldBeTainted) {
       assert to != null
       assert to.get() == param1
+      if(param1 instanceof String){
+        final ranges = to.getRanges()
+        assert ranges.length == 1
+        assert ranges[0].start == 0
+        assert ranges[0].length == param1.length()
+      }else{
+        final ranges = to.getRanges()
+        assert ranges.length == 1
+        assert ranges[0].start == 0
+        assert ranges[0].length == Integer.MAX_VALUE
+      }
     } else {
       assert to == null
     }
