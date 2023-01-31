@@ -176,6 +176,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTO
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_RECORD_MESSAGE;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_RECORD_MESSAGE_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCLUDE_AGENT_THREADS;
@@ -492,6 +494,7 @@ public class Config {
   private final int profilingExceptionHistogramMaxCollectionSize;
   private final boolean profilingExcludeAgentThreads;
   private final boolean profilingUploadSummaryOn413Enabled;
+  private final boolean profilingRecordExceptionMessage;
 
   private final boolean crashTrackingAgentless;
   private final Map<String, String> crashTrackingTags;
@@ -1118,6 +1121,10 @@ public class Config {
             PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE_DEFAULT);
 
     profilingExcludeAgentThreads = configProvider.getBoolean(PROFILING_EXCLUDE_AGENT_THREADS, true);
+
+    profilingRecordExceptionMessage =
+        configProvider.getBoolean(
+            PROFILING_EXCEPTION_RECORD_MESSAGE, PROFILING_EXCEPTION_RECORD_MESSAGE_DEFAULT);
 
     profilingUploadSummaryOn413Enabled =
         configProvider.getBoolean(
@@ -1794,6 +1801,10 @@ public class Config {
 
   public boolean isProfilingUploadSummaryOn413Enabled() {
     return profilingUploadSummaryOn413Enabled;
+  }
+
+  public boolean isProfilingRecordExceptionMessage() {
+    return profilingRecordExceptionMessage;
   }
 
   public boolean isDatadogProfilerEnabled() {

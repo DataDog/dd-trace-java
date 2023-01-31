@@ -42,6 +42,9 @@ public final class ProfilingConfig {
   public static final String PROFILING_PROXY_PASSWORD = "profiling.proxy.password";
   public static final String PROFILING_EXCEPTION_SAMPLE_LIMIT = "profiling.exception.sample.limit";
   public static final int PROFILING_EXCEPTION_SAMPLE_LIMIT_DEFAULT = 10_000;
+  public static final String PROFILING_EXCEPTION_RECORD_MESSAGE =
+      "profiling.exception.record.message";
+  public static final boolean PROFILING_EXCEPTION_RECORD_MESSAGE_DEFAULT = true;
 
   public static final String PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT =
       "profiling.direct.allocation.sample.limit";
