@@ -14,6 +14,8 @@ variables:
     description: "Set to true to override rules in the reliability-env pipeline (e.g. override 'only deploy master')"
 
 .ci_authenticated_job:
+  image: tiangolo/docker-with-compose
+  tags: ["runner:docker"]
   before_script:
     - apk add bash jq git unzip curl
     - pip install pyyaml awscli
@@ -183,8 +185,6 @@ create_key:
       - pubkeys
 
 tracer-base-image-release:
-  image: tiangolo/docker-with-compose
-  tags: ["runner:docker"]
   extends: .ci_authenticated_job
   stage: deploy
   rules:
@@ -200,8 +200,6 @@ tracer-base-image-release:
     - docker push ghcr.io/datadog/system-tests/dd-trace-java:latest  
 
 tracer-base-image-snapshot:
-  image: tiangolo/docker-with-compose
-  tags: ["runner:docker"]
   extends: .ci_authenticated_job
   stage: deploy
   rules:
