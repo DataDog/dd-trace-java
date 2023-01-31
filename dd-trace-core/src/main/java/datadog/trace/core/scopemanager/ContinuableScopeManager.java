@@ -101,11 +101,8 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
   @Override
   public AgentScope.Continuation captureSpan(final AgentSpan span) {
-    ScopeContext context = scopeStack().findContextWithSpan(span);
-    if (context == null) {
-      return AgentTracer.NoopAgentScope.INSTANCE.capture();
-    }
-    AbstractContinuation continuation =
+    ScopeContext context = ScopeContext.empty().withSpan(span);
+    SingleContinuation continuation =
         new SingleContinuation(this, context, ScopeSource.INSTRUMENTATION.id());
     continuation.register();
     return continuation;

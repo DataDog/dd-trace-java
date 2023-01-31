@@ -110,21 +110,6 @@ final class ScopeStack {
     top = null;
   }
 
-  ScopeContext findContextWithSpan(AgentSpan span) {
-    if (this.top == null || span == null) {
-      return null;
-    }
-    if (span.equals(this.top.context.span())) {
-      return this.top.context;
-    }
-    for (ContinuableScope scope : this.stack) {
-      if (span.equals(scope.context.span())) {
-        return scope.context;
-      }
-    }
-    return null;
-  }
-
   private void onTopChanged(ContinuableScope top) {
     AgentSpan.Context context = top.context.span().context(); // TODO Check null span
     if (context instanceof ProfilerContext) {
