@@ -14,7 +14,7 @@ variables:
     description: "Set to true to override rules in the reliability-env pipeline (e.g. override 'only deploy master')"
 
 include:
-  remote: https://gitlab-templates.ddbuild.io/libdatadog/include/docker-base-image-authenticated.yml
+  remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
 
 .common: &common
   tags: [ "runner:main", "size:large" ]
