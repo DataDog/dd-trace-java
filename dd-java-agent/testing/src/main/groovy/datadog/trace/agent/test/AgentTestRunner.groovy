@@ -130,7 +130,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   @SuppressWarnings('PropertyName')
   @Shared
-  DataStreamsMonitoring TEST_DATA_STREAMS_CHECKPOINTER
+  DataStreamsMonitoring TEST_DATA_STREAMS_MONITORING
 
   @Shared
   ClassFileTransformer activeTransformer
@@ -180,12 +180,12 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
         void register(EventListener listener) {}
       }
-    TEST_DATA_STREAMS_CHECKPOINTER = new NoopDataStreamsMonitoring()
+    TEST_DATA_STREAMS_MONITORING = new NoopDataStreamsMonitoring()
     if (isDataStreamsEnabled()) {
       // Fast enough so tests don't take forever
       long bucketDuration = TimeUnit.MILLISECONDS.toNanos(50)
       WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
-      TEST_DATA_STREAMS_CHECKPOINTER = new DefaultDataStreamsMonitoring(sink, features, SystemTimeSource.INSTANCE, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
+      TEST_DATA_STREAMS_MONITORING = new DefaultDataStreamsMonitoring(sink, features, SystemTimeSource.INSTANCE, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
     }
     TEST_WRITER = new ListWriter()
     TEST_TRACER =
@@ -195,7 +195,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       .idGenerationStrategy(IdGenerationStrategy.fromName("SEQUENTIAL"))
       .statsDClient(STATS_D_CLIENT)
       .strictTraceWrites(useStrictTraceWrites())
-      .dataStreamsCheckpointer(TEST_DATA_STREAMS_CHECKPOINTER)
+      .dataStreamsMonitoring(TEST_DATA_STREAMS_MONITORING)
       .profilingContextIntegration(TEST_PROFILING_CONTEXT_INTEGRATION)
       .build())
     TEST_TRACER.registerCheckpointer(TEST_CHECKPOINTER)
@@ -236,7 +236,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     TEST_SPANS.clear()
     TEST_WRITER.start()
     TEST_DATA_STREAMS_WRITER.clear()
-    TEST_DATA_STREAMS_CHECKPOINTER.clear()
+    TEST_DATA_STREAMS_MONITORING.clear()
 
     def util = new MockUtil()
     util.attachMock(STATS_D_CLIENT, this)

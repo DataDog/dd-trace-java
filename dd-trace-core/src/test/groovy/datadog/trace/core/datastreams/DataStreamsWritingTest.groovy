@@ -72,20 +72,20 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     def timeSource = new ControllableTimeSource()
 
     when:
-    def checkpointer = new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource)
-    checkpointer.start()
-    checkpointer.accept(new StatsPoint([], 9, 0, timeSource.currentTimeNanos, 0, 0))
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
-    checkpointer.trackKafkaProduce("testTopic", 1, 100)
-    checkpointer.trackKafkaProduce("testTopic", 1, 130)
-    checkpointer.trackKafkaCommit("testGroup", "testTopic", 1, 130)
+    def dataStreams = new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource)
+    dataStreams.start()
+    dataStreams.accept(new StatsPoint([], 9, 0, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.trackKafkaProduce("testTopic", 1, 100)
+    dataStreams.trackKafkaProduce("testTopic", 1, 130)
+    dataStreams.trackKafkaCommit("testGroup", "testTopic", 1, 130)
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100l)
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10)))
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10)))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(5), SECONDS.toNanos(5)))
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, timeSource.currentTimeNanos, SECONDS.toNanos(2), 0))
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(5), SECONDS.toNanos(5)))
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, timeSource.currentTimeNanos, SECONDS.toNanos(2), 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.report()
+    dataStreams.report()
 
     then:
     conditions.eventually {
@@ -94,7 +94,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     validateMessage(requestBodies[0])
 
     cleanup:
-    checkpointer.close()
+    dataStreams.close()
   }
 
   def validateMessage(byte[] message) {

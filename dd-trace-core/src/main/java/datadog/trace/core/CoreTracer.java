@@ -349,7 +349,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
-    public CoreTracerBuilder dataStreamsCheckpointer(DataStreamsMonitoring dataStreamsMonitoring) {
+    public CoreTracerBuilder dataStreamsMonitoring(DataStreamsMonitoring dataStreamsMonitoring) {
       this.dataStreamsMonitoring = dataStreamsMonitoring;
       return this;
     }

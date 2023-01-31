@@ -29,20 +29,20 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     def sink = Mock(Sink)
 
     when:
-    def checkpointer = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.start()
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 0, 0, timeSource.currentTimeNanos, 0, 0))
-    checkpointer.report()
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.start()
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 0, 0, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.report()
 
     then:
     conditions.eventually {
-      assert checkpointer.inbox.isEmpty()
-      assert checkpointer.thread.state != Thread.State.RUNNABLE
+      assert dataStreams.inbox.isEmpty()
+      assert dataStreams.thread.state != Thread.State.RUNNABLE
     }
     0 * payloadWriter.writePayload(_)
 
     cleanup:
-    checkpointer.close()
+    dataStreams.close()
   }
 
   def "Write group after a delay"() {
@@ -56,16 +56,16 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     def payloadWriter = new CapturingPayloadWriter()
 
     when:
-    def checkpointer = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.start()
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.start()
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.report()
+    dataStreams.report()
 
     then:
     conditions.eventually {
-      assert checkpointer.inbox.isEmpty()
-      assert checkpointer.thread.state != Thread.State.RUNNABLE
+      assert dataStreams.inbox.isEmpty()
+      assert dataStreams.thread.state != Thread.State.RUNNABLE
       assert payloadWriter.buckets.size() == 1
     }
 
@@ -82,7 +82,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
 
     cleanup:
     payloadWriter.close()
-    checkpointer.close()
+    dataStreams.close()
   }
 
   // This test relies on automatic reporting instead of manually calling report
@@ -98,15 +98,15 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     def bucketDuration = TimeUnit.MILLISECONDS.toNanos(200)
 
     when:
-    def checkpointer = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, bucketDuration)
-    checkpointer.start()
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, bucketDuration)
+    dataStreams.start()
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(bucketDuration)
 
     then:
     conditions.eventually {
-      assert checkpointer.inbox.isEmpty()
-      assert checkpointer.thread.state != Thread.State.RUNNABLE
+      assert dataStreams.inbox.isEmpty()
+      assert dataStreams.thread.state != Thread.State.RUNNABLE
       assert payloadWriter.buckets.size() == 1
     }
 
@@ -123,7 +123,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
 
     cleanup:
     payloadWriter.close()
-    checkpointer.close()
+    dataStreams.close()
   }
 
   def "Groups for current bucket are not reported"() {
@@ -137,18 +137,18 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     def payloadWriter = new CapturingPayloadWriter()
 
     when:
-    def checkpointer = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.start()
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.start()
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 3, 4, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 3, 4, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100l)
-    checkpointer.report()
+    dataStreams.report()
 
     then:
     conditions.eventually {
-      assert checkpointer.inbox.isEmpty()
-      assert checkpointer.thread.state != Thread.State.RUNNABLE
+      assert dataStreams.inbox.isEmpty()
+      assert dataStreams.thread.state != Thread.State.RUNNABLE
       assert payloadWriter.buckets.size() == 1
     }
 
@@ -165,7 +165,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
 
     cleanup:
     payloadWriter.close()
-    checkpointer.close()
+    dataStreams.close()
   }
 
   def "All groups written in close"() {
@@ -179,18 +179,18 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     def payloadWriter = new CapturingPayloadWriter()
 
     when:
-    def checkpointer = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.start()
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.start()
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100l)
-    checkpointer.close()
+    dataStreams.close()
 
     then:
     conditions.eventually {
-      assert checkpointer.inbox.isEmpty()
-      assert checkpointer.thread.state != Thread.State.RUNNABLE
+      assert dataStreams.inbox.isEmpty()
+      assert dataStreams.thread.state != Thread.State.RUNNABLE
       assert payloadWriter.buckets.size() == 2
     }
 
@@ -231,20 +231,20 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     def payloadWriter = new CapturingPayloadWriter()
 
     when:
-    def checkpointer = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.start()
-    checkpointer.trackKafkaCommit("testGroup", "testTopic", 2, 23)
-    checkpointer.trackKafkaCommit("testGroup", "testTopic", 2, 24)
-    checkpointer.trackKafkaProduce("testTopic", 2, 23)
-    checkpointer.trackKafkaProduce("testTopic2", 2, 23)
-    checkpointer.trackKafkaProduce("testTopic2", 2, 45)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.start()
+    dataStreams.trackKafkaCommit("testGroup", "testTopic", 2, 23)
+    dataStreams.trackKafkaCommit("testGroup", "testTopic", 2, 24)
+    dataStreams.trackKafkaProduce("testTopic", 2, 23)
+    dataStreams.trackKafkaProduce("testTopic2", 2, 23)
+    dataStreams.trackKafkaProduce("testTopic2", 2, 45)
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.report()
+    dataStreams.report()
 
     then:
     conditions.eventually {
-      assert checkpointer.inbox.isEmpty()
-      assert checkpointer.thread.state != Thread.State.RUNNABLE
+      assert dataStreams.inbox.isEmpty()
+      assert dataStreams.thread.state != Thread.State.RUNNABLE
       assert payloadWriter.buckets.size() == 1
     }
 
@@ -273,7 +273,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
 
     cleanup:
     payloadWriter.close()
-    checkpointer.close()
+    dataStreams.close()
   }
 
   def "Groups from multiple buckets are reported"() {
@@ -287,18 +287,18 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     def payloadWriter = new CapturingPayloadWriter()
 
     when:
-    def checkpointer = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.start()
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.start()
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.report()
+    dataStreams.report()
 
     then:
     conditions.eventually {
-      assert checkpointer.inbox.isEmpty()
-      assert checkpointer.thread.state != Thread.State.RUNNABLE
+      assert dataStreams.inbox.isEmpty()
+      assert dataStreams.thread.state != Thread.State.RUNNABLE
       assert payloadWriter.buckets.size() == 2
     }
 
@@ -326,7 +326,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
 
     cleanup:
     payloadWriter.close()
-    checkpointer.close()
+    dataStreams.close()
   }
 
   def "Multiple points are correctly grouped in multiple buckets"() {
@@ -340,21 +340,21 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     def payloadWriter = new CapturingPayloadWriter()
 
     when:
-    def checkpointer = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.start()
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.start()
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100l)
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10)))
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10)))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(5), SECONDS.toNanos(5)))
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, timeSource.currentTimeNanos, SECONDS.toNanos(2), 0))
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(5), SECONDS.toNanos(5)))
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, timeSource.currentTimeNanos, SECONDS.toNanos(2), 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.report()
+    dataStreams.report()
 
     then:
     conditions.eventually {
-      assert checkpointer.inbox.isEmpty()
-      assert checkpointer.thread.state != Thread.State.RUNNABLE
+      assert dataStreams.inbox.isEmpty()
+      assert dataStreams.thread.state != Thread.State.RUNNABLE
       assert payloadWriter.buckets.size() == 2
     }
 
@@ -398,7 +398,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
 
     cleanup:
     payloadWriter.close()
-    checkpointer.close()
+    dataStreams.close()
   }
 
   def "feature upgrade"() {
@@ -413,29 +413,29 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     def payloadWriter = new CapturingPayloadWriter()
 
     when: "reporting points when data streams is not supported"
-    def checkpointer = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.start()
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.start()
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.report()
+    dataStreams.report()
 
     then: "no buckets are reported"
     conditions.eventually {
-      assert checkpointer.inbox.isEmpty()
-      assert checkpointer.thread.state != Thread.State.RUNNABLE
+      assert dataStreams.inbox.isEmpty()
+      assert dataStreams.thread.state != Thread.State.RUNNABLE
     }
 
     payloadWriter.buckets.isEmpty()
 
     when: "report called multiple times without advancing past check interval"
-    checkpointer.report()
-    checkpointer.report()
-    checkpointer.report()
+    dataStreams.report()
+    dataStreams.report()
+    dataStreams.report()
 
     then: "features are not rechecked"
     conditions.eventually {
-      assert checkpointer.inbox.isEmpty()
-      assert checkpointer.thread.state != Thread.State.RUNNABLE
+      assert dataStreams.inbox.isEmpty()
+      assert dataStreams.thread.state != Thread.State.RUNNABLE
     }
     0 * features.discover()
     payloadWriter.buckets.isEmpty()
@@ -443,15 +443,15 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     when: "submitting points after an upgrade"
     supportsDataStreaming = true
     timeSource.advance(FEATURE_CHECK_INTERVAL_NANOS)
-    checkpointer.report()
+    dataStreams.report()
 
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.report()
+    dataStreams.report()
 
     then: "points are now reported"
     conditions.eventually {
-      assert checkpointer.inbox.isEmpty()
+      assert dataStreams.inbox.isEmpty()
       assert payloadWriter.buckets.size() == 1
     }
 
@@ -468,7 +468,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
 
     cleanup:
     payloadWriter.close()
-    checkpointer.close()
+    dataStreams.close()
   }
 
   def "feature downgrade then upgrade"() {
@@ -483,18 +483,18 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     def payloadWriter = new CapturingPayloadWriter()
 
     when: "reporting points after a downgrade"
-    def checkpointer = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.start()
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.start()
     supportsDataStreaming = false
-    checkpointer.onEvent(EventListener.EventType.DOWNGRADED, "")
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.onEvent(EventListener.EventType.DOWNGRADED, "")
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.report()
+    dataStreams.report()
 
     then: "no buckets are reported"
     conditions.eventually {
-      assert checkpointer.inbox.isEmpty()
-      assert checkpointer.thread.state != Thread.State.RUNNABLE
+      assert dataStreams.inbox.isEmpty()
+      assert dataStreams.thread.state != Thread.State.RUNNABLE
     }
 
     payloadWriter.buckets.isEmpty()
@@ -502,15 +502,15 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     when: "submitting points after an upgrade"
     supportsDataStreaming = true
     timeSource.advance(FEATURE_CHECK_INTERVAL_NANOS)
-    checkpointer.report()
+    dataStreams.report()
 
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.report()
+    dataStreams.report()
 
     then: "points are now reported"
     conditions.eventually {
-      assert checkpointer.inbox.isEmpty()
+      assert dataStreams.inbox.isEmpty()
       assert payloadWriter.buckets.size() == 1
     }
 
@@ -527,7 +527,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
 
     cleanup:
     payloadWriter.close()
-    checkpointer.close()
+    dataStreams.close()
   }
 }
 

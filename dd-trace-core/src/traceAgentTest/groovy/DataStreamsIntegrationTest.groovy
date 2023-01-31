@@ -45,11 +45,11 @@ class DataStreamsIntegrationTest extends DDSpecification {
     def timeSource = new ControllableTimeSource()
 
     when:
-    def checkpointer = new DefaultDataStreamsMonitoring(sink, sharedCommunicationObjects.featuresDiscovery, timeSource, Config.get().getEnv())
-    checkpointer.start()
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeNanos, 0, 0))
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, sharedCommunicationObjects.featuresDiscovery, timeSource, Config.get().getEnv())
+    dataStreams.start()
+    dataStreams.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.report()
+    dataStreams.report()
 
     then:
     sharedCommunicationObjects.featuresDiscovery.supportsDataStreams()
@@ -59,7 +59,7 @@ class DataStreamsIntegrationTest extends DDSpecification {
     listener.events[0] == OK
 
     cleanup:
-    checkpointer.close()
+    dataStreams.close()
   }
 
   static class BlockingListener implements EventListener {
