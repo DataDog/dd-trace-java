@@ -6,9 +6,9 @@ import javax.annotation.Nullable;
 
 public interface PropagationModule extends IastModule {
 
-  void taintParam1IfParam2IsTainted(@Nullable Object param1, @Nullable Object param2);
+  void taintIfInputIsTainted(@Nullable Object param1, @Nullable Object param2);
 
-  void taintParam1IfParam2IsTainted(@Nullable String param1, @Nullable Object param2);
+  void taintIfInputIsTainted(@Nullable String param1, @Nullable Object param2);
 
-  void taintParam1IfParam2IsTainted(@Nonnull Object param1, @Nullable String param2);
+  void taintIfInputIsTainted(@Nonnull Object param1, @Nullable String param2);
 }

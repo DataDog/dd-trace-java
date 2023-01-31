@@ -55,7 +55,7 @@ public class InputStreamInstrumentation extends Instrumenter.Iast
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       try {
         if (module != null) {
-          module.taintParam1IfParam2IsTainted(self, param);
+          module.taintIfInputIsTainted(self, param);
         }
       } catch (final Throwable e) {
         module.onUnexpectedException("InputStreamAdvice onExit threw", e);

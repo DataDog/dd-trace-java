@@ -23,7 +23,7 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
     jsonParserTestSuite.currentName()
 
     then:
-    1 * propagationModule.taintParam1IfParam2IsTainted( _ , jsonParser)
+    1 * propagationModule.taintIfInputIsTainted( _ , jsonParser)
 
     where:
     jsonParser << [
@@ -42,7 +42,7 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
     jsonParserTestSuite.getCurrentName()
 
     then:
-    1 * propagationModule.taintParam1IfParam2IsTainted(_, jsonParser)
+    1 * propagationModule.taintIfInputIsTainted(_, jsonParser)
 
     where:
     jsonParser << [
@@ -62,7 +62,7 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
 
     then:
     result == '{'
-    1 * propagationModule.taintParam1IfParam2IsTainted('{', jsonParser)
+    1 * propagationModule.taintIfInputIsTainted('{', jsonParser)
 
     where:
     jsonParser << [
@@ -82,7 +82,7 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
 
     then:
     result == 'key1'
-    1 * propagationModule.taintParam1IfParam2IsTainted('key1', jsonParser)
+    1 * propagationModule.taintIfInputIsTainted('key1', jsonParser)
 
     where:
     jsonParser << [
@@ -102,7 +102,7 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
 
     then:
     result == 'key1'
-    1 * propagationModule.taintParam1IfParam2IsTainted('key1', jsonParser)
+    1 * propagationModule.taintIfInputIsTainted('key1', jsonParser)
 
     where:
     jsonParser << [
@@ -121,7 +121,7 @@ class JsonParserInstrumentationTest extends AgentTestRunner {
     jsonParserTestSuite.nextTextValue()
 
     then:
-    1 * propagationModule.taintParam1IfParam2IsTainted(null, jsonParser)
+    1 * propagationModule.taintIfInputIsTainted(null, jsonParser)
 
     where:
     jsonParser << [

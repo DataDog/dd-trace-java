@@ -60,7 +60,7 @@ public class JsonParserInstrumentation extends Instrumenter.Iast
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       try {
         if (module != null) {
-          module.taintParam1IfParam2IsTainted(result, jsonParser);
+          module.taintIfInputIsTainted(result, jsonParser);
         }
       } catch (final Throwable e) {
         module.onUnexpectedException("JsonParserAdvice onExit threw", e);

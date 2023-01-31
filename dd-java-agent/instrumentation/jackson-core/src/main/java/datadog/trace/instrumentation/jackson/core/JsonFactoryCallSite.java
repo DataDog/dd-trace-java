@@ -21,7 +21,7 @@ public class JsonFactoryCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintParam1IfParam2IsTainted(jsonParser, input);
+        module.taintIfInputIsTainted(jsonParser, input);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterCreate threw", e);
       }
@@ -38,7 +38,7 @@ public class JsonFactoryCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintParam1IfParam2IsTainted(jsonParser, content);
+        module.taintIfInputIsTainted(jsonParser, content);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterCreate threw", e);
       }

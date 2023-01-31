@@ -12,7 +12,7 @@ import javax.annotation.Nullable;
 
 public class PropagationModuleImpl extends IastModuleBase implements PropagationModule {
   @Override
-  public void taintParam1IfParam2IsTainted(@Nullable Object param1, @Nullable Object param2) {
+  public void taintIfInputIsTainted(@Nullable Object param1, @Nullable Object param2) {
     if (param1 == null || param2 == null) {
       return;
     }
@@ -20,7 +20,7 @@ public class PropagationModuleImpl extends IastModuleBase implements Propagation
   }
 
   @Override
-  public void taintParam1IfParam2IsTainted(@Nullable String param1, @Nullable Object param2) {
+  public void taintIfInputIsTainted(@Nullable String param1, @Nullable Object param2) {
     if (!canBeTainted(param1) || param2 == null) {
       return;
     }
@@ -28,7 +28,7 @@ public class PropagationModuleImpl extends IastModuleBase implements Propagation
   }
 
   @Override
-  public void taintParam1IfParam2IsTainted(@Nonnull Object param1, @Nullable String param2) {
+  public void taintIfInputIsTainted(@Nonnull Object param1, @Nullable String param2) {
     if (param1 == null || !canBeTainted(param2)) {
       return;
     }

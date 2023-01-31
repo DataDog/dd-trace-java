@@ -24,7 +24,7 @@ class JsonFactoryCallSiteTest extends AgentTestRunner {
 
     then:
     result != null
-    1 * propagationModule.taintParam1IfParam2IsTainted(_ as JsonParser, content)
+    1 * propagationModule.taintIfInputIsTainted(_ as JsonParser, content)
   }
 
   def 'test createParser(InputStream)'() {
@@ -39,6 +39,6 @@ class JsonFactoryCallSiteTest extends AgentTestRunner {
 
     then:
     result != null
-    1 * propagationModule.taintParam1IfParam2IsTainted(_ as JsonParser, is)
+    1 * propagationModule.taintIfInputIsTainted(_ as JsonParser, is)
   }
 }

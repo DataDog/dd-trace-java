@@ -24,7 +24,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
 
   void 'taintParam1IfParam2IsTainted null or empty (#param1, #param2)'(final Object param1, final Object param2) {
     when:
-    module.taintParam1IfParam2IsTainted(param1, param2)
+    module.taintIfInputIsTainted(param1, param2)
 
     then:
     0 * _
@@ -43,7 +43,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
 
   void 'taintParam1IfParam2IsTainted without span (#param1, #param2)'(final Object param1, final Object param2) {
     when:
-    module.taintParam1IfParam2IsTainted(param1, param2)
+    module.taintIfInputIsTainted(param1, param2)
 
     then:
     1 * tracer.activeSpan() >> null
@@ -92,7 +92,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
 
 
     when:
-    module.taintParam1IfParam2IsTainted(firstParam, secondParam)
+    module.taintIfInputIsTainted(firstParam, secondParam)
 
     then:
     1 * tracer.activeSpan() >> span
