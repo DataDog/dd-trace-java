@@ -13,18 +13,19 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.junit.rules.RuleChain;
 import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
+import org.junit.runners.ParentRunner;
 
 @AutoService(Instrumenter.class)
-public class JUnit4Instrumentation extends Instrumenter.CiVisibility
+public class JUnit4SuiteEventsInstrumentation extends Instrumenter.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
-  public JUnit4Instrumentation() {
-    super("junit", "junit-4");
+  public JUnit4SuiteEventsInstrumentation() {
+    super("junit-4-suite-events");
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return "org.junit.runner.Runner";
+    return "org.junit.runners.ParentRunner";
   }
 
   @Override
@@ -45,26 +46,42 @@ public class JUnit4Instrumentation extends Instrumenter.CiVisibility
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         named("run").and(takesArgument(0, named("org.junit.runner.notification.RunNotifier"))),
-        JUnit4Instrumentation.class.getName() + "$JUnit4Advice");
+        JUnit4SuiteEventsInstrumentation.class.getName() + "$JUnit4SuiteEventsAdvice");
   }
 
-  public static class JUnit4Advice {
+  public static class JUnit4SuiteEventsAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void addTracingListener(@Advice.Argument(0) final RunNotifier runNotifier) {
+    public static void fireSuiteStartedEvent(
+        @Advice.Argument(0) final RunNotifier runNotifier,
+        @Advice.This final ParentRunner<?> runner) {
       final List<RunListener> runListeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);
       if (runListeners == null) {
         return;
       }
 
-      // This prevents installing the TracingListener multiple times.
       for (final RunListener listener : runListeners) {
-        if (JUnit4Utils.isTracingListener(listener)) {
-          return;
+        TracingListener tracingListener = JUnit4Utils.toTracingListener(listener);
+        if (tracingListener != null) {
+          tracingListener.testSuiteStarted(runner.getTestClass());
         }
       }
+    }
 
-      final TracingListener tracingListener = new TracingListener();
-      runNotifier.addListener(tracingListener);
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void fireSuiteFinishedEvent(
+        @Advice.Argument(0) final RunNotifier runNotifier,
+        @Advice.This final ParentRunner<?> runner) {
+      final List<RunListener> runListeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);
+      if (runListeners == null) {
+        return;
+      }
+
+      for (final RunListener listener : runListeners) {
+        TracingListener tracingListener = JUnit4Utils.toTracingListener(listener);
+        if (tracingListener != null) {
+          tracingListener.testSuiteFinished(runner.getTestClass());
+        }
+      }
     }
 
     // JUnit 4.10 and above
