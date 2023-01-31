@@ -348,7 +348,11 @@ public class MetricInstrumentor extends Instrumentor {
       int counter = 0;
       int slot = isStatic ? 0 : 1;
       for (Type argType : argTypes) {
-        String currentArgName = argumentNames[slot];
+        String currentArgName = null;
+        if (localVarsBySlot.length > 0) {
+          LocalVariableNode localVarNode = localVarsBySlot[slot];
+          currentArgName = localVarNode != null ? localVarNode.name : null;
+        }
         if (currentArgName == null) {
           // if argument names are not resolved correctly let's assign p+arg_index
           currentArgName = "p" + counter;
