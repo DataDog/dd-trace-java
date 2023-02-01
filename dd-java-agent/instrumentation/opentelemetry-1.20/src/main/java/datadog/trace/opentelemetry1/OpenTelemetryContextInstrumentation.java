@@ -69,7 +69,12 @@ public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".OtelContextConstants"};
+    return new String[] {
+      "datadog.trace.core.scopemanager.DDBaggage",
+      packageName + ".OtelBaggage",
+      packageName + ".OtelContextConstants",
+      packageName + ".OtelScope"
+    };
   }
 
   @Override
