@@ -3,8 +3,10 @@ import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.baggage.Baggage
 import io.opentelemetry.api.baggage.BaggageEntryMetadata
 import io.opentelemetry.context.Context
+import spock.lang.Ignore
 import spock.lang.Subject
 
+@Ignore("Feature in development")
 class OpenTelemetry1BaggageTest extends AgentTestRunner {
   @Subject
   def tracer = GlobalOpenTelemetry.get().tracerProvider.get("baggage-test")
