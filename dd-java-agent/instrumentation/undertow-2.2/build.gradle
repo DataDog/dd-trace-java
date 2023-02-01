@@ -1,0 +1,31 @@
+
+muzzle {
+  pass {
+    group = "io.undertow"
+    module = "undertow-servlet-jakarta"
+    versions = "[2.2.14.Final,]"
+    assertInverse = false
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+dependencies {
+  compileOnly group: 'io.undertow', name: 'undertow-servlet-jakarta', version: '2.2.14.Final'
+  implementation project(':dd-java-agent:instrumentation:undertow-2.0')
+
+  testImplementation group: 'io.undertow', name: 'undertow-servlet-jakarta', version: '2.2.14.Final'
+
+  testImplementation project(':dd-java-agent:instrumentation:servlet')
+  testImplementation project(':dd-java-agent:instrumentation:servlet:request-3')
+
+  latestDepTestImplementation group: 'io.undertow', name: 'undertow-servlet-jakarta', version: '2.2.+'
+}

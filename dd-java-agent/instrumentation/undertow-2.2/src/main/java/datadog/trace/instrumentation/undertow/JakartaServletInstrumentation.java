@@ -13,15 +13,15 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.servlet.handlers.ServletRequestContext;
-import javax.servlet.ServletRequest;
+import jakarta.servlet.ServletRequest;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public final class ServletInstrumentation extends Instrumenter.Tracing
+public final class JakartaServletInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType {
 
-  public ServletInstrumentation() {
-    super("undertow", "undertow-2.0");
+  public JakartaServletInstrumentation() {
+    super("undertow", "undertow-2.2");
   }
 
   @Override
