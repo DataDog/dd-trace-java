@@ -3,6 +3,7 @@ package datadog.trace.core.scopemanager;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan;
 import static datadog.trace.bootstrap.instrumentation.api.ScopeSource.INSTRUMENTATION;
+import static datadog.trace.bootstrap.instrumentation.api.ScopeSource.ITERATION;
 import static datadog.trace.core.scopemanager.ScopeContext.fromSpan;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -177,7 +178,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
     // close any immediately previous iteration scope
     final ContinuableScope top = scopeStack.top;
-    if (top != null && top.source() == ScopeSource.ITERATION.id()) {
+    if (top != null && top.source() == ITERATION.id()) {
       if (iterationKeepAlive > 0) { // skip depth check because cancelling is cheap
         cancelRootIterationScopeCleanup(scopeStack, top);
       }
@@ -206,7 +207,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
     final ContinuableScope top = scopeStack.top;
 
-    AgentScopeContext context = ScopeContext.append(top.context, span);
+    AgentScopeContext context = top.context.with(span);
 
     boolean asyncPropagation =
         inheritAsyncPropagation && top != null
@@ -214,7 +215,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
             : DEFAULT_ASYNC_PROPAGATING;
 
     final ContinuableScope scope =
-        new ContinuableScope(this, context, ScopeSource.ITERATION.id(), asyncPropagation);
+        new ContinuableScope(this, context, ITERATION.id(), asyncPropagation);
 
     if (iterationKeepAlive > 0 && currentDepth == 0) {
       // no surrounding scope to aid cleanup, so use background task instead

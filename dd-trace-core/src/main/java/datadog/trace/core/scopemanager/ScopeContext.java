@@ -32,10 +32,33 @@ public class ScopeContext implements AgentScopeContext {
     return new ScopeContext(span, null);
   }
 
-  public static AgentScopeContext append(AgentScopeContext parent, ContextElement element) {
+  @Override
+  public AgentSpan span() {
+    return this.span;
+  }
+
+  @Override
+  public Baggage baggage() {
+    return this.baggage;
+  }
+
+  @Override
+  public <V extends ContextElement> V getElement(String key) {
+    switch (key) {
+      case SPAN_KEY:
+        return (V) this.span;
+      case BAGGAGE_KEY:
+        return (V) this.baggage;
+      default:
+        return null;
+    }
+  }
+
+  @Override
+  public <E extends ContextElement> AgentScopeContext with(E element) {
     String key = element.contextKey();
-    AgentSpan span = parent.span();
-    Baggage baggage = parent.baggage();
+    AgentSpan span = this.span;
+    Baggage baggage = this.baggage;
     switch (key) {
       case SPAN_KEY:
         span = (AgentSpan) element;
@@ -45,25 +68,6 @@ public class ScopeContext implements AgentScopeContext {
         break;
     }
     return new ScopeContext(span, baggage);
-  }
-
-  public AgentSpan span() {
-    return this.span;
-  }
-
-  public Baggage baggage() {
-    return this.baggage;
-  }
-
-  /**
-   * Create a new context inheriting those values with another {@link Baggage}.<br>
-   * To erase current baggage, create a new instance using an empty baggage. They won't be merged.
-   *
-   * @param baggage The baggage to store to the new context.
-   * @return The new context instance.
-   */
-  public ScopeContext withBaggage(Baggage baggage) {
-    return new ScopeContext(this.span, baggage);
   }
 
   @Override
