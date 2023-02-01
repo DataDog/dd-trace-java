@@ -37,7 +37,11 @@ public class JUnit5Instrumentation extends Instrumenter.CiVisibility
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".JUnit5Decorator", packageName + ".TracingListener"};
+    return new String[] {
+      packageName + ".JUnit5Decorator",
+      packageName + ".TracingListener",
+      packageName + ".JUnit5Utils",
+    };
   }
 
   @Override
