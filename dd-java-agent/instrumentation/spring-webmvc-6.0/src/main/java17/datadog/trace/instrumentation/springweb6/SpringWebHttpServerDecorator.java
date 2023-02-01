@@ -20,6 +20,9 @@ import org.springframework.web.servlet.mvc.Controller;
 public class SpringWebHttpServerDecorator
     extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, HttpServletResponse, Void> {
 
+  private static final String DD_FILTERED_SPRING_ROUTE_ALREADY_APPLIED =
+      "datadog.filter.spring.route.applied";
+
   private static final CharSequence SPRING_HANDLER = UTF8BytesString.create("spring.handler");
   public static final CharSequence RESPONSE_RENDER = UTF8BytesString.create("response.render");
 
@@ -95,11 +98,14 @@ public class SpringWebHttpServerDecorator
       final HttpServletRequest connection,
       final HttpServletRequest request,
       AgentSpan.Context.Extracted context) {
-    if (request != null) {
+    // FIXME: adding a filter to avoid resource name to be overridden on redirect and forwards.
+    // Remove myself when jakarta.servlet will be available
+    if (request != null && request.getAttribute(DD_FILTERED_SPRING_ROUTE_ALREADY_APPLIED) == null) {
       final String method = request.getMethod();
       final Object bestMatchingPattern =
           request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
       if (method != null && bestMatchingPattern != null && !bestMatchingPattern.equals("/**")) {
+        request.setAttribute(DD_FILTERED_SPRING_ROUTE_ALREADY_APPLIED, true);
         HTTP_RESOURCE_DECORATOR.withRoute(span, method, bestMatchingPattern.toString());
       }
     }
