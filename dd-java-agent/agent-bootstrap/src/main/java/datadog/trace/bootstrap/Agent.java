@@ -693,7 +693,7 @@ public class Agent {
 
       try {
         final Class<?> ciVisibilitySysClass =
-            AGENT_CLASSLOADER.loadClass("com.datadog.ci.CiVisibilitySystem");
+            AGENT_CLASSLOADER.loadClass("datadog.trace.civisibility.CiVisibilitySystem");
         final Method ciVisibilityInstallerMethod = ciVisibilitySysClass.getMethod("start");
         ciVisibilityInstallerMethod.invoke(null);
       } catch (final Throwable e) {

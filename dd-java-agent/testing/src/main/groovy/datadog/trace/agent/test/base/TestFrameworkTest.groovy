@@ -4,11 +4,11 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
-import datadog.trace.api.ci.InstrumentationBridge
+import datadog.trace.api.civisibility.InstrumentationBridge
+import datadog.trace.api.civisibility.codeowners.Codeowners
+import datadog.trace.api.civisibility.source.MethodLinesResolver
+import datadog.trace.api.civisibility.source.SourcePathResolver
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.bootstrap.instrumentation.ci.codeowners.Codeowners
-import datadog.trace.bootstrap.instrumentation.ci.source.MethodLinesResolver
-import datadog.trace.bootstrap.instrumentation.ci.source.SourcePathResolver
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator
 import spock.lang.Unroll
 
@@ -16,9 +16,11 @@ import spock.lang.Unroll
 abstract class TestFrameworkTest extends AgentTestRunner {
 
   def setupSpec() {
-    InstrumentationBridge.setCodeownersFactory { repoRoot -> Stub(Codeowners) }
-    InstrumentationBridge.setSourcePathResolverFactory { repoRoot -> Stub(SourcePathResolver) }
-    InstrumentationBridge.setMethodLinesResolverFactory { -> Stub(MethodLinesResolver) }
+    InstrumentationBridge.ci = false
+    InstrumentationBridge.ciTags = Collections.emptyMap()
+    InstrumentationBridge.codeowners = Stub(Codeowners)
+    InstrumentationBridge.sourcePathResolver = Stub(SourcePathResolver)
+    InstrumentationBridge.methodLinesResolver = Stub(MethodLinesResolver)
   }
 
   @Override

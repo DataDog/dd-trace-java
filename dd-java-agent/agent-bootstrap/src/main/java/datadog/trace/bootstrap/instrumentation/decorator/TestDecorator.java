@@ -4,22 +4,15 @@ import static datadog.trace.util.Strings.toJson;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.ci.InstrumentationBridge;
+import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.codeowners.Codeowners;
+import datadog.trace.api.civisibility.source.MethodLinesResolver;
+import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.bootstrap.instrumentation.ci.CIInfo;
-import datadog.trace.bootstrap.instrumentation.ci.CIProviderInfo;
-import datadog.trace.bootstrap.instrumentation.ci.CIProviderInfoFactory;
-import datadog.trace.bootstrap.instrumentation.ci.CITagsProviderImpl;
-import datadog.trace.bootstrap.instrumentation.ci.codeowners.Codeowners;
-import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
-import datadog.trace.bootstrap.instrumentation.ci.git.info.CILocalGitInfoBuilder;
-import datadog.trace.bootstrap.instrumentation.ci.git.info.UserSuppliedGitInfoBuilder;
-import datadog.trace.bootstrap.instrumentation.ci.source.MethodLinesResolver;
-import datadog.trace.bootstrap.instrumentation.ci.source.SourcePathResolver;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -35,56 +28,14 @@ public abstract class TestDecorator extends BaseDecorator {
   public static final String TEST_SKIP = "skip";
   public static final UTF8BytesString CIAPP_TEST_ORIGIN = UTF8BytesString.create("ciapp-test");
 
-  private static final String GIT_FOLDER_NAME = ".git";
-
-  private final boolean isCI;
-  private final Map<String, String> ciTags;
-  private final Codeowners codeowners;
-  private final SourcePathResolver sourcePathResolver;
-  private final MethodLinesResolver methodLinesResolver;
-
-  public TestDecorator() {
-    CIProviderInfo ciProviderInfo = CIProviderInfoFactory.createCIProviderInfo();
-    CILocalGitInfoBuilder ciLocalGitInfoBuilder = new CILocalGitInfoBuilder();
-    UserSuppliedGitInfoBuilder userSuppliedGitInfoBuilder = new UserSuppliedGitInfoBuilder();
-
-    CIInfo ciInfo = ciProviderInfo.buildCIInfo();
-    String repoRoot = ciInfo.getCiWorkspace();
-
-    GitInfo ciGitInfo = ciProviderInfo.buildCIGitInfo();
-    GitInfo localGitInfo = ciLocalGitInfoBuilder.build(repoRoot, GIT_FOLDER_NAME);
-    GitInfo userSuppliedGitInfo = userSuppliedGitInfoBuilder.build();
-
-    CITagsProviderImpl ciTagsProvider =
-        new CITagsProviderImpl(ciInfo, ciGitInfo, localGitInfo, userSuppliedGitInfo);
-    ciTags = ciTagsProvider.getCiTags();
-
-    isCI = ciProviderInfo.isCI();
-
-    codeowners = InstrumentationBridge.createCodeowners(repoRoot);
-    sourcePathResolver = InstrumentationBridge.createSourcePathResolver(repoRoot);
-    methodLinesResolver = InstrumentationBridge.createMethodLinesResolver();
-  }
-
-  TestDecorator(
-      boolean isCI,
-      Map<String, String> ciTags,
-      Codeowners codeowners,
-      SourcePathResolver sourcePathResolver,
-      MethodLinesResolver methodLinesResolver) {
-    this.isCI = isCI;
-    this.ciTags = ciTags;
-    this.codeowners = codeowners;
-    this.sourcePathResolver = sourcePathResolver;
-    this.methodLinesResolver = methodLinesResolver;
-  }
+  public TestDecorator() {}
 
   public boolean isCI() {
-    return isCI;
+    return InstrumentationBridge.isCi();
   }
 
   public Map<String, String> getCiTags() {
-    return ciTags;
+    return InstrumentationBridge.getCiTags();
   }
 
   protected abstract String testFramework();
@@ -144,6 +95,7 @@ public abstract class TestDecorator extends BaseDecorator {
     span.setTag(Tags.OS_VERSION, osVersion());
     span.setTag(DDTags.ORIGIN_KEY, CIAPP_TEST_ORIGIN);
 
+    Map<String, String> ciTags = InstrumentationBridge.getCiTags();
     for (final Map.Entry<String, String> ciTag : ciTags.entrySet()) {
       span.setTag(ciTag.getKey(), ciTag.getValue());
     }
@@ -171,6 +123,7 @@ public abstract class TestDecorator extends BaseDecorator {
       return;
     }
 
+    SourcePathResolver sourcePathResolver = InstrumentationBridge.getSourcePathResolver();
     String sourcePath = sourcePathResolver.getSourcePath(testClass);
     if (sourcePath == null || sourcePath.isEmpty()) {
       return;
@@ -179,6 +132,7 @@ public abstract class TestDecorator extends BaseDecorator {
     span.setTag(Tags.TEST_SOURCE_FILE, sourcePath);
 
     if (testMethod != null) {
+      MethodLinesResolver methodLinesResolver = InstrumentationBridge.getMethodLinesResolver();
       MethodLinesResolver.MethodLines testMethodLines = methodLinesResolver.getLines(testMethod);
       if (testMethodLines.isValid()) {
         span.setTag(Tags.TEST_SOURCE_START, testMethodLines.getStartLineNumber());
@@ -186,6 +140,7 @@ public abstract class TestDecorator extends BaseDecorator {
       }
     }
 
+    Codeowners codeowners = InstrumentationBridge.getCodeowners();
     Collection<String> testCodeOwners = codeowners.getOwners(sourcePath);
     if (testCodeOwners != null) {
       span.setTag(Tags.TEST_CODEOWNERS, toJson(testCodeOwners));
