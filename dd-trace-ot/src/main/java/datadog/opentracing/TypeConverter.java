@@ -1,6 +1,7 @@
 package datadog.opentracing;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
@@ -126,6 +127,11 @@ class TypeConverter {
     }
 
     @Override
+    public AgentScopeContext context() {
+      return delegate.context();
+    }
+
+    @Override
     public AgentSpan span() {
       return delegate.span();
     }
@@ -193,6 +199,11 @@ class TypeConverter {
       if (scope != null) {
         scope.close();
       }
+    }
+
+    @Override
+    public AgentScopeContext context() {
+      return null;
     }
 
     @Override
