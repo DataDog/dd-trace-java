@@ -28,73 +28,45 @@ public enum ComparisonOperator {
   GE(">=") {
     @Override
     public Boolean apply(Value<?> left, Value<?> right) {
-      if (left instanceof NumericValue && right instanceof NumericValue) {
-        Number leftNumber = (Number) left.getValue();
-        Number rightNumber = (Number) right.getValue();
-        if (isNan(leftNumber, rightNumber)) {
-          return Boolean.FALSE;
-        }
-        return compare(leftNumber, rightNumber) >= 0;
+      Integer result = compare(left, right);
+      if (result == null) {
+        return Boolean.FALSE;
       }
-      if (left instanceof StringValue && right instanceof StringValue) {
-        return ((StringValue) left).getValue().compareTo(((StringValue) right).getValue()) >= 0;
-      }
-      return Boolean.FALSE;
+      return result >= 0;
     }
   },
   GT(">") {
     @Override
     public Boolean apply(Value<?> left, Value<?> right) {
-      if (left instanceof NumericValue && right instanceof NumericValue) {
-        Number leftNumber = (Number) left.getValue();
-        Number rightNumber = (Number) right.getValue();
-        if (isNan(leftNumber, rightNumber)) {
-          return Boolean.FALSE;
-        }
-        return compare(leftNumber, rightNumber) > 0;
+      Integer result = compare(left, right);
+      if (result == null) {
+        return Boolean.FALSE;
       }
-      if (left instanceof StringValue && right instanceof StringValue) {
-        return ((StringValue) left).getValue().compareTo(((StringValue) right).getValue()) > 0;
-      }
-      return Boolean.FALSE;
+      return result > 0;
     }
   },
   LE("<=") {
     @Override
     public Boolean apply(Value<?> left, Value<?> right) {
-      if (left instanceof NumericValue && right instanceof NumericValue) {
-        Number leftNumber = (Number) left.getValue();
-        Number rightNumber = (Number) right.getValue();
-        if (isNan(leftNumber, rightNumber)) {
-          return Boolean.FALSE;
-        }
-        return compare(leftNumber, rightNumber) <= 0;
+      Integer result = compare(left, right);
+      if (result == null) {
+        return Boolean.FALSE;
       }
-      if (left instanceof StringValue && right instanceof StringValue) {
-        return ((StringValue) left).getValue().compareTo(((StringValue) right).getValue()) <= 0;
-      }
-      return Boolean.FALSE;
+      return result <= 0;
     }
   },
   LT("<") {
     @Override
     public Boolean apply(Value<?> left, Value<?> right) {
-      if (left instanceof NumericValue && right instanceof NumericValue) {
-        Number leftNumber = (Number) left.getValue();
-        Number rightNumber = (Number) right.getValue();
-        if (isNan(leftNumber, rightNumber)) {
-          return Boolean.FALSE;
-        }
-        return compare(leftNumber, rightNumber) < 0;
+      Integer result = compare(left, right);
+      if (result == null) {
+        return Boolean.FALSE;
       }
-      if (left instanceof StringValue && right instanceof StringValue) {
-        return ((StringValue) left).getValue().compareTo(((StringValue) right).getValue()) < 0;
-      }
-      return Boolean.FALSE;
+      return result < 0;
     }
   };
 
-  private String symbol;
+  private final String symbol;
 
   ComparisonOperator(String symbol) {
     this.symbol = symbol;
@@ -106,12 +78,27 @@ public enum ComparisonOperator {
     return symbol;
   }
 
-  protected boolean isNan(Number... numbers) {
+  protected static boolean isNan(Number... numbers) {
     boolean result = false;
     for (Number number : numbers) {
       result |= number instanceof Double && Double.isNaN(number.doubleValue());
     }
     return result;
+  }
+
+  protected static Integer compare(Value<?> left, Value<?> right) {
+    if (left instanceof NumericValue && right instanceof NumericValue) {
+      Number leftNumber = (Number) left.getValue();
+      Number rightNumber = (Number) right.getValue();
+      if (isNan(leftNumber, rightNumber)) {
+        return null;
+      }
+      return compare(leftNumber, rightNumber);
+    }
+    if (left instanceof StringValue && right instanceof StringValue) {
+      return ((StringValue) left).getValue().compareTo(((StringValue) right).getValue());
+    }
+    return null;
   }
 
   protected static int compare(Number left, Number right) {
