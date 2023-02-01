@@ -1,8 +1,9 @@
 package datadog.trace.api;
 
+import datadog.trace.context.ContextElement;
 import java.util.Map;
 
-public interface Baggage {
+public interface Baggage extends ContextElement {
   /**
    * Get baggage item value from its key.
    *
