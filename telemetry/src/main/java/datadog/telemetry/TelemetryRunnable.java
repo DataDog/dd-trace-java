@@ -48,7 +48,9 @@ public class TelemetryRunnable implements Runnable {
     // Ensure that Config has been initialized, so ConfigCollector can collect all settings first.
     Config.get();
 
-    log.debug("Adding APP_STARTED telemetry event");
+    log.debug(
+        "Adding APP_STARTED telemetry event. Telemetry log collection is {}",
+        LogCollector.get().isEnabled());
     this.telemetryService.addConfiguration(ConfigCollector.get());
     for (TelemetryPeriodicAction action : this.actions) {
       action.doIteration(this.telemetryService);

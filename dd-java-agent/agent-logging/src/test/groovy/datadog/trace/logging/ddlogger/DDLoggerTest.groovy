@@ -385,13 +385,13 @@ class DDLoggerTest extends LogValidatingSpecification {
     LogCollector.get().setEnabled(true)
 
     when:
-    logger.debug(DDLogger.SEND_TELEMETRY, "regular message")
-    logger.debug(DDLogger.SEND_TELEMETRY, "format {} ", "C")
-    logger.debug(DDLogger.SEND_TELEMETRY, "format {} and {}", "A", "B")
-    logger.trace(DDLogger.SEND_TELEMETRY, "trace regular message")
-    logger.info(DDLogger.SEND_TELEMETRY, "info regular message")
-    logger.warn(DDLogger.SEND_TELEMETRY, "warn regular message")
-    logger.error(DDLogger.SEND_TELEMETRY, "error message")
+    logger.debug(LogCollector.SEND_TELEMETRY, "regular message")
+    logger.debug(LogCollector.SEND_TELEMETRY, "format {} ", "C")
+    logger.debug(LogCollector.SEND_TELEMETRY, "format {} and {}", "A", "B")
+    logger.trace(LogCollector.SEND_TELEMETRY, "trace regular message")
+    logger.info(LogCollector.SEND_TELEMETRY, "info regular message")
+    logger.warn(LogCollector.SEND_TELEMETRY, "warn regular message")
+    logger.error(LogCollector.SEND_TELEMETRY, "error message")
 
     try {
       throw new IOException("wrong")

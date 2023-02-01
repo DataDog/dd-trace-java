@@ -4,7 +4,6 @@ import datadog.slf4j.impl.StaticLoggerBinder
 import datadog.telemetry.TelemetryService
 import datadog.trace.api.telemetry.LogCollector
 import datadog.trace.api.telemetry.TelemetryLogEntry
-import datadog.trace.logging.ddlogger.DDLogger
 import datadog.trace.test.util.DDSpecification
 import org.slf4j.Logger
 
@@ -42,7 +41,7 @@ class TelemetryLogTest extends DDSpecification {
   void 'test marker debugging'(){
     when:
 
-    logger.warn(DDLogger.SEND_TELEMETRY, "Debug Message")
+    logger.warn(LogCollector.SEND_TELEMETRY, "Debug Message")
     periodicAction.doIteration(telemetryService)
 
     then:
@@ -67,7 +66,7 @@ class TelemetryLogTest extends DDSpecification {
 
     when:
     for (int i=0; i< LogCollector.MAX_ENTRIES + 10; i++){
-      logger.warn(DDLogger.SEND_TELEMETRY, "Debug Message " + i)
+      logger.warn(LogCollector.SEND_TELEMETRY, "Debug Message " + i)
     }
     entries = LogCollector.get().drain()
 
@@ -83,10 +82,10 @@ class TelemetryLogTest extends DDSpecification {
 
     when:
     for (int i=0; i< LogCollector.MAX_ENTRIES + 10; i++){
-      logger.warn(DDLogger.SEND_TELEMETRY, "Debug Message 1")
+      logger.warn(LogCollector.SEND_TELEMETRY, "Debug Message 1")
     }
     for (int i=0; i< LogCollector.MAX_ENTRIES + 10; i++){
-      logger.warn(DDLogger.SEND_TELEMETRY, "Debug Message 2")
+      logger.warn(LogCollector.SEND_TELEMETRY, "Debug Message 2")
     }
     entries = LogCollector.get().drain()
 

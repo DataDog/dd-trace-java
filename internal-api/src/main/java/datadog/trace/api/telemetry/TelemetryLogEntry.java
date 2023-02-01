@@ -3,7 +3,7 @@ package datadog.trace.api.telemetry;
 import java.util.Objects;
 
 public class TelemetryLogEntry {
-  private Integer hashCode = null;
+  private transient Integer hashCode = null;
   private String message;
   private String level;
   private String tags;

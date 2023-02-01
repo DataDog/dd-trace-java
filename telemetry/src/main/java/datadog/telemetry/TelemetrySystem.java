@@ -62,8 +62,13 @@ public class TelemetrySystem {
             Config.get().getTelemetryHeartbeatInterval());
     TELEMETRY_THREAD =
         createTelemetryRunnable(telemetryService, sco.okHttpClient, dependencyService);
-    LogCollector.get().setEnabled(Config.get().isTelemetryLogCollectionEnabled());
-    LogCollector.get().setDebugEnabled(Config.get().isTelemetryDebugEnabled());
+    if (Config.get().isTelemetryLogCollectionEnabled()) {
+      LogCollector.get().setEnabled(true);
+      if (Config.get().isTelemetryDebugEnabled()) {
+        LogCollector.get().setDebugEnabled(true);
+        log.debug(LogCollector.SEND_TELEMETRY, "Telemetry Log Collection Debug Enabled");
+      }
+    }
     TELEMETRY_THREAD.start();
   }
 

@@ -1,4 +1,4 @@
-package datadog.trace.logging.ddlogger;
+package datadog.trace.api.telemetry;
 
 import java.util.Iterator;
 import java.util.List;

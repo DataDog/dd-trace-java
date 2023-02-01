@@ -5,9 +5,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
+import org.slf4j.Marker;
 import org.slf4j.helpers.MessageFormatter;
 
 public class LogCollector {
+  public static Marker SEND_TELEMETRY = new TelemetryMarker("SEND_TELEMETRY");
+
   public static final int MAX_ENTRIES = 10000;
   private static int overflowedEntryCount = 0;
   private static boolean enabled = false;

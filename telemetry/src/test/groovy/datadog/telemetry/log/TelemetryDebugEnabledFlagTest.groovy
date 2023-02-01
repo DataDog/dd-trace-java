@@ -2,7 +2,6 @@ package datadog.telemetry.log
 
 import datadog.slf4j.impl.StaticLoggerBinder
 import datadog.trace.api.telemetry.LogCollector
-import datadog.trace.logging.ddlogger.DDLogger
 import datadog.trace.test.util.DDSpecification
 
 class TelemetryDebugEnabledFlagTest  extends DDSpecification {
@@ -18,8 +17,8 @@ class TelemetryDebugEnabledFlagTest  extends DDSpecification {
     def logger = StaticLoggerBinder.getSingleton().getLoggerFactory().getLogger("pepe")
 
     when:
-    logger.debug(DDLogger.SEND_TELEMETRY, "debug message")
-    logger.debug(DDLogger.SEND_TELEMETRY, "debug exception", ExceptionHelper.createException("Exception message"))
+    logger.debug(LogCollector.SEND_TELEMETRY, "debug message")
+    logger.debug(LogCollector.SEND_TELEMETRY, "debug exception", ExceptionHelper.createException("Exception message"))
     def list = LogCollector.get().drain()
 
     then:
@@ -33,8 +32,8 @@ class TelemetryDebugEnabledFlagTest  extends DDSpecification {
     def logger = StaticLoggerBinder.getSingleton().getLoggerFactory().getLogger("pepe")
 
     when:
-    logger.debug(DDLogger.SEND_TELEMETRY, "debug message")
-    logger.debug(DDLogger.SEND_TELEMETRY, "debug exception", ExceptionHelper.createException("Exception message"))
+    logger.debug(LogCollector.SEND_TELEMETRY, "debug message")
+    logger.debug(LogCollector.SEND_TELEMETRY, "debug exception", ExceptionHelper.createException("Exception message"))
     def list = LogCollector.get().drain()
 
     then:

@@ -11,7 +11,6 @@ import org.slf4j.helpers.MessageFormatter;
 
 /** Implementation of org.slf4j.Logger. Delegates actual rendering to {@link LoggerHelper}. */
 public class DDLogger implements Logger {
-  public static Marker SEND_TELEMETRY = new TelemetryMarker("SEND_TELEMETRY");
 
   private final String name;
   private final LoggerHelper helper;
@@ -378,7 +377,7 @@ public class DDLogger implements Logger {
       Object arg2,
       Object[] args) {
     if (LogCollector.get().isEnabled()) {
-      if (null != t || marker == DDLogger.SEND_TELEMETRY) {
+      if (null != t || marker == LogCollector.SEND_TELEMETRY) {
         if (level == LogLevel.WARN
             || level == LogLevel.ERROR
             || (level == LogLevel.DEBUG && LogCollector.get().isDebugEnabled())) {
