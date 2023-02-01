@@ -3,6 +3,9 @@ package datadog.trace.api;
 import datadog.trace.context.ContextElement;
 import java.util.Map;
 
+/**
+ * {@link Baggage} is an immutable key-value store for contextual information shared between spans.
+ */
 public interface Baggage extends ContextElement {
   /**
    * Get baggage item value from its key.
@@ -17,7 +20,7 @@ public interface Baggage extends ContextElement {
    *
    * @return An immutable map representing baggage items.
    */
-  Map<String, String> getItems();
+  Map<String, String> asMap();
 
   /**
    * Get the baggage item count.
@@ -29,7 +32,7 @@ public interface Baggage extends ContextElement {
   /**
    * Check whether the baggage is empty.
    *
-   * @return <code>true</code> if the baggage is empty, <code>false</code> otherwise.
+   * @return <code>true</code> if the baggage has no item, <code>false</code> otherwise.
    */
   default boolean isEmpty() {
     return size() == 0;

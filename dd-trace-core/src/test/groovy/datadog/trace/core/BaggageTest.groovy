@@ -1,11 +1,10 @@
-package datadog.trace.core.scopemanager
-
+package datadog.trace.core
 
 import datadog.trace.test.util.DDSpecification
 
 class BaggageTest extends DDSpecification {
 
-  def "test baggage API"() {
+  def "test api"() {
     when:
     def empty = DDBaggage.empty()
 
@@ -26,7 +25,7 @@ class BaggageTest extends DDSpecification {
     baggage.getItemValue("key1") == "value1"
     baggage.getItemValue("key2") == "value2"
     baggage.getItemValue("key3") == null
-    baggage.getItems() == [key1: "value1", key2: "value2"]
+    baggage.asMap() == [key1: "value1", key2: "value2"]
 
     baggage2.size() == 3
     baggage2.getItemValue("key3") == "value3"
@@ -44,6 +43,6 @@ class BaggageTest extends DDSpecification {
     baggage3.getItemValue("key2") == "value2"
     baggage3.getItemValue("key3") == null
     baggage3.getItemValue("key4") == "value4"
-    baggage3.getItems() == [key1: "new-value1", key2: "value2", key4: "value4"]
+    baggage3.asMap() == [key1: "new-value1", key2: "value2", key4: "value4"]
   }
 }
