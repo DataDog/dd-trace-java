@@ -207,7 +207,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
     final ContinuableScope top = scopeStack.top;
 
-    AgentScopeContext context = top.context.with(span);
+    AgentScopeContext context = (top == null ? ScopeContext.empty() : top.context).with(span);
 
     boolean asyncPropagation =
         inheritAsyncPropagation && top != null

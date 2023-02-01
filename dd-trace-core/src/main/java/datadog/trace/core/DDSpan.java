@@ -736,6 +736,6 @@ public class DDSpan
 
   @Override
   public String contextKey() {
-    return ScopeContext.BAGGAGE_KEY;
+    return ScopeContext.SPAN_KEY;
   }
 }
