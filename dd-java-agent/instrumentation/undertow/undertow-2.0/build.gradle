@@ -1,4 +1,3 @@
-
 muzzle {
   pass {
     group = "io.undertow"
@@ -20,6 +19,7 @@ testSets {
 
 dependencies {
   compileOnly group: 'io.undertow', name: 'undertow-servlet', version: '2.0.0.Final'
+  implementation project(':dd-java-agent:instrumentation:undertow')
 
   testImplementation group: 'io.undertow', name: 'undertow-servlet', version: '2.0.0.Final'
 
