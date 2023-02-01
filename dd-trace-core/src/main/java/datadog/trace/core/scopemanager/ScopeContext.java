@@ -44,6 +44,9 @@ public class ScopeContext implements AgentScopeContext {
 
   @Override
   public <V extends ContextElement> V getElement(String key) {
+    if (key == null) {
+      return null;
+    }
     switch (key) {
       case SPAN_KEY:
         return (V) this.span;
@@ -56,6 +59,9 @@ public class ScopeContext implements AgentScopeContext {
 
   @Override
   public <E extends ContextElement> AgentScopeContext with(E element) {
+    if (element == null) {
+      return this;
+    }
     String key = element.contextKey();
     AgentSpan span = this.span;
     Baggage baggage = this.baggage;
