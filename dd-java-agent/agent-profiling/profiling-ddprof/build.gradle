@@ -47,12 +47,7 @@ shadowJar {
     rslt |= it.path == "com" || it.path == "com/datadog"
     || it.path.startsWith("com/datadog/") || it.path == "com/datadoghq" || it.path == "com/datadoghq/profiler"
     || it.path.startsWith("com/datadoghq/profiler")
-    rslt |= it.path == "META-INF" || it.path == "META-INF/services" || it.path.startsWith("META-INF/services/")
-    // TODO: modify the filter to include other OS/arch combinations once the overhead is evaluated
-    rslt |= it.path == "native-libs" || it.path.startsWith("native-libs/linux-x64")
-    || it.path.startsWith("native-libs/linux-musl-x64")
-    || it.path.startsWith("native-libs/linux-arm64")
-    || it.path.startsWith("native-libs/macos-arm64")
+    rslt |= it.path == "META-INF" || it.path == "META-INF/services" || it.path.startsWith("META-INF/services/") || it.path.startsWith("META-INF/native/")
     rslt |= (it.path.contains("jplib") && it.path.endsWith(".jar"))
     return rslt
   }

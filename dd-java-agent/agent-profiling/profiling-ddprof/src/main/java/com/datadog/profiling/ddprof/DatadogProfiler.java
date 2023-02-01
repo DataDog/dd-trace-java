@@ -26,18 +26,14 @@ import static com.datadog.profiling.utils.ProfilingMode.WALL;
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
-import com.datadog.profiling.utils.LibraryHelper;
 import com.datadog.profiling.utils.ProfilingMode;
 import com.datadoghq.profiler.ContextSetter;
 import com.datadoghq.profiler.JavaProfiler;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -127,13 +123,19 @@ public final class DatadogProfiler {
   DatadogProfiler(ConfigProvider configProvider, Set<String> contextAttributes)
       throws UnsupportedEnvironmentException {
     this.configProvider = configProvider;
-    String libDir = configProvider.getString(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH);
-    if (libDir != null && Files.exists(Paths.get(libDir))) {
-      // the library from configuration takes precedence
-      profiler = JavaProfiler.getInstance(libDir);
-    } else {
-      profiler = inferFromOsAndArch();
+    try {
+      profiler =
+          JavaProfiler.getInstance(
+              configProvider.getString(
+                  ProfilingConfig.PROFILING_DATADOG_PROFILER_SCRATCH,
+                  ProfilingConfig.PROFILING_DATADOG_PROFILER_SCRATCH_DEFAULT));
+    } catch (IOException e) {
+      throw new UnsupportedOperationException("Unable to instantiate datadog profiler");
     }
+    if (profiler == null) {
+      throw new UnsupportedEnvironmentException("Unable to instantiate datadog profiler");
+    }
+
     // TODO enable/disable events by name (e.g. datadog.ExecutionSample), not flag, so configuration
     //  can be consistent with JFR event control
     if (isAllocationProfilingEnabled(configProvider)) {
@@ -162,52 +164,6 @@ public final class DatadogProfiler {
     return Singleton.INSTANCE;
   }
 
-  private static JavaProfiler inferFromOsAndArch() throws UnsupportedEnvironmentException {
-    Arch arch = Arch.current();
-    OperatingSystem os = OperatingSystem.current();
-    try {
-      if (os != OperatingSystem.unknown) {
-        if (arch != Arch.unknown) {
-          try {
-            return profilerForOsAndArch(os, arch, false);
-          } catch (FileNotFoundException e) {
-            if (os == OperatingSystem.linux) {
-              // Might be a MUSL distribution
-              return profilerForOsAndArch(os, arch, true);
-            }
-            throw e;
-          }
-        }
-      }
-    } catch (Throwable t) {
-      if (log.isDebugEnabled()) {
-        log.info(unsupportedEnvironmentMessage(arch, os), t);
-      } else {
-        log.info(unsupportedEnvironmentMessage(arch, os) + ", cause=" + t.getMessage());
-      }
-      throw unsupportedEnvironment(arch, os, t);
-    }
-    throw unsupportedEnvironment(arch, os);
-  }
-
-  private static UnsupportedEnvironmentException unsupportedEnvironment(
-      Arch architecture, OperatingSystem os) {
-    return unsupportedEnvironment(architecture, os, null);
-  }
-
-  private static UnsupportedEnvironmentException unsupportedEnvironment(
-      Arch architecture, OperatingSystem os, Throwable cause) {
-    return new UnsupportedEnvironmentException(
-        unsupportedEnvironmentMessage(architecture, os), cause);
-  }
-
-  private static String unsupportedEnvironmentMessage(Arch architecture, OperatingSystem os) {
-    return "Unable to instantiate datadog profiler for the detected environment: arch="
-        + architecture
-        + ", os="
-        + os;
-  }
-
   void addThread() {
     if (profiler != null) {
       profiler.addThread();
@@ -218,21 +174,6 @@ public final class DatadogProfiler {
     if (profiler != null) {
       profiler.removeThread();
     }
-  }
-
-  private static JavaProfiler profilerForOsAndArch(OperatingSystem os, Arch arch, boolean musl)
-      throws IOException {
-    String libDir = os.name();
-    if (os.name().equals("macos")) {
-      if (arch.name().equals("aarch64")) {
-        libDir += "-arm64";
-      }
-    } else {
-      libDir += (musl ? "-musl-" : "-") + arch.name();
-    }
-    File localLib =
-        LibraryHelper.libraryFromClasspath("/native-libs/" + libDir + "/libjavaProfiler.so");
-    return JavaProfiler.getInstance(localLib.getAbsolutePath());
   }
 
   public String getVersion() {

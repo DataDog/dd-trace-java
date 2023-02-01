@@ -60,6 +60,7 @@ import org.openjdk.jmc.common.unit.UnitLookup;
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import spock.util.environment.OperatingSystem;
 
 @DisabledIfSystemProperty(named = "java.vm.name", matches = ".*J9.*")
 class JFRBasedProfilingIntegrationTest {
@@ -142,13 +143,13 @@ class JFRBasedProfilingIntegrationTest {
   @Test
   @DisplayName("Test continuous recording - no jmx delay")
   public void testContinuousRecording_no_jmx_delay(final TestInfo testInfo) throws Exception {
-    testWithRetry(() -> testContinuousRecording(0, ENDPOINT_COLLECTION_ENABLED, true), testInfo, 5);
+    testWithRetry(() -> testContinuousRecording(0, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux()), testInfo, 5);
   }
 
   @Test
   @DisplayName("Test continuous recording - 1 sec jmx delay")
   public void testContinuousRecording(final TestInfo testInfo) throws Exception {
-    testWithRetry(() -> testContinuousRecording(1, ENDPOINT_COLLECTION_ENABLED, true), testInfo, 5);
+    testWithRetry(() -> testContinuousRecording(1, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux()), testInfo, 5);
   }
 
   private void testContinuousRecording(
