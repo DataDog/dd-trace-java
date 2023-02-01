@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.springweb;
+package datadog.trace.instrumentation.springweb6;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
@@ -9,11 +9,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
-import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 
 /**
  * This instrumentation adds the ServletPathRequestFilter definition to the spring context When the
@@ -29,7 +26,7 @@ public class ServletPathRequestFilterInstrumentation extends Instrumenter.Tracin
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     return hasClassNamed("org.springframework.web.filter.ServletRequestPathFilter")
-        .and(hasClassNamed("javax.servlet.Filter"));
+        .and(hasClassNamed("jakarta.servlet.Filter"));
   }
 
   @Override
@@ -46,7 +43,7 @@ public class ServletPathRequestFilterInstrumentation extends Instrumenter.Tracin
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".BeanDefinitionRepairer",
+      "datadog.trace.instrumentation.springweb.BeanDefinitionRepairer",
       packageName + ".OrderedServletPathRequestFilter",
       packageName + ".OrderedServletPathRequestFilter$BeanDefinition",
     };
@@ -62,20 +59,6 @@ public class ServletPathRequestFilterInstrumentation extends Instrumenter.Tracin
                     0,
                     named(
                         "org.springframework.beans.factory.config.ConfigurableListableBeanFactory"))),
-        ServletPathRequestFilterInstrumentation.class.getName() + "$FilterInjectingAdvice");
-  }
-
-  public static class FilterInjectingAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(
-        @Advice.Argument(0) final ConfigurableListableBeanFactory beanFactory) {
-      if (beanFactory instanceof BeanDefinitionRegistry
-          && !beanFactory.containsBean("servletPathRequestFilter")) {
-
-        ((BeanDefinitionRegistry) beanFactory)
-            .registerBeanDefinition(
-                "servletPathRequestFilter", new OrderedServletPathRequestFilter.BeanDefinition());
-      }
-    }
+        packageName + ".ServletPathFilterInjectingAdvice");
   }
 }
