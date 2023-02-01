@@ -19,7 +19,7 @@ public interface AgentScopeContext {
    * Get the {@link Baggage} of the scope context.
    *
    * @return The {@link Baggage} of the scope context, <code>null</code> if no baggage in the
-   * context.
+   *     context.
    */
   Baggage baggage();
 
@@ -36,7 +36,7 @@ public interface AgentScopeContext {
    * Create a new {@link AgentScopeContext} instance appending a {@link ContextElement}.
    *
    * @param element The element to append.
-   * @param <V>     The element type to append.
+   * @param <V> The element type to append.
    * @return A new {@link AgentScopeContext} instance.
    */
   <V extends ContextElement> AgentScopeContext with(V element);
