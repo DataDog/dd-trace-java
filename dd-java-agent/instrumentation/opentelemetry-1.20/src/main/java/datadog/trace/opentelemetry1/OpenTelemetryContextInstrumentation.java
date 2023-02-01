@@ -16,7 +16,7 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.core.scopemanager.DDBaggage;
+import datadog.trace.core.DDBaggage;
 import io.opentelemetry.api.baggage.Baggage;
 import io.opentelemetry.api.baggage.BaggageEntry;
 import io.opentelemetry.context.Context;
@@ -70,7 +70,7 @@ public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.core.scopemanager.DDBaggage",
+      "datadog.trace.core.DDBaggage",
       packageName + ".OtelBaggage",
       packageName + ".OtelContextConstants",
       packageName + ".OtelScope"

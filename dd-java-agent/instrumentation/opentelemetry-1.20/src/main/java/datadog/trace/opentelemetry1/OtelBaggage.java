@@ -3,7 +3,7 @@ package datadog.trace.opentelemetry1;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.core.scopemanager.DDBaggage;
+import datadog.trace.core.DDBaggage;
 import datadog.trace.core.scopemanager.ScopeContext;
 import io.opentelemetry.api.baggage.Baggage;
 import io.opentelemetry.api.baggage.BaggageBuilder;
@@ -23,7 +23,7 @@ public class OtelBaggage implements Baggage {
       delegate = Baggage.empty();
     } else {
       BaggageBuilder builder = Baggage.builder();
-      for (Map.Entry<String, String> entry : baggage.getItems().entrySet()) {
+      for (Map.Entry<String, String> entry : baggage.asMap().entrySet()) {
         builder.put(entry.getKey(), entry.getValue());
       }
       delegate = builder.build();

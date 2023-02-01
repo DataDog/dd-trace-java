@@ -1,9 +1,10 @@
-package datadog.trace.core.scopemanager;
+package datadog.trace.core;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableMap;
 
 import datadog.trace.api.Baggage;
+import datadog.trace.core.scopemanager.ScopeContext;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -31,7 +32,7 @@ public class DDBaggage implements Baggage {
   }
 
   @Override
-  public Map<String, String> getItems() {
+  public Map<String, String> asMap() {
     return unmodifiableMap(this.items);
   }
 
