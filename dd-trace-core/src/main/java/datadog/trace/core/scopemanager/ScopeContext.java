@@ -66,6 +66,8 @@ public class ScopeContext implements AgentScopeContext {
       case BAGGAGE_KEY:
         baggage = (Baggage) element;
         break;
+      default:
+        break;
     }
     return new ScopeContext(span, baggage);
   }
