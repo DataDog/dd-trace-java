@@ -10,14 +10,30 @@ public enum ComparisonOperator {
   EQ("==") {
     @Override
     public Boolean apply(Value<?> left, Value<?> right) {
-      return Objects.equals(left.getValue(), right.getValue());
+      if (left instanceof NumericValue && right instanceof NumericValue) {
+        Number leftNumber = (Number) left.getValue();
+        Number rightNumber = (Number) right.getValue();
+        if (isNan(leftNumber, rightNumber)) {
+          return Boolean.FALSE;
+        }
+        return compare(leftNumber, rightNumber) == 0;
+      }
+      if (left.getValue().getClass() == right.getValue().getClass()) {
+        return Objects.equals(left.getValue(), right.getValue());
+      }
+      return Boolean.FALSE;
     }
   },
   GE(">=") {
     @Override
     public Boolean apply(Value<?> left, Value<?> right) {
       if (left instanceof NumericValue && right instanceof NumericValue) {
-        return compare(left, right) >= 0;
+        Number leftNumber = (Number) left.getValue();
+        Number rightNumber = (Number) right.getValue();
+        if (isNan(leftNumber, rightNumber)) {
+          return Boolean.FALSE;
+        }
+        return compare(leftNumber, rightNumber) >= 0;
       }
       return Boolean.FALSE;
     }
@@ -26,7 +42,12 @@ public enum ComparisonOperator {
     @Override
     public Boolean apply(Value<?> left, Value<?> right) {
       if (left instanceof NumericValue && right instanceof NumericValue) {
-        return compare(left, right) > 0;
+        Number leftNumber = (Number) left.getValue();
+        Number rightNumber = (Number) right.getValue();
+        if (isNan(leftNumber, rightNumber)) {
+          return Boolean.FALSE;
+        }
+        return compare(leftNumber, rightNumber) > 0;
       }
       return Boolean.FALSE;
     }
@@ -35,7 +56,12 @@ public enum ComparisonOperator {
     @Override
     public Boolean apply(Value<?> left, Value<?> right) {
       if (left instanceof NumericValue && right instanceof NumericValue) {
-        return compare(left, right) <= 0;
+        Number leftNumber = (Number) left.getValue();
+        Number rightNumber = (Number) right.getValue();
+        if (isNan(leftNumber, rightNumber)) {
+          return Boolean.FALSE;
+        }
+        return compare(leftNumber, rightNumber) <= 0;
       }
       return Boolean.FALSE;
     }
@@ -44,7 +70,12 @@ public enum ComparisonOperator {
     @Override
     public Boolean apply(Value<?> left, Value<?> right) {
       if (left instanceof NumericValue && right instanceof NumericValue) {
-        return compare(left, right) < 0;
+        Number leftNumber = (Number) left.getValue();
+        Number rightNumber = (Number) right.getValue();
+        if (isNan(leftNumber, rightNumber)) {
+          return Boolean.FALSE;
+        }
+        return compare(leftNumber, rightNumber) < 0;
       }
       return Boolean.FALSE;
     }
@@ -62,11 +93,15 @@ public enum ComparisonOperator {
     return symbol;
   }
 
-  protected static int compare(Value<?> left, Value<?> right) {
-    return compare((Number) left.getValue(), (Number) right.getValue());
+  protected boolean isNan(Number... numbers) {
+    boolean result = false;
+    for (Number number : numbers) {
+      result |= number instanceof Double && Double.isNaN(number.doubleValue());
+    }
+    return result;
   }
 
-  private static int compare(Number left, Number right) {
+  protected static int compare(Number left, Number right) {
     if (isSpecial(left) || isSpecial(right)) {
       return Double.compare(left.doubleValue(), right.doubleValue());
     } else {
@@ -75,10 +110,8 @@ public enum ComparisonOperator {
   }
 
   private static boolean isSpecial(Number x) {
-    boolean specialDouble =
-        x instanceof Double && (Double.isNaN((Double) x) || Double.isInfinite((Double) x));
-    boolean specialFloat =
-        x instanceof Float && (Float.isNaN((Float) x) || Float.isInfinite((Float) x));
+    boolean specialDouble = x instanceof Double && Double.isInfinite((Double) x);
+    boolean specialFloat = x instanceof Float && Float.isInfinite((Float) x);
     return specialDouble || specialFloat;
   }
 
