@@ -1,4 +1,4 @@
-package datadog.smoketest.springboot.controller;
+package datadog.smoketest.springboot;
 
 import java.util.Enumeration;
 import java.util.Map;

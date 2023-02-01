@@ -1,4 +1,4 @@
-package datadog.smoketest.springboot.model;
+package datadog.smoketest.springboot;
 
 public class TestBean {
 
