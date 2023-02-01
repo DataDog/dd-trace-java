@@ -57,7 +57,7 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.TagContext.HttpHeaders",
   "datadog.trace.bootstrap.instrumentation.api.ForwardedTagContext",
   "datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities",
-  "datadog.trace.api.ci.InstrumentationBridge",
+  "datadog.trace.api.civisibility.InstrumentationBridge",
   "datadog.trace.api.civisibility.source.MethodLinesResolver.MethodLines",
   "datadog.trace.logging.LoggingSettingsDescription",
   "datadog.trace.util.AgentProxySelector",
