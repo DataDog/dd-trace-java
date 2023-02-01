@@ -45,6 +45,11 @@ public class DDBaggage implements Baggage {
     return new DDBaggageBuilder(this.items);
   }
 
+  @Override
+  public String contextKey() {
+    return ScopeContext.BAGGAGE_KEY;
+  }
+
   // TODO Javadoc
   private static class DDBaggageBuilder implements BaggageBuilder {
     private final Map<String, String> items;

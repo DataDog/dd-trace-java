@@ -39,6 +39,7 @@ import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -714,6 +715,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public AgentScope activateNext(AgentSpan span) {
     return scopeManager.activateNext(span);
+  }
+
+  @Override
+  public AgentScope activateContext(AgentScopeContext context) {
+    return scopeManager.activateContext(context);
   }
 
   public TagInterceptor getTagInterceptor() {

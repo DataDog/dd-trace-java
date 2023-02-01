@@ -3,6 +3,7 @@ package datadog.trace.core.scopemanager;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
@@ -12,7 +13,7 @@ import javax.annotation.Nonnull;
 class ContinuableScope implements AgentScope, AttachableWrapper {
   private final ContinuableScopeManager scopeManager;
 
-  final ScopeContext context; // package-private so scopeManager can access it directly
+  final AgentScopeContext context; // package-private so scopeManager can access it directly
 
   /** Flag to propagate this scope across async boundaries. */
   private boolean isAsyncPropagating;
@@ -27,7 +28,7 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
 
   ContinuableScope(
       final ContinuableScopeManager scopeManager,
-      final ScopeContext context,
+      final AgentScopeContext context,
       final byte source,
       final boolean isAsyncPropagating) {
     this.scopeManager = scopeManager;
@@ -114,6 +115,11 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
   @Override
   public final boolean isAsyncPropagating() {
     return isAsyncPropagating;
+  }
+
+  @Override
+  public AgentScopeContext context() {
+    return context;
   }
 
   @Override

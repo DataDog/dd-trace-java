@@ -6,6 +6,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.trace.api.Baggage;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -170,7 +171,8 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
     }
   }
 
-  public AgentScope activateBaggage(Baggage baggage) {
+  @Override
+  public AgentScope activateContext(AgentScopeContext context) {
     return AgentTracer.NoopAgentScope.INSTANCE;
   }
 

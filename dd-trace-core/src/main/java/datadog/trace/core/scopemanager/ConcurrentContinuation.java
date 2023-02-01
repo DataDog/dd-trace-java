@@ -1,6 +1,7 @@
 package datadog.trace.core.scopemanager;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
@@ -23,7 +24,7 @@ final class ConcurrentContinuation extends AbstractContinuation {
       AtomicIntegerFieldUpdater.newUpdater(ConcurrentContinuation.class, "count");
 
   public ConcurrentContinuation(
-      ContinuableScopeManager scopeManager, ScopeContext context, byte source) {
+      ContinuableScopeManager scopeManager, AgentScopeContext context, byte source) {
     super(scopeManager, context, source);
   }
 
