@@ -1,5 +1,6 @@
-package datadog.trace.instrumentation.springweb;
+package datadog.trace.instrumentation.springweb6;
 
+import datadog.trace.instrumentation.springweb.BeanDefinitionRepairer;
 import org.springframework.beans.factory.annotation.AnnotatedGenericBeanDefinition;
 import org.springframework.core.Ordered;
 import org.springframework.web.filter.DelegatingFilterProxy;
