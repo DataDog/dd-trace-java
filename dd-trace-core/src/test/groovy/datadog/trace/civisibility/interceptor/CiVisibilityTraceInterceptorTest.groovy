@@ -1,4 +1,4 @@
-package datadog.trace.civisibility
+package datadog.trace.civisibility.interceptor
 
 import datadog.trace.api.DDTags
 import datadog.trace.common.writer.ListWriter
