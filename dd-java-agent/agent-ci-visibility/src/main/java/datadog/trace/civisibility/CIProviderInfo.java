@@ -1,6 +1,6 @@
-package datadog.trace.bootstrap.instrumentation.ci;
+package datadog.trace.civisibility;
 
-import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
+import datadog.trace.civisibility.git.GitInfo;
 
 public interface CIProviderInfo {
 

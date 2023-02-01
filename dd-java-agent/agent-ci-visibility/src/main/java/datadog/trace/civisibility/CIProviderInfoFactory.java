@@ -1,16 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.ci;
-
-import static datadog.trace.bootstrap.instrumentation.ci.AppVeyorInfo.APPVEYOR;
-import static datadog.trace.bootstrap.instrumentation.ci.AzurePipelinesInfo.AZURE;
-import static datadog.trace.bootstrap.instrumentation.ci.BitBucketInfo.BITBUCKET;
-import static datadog.trace.bootstrap.instrumentation.ci.BitriseInfo.BITRISE;
-import static datadog.trace.bootstrap.instrumentation.ci.BuddyInfo.BUDDY;
-import static datadog.trace.bootstrap.instrumentation.ci.BuildkiteInfo.BUILDKITE;
-import static datadog.trace.bootstrap.instrumentation.ci.CircleCIInfo.CIRCLECI;
-import static datadog.trace.bootstrap.instrumentation.ci.GitLabInfo.GITLAB;
-import static datadog.trace.bootstrap.instrumentation.ci.GithubActionsInfo.GHACTIONS;
-import static datadog.trace.bootstrap.instrumentation.ci.JenkinsInfo.JENKINS;
-import static datadog.trace.bootstrap.instrumentation.ci.TravisInfo.TRAVIS;
+package datadog.trace.civisibility;
 
 public class CIProviderInfoFactory {
 
@@ -18,27 +6,27 @@ public class CIProviderInfoFactory {
     // CI and Git information is obtained
     // from different environment variables
     // depending on which CI server is running the build.
-    if (System.getenv(JENKINS) != null) {
+    if (System.getenv(JenkinsInfo.JENKINS) != null) {
       return new JenkinsInfo();
-    } else if (System.getenv(GITLAB) != null) {
+    } else if (System.getenv(GitLabInfo.GITLAB) != null) {
       return new GitLabInfo();
-    } else if (System.getenv(TRAVIS) != null) {
+    } else if (System.getenv(TravisInfo.TRAVIS) != null) {
       return new TravisInfo();
-    } else if (System.getenv(CIRCLECI) != null) {
+    } else if (System.getenv(CircleCIInfo.CIRCLECI) != null) {
       return new CircleCIInfo();
-    } else if (System.getenv(APPVEYOR) != null) {
+    } else if (System.getenv(AppVeyorInfo.APPVEYOR) != null) {
       return new AppVeyorInfo();
-    } else if (System.getenv(AZURE) != null) {
+    } else if (System.getenv(AzurePipelinesInfo.AZURE) != null) {
       return new AzurePipelinesInfo();
-    } else if (System.getenv(BITBUCKET) != null) {
+    } else if (System.getenv(BitBucketInfo.BITBUCKET) != null) {
       return new BitBucketInfo();
-    } else if (System.getenv(GHACTIONS) != null) {
+    } else if (System.getenv(GithubActionsInfo.GHACTIONS) != null) {
       return new GithubActionsInfo();
-    } else if (System.getenv(BUILDKITE) != null) {
+    } else if (System.getenv(BuildkiteInfo.BUILDKITE) != null) {
       return new BuildkiteInfo();
-    } else if (System.getenv(BITRISE) != null) {
+    } else if (System.getenv(BitriseInfo.BITRISE) != null) {
       return new BitriseInfo();
-    } else if (System.getenv(BUDDY) != null) {
+    } else if (System.getenv(BuddyInfo.BUDDY) != null) {
       return new BuddyInfo();
     } else {
       return new UnknownCIInfo();
