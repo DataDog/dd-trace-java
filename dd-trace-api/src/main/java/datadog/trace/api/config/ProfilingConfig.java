@@ -67,6 +67,11 @@ public final class ProfilingConfig {
       "profiling.directallocation.enabled";
   public static final boolean PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT = false;
 
+  // Java profiler lib needs to be extracted from JAR and placed into the scratch location
+  // By default the scratch is the os temp directory but can be overridden by user
+  public static final String PROFILING_DATADOG_PROFILER_SCRATCH = "profiling.ddprof.scratch";
+  public static final String PROFILING_DATADOG_PROFILER_SCRATCH_DEFAULT =
+      System.getProperty("java.io.tmpdir");
   public static final String PROFILING_DATADOG_PROFILER_LIBPATH = "profiling.ddprof.debug.lib";
   public static final String PROFILING_DATADOG_PROFILER_ALLOC_ENABLED =
       "profiling.ddprof.alloc.enabled";
