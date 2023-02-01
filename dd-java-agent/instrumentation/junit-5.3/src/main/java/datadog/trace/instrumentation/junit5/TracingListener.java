@@ -7,12 +7,14 @@ import static datadog.trace.instrumentation.junit5.JUnit5Decorator.DECORATE;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import java.util.ArrayList;
+import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.platform.commons.JUnitException;
+import org.junit.platform.commons.util.ReflectionUtils;
 import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.UniqueId;
@@ -25,6 +27,8 @@ public class TracingListener implements TestExecutionListener {
 
   private final Map<String, String> versionsByEngineId;
 
+  private final Method getTestCaseMethod;
+
   public TracingListener(Iterable<TestEngine> testEngines) {
     final Map<String, String> versions = new HashMap<>();
     testEngines.forEach(
@@ -33,6 +37,19 @@ public class TracingListener implements TestExecutionListener {
                 .getVersion()
                 .ifPresent(version -> versions.put(testEngine.getId(), version)));
     versionsByEngineId = Collections.unmodifiableMap(versions);
+    getTestCaseMethod = accessGetTestCaseMethod();
+  }
+
+  private Method accessGetTestCaseMethod() {
+    try {
+      // the method was added in JUnit 5.7
+      // if older version of the framework is used, we fall back to a slower mechanism
+      Method method = MethodSource.class.getMethod("getJavaMethod");
+      method.setAccessible(true);
+      return method;
+    } catch (Exception e) {
+      return null;
+    }
   }
 
   @Override
@@ -65,9 +82,47 @@ public class TracingListener implements TestExecutionListener {
                       .getEngineId()
                       .map(versionsByEngineId::get)
                       .orElse(null);
-              DECORATE.afterStart(span, version);
+
+              DECORATE.afterStart(
+                  span, version, getTestClass(methodSource), getTestMethod(methodSource));
               DECORATE.onTestStart(span, methodSource, testIdentifier);
             });
+  }
+
+  private Class<?> getTestClass(MethodSource methodSource) {
+    String className = methodSource.getClassName();
+    if (className == null || className.isEmpty()) {
+      return null;
+    }
+    return ReflectionUtils.loadClass(className).orElse(null);
+  }
+
+  private Method getTestMethod(MethodSource methodSource) {
+    if (getTestCaseMethod != null && getTestCaseMethod.isAccessible()) {
+      try {
+        return (Method) getTestCaseMethod.invoke(methodSource);
+      } catch (Exception e) {
+        // ignore, fallback to slower mechanism below
+      }
+    }
+
+    Class<?> testClass = getTestClass(methodSource);
+    if (testClass == null) {
+      return null;
+    }
+
+    String methodName = methodSource.getMethodName();
+    if (methodName == null || methodName.isEmpty()) {
+      return null;
+    }
+
+    try {
+      return ReflectionUtils.findMethod(
+              testClass, methodName, methodSource.getMethodParameterTypes())
+          .orElse(null);
+    } catch (JUnitException e) {
+      return null;
+    }
   }
 
   @Override
@@ -124,13 +179,13 @@ public class TracingListener implements TestExecutionListener {
     // If @Disabled annotation is kept at type level, the instrumentation
     // reports every method annotated with @Test as skipped test.
     final String testSuite = classSource.getClassName();
-    final List<String> testNames =
-        new ArrayList<>(DECORATE.testNames(classSource.getJavaClass(), Test.class));
+    Class<?> testClass = classSource.getJavaClass();
+    final List<Method> testMethods = DECORATE.testMethods(testClass, Test.class);
 
-    for (final String testName : testNames) {
+    for (final Method testMethod : testMethods) {
       final AgentSpan span = startSpan("junit.test");
-      DECORATE.afterStart(span, version);
-      DECORATE.onTestIgnore(span, testSuite, testName, reason);
+      DECORATE.afterStart(span, version, testClass, testMethod);
+      DECORATE.onTestIgnore(span, testSuite, testMethod.getName(), reason);
       DECORATE.beforeFinish(span);
       // We set a duration of 1 ns, because a span with duration==0 has a special treatment in the
       // tracer.
@@ -144,7 +199,7 @@ public class TracingListener implements TestExecutionListener {
     final String testName = methodSource.getMethodName();
 
     final AgentSpan span = startSpan("junit.test");
-    DECORATE.afterStart(span, version);
+    DECORATE.afterStart(span, version, getTestClass(methodSource), getTestMethod(methodSource));
     DECORATE.onTestIgnore(span, testSuite, testName, reason);
     DECORATE.beforeFinish(span);
     // We set a duration of 1 ns, because a span with duration==0 has a special treatment in the

@@ -6,8 +6,6 @@ import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitUtils;
-import datadog.trace.bootstrap.instrumentation.ci.git.info.CILocalGitInfoBuilder;
-import datadog.trace.bootstrap.instrumentation.ci.git.info.UserSuppliedGitInfoBuilder;
 import java.util.HashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -18,19 +16,9 @@ public class CITagsProviderImpl implements CITagsProvider {
   private static final Logger log = LoggerFactory.getLogger(CITagsProviderImpl.class);
 
   private final Map<String, String> ciTags;
-  private final boolean ci;
 
   public CITagsProviderImpl(
-      CIProviderInfo ciProviderInfo,
-      CILocalGitInfoBuilder ciLocalGitInfoBuilder,
-      UserSuppliedGitInfoBuilder userSuppliedGitInfoBuilder,
-      String gitFolderName) {
-    final CIInfo ciInfo = ciProviderInfo.buildCIInfo();
-    final GitInfo ciGitInfo = ciProviderInfo.buildCIGitInfo();
-    final GitInfo localGitInfo = ciLocalGitInfoBuilder.build(ciInfo, gitFolderName);
-    final GitInfo userSuppliedGitInfo = userSuppliedGitInfoBuilder.build();
-
-    ci = ciProviderInfo.isCI();
+      CIInfo ciInfo, GitInfo ciGitInfo, GitInfo localGitInfo, GitInfo userSuppliedGitInfo) {
     ciTags =
         new CITagsBuilder()
             .withCiProviderName(ciInfo.getCiProviderName())
@@ -77,11 +65,6 @@ public class CITagsProviderImpl implements CITagsProvider {
                 + " env var, and must be a full-length git SHA)");
       }
     }
-  }
-
-  @Override
-  public boolean isCI() {
-    return ci;
   }
 
   @Override

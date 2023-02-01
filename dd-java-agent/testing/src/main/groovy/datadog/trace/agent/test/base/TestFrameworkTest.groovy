@@ -4,13 +4,22 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.ci.InstrumentationBridge
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.bootstrap.instrumentation.ci.codeowners.Codeowners
+import datadog.trace.bootstrap.instrumentation.ci.source.MethodLinesResolver
+import datadog.trace.bootstrap.instrumentation.ci.source.SourcePathResolver
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator
-import spock.lang.Shared
 import spock.lang.Unroll
 
 @Unroll
 abstract class TestFrameworkTest extends AgentTestRunner {
+
+  def setupSpec() {
+    InstrumentationBridge.setCodeownersFactory { repoRoot -> Stub(Codeowners) }
+    InstrumentationBridge.setSourcePathResolverFactory { repoRoot -> Stub(SourcePathResolver) }
+    InstrumentationBridge.setMethodLinesResolverFactory { -> Stub(MethodLinesResolver) }
+  }
 
   @Override
   void configurePreAgent() {
@@ -28,10 +37,10 @@ abstract class TestFrameworkTest extends AgentTestRunner {
       resourceName "$testSuite.$testName"
       spanType DDSpanTypes.TEST
       errored exception != null
-      if(emptyDuration) {
-        duration({it == 1L})
+      if (emptyDuration) {
+        duration({ it == 1L })
       } else {
-        duration({it > 1L})
+        duration({ it > 1L })
       }
       tags {
         "$Tags.COMPONENT" component
@@ -40,7 +49,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
         "$Tags.TEST_SUITE" testSuite
         "$Tags.TEST_NAME" testName
         "$Tags.TEST_FRAMEWORK" testFramework
-        if(testFrameworkVersion){
+        if (testFrameworkVersion) {
           "$Tags.TEST_FRAMEWORK_VERSION" testFrameworkVersion
         }
         "$Tags.TEST_STATUS" testStatus
@@ -69,12 +78,10 @@ abstract class TestFrameworkTest extends AgentTestRunner {
     }
   }
 
-  @Shared
   String component = component()
 
-  @Shared
   boolean isCI = isCI()
-  @Shared
+
   Map<String, String> ciTags = ciTags()
 
   abstract String expectedOperationName()
