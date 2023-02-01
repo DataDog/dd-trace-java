@@ -15,6 +15,8 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.context.ContextElement;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -753,16 +755,16 @@ public class AgentTracer {
     public Baggage baggage() {
       return null;
     }
-    //
-    //    @Override
-    //    public AgentScopeContext withSpan(AgentSpan span) {
-    //      return INSTANCE;
-    //    }
-    //
-    //    @Override
-    //    public AgentScopeContext withBaggage(Baggage baggage) {
-    //      return INSTANCE;
-    //    }
+
+    @Override
+    public <V extends ContextElement> V getElement(String key) {
+      return null;
+    }
+
+    @Override
+    public <V extends ContextElement> AgentScopeContext with(V element) {
+      return INSTANCE;
+    }
   }
 
   static class NoopAgentPropagation implements AgentPropagation {
