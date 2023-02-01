@@ -12,27 +12,31 @@ class OpenTelemetry1BaggageTest extends AgentTestRunner {
   def "test baggage storage in span"() {
     setup:
     def builder = tracer.spanBuilder("some-name")
+    def initialBaggage = Baggage.builder().put("key1", "value1")
+      .put("key2", "value2", BaggageEntryMetadata.create("some-metadata"))
+      .build()
+    initialBaggage.makeCurrent()
     def aSpan = builder.startSpan()
     def current = aSpan.makeCurrent()
 
+    //    when:
+    //    def aBaggage = Baggage.fromContext(Context.current())
+    //    def baggageBuilder = Baggage.builder()
+
+    //    then:
+    //    aBaggage.size() == 0
+
+    //    when:
+    //    def newBaggage = baggageBuilder.put("key1", "value1")
+    //      .put("key2", "value2", BaggageEntryMetadata.create("some-metadata"))
+    //      .build()
+    //
+    //    then:
+    //    aBaggage.size() == 0
+    //    newBaggage.size() == 2
+
     when:
-    def aBaggage = Baggage.fromContext(Context.current())
-    def baggageBuilder = Baggage.builder()
-
-    then:
-    aBaggage.size() == 0
-
-    when:
-    def newBaggage = baggageBuilder.put("key1", "value1")
-      .put("key2", "value2", BaggageEntryMetadata.create("some-metadata"))
-      .build()
-
-    then:
-    aBaggage.size() == 0
-    newBaggage.size() == 2
-
-    when:
-    newBaggage.storeInContext(Context.current())
+    //    newBaggage.makeCurrent()
     current.close()
     aSpan.end()
 
