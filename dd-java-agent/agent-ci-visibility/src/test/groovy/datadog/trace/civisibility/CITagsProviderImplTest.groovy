@@ -1,9 +1,9 @@
 package datadog.trace.civisibility
 
-
+import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.civisibility.git.GitInfo
 import datadog.trace.civisibility.git.info.CILocalGitInfoBuilder
 import datadog.trace.civisibility.git.info.UserSuppliedGitInfoBuilder
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.junit.Rule
 import org.junit.contrib.java.lang.system.EnvironmentVariables
 import org.junit.contrib.java.lang.system.RestoreSystemProperties
@@ -53,14 +53,13 @@ abstract class CITagsProviderImplTest extends Specification {
     ciSpec << CISpecExtractor.extract(getProviderName())
   }
 
-  def "test user supplied git info takes precedence over auto-detected git info"() {
+  def "test user supplied commit hash takes precedence over auto-detected git info"() {
     setup:
     buildRemoteGitInfoEmpty().each {
       environmentVariables.set(it.key, it.value)
     }
 
-    environmentVariables.set(datadog.trace.civisibility.git.GitInfo.DD_GIT_COMMIT_SHA, "1234567890123456789012345678901234567890")
-    environmentVariables.set(datadog.trace.civisibility.git.GitInfo.DD_GIT_REPOSITORY_URL, "local supplied repo url")
+    environmentVariables.set(GitInfo.DD_GIT_COMMIT_SHA, "1234567890123456789012345678901234567890")
 
     when:
     def ciProviderInfo = instanceProvider()
@@ -70,6 +69,24 @@ abstract class CITagsProviderImplTest extends Specification {
     if (ciProviderInfo.CI) {
       def tags = ciTagsProvider.ciTags
       tags.get(Tags.GIT_COMMIT_SHA) == "1234567890123456789012345678901234567890"
+    }
+  }
+
+  def "test user supplied repo url takes precedence over auto-detected git info"() {
+    setup:
+    buildRemoteGitInfoEmpty().each {
+      environmentVariables.set(it.key, it.value)
+    }
+
+    environmentVariables.set(GitInfo.DD_GIT_REPOSITORY_URL, "local supplied repo url")
+
+    when:
+    def ciProviderInfo = instanceProvider()
+    def ciTagsProvider = ciTagsProvider(ciProviderInfo)
+
+    then:
+    if (ciProviderInfo.CI) {
+      def tags = ciTagsProvider.ciTags
       tags.get(Tags.GIT_REPOSITORY_URL) == "local supplied repo url"
     }
   }

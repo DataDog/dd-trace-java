@@ -67,6 +67,7 @@ class AzurePipelinesInfo implements CIProviderInfo {
         .ciJobName(System.getenv(AZURE_SYSTEM_JOBDISPLAYNAME))
         .ciJobUrl(buildCiJobUrl(uri, project, buildId, jobId, taskId))
         .ciWorkspace(expandTilde(System.getenv(AZURE_WORKSPACE_PATH)))
+        .ciEnvVars(AZURE_SYSTEM_TEAMPROJECTID, AZURE_BUILD_BUILDID, AZURE_SYSTEM_JOBID)
         .build();
   }
 
