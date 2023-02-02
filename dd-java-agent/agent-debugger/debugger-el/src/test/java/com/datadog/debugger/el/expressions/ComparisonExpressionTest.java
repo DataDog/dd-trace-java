@@ -44,8 +44,6 @@ class ComparisonExpressionTest {
         Arguments.of(new NumericValue(1), new NumericValue(2.0), EQ, false, "1 == 2.0"),
         Arguments.of(new StringValue("foo"), new NumericValue(2), EQ, false, "\"foo\" == 2"),
         Arguments.of(new NumericValue(1), new StringValue("foo"), EQ, false, "1 == \"foo\""),
-        Arguments.of(
-            new StringValue("foo"), new StringValue("foo"), EQ, true, "\"foo\" == \"foo\""),
         Arguments.of(ValueExpression.NULL, new NumericValue(2), EQ, false, "null == 2"),
         Arguments.of(
             new NumericValue(Double.NaN), new NumericValue(Double.NaN), EQ, false, "NaN == NaN"),
@@ -113,6 +111,41 @@ class ComparisonExpressionTest {
             LE,
             true,
             "1 <= 2"));
+  }
+
+  @ParameterizedTest
+  @MethodSource("expressionStrs")
+  void evaluateOperatorStrings(
+      ValueExpression<?> left,
+      ValueExpression<?> right,
+      ComparisonOperator operator,
+      boolean expected,
+      String prettyPrint) {
+    ComparisonExpression expression = new ComparisonExpression(left, right, operator);
+    assertEquals(expected, expression.evaluate(NoopResolver.INSTANCE));
+    assertEquals(prettyPrint, expression.prettyPrint());
+  }
+
+  private static Stream<Arguments> expressionStrs() {
+    return Stream.of(
+        Arguments.of(
+            new StringValue("foo"), new StringValue("foo"), EQ, true, "\"foo\" == \"foo\""),
+        Arguments.of(
+            new StringValue("foo"), new StringValue("bar"), EQ, false, "\"foo\" == \"bar\""),
+        Arguments.of(new StringValue("foo"), new StringValue("bar"), GT, true, "\"foo\" > \"bar\""),
+        Arguments.of(
+            new StringValue("bar"), new StringValue("foo"), GT, false, "\"bar\" > \"foo\""),
+        Arguments.of(
+            new StringValue("foo"), new StringValue("bar"), GE, true, "\"foo\" >= \"bar\""),
+        Arguments.of(
+            new StringValue("bar"), new StringValue("foo"), GE, false, "\"bar\" >= \"foo\""),
+        Arguments.of(new StringValue("bar"), new StringValue("foo"), LT, true, "\"bar\" < \"foo\""),
+        Arguments.of(
+            new StringValue("foo"), new StringValue("bar"), LT, false, "\"foo\" < \"bar\""),
+        Arguments.of(
+            new StringValue("bar"), new StringValue("foo"), LE, true, "\"bar\" <= \"foo\""),
+        Arguments.of(
+            new StringValue("foo"), new StringValue("bar"), LE, false, "\"foo\" <= \"bar\""));
   }
 
   @Test
