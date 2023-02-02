@@ -15,12 +15,12 @@ dd-smoke-tests/profiling-integration-tests/                                     
 dd-java-agent/appsec/  @DataDog/appsec-java @ValentinZakharov
 
 # @DataDog/ci-app-libraries-java
-internal-api/src/main/java/datadog/trace/bootstrap/instrumentation/ci/ @DataDog/ci-app-libraries-java
-dd-trace-core/src/main/java/datadog/trace/civisibility/                @DataDog/ci-app-libraries-java
-dd-java-agent/agent-ci-visibility/                                     @DataDog/ci-app-libraries-java
-dd-java-agent/instrumentation/junit-4.10/                              @DataDog/ci-app-libraries-java
-dd-java-agent/instrumentation/junit-5.3/                               @DataDog/ci-app-libraries-java
-dd-java-agent/instrumentation/testng-6.4/                              @DataDog/ci-app-libraries-java
+internal-api/src/main/java/datadog/trace/api/civisibility/ @DataDog/ci-app-libraries-java
+dd-trace-core/src/main/java/datadog/trace/civisibility/    @DataDog/ci-app-libraries-java
+dd-java-agent/agent-ci-visibility/                         @DataDog/ci-app-libraries-java
+dd-java-agent/instrumentation/junit-4.10/                  @DataDog/ci-app-libraries-java
+dd-java-agent/instrumentation/junit-5.3/                   @DataDog/ci-app-libraries-java
+dd-java-agent/instrumentation/testng-6.4/                  @DataDog/ci-app-libraries-java
 
 # @DataDog/debugger-java (Live Debugger)
 dd-java-agent/agent-debugger/ @DataDog/debugger-java
