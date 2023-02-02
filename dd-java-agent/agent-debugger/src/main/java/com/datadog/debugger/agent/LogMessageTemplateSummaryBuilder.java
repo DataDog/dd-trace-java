@@ -249,7 +249,7 @@ public class LogMessageTemplateSummaryBuilder implements SummaryBuilder {
     }
 
     private void maxFieldCount(Field field) {
-      sb.append("...");
+      sb.append(", ...");
     }
 
     @Override

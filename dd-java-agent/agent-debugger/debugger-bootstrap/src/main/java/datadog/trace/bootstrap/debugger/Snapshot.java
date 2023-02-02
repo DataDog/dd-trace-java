@@ -666,10 +666,6 @@ public class Snapshot {
         String rawName = name.substring(ValueReferences.SYNTHETIC_PREFIX.length());
         target = tryRetrieveSynthetic(rawName);
         checkUndefined(name, target, rawName, "Cannot find synthetic var: ");
-      } else if (name.startsWith(ValueReferences.FIELD_PREFIX)) {
-        String rawName = name.substring(ValueReferences.FIELD_PREFIX.length());
-        target = tryRetrieveField(rawName);
-        checkUndefined(name, target, rawName, "Cannot find field: ");
       } else {
         target = tryRetrieve(name);
         checkUndefined(name, target, name, "Cannot find symbol: ");
