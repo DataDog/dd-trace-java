@@ -354,10 +354,9 @@ public final class ContinuableScopeManager implements AgentScopeManager {
         ScopeStack scopeStack = entry.getKey();
         ContinuableScope rootScope = entry.getValue();
 
-        if (!rootScope.alive()) { // no need to track this anymore
+        if (!rootScope.alive() || rootScope.span() == null) { // no need to track this anymore
           itr.remove();
-        } else if (NANOSECONDS.toMillis(rootScope.span().getStartTime())
-            < cutOff) { // TODO NULL check
+        } else if (NANOSECONDS.toMillis(rootScope.span().getStartTime()) < cutOff) {
           // mark scope as overdue to allow cleanup and avoid further spans being attached
           scopeStack.overdueRootScope = rootScope;
           rootScope.span().finishWithEndToEnd();
