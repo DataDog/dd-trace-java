@@ -75,6 +75,8 @@
 1 org.springframework.core.$Proxy*
 1 org.springframework.instrument.classloading.ShadowingClassLoader
 1 org.springframework.instrument.classloading.SimpleThrowawayClassLoader
+1 org.springframework.util.ConcurrentLruCache$*
+1 com.fasterxml.jackson.databind.util.internal.PrivateMaxEntriesMap$*
 1 org.eclipse.osgi.framework.internal.protocol.*
 1 sun.*
 0 sun.net.www.http.HttpClient

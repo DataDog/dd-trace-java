@@ -10,7 +10,6 @@ import org.asynchttpclient.DefaultAsyncHttpClientConfig
 import org.asynchttpclient.Response
 import org.asynchttpclient.proxy.ProxyServer
 import spock.lang.AutoCleanup
-import spock.lang.Retry
 import spock.lang.Timeout
 
 import java.util.concurrent.ExecutionException
@@ -20,7 +19,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static org.asynchttpclient.Dsl.asyncHttpClient
 
-@Retry
 @Timeout(5)
 class Netty40ClientTest extends HttpClientTest {
 
