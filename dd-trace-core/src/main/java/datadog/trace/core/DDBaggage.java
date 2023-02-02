@@ -8,20 +8,31 @@ import datadog.trace.core.scopemanager.ScopeContext;
 import java.util.HashMap;
 import java.util.Map;
 
-// TODO Javadoc
+/** Core {@link Baggage} implementation. */
 public class DDBaggage implements Baggage {
   private static final Baggage EMPTY = new DDBaggage(emptyMap());
 
+  // TODO Implement using String[] for performance?
   private final Map<String, String> items;
 
   private DDBaggage(Map<String, String> items) {
     this.items = items;
   }
 
+  /**
+   * Get an empty {@link Baggage} instance.
+   *
+   * @return An empty {@link Baggage} instance.
+   */
   public static Baggage empty() {
     return EMPTY;
   }
 
+  /**
+   * Get an empty {@link datadog.trace.api.Baggage.BaggageBuilder}.
+   *
+   * @return An empty {@link datadog.trace.api.Baggage.BaggageBuilder}.
+   */
   public static BaggageBuilder builder() {
     return new DDBaggageBuilder(emptyMap());
   }
@@ -51,7 +62,6 @@ public class DDBaggage implements Baggage {
     return ScopeContext.BAGGAGE_KEY;
   }
 
-  // TODO Javadoc
   private static class DDBaggageBuilder implements BaggageBuilder {
     private final Map<String, String> items;
 

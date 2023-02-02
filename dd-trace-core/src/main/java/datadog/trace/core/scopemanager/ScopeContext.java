@@ -2,22 +2,34 @@ package datadog.trace.core.scopemanager;
 
 import datadog.trace.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.ContextElement;
 import java.util.Objects;
 
-// TODO Javadoc
+/**
+ * An immutable context store tied to span scope lifecycle. {@link ScopeContext} can store any
+ * {@link ContextElement} instance but context keys are unique. Context is applied using {@link
+ * datadog.trace.bootstrap.instrumentation.api.AgentScopeManager#activateContext(AgentScopeContext)}
+ * and can be retrieved using {@link AgentScopeManager#active()}.
+ */
 public class ScopeContext implements AgentScopeContext {
   public static final String SPAN_KEY = "dd-span-key";
   public static final String BAGGAGE_KEY = "dd-baggage-key";
   private final AgentSpan span;
   private final Baggage baggage;
 
+  // TODO Use generic implementation once concept is validated
   private ScopeContext(AgentSpan span, Baggage baggage) {
     this.span = span;
     this.baggage = baggage;
   }
 
+  /**
+   * Get an empty {@link ScopeContext} instance.
+   *
+   * @return An empty {@link ScopeContext} instance.
+   */
   public static ScopeContext empty() {
     return new ScopeContext(null, null);
   }

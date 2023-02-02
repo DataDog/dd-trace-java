@@ -45,12 +45,33 @@ public interface Baggage extends ContextElement {
    */
   BaggageBuilder toBuilder();
 
-  // TODO Javadoc
+  /**
+   * Builder to create immutable {@link Baggage}. To update an existing baggage (into a new
+   * instance), check {@link Baggage#toBuilder()}.
+   */
   interface BaggageBuilder {
+    /**
+     * Append a baggage item. Replace the existing value if the key already exists.
+     *
+     * @param key The baggage item key.
+     * @param value The baggage item value.
+     * @return This instance.
+     */
     BaggageBuilder put(String key, String value);
 
+    /**
+     * Remove a baggage item. Do nothing if the given key is no value.
+     *
+     * @param key The key of the baggage item to remove.
+     * @return This instance.
+     */
     BaggageBuilder remove(String key);
 
+    /**
+     * Build the final baggage instance.
+     *
+     * @return The baggage instance.
+     */
     Baggage build();
   }
 }
