@@ -205,7 +205,7 @@ commands:
 jobs:
   build:
     <<: *defaults
-    resource_class: xlarge
+    resource_class: 2xlarge
 
     steps:
       - setup_code
@@ -223,7 +223,7 @@ jobs:
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew clean compile shadowJar check -PskipTests
             << pipeline.parameters.gradle_flags >>
-            --max-workers=8
+            --max-workers=16
             --rerun-tasks
 
       - run:
