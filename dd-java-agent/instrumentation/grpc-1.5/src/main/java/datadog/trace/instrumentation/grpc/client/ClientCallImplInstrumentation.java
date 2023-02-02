@@ -48,6 +48,12 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
     transformation.applyAdvice(named("start").and(isMethod()), getClass().getName() + "$Start");
     transformation.applyAdvice(named("cancel").and(isMethod()), getClass().getName() + "$Cancel");
     transformation.applyAdvice(
+        named("request")
+            .and(isMethod())
+            .and(takesArguments(int.class))
+            .or(isMethod().and(named("halfClose").and(takesArguments(0)))),
+        getClass().getName() + "$ActivateSpan");
+    transformation.applyAdvice(
         named("sendMessage").and(isMethod()), getClass().getName() + "$SendMessage");
     transformation.applyAdvice(
         named("closeObserver").and(takesArguments(3)), getClass().getName() + "$CloseObserver");
@@ -117,6 +123,24 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
           DECORATE.onClose(span, ((StatusException) cause).getStatus());
         }
         span.finish();
+      }
+    }
+  }
+
+  public static final class ActivateSpan {
+    @Advice.OnMethodEnter
+    public static AgentScope before(@Advice.This ClientCall<?, ?> call) {
+      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
+      if (null != span) {
+        return activateSpan(span);
+      }
+      return null;
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    public static void after(@Advice.Enter AgentScope scope) {
+      if (null != scope) {
+        scope.close();
       }
     }
   }
