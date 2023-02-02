@@ -51,14 +51,14 @@ public final class ServletInstrumentation extends Instrumenter.Tracing
     public static void enter(
         @Advice.Argument(0) final HttpServerExchange exchange,
         @Advice.Argument(1) final ServletRequestContext servletRequestContext) {
-      AgentSpan undertow_span = exchange.getAttachment(DD_UNDERTOW_SPAN);
-      if (null != undertow_span) {
+      AgentSpan undertowSpan = exchange.getAttachment(DD_UNDERTOW_SPAN);
+      if (null != undertowSpan) {
         ServletRequest request = servletRequestContext.getServletRequest();
-        request.setAttribute(DD_SPAN_ATTRIBUTE, undertow_span);
-        undertow_span.setSpanName(SERVLET_REQUEST);
+        request.setAttribute(DD_SPAN_ATTRIBUTE, undertowSpan);
+        undertowSpan.setSpanName(SERVLET_REQUEST);
 
-        undertow_span.setTag(SERVLET_CONTEXT, request.getServletContext().getContextPath());
-        undertow_span.setTag(SERVLET_PATH, exchange.getRelativePath());
+        undertowSpan.setTag(SERVLET_CONTEXT, request.getServletContext().getContextPath());
+        undertowSpan.setTag(SERVLET_PATH, exchange.getRelativePath());
       }
     }
   }
