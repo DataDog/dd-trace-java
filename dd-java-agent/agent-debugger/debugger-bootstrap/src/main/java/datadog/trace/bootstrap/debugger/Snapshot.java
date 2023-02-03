@@ -208,8 +208,6 @@ public class Snapshot {
           continue;
         }
       }
-      // generates id only when effectively committing
-      this.id = UUID.randomUUID().toString();
       /*
        * Record stack trace having the caller of this method as 'top' frame.
        * For this it is necessary to discard:
@@ -222,10 +220,8 @@ public class Snapshot {
         if (status.hasErrors) {
           evaluationErrors = errorsByProbeIds.get(currentProbeId);
         }
-        DebuggerContext.addSnapshot(this);
-      } else {
-        DebuggerContext.addSnapshot(copy(status.probeDetails, UUID.randomUUID().toString()));
       }
+      DebuggerContext.addSnapshot(copy(status.probeDetails, UUID.randomUUID().toString()));
     }
   }
 
@@ -237,7 +233,7 @@ public class Snapshot {
             timestamp,
             duration,
             stack,
-            captures,
+            additionalProbe.captureSnapshot ? captures : new Captures(),
             additionalProbe,
             language,
             thread,
