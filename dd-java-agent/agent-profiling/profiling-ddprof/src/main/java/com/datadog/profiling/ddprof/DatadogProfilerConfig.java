@@ -34,6 +34,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_INTERVAL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_INTERVAL_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT;
 
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.lang.management.ManagementFactory;
@@ -234,6 +236,15 @@ public class DatadogProfilerConfig {
 
   public static Set<String> getContextAttributes(ConfigProvider configProvider) {
     return configProvider.getSet(PROFILING_CONTEXT_ATTRIBUTES, Collections.emptySet());
+  }
+
+  public static boolean isQueueingTimeEnabled() {
+    return isQueueingTimeEnabled(ConfigProvider.getInstance());
+  }
+
+  public static boolean isQueueingTimeEnabled(ConfigProvider configProvider) {
+    return configProvider.getBoolean(
+        PROFILING_QUEUEING_TIME_ENABLED, PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
   }
 
   public static String getString(ConfigProvider configProvider, String key, String defaultValue) {

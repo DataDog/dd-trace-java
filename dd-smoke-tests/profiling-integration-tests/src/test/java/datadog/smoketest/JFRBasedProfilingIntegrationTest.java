@@ -672,6 +672,7 @@ class JFRBasedProfilingIntegrationTest {
             "-Ddd.profiling.endpoint.collection.enabled=" + endpointCollectionEnabled,
             "-Ddd.profiling.upload.timeout=" + PROFILING_UPLOAD_TIMEOUT_SECONDS,
             "-Ddd.profiling.debug.dump_path=/tmp/dd-profiler",
+            "-Ddd.profiling.ddprof.experimental.queueing.time.enabled=true",
             "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
             "-Ddd.profiling.experimental.context.attributes=foo,bar",
             "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",

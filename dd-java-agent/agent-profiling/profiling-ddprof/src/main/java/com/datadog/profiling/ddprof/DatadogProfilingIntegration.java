@@ -1,6 +1,7 @@
 package com.datadog.profiling.ddprof;
 
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This class must be installed early to be able to see all scope initialisations, which means it
@@ -11,6 +12,11 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   private static final DatadogProfiler DDPROF = DatadogProfiler.getInstance();
   private static final boolean WALLCLOCK_ENABLED =
       DatadogProfilerConfig.isWallClockProfilerEnabled();
+
+  private static final boolean QUEUEING_TIME_ENABLED =
+      WALLCLOCK_ENABLED && DatadogProfilerConfig.isQueueingTimeEnabled();
+
+  private static final int WALLCLOCK_INTERVAL = DatadogProfilerConfig.getWallInterval();
 
   @Override
   public void onAttach() {
@@ -39,5 +45,17 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   @Override
   public void clearContextValue(String attribute) {
     DDPROF.clearContextValue(attribute);
+  }
+
+  @Override
+  public boolean isQueuingTimeEnabled() {
+    return QUEUEING_TIME_ENABLED;
+  }
+
+  @Override
+  public void recordQueueingTime(long duration) {
+    if (QUEUEING_TIME_ENABLED && duration >= WALLCLOCK_INTERVAL / 2) {
+      DDPROF.recordQueueingTime(duration, TimeUnit.MILLISECONDS);
+    }
   }
 }
