@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 public interface DataStreamsMonitoring extends Consumer<StatsPoint>, AutoCloseable {
@@ -12,9 +13,7 @@ public interface DataStreamsMonitoring extends Consumer<StatsPoint>, AutoCloseab
 
   <C> PathwayContext extractPathwayContext(C carrier, AgentPropagation.ContextVisitor<C> getter);
 
-  void trackKafkaProduce(String topic, int partition, long offset);
-
-  void trackKafkaCommit(String consumerGroup, String topic, int partition, long offset);
+  void trackBacklog(List<String> sortedTags, long value);
 
   @Override
   void close();

@@ -11,10 +11,10 @@ import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.Backlog;
 import datadog.trace.bootstrap.instrumentation.api.DataStreamsMonitoring;
-import datadog.trace.bootstrap.instrumentation.api.KafkaOffset;
+import datadog.trace.bootstrap.instrumentation.api.InboxItem;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
-import datadog.trace.bootstrap.instrumentation.api.StatsPayload;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.OkHttpSink;
@@ -46,7 +46,7 @@ public class DefaultDataStreamsMonitoring
       new StatsPoint(Collections.<String>emptyList(), 0, 0, 0, 0, 0);
 
   private final Map<Long, StatsBucket> timeToBucket = new HashMap<>();
-  private final BlockingQueue<StatsPayload> inbox = new MpscBlockingConsumerArrayQueue<>(1024);
+  private final BlockingQueue<InboxItem> inbox = new MpscBlockingConsumerArrayQueue<>(1024);
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
   private final TimeSource timeSource;
@@ -146,13 +146,8 @@ public class DefaultDataStreamsMonitoring
     return DefaultPathwayContext.extract(carrier, getter, timeSource, wellKnownTags);
   }
 
-  public void trackKafkaProduce(String topic, int partition, long offset) {
-    inbox.offer(new KafkaOffset(topic, partition, offset, timeSource.getCurrentTimeNanos()));
-  }
-
-  public void trackKafkaCommit(String consumerGroup, String topic, int partition, long offset) {
-    inbox.offer(
-        new KafkaOffset(consumerGroup, topic, partition, offset, timeSource.getCurrentTimeNanos()));
+  public void trackBacklog(List<String> sortedTags, long value) {
+    inbox.offer(new Backlog(sortedTags, value, timeSource.getCurrentTimeNanos()));
   }
 
   @Override
@@ -175,7 +170,7 @@ public class DefaultDataStreamsMonitoring
       Thread currentThread = Thread.currentThread();
       while (!currentThread.isInterrupted()) {
         try {
-          StatsPayload payload = inbox.take();
+          InboxItem payload = inbox.take();
 
           if (payload == REPORT) {
             if (supportsDataStreams) {
@@ -189,15 +184,20 @@ public class DefaultDataStreamsMonitoring
             }
             break;
           } else if (supportsDataStreams) {
-            Long bucket = currentBucket(payload.getTimestampNanos());
-            StatsBucket statsBucket =
-                timeToBucket.computeIfAbsent(
-                    bucket, startTime -> new StatsBucket(startTime, bucketDurationNanos));
-            if (payload.type() == StatsPayload.Type.StatsGroup) {
+            if (payload instanceof StatsPoint) {
               StatsPoint statsPoint = (StatsPoint) payload;
+              Long bucket = currentBucket(statsPoint.getTimestampNanos());
+              StatsBucket statsBucket =
+                  timeToBucket.computeIfAbsent(
+                      bucket, startTime -> new StatsBucket(startTime, bucketDurationNanos));
               statsBucket.addPoint(statsPoint);
-            } else {
-              statsBucket.addOffset((KafkaOffset) payload);
+            } else if (payload instanceof Backlog) {
+              Backlog backlog = (Backlog) payload;
+              Long bucket = currentBucket(backlog.getTimestampNanos());
+              StatsBucket statsBucket =
+                  timeToBucket.computeIfAbsent(
+                      bucket, startTime -> new StatsBucket(startTime, bucketDurationNanos));
+              statsBucket.addBacklog(backlog);
             }
           }
         } catch (InterruptedException e) {

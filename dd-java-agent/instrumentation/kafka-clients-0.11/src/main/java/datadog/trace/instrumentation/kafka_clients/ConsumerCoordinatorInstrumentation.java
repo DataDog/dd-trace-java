@@ -7,7 +7,9 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -61,13 +63,18 @@ public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Traci
       String consumerGroup =
           InstrumentationContext.get(ConsumerCoordinator.class, String.class).get(coordinator);
       for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : offsets.entrySet()) {
+        if (consumerGroup == null) {
+          consumerGroup = "";
+        }
+        List<String> sortedTags =
+            Arrays.asList(
+                "consumer_group:" + consumerGroup,
+                "partition:" + String.valueOf(entry.getKey().partition()),
+                "topic:" + entry.getKey().topic(),
+                "type:kafka_commit");
         AgentTracer.get()
             .getDataStreamsMonitoring()
-            .trackKafkaCommit(
-                consumerGroup,
-                entry.getKey().topic(),
-                entry.getKey().partition(),
-                entry.getValue().offset());
+            .trackBacklog(sortedTags, entry.getValue().offset());
       }
     }
 

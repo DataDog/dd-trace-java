@@ -6,6 +6,8 @@ import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCE
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.RecordMetadata;
 
@@ -25,9 +27,12 @@ public class KafkaProducerCallback implements Callback {
   public void onCompletion(final RecordMetadata metadata, final Exception exception) {
     PRODUCER_DECORATE.onError(span, exception);
     PRODUCER_DECORATE.beforeFinish(span);
-    AgentTracer.get()
-        .getDataStreamsMonitoring()
-        .trackKafkaProduce(metadata.topic(), metadata.partition(), metadata.offset());
+    List<String> sortedTags =
+        Arrays.asList(
+            "partition:" + String.valueOf(metadata.partition()),
+            "topic:" + metadata.topic(),
+            "type:kafka_produce");
+    AgentTracer.get().getDataStreamsMonitoring().trackBacklog(sortedTags, metadata.offset());
     span.finish();
     if (callback != null) {
       if (parent != null) {

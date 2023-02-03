@@ -9,6 +9,7 @@ import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.common.metrics.Sink;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
@@ -23,15 +24,11 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private static final byte[] EDGE_LATENCY = "EdgeLatency".getBytes(ISO_8859_1);
   private static final byte[] SERVICE = "Service".getBytes(ISO_8859_1);
   private static final byte[] EDGE_TAGS = "EdgeTags".getBytes(ISO_8859_1);
-  private static final byte[] KAFKA = "Kafka".getBytes(ISO_8859_1);
-  private static final byte[] LATEST_PRODUCE_OFFSETS = "LatestProduceOffsets".getBytes(ISO_8859_1);
-  private static final byte[] LATEST_COMMIT_OFFSETS = "LatestCommitOffsets".getBytes(ISO_8859_1);
+  private static final byte[] BACKLOGS = "Backlogs".getBytes(ISO_8859_1);
   private static final byte[] HASH = "Hash".getBytes(ISO_8859_1);
   private static final byte[] PARENT_HASH = "ParentHash".getBytes(ISO_8859_1);
-  private static final byte[] TOPIC = "Topic".getBytes(ISO_8859_1);
-  private static final byte[] CONSUMER_GROUP = "ConsumerGroup".getBytes(ISO_8859_1);
-  private static final byte[] PARTITION = "Partition".getBytes(ISO_8859_1);
-  private static final byte[] OFFSET = "Offset".getBytes(ISO_8859_1);
+  private static final byte[] BACKLOG_VALUE = "Value".getBytes(ISO_8859_1);
+  private static final byte[] BACKLOG_TAGS = "Tags".getBytes(ISO_8859_1);
 
   private static final int INITIAL_CAPACITY = 512 * 1024;
 
@@ -83,10 +80,8 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     writer.writeUTF8(STATS);
     writer.startArray(data.size());
     for (StatsBucket bucket : data) {
-      boolean hasKafka =
-          !bucket.getLatestKafkaCommitOffsets().isEmpty()
-              || !bucket.getLatestKafkaProduceOffsets().isEmpty();
-      writer.startMap(3 + (hasKafka ? 1 : 0));
+      boolean hasBacklogs = !bucket.getBacklogs().isEmpty();
+      writer.startMap(3 + (hasBacklogs ? 1 : 0));
 
       /* 1 */
       writer.writeUTF8(START);
@@ -100,10 +95,9 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       writer.writeUTF8(STATS);
       writeBucket(bucket, writer);
 
-      if (hasKafka) {
+      if (hasBacklogs) {
         /* 4 */
-        writeKafka(
-            bucket.getLatestKafkaCommitOffsets(), bucket.getLatestKafkaProduceOffsets(), writer);
+        writeBacklogs(bucket.getBacklogs(), writer);
       }
     }
 
@@ -147,41 +141,18 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     }
   }
 
-  private void writeKafka(
-      Collection<Map.Entry<TopicPartitionGroup, Long>> latestCommitOffsets,
-      Collection<Map.Entry<TopicPartition, Long>> latestProduceOffsets,
-      Writable packer) {
-    packer.writeUTF8(KAFKA);
-    boolean hasCommitOffsets = !latestCommitOffsets.isEmpty();
-    boolean hasProduceOffsets = !latestProduceOffsets.isEmpty();
-    packer.startMap((hasCommitOffsets ? 1 : 0) + (hasProduceOffsets ? 1 : 0));
-    if (hasCommitOffsets) {
-      packer.writeUTF8(LATEST_COMMIT_OFFSETS);
-      packer.startArray(latestCommitOffsets.size());
-      for (Map.Entry<TopicPartitionGroup, Long> entry : latestCommitOffsets) {
-        packer.startMap(4);
-        packer.writeUTF8(CONSUMER_GROUP);
-        packer.writeString(entry.getKey().getGroup(), null);
-        packer.writeUTF8(TOPIC);
-        packer.writeString(entry.getKey().getTopic(), null);
-        packer.writeUTF8(PARTITION);
-        packer.writeInt(entry.getKey().getPartition());
-        packer.writeUTF8(OFFSET);
-        packer.writeLong(entry.getValue());
+  private void writeBacklogs(Collection<Map.Entry<List<String>, Long>> backlogs, Writable packer) {
+    packer.writeUTF8(BACKLOGS);
+    packer.startArray(backlogs.size());
+    for (Map.Entry<List<String>, Long> entry : backlogs) {
+      packer.startMap(2);
+      packer.writeUTF8(BACKLOG_TAGS);
+      packer.startArray(entry.getKey().size());
+      for (String tag : entry.getKey()) {
+        packer.writeString(tag, null);
       }
-    }
-    if (hasProduceOffsets) {
-      packer.writeUTF8(LATEST_PRODUCE_OFFSETS);
-      packer.startArray(latestProduceOffsets.size());
-      for (Map.Entry<TopicPartition, Long> entry : latestProduceOffsets) {
-        packer.startMap(3);
-        packer.writeUTF8(TOPIC);
-        packer.writeString(entry.getKey().getTopic(), null);
-        packer.writeUTF8(PARTITION);
-        packer.writeInt(entry.getKey().getPartition());
-        packer.writeUTF8(OFFSET);
-        packer.writeLong(entry.getValue());
-      }
+      packer.writeUTF8(BACKLOG_VALUE);
+      packer.writeLong(entry.getValue());
     }
   }
 }

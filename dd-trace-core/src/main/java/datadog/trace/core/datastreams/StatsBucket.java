@@ -1,17 +1,17 @@
 package datadog.trace.core.datastreams;
 
-import datadog.trace.bootstrap.instrumentation.api.KafkaOffset;
+import datadog.trace.bootstrap.instrumentation.api.Backlog;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class StatsBucket {
   private final long startTimeNanos;
   private final long bucketDurationNanos;
   private final Map<Long, StatsGroup> hashToGroup = new HashMap<>();
-  private final Map<TopicPartition, Long> latestKafkaProduceOffsets = new HashMap<>();
-  private final Map<TopicPartitionGroup, Long> latestKafkaCommitOffsets = new HashMap<>();
+  private final Map<List<String>, Long> backlogs = new HashMap<>();
 
   public StatsBucket(long startTimeNanos, long bucketDurationNanos) {
     this.startTimeNanos = startTimeNanos;
@@ -32,15 +32,10 @@ public class StatsBucket {
     statsGroup.add(statsPoint.getPathwayLatencyNano(), statsPoint.getEdgeLatencyNano());
   }
 
-  public void addOffset(KafkaOffset offset) {
-    if (offset.getType() == KafkaOffset.Type.COMMIT) {
-      latestKafkaCommitOffsets.put(
-          new TopicPartitionGroup(offset.getTopic(), offset.getPartition(), offset.getGroup()),
-          offset.getOffset());
-    } else {
-      latestKafkaProduceOffsets.put(
-          new TopicPartition(offset.getTopic(), offset.getPartition()), offset.getOffset());
-    }
+  public void addBacklog(Backlog backlog) {
+    backlogs.compute(
+        backlog.getSortedTags(),
+        (k, v) -> (v == null) ? backlog.getValue() : Math.max(v, backlog.getValue()));
   }
 
   public long getStartTimeNanos() {
@@ -55,11 +50,7 @@ public class StatsBucket {
     return hashToGroup.values();
   }
 
-  public Collection<Map.Entry<TopicPartitionGroup, Long>> getLatestKafkaCommitOffsets() {
-    return latestKafkaCommitOffsets.entrySet();
-  }
-
-  public Collection<Map.Entry<TopicPartition, Long>> getLatestKafkaProduceOffsets() {
-    return latestKafkaProduceOffsets.entrySet();
+  public Collection<Map.Entry<List<String>, Long>> getBacklogs() {
+    return backlogs.entrySet();
   }
 }

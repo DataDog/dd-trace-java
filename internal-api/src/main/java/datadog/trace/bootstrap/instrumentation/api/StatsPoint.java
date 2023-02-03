@@ -2,7 +2,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import java.util.List;
 
-public class StatsPoint implements StatsPayload {
+public class StatsPoint implements InboxItem {
   private final List<String> edgeTags;
   private final long hash;
   private final long parentHash;
@@ -66,10 +66,5 @@ public class StatsPoint implements StatsPayload {
         + ", edgeLatencyNano="
         + edgeLatencyNano
         + '}';
-  }
-
-  @Override
-  public Type type() {
-    return Type.StatsGroup;
   }
 }

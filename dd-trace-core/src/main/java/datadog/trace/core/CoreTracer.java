@@ -551,7 +551,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     if (dataStreamsMonitoring == null) {
       this.dataStreamsMonitoring =
-          createDataStreamsCheckpointer(config, sharedCommunicationObjects, this.timeSource);
+          createDataStreamsMonitoring(config, sharedCommunicationObjects, this.timeSource);
     } else {
       this.dataStreamsMonitoring = dataStreamsMonitoring;
     }
@@ -1087,7 +1087,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @SuppressForbidden
-  private static DataStreamsMonitoring createDataStreamsCheckpointer(
+  private static DataStreamsMonitoring createDataStreamsMonitoring(
       Config config, SharedCommunicationObjects sharedCommunicationObjects, TimeSource timeSource) {
     if (config.isDataStreamsEnabled()) {
       return new DefaultDataStreamsMonitoring(config, sharedCommunicationObjects, timeSource);

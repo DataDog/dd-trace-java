@@ -6,7 +6,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.test.util.Flaky
-import datadog.trace.core.datastreams.TopicPartitionGroup
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
@@ -119,7 +118,8 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     }
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
-      TEST_DATA_STREAMS_WRITER.waitForKafkaOffsets(1, 1)
+      // wait for produce offset 0, commit offset 0 on partition 0 and 1, and commit offset 1 on 1 partition.
+      TEST_DATA_STREAMS_WRITER.waitForBacklogs(4)
     }
 
     then:
@@ -169,17 +169,16 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
         ]
         edgeTags.size() == 5
       }
-      verifyAll(TEST_DATA_STREAMS_WRITER.producerOffsets.get(0)) {
-        key.topic == SHARED_TOPIC
-        key.partition == received.partition()
-        value == received.offset()
-      }
-      Map.Entry<TopicPartitionGroup, Long> commitOffset = TEST_DATA_STREAMS_WRITER.commitOffsets.find { it.key.partition == received.partition() }
-      verifyAll(commitOffset) {
-        key.group == "sender"
-        key.topic == SHARED_TOPIC
-        key.partition == received.partition()
-        value == received.offset() + 1
+      List<String> produce = ["partition:"+received.partition(), "topic:"+SHARED_TOPIC, "type:kafka_produce"]
+      List<String> commit = [
+        "consumer_group:sender",
+        "partition:"+received.partition(),
+        "topic:"+SHARED_TOPIC,
+        "type:kafka_commit"
+      ]
+      verifyAll(TEST_DATA_STREAMS_WRITER.backlogs) {
+        contains(new AbstractMap.SimpleEntry<List<String>, Long>(commit, 1).toString())
+        contains(new AbstractMap.SimpleEntry<List<String>, Long>(produce, 0).toString())
       }
     }
 
@@ -236,7 +235,8 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     }
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
-      TEST_DATA_STREAMS_WRITER.waitForKafkaOffsets(1, 1)
+      // wait for produce offset 0, commit offset 0 on partition 0 and 1, and commit offset 1 on 1 partition.
+      TEST_DATA_STREAMS_WRITER.waitForBacklogs(4)
     }
 
     then:
@@ -286,17 +286,16 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
         ]
         edgeTags.size() == 5
       }
-      verifyAll(TEST_DATA_STREAMS_WRITER.producerOffsets.get(0)) {
-        key.topic == SHARED_TOPIC
-        key.partition == received.partition()
-        value == received.offset()
-      }
-      Map.Entry<TopicPartitionGroup, Long> commitOffset = TEST_DATA_STREAMS_WRITER.commitOffsets.find { it.key.partition == received.partition() }
-      verifyAll(commitOffset) {
-        key.group == "sender"
-        key.topic == SHARED_TOPIC
-        key.partition == received.partition()
-        value == received.offset() + 1
+      List<String> produce = ["partition:"+received.partition(), "topic:"+SHARED_TOPIC, "type:kafka_produce"]
+      List<String> commit = [
+        "consumer_group:sender",
+        "partition:"+received.partition(),
+        "topic:"+SHARED_TOPIC,
+        "type:kafka_commit"
+      ]
+      verifyAll(TEST_DATA_STREAMS_WRITER.backlogs) {
+        contains(new AbstractMap.SimpleEntry<List<String>, Long>(commit, 1).toString())
+        contains(new AbstractMap.SimpleEntry<List<String>, Long>(produce, 0).toString())
       }
     }
 
@@ -687,7 +686,8 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     }
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
-      TEST_DATA_STREAMS_WRITER.waitForKafkaOffsets(1, 1)
+      // wait for produce offset 0, commit offset 0 on partition 0 and 1, and commit offset 1 on 1 partition.
+      TEST_DATA_STREAMS_WRITER.waitForBacklogs(4)
     }
 
     then:

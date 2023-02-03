@@ -233,11 +233,11 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     when:
     def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.start()
-    dataStreams.trackKafkaCommit("testGroup", "testTopic", 2, 23)
-    dataStreams.trackKafkaCommit("testGroup", "testTopic", 2, 24)
-    dataStreams.trackKafkaProduce("testTopic", 2, 23)
-    dataStreams.trackKafkaProduce("testTopic2", 2, 23)
-    dataStreams.trackKafkaProduce("testTopic2", 2, 45)
+    dataStreams.trackBacklog(["consumer_group:testGroup", "partition:2", "topic:testTopic", "type:kafka_commit"], 23)
+    dataStreams.trackBacklog(["consumer_group:testGroup", "partition:2", "topic:testTopic", "type:kafka_commit"], 24)
+    dataStreams.trackBacklog(["partition:2", "topic:testTopic", "type:kafka_produce"], 23)
+    dataStreams.trackBacklog(["partition:2", "topic:testTopic2", "type:kafka_produce"], 23)
+    dataStreams.trackBacklog(["partition:2", "topic:testTopic", "type:kafka_produce"], 45)
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.report()
 
@@ -249,25 +249,20 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     }
 
     with(payloadWriter.buckets.get(0)) {
-      latestKafkaCommitOffsets.size() == 1
-      with(latestKafkaCommitOffsets.iterator().next()) {
-        key.group == "testGroup"
-        key.topic == "testTopic"
-        key.partition == 2
-        value == 24
+      backlogs.size() == 3
+      List<Map.Entry<List<String>, Long>> sortedBacklogs = new ArrayList<>(backlogs)
+      sortedBacklogs.sort({ it.key.toString() })
+      with(sortedBacklogs[0]) {
+        it.key == ["consumer_group:testGroup", "partition:2", "topic:testTopic", "type:kafka_commit"]
+        it.value == 24
       }
-      latestKafkaProduceOffsets.size() == 2
-      List<Map.Entry<TopicPartition, Long>> sortedOffsets = new ArrayList<>(latestKafkaProduceOffsets)
-      sortedOffsets.sort({ it.key.topic })
-      with(sortedOffsets[0]) {
-        key.topic == "testTopic"
-        key.partition == 2
-        value == 23
+      with(sortedBacklogs[1]) {
+        it.key == ["partition:2", "topic:testTopic", "type:kafka_produce"]
+        it.value == 45
       }
-      with(sortedOffsets[1]) {
-        key.topic == "testTopic2"
-        key.partition == 2
-        value == 45
+      with(sortedBacklogs[2]) {
+        it.key == ["partition:2", "topic:testTopic2", "type:kafka_produce"]
+        it.value == 23
       }
     }
 

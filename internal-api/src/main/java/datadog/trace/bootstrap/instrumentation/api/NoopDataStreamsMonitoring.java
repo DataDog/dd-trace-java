@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import java.util.List;
+
 public class NoopDataStreamsMonitoring implements DataStreamsMonitoring {
   @Override
   public void start() {}
@@ -19,10 +21,7 @@ public class NoopDataStreamsMonitoring implements DataStreamsMonitoring {
   }
 
   @Override
-  public void trackKafkaProduce(String topic, int partition, long offset) {}
-
-  @Override
-  public void trackKafkaCommit(String consumerGroup, String topic, int partition, long offset) {}
+  public void trackBacklog(List<String> sortedTags, long value) {}
 
   @Override
   public <C> PathwayContext extractBinaryPathwayContext(
