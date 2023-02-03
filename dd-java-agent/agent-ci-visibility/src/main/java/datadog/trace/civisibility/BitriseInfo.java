@@ -1,7 +1,8 @@
 package datadog.trace.civisibility;
 
 import static datadog.trace.civisibility.git.GitUtils.filterSensitiveInfo;
-import static datadog.trace.civisibility.git.GitUtils.normalizeRef;
+import static datadog.trace.civisibility.git.GitUtils.normalizeBranch;
+import static datadog.trace.civisibility.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.PathUtils.expandTilde;
 
 import datadog.trace.civisibility.git.CommitInfo;
@@ -30,11 +31,10 @@ class BitriseInfo implements CIProviderInfo {
 
   @Override
   public GitInfo buildCIGitInfo() {
-    final String gitTag = normalizeRef(System.getenv(BITRISE_GIT_TAG));
     return new GitInfo(
         filterSensitiveInfo(System.getenv(BITRISE_GIT_REPOSITORY_URL)),
-        buildGitBranch(gitTag),
-        gitTag,
+        normalizeBranch(System.getenv(BITRISE_GIT_BRANCH)),
+        normalizeTag(System.getenv(BITRISE_GIT_TAG)),
         new CommitInfo(
             buildGitCommit(),
             new PersonInfo(
@@ -60,14 +60,6 @@ class BitriseInfo implements CIProviderInfo {
   @Override
   public boolean isCI() {
     return true;
-  }
-
-  private String buildGitBranch(final String gitTag) {
-    if (gitTag != null) {
-      return null;
-    }
-
-    return normalizeRef(System.getenv(BITRISE_GIT_BRANCH));
   }
 
   private String buildGitCommit() {

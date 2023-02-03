@@ -1,7 +1,9 @@
 package datadog.trace.civisibility;
 
 import static datadog.trace.civisibility.git.GitUtils.filterSensitiveInfo;
-import static datadog.trace.civisibility.git.GitUtils.normalizeRef;
+import static datadog.trace.civisibility.git.GitUtils.isTagReference;
+import static datadog.trace.civisibility.git.GitUtils.normalizeBranch;
+import static datadog.trace.civisibility.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.PathUtils.expandTilde;
 
 import datadog.trace.civisibility.git.CommitInfo;
@@ -76,28 +78,30 @@ class AzurePipelinesInfo implements CIProviderInfo {
     return true;
   }
 
-  private String buildGitTag() {
-    String branchOrTag = System.getenv(AZURE_SYSTEM_PULLREQUEST_SOURCEBRANCH);
-    if (branchOrTag == null || branchOrTag.isEmpty()) {
-      branchOrTag = System.getenv(AZURE_BUILD_SOURCEBRANCH);
-    }
-    if (branchOrTag != null && branchOrTag.contains("tags")) {
-      return normalizeRef(branchOrTag);
+  private String buildGitBranch() {
+    String gitBranchOrTag = getGitBranchOrTag();
+    if (!isTagReference(gitBranchOrTag)) {
+      return normalizeBranch(gitBranchOrTag);
     } else {
       return null;
     }
   }
 
-  private String buildGitBranch() {
-    String branchOrTag = System.getenv(AZURE_SYSTEM_PULLREQUEST_SOURCEBRANCH);
-    if (branchOrTag == null || branchOrTag.isEmpty()) {
-      branchOrTag = System.getenv(AZURE_BUILD_SOURCEBRANCH);
-    }
-    if (branchOrTag != null && !branchOrTag.contains("tags")) {
-      return normalizeRef(branchOrTag);
+  private String buildGitTag() {
+    String gitBranchOrTag = getGitBranchOrTag();
+    if (isTagReference(gitBranchOrTag)) {
+      return normalizeTag(gitBranchOrTag);
     } else {
       return null;
     }
+  }
+
+  private static String getGitBranchOrTag() {
+    String gitBranchOrTag = System.getenv(AZURE_SYSTEM_PULLREQUEST_SOURCEBRANCH);
+    if (gitBranchOrTag == null || gitBranchOrTag.isEmpty()) {
+      gitBranchOrTag = System.getenv(AZURE_BUILD_SOURCEBRANCH);
+    }
+    return gitBranchOrTag;
   }
 
   private String buildGitCommit() {

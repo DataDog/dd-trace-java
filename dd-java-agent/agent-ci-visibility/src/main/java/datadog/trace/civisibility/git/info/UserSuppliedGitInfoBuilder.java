@@ -27,12 +27,12 @@ public class UserSuppliedGitInfoBuilder {
     // the tag (e.g. origin/tags/0.1.0)
     String gitTag = System.getenv(DD_GIT_TAG);
     String gitBranch = null;
-    final String rawGitBranchOrTag = System.getenv(DD_GIT_BRANCH);
-    if (rawGitBranchOrTag != null) {
-      if (!rawGitBranchOrTag.contains("tags")) {
-        gitBranch = GitUtils.normalizeRef(rawGitBranchOrTag);
+    final String gitBranchOrTag = System.getenv(DD_GIT_BRANCH);
+    if (gitBranchOrTag != null) {
+      if (!GitUtils.isTagReference(gitBranchOrTag)) {
+        gitBranch = GitUtils.normalizeBranch(gitBranchOrTag);
       } else if (gitTag == null) {
-        gitTag = GitUtils.normalizeRef(rawGitBranchOrTag);
+        gitTag = GitUtils.normalizeTag(gitBranchOrTag);
       }
     }
     final String gitCommitSha = System.getenv(DD_GIT_COMMIT_SHA);

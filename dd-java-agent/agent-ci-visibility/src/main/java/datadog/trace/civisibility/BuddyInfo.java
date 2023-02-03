@@ -1,7 +1,8 @@
 package datadog.trace.civisibility;
 
 import static datadog.trace.civisibility.git.GitUtils.filterSensitiveInfo;
-import static datadog.trace.civisibility.git.GitUtils.normalizeRef;
+import static datadog.trace.civisibility.git.GitUtils.normalizeBranch;
+import static datadog.trace.civisibility.git.GitUtils.normalizeTag;
 
 import datadog.trace.civisibility.git.CommitInfo;
 import datadog.trace.civisibility.git.GitInfo;
@@ -28,8 +29,8 @@ class BuddyInfo implements CIProviderInfo {
   public GitInfo buildCIGitInfo() {
     return new GitInfo(
         filterSensitiveInfo(System.getenv(BUDDY_GIT_REPOSITORY_URL)),
-        normalizeRef(System.getenv(BUDDY_GIT_BRANCH)),
-        normalizeRef(System.getenv(BUDDY_GIT_TAG)),
+        normalizeBranch(System.getenv(BUDDY_GIT_BRANCH)),
+        normalizeTag(System.getenv(BUDDY_GIT_TAG)),
         new CommitInfo(
             System.getenv(BUDDY_GIT_COMMIT),
             PersonInfo.NOOP,

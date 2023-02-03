@@ -1,6 +1,7 @@
 package datadog.trace.civisibility;
 
-import static datadog.trace.civisibility.git.GitUtils.normalizeRef;
+import static datadog.trace.civisibility.git.GitUtils.normalizeBranch;
+import static datadog.trace.civisibility.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.PathUtils.expandTilde;
 
 import datadog.trace.civisibility.git.CommitInfo;
@@ -27,12 +28,11 @@ class TravisInfo implements CIProviderInfo {
 
   @Override
   public GitInfo buildCIGitInfo() {
-    final String gitTag = normalizeRef(System.getenv(TRAVIS_GIT_TAG));
 
     return new GitInfo(
         buildGitRepositoryUrl(),
-        buildGitBranch(gitTag),
-        gitTag,
+        buildGitBranch(),
+        normalizeTag(System.getenv(TRAVIS_GIT_TAG)),
         new CommitInfo(
             System.getenv(TRAVIS_GIT_COMMIT),
             PersonInfo.NOOP,
@@ -58,16 +58,12 @@ class TravisInfo implements CIProviderInfo {
     return true;
   }
 
-  private String buildGitBranch(final String gitTag) {
-    if (gitTag != null) {
-      return null;
-    }
-
+  private String buildGitBranch() {
     final String fromBranch = System.getenv(TRAVIS_GIT_PR_BRANCH);
     if (fromBranch != null && !fromBranch.isEmpty()) {
-      return normalizeRef(fromBranch);
+      return normalizeBranch(fromBranch);
     } else {
-      return normalizeRef(System.getenv(TRAVIS_GIT_BRANCH));
+      return normalizeBranch(System.getenv(TRAVIS_GIT_BRANCH));
     }
   }
 
