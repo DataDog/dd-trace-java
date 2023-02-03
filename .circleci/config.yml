@@ -210,7 +210,7 @@ jobs:
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew clean compile shadowJar check -PskipTests
+            ./gradlew clean compile shadowJar test -PskipTests
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
             --rerun-tasks
@@ -274,6 +274,47 @@ jobs:
           <<: *build_cache_paths
 
       - display_memory_usage
+
+  spotless:
+    <<: *defaults
+    resource_class: large
+
+    steps:
+      - setup_code
+
+      - run:
+          name: Run spotless
+          command: >-
+            ./gradlew spotlessCheck -PskipBuildSrcTest
+            << pipeline.parameters.gradle_flags >>
+            --max-workers=8
+
+  check:
+    <<: *defaults
+    resource_class: xlarge
+
+    steps:
+      - setup_code
+
+      - restore_cache:
+          <<: *dependency_cache_keys
+
+      - restore_cache:
+          <<: *build_cache_keys
+
+      - run:
+          name: Check Project
+          command: >-
+            MAVEN_OPTS="-Xms64M -Xmx256M"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+            ./gradlew check -PskipTests
+            << pipeline.parameters.gradle_flags >>
+            --max-workers=8
+
+      - run:
+          name: Cancel workflow
+          when: on_fail
+          command: .circleci/cancel_workflow.sh
 
   build_clean_cache:
     <<: *defaults
@@ -645,10 +686,17 @@ jobs:
 
 build_test_jobs: &build_test_jobs
   - build
+  - spotless
+
+  - check:
+      requires:
+        - build
+        - spotless
 
   - xlarge_tests:
       requires:
         - build
+        - spotless
       name: z_test_<< matrix.testJvm >>_base
       triggeredBy: *core_modules
       gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
@@ -660,6 +708,7 @@ build_test_jobs: &build_test_jobs
   - xlarge_tests:
       requires:
         - build
+        - spotless
       name: z_test_8_base
       triggeredBy: *core_modules
       gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
@@ -671,6 +720,7 @@ build_test_jobs: &build_test_jobs
   - xlarge_tests:
       requires:
         - build
+        - spotless
       name: z_test_<< matrix.testJvm >>_inst
       gradleTarget: ":dd-java-agent:instrumentation"
       gradleParameters: "-PskipFlakyTests"
@@ -683,6 +733,7 @@ build_test_jobs: &build_test_jobs
   - xlarge_tests:
       requires:
         - build
+        - spotless
       name: z_test_8_inst
       gradleTarget: ":dd-java-agent:instrumentation"
       gradleParameters: "-PskipFlakyTests"
@@ -694,6 +745,7 @@ build_test_jobs: &build_test_jobs
   - xlarge_tests:
       requires:
         - build
+        - spotless
       name: test_8_inst_latest
       testTask: latestDepTest
       gradleTarget: ":dd-java-agent:instrumentation"
@@ -717,6 +769,7 @@ build_test_jobs: &build_test_jobs
   - tests:
       requires:
         - build
+        - spotless
       maxWorkers: 4
       gradleTarget: ":dd-java-agent:agent-profiling"
       gradleParameters: "-PskipFlakyTests"
@@ -729,6 +782,7 @@ build_test_jobs: &build_test_jobs
   - tests:
       requires:
         - build
+        - spotless
       maxWorkers: 4
       name: test_<< matrix.testJvm >>_iast
       gradleTarget: ":dd-java-agent:agent-iast"
@@ -741,6 +795,7 @@ build_test_jobs: &build_test_jobs
   - tests:
       requires:
         - build
+        - spotless
       name: test_<< matrix.testJvm >>_debugger
       maxWorkers: 4
       gradleTarget: ":dd-java-agent:agent-debugger"
@@ -753,6 +808,7 @@ build_test_jobs: &build_test_jobs
   - huge_tests:
       requires:
         - build
+        - spotless
       name: z_test_<< matrix.testJvm >>_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
       gradleParameters: "-PskipFlakyTests"
@@ -764,6 +820,7 @@ build_test_jobs: &build_test_jobs
   - huge_tests:
       requires:
         - build
+        - spotless
       name: test_IBM11_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
       gradleParameters: "-PskipFlakyTests"
@@ -774,6 +831,7 @@ build_test_jobs: &build_test_jobs
   - huge_tests:
       requires:
         - build
+        - spotless
       name: test_IBM17_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
       gradleParameters: "-PskipFlakyTests"
@@ -784,6 +842,7 @@ build_test_jobs: &build_test_jobs
   - xlarge_tests:
       requires:
         - build
+        - spotless
       name: test_GRAALVM11_smoke
       gradleTarget: "stageMainDist :dd-smoke-test:spring-native"
       stage: smoke
@@ -792,6 +851,7 @@ build_test_jobs: &build_test_jobs
   - xlarge_tests:
       requires:
         - build
+        - spotless
       name: test_GRAALVM17_smoke
       gradleTarget: "stageMainDist :dd-smoke-test:spring-native"
       stage: smoke
@@ -801,6 +861,7 @@ build_test_jobs: &build_test_jobs
   - huge_tests:
       requires:
         - build
+        - spotless
       name: z_test_8_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
       gradleParameters: "-PskipFlakyTests"
