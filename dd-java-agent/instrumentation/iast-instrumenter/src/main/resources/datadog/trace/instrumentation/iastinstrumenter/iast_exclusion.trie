@@ -34,6 +34,7 @@
 0 com.datadog.demo.*
 1 datadog.*
 0 datadog.smoketest.*
+1 com.timgroup.statsd.*
 
 # -------- Libraries --------
 1 antlr.*
