@@ -324,7 +324,6 @@ public interface Instrumenter {
 
     /**
      * Force loading of classes that need to be instrumented, but are using during instrumentation.
-     * *
      */
     private void forceClassLoad() {
       String[] list = getClassesToBeForced();
