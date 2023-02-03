@@ -1112,7 +1112,8 @@ public class CapturedSnapshotTest {
     // it's important there is no null key in this map, as Jackson is not happy about it
     // it's means here that argument names are not resolved correctly
     Assert.assertFalse(arguments.containsKey(null));
-    Assert.assertEquals(3, arguments.size());
+    Assert.assertEquals(4, arguments.size());
+    Assert.assertTrue(arguments.containsKey("this"));
     Assert.assertTrue(arguments.containsKey("apiKey"));
     Assert.assertTrue(arguments.containsKey("uriInfo"));
     Assert.assertTrue(arguments.containsKey("value"));

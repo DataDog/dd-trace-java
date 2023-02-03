@@ -239,6 +239,20 @@ public class LogProbesInstrumentationTest {
         "index[10] out of bounds: [0-3]", snapshot.getEvaluationErrors().get(0).getMessage());
   }
 
+  @Test
+  public void lineTemplateThisLog() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot06";
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installSingleProbe("this is log line for this={this}", CLASS_NAME, null, null, "24");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assert.assertEquals(42, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertEquals(
+        "this is log line for this={STATIC_STR=strStatic, intValue=48, doubleValue=3.14, strValue=done, strList=..., ...}",
+        snapshot.getSummary());
+  }
+
   private DebuggerTransformerTest.TestSnapshotListener installSingleProbe(
       String template, String typeName, String methodName, String signature, String... lines) {
     LogProbe logProbe = createProbe(LOG_ID, template, typeName, methodName, signature, lines);

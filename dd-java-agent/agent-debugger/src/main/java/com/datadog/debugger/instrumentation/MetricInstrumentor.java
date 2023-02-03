@@ -13,6 +13,7 @@ import com.datadog.debugger.probe.Where;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
+import datadog.trace.bootstrap.debugger.el.Values;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -264,17 +265,13 @@ public class MetricInstrumentor extends Instrumentor {
       if (name == null || name.isEmpty()) {
         throw new IllegalArgumentException("empty name for lookup operation");
       }
-      InsnList insnList = new InsnList();
-      Type currentType;
-      String rawName = name;
-      if (name.startsWith(ValueReferences.FIELD_PREFIX)) {
-        rawName = name.substring(ValueReferences.FIELD_PREFIX.length());
-        currentType = tryRetrieveField(rawName, insnList);
-      } else {
-        currentType = tryRetrieve(name, insnList);
+      if (name.equals(ValueReferences.THIS)) {
+        return Values.THIS_OBJECT;
       }
+      InsnList insnList = new InsnList();
+      Type currentType = tryRetrieve(name, insnList);
       if (currentType == null) {
-        reportError("Cannot resolve symbol " + rawName);
+        reportError("Cannot resolve symbol " + name);
         return null;
       }
       convertIfRequired(currentType, expectedType, insnList);
@@ -283,12 +280,19 @@ public class MetricInstrumentor extends Instrumentor {
 
     @Override
     public Object getMember(Object target, String name) {
-      if (target instanceof ResolverResult) {
+      Type currentType = null;
+      InsnList insnList = null;
+      if (target == Values.THIS_OBJECT) {
+        insnList = new InsnList();
+        currentType = tryRetrieveField(name, insnList);
+        convertIfRequired(currentType, expectedType, insnList);
+      } else if (target instanceof ResolverResult) {
         ResolverResult result = (ResolverResult) target;
-        Type currentType = followReferences(result.type, name, result.insnList);
-        if (currentType != null) {
-          return new ObjectValue(new ResolverResult(currentType, result.insnList));
-        }
+        insnList = result.insnList;
+        currentType = followReferences(result.type, name, insnList);
+      }
+      if (currentType != null) {
+        return new ObjectValue(new ResolverResult(currentType, insnList));
       }
       return UndefinedValue.INSTANCE;
     }

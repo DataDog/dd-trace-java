@@ -30,7 +30,12 @@ public class RefResolverHelper {
   }
 
   public static ValueReferenceResolver createResolver(
-      Map<String, Object> locals, Map<String, Object> fields) {
+      Map<String, Object> args, Map<String, Object> locals, Map<String, Object> fields) {
+    Snapshot.CapturedValue[] argValues = null;
+    if (args != null) {
+      argValues = new Snapshot.CapturedValue[args.size()];
+      fillValues(args, argValues);
+    }
     Snapshot.CapturedValue[] localValues = null;
     if (locals != null) {
       localValues = new Snapshot.CapturedValue[locals.size()];
@@ -41,14 +46,18 @@ public class RefResolverHelper {
       fieldValues = new Snapshot.CapturedValue[fields.size()];
       fillValues(fields, fieldValues);
     }
-    return new Snapshot.CapturedContext(null, localValues, null, null, fieldValues);
+    return new Snapshot.CapturedContext(argValues, localValues, null, null, fieldValues);
   }
 
   private static void fillValues(Map<String, Object> fields, Snapshot.CapturedValue[] fieldValues) {
     int index = 0;
     for (Map.Entry<String, Object> entry : fields.entrySet()) {
+      Object value = entry.getValue();
       fieldValues[index++] =
-          Snapshot.CapturedValue.of(entry.getKey(), String.class.getTypeName(), entry.getValue());
+          Snapshot.CapturedValue.of(
+              entry.getKey(),
+              value != null ? value.getClass().getTypeName() : Object.class.getTypeName(),
+              value);
     }
   }
 }
