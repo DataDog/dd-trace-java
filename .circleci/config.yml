@@ -393,6 +393,9 @@ jobs:
       stage:
         type: string
         default: ""
+      parallelism:
+        type: integer
+        default: 1
       maxWorkers:
         type: integer
         default: 2
@@ -402,6 +405,8 @@ jobs:
       continueOnFailure:
         type: boolean
         default: false
+
+    parallelism: << parameters.parallelism >>
 
     steps:
       - setup_code
@@ -730,6 +735,7 @@ build_test_jobs: &build_test_jobs
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
+      parallelism: 4
       maxWorkers: 8
       matrix:
         <<: *test_matrix
@@ -742,6 +748,7 @@ build_test_jobs: &build_test_jobs
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
+      parallelism: 4
       maxWorkers: 8
       testJvm: "8"
 
@@ -754,6 +761,7 @@ build_test_jobs: &build_test_jobs
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
+      parallelism: 4
       maxWorkers: 8
       testJvm: "8"
 
