@@ -57,13 +57,6 @@ public class DebuggerAgent {
               + ". Consider upgrading the datadog agent.");
       return;
     }
-    if (ddAgentFeaturesDiscovery.getConfigEndpoint() == null) {
-      log.error(
-          "No endpoint detected to read probe config from datadog agent at "
-              + agentUrl
-              + ". Consider upgrading the datadog agent.");
-      return;
-    }
 
     sink = new DebuggerSink(config);
     sink.start();
