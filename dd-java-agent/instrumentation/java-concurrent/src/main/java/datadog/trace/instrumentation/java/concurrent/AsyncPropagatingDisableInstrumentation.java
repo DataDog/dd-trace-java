@@ -44,6 +44,19 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
   private static final ElementMatcher<TypeDescription> REACTOR_DISABLED_TYPE_INITIALIZERS =
       namedOneOf("reactor.core.scheduler.SchedulerTask", "reactor.core.scheduler.WorkerTask");
 
+  // aims to capture direct executors found in guava, and match as many known shading patterns as
+  // reasonable,
+  // matching on the conventionally used simple names is appealing but it isn't possible to certain
+  // about
+  // semantics of an executor by its name, so this errs on the side of caution
+  private static final ElementMatcher<TypeDescription> DIRECT_EXECUTORS =
+      nameEndsWith(".concurrent.MoreExecutors$DirectExecutor")
+          .or(nameEndsWith(".concurrent.DirectExecutor"))
+          .or(nameEndsWith(".concurrent.MoreExecutors$DirectExecutorService"))
+          .or(nameEndsWith(".grpc.Context$DirectExecutor"))
+          .or(nameEndsWith(".guava.MoreExecutors$DirectExecutorService"))
+          .or(nameEndsWith(".guava.MoreExecutors$DirectExecutor"));
+
   @Override
   public boolean onlyMatchKnownTypes() {
     return false; // known type list is not complete, so always expand search to consider hierarchy
@@ -75,7 +88,11 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
       "net.sf.ehcache.store.disk.DiskStorageFactory",
       "org.springframework.jms.listener.DefaultMessageListenerContainer",
       "org.apache.activemq.broker.TransactionBroker",
-      "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager"
+      "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager",
+      "com.google.common.util.concurrent.DirectExecutor",
+      "com.google.common.util.concurrent.MoreExecutors$DirectExecutor",
+      "com.google.common.util.concurrent.MoreExecutors$DirectExecutorService",
+      "io.grpc.Context$DirectExecutor"
     };
   }
 
@@ -86,7 +103,10 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return RX_WORKERS.or(GRPC_MANAGED_CHANNEL).or(REACTOR_DISABLED_TYPE_INITIALIZERS);
+    return RX_WORKERS
+        .or(GRPC_MANAGED_CHANNEL)
+        .or(REACTOR_DISABLED_TYPE_INITIALIZERS)
+        .or(DIRECT_EXECUTORS);
   }
 
   @Override
@@ -170,6 +190,8 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
         advice);
     transformation.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
+    transformation.applyAdvice(
+        namedOneOf("execute", "newTaskFor").and(isDeclaredBy(DIRECT_EXECUTORS)), advice);
   }
 
   public static class DisableAsyncAdvice {
