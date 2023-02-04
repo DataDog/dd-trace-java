@@ -14,8 +14,8 @@ apply plugin: 'jsonschema2pojo'
 
 repositories {
   ivy {
-    artifactPattern 'http://sqreen-ci-java.s3-website-us-east-1.amazonaws.com/jars/[organisation]/[artifact]-[revision](-[classifier]).[ext]'
-    ivyPattern 'http://sqreen-ci-java.s3-website-us-east-1.amazonaws.com/jars/[organisation]/[module]-[revision].xml'
+    artifactPattern 'https://sqreen-ci-java.s3.amazonaws.com/jars/[organisation]/[artifact]-[revision](-[classifier]).[ext]'
+    ivyPattern 'https://sqreen-ci-java.s3.amazonaws.com/jars/[organisation]/[module]-[revision].xml'
   }
 }
 
@@ -24,7 +24,7 @@ dependencies {
   implementation project(':internal-api')
   implementation project(':communication')
   implementation project(':telemetry')
-  implementation group: 'io.sqreen', name: 'libsqreen', version: '5.3.0'
+  implementation group: 'io.sqreen', name: 'libsqreen', version: '5.4.0'
   implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
 
   annotationProcessor deps.autoserviceProcessor
