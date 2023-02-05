@@ -5,46 +5,6 @@ defaults: &defaults
   docker:
     - image: &default_container datadog/dd-trace-java-docker-build:latest
 
-# The caching setup of the build dependencies is somewhat involved because of how CircleCI works.
-# 1) Caches are immutable, so you can not reuse a cache key (the save will simply be ignored)
-# 2) Cache keys are prefix matched, and the most recently updated cache that matches will be picked
-#
-# There is a weekly job that runs on Monday mornings that builds a new cache from scratch.
-dependency_cache_keys: &dependency_cache_keys
-  keys:
-    # New branch commits will find this cache
-    - dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
-    # New branches fall back on main build caches
-    - dd-trace-java-dep-v1-master-{{ checksum "_circle_ci_cache_base_id" }}-
-
-dependency_cache_paths: &dependency_cache_paths
-  paths:
-    # Cached dependencies and wrappers for gradle
-    - ~/.gradle
-    # Cached dependencies for maven
-    - ~/.m2
-    # Cached launchers and compilers for sbt
-    - ~/.sbt
-    # Cached dependencies for sbt handled by ivy
-    - ~/.ivy2
-    # Cached dependencies for sbt handled by coursier
-    - ~/.cache/coursier
-
-build_cache_keys: &build_cache_keys
-  keys:
-    # Dependent steps will find this cache
-    - dd-trace-java-build-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
-    # New branch commits will find this cache
-    - dd-trace-java-build-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
-    # New branches fall back on main build caches
-    - dd-trace-java-build-v1-master-{{ checksum "_circle_ci_cache_base_id" }}-
-
-build_cache_paths: &build_cache_paths
-  paths:
-    # Gradle version specific cache for incremental builds. Needs to match version in
-    # gradle/wrapper/gradle-wrapper.properties
-    - ~/.gradle/caches/7.5.47-20220929220000+0000
-
 test_matrix: &test_matrix
   parameters:
     testJvm: [ "IBM8", "SEMERU8", "ZULU8", "ORACLE8", "11", "ZULU11", "17" ]
@@ -110,9 +70,6 @@ commands:
             fi
             # Have new branches start from the main cache
             echo "${BASE_CACHE_ID}" >| _circle_ci_cache_base_id
-
-      - attach_workspace:
-          at: .
 
   setup_testcontainers:
     description: >-
@@ -186,34 +143,114 @@ commands:
           command: cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes || true
           when: always
 
+
+  # The caching setup of the build dependencies is somewhat involved because of how CircleCI works.
+  # 1) Caches are immutable, so you can not reuse a cache key (the save will simply be ignored)
+  # 2) Cache keys are prefix matched, and the most recently updated cache that matches will be picked
+  #
+  # There is a weekly job that runs on Monday mornings that builds a new cache from scratch.
+  restore_dependency_cache:
+    parameters:
+      cacheType:
+        type: string
+    steps:
+      - restore_cache:
+          keys:
+            # Dependent steps will find this cache
+            - dd-trace-java-dep<< parameters.cacheType >>-v2-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+            # New branch commits will find this cache
+            - dd-trace-java-dep<< parameters.cacheType >>-v2-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
+            # New branches fall back on main build caches
+            - dd-trace-java-dep<< parameters.cacheType >>-v2-master-{{ checksum "_circle_ci_cache_base_id" }}-
+            # Fallback to the previous cache during transition
+            - dd-trace-java-dep-v1-master-{{ checksum "_circle_ci_cache_base_id" }}-
+
+  save_dependency_cache:
+    parameters:
+      cacheType:
+        type: string
+    steps:
+      - save_cache:
+          key: dd-trace-java-dep<< parameters.cacheType >>-v2-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+          paths:
+            # Cached dependencies and wrappers for gradle
+            - ~/.gradle/caches
+            - ~/.gradle/wrapper
+            # Cached dependencies for maven
+            - ~/.m2
+            # Cached launchers and compilers for sbt
+            - ~/.sbt
+            # Cached dependencies for sbt handled by ivy
+            - ~/.ivy2
+            # Cached dependencies for sbt handled by coursier
+            - ~/.cache/coursier
+
+  restore_build_cache:
+    parameters:
+      cacheType:
+        type: string
+    steps:
+      - restore_cache:
+          keys:
+            # Dependent steps will find this cache
+            - dd-trace-java-build<< parameters.cacheType >>-v2-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+
+  save_build_cache:
+    parameters:
+      cacheType:
+        type: string
+    steps:
+      - save_cache:
+          key: dd-trace-java-build<< parameters.cacheType >>-v2-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+          paths:
+            # Gradle version specific cache for incremental builds. Needs to match version in
+            # gradle/wrapper/gradle-wrapper.properties
+            - ~/.gradle/caches/7.5.47-20220929220000+0000
+            # Workspace
+            - ~/dd-trace-java/.gradle
+            - ~/dd-trace-java/workspace
 jobs:
   build:
     <<: *defaults
     resource_class: xlarge
 
+    parameters:
+      gradleTarget:
+        type: string
+      cacheType:
+        type: string
+      collectLibs:
+        type: boolean
+        default: false
+
     steps:
       - setup_code
 
-      - restore_cache:
-          <<: *dependency_cache_keys
+      - restore_dependency_cache:
+          cacheType: << parameters.cacheType >>
 
       - run:
           name: Build Project
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew clean compile shadowJar test -PskipTests
+            ./gradlew clean
+            << parameters.gradleTarget >>
+            -PskipTests
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
             --rerun-tasks
 
-      - run:
-          name: Collect Libs
-          when: always
-          command: .circleci/collect_libs.sh
-
-      - store_artifacts:
-          path: ./libs
+      - when:
+          condition:
+            equal: [ true, << parameters.collectLibs >> ]
+          steps:
+            - run:
+                name: Collect Libs
+                when: always
+                command: .circleci/collect_libs.sh
+            - store_artifacts:
+                path: ./libs
 
       - run:
           name: Collect reports
@@ -228,28 +265,21 @@ jobs:
       - store_artifacts:
           path: ./check_reports
 
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .gradle
-            - workspace
-
       # Save a full dependency cache when building on master or a base project branch.
-      # We avoid this in PRs to speed up builds at the cost of downloading new dependencies a few more times.
+      # We used to do this on the first build of each PR, but now it's skipped at the
+      # cost of downloading new dependencies a few more times.
       - when:
           condition:
             matches:
               pattern: "^(master|project/.+)$"
               value: << pipeline.git.branch >>
           steps:
-            - save_cache:
-                key: dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
-                <<: *dependency_cache_paths
+            - save_dependency_cache:
+                cacheType: << parameters.cacheType >>
 
       # Save the small build cache
-      - save_cache:
-          key: dd-trace-java-build-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
-          <<: *build_cache_paths
+      - save_build_cache:
+          cacheType: << parameters.cacheType >>
 
       - display_memory_usage
 
@@ -274,12 +304,10 @@ jobs:
 
     steps:
       - setup_code
-
-      - restore_cache:
-          <<: *dependency_cache_keys
-
-      - restore_cache:
-          <<: *build_cache_keys
+      - restore_dependency_cache:
+          cacheType: full
+      - restore_build_cache:
+          cacheType: full
 
       - run:
           name: Check Project
@@ -297,6 +325,16 @@ jobs:
 
   build_clean_cache:
     <<: *defaults
+
+    parameters:
+      gradleTarget:
+        type: string
+      cacheType:
+        type: string
+      collectLibs:
+        type: boolean
+        default: false
+
     resource_class: xlarge
 
     steps:
@@ -307,18 +345,25 @@ jobs:
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew clean compile shadowJar check -PskipTests
+            ./gradlew clean
+            << parameters.gradleTarget >>
+            -PskipTests
+            -PskipBuildSrcTest
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
             --rerun-tasks
 
-      - run:
-          name: Collect Libs
-          when: always
-          command: .circleci/collect_libs.sh
-
-      - store_artifacts:
-          path: ./libs
+      - when:
+          condition:
+            not:
+              equal: [true, << parameters.collectLibs >>]
+          steps:
+          - run:
+              name: Collect Libs
+              when: always
+              command: .circleci/collect_libs.sh
+          - store_artifacts:
+              path: ./libs
 
       - run:
           name: Collect reports
@@ -333,13 +378,8 @@ jobs:
       - store_artifacts:
           path: ./check_reports
 
-      - save_cache:
-          key: dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ epoch }}
-          <<: *dependency_cache_paths
-
-      - save_cache:
-          key: dd-trace-java-build-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ epoch }}
-          <<: *build_cache_paths
+      - save_dependency_cache:
+          cacheType: << parameters.cacheType >>
 
       - display_memory_usage
 
@@ -377,6 +417,8 @@ jobs:
       continueOnFailure:
         type: boolean
         default: false
+      cacheType:
+        type: string
 
     steps:
       - setup_code
@@ -384,11 +426,10 @@ jobs:
       - skip_unless_matching_files_changed:
           pattern: << parameters.triggeredBy >>
 
-      - restore_cache:
-          <<: *dependency_cache_keys
-
-      - restore_cache:
-          <<: *build_cache_keys
+      - restore_dependency_cache:
+          cacheType: << parameters.cacheType >>
+      - restore_build_cache:
+          cacheType: << parameters.cacheType >>
 
       - when:
           condition:
@@ -503,12 +544,10 @@ jobs:
 
     steps:
       - setup_code
-
-      - restore_cache:
-          <<: *dependency_cache_keys
-
-      - restore_cache:
-          <<: *build_cache_keys
+      - restore_dependency_cache:
+          cacheType: lib
+      - restore_build_cache:
+          cacheType: lib
 
       - run:
           name: Publish Artifacts Locally
@@ -550,11 +589,10 @@ jobs:
       # downloading the artifacts each time.
       #
       # Let's at least restore the build cache to have something to start from.
-      - restore_cache:
-          <<: *dependency_cache_keys
-
-      - restore_cache:
-          <<: *build_cache_keys
+      - restore_dependency_cache:
+          cacheType: inst
+      - restore_build_cache:
+          cacheType: inst
 
       - run:
           name: Gather muzzle tasks
@@ -595,8 +633,9 @@ jobs:
       weblog-variant:
         type: string
     steps:
-
       - setup_code
+      - restore_build_cache:
+          cacheType: lib
 
       - run:
           name: Install good version of docker-compose
@@ -617,8 +656,8 @@ jobs:
       - run:
           name: Copy jar file to system test binaries folder
           command: |
-            ls -la workspace/dd-java-agent/build/libs
-            cp workspace/dd-java-agent/build/libs/*.jar system-tests/binaries/
+            ls -la ~/dd-trace-java/workspace/dd-java-agent/build/libs
+            cp ~/dd-trace-java/workspace/dd-java-agent/build/libs/*.jar system-tests/binaries/
 
       - run:
           name: Build
@@ -657,12 +696,45 @@ jobs:
           destination: logs_java_<< parameters.weblog-variant >>_dev.tar.gz
 
 build_test_jobs: &build_test_jobs
-  - build
+  - build:
+      name: build_full
+      gradleTarget: shadowJar test
+      cacheType: full
+  - build:
+      name: build_lib
+      gradleTarget: shadowJar
+      cacheType: lib
+      collectLibs: true
+  - build:
+      name: build_base
+      gradleTarget: :baseTest
+      cacheType: base
+  - build:
+      name: build_inst
+      gradleTarget: :instrumentationTest
+      cacheType: inst
+  - build:
+      name: build_latestdep
+      gradleTarget: latestDepTest
+      cacheType: latestdep
+  - build:
+      name: build_smoke
+      gradleTarget: :smokeTest
+      cacheType: smoke
+  - build:
+      name: build_profiling
+      gradleTarget: :profilingTest
+      cacheType: profiling
   - spotless
 
   - fan_in:
       requires:
-        - build
+        - build_full
+        - build_lib
+        - build_base
+        - build_inst
+        - build_smoke
+        - build_profiling
         - spotless
       name: ok_to_test
       stage: ok_to_test
@@ -679,6 +751,7 @@ build_test_jobs: &build_test_jobs
       gradleTarget: ":baseTest"
       gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
       stage: core
+      cacheType: base
       maxWorkers: 6
       matrix:
         <<: *test_matrix
@@ -691,6 +764,7 @@ build_test_jobs: &build_test_jobs
       gradleTarget: :baseTest jacocoTestReport jacocoTestCoverageVerification
       gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
       stage: core
+      cacheType: base
       maxWorkers: 6
       testJvm: "8"
 
@@ -702,6 +776,7 @@ build_test_jobs: &build_test_jobs
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
+      cacheType: inst
       maxWorkers: 8
       matrix:
         <<: *test_matrix
@@ -714,17 +789,20 @@ build_test_jobs: &build_test_jobs
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
+      cacheType: inst
       maxWorkers: 8
       testJvm: "8"
 
   - xlarge_tests:
       requires:
         - ok_to_test
+        - build_latestdep
       name: test_8_inst_latest
       gradleTarget: "latestDepTest"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
+      cacheType: latestdep
       maxWorkers: 8
       testJvm: "8"
 
@@ -737,6 +815,7 @@ build_test_jobs: &build_test_jobs
       continueOnFailure: true
       triggeredBy: *core_modules
       stage: flaky
+      cacheType: full
       maxWorkers: 4
       testJvm: "8"
 
@@ -748,6 +827,7 @@ build_test_jobs: &build_test_jobs
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *profiling_modules
       stage: profiling
+      cacheType: profiling
       name: test_<< matrix.testJvm >>_profiling
       matrix:
         <<: *profiling_test_matrix
@@ -761,6 +841,7 @@ build_test_jobs: &build_test_jobs
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *iast_modules
       stage: iast
+      cacheType: base
       matrix:
         <<: *profiling_test_matrix
 
@@ -773,6 +854,7 @@ build_test_jobs: &build_test_jobs
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *debugger_modules
       stage: debugger
+      cacheType: base
       matrix:
         <<: *profiling_test_matrix
 
@@ -783,6 +865,7 @@ build_test_jobs: &build_test_jobs
       gradleTarget: "stageMainDist :smokeTest"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
+      cacheType: smoke
       maxWorkers: 8
       matrix:
         <<: *test_matrix
@@ -794,6 +877,7 @@ build_test_jobs: &build_test_jobs
       gradleTarget: "stageMainDist :smokeTest"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
+      cacheType: smoke
       maxWorkers: 8
       testJvm: "IBM11"
 
@@ -804,6 +888,7 @@ build_test_jobs: &build_test_jobs
       gradleTarget: "stageMainDist :smokeTest"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
+      cacheType: smoke
       maxWorkers: 8
       testJvm: "IBM17"
 
@@ -813,6 +898,7 @@ build_test_jobs: &build_test_jobs
       name: test_GRAALVM11_smoke
       gradleTarget: "stageMainDist :dd-smoke-test:spring-native:test"
       stage: smoke
+      cacheType: smoke
       testJvm: "GRAALVM11"
 
   - xlarge_tests:
@@ -821,6 +907,7 @@ build_test_jobs: &build_test_jobs
       name: test_GRAALVM17_smoke
       gradleTarget: "stageMainDist :dd-smoke-test:spring-native:test"
       stage: smoke
+      cacheType: smoke
       testJvm: "GRAALVM17"
 
 
@@ -831,6 +918,7 @@ build_test_jobs: &build_test_jobs
       gradleTarget: "stageMainDist :smokeTest"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
+      cacheType: smoke
       maxWorkers: 8
       testJvm: "8"
 
@@ -858,6 +946,7 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
       triggeredBy: *agent_integration_tests_modules
       gradleTarget: traceAgentTest
+      cacheType: base
       testJvm: "8"
 
   - test_published_artifacts:
@@ -963,5 +1052,33 @@ workflows:
               only:
                 - master
     jobs:
-      # This will rebuild a main cache with a new timestamp from a clean slate
-      - build_clean_cache
+      # This will rebuild a main caches with a new timestamp from a clean slate
+      - build_clean_cache:
+          name: build_cache_full
+          gradleTarget: shadowJar test
+          cacheType: full
+      - build_clean_cache:
+          name: build_cache_lib
+          gradleTarget: shadowJar
+          cacheType: lib
+          collectLibs: false
+      - build_clean_cache:
+          name: build_cache_base
+          gradleTarget: :baseTest
+          cacheType: base
+      - build_clean_cache:
+          name: build_cache_inst
+          gradleTarget: :instrumentationTest
+          cacheType: inst
+      - build_clean_cache:
+          name: build_cache_latestdep
+          gradleTarget: latestDepTest
+          cacheType: latestdep
+      - build_clean_cache:
+          name: build_cache_smoke
+          gradleTarget: :smokeTest
+          cacheType: smoke
+      - build_clean_cache:
+          name: build_cache_profiling
+          gradleTarget: :profilingTest
+          cacheType: profiling
