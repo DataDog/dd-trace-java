@@ -4,6 +4,7 @@ import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import graphql.ExecutionInput
 import graphql.ExecutionResult
 import graphql.GraphQL
 import graphql.schema.DataFetcher
@@ -66,8 +67,8 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
 
   def "successful query produces spans"() {
     setup:
-    def query = 'query findBookById {\n' +
-      '  bookById(id: "book-1") {\n' +
+    def query = 'query findBookById($id: ID) {\n' +
+      '  bookById(id: $id) {\n' +
       '    id #test\n' +
       '    name\n' +
       '    pageCount\n' +
@@ -78,8 +79,8 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
       '    isbn\n' +
       '  }\n' +
       '}'
-    def expectedQuery = 'query findBookById {\n' +
-      '  bookById(id: ?) {\n' +
+    def expectedQuery = 'query findBookById($id: ID) {\n' +
+      '  bookById(id: $id) {\n' +
       '    id\n' +
       '    name\n' +
       '    pageCount\n' +
@@ -91,7 +92,8 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
       '  }\n' +
       '}\n'
 
-    ExecutionResult result = graphql.execute(query)
+    ExecutionInput input = ExecutionInput.newExecutionInput().query(query).variables([id: "book-1"]).build()
+    ExecutionResult result = graphql.execute(input)
 
     expect:
     result.getErrors().isEmpty()
@@ -204,7 +206,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
       '  }\n' +
       '}'
     def expectedQuery = 'query findBookById {\n' +
-      '  bookById(id: ?) {\n' +
+      '  bookById(id: "") {\n' +
       '    id\n' +
       '    title\n' +
       '    color\n' +
@@ -320,7 +322,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
       '  }\n' +
       '}'
     def expectedQuery = 'query findBookById {\n' +
-      '  bookById(id: ?) {\n' +
+      '  bookById(id: "") {\n' +
       '    id\n' +
       '    cover\n' +
       '  }\n' +
