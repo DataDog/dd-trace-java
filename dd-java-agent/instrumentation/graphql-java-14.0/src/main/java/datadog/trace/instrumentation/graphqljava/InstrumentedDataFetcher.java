@@ -9,8 +9,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters;
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
-import graphql.schema.GraphQLNamedType;
 import graphql.schema.GraphQLOutputType;
+import graphql.schema.GraphQLTypeUtil;
 
 public class InstrumentedDataFetcher implements DataFetcher<Object> {
   private final DataFetcher<?> dataFetcher;
@@ -35,11 +35,13 @@ public class InstrumentedDataFetcher implements DataFetcher<Object> {
     } else {
       final AgentSpan fieldSpan = startSpan("graphql.field", this.requestSpan.context());
       DECORATE.afterStart(fieldSpan);
+      String parentType = GraphQLTypeUtil.simplePrint(environment.getParentType());
+      String fieldName = environment.getField().getName();
+      String schemaCoordinates = parentType + '.' + fieldName;
+      fieldSpan.setResourceName(schemaCoordinates);
+      fieldSpan.setTag("graphql.coordinates", schemaCoordinates);
       GraphQLOutputType fieldType = environment.getFieldType();
-      if (fieldType instanceof GraphQLNamedType) {
-        String typeName = ((GraphQLNamedType) fieldType).getName();
-        fieldSpan.setTag("graphql.type", typeName);
-      }
+      fieldSpan.setTag("graphql.type", GraphQLTypeUtil.simplePrint(fieldType));
       try (AgentScope scope = activateSpan(fieldSpan)) {
         return dataFetcher.get(environment);
       } catch (Exception e) {

@@ -103,7 +103,7 @@ class GraphQLTest extends AgentTestRunner {
         }
         span {
           operationName "graphql.field"
-          resourceName "graphql.field"
+          resourceName "Book.author"
           childOf(span(0))
           spanType DDSpanTypes.GRAPHQL
           errored false
@@ -111,12 +111,13 @@ class GraphQLTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "graphql-java"
             "graphql.type" "Author"
+            "graphql.coordinates" "Book.author"
             defaultTags()
           }
         }
         span {
           operationName "graphql.field"
-          resourceName "graphql.field"
+          resourceName "Query.bookById"
           childOf(span(0))
           spanType DDSpanTypes.GRAPHQL
           errored false
@@ -124,6 +125,7 @@ class GraphQLTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "graphql-java"
             "graphql.type" "Book"
+            "graphql.coordinates" "Query.bookById"
             defaultTags()
           }
         }
@@ -322,7 +324,7 @@ class GraphQLTest extends AgentTestRunner {
         }
         span {
           operationName "graphql.field"
-          resourceName "graphql.field"
+          resourceName "Book.cover"
           childOf(span(0))
           spanType DDSpanTypes.GRAPHQL
           errored true
@@ -330,6 +332,7 @@ class GraphQLTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "graphql-java"
             "graphql.type" "String"
+            "graphql.coordinates" "Book.cover"
             "error.type" "java.lang.IllegalStateException"
             "error.message" "TEST"
             "error.stack" String
@@ -338,7 +341,7 @@ class GraphQLTest extends AgentTestRunner {
         }
         span {
           operationName "graphql.field"
-          resourceName "graphql.field"
+          resourceName "Query.bookById"
           childOf(span(0))
           spanType DDSpanTypes.GRAPHQL
           errored false
@@ -346,6 +349,7 @@ class GraphQLTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "graphql-java"
             "graphql.type" "Book"
+            "graphql.coordinates" "Query.bookById"
             defaultTags()
           }
         }
