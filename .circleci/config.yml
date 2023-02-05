@@ -210,7 +210,7 @@ jobs:
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew clean compile shadowJar test -PskipTests
+            ./gradlew clean compile shadowJar test -PskipTests -PskipBuildSrcTest
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
             --rerun-tasks
@@ -435,6 +435,7 @@ jobs:
             MAVEN_OPTS="-Xms64M -Xmx512M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms<< parameters.maxDaemonHeapSize >> -Xmx<< parameters.maxDaemonHeapSize >> $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
             ./gradlew <<# parameters.gradleTarget >><< parameters.gradleTarget >>:<</ parameters.gradleTarget >><< parameters.testTask >> << parameters.gradleParameters >>
+            -PskipBuildSrcTest
             <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
             --max-workers=<< parameters.maxWorkers >>
