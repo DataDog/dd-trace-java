@@ -2,6 +2,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import graphql.ExecutionInput
 import graphql.ExecutionResult
 import graphql.GraphQL
 import graphql.schema.DataFetcher
@@ -57,8 +58,8 @@ class GraphQLTest extends AgentTestRunner {
 
   def "successful query produces spans"() {
     setup:
-    def query = 'query findBookById {\n' +
-      '  bookById(id: "book-1") {\n' +
+    def query = 'query findBookById($id: ID) {\n' +
+      '  bookById(id: $id) {\n' +
       '    id #test\n' +
       '    name\n' +
       '    pageCount\n' +
@@ -68,8 +69,8 @@ class GraphQLTest extends AgentTestRunner {
       '    }\n' +
       '  }\n' +
       '}'
-    def expectedQuery = 'query findBookById {\n' +
-      '  bookById(id: ?) {\n' +
+    def expectedQuery = 'query findBookById($id: ID) {\n' +
+      '  bookById(id: $id) {\n' +
       '    id\n' +
       '    name\n' +
       '    pageCount\n' +
@@ -80,7 +81,8 @@ class GraphQLTest extends AgentTestRunner {
       '  }\n' +
       '}\n'
 
-    ExecutionResult result = graphql.execute(query)
+    ExecutionInput input = ExecutionInput.newExecutionInput().query(query).variables([id: "book-1"]).build()
+    ExecutionResult result = graphql.execute(input)
 
     expect:
     result.getErrors().isEmpty()
@@ -177,7 +179,7 @@ class GraphQLTest extends AgentTestRunner {
       '  }\n' +
       '}'
     def expectedQuery = 'query findBookById {\n' +
-      '  bookById(id: ?) {\n' +
+      '  bookById(id: "") {\n' +
       '    id\n' +
       '    title\n' +
       '    color\n' +
@@ -293,7 +295,7 @@ class GraphQLTest extends AgentTestRunner {
       '  }\n' +
       '}'
     def expectedQuery = 'query findBookById {\n' +
-      '  bookById(id: ?) {\n' +
+      '  bookById(id: "") {\n' +
       '    id\n' +
       '    cover\n' +
       '  }\n' +
