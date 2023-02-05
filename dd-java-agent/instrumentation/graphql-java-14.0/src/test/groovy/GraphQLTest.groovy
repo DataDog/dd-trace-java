@@ -35,6 +35,13 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
             return Book.getById(bookId)
           }
         }))
+        .type(newTypeWiring("Book").dataFetcher("isbn", new DataFetcher<String>() {
+          @Override
+          String get(DataFetchingEnvironment environment) throws Exception {
+            Book book = environment.getSource()
+            return book.getIsbn()
+          }
+        }))
         .type(newTypeWiring("Book").dataFetcher("author", new DataFetcher<Author>() {
           @Override
           Author get(DataFetchingEnvironment environment) throws Exception {
@@ -68,6 +75,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
       '      firstName\n' +
       '      lastName\n' +
       '    }\n' +
+      '    isbn\n' +
       '  }\n' +
       '}'
     def expectedQuery = 'query findBookById {\n' +
@@ -79,6 +87,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
       '      firstName\n' +
       '      lastName\n' +
       '    }\n' +
+      '    isbn\n' +
       '  }\n' +
       '}\n'
 
@@ -88,7 +97,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
     result.getErrors().isEmpty()
 
     assertTraces(1) {
-      trace(6) {
+      trace(7) {
         span {
           operationName operation()
           resourceName operation()
@@ -100,6 +109,20 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "graphql-java"
             "graphql.query" expectedQuery
             "graphql.operation.name" "findBookById"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "graphql.field"
+          resourceName "Book.isbn"
+          childOf(span(0))
+          spanType DDSpanTypes.GRAPHQL
+          errored false
+          measured true
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            "graphql.type" "ID!"
+            "graphql.coordinates" "Book.isbn"
             defaultTags()
           }
         }
@@ -134,7 +157,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
         span {
           operationName "getBookById"
           resourceName "book"
-          childOf(span(2))
+          childOf(span(3))
           spanType null
           errored false
           measured false
