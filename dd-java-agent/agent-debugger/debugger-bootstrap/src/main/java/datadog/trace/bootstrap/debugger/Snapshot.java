@@ -208,8 +208,6 @@ public class Snapshot {
           continue;
         }
       }
-      // generates id only when effectively committing
-      this.id = UUID.randomUUID().toString();
       /*
        * Record stack trace having the caller of this method as 'top' frame.
        * For this it is necessary to discard:
@@ -218,33 +216,26 @@ public class Snapshot {
        * - Snapshot.commit()
        */
       recordStackTrace(3);
-      if (currentProbeId.equals(probe.id)) {
-        if (status.hasErrors) {
-          evaluationErrors = errorsByProbeIds.get(currentProbeId);
-        }
-        DebuggerContext.addSnapshot(this);
-      } else {
-        DebuggerContext.addSnapshot(copy(status.probeDetails, UUID.randomUUID().toString()));
-      }
+      DebuggerContext.addSnapshot(duplicateSnapshotForProbe(status.probeDetails));
     }
   }
 
-  private Snapshot copy(ProbeDetails additionalProbe, String newSnapshotId) {
+  private Snapshot duplicateSnapshotForProbe(ProbeDetails probe) {
     Snapshot snapshot =
         new Snapshot(
-            newSnapshotId,
+            UUID.randomUUID().toString(),
             version,
             timestamp,
             duration,
             stack,
-            captures,
-            additionalProbe,
+            probe.captureSnapshot ? captures : new Captures(),
+            probe,
             language,
             thread,
             thisClassName,
             traceId,
             spanId);
-    List<EvaluationError> evalErrors = errorsByProbeIds.get(additionalProbe.id);
+    List<EvaluationError> evalErrors = errorsByProbeIds.get(probe.id);
     if (evalErrors != null) {
       snapshot.evaluationErrors = new ArrayList<>(evalErrors);
     }
