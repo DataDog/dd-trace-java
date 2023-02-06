@@ -35,6 +35,8 @@ public class InternalSpanTypes {
   public static final CharSequence GRAPHQL = UTF8BytesString.create(DDSpanTypes.GRAPHQL);
 
   public static final CharSequence TEST = UTF8BytesString.create(DDSpanTypes.TEST);
+  public static final CharSequence TEST_SUITE_END =
+      UTF8BytesString.create(DDSpanTypes.TEST_SUITE_END);
 
   public static final CharSequence VULNERABILITY =
       UTF8BytesString.create(DDSpanTypes.VULNERABILITY);

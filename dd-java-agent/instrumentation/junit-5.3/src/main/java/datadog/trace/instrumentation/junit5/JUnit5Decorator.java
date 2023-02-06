@@ -39,7 +39,8 @@ public class JUnit5Decorator extends TestDecorator {
     Class<?> testClass = JUnit5Utils.getTestClass(methodSource);
     Method testMethod = JUnit5Utils.getTestMethod(methodSource);
 
-    afterTestStart(span, testSuitName, testName, testParameters, version, testClass, testMethod);
+    afterTestStart(
+        span, testSuitName, testName, testParameters, version, testClass, testMethod, null);
 
     span.setTag(Tags.TEST_STATUS, TEST_PASS);
   }
@@ -55,15 +56,16 @@ public class JUnit5Decorator extends TestDecorator {
     Class<?> testClass = JUnit5Utils.getTestClass(methodSource);
     Method testMethod = JUnit5Utils.getTestMethod(methodSource);
 
-    afterTestStart(span, testSuiteName, testName, null, version, testClass, testMethod);
+    afterTestStart(span, testSuiteName, testName, null, version, testClass, testMethod, null);
 
     span.setTag(Tags.TEST_STATUS, TEST_SKIP);
     span.setTag(Tags.TEST_SKIP_REASON, reason);
 
-    beforeFinish(span);
+    beforeTestFinish(span, testSuiteName, testClass);
   }
 
-  public void onTestFinish(final AgentSpan span, final TestExecutionResult result) {
+  public void onTestFinish(
+      final AgentSpan span, final MethodSource methodSource, final TestExecutionResult result) {
     result
         .getThrowable()
         .ifPresent(
@@ -85,6 +87,8 @@ public class JUnit5Decorator extends TestDecorator {
               }
             });
 
-    beforeFinish(span);
+    String testSuiteName = methodSource.getClassName();
+    Class<?> testClass = JUnit5Utils.getTestClass(methodSource);
+    beforeTestFinish(span, testSuiteName, testClass);
   }
 }

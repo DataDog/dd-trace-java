@@ -1,5 +1,6 @@
 package datadog.trace.api.civisibility.source;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public interface SourcePathResolver {
@@ -9,5 +10,5 @@ public interface SourcePathResolver {
    *     root. {@code null} is returned if the path could not be resolved
    */
   @Nullable
-  String getSourcePath(Class<?> c);
+  String getSourcePath(@Nonnull Class<?> c);
 }

@@ -27,6 +27,7 @@ public class DDSpanTypes {
   public static final String GRAPHQL = "graphql";
 
   public static final String TEST = "test";
+  public static final String TEST_SUITE_END = "test_suite_end";
 
   public static final String VULNERABILITY = "vulnerability";
 }
