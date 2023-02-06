@@ -3,34 +3,28 @@ package datadog.trace.instrumentation.kotlin.coroutines;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.kotlin.coroutines.CoroutineContextHelper.getScopeStateContext;
-import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isOverriddenFrom;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import kotlin.coroutines.CoroutineContext;
 import kotlinx.coroutines.AbstractCoroutine;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
-public class AbstractCoroutineInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+public abstract class AbstractCoroutinesInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.WithTypeStructure {
 
-  private static final String ABSTRACT_COROUTINE_CLASS_NAME =
+  protected static final String ABSTRACT_COROUTINE_CLASS_NAME =
       "kotlinx.coroutines.AbstractCoroutine";
 
-  private static final String JOB_SUPPORT_CLASS_NAME = "kotlinx.coroutines.JobSupport";
-  private static final String COROUTINE_CONTEXT_CLASS_NAME = "kotlin.coroutines.CoroutineContext";
+  protected static final String JOB_SUPPORT_CLASS_NAME = "kotlinx.coroutines.JobSupport";
+  protected static final String COROUTINE_CONTEXT_CLASS_NAME = "kotlin.coroutines.CoroutineContext";
 
-  public AbstractCoroutineInstrumentation() {
+  public AbstractCoroutinesInstrumentation() {
     super("kotlin_coroutine.experimental");
   }
 
@@ -51,20 +45,8 @@ public class AbstractCoroutineInstrumentation extends Instrumenter.Tracing
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        isConstructor()
-            .and(isDeclaredBy(named(ABSTRACT_COROUTINE_CLASS_NAME)))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named(COROUTINE_CONTEXT_CLASS_NAME)))
-            .and(takesArgument(1, named("boolean"))),
-        AbstractCoroutineInstrumentation.class.getName() + "$AbstractCoroutineConstructorAdvice");
-
-    transformation.applyAdvice(
-        isMethod()
-            .and(isOverriddenFrom(named(ABSTRACT_COROUTINE_CLASS_NAME)))
-            .and(named("onStart"))
-            .and(takesNoArguments())
-            .and(returns(void.class)),
-        AbstractCoroutineInstrumentation.class.getName() + "$AbstractCoroutineOnStartAdvice");
+        isMethod().and(named("onStart")).and(takesNoArguments()).and(returns(void.class)),
+        AbstractCoroutinesInstrumentation.class.getName() + "$AbstractCoroutineOnStartAdvice");
 
     transformation.applyAdvice(
         isMethod()
@@ -72,13 +54,13 @@ public class AbstractCoroutineInstrumentation extends Instrumenter.Tracing
             .and(named("onCompletionInternal"))
             .and(takesArguments(1))
             .and(returns(void.class)),
-        AbstractCoroutineInstrumentation.class.getName()
+        AbstractCoroutinesInstrumentation.class.getName()
             + "$JobSupportAfterCompletionInternalAdvice");
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return ABSTRACT_COROUTINE_CLASS_NAME;
+    return JOB_SUPPORT_CLASS_NAME;
   }
 
   @Override
@@ -86,26 +68,9 @@ public class AbstractCoroutineInstrumentation extends Instrumenter.Tracing
     return extendsClass(named(hierarchyMarkerType()));
   }
 
-  /**
-   * Guarantees every coroutine created has a new instance of ScopeStateCoroutineContext, so that it
-   * is never inherited from the parent context.
-   *
-   * @see ScopeStateCoroutineContext
-   * @see AbstractCoroutine#AbstractCoroutine(CoroutineContext, boolean)
-   */
-  public static class AbstractCoroutineConstructorAdvice {
-    @Advice.OnMethodEnter
-    public static void constructorInvocation(
-        @Advice.Argument(value = 0, readOnly = false) CoroutineContext parentContext,
-        @Advice.Argument(value = 1) final boolean active) {
-      final ScopeStateCoroutineContext scopeStackContext = new ScopeStateCoroutineContext();
-      parentContext = parentContext.plus(scopeStackContext);
-      if (active) {
-        // if this is not a lazy coroutine, inherit parent span from the coroutine constructor call
-        // site
-        scopeStackContext.maybeInitialize();
-      }
-    }
+  @Override
+  public ElementMatcher<TypeDescription> structureMatcher() {
+    return extendsClass(named(ABSTRACT_COROUTINE_CLASS_NAME));
   }
 
   /**

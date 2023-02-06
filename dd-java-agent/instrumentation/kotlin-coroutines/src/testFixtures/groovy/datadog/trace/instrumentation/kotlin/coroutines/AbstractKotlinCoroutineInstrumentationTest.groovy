@@ -1,10 +1,17 @@
+package datadog.trace.instrumentation.kotlin.coroutines
+
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.core.DDSpan
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ThreadPoolDispatcherKt
 import spock.lang.Shared
+import spock.lang.Unroll
 
-class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
+@Unroll
+abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCoroutineTests> extends AgentTestRunner {
+
+  protected abstract T getCoreKotlinCoroutineTestsInstance(CoroutineDispatcher dispatcher)
 
   @Shared
   static dispatchersToTest = [
@@ -22,26 +29,9 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
     injectSysConfig("dd.integration.kotlin_coroutine.experimental.enabled", "true")
   }
 
-  def "kotlin traced across channels"() {
-    setup:
-    KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
-    int expectedNumberOfSpans = kotlinTest.tracedAcrossChannels()
-    TEST_WRITER.waitForTraces(1)
-    List<DDSpan> trace = TEST_WRITER.get(0)
-
-    expect:
-    trace.size() == expectedNumberOfSpans
-    trace[0].resourceName.toString() == "KotlinCoroutineTests.tracedAcrossChannels"
-    findSpan(trace, "produce_2").context().getParentId() == trace[0].context().getSpanId()
-    findSpan(trace, "consume_2").context().getParentId() == trace[0].context().getSpanId()
-
-    where:
-    dispatcher << dispatchersToTest
-  }
-
   def "kotlin cancellation prevents trace"() {
     setup:
-    KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
+    CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
     int expectedNumberOfSpans = kotlinTest.tracePreventedByCancellation()
     TEST_WRITER.waitForTraces(1)
     List<DDSpan> trace = TEST_WRITER.get(0)
@@ -58,7 +48,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "kotlin propagates across nested jobs"() {
     setup:
-    KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
+    CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
     int expectedNumberOfSpans = kotlinTest.tracedAcrossThreadsWithNested()
     TEST_WRITER.waitForTraces(1)
     List<DDSpan> trace = TEST_WRITER.get(0)
@@ -74,7 +64,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "kotlin either deferred completion"() {
     setup:
-    KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
+    CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
     int expectedNumberOfSpans = kotlinTest.traceWithDeferred()
     TEST_WRITER.waitForTraces(1)
     List<DDSpan> trace = TEST_WRITER.get(0)
@@ -93,7 +83,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "kotlin first completed deferred"() {
     setup:
-    KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
+    CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
     int expectedNumberOfSpans = kotlinTest.tracedWithDeferredFirstCompletions()
     TEST_WRITER.waitForTraces(1)
     List<DDSpan> trace = TEST_WRITER.get(0)
@@ -111,7 +101,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "coroutine suspension should not mess up traces"() {
     setup:
-    KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(
+    CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(
       ThreadPoolDispatcherKt.newSingleThreadContext("Single-Thread")
       )
     int expectedNumberOfSpans = kotlinTest.tracedWithSuspendingCoroutines()
@@ -146,7 +136,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "lazily started coroutines should inherit the span active at start time"() {
     setup:
-    KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
+    CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
     int expectedNumberOfSpans = kotlinTest.tracedWithLazyStarting()
 
     expect:
@@ -181,7 +171,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "coroutine instrumentation should work without an enclosing trace span"() {
     setup:
-    KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
+    CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
     int expectedNumberOfSpans = kotlinTest.withNoTraceParentSpan(false, false)
 
     expect:
@@ -193,7 +183,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "coroutine instrumentation should work when started lazily without an enclosing trace span"() {
     setup:
-    KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
+    CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
     kotlinTest.withNoTraceParentSpan(true, false)
 
     expect:
@@ -224,7 +214,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "coroutine instrumentation should work without an enclosing trace span and throwing exceptions"() {
     setup:
-    KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
+    CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
     int expectedNumberOfSpans = kotlinTest.withNoTraceParentSpan(false, true)
 
     expect:
@@ -236,7 +226,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "coroutine instrumentation should work when started lazily without an enclosing trace span and throwing exceptions"() {
     setup:
-    KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
+    CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
     int expectedTraces = kotlinTest.withNoTraceParentSpan(true, true)
 
     expect:
@@ -277,7 +267,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
     dispatcher << dispatchersToTest
   }
 
-  private void assertTopLevelSpanWithTwoSubSpans(int expectedNumberOfSpans, boolean threw = false) {
+  protected void assertTopLevelSpanWithTwoSubSpans(int expectedNumberOfSpans, boolean threw = false) {
     def topLevel = expectedNumberOfSpans - 1
     assertTraces(1) {
       trace(expectedNumberOfSpans, true) {
@@ -310,7 +300,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "coroutine instrumentation should work without any parent span"() {
     setup:
-    KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
+    CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
     int expectedNumberOfTraces = kotlinTest.withNoParentSpan(false)
 
     expect:
@@ -335,7 +325,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "coroutine instrumentation should work when started lazily without any parent span"() {
     setup:
-    KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
+    CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
     int expectedNumberOfTraces = kotlinTest.withNoParentSpan(true)
 
     expect:
@@ -360,7 +350,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "coroutine instrumentation should work when started lazily and canceled"() {
     setup:
-    KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
+    CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
     int expectedNumberOfSpans = kotlinTest.withParentSpanAndOnlyCanceled()
 
     expect:
@@ -377,7 +367,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
     dispatcher << dispatchersToTest
   }
 
-  private static DDSpan findSpan(List<DDSpan> trace, String opName) {
+  protected static DDSpan findSpan(List<DDSpan> trace, String opName) {
     for (DDSpan span : trace) {
       if (span.getOperationName() == opName) {
         return span
