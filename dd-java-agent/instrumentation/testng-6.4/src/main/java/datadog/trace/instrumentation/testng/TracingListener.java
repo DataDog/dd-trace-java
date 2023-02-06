@@ -7,13 +7,9 @@ import static datadog.trace.instrumentation.testng.TestNGDecorator.DECORATE;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import java.lang.reflect.Method;
-import org.testng.IClass;
 import org.testng.ITestContext;
 import org.testng.ITestListener;
-import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
-import org.testng.internal.ConstructorOrMethod;
 
 public class TracingListener implements ITestListener {
 
@@ -22,6 +18,12 @@ public class TracingListener implements ITestListener {
   public TracingListener(final String version) {
     this.version = version;
   }
+
+  @Override
+  public void onStart(final ITestContext context) {}
+
+  @Override
+  public void onFinish(final ITestContext context) {}
 
   @Override
   public void onTestStart(final ITestResult result) {
@@ -38,34 +40,13 @@ public class TracingListener implements ITestListener {
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
 
-    DECORATE.afterStart(span, version, getTestClass(result), getTestMethod(result));
-    DECORATE.onTestStart(span, result);
-  }
-
-  private Class<?> getTestClass(final ITestResult result) {
-    IClass testClass = result.getTestClass();
-    if (testClass == null) {
-      return null;
-    }
-    return testClass.getRealClass();
-  }
-
-  private Method getTestMethod(final ITestResult result) {
-    ITestNGMethod method = result.getMethod();
-    if (method == null) {
-      return null;
-    }
-    ConstructorOrMethod constructorOrMethod = method.getConstructorOrMethod();
-    if (constructorOrMethod == null) {
-      return null;
-    }
-    return constructorOrMethod.getMethod();
+    DECORATE.onTestStart(span, version, result);
   }
 
   @Override
   public void onTestSuccess(final ITestResult result) {
     final AgentSpan span = AgentTracer.activeSpan();
-    if (span == null) {
+    if (span == null || !DECORATE.isTestSpan(AgentTracer.activeSpan())) {
       return;
     }
 
@@ -75,14 +56,13 @@ public class TracingListener implements ITestListener {
     }
 
     DECORATE.onTestSuccess(span);
-    DECORATE.beforeFinish(span);
     span.finish();
   }
 
   @Override
   public void onTestFailure(final ITestResult result) {
     final AgentSpan span = AgentTracer.activeSpan();
-    if (span == null) {
+    if (span == null || !DECORATE.isTestSpan(AgentTracer.activeSpan())) {
       return;
     }
 
@@ -92,14 +72,18 @@ public class TracingListener implements ITestListener {
     }
 
     DECORATE.onTestFailure(span, result);
-    DECORATE.beforeFinish(span);
     span.finish();
+  }
+
+  @Override
+  public void onTestFailedButWithinSuccessPercentage(final ITestResult result) {
+    onTestFailure(result);
   }
 
   @Override
   public void onTestSkipped(final ITestResult result) {
     final AgentSpan span = AgentTracer.activeSpan();
-    if (span == null) {
+    if (span == null || !DECORATE.isTestSpan(AgentTracer.activeSpan())) {
       return;
     }
 
@@ -109,20 +93,8 @@ public class TracingListener implements ITestListener {
     }
 
     DECORATE.onTestIgnored(span, result);
-    DECORATE.beforeFinish(span);
     // We set a duration of 1 ns, because a span with duration==0 has a special treatment in the
     // tracer.
     span.finishWithDuration(1L);
   }
-
-  @Override
-  public void onTestFailedButWithinSuccessPercentage(final ITestResult result) {
-    onTestFailure(result);
-  }
-
-  @Override
-  public void onStart(final ITestContext context) {}
-
-  @Override
-  public void onFinish(final ITestContext context) {}
 }

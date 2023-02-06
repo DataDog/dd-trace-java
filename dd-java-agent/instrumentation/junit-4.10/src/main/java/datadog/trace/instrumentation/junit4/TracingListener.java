@@ -53,18 +53,17 @@ public class TracingListener extends RunListener {
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
 
-    DECORATE.afterStart(span, version, description.getTestClass(), getTestMethod(description));
-    DECORATE.onTestStart(span, description);
+    DECORATE.onTestStart(span, version, description);
   }
 
   @Override
-  public void testFinished(final Description description) throws Exception {
+  public void testFinished(final Description description) {
     if (DECORATE.skipTrace(description)) {
       return;
     }
 
     final AgentSpan span = AgentTracer.activeSpan();
-    if (span == null) {
+    if (span == null || !DECORATE.isTestSpan(AgentTracer.activeSpan())) {
       return;
     }
 
@@ -74,18 +73,17 @@ public class TracingListener extends RunListener {
     }
 
     DECORATE.onTestFinish(span);
-    DECORATE.beforeFinish(span);
     span.finish();
   }
 
   @Override
-  public void testFailure(final Failure failure) throws Exception {
+  public void testFailure(final Failure failure) {
     if (DECORATE.skipTrace(failure.getDescription())) {
       return;
     }
 
     final AgentSpan span = AgentTracer.activeSpan();
-    if (span == null) {
+    if (span == null || !DECORATE.isTestSpan(AgentTracer.activeSpan())) {
       return;
     }
 
@@ -99,7 +97,7 @@ public class TracingListener extends RunListener {
     }
 
     final AgentSpan span = AgentTracer.activeSpan();
-    if (span == null) {
+    if (span == null || !DECORATE.isTestSpan(AgentTracer.activeSpan())) {
       return;
     }
 
@@ -107,14 +105,14 @@ public class TracingListener extends RunListener {
   }
 
   @Override
-  public void testIgnored(final Description description) throws Exception {
+  public void testIgnored(final Description description) {
     if (DECORATE.skipTrace(description)) {
       return;
     }
 
     final List<Method> testMethods;
     if (description.getMethodName() != null && !"".equals(description.getMethodName())) {
-      testMethods = Collections.singletonList(getTestMethod(description));
+      testMethods = Collections.singletonList(JUnit4Utils.getTestMethod(description));
     } else if (description.getTestClass() != null) {
       // If @Ignore annotation is kept at class level, the instrumentation
       // reports every method annotated with @Test as skipped test.
@@ -128,31 +126,10 @@ public class TracingListener extends RunListener {
 
     for (final Method testMethod : testMethods) {
       final AgentSpan span = startSpan("junit.test");
-      DECORATE.afterStart(span, version, description.getTestClass(), getTestMethod(description));
-      DECORATE.onTestIgnored(span, description, testMethod.getName(), reason);
-      DECORATE.beforeFinish(span);
+      DECORATE.onTestIgnored(span, version, description, testMethod, reason);
       // We set a duration of 1 ns, because a span with duration==0 has a special treatment in the
       // tracer.
       span.finishWithDuration(1L);
-    }
-  }
-
-  // cannot handle test methods with parameters (e.g. ones that use pl.pragmatists.JUnitParams)
-  private Method getTestMethod(final Description description) {
-    String methodName = description.getMethodName();
-    if (methodName == null || methodName.isEmpty()) {
-      return null;
-    }
-
-    Class<?> testClass = description.getTestClass();
-    if (testClass == null) {
-      return null;
-    }
-
-    try {
-      return testClass.getMethod(methodName);
-    } catch (NoSuchMethodException e) {
-      return null;
     }
   }
 }
