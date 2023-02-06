@@ -23,7 +23,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     objectHolder = []
   }
 
-  void 'taintIfInputIsTainted null or empty (#param1, #param2)'(final Object param1, final Object param2) {
+  void 'taintIfInputIsTainted null or empty'() {
     when:
     module.taintIfInputIsTainted(param1, param2)
 
@@ -42,7 +42,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     new Object() | null
   }
 
-  void 'taintIfInputIsTainted without span (#param1, #param2)'(final Object param1, final Object param2) {
+  void 'taintIfInputIsTainted without span'() {
     when:
     module.taintIfInputIsTainted(param1, param2)
 
@@ -57,7 +57,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     new Object() | 'test'
   }
 
-  void 'onJsonFactoryCreateParser (#param1, #param2)'(final Object param1, final Object param2) {
+  void 'onJsonFactoryCreateParser'() {
     given:
     final span = Mock(AgentSpan)
     tracer.activeSpan() >> span
