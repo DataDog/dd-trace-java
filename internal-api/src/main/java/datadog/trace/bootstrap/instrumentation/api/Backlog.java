@@ -2,6 +2,9 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import java.util.List;
 
+// Backlog allows us to track the size of a queue in data streams. For example, by monitoring both
+// the consumer and the producer,
+// we can get the size in bytes of a Kafka queue.
 public class Backlog implements InboxItem {
   public List<String> getSortedTags() {
     return sortedTags;

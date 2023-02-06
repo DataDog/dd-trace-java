@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.core.datastreams.TagsProcessor.createTag;
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
 import com.google.auto.service.AutoService;
@@ -68,9 +69,9 @@ public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Traci
         }
         List<String> sortedTags =
             Arrays.asList(
-                "consumer_group:" + consumerGroup,
-                "partition:" + String.valueOf(entry.getKey().partition()),
-                "topic:" + entry.getKey().topic(),
+                createTag("consumer_group", consumerGroup),
+                createTag("partition", String.valueOf(entry.getKey().partition())),
+                createTag("topic", entry.getKey().topic()),
                 "type:kafka_commit");
         AgentTracer.get()
             .getDataStreamsMonitoring()
