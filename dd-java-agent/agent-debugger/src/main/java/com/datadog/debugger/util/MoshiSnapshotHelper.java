@@ -19,8 +19,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -688,16 +686,12 @@ public class MoshiSnapshotHelper {
       }
 
       @Override
-      public void fieldPrologue(Field field, Object value, int maxDepth) throws Exception {
+      public void objectFieldPrologue(Field field, Object value, int maxDepth) throws Exception {
         jsonWriter.name(field.getName());
       }
 
       @Override
-      public BiConsumer<Exception, Field> getFieldExceptionHandler() {
-        return this::fieldExceptionHandler;
-      }
-
-      private void fieldExceptionHandler(Exception ex, Field field) {
+      public void handleFieldException(Exception ex, Field field) {
         String fieldName = field.getName();
         try {
           jsonWriter.name(fieldName);
@@ -713,11 +707,7 @@ public class MoshiSnapshotHelper {
       }
 
       @Override
-      public Consumer<Field> getMaxFieldCountHandler() {
-        return this::maxFieldCountHandler;
-      }
-
-      private void maxFieldCountHandler(Field field) {
+      public void objectMaxFieldCount() {
         try {
           jsonWriter.name(NOT_CAPTURED_REASON);
           jsonWriter.value(FIELD_COUNT_REASON);

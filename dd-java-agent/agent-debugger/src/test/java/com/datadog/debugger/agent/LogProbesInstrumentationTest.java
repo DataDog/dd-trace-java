@@ -133,11 +133,11 @@ public class LogProbesInstrumentationTest {
     assertEquals(LOG_ID1, snapshot0.getProbe().getId());
     assertNotNull(snapshot0.getCaptures().getEntry());
     assertNotNull(snapshot0.getCaptures().getReturn());
-    assertEquals("this is log line #1 with arg=1", snapshot0.getSummary());
+    assertEquals("this is log line #1 with arg=1", snapshot0.buildSummary());
     Snapshot snapshot1 = snapshots.get(1);
     assertEquals(LOG_ID2, snapshot1.getProbe().getId());
     assertCapturesNull(snapshot1);
-    assertEquals("this is log line #2 with arg=1", snapshot1.getSummary());
+    assertEquals("this is log line #2 with arg=1", snapshot1.buildSummary());
   }
 
   @Test
@@ -147,12 +147,12 @@ public class LogProbesInstrumentationTest {
     Snapshot snapshot0 = snapshots.get(0);
     assertEquals(LOG_ID1, snapshot0.getProbe().getId());
     assertCapturesNull(snapshot0);
-    assertEquals("this is log line #1 with arg=1", snapshot0.getSummary());
+    assertEquals("this is log line #1 with arg=1", snapshot0.buildSummary());
     Snapshot snapshot1 = snapshots.get(1);
     assertEquals(LOG_ID2, snapshot1.getProbe().getId());
     assertNotNull(snapshot1.getCaptures().getEntry());
     assertNotNull(snapshot1.getCaptures().getReturn());
-    assertEquals("this is log line #2 with arg=1", snapshot1.getSummary());
+    assertEquals("this is log line #2 with arg=1", snapshot1.buildSummary());
   }
 
   private List<Snapshot> doMergedMethodTemplateMixCapture(
@@ -311,7 +311,7 @@ public class LogProbesInstrumentationTest {
     Snapshot snapshot = assertOneSnapshot(listener);
     assertEquals(
         "this is log line for this={STATIC_STR=strStatic, intValue=48, doubleValue=3.14, strValue=done, strList=..., ...}",
-        snapshot.getSummary());
+        snapshot.buildSummary());
   }
 
   private DebuggerTransformerTest.TestSnapshotListener installSingleProbe(

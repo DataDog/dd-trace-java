@@ -1,16 +1,14 @@
 package com.datadog.debugger.util;
 
-import datadog.trace.bootstrap.debugger.FieldExtractor;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,11 +72,23 @@ public class SerializerWithLimits {
 
     void objectPrologue(Object value) throws Exception;
 
-    void fieldPrologue(Field field, Object value, int maxDepth) throws Exception;
+    default boolean objectFilterInField(Field field) throws Exception {
+      // Jacoco insert a transient field
+      if ("$jacocoData".equals(field.getName()) && Modifier.isTransient(field.getModifiers())) {
+        return false;
+      }
+      // skip constant fields
+      if (Modifier.isStatic(field.getModifiers()) && Modifier.isFinal(field.getModifiers())) {
+        return false;
+      }
+      return true;
+    }
 
-    BiConsumer<Exception, Field> getFieldExceptionHandler();
+    void objectFieldPrologue(Field field, Object value, int maxDepth) throws Exception;
 
-    Consumer<Field> getMaxFieldCountHandler();
+    void objectMaxFieldCount() throws Exception;
+
+    void handleFieldException(Exception ex, Field field);
 
     void objectEpilogue(Object value) throws Exception;
 
@@ -163,18 +173,35 @@ public class SerializerWithLimits {
 
   private void serializeObjectValue(Object value, Limits limits) throws Exception {
     tokenWriter.objectPrologue(value);
-    FieldExtractor.extract(
-        value,
-        limits,
-        this::onField,
-        tokenWriter.getFieldExceptionHandler(),
-        tokenWriter.getMaxFieldCountHandler());
+    Class<?> currentClass = value.getClass();
+    int processedFieldCount = 0;
+    classLoop:
+    do {
+      Field[] fields = currentClass.getDeclaredFields();
+      for (Field field : fields) {
+        try {
+          if (!tokenWriter.objectFilterInField(field)) {
+            continue;
+          }
+          field.setAccessible(true);
+          Object fieldValue = field.get(value);
+          onField(field, fieldValue, limits);
+          processedFieldCount++;
+          if (processedFieldCount >= limits.maxFieldCount) {
+            tokenWriter.objectMaxFieldCount();
+            break classLoop;
+          }
+        } catch (Exception e) {
+          tokenWriter.handleFieldException(e, field);
+        }
+      }
+    } while ((currentClass = currentClass.getSuperclass()) != null);
     tokenWriter.objectEpilogue(value);
   }
 
   private void onField(Field field, Object value, Limits limits) {
     try {
-      tokenWriter.fieldPrologue(field, value, limits.maxReferenceDepth);
+      tokenWriter.objectFieldPrologue(field, value, limits.maxReferenceDepth);
       Limits newLimits = Limits.decDepthLimits(limits);
       String typeName;
       if (SerializerWithLimits.isPrimitive(field.getType().getTypeName())) {
