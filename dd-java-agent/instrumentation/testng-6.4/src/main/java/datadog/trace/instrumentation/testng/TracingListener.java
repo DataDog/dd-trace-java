@@ -46,7 +46,7 @@ public class TracingListener implements ITestListener {
   @Override
   public void onTestSuccess(final ITestResult result) {
     final AgentSpan span = AgentTracer.activeSpan();
-    if (span == null || !DECORATE.isTestSpan(AgentTracer.activeSpan())) {
+    if (!DECORATE.isTestSpan(span)) {
       return;
     }
 
@@ -55,14 +55,14 @@ public class TracingListener implements ITestListener {
       scope.close();
     }
 
-    DECORATE.onTestSuccess(span);
+    DECORATE.onTestSuccess(span, result);
     span.finish();
   }
 
   @Override
   public void onTestFailure(final ITestResult result) {
     final AgentSpan span = AgentTracer.activeSpan();
-    if (span == null || !DECORATE.isTestSpan(AgentTracer.activeSpan())) {
+    if (!DECORATE.isTestSpan(span)) {
       return;
     }
 
@@ -83,7 +83,7 @@ public class TracingListener implements ITestListener {
   @Override
   public void onTestSkipped(final ITestResult result) {
     final AgentSpan span = AgentTracer.activeSpan();
-    if (span == null || !DECORATE.isTestSpan(AgentTracer.activeSpan())) {
+    if (!DECORATE.isTestSpan(span)) {
       return;
     }
 

@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.interceptor;
 
+import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
@@ -13,7 +14,6 @@ public class CiVisibilityTraceInterceptor implements TraceInterceptor {
 
   public static final CiVisibilityTraceInterceptor INSTANCE = new CiVisibilityTraceInterceptor();
 
-  static final String TEST_TYPE = "test";
   static final UTF8BytesString CIAPP_TEST_ORIGIN = UTF8BytesString.create("ciapp-test");
 
   @Override
@@ -28,9 +28,10 @@ public class CiVisibilityTraceInterceptor implements TraceInterceptor {
 
     final DDSpan spanToCheck = null == localRootSpan ? firstSpan : localRootSpan;
 
-    // If root span does not have type == "test", we drop the full trace.
+    // If root span does not have type == "test" or type == "test_suite_end", we drop the full
+    // trace.
     CharSequence type = spanToCheck.getType(); // Don't null pointer if there is no type
-    if (type == null || !TEST_TYPE.contentEquals(type)) {
+    if (!DDSpanTypes.TEST.contentEquals(type) && !DDSpanTypes.TEST_SUITE_END.contentEquals(type)) {
       return Collections.emptyList();
     }
 

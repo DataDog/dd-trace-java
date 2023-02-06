@@ -1,6 +1,7 @@
 package datadog.trace.api.civisibility.codeowners;
 
 import java.util.Collection;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -10,5 +11,5 @@ import javax.annotation.Nullable;
  */
 public interface Codeowners {
   @Nullable
-  Collection<String> getOwners(String path);
+  Collection<String> getOwners(@Nonnull String path);
 }
