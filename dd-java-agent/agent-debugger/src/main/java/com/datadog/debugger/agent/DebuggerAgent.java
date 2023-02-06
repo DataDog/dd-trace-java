@@ -50,14 +50,6 @@ public class DebuggerAgent {
     ddAgentFeaturesDiscovery.discoverIfOutdated();
     agentVersion = ddAgentFeaturesDiscovery.getVersion();
 
-    if (isSnapshotUploadThroughAgent && !ddAgentFeaturesDiscovery.supportsDebugger()) {
-      log.error(
-          "No endpoint detected to upload snapshots to from datadog agent at "
-              + agentUrl
-              + ". Consider upgrading the datadog agent.");
-      return;
-    }
-
     sink = new DebuggerSink(config);
     sink.start();
     ConfigurationUpdater configurationUpdater =
