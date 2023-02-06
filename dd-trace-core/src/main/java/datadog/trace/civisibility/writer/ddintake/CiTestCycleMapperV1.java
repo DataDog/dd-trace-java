@@ -6,6 +6,7 @@ import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.writer.Payload;
@@ -70,47 +71,72 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
         }
       }
 
+      // FIXME this part should be split into CITestCycleMapperV2 (and version should be determined
+      // based on test framework)
+      UTF8BytesString type;
+      int version;
+      Long traceId;
+      Long spanId;
+      Long parentId;
+      if (InternalSpanTypes.TEST.equals(span.getType())) {
+        type = InternalSpanTypes.TEST;
+        version = 2;
+        traceId = span.getTraceId().toLong();
+        spanId = span.getSpanId();
+        parentId = span.getParentId();
+
+      } else if (InternalSpanTypes.TEST_SUITE_END.equals(span.getType())) {
+        type = InternalSpanTypes.TEST_SUITE_END;
+        version = 1;
+        traceId = null;
+        spanId = null;
+        parentId = null;
+
+      } else if (InternalSpanTypes.TEST_MODULE_END.equals(span.getType())) {
+        type = InternalSpanTypes.TEST_MODULE_END;
+        version = 1;
+        traceId = null;
+        spanId = null;
+        parentId = null;
+
+      } else {
+        type = SPAN_TYPE;
+        version = 1;
+        traceId = span.getTraceId().toLong();
+        spanId = span.getSpanId();
+        parentId = span.getParentId();
+      }
+
+      int contentChildrenCount =
+          8
+              + (traceId != null ? 1 : 0)
+              + (spanId != null ? 1 : 0)
+              + (parentId != null ? 1 : 0)
+              + topLevelTagsCount;
+
       writable.startMap(3);
       /* 1 */
       writable.writeUTF8(TYPE);
-      if (TEST_TYPE.equals(span.getType())) { // FIXME update needed?
-        writable.writeUTF8(TEST_TYPE);
-      } else {
-        writable.writeUTF8(SPAN_TYPE);
-      }
+      writable.writeUTF8(type);
       /* 2 */
       writable.writeUTF8(VERSION);
-      writable.writeInt(1);
+      writable.writeInt(version);
       /* 3 */
       writable.writeUTF8(CONTENT);
-      writable.startMap(11 + topLevelTagsCount);
-      /* 1  */
-      writable.writeUTF8(SERVICE);
-      writable.writeString(span.getServiceName(), null);
-      /* 2  */
-      writable.writeUTF8(NAME);
-      writable.writeObject(span.getOperationName(), null);
-      /* 3  */
-      writable.writeUTF8(RESOURCE);
-      writable.writeObject(span.getResourceName(), null);
-      /* 4  */
-      writable.writeUTF8(TRACE_ID);
-      writable.writeLong(span.getTraceId().toLong());
-      /* 5  */
-      writable.writeUTF8(SPAN_ID);
-      writable.writeLong(span.getSpanId());
-      /* 6  */
-      writable.writeUTF8(PARENT_ID);
-      writable.writeLong(span.getParentId());
-      /* 7  */
-      writable.writeUTF8(START);
-      writable.writeLong(span.getStartTime());
-      /* 8  */
-      writable.writeUTF8(DURATION);
-      writable.writeLong(span.getDurationNano());
-      /* 9 */
-      writable.writeUTF8(ERROR); /**/
-      writable.writeInt(span.getError());
+      writable.startMap(contentChildrenCount);
+
+      if (traceId != null) {
+        writable.writeUTF8(TRACE_ID);
+        writable.writeLong(traceId);
+      }
+      if (spanId != null) {
+        writable.writeUTF8(SPAN_ID);
+        writable.writeLong(spanId);
+      }
+      if (parentId != null) {
+        writable.writeUTF8(PARENT_ID);
+        writable.writeLong(parentId);
+      }
 
       for (String topLevelTag : topLevelTags) {
         Object tagValue = span.getTag(topLevelTag);
@@ -127,7 +153,25 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
         }
       }
 
-      /* 10 (meta), 11 (metrics) */
+      /* 1  */
+      writable.writeUTF8(SERVICE);
+      writable.writeString(span.getServiceName(), null);
+      /* 2  */
+      writable.writeUTF8(NAME);
+      writable.writeObject(span.getOperationName(), null);
+      /* 3  */
+      writable.writeUTF8(RESOURCE);
+      writable.writeObject(span.getResourceName(), null);
+      /* 4  */
+      writable.writeUTF8(START);
+      writable.writeLong(span.getStartTime());
+      /* 5  */
+      writable.writeUTF8(DURATION);
+      writable.writeLong(span.getDurationNano());
+      /* 6 */
+      writable.writeUTF8(ERROR);
+      writable.writeInt(span.getError());
+      /* 7 (meta), 8 (metrics) */
       span.processTagsAndBaggage(metaWriter.withWritable(writable));
     }
     eventCount += trace.size();

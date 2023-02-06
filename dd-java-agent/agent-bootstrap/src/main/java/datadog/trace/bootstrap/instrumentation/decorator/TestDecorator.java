@@ -24,13 +24,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.LongAdder;
 import javax.annotation.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public abstract class TestDecorator extends BaseDecorator {
-
-  private static final Logger log = LoggerFactory.getLogger(TestDecorator.class);
 
   public static final String TEST_TYPE = "test";
   public static final String TEST_PASS = "pass";
@@ -38,7 +35,8 @@ public abstract class TestDecorator extends BaseDecorator {
   public static final String TEST_SKIP = "skip";
   public static final UTF8BytesString CIAPP_TEST_ORIGIN = UTF8BytesString.create("ciapp-test");
 
-  private final ConcurrentMap<TestSuiteDescriptor, AgentSpan> activeTestSuites =
+  private volatile TestState testModuleState;
+  private final ConcurrentMap<TestSuiteDescriptor, TestState> testSuiteStates =
       new ConcurrentHashMap<>();
 
   public boolean isCI() {
@@ -60,6 +58,10 @@ public abstract class TestDecorator extends BaseDecorator {
   }
 
   protected String testSuiteSpanKind() {
+    return Tags.SPAN_KIND_TEST_SUITE;
+  }
+
+  protected String testModuleSpanKind() {
     return Tags.SPAN_KIND_TEST_SUITE;
   }
 
@@ -117,6 +119,35 @@ public abstract class TestDecorator extends BaseDecorator {
     return super.afterStart(span);
   }
 
+  protected void afterTestModuleStart(final AgentSpan span, final @Nullable String version) {
+    span.setSpanType(InternalSpanTypes.TEST_MODULE_END);
+    span.setTag(Tags.SPAN_KIND, testModuleSpanKind());
+
+    span.setResourceName(InstrumentationBridge.getModule());
+    span.setTag(Tags.TEST_MODULE, InstrumentationBridge.getModule());
+    span.setTag(Tags.TEST_BUNDLE, InstrumentationBridge.getModule());
+
+    // Version can be null. The testing framework version extraction is best-effort basis.
+    if (version != null) {
+      span.setTag(Tags.TEST_FRAMEWORK_VERSION, version);
+    }
+
+    testModuleState = new TestState(span.getSpanId());
+
+    afterStart(span);
+  }
+
+  protected void beforeTestModuleFinish(AgentSpan span) {
+    span.setTag(Tags.TEST_MODULE_ID, testModuleState.id);
+
+    String testModuleStatus = (String) span.getTag(Tags.TEST_STATUS);
+    if (testModuleStatus == null) {
+      span.setTag(Tags.TEST_STATUS, testModuleState.getStatus());
+    }
+
+    beforeFinish(span);
+  }
+
   protected void afterTestSuiteStart(
       final AgentSpan span,
       final String testSuiteName,
@@ -128,18 +159,13 @@ public abstract class TestDecorator extends BaseDecorator {
 
     span.setResourceName(testSuiteName);
     span.setTag(Tags.TEST_SUITE, testSuiteName);
-
-    // default value that may be overwritten later based on statuses of individual test cases
-    span.setTag(Tags.TEST_STATUS, TEST_SKIP);
+    span.setTag(Tags.TEST_MODULE, InstrumentationBridge.getModule());
+    span.setTag(Tags.TEST_BUNDLE, InstrumentationBridge.getModule());
 
     // Version can be null. The testing framework version extraction is best-effort basis.
     if (version != null) {
       span.setTag(Tags.TEST_FRAMEWORK_VERSION, version);
     }
-
-    // FIXME
-    //  test.module
-    //  test.bundle -- exactly the same as test.module
 
     if (categories != null) {
       span.setTag(
@@ -157,7 +183,7 @@ public abstract class TestDecorator extends BaseDecorator {
     }
 
     TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    activeTestSuites.put(testSuiteDescriptor, span);
+    testSuiteStates.put(testSuiteDescriptor, new TestState(span.getSpanId()));
 
     afterStart(span);
   }
@@ -165,9 +191,18 @@ public abstract class TestDecorator extends BaseDecorator {
   protected void beforeTestSuiteFinish(
       AgentSpan span, final String testSuiteName, final @Nullable Class<?> testClass) {
     TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    activeTestSuites.remove(testSuiteDescriptor);
+    TestState testSuiteState = testSuiteStates.remove(testSuiteDescriptor);
 
-    span.setTag(Tags.TEST_SUITE_ID, span.getSpanId());
+    span.setTag(Tags.TEST_SUITE_ID, testSuiteState.id);
+    span.setTag(Tags.TEST_MODULE_ID, testModuleState.id);
+
+    String testSuiteStatus = (String) span.getTag(Tags.TEST_STATUS);
+    if (testSuiteStatus == null) {
+      testSuiteStatus = testSuiteState.getStatus();
+    }
+
+    span.setTag(Tags.TEST_STATUS, testSuiteStatus);
+    testModuleState.reportChildStatus(testSuiteStatus);
 
     beforeFinish(span);
   }
@@ -186,8 +221,10 @@ public abstract class TestDecorator extends BaseDecorator {
     span.setTag(Tags.SPAN_KIND, testSpanKind());
 
     span.setResourceName(testSuiteName + "." + testName);
-    span.setTag(Tags.TEST_SUITE, testSuiteName);
     span.setTag(Tags.TEST_NAME, testName);
+    span.setTag(Tags.TEST_SUITE, testSuiteName);
+    span.setTag(Tags.TEST_MODULE, InstrumentationBridge.getModule());
+    span.setTag(Tags.TEST_BUNDLE, InstrumentationBridge.getModule());
 
     if (testParameters != null) {
       span.setTag(Tags.TEST_PARAMETERS, testParameters);
@@ -242,35 +279,13 @@ public abstract class TestDecorator extends BaseDecorator {
   protected void beforeTestFinish(
       AgentSpan span, String testSuiteName, @Nullable Class<?> testClass) {
     TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    AgentSpan testSuiteSpan = activeTestSuites.get(testSuiteDescriptor);
-    if (testSuiteSpan != null) {
-      long testSuiteSpanId = testSuiteSpan.getSpanId();
-      span.setTag(Tags.TEST_SUITE_ID, testSuiteSpanId);
+    TestState testSuiteState = testSuiteStates.get(testSuiteDescriptor);
+    if (testSuiteState != null) {
+      span.setTag(Tags.TEST_SUITE_ID, testSuiteState.id);
+      span.setTag(Tags.TEST_MODULE_ID, testModuleState.id);
 
-      String testSuiteStatus = (String) testSuiteSpan.getTag(Tags.TEST_STATUS);
       String testCaseStatus = (String) span.getTag(Tags.TEST_STATUS);
-      switch (testCaseStatus) {
-        case TEST_SKIP:
-          // a test suite will have SKIP status by default
-          break;
-        case TEST_PASS:
-          if (!TEST_FAIL.equals(testSuiteStatus)) {
-            // if at least one test case passes (i.e. is not skipped) and no test cases fail,
-            // test suite status should be PASS
-            testSuiteSpan.setTag(Tags.TEST_STATUS, TEST_PASS);
-          }
-          break;
-        case TEST_FAIL:
-          // if at least one test case fails, test suite status should be FAIL
-          testSuiteSpan.setTag(Tags.TEST_STATUS, TEST_FAIL);
-          break;
-        default:
-          log.debug(
-              "Unexpected test case status {} for test case with ID {}",
-              testCaseStatus,
-              span.getSpanId());
-          break;
-      }
+      testSuiteState.reportChildStatus(testCaseStatus);
 
     } else {
       // TODO log a warning (when test suite level visibility support is there for all frameworks
@@ -310,6 +325,15 @@ public abstract class TestDecorator extends BaseDecorator {
         && testType().equals(activeSpan.getTag(Tags.TEST_TYPE));
   }
 
+  public boolean isTestModuleSpan(@Nullable final AgentSpan activeSpan) {
+    if (activeSpan == null) {
+      return false;
+    }
+
+    return DDSpanTypes.TEST_MODULE_END.equals(activeSpan.getSpanType())
+        && testType().equals(activeSpan.getTag(Tags.TEST_TYPE));
+  }
+
   private static final class TestSuiteDescriptor {
     private final String testSuiteName;
     private final Class<?> testClass;
@@ -335,6 +359,39 @@ public abstract class TestDecorator extends BaseDecorator {
     @Override
     public int hashCode() {
       return Objects.hash(testSuiteName, testClass);
+    }
+  }
+
+  private static final class TestState {
+    private final long id;
+    private final LongAdder childrenPassed = new LongAdder();
+    private final LongAdder childrenFailed = new LongAdder();
+
+    private TestState(long id) {
+      this.id = id;
+    }
+
+    public void reportChildStatus(String status) {
+      switch (status) {
+        case TEST_PASS:
+          childrenPassed.increment();
+          break;
+        case TEST_FAIL:
+          childrenFailed.increment();
+          break;
+        default:
+          break;
+      }
+    }
+
+    public String getStatus() {
+      if (childrenFailed.sum() > 0) {
+        return TEST_FAIL;
+      } else if (childrenPassed.sum() > 0) {
+        return TEST_PASS;
+      } else {
+        return TEST_SKIP;
+      }
     }
   }
 }
