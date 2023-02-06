@@ -18,7 +18,7 @@ class EventTrackerTest extends DDSpecification {
 
   @Override
   void cleanup() {
-    GlobalTracer.eventTracker = null
+    GlobalTracer.eventTracker = EventTracker.NO_EVENT_TRACKER
     GlobalTracer.provider = null
   }
 
@@ -100,6 +100,19 @@ class EventTrackerTest extends DDSpecification {
     setup:
     def tracer = new TracerAPI(null)
     GlobalTracer.forceRegister(tracer)
+
+    when:
+    GlobalTracer.getEventTracker().trackLoginSuccessEvent('user1', null)
+    GlobalTracer.getEventTracker().trackLoginFailureEvent('user1', false, null)
+    GlobalTracer.getEventTracker().trackCustomEvent('myevent', null)
+
+    then:
+    0 * _
+  }
+
+  def "test no tracer"() {
+    setup:
+    GlobalTracer.provider = null
 
     when:
     GlobalTracer.getEventTracker().trackLoginSuccessEvent('user1', null)

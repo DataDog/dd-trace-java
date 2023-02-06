@@ -5,6 +5,8 @@ import datadog.trace.api.internal.TraceSegment;
 import java.util.Map;
 
 public class EventTracker {
+
+  public static final EventTracker NO_EVENT_TRACKER = new EventTracker(null);
   private final InternalTracer tracer;
 
   EventTracker(InternalTracer tracer) {
@@ -23,7 +25,7 @@ public class EventTracker {
       throw new IllegalArgumentException("UserId is null or empty");
     }
 
-    TraceSegment segment = this.tracer.getTraceSegment();
+    TraceSegment segment = getTraceSegment();
     if (segment == null) {
       return;
     }
@@ -50,7 +52,11 @@ public class EventTracker {
       throw new IllegalArgumentException("UserId is null or empty");
     }
 
-    TraceSegment segment = this.tracer.getTraceSegment();
+    if (tracer == null) {
+      return;
+    }
+
+    TraceSegment segment = getTraceSegment();
     if (segment == null) {
       return;
     }
@@ -77,7 +83,11 @@ public class EventTracker {
       throw new IllegalArgumentException("EventName is null or empty");
     }
 
-    TraceSegment segment = this.tracer.getTraceSegment();
+    if (tracer == null) {
+      return;
+    }
+
+    TraceSegment segment = getTraceSegment();
     if (segment == null) {
       return;
     }
@@ -88,5 +98,12 @@ public class EventTracker {
     if (metadata != null && !metadata.isEmpty()) {
       segment.setTagTop("appsec.events." + eventName, metadata, true);
     }
+  }
+
+  private TraceSegment getTraceSegment() {
+    if (tracer == null) {
+      return null;
+    }
+    return tracer.getTraceSegment();
   }
 }

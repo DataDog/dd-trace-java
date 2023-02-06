@@ -32,7 +32,7 @@ public class GlobalTracer {
 
   private static final Collection<Callback> installationCallbacks = new ArrayList<>();
   private static Tracer provider = NO_OP;
-  private static EventTracker eventTracker;
+  private static EventTracker eventTracker = EventTracker.NO_EVENT_TRACKER;
 
   public static void registerIfAbsent(Tracer p) {
     if (p == null || p == NO_OP) {
@@ -67,7 +67,7 @@ public class GlobalTracer {
   }
 
   public static EventTracker getEventTracker() {
-    if (eventTracker == null) {
+    if (eventTracker == EventTracker.NO_EVENT_TRACKER) {
       if (provider instanceof InternalTracer) {
         eventTracker = new EventTracker((InternalTracer) provider);
       }
