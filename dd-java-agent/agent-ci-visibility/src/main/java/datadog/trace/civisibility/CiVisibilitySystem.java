@@ -13,13 +13,15 @@ import datadog.trace.civisibility.source.RepoIndexSourcePathResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.instrument.Instrumentation;
+
 public class CiVisibilitySystem {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CiVisibilitySystem.class);
 
   private static final String GIT_FOLDER_NAME = ".git";
 
-  public static void start() {
+  public static void start(Instrumentation instrumentation) {
     final Config config = Config.get();
     if (!config.isCiVisibilityEnabled()) {
       LOGGER.debug("CI Visibility is disabled");
