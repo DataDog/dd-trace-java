@@ -1,6 +1,8 @@
 package com.datadog.debugger.agent;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.lenient;
 
 import com.datadog.debugger.probe.LogProbe;
@@ -179,6 +181,22 @@ public class DebuggerProductChangesListenerTest {
     Assertions.assertThrows(
         IOException.class,
         () -> listener.accept(createConfigKey("bad-config-id"), null, pollingHinter));
+  }
+
+  @Test
+  public void createNewInstancesForLogProbe() {
+    SimpleAcceptor acceptor = new SimpleAcceptor();
+    DebuggerProductChangesListener listener =
+        new DebuggerProductChangesListener(tracerConfig, acceptor);
+    LogProbe logProbe = createLogProbe(UUID.randomUUID().toString());
+    acceptLogProbe(listener, logProbe);
+    listener.commit(pollingHinter);
+    LogProbe receivedProbe = acceptor.getConfiguration().getLogProbes().iterator().next();
+    receivedProbe.addAdditionalProbe(createLogProbe(UUID.randomUUID().toString()));
+    listener.commit(pollingHinter);
+    LogProbe receivedProbe2 = acceptor.getConfiguration().getLogProbes().iterator().next();
+    assertNotSame(receivedProbe, receivedProbe2);
+    assertTrue(receivedProbe2.getAdditionalProbes().isEmpty());
   }
 
   byte[] toContent(Configuration configuration) {

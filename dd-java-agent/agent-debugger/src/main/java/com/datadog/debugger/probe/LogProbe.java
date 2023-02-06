@@ -217,7 +217,7 @@ public class LogProbe extends ProbeDefinition {
         LANGUAGE,
         null,
         true,
-        null,
+        Tag.fromStrings(null),
         null,
         MethodLocation.DEFAULT,
         null,
@@ -241,13 +241,57 @@ public class LogProbe extends ProbeDefinition {
       ProbeCondition probeCondition,
       Capture capture,
       Sampling sampling) {
-    super(language, id, active, tagStrs, where, evaluateAt);
+    this(
+        language,
+        id,
+        active,
+        Tag.fromStrings(tagStrs),
+        where,
+        evaluateAt,
+        template,
+        segments,
+        captureSnapshot,
+        probeCondition,
+        capture,
+        sampling);
+  }
+
+  private LogProbe(
+      String language,
+      String id,
+      boolean active,
+      Tag[] tags,
+      Where where,
+      MethodLocation evaluateAt,
+      String template,
+      List<Segment> segments,
+      boolean captureSnapshot,
+      ProbeCondition probeCondition,
+      Capture capture,
+      Sampling sampling) {
+    super(language, id, active, tags, where, evaluateAt);
     this.template = template;
     this.segments = segments;
     this.captureSnapshot = captureSnapshot;
     this.probeCondition = probeCondition;
     this.capture = capture;
     this.sampling = sampling;
+  }
+
+  public LogProbe copy() {
+    return new LogProbe(
+        language,
+        id,
+        active,
+        tags,
+        where,
+        evaluateAt,
+        template,
+        segments,
+        captureSnapshot,
+        probeCondition,
+        capture,
+        sampling);
   }
 
   public String getTemplate() {

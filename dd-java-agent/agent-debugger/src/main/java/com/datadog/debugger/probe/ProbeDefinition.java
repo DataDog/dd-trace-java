@@ -65,6 +65,22 @@ public abstract class ProbeDefinition {
     this.evaluateAt = evaluateAt;
   }
 
+  protected ProbeDefinition(
+      String language,
+      String id,
+      boolean active,
+      Tag[] tags,
+      Where where,
+      MethodLocation evaluateAt) {
+    this.language = language;
+    this.id = id;
+    this.active = active;
+    this.tags = tags;
+    initTagMap(tagMap, tags);
+    this.where = where;
+    this.evaluateAt = evaluateAt;
+  }
+
   public String getId() {
     return id;
   }
