@@ -16,6 +16,7 @@ import org.junit.Test;
 import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
 import org.junit.runner.notification.RunListener;
+import org.junit.runners.model.TestClass;
 
 public class TracingListener extends RunListener {
 
@@ -23,6 +24,14 @@ public class TracingListener extends RunListener {
 
   public TracingListener() {
     version = Version.id();
+  }
+
+  public void testSuiteStarted(final TestClass testClass) {
+    // TODO implement test-suite level visibility
+  }
+
+  public void testSuiteFinished(final TestClass testClass) {
+    // TODO implement test-suite level visibility
   }
 
   @Override

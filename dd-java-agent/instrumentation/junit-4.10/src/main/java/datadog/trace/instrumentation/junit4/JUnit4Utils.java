@@ -51,12 +51,35 @@ public abstract class JUnit4Utils {
 
         return innerListener.get(listener) instanceof TracingListener;
       } catch (final Throwable e) {
-        log.debug("Could not get inner listener from SynchronizedRunListener for JUnit4Advice", e);
-        return false;
+        log.debug("Could not get inner listener from SynchronizedRunListener", e);
       }
     }
 
     return false;
+  }
+
+  public static TracingListener toTracingListener(final RunListener listener) {
+    if (listener instanceof TracingListener) {
+      return (TracingListener) listener;
+    }
+
+    // Since JUnit 4.12, the RunListener are wrapped by a SynchronizedRunListener object.
+    if (SYNCHRONIZED_LISTENER.equals(listener.getClass().getName())) {
+      try {
+        // There is no public accessor to the inner listener.
+        final Field innerListenerField = listener.getClass().getDeclaredField("listener");
+        innerListenerField.setAccessible(true);
+
+        Object innerListener = innerListenerField.get(listener);
+        if (innerListener instanceof TracingListener) {
+          return (TracingListener) innerListener;
+        }
+      } catch (final Throwable e) {
+        log.debug("Could not get inner listener from SynchronizedRunListener", e);
+      }
+    }
+
+    return null;
   }
 
   /**
