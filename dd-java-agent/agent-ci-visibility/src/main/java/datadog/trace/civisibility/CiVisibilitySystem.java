@@ -10,6 +10,7 @@ import datadog.trace.civisibility.source.BestEfforSourcePathResolver;
 import datadog.trace.civisibility.source.CompilerAidedSourcePathResolver;
 import datadog.trace.civisibility.source.MethodLinesResolverImpl;
 import datadog.trace.civisibility.source.RepoIndexSourcePathResolver;
+import java.io.File;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,5 +59,34 @@ public class CiVisibilitySystem {
       InstrumentationBridge.setCodeowners(path -> null);
       InstrumentationBridge.setSourcePathResolver(clazz -> null);
     }
+
+    InstrumentationBridge.setModule(getModulePath(repoRoot));
+  }
+
+  private static String getModulePath(String repoRoot) {
+    if (repoRoot == null) {
+      return null;
+    }
+
+    if (!repoRoot.endsWith(File.separator)) {
+      repoRoot += File.separator;
+    }
+
+    String currentPath =
+        firstNonNull(System.getProperty("basedir"), System.getProperty("user.dir"));
+    if (currentPath == null || !currentPath.startsWith(repoRoot)) {
+      return null;
+    }
+
+    return currentPath.substring(repoRoot.length());
+  }
+
+  private static String firstNonNull(String... strings) {
+    for (String s : strings) {
+      if (s != null) {
+        return s;
+      }
+    }
+    return null;
   }
 }
