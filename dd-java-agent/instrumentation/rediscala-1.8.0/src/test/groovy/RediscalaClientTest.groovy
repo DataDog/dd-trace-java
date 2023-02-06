@@ -1,6 +1,7 @@
 import akka.actor.ActorSystem
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import redis.ByteStringDeserializerDefault
@@ -15,7 +16,7 @@ import spock.lang.Shared
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
-class RediscalaClientTest extends AgentTestRunner {
+abstract class RediscalaClientTest extends VersionedNamingTestBase {
 
   @Shared
   int port = PortUtils.randomOpenPort()
@@ -82,8 +83,8 @@ class RediscalaClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "Set"
           spanType DDSpanTypes.REDIS
           topLevel true
@@ -115,8 +116,8 @@ class RediscalaClientTest extends AgentTestRunner {
     assertTraces(2) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "Set"
           spanType DDSpanTypes.REDIS
           tags {
@@ -129,8 +130,8 @@ class RediscalaClientTest extends AgentTestRunner {
       }
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "Get"
           spanType DDSpanTypes.REDIS
           tags {
@@ -142,5 +143,41 @@ class RediscalaClientTest extends AgentTestRunner {
         }
       }
     }
+  }
+}
+
+class RediscalaClientV0ForkedTest extends RediscalaClientTest {
+
+  @Override
+  protected int version() {
+    return 0
+  }
+
+  @Override
+  protected String service() {
+    return "redis"
+  }
+
+  @Override
+  protected String operation() {
+    return "redis.query"
+  }
+}
+
+class RediscalaClientV1ForkedTest extends RediscalaClientTest {
+
+  @Override
+  protected int version() {
+    return 1
+  }
+
+  @Override
+  protected String service() {
+    return Config.get().getServiceName() + "-redis"
+  }
+
+  @Override
+  protected String operation() {
+    return "redis.command"
   }
 }
