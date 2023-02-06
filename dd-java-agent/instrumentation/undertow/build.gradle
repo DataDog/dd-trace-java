@@ -1,0 +1,14 @@
+muzzle {
+  pass {
+    group = "io.undertow"
+    module = "undertow-core"
+    versions = "[2.0.0.Final,2.3)"
+    assertInverse = false
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'io.undertow', name: 'undertow-core', version: '2.0.0.Final'
+}

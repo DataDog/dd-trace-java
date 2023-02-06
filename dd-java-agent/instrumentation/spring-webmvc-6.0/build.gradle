@@ -1,0 +1,48 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_17
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+[compileMain_java17Java, compileTestJava].each {
+  it.configure {
+    setJavaVersion(it, 17)
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+  }
+}
+
+tasks.named('muzzle').configure {
+  enabled = false
+}
+
+compileTestGroovy {
+  javaLauncher = getJavaLauncherFor(17)
+}
+
+dependencies {
+  main_java17CompileOnly(group: 'org.springframework', name: 'spring-webmvc', version: '6.0.0')
+  main_java17CompileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
+
+  main_java17CompileOnly project(':dd-java-agent:instrumentation:spring-webmvc-3.1')
+  main_java17CompileOnly project(':dd-java-agent:instrumentation:spring-webmvc-5.3')
+
+  testImplementation(project(':dd-java-agent:testing')) {
+    exclude(module: 'jetty-server') // incompatible servlet api
+  }
+
+
+  testImplementation project(':dd-java-agent:instrumentation:spring-webmvc-3.1')
+  testImplementation project(':dd-java-agent:instrumentation:spring-webmvc-5.3')
+  testImplementation project(':dd-java-agent:instrumentation:tomcat-appsec-6')
+  testImplementation project(':dd-java-agent:instrumentation:tomcat-5.5')
+
+  testImplementation group: 'org.spockframework', name: 'spock-spring', version: "$versions.spock"
+
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '3.0.0'
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.0.0'
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '3.0.0'
+  testImplementation group: 'com.google.code.gson', name: 'gson', version: '2.10.1'
+}
+
+

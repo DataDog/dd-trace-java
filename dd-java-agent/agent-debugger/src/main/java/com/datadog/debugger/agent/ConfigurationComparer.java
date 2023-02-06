@@ -1,8 +1,5 @@
 package com.datadog.debugger.agent;
 
-import static com.datadog.debugger.agent.Trie.reverseStr;
-import static com.datadog.debugger.agent.TypeNameHelper.extractSimpleName;
-
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.ProbeDefinition;
 import java.util.ArrayList;
@@ -14,7 +11,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,7 +29,6 @@ public class ConfigurationComparer {
   private final boolean filteredListChanged;
   private final Map<String, InstrumentationResult> instrumentationResults;
   private final List<String> changedBlockedTypes;
-  private Trie allChangedClasses;
 
   public ConfigurationComparer(
       Configuration originalConfiguration,
@@ -75,55 +70,20 @@ public class ConfigurationComparer {
     }
   }
 
-  private Trie buildChangedClasses() {
-    List<ProbeDefinition> changedDefinitions =
-        Stream.concat(removedDefinitions.stream(), addedDefinitions.stream())
-            .collect(Collectors.toList());
-    Trie changedClasses = new Trie();
-    for (ProbeDefinition definition : changedDefinitions) {
-      InstrumentationResult instrumentationResult = instrumentationResults.get(definition.getId());
-      String key = instrumentationResult != null ? instrumentationResult.getTypeName() : null;
-      if (key == null || key.equals("")) {
-        key = definition.getWhere().getTypeName();
-        if (key == null || key.equals("")) {
-          key = definition.getWhere().getSourceFile();
-          if (key == null || key.equals("")) {
-            continue;
-          }
-          // remove extension if any
-          int idx = key.lastIndexOf('.');
-          if (idx > -1) {
-            key = key.substring(0, idx);
-          }
-          key = normalizeFilePath(key);
-        }
-      } else {
-        key = normalizeFilePath(key);
-      }
-      LOGGER.debug(
-          "instrumented class changed: {} for probe ids: {}",
-          key,
-          definition.getAllProbeIds().collect(Collectors.toList()));
-      changedClasses.insert(reverseStr(key));
-    }
-    for (String typeName : changedBlockedTypes) {
-      LOGGER.debug("blocked class found: {}", typeName);
-      changedClasses.insert(reverseStr(typeName));
-    }
-    return changedClasses;
-  }
-
-  private String normalizeFilePath(String filePath) {
-    filePath = filePath.replace('/', '.');
-    return filePath;
-  }
-
   public Collection<ProbeDefinition> getAddedDefinitions() {
     return addedDefinitions;
   }
 
   public Collection<ProbeDefinition> getRemovedDefinitions() {
     return removedDefinitions;
+  }
+
+  public Map<String, InstrumentationResult> getInstrumentationResults() {
+    return instrumentationResults;
+  }
+
+  public List<String> getChangedBlockedTypes() {
+    return changedBlockedTypes;
   }
 
   public boolean hasProbeRelatedChanges() {
@@ -134,38 +94,6 @@ public class ConfigurationComparer {
     return originalConfiguration != null
             && originalConfiguration.getSampling() != incomingConfiguration.getSampling()
         || hasProbeRelatedChanges();
-  }
-
-  public boolean hasChangedClasses() {
-    return !getAllChangedClasses().isEmpty();
-  }
-
-  Trie getAllChangedClasses() {
-    if (allChangedClasses == null) {
-      allChangedClasses = buildChangedClasses();
-    }
-    return allChangedClasses;
-  }
-
-  public List<Class<?>> getAllLoadedChangedClasses(Class<?>[] allLoadedClasses) {
-    List<Class<?>> classesToBeTransformed = new ArrayList<>();
-    Trie changedClasses = getAllChangedClasses();
-    for (Class<?> clazz : allLoadedClasses) {
-      // try first with FQN (java.lang.String)
-      String typeName = clazz.getName();
-      if (!changedClasses.contains(reverseStr(typeName))) {
-        // fallback to matching on SimpleName (String)
-        String simpleName = extractSimpleName(clazz);
-        if (!changedClasses.contains(reverseStr(simpleName))) {
-          // prefix match with FQN
-          if (!changedClasses.containsPrefix(reverseStr(typeName))) {
-            continue;
-          }
-        }
-      }
-      classesToBeTransformed.add(clazz);
-    }
-    return classesToBeTransformed;
   }
 
   List<String> findChangesInBlockedTypes() {

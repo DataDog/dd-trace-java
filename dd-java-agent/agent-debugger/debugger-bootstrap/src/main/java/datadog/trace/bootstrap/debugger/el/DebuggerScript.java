@@ -5,6 +5,6 @@ package datadog.trace.bootstrap.debugger.el;
  * debugger EL.<br>
  * Because it must be reachable from the instrumented code it must be placed in bootstrap.
  */
-public interface DebuggerScript {
-  boolean execute(ValueReferenceResolver valueRefResolver);
+public interface DebuggerScript<R> {
+  R execute(ValueReferenceResolver valueRefResolver);
 }

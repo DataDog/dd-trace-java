@@ -17,6 +17,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
+import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.ArrayDeque;
@@ -258,6 +259,26 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
   ScopeStack scopeStack() {
     return this.tlsScopeStack.get();
+  }
+
+  @Override
+  public ScopeState newScopeState() {
+    return new ContinuableScopeState();
+  }
+
+  private class ContinuableScopeState implements ScopeState {
+
+    private ScopeStack localScopeStack = tlsScopeStack.initialValue();
+
+    @Override
+    public void activate() {
+      tlsScopeStack.set(localScopeStack);
+    }
+
+    @Override
+    public void fetchFromActive() {
+      localScopeStack = tlsScopeStack.get();
+    }
   }
 
   private static class ContinuableScope implements AgentScope, AttachableWrapper {

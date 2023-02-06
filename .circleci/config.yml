@@ -91,9 +91,15 @@ commands:
 
             if [[ -n "${CIRCLE_PR_NUMBER}" ]]
             then
-              FETCH_REFS="${FETCH_REFS} +refs/pull/${CIRCLE_PR_NUMBER}/merge:pr/${CIRCLE_PR_NUMBER}/merge"
+              FETCH_REFS="${FETCH_REFS} +refs/pull/${CIRCLE_PR_NUMBER}/merge:refs/pull/${CIRCLE_PR_NUMBER}/merge +refs/pull/${CIRCLE_PR_NUMBER}/head:refs/pull/${CIRCLE_PR_NUMBER}/head"
               git fetch -u origin ${FETCH_REFS}
-              git checkout "pr/${CIRCLE_PR_NUMBER}/merge"
+
+              if git merge-base --is-ancestor $(git show-ref --hash refs/pull/${CIRCLE_PR_NUMBER}/head) $(git show-ref --hash refs/pull/${CIRCLE_PR_NUMBER}/merge); then
+                git checkout "pull/${CIRCLE_PR_NUMBER}/merge"
+              else
+                echo "[WARN] There is a merge conflict between master and PR ${CIRCLE_PR_NUMBER}, merge branch cannot be checked out."
+                git checkout "pull/${CIRCLE_PR_NUMBER}/head"
+              fi
             fi
 
             # Everything falls back to the main cache

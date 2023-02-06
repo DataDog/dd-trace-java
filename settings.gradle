@@ -71,6 +71,9 @@ include ':remote-config'
 include ':dd-java-agent:appsec'
 include ':dd-java-agent:appsec:weblog:weblog-common'
 
+// ci-visibility
+include ':dd-java-agent:agent-ci-visibility'
+
 // iast
 include ':dd-java-agent:agent-iast'
 
@@ -312,6 +315,7 @@ include ':dd-java-agent:instrumentation:spring-scheduling-3.1'
 include ':dd-java-agent:instrumentation:spring-webflux-5'
 include ':dd-java-agent:instrumentation:spring-webmvc-3.1'
 include ':dd-java-agent:instrumentation:spring-webmvc-5.3'
+include ':dd-java-agent:instrumentation:spring-webmvc-6.0'
 include ':dd-java-agent:instrumentation:spymemcached-2.12'
 include ':dd-java-agent:instrumentation:synapse-3'
 include ':dd-java-agent:instrumentation:testng-6.4'
@@ -320,7 +324,9 @@ include ':dd-java-agent:instrumentation:tomcat-appsec-5.5'
 include ':dd-java-agent:instrumentation:tomcat-appsec-6'
 include ':dd-java-agent:instrumentation:trace-annotation'
 include ':dd-java-agent:instrumentation:twilio'
-include ':dd-java-agent:instrumentation:undertow-2.0'
+include ':dd-java-agent:instrumentation:undertow'
+include ':dd-java-agent:instrumentation:undertow:undertow-2.0'
+include ':dd-java-agent:instrumentation:undertow:undertow-2.2'
 include ':dd-java-agent:instrumentation:vertx-mysql-client-3.9'
 include ':dd-java-agent:instrumentation:vertx-redis-client-3.9'
 include ':dd-java-agent:instrumentation:vertx-redis-client-3.9:stubs'

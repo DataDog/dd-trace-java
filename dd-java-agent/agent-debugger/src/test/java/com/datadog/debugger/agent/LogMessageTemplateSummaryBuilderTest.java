@@ -64,6 +64,27 @@ class LogMessageTemplateSummaryBuilderTest {
   }
 
   @Test
+  public void argMultipleInFlightTemplate() {
+    LogProbe probe = LogProbe.builder().template("{arg}").build();
+    LogMessageTemplateSummaryBuilder summaryBuilder = new LogMessageTemplateSummaryBuilder(probe);
+    Snapshot.CapturedContext capturedContext = new Snapshot.CapturedContext();
+    capturedContext.addArguments(
+        new Snapshot.CapturedValue[] {
+          Snapshot.CapturedValue.of("arg", String.class.getTypeName(), "foo")
+        });
+    summaryBuilder.addEntry(capturedContext);
+    LogMessageTemplateSummaryBuilder summaryBuilder2 = new LogMessageTemplateSummaryBuilder(probe);
+    Snapshot.CapturedContext capturedContext2 = new Snapshot.CapturedContext();
+    capturedContext2.addArguments(
+        new Snapshot.CapturedValue[] {
+          Snapshot.CapturedValue.of("arg", String.class.getTypeName(), "bar")
+        });
+    summaryBuilder2.addEntry(capturedContext2);
+    assertEquals("foo", summaryBuilder.build());
+    assertEquals("bar", summaryBuilder2.build());
+  }
+
+  @Test
   public void argNullTemplate() {
     LogProbe probe = LogProbe.builder().template("{nullObject}").build();
     LogMessageTemplateSummaryBuilder summaryBuilder = new LogMessageTemplateSummaryBuilder(probe);

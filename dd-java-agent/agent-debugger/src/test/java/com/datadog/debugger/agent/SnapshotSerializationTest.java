@@ -217,7 +217,7 @@ public class SnapshotSerializationTest {
                 PROBE_LOCATION,
                 Snapshot.MethodLocation.DEFAULT,
                 true,
-                new ProbeCondition(DSL.when(DSL.gt(DSL.ref("^n"), DSL.value(0))), "^n > 0"),
+                new ProbeCondition(DSL.when(DSL.gt(DSL.ref("^n"), DSL.value(0))), "n > 0"),
                 "",
                 new SnapshotSummaryBuilder(PROBE_LOCATION)),
             String.class.getTypeName());
@@ -231,8 +231,7 @@ public class SnapshotSerializationTest {
     Snapshot deserializedSnapshot = adapter.fromJson(buffer);
     Assert.assertTrue(deserializedSnapshot.getProbe().getScript() instanceof ProbeCondition);
     Assert.assertEquals(
-        "^n > 0",
-        ((ProbeCondition) deserializedSnapshot.getProbe().getScript()).getDslExpression());
+        "n > 0", ((ProbeCondition) deserializedSnapshot.getProbe().getScript()).getDslExpression());
   }
 
   static class AnotherClass {

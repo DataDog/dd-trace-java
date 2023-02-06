@@ -114,7 +114,11 @@ public class AgentTracer {
   private AgentTracer() {}
 
   public interface TracerAPI
-      extends datadog.trace.api.Tracer, InternalTracer, AgentPropagation, EndpointCheckpointer {
+      extends datadog.trace.api.Tracer,
+          InternalTracer,
+          AgentPropagation,
+          EndpointCheckpointer,
+          ScopeStateAware {
     AgentSpan startSpan(CharSequence spanName);
 
     AgentSpan startSpan(CharSequence spanName, long startTimeMicros);
@@ -386,6 +390,11 @@ public class AgentTracer {
 
     @Override
     public void notifyExtensionEnd(AgentSpan span, Object result, boolean isError) {}
+
+    @Override
+    public ScopeState newScopeState() {
+      return null;
+    }
   }
 
   public static final class NoopAgentSpan implements AgentSpan {

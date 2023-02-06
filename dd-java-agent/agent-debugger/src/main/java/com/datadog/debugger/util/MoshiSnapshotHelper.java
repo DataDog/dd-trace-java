@@ -214,6 +214,10 @@ public class MoshiSnapshotHelper {
       List<Snapshot.CapturedValue> values = new ArrayList<>();
       while (jsonReader.hasNext()) {
         String name = jsonReader.nextName();
+        if (NOT_CAPTURED_REASON.equals(name)) {
+          jsonReader.nextString();
+          continue;
+        }
         Snapshot.CapturedValue capturedValue = valueAdapter.fromJson(jsonReader);
         if (capturedValue != null) {
           capturedValue.setName(name);
