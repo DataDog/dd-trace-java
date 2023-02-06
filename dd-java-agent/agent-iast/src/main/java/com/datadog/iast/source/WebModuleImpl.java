@@ -204,4 +204,10 @@ public class WebModuleImpl implements WebModule {
     taintedObjects.taintInputString(
         value, new Source(SourceTypes.REQUEST_MATRIX_PARAMETER, paramName, value));
   }
+
+  @Override
+  public void onInjectedParameter(
+      @Nullable String name, @Nullable String value, @Nonnull byte sourceType) {
+    onNamed(name, value, sourceType);
+  }
 }
