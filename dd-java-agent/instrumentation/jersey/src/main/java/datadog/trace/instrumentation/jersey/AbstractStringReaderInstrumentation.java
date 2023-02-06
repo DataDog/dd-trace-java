@@ -1,0 +1,30 @@
+package datadog.trace.instrumentation.jersey3;
+
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+
+import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.Instrumenter;
+
+@AutoService(Instrumenter.class)
+public class AbstractStringReaderInstrumentation extends Instrumenter.Iast
+    implements Instrumenter.ForKnownTypes {
+
+  public AbstractStringReaderInstrumentation() {
+    super("jersey");
+  }
+
+  @Override
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
+        named("fromString").and(isPublic()), packageName + ".AbstractStringReaderAdvice");
+  }
+
+  @Override
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "org.glassfish.jersey.internal.inject.ParamConverters$AbstractStringReader",
+      "org.glassfish.jersey.server.internal.inject.ParamConverters$AbstractStringReader"
+    };
+  }
+}
