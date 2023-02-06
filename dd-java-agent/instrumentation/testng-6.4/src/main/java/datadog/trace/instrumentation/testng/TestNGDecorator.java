@@ -33,13 +33,16 @@ public class TestNGDecorator extends TestDecorator {
     final Class<?> testClass = TestNGUtils.getTestClass(result);
     final Method testMethod = TestNGUtils.getTestMethod(result);
 
-    afterTestStart(span, testSuiteName, testName, testParameters, version, testClass, testMethod);
+    afterTestStart(
+        span, testSuiteName, testName, testParameters, version, testClass, testMethod, null);
   }
 
-  public void onTestSuccess(final AgentSpan span) {
+  public void onTestSuccess(final AgentSpan span, final ITestResult result) {
     span.setTag(Tags.TEST_STATUS, TEST_PASS);
 
-    beforeFinish(span);
+    final String testSuiteName = result.getInstanceName();
+    final Class<?> testClass = TestNGUtils.getTestClass(result);
+    beforeTestFinish(span, testSuiteName, testClass);
   }
 
   public void onTestFailure(final AgentSpan span, final ITestResult result) {
@@ -51,7 +54,9 @@ public class TestNGDecorator extends TestDecorator {
     span.setError(true);
     span.setTag(Tags.TEST_STATUS, TEST_FAIL);
 
-    beforeFinish(span);
+    final String testSuiteName = result.getInstanceName();
+    final Class<?> testClass = TestNGUtils.getTestClass(result);
+    beforeTestFinish(span, testSuiteName, testClass);
   }
 
   public void onTestIgnored(final AgentSpan span, final ITestResult result) {
@@ -63,6 +68,8 @@ public class TestNGDecorator extends TestDecorator {
 
     span.setTag(Tags.TEST_STATUS, TEST_SKIP);
 
-    beforeFinish(span);
+    final String testSuiteName = result.getInstanceName();
+    final Class<?> testClass = TestNGUtils.getTestClass(result);
+    beforeTestFinish(span, testSuiteName, testClass);
   }
 }

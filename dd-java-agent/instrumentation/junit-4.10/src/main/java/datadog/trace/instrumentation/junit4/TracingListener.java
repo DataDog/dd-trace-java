@@ -7,9 +7,6 @@ import static datadog.trace.instrumentation.junit4.JUnit4Decorator.DECORATE;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import java.lang.reflect.Method;
-import java.util.Collections;
-import java.util.List;
 import junit.runner.Version;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -26,12 +23,51 @@ public class TracingListener extends RunListener {
     version = Version.id();
   }
 
-  public void testSuiteStarted(final TestClass testClass) {
-    // TODO implement test-suite level visibility
+  public void testSuiteStarted(final TestClass junitTestClass) {
+    if (DECORATE.skipTrace(junitTestClass)) {
+      return;
+    }
+
+    boolean containsTestCases = !junitTestClass.getAnnotatedMethods(Test.class).isEmpty();
+    if (!containsTestCases) {
+      // Not all test suites contain tests.
+      // Given that test suites can be nested in other test suites,
+      // we are only interested in the innermost ones where the actual test cases reside
+      return;
+    }
+
+    final AgentSpan span = startSpan("junit.test_suite");
+    final AgentScope scope = activateSpan(span);
+    scope.setAsyncPropagation(true);
+
+    DECORATE.onTestSuiteStart(span, version, junitTestClass);
   }
 
-  public void testSuiteFinished(final TestClass testClass) {
-    // TODO implement test-suite level visibility
+  public void testSuiteFinished(final TestClass junitTestClass) {
+    if (DECORATE.skipTrace(junitTestClass)) {
+      return;
+    }
+
+    boolean containsTestCases = !junitTestClass.getAnnotatedMethods(Test.class).isEmpty();
+    if (!containsTestCases) {
+      // Not all test suites contain tests.
+      // Given that test suites can be nested in other test suites,
+      // we are only interested in the innermost ones where the actual test cases reside
+      return;
+    }
+
+    final AgentSpan span = AgentTracer.activeSpan();
+    if (span == null || !DECORATE.isTestSuiteSpan(AgentTracer.activeSpan())) {
+      return;
+    }
+
+    final AgentScope scope = AgentTracer.activeScope();
+    if (scope != null) {
+      scope.close();
+    }
+
+    DECORATE.onTestSuiteFinish(span, junitTestClass);
+    span.finish();
   }
 
   @Override
@@ -63,7 +99,7 @@ public class TracingListener extends RunListener {
     }
 
     final AgentSpan span = AgentTracer.activeSpan();
-    if (span == null || !DECORATE.isTestSpan(AgentTracer.activeSpan())) {
+    if (!DECORATE.isTestSpan(span)) {
       return;
     }
 
@@ -72,10 +108,12 @@ public class TracingListener extends RunListener {
       scope.close();
     }
 
-    DECORATE.onTestFinish(span);
+    DECORATE.onTestFinish(span, description);
     span.finish();
   }
 
+  // the same callback is executed both for test cases and test suited (in case of setup/teardown
+  // errors)
   @Override
   public void testFailure(final Failure failure) {
     if (DECORATE.skipTrace(failure.getDescription())) {
@@ -83,7 +121,7 @@ public class TracingListener extends RunListener {
     }
 
     final AgentSpan span = AgentTracer.activeSpan();
-    if (span == null || !DECORATE.isTestSpan(AgentTracer.activeSpan())) {
+    if (!DECORATE.isTestSpan(span) || !DECORATE.isTestSuiteSpan(span)) {
       return;
     }
 
@@ -97,11 +135,24 @@ public class TracingListener extends RunListener {
     }
 
     final AgentSpan span = AgentTracer.activeSpan();
-    if (span == null || !DECORATE.isTestSpan(AgentTracer.activeSpan())) {
+    if (!DECORATE.isTestSpan(span) || !DECORATE.isTestSuiteSpan(span)) {
       return;
     }
 
-    DECORATE.onTestAssumptionFailure(span, failure);
+    String reason;
+    Throwable throwable = failure.getException();
+    if (throwable != null) {
+      reason = throwable.getMessage();
+    } else {
+      reason = null;
+    }
+
+    Description description = failure.getDescription();
+    if (JUnit4Utils.isTestCaseDescription(description)) {
+      DECORATE.onTestAssumptionFailure(span, reason);
+    } else if (JUnit4Utils.isTestSuiteDescription(description)) {
+      DECORATE.onTestSuiteAssumptionFailure(span, version, description, reason);
+    }
   }
 
   @Override
@@ -110,26 +161,22 @@ public class TracingListener extends RunListener {
       return;
     }
 
-    final List<Method> testMethods;
-    if (description.getMethodName() != null && !"".equals(description.getMethodName())) {
-      testMethods = Collections.singletonList(JUnit4Utils.getTestMethod(description));
-    } else if (description.getTestClass() != null) {
-      // If @Ignore annotation is kept at class level, the instrumentation
-      // reports every method annotated with @Test as skipped test.
-      testMethods = DECORATE.testMethods(description.getTestClass(), Test.class);
-    } else {
-      testMethods = Collections.emptyList();
-    }
+    final AgentSpan span = startSpan("junit.test");
 
     final Ignore ignore = description.getAnnotation(Ignore.class);
     final String reason = ignore != null ? ignore.value() : null;
 
-    for (final Method testMethod : testMethods) {
-      final AgentSpan span = startSpan("junit.test");
-      DECORATE.onTestIgnored(span, version, description, testMethod, reason);
-      // We set a duration of 1 ns, because a span with duration==0 has a special treatment in the
-      // tracer.
-      span.finishWithDuration(1L);
+    if (JUnit4Utils.isTestCaseDescription(description)) {
+      DECORATE.onTestIgnored(
+          span, version, description, JUnit4Utils.getTestMethod(description), reason);
+    } else if (JUnit4Utils.isTestSuiteDescription(description)) {
+      DECORATE.onTestSuiteIgnored(span, version, description, reason);
+    } else {
+      return;
     }
+
+    // We set a duration of 1 ns, because a span with duration==0 has a special treatment in the
+    // tracer.
+    span.finishWithDuration(1L);
   }
 }

@@ -95,7 +95,7 @@ public class TracingListener implements TestExecutionListener {
                 scope.close();
               }
 
-              DECORATE.onTestFinish(span, testExecutionResult);
+              DECORATE.onTestFinish(span, (MethodSource) testSource, testExecutionResult);
               span.finish();
             });
   }
