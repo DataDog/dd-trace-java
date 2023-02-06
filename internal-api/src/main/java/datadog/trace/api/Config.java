@@ -292,6 +292,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RULES;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_RULES;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES;
+import static datadog.trace.api.config.TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA;
 import static datadog.trace.api.config.TracerConfig.TRACE_STRICT_WRITES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
@@ -302,6 +303,7 @@ import static datadog.trace.util.Strings.toEnvVar;
 
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TracerConfig;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
@@ -405,6 +407,8 @@ public class Config {
   private final boolean prioritySamplingEnabled;
   private final String prioritySamplingForce;
   private final boolean traceResolverEnabled;
+
+  private final int spanAttributeSchemaVersion;
   private final Map<String, String> serviceMapping;
   private final Map<String, String> tags;
   private final Map<String, String> spanTags;
@@ -816,6 +820,8 @@ public class Config {
     }
 
     baggageMapping = configProvider.getMergedMap(BAGGAGE_MAPPING);
+
+    spanAttributeSchemaVersion = schemaVersionFromConfig();
 
     httpServerPathResourceNameMapping =
         configProvider.getOrderedMap(TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING);
@@ -1490,6 +1496,10 @@ public class Config {
 
   public boolean isIastDeduplicationEnabled() {
     return iastDeduplicationEnabled;
+  }
+
+  public int getSpanAttributeSchemaVersion() {
+    return spanAttributeSchemaVersion;
   }
 
   public Map<String, String> getServiceMapping() {
@@ -2436,6 +2446,22 @@ public class Config {
     aasTags.put("aas.environment.runtime", getProp("java.vm.name", "unknown"));
 
     return aasTags;
+  }
+
+  private int schemaVersionFromConfig() {
+    int version =
+        configProvider.getInteger(TRACE_SPAN_ATTRIBUTE_SCHEMA, SpanNaming.SCHEMA_MIN_VERSION);
+    if (spanAttributeSchemaVersion < SpanNaming.SCHEMA_MIN_VERSION
+        || spanAttributeSchemaVersion > SpanNaming.SCHEMA_MAX_VERSION) {
+      log.warn(
+          "Invalid attribute schema version {} out of range [{}, {}]. Defaulting to {}",
+          version,
+          SpanNaming.SCHEMA_MIN_VERSION,
+          SpanNaming.SCHEMA_MAX_VERSION,
+          SpanNaming.SCHEMA_MIN_VERSION);
+      version = SpanNaming.SCHEMA_MIN_VERSION;
+    }
+    return version;
   }
 
   public String getFinalProfilingUrl() {

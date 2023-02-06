@@ -61,8 +61,12 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
   }
 
   protected void processDatabaseType(AgentSpan span, String dbType) {
+    span.setTag(DB_TYPE, dbType);
+    postProcessServiceAndOperationName(span, dbType);
+  }
+
+  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {
     span.setServiceName(dbType);
     span.setOperationName(CACHE.computeIfAbsent(dbType, APPEND_OPERATION));
-    span.setTag(DB_TYPE, dbType);
   }
 }
