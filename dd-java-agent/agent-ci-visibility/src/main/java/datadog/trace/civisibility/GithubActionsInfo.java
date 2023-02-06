@@ -1,6 +1,8 @@
 package datadog.trace.civisibility;
 
-import static datadog.trace.civisibility.git.GitUtils.normalizeRef;
+import static datadog.trace.civisibility.git.GitUtils.isTagReference;
+import static datadog.trace.civisibility.git.GitUtils.normalizeBranch;
+import static datadog.trace.civisibility.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.PathUtils.expandTilde;
 
 import datadog.trace.civisibility.git.CommitInfo;
@@ -65,30 +67,30 @@ class GithubActionsInfo implements CIProviderInfo {
     return true;
   }
 
-  private String buildGitTag() {
-    String gitBranchOrTag = System.getenv(GHACTIONS_HEAD_REF);
-    if (gitBranchOrTag == null || gitBranchOrTag.isEmpty()) {
-      gitBranchOrTag = System.getenv(GHACTIONS_REF);
-    }
-
-    if (gitBranchOrTag != null && gitBranchOrTag.contains("tags")) {
-      return normalizeRef(gitBranchOrTag);
+  private String buildGitBranch() {
+    String gitBranchOrTag = getGitBranchOrTag();
+    if (!isTagReference(gitBranchOrTag)) {
+      return normalizeBranch(gitBranchOrTag);
     } else {
       return null;
     }
   }
 
-  private String buildGitBranch() {
+  private String buildGitTag() {
+    String gitBranchOrTag = getGitBranchOrTag();
+    if (isTagReference(gitBranchOrTag)) {
+      return normalizeTag(gitBranchOrTag);
+    } else {
+      return null;
+    }
+  }
+
+  private static String getGitBranchOrTag() {
     String gitBranchOrTag = System.getenv(GHACTIONS_HEAD_REF);
     if (gitBranchOrTag == null || gitBranchOrTag.isEmpty()) {
       gitBranchOrTag = System.getenv(GHACTIONS_REF);
     }
-
-    if (gitBranchOrTag != null && !gitBranchOrTag.contains("tags")) {
-      return normalizeRef(gitBranchOrTag);
-    } else {
-      return null;
-    }
+    return gitBranchOrTag;
   }
 
   private String buildGitRepositoryUrl(final String host, final String repo) {
