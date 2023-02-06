@@ -419,9 +419,10 @@ jobs:
       - when:
           condition:
             or:
-              - equal: ["smoke", << parameters.stage >>]
-              - equal: ["instrumentation", << parameters.stage >>]
+              - equal: ["core", << parameters.stage >>]
               - equal: ["flaky", << parameters.stage >>]
+              - equal: ["instrumentation", << parameters.stage >>]
+              - equal: ["smoke", << parameters.stage >>]
           steps:
             - setup_testcontainers
 
