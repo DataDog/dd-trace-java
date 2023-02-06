@@ -108,8 +108,7 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
 
   @Override
   boolean testBlocking() {
-    //@Flaky
-    false
+    true
   }
 
   static class SimpleExceptionMapper implements ExceptionMapper<Throwable> {

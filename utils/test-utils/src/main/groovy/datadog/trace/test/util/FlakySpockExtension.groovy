@@ -51,7 +51,27 @@ class FlakySpockExtension extends AbstractGlobalExtension {
   }
 
   private static boolean isFlakyTest(final NodeInfo node) {
-    return node.isAnnotationPresent(Flaky)
+    final flaky = node.getAnnotation(Flaky) as Flaky
+    if (flaky == null) {
+      return false
+    }
+    final suites = flaky.suites()
+    if (suites == null || suites.length == 0) {
+      return true
+    }
+    final specName = getSpecName(node)
+    return suites.any { it == specName }
+  }
+
+  private static String getSpecName(final NodeInfo node) {
+    def curNode = node
+    while (curNode != null) {
+      if (curNode instanceof SpecInfo) {
+        return curNode.bottomSpec.name
+      }
+      curNode = curNode.parent
+    }
+    return null
   }
 
   private static boolean shouldRunAll() {

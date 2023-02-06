@@ -26,8 +26,7 @@ class GrizzlyAsyncTest extends GrizzlyTest {
 
   @Override
   boolean testBlocking() {
-    // @Flaky("'test blocking of request with json response' is flaky")
-    false
+    true
   }
 
   @Path("/")

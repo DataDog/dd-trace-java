@@ -21,6 +21,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.bootstrap.instrumentation.decorator.http.SimplePathNormalizer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
+import datadog.trace.test.util.Flaky
 import groovy.transform.CompileStatic
 import okhttp3.HttpUrl
 import okhttp3.MediaType
@@ -1377,6 +1378,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     true         | 'text/html;q=0.8, application/json;q=0.9'
   }
 
+  @Flaky(value = "flaky on some tests from grizzly-2 module", suites = ["GrizzlyAsyncTest"])
   def 'test blocking of request with json response'() {
     setup:
     assumeTrue(testBlocking())

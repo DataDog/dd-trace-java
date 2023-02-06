@@ -220,7 +220,7 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
   @Override
   boolean testMultipleHeader() {
     // @Flaky("https://github.com/DataDog/dd-trace-java/issues/3867")
-    false
+    true
   }
 
   @Override
