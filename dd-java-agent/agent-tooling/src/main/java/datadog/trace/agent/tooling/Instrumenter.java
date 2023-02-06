@@ -158,7 +158,7 @@ public interface Instrumenter {
     }
 
     @Override
-    public final void instrument(TransformerBuilder transformerBuilder) {
+    public void instrument(TransformerBuilder transformerBuilder) {
       if (isEnabled()) {
         transformerBuilder.applyInstrumentation(this);
       } else {
@@ -314,19 +314,23 @@ public interface Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-      boolean isApplicable = enabledSystems.contains(TargetSystem.IAST);
-      if (isApplicable) {
-        forceClassLoad();
+    public void instrument(TransformerBuilder transformerBuilder) {
+      if (isEnabled()) {
+        preloadClassNames();
       }
-      return isApplicable;
+      super.instrument(transformerBuilder);
+    }
+
+    @Override
+    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+      return enabledSystems.contains(TargetSystem.IAST);
     }
 
     /**
      * Force loading of classes that need to be instrumented, but are using during instrumentation.
      */
-    private void forceClassLoad() {
-      String[] list = getClassesToBeForced();
+    private void preloadClassNames() {
+      String[] list = getClassNamesToBePreloaded();
       if (list != null) {
         for (String clazz : list) {
           try {
@@ -339,7 +343,7 @@ public interface Instrumenter {
     }
 
     /** Get classes to force load* */
-    public String[] getClassesToBeForced() {
+    public String[] getClassNamesToBePreloaded() {
       return null;
     }
   }

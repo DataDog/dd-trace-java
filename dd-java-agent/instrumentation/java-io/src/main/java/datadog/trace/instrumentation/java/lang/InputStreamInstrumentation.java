@@ -43,7 +43,7 @@ public class InputStreamInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public String[] getClassesToBeForced() {
+  public String[] getClassNamesToBePreloaded() {
     return FORCE_LOADING;
   }
 
