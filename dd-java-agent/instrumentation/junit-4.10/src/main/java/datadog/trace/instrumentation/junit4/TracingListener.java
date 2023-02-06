@@ -11,6 +11,7 @@ import junit.runner.Version;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.Description;
+import org.junit.runner.Result;
 import org.junit.runner.notification.Failure;
 import org.junit.runner.notification.RunListener;
 import org.junit.runners.model.TestClass;
@@ -21,6 +22,28 @@ public class TracingListener extends RunListener {
 
   public TracingListener() {
     version = Version.id();
+
+    final AgentSpan span = startSpan("junit.test_module");
+    final AgentScope scope = activateSpan(span);
+    scope.setAsyncPropagation(true);
+
+    DECORATE.onTestModuleStart(span, version);
+  }
+
+  @Override
+  public void testRunFinished(Result result) {
+    final AgentSpan span = AgentTracer.activeSpan();
+    if (span == null || !DECORATE.isTestModuleSpan(AgentTracer.activeSpan())) {
+      return;
+    }
+
+    final AgentScope scope = AgentTracer.activeScope();
+    if (scope != null) {
+      scope.close();
+    }
+
+    DECORATE.onTestModuleFinish(span);
+    span.finish();
   }
 
   public void testSuiteStarted(final TestClass junitTestClass) {

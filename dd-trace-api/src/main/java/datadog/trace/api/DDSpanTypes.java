@@ -28,6 +28,7 @@ public class DDSpanTypes {
 
   public static final String TEST = "test";
   public static final String TEST_SUITE_END = "test_suite_end";
+  public static final String TEST_MODULE_END = "test_module_end";
 
   public static final String VULNERABILITY = "vulnerability";
 }

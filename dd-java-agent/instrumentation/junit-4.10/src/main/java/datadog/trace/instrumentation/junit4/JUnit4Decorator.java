@@ -47,6 +47,14 @@ public class JUnit4Decorator extends TestDecorator {
     return testClass != null && testClass.getAnnotation(DisableTestTrace.class) != null;
   }
 
+  public void onTestModuleStart(final AgentSpan span, final String version) {
+    afterTestModuleStart(span, version);
+  }
+
+  public void onTestModuleFinish(final AgentSpan span) {
+    beforeTestModuleFinish(span);
+  }
+
   public void onTestSuiteStart(
       final AgentSpan span, final String version, final TestClass junitTestClass) {
     String testSuiteName = junitTestClass.getName();
