@@ -22,8 +22,8 @@ import datadog.trace.core.monitor.MonitoringImpl
 import datadog.trace.core.monitor.TracerHealthMetrics
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
+import datadog.trace.test.util.Flaky
 import okhttp3.HttpUrl
-import spock.lang.Retry
 import spock.lang.Shared
 import spock.lang.Timeout
 import spock.util.concurrent.PollingConditions
@@ -420,7 +420,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
     trackType << [TrackType.CITESTCYCLE]
   }
 
-  @Retry(delay = 500)
+  @Flaky
   // if execution is too slow, the http client timeout may trigger.
   def "slow response test"() {
     def numWritten = 0

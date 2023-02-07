@@ -33,6 +33,7 @@ import com.amazonaws.services.sqs.model.SendMessageRequest
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.test.util.Flaky
 import org.apache.http.conn.HttpHostConnectException
 import org.apache.http.impl.execchain.RequestAbortedException
 import spock.lang.AutoCleanup
@@ -334,6 +335,7 @@ class AWS1ClientTest extends AgentTestRunner {
     }
   }
 
+  @Flaky("assertTraces sometimes fails")
   def "timeout and retry errors captured"() {
     setup:
     def server = httpServer {

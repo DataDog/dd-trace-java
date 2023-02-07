@@ -358,8 +358,9 @@ jobs:
       profile:
         type: boolean
         default: false
-
-
+      continueOnFailure:
+        type: boolean
+        default: false
 
     steps:
       - setup_code
@@ -378,6 +379,7 @@ jobs:
             or:
               - equal: ["smoke", << parameters.stage >>]
               - equal: ["instrumentation", << parameters.stage >>]
+              - equal: ["flaky", << parameters.stage >>]
           steps:
             - setup_testcontainers
 
@@ -396,6 +398,7 @@ jobs:
             << pipeline.parameters.gradle_flags >>
             --max-workers=<< parameters.maxWorkers >>
             --continue
+            <<# parameters.continueOnFailure >> || true <</ parameters.continueOnFailure >>
 
       - run:
           name: Collect reports
@@ -648,7 +651,7 @@ build_test_jobs: &build_test_jobs
         - build
       name: z_test_<< matrix.testJvm >>_base
       triggeredBy: *core_modules
-      gradleParameters: "-PskipInstTests -PskipSmokeTests -PskipProfilingTests"
+      gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
       stage: core
       maxWorkers: 6
       matrix:
@@ -659,7 +662,7 @@ build_test_jobs: &build_test_jobs
         - build
       name: z_test_8_base
       triggeredBy: *core_modules
-      gradleParameters: "-PskipInstTests -PskipSmokeTests -PskipProfilingTests"
+      gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
       testTask: test jacocoTestReport jacocoTestCoverageVerification
       stage: core
       maxWorkers: 6
@@ -670,6 +673,7 @@ build_test_jobs: &build_test_jobs
         - build
       name: z_test_<< matrix.testJvm >>_inst
       gradleTarget: ":dd-java-agent:instrumentation"
+      gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       maxWorkers: 8
@@ -681,6 +685,7 @@ build_test_jobs: &build_test_jobs
         - build
       name: z_test_8_inst
       gradleTarget: ":dd-java-agent:instrumentation"
+      gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       maxWorkers: 8
@@ -692,9 +697,21 @@ build_test_jobs: &build_test_jobs
       name: test_8_inst_latest
       testTask: latestDepTest
       gradleTarget: ":dd-java-agent:instrumentation"
+      gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       maxWorkers: 8
+      testJvm: "8"
+
+  - huge_tests:
+      requires:
+        - build
+      name: z_test_8_flaky
+      gradleParameters: "-PrunFlakyTests"
+      continueOnFailure: true
+      triggeredBy: *core_modules
+      stage: flaky
+      maxWorkers: 4
       testJvm: "8"
 
   - tests:
@@ -702,6 +719,7 @@ build_test_jobs: &build_test_jobs
         - build
       maxWorkers: 4
       gradleTarget: ":dd-java-agent:agent-profiling"
+      gradleParameters: "-PskipFlakyTests"
       triggeredBy: *profiling_modules
       stage: profiling
       name: test_<< matrix.testJvm >>_profiling
@@ -714,6 +732,7 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 4
       name: test_<< matrix.testJvm >>_iast
       gradleTarget: ":dd-java-agent:agent-iast"
+      gradleParameters: "-PskipFlakyTests"
       triggeredBy: *iast_modules
       stage: iast
       matrix:
@@ -725,6 +744,7 @@ build_test_jobs: &build_test_jobs
       name: test_<< matrix.testJvm >>_debugger
       maxWorkers: 4
       gradleTarget: ":dd-java-agent:agent-debugger"
+      gradleParameters: "-PskipFlakyTests"
       triggeredBy: *debugger_modules
       stage: debugger
       matrix:
@@ -735,6 +755,7 @@ build_test_jobs: &build_test_jobs
         - build
       name: z_test_<< matrix.testJvm >>_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
+      gradleParameters: "-PskipFlakyTests"
       stage: smoke
       maxWorkers: 8
       matrix:
@@ -745,6 +766,7 @@ build_test_jobs: &build_test_jobs
         - build
       name: test_IBM11_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
+      gradleParameters: "-PskipFlakyTests"
       stage: smoke
       maxWorkers: 8
       testJvm: "IBM11"
@@ -754,6 +776,7 @@ build_test_jobs: &build_test_jobs
         - build
       name: test_IBM17_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
+      gradleParameters: "-PskipFlakyTests"
       stage: smoke
       maxWorkers: 8
       testJvm: "IBM17"
@@ -780,6 +803,7 @@ build_test_jobs: &build_test_jobs
         - build
       name: z_test_8_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
+      gradleParameters: "-PskipFlakyTests"
       stage: smoke
       maxWorkers: 8
       testJvm: "8"

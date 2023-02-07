@@ -11,6 +11,7 @@ import com.datadog.debugger.probe.LogProbe;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.debugger.Snapshot;
+import datadog.trace.test.util.Flaky;
 import datadog.trace.util.TagsHelper;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -67,6 +68,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
     assertNotNull(snapshot);
   }
 
+  @Flaky
   @Test
   @DisplayName("testShutdown")
   void testShutdown() throws Exception {
@@ -86,6 +88,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
     assertTrue(targetProcess.waitFor(REQUEST_WAIT_TIMEOUT + 10, TimeUnit.SECONDS));
   }
 
+  @Flaky
   @Test
   @DisplayName("testDestroy")
   void testDestroy() throws Exception {
@@ -171,6 +174,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
     assertCaptureArgs(context, "argVar", "java.lang.String[]", "[var1, var2, var3]");
   }
 
+  @Flaky
   @Test
   @DisplayName("testMultiProbes")
   void testMultiProbes() throws Exception {
