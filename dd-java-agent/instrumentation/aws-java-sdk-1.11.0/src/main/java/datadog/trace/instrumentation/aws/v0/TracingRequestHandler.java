@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.aws.v0;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.DECORATE;
 
@@ -11,6 +12,8 @@ import com.amazonaws.Request;
 import com.amazonaws.Response;
 import com.amazonaws.handlers.HandlerContextKey;
 import com.amazonaws.handlers.RequestHandler2;
+import datadog.trace.api.Config;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -42,6 +45,9 @@ public class TracingRequestHandler extends RequestHandler2 {
       activateNext(span); // this scope will last until next poll
     }
     request.addHandlerContext(SCOPE_CONTEXT_KEY, activateSpan(span));
+    if (Config.get().isAwsPropagationEnabled()) {
+      propagate().inject(span, request, DECORATE, TracePropagationStyle.XRAY);
+    }
   }
 
   @Override

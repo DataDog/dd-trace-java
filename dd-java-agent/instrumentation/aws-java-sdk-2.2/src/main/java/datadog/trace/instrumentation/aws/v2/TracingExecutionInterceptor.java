@@ -3,10 +3,13 @@ package datadog.trace.instrumentation.aws.v2;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.AWS_HTTP;
 import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.DECORATE;
 
+import datadog.trace.api.Config;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import software.amazon.awssdk.core.SdkRequest;
@@ -14,6 +17,7 @@ import software.amazon.awssdk.core.interceptor.Context;
 import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
+import software.amazon.awssdk.http.SdkHttpRequest;
 
 /** AWS request execution interceptor */
 public class TracingExecutionInterceptor implements ExecutionInterceptor {
@@ -40,6 +44,19 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     DECORATE.onRequest(span, context.httpRequest());
     DECORATE.onSdkRequest(span, context.request());
     DECORATE.onAttributes(span, executionAttributes);
+  }
+
+  @Override
+  public SdkHttpRequest modifyHttpRequest(
+      Context.ModifyHttpRequest context, ExecutionAttributes executionAttributes) {
+    if (Config.get().isAwsPropagationEnabled()) {
+      final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
+      SdkHttpRequest.Builder requestBuilder = context.httpRequest().toBuilder();
+      propagate().inject(span, requestBuilder, DECORATE, TracePropagationStyle.XRAY);
+      return requestBuilder.build();
+    } else {
+      return context.httpRequest();
+    }
   }
 
   @Override
