@@ -86,17 +86,3 @@ project.afterEvaluate {
     }
   }
 }
-
-final shouldUseTaskPartitions = project.rootProject.hasProperty("taskPartitionCount") && project.rootProject.hasProperty("taskPartition")
-if (shouldUseTaskPartitions) {
-  final taskPartitionCount = project.rootProject.property("taskPartitionCount") as int
-  final taskPartition = project.rootProject.property("taskPartition") as int
-  project.afterEvaluate {
-    tasks.withType(Test).configureEach {
-      final currentTaskPartition = it.project.path.hashCode() % taskPartitionCount
-      if (currentTaskPartition != taskPartition) {
-        enabled = false
-      }
-    }
-  }
-}
