@@ -1,16 +1,18 @@
 package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.core.datastreams.TagsProcessor.CONSUMER_GROUP_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.PARTITION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.core.datastreams.TagsProcessor;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -42,7 +44,7 @@ public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Traci
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {TagsProcessor.class.getName(), TagsProcessor.StringPrefix.class.getName()};
+    return new String[] {};
   }
 
   @Override
@@ -67,12 +69,11 @@ public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Traci
         if (consumerGroup == null) {
           consumerGroup = "";
         }
-        List<String> sortedTags =
-            Arrays.asList(
-                TagsProcessor.createTag("consumer_group", consumerGroup),
-                TagsProcessor.createTag("partition", String.valueOf(entry.getKey().partition())),
-                TagsProcessor.createTag("topic", entry.getKey().topic()),
-                "type:kafka_commit");
+        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+        sortedTags.put(CONSUMER_GROUP_TAG, consumerGroup);
+        sortedTags.put(PARTITION_TAG, String.valueOf(entry.getKey().partition()));
+        sortedTags.put(TOPIC_TAG, entry.getKey().topic());
+        sortedTags.put(TYPE_TAG, "kafka_commit");
         AgentTracer.get()
             .getDataStreamsMonitoring()
             .trackBacklog(sortedTags, entry.getValue().offset());

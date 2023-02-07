@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import java.util.List;
+import java.util.LinkedHashMap;
 
 public class NoopDataStreamsMonitoring implements DataStreamsMonitoring {
   @Override
@@ -21,7 +21,7 @@ public class NoopDataStreamsMonitoring implements DataStreamsMonitoring {
   }
 
   @Override
-  public void trackBacklog(List<String> sortedTags, long value) {}
+  public void trackBacklog(LinkedHashMap<String, String> sortedTags, long value) {}
 
   @Override
   public <C> PathwayContext extractBinaryPathwayContext(

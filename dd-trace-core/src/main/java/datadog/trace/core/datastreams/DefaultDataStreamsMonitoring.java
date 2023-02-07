@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -146,8 +147,16 @@ public class DefaultDataStreamsMonitoring
     return DefaultPathwayContext.extract(carrier, getter, timeSource, wellKnownTags);
   }
 
-  public void trackBacklog(List<String> sortedTags, long value) {
-    inbox.offer(new Backlog(sortedTags, value, timeSource.getCurrentTimeNanos()));
+  public void trackBacklog(LinkedHashMap<String, String> sortedTags, long value) {
+    List<String> tags = new ArrayList<>(sortedTags.size());
+    for (Map.Entry<String, String> entry : sortedTags.entrySet()) {
+      String tag = TagsProcessor.createTag(entry.getKey(), entry.getValue());
+      if (tag == null) {
+        continue;
+      }
+      tags.add(tag);
+    }
+    inbox.offer(new Backlog(tags, value, timeSource.getCurrentTimeNanos()));
   }
 
   @Override

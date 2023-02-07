@@ -233,11 +233,11 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     when:
     def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.start()
-    dataStreams.trackBacklog(["consumer_group:testGroup", "partition:2", "topic:testTopic", "type:kafka_commit"], 23)
-    dataStreams.trackBacklog(["consumer_group:testGroup", "partition:2", "topic:testTopic", "type:kafka_commit"], 24)
-    dataStreams.trackBacklog(["partition:2", "topic:testTopic", "type:kafka_produce"], 23)
-    dataStreams.trackBacklog(["partition:2", "topic:testTopic2", "type:kafka_produce"], 23)
-    dataStreams.trackBacklog(["partition:2", "topic:testTopic", "type:kafka_produce"], 45)
+    dataStreams.trackBacklog(new LinkedHashMap<>(["consumer_group":"testGroup", "partition":"2", "topic":"testTopic", "type":"kafka_commit"]), 23)
+    dataStreams.trackBacklog(new LinkedHashMap<>(["consumer_group":"testGroup", "partition":"2", "topic":"testTopic", "type":"kafka_commit"]), 24)
+    dataStreams.trackBacklog(new LinkedHashMap<>(["partition":"2", "topic":"testTopic", "type":"kafka_produce"]), 23)
+    dataStreams.trackBacklog(new LinkedHashMap<>(["partition":"2", "topic":"testTopic2", "type":"kafka_produce"]), 23)
+    dataStreams.trackBacklog(new LinkedHashMap<>(["partition":"2", "topic":"testTopic", "type":"kafka_produce"]), 45)
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.report()
 
