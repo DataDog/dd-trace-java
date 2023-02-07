@@ -171,7 +171,8 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
         advice);
     transformation.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
-    transformation.applyAdvice(named("schedule").and(isDeclaredBy(named("io.grpc.internal.SerializingExecutor"))), advice);
+    transformation.applyAdvice(
+        named("schedule").and(isDeclaredBy(named("io.grpc.internal.SerializingExecutor"))), advice);
   }
 
   public static class DisableAsyncAdvice {

@@ -41,7 +41,8 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Traci
         "play.api.libs.streams.Execution$trampoline$",
         "scala.concurrent.Future$InternalCallbackExecutor$",
         "scala.concurrent.impl.ExecutionContextImpl",
-        "io.grpc.SynchronizationContext"
+        "io.grpc.SynchronizationContext",
+        "io.grpc.internal.SerializingExecutor"
       };
 
       final Set<String> executors = new HashSet<>(InstrumenterConfig.get().getTraceExecutors());
