@@ -113,6 +113,13 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
 
   private volatile int samplingPriority = PrioritySampling.UNSET;
 
+  // A flag that this span has been kept by the Single Span Sampling mechanism. This is needed for
+  // when it's a root span that is set to be dropped by the trace sampling, but kept by the single
+  // span sampling. In this case, we should NOT override the original samplingPriority that is used
+  // by the child spans that don't have an explicitly set trace sampling priority and gets it from
+  // the root span.
+  private volatile boolean isSelectedBySingleSpanSampling = false;
+
   /** The origin of the trace. (eg. Synthetics, CI App) */
   private volatile CharSequence origin;
 
@@ -372,19 +379,23 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
     return true;
   }
 
-  /** @return the sampling priority of this span's trace, or null if no priority has been set */
+  /**
+   * @return the trace sampling priority of this span's trace, or null if no priority has been set
+   */
   public int getSamplingPriority() {
     return getRootSpanContextOrThis().samplingPriority;
   }
 
   public void setSpanSamplingPriority(double rate, int limit) {
     synchronized (unsafeTags) {
-      forceKeepThisSpan(SamplingMechanism.SPAN_SAMPLING_RATE);
       unsafeSetTag(SPAN_SAMPLING_MECHANISM_TAG, SamplingMechanism.SPAN_SAMPLING_RATE);
       unsafeSetTag(SPAN_SAMPLING_RULE_RATE_TAG, rate);
       if (limit != Integer.MAX_VALUE) {
         unsafeSetTag(SPAN_SAMPLING_MAX_PER_SECOND_TAG, limit);
       }
+      propagationTags.updateTraceSamplingPriority(
+          PrioritySampling.USER_KEEP, SamplingMechanism.SPAN_SAMPLING_RATE, serviceName);
+      isSelectedBySingleSpanSampling = true;
     }
   }
 
@@ -594,13 +605,26 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
               threadName,
               postProcessor.processTags(unsafeTags),
               baggageItemsWithPropagationTags,
-              samplingPriority != PrioritySampling.UNSET ? samplingPriority : getSamplingPriority(),
+              getEffectiveSamplingPriority(),
               measured,
               topLevel,
               httpStatusCode == 0 ? null : HTTP_STATUSES.get(httpStatusCode),
               // Get origin from rootSpan.context
               getOrigin()));
     }
+  }
+
+  // used in tests
+  int getEffectiveSamplingPriority() {
+    if (isSelectedBySingleSpanSampling) {
+      // use span sampling priority if this span has been selected by the single span sampler
+      return PrioritySampling.USER_KEEP;
+    } else if (samplingPriority != PrioritySampling.UNSET) {
+      // use trace sampling priority, if it's been set
+      return samplingPriority;
+    }
+    // otherwise get sampling priority from the root span
+    return getSamplingPriority();
   }
 
   @Override
