@@ -24,11 +24,6 @@ class GrizzlyAsyncTest extends GrizzlyTest {
     return AsyncServiceResource
   }
 
-  @Override
-  boolean testBlocking() {
-    true
-  }
-
   @Path("/")
   static class AsyncServiceResource {
     private ExecutorService executor = Executors.newSingleThreadExecutor()
