@@ -18,14 +18,22 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpUriRequest;
 
 public class HelperMethods {
+  private static final boolean isLegacyAwsTracing =
+      Config.get().isLegacyTracingEnabled(false, "aws-sdk");
+
   public static AgentScope doMethodEnter(final HttpUriRequest request) {
+    boolean awsClientCall = request.containsHeader("amz-sdk-invocation-id");
+    if (!isLegacyAwsTracing && awsClientCall) {
+      // avoid creating an extra HTTP client span beneath the AWS client call
+      return null;
+    }
+
     final AgentSpan span = startSpan(HTTP_REQUEST);
     final AgentScope scope = activateSpan(span);
 
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request);
 
-    final boolean awsClientCall = request.containsHeader("amz-sdk-invocation-id");
     // AWS calls are often signed, so we can't add headers without breaking the signature.
     if (!awsClientCall) {
       propagate().inject(span, request, SETTER);

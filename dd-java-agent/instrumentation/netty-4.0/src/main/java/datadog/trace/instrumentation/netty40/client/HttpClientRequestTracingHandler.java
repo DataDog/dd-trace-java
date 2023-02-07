@@ -43,6 +43,9 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
     SSL_HANDLER = (Class<ChannelHandler>) sslHandler;
   }
 
+  private static final boolean isLegacyAwsTracing =
+      Config.get().isLegacyTracingEnabled(false, "aws-sdk");
+
   @Override
   public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise prm) {
     if (!(msg instanceof HttpRequest)) {
@@ -58,6 +61,18 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
     }
 
     final HttpRequest request = (HttpRequest) msg;
+    boolean awsClientCall = request.headers().contains("amz-sdk-invocation-id");
+    if (!isLegacyAwsTracing && awsClientCall) {
+      // avoid creating an extra HTTP client span beneath the AWS client call
+      try {
+        ctx.write(msg, prm);
+        return;
+      } finally {
+        if (null != parentScope) {
+          parentScope.close();
+        }
+      }
+    }
 
     ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY).set(activeSpan());
     boolean isSecure = SSL_HANDLER != null && ctx.pipeline().get(SSL_HANDLER) != null;
@@ -74,7 +89,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
       }
 
       // AWS calls are often signed, so we can't add headers without breaking the signature.
-      if (!request.headers().contains("amz-sdk-invocation-id")) {
+      if (!awsClientCall) {
         propagate().inject(span, request.headers(), SETTER);
         propagate()
             .injectPathwayContext(
