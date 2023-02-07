@@ -37,7 +37,7 @@ class StringTokenWriterTest {
   @Test
   public void deepFields() throws Exception {
     assertEquals(
-        "{list=..., strVal=strval, intVal=24, mapVal=..., objArray=...}",
+        "{list=..., strVal=strval, intVal=24, nullField=null, mapVal=..., objArray=...}",
         serializeValue(new Person(), DEPTH_1));
   }
 
@@ -80,6 +80,7 @@ class StringTokenWriterTest {
     private static List<String> list = new ArrayList<>();
     private String strVal = "strval";
     private int intVal = 24;
+    private Object nullField = null;
     private Map<String, String> mapVal = new HashMap<>();
     private Object[] objArray = new Object[] {new AtomicLong()};
   }

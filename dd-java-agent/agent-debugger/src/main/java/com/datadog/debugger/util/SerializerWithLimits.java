@@ -199,25 +199,21 @@ public class SerializerWithLimits {
     tokenWriter.objectEpilogue(value);
   }
 
-  private void onField(Field field, Object value, Limits limits) {
-    try {
-      tokenWriter.objectFieldPrologue(field, value, limits.maxReferenceDepth);
-      Limits newLimits = Limits.decDepthLimits(limits);
-      String typeName;
-      if (SerializerWithLimits.isPrimitive(field.getType().getTypeName())) {
-        typeName = field.getType().getTypeName();
-      } else {
-        typeName = value != null ? value.getClass().getTypeName() : field.getType().getTypeName();
-      }
-      serialize(
-          value instanceof Snapshot.CapturedValue
-              ? ((Snapshot.CapturedValue) value).getValue()
-              : value,
-          typeName,
-          newLimits);
-    } catch (Exception ex) {
-      LOG.debug("Exception when extracting field={}", field.getName(), ex);
+  private void onField(Field field, Object value, Limits limits) throws Exception {
+    tokenWriter.objectFieldPrologue(field, value, limits.maxReferenceDepth);
+    Limits newLimits = Limits.decDepthLimits(limits);
+    String typeName;
+    if (SerializerWithLimits.isPrimitive(field.getType().getTypeName())) {
+      typeName = field.getType().getTypeName();
+    } else {
+      typeName = value != null ? value.getClass().getTypeName() : field.getType().getTypeName();
     }
+    serialize(
+        value instanceof Snapshot.CapturedValue
+            ? ((Snapshot.CapturedValue) value).getValue()
+            : value,
+        typeName,
+        newLimits);
   }
 
   private boolean serializeLongArray(long[] longArray, int maxSize) throws Exception {
