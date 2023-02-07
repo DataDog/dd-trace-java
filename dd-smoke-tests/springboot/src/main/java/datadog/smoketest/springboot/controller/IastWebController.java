@@ -9,6 +9,8 @@ import java.nio.file.Paths;
 import javax.servlet.http.HttpServletRequest;
 import javax.websocket.server.PathParam;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -98,6 +100,14 @@ public class IastWebController {
   @GetMapping("/path_param")
   public String pathParam(@PathParam("param") String param) {
     return "PathParam is: " + param;
+  }
+
+  @PostMapping("/request_body/test")
+  public String jsonRequestBody(@RequestBody TestBean testBean) {
+    return "@RequestBody to Test bean -> name: "
+        + testBean.getName()
+        + ", value: "
+        + testBean.getValue();
   }
 
   private void withProcess(final Operation<Process> op) {

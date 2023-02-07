@@ -51,16 +51,17 @@ class EvidenceEncodingTest extends DDSpecification {
     jsonObject == expectedObject
 
     where:
-    value         | ranges                                           | expected
-    null          | null                                             | null
-    null          | []                                               | null
-    'Hello World' | []                                               | '{"value": "Hello World"}'
-    'Hello World' | null                                             | '{"value": "Hello World"}'
-    'Hello World' | [range(0, 5, source(0))]                         | '{"valueParts": [{"value": "Hello", "source": 0}, {"value": " World"}]}'
-    'Hello World' | [range(6, 5, source(0))]                         | '{"valueParts": [{"value": "Hello "}, {"value": "World", "source": 0}]}'
-    'Hello World' | [range(0, 5, source(0)), range(6, 5, source(1))] | '{"valueParts": [{"value": "Hello", "source": 0}, {"value": " "}, {"value": "World", "source": 1}]}'
-    'Hello World' | [range(0, 11, source(0))]                        | '{"valueParts": [{"value": "Hello World", "source": 0}]}'
-    'Hello World' | [range(5, 1, source(0))]                         | '{"valueParts": [{"value": "Hello"}, {"value": " ", "source": 0}, {"value": "World"}]}'
+    value                       | ranges                                           | expected
+    null                        | null                                             | null
+    null                        | []                                               | null
+    'Hello World'               | []                                               | '{"value": "Hello World"}'
+    'Hello World'               | null                                             | '{"value": "Hello World"}'
+    'Hello World'               | [range(0, 5, source(0))]                         | '{"valueParts": [{"value": "Hello", "source": 0}, {"value": " World"}]}'
+    'Hello World'               | [range(6, 5, source(0))]                         | '{"valueParts": [{"value": "Hello "}, {"value": "World", "source": 0}]}'
+    'Hello World'               | [range(0, 5, source(0)), range(6, 5, source(1))] | '{"valueParts": [{"value": "Hello", "source": 0}, {"value": " "}, {"value": "World", "source": 1}]}'
+    'Hello World'               | [range(0, 11, source(0))]                        | '{"valueParts": [{"value": "Hello World", "source": 0}]}'
+    'Hello World'               | [range(5, 1, source(0))]                         | '{"valueParts": [{"value": "Hello"}, {"value": " ", "source": 0}, {"value": "World"}]}'
+    'java.lang.Object@1cb991da' | [range(0, Integer.MAX_VALUE, source(0))]         | '{"valueParts": [{"value": "java.lang.Object@1cb991da", "source": 0}]}'
   }
 
   private static Range range(final int start, final int length, final Source source) {

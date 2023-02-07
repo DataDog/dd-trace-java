@@ -25,6 +25,9 @@ public final class SourceType {
   public static final byte REQUEST_COOKIE_PATH = 9;
   static final String REQUEST_COOKIE_PATH_STRING = "http.request.cookie.path";
 
+  public static final byte REQUEST_BODY = 10;
+  static final String REQUEST_BODY_STRING = "http.request.body";
+
   public static String toString(final byte sourceType) {
     switch (sourceType) {
       case REQUEST_PARAMETER_NAME:
@@ -45,6 +48,8 @@ public final class SourceType {
         return REQUEST_COOKIE_DOMAIN_STRING;
       case REQUEST_COOKIE_PATH:
         return REQUEST_COOKIE_PATH_STRING;
+      case REQUEST_BODY:
+        return REQUEST_BODY_STRING;
       default:
         return null;
     }
