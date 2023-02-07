@@ -130,7 +130,6 @@ commands:
           # But its time to setup (~1min) exceeds the time required to prefetch all images we use.
           docker_layer_caching: true
 
-      # Only needed if docker_layer_caching is enabled.
       - run:
           name: Prepare testcontainers environment
           command: .circleci/prepare_docker_env.sh
