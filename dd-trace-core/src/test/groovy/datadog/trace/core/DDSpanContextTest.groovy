@@ -217,6 +217,7 @@ class DDSpanContextTest extends DDCoreSpecification {
 
     expect:
     context.getSamplingPriority() == UNSET
+    context.effectiveSamplingPriority == UNSET
 
     when:
     context.setSpanSamplingPriority(rate, limit)
@@ -225,7 +226,9 @@ class DDSpanContextTest extends DDCoreSpecification {
     context.getTag(SPAN_SAMPLING_MECHANISM_TAG) == SPAN_SAMPLING_RATE
     context.getTag(SPAN_SAMPLING_RULE_RATE_TAG) == rate
     context.getTag(SPAN_SAMPLING_MAX_PER_SECOND_TAG) == (limit == Integer.MAX_VALUE ? null : limit)
-    context.getSamplingPriority() == USER_KEEP
+    // single span sampling should not change the trace sampling priority
+    context.getSamplingPriority() == UNSET
+    context.effectiveSamplingPriority == USER_KEEP
     context.getPropagationTags().createTagMap() == ["_dd.p.dm":"-" + SPAN_SAMPLING_RATE]
 
     where:

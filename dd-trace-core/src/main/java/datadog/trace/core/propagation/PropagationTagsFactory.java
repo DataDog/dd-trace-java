@@ -53,8 +53,7 @@ public class PropagationTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
-    public void updateTraceSamplingPriority(
-        int samplingPriority, int samplingMechanism, String serviceName) {
+    public void updateTraceSamplingPriority(int samplingPriority, int samplingMechanism) {
 
       if (samplingPriority != PrioritySampling.UNSET && isDecisionMakerTagMissing) {
         if (samplingPriority > 0) {
@@ -110,8 +109,7 @@ public class PropagationTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
-    public void updateTraceSamplingPriority(
-        int samplingPriority, int samplingMechanism, String serviceName) {}
+    public void updateTraceSamplingPriority(int samplingPriority, int samplingMechanism) {}
 
     @Override
     public String headerValue(HeaderType headerType) {

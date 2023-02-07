@@ -75,7 +75,7 @@ class DatadogPropagationTagsTest extends DDCoreSpecification {
     def propagationTags = propagationTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, originalTagSet)
 
     when:
-    propagationTags.updateTraceSamplingPriority(priority, mechanism, "service-1")
+    propagationTags.updateTraceSamplingPriority(priority, mechanism)
 
     then:
     propagationTags.headerValue(PropagationTags.HeaderType.DATADOG) == expectedHeaderValue
@@ -115,7 +115,7 @@ class DatadogPropagationTagsTest extends DDCoreSpecification {
     def propagationTags = PropagationTags.factory(limit).fromHeaderValue(PropagationTags.HeaderType.DATADOG, tags)
 
     when:
-    propagationTags.updateTraceSamplingPriority(USER_KEEP, MANUAL, "service-name")
+    propagationTags.updateTraceSamplingPriority(USER_KEEP, MANUAL)
 
     then:
     propagationTags.headerValue(PropagationTags.HeaderType.DATADOG) == null
@@ -129,7 +129,7 @@ class DatadogPropagationTagsTest extends DDCoreSpecification {
     def propagationTags = PropagationTags.factory(limit).fromHeaderValue(PropagationTags.HeaderType.DATADOG, tags)
 
     when:
-    propagationTags.updateTraceSamplingPriority(USER_KEEP, MANUAL, "service-name")
+    propagationTags.updateTraceSamplingPriority(USER_KEEP, MANUAL)
 
     then:
     propagationTags.headerValue(PropagationTags.HeaderType.DATADOG) == null
@@ -141,7 +141,7 @@ class DatadogPropagationTagsTest extends DDCoreSpecification {
     def propagationTags = PropagationTags.factory(0).fromHeaderValue(PropagationTags.HeaderType.DATADOG, "")
 
     when:
-    propagationTags.updateTraceSamplingPriority(USER_KEEP, MANUAL, "service-name")
+    propagationTags.updateTraceSamplingPriority(USER_KEEP, MANUAL)
 
     then:
     propagationTags.headerValue(PropagationTags.HeaderType.DATADOG) == null
