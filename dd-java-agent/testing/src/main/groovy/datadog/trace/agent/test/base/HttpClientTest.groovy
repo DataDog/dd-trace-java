@@ -8,6 +8,7 @@ import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
+import datadog.trace.test.util.Flaky
 import spock.lang.AutoCleanup
 import spock.lang.Requires
 import spock.lang.Shared
@@ -286,6 +287,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     body = (1..10000).join(" ")
   }
 
+  @Flaky(suites = ["ApacheHttpAsyncClientTest"])
   def "server error request with parent"() {
     setup:
     def uri = server.address.resolve("/error")
@@ -323,6 +325,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     "POST" | _
   }
 
+  @Flaky(suites = ["ApacheHttpAsyncClientTest"])
   def "client error request with parent"() {
     setup:
     def uri = server.address.resolve("/secured")

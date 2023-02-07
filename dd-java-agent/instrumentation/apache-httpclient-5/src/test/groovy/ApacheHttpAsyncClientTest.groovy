@@ -1,6 +1,5 @@
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator
-import datadog.trace.test.util.Flaky
 import org.apache.hc.client5.http.async.methods.SimpleHttpRequests
 import org.apache.hc.client5.http.config.RequestConfig
 import org.apache.hc.client5.http.impl.async.HttpAsyncClients
@@ -12,7 +11,6 @@ import java.util.concurrent.TimeUnit
 
 import static org.apache.hc.core5.reactor.IOReactorConfig.custom
 
-@Flaky("'server error request with parent' and 'client error request with parent' are flaky")
 class ApacheHttpAsyncClientTest<T extends HttpRequest> extends HttpClientTest {
 
   @Shared
