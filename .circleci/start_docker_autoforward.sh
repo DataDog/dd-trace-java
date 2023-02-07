@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -eu
 
-if [[ "${DOCKER_TLS_VERIFY}" = 1 ]]; then
+if [[ -n "${DOCKER_CERT_PATH:-}" ]]; then
     TLS_ARGS="
         --secure
         --server-key ${DOCKER_CERT_PATH}/server-key.pem

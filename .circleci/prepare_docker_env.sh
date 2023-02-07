@@ -10,7 +10,6 @@ set -eu
   # DOCKERT_CERT_PATH is provided only if DLC is enabled.
   if [[ -n "${DOCKERT_CERT_PATH:-}" ]]; then
     echo "export DOCKER_CERT_PATH=${DOCKER_CERT_PATH}"
-    echo "export DOCKER_TLS_VERIFY=1"
   else
     echo "export DOCKER_TLS_VERIFY=0"
   fi
