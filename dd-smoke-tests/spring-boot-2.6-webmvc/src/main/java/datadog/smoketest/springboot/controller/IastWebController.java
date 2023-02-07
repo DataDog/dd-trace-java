@@ -46,12 +46,6 @@ public class IastWebController {
 
   @RequestMapping("/getparameter")
   public String getParameter(@RequestParam String param, HttpServletRequest request) {
-    // StringWriter sw = new StringWriter();
-    // PrintWriter pw = new PrintWriter(sw);
-    // new Throwable().printStackTrace(pw);
-    // return sw.toString();
-    // TestSuite testSuite = new TestSuite(new HttpServletRequestWrapper(request));
-    // testSuite.getParameterMap();
     return "Param is: " + param;
   }
 
