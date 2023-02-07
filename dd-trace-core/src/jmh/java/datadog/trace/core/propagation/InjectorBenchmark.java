@@ -137,7 +137,7 @@ public class InjectorBenchmark {
     blackhole.consume(headers);
     if (modifyPropagationTags) {
       int sm = mechanism = (mechanism + 1) % 4;
-      propagationTags.updateTraceSamplingPriority(1, sm, "service");
+      propagationTags.updateTraceSamplingPriority(1, sm);
     }
   }
 

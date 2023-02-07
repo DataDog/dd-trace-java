@@ -47,8 +47,7 @@ public abstract class PropagationTags {
    * Updates the trace-level sampling priority decision if it hasn't already been made and _dd.p.dm
    * tag doesn't exist. Called on the root span context.
    */
-  public abstract void updateTraceSamplingPriority(
-      int samplingPriority, int samplingMechanism, String serviceName);
+  public abstract void updateTraceSamplingPriority(int samplingPriority, int samplingMechanism);
 
   /**
    * Constructs a header value that includes valid propagated _dd.p.* tags and possibly a new

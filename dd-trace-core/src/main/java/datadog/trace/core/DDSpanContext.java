@@ -307,8 +307,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
     // even if the old sampling priority and mechanism have already propagated
     if (SAMPLING_PRIORITY_UPDATER.getAndSet(this, PrioritySampling.USER_KEEP)
         == PrioritySampling.UNSET) {
-      propagationTags.updateTraceSamplingPriority(
-          PrioritySampling.USER_KEEP, samplingMechanism, serviceName);
+      propagationTags.updateTraceSamplingPriority(PrioritySampling.USER_KEEP, samplingMechanism);
     }
   }
 
@@ -349,7 +348,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
       return false;
     }
     // set trace level sampling priority tag propagationTags
-    propagationTags.updateTraceSamplingPriority(newPriority, newMechanism, serviceName);
+    propagationTags.updateTraceSamplingPriority(newPriority, newMechanism);
     return true;
   }
 
@@ -394,7 +393,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
         unsafeSetTag(SPAN_SAMPLING_MAX_PER_SECOND_TAG, limit);
       }
       propagationTags.updateTraceSamplingPriority(
-          PrioritySampling.USER_KEEP, SamplingMechanism.SPAN_SAMPLING_RATE, serviceName);
+          PrioritySampling.USER_KEEP, SamplingMechanism.SPAN_SAMPLING_RATE);
       isSelectedBySingleSpanSampling = true;
     }
   }
