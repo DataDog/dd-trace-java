@@ -1326,6 +1326,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4681", suites = ["GrizzlyAsyncTest"])
   def 'test blocking of request with auto and accept=#acceptHeader'(boolean expectedJson, String acceptHeader) {
     // Note: this does not actually test that the handler for SUCCESS is never called,
     //       only that the response is the expected one (insofar as invoking the handler
@@ -1379,7 +1380,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     true         | 'text/html;q=0.8, application/json;q=0.9'
   }
 
-  @Flaky(value = "flaky on some tests from grizzly-2 module", suites = ["GrizzlyAsyncTest"])
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4681", suites = ["GrizzlyAsyncTest"])
   def 'test blocking of request with json response'() {
     setup:
     assumeTrue(testBlocking())
