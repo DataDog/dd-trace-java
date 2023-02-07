@@ -60,7 +60,7 @@ profiling_test_matrix: &profiling_test_matrix
 
 system_test_matrix: &system_test_matrix
   parameters:
-    weblog-variant: [ 'spring-boot', 'spring-boot-jetty', 'spring-boot-openliberty', 'jersey-grizzly2', 'resteasy-netty3','ratpack', 'vertx3' ]
+    weblog-variant: [ 'spring-boot', 'spring-boot-jetty', 'spring-boot-openliberty', 'spring-boot-3-native', 'jersey-grizzly2', 'resteasy-netty3','ratpack', 'vertx3' ]
 
 agent_integration_tests_modules: &agent_integration_tests_modules "dd-trace-core|communication|internal-api|utils"
 core_modules: &core_modules "dd-java-agent|dd-trace-core|communication|internal-api|telemetry|utils|dd-java-agent/agent-bootstrap|dd-java-agent/agent-installer|dd-java-agent/agent-tooling|dd-java-agent/agent-builder|dd-java-agent/appsec|dd-java-agent/agent-crashtracking"
