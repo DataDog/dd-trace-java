@@ -13,7 +13,6 @@ import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecora
 import static datadog.trace.instrumentation.netty41.client.NettyResponseInjectAdapter.SETTER;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
@@ -43,7 +42,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
     SSL_HANDLER = (Class<ChannelHandler>) sslHandler;
   }
 
-  private static final boolean isLegacyAwsTracing =
+  private static final boolean AWS_LEGACY_TRACING =
       Config.get().isLegacyTracingEnabled(false, "aws-sdk");
 
   @Override
@@ -62,7 +61,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
 
     final HttpRequest request = (HttpRequest) msg;
     boolean awsClientCall = request.headers().contains("amz-sdk-invocation-id");
-    if (!isLegacyAwsTracing && awsClientCall) {
+    if (!AWS_LEGACY_TRACING && awsClientCall) {
       // avoid creating an extra HTTP client span beneath the AWS client call
       try {
         ctx.write(msg, prm);
@@ -94,8 +93,6 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
         propagate()
             .injectPathwayContext(
                 span, request.headers(), SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
-      } else if (Config.get().isAwsPropagationEnabled()) {
-        propagate().inject(span, request.headers(), SETTER, TracePropagationStyle.XRAY);
       }
 
       ctx.channel().attr(SPAN_ATTRIBUTE_KEY).set(span);
