@@ -138,7 +138,7 @@ commands:
       - run:
           name: Testcontainers tunnels
           background: true
-          command: autoforward --port 60906 --remote $FORWARDED_DOCKER_HOST --forward remote-docker --secure --server-key $DOCKER_CERT_PATH/server-key.pem --server-cert $DOCKER_CERT_PATH/server-cert.pem --remote-key $DOCKER_CERT_PATH/remote-key.pem --remote-cert $DOCKER_CERT_PATH/remote-cert.pem --remote-ca $DOCKER_CERT_PATH/remote-ca.pem
+          command: .circleci/start_docker_autoforward.sh
 
       - run:
           name: Prefetch Docker images
