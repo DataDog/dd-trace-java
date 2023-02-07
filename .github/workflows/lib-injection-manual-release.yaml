@@ -1,14 +1,15 @@
 name: "Lib Injection Manual Release"
 on:
   workflow_dispatch:
-    version:
-      description: 'version'
-      required: true
-      type: string
-    commitSha:
-      description: 'commit sha'
-      required: true
-      type: string
+    inputs:
+      version:
+        description: 'version'
+        required: true
+        type: string
+      commitSha:
+        description: 'commit sha'
+        required: true
+        type: string
 
 jobs:
   build-and-publish-init-image:
