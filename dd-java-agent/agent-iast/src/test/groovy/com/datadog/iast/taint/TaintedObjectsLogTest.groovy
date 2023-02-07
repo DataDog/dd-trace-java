@@ -29,7 +29,7 @@ class TaintedObjectsLogTest extends DDSpecification {
     given:
     IastSystem.DEBUG = true
     logger.setLevel(Level.ALL)
-    TaintedObjects taintedObjects = TaintedObjects.build()
+    TaintedObjects taintedObjects = TaintedObjects.acquire()
     final value = "A"
 
     when:
@@ -51,7 +51,7 @@ class TaintedObjectsLogTest extends DDSpecification {
     given:
     IastSystem.DEBUG = true
     logger.setLevel(Level.ALL)
-    TaintedObjects taintedObjects = TaintedObjects.build()
+    TaintedObjects taintedObjects = TaintedObjects.acquire()
     taintedObjects.taint("A", [new Range(0, 1, new Source(SourceType.NONE, null, null))] as Range[])
     taintedObjects.taintInputString("B", new Source(SourceType.REQUEST_PARAMETER_NAME, 'test', 'value'))
 
