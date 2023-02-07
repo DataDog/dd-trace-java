@@ -229,7 +229,8 @@ class DDSpanContextTest extends DDCoreSpecification {
     // single span sampling should not change the trace sampling priority
     context.getSamplingPriority() == UNSET
     context.effectiveSamplingPriority == USER_KEEP
-    context.getPropagationTags().createTagMap() == ["_dd.p.dm":"-" + SPAN_SAMPLING_RATE]
+    // make sure the `_dd.p.dm` tag has not been set by single span sampling
+    context.getPropagationTags().createTagMap() == [:]
 
     where:
     rate | limit
