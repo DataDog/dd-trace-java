@@ -68,7 +68,7 @@ class ValueRefExpressionTest {
     Map<String, Object> exts = new HashMap<>();
     exts.put(ValueReferences.RETURN_EXTENSION_NAME, returnVal);
     exts.put(ValueReferences.DURATION_EXTENSION_NAME, duration);
-    ValueReferenceResolver resolver = RefResolverHelper.createResolver(null, values);
+    ValueReferenceResolver resolver = RefResolverHelper.createResolver(null, null, values);
     resolver = resolver.withExtensions(exts);
 
     ValueRefExpression expression = DSL.ref(ValueReferences.DURATION_REF);

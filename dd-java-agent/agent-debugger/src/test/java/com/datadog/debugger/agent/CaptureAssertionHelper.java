@@ -89,6 +89,7 @@ class CaptureAssertionHelper {
       // no entry/exit for line probe
       return;
     }
+    addThis(expectedEntryContext, captures.getEntry());
     assertEquals(expectedEntryContext, captures.getEntry());
     if (exceptionKind != DebuggerTransformerTest.ExceptionKind.UNHANDLED) {
       // no return context is captured for unhandled exceptions
@@ -99,9 +100,16 @@ class CaptureAssertionHelper {
               returnValues.get(exceptionKind),
               null,
               correlationFields);
+      addThis(expectedExitContext, captures.getReturn());
       assertEquals(expectedExitContext, captures.getReturn());
     } else {
       assertNotNull(captures.getReturn().getThrowable());
+    }
+  }
+
+  private void addThis(Snapshot.CapturedContext expected, Snapshot.CapturedContext context) {
+    if (context.getArguments().containsKey("this")) {
+      expected.getArguments().put("this", context.getArguments().get("this"));
     }
   }
 

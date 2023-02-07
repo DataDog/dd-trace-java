@@ -1,5 +1,5 @@
 final class CachedData {
-  static groovyVer = "2.5.13"
+  static groovyVer = "2.5.21"
   static spockGroovyVer = groovyVer.replaceAll(/\.\d+$/, '')
 
   static versions = [
@@ -34,7 +34,7 @@ final class CachedData {
     testcontainers: '1.17.3',
     jmc           : "8.1.0-SNAPSHOT",
     autoservice   : "1.0-rc7",
-    jplib         : "0.12.0",
+    jplib         : "0.13.0",
     asm           : "9.4"
   ]
 
@@ -95,7 +95,7 @@ final class CachedData {
       "org.openjdk.jmc:flightrecorder:${versions.jmc}"
     ],
 
-    // Shared between appsec, agent tooling, iast, instrumentation, JMXFetch, and profiling
+    // Shared between appsec, agent tooling, iast, instrumentation, JMXFetch, profiling, and ci-visibility
     shared               : [
       "com.datadoghq.okhttp3:okhttp:${versions.okhttp}",
       // Force specific version of okio required by com.squareup.moshi:moshi

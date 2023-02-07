@@ -24,7 +24,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     objectHolder = []
   }
 
-  void 'onStringBuilderAppend null or empty (#builder, #param)'(final StringBuilder builder, final String param) {
+  void 'onStringBuilderAppend null or empty (#builder, #param)'(StringBuilder builder, final String param) {
     given:
     final result = builder?.append(param)
 
@@ -40,7 +40,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     sb('')  | ''
   }
 
-  void 'onStringBuilderAppend without span (#builder, #param)'(final StringBuilder builder, final String param, final int mockCalls) {
+  void 'onStringBuilderAppend without span (#builder, #param)'(StringBuilder builder, final String param, final int mockCalls) {
     given:
     final result = builder?.append(param)
 
@@ -108,7 +108,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     sb('1==>234<==5==>678<==9') | 'a==>bcd<==e==>fgh<==i' | 1         | '1==>234<==5==>678<==9a==>bcd<==e==>fgh<==i'
   }
 
-  void 'onStringBuilderInit null or empty (#builder, #param)'(final StringBuilder builder, final String param) {
+  void 'onStringBuilderInit null or empty (#builder, #param)'(StringBuilder builder, final String param) {
     given:
     final result = builder?.append(param)
 
@@ -124,7 +124,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     sb('')  | ''
   }
 
-  void 'onStringBuilderInit without span (#builder, #param)'(final StringBuilder builder, final String param, final int mockCalls) {
+  void 'onStringBuilderInit without span (#builder, #param)'(StringBuilder builder, final String param, final int mockCalls) {
     given:
     final result = builder?.append(param)
 
@@ -190,7 +190,7 @@ class StringModuleTest extends IastModuleImplTestBase {
 
   void 'onStringBuilderToString without span'() {
     given:
-    final builder = sb('1')
+    def builder = sb('1')
     final result = builder.toString()
 
     when:

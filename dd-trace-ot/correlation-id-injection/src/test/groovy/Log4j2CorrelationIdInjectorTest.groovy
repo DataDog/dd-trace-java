@@ -15,7 +15,7 @@ class Log4j2CorrelationIdInjectorTest extends CorrelationIdInjectorTest {
     final LoggerContext context = LoggerContext.getContext(false)
     final Configuration config = context.getConfiguration()
 
-    TestAppender appender = new TestAppender()
+    TestAppender appender = new TestAppender(PatternLayout.newBuilder().withPattern(logPattern).build())
     appender.start()
     config.addAppender(appender)
     updateLoggers(appender, config)
@@ -37,16 +37,12 @@ class Log4j2CorrelationIdInjectorTest extends CorrelationIdInjectorTest {
     config.getRootLogger().addAppender(appender, level, filter)
   }
 
-  PatternLayout createLayout() {
-    return PatternLayout.newBuilder().withPattern(logPattern).build()
-  }
-
-  class TestAppender extends AbstractAppender implements CorrelationIdInjectorTest.LogJournal {
+  static class TestAppender extends AbstractAppender implements CorrelationIdInjectorTest.LogJournal {
     List events
     int read
 
-    protected TestAppender() {
-      super("TestAppender", null, createLayout(), false, null)
+    protected TestAppender(PatternLayout patternLayout) {
+      super("TestAppender", null, patternLayout, false, null)
       events = []
       read = 0
     }

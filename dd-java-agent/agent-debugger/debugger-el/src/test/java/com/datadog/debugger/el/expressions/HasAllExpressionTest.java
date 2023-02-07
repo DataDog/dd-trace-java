@@ -145,7 +145,7 @@ class HasAllExpressionTest {
 
   @Test
   void testMapHasAny() {
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null, null);
     Map<String, String> valueMap = new HashMap<>();
     valueMap.put("a", "a");
     valueMap.put("b", "a");

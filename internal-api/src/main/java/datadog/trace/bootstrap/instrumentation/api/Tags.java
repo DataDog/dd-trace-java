@@ -46,6 +46,10 @@ public class Tags {
   public static final String TEST_SKIP_REASON = "test.skip_reason";
   public static final String TEST_TYPE = "test.type";
   public static final String TEST_PARAMETERS = "test.parameters";
+  public static final String TEST_CODEOWNERS = "test.codeowners";
+  public static final String TEST_SOURCE_FILE = "test.source.file";
+  public static final String TEST_SOURCE_START = "test.source.start";
+  public static final String TEST_SOURCE_END = "test.source.end";
 
   public static final String CI_PROVIDER_NAME = "ci.provider.name";
   public static final String CI_PIPELINE_ID = "ci.pipeline.id";

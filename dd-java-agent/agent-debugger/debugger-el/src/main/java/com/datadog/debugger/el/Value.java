@@ -23,6 +23,10 @@ public interface Value<T> {
     return NullValue.INSTANCE;
   }
 
+  static Value<?> thisValue() {
+    return ObjectValue.THIS;
+  }
+
   @SuppressWarnings("unchecked")
   static <T> Value<T> undefined() {
     return (Value<T>) undefinedValue();
@@ -44,6 +48,9 @@ public interface Value<T> {
     }
     if (value == Values.UNDEFINED_OBJECT || value == undefinedValue()) {
       return undefinedValue();
+    }
+    if (value == Values.THIS_OBJECT) {
+      return thisValue();
     }
     if (value instanceof Boolean) {
       return new BooleanValue((Boolean) value);

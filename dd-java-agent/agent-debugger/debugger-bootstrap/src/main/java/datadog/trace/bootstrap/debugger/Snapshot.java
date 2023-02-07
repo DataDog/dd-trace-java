@@ -262,7 +262,7 @@ public class Snapshot {
       String currentProbeId = entry.getKey();
       SnapshotStatus status = entry.getValue();
       if (evaluateConditions(status.probeDetails, methodLocation)) {
-        DebuggerScript script = status.probeDetails.getScript();
+        DebuggerScript<Boolean> script = status.probeDetails.getScript();
         if (!executeScript(script, capture, currentProbeId)) {
           status.sending = false;
           status.capturing = false; // force to stop capturing
@@ -298,7 +298,7 @@ public class Snapshot {
   }
 
   private static boolean executeScript(
-      DebuggerScript script, CapturedContext capture, String probeId) {
+      DebuggerScript<Boolean> script, CapturedContext capture, String probeId) {
     if (script == null) {
       return true;
     }
@@ -384,7 +384,7 @@ public class Snapshot {
         ProbeLocation location,
         MethodLocation evaluateAt,
         boolean captureSnapshot,
-        DebuggerScript script,
+        DebuggerScript<Boolean> script,
         String tags,
         SummaryBuilder summaryBuilder) {
       this(
@@ -403,7 +403,7 @@ public class Snapshot {
         ProbeLocation location,
         MethodLocation evaluateAt,
         boolean captureSnapshot,
-        DebuggerScript script,
+        DebuggerScript<Boolean> script,
         String tags,
         SummaryBuilder summaryBuilder,
         List<ProbeDetails> additionalProbes) {
@@ -429,7 +429,7 @@ public class Snapshot {
       return evaluateAt;
     }
 
-    public DebuggerScript getScript() {
+    public DebuggerScript<Boolean> getScript() {
       return script;
     }
 
@@ -666,10 +666,6 @@ public class Snapshot {
         String rawName = name.substring(ValueReferences.SYNTHETIC_PREFIX.length());
         target = tryRetrieveSynthetic(rawName);
         checkUndefined(name, target, rawName, "Cannot find synthetic var: ");
-      } else if (name.startsWith(ValueReferences.FIELD_PREFIX)) {
-        String rawName = name.substring(ValueReferences.FIELD_PREFIX.length());
-        target = tryRetrieveField(rawName);
-        checkUndefined(name, target, rawName, "Cannot find field: ");
       } else {
         target = tryRetrieve(name);
         checkUndefined(name, target, name, "Cannot find symbol: ");

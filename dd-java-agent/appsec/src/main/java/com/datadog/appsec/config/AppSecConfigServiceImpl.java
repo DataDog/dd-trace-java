@@ -41,7 +41,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   // the only thread modifying currentAppSecConfig is the RC thread
   // However, the initial state is set up by another thread, and this needs to be visible to the RC
   // thread
-  private CurrentAppSecConfig currentAppSecConfig = new CurrentAppSecConfig();
+  private CurrentAppSecConfig currentAppSecConfig;
   private volatile boolean initialized;
 
   // for new subconfig subscribers
@@ -186,9 +186,9 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     } else {
       hasUserWafConfig = true;
     }
-    CurrentAppSecConfig casc = new CurrentAppSecConfig();
-    casc.ddConfig = wafConfig;
-    lastConfig.put("waf", casc);
+    this.currentAppSecConfig = new CurrentAppSecConfig();
+    this.currentAppSecConfig.ddConfig = wafConfig;
+    this.lastConfig.put("waf", this.currentAppSecConfig);
     this.initialized = true;
   }
 

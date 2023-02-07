@@ -74,7 +74,7 @@ class HasAnyExpressionTest {
 
   @Test
   void testSingleElementHasAny() {
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null, null);
     ValueExpression<?> targetExpression = new ObjectValue(this);
     HasAnyExpression expression = any(targetExpression, TRUE);
     assertTrue(expression.evaluate(ctx));
@@ -100,7 +100,7 @@ class HasAnyExpressionTest {
 
   @Test
   void testArrayHasAny() {
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null, null);
     ValueExpression<?> targetExpression = DSL.value(new Object[] {this, "hello"});
 
     HasAnyExpression expression = any(targetExpression, TRUE);
@@ -125,7 +125,7 @@ class HasAnyExpressionTest {
 
   @Test
   void testListHasAny() {
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null, null);
     ValueExpression<?> targetExpression = DSL.value(Arrays.asList(this, "hello"));
 
     HasAnyExpression expression = any(targetExpression, TRUE);
@@ -150,7 +150,7 @@ class HasAnyExpressionTest {
 
   @Test
   void testMapHasAny() {
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null, null);
     Map<String, String> valueMap = new HashMap<>();
     valueMap.put("a", "a");
     valueMap.put("b", null);

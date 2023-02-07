@@ -15,12 +15,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /** Implements expression language for capturing values for metric probes */
-public class ValueScript implements DebuggerScript {
+public class ValueScript implements DebuggerScript<Value<?>> {
   private static final Pattern PERIOD_PATTERN = Pattern.compile("\\.");
   private static final Pattern INDEX_PATTERN = Pattern.compile("(.+)\\[([^]]+)]");
   private final ValueExpression<?> expr;
   private final String dsl;
-  private Value<?> result;
 
   public ValueScript(ValueExpression<?> expr, String dsl) {
     this.expr = expr;
@@ -32,13 +31,8 @@ public class ValueScript implements DebuggerScript {
   }
 
   @Override
-  public boolean execute(ValueReferenceResolver valueRefResolver) {
-    result = expr.evaluate(valueRefResolver);
-    return true;
-  }
-
-  public Value<?> getResult() {
-    return result;
+  public Value<?> execute(ValueReferenceResolver valueRefResolver) {
+    return expr.evaluate(valueRefResolver);
   }
 
   @Override
