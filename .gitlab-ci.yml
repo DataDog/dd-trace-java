@@ -197,7 +197,7 @@ tracer-base-image-snapshot:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
-    - if: '$CI_COMMIT_BRANCH == "master"'
+    - if: '$CI_COMMIT_BRANCH == "robertomonteromiguel/docker_base_image_poc_v2"'
       when: on_success
     - when: manual
   dependencies:
