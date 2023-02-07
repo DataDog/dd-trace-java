@@ -19,8 +19,16 @@ IMAGES+=(
 )
 
 echo "Waiting for Docker to be available"
+t0=$SECONDS
 while ! docker system info &>/dev/null; do
   sleep 1
+  t1=$SECONDS
+  # Give up after one minute. Even if Docker becomes available,
+  # prefetching is unlikely to help if it kicks in too late.
+  if [[ $((t1 - t0)) -gt 60 ]]; then
+    echo "Waiting for Docker timeout, skipping image prefetch."
+    exit 0
+  fi
 done
 
 echo "Docker is avaiable now, pulling images"
