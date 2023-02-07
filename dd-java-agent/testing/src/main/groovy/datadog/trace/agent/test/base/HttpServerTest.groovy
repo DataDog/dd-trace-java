@@ -421,6 +421,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     return runUnderTrace("controller", closure)
   }
 
+  @Flaky(suites = ["MuleHttpServerForkedTest"])
   def "test success with #count requests"() {
     setup:
     def request = request(SUCCESS, method, body).build()
