@@ -894,6 +894,7 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
       triggeredBy: *agent_integration_tests_modules
       testTask: traceAgentTest
+      stage: agent-integration
       testJvm: "8"
 
   - test_published_artifacts:
