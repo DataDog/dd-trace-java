@@ -9,7 +9,6 @@ import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator
 import datadog.trace.instrumentation.ratpack.RatpackServerDecorator
-import datadog.trace.test.util.Flaky
 import ratpack.error.ServerErrorHandler
 import ratpack.form.Form
 import ratpack.groovy.test.embed.GroovyEmbeddedApp
@@ -30,7 +29,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
-@Flaky
 class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
 
   @Override
