@@ -20,7 +20,6 @@ import java.nio.file.StandardOpenOption
  * Testing needs to be in a centralized project.
  */
 @Flaky("Fails sometimes with java.io.IOException https://github.com/DataDog/dd-trace-java/issues/3884")
-@SuppressWarnings('UnnecessaryDotClass')
 class MongoBaseTest extends AgentTestRunner {
 
   @Shared
