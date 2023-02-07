@@ -7,8 +7,8 @@ set -eux
   echo "export TESTCONTAINERS_HOST_OVERRIDE=localhost"
   echo "export TESTCONTAINERS_RYUK_DISABLED=true"
 
-  # DOCKERT_CERT_PATH is provided only if DLC is enabled.
-  if [[ -n "${DOCKERT_CERT_PATH:-}" ]]; then
+  # DOCKER_CERT_PATH is provided only if DLC is enabled.
+  if [[ -n "${DOCKER_CERT_PATH:-}" ]]; then
     echo "export DOCKER_CERT_PATH=${DOCKER_CERT_PATH}"
     echo "export DOCKER_TLS_VERIFY=1"
   else
