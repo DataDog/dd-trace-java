@@ -126,41 +126,23 @@ commands:
     steps:
       - setup_remote_docker:
           version: 20.10.14
+          # DLC shares Docker layers across jobs (at an extra cost).
+          # But its time to setup (~1min) exceeds the time required to prefetch all images we use.
           docker_layer_caching: true
 
       - run:
-          name: Testcontainers environment variables
-          command: |
-            echo "export FORWARDED_DOCKER_HOST=$DOCKER_HOST" >> $BASH_ENV
-            echo "export DOCKER_HOST=tcp://localhost:60906" >> $BASH_ENV
-            echo "export TESTCONTAINERS_HOST_OVERRIDE=localhost" >> $BASH_ENV
-            echo "export TESTCONTAINERS_RYUK_DISABLED=true" >> $BASH_ENV
+          name: Prepare testcontainers environment
+          command: .circleci/prepare_docker_env.sh
 
       - run:
           name: Testcontainers tunnels
           background: true
-          command: |
-            cd $DOCKER_CERT_PATH
-            mv key.pem remote-key.pem
-            mv cert.pem remote-cert.pem
-            mv ca.pem remote-ca.pem
-            
-            openssl genrsa -out ca-key.pem 4096
-            openssl req -new -x509 -days 365 -key ca-key.pem -sha256 -subj "/C=US/CN=localhost/emailAddress=admin@datadoghq.com" -out ca.pem
-            openssl genrsa -out server-key.pem 4096
-            openssl req -subj "/CN=localhost" -sha256 -new -key server-key.pem -out server.csr
-            echo subjectAltName = DNS:localhost,IP:10.10.10.20,IP:127.0.0.1 >> extfile.cnf
-            echo extendedKeyUsage = serverAuth >> extfile.cnf
-            openssl x509 -req -days 365 -sha256 -in server.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out server-cert.pem -extfile extfile.cnf
-            openssl genrsa -out key.pem 4096
-            openssl req -subj '/CN=client' -new -key key.pem -out client.csr
-            echo extendedKeyUsage = clientAuth > extfile-client.cnf
-            openssl x509 -req -days 365 -sha256 -in client.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out cert.pem -extfile extfile-client.cnf
-            rm -v client.csr server.csr extfile.cnf extfile-client.cnf
-            chmod -v 0400 ca-key.pem key.pem server-key.pem
-            chmod -v 0444 ca.pem server-cert.pem cert.pem
-            
-            autoforward --port 60906 --remote $FORWARDED_DOCKER_HOST --forward remote-docker --secure --server-key $DOCKER_CERT_PATH/server-key.pem --server-cert $DOCKER_CERT_PATH/server-cert.pem --remote-key $DOCKER_CERT_PATH/remote-key.pem --remote-cert $DOCKER_CERT_PATH/remote-cert.pem --remote-ca $DOCKER_CERT_PATH/remote-ca.pem
+          command: .circleci/start_docker_autoforward.sh
+
+      - run:
+          name: Prefetch Docker images
+          background: true
+          command: .circleci/fetch_docker_images.sh
 
   early_return_for_forked_pull_requests:
     description: >-
@@ -205,7 +187,8 @@ commands:
     steps:
       - run:
           name: Max Memory Used
-          command: cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
+          # The file does not seem to exist when DLC is disabled
+          command: cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes || true
           when: always
 
 jobs:
