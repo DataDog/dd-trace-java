@@ -346,9 +346,6 @@ jobs:
       gradleTarget:
         type: string
         default: ""
-      gradleExtra:
-        type: string
-        default: ""
       triggeredBy:
         type: string
         default: ".*"
@@ -359,6 +356,9 @@ jobs:
         type: integer
         default: 2
       profile:
+        type: boolean
+        default: false
+      continueOnFailure:
         type: boolean
         default: false
 
@@ -398,7 +398,7 @@ jobs:
             << pipeline.parameters.gradle_flags >>
             --max-workers=<< parameters.maxWorkers >>
             --continue
-            << parameters.gradleExtra >>
+            <<# parameters.continueOnFailure >> || true <</ parameters.continueOnFailure >>
 
       - run:
           name: Collect reports
@@ -708,7 +708,7 @@ build_test_jobs: &build_test_jobs
         - build
       name: z_test_8_flaky
       gradleParameters: "-PrunFlakyTests"
-      gradleExtra: " || true"
+      continueOnFailure: true
       triggeredBy: *core_modules
       stage: flaky
       maxWorkers: 4
