@@ -1,12 +1,12 @@
 package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.core.datastreams.TagsProcessor.createTag;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.core.datastreams.TagsProcessor;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.kafka.clients.producer.Callback;
@@ -30,8 +30,8 @@ public class KafkaProducerCallback implements Callback {
     PRODUCER_DECORATE.beforeFinish(span);
     List<String> sortedTags =
         Arrays.asList(
-            createTag("partition", String.valueOf(metadata.partition())),
-            createTag("topic", metadata.topic()),
+            TagsProcessor.createTag("partition", String.valueOf(metadata.partition())),
+            TagsProcessor.createTag("topic", metadata.topic()),
             "type:kafka_produce");
     AgentTracer.get().getDataStreamsMonitoring().trackBacklog(sortedTags, metadata.offset());
     span.finish();

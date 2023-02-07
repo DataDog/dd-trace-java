@@ -76,9 +76,8 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     dataStreams.start()
     dataStreams.accept(new StatsPoint([], 9, 0, timeSource.currentTimeNanos, 0, 0))
     dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
-    dataStreams.trackKafkaProduce("testTopic", 1, 100)
-    dataStreams.trackKafkaProduce("testTopic", 1, 130)
-    dataStreams.trackKafkaCommit("testGroup", "testTopic", 1, 130)
+    dataStreams.trackBacklog(["partition:1", "topic:testTopic", "type:kafka_produce"], 100)
+    dataStreams.trackBacklog(["partition:1", "topic:testTopic", "type:kafka_produce"], 130)
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100l)
     dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10)))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
@@ -157,27 +156,15 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     }
 
     // Kafka stats
-    assert unpacker.unpackString() == "Kafka"
+    assert unpacker.unpackString() == "Backlogs"
+    assert unpacker.unpackArrayHeader() == 1
     assert unpacker.unpackMapHeader() == 2
-    assert unpacker.unpackString() == "LatestCommitOffsets"
-    assert unpacker.unpackArrayHeader() == 1
-    assert unpacker.unpackMapHeader() == 4
-    assert unpacker.unpackString() == "ConsumerGroup"
-    assert unpacker.unpackString() == "testGroup"
-    assert unpacker.unpackString() == "Topic"
-    assert unpacker.unpackString() == "testTopic"
-    assert unpacker.unpackString() == "Partition"
-    assert unpacker.unpackInt() == 1
-    assert unpacker.unpackString() == "Offset"
-    assert unpacker.unpackLong() == 130
-    assert unpacker.unpackString() == "LatestProduceOffsets"
-    assert unpacker.unpackArrayHeader() == 1
-    assert unpacker.unpackMapHeader() == 3
-    assert unpacker.unpackString() == "Topic"
-    assert unpacker.unpackString() == "testTopic"
-    assert unpacker.unpackString() == "Partition"
-    assert unpacker.unpackInt() == 1
-    assert unpacker.unpackString() == "Offset"
+    assert unpacker.unpackString() == "Tags"
+    assert unpacker.unpackArrayHeader() == 3
+    assert unpacker.unpackString() == "partition:1"
+    assert unpacker.unpackString() == "topic:testTopic"
+    assert unpacker.unpackString() == "type:kafka_produce"
+    assert unpacker.unpackString() == "Value"
     assert unpacker.unpackLong() == 130
 
     // SECOND BUCKET

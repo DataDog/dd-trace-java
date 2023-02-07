@@ -8,6 +8,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.core.datastreams.TagsProcessor;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -42,7 +43,7 @@ public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Traci
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {};
+    return new String[] {TagsProcessor.class.getName(), TagsProcessor.StringPrefix.class.getName()};
   }
 
   @Override

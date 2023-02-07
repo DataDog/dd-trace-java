@@ -24,6 +24,7 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.core.datastreams.TagsProcessor;
 import java.util.LinkedHashMap;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.ApiVersions;
@@ -49,7 +50,9 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
     return new String[] {
       packageName + ".KafkaDecorator",
       packageName + ".TextMapInjectAdapter",
-      packageName + ".KafkaProducerCallback"
+      packageName + ".KafkaProducerCallback",
+      TagsProcessor.class.getName(),
+      TagsProcessor.StringPrefix.class.getName()
     };
   }
 
