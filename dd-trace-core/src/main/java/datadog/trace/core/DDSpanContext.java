@@ -392,8 +392,6 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
       if (limit != Integer.MAX_VALUE) {
         unsafeSetTag(SPAN_SAMPLING_MAX_PER_SECOND_TAG, limit);
       }
-      propagationTags.updateTraceSamplingPriority(
-          PrioritySampling.USER_KEEP, SamplingMechanism.SPAN_SAMPLING_RATE);
       isSelectedBySingleSpanSampling = true;
     }
   }
