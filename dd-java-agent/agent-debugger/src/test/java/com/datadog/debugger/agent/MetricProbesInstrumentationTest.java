@@ -385,7 +385,7 @@ public class MetricProbesInstrumentationTest {
             CLASS_NAME,
             "f",
             "()",
-            new ValueScript(DSL.ref("this.intValue"), "this.intValue"));
+            new ValueScript(DSL.getMember(DSL.ref("this"), "intValue"), "this.intValue"));
 
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "f").get();
@@ -404,7 +404,7 @@ public class MetricProbesInstrumentationTest {
             METRIC_NAME,
             COUNT,
             CLASS_NAME,
-            new ValueScript(DSL.ref("this.intValue"), "intValue"),
+            new ValueScript(DSL.getMember(DSL.ref("this"), "intValue"), "intValue"),
             24);
     MetricForwarderListener listener = installMetricProbes(metricProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);

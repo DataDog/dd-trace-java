@@ -1,6 +1,7 @@
 package com.datadog.debugger.agent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
@@ -125,6 +126,66 @@ public class LogProbesInstrumentationTest {
   }
 
   @Test
+  public void mergedMethodTemplateMainCaptureAdditionalNonCapture()
+      throws IOException, URISyntaxException {
+    List<Snapshot> snapshots = doMergedMethodTemplateMixCapture(true, false);
+    Snapshot snapshot0 = snapshots.get(0);
+    assertEquals(LOG_ID1, snapshot0.getProbe().getId());
+    assertNotNull(snapshot0.getCaptures().getEntry());
+    assertNotNull(snapshot0.getCaptures().getReturn());
+    assertEquals("this is log line #1 with arg=1", snapshot0.getSummary());
+    Snapshot snapshot1 = snapshots.get(1);
+    assertEquals(LOG_ID2, snapshot1.getProbe().getId());
+    assertCapturesNull(snapshot1);
+    assertEquals("this is log line #2 with arg=1", snapshot1.getSummary());
+  }
+
+  @Test
+  public void mergedMethodTemplateMainNonCaptureAdditionalCapture()
+      throws IOException, URISyntaxException {
+    List<Snapshot> snapshots = doMergedMethodTemplateMixCapture(false, true);
+    Snapshot snapshot0 = snapshots.get(0);
+    assertEquals(LOG_ID1, snapshot0.getProbe().getId());
+    assertCapturesNull(snapshot0);
+    assertEquals("this is log line #1 with arg=1", snapshot0.getSummary());
+    Snapshot snapshot1 = snapshots.get(1);
+    assertEquals(LOG_ID2, snapshot1.getProbe().getId());
+    assertNotNull(snapshot1.getCaptures().getEntry());
+    assertNotNull(snapshot1.getCaptures().getReturn());
+    assertEquals("this is log line #2 with arg=1", snapshot1.getSummary());
+  }
+
+  private List<Snapshot> doMergedMethodTemplateMixCapture(
+      boolean mainCapture, boolean additionalCapture) throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    LogProbe logProbe1 =
+        createProbeBuilder(
+                LOG_ID1,
+                "this is log line #1 with arg={arg}",
+                CLASS_NAME,
+                "main",
+                "int (java.lang.String)")
+            .captureSnapshot(mainCapture)
+            .build();
+    LogProbe logProbe2 =
+        createProbeBuilder(
+                LOG_ID2,
+                "this is log line #2 with arg={arg}",
+                CLASS_NAME,
+                "main",
+                "int (java.lang.String)")
+            .captureSnapshot(additionalCapture)
+            .build();
+    logProbe1.addAdditionalProbe(logProbe2);
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe1);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    Assert.assertEquals(3, result);
+    Assert.assertEquals(2, listener.snapshots.size());
+    return listener.snapshots;
+  }
+
+  @Test
   public void linePlainLog() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     DebuggerTransformerTest.TestSnapshotListener listener =
@@ -239,6 +300,20 @@ public class LogProbesInstrumentationTest {
         "index[10] out of bounds: [0-3]", snapshot.getEvaluationErrors().get(0).getMessage());
   }
 
+  @Test
+  public void lineTemplateThisLog() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot06";
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installSingleProbe("this is log line for this={this}", CLASS_NAME, null, null, "24");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "f").get();
+    Assert.assertEquals(42, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertEquals(
+        "this is log line for this={STATIC_STR=strStatic, intValue=48, doubleValue=3.14, strValue=done, strList=..., ...}",
+        snapshot.getSummary());
+  }
+
   private DebuggerTransformerTest.TestSnapshotListener installSingleProbe(
       String template, String typeName, String methodName, String signature, String... lines) {
     LogProbe logProbe = createProbe(LOG_ID, template, typeName, methodName, signature, lines);
@@ -340,7 +415,7 @@ public class LogProbesInstrumentationTest {
             id,
             location,
             Snapshot.MethodLocation.DEFAULT,
-            false,
+            probe.isCaptureSnapshot(),
             null,
             probe.concatTags(),
             new LogMessageTemplateSummaryBuilder(probe),
@@ -351,7 +426,7 @@ public class LogProbesInstrumentationTest {
                             relatedProbe.getId(),
                             location,
                             Snapshot.MethodLocation.DEFAULT,
-                            false,
+                            ((LogProbe) relatedProbe).isCaptureSnapshot(),
                             relatedProbe instanceof LogProbe
                                 ? ((LogProbe) relatedProbe).getProbeCondition()
                                 : null,

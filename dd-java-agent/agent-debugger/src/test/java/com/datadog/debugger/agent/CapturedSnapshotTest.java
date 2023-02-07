@@ -105,19 +105,6 @@ public class CapturedSnapshotTest {
   }
 
   @Test
-  public void lineNotFound() throws IOException, URISyntaxException {
-    final String CLASS_NAME = "CapturedSnapshot01";
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".java", 42));
-    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "2").get();
-    Assert.assertEquals(2, result);
-    Assert.assertEquals(
-        "No executable code was found at CapturedSnapshot01:L42",
-        listener.errors.get(PROBE_ID).get(0).getMessage());
-  }
-
-  @Test
   public void methodProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     DebuggerTransformerTest.TestSnapshotListener listener =
@@ -1125,7 +1112,8 @@ public class CapturedSnapshotTest {
     // it's important there is no null key in this map, as Jackson is not happy about it
     // it's means here that argument names are not resolved correctly
     Assert.assertFalse(arguments.containsKey(null));
-    Assert.assertEquals(3, arguments.size());
+    Assert.assertEquals(4, arguments.size());
+    Assert.assertTrue(arguments.containsKey("this"));
     Assert.assertTrue(arguments.containsKey("apiKey"));
     Assert.assertTrue(arguments.containsKey("uriInfo"));
     Assert.assertTrue(arguments.containsKey("value"));

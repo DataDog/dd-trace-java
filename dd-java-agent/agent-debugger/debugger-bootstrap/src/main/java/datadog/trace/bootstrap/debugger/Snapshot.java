@@ -208,8 +208,6 @@ public class Snapshot {
           continue;
         }
       }
-      // generates id only when effectively committing
-      this.id = UUID.randomUUID().toString();
       /*
        * Record stack trace having the caller of this method as 'top' frame.
        * For this it is necessary to discard:
@@ -218,33 +216,26 @@ public class Snapshot {
        * - Snapshot.commit()
        */
       recordStackTrace(3);
-      if (currentProbeId.equals(probe.id)) {
-        if (status.hasErrors) {
-          evaluationErrors = errorsByProbeIds.get(currentProbeId);
-        }
-        DebuggerContext.addSnapshot(this);
-      } else {
-        DebuggerContext.addSnapshot(copy(status.probeDetails, UUID.randomUUID().toString()));
-      }
+      DebuggerContext.addSnapshot(duplicateSnapshotForProbe(status.probeDetails));
     }
   }
 
-  private Snapshot copy(ProbeDetails additionalProbe, String newSnapshotId) {
+  private Snapshot duplicateSnapshotForProbe(ProbeDetails probe) {
     Snapshot snapshot =
         new Snapshot(
-            newSnapshotId,
+            UUID.randomUUID().toString(),
             version,
             timestamp,
             duration,
             stack,
-            captures,
-            additionalProbe,
+            probe.captureSnapshot ? captures : new Captures(),
+            probe,
             language,
             thread,
             thisClassName,
             traceId,
             spanId);
-    List<EvaluationError> evalErrors = errorsByProbeIds.get(additionalProbe.id);
+    List<EvaluationError> evalErrors = errorsByProbeIds.get(probe.id);
     if (evalErrors != null) {
       snapshot.evaluationErrors = new ArrayList<>(evalErrors);
     }
@@ -262,7 +253,7 @@ public class Snapshot {
       String currentProbeId = entry.getKey();
       SnapshotStatus status = entry.getValue();
       if (evaluateConditions(status.probeDetails, methodLocation)) {
-        DebuggerScript script = status.probeDetails.getScript();
+        DebuggerScript<Boolean> script = status.probeDetails.getScript();
         if (!executeScript(script, capture, currentProbeId)) {
           status.sending = false;
           status.capturing = false; // force to stop capturing
@@ -298,7 +289,7 @@ public class Snapshot {
   }
 
   private static boolean executeScript(
-      DebuggerScript script, CapturedContext capture, String probeId) {
+      DebuggerScript<Boolean> script, CapturedContext capture, String probeId) {
     if (script == null) {
       return true;
     }
@@ -384,7 +375,7 @@ public class Snapshot {
         ProbeLocation location,
         MethodLocation evaluateAt,
         boolean captureSnapshot,
-        DebuggerScript script,
+        DebuggerScript<Boolean> script,
         String tags,
         SummaryBuilder summaryBuilder) {
       this(
@@ -403,7 +394,7 @@ public class Snapshot {
         ProbeLocation location,
         MethodLocation evaluateAt,
         boolean captureSnapshot,
-        DebuggerScript script,
+        DebuggerScript<Boolean> script,
         String tags,
         SummaryBuilder summaryBuilder,
         List<ProbeDetails> additionalProbes) {
@@ -429,7 +420,7 @@ public class Snapshot {
       return evaluateAt;
     }
 
-    public DebuggerScript getScript() {
+    public DebuggerScript<Boolean> getScript() {
       return script;
     }
 
@@ -666,10 +657,6 @@ public class Snapshot {
         String rawName = name.substring(ValueReferences.SYNTHETIC_PREFIX.length());
         target = tryRetrieveSynthetic(rawName);
         checkUndefined(name, target, rawName, "Cannot find synthetic var: ");
-      } else if (name.startsWith(ValueReferences.FIELD_PREFIX)) {
-        String rawName = name.substring(ValueReferences.FIELD_PREFIX.length());
-        target = tryRetrieveField(rawName);
-        checkUndefined(name, target, rawName, "Cannot find field: ");
       } else {
         target = tryRetrieve(name);
         checkUndefined(name, target, name, "Cannot find symbol: ");

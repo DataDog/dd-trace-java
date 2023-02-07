@@ -58,6 +58,8 @@
 0 java.lang.Shutdown
 # Concurrent instrumentation modifies the structure of the Cleaner class incompatibly with java9+ modules.
 1 java.util.logging.LogManager$Cleaner
+# Need for IAST
+0 java.io.PushbackInputStream
 1 jdk.*
 1 net.bytebuddy.*
 1 org.apache.felix.framework.URLHandlers*
@@ -75,6 +77,8 @@
 1 org.springframework.core.$Proxy*
 1 org.springframework.instrument.classloading.ShadowingClassLoader
 1 org.springframework.instrument.classloading.SimpleThrowawayClassLoader
+1 org.springframework.util.ConcurrentLruCache$*
+1 com.fasterxml.jackson.databind.util.internal.PrivateMaxEntriesMap$*
 1 org.eclipse.osgi.framework.internal.protocol.*
 1 sun.*
 0 sun.net.www.http.HttpClient
@@ -133,6 +137,9 @@
 0 com.couchbase.client.deps.org.LatencyUtils.*
 2 com.fasterxml.classmate.*
 2 com.fasterxml.jackson.*
+# Included for IAST
+0 com.fasterxml.jackson.core.*
+0 com.fasterxml.jackson.databind.ObjectMapper
 0 com.fasterxml.jackson.module.afterburner.util.MyClassLoader
 2 com.github.mustachejava.*
 2 com.google.api.*
@@ -233,6 +240,8 @@
 2 org.springframework.expression.*
 2 org.springframework.format.*
 2 org.springframework.http.*
+# Need for IAST
+0 org.springframework.http.server.ServletServerHttpRequest
 # There are some Mono implementation that get instrumented
 0 org.springframework.http.server.reactive.*
 2 org.springframework.instrument.*

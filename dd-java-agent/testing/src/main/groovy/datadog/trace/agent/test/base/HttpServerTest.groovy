@@ -1324,10 +1324,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
-  int getNumSpansBlocking() {
-    1
-  }
-
   def 'test blocking of request with auto and accept=#acceptHeader'(boolean expectedJson, String acceptHeader) {
     // Note: this does not actually test that the handler for SUCCESS is never called,
     //       only that the response is the expected one (insofar as invoking the handler
@@ -1362,8 +1358,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def trace = TEST_WRITER.get(0)
 
     then:
-    trace.size() == numSpansBlocking
-    trace.each { assert it.tags['http.status_code'] == 418 }
+    trace.size() == 1
+    trace[0].tags['http.status_code'] == 418
 
     and:
     if (isDataStreamsEnabled()) {
@@ -1404,8 +1400,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def trace = TEST_WRITER.get(0)
 
     then:
-    trace.size() == numSpansBlocking
-    trace.each { assert it.tags['http.status_code'] == 418 }
+    trace.size() == 1
+    trace[0].tags['http.status_code'] == 418
 
     and:
     if (isDataStreamsEnabled()) {

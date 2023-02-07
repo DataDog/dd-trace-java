@@ -56,6 +56,7 @@ public class ConfigurationUpdater
   private final Map<String, ProbeDefinition> appliedDefinitions = new ConcurrentHashMap<>();
   private final EnvironmentAndVersionChecker envAndVersionCheck;
   private final DebuggerSink sink;
+  private final ClassesToRetransformFinder finder;
   private final String serviceName;
 
   private final Map<String, InstrumentationResult> instrumentationResults =
@@ -64,20 +65,25 @@ public class ConfigurationUpdater
   private Configuration currentConfiguration;
 
   public ConfigurationUpdater(
-      Instrumentation instrumentation, TransformerSupplier transformerSupplier, Config config) {
-    this(instrumentation, transformerSupplier, config, new DebuggerSink(config));
+      Instrumentation instrumentation,
+      TransformerSupplier transformerSupplier,
+      Config config,
+      ClassesToRetransformFinder finder) {
+    this(instrumentation, transformerSupplier, config, new DebuggerSink(config), finder);
   }
 
   public ConfigurationUpdater(
       Instrumentation instrumentation,
       TransformerSupplier transformerSupplier,
       Config config,
-      DebuggerSink sink) {
+      DebuggerSink sink,
+      ClassesToRetransformFinder finder) {
     this.instrumentation = instrumentation;
     this.transformerSupplier = transformerSupplier;
     this.envAndVersionCheck = new EnvironmentAndVersionChecker(config);
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
     this.sink = sink;
+    this.finder = finder;
   }
 
   // Should be called by only one thread
@@ -161,11 +167,11 @@ public class ConfigurationUpdater
     storeDebuggerDefinitions(changes);
     installNewDefinitions();
     reportReceived(changes);
-    if (!changes.hasChangedClasses()) {
+    if (!finder.hasChangedClasses(changes)) {
       return;
     }
     List<Class<?>> changedClasses =
-        changes.getAllLoadedChangedClasses(instrumentation.getAllLoadedClasses());
+        finder.getAllLoadedChangedClasses(instrumentation.getAllLoadedClasses(), changes);
     retransformClasses(changedClasses);
     // ensures that we have at least re-transformed 1 class
     if (changedClasses.size() > 0) {

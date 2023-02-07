@@ -11,7 +11,6 @@ public class ExtractedContext extends TagContext {
   private final DDTraceId traceId;
   private final long spanId;
   private final long endToEndStartTime;
-  private final Map<String, String> baggage;
   private final PropagationTags propagationTags;
 
   public ExtractedContext(
@@ -24,17 +23,11 @@ public class ExtractedContext extends TagContext {
       final Map<String, String> tags,
       final HttpHeaders httpHeaders,
       final PropagationTags propagationTags) {
-    super(origin, tags, httpHeaders, samplingPriority);
+    super(origin, tags, httpHeaders, baggage, samplingPriority);
     this.traceId = traceId;
     this.spanId = spanId;
     this.endToEndStartTime = endToEndStartTime;
-    this.baggage = baggage;
     this.propagationTags = propagationTags;
-  }
-
-  @Override
-  public final Iterable<Map.Entry<String, String>> baggageItems() {
-    return baggage.entrySet();
   }
 
   @Override
@@ -49,10 +42,6 @@ public class ExtractedContext extends TagContext {
 
   public final long getEndToEndStartTime() {
     return endToEndStartTime;
-  }
-
-  public final Map<String, String> getBaggage() {
-    return baggage;
   }
 
   public PropagationTags getPropagationTags() {

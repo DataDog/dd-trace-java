@@ -64,7 +64,9 @@ class ExpressionTest {
     assertEquals("1 <= 1", le(value(1), value(1)).prettyPrint());
     assertEquals(
         "when(this.strField == \"foo\" && @duration > 0)",
-        when(and(eq(ref("this.strField"), value("foo")), gt(ref("@duration"), value(0))))
+        when(and(
+                eq(getMember(ref("this"), "strField"), value("foo")),
+                gt(ref("@duration"), value(0))))
             .prettyPrint());
     assertEquals(
         "len(list[idx].map)", len(getMember(index(ref("list"), ref("idx")), "map")).prettyPrint());

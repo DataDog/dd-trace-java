@@ -1,5 +1,6 @@
 package com.datadog.debugger.agent;
 
+import static com.datadog.debugger.util.ClassFileHelperTest.getClassFileBytes;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -7,10 +8,6 @@ import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanProbe;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -196,20 +193,5 @@ public class TransformerDefinitionMatcherTest {
 
   private static String getClassPath(Class<?> clazz) {
     return clazz.getName().replace('.', '/');
-  }
-
-  private static byte[] getClassFileBytes(Class<?> clazz) {
-    URL resource = clazz.getResource(clazz.getSimpleName() + ".class");
-    byte[] buffer = new byte[4096];
-    ByteArrayOutputStream os = new ByteArrayOutputStream();
-    try (InputStream is = resource.openStream()) {
-      int readBytes;
-      while ((readBytes = is.read(buffer)) != -1) {
-        os.write(buffer, 0, readBytes);
-      }
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-    return os.toByteArray();
   }
 }

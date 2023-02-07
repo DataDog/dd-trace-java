@@ -46,8 +46,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
+import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
-import datadog.trace.civisibility.CiVisibilityTraceInterceptor;
+import datadog.trace.civisibility.interceptor.CiVisibilityTraceInterceptor;
 import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
@@ -209,6 +210,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public EndpointTracker onRootSpanStarted(AgentSpan root) {
     return endpointCheckpointer.onRootSpanStarted(root);
+  }
+
+  @Override
+  public ScopeState newScopeState() {
+    return scopeManager.newScopeState();
   }
 
   public static class CoreTracerBuilder {
@@ -1301,7 +1307,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           parentSpanId = extractedContext.getSpanId();
           samplingPriority = extractedContext.getSamplingPriority();
           endToEndStartTime = extractedContext.getEndToEndStartTime();
-          baggage = extractedContext.getBaggage();
           propagationTags = extractedContext.getPropagationTags();
         } else {
           // Start a new trace
@@ -1309,7 +1314,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           parentSpanId = DDSpanId.ZERO;
           samplingPriority = PrioritySampling.UNSET;
           endToEndStartTime = 0;
-          baggage = null;
           propagationTags = propagationTagsFactory.empty();
         }
 
@@ -1318,11 +1322,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           TagContext tc = (TagContext) parentContext;
           coreTags = tc.getTags();
           origin = tc.getOrigin();
+          baggage = tc.getBaggage();
           requestContextDataAppSec = tc.getRequestContextDataAppSec();
           requestContextDataIast = tc.getRequestContextDataIast();
         } else {
           coreTags = null;
           origin = null;
+          baggage = null;
           requestContextDataAppSec = null;
           requestContextDataIast = null;
         }

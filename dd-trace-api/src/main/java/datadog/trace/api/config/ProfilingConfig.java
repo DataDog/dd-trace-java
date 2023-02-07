@@ -42,6 +42,9 @@ public final class ProfilingConfig {
   public static final String PROFILING_PROXY_PASSWORD = "profiling.proxy.password";
   public static final String PROFILING_EXCEPTION_SAMPLE_LIMIT = "profiling.exception.sample.limit";
   public static final int PROFILING_EXCEPTION_SAMPLE_LIMIT_DEFAULT = 10_000;
+  public static final String PROFILING_EXCEPTION_RECORD_MESSAGE =
+      "profiling.exception.record.message";
+  public static final boolean PROFILING_EXCEPTION_RECORD_MESSAGE_DEFAULT = true;
 
   public static final String PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT =
       "profiling.direct.allocation.sample.limit";
@@ -64,6 +67,11 @@ public final class ProfilingConfig {
       "profiling.directallocation.enabled";
   public static final boolean PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT = false;
 
+  // Java profiler lib needs to be extracted from JAR and placed into the scratch location
+  // By default the scratch is the os temp directory but can be overridden by user
+  public static final String PROFILING_DATADOG_PROFILER_SCRATCH = "profiling.ddprof.scratch";
+  public static final String PROFILING_DATADOG_PROFILER_SCRATCH_DEFAULT =
+      System.getProperty("java.io.tmpdir");
   public static final String PROFILING_DATADOG_PROFILER_LIBPATH = "profiling.ddprof.debug.lib";
   public static final String PROFILING_DATADOG_PROFILER_ALLOC_ENABLED =
       "profiling.ddprof.alloc.enabled";

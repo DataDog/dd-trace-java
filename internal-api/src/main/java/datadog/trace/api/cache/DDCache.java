@@ -3,8 +3,15 @@ package datadog.trace.api.cache;
 import java.util.function.Function;
 
 public interface DDCache<K, V> {
+  /**
+   * Look up or create and store a value in the cache.
+   *
+   * @param key the key to look up
+   * @param producer how to create a cached value base on the key if the lookup fails
+   * @return the cached or created and stored value
+   */
+  V computeIfAbsent(final K key, Function<K, ? extends V> producer);
 
-  V computeIfAbsent(final K key, Function<K, ? extends V> func);
-
+  /** Clear the cache. */
   void clear();
 }

@@ -8,6 +8,8 @@ import datadog.trace.bootstrap.debugger.el.Values;
  * other value types: boolean, string, number, collection, null, undefined
  */
 public final class ObjectValue extends Literal<Object> {
+  public static final ObjectValue THIS = new ObjectValue(Values.THIS_OBJECT);
+
   public ObjectValue(Object value) {
     super(value == null ? Values.NULL_OBJECT : value);
   }
@@ -24,6 +26,9 @@ public final class ObjectValue extends Literal<Object> {
     }
     if (value == Values.UNDEFINED_OBJECT) {
       return value.toString();
+    }
+    if (value == Values.THIS_OBJECT) {
+      return "this";
     }
     return value.getClass().getTypeName();
   }

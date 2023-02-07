@@ -13,7 +13,8 @@ public interface ProfilingContextIntegration extends ProfilingContext {
 
   final class NoOp implements ProfilingContextIntegration {
 
-    public static final NoOp INSTANCE = new NoOp();
+    public static final ProfilingContextIntegration INSTANCE =
+        new ProfilingContextIntegration.NoOp();
 
     @Override
     public void onAttach() {}
