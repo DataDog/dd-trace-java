@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -eu
+set -eux
 
 if [[ -n "${DOCKER_CERT_PATH:-}" ]]; then
     TLS_ARGS="

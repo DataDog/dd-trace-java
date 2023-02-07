@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -eu
+set -eux
 
 {
   echo "export FORWARDED_DOCKER_HOST=${DOCKER_HOST}"
