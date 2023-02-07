@@ -4,12 +4,13 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_PATH;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
-import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_UNDERTOW_SPAN;
+import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_UNDERTOW_CONTINUATION;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.SERVLET_REQUEST;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.servlet.handlers.ServletRequestContext;
@@ -53,8 +54,9 @@ public final class JakartaServletInstrumentation extends Instrumenter.Tracing
     public static void enter(
         @Advice.Argument(0) final HttpServerExchange exchange,
         @Advice.Argument(1) final ServletRequestContext servletRequestContext) {
-      AgentSpan undertowSpan = exchange.getAttachment(DD_UNDERTOW_SPAN);
-      if (null != undertowSpan) {
+      AgentScope.Continuation continuation = exchange.getAttachment(DD_UNDERTOW_CONTINUATION);
+      if (continuation != null) {
+        AgentSpan undertowSpan = continuation.getSpan();
         ServletRequest request = servletRequestContext.getServletRequest();
         request.setAttribute(DD_SPAN_ATTRIBUTE, undertowSpan);
         undertowSpan.setSpanName(SERVLET_REQUEST);

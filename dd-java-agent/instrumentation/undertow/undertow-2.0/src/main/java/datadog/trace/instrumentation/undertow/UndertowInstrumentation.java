@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.undertow;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_HTTPSERVEREXCHANGE_DISPATCH;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -54,9 +53,6 @@ public final class UndertowInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(value = 1, readOnly = false) Runnable task,
         @Advice.This final HttpServerExchange current) {
       task = UndertowRunnableWrapper.wrapIfNeeded(task, current);
-      // Tell the rest of the instrumentation this exchange has been dispatched
-      // so it will not be completed synchronously
-      current.putAttachment(DD_HTTPSERVEREXCHANGE_DISPATCH, true);
     }
   }
 }

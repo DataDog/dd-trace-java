@@ -1,9 +1,11 @@
 import datadog.appsec.api.blocking.Blocking
+import datadog.appsec.api.blocking.BlockingException
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import io.undertow.Handlers
 import io.undertow.Undertow
 import io.undertow.UndertowOptions
+import io.undertow.server.DefaultResponseListener
 import io.undertow.util.Headers
 import io.undertow.util.HttpString
 import io.undertow.util.StatusCodes
@@ -113,7 +115,10 @@ class UndertowDispatcherTest extends HttpServerTest<Undertow> {
               exchange.statusCode = 200
               exchange.responseSender.send('user not blocked')
               exchange.endExchange()
-            } catch (BlockingException) {}
+            } catch (BlockingException be) {
+              exchange.putAttachment(DefaultResponseListener.EXCEPTION,
+                new BlockingException("Blocking user with id 'user-to-block'"))
+            }
           }
         }
         ).build()

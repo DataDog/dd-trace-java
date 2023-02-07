@@ -5,6 +5,7 @@ import datadog.trace.agent.test.base.HttpServerTest
 import io.undertow.Handlers
 import io.undertow.Undertow
 import io.undertow.UndertowOptions
+import io.undertow.server.DefaultResponseListener
 import io.undertow.server.HttpHandler
 import io.undertow.server.HttpServerExchange
 import io.undertow.server.handlers.form.FormData
@@ -110,10 +111,18 @@ class UndertowTest extends HttpServerTest<Undertow> {
         }
         .addExactPath(USER_BLOCK.getPath()) { exchange ->
           controller(USER_BLOCK) {
+            // We need to fudge things here a little.
+            // If we throw, the dispatch to the blocking handler will not even
+            // be called. Also, set the error attachment to make the test pass.
+            // We could maybe explore adding extra instrumentation to catch
+            // the exception and make sure that our UndertowBlockingHandler
+            // (and only that handler) is called afterwards.
             try {
               Blocking.forUser('user-to-block').blockIfMatch()
               exchange.getResponseSender().send('user not blocked')
-            } catch (BlockingException be) {}
+            } catch (BlockingException be) {
+              exchange.putAttachment(DefaultResponseListener.EXCEPTION, be)
+            }
           }
         }
         ).build()
