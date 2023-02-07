@@ -1,3 +1,5 @@
+package datadog.trace.instrumentation.kotlin.coroutines
+
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
@@ -14,10 +16,6 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.channels.actor
-import kotlinx.coroutines.channels.consumeEach
-import kotlinx.coroutines.channels.produce
-import kotlinx.coroutines.channels.toChannel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -32,31 +30,10 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 @SuppressFBWarnings("NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE")
-class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
+abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
 
   @Trace
-  fun tracedAcrossChannels(): Int = runTest {
-    val producer = produce(jobName("producer")) {
-      repeat(3) {
-        tracedChild("produce_$it")
-        send(it)
-      }
-    }
-
-    val actor = actor<Int>(jobName("consumer")) {
-      consumeEach {
-        tracedChild("consume_$it")
-      }
-    }
-
-    producer.toChannel(actor)
-    actor.close()
-
-    7
-  }
-
-  @Trace
-  fun tracePreventedByCancellation(): Int {
+  open fun tracePreventedByCancellation(): Int {
 
     kotlin.runCatching {
       runTest {
@@ -76,7 +53,7 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
   }
 
   @Trace
-  fun tracedAcrossThreadsWithNested(): Int = runTest {
+  open fun tracedAcrossThreadsWithNested(): Int = runTest {
     val goodDeferred = async(jobName("goodDeferred")) { 1 }
 
     launch(jobName("root")) {
@@ -90,7 +67,7 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
   }
 
   @Trace
-  fun traceWithDeferred(): Int = runTest {
+  open fun traceWithDeferred(): Int = runTest {
 
     val keptPromise = CompletableDeferred<Boolean>()
     val brokenPromise = CompletableDeferred<Boolean>()
@@ -123,7 +100,7 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
    * @return Number of expected spans in the trace
    */
   @Trace
-  fun tracedWithDeferredFirstCompletions(): Int = runTest {
+  open fun tracedWithDeferredFirstCompletions(): Int = runTest {
 
     val children = listOf(
       async(jobName("timeout1")) {
@@ -157,7 +134,7 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
    * -------------------- Second job starts ---------------------------- Second job completes ---
    */
   @Trace
-  fun tracedWithSuspendingCoroutines(): Int = runTest {
+  open fun tracedWithSuspendingCoroutines(): Int = runTest {
     val jobs = mutableListOf<Deferred<Unit>>()
 
     val beforeFirstJobStartedMutex = Mutex(locked = true)
@@ -199,7 +176,7 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
   }
 
   @Trace
-  fun tracedWithLazyStarting(): Int = runTest {
+  open fun tracedWithLazyStarting(): Int = runTest {
     val spans = AtomicInteger(1)
     val jobs = mutableListOf<Deferred<Unit>>()
 
@@ -230,7 +207,7 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
     spans.get()
   }
 
-  fun withNoTraceParentSpan(lazy: Boolean, throwing: Boolean): Int {
+  open fun withNoTraceParentSpan(lazy: Boolean, throwing: Boolean): Int {
     val spans = AtomicInteger(0)
     try {
       runTest {
@@ -282,7 +259,7 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
       }
     }
 
-  fun withNoParentSpan(lazy: Boolean): Int = runTest {
+  open fun withNoParentSpan(lazy: Boolean): Int = runTest {
     val jobs = mutableListOf<Deferred<Unit>>()
     val start = if (lazy) CoroutineStart.LAZY else CoroutineStart.DEFAULT
 
@@ -306,7 +283,7 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
     2
   }
 
-  fun withParentSpanAndOnlyCanceled(): Int = runTest {
+  open fun withParentSpanAndOnlyCanceled(): Int = runTest {
     val jobs = mutableListOf<Deferred<Unit>>()
     val start = CoroutineStart.LAZY
 
@@ -335,17 +312,17 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
   }
 
   @Trace
-  private fun tracedChild(opName: String) {
+  protected open fun tracedChild(opName: String) {
     activeSpan().setSpanName(opName)
   }
 
-  private fun childSpan(opName: String): AgentSpan = get().buildSpan(opName)
+  protected fun childSpan(opName: String): AgentSpan = get().buildSpan(opName)
     .withResourceName("coroutines-test-span")
     .start()
 
-  private fun jobName(jobName: String) = CoroutineName(jobName)
+  protected fun jobName(jobName: String) = CoroutineName(jobName)
 
-  private suspend fun AgentSpan.activateAndUse(block: suspend () -> Unit) {
+  protected suspend fun AgentSpan.activateAndUse(block: suspend () -> Unit) {
     try {
       get().activateSpan(this, INSTRUMENTATION).use {
         block()
@@ -355,7 +332,7 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
     }
   }
 
-  private fun <T> runTest(asyncPropagation: Boolean = true, block: suspend CoroutineScope.() -> T): T {
+  protected fun <T> runTest(asyncPropagation: Boolean = true, block: suspend CoroutineScope.() -> T): T {
     activeScope()?.setAsyncPropagation(asyncPropagation)
     return runBlocking(jobName("test") + dispatcher, block = block)
   }
