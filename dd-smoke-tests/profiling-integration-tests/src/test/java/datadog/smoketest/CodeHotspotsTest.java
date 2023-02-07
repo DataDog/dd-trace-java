@@ -48,7 +48,6 @@ import org.openjdk.jmc.common.item.ItemFilters;
 import org.openjdk.jmc.common.unit.IQuantity;
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
 import org.openjdk.jmc.flightrecorder.jdk.JdkAttributes;
-import spock.lang.Retry;
 
 @DisabledOnJ9
 public final class CodeHotspotsTest {
@@ -247,8 +246,7 @@ public final class CodeHotspotsTest {
         .forEach(CodeHotspotsTest::hasCpuEvents);
   }
 
-  // @Flaky
-  @Retry
+  @Flaky
   @ParameterizedTest
   @ValueSource(ints = {128})
   void testGenerativeStackTraces(int depth) throws Exception {
