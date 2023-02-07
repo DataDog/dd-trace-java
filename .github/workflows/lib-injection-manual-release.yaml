@@ -4,11 +4,11 @@ on:
     version:
       description: 'version'
       required: true
-      type: boolean
+      type: string
     commitSha:
       description: 'commit sha'
       required: true
-      type: boolean
+      type: string
 
 jobs:
   build-and-publish-init-image:
