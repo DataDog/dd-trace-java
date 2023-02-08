@@ -8,7 +8,7 @@ import java.util.function.Predicate;
 /** Helper class for processing fields of an instance */
 public class Fields {
   public interface ProcessField {
-    void accept(Field field, Object value, int maxDepth);
+    void accept(Field field, Object value, Limits limits);
   }
 
   public static void processFields(
@@ -17,8 +17,7 @@ public class Fields {
       ProcessField processing,
       BiConsumer<Exception, Field> exHandling,
       Consumer<Field> onMaxFieldCount,
-      int maxFieldCount,
-      int maxDepth) {
+      Limits limits) {
     Class<?> currentClass = o.getClass();
     int processedFieldCount = 0;
     do {
@@ -30,9 +29,9 @@ public class Fields {
           }
           field.setAccessible(true);
           Object value = field.get(o);
-          processing.accept(field, value, maxDepth);
+          processing.accept(field, value, limits);
           processedFieldCount++;
-          if (processedFieldCount >= maxFieldCount) {
+          if (processedFieldCount >= limits.maxFieldCount) {
             onMaxFieldCount.accept(field);
             return;
           }
