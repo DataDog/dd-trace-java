@@ -1,9 +1,11 @@
 package datadog.trace.civisibility.writer.ddintake
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.api.WellKnownTags
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.Payload
 import datadog.trace.common.writer.TraceGenerator
@@ -13,11 +15,13 @@ import org.junit.Assert
 import org.msgpack.core.MessageFormat
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
+import org.msgpack.jackson.dataformat.MessagePackFactory
 
 import java.nio.ByteBuffer
 import java.nio.channels.WritableByteChannel
 
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED
+import static datadog.trace.common.writer.TraceGenerator.generateRandomSpan
 import static datadog.trace.common.writer.TraceGenerator.generateRandomTraces
 import static org.junit.Assert.assertEquals
 import static org.junit.Assert.assertFalse
@@ -35,13 +39,13 @@ import static org.msgpack.core.MessageFormat.UINT32
 import static org.msgpack.core.MessageFormat.UINT64
 import static org.msgpack.core.MessageFormat.UINT8
 
-class CiTestCycleMapperV1PayloadTest extends DDSpecification {
+class CiTestCycleMapperV2PayloadTest extends DDSpecification {
 
   def "test traces written correctly with bufferSize=#bufferSize, traceCount=#traceCount, lowCardinality=#lowCardinality"() {
     setup:
     List<List<TraceGenerator.PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality)
     WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
-    CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags)
+    CiTestCycleMapperV2 mapper = new CiTestCycleMapperV2(wellKnownTags)
     PayloadVerifier verifier = new PayloadVerifier(wellKnownTags, traces, mapper)
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(bufferSize, verifier))
     when:
@@ -79,17 +83,133 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
     100 << 10  | 1000       | false
   }
 
+  def "verify test_suite_id, test_module_id, and test_session_id are written as top level tags in test event"() {
+    setup:
+    def span = generateRandomSpan(InternalSpanTypes.TEST, [
+      (Tags.TEST_SESSION_ID): 123,
+      (Tags.TEST_MODULE_ID) : 456,
+      (Tags.TEST_SUITE_ID)  : 789
+    ])
+
+    when:
+    Map<String, Object> deserializedSpan = whenASpanIsWritten(span)
+
+    then:
+    verifyTopLevelTags(deserializedSpan, 123, 456, 789)
+
+    def spanContent = (Map<String, Object>) deserializedSpan.get("content")
+    assert spanContent.containsKey("trace_id")
+    assert spanContent.containsKey("span_id")
+    assert spanContent.containsKey("parent_id")
+  }
+
+  def "verify test_suite_end event is written correctly"() {
+    setup:
+    def span = generateRandomSpan(InternalSpanTypes.TEST_SUITE_END, [
+      (Tags.TEST_SESSION_ID): 123,
+      (Tags.TEST_MODULE_ID) : 456,
+      (Tags.TEST_SUITE_ID)  : 789
+    ])
+
+    when:
+    Map<String, Object> deserializedSpan = whenASpanIsWritten(span)
+
+    then:
+    verifyTopLevelTags(deserializedSpan, 123, 456, 789)
+
+    def spanContent = (Map<String, Object>) deserializedSpan.get("content")
+    assert !spanContent.containsKey("trace_id")
+    assert !spanContent.containsKey("span_id")
+    assert !spanContent.containsKey("parent_id")
+  }
+
+  def "verify test_module_end event is written correctly"() {
+    setup:
+    def span = generateRandomSpan(InternalSpanTypes.TEST_MODULE_END, [
+      (Tags.TEST_SESSION_ID): 123,
+      (Tags.TEST_MODULE_ID) : 456,
+    ])
+
+    when:
+    Map<String, Object> deserializedSpan = whenASpanIsWritten(span)
+
+    then:
+    verifyTopLevelTags(deserializedSpan, 123, 456, null)
+
+    def spanContent = (Map<String, Object>) deserializedSpan.get("content")
+    assert !spanContent.containsKey("trace_id")
+    assert !spanContent.containsKey("span_id")
+    assert !spanContent.containsKey("parent_id")
+  }
+
+  private static void verifyTopLevelTags(Map<String, Object> deserializedSpan, Long testSessionId, Long testModuleId, Long testSuiteId) {
+    Map<String, Object> deserializedSpanContent = (Map<String, Object>) deserializedSpan.get("content")
+    Map<String, Object> deserializedMetrics = (Map<String, Object>) deserializedSpanContent.get("metrics")
+    Map<String, Object> deserializedMeta = (Map<String, Object>) deserializedSpanContent.get("meta")
+
+    if (testSessionId != null) {
+      assert deserializedSpanContent.get(Tags.TEST_SESSION_ID) == testSessionId
+    } else {
+      assert !deserializedSpanContent.containsKey(Tags.TEST_SESSION_ID)
+    }
+
+    if (testModuleId != null) {
+      assert deserializedSpanContent.get(Tags.TEST_MODULE_ID) == testModuleId
+    } else {
+      assert !deserializedSpanContent.containsKey(Tags.TEST_MODULE_ID)
+    }
+
+    if (testSuiteId != null) {
+      assert deserializedSpanContent.get(Tags.TEST_SUITE_ID) == testSuiteId
+    } else {
+      assert !deserializedSpanContent.containsKey(Tags.TEST_SUITE_ID)
+    }
+
+    assert !deserializedMetrics.containsKey(Tags.TEST_SESSION_ID)
+    assert !deserializedMetrics.containsKey(Tags.TEST_MODULE_ID)
+    assert !deserializedMetrics.containsKey(Tags.TEST_SUITE_ID)
+
+    assert !deserializedMeta.containsKey(Tags.TEST_SESSION_ID)
+    assert !deserializedMeta.containsKey(Tags.TEST_MODULE_ID)
+    assert !deserializedMeta.containsKey(Tags.TEST_SUITE_ID)
+  }
+
+  private static Map<String, Object> whenASpanIsWritten(TraceGenerator.PojoSpan span) {
+    List<TraceGenerator.PojoSpan> trace = Collections.singletonList(span)
+
+    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
+    CiTestCycleMapperV2 mapper = new CiTestCycleMapperV2(wellKnownTags)
+
+    ByteBufferConsumer consumer = new CaptureConsumer()
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(100 << 10, consumer))
+
+    packer.format(trace, mapper)
+    packer.flush()
+
+    ObjectMapper objectMapper = new ObjectMapper(new MessagePackFactory())
+    return (Map<String, Object>) objectMapper.readValue(consumer.bytes, Object)
+  }
+
+  private static class CaptureConsumer implements ByteBufferConsumer {
+    private byte[] bytes
+
+    @Override
+    void accept(int messageCount, ByteBuffer buffer) {
+      this.bytes = new byte[buffer.limit() - buffer.position()]
+      buffer.get(bytes)
+    }
+  }
 
   private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
 
     private final List<List<TraceGenerator.PojoSpan>> expectedTraces
-    private final CiTestCycleMapperV1 mapper
+    private final CiTestCycleMapperV2 mapper
     private final WellKnownTags wellKnownTags
     private ByteBuffer captured = ByteBuffer.allocate(200 << 10)
 
     private int position = 0
 
-    private PayloadVerifier(WellKnownTags wellKnownTags, List<List<TraceGenerator.PojoSpan>> traces, CiTestCycleMapperV1 mapper) {
+    private PayloadVerifier(WellKnownTags wellKnownTags, List<List<TraceGenerator.PojoSpan>> traces, CiTestCycleMapperV2 mapper) {
       this.expectedTraces = traces
       this.mapper = mapper
       this.wellKnownTags = wellKnownTags
@@ -117,7 +237,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
         MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(captured)
         assertEquals(3, unpacker.unpackMapHeader())
         assertEquals("version", unpacker.unpackString())
-        assertEquals(1, unpacker.unpackInt())
+        assertEquals(2, unpacker.unpackInt())
         assertEquals("metadata", unpacker.unpackString())
         assertEquals(1, unpacker.unpackMapHeader())
         assertEquals("*", unpacker.unpackString())
@@ -140,24 +260,15 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
           TraceGenerator.PojoSpan expectedSpan = expectedTrace.get(k)
           assertEquals(3, unpacker.unpackMapHeader())
           assertEquals("type", unpacker.unpackString())
-          if("test" == expectedSpan.getType()) {
+          if ("test" == expectedSpan.getType()) {
             assertEquals("test", unpacker.unpackString())
           } else {
             assertEquals("span", unpacker.unpackString())
           }
           assertEquals("version", unpacker.unpackString())
-          assertEquals(1, unpacker.unpackInt())
+          assertEquals(2, unpacker.unpackInt())
           assertEquals("content", unpacker.unpackString())
           assertEquals(11, unpacker.unpackMapHeader())
-          assertEquals("service", unpacker.unpackString())
-          String serviceName = unpacker.unpackString()
-          assertEqualsWithNullAsEmpty(expectedSpan.getServiceName(), serviceName)
-          assertEquals("name", unpacker.unpackString())
-          String operationName = unpacker.unpackString()
-          assertEqualsWithNullAsEmpty(expectedSpan.getOperationName(), operationName)
-          assertEquals("resource", unpacker.unpackString())
-          String resourceName = unpacker.unpackString()
-          assertEqualsWithNullAsEmpty(expectedSpan.getResourceName(), resourceName)
           assertEquals("trace_id", unpacker.unpackString())
           long traceId = unpacker.unpackLong()
           assertEquals(expectedSpan.getTraceId().toLong(), traceId)
@@ -167,6 +278,16 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
           assertEquals("parent_id", unpacker.unpackString())
           long parentId = unpacker.unpackLong()
           assertEquals(expectedSpan.getParentId(), parentId)
+          assertEquals("service", unpacker.unpackString())
+          String serviceName = unpacker.unpackString()
+          assertEqualsWithNullAsEmpty(expectedSpan.getServiceName(), serviceName)
+          assertEquals("name", unpacker.unpackString())
+          String operationName = unpacker.unpackString()
+          assertEqualsWithNullAsEmpty(expectedSpan.getOperationName(), operationName)
+          assertEquals("resource", unpacker.unpackString())
+          String resourceName = unpacker.unpackString()
+          assertEqualsWithNullAsEmpty(expectedSpan.getResourceName(), resourceName)
+
           assertEquals("start", unpacker.unpackString())
           long startTime = unpacker.unpackLong()
           assertEquals(expectedSpan.getStartTime(), startTime)
@@ -211,7 +332,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
               assert ((n == 1) && expectedSpan.isMeasured()) || !expectedSpan.isMeasured()
             } else if (DDSpanContext.PRIORITY_SAMPLING_KEY == key) {
               //check that priority sampling is only on first and last span
-              if (k == 0 || k == eventCount -1) {
+              if (k == 0 || k == eventCount - 1) {
                 assertEquals(expectedSpan.samplingPriority(), n.intValue())
               } else {
                 assertFalse(expectedSpan.hasSamplingPriority())
@@ -222,7 +343,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
           }
           for (Map.Entry<String, Number> metric : metrics.entrySet()) {
             if (metric.getValue() instanceof Double || metric.getValue() instanceof Float) {
-              assertEquals(((Number)expectedSpan.getTag(metric.getKey())).doubleValue(), metric.getValue().doubleValue(), 0.001)
+              assertEquals(((Number) expectedSpan.getTag(metric.getKey())).doubleValue(), metric.getValue().doubleValue(), 0.001)
             } else {
               assertEquals(expectedSpan.getTag(metric.getKey()), metric.getValue())
             }

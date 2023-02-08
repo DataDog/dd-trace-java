@@ -131,6 +131,8 @@ public abstract class JUnit4Utils {
           }
         }
       }
+    } else if (methodName.contains("[")) {
+      methodName = testNameNormalizerRegex.matcher(methodName).replaceAll("");
     }
 
     try {

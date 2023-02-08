@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 import okhttp3.RequestBody;
 
-public class CiTestCycleMapperV1 implements RemoteMapper {
+public class CiTestCycleMapperV2 implements RemoteMapper {
 
   private static final byte[] VERSION = "version".getBytes(StandardCharsets.UTF_8);
   private static final byte[] METADATA = "metadata".getBytes(StandardCharsets.UTF_8);
@@ -35,7 +35,6 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
   private static final byte[] TYPE = "type".getBytes(StandardCharsets.UTF_8);
   private static final byte[] CONTENT = "content".getBytes(StandardCharsets.UTF_8);
 
-  private static final UTF8BytesString TEST_TYPE = UTF8BytesString.create("test");
   private static final UTF8BytesString SPAN_TYPE = UTF8BytesString.create("span");
 
   private static final Collection<String> DEFAULT_TOP_LEVEL_TAGS =
@@ -48,11 +47,11 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
   private final MsgPackWriter headerWriter;
   private int eventCount = 0;
 
-  public CiTestCycleMapperV1(WellKnownTags wellKnownTags) {
+  public CiTestCycleMapperV2(WellKnownTags wellKnownTags) {
     this(wellKnownTags, DEFAULT_TOP_LEVEL_TAGS, 5 << 20);
   }
 
-  private CiTestCycleMapperV1(
+  private CiTestCycleMapperV2(
       WellKnownTags wellKnownTags, Collection<String> topLevelTags, int size) {
     this.wellKnownTags = wellKnownTags;
     this.topLevelTags = topLevelTags;
@@ -71,37 +70,30 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
         }
       }
 
-      // FIXME this part should be split into CITestCycleMapperV2 (and version should be determined
-      // based on test framework)
       UTF8BytesString type;
-      int version;
       Long traceId;
       Long spanId;
       Long parentId;
       if (InternalSpanTypes.TEST.equals(span.getType())) {
         type = InternalSpanTypes.TEST;
-        version = 2;
         traceId = span.getTraceId().toLong();
         spanId = span.getSpanId();
         parentId = span.getParentId();
 
       } else if (InternalSpanTypes.TEST_SUITE_END.equals(span.getType())) {
         type = InternalSpanTypes.TEST_SUITE_END;
-        version = 1;
         traceId = null;
         spanId = null;
         parentId = null;
 
       } else if (InternalSpanTypes.TEST_MODULE_END.equals(span.getType())) {
         type = InternalSpanTypes.TEST_MODULE_END;
-        version = 1;
         traceId = null;
         spanId = null;
         parentId = null;
 
       } else {
         type = SPAN_TYPE;
-        version = 1;
         traceId = span.getTraceId().toLong();
         spanId = span.getSpanId();
         parentId = span.getParentId();
@@ -120,7 +112,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       writable.writeUTF8(type);
       /* 2 */
       writable.writeUTF8(VERSION);
-      writable.writeInt(version);
+      writable.writeInt(2);
       /* 3 */
       writable.writeUTF8(CONTENT);
       writable.startMap(contentChildrenCount);
@@ -183,7 +175,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
     headerWriter.startMap(3);
     /* 1  */
     headerWriter.writeUTF8(VERSION);
-    headerWriter.writeInt(1);
+    headerWriter.writeInt(2);
     /* 2  */
     headerWriter.writeUTF8(METADATA);
     headerWriter.startMap(1);

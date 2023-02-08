@@ -11,6 +11,7 @@ import datadog.trace.api.WellKnownTags
 import datadog.trace.api.intake.TrackType
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.Payload
 import datadog.trace.core.DDSpan
@@ -159,10 +160,10 @@ class DDIntakeApiTest extends DDCoreSpecification {
 
     where:
     // spotless:off
-    trackType             | apiVersion | traces                                          | expectedRequestBody
-    TrackType.CITESTCYCLE | "v2"       | []                                              | [:]
-    TrackType.CITESTCYCLE | "v2"       | [[buildSpan(1L, "service.name", "my-service")]] | new TreeMap<>([
-      "version" : 1,
+    trackType             | apiVersion | traces                                                                                               | expectedRequestBody
+    TrackType.CITESTCYCLE | "v2"       | []                                                                                                   | [:]
+    TrackType.CITESTCYCLE | "v2"       | [[buildSpan(1L, "fakeType", ["service.name": "my-service"])]]                                        | new TreeMap<>([
+      "version" : 2,
       "metadata": new TreeMap<>([
         "*": new TreeMap<>([
           "env"       : "my-env",
@@ -171,7 +172,7 @@ class DDIntakeApiTest extends DDCoreSpecification {
         ])]),
       "events"  : [new TreeMap<>([
         "type"   : "span",
-        "version": 1,
+        "version": 2,
         "content": new TreeMap<>([
           "service"  : "my-service",
           "name"     : "fakeOperation",
@@ -184,6 +185,83 @@ class DDIntakeApiTest extends DDCoreSpecification {
           "duration" : 10L,
           "meta"     : [:],
           "metrics"  : [:]
+        ])
+      ])]
+    ])
+    TrackType.CITESTCYCLE | "v2"       | [[buildSpan(1L, InternalSpanTypes.TEST, ["test_suite_id": 123L, "test_module_id": 456L])]]           | new TreeMap<>([
+      "version" : 2,
+      "metadata": new TreeMap<>([
+        "*": new TreeMap<>([
+          "env"       : "my-env",
+          "runtime-id": "my-runtime-id",
+          "language"  : "my-language"
+        ])]),
+      "events"  : [new TreeMap<>([
+        "type"   : "test",
+        "version": 2,
+        "content": new TreeMap<>([
+          "test_suite_id" : 123L,
+          "test_module_id": 456L,
+          "service"       : "fakeService",
+          "name"          : "fakeOperation",
+          "resource"      : "fakeResource",
+          "error"         : 0,
+          "trace_id"      : 1L,
+          "span_id"       : 1L,
+          "parent_id"     : 0L,
+          "start"         : 1000L,
+          "duration"      : 10L,
+          "meta"          : [:],
+          "metrics"       : [:]
+        ])
+      ])]
+    ])
+    TrackType.CITESTCYCLE | "v2"       | [[buildSpan(1L, InternalSpanTypes.TEST_SUITE_END, ["test_suite_id": 123L, "test_module_id": 456L])]] | new TreeMap<>([
+      "version" : 2,
+      "metadata": new TreeMap<>([
+        "*": new TreeMap<>([
+          "env"       : "my-env",
+          "runtime-id": "my-runtime-id",
+          "language"  : "my-language"
+        ])]),
+      "events"  : [new TreeMap<>([
+        "type"   : "test_suite_end",
+        "version": 2,
+        "content": new TreeMap<>([
+          "test_suite_id" : 123L,
+          "test_module_id": 456L,
+          "service"       : "fakeService",
+          "name"          : "fakeOperation",
+          "resource"      : "fakeResource",
+          "error"         : 0,
+          "start"         : 1000L,
+          "duration"      : 10L,
+          "meta"          : [:],
+          "metrics"       : [:]
+        ])
+      ])]
+    ])
+    TrackType.CITESTCYCLE | "v2"       | [[buildSpan(1L, InternalSpanTypes.TEST_MODULE_END, ["test_module_id": 456L])]]                       | new TreeMap<>([
+      "version" : 2,
+      "metadata": new TreeMap<>([
+        "*": new TreeMap<>([
+          "env"       : "my-env",
+          "runtime-id": "my-runtime-id",
+          "language"  : "my-language"
+        ])]),
+      "events"  : [new TreeMap<>([
+        "type"   : "test_module_end",
+        "version": 2,
+        "content": new TreeMap<>([
+          "test_module_id": 456L,
+          "service"       : "fakeService",
+          "name"          : "fakeOperation",
+          "resource"      : "fakeResource",
+          "error"         : 0,
+          "start"         : 1000L,
+          "duration"      : 10L,
+          "meta"          : [:],
+          "metrics"       : [:]
         ])
       ])]
     ])
@@ -239,7 +317,7 @@ class DDIntakeApiTest extends DDCoreSpecification {
       traces.isEmpty() ? ByteBuffer.allocate(0) : traceCapture.buffer)
   }
 
-  DDSpan buildSpan(long timestamp, String tag, String value) {
+  DDSpan buildSpan(long timestamp, CharSequence spanType, Map<String, Object> tags) {
     def tracer = tracerBuilder().writer(new ListWriter()).build()
 
     def context = new DDSpanContext(
@@ -254,7 +332,7 @@ class DDIntakeApiTest extends DDCoreSpecification {
       null,
       [:],
       false,
-      "fakeType",
+      spanType,
       0,
       tracer.pendingTraceFactory.create(DDTraceId.ONE),
       null,
@@ -264,7 +342,9 @@ class DDIntakeApiTest extends DDCoreSpecification {
       PropagationTags.factory().empty())
 
     def span = DDSpan.create(timestamp, context)
-    span.setTag(tag, value)
+    for (Map.Entry<String, Object> e : tags.entrySet()) {
+      span.setTag(e.key, e.value)
+    }
 
     tracer.close()
     return span

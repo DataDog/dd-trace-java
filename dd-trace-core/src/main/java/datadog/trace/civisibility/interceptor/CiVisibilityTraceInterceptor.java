@@ -30,9 +30,10 @@ public class CiVisibilityTraceInterceptor implements TraceInterceptor {
 
     // If root span is not a CI visbility span, we drop the full trace.
     CharSequence type = spanToCheck.getType(); // Don't null pointer if there is no type
-    if (!DDSpanTypes.TEST.contentEquals(type)
-        && !DDSpanTypes.TEST_SUITE_END.contentEquals(type)
-        && !DDSpanTypes.TEST_MODULE_END.contentEquals(type)) {
+    if (type == null
+        || (!DDSpanTypes.TEST.contentEquals(type)
+            && !DDSpanTypes.TEST_SUITE_END.contentEquals(type)
+            && !DDSpanTypes.TEST_MODULE_END.contentEquals(type))) {
       return Collections.emptyList();
     }
 
