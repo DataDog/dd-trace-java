@@ -61,7 +61,6 @@ abstract class VertxRedisAPITestBase extends VertxRedisTestBase {
     }
   }
 
-  @Flaky("flaky in VertxRedisAPIRedisConnectionForkedTest")
   def "decrby (3 args)"() {
     when:
     def set = runWithParentAndHandler({ Handler<AsyncResult<Response>> h ->
@@ -81,7 +80,6 @@ abstract class VertxRedisAPITestBase extends VertxRedisTestBase {
     }
   }
 
-  @Flaky("flaky in VertxRedisAPIRedisConnectionForkedTest")
   def "setbit (4 args)"() {
     when:
     def res = runWithParentAndHandler({ Handler<AsyncResult<Response>> h ->
@@ -137,13 +135,14 @@ abstract class VertxRedisAPITestBase extends VertxRedisTestBase {
   }
 }
 
-@Flaky("linsert is flaky https://github.com/DataDog/dd-trace-java/issues/3874")
+@Flaky("all test cases are flaky https://github.com/DataDog/dd-trace-java/issues/3874")
 class VertxRedisAPIRedisForkedTest extends VertxRedisAPITestBase {
   def setupSpec() {
     redisAPI = RedisAPI.api(redis)
   }
 }
 
+@Flaky("all test cases are flaky https://github.com/DataDog/dd-trace-java/issues/3874")
 class VertxRedisAPIRedisConnectionForkedTest extends VertxRedisAPITestBase {
   def setupSpec() {
     def latch = new CountDownLatch(1)
