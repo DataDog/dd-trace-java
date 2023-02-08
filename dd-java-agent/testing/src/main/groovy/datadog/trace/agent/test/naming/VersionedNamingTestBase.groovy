@@ -11,6 +11,6 @@ abstract class VersionedNamingTestBase extends AgentTestRunner {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig(TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA, Integer.toString(version()))
+    injectSysConfig(TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA, "v" + version())
   }
 }

@@ -339,6 +339,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -2449,19 +2450,24 @@ public class Config {
   }
 
   private int schemaVersionFromConfig() {
-    int version =
-        configProvider.getInteger(TRACE_SPAN_ATTRIBUTE_SCHEMA, SpanNaming.SCHEMA_MIN_VERSION);
-    if (spanAttributeSchemaVersion < SpanNaming.SCHEMA_MIN_VERSION
-        || spanAttributeSchemaVersion > SpanNaming.SCHEMA_MAX_VERSION) {
+    String versionStr =
+        configProvider.getString(TRACE_SPAN_ATTRIBUTE_SCHEMA, "v" + SpanNaming.SCHEMA_MIN_VERSION);
+    Matcher matcher = Pattern.compile("^v?(0|[1-9]\\d*)$").matcher(versionStr);
+    int parsedVersion = -1;
+    if (matcher.matches()) {
+      parsedVersion = Integer.parseInt(matcher.group(1));
+    }
+    if (parsedVersion < SpanNaming.SCHEMA_MIN_VERSION
+        || parsedVersion > SpanNaming.SCHEMA_MAX_VERSION) {
       log.warn(
-          "Invalid attribute schema version {} out of range [{}, {}]. Defaulting to {}",
-          version,
+          "Invalid attribute schema version {} invalid or out of range [v{}, v{}]. Defaulting to v{}",
+          versionStr,
           SpanNaming.SCHEMA_MIN_VERSION,
           SpanNaming.SCHEMA_MAX_VERSION,
           SpanNaming.SCHEMA_MIN_VERSION);
-      version = SpanNaming.SCHEMA_MIN_VERSION;
+      parsedVersion = SpanNaming.SCHEMA_MIN_VERSION;
     }
-    return version;
+    return parsedVersion;
   }
 
   public String getFinalProfilingUrl() {
