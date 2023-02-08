@@ -39,13 +39,13 @@ import static org.msgpack.core.MessageFormat.UINT32
 import static org.msgpack.core.MessageFormat.UINT64
 import static org.msgpack.core.MessageFormat.UINT8
 
-class CiTestCycleMapperV2PayloadTest extends DDSpecification {
+class CiTestCycleMapperV1PayloadTest extends DDSpecification {
 
   def "test traces written correctly with bufferSize=#bufferSize, traceCount=#traceCount, lowCardinality=#lowCardinality"() {
     setup:
     List<List<TraceGenerator.PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality)
     WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
-    CiTestCycleMapperV2 mapper = new CiTestCycleMapperV2(wellKnownTags)
+    CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags)
     PayloadVerifier verifier = new PayloadVerifier(wellKnownTags, traces, mapper)
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(bufferSize, verifier))
     when:
@@ -178,7 +178,7 @@ class CiTestCycleMapperV2PayloadTest extends DDSpecification {
     List<TraceGenerator.PojoSpan> trace = Collections.singletonList(span)
 
     WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
-    CiTestCycleMapperV2 mapper = new CiTestCycleMapperV2(wellKnownTags)
+    CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags)
 
     ByteBufferConsumer consumer = new CaptureConsumer()
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(100 << 10, consumer))
@@ -203,13 +203,13 @@ class CiTestCycleMapperV2PayloadTest extends DDSpecification {
   private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
 
     private final List<List<TraceGenerator.PojoSpan>> expectedTraces
-    private final CiTestCycleMapperV2 mapper
+    private final CiTestCycleMapperV1 mapper
     private final WellKnownTags wellKnownTags
     private ByteBuffer captured = ByteBuffer.allocate(200 << 10)
 
     private int position = 0
 
-    private PayloadVerifier(WellKnownTags wellKnownTags, List<List<TraceGenerator.PojoSpan>> traces, CiTestCycleMapperV2 mapper) {
+    private PayloadVerifier(WellKnownTags wellKnownTags, List<List<TraceGenerator.PojoSpan>> traces, CiTestCycleMapperV1 mapper) {
       this.expectedTraces = traces
       this.mapper = mapper
       this.wellKnownTags = wellKnownTags
@@ -237,7 +237,7 @@ class CiTestCycleMapperV2PayloadTest extends DDSpecification {
         MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(captured)
         assertEquals(3, unpacker.unpackMapHeader())
         assertEquals("version", unpacker.unpackString())
-        assertEquals(2, unpacker.unpackInt())
+        assertEquals(1, unpacker.unpackInt())
         assertEquals("metadata", unpacker.unpackString())
         assertEquals(1, unpacker.unpackMapHeader())
         assertEquals("*", unpacker.unpackString())
@@ -266,7 +266,7 @@ class CiTestCycleMapperV2PayloadTest extends DDSpecification {
             assertEquals("span", unpacker.unpackString())
           }
           assertEquals("version", unpacker.unpackString())
-          assertEquals(2, unpacker.unpackInt())
+          assertEquals(1, unpacker.unpackInt())
           assertEquals("content", unpacker.unpackString())
           assertEquals(11, unpacker.unpackMapHeader())
           assertEquals("trace_id", unpacker.unpackString())
