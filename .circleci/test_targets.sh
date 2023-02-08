@@ -19,6 +19,9 @@ core)
     PATH_INCLUDES="."
     PATH_EXCLUDES="/dd-smoke-tests/ /dd-java-agent/instrumentation/"
     ;;
+agent-integration)
+    PATH_INCLUDES="."
+    ;;
 profiling)
     PATH_INCLUDES="dd-java-agent/agent-profiling"
     ;;
