@@ -8,13 +8,16 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 
 public class DebuggerTracer implements DebuggerContext.Tracer {
+  private static final String OPERATION_NAME = "dd.dynamic.span";
+
   @Override
-  public DebuggerSpan createSpan(String operationName, String[] tags) {
+  public DebuggerSpan createSpan(String resourceName, String[] tags) {
     AgentTracer.TracerAPI tracerAPI = AgentTracer.get();
     if (tracerAPI == null) {
       return DebuggerSpan.NOOP_SPAN;
     }
-    AgentSpan dynamicSpan = tracerAPI.startSpan(operationName);
+    AgentSpan dynamicSpan =
+        tracerAPI.buildSpan(OPERATION_NAME).withResourceName(resourceName).start();
     if (tags != null) {
       for (String tag : tags) {
         int idx = tag.indexOf(':');
