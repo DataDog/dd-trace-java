@@ -689,15 +689,20 @@ build_test_jobs: &build_test_jobs
   - build
   - spotless
 
-  - check:
+  - fan_in:
       requires:
         - build
         - spotless
+      name: ok_to_test
+      stage: ok_to_test
+
+  - check:
+      requires:
+        - ok_to_test
 
   - xlarge_tests:
       requires:
-        - build
-        - spotless
+        - ok_to_test
       name: z_test_<< matrix.testJvm >>_base
       triggeredBy: *core_modules
       gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
@@ -708,8 +713,7 @@ build_test_jobs: &build_test_jobs
 
   - xlarge_tests:
       requires:
-        - build
-        - spotless
+        - ok_to_test
       name: z_test_8_base
       triggeredBy: *core_modules
       gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
@@ -720,8 +724,7 @@ build_test_jobs: &build_test_jobs
 
   - xlarge_tests:
       requires:
-        - build
-        - spotless
+        - ok_to_test
       name: z_test_<< matrix.testJvm >>_inst
       gradleTarget: ":dd-java-agent:instrumentation"
       gradleParameters: "-PskipFlakyTests"
@@ -733,8 +736,7 @@ build_test_jobs: &build_test_jobs
 
   - xlarge_tests:
       requires:
-        - build
-        - spotless
+        - ok_to_test
       name: z_test_8_inst
       gradleTarget: ":dd-java-agent:instrumentation"
       gradleParameters: "-PskipFlakyTests"
@@ -745,8 +747,7 @@ build_test_jobs: &build_test_jobs
 
   - xlarge_tests:
       requires:
-        - build
-        - spotless
+        - ok_to_test
       name: test_8_inst_latest
       testTask: latestDepTest
       gradleTarget: ":dd-java-agent:instrumentation"
@@ -758,7 +759,7 @@ build_test_jobs: &build_test_jobs
 
   - huge_tests:
       requires:
-        - build
+        - ok_to_test
       name: z_test_8_flaky
       gradleParameters: "-PrunFlakyTests"
       continueOnFailure: true
@@ -769,8 +770,7 @@ build_test_jobs: &build_test_jobs
 
   - tests:
       requires:
-        - build
-        - spotless
+        - ok_to_test
       maxWorkers: 4
       gradleTarget: ":dd-java-agent:agent-profiling"
       gradleParameters: "-PskipFlakyTests"
@@ -782,8 +782,7 @@ build_test_jobs: &build_test_jobs
 
   - tests:
       requires:
-        - build
-        - spotless
+        - ok_to_test
       maxWorkers: 4
       name: test_<< matrix.testJvm >>_iast
       gradleTarget: ":dd-java-agent:agent-iast"
@@ -795,8 +794,7 @@ build_test_jobs: &build_test_jobs
 
   - tests:
       requires:
-        - build
-        - spotless
+        - ok_to_test
       name: test_<< matrix.testJvm >>_debugger
       maxWorkers: 4
       gradleTarget: ":dd-java-agent:agent-debugger"
@@ -808,8 +806,7 @@ build_test_jobs: &build_test_jobs
 
   - huge_tests:
       requires:
-        - build
-        - spotless
+        - ok_to_test
       name: z_test_<< matrix.testJvm >>_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
       gradleParameters: "-PskipFlakyTests"
@@ -820,8 +817,7 @@ build_test_jobs: &build_test_jobs
 
   - huge_tests:
       requires:
-        - build
-        - spotless
+        - ok_to_test
       name: test_IBM11_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
       gradleParameters: "-PskipFlakyTests"
@@ -831,8 +827,7 @@ build_test_jobs: &build_test_jobs
 
   - huge_tests:
       requires:
-        - build
-        - spotless
+        - ok_to_test
       name: test_IBM17_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
       gradleParameters: "-PskipFlakyTests"
@@ -842,8 +837,7 @@ build_test_jobs: &build_test_jobs
 
   - xlarge_tests:
       requires:
-        - build
-        - spotless
+        - ok_to_test
       name: test_GRAALVM11_smoke
       gradleTarget: "stageMainDist :dd-smoke-test:spring-native"
       stage: smoke
@@ -851,8 +845,7 @@ build_test_jobs: &build_test_jobs
 
   - xlarge_tests:
       requires:
-        - build
-        - spotless
+        - ok_to_test
       name: test_GRAALVM17_smoke
       gradleTarget: "stageMainDist :dd-smoke-test:spring-native"
       stage: smoke
@@ -861,8 +854,7 @@ build_test_jobs: &build_test_jobs
 
   - huge_tests:
       requires:
-        - build
-        - spotless
+        - ok_to_test
       name: z_test_8_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
       gradleParameters: "-PskipFlakyTests"
@@ -891,18 +883,18 @@ build_test_jobs: &build_test_jobs
 
   - agent_integration_tests:
       requires:
-        - build
+        - ok_to_test
       triggeredBy: *agent_integration_tests_modules
       testTask: traceAgentTest
       testJvm: "8"
 
   - test_published_artifacts:
       requires:
-        - build
+        - ok_to_test
 
   - muzzle:
       requires:
-        - build
+        - ok_to_test
       filters:
         branches:
           ignore:
@@ -912,7 +904,7 @@ build_test_jobs: &build_test_jobs
 
   - system-tests:
       requires:
-        - build
+        - ok_to_test
       matrix:
           <<: *system_test_matrix
   - fan_in:
