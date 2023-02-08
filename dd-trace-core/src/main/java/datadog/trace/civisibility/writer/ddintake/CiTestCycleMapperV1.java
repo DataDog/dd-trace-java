@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 import okhttp3.RequestBody;
 
-public class CiTestCycleMapperV2 implements RemoteMapper {
+public class CiTestCycleMapperV1 implements RemoteMapper {
 
   private static final byte[] VERSION = "version".getBytes(StandardCharsets.UTF_8);
   private static final byte[] METADATA = "metadata".getBytes(StandardCharsets.UTF_8);
@@ -47,11 +47,11 @@ public class CiTestCycleMapperV2 implements RemoteMapper {
   private final MsgPackWriter headerWriter;
   private int eventCount = 0;
 
-  public CiTestCycleMapperV2(WellKnownTags wellKnownTags) {
+  public CiTestCycleMapperV1(WellKnownTags wellKnownTags) {
     this(wellKnownTags, DEFAULT_TOP_LEVEL_TAGS, 5 << 20);
   }
 
-  private CiTestCycleMapperV2(
+  private CiTestCycleMapperV1(
       WellKnownTags wellKnownTags, Collection<String> topLevelTags, int size) {
     this.wellKnownTags = wellKnownTags;
     this.topLevelTags = topLevelTags;
@@ -74,29 +74,34 @@ public class CiTestCycleMapperV2 implements RemoteMapper {
       Long traceId;
       Long spanId;
       Long parentId;
+      int version;
       if (InternalSpanTypes.TEST.equals(span.getType())) {
         type = InternalSpanTypes.TEST;
         traceId = span.getTraceId().toLong();
         spanId = span.getSpanId();
         parentId = span.getParentId();
+        version = 2;
 
       } else if (InternalSpanTypes.TEST_SUITE_END.equals(span.getType())) {
         type = InternalSpanTypes.TEST_SUITE_END;
         traceId = null;
         spanId = null;
         parentId = null;
+        version = 1;
 
       } else if (InternalSpanTypes.TEST_MODULE_END.equals(span.getType())) {
         type = InternalSpanTypes.TEST_MODULE_END;
         traceId = null;
         spanId = null;
         parentId = null;
+        version = 1;
 
       } else {
         type = SPAN_TYPE;
         traceId = span.getTraceId().toLong();
         spanId = span.getSpanId();
         parentId = span.getParentId();
+        version = 1;
       }
 
       int contentChildrenCount =
@@ -112,7 +117,7 @@ public class CiTestCycleMapperV2 implements RemoteMapper {
       writable.writeUTF8(type);
       /* 2 */
       writable.writeUTF8(VERSION);
-      writable.writeInt(2);
+      writable.writeInt(version);
       /* 3 */
       writable.writeUTF8(CONTENT);
       writable.startMap(contentChildrenCount);
@@ -175,7 +180,7 @@ public class CiTestCycleMapperV2 implements RemoteMapper {
     headerWriter.startMap(3);
     /* 1  */
     headerWriter.writeUTF8(VERSION);
-    headerWriter.writeInt(2);
+    headerWriter.writeInt(1);
     /* 2  */
     headerWriter.writeUTF8(METADATA);
     headerWriter.startMap(1);

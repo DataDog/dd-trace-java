@@ -133,7 +133,7 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
     TrackType.CITESTCYCLE | "v2"       | V2_EVP_PROXY_ENDPOINT | []                                                                                                   | [:]
 
     TrackType.CITESTCYCLE | "v2"       | V2_EVP_PROXY_ENDPOINT | [[buildSpan(1L, "fakeType", ["service.name": "my-service"])]]                                        | new TreeMap<>([
-      "version" : 2,
+      "version" : 1,
       "metadata": new TreeMap<>([
         "*": new TreeMap<>([
           "env"       : "my-env",
@@ -142,7 +142,7 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
         ])]),
       "events"  : [new TreeMap<>([
         "type"   : "span",
-        "version": 2,
+        "version": 1,
         "content": new TreeMap<>([
           "service"  : "my-service",
           "name"     : "fakeOperation",
@@ -159,7 +159,7 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
       ])]
     ])
     TrackType.CITESTCYCLE | "v2"       | V2_EVP_PROXY_ENDPOINT | [[buildSpan(1L, InternalSpanTypes.TEST, ["test_suite_id": 123L, "test_module_id": 456L])]]           | new TreeMap<>([
-      "version" : 2,
+      "version" : 1,
       "metadata": new TreeMap<>([
         "*": new TreeMap<>([
           "env"       : "my-env",
@@ -187,7 +187,7 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
       ])]
     ])
     TrackType.CITESTCYCLE | "v2"       | V2_EVP_PROXY_ENDPOINT | [[buildSpan(1L, InternalSpanTypes.TEST_SUITE_END, ["test_suite_id": 123L, "test_module_id": 456L])]] | new TreeMap<>([
-      "version" : 2,
+      "version" : 1,
       "metadata": new TreeMap<>([
         "*": new TreeMap<>([
           "env"       : "my-env",
@@ -196,7 +196,7 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
         ])]),
       "events"  : [new TreeMap<>([
         "type"   : "test_suite_end",
-        "version": 2,
+        "version": 1,
         "content": new TreeMap<>([
           "test_suite_id" : 123L,
           "test_module_id": 456L,
@@ -212,7 +212,7 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
       ])]
     ])
     TrackType.CITESTCYCLE | "v2"       | V2_EVP_PROXY_ENDPOINT | [[buildSpan(1L, InternalSpanTypes.TEST_MODULE_END, ["test_module_id": 456L])]]                       | new TreeMap<>([
-      "version" : 2,
+      "version" : 1,
       "metadata": new TreeMap<>([
         "*": new TreeMap<>([
           "env"       : "my-env",
@@ -221,7 +221,7 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
         ])]),
       "events"  : [new TreeMap<>([
         "type"   : "test_module_end",
-        "version": 2,
+        "version": 1,
         "content": new TreeMap<>([
           "test_module_id": 456L,
           "service"       : "fakeService",
