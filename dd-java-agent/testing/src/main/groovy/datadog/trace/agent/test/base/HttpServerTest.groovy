@@ -469,6 +469,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     count << [1, 4, 50] // make multiple requests.
   }
 
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
   def "test forwarded request"() {
     setup:
     assumeTrue(testForwarded())
