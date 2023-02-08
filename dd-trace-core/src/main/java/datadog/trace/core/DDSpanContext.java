@@ -6,12 +6,12 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
-import datadog.trace.api.TraceSegment;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -23,6 +23,7 @@ import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.tagprocessor.QueryObfuscator;
 import datadog.trace.core.tagprocessor.TagsPostProcessor;
+import datadog.trace.util.TagsHelper;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
@@ -701,12 +702,15 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
 
   /** TraceSegment Implementation */
   @Override
-  public void setTagTop(String key, Object value) {
-    getTopContext().setTagCurrent(key, value);
+  public void setTagTop(String key, Object value, boolean sanitize) {
+    getTopContext().setTagCurrent(key, value, sanitize);
   }
 
   @Override
-  public void setTagCurrent(String key, Object value) {
+  public void setTagCurrent(String key, Object value, boolean sanitize) {
+    if (sanitize) {
+      key = TagsHelper.sanitize(key);
+    }
     this.setTag(key, value);
   }
 

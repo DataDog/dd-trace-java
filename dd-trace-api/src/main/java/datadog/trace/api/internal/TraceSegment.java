@@ -1,4 +1,4 @@
-package datadog.trace.api;
+package datadog.trace.api.internal;
 
 /**
  * A {@code TraceSegment} represents the local, i.e. in the scope of this {@code Tracer}, part of a
@@ -14,7 +14,18 @@ public interface TraceSegment {
    * @param key key of the tag
    * @param value value of the tag
    */
-  void setTagTop(String key, Object value);
+  default void setTagTop(String key, Object value) {
+    setTagTop(key, value, false);
+  }
+
+  /**
+   * Add a tag to the top of this {@code TraceSegment} with optional key sanitization.
+   *
+   * @param key key of the tag
+   * @param value value of the tag
+   * @param sanitize indicates is key need to be sanitized
+   */
+  void setTagTop(String key, Object value, boolean sanitize);
 
   /**
    * Add a tag to the current span in this {@code TraceSegment}.
@@ -22,7 +33,18 @@ public interface TraceSegment {
    * @param key key of the tag
    * @param value value of the tag
    */
-  void setTagCurrent(String key, Object value);
+  default void setTagCurrent(String key, Object value) {
+    setTagCurrent(key, value, false);
+  }
+
+  /**
+   * Add a tag to the current span in this {@code TraceSegment}. with optional key sanitization.
+   *
+   * @param key key of the tag
+   * @param value value of the tag
+   * @param sanitize indicates is key need to be sanitized
+   */
+  void setTagCurrent(String key, Object value, boolean sanitize);
 
   /**
    * Add data to the top of this {@code TraceSegment}. The {@code toString} representation of the
@@ -48,10 +70,10 @@ public interface TraceSegment {
     private NoOp() {}
 
     @Override
-    public void setTagTop(String key, Object value) {}
+    public void setTagTop(String key, Object value, boolean sanitize) {}
 
     @Override
-    public void setTagCurrent(String key, Object value) {}
+    public void setTagCurrent(String key, Object value, boolean sanitize) {}
 
     @Override
     public void setDataTop(String key, Object value) {}

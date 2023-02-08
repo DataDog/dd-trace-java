@@ -11,6 +11,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.InternalTracer;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
@@ -296,6 +297,11 @@ public class AgentTracer {
     @Override
     public ProfilingContext getProfilingContext() {
       return ProfilingContext.NoOp.INSTANCE;
+    }
+
+    @Override
+    public TraceSegment getTraceSegment() {
+      return null;
     }
 
     @Override
