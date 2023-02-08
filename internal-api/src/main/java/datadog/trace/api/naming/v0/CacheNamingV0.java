@@ -7,9 +7,17 @@ public class CacheNamingV0 implements NamingSchema.ForCache {
   @Nonnull
   @Override
   public String operation(@Nonnull String cacheSystem) {
-    String postfix = ".query";
-    if ("ignite".equals(cacheSystem)) {
-      postfix = ".cache";
+    String postfix;
+    switch (cacheSystem) {
+      case "ignite":
+        postfix = ".cache";
+        break;
+      case "hazelcast":
+        postfix = ".invoke";
+        break;
+      default:
+        postfix = ".query";
+        break;
     }
     return cacheSystem + postfix;
   }
@@ -17,6 +25,9 @@ public class CacheNamingV0 implements NamingSchema.ForCache {
   @Nonnull
   @Override
   public String service(@Nonnull String ddService, @Nonnull String cacheSystem) {
+    if ("hazelcast".equals(cacheSystem)) {
+      return "hazelcast-sdk";
+    }
     return cacheSystem;
   }
 }
