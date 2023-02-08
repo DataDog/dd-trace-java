@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit
 
 import static org.apache.hc.core5.reactor.IOReactorConfig.custom
 
-class ApacheHttpAsyncClientTest<T extends HttpRequest> extends HttpClientTest {
+class ApacheHttpAsyncClient5Test<T extends HttpRequest> extends HttpClientTest {
 
   @Shared
   def ioReactorConfig = custom()
