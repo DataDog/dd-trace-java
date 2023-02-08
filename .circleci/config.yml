@@ -947,6 +947,7 @@ build_test_jobs: &build_test_jobs
   # and it will be simpler to require different JVM versions for different branches and old releases
   - fan_in:
       requires:
+        - check
         - test_published_artifacts
         - agent_integration_tests
         - test_8
