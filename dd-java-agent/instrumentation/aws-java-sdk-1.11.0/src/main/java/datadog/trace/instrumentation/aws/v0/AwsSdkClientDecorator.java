@@ -4,6 +4,7 @@ import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
 import com.amazonaws.Response;
+import datadog.trace.api.Config;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -23,6 +24,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   private static final Pattern AMAZON_PATTERN = Pattern.compile("Amazon", Pattern.LITERAL);
 
   static final CharSequence COMPONENT_NAME = UTF8BytesString.create("java-aws-sdk");
+
+  public static final boolean AWS_LEGACY_TRACING =
+      Config.get().isLegacyTracingEnabled(false, "aws-sdk");
 
   private final QualifiedClassNameCache cache =
       new QualifiedClassNameCache(
