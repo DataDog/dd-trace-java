@@ -32,8 +32,8 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   private static final Logger LOG = LoggerFactory.getLogger(DebuggerIntegrationTest.class);
   private static final String DEBUGGER_TEST_APP_CLASS =
       "datadog.smoketest.debugger.DebuggerTestApplication";
-
   private static final String PROBE_ID = "123356536";
+  private static final String MAIN_CLASS_NAME = "Main";
 
   @Override
   protected String getAppClass() {
@@ -74,7 +74,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   void testShutdown() throws Exception {
     final String METHOD_NAME = "emptyMethod";
     LogProbe probe =
-        LogProbe.builder().probeId(PROBE_ID).where("DebuggerTestApplication", METHOD_NAME).build();
+        LogProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, METHOD_NAME).build();
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, "3").start();
 
@@ -94,7 +94,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   void testDestroy() throws Exception {
     final String METHOD_NAME = "fullMethod";
     LogProbe probe =
-        LogProbe.builder().probeId(PROBE_ID).where("DebuggerTestApplication", METHOD_NAME).build();
+        LogProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, METHOD_NAME).build();
     setCurrentConfiguration(createConfig(probe));
     datadogAgentServer.enqueue(
         new MockResponse()
@@ -118,7 +118,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   void testInaccessibleObject() throws Exception {
     final String METHOD_NAME = "managementMethod";
     LogProbe probe =
-        LogProbe.builder().probeId(PROBE_ID).where("DebuggerTestApplication", METHOD_NAME).build();
+        LogProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, METHOD_NAME).build();
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, "3").start();
     RecordedRequest request = retrieveSnapshotRequest();
@@ -134,7 +134,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
     LogProbe probe =
         LogProbe.builder()
             .probeId(PROBE_ID)
-            .where("DebuggerTestApplication", METHOD_NAME)
+            .where(MAIN_CLASS_NAME, METHOD_NAME)
             .captureSnapshot(true)
             .build();
     setCurrentConfiguration(createConfig(probe));
@@ -182,10 +182,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
     List<LogProbe> probes = new ArrayList<>();
     for (int i = 0; i < 10; i++) {
       probes.add(
-          LogProbe.builder()
-              .probeId("12335653" + i)
-              .where("DebuggerTestApplication", METHOD_NAME)
-              .build());
+          LogProbe.builder().probeId("12335653" + i).where(MAIN_CLASS_NAME, METHOD_NAME).build());
     }
     setCurrentConfiguration(createConfig(probes));
     final int NB_SNAPSHOTS = 10;

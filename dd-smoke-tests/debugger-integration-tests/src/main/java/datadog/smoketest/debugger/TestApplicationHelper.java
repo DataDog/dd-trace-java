@@ -24,8 +24,20 @@ public class TestApplicationHelper {
   private static final long SLEEP_MS = 100;
   private static final long TIMEOUT_S = 10;
 
-  public static void waitForInstrumentation(String logFileName) throws IOException {
-    waitForInstrumentation(logFileName, "datadog.smoketest.debugger.DebuggerTestApplication", null);
+  public static void waitForTransformerInstalled(String logFileName) throws IOException {
+    waitForSpecificLogLine(
+        Paths.get(logFileName),
+        line ->
+            line.contains(
+                "DEBUG com.datadog.debugger.agent.ConfigurationUpdater - New transformer installed"),
+        () -> {},
+        Duration.ofMillis(SLEEP_MS),
+        Duration.ofSeconds(TIMEOUT_S));
+  }
+
+  public static void waitForInstrumentation(String logFileName, String className)
+      throws IOException {
+    waitForInstrumentation(logFileName, className, null);
   }
 
   public static String waitForInstrumentation(String logFileName, String className, String fromLine)
