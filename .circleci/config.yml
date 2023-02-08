@@ -65,7 +65,6 @@ system_test_matrix: &system_test_matrix
 agent_integration_tests_modules: &agent_integration_tests_modules "dd-trace-core|communication|internal-api|utils"
 core_modules: &core_modules "dd-java-agent|dd-trace-core|communication|internal-api|telemetry|utils|dd-java-agent/agent-bootstrap|dd-java-agent/agent-installer|dd-java-agent/agent-tooling|dd-java-agent/agent-builder|dd-java-agent/appsec|dd-java-agent/agent-crashtracking"
 instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation|dd-java-agent/agent-tooling|dd-java-agent/agent-installer|dd-java-agent/agent-builder|dd-java-agent/agent-bootstrap|dd-java-agent/appsec|dd-trace-core|dd-trace-api|internal-api"
-iast_modules: &iast_modules "dd-java-agent/agent-iast|internal-api|utils/test-utils"
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
@@ -792,18 +791,6 @@ build_test_jobs: &build_test_jobs
   - tests:
       requires:
         - ok_to_test
-      maxWorkers: 4
-      name: test_<< matrix.testJvm >>_iast
-      gradleTarget: ":dd-java-agent:agent-iast"
-      gradleParameters: "-PskipFlakyTests"
-      triggeredBy: *iast_modules
-      stage: iast
-      matrix:
-        <<: *profiling_test_matrix
-
-  - tests:
-      requires:
-        - ok_to_test
       name: test_<< matrix.testJvm >>_debugger
       maxWorkers: 4
       gradleTarget: ":dd-java-agent:agent-debugger"
@@ -940,18 +927,6 @@ build_test_jobs: &build_test_jobs
       name: debugger
       stage: debugger
 
-  - fan_in:
-      requires:
-        - test_published_artifacts
-        - test_8_iast
-        - test_ORACLE8_iast
-        - test_ZULU8_iast
-        - test_ZULU11_iast
-        - test_11_iast
-        - test_17_iast
-      name: iast
-      stage: iast
-
   # This job requires all the jobs needed for a successful build, so GitHub only needs to enforce this one,
   # and it will be simpler to require different JVM versions for different branches and old releases
   - fan_in:
@@ -967,7 +942,6 @@ build_test_jobs: &build_test_jobs
         - test_IBM17_smoke
         - test_ZULU8
         - profiling
-        - iast
         - debugger
       name: required
       stage: required
