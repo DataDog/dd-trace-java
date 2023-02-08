@@ -383,6 +383,9 @@ jobs:
       gradleParameters:
         type: string
         default: ""
+      gradleBeforeTargets:
+        type: string
+        default: ""
       gradleTarget:
         type: string
         default: ""
@@ -438,7 +441,10 @@ jobs:
             
             MAVEN_OPTS="-Xms64M -Xmx512M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms<< parameters.maxDaemonHeapSize >> -Xmx<< parameters.maxDaemonHeapSize >> $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
-            ./gradlew <<# parameters.gradleTarget >><< parameters.gradleTarget >>:<</ parameters.gradleTarget >><< parameters.testTask >> << parameters.gradleParameters >>
+            ./gradlew
+            << parameters.gradleBeforeTargets >>
+            $(.circleci/test_targets.sh << parameters.stage >> << parameters.testTask >>)
+            << parameters.gradleParameters >>
             -PskipBuildSrcTest
             <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
@@ -732,7 +738,6 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: z_test_<< matrix.testJvm >>_inst
-      gradleTarget: ":dd-java-agent:instrumentation"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
@@ -745,7 +750,6 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: z_test_8_inst
-      gradleTarget: ":dd-java-agent:instrumentation"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
@@ -758,7 +762,6 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
       name: test_8_inst_latest
       testTask: latestDepTest
-      gradleTarget: ":dd-java-agent:instrumentation"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
@@ -782,7 +785,6 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       maxWorkers: 4
-      gradleTarget: ":dd-java-agent:agent-profiling"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *profiling_modules
       stage: profiling
@@ -795,7 +797,6 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
       name: test_<< matrix.testJvm >>_debugger
       maxWorkers: 4
-      gradleTarget: ":dd-java-agent:agent-debugger"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *debugger_modules
       stage: debugger
@@ -806,7 +807,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: z_test_<< matrix.testJvm >>_smoke
-      gradleTarget: "stageMainDist :dd-smoke-test"
+      gradleBeforeTargets: "stageMainDist"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
       parallelism: 4
@@ -818,7 +819,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: test_IBM11_smoke
-      gradleTarget: "stageMainDist :dd-smoke-test"
+      gradleBeforeTargets: "stageMainDist"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
       parallelism: 4
@@ -829,7 +830,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: test_IBM17_smoke
-      gradleTarget: "stageMainDist :dd-smoke-test"
+      gradleBeforeTargets: "stageMainDist"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
       parallelism: 4

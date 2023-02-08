@@ -20,10 +20,13 @@ core)
     PATH_EXCLUDES="/dd-smoke-tests/ /dd-java-agent/instrumentation/"
     ;;
 agent-integration)
-    PATH_INCLUDES="."
+    PATH_INCLUDES="dd-trace-core"
     ;;
 profiling)
     PATH_INCLUDES="dd-java-agent/agent-profiling"
+    ;;
+debugger)
+    PATH_INCLUDES="dd-java-agent/agent-debugger"
     ;;
 flaky)
     PATH_INCLUDES="."
