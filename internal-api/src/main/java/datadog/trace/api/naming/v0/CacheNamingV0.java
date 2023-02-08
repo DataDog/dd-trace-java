@@ -7,7 +7,11 @@ public class CacheNamingV0 implements NamingSchema.ForCache {
   @Nonnull
   @Override
   public String operation(@Nonnull String cacheSystem) {
-    return cacheSystem + ".query";
+    String postfix = ".query";
+    if ("ignite".equals(cacheSystem)) {
+      postfix = ".cache";
+    }
+    return cacheSystem + postfix;
   }
 
   @Nonnull

@@ -1,6 +1,7 @@
 package test
 
-import datadog.trace.agent.test.AgentTestRunner
+
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -19,7 +20,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-class IgniteCacheFailureTest extends AgentTestRunner {
+abstract class IgniteCacheFailureTest extends VersionedNamingTestBase {
 
   @Shared
   IgniteCache cache
@@ -83,9 +84,9 @@ class IgniteCacheFailureTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "ignite"
+          serviceName service()
           resourceName "cache.put on testCache"
-          operationName "ignite.cache"
+          operationName operation()
           spanType DDSpanTypes.CACHE
           errored true
           tags {
@@ -125,9 +126,9 @@ class IgniteCacheFailureTest extends AgentTestRunner {
         sortSpansByStart()
         basicSpan(it, "test", null, ex)
         span {
-          serviceName "ignite"
+          serviceName service()
           resourceName "cache.putAsync on testCache"
-          operationName "ignite.cache"
+          operationName operation()
           spanType DDSpanTypes.CACHE
           errored true
           tags {
@@ -146,5 +147,41 @@ class IgniteCacheFailureTest extends AgentTestRunner {
         }
       }
     }
+  }
+}
+
+class IgniteCacheFailureV0ForkedTest extends IgniteCacheFailureTest {
+
+  @Override
+  protected int version() {
+    return 0
+  }
+
+  @Override
+  protected String service() {
+    return AbstractIgniteTest.V0_SERVICE
+  }
+
+  @Override
+  protected String operation() {
+    return AbstractIgniteTest.V0_OPERATION
+  }
+}
+
+class IgniteCacheFailureV1ForkedTest extends IgniteCacheFailureTest {
+
+  @Override
+  protected int version() {
+    return 1
+  }
+
+  @Override
+  protected String service() {
+    return AbstractIgniteTest.V1_SERVICE
+  }
+
+  @Override
+  protected String operation() {
+    return AbstractIgniteTest.V1_OPERATION
   }
 }
