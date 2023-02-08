@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.interceptor
 
+import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.test.DDCoreSpecification
@@ -23,11 +24,11 @@ class CiVisibilityTraceInterceptorTest extends DDCoreSpecification {
     writer.size() == 0
   }
 
-  def "add ciapp origin and tracer version to all spans"() {
+  def "add ciapp origin and tracer version to spans of type #spanType"() {
     setup:
     tracer.addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE)
 
-    tracer.buildSpan("sample-span").withSpanType(CiVisibilityTraceInterceptor.TEST_TYPE).start().finish()
+    tracer.buildSpan("sample-span").withSpanType(spanType).start().finish()
     writer.waitForTraces(1)
 
     expect:
@@ -38,5 +39,8 @@ class CiVisibilityTraceInterceptorTest extends DDCoreSpecification {
 
     span.context().origin == CiVisibilityTraceInterceptor.CIAPP_TEST_ORIGIN
     span.getTag(DDTags.LIBRARY_VERSION_TAG_KEY) != null
+
+    where:
+    spanType << [DDSpanTypes.TEST, DDSpanTypes.TEST_SUITE_END, DDSpanTypes.TEST_MODULE_END]
   }
 }

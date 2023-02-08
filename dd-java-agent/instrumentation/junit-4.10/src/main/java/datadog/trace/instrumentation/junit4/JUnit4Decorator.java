@@ -55,6 +55,26 @@ public class JUnit4Decorator extends TestDecorator {
     beforeTestModuleFinish(span);
   }
 
+  // sometimes JUnit invokes multiple nested runners with the same suite class
+  // (this happens, for instance, for parameterized tests)
+  // in this case we maintain a counter to determine which runner invocation is the first,
+  // and to only trigger processing once
+  public boolean tryTestSuiteStart(final TestClass junitTestClass) {
+    String testSuiteName = junitTestClass.getName();
+    Class<?> testClass = junitTestClass.getJavaClass();
+    return tryTestSuiteStart(testSuiteName, testClass);
+  }
+
+  // sometimes JUnit invokes multiple nested runners with the same suite class
+  // (this happens, for instance, for parameterized tests)
+  // in this case we maintain a counter to determine which runner invocation is the last,
+  // and to only trigger processing once
+  public boolean tryTestSuiteFinish(final TestClass junitTestClass) {
+    String testSuiteName = junitTestClass.getName();
+    Class<?> testClass = junitTestClass.getJavaClass();
+    return tryTestSuiteFinish(testSuiteName, testClass);
+  }
+
   public void onTestSuiteStart(
       final AgentSpan span, final String version, final TestClass junitTestClass) {
     String testSuiteName = junitTestClass.getName();

@@ -25,7 +25,7 @@ class TestNGTest extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(1) {
-        testSpan(it, 0, "org.example.TestSucceed", "test_succeed", TestDecorator.TEST_PASS)
+        testSpan(it, 0, null, null, "org.example.TestSucceed", "test_succeed", TestDecorator.TEST_PASS)
       }
     }
   }
@@ -40,7 +40,7 @@ class TestNGTest extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(1) {
-        testSpan(it, 0, "org.example.TestInheritance", "test_succeed", TestDecorator.TEST_PASS)
+        testSpan(it, 0, null, null, "org.example.TestInheritance", "test_succeed", TestDecorator.TEST_PASS)
       }
     }
   }
@@ -59,7 +59,7 @@ class TestNGTest extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(1) {
-        testSpan(it, 0, "org.example.TestFailed", "test_failed", TestDecorator.TEST_FAIL, null, exception)
+        testSpan(it, 0, null, null, "org.example.TestFailed", "test_failed", TestDecorator.TEST_FAIL, null, exception)
       }
     }
 
@@ -81,19 +81,19 @@ class TestNGTest extends TestFrameworkTest {
     expect:
     assertTraces(5) {
       trace(1) {
-        testSpan(it, 0, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestDecorator.TEST_FAIL, null, exception)
+        testSpan(it, 0, null, null, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestDecorator.TEST_FAIL, null, exception)
       }
       trace(1) {
-        testSpan(it, 0, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestDecorator.TEST_FAIL, null, exception)
+        testSpan(it, 0, null, null, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestDecorator.TEST_FAIL, null, exception)
       }
       trace(1) {
-        testSpan(it, 0, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestDecorator.TEST_PASS)
+        testSpan(it, 0, null, null, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestDecorator.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestDecorator.TEST_PASS)
+        testSpan(it, 0, null, null, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestDecorator.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestDecorator.TEST_PASS)
+        testSpan(it, 0, null, null, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestDecorator.TEST_PASS)
       }
     }
 
@@ -111,7 +111,7 @@ class TestNGTest extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(1) {
-        testSpan(it, 0, "org.example.TestError", "test_error", TestDecorator.TEST_FAIL, null, exception)
+        testSpan(it, 0, null, null, "org.example.TestError", "test_error", TestDecorator.TEST_FAIL, null, exception)
       }
     }
 
@@ -129,7 +129,7 @@ class TestNGTest extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(1) {
-        testSpan(it, 0, "org.example.TestSkipped", "test_skipped", TestDecorator.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, null, null, "org.example.TestSkipped", "test_skipped", TestDecorator.TEST_SKIP, testTags, null, true)
       }
     }
 
@@ -147,10 +147,10 @@ class TestNGTest extends TestFrameworkTest {
     expect:
     assertTraces(2) {
       trace(1) {
-        testSpan(it, 0, "org.example.TestParameterized", "parameterized_test_succeed", TestDecorator.TEST_PASS, testTags_0)
+        testSpan(it, 0, null, null, "org.example.TestParameterized", "parameterized_test_succeed", TestDecorator.TEST_PASS, testTags_0)
       }
       trace(1) {
-        testSpan(it, 0, "org.example.TestParameterized", "parameterized_test_succeed", TestDecorator.TEST_PASS, testTags_1)
+        testSpan(it, 0, null, null, "org.example.TestParameterized", "parameterized_test_succeed", TestDecorator.TEST_PASS, testTags_1)
       }
     }
 
@@ -160,8 +160,8 @@ class TestNGTest extends TestFrameworkTest {
   }
 
   @Override
-  String expectedOperationName() {
-    return "testng.test"
+  String expectedOperationPrefix() {
+    return "testng"
   }
 
   @Override

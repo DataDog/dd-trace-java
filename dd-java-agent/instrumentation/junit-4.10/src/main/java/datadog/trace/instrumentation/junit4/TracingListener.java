@@ -33,7 +33,7 @@ public class TracingListener extends RunListener {
   @Override
   public void testRunFinished(Result result) {
     final AgentSpan span = AgentTracer.activeSpan();
-    if (span == null || !DECORATE.isTestModuleSpan(AgentTracer.activeSpan())) {
+    if (!DECORATE.isTestModuleSpan(AgentTracer.activeSpan())) {
       return;
     }
 
@@ -59,6 +59,10 @@ public class TracingListener extends RunListener {
       return;
     }
 
+    if (!DECORATE.tryTestSuiteStart(junitTestClass)) {
+      return;
+    }
+
     final AgentSpan span = startSpan("junit.test_suite");
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
@@ -79,8 +83,12 @@ public class TracingListener extends RunListener {
       return;
     }
 
+    if (!DECORATE.tryTestSuiteFinish(junitTestClass)) {
+      return;
+    }
+
     final AgentSpan span = AgentTracer.activeSpan();
-    if (span == null || !DECORATE.isTestSuiteSpan(AgentTracer.activeSpan())) {
+    if (!DECORATE.isTestSuiteSpan(AgentTracer.activeSpan())) {
       return;
     }
 
@@ -144,7 +152,7 @@ public class TracingListener extends RunListener {
     }
 
     final AgentSpan span = AgentTracer.activeSpan();
-    if (!DECORATE.isTestSpan(span) || !DECORATE.isTestSuiteSpan(span)) {
+    if (!DECORATE.isTestSpan(span) && !DECORATE.isTestSuiteSpan(span)) {
       return;
     }
 
@@ -158,7 +166,7 @@ public class TracingListener extends RunListener {
     }
 
     final AgentSpan span = AgentTracer.activeSpan();
-    if (!DECORATE.isTestSpan(span) || !DECORATE.isTestSuiteSpan(span)) {
+    if (!DECORATE.isTestSpan(span) && !DECORATE.isTestSuiteSpan(span)) {
       return;
     }
 
@@ -173,6 +181,7 @@ public class TracingListener extends RunListener {
     Description description = failure.getDescription();
     if (JUnit4Utils.isTestCaseDescription(description)) {
       DECORATE.onTestAssumptionFailure(span, reason);
+
     } else if (JUnit4Utils.isTestSuiteDescription(description)) {
       DECORATE.onTestSuiteAssumptionFailure(span, version, description, reason);
     }
@@ -184,22 +193,36 @@ public class TracingListener extends RunListener {
       return;
     }
 
-    final AgentSpan span = startSpan("junit.test");
-
     final Ignore ignore = description.getAnnotation(Ignore.class);
     final String reason = ignore != null ? ignore.value() : null;
 
     if (JUnit4Utils.isTestCaseDescription(description)) {
+      final AgentSpan span = startSpan("junit.test");
       DECORATE.onTestIgnored(
           span, version, description, JUnit4Utils.getTestMethod(description), reason);
-    } else if (JUnit4Utils.isTestSuiteDescription(description)) {
-      DECORATE.onTestSuiteIgnored(span, version, description, reason);
-    } else {
-      return;
-    }
+      // We set a duration of 1 ns, because a span with duration==0 has a special treatment in the
+      // tracer.
+      span.finishWithDuration(1L);
 
-    // We set a duration of 1 ns, because a span with duration==0 has a special treatment in the
-    // tracer.
-    span.finishWithDuration(1L);
+    } else if (JUnit4Utils.isTestSuiteDescription(description)) {
+
+      final AgentSpan existingSpan = AgentTracer.activeSpan();
+      if (DECORATE.isTestSuiteSpan(existingSpan)) {
+        // if assumption fails during suite setup,
+        // JUnit will call testIgnored instead of testAssumptionFailure
+        DECORATE.onTestSuiteAssumptionFailure(existingSpan, version, description, reason);
+        return;
+      }
+
+      final AgentSpan span = startSpan("junit.test_suite");
+      final AgentScope scope = activateSpan(span);
+
+      DECORATE.onTestSuiteIgnored(span, version, description, reason);
+
+      scope.close();
+      // We set a duration of 1 ns, because a span with duration==0 has a special treatment in the
+      // tracer.
+      span.finishWithDuration(1L);
+    }
   }
 }
