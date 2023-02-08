@@ -11,6 +11,9 @@ import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.Backlog;
+import datadog.trace.bootstrap.instrumentation.api.DataStreamsMonitoring;
+import datadog.trace.bootstrap.instrumentation.api.InboxItem;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.common.metrics.EventListener;
@@ -22,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -30,9 +34,9 @@ import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DefaultDataStreamsCheckpointer
-    implements DataStreamsCheckpointer, AutoCloseable, EventListener {
-  private static final Logger log = LoggerFactory.getLogger(DefaultDataStreamsCheckpointer.class);
+public class DefaultDataStreamsMonitoring
+    implements DataStreamsMonitoring, AutoCloseable, EventListener {
+  private static final Logger log = LoggerFactory.getLogger(DefaultDataStreamsMonitoring.class);
 
   static final long DEFAULT_BUCKET_DURATION_NANOS = TimeUnit.SECONDS.toNanos(10);
   static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
@@ -43,18 +47,18 @@ public class DefaultDataStreamsCheckpointer
       new StatsPoint(Collections.<String>emptyList(), 0, 0, 0, 0, 0);
 
   private final Map<Long, StatsBucket> timeToBucket = new HashMap<>();
-  private final BlockingQueue<StatsPoint> inbox = new MpscBlockingConsumerArrayQueue<>(1024);
+  private final BlockingQueue<InboxItem> inbox = new MpscBlockingConsumerArrayQueue<>(1024);
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
   private final TimeSource timeSource;
   private final WellKnownTags wellKnownTags;
   private final long bucketDurationNanos;
   private final Thread thread;
-  private AgentTaskScheduler.Scheduled<DefaultDataStreamsCheckpointer> cancellation;
+  private AgentTaskScheduler.Scheduled<DefaultDataStreamsMonitoring> cancellation;
   private volatile long nextFeatureCheck;
   private volatile boolean supportsDataStreams = false;
 
-  public DefaultDataStreamsCheckpointer(
+  public DefaultDataStreamsMonitoring(
       Config config, SharedCommunicationObjects sharedCommunicationObjects, TimeSource timeSource) {
     this(
         new OkHttpSink(
@@ -69,7 +73,7 @@ public class DefaultDataStreamsCheckpointer
         config);
   }
 
-  public DefaultDataStreamsCheckpointer(
+  public DefaultDataStreamsMonitoring(
       Sink sink, DDAgentFeaturesDiscovery features, TimeSource timeSource, Config config) {
     this(
         sink,
@@ -81,7 +85,7 @@ public class DefaultDataStreamsCheckpointer
         DEFAULT_BUCKET_DURATION_NANOS);
   }
 
-  public DefaultDataStreamsCheckpointer(
+  public DefaultDataStreamsMonitoring(
       Sink sink,
       DDAgentFeaturesDiscovery features,
       TimeSource timeSource,
@@ -143,6 +147,18 @@ public class DefaultDataStreamsCheckpointer
     return DefaultPathwayContext.extract(carrier, getter, timeSource, wellKnownTags);
   }
 
+  public void trackBacklog(LinkedHashMap<String, String> sortedTags, long value) {
+    List<String> tags = new ArrayList<>(sortedTags.size());
+    for (Map.Entry<String, String> entry : sortedTags.entrySet()) {
+      String tag = TagsProcessor.createTag(entry.getKey(), entry.getValue());
+      if (tag == null) {
+        continue;
+      }
+      tags.add(tag);
+    }
+    inbox.offer(new Backlog(tags, value, timeSource.getCurrentTimeNanos()));
+  }
+
   @Override
   public void close() {
     if (null != cancellation) {
@@ -163,25 +179,35 @@ public class DefaultDataStreamsCheckpointer
       Thread currentThread = Thread.currentThread();
       while (!currentThread.isInterrupted()) {
         try {
-          StatsPoint statsPoint = inbox.take();
+          InboxItem payload = inbox.take();
 
-          if (statsPoint == REPORT) {
+          if (payload == REPORT) {
             if (supportsDataStreams) {
               flush(timeSource.getCurrentTimeNanos());
             } else if (timeSource.getCurrentTimeNanos() >= nextFeatureCheck) {
               checkFeatures();
             }
-          } else if (statsPoint == POISON_PILL) {
+          } else if (payload == POISON_PILL) {
             if (supportsDataStreams) {
               flush(Long.MAX_VALUE);
             }
             break;
           } else if (supportsDataStreams) {
-            Long bucket = currentBucket(statsPoint.getTimestampNanos());
-            StatsBucket statsBucket =
-                timeToBucket.computeIfAbsent(
-                    bucket, startTime -> new StatsBucket(startTime, bucketDurationNanos));
-            statsBucket.addPoint(statsPoint);
+            if (payload instanceof StatsPoint) {
+              StatsPoint statsPoint = (StatsPoint) payload;
+              Long bucket = currentBucket(statsPoint.getTimestampNanos());
+              StatsBucket statsBucket =
+                  timeToBucket.computeIfAbsent(
+                      bucket, startTime -> new StatsBucket(startTime, bucketDurationNanos));
+              statsBucket.addPoint(statsPoint);
+            } else if (payload instanceof Backlog) {
+              Backlog backlog = (Backlog) payload;
+              Long bucket = currentBucket(backlog.getTimestampNanos());
+              StatsBucket statsBucket =
+                  timeToBucket.computeIfAbsent(
+                      bucket, startTime -> new StatsBucket(startTime, bucketDurationNanos));
+              statsBucket.addBacklog(backlog);
+            }
           }
         } catch (InterruptedException e) {
           currentThread.interrupt();
@@ -257,9 +283,9 @@ public class DefaultDataStreamsCheckpointer
   }
 
   private static final class ReportTask
-      implements AgentTaskScheduler.Task<DefaultDataStreamsCheckpointer> {
+      implements AgentTaskScheduler.Task<DefaultDataStreamsMonitoring> {
     @Override
-    public void run(DefaultDataStreamsCheckpointer target) {
+    public void run(DefaultDataStreamsMonitoring target) {
       target.report();
     }
   }

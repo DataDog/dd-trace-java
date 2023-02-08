@@ -1,11 +1,8 @@
-package datadog.trace.core.datastreams;
+package datadog.trace.bootstrap.instrumentation.api;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
-import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
+import java.util.LinkedHashMap;
 
-public class StubDataStreamsCheckpointer implements DataStreamsCheckpointer {
+public class NoopDataStreamsMonitoring implements DataStreamsMonitoring {
   @Override
   public void start() {}
 
@@ -22,6 +19,9 @@ public class StubDataStreamsCheckpointer implements DataStreamsCheckpointer {
       C carrier, AgentPropagation.ContextVisitor<C> getter) {
     return AgentTracer.NoopPathwayContext.INSTANCE;
   }
+
+  @Override
+  public void trackBacklog(LinkedHashMap<String, String> sortedTags, long value) {}
 
   @Override
   public <C> PathwayContext extractBinaryPathwayContext(

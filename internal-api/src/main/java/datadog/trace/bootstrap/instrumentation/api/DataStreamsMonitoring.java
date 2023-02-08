@@ -1,11 +1,9 @@
-package datadog.trace.core.datastreams;
+package datadog.trace.bootstrap.instrumentation.api;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
-import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
+import java.util.LinkedHashMap;
 import java.util.function.Consumer;
 
-public interface DataStreamsCheckpointer extends Consumer<StatsPoint>, AutoCloseable {
+public interface DataStreamsMonitoring extends Consumer<StatsPoint>, AutoCloseable {
   void start();
 
   PathwayContext newPathwayContext();
@@ -14,6 +12,8 @@ public interface DataStreamsCheckpointer extends Consumer<StatsPoint>, AutoClose
       C carrier, AgentPropagation.BinaryContextVisitor<C> getter);
 
   <C> PathwayContext extractPathwayContext(C carrier, AgentPropagation.ContextVisitor<C> getter);
+
+  void trackBacklog(LinkedHashMap<String, String> sortedTags, long value);
 
   @Override
   void close();

@@ -118,6 +118,8 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     }
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+      // wait for produce offset 0, commit offset 0 on partition 0 and 1, and commit offset 1 on 1 partition.
+      TEST_DATA_STREAMS_WRITER.waitForBacklogs(4)
     }
 
     then:
@@ -166,6 +168,17 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
           "type:kafka"
         ]
         edgeTags.size() == 5
+      }
+      List<String> produce = ["partition:"+received.partition(), "topic:"+SHARED_TOPIC, "type:kafka_produce"]
+      List<String> commit = [
+        "consumer_group:sender",
+        "partition:"+received.partition(),
+        "topic:"+SHARED_TOPIC,
+        "type:kafka_commit"
+      ]
+      verifyAll(TEST_DATA_STREAMS_WRITER.backlogs) {
+        contains(new AbstractMap.SimpleEntry<List<String>, Long>(commit, 1).toString())
+        contains(new AbstractMap.SimpleEntry<List<String>, Long>(produce, 0).toString())
       }
     }
 
@@ -222,6 +235,8 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     }
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+      // wait for produce offset 0, commit offset 0 on partition 0 and 1, and commit offset 1 on 1 partition.
+      TEST_DATA_STREAMS_WRITER.waitForBacklogs(4)
     }
 
     then:
@@ -270,6 +285,17 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
           "type:kafka"
         ]
         edgeTags.size() == 5
+      }
+      List<String> produce = ["partition:"+received.partition(), "topic:"+SHARED_TOPIC, "type:kafka_produce"]
+      List<String> commit = [
+        "consumer_group:sender",
+        "partition:"+received.partition(),
+        "topic:"+SHARED_TOPIC,
+        "type:kafka_commit"
+      ]
+      verifyAll(TEST_DATA_STREAMS_WRITER.backlogs) {
+        contains(new AbstractMap.SimpleEntry<List<String>, Long>(commit, 1).toString())
+        contains(new AbstractMap.SimpleEntry<List<String>, Long>(produce, 0).toString())
       }
     }
 
@@ -660,6 +686,8 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     }
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+      // wait for produce offset 0, commit offset 0 on partition 0 and 1, and commit offset 1 on 1 partition.
+      TEST_DATA_STREAMS_WRITER.waitForBacklogs(4)
     }
 
     then:

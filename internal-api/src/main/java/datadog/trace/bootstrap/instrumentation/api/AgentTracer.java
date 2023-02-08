@@ -174,6 +174,8 @@ public class AgentTracer {
     AgentSpan.Context notifyExtensionStart(Object event);
 
     void notifyExtensionEnd(AgentSpan span, Object result, boolean isError);
+
+    DataStreamsMonitoring getDataStreamsMonitoring();
   }
 
   public interface SpanBuilder {
@@ -205,6 +207,8 @@ public class AgentTracer {
   static class NoopTracerAPI implements TracerAPI {
 
     protected NoopTracerAPI() {}
+
+    private final DataStreamsMonitoring dataStreamsMonitoring = new NoopDataStreamsMonitoring();
 
     @Override
     public AgentSpan startSpan(final CharSequence spanName) {
@@ -394,6 +398,11 @@ public class AgentTracer {
     @Override
     public ScopeState newScopeState() {
       return null;
+    }
+
+    @Override
+    public DataStreamsMonitoring getDataStreamsMonitoring() {
+      return dataStreamsMonitoring;
     }
   }
 
