@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
 import javax.annotation.Nullable;
 
@@ -36,6 +37,9 @@ public abstract class TestDecorator extends BaseDecorator {
   public static final UTF8BytesString CIAPP_TEST_ORIGIN = UTF8BytesString.create("ciapp-test");
 
   private volatile TestState testModuleState;
+  private final ConcurrentMap<TestSuiteDescriptor, Integer> testSuiteNestedCallCounters =
+      new ConcurrentHashMap<>();
+
   private final ConcurrentMap<TestSuiteDescriptor, TestState> testSuiteStates =
       new ConcurrentHashMap<>();
 
@@ -62,7 +66,7 @@ public abstract class TestDecorator extends BaseDecorator {
   }
 
   protected String testModuleSpanKind() {
-    return Tags.SPAN_KIND_TEST_SUITE;
+    return Tags.SPAN_KIND_TEST_MODULE;
   }
 
   protected String runtimeName() {
@@ -148,6 +152,20 @@ public abstract class TestDecorator extends BaseDecorator {
     beforeFinish(span);
   }
 
+  protected boolean tryTestSuiteStart(String testSuiteName, Class<?> testClass) {
+    TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
+    Integer counter = testSuiteNestedCallCounters.merge(testSuiteDescriptor, 1, Integer::sum);
+    return counter == 1;
+  }
+
+  protected boolean tryTestSuiteFinish(String testSuiteName, Class<?> testClass) {
+    TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
+    Integer counter =
+        testSuiteNestedCallCounters.merge(
+            testSuiteDescriptor, -1, (a, b) -> a + b > 0 ? a + b : null);
+    return counter == null;
+  }
+
   protected void afterTestSuiteStart(
       final AgentSpan span,
       final String testSuiteName,
@@ -167,7 +185,7 @@ public abstract class TestDecorator extends BaseDecorator {
       span.setTag(Tags.TEST_FRAMEWORK_VERSION, version);
     }
 
-    if (categories != null) {
+    if (categories != null && !categories.isEmpty()) {
       span.setTag(
           Tags.TEST_TRAITS, toJson(Collections.singletonMap("category", toJson(categories))));
     }
@@ -235,7 +253,7 @@ public abstract class TestDecorator extends BaseDecorator {
       span.setTag(Tags.TEST_FRAMEWORK_VERSION, version);
     }
 
-    if (categories != null) {
+    if (categories != null && !categories.isEmpty()) {
       span.setTag(
           Tags.TEST_TRAITS, toJson(Collections.singletonMap("category", toJson(categories))));
     }
@@ -366,6 +384,7 @@ public abstract class TestDecorator extends BaseDecorator {
     private final long id;
     private final LongAdder childrenPassed = new LongAdder();
     private final LongAdder childrenFailed = new LongAdder();
+    private final AtomicInteger nested = new AtomicInteger(0);
 
     private TestState(long id) {
       this.id = id;

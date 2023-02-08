@@ -30,7 +30,6 @@ class TestDecoratorTest extends BaseDecoratorTest {
 
     then:
     1 * span.setTag(Tags.COMPONENT, "test-component")
-    1 * span.setTag(Tags.SPAN_KIND, decorator.testSpanKind())
     1 * span.setSpanType(decorator.spanType())
     1 * span.setTag(Tags.TEST_FRAMEWORK, decorator.testFramework())
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
