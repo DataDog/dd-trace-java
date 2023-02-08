@@ -12,6 +12,8 @@ import datadog.trace.api.Config;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.SdkRequest;
 import software.amazon.awssdk.core.interceptor.Context;
 import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
@@ -24,6 +26,8 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
   public static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
       new ExecutionAttribute<>("DatadogSpan");
+
+  private static final Logger log = LoggerFactory.getLogger(TracingExecutionInterceptor.class);
 
   @Override
   public void beforeExecution(
@@ -50,13 +54,16 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
   public SdkHttpRequest modifyHttpRequest(
       Context.ModifyHttpRequest context, ExecutionAttributes executionAttributes) {
     if (Config.get().isAwsPropagationEnabled()) {
-      final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
-      SdkHttpRequest.Builder requestBuilder = context.httpRequest().toBuilder();
-      propagate().inject(span, requestBuilder, DECORATE, TracePropagationStyle.XRAY);
-      return requestBuilder.build();
-    } else {
-      return context.httpRequest();
+      try {
+        final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
+        SdkHttpRequest.Builder requestBuilder = context.httpRequest().toBuilder();
+        propagate().inject(span, requestBuilder, DECORATE, TracePropagationStyle.XRAY);
+        return requestBuilder.build();
+      } catch (Throwable e) {
+        log.warn("Unable to inject trace header", e);
+      }
     }
+    return context.httpRequest();
   }
 
   @Override
