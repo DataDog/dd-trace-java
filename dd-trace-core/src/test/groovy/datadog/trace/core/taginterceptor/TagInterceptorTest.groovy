@@ -299,6 +299,23 @@ class TagInterceptorTest extends DDCoreSpecification {
     name = "my resource name"
   }
 
+  def "set resource name ignores null"() {
+    when:
+    def writer = new ListWriter()
+    def tracer = tracerBuilder().writer(writer).build()
+
+    def span = tracer.buildSpan("test").withResourceName("keep").start()
+    span.setTag(DDTags.RESOURCE_NAME, null)
+    span.finish()
+    writer.waitForTraces(1)
+
+    then:
+    span.getResourceName() == "keep"
+
+    cleanup:
+    tracer.close()
+  }
+
   def "set span type"() {
     when:
     def tracer = tracerBuilder().writer(new ListWriter()).build()
