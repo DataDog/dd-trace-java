@@ -93,7 +93,7 @@ public class ConfigurationUpdater
     try {
       // handle null configuration
       if (configuration == null) {
-        LOGGER.debug("configuration is null, apply empty configuration with no probes");
+        LOGGER.debug("Configuration is null, applying empty configuration with no probes");
         applyNewConfiguration(createEmptyConfiguration());
         return;
       }
@@ -226,12 +226,12 @@ public class ConfigurationUpdater
   private void retransformClasses(List<Class<?>> classesToBeTransformed) {
     for (Class<?> clazz : classesToBeTransformed) {
       try {
-        LOGGER.info("re-transforming {}", clazz.getCanonicalName());
+        LOGGER.info("Re-transforming {}", clazz.getCanonicalName());
         instrumentation.retransformClasses(clazz);
       } catch (Exception ex) {
-        ExceptionHelper.logException(LOGGER, ex, "re-transform error:");
+        ExceptionHelper.logException(LOGGER, ex, "Re-transform error:");
       } catch (Throwable ex) {
-        ExceptionHelper.logException(LOGGER, ex, "re-transform throwable:");
+        ExceptionHelper.logException(LOGGER, ex, "Re-transform throwable:");
       }
     }
   }
@@ -243,7 +243,7 @@ public class ConfigurationUpdater
     for (ProbeDefinition definition : changes.getAddedDefinitions()) {
       appliedDefinitions.put(definition.getId(), definition);
     }
-    LOGGER.debug("stored appliedDefinitions: {}", appliedDefinitions.values());
+    LOGGER.debug("Stored appliedDefinitions: {}", appliedDefinitions.values());
   }
 
   // /!\ This is called potentially by multiple threads from the instrumented code /!\
@@ -273,7 +273,7 @@ public class ConfigurationUpdater
       ProbeDefinition probe, Snapshot.ProbeLocation location) {
     if (!(probe instanceof LogProbe)) {
       LOGGER.warn(
-          "definition id={} has unsupported probe type: {}", probe.getId(), probe.getClass());
+          "Definition id={} has unsupported probe type: {}", probe.getId(), probe.getClass());
       return null;
     }
     LogProbe logProbe = (LogProbe) probe;
