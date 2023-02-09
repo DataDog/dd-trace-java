@@ -2,6 +2,7 @@ package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.probe.MetricProbe.MetricKind.COUNT;
 import static com.datadog.debugger.probe.MetricProbe.MetricKind.GAUGE;
+import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -293,7 +294,7 @@ public class ConfigurationTest {
         .captureSnapshot(false)
         .where(typeName, methodName, signature)
         .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
-        .template(template)
+        .template(template, parseTemplate(template))
         .tags("tag1:value1", "tag2:value2")
         .build();
   }

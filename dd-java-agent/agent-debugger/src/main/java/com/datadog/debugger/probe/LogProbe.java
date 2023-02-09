@@ -10,11 +10,8 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.Limits;
-import datadog.trace.util.Strings;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import org.objectweb.asm.tree.ClassNode;
@@ -421,9 +418,9 @@ public class LogProbe extends ProbeDefinition {
     private Capture capture;
     private Sampling sampling;
 
-    public Builder template(String template) {
+    public Builder template(String template, List<Segment> segments) {
       this.template = template;
-      this.segments = parseTemplate(template);
+      this.segments = segments;
       return this;
     }
 
@@ -470,48 +467,6 @@ public class LogProbe extends ProbeDefinition {
           probeCondition,
           capture,
           sampling);
-    }
-
-    private static List<Segment> parseTemplate(String template) {
-      if (template == null) {
-        return Collections.emptyList();
-      }
-      List<Segment> result = new ArrayList<>();
-      int currentIdx = 0;
-      int startStrIdx = 0;
-      do {
-        int startIdx = template.indexOf('{', currentIdx);
-        if (startIdx == -1) {
-          addStrSegment(result, template.substring(startStrIdx));
-          return result;
-        }
-        if (startIdx + 1 < template.length() && template.charAt(startIdx + 1) == '{') {
-          currentIdx = startIdx + 2;
-          continue;
-        }
-        int endIdx = template.indexOf('}', startIdx);
-        if (endIdx == -1) {
-          addStrSegment(result, template.substring(startStrIdx));
-          currentIdx = startIdx + 1;
-          startStrIdx = currentIdx;
-        } else {
-          if (startStrIdx != startIdx) {
-            addStrSegment(result, template.substring(startStrIdx, startIdx));
-          }
-          String expr = template.substring(startIdx + 1, endIdx);
-
-          result.add(new Segment(new ValueScript(ValueScript.parseRefPath(expr), expr)));
-          currentIdx = endIdx + 1;
-          startStrIdx = currentIdx;
-        }
-      } while (currentIdx < template.length());
-      return result;
-    }
-
-    private static void addStrSegment(List<Segment> segments, String str) {
-      str = Strings.replace(str, "{{", "{");
-      str = Strings.replace(str, "}}", "}");
-      segments.add(new Segment(str));
     }
   }
 }

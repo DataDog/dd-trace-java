@@ -1,5 +1,6 @@
 package com.datadog.debugger.agent;
 
+import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.mock;
@@ -343,7 +344,7 @@ public class LogProbesInstrumentationTest {
         .probeId(id)
         .active(true)
         .where(typeName, methodName, signature, lines)
-        .template(template);
+        .template(template, parseTemplate(template));
   }
 
   private static LogProbe createProbe(
