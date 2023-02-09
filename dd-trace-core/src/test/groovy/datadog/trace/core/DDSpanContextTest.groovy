@@ -237,6 +237,20 @@ class DDSpanContextTest extends DDCoreSpecification {
     0.25 | Integer.MAX_VALUE
   }
 
+  def "setting resource name to null is ignored"() {
+    setup:
+    def span = tracer.buildSpan("fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .start()
+
+    when:
+    span.setResourceName(null)
+
+    then:
+    span.resourceName == "fakeResource"
+  }
+
   private static String dataTag(String tag) {
     "_dd.${tag}.json"
   }
