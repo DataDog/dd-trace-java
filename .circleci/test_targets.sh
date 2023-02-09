@@ -13,7 +13,7 @@ readonly TASK_NAMES="${*:-test}"
 # Space-separated list of paths to include.
 PATH_INCLUDES=""
 # Space-separated list of paths to exclude (priority over includes).
-PATH_EXCLUDES="/application/ /latest-jdk-app/ /spring-ear/"
+PATH_EXCLUDES="/application/ /latest-jdk-app/ /spring-ear/ /test-published-dependencies/"
 case "${STAGE_NAME}" in
 core)
     PATH_INCLUDES="."
