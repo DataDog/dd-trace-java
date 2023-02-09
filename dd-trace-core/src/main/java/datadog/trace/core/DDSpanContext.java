@@ -115,13 +115,6 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
 
   private volatile int samplingPriority = PrioritySampling.UNSET;
 
-  // A flag that this span has been kept by the Single Span Sampling mechanism. This is needed for
-  // when it's a root span that is set to be dropped by the trace sampling, but kept by the single
-  // span sampling. In this case, we should NOT override the original samplingPriority that is used
-  // by the child spans that don't have an explicitly set trace sampling priority and gets it from
-  // the root span.
-  private volatile boolean isSelectedBySingleSpanSampling = false;
-
   /** The origin of the trace. (eg. Synthetics, CI App) */
   private volatile CharSequence origin;
 
@@ -396,7 +389,6 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
       if (limit != Integer.MAX_VALUE) {
         unsafeSetTag(SPAN_SAMPLING_MAX_PER_SECOND_TAG, limit);
       }
-      isSelectedBySingleSpanSampling = true;
     }
   }
 
@@ -606,26 +598,13 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
               threadName,
               postProcessor.processTags(unsafeTags),
               baggageItemsWithPropagationTags,
-              getEffectiveSamplingPriority(),
+              samplingPriority != PrioritySampling.UNSET ? samplingPriority : getSamplingPriority(),
               measured,
               topLevel,
               httpStatusCode == 0 ? null : HTTP_STATUSES.get(httpStatusCode),
               // Get origin from rootSpan.context
               getOrigin()));
     }
-  }
-
-  // used in tests
-  int getEffectiveSamplingPriority() {
-    if (isSelectedBySingleSpanSampling) {
-      // use span sampling priority if this span has been selected by the single span sampler
-      return PrioritySampling.USER_KEEP;
-    } else if (samplingPriority != PrioritySampling.UNSET) {
-      // use trace sampling priority, if it's been set
-      return samplingPriority;
-    }
-    // otherwise get sampling priority from the root span
-    return getSamplingPriority();
   }
 
   @Override

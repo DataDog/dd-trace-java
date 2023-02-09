@@ -10,7 +10,6 @@ import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES_FILE
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE
 import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP
-import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 import static datadog.trace.api.sampling.SamplingMechanism.SPAN_SAMPLING_RATE
 
 class SingleSpanSamplerTest extends DDCoreSpecification {
@@ -104,9 +103,6 @@ class SingleSpanSamplerTest extends DDCoreSpecification {
     // set spans sampling priority
     sampler.setSamplingPriority(rootSpan) == sampleRoot
     sampler.setSamplingPriority(childSpan) == sampleChild
-
-    rootSpan.context().effectiveSamplingPriority == (sampleRoot ? USER_KEEP : SAMPLER_DROP)
-    childSpan.context().effectiveSamplingPriority == (sampleChild ? USER_KEEP : SAMPLER_DROP)
 
     expect:
     rootSpan.getTag("_dd.span_sampling.mechanism") == rootMechanism
