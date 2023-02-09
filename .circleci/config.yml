@@ -285,6 +285,7 @@ jobs:
       - run:
           name: Run spotless
           command: >-
+            JAVA_HOME=$JAVA_11_HOME
             ./gradlew spotlessCheck -PskipBuildSrcTest
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
