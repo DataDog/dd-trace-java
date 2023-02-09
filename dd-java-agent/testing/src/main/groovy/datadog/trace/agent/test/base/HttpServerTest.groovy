@@ -435,7 +435,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     return runUnderTrace("controller", closure)
   }
 
-  @Flaky(suites = ["MuleHttpServerForkedTest"])
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
   def "test success with #count requests"() {
     setup:
     def request = request(SUCCESS, method, body).build()
@@ -526,6 +526,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     body = null
   }
 
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
   def "test success with parent"() {
     setup:
     def traceId = 123G
@@ -571,6 +572,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     body = null
   }
 
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
   def "test success with request header #header tag mapping"() {
     setup:
     def request = request(SUCCESS, method, body)
