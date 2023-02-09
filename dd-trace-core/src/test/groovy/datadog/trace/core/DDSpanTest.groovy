@@ -425,7 +425,6 @@ class DDSpanTest extends DDCoreSpecification {
     span.getTag(SPAN_SAMPLING_MAX_PER_SECOND_TAG) == (limit == Integer.MAX_VALUE ? null : limit)
     // single span sampling should not change the trace sampling priority
     span.samplingPriority() == UNSET
-    span.context.effectiveSamplingPriority == USER_KEEP
 
     where:
     rate | limit
