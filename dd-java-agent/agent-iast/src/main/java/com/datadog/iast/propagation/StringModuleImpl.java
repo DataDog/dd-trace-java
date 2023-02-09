@@ -402,4 +402,21 @@ public class StringModuleImpl extends IastModuleBase implements StringModule {
       taintedObjects.taint(result, newRanges);
     }
   }
+
+  @Override
+  public void onStringConstructor(@Nonnull String self, @Nonnull String result) {
+    if (!canBeTainted(self)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final Range[] selfRanges = getRanges(taintedObjects.get(self));
+    if (selfRanges.length == 0) {
+      return;
+    }
+    taintedObjects.taint(result, selfRanges);
+  }
 }
