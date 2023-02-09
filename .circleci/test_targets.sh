@@ -43,7 +43,7 @@ smoke)
     ;;
 esac
 
-cmd="find ${PATH_INCLUDES} -name 'build.gradle'"
+cmd="find ${PATH_INCLUDES} -name 'build.gradle' | grep -v '\./build.gradle'"
 for path in ${PATH_EXCLUDES}; do
     cmd="${cmd} | grep -v '${path}'"
 done
