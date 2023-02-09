@@ -1,3 +1,5 @@
+package datadog.trace.instrumentation.netty38.latestdep
+
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.instrumentation.netty38.server.NettyHttpServerDecorator
@@ -95,7 +97,7 @@ class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
                   response.setContent(responseContent)
                   break
               }
-              response.headers().set(CONTENT_TYPE, "text/plain").set(IG_RESPONSE_HEADER, IG_RESPONSE_HEADER_VALUE)
+              response.headers().set(CONTENT_TYPE, "text/plain").set(HttpServerTest.IG_RESPONSE_HEADER, HttpServerTest.IG_RESPONSE_HEADER_VALUE)
               if (responseContent) {
                 response.headers().set(CONTENT_LENGTH, responseContent.readableBytes())
               }

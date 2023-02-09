@@ -43,6 +43,7 @@ public final class LibertyServerInstrumentation extends Instrumenter.Tracing
       packageName + ".HttpServletExtractAdapter$Request",
       packageName + ".HttpServletExtractAdapter$Response",
       packageName + ".LibertyDecorator",
+      packageName + ".LibertyDecorator$LibertyBlockResponseFunction",
       packageName + ".RequestURIDataAdapter",
       "datadog.trace.instrumentation.servlet.ServletBlockingHelper",
     };

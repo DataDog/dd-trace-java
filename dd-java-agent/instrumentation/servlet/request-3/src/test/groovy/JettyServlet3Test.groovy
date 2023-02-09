@@ -278,6 +278,11 @@ class JettyServlet3TestInclude extends JettyServlet3Test {
   }
 
   @Override
+  boolean testUserBlocking() {
+    false
+  }
+
+  @Override
   void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
     includeSpan(trace, endpoint)
   }
@@ -338,6 +343,12 @@ class JettyServlet3TestDispatchAsync extends JettyServlet3Test {
   @Override
   boolean testTimeout() {
     return true
+  }
+
+  @Override
+  boolean testUserBlocking() {
+    // XXX bug: the dispatch span is not finished
+    false
   }
 
   @Override

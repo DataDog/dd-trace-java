@@ -13,6 +13,7 @@ import com.datadog.appsec.report.raw.events.AppSecEvent100
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
+import datadog.trace.api.gateway.BlockResponseFunction
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
@@ -38,6 +39,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   TraceSegment traceSegment = Mock()
   RequestContext ctx = new RequestContext() {
     final AppSecRequestContext data = arCtx
+    BlockResponseFunction blockResponseFunction
 
     @Override
     Object getData(RequestContextSlot slot) {
@@ -715,6 +717,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   void 'no appsec events if was not created request context in request_start event'() {
     RequestContext emptyCtx = new RequestContext() {
         final Object data = null
+        BlockResponseFunction blockResponseFunction
 
         @Override
         Object getData(RequestContextSlot slot) {

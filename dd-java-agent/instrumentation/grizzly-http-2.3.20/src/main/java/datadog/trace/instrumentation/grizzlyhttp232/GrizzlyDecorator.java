@@ -2,7 +2,11 @@ package datadog.trace.instrumentation.grizzlyhttp232;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 
+import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -122,6 +126,15 @@ public class GrizzlyDecorator
           GrizzlyHttpBlockingHelper.block(
               ctx, (HttpServerFilter) thiz, httpRequest, httpResponse, rba, nextAction);
     }
+    if (ActiveSubsystems.APPSEC_ACTIVE) {
+      RequestContext requestContext = span.getRequestContext();
+      if (requestContext != null) {
+        BlockResponseFunction brf = requestContext.getBlockResponseFunction();
+        if (brf instanceof GrizzlyHttpBlockResponseFunction) {
+          ((GrizzlyHttpBlockResponseFunction) brf).ctx = ctx;
+        }
+      }
+    }
     scope.close();
 
     return nextAction;
@@ -136,5 +149,28 @@ public class GrizzlyDecorator
     }
     ctx.getAttributes().removeAttribute(DD_SPAN_ATTRIBUTE);
     ctx.getAttributes().removeAttribute(DD_RESPONSE_ATTRIBUTE);
+  }
+
+  @Override
+  protected BlockResponseFunction createBlockResponseFunction(
+      HttpRequestPacket httpRequestPacket, HttpRequestPacket httpRequestPacket2) {
+    return new GrizzlyHttpBlockResponseFunction(httpRequestPacket.getHeader("Accept"));
+  }
+
+  public static class GrizzlyHttpBlockResponseFunction implements BlockResponseFunction {
+    private final String acceptHeader;
+    public volatile FilterChainContext ctx;
+
+    public GrizzlyHttpBlockResponseFunction(String acceptHeader) {
+      this.acceptHeader = acceptHeader;
+    }
+
+    @Override
+    public boolean tryCommitBlockingResponse(int statusCode, BlockingContentType templateType) {
+      if (ctx == null) {
+        return false;
+      }
+      return GrizzlyHttpBlockingHelper.block(ctx, acceptHeader, statusCode, templateType);
+    }
   }
 }

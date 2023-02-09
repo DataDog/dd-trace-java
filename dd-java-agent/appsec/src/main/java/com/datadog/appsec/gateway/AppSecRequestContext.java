@@ -5,6 +5,7 @@ import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.report.raw.events.AppSecEvent100;
 import com.datadog.appsec.util.StandardizedLogging;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
 import io.sqreen.powerwaf.Additive;
@@ -70,6 +71,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean rawReqBodyPublished;
   private boolean convertedReqBodyPublished;
   private boolean respDataPublished;
+  private BlockResponseFunction blockResponseFunction;
 
   // should be guarded by this
   private Additive additive;
@@ -326,6 +328,10 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public void setRespDataPublished(boolean respDataPublished) {
     this.respDataPublished = respDataPublished;
+  }
+
+  public void setBlockResponseFunction(BlockResponseFunction blockResponseFunction) {
+    this.blockResponseFunction = blockResponseFunction;
   }
 
   @Override
