@@ -3,6 +3,7 @@ package datadog.trace.civisibility;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.civisibility.codeowners.CodeownersProvider;
+import datadog.trace.civisibility.coverage.CoverageSubSystem;
 import datadog.trace.civisibility.git.GitInfo;
 import datadog.trace.civisibility.git.info.CILocalGitInfoBuilder;
 import datadog.trace.civisibility.git.info.UserSuppliedGitInfoBuilder;
@@ -55,5 +56,11 @@ public class CiVisibilitySystem {
         new BestEfforSourcePathResolver(
             new CompilerAidedSourcePathResolver(repoRoot),
             new RepoIndexSourcePathResolver(repoRoot)));
+
+    try {
+      CoverageSubSystem.start(instrumentation);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 }

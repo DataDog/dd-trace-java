@@ -113,6 +113,7 @@ public abstract class TestDecorator extends BaseDecorator {
       final Method testMethod) {
 
     span.setResourceName(testSuiteName + "." + testName);
+    span.setBaggageItem("test.full_name", span.getResourceName().toString());
     span.setTag(Tags.TEST_SUITE, testSuiteName);
     span.setTag(Tags.TEST_NAME, testName);
 
