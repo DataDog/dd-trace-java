@@ -38,7 +38,6 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
 import javax.annotation.Nullable;
@@ -344,11 +343,5 @@ public final class DatadogProfiler {
       return contextSetter.clearContextValue(attribute);
     }
     return false;
-  }
-
-  public void recordQueueingTime(long time, TimeUnit unit) {
-    if (profiler != null) {
-      profiler.recordQueueingTime(time, unit);
-    }
   }
 }
