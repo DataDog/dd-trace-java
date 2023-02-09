@@ -32,6 +32,8 @@ public interface WebModule extends IastModule {
       @Nullable String result,
       byte sourceTypeValue);
 
+  void onCookieValue(@Nullable String cookieName, @Nullable String cookieValue);
+
   void onGetInputStream(@Nullable InputStream inputStream);
 
   void onGetReader(@Nullable BufferedReader bufferedReader);
