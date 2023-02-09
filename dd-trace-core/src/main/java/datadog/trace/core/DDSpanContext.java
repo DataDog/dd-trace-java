@@ -245,6 +245,9 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
   }
 
   public void setResourceName(final CharSequence resourceName, byte priority) {
+    if (null == resourceName) {
+      return;
+    }
     if (priority >= this.resourceNamePriority) {
       this.resourceNamePriority = priority;
       this.resourceName = resourceName;
