@@ -17,7 +17,7 @@ PATH_EXCLUDES="/application/ /latest-jdk-app/ /spring-ear/ /test-published-depen
 case "${STAGE_NAME}" in
 core)
     PATH_INCLUDES="."
-    PATH_EXCLUDES="/dd-smoke-tests/ /dd-java-agent/instrumentation/"
+    PATH_EXCLUDES="${PATH_EXCLUDES} /dd-smoke-tests/ /dd-java-agent/instrumentation/"
     ;;
 agent-integration)
     PATH_INCLUDES="dd-trace-core"
