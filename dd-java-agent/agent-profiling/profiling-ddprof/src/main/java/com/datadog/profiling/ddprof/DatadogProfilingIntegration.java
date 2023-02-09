@@ -1,7 +1,6 @@
 package com.datadog.profiling.ddprof;
 
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
-import java.util.concurrent.TimeUnit;
 
 /**
  * This class must be installed early to be able to see all scope initialisations, which means it
@@ -53,9 +52,5 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   }
 
   @Override
-  public void recordQueueingTime(long duration) {
-    if (QUEUEING_TIME_ENABLED && duration >= WALLCLOCK_INTERVAL / 2) {
-      DDPROF.recordQueueingTime(duration, TimeUnit.MILLISECONDS);
-    }
-  }
+  public void recordQueueingTime(long duration) {}
 }
