@@ -19,7 +19,7 @@ import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.MoshiHelper;
-import com.datadog.debugger.util.MoshiSnapshotHelper;
+import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.datadog.debugger.util.SerializerWithLimits;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Config;
@@ -76,7 +76,7 @@ public class CapturedSnapshotTest {
   private static final String PROBE_ID2 = "beae1807-f3b0-4ea8-a74f-826790c5e6f7";
   private static final String SERVICE_NAME = "service-name";
   private static final JsonAdapter<Snapshot.CapturedValue> VALUE_ADAPTER =
-      new MoshiSnapshotHelper.CapturedValueAdapter();
+      new MoshiSnapshotTestHelper.CapturedValueAdapter();
   private static final JsonAdapter<Map<String, Object>> GENERIC_ADAPTER =
       MoshiHelper.createGenericAdapter();
 

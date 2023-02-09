@@ -622,6 +622,8 @@ public class Snapshot {
     private Limits limits = Limits.DEFAULT;
     private String thisClassName;
     private List<EvaluationError> evaluationErrors;
+    private String traceId;
+    private String spanId;
 
     public CapturedContext() {}
 
@@ -694,14 +696,6 @@ public class Snapshot {
       }
       checkUndefined(memberName, target, memberName, "Cannot dereference to field: ");
       return target;
-    }
-
-    private Object tryRetrieveField(String name) {
-      if (fields == null) {
-        return Values.UNDEFINED_OBJECT;
-      }
-      Object field = fields.get(name);
-      return field != null ? field : Values.UNDEFINED_OBJECT;
     }
 
     private Object tryRetrieveSynthetic(String name) {
@@ -793,6 +787,17 @@ public class Snapshot {
       for (CapturedValue value : values) {
         fields.put(value.name, value);
       }
+      traceId = extractSpecialId("dd.trace_id");
+      spanId = extractSpecialId("dd.span_id");
+    }
+
+    private String extractSpecialId(String idName) {
+      CapturedValue capturedValue = fields.get(idName);
+      if (capturedValue == null) {
+        return null;
+      }
+      Object value = capturedValue.getValue();
+      return value instanceof String ? (String) value : null;
     }
 
     public void addEvaluationError(String expr, String message) {
@@ -840,6 +845,14 @@ public class Snapshot {
 
     public String getThisClassName() {
       return thisClassName;
+    }
+
+    public String getTraceId() {
+      return traceId;
+    }
+
+    public String getSpanId() {
+      return spanId;
     }
 
     /**

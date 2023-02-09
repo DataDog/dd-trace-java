@@ -7,12 +7,9 @@ import com.squareup.moshi.JsonAdapter;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Serializes snapshots in Json using Moshi */
 public class JsonSnapshotSerializer implements DebuggerContext.SnapshotSerializer {
-  private static final Logger LOG = LoggerFactory.getLogger(JsonSnapshotSerializer.class);
   private static final String DD_TRACE_ID = "dd.trace_id";
   private static final String DD_SPAN_ID = "dd.span_id";
   private static final JsonAdapter<IntakeRequest> ADAPTER =
@@ -74,34 +71,8 @@ public class JsonSnapshotSerializer implements DebuggerContext.SnapshotSerialize
   }
 
   private void addTraceSpanId(Snapshot.CapturedContext context, IntakeRequest request) {
-    Map<String, Snapshot.CapturedValue> fields = context.getFields();
-    if (fields == null) {
-      return;
-    }
-    request.traceId = extractCorrelationField(fields, DD_TRACE_ID);
-    request.spanId = extractCorrelationField(fields, DD_SPAN_ID);
-  }
-
-  private String extractCorrelationField(
-      Map<String, Snapshot.CapturedValue> fields, String fieldName) {
-    Snapshot.CapturedValue fieldValue = fields.get(fieldName);
-    if (fieldValue != null) {
-      return getValue(fieldValue, fieldName);
-    }
-    return null;
-  }
-
-  public static String getValue(Snapshot.CapturedValue capturedValue, String name) {
-    if (capturedValue != null) {
-      try {
-        Snapshot.CapturedValue deserializedValue =
-            VALUE_ADAPTER.fromJson(capturedValue.getStrValue());
-        return String.valueOf(deserializedValue.getValue());
-      } catch (Exception e) {
-        LOG.warn("Cannot deserialize " + name, e);
-      }
-    }
-    return null;
+    request.traceId = context.getTraceId();
+    request.spanId = context.getSpanId();
   }
 
   public static class IntakeRequest {
