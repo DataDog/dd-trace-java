@@ -705,18 +705,19 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
 
-  - xlarge_tests:
+  - tests:
       requires:
         - ok_to_test
       name: z_test_<< matrix.testJvm >>_base
       triggeredBy: *core_modules
       gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
       stage: core
-      maxWorkers: 6
+      parallelism: 2
+      maxWorkers: 3
       matrix:
         <<: *test_matrix
 
-  - xlarge_tests:
+  - tests:
       requires:
         - ok_to_test
       name: z_test_8_base
@@ -724,10 +725,11 @@ build_test_jobs: &build_test_jobs
       gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
       testTask: test jacocoTestReport jacocoTestCoverageVerification
       stage: core
-      maxWorkers: 6
+      parallelism: 2
+      maxWorkers: 3
       testJvm: "8"
 
-  - xlarge_tests:
+  - tests:
       requires:
         - ok_to_test
       name: z_test_<< matrix.testJvm >>_inst
@@ -736,11 +738,11 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       parallelism: 4
-      maxWorkers: 8
+      maxWorkers: 4
       matrix:
         <<: *test_matrix
 
-  - xlarge_tests:
+  - tests:
       requires:
         - ok_to_test
       name: z_test_8_inst
@@ -749,10 +751,10 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       parallelism: 4
-      maxWorkers: 8
+      maxWorkers: 4
       testJvm: "8"
 
-  - xlarge_tests:
+  - tests:
       requires:
         - ok_to_test
       name: test_8_inst_latest
@@ -762,10 +764,10 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       parallelism: 4
-      maxWorkers: 8
+      maxWorkers: 4
       testJvm: "8"
 
-  - huge_tests:
+  - tests:
       requires:
         - ok_to_test
       name: z_test_8_flaky
@@ -773,6 +775,7 @@ build_test_jobs: &build_test_jobs
       continueOnFailure: true
       triggeredBy: *core_modules
       stage: flaky
+      parallelism: 4
       maxWorkers: 4
       testJvm: "8"
 
@@ -800,38 +803,41 @@ build_test_jobs: &build_test_jobs
       matrix:
         <<: *profiling_test_matrix
 
-  - huge_tests:
+  - tests:
       requires:
         - ok_to_test
       name: z_test_<< matrix.testJvm >>_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
-      maxWorkers: 8
+      parallelism: 4
+      maxWorkers: 2
       matrix:
         <<: *test_matrix
 
-  - huge_tests:
+  - tests:
       requires:
         - ok_to_test
       name: test_IBM11_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
-      maxWorkers: 8
+      parallelism: 4
+      maxWorkers: 2
       testJvm: "IBM11"
 
-  - huge_tests:
+  - tests:
       requires:
         - ok_to_test
       name: test_IBM17_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
-      maxWorkers: 8
+      parallelism: 4
+      maxWorkers: 2
       testJvm: "IBM17"
 
-  - xlarge_tests:
+  - tests:
       requires:
         - ok_to_test
       name: test_GRAALVM11_smoke
@@ -839,7 +845,7 @@ build_test_jobs: &build_test_jobs
       stage: smoke
       testJvm: "GRAALVM11"
 
-  - xlarge_tests:
+  - tests:
       requires:
         - ok_to_test
       name: test_GRAALVM17_smoke
@@ -848,14 +854,15 @@ build_test_jobs: &build_test_jobs
       testJvm: "GRAALVM17"
 
 
-  - huge_tests:
+  - tests:
       requires:
         - ok_to_test
       name: z_test_8_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
-      maxWorkers: 8
+      parallelism: 4
+      maxWorkers: 2
       testJvm: "8"
 
   - fan_in:
