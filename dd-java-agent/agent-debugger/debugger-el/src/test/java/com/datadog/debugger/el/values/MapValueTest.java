@@ -1,5 +1,6 @@
 package com.datadog.debugger.el.values;
 
+import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.el.Value;
@@ -22,7 +23,7 @@ class MapValueTest {
 
   @Test
   void prettyPrint() {
-    assertEquals("Map", instance.prettyPrint());
+    assertEquals("Map", print(instance));
   }
 
   @Test

@@ -1,8 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
-import static com.datadog.debugger.el.Expression.nullSafePrettyPrint;
-
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.CollectionValue;
 import com.datadog.debugger.el.values.StringValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
@@ -33,7 +32,11 @@ public final class IsEmptyExpression implements BooleanExpression {
   }
 
   @Override
-  public String prettyPrint() {
-    return "isEmpty(" + nullSafePrettyPrint(valueExpression) + ")";
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
+  }
+
+  public ValueExpression<?> getValueExpression() {
+    return valueExpression;
   }
 }

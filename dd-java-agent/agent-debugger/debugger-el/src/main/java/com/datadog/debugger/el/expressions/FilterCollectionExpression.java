@@ -1,8 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
-import static com.datadog.debugger.el.Expression.nullSafePrettyPrint;
-
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.CollectionValue;
 import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
@@ -76,11 +75,15 @@ public final class FilterCollectionExpression implements ValueExpression<Collect
   }
 
   @Override
-  public String prettyPrint() {
-    return "filter("
-        + nullSafePrettyPrint(source)
-        + ", "
-        + nullSafePrettyPrint(filterExpression)
-        + ")";
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
+  }
+
+  public ValueExpression<?> getSource() {
+    return source;
+  }
+
+  public BooleanExpression getFilterExpression() {
+    return filterExpression;
   }
 }
