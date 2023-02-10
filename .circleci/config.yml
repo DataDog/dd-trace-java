@@ -16,8 +16,6 @@ dependency_cache_keys: &dependency_cache_keys
     - dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
     # New branches fall back on main build caches
     - dd-trace-java-dep-v1-master-{{ checksum "_circle_ci_cache_base_id" }}-
-    # Fall back on the previous cache scheme to not start from scratch when switching
-    - dd-trace-java-v4-master-
 
 dependency_cache_paths: &dependency_cache_paths
   paths:
@@ -46,9 +44,6 @@ build_cache_paths: &build_cache_paths
     # Gradle version specific cache for incremental builds. Needs to match version in
     # gradle/wrapper/gradle-wrapper.properties
     - ~/.gradle/caches/7.5.47-20220929220000+0000
-    # Save the downloaded distribution. Needs to match version in
-    # gradle/wrapper/gradle-wrapper.properties
-    - ~/.gradle/wrapper/dists/gradle-7.5.47-all
 
 test_matrix: &test_matrix
   parameters:
@@ -202,9 +197,6 @@ jobs:
       - restore_cache:
           <<: *dependency_cache_keys
 
-      - restore_cache:
-          <<: *build_cache_keys
-
       - run:
           name: Build Project
           command: >-
@@ -242,7 +234,8 @@ jobs:
             - .gradle
             - workspace
 
-      # Save a full dependency cache when building on master or a base project branch
+      # Save a full dependency cache when building on master or a base project branch.
+      # We avoid this in PRs to speed up builds at the cost of downloading new dependencies a few more times.
       - when:
           condition:
             matches:
@@ -252,21 +245,6 @@ jobs:
             - save_cache:
                 key: dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
                 <<: *dependency_cache_paths
-
-      # This part is now disable to speed up builds at the cost of downloading new dependencies a few more times
-      #
-      ## Save a full dependency the first time any other PR branch is built (will be skipped
-      ## during other runs since the cache name will already exist)
-      #- when:
-      #    condition:
-      #      not:
-      #        matches:
-      #          pattern: "^(master|project/.+)$"
-      #          value: << pipeline.git.branch >>
-      #    steps:
-      #      - save_cache:
-      #          key: dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-base
-      #          <<: *dependency_cache_paths
 
       # Save the small build cache
       - save_cache:
@@ -621,12 +599,6 @@ jobs:
     steps:
 
       - setup_code
-
-      - restore_cache:
-          <<: *dependency_cache_keys
-
-      - restore_cache:
-          <<: *build_cache_keys
 
       - run:
           name: Install good version of docker-compose
