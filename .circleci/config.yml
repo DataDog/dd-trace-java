@@ -1,7 +1,7 @@
 version: 2.1
 
 defaults: &defaults
-  working_directory: ~/dd-trace-java
+  working_directory: /mnt/ramdisk
   docker:
     - image: &default_container datadog/dd-trace-java-docker-build:latest
 
