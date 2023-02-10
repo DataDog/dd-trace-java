@@ -46,12 +46,17 @@ public class CiVisibilitySystem {
 
     InstrumentationBridge.setMethodLinesResolver(new MethodLinesResolverImpl());
 
-    CodeownersProvider codeownersProvider = new CodeownersProvider();
-    InstrumentationBridge.setCodeowners(codeownersProvider.build(repoRoot));
+    if (repoRoot != null) {
+      CodeownersProvider codeownersProvider = new CodeownersProvider();
+      InstrumentationBridge.setCodeowners(codeownersProvider.build(repoRoot));
 
-    InstrumentationBridge.setSourcePathResolver(
-        new BestEfforSourcePathResolver(
-            new CompilerAidedSourcePathResolver(repoRoot),
-            new RepoIndexSourcePathResolver(repoRoot)));
+      InstrumentationBridge.setSourcePathResolver(
+          new BestEfforSourcePathResolver(
+              new CompilerAidedSourcePathResolver(repoRoot),
+              new RepoIndexSourcePathResolver(repoRoot)));
+    } else {
+      InstrumentationBridge.setCodeowners(path -> null);
+      InstrumentationBridge.setSourcePathResolver(clazz -> null);
+    }
   }
 }
