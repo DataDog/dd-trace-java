@@ -1,3 +1,4 @@
+import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator
@@ -35,6 +36,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR
@@ -117,6 +119,12 @@ class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
                         break
                       case EXCEPTION:
                         throw new Exception(endpoint.body)
+                      case USER_BLOCK:
+                        Blocking.forUser('user-to-block').blockIfMatch()
+                      // should never be output:
+                        response = new DefaultFullHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(200))
+                        response.content = 'should never be reached'
+                        break
                       default:
                         content = Unpooled.copiedBuffer(NOT_FOUND.body, CharsetUtil.UTF_8)
                         response = new DefaultFullHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(NOT_FOUND.status), content)

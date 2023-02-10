@@ -23,6 +23,7 @@ minimumInstructionCoverage = 0.8
 excludedClassesCoverage += [
   "datadog.trace.api.EndpointTracker",
   "datadog.trace.api.Platform",
+  "datadog.trace.api.Platform.GC",
   "datadog.trace.api.StatsDClient",
   "datadog.trace.api.NoOpStatsDClient",
   "datadog.trace.api.TraceSegment.NoOp",
@@ -50,6 +51,8 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTracerAPI",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentTrace",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext",
+  "datadog.trace.bootstrap.instrumentation.api.NoopDataStreamsMonitoring",
+  "datadog.trace.bootstrap.instrumentation.api.Backlog",
   "datadog.trace.bootstrap.instrumentation.api.StatsPoint",
   "datadog.trace.bootstrap.instrumentation.api.ScopeSource",
   "datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes",
@@ -99,6 +102,10 @@ dependencies {
   api project(':dd-trace-api')
   api deps.slf4j
   api project(":utils:time-utils")
+
+  // has to be loaded by system classloader:
+  // it contains annotation that is also present in the instrumented application classes
+  api "com.datadoghq:dd-javac-plugin-client:0.1.1"
 
   testImplementation project(":utils:test-utils")
   testImplementation("org.assertj:assertj-core:2.9.1")

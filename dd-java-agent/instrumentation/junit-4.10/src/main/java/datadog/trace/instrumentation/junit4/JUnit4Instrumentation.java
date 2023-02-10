@@ -51,8 +51,6 @@ public class JUnit4Instrumentation extends Instrumenter.CiVisibility
   public static class JUnit4Advice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void addTracingListener(@Advice.Argument(0) final RunNotifier runNotifier) {
-      // No public accessor to get already installed listeners.
-      // The installed RunListeners list are obtained using reflection.
       final List<RunListener> runListeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);
       if (runListeners == null) {
         return;

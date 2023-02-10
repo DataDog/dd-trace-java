@@ -24,13 +24,45 @@ public class GitUtils {
   private static final Logger log = LoggerFactory.getLogger(LocalFSGitInfoExtractor.class);
 
   /**
-   * Normalizes the Git references origin/my-branch -> my-branch refs/heads/my-branch -> my-branch
-   * refs/tags/my-tag -> my tag
+   * Normalizes Git tag references:
    *
-   * @param rawRef
+   * <ul>
+   *   <li>refs/tags/my-tag -> my tag
+   * </ul>
+   *
+   * @param rawTagRef
    * @return git reference normalized.
    */
-  public static String normalizeRef(final String rawRef) {
+  public static String normalizeTag(final String rawTagRef) {
+    return normalizeRef(rawTagRef);
+  }
+
+  /**
+   * Normalizes Git branch references:
+   *
+   * <ul>
+   *   <li>origin/my-branch -> my-branch
+   *   <li>refs/heads/my-branch -> my-branch
+   * </ul>
+   *
+   * <p>If the reference starts with "tags/" or contains "/tags/",<code>null</code> is returned
+   *
+   * @param rawBranchRef
+   * @return git reference normalized.
+   */
+  public static String normalizeBranch(final String rawBranchRef) {
+    if (isTagReference(rawBranchRef)) {
+      return null;
+    } else {
+      return normalizeRef(rawBranchRef);
+    }
+  }
+
+  public static boolean isTagReference(final String ref) {
+    return ref != null && (ref.startsWith("tags/") || ref.contains("/tags/"));
+  }
+
+  private static String normalizeRef(final String rawRef) {
     if (rawRef == null || rawRef.isEmpty()) {
       return null;
     }

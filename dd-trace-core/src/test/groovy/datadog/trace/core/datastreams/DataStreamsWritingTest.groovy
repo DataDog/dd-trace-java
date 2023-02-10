@@ -20,7 +20,7 @@ import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
-import static datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer.DEFAULT_BUCKET_DURATION_NANOS
+import static DefaultDataStreamsMonitoring.DEFAULT_BUCKET_DURATION_NANOS
 import static java.util.concurrent.TimeUnit.SECONDS
 
 
@@ -72,17 +72,19 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     def timeSource = new ControllableTimeSource()
 
     when:
-    def checkpointer = new DefaultDataStreamsCheckpointer(fakeConfig, sharedCommObjects, timeSource)
-    checkpointer.start()
-    checkpointer.accept(new StatsPoint([], 9, 0, timeSource.currentTimeNanos, 0, 0))
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    def dataStreams = new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource)
+    dataStreams.start()
+    dataStreams.accept(new StatsPoint([], 9, 0, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
+    dataStreams.trackBacklog(new LinkedHashMap<>(["partition":"1", "topic":"testTopic", "type":"kafka_produce"]), 100)
+    dataStreams.trackBacklog(new LinkedHashMap<>(["partition":"1", "topic":"testTopic", "type":"kafka_produce"]), 130)
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100l)
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10)))
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10)))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(5), SECONDS.toNanos(5)))
-    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, timeSource.currentTimeNanos, SECONDS.toNanos(2), 0))
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(5), SECONDS.toNanos(5)))
+    dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, timeSource.currentTimeNanos, SECONDS.toNanos(2), 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.report()
+    dataStreams.report()
 
     then:
     conditions.eventually {
@@ -91,7 +93,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     validateMessage(requestBodies[0])
 
     cleanup:
-    checkpointer.close()
+    dataStreams.close()
   }
 
   def validateMessage(byte[] message) {
@@ -115,7 +117,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     assert unpacker.unpackArrayHeader() == 2  // 2 time buckets
 
     // FIRST BUCKET
-    assert unpacker.unpackMapHeader() == 3
+    assert unpacker.unpackMapHeader() == 4
     assert unpacker.unpackString() == "Start"
     unpacker.skipValue()
     assert unpacker.unpackString() == "Duration"
@@ -152,6 +154,18 @@ class DataStreamsWritingTest extends DDCoreSpecification {
         assert unpacker.unpackString() == "topic:testTopic"
       }
     }
+
+    // Kafka stats
+    assert unpacker.unpackString() == "Backlogs"
+    assert unpacker.unpackArrayHeader() == 1
+    assert unpacker.unpackMapHeader() == 2
+    assert unpacker.unpackString() == "Tags"
+    assert unpacker.unpackArrayHeader() == 3
+    assert unpacker.unpackString() == "partition:1"
+    assert unpacker.unpackString() == "topic:testTopic"
+    assert unpacker.unpackString() == "type:kafka_produce"
+    assert unpacker.unpackString() == "Value"
+    assert unpacker.unpackLong() == 130
 
     // SECOND BUCKET
     assert unpacker.unpackMapHeader() == 3

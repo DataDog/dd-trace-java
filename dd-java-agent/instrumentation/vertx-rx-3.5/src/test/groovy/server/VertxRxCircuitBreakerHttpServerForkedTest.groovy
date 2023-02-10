@@ -1,5 +1,6 @@
 package server
 
+import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServerTest
 import io.vertx.circuitbreaker.CircuitBreakerOptions
 import io.vertx.core.Future
@@ -20,6 +21,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 import static server.VertxTestServer.CONFIG_HTTP_SERVER_PORT
 
 class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTest {
@@ -134,6 +136,20 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
           HttpServerTest.ServerEndpoint endpoint = it.result()
           controller(ctx, endpoint) {
             ctx.response().setStatusCode(endpoint.status).end(ctx.request().query())
+          }
+        })
+      }
+      router.route(USER_BLOCK.path).handler { ctx ->
+        breaker.executeCommand({ future ->
+          future.complete(USER_BLOCK)
+        }, { it ->
+          if (it.failed()) {
+            throw it.cause()
+          }
+          HttpServerTest.ServerEndpoint endpoint = it.result()
+          controller(ctx, endpoint) {
+            Blocking.forUser("user-to-block").blockIfMatch()
+            ctx.response().end("Should not be reached")
           }
         })
       }

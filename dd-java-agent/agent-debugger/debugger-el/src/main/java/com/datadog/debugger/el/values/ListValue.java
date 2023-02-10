@@ -8,10 +8,11 @@ import java.lang.reflect.Array;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * A list-like {@linkplain Value}.<br>
- * Allows wrapping of arrays as well as {@linkplain List} instances.
+ * Allows wrapping of arrays as well as {@linkplain List} or {@link Set} instances.
  */
 public class ListValue implements CollectionValue<Object>, ValueExpression<ListValue> {
   private final Object listHolder;
@@ -52,8 +53,8 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
   }
 
   public boolean isEmpty() {
-    if (listHolder instanceof List) {
-      return ((List<?>) listHolder).isEmpty();
+    if (listHolder instanceof Collection) {
+      return ((Collection<?>) listHolder).isEmpty();
     } else if (listHolder instanceof Value) {
       Value<?> val = (Value<?>) listHolder;
       return val.isNull() || val.isUndefined();
@@ -65,8 +66,8 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
   }
 
   public int count() {
-    if (listHolder instanceof List) {
-      return ((List<?>) listHolder).size();
+    if (listHolder instanceof Collection) {
+      return ((Collection<?>) listHolder).size();
     } else if (listHolder == Value.nullValue()) {
       return 0;
     } else if (arrayHolder != null) {
@@ -92,6 +93,8 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
     }
     if (listHolder instanceof List) {
       return Value.of(((List<?>) listHolder).get(index));
+    } else if (listHolder instanceof Set) {
+      throw new UnsupportedOperationException("Cannot access Set by index");
     } else if (listHolder instanceof Value) {
       return (Value<?>) listHolder;
     } else if (arrayHolder != null) {
@@ -155,6 +158,9 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
     }
     if (listHolder instanceof List) {
       return "List";
+    }
+    if (listHolder instanceof Set) {
+      return "Set";
     }
     return "null";
   }

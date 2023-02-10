@@ -46,7 +46,8 @@ abstract class CITagsProviderImplTest extends Specification {
 
     then:
     if (ciProviderInfo.CI) {
-      assert ciSpec.assertTags(ciTagsProvider.ciTags)
+      def tagMismatches = ciSpec.getTagMismatches(ciTagsProvider.ciTags)
+      assert tagMismatches.isEmpty()
     }
 
     where:

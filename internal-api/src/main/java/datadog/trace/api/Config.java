@@ -83,6 +83,7 @@ import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
 import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
+import static datadog.trace.api.Platform.GC.Z;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
@@ -1822,10 +1823,12 @@ public class Config {
   public static boolean isDatadogProfilerSafeInCurrentEnvironment() {
     // don't want to put this logic (which will evolve) in the public ProfilingConfig, and can't
     // access Platform there
-    return Platform.isJ9()
-        || Platform.isJavaVersionAtLeast(17, 0, 5)
-        || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 17))
-        || (Platform.isJavaVersion(8) && Platform.isJavaVersionAtLeast(8, 0, 352));
+    // we encountered AsyncGetCallTrace bugs when ZGC is enabled
+    return Platform.activeGarbageCollector() != Z
+        && (Platform.isJ9()
+            || Platform.isJavaVersionAtLeast(17, 0, 5)
+            || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 17))
+            || (Platform.isJavaVersion(8) && Platform.isJavaVersionAtLeast(8, 0, 352)));
   }
 
   public boolean isCrashTrackingAgentless() {

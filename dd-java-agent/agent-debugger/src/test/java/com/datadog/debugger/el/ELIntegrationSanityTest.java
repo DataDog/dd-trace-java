@@ -5,9 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.FieldExtractor;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.Snapshot;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -36,34 +36,30 @@ public class ELIntegrationSanityTest {
   }
 
   @Test
-  void extractAfterEl() {
+  void extractAfterEl() throws IllegalAccessException {
     JsonSnapshotSerializer serializer =
         new JsonSnapshotSerializer(); // Mockito.spy(new JsonSnapshotSerializer());
     DebuggerContext.initSnapshotSerializer(serializer);
     Person p = new Person();
     // set the limit not to follow references to fields
-    Limits limits = new Limits(1, 0, Integer.MAX_VALUE, Integer.MAX_VALUE);
+    Limits initialLimits = new Limits(1, 0, Integer.MAX_VALUE, Integer.MAX_VALUE);
     // create new captured context
     Snapshot.CapturedContext capturedContext = new Snapshot.CapturedContext();
     // this will resolve only the first-level fields of the given object
     List<Snapshot.CapturedValue> flds = new ArrayList<>();
-    FieldExtractor.extract(
-        p,
-        limits,
-        (field, value, maxDepth) -> {
-          flds.add(
-              Snapshot.CapturedValue.of(
-                  field.getName(),
-                  field.getType().getName(),
-                  value,
-                  maxDepth,
-                  limits.maxCollectionSize,
-                  limits.maxLength,
-                  limits.maxFieldCount));
-        },
-        (e, field) -> {},
-        (field) -> {});
-
+    Field[] fields = Person.class.getDeclaredFields();
+    for (Field field : fields) {
+      field.setAccessible(true);
+      flds.add(
+          Snapshot.CapturedValue.of(
+              field.getName(),
+              field.getType().getName(),
+              field.get(p),
+              initialLimits.maxReferenceDepth,
+              initialLimits.maxCollectionSize,
+              initialLimits.maxLength,
+              initialLimits.maxFieldCount));
+    }
     capturedContext.addFields(flds.toArray(new Snapshot.CapturedValue[0]));
 
     // '.name.value' is not present in the snapshot - it needs to be retrieved via reflection

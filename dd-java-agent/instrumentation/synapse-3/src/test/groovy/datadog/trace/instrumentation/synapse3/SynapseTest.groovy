@@ -3,12 +3,14 @@ package datadog.trace.instrumentation.synapse3
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.utils.OkHttpUtils
+import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
+import datadog.trace.test.util.Flaky
 import groovy.text.GStringTemplateEngine
 import okhttp3.MediaType
 import okhttp3.OkHttpClient
@@ -25,7 +27,9 @@ import org.apache.synapse.transport.passthru.PassThroughHttpListener
 import spock.lang.Shared
 
 import java.lang.reflect.Field
+import java.util.concurrent.TimeUnit
 
+@Flaky("Occasionally times out when receiving traces")
 class SynapseTest extends AgentTestRunner {
 
   String expectedServiceName() {
@@ -56,6 +60,7 @@ class SynapseTest extends AgentTestRunner {
 
     port = getPort(server)
     assert port > 0
+    PortUtils.waitForPortToOpen(port, 20, TimeUnit.SECONDS)
 
     def synapseConfig = server.getServerContextInformation().getSynapseConfiguration()
 

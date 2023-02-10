@@ -1,7 +1,9 @@
 package datadog.trace.civisibility;
 
 import static datadog.trace.civisibility.git.GitUtils.filterSensitiveInfo;
-import static datadog.trace.civisibility.git.GitUtils.normalizeRef;
+import static datadog.trace.civisibility.git.GitUtils.isTagReference;
+import static datadog.trace.civisibility.git.GitUtils.normalizeBranch;
+import static datadog.trace.civisibility.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.PathUtils.expandTilde;
 
 import datadog.trace.civisibility.git.CommitInfo;
@@ -65,8 +67,8 @@ class JenkinsInfo implements CIProviderInfo {
 
   private String buildGitBranch() {
     final String gitBranchOrTag = System.getenv(JENKINS_GIT_BRANCH);
-    if (gitBranchOrTag != null && !gitBranchOrTag.contains("tags")) {
-      return normalizeRef(gitBranchOrTag);
+    if (!isTagReference(gitBranchOrTag)) {
+      return normalizeBranch(gitBranchOrTag);
     } else {
       return null;
     }
@@ -74,8 +76,8 @@ class JenkinsInfo implements CIProviderInfo {
 
   private String buildGitTag() {
     final String gitBranchOrTag = System.getenv(JENKINS_GIT_BRANCH);
-    if (gitBranchOrTag != null && gitBranchOrTag.contains("tags")) {
-      return normalizeRef(gitBranchOrTag);
+    if (isTagReference(gitBranchOrTag)) {
+      return normalizeTag(gitBranchOrTag);
     } else {
       return null;
     }

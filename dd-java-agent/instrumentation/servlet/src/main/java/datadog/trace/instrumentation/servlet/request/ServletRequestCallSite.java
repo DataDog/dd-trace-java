@@ -5,10 +5,12 @@ import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.source.WebModule;
 import datadog.trace.util.stacktrace.StackUtils;
+import java.io.BufferedReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
+import javax.servlet.ServletInputStream;
 import javax.servlet.ServletRequest;
 
 @CallSite(spi = IastAdvice.class)
@@ -99,5 +101,50 @@ public class ServletRequestCallSite {
       }
     }
     return parameterValues;
+  }
+
+  @CallSite.AfterArray({
+    @CallSite.After(
+        "javax.servlet.ServletInputStream  javax.servlet.ServletRequest.getInputStream()"),
+    @CallSite.After(
+        "javax.servlet.ServletInputStream  javax.servlet.http.HttpServletRequest.getInputStream()"),
+    @CallSite.After(
+        "javax.servlet.ServletInputStream  javax.servlet.http.HttpServletRequestWrapper.getInputStream()"),
+    @CallSite.After(
+        "javax.servlet.ServletInputStream  javax.servlet.ServletRequestWrapper.getInputStream()")
+  })
+  public static ServletInputStream afterGetInputStream(
+      @CallSite.This final ServletRequest self,
+      @CallSite.Return final ServletInputStream inputStream) {
+    final WebModule module = InstrumentationBridge.WEB;
+    if (module != null) {
+      try {
+        module.onGetInputStream(inputStream);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterGetInputStream threw", e);
+      }
+    }
+    return inputStream;
+  }
+
+  @CallSite.AfterArray({
+    @CallSite.After("java.io.BufferedReader  javax.servlet.ServletRequest.getReader()"),
+    @CallSite.After("java.io.BufferedReader  javax.servlet.http.HttpServletRequest.getReader()"),
+    @CallSite.After(
+        "java.io.BufferedReader  javax.servlet.http.HttpServletRequestWrapper.getReader()"),
+    @CallSite.After("java.io.BufferedReader  javax.servlet.ServletRequestWrapper.getReader()")
+  })
+  public static BufferedReader afterGetReader(
+      @CallSite.This final ServletRequest self,
+      @CallSite.Return final BufferedReader bufferedReader) {
+    final WebModule module = InstrumentationBridge.WEB;
+    if (module != null) {
+      try {
+        module.onGetReader(bufferedReader);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterGetReader threw", e);
+      }
+    }
+    return bufferedReader;
   }
 }

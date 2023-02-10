@@ -21,6 +21,7 @@ dependencies {
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.18.RELEASE'
 
   testImplementation project(':dd-smoke-tests')
+  implementation project(':dd-smoke-tests:iast-util')
 }
 
 tasks.withType(Test).configureEach {

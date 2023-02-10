@@ -70,20 +70,20 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
 
   private String extractTag(final String ref) {
     if (ref != null && ref.contains("refs/tags")) {
-      return GitUtils.normalizeRef(ref);
+      return GitUtils.normalizeTag(ref);
     }
     return null;
   }
 
   private String extractBranch(final String ref) {
     if (ref != null && (ref.contains("origin") || ref.contains("refs/heads"))) {
-      return GitUtils.normalizeRef(ref);
+      return GitUtils.normalizeBranch(ref);
     }
     return null;
   }
 
   private String extractRef(final String head) {
-    if (head == null || head.isEmpty() || !head.contains("ref:")) {
+    if (head == null || !head.contains("ref:")) {
       return null;
     }
 

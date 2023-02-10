@@ -7,6 +7,9 @@ import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES
 import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES_FILE
+import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE
+import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP
 import static datadog.trace.api.sampling.SamplingMechanism.SPAN_SAMPLING_RATE
 
 class SingleSpanSamplerTest extends DDCoreSpecification {
@@ -70,6 +73,47 @@ class SingleSpanSamplerTest extends DDCoreSpecification {
     """[ { "service": "service-b", "name": "*", "sample_rate": 1.0, "max_per_second": 10 } ]"""       | false          | null               | null         | null
     """[ { "service": "*", "name": "*", "sample_rate": 0.0 } ]"""                                     | false          | null               | null         | null
     """[ { "service": "*", "name": "operation-b", "sample_rate": 0.5 } ]"""                           | false          | null               | null         | null
+  }
+
+  def "Parent/child scenarios when the trace is dropped but individual spans are kept by the single span sampler"() {
+    given:
+    Properties properties = new Properties()
+    if (rules != null) {
+      properties.setProperty(SPAN_SAMPLING_RULES, rules)
+      properties.setProperty(TRACE_SAMPLE_RATE, "0")
+    }
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    when:
+    SingleSpanSampler sampler = SingleSpanSampler.Builder.forConfig(Config.get(properties))
+
+    DDSpan rootSpan = tracer.buildSpan("web.request")
+      .withServiceName("webserver")
+      .ignoreActiveSpan().start() as DDSpan
+
+    DDSpan childSpan = tracer.buildSpan("web.handler")
+      .withServiceName("webserver")
+      .asChildOf(rootSpan)
+      .ignoreActiveSpan().start() as DDSpan
+
+    then:
+    // set trace sampling priority to drop the trace
+    rootSpan.setSamplingPriority(SAMPLER_DROP, DEFAULT)
+
+    // set spans sampling priority
+    sampler.setSamplingPriority(rootSpan) == sampleRoot
+    sampler.setSamplingPriority(childSpan) == sampleChild
+
+    expect:
+    rootSpan.getTag("_dd.span_sampling.mechanism") == rootMechanism
+    childSpan.getTag("_dd.span_sampling.mechanism") == childMechanism
+
+    where:
+    rules                                                   | sampleRoot | sampleChild | rootMechanism      | childMechanism
+    """[{"service": "webserver", "name": "web.request"}]""" | true       | false       | SPAN_SAMPLING_RATE | null
+    """[{"service": "webserver", "name": "web.handler"}]""" | false      | true        | null               | SPAN_SAMPLING_RATE
+    """[{"service": "webserver", "name": "web.*"}]"""       | true       | true        | SPAN_SAMPLING_RATE | SPAN_SAMPLING_RATE
+    """[{"service": "other-server"}]"""                     | false      | false       | null               | null
   }
 
   def "Single Span Sampler set sampling priority with the max-per-second limit"() {

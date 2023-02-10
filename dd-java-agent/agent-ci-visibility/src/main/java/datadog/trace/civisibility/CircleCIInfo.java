@@ -1,7 +1,8 @@
 package datadog.trace.civisibility;
 
 import static datadog.trace.civisibility.git.GitUtils.filterSensitiveInfo;
-import static datadog.trace.civisibility.git.GitUtils.normalizeRef;
+import static datadog.trace.civisibility.git.GitUtils.normalizeBranch;
+import static datadog.trace.civisibility.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.PathUtils.expandTilde;
 
 import datadog.trace.civisibility.git.CommitInfo;
@@ -25,11 +26,10 @@ class CircleCIInfo implements CIProviderInfo {
 
   @Override
   public GitInfo buildCIGitInfo() {
-    final String gitTag = normalizeRef(System.getenv(CIRCLECI_GIT_TAG));
     return new GitInfo(
         filterSensitiveInfo(System.getenv(CIRCLECI_GIT_REPOSITORY_URL)),
-        buildGitBranch(gitTag),
-        gitTag,
+        normalizeBranch(System.getenv(CIRCLECI_GIT_BRANCH)),
+        normalizeTag(System.getenv(CIRCLECI_GIT_TAG)),
         new CommitInfo(System.getenv(CIRCLECI_GIT_COMMIT)));
   }
 
@@ -51,14 +51,6 @@ class CircleCIInfo implements CIProviderInfo {
   @Override
   public boolean isCI() {
     return true;
-  }
-
-  private String buildGitBranch(final String gitTag) {
-    if (gitTag != null) {
-      return null;
-    }
-
-    return normalizeRef(System.getenv(CIRCLECI_GIT_BRANCH));
   }
 
   private String buildPipelineUrl(final String pipelineId) {

@@ -14,6 +14,7 @@ import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.Values;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import org.junit.jupiter.api.Test;
 
 class IsEmptyExpressionTest {
@@ -100,12 +101,16 @@ class IsEmptyExpressionTest {
     ListValue emptyList = new ListValue(Collections.emptyList());
     ListValue nullList = new ListValue(null);
     ListValue undefinedList = new ListValue(Values.UNDEFINED_OBJECT);
+    ListValue set = new ListValue(new HashSet<>(Arrays.asList("a", "b")));
+    ListValue emptySet = new ListValue(Collections.emptySet());
 
     ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
     IsEmptyExpression isEmpty1 = new IsEmptyExpression(list);
     IsEmptyExpression isEmpty2 = new IsEmptyExpression(emptyList);
     IsEmptyExpression isEmpty3 = new IsEmptyExpression(nullList);
     IsEmptyExpression isEmpty4 = new IsEmptyExpression(undefinedList);
+    IsEmptyExpression isEmpty5 = new IsEmptyExpression(set);
+    IsEmptyExpression isEmpty6 = new IsEmptyExpression(emptySet);
 
     assertFalse(isEmpty1.evaluate(resolver));
     assertEquals("isEmpty(List)", isEmpty1.prettyPrint());
@@ -115,6 +120,10 @@ class IsEmptyExpressionTest {
     assertEquals("isEmpty(null)", isEmpty3.prettyPrint());
     assertTrue(isEmpty4.evaluate(resolver));
     assertEquals("isEmpty(null)", isEmpty4.prettyPrint());
+    assertFalse(isEmpty5.evaluate(resolver));
+    assertEquals("isEmpty(Set)", isEmpty5.prettyPrint());
+    assertTrue(isEmpty6.evaluate(resolver));
+    assertEquals("isEmpty(Set)", isEmpty6.prettyPrint());
   }
 
   @Test

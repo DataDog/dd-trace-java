@@ -165,4 +165,18 @@ class StringCallSiteTest extends AgentTestRunner {
     1 * module.onStringTrim(' hello ', 'hello')
     0 * _
   }
+
+  def 'test string Constructor call site'() {
+    setup:
+    final module = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    final result = TestStringSuite.stringConstructor("hello")
+
+    then:
+    result == 'hello'
+    1 * module.onStringConstructor(_,_)
+    0 * _
+  }
 }

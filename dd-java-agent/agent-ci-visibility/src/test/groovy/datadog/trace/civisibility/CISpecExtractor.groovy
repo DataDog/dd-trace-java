@@ -5,7 +5,7 @@ import groovy.json.JsonSlurper
 
 class CISpecExtractor {
 
-  private static final List<String> JSON_TAGS = Arrays.asList(DDTags.CI_ENV_VARS)
+  private static final Set<String> JSON_TAGS = new HashSet<>(Arrays.asList(DDTags.CI_ENV_VARS))
   private static final JsonSlurper JSON_SLURPER = new JsonSlurper()
 
   static extract(String ciProviderName) {
@@ -33,23 +33,37 @@ class CISpecExtractor {
       this.tags = tags
     }
 
-    boolean assertTags(Map<String, String> ciTags) {
-      for (String val : JSON_TAGS) {
-        if (!tags[val] && !ciTags[val]) {
-          continue
-        } else if ((tags[val] && !ciTags[val]) || (!tags[val] && ciTags[val])) {
-          return false
+    Collection<String> getTagMismatches(Map<String, String> ciTags) {
+      Collection<String> mismatches = new ArrayList<>()
+
+      def expectedKeysIterator = tags.keySet().iterator()
+      while (expectedKeysIterator.hasNext()) {
+        String val = expectedKeysIterator.next()
+        if ((tags[val] && !ciTags[val]) || (!tags[val] && ciTags[val])) {
+          mismatches.add("tag " + val + " is expected to have value \"" + tags[val] + "\", but has value \"" + ciTags[val] + "\"")
         } else {
-          def jsonObj = JSON_SLURPER.parseText(ciTags[val])
-          def expectedJsonObj = JSON_SLURPER.parseText(tags[val])
-          if (jsonObj != expectedJsonObj) {
-            return false
+          def expectedValue
+          def actualValue
+          if (JSON_TAGS.contains(val)) {
+            actualValue = JSON_SLURPER.parseText(ciTags[val])
+            expectedValue = JSON_SLURPER.parseText(tags[val])
+          } else {
+            actualValue = ciTags[val]
+            expectedValue = tags[val]
+          }
+
+          if (actualValue != expectedValue) {
+            mismatches.add("tag " + val + " is expected to have value \"" + expectedValue + "\", but has value \"" + actualValue + "\"")
           }
         }
-        tags.remove(val)
+        expectedKeysIterator.remove()
         ciTags.remove(val)
       }
-      return tags == ciTags
+      if (!ciTags.isEmpty()) {
+        mismatches.add("unexpected tags: " + ciTags)
+      }
+
+      return mismatches
     }
   }
 }

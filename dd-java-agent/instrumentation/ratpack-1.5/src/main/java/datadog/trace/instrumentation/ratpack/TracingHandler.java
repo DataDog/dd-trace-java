@@ -39,6 +39,9 @@ public final class TracingHandler implements Handler {
     DECORATE.afterStart(ratpackSpan);
     DECORATE.onRequest(ratpackSpan, request, request, null);
     ctx.getExecution().add(ratpackSpan);
+
+    boolean setFinalizer = false;
+
     try (final AgentScope scope = activateSpan(ratpackSpan)) {
       scope.setAsyncPropagation(true);
 
@@ -57,12 +60,15 @@ public final class TracingHandler implements Handler {
                 }
               });
 
+      setFinalizer = true;
+
       ctx.next();
     } catch (final Throwable e) {
       DECORATE.onError(ratpackSpan, e);
       DECORATE.beforeFinish(ratpackSpan);
-      // finish since the callback probably didn't get added.
-      ratpackSpan.finish();
+      if (!setFinalizer) {
+        ratpackSpan.finish();
+      }
       throw e;
     }
   }

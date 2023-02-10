@@ -24,8 +24,6 @@ dependencies {
   implementation deps.asm
   implementation deps.asmcommons
 
-  implementation "com.datadoghq:dd-javac-plugin-client:0.1.0"
-
   implementation project(':internal-api')
   implementation project(':internal-api:internal-api-9')
 

@@ -181,7 +181,7 @@ public class Snapshot {
     return evaluationErrors;
   }
 
-  public String getSummary() {
+  public String buildSummary() {
     String summary = summaryBuilder.build();
     List<EvaluationError> errors = summaryBuilder.getEvaluationErrors();
     if (!errors.isEmpty()) {
@@ -208,8 +208,6 @@ public class Snapshot {
           continue;
         }
       }
-      // generates id only when effectively committing
-      this.id = UUID.randomUUID().toString();
       /*
        * Record stack trace having the caller of this method as 'top' frame.
        * For this it is necessary to discard:
@@ -218,33 +216,26 @@ public class Snapshot {
        * - Snapshot.commit()
        */
       recordStackTrace(3);
-      if (currentProbeId.equals(probe.id)) {
-        if (status.hasErrors) {
-          evaluationErrors = errorsByProbeIds.get(currentProbeId);
-        }
-        DebuggerContext.addSnapshot(this);
-      } else {
-        DebuggerContext.addSnapshot(copy(status.probeDetails, UUID.randomUUID().toString()));
-      }
+      DebuggerContext.addSnapshot(duplicateSnapshotForProbe(status.probeDetails));
     }
   }
 
-  private Snapshot copy(ProbeDetails additionalProbe, String newSnapshotId) {
+  private Snapshot duplicateSnapshotForProbe(ProbeDetails probe) {
     Snapshot snapshot =
         new Snapshot(
-            newSnapshotId,
+            UUID.randomUUID().toString(),
             version,
             timestamp,
             duration,
             stack,
-            captures,
-            additionalProbe,
+            probe.captureSnapshot ? captures : new Captures(),
+            probe,
             language,
             thread,
             thisClassName,
             traceId,
             spanId);
-    List<EvaluationError> evalErrors = errorsByProbeIds.get(additionalProbe.id);
+    List<EvaluationError> evalErrors = errorsByProbeIds.get(probe.id);
     if (evalErrors != null) {
       snapshot.evaluationErrors = new ArrayList<>(evalErrors);
     }
@@ -631,6 +622,8 @@ public class Snapshot {
     private Limits limits = Limits.DEFAULT;
     private String thisClassName;
     private List<EvaluationError> evaluationErrors;
+    private String traceId;
+    private String spanId;
 
     public CapturedContext() {}
 
@@ -703,14 +696,6 @@ public class Snapshot {
       }
       checkUndefined(memberName, target, memberName, "Cannot dereference to field: ");
       return target;
-    }
-
-    private Object tryRetrieveField(String name) {
-      if (fields == null) {
-        return Values.UNDEFINED_OBJECT;
-      }
-      Object field = fields.get(name);
-      return field != null ? field : Values.UNDEFINED_OBJECT;
     }
 
     private Object tryRetrieveSynthetic(String name) {
@@ -802,6 +787,17 @@ public class Snapshot {
       for (CapturedValue value : values) {
         fields.put(value.name, value);
       }
+      traceId = extractSpecialId("dd.trace_id");
+      spanId = extractSpecialId("dd.span_id");
+    }
+
+    private String extractSpecialId(String idName) {
+      CapturedValue capturedValue = fields.get(idName);
+      if (capturedValue == null) {
+        return null;
+      }
+      Object value = capturedValue.getValue();
+      return value instanceof String ? (String) value : null;
     }
 
     public void addEvaluationError(String expr, String message) {
@@ -849,6 +845,14 @@ public class Snapshot {
 
     public String getThisClassName() {
       return thisClassName;
+    }
+
+    public String getTraceId() {
+      return traceId;
+    }
+
+    public String getSpanId() {
+      return spanId;
     }
 
     /**

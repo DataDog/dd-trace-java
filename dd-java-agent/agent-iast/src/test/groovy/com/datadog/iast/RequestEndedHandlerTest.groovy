@@ -1,7 +1,7 @@
 package com.datadog.iast
 
 import com.datadog.iast.overhead.OverheadController
-import datadog.trace.api.TraceSegment
+import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext

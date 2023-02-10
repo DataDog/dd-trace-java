@@ -23,7 +23,10 @@ import static utils.TestHelper.getFixtureContent;
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.util.MoshiHelper;
+import com.datadog.debugger.util.MoshiSnapshotHelper;
+import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.Moshi;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.Limits;
@@ -65,7 +68,7 @@ public class SnapshotSerializationTest {
 
   @Test
   public void roundTripProbeLocation() throws IOException {
-    JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
     String buffer = adapter.toJson(snapshot);
 
@@ -80,7 +83,7 @@ public class SnapshotSerializationTest {
   @Test
   @EnabledOnJre(JRE.JAVA_17)
   public void roundTripCapturedValue() throws IOException, URISyntaxException {
-    JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
     Snapshot.CapturedContext context = new Snapshot.CapturedContext();
     Snapshot.CapturedValue normalValuedField =
@@ -138,7 +141,7 @@ public class SnapshotSerializationTest {
 
   @Test
   public void roundTripCaughtException() throws IOException {
-    JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
     Snapshot.Captures captures = snapshot.getCaptures();
     captures.addCaughtException(
@@ -162,7 +165,7 @@ public class SnapshotSerializationTest {
 
   @Test
   public void roundtripEntryReturn() throws IOException {
-    JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
     Snapshot.Captures captures = snapshot.getCaptures();
     Snapshot.CapturedContext entryCapturedContext = new Snapshot.CapturedContext();
@@ -189,7 +192,7 @@ public class SnapshotSerializationTest {
 
   @Test
   public void roundtripLines() throws IOException {
-    JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
     Snapshot.Captures captures = snapshot.getCaptures();
     Snapshot.CapturedContext lineCapturedContext = new Snapshot.CapturedContext();
@@ -208,7 +211,7 @@ public class SnapshotSerializationTest {
 
   @Test
   public void roundtripCondition() throws IOException {
-    JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot =
         new Snapshot(
             Thread.currentThread(),
@@ -258,7 +261,7 @@ public class SnapshotSerializationTest {
 
   @Test
   public void primitives() throws IOException {
-    JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
     Snapshot.CapturedContext context = new Snapshot.CapturedContext();
     Snapshot.CapturedValue objField =
@@ -294,7 +297,7 @@ public class SnapshotSerializationTest {
 
   @Test
   public void wellKnownClasses() throws IOException {
-    JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
     Snapshot.CapturedContext context = new Snapshot.CapturedContext();
     Snapshot.CapturedValue objField =
@@ -328,7 +331,7 @@ public class SnapshotSerializationTest {
 
   @Test
   public void objectArray() throws IOException {
-    JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
     Snapshot.CapturedContext context = new Snapshot.CapturedContext();
     Snapshot.CapturedValue localObjArray =
@@ -348,7 +351,7 @@ public class SnapshotSerializationTest {
 
   @Test
   public void fieldObjectArray() throws IOException {
-    JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
     Snapshot.CapturedContext context = new Snapshot.CapturedContext();
     Snapshot.CapturedValue localObj =
@@ -381,7 +384,7 @@ public class SnapshotSerializationTest {
 
   @Test
   public void fieldPrimitiveArray() throws IOException {
-    JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
     Snapshot.CapturedContext context = new Snapshot.CapturedContext();
     Snapshot.CapturedValue localObj =
@@ -498,7 +501,7 @@ public class SnapshotSerializationTest {
   }
 
   private Map<String, Object> doRefDepth(int maxRefDepth) throws IOException {
-    JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshotForRefDepth(maxRefDepth);
     String buffer = adapter.toJson(snapshot);
     System.out.println(buffer);
@@ -623,7 +626,7 @@ public class SnapshotSerializationTest {
   }
 
   private Map<String, Object> doCollectionSize(int maxColSize) throws IOException {
-    JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshotForCollectionSize(maxColSize);
     String buffer = adapter.toJson(snapshot);
     System.out.println(buffer);
@@ -679,7 +682,7 @@ public class SnapshotSerializationTest {
   }
 
   private Map<String, Object> doMapSize(int maxColSize) throws IOException {
-    JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshotForMapSize(maxColSize);
     String buffer = adapter.toJson(snapshot);
     System.out.println(buffer);
@@ -710,8 +713,22 @@ public class SnapshotSerializationTest {
     assertSize(thisArgFields, "strField", "null"); // no size field if no truncation
   }
 
+  @Test
+  public void capturesAdapterNull() {
+    MoshiSnapshotHelper.CapturesAdapter capturesAdapter =
+        new MoshiSnapshotHelper.CapturesAdapter(new Moshi.Builder().build(), null);
+    Assert.assertEquals("null", capturesAdapter.toJson(null));
+  }
+
+  @Test
+  public void capturedValueAdapterNull() {
+    MoshiSnapshotHelper.CapturedValueAdapter capturedValueAdapter =
+        new MoshiSnapshotHelper.CapturedValueAdapter();
+    Assert.assertEquals("null", capturedValueAdapter.toJson(null));
+  }
+
   private Map<String, Object> doLength(int maxLength) throws IOException {
-    JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshotForLength(maxLength);
     String buffer = adapter.toJson(snapshot);
     System.out.println(buffer);
@@ -740,7 +757,7 @@ public class SnapshotSerializationTest {
   }
 
   private Map<String, Object> doFieldCount(int maxFieldCount) throws IOException {
-    JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshotForFieldCount(maxFieldCount);
     String buffer = adapter.toJson(snapshot);
     System.out.println(buffer);
@@ -1058,5 +1075,9 @@ public class SnapshotSerializationTest {
         Thread.currentThread(),
         new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
         String.class.getTypeName());
+  }
+
+  private static JsonAdapter<Snapshot> createSnapshotAdapter() {
+    return MoshiSnapshotTestHelper.createMoshiSnapshot().adapter(Snapshot.class);
   }
 }

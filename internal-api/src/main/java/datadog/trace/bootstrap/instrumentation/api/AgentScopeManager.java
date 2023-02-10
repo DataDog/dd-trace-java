@@ -13,7 +13,7 @@ public interface AgentScopeManager extends ScopeStateAware {
 
   AgentSpan activeSpan();
 
-  AgentScope.Continuation captureSpan(AgentSpan span, ScopeSource source);
+  AgentScope.Continuation captureSpan(AgentSpan span);
 
   void closePrevious(boolean finishSpan);
 

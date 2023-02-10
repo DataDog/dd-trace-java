@@ -1,6 +1,7 @@
 package datadog.trace.civisibility;
 
-import static datadog.trace.civisibility.git.GitUtils.normalizeRef;
+import static datadog.trace.civisibility.git.GitUtils.normalizeBranch;
+import static datadog.trace.civisibility.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.PathUtils.expandTilde;
 
 import datadog.trace.civisibility.git.CommitInfo;
@@ -32,13 +33,12 @@ class AppVeyorInfo implements CIProviderInfo {
   @Override
   public GitInfo buildCIGitInfo() {
     final String repoProvider = System.getenv(APPVEYOR_REPO_PROVIDER);
-    final String tag = buildGitTag(repoProvider);
     final String messageSubject = System.getenv(APPVEYOR_REPO_COMMIT_MESSAGE_SUBJECT);
     final String messageBody = System.getenv(APPVEYOR_REPO_COMMIT_MESSAGE_BODY);
     return new GitInfo(
         buildGitRepositoryUrl(repoProvider, System.getenv(APPVEYOR_REPO_NAME)),
-        buildGitBranch(repoProvider, tag),
-        tag,
+        buildGitBranch(repoProvider),
+        buildGitTag(repoProvider),
         new CommitInfo(
             buildGitCommit(),
             buildGitCommitAuthor(),
@@ -66,24 +66,20 @@ class AppVeyorInfo implements CIProviderInfo {
     return true;
   }
 
-  private String buildGitTag(final String repoProvider) {
-    if ("github".equals(repoProvider)) {
-      return normalizeRef(System.getenv(APPVEYOR_REPO_TAG_NAME));
-    }
-    return null;
-  }
-
-  private String buildGitBranch(final String repoProvider, final String gitTag) {
-    if (gitTag != null) {
-      return null;
-    }
-
+  private String buildGitBranch(final String repoProvider) {
     if ("github".equals(repoProvider)) {
       String branch = System.getenv(APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH);
       if (branch == null || branch.isEmpty()) {
         branch = System.getenv(APPVEYOR_REPO_BRANCH);
       }
-      return normalizeRef(branch);
+      return normalizeBranch(branch);
+    }
+    return null;
+  }
+
+  private String buildGitTag(final String repoProvider) {
+    if ("github".equals(repoProvider)) {
+      return normalizeTag(System.getenv(APPVEYOR_REPO_TAG_NAME));
     }
     return null;
   }
