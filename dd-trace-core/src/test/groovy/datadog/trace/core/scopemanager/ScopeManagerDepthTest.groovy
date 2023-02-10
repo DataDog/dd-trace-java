@@ -20,7 +20,7 @@ class ScopeManagerDepthTest extends DDCoreSpecification {
     for (int i = 0; i < depth; i++) {
       def span = tracer.buildSpan("test").start()
       scope = tracer.activateSpan(span)
-      assert scope instanceof ContinuableScopeManager.ContinuableScope
+      assert scope instanceof ContinuableScope
     }
 
     then: "last scope is still valid"
@@ -61,7 +61,7 @@ class ScopeManagerDepthTest extends DDCoreSpecification {
     for (int i = 0; i < defaultLimit; i++) {
       def span = tracer.buildSpan("test").start()
       scope = tracer.activateSpan(span)
-      assert scope instanceof ContinuableScopeManager.ContinuableScope
+      assert scope instanceof ContinuableScope
     }
 
     then: "last scope is still valid"
