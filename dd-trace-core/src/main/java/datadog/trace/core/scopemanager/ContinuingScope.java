@@ -1,18 +1,16 @@
 package datadog.trace.core.scopemanager;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-
 final class ContinuingScope extends ContinuableScope {
   /** Continuation that created this scope. */
   private final AbstractContinuation continuation;
 
   ContinuingScope(
       final ContinuableScopeManager scopeManager,
-      final AgentSpan span,
+      final ScopeContext context,
       final byte source,
       final boolean isAsyncPropagating,
       final AbstractContinuation continuation) {
-    super(scopeManager, span, source, isAsyncPropagating);
+    super(scopeManager, context, source, isAsyncPropagating);
     this.continuation = continuation;
   }
 

@@ -21,7 +21,6 @@ public interface AgentScope extends TraceScope, Closeable {
   void close();
 
   interface Continuation extends TraceScope.Continuation {
-
     @Override
     AgentScope activate();
 

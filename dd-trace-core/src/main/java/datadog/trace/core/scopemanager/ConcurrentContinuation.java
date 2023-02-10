@@ -23,8 +23,8 @@ final class ConcurrentContinuation extends AbstractContinuation {
       AtomicIntegerFieldUpdater.newUpdater(ConcurrentContinuation.class, "count");
 
   public ConcurrentContinuation(
-      ContinuableScopeManager scopeManager, AgentSpan spanUnderScope, byte source) {
-    super(scopeManager, spanUnderScope, source);
+      ContinuableScopeManager scopeManager, ScopeContext context, byte source) {
+    super(scopeManager, context, source);
   }
 
   private boolean tryActivate() {
@@ -55,7 +55,7 @@ final class ConcurrentContinuation extends AbstractContinuation {
   @Override
   public AgentScope activate() {
     if (tryActivate()) {
-      return scopeManager.continueSpan(this, spanUnderScope, source);
+      return scopeManager.continueSpan(this, context, source);
     } else {
       return null;
     }
@@ -67,12 +67,12 @@ final class ConcurrentContinuation extends AbstractContinuation {
       trace.cancelContinuation(this);
     }
     ContinuableScopeManager.log.debug(
-        "t_id={} -> canceling continuation {}", spanUnderScope.getTraceId(), this);
+        "t_id={} -> canceling continuation {}", getSpan().getTraceId(), this);
   }
 
   @Override
   public AgentSpan getSpan() {
-    return spanUnderScope;
+    return context.span();
   }
 
   @Override
@@ -90,6 +90,6 @@ final class ConcurrentContinuation extends AbstractContinuation {
         + "("
         + s
         + ")->"
-        + spanUnderScope;
+        + getSpan();
   }
 }

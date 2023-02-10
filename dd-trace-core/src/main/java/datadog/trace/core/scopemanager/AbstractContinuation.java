@@ -1,7 +1,6 @@
 package datadog.trace.core.scopemanager;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 
 /**
@@ -11,16 +10,16 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 abstract class AbstractContinuation implements AgentScope.Continuation {
 
   final ContinuableScopeManager scopeManager;
-  final AgentSpan spanUnderScope;
+  final ScopeContext context;
   final byte source;
   final AgentTrace trace;
 
   public AbstractContinuation(
-      ContinuableScopeManager scopeManager, AgentSpan spanUnderScope, byte source) {
+      ContinuableScopeManager scopeManager, ScopeContext context, byte source) {
     this.scopeManager = scopeManager;
-    this.spanUnderScope = spanUnderScope;
+    this.context = context;
     this.source = source;
-    this.trace = spanUnderScope.context().getTrace();
+    this.trace = context.span().context().getTrace();
   }
 
   AbstractContinuation register() {
