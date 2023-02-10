@@ -500,16 +500,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     this.traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
     if (scopeManager == null) {
-      ContinuableScopeManager csm =
+      this.scopeManager =
           new ContinuableScopeManager(
               config.getScopeDepthLimit(),
               config.isScopeStrictMode(),
               config.isScopeInheritAsyncPropagation(),
-              this.statsDClient,
               profilingContextIntegration,
               this.healthMetrics);
-      this.scopeManager = csm;
-
     } else {
       this.scopeManager = scopeManager;
     }

@@ -47,14 +47,10 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
             "Tried to close {} scope when not on top.  Current top: {}", this, scopeStack.top);
       }
 
-      scopeManager.statsDClient.incrementCounter("scope.close.error");
-
-      if (source() == ScopeSource.MANUAL.id()) {
-        scopeManager.statsDClient.incrementCounter("scope.user.close.error");
-
-        if (scopeManager.strictMode) {
-          throw new RuntimeException("Tried to close scope when not on top");
-        }
+      byte source = source();
+      scopeManager.healthMetrics.onScopeClose(source);
+      if (source == ScopeSource.MANUAL.id() && scopeManager.strictMode) {
+        throw new RuntimeException("Tried to close scope when not on top");
       }
     }
 

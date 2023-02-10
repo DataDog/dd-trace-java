@@ -6,7 +6,6 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.StatsDClient;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -41,15 +40,14 @@ public final class ContinuableScopeManager implements AgentScopeManager {
   volatile ConcurrentMap<ScopeStack, ContinuableScope> rootIterationScopes;
   final List<ScopeListener> scopeListeners;
   final List<ExtendedScopeListener> extendedScopeListeners;
-  final StatsDClient statsDClient;
   final boolean strictMode;
   private final ScopeStackThreadLocal tlsScopeStack;
   private final int depthLimit;
   private final boolean inheritAsyncPropagation;
-  private final HealthMetrics healthMetrics;
+  final HealthMetrics healthMetrics;
 
   /**
-   * Constructor with NOOP StatsD, Profiling and HealthMetrics implementation.
+   * Constructor with NOOP Profiling and HealthMetrics implementations.
    *
    * @param depthLimit The maximum scope depth limit, <code>0</code> for unlimited.
    * @param strictMode Whether check if the closed spans are the active ones or not.
@@ -62,7 +60,6 @@ public final class ContinuableScopeManager implements AgentScopeManager {
         depthLimit,
         strictMode,
         inheritAsyncPropagation,
-        StatsDClient.NO_OP,
         ProfilingContextIntegration.NoOp.INSTANCE,
         HealthMetrics.NO_OP);
   }
@@ -79,11 +76,9 @@ public final class ContinuableScopeManager implements AgentScopeManager {
       final int depthLimit,
       final boolean strictMode,
       final boolean inheritAsyncPropagation,
-      final StatsDClient statsDClient,
       final ProfilingContextIntegration profilingContextIntegration,
       final HealthMetrics healthMetrics) {
     this.depthLimit = depthLimit == 0 ? Integer.MAX_VALUE : depthLimit;
-    this.statsDClient = statsDClient;
     this.strictMode = strictMode;
     this.inheritAsyncPropagation = inheritAsyncPropagation;
     this.scopeListeners = new CopyOnWriteArrayList<>();
