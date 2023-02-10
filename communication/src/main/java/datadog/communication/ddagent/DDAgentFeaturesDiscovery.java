@@ -107,7 +107,11 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   /** Run feature discovery, if it was not run recently. */
   public void discoverIfOutdated() {
-    discoverIfOutdated(MIN_FEATURE_DISCOVERY_INTERVAL_MILLIS);
+    discoverIfOutdated(getFeaturesDiscoveryMinDelayMillis());
+  }
+
+  protected long getFeaturesDiscoveryMinDelayMillis() {
+    return MIN_FEATURE_DISCOVERY_INTERVAL_MILLIS;
   }
 
   private synchronized void discoverIfOutdated(final long maxElapsedMs) {
