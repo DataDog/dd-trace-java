@@ -23,6 +23,8 @@ import java.lang.reflect.Type
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
 
 class TracerConnectionReliabilityTest extends DDSpecification {
+  final static FEATURES_DISCOVERY_MIN_DELAY = 10
+
   @Shared
   OkHttpClient client
   @Shared
@@ -126,7 +128,7 @@ class TracerConnectionReliabilityTest extends DDSpecification {
   }
 
   static waitForDiscoveryTimeout() {
-    Thread.sleep(75_000) // Discovery timeout is 1min
+    Thread.sleep(FEATURES_DISCOVERY_MIN_DELAY * 1.5 as long)
   }
 
   def getTraceCount(GenericContainer agentContainer) {
@@ -146,6 +148,11 @@ class TracerConnectionReliabilityTest extends DDSpecification {
     @Override
     String getTraceEndpoint() {
       return V4_ENDPOINT
+    }
+
+    @Override
+    protected long getFeaturesDiscoveryMinDelayMillis() {
+      FEATURES_DISCOVERY_MIN_DELAY
     }
   }
 
