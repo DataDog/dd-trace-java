@@ -23,6 +23,7 @@ minimumInstructionCoverage = 0.8
 excludedClassesCoverage += [
   "datadog.trace.api.EndpointTracker",
   "datadog.trace.api.Platform",
+  "datadog.trace.api.Platform.GC",
   "datadog.trace.api.StatsDClient",
   "datadog.trace.api.NoOpStatsDClient",
   "datadog.trace.api.TraceSegment.NoOp",
