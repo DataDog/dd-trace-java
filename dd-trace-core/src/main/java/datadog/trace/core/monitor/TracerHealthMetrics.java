@@ -212,10 +212,10 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
-  public void onScopeClose(int scopeSource) {
-    statsd.incrementCounter("scope.close.error");
+  public void onScopeCloseError(int scopeSource) {
+    statsd.incrementCounter("scope.close.error", NO_TAGS);
     if (scopeSource == ScopeSource.MANUAL.id()) {
-      statsd.incrementCounter("scope.user.close.error");
+      statsd.incrementCounter("scope.user.close.error", NO_TAGS);
     }
   }
 
