@@ -366,8 +366,7 @@ class OpenTracingAPITest extends DDSpecification {
 
     then:
     2 * scopeListener.afterScopeActivated()
-    1 * statsDClient.incrementCounter("scope.close.error")
-    1 * statsDClient.incrementCounter("scope.user.close.error")
+    1 * statsDClient.incrementCounter("scope.close.error", ['source:manual'])
     0 * _
 
     when:
@@ -384,8 +383,7 @@ class OpenTracingAPITest extends DDSpecification {
     firstScope.close()
 
     then:
-    1 * statsDClient.incrementCounter("scope.close.error")
-    1 * statsDClient.incrementCounter("scope.user.close.error")
+    1 * statsDClient.incrementCounter("scope.close.error", ['source:manual'])
     0 * _
   }
 
@@ -413,8 +411,7 @@ class OpenTracingAPITest extends DDSpecification {
 
     then:
     thrown(RuntimeException)
-    1 * statsDClient.incrementCounter("scope.close.error")
-    1 * statsDClient.incrementCounter("scope.user.close.error")
+    1 * statsDClient.incrementCounter("scope.close.error", ['source:manual'])
     0 * _
 
     when:

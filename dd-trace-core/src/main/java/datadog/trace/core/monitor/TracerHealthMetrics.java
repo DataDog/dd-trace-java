@@ -15,7 +15,9 @@ import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.DDSpan;
 import datadog.trace.util.AgentTaskScheduler;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.IntFunction;
@@ -26,6 +28,8 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   private static final IntFunction<String[]> STATUS_TAGS =
       httpStatus -> new String[] {"status:" + httpStatus};
+
+  private static final Map<Integer, String[]> SCOPE_SOURCE_TAGS = new HashMap<>();
 
   private static final String[] NO_TAGS = new String[0];
   private final RadixTreeCache<String[]> statusTagsCache =
@@ -84,6 +88,16 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   private final StatsDClient statsd;
   private final long interval;
   private final TimeUnit units;
+
+  static {
+    SCOPE_SOURCE_TAGS.put(
+        Byte.toUnsignedInt(ScopeSource.INSTRUMENTATION.id()),
+        new String[] {"source:instrumentation"});
+    SCOPE_SOURCE_TAGS.put(
+        Byte.toUnsignedInt(ScopeSource.MANUAL.id()), new String[] {"source:manual"});
+    SCOPE_SOURCE_TAGS.put(
+        Byte.toUnsignedInt(ScopeSource.ITERATION.id()), new String[] {"source:iteration"});
+  }
 
   @Override
   public void start() {
@@ -213,10 +227,8 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   @Override
   public void onScopeCloseError(int scopeSource) {
-    statsd.incrementCounter("scope.close.error", NO_TAGS);
-    if (scopeSource == ScopeSource.MANUAL.id()) {
-      statsd.incrementCounter("scope.user.close.error", NO_TAGS);
-    }
+    String[] tags = SCOPE_SOURCE_TAGS.getOrDefault(scopeSource, NO_TAGS);
+    statsd.incrementCounter("scope.close.error", tags);
   }
 
   @Override
