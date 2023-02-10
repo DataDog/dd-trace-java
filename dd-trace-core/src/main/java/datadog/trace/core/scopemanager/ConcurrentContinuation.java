@@ -1,6 +1,7 @@
 package datadog.trace.core.scopemanager;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
@@ -23,8 +24,8 @@ final class ConcurrentContinuation extends AbstractContinuation {
       AtomicIntegerFieldUpdater.newUpdater(ConcurrentContinuation.class, "count");
 
   public ConcurrentContinuation(
-      ContinuableScopeManager scopeManager, AgentSpan spanUnderScope, byte source) {
-    super(scopeManager, spanUnderScope, source);
+      ContinuableScopeManager scopeManager, AgentScopeContext context, byte source) {
+    super(scopeManager, context, source);
   }
 
   private boolean tryActivate() {
@@ -55,7 +56,7 @@ final class ConcurrentContinuation extends AbstractContinuation {
   @Override
   public AgentScope activate() {
     if (tryActivate()) {
-      return scopeManager.continueSpan(this, spanUnderScope, source);
+      return scopeManager.continueSpan(this, context, source);
     } else {
       return null;
     }
@@ -67,12 +68,12 @@ final class ConcurrentContinuation extends AbstractContinuation {
       trace.cancelContinuation(this);
     }
     ContinuableScopeManager.log.debug(
-        "t_id={} -> canceling continuation {}", spanUnderScope.getTraceId(), this);
+        "t_id={} -> canceling continuation {}", getSpan().getTraceId(), this);
   }
 
   @Override
   public AgentSpan getSpan() {
-    return spanUnderScope;
+    return context.span();
   }
 
   @Override
@@ -90,6 +91,6 @@ final class ConcurrentContinuation extends AbstractContinuation {
         + "("
         + s
         + ")->"
-        + spanUnderScope;
+        + getSpan();
   }
 }
