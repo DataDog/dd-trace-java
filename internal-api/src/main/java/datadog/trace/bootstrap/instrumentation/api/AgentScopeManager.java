@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.trace.api.Baggage;
+
 /**
  * Allows custom scope managers. See OTScopeManager, CustomScopeManager, and ContextualScopeManager
  */
@@ -18,4 +20,6 @@ public interface AgentScopeManager extends ScopeStateAware {
   void closePrevious(boolean finishSpan);
 
   AgentScope activateNext(AgentSpan span);
+
+  AgentScope activateBaggage(Baggage baggage);
 }

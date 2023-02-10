@@ -12,7 +12,7 @@ import javax.annotation.Nonnull;
 class ContinuableScope implements AgentScope, AttachableWrapper {
   private final ContinuableScopeManager scopeManager;
 
-  final AgentSpan span; // package-private so scopeManager can access it directly
+  final ScopeContext context; // package-private so scopeManager can access it directly
 
   /** Flag to propagate this scope across async boundaries. */
   private boolean isAsyncPropagating;
@@ -27,11 +27,11 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
 
   ContinuableScope(
       final ContinuableScopeManager scopeManager,
-      final AgentSpan span,
+      final ScopeContext context,
       final byte source,
       final boolean isAsyncPropagating) {
     this.scopeManager = scopeManager;
-    this.span = span;
+    this.context = context;
     this.flags = source;
     this.isAsyncPropagating = isAsyncPropagating;
   }
@@ -114,7 +114,7 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
 
   @Override
   public final AgentSpan span() {
-    return span;
+    return context.span();
   }
 
   @Override
@@ -130,7 +130,7 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
   @Override
   public final AbstractContinuation capture() {
     return isAsyncPropagating
-        ? new SingleContinuation(scopeManager, span, source()).register()
+        ? new SingleContinuation(scopeManager, context, source()).register()
         : null;
   }
 
@@ -142,13 +142,13 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
   @Override
   public final AbstractContinuation captureConcurrent() {
     return isAsyncPropagating
-        ? new ConcurrentContinuation(scopeManager, span, source()).register()
+        ? new ConcurrentContinuation(scopeManager, context, source()).register()
         : null;
   }
 
   @Override
   public final String toString() {
-    return super.toString() + "->" + span;
+    return super.toString() + "->" + context;
   }
 
   public final void afterActivated() {
@@ -163,7 +163,9 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
     for (final ExtendedScopeListener listener : scopeManager.extendedScopeListeners) {
       try {
         listener.afterScopeActivated(
-            span.getTraceId(), span.getLocalRootSpan().getSpanId(), span.context().getSpanId());
+            context.span().getTraceId(),
+            context.span().getLocalRootSpan().getSpanId(),
+            context.span().context().getSpanId());
       } catch (Throwable e) {
         ContinuableScopeManager.log.debug(
             "ExtendedScopeListener threw exception in afterActivated()", e);

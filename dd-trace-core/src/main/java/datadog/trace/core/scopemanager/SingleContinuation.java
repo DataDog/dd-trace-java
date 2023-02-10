@@ -14,20 +14,18 @@ final class SingleContinuation extends AbstractContinuation {
   private volatile int used = 0;
 
   SingleContinuation(
-      final ContinuableScopeManager scopeManager,
-      final AgentSpan spanUnderScope,
-      final byte source) {
-    super(scopeManager, spanUnderScope, source);
+      final ContinuableScopeManager scopeManager, final ScopeContext context, final byte source) {
+    super(scopeManager, context, source);
   }
 
   @Override
   public AgentScope activate() {
     if (USED.compareAndSet(this, 0, 1)) {
-      return scopeManager.continueSpan(this, spanUnderScope, source);
+      return scopeManager.continueSpan(this, context, source);
     } else {
       ContinuableScopeManager.log.debug(
           "Failed to activate continuation. Reusing a continuation not allowed. Spans may be reported separately.");
-      return scopeManager.continueSpan(null, spanUnderScope, source);
+      return scopeManager.continueSpan(null, context, source);
     }
   }
 
@@ -42,7 +40,7 @@ final class SingleContinuation extends AbstractContinuation {
 
   @Override
   public AgentSpan getSpan() {
-    return spanUnderScope;
+    return context.span();
   }
 
   @Override
@@ -52,10 +50,6 @@ final class SingleContinuation extends AbstractContinuation {
 
   @Override
   public String toString() {
-    return getClass().getSimpleName()
-        + "@"
-        + Integer.toHexString(hashCode())
-        + "->"
-        + spanUnderScope;
+    return getClass().getSimpleName() + "@" + Integer.toHexString(hashCode()) + "->" + getSpan();
   }
 }

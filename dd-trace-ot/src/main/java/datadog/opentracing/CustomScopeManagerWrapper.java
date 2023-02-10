@@ -3,10 +3,12 @@ package datadog.opentracing;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import datadog.trace.api.Baggage;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import datadog.trace.util.AgentTaskScheduler;
@@ -166,6 +168,10 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
     public void fetchFromActive() {
       span = activeSpan();
     }
+  }
+
+  public AgentScope activateBaggage(Baggage baggage) {
+    return AgentTracer.NoopAgentScope.INSTANCE;
   }
 
   private void scheduleIterationSpanCleanup(final AgentSpan span) {
