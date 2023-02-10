@@ -9,6 +9,8 @@ import com.datadog.iast.model.SourceType;
 import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.iast.source.WebModule;
+import java.io.BufferedReader;
+import java.io.InputStream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -88,6 +90,33 @@ public class WebModuleImpl extends IastModuleBase implements WebModule {
     if (taintedObjects.get(self) != null) {
       taintedObjects.taintInputString(result, new Source(sourceTypeValue, name, result));
     }
+  }
+
+  @Override
+  public void onGetInputStream(@Nullable InputStream inputStream) {
+    if (inputStream == null) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    taintedObjects.taintInputObject(inputStream, new Source(SourceType.REQUEST_BODY, null, null));
+  }
+
+  @Override
+  public void onGetReader(@Nullable BufferedReader bufferedReader) {
+    if (bufferedReader == null) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    taintedObjects.taintInputObject(
+        bufferedReader, new Source(SourceType.REQUEST_BODY, null, null));
   }
 
   @Override

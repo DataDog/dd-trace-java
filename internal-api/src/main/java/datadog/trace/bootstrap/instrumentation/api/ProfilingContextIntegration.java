@@ -11,10 +11,20 @@ public interface ProfilingContextIntegration extends ProfilingContext {
 
   void setContext(long rootSpanId, long spanId);
 
+  boolean isQueuingTimeEnabled();
+
+  void recordQueueingTime(long duration);
+
   final class NoOp implements ProfilingContextIntegration {
 
     public static final ProfilingContextIntegration INSTANCE =
         new ProfilingContextIntegration.NoOp();
+
+    @Override
+    public void setContextValue(String attribute, String value) {}
+
+    @Override
+    public void clearContextValue(String attribute) {}
 
     @Override
     public void onAttach() {}
@@ -26,9 +36,11 @@ public interface ProfilingContextIntegration extends ProfilingContext {
     public void setContext(long rootSpanId, long spanId) {}
 
     @Override
-    public void setContextValue(String attribute, String value) {}
+    public boolean isQueuingTimeEnabled() {
+      return false;
+    }
 
     @Override
-    public void clearContextValue(String attribute) {}
+    public void recordQueueingTime(long duration) {}
   }
 }

@@ -20,7 +20,8 @@ import com.datadog.appsec.report.raw.events.Parameter
 import com.datadog.appsec.report.raw.events.Tags
 import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.trace.api.ConfigDefaults
-import datadog.trace.api.TraceSegment
+import datadog.trace.api.internal.TraceSegment
+import datadog.appsec.api.blocking.BlockingContentType
 import datadog.trace.api.gateway.Flow
 import datadog.trace.test.util.DDSpecification
 import io.sqreen.powerwaf.Powerwaf
@@ -183,8 +184,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     then:
     1 * reconf.reloadSubscriptions()
     1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
-      rba.statusCode == 501
-      rba.blockingContentType == Flow.Action.BlockingContentType.JSON
+      rba.statusCode == 501 &&
+        rba.blockingContentType == BlockingContentType.JSON
     })
     1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
     1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
@@ -410,7 +411,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     0 * ctx._(*_)
     flow.blocking == true
     flow.action.statusCode == 418
-    flow.action.blockingContentType == Flow.Action.BlockingContentType.HTML
+    flow.action.blockingContentType == BlockingContentType.HTML
   }
 
   void 'no metrics are set if waf metrics are off'() {

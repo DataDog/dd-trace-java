@@ -2,7 +2,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import java.util.List;
 
-public class StatsPoint {
+public class StatsPoint implements InboxItem {
   private final List<String> edgeTags;
   private final long hash;
   private final long parentHash;

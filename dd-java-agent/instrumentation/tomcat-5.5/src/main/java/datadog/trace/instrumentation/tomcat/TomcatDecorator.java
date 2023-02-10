@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.tomcat;
 
+import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -18,6 +20,7 @@ public class TomcatDecorator
   public static final String DD_EXTRACTED_CONTEXT_ATTRIBUTE = "datadog.extracted-context";
   public static final String DD_CONTEXT_PATH_ATTRIBUTE = "datadog.context.path";
   public static final String DD_SERVLET_PATH_ATTRIBUTE = "datadog.servlet.path";
+  public static final String DD_REAL_STATUS_CODE = "datadog.servlet.real_status_code";
 
   @Override
   protected String[] instrumentationNames() {
@@ -66,7 +69,14 @@ public class TomcatDecorator
 
   @Override
   protected int status(final Response response) {
-    return response.getStatus();
+    int status = response.getStatus();
+    if (status == 500) {
+      Integer savedStatus = (Integer) response.getRequest().getAttribute(DD_REAL_STATUS_CODE);
+      if (savedStatus != null) {
+        return savedStatus;
+      }
+    }
+    return status;
   }
 
   @Override
@@ -110,5 +120,25 @@ public class TomcatDecorator
       onError(span, (Throwable) throwable);
     }
     return super.onResponse(span, response);
+  }
+
+  @Override
+  protected BlockResponseFunction createBlockResponseFunction(
+      final Request request, Request connection) {
+    return new TomcatBlockResponseFunction(request);
+  }
+
+  public static class TomcatBlockResponseFunction implements BlockResponseFunction {
+    private final Request request;
+
+    public TomcatBlockResponseFunction(Request request) {
+      this.request = request;
+    }
+
+    @Override
+    public boolean tryCommitBlockingResponse(int statusCode, BlockingContentType bct) {
+      return TomcatBlockingHelper.commitBlockingResponse(
+          request, request.getResponse(), statusCode, bct);
+    }
   }
 }

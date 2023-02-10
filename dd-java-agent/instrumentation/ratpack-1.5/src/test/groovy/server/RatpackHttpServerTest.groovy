@@ -1,6 +1,6 @@
 package server
 
-
+import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
@@ -18,6 +18,7 @@ import ratpack.test.embed.EmbeddedApp
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -127,6 +128,14 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
             }
           }
         }
+        prefix(USER_BLOCK.relativeRawPath()) {
+          all {
+            controller(USER_BLOCK) {
+              Blocking.forUser('user-to-block').blockIfMatch()
+              context.response.status(SUCCESS.status).send('should never be reached')
+            }
+          }
+        }
         prefix(EXCEPTION.relativeRawPath()) {
           all {
             controller(EXCEPTION) {
@@ -217,8 +226,8 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
 
   @Override
   boolean testMultipleHeader() {
-    // @Ignore("This test is flaky https://github.com/DataDog/dd-trace-java/issues/3867")
-    false
+    // @Flaky("https://github.com/DataDog/dd-trace-java/issues/3867")
+    true
   }
 
   @Override

@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.netty38.server;
 
 import static org.jboss.netty.handler.codec.http.HttpHeaders.setContentLength;
 
+import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -17,15 +18,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class BlockingResponseHandler extends SimpleChannelUpstreamHandler {
-  private final Flow.Action.RequestBlockingAction rba;
+  private final int statusCode;
+  private final BlockingContentType bct;
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(BlockingResponseHandler.class);
+  private static final Logger log = LoggerFactory.getLogger(BlockingResponseHandler.class);
   private static volatile boolean HAS_WARNED;
 
   private boolean hasBlockedAlready;
 
+  public BlockingResponseHandler(int statusCode, BlockingContentType bct) {
+    this.statusCode = statusCode;
+    this.bct = bct;
+  }
+
   public BlockingResponseHandler(Flow.Action.RequestBlockingAction rba) {
-    this.rba = rba;
+    this.statusCode = rba.getStatusCode();
+    this.bct = rba.getBlockingContentType();
   }
 
   @Override
@@ -52,10 +60,10 @@ public class BlockingResponseHandler extends SimpleChannelUpstreamHandler {
 
     if (ctxForDownstream == null) {
       if (HAS_WARNED) {
-        LOGGER.debug(
+        log.debug(
             "Unable to block because HttpServerResponseTracingHandler was not found on the pipeline");
       } else {
-        LOGGER.warn(
+        log.warn(
             "Unable to block because HttpServerResponseTracingHandler was not found on the pipeline");
         HAS_WARNED = true;
       }
@@ -65,14 +73,14 @@ public class BlockingResponseHandler extends SimpleChannelUpstreamHandler {
 
     HttpRequest request = (HttpRequest) msg;
 
-    int httpCode = BlockingActionHelper.getHttpCode(rba.getStatusCode());
+    int httpCode = BlockingActionHelper.getHttpCode(statusCode);
     HttpResponseStatus httpResponseStatus = HttpResponseStatus.valueOf(httpCode);
     DefaultHttpResponse response =
         new DefaultHttpResponse(request.getProtocolVersion(), httpResponseStatus);
 
     String acceptHeader = request.headers().get("accept");
     BlockingActionHelper.TemplateType type =
-        BlockingActionHelper.determineTemplateType(rba.getBlockingContentType(), acceptHeader);
+        BlockingActionHelper.determineTemplateType(bct, acceptHeader);
     response
         .headers()
         .set("Content-type", BlockingActionHelper.getContentType(type))
@@ -90,7 +98,7 @@ public class BlockingResponseHandler extends SimpleChannelUpstreamHandler {
         .addListener(
             fut -> {
               if (!fut.isSuccess()) {
-                LOGGER.warn("Write of blocking response failed", fut.getCause());
+                log.warn("Write of blocking response failed", fut.getCause());
               }
               // close the connection because it can be in an invalid state at this point
               // For instance, in a POST request we will still be receiving data from the

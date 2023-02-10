@@ -4,9 +4,11 @@ import com.datadog.iast.IastSystem;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.model.json.TaintedObjectEncoding;
+import datadog.trace.api.Config;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ArrayBlockingQueue;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,18 +17,26 @@ public interface TaintedObjects {
 
   TaintedObject taintInputString(@Nonnull String obj, @Nonnull Source source);
 
+  TaintedObject taintInputObject(@Nonnull Object obj, @Nonnull Source source);
+
   TaintedObject taint(@Nonnull Object obj, @Nonnull Range[] ranges);
 
   TaintedObject get(@Nonnull Object obj);
 
   void release();
 
-  static TaintedObjects build() {
-    final TaintedObjectsImpl taintedObjects = new TaintedObjectsImpl();
+  static TaintedObjects acquire() {
+    TaintedObjectsImpl taintedObjects = TaintedObjectsImpl.pool.poll();
+    if (taintedObjects == null) {
+      taintedObjects = new TaintedObjectsImpl();
+    }
     return IastSystem.DEBUG ? new TaintedObjectsDebugAdapter(taintedObjects) : taintedObjects;
   }
 
   class TaintedObjectsImpl implements TaintedObjects {
+
+    private static final ArrayBlockingQueue<TaintedObjectsImpl> pool =
+        new ArrayBlockingQueue<>(Config.get().getIastMaxConcurrentRequests());
 
     private final TaintedMap map;
 
@@ -34,10 +44,11 @@ public interface TaintedObjects {
       this(new DefaultTaintedMap());
     }
 
-    public TaintedObjectsImpl(final @Nonnull TaintedMap map) {
+    private TaintedObjectsImpl(final @Nonnull TaintedMap map) {
       this.map = map;
     }
 
+    @Override
     public TaintedObject taintInputString(final @Nonnull String obj, final @Nonnull Source source) {
       final TaintedObject tainted =
           new TaintedObject(obj, Ranges.forString(obj, source), map.getReferenceQueue());
@@ -45,17 +56,30 @@ public interface TaintedObjects {
       return tainted;
     }
 
+    @Override
+    public TaintedObject taintInputObject(@Nonnull Object obj, @Nonnull Source source) {
+      final TaintedObject tainted =
+          new TaintedObject(obj, Ranges.forObject(source), map.getReferenceQueue());
+      map.put(tainted);
+      return tainted;
+    }
+
+    @Override
     public TaintedObject taint(final @Nonnull Object obj, final @Nonnull Range[] ranges) {
       final TaintedObject tainted = new TaintedObject(obj, ranges, map.getReferenceQueue());
       map.put(tainted);
       return tainted;
     }
 
+    @Override
     public TaintedObject get(final @Nonnull Object obj) {
       return map.get(obj);
     }
 
-    public void release() {}
+    public void release() {
+      map.clear();
+      pool.offer(this);
+    }
   }
 
   class TaintedObjectsDebugAdapter implements TaintedObjects {
@@ -66,26 +90,37 @@ public interface TaintedObjects {
 
     public TaintedObjectsDebugAdapter(final TaintedObjectsImpl delegated) {
       this.delegated = delegated;
-      this.id = UUID.randomUUID();
+      id = UUID.randomUUID();
       LOGGER.debug("new: id={}", id);
     }
 
+    @Override
     public TaintedObject taintInputString(final @Nonnull String obj, final @Nonnull Source source) {
       final TaintedObject tainted = delegated.taintInputString(obj, source);
       logTainted(tainted);
       return tainted;
     }
 
+    @Override
+    public TaintedObject taintInputObject(@Nonnull Object obj, @Nonnull Source source) {
+      final TaintedObject tainted = delegated.taintInputObject(obj, source);
+      logTainted(tainted);
+      return tainted;
+    }
+
+    @Override
     public TaintedObject taint(final @Nonnull Object obj, final @Nonnull Range[] ranges) {
       final TaintedObject tainted = delegated.taint(obj, ranges);
       logTainted(tainted);
       return tainted;
     }
 
+    @Override
     public TaintedObject get(final @Nonnull Object obj) {
       return delegated.get(obj);
     }
 
+    @Override
     public void release() {
       if (IastSystem.DEBUG && LOGGER.isDebugEnabled()) {
         try {
@@ -98,6 +133,7 @@ public interface TaintedObjects {
           LOGGER.error("Failed to debug tainted objects release", e);
         }
       }
+      delegated.release();
     }
 
     private void logTainted(final TaintedObject tainted) {

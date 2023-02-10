@@ -8,13 +8,14 @@ import com.datadog.appsec.AppSecSystem;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
-import datadog.trace.api.TraceSegment;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.InstrumentationGateway;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
 import java.io.IOException;
@@ -236,6 +237,14 @@ public class AppSecBenchmark {
     @Override
     public TraceSegment getTraceSegment() {
       return TraceSegment.NoOp.INSTANCE;
+    }
+
+    @Override
+    public void setBlockResponseFunction(BlockResponseFunction blockResponseFunction) {}
+
+    @Override
+    public BlockResponseFunction getBlockResponseFunction() {
+      return null;
     }
 
     @Override

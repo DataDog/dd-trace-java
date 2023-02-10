@@ -103,18 +103,32 @@ public abstract class TestDecorator extends BaseDecorator {
     return super.afterStart(span);
   }
 
-  public AgentSpan afterStart(
+  protected AgentSpan afterTestStart(
       final AgentSpan span,
+      final String testSuiteName,
+      final String testName,
+      final String testParameters,
       final String version,
       final Class<?> testClass,
       final Method testMethod) {
+
+    span.setResourceName(testSuiteName + "." + testName);
+    span.setTag(Tags.TEST_SUITE, testSuiteName);
+    span.setTag(Tags.TEST_NAME, testName);
+
+    if (testParameters != null) {
+      span.setTag(Tags.TEST_PARAMETERS, testParameters);
+    }
+
     // Version can be null. The testing framework version extraction is best-effort basis.
     if (version != null) {
       span.setTag(Tags.TEST_FRAMEWORK_VERSION, version);
     }
+
     if (Config.get().isCiVisibilitySourceDataEnabled()) {
       populateSourceDataTags(span, testClass, testMethod);
     }
+
     return afterStart(span);
   }
 

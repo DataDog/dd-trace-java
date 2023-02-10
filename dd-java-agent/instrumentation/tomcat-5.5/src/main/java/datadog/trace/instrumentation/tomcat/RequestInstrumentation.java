@@ -33,6 +33,8 @@ public final class RequestInstrumentation extends Instrumenter.Tracing
       packageName + ".ExtractAdapter$Request",
       packageName + ".ExtractAdapter$Response",
       packageName + ".TomcatDecorator",
+      packageName + ".TomcatDecorator$TomcatBlockResponseFunction",
+      packageName + ".TomcatBlockingHelper",
       packageName + ".RequestURIDataAdapter",
     };
   }

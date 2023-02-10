@@ -1,16 +1,54 @@
 package datadog.trace.api;
 
 import datadog.trace.util.Strings;
+import java.lang.management.GarbageCollectorMXBean;
+import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.List;
 
 public final class Platform {
 
+  public enum GC {
+    SERIAL("marksweep"),
+    PARALLEL("ps"),
+    CMS("concurrentmarksweep"),
+    G1("g1"),
+    SHENANDOAH("shenandoah"),
+    Z("z"),
+    UNKNOWN("");
+
+    private final String identifierPrefix;
+
+    GC(String identifierPrefix) {
+      this.identifierPrefix = identifierPrefix;
+    }
+
+    static GC current() {
+      for (GarbageCollectorMXBean mxBean : ManagementFactory.getGarbageCollectorMXBeans()) {
+        if (mxBean.isValid()) {
+          String name = mxBean.getName().toLowerCase();
+          for (GC gc : GC.values()) {
+            if (gc != UNKNOWN && name.startsWith(gc.identifierPrefix)) {
+              return gc;
+            }
+          }
+        }
+      }
+      return UNKNOWN;
+    }
+  }
+
   private static final Version JAVA_VERSION = parseJavaVersion(System.getProperty("java.version"));
   private static final JvmRuntime RUNTIME = new JvmRuntime();
 
+  private static final GC GARBAGE_COLLECTOR = GC.current();
+
   private static final boolean HAS_JFR = checkForJfr();
   private static final boolean IS_NATIVE_IMAGE_BUILDER = checkForNativeImageBuilder();
+
+  public static GC activeGarbageCollector() {
+    return GARBAGE_COLLECTOR;
+  }
 
   public static boolean hasJfr() {
     return HAS_JFR;

@@ -1,1 +1,2 @@
 datadog.trace.test.util.ConfigTransformSpockExtension
+datadog.trace.test.util.FlakySpockExtension

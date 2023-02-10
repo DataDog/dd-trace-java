@@ -3,18 +3,25 @@ package datadog.trace.instrumentation.liberty20;
 import static datadog.trace.instrumentation.liberty20.HttpServletExtractAdapter.Request;
 import static datadog.trace.instrumentation.liberty20.HttpServletExtractAdapter.Response;
 
+import com.ibm.ws.webcontainer.srt.SRTServletRequest;
 import com.ibm.ws.webcontainer.srt.SRTServletResponse;
 import com.ibm.ws.webcontainer.webapp.WebAppErrorReport;
+import com.ibm.wsspi.webcontainer.servlet.IExtendedResponse;
+import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class LibertyDecorator
     extends HttpServerDecorator<
@@ -131,5 +138,37 @@ public class LibertyDecorator
     }
     span.setTag(DDTags.ERROR_MSG, report.getMessage());
     return span;
+  }
+
+  public static class LibertyBlockResponseFunction implements BlockResponseFunction {
+    private static final Logger log = LoggerFactory.getLogger(LibertyBlockResponseFunction.class);
+    private final HttpServletRequest request;
+
+    public LibertyBlockResponseFunction(HttpServletRequest request) {
+      this.request = request;
+    }
+
+    @Override
+    public boolean tryCommitBlockingResponse(int statusCode, BlockingContentType bct) {
+      if (!(request instanceof SRTServletRequest)) {
+        log.warn("Can't block; request not of type SRTServletRequest");
+        return false;
+      }
+      IExtendedResponse response = ((SRTServletRequest) request).getResponse();
+      if (!(response instanceof HttpServletResponse)) {
+        log.warn("Can't block; response not of type HttpServletResponse");
+        return false;
+      }
+      ServletBlockingHelper.commitBlockingResponse(
+          request, (HttpServletResponse) response, statusCode, bct);
+
+      return true;
+    }
+  }
+
+  @Override
+  protected BlockResponseFunction createBlockResponseFunction(
+      HttpServletRequest httpServletRequest, HttpServletRequest connection) {
+    return new LibertyBlockResponseFunction(httpServletRequest);
   }
 }

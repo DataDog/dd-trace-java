@@ -12,6 +12,7 @@ import datadog.smoketest.profiling.CodeHotspotsApplication;
 import datadog.smoketest.profiling.GenerativeStackTraces;
 import datadog.smoketest.profiling.NativeLibrariesApplication;
 import datadog.trace.api.Platform;
+import datadog.trace.test.util.Flaky;
 import java.io.File;
 import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
@@ -186,6 +187,7 @@ public final class CodeHotspotsTest {
 
   @Test
   @DisplayName("Test saturated parallel processing")
+  @Flaky
   void testSaturatedFanout() throws Exception {
     System.out.println("Test saturated parallel processing");
     int meanServiceTimeSecs = 1; // seconds
@@ -219,7 +221,7 @@ public final class CodeHotspotsTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"lz4", "snappy"})
-  @Disabled("flaky")
+  @Flaky
   void testNativeLibrary(String libraryName) throws Exception {
     System.out.println("Test " + libraryName);
     int interval = 10; // milliseconds
@@ -244,6 +246,7 @@ public final class CodeHotspotsTest {
         .forEach(CodeHotspotsTest::hasCpuEvents);
   }
 
+  @Flaky
   @ParameterizedTest
   @ValueSource(ints = {128})
   void testGenerativeStackTraces(int depth) throws Exception {
@@ -256,6 +259,7 @@ public final class CodeHotspotsTest {
     runTestGenerativeStackTraces("MethodHandles", depth);
   }
 
+  @Flaky("hasCpuEvents assertions failes sometimes")
   @ParameterizedTest
   @ValueSource(ints = {128})
   void testGenerativeStackTracesWithCapturingLambdas(int depth) throws Exception {

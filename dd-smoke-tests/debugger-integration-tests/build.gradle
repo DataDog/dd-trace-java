@@ -18,6 +18,8 @@ dependencies {
   testImplementation project(':dd-smoke-tests')
   testImplementation project(':dd-java-agent:agent-debugger')
   testImplementation project(':dd-java-agent:agent-debugger:debugger-bootstrap')
+  // dependency on some helper classes made only for tests
+  testImplementation project(':dd-java-agent:agent-debugger').sourceSets.test.output
   testImplementation deps.junit5
   testImplementation deps.mockito
 }

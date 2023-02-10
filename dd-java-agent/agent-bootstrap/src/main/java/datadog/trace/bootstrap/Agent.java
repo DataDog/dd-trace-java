@@ -958,7 +958,7 @@ public class Agent {
     }
   }
 
-  /** @see datadog.trace.api.ProductActivation#fromString(String) */
+  /** @see datadog.trace.api.ProductActivationConfig#fromString(String) */
   private static boolean isAppSecFullyDisabled() {
     // must be kept in sync with logic from Config!
     final String featureEnabledSysprop = AgentFeature.APPSEC.systemProp;

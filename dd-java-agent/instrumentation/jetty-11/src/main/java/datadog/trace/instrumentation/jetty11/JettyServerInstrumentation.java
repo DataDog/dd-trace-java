@@ -53,6 +53,8 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
       packageName + ".JettyServerAdvice",
       packageName + ".JettyServerAdvice$HandleAdvice",
       packageName + ".JettyServerAdvice$ResetAdvice",
+      "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
+      "datadog.trace.instrumentation.jetty.JettyBlockingHelper",
     };
   }
 

@@ -79,7 +79,7 @@ public class DebuggerProductChangesListener implements ProductListener {
       configChunks.put(configId, (builder) -> builder.add(metricProbe));
     } else if (configId.startsWith("logProbe_")) {
       LogProbe logProbe = Adapter.deserializeLogProbe(content);
-      configChunks.put(configId, (builder) -> builder.add(logProbe));
+      configChunks.put(configId, (builder) -> builder.add(logProbe.copy()));
     } else if (IS_UUID.test(configId)) {
       Configuration newConfig = Adapter.deserializeConfiguration(content);
       if (newConfig.getService().equals(serviceName)) {

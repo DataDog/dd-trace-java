@@ -28,6 +28,7 @@ import javax.servlet.http.HttpServlet;
       "/query",
       "/encoded path query",
       "/encoded_query",
+      "/user-block",
     })
 public class PassthruSyncServlet3 extends HttpServlet {
   HttpServlet delegate;

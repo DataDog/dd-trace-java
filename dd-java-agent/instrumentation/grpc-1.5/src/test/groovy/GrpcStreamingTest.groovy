@@ -23,6 +23,9 @@ class GrpcStreamingTest extends AgentTestRunner {
     super.configurePreAgent()
     injectSysConfig("dd.trace.grpc.ignored.inbound.methods", "example.Greeter/IgnoreInbound")
     injectSysConfig("dd.trace.grpc.ignored.outbound.methods", "example.Greeter/Ignore")
+    // here to trigger wrapping to record scheduling time - the logic is trivial so it's enough to verify
+    // that ClassCastExceptions do not arise from the wrapping
+    injectSysConfig("dd.profiling.enabled", "true")
   }
 
   def "test conversation #name"() {

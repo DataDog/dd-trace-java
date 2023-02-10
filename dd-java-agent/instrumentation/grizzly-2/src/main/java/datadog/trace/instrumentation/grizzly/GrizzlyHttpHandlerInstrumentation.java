@@ -44,6 +44,7 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing
       packageName + ".ExtractAdapter$Request",
       packageName + ".ExtractAdapter$Response",
       packageName + ".GrizzlyDecorator",
+      packageName + ".GrizzlyDecorator$GrizzlyBlockResponseFunction",
       packageName + ".RequestURIDataAdapter",
       packageName + ".SpanClosingListener",
       packageName + ".GrizzlyBlockingHelper",

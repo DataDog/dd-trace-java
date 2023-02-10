@@ -60,6 +60,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
       packageName + ".ExtractAdapter$Response",
       packageName + ".JettyDecorator",
       packageName + ".RequestURIDataAdapter",
+      "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
       "datadog.trace.instrumentation.jetty.JettyBlockingHelper",
     };
   }

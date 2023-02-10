@@ -32,7 +32,7 @@ public class SnapshotSummaryTest {
             Thread.currentThread(),
             new ProbeDetails(UUID.randomUUID().toString(), PROBE_LOCATION),
             CLASS_NAME);
-    assertEquals("SomeClass.someMethod()", snapshot.getSummary());
+    assertEquals("SomeClass.someMethod()", snapshot.buildSummary());
   }
 
   @Test
@@ -55,14 +55,14 @@ public class SnapshotSummaryTest {
     snapshot.setEntry(entry);
     assertEquals(
         "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c], arg4={foo=bar})",
-        snapshot.getSummary());
+        snapshot.buildSummary());
 
     CapturedContext exit = new CapturedContext();
     exit.addLocals(new Snapshot.CapturedValue[] {CapturedValue.of("@return", "double", 2.0)});
     snapshot.setExit(exit);
     assertEquals(
         "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c], arg4={foo=bar}): 2.0",
-        snapshot.getSummary());
+        snapshot.buildSummary());
   }
 
   @Test
@@ -82,7 +82,7 @@ public class SnapshotSummaryTest {
     snapshot.setEntry(entry);
     assertEquals(
         "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c])",
-        snapshot.getSummary());
+        snapshot.buildSummary());
 
     CapturedContext exit = new CapturedContext();
     exit.addLocals(
@@ -96,7 +96,7 @@ public class SnapshotSummaryTest {
     assertEquals(
         "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c]): 2.0\n"
             + "i=1001, list=[1, 2, 3], str=this is a local string",
-        snapshot.getSummary());
+        snapshot.buildSummary());
   }
 
   @Test
@@ -134,7 +134,7 @@ public class SnapshotSummaryTest {
     assertEquals(
         "SnapshotSummaryTest.testSummaryLineSnapshot(arg1=this is a string, arg2=42)\n"
             + "i=1001, list=[1, 2, 3], str=this is a local string",
-        snapshot.getSummary());
+        snapshot.buildSummary());
   }
 
   @Test
@@ -164,6 +164,6 @@ public class SnapshotSummaryTest {
           Snapshot.CapturedValue.of("arg2", "int", 42),
         });
     snapshot.addLine(lineCapture, 13);
-    assertEquals("SomeFile:[13](arg1=this is a string, arg2=42)", snapshot.getSummary());
+    assertEquals("SomeFile:[13](arg1=this is a string, arg2=42)", snapshot.buildSummary());
   }
 }

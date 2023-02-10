@@ -14,10 +14,12 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN;
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK;
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTraceAsync;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
+import datadog.appsec.api.blocking.Blocking;
 import datadog.trace.agent.test.base.HttpServerTest;
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint;
 import io.vertx.core.AbstractVerticle;
@@ -150,6 +152,19 @@ public class VertxTestServer extends AbstractVerticle {
                         ctx.response()
                             .setStatusCode(QUERY_PARAM.getStatus())
                             .end(ctx.request().query())));
+
+    router
+        .route(USER_BLOCK.getPath())
+        .handler(
+            ctx ->
+                controller(
+                    ctx,
+                    USER_BLOCK,
+                    () -> {
+                      Blocking.forUser("user-to-block").blockIfMatch();
+                      ctx.response().end("Should not be reached");
+                    }));
+
     router
         .route("/path/:id/param")
         .handler(

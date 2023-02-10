@@ -1,5 +1,6 @@
 package server
 
+import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import io.netty.buffer.ByteBuf
@@ -24,6 +25,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 
 class RatpackAsyncHttpServerTest extends RatpackHttpServerTest {
 
@@ -173,6 +175,18 @@ class RatpackAsyncHttpServerTest extends RatpackHttpServerTest {
             } then { HttpServerTest.ServerEndpoint endpoint ->
               controller(endpoint) {
                 context.response.status(endpoint.status).send(endpoint.bodyForQuery(request.query))
+              }
+            }
+          }
+        }
+        prefix(USER_BLOCK.relativeRawPath()) {
+          all {
+            Promise.sync {
+              USER_BLOCK
+            } then { HttpServerTest.ServerEndpoint endpoint ->
+              controller(endpoint) {
+                Blocking.forUser('user-to-block').blockIfMatch()
+                context.response.status(SUCCESS.status).send('should never be reached')
               }
             }
           }

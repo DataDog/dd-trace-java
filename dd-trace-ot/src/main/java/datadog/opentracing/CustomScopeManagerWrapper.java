@@ -111,9 +111,9 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
   }
 
   @Override
-  public AgentScope.Continuation captureSpan(final AgentSpan span, ScopeSource source) {
+  public AgentScope.Continuation captureSpan(final AgentSpan span) {
     // I can't see a better way to do this, and I don't know if this even makes sense.
-    try (AgentScope scope = this.activate(span, source)) {
+    try (AgentScope scope = this.activate(span, ScopeSource.INSTRUMENTATION)) {
       return scope.capture();
     }
   }

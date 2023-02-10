@@ -42,6 +42,18 @@
     ]
   },
   {
+    "name" : "datadog.trace.instrumentation.springweb6.HandlerMappingResourceNameFilter",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []}
+    ]
+  },
+  {
+    "name" : "datadog.trace.instrumentation.springweb6.OrderedServletPathRequestFilter",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []}
+    ]
+  },
+  {
     "name" : "org.jctools.queues.MpscBlockingConsumerArrayQueueColdProducerFields",
     "fields": [
       {"name": "producerLimit", "allowUnsafeAccess": true}

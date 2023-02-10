@@ -2,10 +2,10 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.test.util.Flaky
 import rmi.app.Greeter
 import rmi.app.Server
 import rmi.app.ServerLegacy
-import spock.lang.Ignore
 
 import java.rmi.registry.LocateRegistry
 import java.rmi.server.UnicastRemoteObject
@@ -157,7 +157,7 @@ class RmiTest extends AgentTestRunner {
     serverRegistry.unbind("Server")
   }
 
-  @Ignore("Fails sometimes with NegativeArraySizeException in TimelinePrinter https://github.com/DataDog/dd-trace-java/issues/3869")
+  @Flaky("Fails sometimes with NegativeArraySizeException in TimelinePrinter https://github.com/DataDog/dd-trace-java/issues/3869")
   def "Client call using ServerLegacy_stub creates spans"() {
     setup:
     def server = new ServerLegacy()

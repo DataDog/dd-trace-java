@@ -78,13 +78,13 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
   @Nullable
   @Override
   public <E extends Element> E get(@NotNull final Key<E> key) {
-    return CoroutineContext.Element.DefaultImpls.get(this, key);
+    return Element.DefaultImpls.get(this, key);
   }
 
   @NotNull
   @Override
   public CoroutineContext minusKey(@NotNull final Key<?> key) {
-    return CoroutineContext.Element.DefaultImpls.minusKey(this, key);
+    return Element.DefaultImpls.minusKey(this, key);
   }
 
   @NotNull
@@ -96,7 +96,7 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
   @Override
   public <R> R fold(
       R initial, @NotNull Function2<? super R, ? super Element, ? extends R> operation) {
-    return CoroutineContext.Element.DefaultImpls.fold(this, initial, operation);
+    return Element.DefaultImpls.fold(this, initial, operation);
   }
 
   @NotNull

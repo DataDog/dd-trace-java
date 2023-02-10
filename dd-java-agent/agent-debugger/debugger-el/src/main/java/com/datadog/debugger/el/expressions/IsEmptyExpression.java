@@ -25,7 +25,7 @@ public final class IsEmptyExpression implements BooleanExpression {
       return Boolean.TRUE;
     }
     if (value instanceof CollectionValue) {
-      return ((CollectionValue) value).isEmpty();
+      return ((CollectionValue<?>) value).isEmpty();
     } else if (value instanceof StringValue) {
       return ((StringValue) value).isEmpty();
     }

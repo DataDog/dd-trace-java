@@ -65,9 +65,11 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing
       packageName + ".client.HttpClientResponseTracingHandler",
       packageName + ".client.HttpClientTracingHandler",
       // server helpers
-      packageName + ".server.BlockingResponseHandler",
       packageName + ".server.ResponseExtractAdapter",
       packageName + ".server.NettyHttpServerDecorator",
+      packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
+      packageName + ".server.BlockingResponseHandler",
+      packageName + ".server.BlockingResponseHandler$IgnoreAllWritesHandler",
       packageName + ".server.HttpServerRequestTracingHandler",
       packageName + ".server.HttpServerResponseTracingHandler",
       packageName + ".server.HttpServerTracingHandler"

@@ -20,4 +20,6 @@ public interface InternalTracer {
   void flushMetrics();
 
   ProfilingContext getProfilingContext();
+
+  TraceSegment getTraceSegment();
 }

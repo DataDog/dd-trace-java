@@ -8,6 +8,7 @@ import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.Values;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import org.junit.jupiter.api.Test;
 
 class LenExpressionTest {
@@ -39,6 +40,9 @@ class LenExpressionTest {
     LenExpression expression = new LenExpression(DSL.value(Arrays.asList("a", "b")));
     assertEquals(2L, expression.evaluate(resolver).getValue());
     assertEquals("len(List)", expression.prettyPrint());
+    expression = new LenExpression(DSL.value(new HashSet<>(Arrays.asList("a", "b"))));
+    assertEquals(2L, expression.evaluate(resolver).getValue());
+    assertEquals("len(Set)", expression.prettyPrint());
   }
 
   @Test

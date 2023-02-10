@@ -14,7 +14,7 @@ import datadog.remoteconfig.ConfigurationEndListener
 import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.Product
 import datadog.trace.api.Config
-import datadog.trace.api.TraceSegment
+import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext

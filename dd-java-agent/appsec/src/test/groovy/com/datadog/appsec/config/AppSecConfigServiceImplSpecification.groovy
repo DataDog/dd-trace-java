@@ -8,6 +8,7 @@ import datadog.remoteconfig.ConfigurationDeserializer
 import datadog.remoteconfig.ConfigurationEndListener
 import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.Product
+import datadog.trace.api.ProductActivation
 import datadog.trace.test.util.DDSpecification
 
 import java.nio.file.Files
@@ -32,11 +33,48 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     appSecConfigService.maybeSubscribeConfigPolling()
 
     then:
+    1 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
     1 * poller.addListener(Product.ASM_DD, _, _)
     1 * poller.addListener(Product.ASM_FEATURES, _, _)
     1 * poller.addListener(Product.ASM, _, _)
     1 * poller.addListener(Product.ASM_DATA, _, _)
     1 * poller.addConfigurationEndListener(_)
+  }
+
+  void 'no subscription to ASM_FEATURES if appsec is fully enabled'() {
+    setup:
+    appSecConfigService.init()
+
+    when:
+    appSecConfigService.maybeSubscribeConfigPolling()
+
+    then:
+    1 * config.getAppSecActivation() >> ProductActivation.FULLY_ENABLED
+    1 * poller.addListener(Product.ASM_DD, _, _)
+    1 * poller.addListener(Product.ASM, _, _)
+    1 * poller.addListener(Product.ASM_DATA, _, _)
+    1 * poller.addConfigurationEndListener(_)
+    0 * poller.addListener(*_)
+  }
+
+  void 'no subscription to ASM ASM_DD ASM_DATA if custom rules are provided'() {
+    setup:
+    Path p = Files.createTempFile('appsec', '.json')
+    p.toFile() << '{"version":"2.0", "rules": []}'
+
+    when:
+    appSecConfigService.init()
+    then:
+    1 * config.getAppSecRulesFile() >> (p as String)
+
+    when:
+    appSecConfigService.maybeSubscribeConfigPolling()
+
+    then:
+    2 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
+    1 * poller.addListener(Product.ASM_FEATURES, _, _)
+    1 * poller.addConfigurationEndListener(_)
+    0 * poller.addListener(*_)
   }
 
   void 'can load from a different location'() {
@@ -116,6 +154,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     then:
     1 * config.getAppSecRulesFile() >> null
+    1 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
     1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
       listeners.savedFeaturesDeserializer = it[1]
       listeners.savedFeaturesListener = it[2]
@@ -153,6 +192,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     then:
     1 * config.getAppSecRulesFile() >> null
+    1 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
     1 * poller.addListener(Product.ASM_DD, _, _) >> {
       listeners.savedConfDeserializer = it[1]
       listeners.savedConfChangesListener = it[2]
@@ -172,7 +212,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       true
     }
     1 * poller.addConfigurationEndListener(_) >> { listeners.savedConfEndListener = it[0] }
-    1 * poller.addCapabilities(30L)
+    1 * poller.addCapabilities(2L)
+    1 * poller.addCapabilities(956L)
     0 * _._
     initialWafConfig.get() != null
 
@@ -284,6 +325,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     then:
     1 * config.getAppSecRulesFile() >> null
+    1 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
     1 * poller.addListener(Product.ASM_DD, _, _) >> {
       listeners.savedConfDeserializer = it[1]
       listeners.savedConfChangesListener = it[2]
@@ -303,7 +345,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       true
     }
     1 * poller.addConfigurationEndListener(_) >> { listeners.savedConfEndListener = it[0] }
-    1 * poller.addCapabilities(30L)
+    1 * poller.addCapabilities(2L)
+    1 * poller.addCapabilities(956L)
     0 * _._
 
     when:
@@ -350,7 +393,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     poller = null
 
     then:
-    1 * poller.removeCapabilities(30)
+    1 * poller.removeCapabilities(958L)
     4 * poller.removeListener(_)
     1 * poller.removeConfigurationEndListener(_)
     1 * poller.stop()

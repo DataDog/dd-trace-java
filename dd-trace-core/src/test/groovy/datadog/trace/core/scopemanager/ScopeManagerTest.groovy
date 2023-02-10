@@ -18,7 +18,6 @@ import datadog.trace.context.TraceScope
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.test.DDCoreSpecification
-import spock.lang.Retry
 import spock.lang.Shared
 
 import java.lang.ref.WeakReference
@@ -162,7 +161,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then:
     scopeManager.active() == scope
-    scope instanceof ContinuableScopeManager.ContinuableScope
+    scope instanceof ContinuableScope
 
     when:
     scope.close()
@@ -190,7 +189,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     scope.span() == span
     !spanFinished(scope.span())
     scopeManager.active() == scope
-    scope instanceof ContinuableScopeManager.ContinuableScope
+    scope instanceof ContinuableScope
     writer.empty
 
     when:
@@ -296,7 +295,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     concurrent << [false, true]
   }
 
-  @Retry
+  // @Flaky("awaitGC is flaky")
   def "test continuation doesn't have hard reference on scope"() {
     when:
     def span = tracer.buildSpan("test").start()
@@ -397,7 +396,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     }
 
     then: "the continued scope becomes active and span state doesnt change"
-    newScope instanceof ContinuableScopeManager.ContinuableScope
+    newScope instanceof ContinuableScope
     newScope.isAsyncPropagating()
     scopeManager.active() == newScope
     newScope != childScope
@@ -447,7 +446,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     }
 
     then: "the continuation sets the active scope"
-    newScope instanceof ContinuableScopeManager.ContinuableScope
+    newScope instanceof ContinuableScope
     newScope != scope
     scopeManager.active() == newScope
     spanFinished(span)
@@ -511,7 +510,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     AgentScope continuableScope = tracer.activateSpan(span)
 
     then:
-    continuableScope instanceof ContinuableScopeManager.ContinuableScope
+    continuableScope instanceof ContinuableScope
     assertEvents([ACTIVATE])
 
     when:
@@ -519,7 +518,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     AgentScope childDDScope = tracer.activateSpan(childSpan)
 
     then:
-    childDDScope instanceof ContinuableScopeManager.ContinuableScope
+    childDDScope instanceof ContinuableScope
     assertEvents([ACTIVATE, ACTIVATE])
 
     when:
@@ -747,7 +746,7 @@ class ScopeManagerTest extends DDCoreSpecification {
       continuation.cancel()
     }
     AgentSpan secondSpan = tracer.buildSpan("test2").start()
-    AgentScope secondScope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(secondSpan)
+    AgentScope secondScope = (ContinuableScope) tracer.activateSpan(secondSpan)
 
     then:
     scopeManager.active() == secondScope
@@ -883,7 +882,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     when:
     def span = tracer.buildSpan("test").start()
     def start = System.nanoTime()
-    def scope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(span)
+    def scope = (ContinuableScope) tracer.activateSpan(span)
     scope.setAsyncPropagation(true)
     continuation = scope.captureConcurrent()
     scope.close()

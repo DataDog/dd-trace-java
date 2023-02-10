@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.tomcat;
 
+import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType;
@@ -29,14 +30,25 @@ public class TomcatBlockingHelper {
 
   public static void commitBlockingResponse(
       Request request, Response resp, Flow.Action.RequestBlockingAction rba) {
-    int httpCode = BlockingActionHelper.getHttpCode(rba.getStatusCode());
-    if (!start(resp, httpCode) || GET_OUTPUT_STREAM == null) {
-      return;
+    commitBlockingResponse(request, resp, rba.getStatusCode(), rba.getBlockingContentType());
+  }
+
+  public static boolean commitBlockingResponse(
+      Request request, Response resp, int statusCode, BlockingContentType templateType) {
+    if (GET_OUTPUT_STREAM == null) {
+      return false;
+    }
+    int httpCode = BlockingActionHelper.getHttpCode(statusCode);
+    if (!start(resp, httpCode)) {
+      return true;
     }
 
+    // tomcat, if it sees an exception when dispatching, may set the status code to 500
+    // on the response, even if the response has already been committed
+    request.setAttribute(TomcatDecorator.DD_REAL_STATUS_CODE, httpCode);
+
     TemplateType type =
-        BlockingActionHelper.determineTemplateType(
-            rba.getBlockingContentType(), request.getHeader("Accept"));
+        BlockingActionHelper.determineTemplateType(templateType, request.getHeader("Accept"));
     byte[] template = BlockingActionHelper.getTemplate(type);
 
     resp.setHeader("Content-length", Integer.toString(template.length));
@@ -48,6 +60,7 @@ public class TomcatBlockingHelper {
     } catch (Throwable e) {
       log.info("Error sending error page", e);
     }
+    return true;
   }
 
   private static boolean start(Response resp, int statusCode) {
