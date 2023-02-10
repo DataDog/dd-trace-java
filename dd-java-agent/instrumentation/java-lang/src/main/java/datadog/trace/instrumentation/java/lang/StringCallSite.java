@@ -197,4 +197,18 @@ public class StringCallSite {
     }
     return result;
   }
+
+  @CallSite.After("void java.lang.String.<init>(java.lang.String)")
+  public static String afterConstructor(
+      @CallSite.This final String self, @CallSite.Argument final String originalString) {
+    final StringModule module = InstrumentationBridge.STRING;
+    try {
+      if (module != null) {
+        module.onStringConstructor(originalString, self);
+      }
+    } catch (final Throwable e) {
+      module.onUnexpectedException("afterSubstring threw", e);
+    }
+    return self;
+  }
 }
