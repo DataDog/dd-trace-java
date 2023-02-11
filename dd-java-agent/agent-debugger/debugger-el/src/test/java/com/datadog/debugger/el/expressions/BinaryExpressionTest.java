@@ -1,5 +1,6 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
@@ -12,7 +13,7 @@ class BinaryExpressionTest {
     BinaryExpression expression =
         new BinaryExpression(null, BooleanExpression.TRUE, BinaryOperator.AND);
     assertFalse(expression.evaluate(RefResolverHelper.createResolver(this)));
-    assertEquals("false && true", expression.prettyPrint());
+    assertEquals("false && true", print(expression));
   }
 
   @Test
@@ -20,6 +21,6 @@ class BinaryExpressionTest {
     BinaryExpression expression =
         new BinaryExpression(BooleanExpression.TRUE, null, BinaryOperator.AND);
     assertFalse(expression.evaluate(RefResolverHelper.createResolver(this)));
-    assertEquals("true && false", expression.prettyPrint());
+    assertEquals("true && false", print(expression));
   }
 }

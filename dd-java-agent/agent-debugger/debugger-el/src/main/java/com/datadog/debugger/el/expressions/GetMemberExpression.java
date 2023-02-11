@@ -1,13 +1,12 @@
 package com.datadog.debugger.el.expressions;
 
-import static com.datadog.debugger.el.Expression.nullSafePrettyPrint;
-
 import com.datadog.debugger.el.Generated;
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.Visitor;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import java.util.Objects;
 
-public class GetMemberExpression implements ValueExpression {
+public class GetMemberExpression implements ValueExpression<Value<?>> {
   private final ValueExpression<?> target;
   private final String memberName;
 
@@ -55,7 +54,7 @@ public class GetMemberExpression implements ValueExpression {
   }
 
   @Override
-  public String prettyPrint() {
-    return nullSafePrettyPrint(target) + "." + memberName;
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
   }
 }

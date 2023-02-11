@@ -1,13 +1,13 @@
 package com.datadog.debugger.el.expressions;
 
-import static com.datadog.debugger.el.Expression.nullSafePrettyPrint;
-
+import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
-public class IndexExpression implements ValueExpression {
+public class IndexExpression implements ValueExpression<Value<?>> {
 
   private final ValueExpression<?> target;
   private final ValueExpression<?> key;
@@ -18,7 +18,7 @@ public class IndexExpression implements ValueExpression {
   }
 
   @Override
-  public Object evaluate(ValueReferenceResolver valueRefResolver) {
+  public Value<?> evaluate(ValueReferenceResolver valueRefResolver) {
     Value<?> targetValue = target.evaluate(valueRefResolver);
     if (targetValue == Value.undefined()) {
       return targetValue;
@@ -36,14 +36,21 @@ public class IndexExpression implements ValueExpression {
         result = ((ListValue) targetValue).get(keyValue.getValue());
       }
     } catch (IllegalArgumentException ex) {
-      valueRefResolver.addEvaluationError(prettyPrint(), ex.getMessage());
+      valueRefResolver.addEvaluationError(PrettyPrintVisitor.print(this), ex.getMessage());
     }
 
     return result;
   }
 
-  @Override
-  public String prettyPrint() {
-    return nullSafePrettyPrint(target) + "[" + nullSafePrettyPrint(key) + "]";
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
+  }
+
+  public ValueExpression<?> getTarget() {
+    return target;
+  }
+
+  public ValueExpression<?> getKey() {
+    return key;
   }
 }

@@ -1,6 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.Visitor;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
 /**
@@ -33,7 +34,19 @@ public class ComparisonExpression implements BooleanExpression {
   }
 
   @Override
-  public String prettyPrint() {
-    return left.prettyPrint() + " " + operator.prettyPrint() + " " + right.prettyPrint();
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
+  }
+
+  public ValueExpression<?> getLeft() {
+    return left;
+  }
+
+  public ValueExpression<?> getRight() {
+    return right;
+  }
+
+  public ComparisonOperator getOperator() {
+    return operator;
   }
 }

@@ -1,5 +1,6 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -18,7 +19,7 @@ class EndsWithExpressionTest {
   void nullExpression() {
     EndsWithExpression expression = new EndsWithExpression(null, null);
     assertFalse(expression.evaluate(resolver));
-    assertEquals("endsWith(null, null)", expression.prettyPrint());
+    assertEquals("endsWith(null, null)", print(expression));
   }
 
   @Test
@@ -26,17 +27,17 @@ class EndsWithExpressionTest {
     EndsWithExpression expression =
         new EndsWithExpression(DSL.value(Values.UNDEFINED_OBJECT), new StringValue(null));
     assertFalse(expression.evaluate(resolver));
-    assertEquals("endsWith(UNDEFINED, \"null\")", expression.prettyPrint());
+    assertEquals("endsWith(UNDEFINED, \"null\")", print(expression));
   }
 
   @Test
   void stringExpression() {
     EndsWithExpression expression = new EndsWithExpression(DSL.value("abc"), new StringValue("bc"));
     assertTrue(expression.evaluate(resolver));
-    assertEquals("endsWith(\"abc\", \"bc\")", expression.prettyPrint());
+    assertEquals("endsWith(\"abc\", \"bc\")", print(expression));
 
     expression = new EndsWithExpression(DSL.value("abc"), new StringValue("ab"));
     assertFalse(expression.evaluate(resolver));
-    assertEquals("endsWith(\"abc\", \"ab\")", expression.prettyPrint());
+    assertEquals("endsWith(\"abc\", \"ab\")", print(expression));
   }
 }

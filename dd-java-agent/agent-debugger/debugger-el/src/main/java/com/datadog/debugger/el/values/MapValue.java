@@ -1,6 +1,7 @@
 package com.datadog.debugger.el.values;
 
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.expressions.ValueExpression;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.Values;
@@ -106,10 +107,11 @@ public final class MapValue implements CollectionValue<Object>, ValueExpression<
   }
 
   @Override
-  public String prettyPrint() {
-    if (mapHolder instanceof Map) {
-      return "Map";
-    }
-    return "null";
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
+  }
+
+  public Object getMapHolder() {
+    return mapHolder;
   }
 }
