@@ -80,7 +80,10 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
         traceId = span.getTraceId().toLong();
         spanId = span.getSpanId();
         parentId = span.getParentId();
-        version = 2;
+        // If there are no top-level tags,
+        // this is a test span that is not a part of a test suite,
+        // i.e. emitted by framework that does not support testing suites yet
+        version = topLevelTagsCount > 0 ? 2 : 1;
 
       } else if (InternalSpanTypes.TEST_SUITE_END.equals(span.getType())) {
         type = InternalSpanTypes.TEST_SUITE_END;
