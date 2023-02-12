@@ -1,0 +1,32 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  extraRepository("gradle-libs-releases-local", "https://repo.gradle.org/artifactory/libs-releases-local")
+
+  pass {
+    group = 'org.gradle'
+    module = 'gradle-testing-base'
+    versions = '[1.0,)'
+  }
+}
+
+repositories {
+  maven {
+    url "https://repo.gradle.org/artifactory/libs-releases-local"
+  }
+}
+
+dependencies {
+  compileOnly 'org.gradle:gradle-testing-base:5.6'
+
+  testImplementation(group: 'org.gradle', name: 'gradle-testing-base') {
+    version {
+      strictly '5.6'
+    }
+  }
+  testImplementation(group: 'org.gradle', name: 'gradle-logging') {
+    version {
+      strictly '5.6'
+    }
+  }
+}
