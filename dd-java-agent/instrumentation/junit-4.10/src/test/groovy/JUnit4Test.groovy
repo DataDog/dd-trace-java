@@ -9,6 +9,8 @@ import org.example.TestAssumptionAndSucceed
 import org.example.TestError
 import org.example.TestFailed
 import org.example.TestFailedAndSucceed
+import org.example.TestFailedSuiteSetup
+import org.example.TestFailedSuiteTearDown
 import org.example.TestInheritance
 import org.example.TestParameterized
 import org.example.TestSkipped
@@ -17,8 +19,6 @@ import org.example.TestSucceed
 import org.example.TestSucceedAndSkipped
 import org.example.TestSucceedWithCategories
 import org.example.TestSuiteSetUpAssumption
-import org.example.TestSuiteSetupFail
-import org.example.TestSuiteTearDownFail
 import org.junit.runner.JUnitCore
 
 @DisableTestTrace(reason = "avoid self-tracing")
@@ -170,15 +170,15 @@ class JUnit4Test extends TestFrameworkTest {
 
   def "test suite teardown failure generates spans"() {
     setup:
-    runner.run(TestSuiteTearDownFail)
+    runner.run(TestFailedSuiteTearDown)
 
     expect:
     assertTraces(1) {
       trace(4, true) {
         long testModuleId = testModuleSpan(it, 2, TestDecorator.TEST_FAIL)
-        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestSuiteTearDownFail", TestDecorator.TEST_FAIL, null, exception)
-        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestSuiteTearDownFail", "test_succeed", TestDecorator.TEST_PASS)
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSuiteTearDownFail", "test_another_succeed", TestDecorator.TEST_PASS)
+        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestFailedSuiteTearDown", TestDecorator.TEST_FAIL, null, exception)
+        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestFailedSuiteTearDown", "test_succeed", TestDecorator.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedSuiteTearDown", "test_another_succeed", TestDecorator.TEST_PASS)
       }
     }
 
@@ -188,13 +188,13 @@ class JUnit4Test extends TestFrameworkTest {
 
   def "test suite setup failure generates spans"() {
     setup:
-    runner.run(TestSuiteSetupFail)
+    runner.run(TestFailedSuiteSetup)
 
     expect:
     assertTraces(1) {
       trace(2, true) {
         long testModuleId = testModuleSpan(it, 0, TestDecorator.TEST_FAIL)
-        testSuiteSpan(it, 1, testModuleId, "org.example.TestSuiteSetupFail", TestDecorator.TEST_FAIL, null, exception)
+        testSuiteSpan(it, 1, testModuleId, "org.example.TestFailedSuiteSetup", TestDecorator.TEST_FAIL, null, exception)
       }
     }
 
