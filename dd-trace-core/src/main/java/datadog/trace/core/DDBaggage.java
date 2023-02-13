@@ -4,7 +4,6 @@ import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableMap;
 
 import datadog.trace.api.Baggage;
-import datadog.trace.core.scopemanager.ScopeContext;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -55,11 +54,6 @@ public class DDBaggage implements Baggage {
   @Override
   public BaggageBuilder toBuilder() {
     return new DDBaggageBuilder(this.items);
-  }
-
-  @Override
-  public String contextKey() {
-    return ScopeContext.BAGGAGE_KEY;
   }
 
   private static class DDBaggageBuilder implements BaggageBuilder {

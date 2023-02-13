@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.Baggage;
-import datadog.trace.context.ContextElement;
+import datadog.trace.context.ContextKey;
 
 /**
  * The immutable context attached to each {@link
@@ -24,20 +24,22 @@ public interface AgentScopeContext {
   Baggage baggage();
 
   /**
-   * Get a {@link ContextElement} from the context.
+   * Get a value from the context.
    *
-   * @param key The element key (from {@link ContextElement#contextKey()}).
-   * @param <V> The element type.
-   * @return The {@link ContextElement} value, <code>null</code> if no such element from context.
+   * @param <T> The element type.
+   * @param key The key related to the value to get.
+   * @return The requested value, <code>null</code> if no such value for the given key from the
+   *     context.
    */
-  <V extends ContextElement> V getElement(String key);
+  <T> T get(ContextKey<T> key);
 
   /**
-   * Create a new {@link AgentScopeContext} instance appending a {@link ContextElement}.
+   * Create a new {@link AgentScopeContext} instance appending a key/value pair.
    *
-   * @param element The element to append.
-   * @param <V> The element type to append.
+   * @param <T> The type of value to append.
+   * @param key The key related to the value to append.
+   * @param value The value to append.
    * @return A new {@link AgentScopeContext} instance.
    */
-  <V extends ContextElement> AgentScopeContext with(V element);
+  <T> AgentScopeContext with(ContextKey<T> key, T value);
 }

@@ -1,25 +1,23 @@
 package datadog.trace.core.scopemanager
 
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.context.ContextKey
 import datadog.trace.core.DDBaggage
-import datadog.trace.core.DDSpan
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
-// NOTE:
-// ScopeContext is not generic yet.
-// It only supports span and baggage for now.
-// That requires to have a span that to be the an instance of DDSpan and have the same context key.
+import static datadog.trace.core.scopemanager.ScopeContext.BAGGAGE_KEY
+import static datadog.trace.core.scopemanager.ScopeContext.SPAN_KEY
+
 class ScopeContextTest extends DDSpecification {
   @Shared
-  def span = buildSpan()
+  def span = Mock(AgentSpan)
   @Shared
   def baggage = DDBaggage.builder().put("key1", "value1").build()
-
-  def buildSpan() {
-    def span = Mock(DDSpan)
-    span.contextKey() >> "dd-span-key"
-    return span
-  }
+  @Shared
+  def someObject = new Object()
+  @Shared
+  def someObjectKey = ContextKey.<Object>named("someObject")
 
   def "check immutability and inheritance"() {
     when:
@@ -31,8 +29,8 @@ class ScopeContextTest extends DDSpecification {
 
     when:
 
-    def context1 = empty.with(baggage)
-    def context2 = context1.with(span)
+    def context1 = empty.with(BAGGAGE_KEY, baggage)
+    def context2 = context1.with(SPAN_KEY, span)
 
     then:
     empty.span() == null
@@ -43,28 +41,59 @@ class ScopeContextTest extends DDSpecification {
     context2.baggage() == baggage
   }
 
-  def "get element"() {
+  def "check storage"() {
     when:
-    def context = ScopeContext.empty().with(element)
+    def context = ScopeContext.empty().with(key, element)
 
     then:
-    context.getElement(key) == expected
+    context.get(key) == expected
 
     where:
-    element | key                  | expected
-    null    | null                 | null
-    span    | null                 | null
-    span    | span.contextKey()    | span
-    baggage | null                 | null
-    baggage | baggage.contextKey() | baggage
+    element    | key           | expected
+    null       | null          | null
+    span       | null          | null
+    span       | SPAN_KEY      | span
+    null       | SPAN_KEY      | null
+    baggage    | BAGGAGE_KEY   | baggage
+    someObject | someObjectKey | someObject
   }
 
-  def "check equals"() {
+  def "check generic storage"() {
+    setup:
+    def anotherObject = new Object()
+    def anotherObjectKey = ContextKey.<Object>named("anotherObject")
+    def someObjectNewValue = "String"
+
     when:
-    def context1 = ScopeContext.empty().with(this.span)
-    def context2 = ScopeContext.fromSpan(this.span)
+    def context = ScopeContext.empty()
+    then:
+    context.get(someObjectKey) == null
+    context.get(anotherObjectKey) == null
+
+    when:
+    context = context.with(someObjectKey, someObject)
+    then:
+    context.get(someObjectKey) == someObject
+    context.get(anotherObjectKey) == null
+
+    when:
+    context = context.with(anotherObjectKey, anotherObject)
+    then:
+    context.get(someObjectKey) == someObject
+    context.get(anotherObjectKey) == anotherObject
+
+    when:
+    context = context.with(someObjectKey, someObjectNewValue)
+    then:
+    context.get(someObjectKey) == someObjectNewValue
+    context.get(anotherObjectKey) == anotherObject
+  }
+
+  def "check fromSpan"() {
+    when:
+    def context = ScopeContext.fromSpan(this.span)
 
     then:
-    context1 == context2
+    context.span() == this.span
   }
 }

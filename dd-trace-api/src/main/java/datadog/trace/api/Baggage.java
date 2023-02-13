@@ -1,12 +1,11 @@
 package datadog.trace.api;
 
-import datadog.trace.context.ContextElement;
 import java.util.Map;
 
 /**
  * {@link Baggage} is an immutable key-value store for contextual information shared between spans.
  */
-public interface Baggage extends ContextElement {
+public interface Baggage {
   /**
    * Get baggage item value from its key.
    *

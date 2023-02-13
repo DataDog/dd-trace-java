@@ -4,10 +4,9 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
-import datadog.trace.context.ContextElement;
 import java.util.Map;
 
-public interface AgentSpan extends MutableSpan, IGSpanInfo, ContextElement {
+public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
   DDTraceId getTraceId();
 
