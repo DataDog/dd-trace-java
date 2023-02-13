@@ -17,6 +17,7 @@ import java.util.regex.Pattern;
 public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response>
     implements AgentPropagation.Setter<Request<?>> {
   public static final AwsSdkClientDecorator DECORATE = new AwsSdkClientDecorator();
+  public static final CharSequence AWS_HTTP = UTF8BytesString.create("aws.http");
 
   private static final Pattern REQUEST_PATTERN = Pattern.compile("Request", Pattern.LITERAL);
   private static final Pattern AMAZON_PATTERN = Pattern.compile("Amazon", Pattern.LITERAL);
