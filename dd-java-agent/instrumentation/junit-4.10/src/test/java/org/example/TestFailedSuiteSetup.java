@@ -5,7 +5,7 @@ import static org.junit.Assert.assertTrue;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-public class TestSuiteSetupFail {
+public class TestFailedSuiteSetup {
 
   @BeforeClass
   public static void suiteSetup() {
