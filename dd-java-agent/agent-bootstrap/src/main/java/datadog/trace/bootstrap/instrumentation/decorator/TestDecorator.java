@@ -153,6 +153,11 @@ public abstract class TestDecorator extends BaseDecorator {
   }
 
   protected boolean tryTestSuiteStart(String testSuiteName, Class<?> testClass) {
+    if (testModuleState == null) {
+      // do not create test suite spans for legacy setups that do not create modules
+      return false;
+    }
+
     TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
     Integer counter = testSuiteNestedCallCounters.merge(testSuiteDescriptor, 1, Integer::sum);
     return counter == 1;

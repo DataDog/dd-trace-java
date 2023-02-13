@@ -18,11 +18,16 @@ import org.junit.runners.model.TestClass;
 
 public class TracingListener extends RunListener {
 
+  public static final TracingListener INSTANCE = new TracingListener();
+
   private final String version;
 
-  public TracingListener() {
+  private TracingListener() {
     version = Version.id();
+  }
 
+  @Override
+  public void testRunStarted(Description description) {
     final AgentSpan span = startSpan("junit.test_module");
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
