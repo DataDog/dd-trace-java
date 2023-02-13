@@ -20,7 +20,6 @@ system_test_matrix: &system_test_matrix
 agent_integration_tests_modules: &agent_integration_tests_modules "dd-trace-core|communication|internal-api|utils"
 core_modules: &core_modules "dd-java-agent|dd-trace-core|communication|internal-api|telemetry|utils|dd-java-agent/agent-bootstrap|dd-java-agent/agent-installer|dd-java-agent/agent-tooling|dd-java-agent/agent-builder|dd-java-agent/appsec|dd-java-agent/agent-crashtracking"
 instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation|dd-java-agent/agent-tooling|dd-java-agent/agent-installer|dd-java-agent/agent-builder|dd-java-agent/agent-bootstrap|dd-java-agent/appsec|dd-java-agent/testing|dd-trace-core|dd-trace-api|internal-api"
-iast_modules: &iast_modules "dd-java-agent/agent-iast|internal-api|utils/test-utils"
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
@@ -87,7 +86,7 @@ commands:
           version: 20.10.18
           # DLC shares Docker layers across jobs (at an extra cost).
           # But its time to setup (~1min) exceeds the time required to prefetch all images we use.
-          docker_layer_caching: true
+          docker_layer_caching: false
 
       - run:
           name: Prepare testcontainers environment
@@ -439,6 +438,9 @@ jobs:
       stage:
         type: string
         default: ""
+      parallelism:
+        type: integer
+        default: 1
       maxWorkers:
         type: integer
         default: 2
@@ -450,6 +452,8 @@ jobs:
         default: false
       cacheType:
         type: string
+
+    parallelism: << parameters.parallelism >>
 
     steps:
       - setup_code
@@ -484,6 +488,7 @@ jobs:
             ./gradlew
             << parameters.gradleTarget >>
             << parameters.gradleParameters >>
+            -PtaskPartitionCount=${CIRCLE_NODE_TOTAL} -PtaskPartition=${CIRCLE_NODE_INDEX}
             <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
             --max-workers=<< parameters.maxWorkers >>
@@ -787,7 +792,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
 
-  - xlarge_tests:
+  - tests:
       requires:
         - ok_to_test
       name: z_test_<< matrix.testJvm >>_base
@@ -796,11 +801,12 @@ build_test_jobs: &build_test_jobs
       gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
       stage: core
       cacheType: base
-      maxWorkers: 6
+      parallelism: 4
+      maxWorkers: 4
       matrix:
         <<: *test_matrix
 
-  - xlarge_tests:
+  - tests:
       requires:
         - ok_to_test
       name: z_test_8_base
@@ -809,10 +815,11 @@ build_test_jobs: &build_test_jobs
       gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
       stage: core
       cacheType: base
-      maxWorkers: 6
+      parallelism: 4
+      maxWorkers: 4
       testJvm: "8"
 
-  - xlarge_tests:
+  - tests:
       requires:
         - ok_to_test
       name: z_test_<< matrix.testJvm >>_inst
@@ -821,11 +828,12 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: inst
-      maxWorkers: 8
+      parallelism: 8
+      maxWorkers: 4
       matrix:
         <<: *test_matrix
 
-  - xlarge_tests:
+  - tests:
       requires:
         - ok_to_test
       name: z_test_8_inst
@@ -834,10 +842,11 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: inst
-      maxWorkers: 8
+      parallelism: 8
+      maxWorkers: 4
       testJvm: "8"
 
-  - xlarge_tests:
+  - tests:
       requires:
         - ok_to_test
         - build_latestdep
@@ -847,10 +856,11 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: latestdep
-      maxWorkers: 8
+      parallelism: 8
+      maxWorkers: 4
       testJvm: "8"
 
-  - huge_tests:
+  - tests:
       requires:
         - ok_to_test
       name: z_test_8_flaky_base
@@ -860,6 +870,7 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *core_modules
       stage: core
       cacheType: base
+      parallelism: 4
       maxWorkers: 4
       testJvm: "8"
 
@@ -873,6 +884,7 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: inst
+      parallelism: 4
       maxWorkers: 4
       testJvm: "8"
 
@@ -885,6 +897,7 @@ build_test_jobs: &build_test_jobs
       continueOnFailure: true
       stage: smoke
       cacheType: smoke
+      parallelism: 4
       maxWorkers: 4
       testJvm: "8"
 
@@ -904,19 +917,6 @@ build_test_jobs: &build_test_jobs
   - tests:
       requires:
         - ok_to_test
-      maxWorkers: 4
-      name: test_<< matrix.testJvm >>_iast
-      gradleTarget: ":dd-java-agent:agent-iast:test"
-      gradleParameters: "-PskipFlakyTests"
-      triggeredBy: *iast_modules
-      stage: iast
-      cacheType: base
-      matrix:
-        <<: *profiling_test_matrix
-
-  - tests:
-      requires:
-        - ok_to_test
       name: test_<< matrix.testJvm >>_debugger
       maxWorkers: 4
       gradleTarget: ":debuggerTest"
@@ -927,7 +927,7 @@ build_test_jobs: &build_test_jobs
       matrix:
         <<: *profiling_test_matrix
 
-  - huge_tests:
+  - tests:
       requires:
         - ok_to_test
       name: z_test_<< matrix.testJvm >>_smoke
@@ -935,11 +935,12 @@ build_test_jobs: &build_test_jobs
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
       cacheType: smoke
-      maxWorkers: 8
+      parallelism: 4
+      maxWorkers: 3
       matrix:
         <<: *test_matrix
 
-  - huge_tests:
+  - tests:
       requires:
         - ok_to_test
       name: test_IBM11_smoke
@@ -947,10 +948,11 @@ build_test_jobs: &build_test_jobs
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
       cacheType: smoke
-      maxWorkers: 8
+      parallelism: 4
+      maxWorkers: 3
       testJvm: "IBM11"
 
-  - huge_tests:
+  - tests:
       requires:
         - ok_to_test
       name: test_IBM17_smoke
@@ -958,10 +960,11 @@ build_test_jobs: &build_test_jobs
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
       cacheType: smoke
-      maxWorkers: 8
+      parallelism: 4
+      maxWorkers: 3
       testJvm: "IBM17"
 
-  - xlarge_tests:
+  - tests:
       requires:
         - ok_to_test
       name: test_GRAALVM11_smoke
@@ -970,7 +973,7 @@ build_test_jobs: &build_test_jobs
       cacheType: smoke
       testJvm: "GRAALVM11"
 
-  - xlarge_tests:
+  - tests:
       requires:
         - ok_to_test
       name: test_GRAALVM17_smoke
@@ -980,7 +983,7 @@ build_test_jobs: &build_test_jobs
       testJvm: "GRAALVM17"
 
 
-  - huge_tests:
+  - tests:
       requires:
         - ok_to_test
       name: z_test_8_smoke
@@ -988,7 +991,8 @@ build_test_jobs: &build_test_jobs
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
       cacheType: smoke
-      maxWorkers: 8
+      parallelism: 4
+      maxWorkers: 3
       testJvm: "8"
 
   - fan_in:
@@ -1066,18 +1070,6 @@ build_test_jobs: &build_test_jobs
       name: debugger
       stage: debugger
 
-  - fan_in:
-      requires:
-        - test_published_artifacts
-        - test_8_iast
-        - test_ORACLE8_iast
-        - test_ZULU8_iast
-        - test_ZULU11_iast
-        - test_11_iast
-        - test_17_iast
-      name: iast
-      stage: iast
-
   # This job requires all the jobs needed for a successful build, so GitHub only needs to enforce this one,
   # and it will be simpler to require different JVM versions for different branches and old releases
   - fan_in:
@@ -1093,7 +1085,6 @@ build_test_jobs: &build_test_jobs
         - test_IBM17_smoke
         - test_ZULU8
         - profiling
-        - iast
         - debugger
       name: required
       stage: required
