@@ -1,6 +1,8 @@
 package datadog.trace.api.gateway;
 
 import datadog.appsec.api.blocking.BlockingContentType;
+import java.util.Collections;
+import java.util.Map;
 
 /**
  * The result of sending an event to a callback.
@@ -27,12 +29,25 @@ public interface Flow<T> {
 
     class RequestBlockingAction implements Action {
       private final int statusCode;
-
       private final BlockingContentType blockingContentType;
+      private final Map<String, String> extraHeaders;
 
-      public RequestBlockingAction(int statusCode, BlockingContentType blockingContentType) {
+      public RequestBlockingAction(
+          int statusCode,
+          BlockingContentType blockingContentType,
+          Map<String, String> extraHeaders) {
         this.statusCode = statusCode;
         this.blockingContentType = blockingContentType;
+        this.extraHeaders = extraHeaders;
+      }
+
+      public RequestBlockingAction(int statusCode, BlockingContentType blockingContentType) {
+        this(statusCode, blockingContentType, Collections.emptyMap());
+      }
+
+      public static RequestBlockingAction forRedirect(int statusCode, String location) {
+        return new RequestBlockingAction(
+            statusCode, BlockingContentType.NONE, Collections.singletonMap("Location", location));
       }
 
       @Override
@@ -46,6 +61,10 @@ public interface Flow<T> {
 
       public BlockingContentType getBlockingContentType() {
         return blockingContentType;
+      }
+
+      public Map<String, String> getExtraHeaders() {
+        return extraHeaders;
       }
     }
   }
