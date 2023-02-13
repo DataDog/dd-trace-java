@@ -148,11 +148,25 @@ allprojects {
   }
 }
 
+allprojects { project ->
+  project.ext {
+    activePartition = true
+  }
+  final boolean shouldUseTaskPartitions = project.rootProject.hasProperty("taskPartitionCount") && project.rootProject.hasProperty("taskPartition")
+  if (shouldUseTaskPartitions) {
+    final int taskPartitionCount = project.rootProject.property("taskPartitionCount") as int
+    final int taskPartition = project.rootProject.property("taskPartition") as int
+    final currentTaskPartition = project.path.hashCode() % taskPartitionCount
+    project.setProperty("activePartition", currentTaskPartition == taskPartition)
+  }
+}
+
+
 def testAggregate(String taskName, includePrefixes, excludePrefixes) {
   tasks.register(taskName) { aggTest ->
     subprojects { subproject ->
-      println(subproject.path)
-      if (includePrefixes.any { subproject.path.startsWith(it) } && !excludePrefixes.any { subproject.path.startsWith(it) }) {
+      if (subproject.property("activePartition") && includePrefixes.any { subproject.path.startsWith(it) } && !excludePrefixes.any { subproject.path.startsWith(it) }) {
+        println(subproject.path)
         def testTask = subproject.tasks.findByName("test")
         if (testTask != null) {
           aggTest.dependsOn(testTask)
