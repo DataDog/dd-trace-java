@@ -1,5 +1,7 @@
 package datadog.trace.opentelemetry1;
 
+import static datadog.trace.core.scopemanager.ScopeContext.BAGGAGE_KEY;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -39,7 +41,8 @@ public class OtelBaggage implements Baggage {
   public Scope makeCurrent() {
     Scope scope = Baggage.super.makeCurrent();
     AgentScopeContext context =
-        ScopeContext.empty().with(toDdBaggage()); // TODO Create a from(Element) method?
+        ScopeContext.empty()
+            .with(BAGGAGE_KEY, toDdBaggage()); // TODO Create a from(Element) method?
     AgentScope agentScope = AgentTracer.get().activateContext(context);
     return new OtelScope(scope, agentScope);
   }

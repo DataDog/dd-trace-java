@@ -2,6 +2,7 @@ package datadog.trace.opentelemetry1;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.core.scopemanager.ScopeContext.BAGGAGE_KEY;
 import static datadog.trace.opentelemetry1.OtelContextConstants.OTEL_CONTEXT_BAGGAGE_KEY;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -168,7 +169,7 @@ public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
         for (Map.Entry<String, BaggageEntry> entry : baggage.asMap().entrySet()) {
           builder.put(entry.getKey(), entry.getValue().getValue());
         }
-        agentScopeContext = agentScopeContext.with(builder.build());
+        agentScopeContext = agentScopeContext.with(BAGGAGE_KEY, builder.build());
         InstrumentationContext.get(Context.class, AgentScopeContext.class)
             .put(result, agentScopeContext);
       } else {

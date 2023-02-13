@@ -23,7 +23,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
-import datadog.trace.core.scopemanager.ScopeContext;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Collections;
@@ -732,10 +731,5 @@ public class DDSpan
   @Override
   public Object getWrapper() {
     return WRAPPER_FIELD_UPDATER.get(this);
-  }
-
-  @Override
-  public String contextKey() {
-    return ScopeContext.SPAN_KEY;
   }
 }

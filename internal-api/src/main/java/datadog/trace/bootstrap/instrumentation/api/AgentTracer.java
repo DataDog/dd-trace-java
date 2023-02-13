@@ -14,7 +14,7 @@ import datadog.trace.api.internal.InternalTracer;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
-import datadog.trace.context.ContextElement;
+import datadog.trace.context.ContextKey;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -678,11 +678,6 @@ public class AgentTracer {
     public byte getResourceNamePriority() {
       return Byte.MAX_VALUE;
     }
-
-    @Override
-    public String contextKey() {
-      return "";
-    }
   }
 
   public static final class NoopAgentScope implements AgentScope {
@@ -741,12 +736,12 @@ public class AgentTracer {
     }
 
     @Override
-    public <V extends ContextElement> V getElement(String key) {
+    public <T> T get(ContextKey<T> key) {
       return null;
     }
 
     @Override
-    public <V extends ContextElement> AgentScopeContext with(V element) {
+    public <T> AgentScopeContext with(ContextKey<T> key, T value) {
       return INSTANCE;
     }
   }
