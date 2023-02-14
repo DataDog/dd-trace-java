@@ -6,16 +6,23 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 
 @SuppressFBWarnings("NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE")
 class KotlinCoroutineTests(dispatcher: CoroutineDispatcher) : CoreKotlinCoroutineTests(dispatcher) {
 
   @Trace
-  fun tracedAcrossFlows(): Int = runTest {
+  fun tracedAcrossFlows(withModifiedContext: Boolean): Int = runTest {
     val producer = flow {
       repeat(3) {
         tracedChild("produce_$it")
-        emit(it)
+        if (withModifiedContext) {
+          withTimeout(100) {
+            emit(it)
+          }
+        } else {
+          emit(it)
+        }
       }
     }.flowOn(jobName("producer"))
 
