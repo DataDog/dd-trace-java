@@ -17,9 +17,8 @@ public class SslSocketImplInstrumentation extends Instrumenter.Usm
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
 
   public SslSocketImplInstrumentation() {
-    super("sun-sslsocketimpl","sslsocketimpl","sslsocket");
+    super("sun-sslsocketimpl", "sslsocketimpl", "sslsocket");
   }
-
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
@@ -36,16 +35,11 @@ public class SslSocketImplInstrumentation extends Instrumenter.Usm
   }
 
   public static class CloseAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void close(
-        @Advice.This SSLSocketImpl socket
-    ){
-      System.out.println("close socket:");
+        @Advice.This SSLSocketImpl socket) {
       UsmMessage message = UsmMessageFactory.Supplier.getCloseMessage(socket);
       UsmExtractor.Supplier.send(message);
-      System.out.println("src host: " + socket.getLocalAddress().toString() + " src port: " + socket.getLocalPort());
-      System.out.println("dst host: " + socket.getInetAddress().toString() + " dst port: " + socket.getPeerPort());
     }
   }
 }
