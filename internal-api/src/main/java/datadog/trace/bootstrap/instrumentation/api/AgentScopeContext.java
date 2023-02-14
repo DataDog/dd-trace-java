@@ -1,7 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import datadog.trace.context.ContextKey;
-
 /**
  * The immutable context attached to each {@link
  * datadog.trace.bootstrap.instrumentation.api.AgentScopeManager}.
