@@ -2,7 +2,8 @@ package datadog.trace.instrumentation.kotlin.coroutines;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.instrumentation.kotlin.coroutines.CoroutineContextHelper.getScopeStateContext;
+import static datadog.trace.instrumentation.kotlin.coroutines.CoroutineContextHelper.closeScopeStateContext;
+import static datadog.trace.instrumentation.kotlin.coroutines.CoroutineContextHelper.initializeScopeStateContext;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isOverriddenFrom;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
@@ -10,6 +11,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
+import java.util.Collections;
+import java.util.Map;
 import kotlinx.coroutines.AbstractCoroutine;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -38,6 +41,7 @@ public abstract class AbstractCoroutinesInstrumentation extends Instrumenter.Tra
     return new String[] {
       packageName + ".ScopeStateCoroutineContext",
       packageName + ".ScopeStateCoroutineContext$ContextElementKey",
+      packageName + ".ScopeStateCoroutineContext$ScopeStateCoroutineContextItem",
       packageName + ".CoroutineContextHelper",
     };
   }
@@ -73,6 +77,13 @@ public abstract class AbstractCoroutinesInstrumentation extends Instrumenter.Tra
     return extendsClass(named(ABSTRACT_COROUTINE_CLASS_NAME));
   }
 
+  @Override
+  public Map<String, String> contextStore() {
+    return Collections.singletonMap(
+        "kotlinx.coroutines.Job",
+        packageName + ".ScopeStateCoroutineContext$ScopeStateCoroutineContextItem");
+  }
+
   /**
    * If/when coroutine is started lazily, initializes ScopeStateCoroutineContext element on
    * coroutine start
@@ -83,12 +94,8 @@ public abstract class AbstractCoroutinesInstrumentation extends Instrumenter.Tra
   public static class AbstractCoroutineOnStartAdvice {
     @Advice.OnMethodEnter
     public static void onStartInvocation(@Advice.This final AbstractCoroutine<?> coroutine) {
-      final ScopeStateCoroutineContext scopeStackContext =
-          getScopeStateContext(coroutine.getContext());
-      if (scopeStackContext != null) {
-        // try to inherit parent span from the coroutine start call site
-        scopeStackContext.maybeInitialize();
-      }
+      // try to inherit parent span from the coroutine start call site
+      initializeScopeStateContext(coroutine);
     }
   }
 
@@ -102,12 +109,8 @@ public abstract class AbstractCoroutinesInstrumentation extends Instrumenter.Tra
   public static class JobSupportAfterCompletionInternalAdvice {
     @Advice.OnMethodEnter
     public static void onCompletionInternal(@Advice.This final AbstractCoroutine<?> coroutine) {
-      final ScopeStateCoroutineContext scopeStackContext =
-          getScopeStateContext(coroutine.getContext());
-      if (scopeStackContext != null) {
-        // close the scope if needed
-        scopeStackContext.maybeCloseScopeAndCancelContinuation();
-      }
+      // close the scope if needed
+      closeScopeStateContext(coroutine);
     }
   }
 }
