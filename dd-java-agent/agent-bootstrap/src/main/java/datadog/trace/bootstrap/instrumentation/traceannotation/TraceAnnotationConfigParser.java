@@ -44,7 +44,7 @@ public final class TraceAnnotationConfigParser {
   @SuppressForbidden
   public static Map<String, Set<String>> parse(String configString) {
     Map<String, Set<String>> classMethodsToTrace;
-    if (configString.isEmpty()) {
+    if (configString.isEmpty() || configString == null) {
       classMethodsToTrace = Collections.emptyMap();
     } else {
       Map<String, Set<String>> toTrace = new HashMap<>();

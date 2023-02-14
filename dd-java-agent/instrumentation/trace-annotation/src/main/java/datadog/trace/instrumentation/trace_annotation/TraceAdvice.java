@@ -7,6 +7,7 @@ import static datadog.trace.instrumentation.trace_annotation.TraceDecorator.DECO
 import datadog.trace.api.Trace;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.traceannotation.MeasuredMethodFilter;
 import java.lang.reflect.Method;
 import net.bytebuddy.asm.Advice;
 
@@ -32,9 +33,8 @@ public class TraceAdvice {
     if (resourceName == null || resourceName.length() == 0) {
       resourceName = DECORATE.spanNameForMethod(method);
     }
-    if (traceAnnotation != null && traceAnnotation.measured()) {
-      //?
-      DECORATE.measureSpan(span);
+    if ((traceAnnotation != null && traceAnnotation.measured())
+        || MeasuredMethodFilter.FILTER.filter(method)) {
       span.setMeasured(true);
     }
     span.setResourceName(resourceName);
