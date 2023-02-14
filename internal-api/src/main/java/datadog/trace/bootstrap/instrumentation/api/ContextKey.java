@@ -1,4 +1,4 @@
-package datadog.trace.context;
+package datadog.trace.bootstrap.instrumentation.api;
 
 /**
  * The key to store and retrieve values from ScopedContext key-value storage.

@@ -1,7 +1,7 @@
 package datadog.trace.core.scopemanager
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import datadog.trace.context.ContextKey
+import datadog.trace.bootstrap.instrumentation.api.ContextKey
 import datadog.trace.core.DDBaggage
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared

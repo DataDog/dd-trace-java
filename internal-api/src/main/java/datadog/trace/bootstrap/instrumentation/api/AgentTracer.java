@@ -14,7 +14,7 @@ import datadog.trace.api.internal.InternalTracer;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
-import datadog.trace.context.ContextKey;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
