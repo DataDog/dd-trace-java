@@ -37,10 +37,15 @@ public class TraceAdvice {
       resourceName = DECORATE.spanNameForMethod(method);
     }
 <<<<<<< HEAD
+<<<<<<< HEAD
     if ((traceAnnotation != null && traceAnnotation.measured())
         || filter(method.getDeclaringClass().getName(), method.getName())) {
 
       span.setMeasured(true);
+=======
+    if (traceAnnotation != null && traceAnnotation.measured()) {
+      DECORATE.measureSpan(span);
+>>>>>>> parent of c591185dec (moved config parsing logic to agent-bootstrap)
 =======
     if (traceAnnotation != null && traceAnnotation.measured()) {
       DECORATE.measureSpan(span);
