@@ -19,7 +19,7 @@ public class OtelBaggage implements Baggage {
 
   final Baggage delegate;
 
-  public static Baggage fromDdBaggage(datadog.trace.api.Baggage baggage) {
+  public static Baggage fromDdBaggage(datadog.trace.bootstrap.instrumentation.api.Baggage baggage) {
     Baggage delegate;
     if (baggage == null || baggage.isEmpty()) {
       delegate = Baggage.empty();
@@ -47,11 +47,11 @@ public class OtelBaggage implements Baggage {
     return new OtelScope(scope, agentScope);
   }
 
-  private datadog.trace.api.Baggage toDdBaggage() {
+  private datadog.trace.bootstrap.instrumentation.api.Baggage toDdBaggage() {
     if (this.delegate.isEmpty()) {
       return DDBaggage.empty();
     }
-    datadog.trace.api.Baggage.BaggageBuilder builder = DDBaggage.builder();
+    datadog.trace.bootstrap.instrumentation.api.Baggage.BaggageBuilder builder = DDBaggage.builder();
     for (Map.Entry<String, BaggageEntry> entry : this.delegate.asMap().entrySet()) {
       builder.put(entry.getKey(), entry.getValue().getValue());
     }

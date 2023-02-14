@@ -3,7 +3,8 @@ package datadog.trace.core;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableMap;
 
-import datadog.trace.api.Baggage;
+import datadog.trace.bootstrap.instrumentation.api.Baggage;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -28,9 +29,9 @@ public class DDBaggage implements Baggage {
   }
 
   /**
-   * Get an empty {@link datadog.trace.api.Baggage.BaggageBuilder}.
+   * Get an empty {@link Baggage.BaggageBuilder}.
    *
-   * @return An empty {@link datadog.trace.api.Baggage.BaggageBuilder}.
+   * @return An empty {@link Baggage.BaggageBuilder}.
    */
   public static BaggageBuilder builder() {
     return new DDBaggageBuilder(emptyMap());

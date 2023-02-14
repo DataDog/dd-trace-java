@@ -165,7 +165,7 @@ public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
           InstrumentationContext.get(Context.class, AgentScopeContext.class).get(zis);
       if (agentScopeContext != null) {
         System.out.println(">>> [Context.with()] Storing baggage into span");
-        datadog.trace.api.Baggage.BaggageBuilder builder = DDBaggage.builder();
+        datadog.trace.bootstrap.instrumentation.api.Baggage.BaggageBuilder builder = DDBaggage.builder();
         for (Map.Entry<String, BaggageEntry> entry : baggage.asMap().entrySet()) {
           builder.put(entry.getKey(), entry.getValue().getValue());
         }
