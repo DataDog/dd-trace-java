@@ -117,6 +117,9 @@ public abstract class UsmMessageImpl {
 
     public CloseConnectionUsmMessage(SSLSocketImpl socket) {
       super(MessageType.CLOSE_CONNECTION, socket);
+      log.debug("close socket:");
+      log.debug("src host: " + socket.getLocalAddress().toString() + " src port: " + socket.getLocalPort());
+      log.debug("dst host: " + socket.getInetAddress().toString() + " dst port: " + socket.getPeerPort());
     }
 
     @Override
@@ -136,6 +139,11 @@ public abstract class UsmMessageImpl {
 
     public RequestUsmMessage(SSLSocketImpl socket, byte[] buffer, int bufferOffset, int len) {
       super(MessageType.REQUEST, socket);
+
+      log.debug("Request packet:");
+      log.debug("src host: " + socket.getLocalAddress().toString() + " src port: " + socket.getLocalPort());
+      log.debug("dst host: " + socket.getInetAddress().toString() + " dst port: " + socket.getPeerPort());
+      log.debug("intercepted byte len: " + len);
 
       // check the buffer is not larger than max allowed,
       if (len - bufferOffset <= MAX_HTTPS_BUFFER_SIZE) {

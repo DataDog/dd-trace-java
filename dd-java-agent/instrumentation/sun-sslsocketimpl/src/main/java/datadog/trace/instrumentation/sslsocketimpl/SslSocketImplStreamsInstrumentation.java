@@ -22,14 +22,15 @@ public class SslSocketImplStreamsInstrumentation extends Instrumenter.Usm
   private static final Logger log = LoggerFactory.getLogger(SslSocketImplStreamsInstrumentation.class);
 
   public SslSocketImplStreamsInstrumentation() {
-    super("sun-sslsocketimpl-streams","sslsocketimpl-streams","sslsocket-streams");
+    super("sun-sslsocketimpl-streams", "sslsocketimpl-streams", "sslsocket-streams");
   }
 
   @Override
   public String[] knownMatchingTypes() {
-    // we instrument both input and output streams which are inner classes of the SSLSocketImpl
+    // we instrument both input and output streams which are inner classes of the
+    // SSLSocketImpl
     return new String[] {
-      "sun.security.ssl.SSLSocketImpl$AppInputStream", "sun.security.ssl.SSLSocketImpl$AppOutputStream"
+        "sun.security.ssl.SSLSocketImpl$AppInputStream", "sun.security.ssl.SSLSocketImpl$AppOutputStream"
     };
   }
 
@@ -38,18 +39,18 @@ public class SslSocketImplStreamsInstrumentation extends Instrumenter.Usm
     transformation.applyAdvice(
         isMethod()
             .and(named("write")
-            .and(takesArguments(3))
-            .and(takesArgument(0,byte[].class))
-            .and(takesArgument(1,int.class))
-            .and(takesArgument(2,int.class))),
+                .and(takesArguments(3))
+                .and(takesArgument(0, byte[].class))
+                .and(takesArgument(1, int.class))
+                .and(takesArgument(2, int.class))),
         SslSocketImplStreamsInstrumentation.class.getName() + "$WriteAdvice");
     transformation.applyAdvice(
         isMethod()
             .and(named("read")
                 .and(takesArguments(3))
-                .and(takesArgument(0,byte[].class))
-                .and(takesArgument(1,int.class))
-                .and(takesArgument(2,int.class))),
+                .and(takesArgument(0, byte[].class))
+                .and(takesArgument(1, int.class))
+                .and(takesArgument(2, int.class))),
         SslSocketImplStreamsInstrumentation.class.getName() + "$ReadAdvice");
   }
 
@@ -60,15 +61,10 @@ public class SslSocketImplStreamsInstrumentation extends Instrumenter.Usm
         @Advice.FieldValue("this$0") SSLSocketImpl socket,
         @Advice.Argument(0) final byte[] buffer,
         @Advice.Argument(1) int offset,
-        @Advice.Argument(2) int len)
-    {
+        @Advice.Argument(2) int len) {
 
-      System.out.println("Output Stream write:");
       UsmMessage message = UsmMessageFactory.Supplier.getRequestMessage(socket, buffer, offset, len);
       UsmExtractor.Supplier.send(message);
-      System.out.println("src host: " + socket.getLocalAddress().toString() + " src port: " + socket.getLocalPort());
-      System.out.println("dst host: " + socket.getInetAddress().toString() + " dst port: " + socket.getPeerPort());
-      System.out.println("intercepted write, byte len: " + len);
     }
 
   }
@@ -80,15 +76,10 @@ public class SslSocketImplStreamsInstrumentation extends Instrumenter.Usm
         @Advice.FieldValue("this$0") SSLSocketImpl socket,
         @Advice.Argument(0) final byte[] buffer,
         @Advice.Argument(1) int offset,
-        @Advice.Argument(2) int len)
-    {
+        @Advice.Argument(2) int len) {
 
-      System.out.println("Input Stream read:");
       UsmMessage message = UsmMessageFactory.Supplier.getRequestMessage(socket, buffer, offset, len);
       UsmExtractor.Supplier.send(message);
-      System.out.println("src host: " + socket.getLocalAddress().toString() + " src port: " + socket.getLocalPort());
-      System.out.println("dst host: " + socket.getInetAddress().toString() + " dst port: " + socket.getPeerPort());
-      System.out.println("intercepted write, byte len: " + len);
     }
 
   }

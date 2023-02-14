@@ -1,15 +1,15 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
 muzzle {
   pass {
     coreJdk()
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-
-dependencies {
-
-  //testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
-}
-
-
-
