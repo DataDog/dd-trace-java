@@ -23,6 +23,7 @@ import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpRequest;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 
 @ChannelHandler.Sharable
 public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapter {
@@ -66,7 +67,11 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
     try (final AgentScope scope = activateSpan(span)) {
       decorate.afterStart(span);
       decorate.onRequest(span, request);
-      decorate.onPeerConnection(span, (InetSocketAddress) ctx.channel().remoteAddress());
+
+      SocketAddress socketAddress = ctx.channel().remoteAddress();
+      if (socketAddress instanceof InetSocketAddress) {
+        decorate.onPeerConnection(span, (InetSocketAddress) socketAddress);
+      }
 
       // AWS calls are often signed, so we can't add headers without breaking the signature.
       if (!request.headers().contains("amz-sdk-invocation-id")) {

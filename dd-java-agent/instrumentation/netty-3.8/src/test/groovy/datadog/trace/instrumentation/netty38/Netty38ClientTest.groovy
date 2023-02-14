@@ -7,6 +7,11 @@ import com.ning.http.client.Response
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.netty38.client.NettyHttpClientDecorator
+import org.jboss.netty.handler.codec.embedder.EncoderEmbedder
+import org.jboss.netty.handler.codec.http.DefaultHttpRequest
+import org.jboss.netty.handler.codec.http.HttpMethod
+import org.jboss.netty.handler.codec.http.HttpRequestEncoder
+import org.jboss.netty.handler.codec.http.HttpVersion
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 
@@ -115,5 +120,16 @@ class Netty38ClientTest extends HttpClientTest {
 
     where:
     method = "GET"
+  }
+
+  def "verify instrumentation does not break embedded channels"() {
+    given:
+    EncoderEmbedder encoderEmbedder = new EncoderEmbedder<>(new HttpRequestEncoder())
+
+    when:
+    encoderEmbedder.offer(new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/post"))
+
+    then:
+    noExceptionThrown()
   }
 }
