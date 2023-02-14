@@ -1,4 +1,4 @@
-package datadog.trace.opentelemetry1;
+package datadog.trace.opentelemetry14;
 
 import static io.opentelemetry.api.trace.StatusCode.ERROR;
 import static io.opentelemetry.api.trace.StatusCode.OK;

@@ -1,4 +1,4 @@
-package datadog.trace.opentelemetry1;
+package datadog.trace.opentelemetry14;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;

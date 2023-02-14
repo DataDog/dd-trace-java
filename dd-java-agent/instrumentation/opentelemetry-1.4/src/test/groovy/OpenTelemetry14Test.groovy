@@ -1,9 +1,9 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.opentelemetry1.OtelSpan
-import datadog.trace.opentelemetry1.OtelSpanBuilder
-import datadog.trace.opentelemetry1.OtelTracer
+import datadog.trace.opentelemetry14.OtelSpan
+import datadog.trace.opentelemetry14.OtelSpanBuilder
+import datadog.trace.opentelemetry14.OtelTracer
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.trace.SpanKind
 import io.opentelemetry.api.trace.StatusCode
@@ -14,7 +14,7 @@ import static io.opentelemetry.api.trace.StatusCode.ERROR
 import static io.opentelemetry.api.trace.StatusCode.OK
 import static io.opentelemetry.api.trace.StatusCode.UNSET
 
-class OpenTelemetry1Test extends AgentTestRunner {
+class OpenTelemetry14Test extends AgentTestRunner {
   @Subject
   def tracer = GlobalOpenTelemetry.get().tracerProvider.get("some-instrumentation")
 
