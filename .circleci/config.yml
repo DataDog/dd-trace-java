@@ -305,9 +305,9 @@ jobs:
     steps:
       - setup_code
       - restore_dependency_cache:
-          cacheType: full
+          cacheType: lib
       - restore_build_cache:
-          cacheType: full
+          cacheType: lib
 
       - run:
           name: Check Project
@@ -435,7 +435,6 @@ jobs:
           condition:
             or:
               - equal: ["core", << parameters.stage >>]
-              - equal: ["flaky", << parameters.stage >>]
               - equal: ["instrumentation", << parameters.stage >>]
               - equal: ["smoke", << parameters.stage >>]
           steps:
@@ -697,10 +696,6 @@ jobs:
 
 build_test_jobs: &build_test_jobs
   - build:
-      name: build_full
-      gradleTarget: shadowJar test
-      cacheType: full
-  - build:
       name: build_lib
       gradleTarget: shadowJar
       cacheType: lib
@@ -729,7 +724,6 @@ build_test_jobs: &build_test_jobs
 
   - fan_in:
       requires:
-        - build_full
         - build_lib
         - build_base
         - build_inst
@@ -809,13 +803,38 @@ build_test_jobs: &build_test_jobs
   - huge_tests:
       requires:
         - ok_to_test
-      name: z_test_8_flaky
-      gradleTarget: "test"
+      name: z_test_8_flaky_base
+      gradleTarget: ":baseTest"
       gradleParameters: "-PrunFlakyTests"
       continueOnFailure: true
       triggeredBy: *core_modules
-      stage: flaky
-      cacheType: full
+      stage: core
+      cacheType: base
+      maxWorkers: 4
+      testJvm: "8"
+
+  - tests:
+      requires:
+        - ok_to_test
+      name: z_test_8_flaky_inst
+      gradleTarget: ":instrumentationTest"
+      gradleParameters: "-PrunFlakyTests"
+      continueOnFailure: true
+      triggeredBy: *instrumentation_modules
+      stage: instrumentation
+      cacheType: inst
+      maxWorkers: 4
+      testJvm: "8"
+
+  - tests:
+      requires:
+        - ok_to_test
+      name: z_test_8_flaky_smoke
+      gradleTarget: ":smokeTest"
+      gradleParameters: "-PrunFlakyTests"
+      continueOnFailure: true
+      stage: smoke
+      cacheType: smoke
       maxWorkers: 4
       testJvm: "8"
 
@@ -1053,10 +1072,6 @@ workflows:
                 - master
     jobs:
       # This will rebuild a main caches with a new timestamp from a clean slate
-      - build_clean_cache:
-          name: build_cache_full
-          gradleTarget: shadowJar test
-          cacheType: full
       - build_clean_cache:
           name: build_cache_lib
           gradleTarget: shadowJar
