@@ -2,7 +2,7 @@ package datadog.trace.core.scopemanager;
 
 import static datadog.trace.context.ContextKey.named;
 
-import datadog.trace.api.Baggage;
+import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;

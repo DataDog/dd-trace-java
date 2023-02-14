@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import datadog.trace.api.Baggage;
 import datadog.trace.context.ContextKey;
 
 /**

@@ -1,4 +1,4 @@
-package datadog.trace.api;
+package datadog.trace.bootstrap.instrumentation.api;
 
 import java.util.Map;
 
