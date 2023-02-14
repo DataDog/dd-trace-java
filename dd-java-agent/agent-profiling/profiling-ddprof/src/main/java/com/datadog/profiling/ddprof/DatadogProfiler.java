@@ -1,23 +1,42 @@
 package com.datadog.profiling.ddprof;
 
-import static com.datadog.profiling.ddprof.DatadogProfilerConfig.*;
-import static com.datadog.profiling.utils.ProfilingMode.*;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getAllocationInterval;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getCStack;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getContextAttributes;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getCpuInterval;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getLogLevel;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getMemleakCapacity;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getMemleakInterval;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSafeMode;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSchedulingEvent;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSchedulingEventInterval;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getStackDepth;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallCollapsing;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallContextFilter;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallInterval;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isAllocationProfilingEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isCpuProfilerEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isMemoryLeakProfilingEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabled;
+import static com.datadog.profiling.utils.ProfilingMode.ALLOCATION;
+import static com.datadog.profiling.utils.ProfilingMode.CPU;
+import static com.datadog.profiling.utils.ProfilingMode.MEMLEAK;
+import static com.datadog.profiling.utils.ProfilingMode.WALL;
 
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
-import com.datadog.profiling.utils.LibraryHelper;
 import com.datadog.profiling.utils.ProfilingMode;
+import com.datadoghq.profiler.ContextSetter;
 import com.datadoghq.profiler.JavaProfiler;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
@@ -37,11 +56,29 @@ public final class DatadogProfiler {
     private static final DatadogProfiler INSTANCE = newInstance();
   }
 
+  private static void logFailedInstantiation(Throwable error) {
+    OperatingSystem os = OperatingSystem.current();
+    if (os != OperatingSystem.linux) {
+      log.debug("Datadog profiler only supported on Linux", error);
+    } else if (log.isDebugEnabled()) {
+      log.warn(
+          String.format("failed to instantiate Datadog profiler on %s %s", os, Arch.current()),
+          error);
+    } else {
+      log.warn(
+          "failed to instantiate Datadog profiler on {} {} because: {}",
+          os,
+          Arch.current(),
+          error.getMessage());
+    }
+  }
+
   static DatadogProfiler newInstance() {
     DatadogProfiler instance = null;
     try {
       instance = new DatadogProfiler();
     } catch (Throwable t) {
+      logFailedInstantiation(t);
       instance = new DatadogProfiler((Void) null);
     }
     return instance;
@@ -52,6 +89,7 @@ public final class DatadogProfiler {
     try {
       instance = new DatadogProfiler(configProvider);
     } catch (Throwable t) {
+      logFailedInstantiation(t);
       instance = new DatadogProfiler((Void) null);
     }
     return instance;
@@ -62,6 +100,10 @@ public final class DatadogProfiler {
   private final JavaProfiler profiler;
   private final Set<ProfilingMode> profilingModes = EnumSet.noneOf(ProfilingMode.class);
 
+  private final ContextSetter contextSetter;
+
+  private final List<String> orderedContextAttributes;
+
   private DatadogProfiler() throws UnsupportedEnvironmentException {
     this(ConfigProvider.getInstance());
   }
@@ -69,17 +111,31 @@ public final class DatadogProfiler {
   private DatadogProfiler(Void dummy) {
     this.configProvider = null;
     this.profiler = null;
+    this.contextSetter = null;
+    this.orderedContextAttributes = null;
   }
 
   private DatadogProfiler(ConfigProvider configProvider) throws UnsupportedEnvironmentException {
+    this(configProvider, getContextAttributes(configProvider));
+  }
+
+  // visible for testing
+  DatadogProfiler(ConfigProvider configProvider, Set<String> contextAttributes)
+      throws UnsupportedEnvironmentException {
     this.configProvider = configProvider;
-    String libDir = configProvider.getString(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH);
-    if (libDir != null && Files.exists(Paths.get(libDir))) {
-      // the library from configuration takes precedence
-      profiler = JavaProfiler.getInstance(libDir);
-    } else {
-      profiler = inferFromOsAndArch();
+    try {
+      profiler =
+          JavaProfiler.getInstance(
+              configProvider.getString(
+                  ProfilingConfig.PROFILING_DATADOG_PROFILER_SCRATCH,
+                  ProfilingConfig.PROFILING_DATADOG_PROFILER_SCRATCH_DEFAULT));
+    } catch (IOException e) {
+      throw new UnsupportedOperationException("Unable to instantiate datadog profiler");
     }
+    if (profiler == null) {
+      throw new UnsupportedEnvironmentException("Unable to instantiate datadog profiler");
+    }
+
     // TODO enable/disable events by name (e.g. datadog.ExecutionSample), not flag, so configuration
     //  can be consistent with JFR event control
     if (isAllocationProfilingEnabled(configProvider)) {
@@ -94,6 +150,8 @@ public final class DatadogProfiler {
     if (isWallClockProfilerEnabled(configProvider)) {
       profilingModes.add(WALL);
     }
+    this.orderedContextAttributes = new ArrayList<>(contextAttributes);
+    this.contextSetter = new ContextSetter(profiler, orderedContextAttributes);
     try {
       // sanity test - force load Datadog profiler to catch it not being available early
       profiler.execute("status");
@@ -106,81 +164,23 @@ public final class DatadogProfiler {
     return Singleton.INSTANCE;
   }
 
-  private static JavaProfiler inferFromOsAndArch() throws UnsupportedEnvironmentException {
-    Arch arch = Arch.current();
-    OperatingSystem os = OperatingSystem.current();
-    try {
-      if (os != OperatingSystem.unknown) {
-        if (arch != Arch.unknown) {
-          try {
-            return profilerForOsAndArch(os, arch, false);
-          } catch (FileNotFoundException e) {
-            if (os == OperatingSystem.linux) {
-              // Might be a MUSL distribution
-              return profilerForOsAndArch(os, arch, true);
-            }
-            throw e;
-          }
-        }
-      }
-    } catch (Throwable t) {
-      if (log.isDebugEnabled()) {
-        log.info(unsupportedEnvironmentMessage(arch, os), t);
-      } else {
-        log.info(unsupportedEnvironmentMessage(arch, os) + ", cause=" + t.getMessage());
-      }
-      throw unsupportedEnvironment(arch, os, t);
-    }
-    throw unsupportedEnvironment(arch, os);
-  }
-
-  private static UnsupportedEnvironmentException unsupportedEnvironment(
-      Arch architecture, OperatingSystem os) {
-    return unsupportedEnvironment(architecture, os, null);
-  }
-
-  private static UnsupportedEnvironmentException unsupportedEnvironment(
-      Arch architecture, OperatingSystem os, Throwable cause) {
-    return new UnsupportedEnvironmentException(
-        unsupportedEnvironmentMessage(architecture, os), cause);
-  }
-
-  private static String unsupportedEnvironmentMessage(Arch architecture, OperatingSystem os) {
-    return "Unable to instantiate datadog profiler for the detected environment: arch="
-        + architecture
-        + ", os="
-        + os;
-  }
-
-  void addThread(int tid) {
-    if (profiler != null && tid >= 0) {
-      profiler.addThread(tid);
+  void addThread() {
+    if (profiler != null) {
+      profiler.addThread();
     }
   }
 
-  void removeThread(int tid) {
-    if (profiler != null && tid >= 0) {
-      profiler.removeThread(tid);
+  void removeThread() {
+    if (profiler != null) {
+      profiler.removeThread();
     }
-  }
-
-  private static JavaProfiler profilerForOsAndArch(OperatingSystem os, Arch arch, boolean musl)
-      throws IOException {
-    String libDir = os.name();
-    if (os.name().equals("macos")) {
-      if (arch.name().equals("aarch64")) {
-        libDir += "-arm64";
-      }
-    } else {
-      libDir += (musl ? "-musl-" : "-") + arch.name();
-    }
-    File localLib =
-        LibraryHelper.libraryFromClasspath("/native-libs/" + libDir + "/libjavaProfiler.so");
-    return JavaProfiler.getInstance(localLib.getAbsolutePath());
   }
 
   public String getVersion() {
-    return profiler.getVersion();
+    if (profiler != null) {
+      return profiler.getVersion();
+    }
+    return "profiler not loaded";
   }
 
   @Nullable
@@ -275,6 +275,7 @@ public final class DatadogProfiler {
     cmd.append(",jstackdepth=").append(getStackDepth(configProvider));
     cmd.append(",cstack=").append(getCStack(configProvider));
     cmd.append(",safemode=").append(getSafeMode(configProvider));
+    cmd.append(",attributes=").append(String.join(";", orderedContextAttributes));
     if (profilingModes.contains(CPU)) {
       // cpu profiling is enabled.
       String schedulingEvent = getSchedulingEvent(configProvider);
@@ -292,9 +293,16 @@ public final class DatadogProfiler {
     }
     if (profilingModes.contains(WALL)) {
       // wall profiling is enabled.
-      cmd.append(",wall=~").append(getWallInterval(configProvider)).append('m').append(",filter=0");
-      cmd.append(",loglevel=").append(getLogLevel(configProvider));
+      cmd.append(",wall=");
+      if (getWallCollapsing(configProvider)) {
+        cmd.append("~");
+      }
+      cmd.append(getWallInterval(configProvider)).append('m');
+      if (getWallContextFilter(configProvider)) {
+        cmd.append(",filter=0");
+      }
     }
+    cmd.append(",loglevel=").append(getLogLevel(configProvider));
     if (profilingModes.contains(ALLOCATION)) {
       // allocation profiling is enabled
       cmd.append(",alloc=").append(getAllocationInterval(configProvider)).append('b');
@@ -313,20 +321,27 @@ public final class DatadogProfiler {
     return cmdString;
   }
 
-  public void setContext(int tid, long spanId, long rootSpanId) {
-    if (profiler != null && tid >= 0) {
+  public void setContext(long spanId, long rootSpanId) {
+    if (profiler != null) {
       try {
-        profiler.setContext(tid, spanId, rootSpanId);
+        profiler.setContext(spanId, rootSpanId);
       } catch (IllegalStateException e) {
         log.warn("Failed to set context", e);
       }
     }
   }
 
-  public int getNativeThreadId() {
-    if (profiler != null) {
-      return profiler.getNativeThreadId();
+  public boolean setContextValue(String attribute, String value) {
+    if (contextSetter != null) {
+      return contextSetter.setContextValue(attribute, value);
     }
-    return -1;
+    return false;
+  }
+
+  public boolean clearContextValue(String attribute) {
+    if (contextSetter != null) {
+      return contextSetter.clearContextValue(attribute);
+    }
+    return false;
   }
 }

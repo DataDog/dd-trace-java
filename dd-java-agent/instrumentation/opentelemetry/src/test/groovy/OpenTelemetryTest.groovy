@@ -2,7 +2,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.interceptor.MutableSpan
-import datadog.trace.core.propagation.DatadogTags
+import datadog.trace.core.propagation.PropagationTags
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
 import datadog.trace.context.TraceScope
@@ -135,11 +135,11 @@ class OpenTelemetryTest extends AgentTestRunner {
     setup:
     def builder = tracer.spanBuilder("some name")
     if (parentId) {
-      def ctx = new ExtractedContext(DDTraceId.ONE, parentId, SAMPLER_DROP, null, 0, [:], [:], null, DatadogTags.factory().empty())
+      def ctx = new ExtractedContext(DDTraceId.ONE, parentId, SAMPLER_DROP, null, 0, [:], [:], null, PropagationTags.factory().empty())
       builder.setParent(tracer.converter.toSpanContext(ctx))
     }
     if (linkId) {
-      def ctx = new ExtractedContext(DDTraceId.ONE, linkId, SAMPLER_DROP, null, 0, [:], [:], null, DatadogTags.factory().empty())
+      def ctx = new ExtractedContext(DDTraceId.ONE, linkId, SAMPLER_DROP, null, 0, [:], [:], null, PropagationTags.factory().empty())
       builder.addLink(tracer.converter.toSpanContext(ctx))
     }
     def result = builder.startSpan()

@@ -1,5 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.Expression.nullSafePrettyPrint;
+
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.values.CollectionValue;
 import com.datadog.debugger.el.values.ListValue;
@@ -71,5 +73,14 @@ public final class FilterCollectionExpression implements ValueExpression<Collect
     }
     log.warn("Unsupported collection type {}", collectionValue.getValue().getClass().getTypeName());
     return CollectionValue.UNDEFINED;
+  }
+
+  @Override
+  public String prettyPrint() {
+    return "filter("
+        + nullSafePrettyPrint(source)
+        + ", "
+        + nullSafePrettyPrint(filterExpression)
+        + ")";
   }
 }

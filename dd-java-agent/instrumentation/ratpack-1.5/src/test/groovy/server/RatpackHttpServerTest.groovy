@@ -201,6 +201,11 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
   }
 
   @Override
+  boolean testBlocking() {
+    true
+  }
+
+  @Override
   Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
     return String
   }

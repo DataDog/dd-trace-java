@@ -26,6 +26,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_INSTALLER_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_METHODS;
@@ -94,6 +95,8 @@ public class InstrumenterConfig {
   private final String measureMethods;
 
   private final boolean internalExitOnFailure;
+
+  private final boolean legacyInstallerEnabled;
 
   private InstrumenterConfig() {
     this(ConfigProvider.createDefault());
@@ -172,10 +175,11 @@ public class InstrumenterConfig {
             SERIALVERSIONUID_FIELD_INJECTION, DEFAULT_SERIALVERSIONUID_FIELD_INJECTION);
 
     traceAnnotations = configProvider.getString(TRACE_ANNOTATIONS, DEFAULT_TRACE_ANNOTATIONS);
-
     traceMethods = configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS);
     measureMethods = configProvider.getString(MEASURE_METHODS, DEFAULT_MEASURE_METHODS);
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
+
+    legacyInstallerEnabled = configProvider.getBoolean(LEGACY_INSTALLER_ENABLED, false);
   }
 
   public boolean isIntegrationsEnabled() {
@@ -309,6 +313,10 @@ public class InstrumenterConfig {
     return internalExitOnFailure;
   }
 
+  public boolean isLegacyInstallerEnabled() {
+    return legacyInstallerEnabled;
+  }
+
   public boolean isLegacyInstrumentationEnabled(
       final boolean defaultEnabled, final String... integrationNames) {
     return configProvider.isEnabled(
@@ -386,6 +394,8 @@ public class InstrumenterConfig {
         + '\''
         + ", internalExitOnFailure="
         + internalExitOnFailure
+        + ", legacyInstallerEnabled="
+        + legacyInstallerEnabled
         + '}';
   }
 }

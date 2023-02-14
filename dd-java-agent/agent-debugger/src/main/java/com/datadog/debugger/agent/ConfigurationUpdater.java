@@ -1,6 +1,5 @@
 package com.datadog.debugger.agent;
 
-import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
@@ -13,7 +12,6 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.Snapshot;
-import datadog.trace.bootstrap.debugger.SummaryBuilder;
 import datadog.trace.util.TagsHelper;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
@@ -40,6 +38,8 @@ public class ConfigurationUpdater
   public static final int MAX_ALLOWED_METRIC_PROBES = 100;
   public static final int MAX_ALLOWED_LOG_PROBES = 100;
   private static final int MAX_ALLOWED_SPAN_PROBES = 100;
+  private static final double RATE_LIMIT_PER_SNAPSHOT_PROBE = 1.0;
+  private static final double RATE_LIMIT_PER_LOG_PROBE = 5000.0;
 
   public interface TransformerSupplier {
     DebuggerTransformer supply(
@@ -56,6 +56,7 @@ public class ConfigurationUpdater
   private final Map<String, ProbeDefinition> appliedDefinitions = new ConcurrentHashMap<>();
   private final EnvironmentAndVersionChecker envAndVersionCheck;
   private final DebuggerSink sink;
+  private final ClassesToRetransformFinder finder;
   private final String serviceName;
 
   private final Map<String, InstrumentationResult> instrumentationResults =
@@ -64,20 +65,25 @@ public class ConfigurationUpdater
   private Configuration currentConfiguration;
 
   public ConfigurationUpdater(
-      Instrumentation instrumentation, TransformerSupplier transformerSupplier, Config config) {
-    this(instrumentation, transformerSupplier, config, new DebuggerSink(config));
+      Instrumentation instrumentation,
+      TransformerSupplier transformerSupplier,
+      Config config,
+      ClassesToRetransformFinder finder) {
+    this(instrumentation, transformerSupplier, config, new DebuggerSink(config), finder);
   }
 
   public ConfigurationUpdater(
       Instrumentation instrumentation,
       TransformerSupplier transformerSupplier,
       Config config,
-      DebuggerSink sink) {
+      DebuggerSink sink,
+      ClassesToRetransformFinder finder) {
     this.instrumentation = instrumentation;
     this.transformerSupplier = transformerSupplier;
     this.envAndVersionCheck = new EnvironmentAndVersionChecker(config);
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
     this.sink = sink;
+    this.finder = finder;
   }
 
   // Should be called by only one thread
@@ -161,11 +167,11 @@ public class ConfigurationUpdater
     storeDebuggerDefinitions(changes);
     installNewDefinitions();
     reportReceived(changes);
-    if (!changes.hasChangedClasses()) {
+    if (!finder.hasChangedClasses(changes)) {
       return;
     }
     List<Class<?>> changedClasses =
-        changes.getAllLoadedChangedClasses(instrumentation.getAllLoadedClasses());
+        finder.getAllLoadedChangedClasses(instrumentation.getAllLoadedClasses(), changes);
     retransformClasses(changedClasses);
     // ensures that we have at least re-transformed 1 class
     if (changedClasses.size() > 0) {
@@ -264,23 +270,19 @@ public class ConfigurationUpdater
 
   private Snapshot.ProbeDetails convertToProbeDetails(
       ProbeDefinition probe, Snapshot.ProbeLocation location) {
-    SummaryBuilder summaryBuilder;
-    ProbeCondition probeCondition;
-    if (probe instanceof LogProbe) {
-      LogProbe logProbe = (LogProbe) probe;
-      summaryBuilder = new LogMessageTemplateSummaryBuilder(logProbe);
-      probeCondition = logProbe.getProbeCondition();
-    } else {
+    if (!(probe instanceof LogProbe)) {
       log.warn("definition id={} has unsupported probe type: {}", probe.getId(), probe.getClass());
       return null;
     }
+    LogProbe logProbe = (LogProbe) probe;
     return new Snapshot.ProbeDetails(
         probe.getId(),
         location,
         ProbeDefinition.MethodLocation.convert(probe.getEvaluateAt()),
-        probeCondition,
+        logProbe.isCaptureSnapshot(),
+        logProbe.getProbeCondition(),
         probe.concatTags(),
-        summaryBuilder,
+        new LogMessageTemplateSummaryBuilder(logProbe),
         probe.getAdditionalProbes().stream()
             .map(relatedProbe -> convertToProbeDetails(relatedProbe, location))
             .collect(Collectors.toList()));
@@ -297,7 +299,10 @@ public class ConfigurationUpdater
         LogProbe probe = (LogProbe) addedDefinitions;
         LogProbe.Sampling sampling = probe.getSampling();
         ProbeRateLimiter.setRate(
-            probe.getId(), sampling != null ? sampling.getSnapshotsPerSecond() : 1.0);
+            probe.getId(),
+            sampling != null
+                ? sampling.getSnapshotsPerSecond()
+                : getDefaultRateLimitPerProbe(probe));
       }
     }
     // remove rate for all removed probes
@@ -311,6 +316,10 @@ public class ConfigurationUpdater
     if (sampling != null) {
       ProbeRateLimiter.setGlobalRate(sampling.getSnapshotsPerSecond());
     }
+  }
+
+  private double getDefaultRateLimitPerProbe(LogProbe probe) {
+    return probe.isCaptureSnapshot() ? RATE_LIMIT_PER_SNAPSHOT_PROBE : RATE_LIMIT_PER_LOG_PROBE;
   }
 
   private void removeCurrentTransformer() {

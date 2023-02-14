@@ -1,32 +1,34 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-public interface ProfilingContextIntegration {
+import datadog.trace.api.experimental.ProfilingContext;
+
+public interface ProfilingContextIntegration extends ProfilingContext {
   /** Invoked when a trace first propagates to a thread */
-  void onAttach(int tid);
+  void onAttach();
 
   /** Invoked when a thread exits */
-  void onDetach(int tid);
+  void onDetach();
 
-  void setContext(int tid, long rootSpanId, long spanId);
-
-  int getNativeThreadId();
+  void setContext(long rootSpanId, long spanId);
 
   final class NoOp implements ProfilingContextIntegration {
 
-    public static final NoOp INSTANCE = new NoOp();
+    public static final ProfilingContextIntegration INSTANCE =
+        new ProfilingContextIntegration.NoOp();
 
     @Override
-    public void onAttach(int tid) {}
+    public void onAttach() {}
 
     @Override
-    public void onDetach(int tid) {}
+    public void onDetach() {}
 
     @Override
-    public void setContext(int tid, long rootSpanId, long spanId) {}
+    public void setContext(long rootSpanId, long spanId) {}
 
     @Override
-    public int getNativeThreadId() {
-      return -1;
-    }
+    public void setContextValue(String attribute, String value) {}
+
+    @Override
+    public void clearContextValue(String attribute) {}
   }
 }

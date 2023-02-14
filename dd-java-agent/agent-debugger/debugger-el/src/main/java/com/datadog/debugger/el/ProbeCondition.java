@@ -13,7 +13,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;
 
 /** Implements expression language for probe condition */
-public final class ProbeCondition implements DebuggerScript {
+public final class ProbeCondition implements DebuggerScript<Boolean> {
   public static final ProbeCondition NONE = new ProbeCondition(null, "");
 
   private final String dslExpression;
@@ -71,6 +71,11 @@ public final class ProbeCondition implements DebuggerScript {
     return getDslExpression().hashCode();
   }
 
+  @Override
+  public String toString() {
+    return "ProbeCondition{" + "dslExpression='" + dslExpression + '\'' + '}';
+  }
+
   public static ProbeCondition load(JsonReader reader) throws IOException {
     // reader is expected to be inside "when"
     String dsl = null;
@@ -90,7 +95,7 @@ public final class ProbeCondition implements DebuggerScript {
   }
 
   @Override
-  public boolean execute(ValueReferenceResolver valueRefResolver) {
+  public Boolean execute(ValueReferenceResolver valueRefResolver) {
     if (when == null) {
       return true;
     }

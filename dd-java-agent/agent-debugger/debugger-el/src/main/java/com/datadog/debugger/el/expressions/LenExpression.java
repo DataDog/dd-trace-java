@@ -1,5 +1,6 @@
 package com.datadog.debugger.el.expressions;
 
+import com.datadog.debugger.el.Expression;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.values.CollectionValue;
 import com.datadog.debugger.el.values.NumericValue;
@@ -41,5 +42,10 @@ public final class LenExpression implements ValueExpression<Value<? extends Numb
 
   public ValueExpression<?> getSource() {
     return source;
+  }
+
+  @Override
+  public String prettyPrint() {
+    return "len(" + Expression.nullSafePrettyPrint(source) + ")";
   }
 }

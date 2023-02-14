@@ -399,6 +399,7 @@ public class Agent {
       installDatadogTracer(scoClass, sco);
       maybeStartAppSec(scoClass, sco);
       maybeStartIast(scoClass, sco);
+      maybeStartCiVisibility(scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
@@ -686,6 +687,23 @@ public class Agent {
     }
   }
 
+  private static void maybeStartCiVisibility(Class<?> scoClass, Object o) {
+    if (ciVisibilityEnabled) {
+      StaticEventLogger.begin("CI Visibility");
+
+      try {
+        final Class<?> ciVisibilitySysClass =
+            AGENT_CLASSLOADER.loadClass("com.datadog.ci.CiVisibilitySystem");
+        final Method ciVisibilityInstallerMethod = ciVisibilitySysClass.getMethod("start");
+        ciVisibilityInstallerMethod.invoke(null);
+      } catch (final Throwable e) {
+        log.warn("Not starting CI Visibility subsystem", e);
+      }
+
+      StaticEventLogger.end("CI Visibility");
+    }
+  }
+
   private static void startTelemetry(Instrumentation inst, Class<?> scoClass, Object sco) {
     StaticEventLogger.begin("Telemetry");
 
@@ -746,14 +764,15 @@ public class Agent {
   }
 
   /**
-   * {@see com.datadog.profiling.ddprof.ContextThreadFilter} must not be modified to depend on JFR.
+   * {@see com.datadog.profiling.ddprof.DatadogProfilingIntegration} must not be modified to depend
+   * on JFR.
    */
   private static ProfilingContextIntegration createProfilingContextIntegration() {
     if (Config.get().isProfilingEnabled()) {
       try {
         return (ProfilingContextIntegration)
             AGENT_CLASSLOADER
-                .loadClass("com.datadog.profiling.ddprof.ContextThreadFilter")
+                .loadClass("com.datadog.profiling.ddprof.DatadogProfilingIntegration")
                 .getDeclaredConstructor()
                 .newInstance();
       } catch (Throwable t) {

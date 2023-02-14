@@ -6,6 +6,8 @@ import static java.util.stream.Collectors.toMap;
 import com.datadog.appsec.AppSecModule;
 import com.datadog.appsec.config.AppSecConfig;
 import com.datadog.appsec.config.AppSecModuleConfigurer;
+import com.datadog.appsec.config.CurrentAppSecConfig;
+import com.datadog.appsec.config.MergedAsmData;
 import com.datadog.appsec.event.ChangeableFlow;
 import com.datadog.appsec.event.EventType;
 import com.datadog.appsec.event.data.Address;
@@ -144,10 +146,6 @@ public class PowerWAFModule implements AppSecModule {
   private final boolean wafMetricsEnabled =
       Config.get().isAppSecWafMetrics(); // could be static if not for tests
   private final AtomicReference<CtxAndAddresses> ctxAndAddresses = new AtomicReference<>();
-  private AtomicReference<List<Map<String, Object>>> wafData =
-      new AtomicReference<>(Collections.emptyList());
-  private final AtomicReference<Map<String, Boolean>> wafRulesOverride =
-      new AtomicReference<>(Collections.emptyMap());
   private final PowerWAFInitializationResultReporter initReporter =
       new PowerWAFInitializationResultReporter();
   private final PowerWAFStatsReporter statsReporter = new PowerWAFStatsReporter();
@@ -155,17 +153,6 @@ public class PowerWAFModule implements AppSecModule {
   @Override
   public void config(AppSecModuleConfigurer appSecConfigService)
       throws AppSecModuleActivationException {
-    Optional<Object> initialData =
-        appSecConfigService.addSubConfigListener("waf_data", this::updateWafData);
-    if (initialData.isPresent()) {
-      this.wafData.set((List<Map<String, Object>>) initialData.get());
-    }
-    Optional<Object> initialRuleStatus =
-        appSecConfigService.addSubConfigListener(
-            "waf_rules_override", this::updateWafRulesOverride);
-    if (initialRuleStatus.isPresent()) {
-      this.wafRulesOverride.set((Map<String, Boolean>) initialRuleStatus.get());
-    }
 
     Optional<Object> initialConfig =
         appSecConfigService.addSubConfigListener("waf", this::applyConfig);
@@ -179,7 +166,7 @@ public class PowerWAFModule implements AppSecModule {
       try {
         applyConfig(initialConfig.get(), AppSecModuleConfigurer.Reconfiguration.NOOP);
       } catch (ClassCastException e) {
-        throw new AppSecModuleActivationException("Config expected to be AppSecConfig", e);
+        throw new AppSecModuleActivationException("Config expected to be CurrentAppSecConfig", e);
       }
     }
 
@@ -189,70 +176,93 @@ public class PowerWAFModule implements AppSecModule {
     }
   }
 
-  // after the initial config, changes in ctxAndAddresses and wafData
-  // should happen on the same thread (the remote config thread), so it can't
-  // happen that ctxAndAddresses is replaced before we have a chance of
-  // updating the rule data.
-  // We need to protect against races with the thread doing initial config though
-  private void updateWafData(Object data_, AppSecModuleConfigurer.Reconfiguration ignoredReconf) {
-    List<Map<String, Object>> data = (List<Map<String, Object>>) data_;
-
-    this.wafData.set(data); // save for reapplying data on future rule updates
-    CtxAndAddresses curCtxAndAddr = this.ctxAndAddresses.get();
-    if (curCtxAndAddr != null) {
-      curCtxAndAddr.ctx.updateRuleData(data);
+  private void updateWafData(CtxAndAddresses caa, List<Map<String, Object>> data) {
+    if (caa == null) {
+      return;
     }
+    if (log.isInfoEnabled()) {
+      log.info(
+          "Applying new WAF data with keys {}",
+          data.stream()
+              .map(m -> (String) m.get("id"))
+              .filter(Objects::nonNull)
+              .collect(Collectors.joining(", ")));
+    }
+    caa.ctx.updateRuleData(data);
   }
 
-  private void updateWafRulesOverride(
-      Object data_, AppSecModuleConfigurer.Reconfiguration reconfiguration) {
-    Map<String, Boolean> data = (Map<String, Boolean>) data_;
-    this.wafRulesOverride.set(data);
-    CtxAndAddresses curCtxAndAddr = this.ctxAndAddresses.get();
-    if (curCtxAndAddr != null) {
-      Map<String, Boolean> toggleSpec =
-          new FilledInRuleTogglingMap(data, curCtxAndAddr.rulesInfoMap.keySet());
-      curCtxAndAddr.ctx.toggleRules(toggleSpec);
+  private void updateWafRulesOverride(CtxAndAddresses caa, Map<String, Boolean> ruleTogling) {
+    if (caa == null) {
+      return;
     }
+    if (log.isInfoEnabled()) {
+      log.info(
+          "Toggling WAF rules. Number of disabled rules: {}",
+          ruleTogling.values().stream().filter(x -> x).count());
+    }
+    Map<String, Boolean> toggleSpec =
+        new FilledInRuleTogglingMap(ruleTogling, caa.rulesInfoMap.keySet());
+    caa.ctx.toggleRules(toggleSpec);
   }
 
+  // this function is called from one thread in the beginning that's different
+  // from the RC thread that calls it later on
   private void applyConfig(Object config_, AppSecModuleConfigurer.Reconfiguration reconf)
       throws AppSecModuleActivationException {
     log.debug("Configuring WAF");
 
-    AppSecConfig config = (AppSecConfig) config_;
+    CurrentAppSecConfig config = (CurrentAppSecConfig) config_;
 
-    CtxAndAddresses prevContextAndAddresses = this.ctxAndAddresses.get();
-    CtxAndAddresses newContextAndAddresses;
+    CtxAndAddresses curCtxAndAddresses = this.ctxAndAddresses.get();
 
     if (!LibSqreenInitialization.ONLINE) {
       throw new AppSecModuleActivationException(
           "In-app WAF initialization failed. See previous log entries");
     }
 
+    if (curCtxAndAddresses == null || config.dirtyWafRules) {
+      initializeNewWafCtx(reconf, config, curCtxAndAddresses);
+    } else {
+      if (config.dirtyToggling) {
+        updateWafRulesOverride(curCtxAndAddresses, config.getMergedRuleToggling());
+      }
+      if (config.dirtyWafData) {
+        updateWafData(curCtxAndAddresses, config.getMergedAsmData());
+      }
+    }
+  }
+
+  private void initializeNewWafCtx(
+      AppSecModuleConfigurer.Reconfiguration reconf,
+      CurrentAppSecConfig config,
+      CtxAndAddresses prevContextAndAddresses)
+      throws AppSecModuleActivationException {
+    CtxAndAddresses newContextAndAddresses;
     RuleSetInfo initReport = null;
 
+    AppSecConfig ruleConfig = config.getMergedAppSecConfig();
     PowerwafContext newPwafCtx = null;
     try {
       String uniqueId = UUID.randomUUID().toString();
       PowerwafConfig pwConfig = createPowerwafConfig();
-      newPwafCtx = Powerwaf.createContext(uniqueId, pwConfig, config.getRawConfig());
+      newPwafCtx = Powerwaf.createContext(uniqueId, pwConfig, ruleConfig.getRawConfig());
 
       initReport = newPwafCtx.getRuleSetInfo();
       Collection<Address<?>> addresses = getUsedAddresses(newPwafCtx);
 
-      List<Map<String, Object>> wafData = this.wafData.get();
-      if (!wafData.isEmpty()) {
-        newPwafCtx.updateRuleData(wafData);
-      }
-
       Map<String, RuleInfo> rulesInfoMap =
-          config.getRules().stream().collect(toMap(AppSecConfig.Rule::getId, RuleInfo::new));
+          ruleConfig.getRules().stream().collect(toMap(AppSecConfig.Rule::getId, RuleInfo::new));
+
+      log.info(
+          "Created new WAF context with rules ({} OK, {} BAD), version {}",
+          initReport.numRulesOK,
+          initReport.numRulesError,
+          initReport.fileVersion);
 
       Map<String, ActionInfo> actionInfoMap = new HashMap<>(DEFAULT_ACTIONS);
       actionInfoMap.putAll(
           ((List<Map<String, Object>>)
-                  config.getRawConfig().getOrDefault("actions", Collections.emptyList()))
+                  ruleConfig.getRawConfig().getOrDefault("actions", Collections.emptyList()))
               .stream()
                   .collect(
                       toMap(
@@ -262,15 +272,21 @@ public class PowerWAFModule implements AppSecModule {
                                   (String) m.get("type"),
                                   (Map<String, Object>) m.get("parameters")))));
 
-      Map<String, Boolean> rulesOverride = this.wafRulesOverride.get();
-      if (!rulesOverride.isEmpty()) {
-        newPwafCtx.toggleRules(new FilledInRuleTogglingMap(rulesOverride, rulesInfoMap.keySet()));
-      }
-
       newContextAndAddresses =
           new CtxAndAddresses(addresses, newPwafCtx, rulesInfoMap, actionInfoMap);
       if (initReport != null) {
         this.statsReporter.rulesVersion = initReport.fileVersion;
+      }
+
+      Map<String, Boolean> mergedRuleToggling = config.getMergedRuleToggling();
+      // fresh context, no need to apply if empty
+      if (!mergedRuleToggling.isEmpty()) {
+        updateWafRulesOverride(newContextAndAddresses, mergedRuleToggling);
+      }
+
+      MergedAsmData mergedAsmData = config.getMergedAsmData();
+      if (!mergedAsmData.isEmpty()) {
+        updateWafData(newContextAndAddresses, mergedAsmData);
       }
     } catch (InvalidRuleSetException irse) {
       initReport = irse.ruleSetInfo;

@@ -1,5 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.Expression.nullSafePrettyPrint;
+
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.values.CollectionValue;
 import com.datadog.debugger.el.values.StringValue;
@@ -28,5 +30,10 @@ public final class IsEmptyExpression implements BooleanExpression {
       return ((StringValue) value).isEmpty();
     }
     return Boolean.FALSE;
+  }
+
+  @Override
+  public String prettyPrint() {
+    return "isEmpty(" + nullSafePrettyPrint(valueExpression) + ")";
   }
 }

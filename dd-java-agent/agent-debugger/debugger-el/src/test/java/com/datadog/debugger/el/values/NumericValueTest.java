@@ -2,6 +2,8 @@ package com.datadog.debugger.el.values;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import org.junit.jupiter.api.Test;
 
 class NumericValueTest {
@@ -10,8 +12,8 @@ class NumericValueTest {
     NumericValue instance = new NumericValue(null);
     assertTrue(instance.isNull());
     assertFalse(instance.isUndefined());
-
     assertNull(instance.getValue());
+    assertEquals("null", instance.prettyPrint());
   }
 
   @Test
@@ -20,9 +22,9 @@ class NumericValueTest {
     NumericValue instance = new NumericValue(expected);
     assertFalse(instance.isNull());
     assertFalse(instance.isUndefined());
-
     assertNotEquals(expected, instance.getValue());
     assertEquals((long) expected, instance.getValue());
+    assertEquals("1", instance.prettyPrint());
   }
 
   @Test
@@ -31,9 +33,9 @@ class NumericValueTest {
     NumericValue instance = new NumericValue(expected);
     assertFalse(instance.isNull());
     assertFalse(instance.isUndefined());
-
     assertNotEquals(expected, instance.getValue());
     assertEquals((long) expected, instance.getValue());
+    assertEquals("1", instance.prettyPrint());
   }
 
   @Test
@@ -42,9 +44,9 @@ class NumericValueTest {
     NumericValue instance = new NumericValue(expected);
     assertFalse(instance.isNull());
     assertFalse(instance.isUndefined());
-
     assertNotEquals(expected, instance.getValue());
     assertEquals((long) expected, instance.getValue());
+    assertEquals("1", instance.prettyPrint());
   }
 
   @Test
@@ -53,8 +55,8 @@ class NumericValueTest {
     NumericValue instance = new NumericValue(expected);
     assertFalse(instance.isNull());
     assertFalse(instance.isUndefined());
-
     assertEquals(expected, instance.getValue());
+    assertEquals("1", instance.prettyPrint());
   }
 
   @Test
@@ -63,8 +65,8 @@ class NumericValueTest {
     NumericValue instance = new NumericValue(expected);
     assertFalse(instance.isNull());
     assertFalse(instance.isUndefined());
-
     assertEquals((double) expected, instance.getValue());
+    assertEquals("1.0", instance.prettyPrint());
   }
 
   @Test
@@ -73,7 +75,27 @@ class NumericValueTest {
     NumericValue instance = new NumericValue(expected);
     assertFalse(instance.isNull());
     assertFalse(instance.isUndefined());
-
     assertEquals(expected, instance.getValue());
+    assertEquals("1.0", instance.prettyPrint());
+  }
+
+  @Test
+  void testBigDecimalLiteral() {
+    BigDecimal expected = new BigDecimal("1.0");
+    NumericValue instance = new NumericValue(expected);
+    assertFalse(instance.isNull());
+    assertFalse(instance.isUndefined());
+    assertEquals(expected, instance.getValue());
+    assertEquals("1.0", instance.prettyPrint());
+  }
+
+  @Test
+  void testBigIntegerLiteral() {
+    BigInteger expected = new BigInteger("1234567890");
+    NumericValue instance = new NumericValue(expected);
+    assertFalse(instance.isNull());
+    assertFalse(instance.isUndefined());
+    assertEquals(expected, instance.getValue());
+    assertEquals("1234567890", instance.prettyPrint());
   }
 }

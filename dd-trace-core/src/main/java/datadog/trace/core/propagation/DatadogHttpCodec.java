@@ -71,7 +71,8 @@ class DatadogHttpCodec {
       }
 
       // inject x-datadog-tags
-      String datadogTags = context.getDatadogTags().headerValue();
+      String datadogTags =
+          context.getPropagationTags().headerValue(PropagationTags.HeaderType.DATADOG);
       if (datadogTags != null) {
         setter.set(carrier, DATADOG_TAGS_KEY, datadogTags);
       }
@@ -111,13 +112,13 @@ class DatadogHttpCodec {
     private static final int IGNORE = -1;
 
     private final boolean isAwsPropagationEnabled;
-    private final DatadogTags.Factory datadogTagsFactory;
+    private final PropagationTags.Factory datadogTagsFactory;
 
     private DatadogContextInterpreter(
         Map<String, String> taggedHeaders, Map<String, String> baggageMapping, Config config) {
       super(taggedHeaders, baggageMapping, config);
       isAwsPropagationEnabled = config.isAwsPropagationEnabled();
-      datadogTagsFactory = DatadogTags.factory(config);
+      datadogTagsFactory = PropagationTags.factory(config);
     }
 
     @Override
@@ -191,7 +192,8 @@ class DatadogHttpCodec {
                 endToEndStartTime = extractEndToEndStartTime(firstHeaderValue(value));
                 break;
               case DD_TAGS:
-                datadogTags = datadogTagsFactory.fromHeaderValue(value);
+                propagationTags =
+                    datadogTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, value);
                 break;
               case OT_BAGGAGE:
                 {

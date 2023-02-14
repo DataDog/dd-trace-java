@@ -1,14 +1,19 @@
 package com.datadog.profiling.ddprof;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.RecordingData;
+import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.utils.ProfilingMode;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.stream.IntStream;
@@ -63,15 +68,8 @@ class DatadogProfilerTest {
   @ParameterizedTest
   @MethodSource("profilingModes")
   void testStartCmd(boolean cpu, boolean wall, boolean alloc, boolean memleak) throws Exception {
-    Properties props = new Properties();
-    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_ENABLED, Boolean.toString(cpu));
-    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED, Boolean.toString(wall));
-    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_ENABLED, Boolean.toString(alloc));
-    props.put(
-        ProfilingConfig.PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED, Boolean.toString(memleak));
-
     DatadogProfiler profiler =
-        DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
+        DatadogProfiler.newInstance(configProvider(cpu, wall, alloc, memleak));
     if (!profiler.isAvailable()) {
       log.warn("Datadog Profiler not available. Skipping test.");
       return;
@@ -99,5 +97,31 @@ class DatadogProfilerTest {
         .mapToObj(
             x ->
                 Arguments.of((x & 0x1000) != 0, (x & 0x100) != 0, (x & 0x10) != 0, (x & 0x1) != 0));
+  }
+
+  @Test
+  public void testContextRegistration() throws UnsupportedEnvironmentException {
+    // warning - the profiler is a process wide singleton and can't be reinitialised
+    // so there is only one shot to test it here, 'foo,bar' need to be kept in the same
+    // order whether in the list or the enum, and any other test which tries to register
+    // context attributes will fail
+    DatadogProfiler profiler =
+        new DatadogProfiler(
+            configProvider(true, true, true, true), new HashSet<>(Arrays.asList("foo", "bar")));
+    assertTrue(profiler.setContextValue("foo", "abc"));
+    assertTrue(profiler.setContextValue("bar", "abc"));
+    assertTrue(profiler.setContextValue("foo", "xyz"));
+    assertFalse(profiler.setContextValue("xyz", "foo"));
+  }
+
+  private static ConfigProvider configProvider(
+      boolean cpu, boolean wall, boolean alloc, boolean memleak) {
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_ENABLED, Boolean.toString(cpu));
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED, Boolean.toString(wall));
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_ENABLED, Boolean.toString(alloc));
+    props.put(
+        ProfilingConfig.PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED, Boolean.toString(memleak));
+    return ConfigProvider.withPropertiesOverride(props);
   }
 }

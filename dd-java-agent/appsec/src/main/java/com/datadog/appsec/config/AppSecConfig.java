@@ -1,24 +1,133 @@
 package com.datadog.appsec.config;
 
+import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.collectingAndThen;
+import static java.util.stream.Collectors.toMap;
+
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import com.squareup.moshi.Types;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public interface AppSecConfig {
 
   Moshi MOSHI = new Moshi.Builder().build();
   JsonAdapter<AppSecConfigV1> ADAPTER_V1 = MOSHI.adapter(AppSecConfigV1.class);
   JsonAdapter<AppSecConfigV2> ADAPTER_V2 = MOSHI.adapter(AppSecConfigV2.class);
+  JsonAdapter<List<Rule>> RULE_ADAPTER =
+      MOSHI.adapter(Types.newParameterizedType(List.class, Rule.class));
 
   String getVersion();
 
   List<Rule> getRules();
 
   Map<String, Object> getRawConfig();
+
+  default AppSecConfig mergeAppSecUserConfig(AppSecUserConfig cfg) {
+    if (!(this instanceof AppSecConfigV2)) {
+      throw new RuntimeException("Only a V2 configuration can have overrides");
+    }
+    if (!cfg.includesContextChanges()) {
+      return this;
+    }
+    AppSecConfigV2 thiz = (AppSecConfigV2) this;
+    AppSecConfigV2 result = Helper.copyExceptRules(thiz);
+
+    {
+      List<Map<String, Object>> origRawRules =
+          (List<Map<String, Object>>) getRawConfig().getOrDefault("rules", Collections.EMPTY_LIST);
+      List<Map<String, Object>> newRawRules = origRawRules;
+      List<Rule> newRules = thiz.rules;
+      if (!cfg.customRules.isEmpty()) {
+        newRawRules = Helper.mergeMapsByIdKeepLatest(newRawRules, cfg.customRules);
+      }
+      if (!cfg.ruleOverrides.isEmpty()) {
+        newRawRules = Helper.mergeRuleOverrides(newRawRules, cfg.ruleOverrides);
+      }
+      if (newRawRules != origRawRules) {
+        newRules = RULE_ADAPTER.fromJsonValue(newRawRules);
+      }
+      result.getRawConfig().put("rules", newRawRules);
+      result.rules = newRules;
+    }
+
+    if (!cfg.exclusions.isEmpty()) {
+      result
+          .getRawConfig()
+          .put(
+              "exclusions",
+              Helper.mergeMapsByIdKeepLatest(
+                  (List<Map<String, Object>>) result.getRawConfig().get("exclusions"),
+                  cfg.exclusions));
+    }
+
+    if (!cfg.actions.isEmpty()) {
+      result
+          .getRawConfig()
+          .put(
+              "actions",
+              Helper.mergeMapsByIdKeepLatest(
+                  (List<Map<String, Object>>) result.getRawConfig().get("actions"), cfg.actions));
+    }
+
+    return result;
+  }
+
+  class Helper {
+    private static List<Map<String, Object>> mergeMapsByIdKeepLatest(
+        List<Map<String, Object>> l1, List<Map<String, Object>> l2) {
+      return Stream.concat(l1.stream(), l2.stream())
+          .collect(
+              collectingAndThen(
+                  toMap(
+                      m -> String.valueOf(m.get("id")),
+                      identity(),
+                      (m1, m2) -> m2,
+                      LinkedHashMap::new),
+                  mapOfMaps -> new ArrayList<>(mapOfMaps.values())));
+    }
+
+    private static List<Map<String, Object>> mergeRuleOverrides(
+        List<Map<String, Object>> rules, Map<String /* id */, Map<String, Object>> overridesById) {
+      return rules.stream()
+          .map(
+              rule -> {
+                Map<String, Object> overrideSpec = overridesById.get(rule.get("id"));
+                if (overrideSpec == null) {
+                  return rule;
+                }
+                HashMap<String, Object> newRule = new HashMap<>(rule);
+                newRule.putAll(overrideSpec);
+                return newRule;
+              })
+          .collect(Collectors.toList());
+    }
+
+    private static AppSecConfigV2 copyExceptRules(AppSecConfigV2 original) {
+      AppSecConfigV2 result = new AppSecConfigV2();
+      result.rawConfig = new HashMap<>();
+      result.version = original.version;
+      result.rawConfig.put("version", original.rawConfig.get("version"));
+      result.rawConfig.put(
+          "metadata", original.rawConfig.getOrDefault("metadata", Collections.EMPTY_MAP));
+      result.rawConfig.put(
+          "exclusions", original.rawConfig.getOrDefault("exclusions", Collections.EMPTY_LIST));
+      result.rawConfig.put(
+          "actions", original.rawConfig.getOrDefault("actions", Collections.EMPTY_LIST));
+      result.rawConfig.put(
+          "rules_data", original.rawConfig.getOrDefault("rules_data", Collections.EMPTY_LIST));
+      return result;
+    }
+  }
 
   static AppSecConfig valueOf(Map<String, Object> rawConfig) throws IOException {
     if (rawConfig == null) {
@@ -112,6 +221,7 @@ public interface AppSecConfig {
 
     private String version;
     private List<Rule> rules;
+    // Note: the tendency is for new code to manipulate rawConfig directly
     private Map<String, Object> rawConfig;
 
     @Override

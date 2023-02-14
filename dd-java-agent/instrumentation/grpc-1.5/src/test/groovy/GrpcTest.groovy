@@ -2,6 +2,7 @@ import com.google.common.util.concurrent.MoreExecutors
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
@@ -130,6 +131,9 @@ abstract class GrpcTest extends AgentTestRunner {
             "status.code" "OK"
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags()
           }
         }
@@ -160,6 +164,9 @@ abstract class GrpcTest extends AgentTestRunner {
             "$Tags.COMPONENT" "grpc-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "status.code" "OK"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
@@ -263,6 +270,9 @@ abstract class GrpcTest extends AgentTestRunner {
             "status.description" description
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags()
           }
         }
@@ -282,6 +292,9 @@ abstract class GrpcTest extends AgentTestRunner {
             "status.description" description
             if (status.cause != null) {
               errorTags status.cause.class, status.cause.message
+            }
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
             }
             defaultTags(true)
           }
@@ -356,6 +369,9 @@ abstract class GrpcTest extends AgentTestRunner {
             "status.code" "UNKNOWN"
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
+            if ({isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags()
           }
         }
@@ -372,6 +388,9 @@ abstract class GrpcTest extends AgentTestRunner {
             "$Tags.COMPONENT" "grpc-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             errorTags error.class, error.message
+            if ({isDataStreamsEnabled()}) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
@@ -470,6 +489,9 @@ abstract class GrpcTest extends AgentTestRunner {
             "$Tags.COMPONENT" "grpc-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "status.code" "OK"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags(true)
           }
         }
@@ -534,6 +556,9 @@ abstract class GrpcTest extends AgentTestRunner {
             "status.code" "OK"
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags()
           }
         }

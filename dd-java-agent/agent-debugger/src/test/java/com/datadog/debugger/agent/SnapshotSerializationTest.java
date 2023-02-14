@@ -32,12 +32,18 @@ import datadog.trace.bootstrap.debugger.SnapshotSummaryBuilder;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
+import java.math.BigDecimal;
+import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 import org.junit.Assert;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -210,7 +216,8 @@ public class SnapshotSerializationTest {
                 PROBE_ID,
                 PROBE_LOCATION,
                 Snapshot.MethodLocation.DEFAULT,
-                new ProbeCondition(DSL.when(DSL.gt(DSL.ref("^n"), DSL.value(0))), "^n > 0"),
+                true,
+                new ProbeCondition(DSL.when(DSL.gt(DSL.ref("^n"), DSL.value(0))), "n > 0"),
                 "",
                 new SnapshotSummaryBuilder(PROBE_LOCATION)),
             String.class.getTypeName());
@@ -224,22 +231,21 @@ public class SnapshotSerializationTest {
     Snapshot deserializedSnapshot = adapter.fromJson(buffer);
     Assert.assertTrue(deserializedSnapshot.getProbe().getScript() instanceof ProbeCondition);
     Assert.assertEquals(
-        "^n > 0",
-        ((ProbeCondition) deserializedSnapshot.getProbe().getScript()).getDslExpression());
+        "n > 0", ((ProbeCondition) deserializedSnapshot.getProbe().getScript()).getDslExpression());
   }
 
-  class AnotherClass {
+  static class AnotherClass {
     int anotherIntField = 11;
     String anotherStrField = "foobar";
   }
 
-  class ComplexClass {
+  static class ComplexClass {
     int complexIntField = 21;
     String complexStrField = "bar";
     AnotherClass complexObjField = new AnotherClass();
   }
 
-  class AllPrimitives {
+  static class AllPrimitives {
     long l = 42_000_000_000L;
     int i = 42_000;
     byte b = 42;
@@ -261,12 +267,7 @@ public class SnapshotSerializationTest {
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
     System.out.println(buffer);
-    Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);
-    Map<String, Object> capturesJson = (Map<String, Object>) json.get(CAPTURES);
-    Map<String, Object> returnJson = (Map<String, Object>) capturesJson.get(RETURN);
-    Map<String, Object> arguments = (Map<String, Object>) returnJson.get(ARGUMENTS);
-    Map<String, Object> thisArg = (Map<String, Object>) arguments.get(THIS);
-    Map<String, Object> thisFields = (Map<String, Object>) thisArg.get(FIELDS);
+    Map<String, Object> thisFields = getFieldsFromJson(buffer);
     Map<String, Object> objFieldJson = (Map<String, Object>) thisFields.get("objField");
     Map<String, Object> objFieldFields = (Map<String, Object>) objFieldJson.get(FIELDS);
     assertPrimitiveValue(objFieldFields, "l", "long", "42000000000");
@@ -277,6 +278,52 @@ public class SnapshotSerializationTest {
     assertPrimitiveValue(objFieldFields, "f", "float", "3.14");
     assertPrimitiveValue(objFieldFields, "d", "double", "2.612");
     assertPrimitiveValue(objFieldFields, "bool", "boolean", "true");
+  }
+
+  static class WellKnownClasses {
+    Class<?> clazz = WellKnownClasses.class;
+    Boolean bool = Boolean.TRUE;
+    Long l = Long.valueOf(42L);
+    BigDecimal bigDecimal = new BigDecimal("3.1415926");
+    Duration duration = Duration.ofMillis(1234567890);
+    LocalDateTime localDateTime = LocalDateTime.of(2023, 1, 17, 13, 31);
+    UUID uuid = UUID.nameUUIDFromBytes("foobar".getBytes());
+    AtomicLong atomicLong = new AtomicLong(123);
+    URI uri = URI.create("https://www.datadoghq.com");
+  }
+
+  @Test
+  public void wellKnownClasses() throws IOException {
+    JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
+    Snapshot snapshot = createSnapshot();
+    Snapshot.CapturedContext context = new Snapshot.CapturedContext();
+    Snapshot.CapturedValue objField =
+        capturedValueDepth(
+            "objField", WellKnownClasses.class.getTypeName(), new WellKnownClasses(), 3);
+    context.addFields(new Snapshot.CapturedValue[] {objField});
+    snapshot.setExit(context);
+    String buffer = adapter.toJson(snapshot);
+    System.out.println(buffer);
+    Map<String, Object> thisFields = getFieldsFromJson(buffer);
+    Map<String, Object> objFieldJson = (Map<String, Object>) thisFields.get("objField");
+    Map<String, Object> objFieldFields = (Map<String, Object>) objFieldJson.get(FIELDS);
+    assertPrimitiveValue(
+        objFieldFields,
+        "clazz",
+        Class.class.getTypeName(),
+        "class com.datadog.debugger.agent.SnapshotSerializationTest$WellKnownClasses");
+    assertPrimitiveValue(objFieldFields, "bool", Boolean.class.getTypeName(), "true");
+    assertPrimitiveValue(objFieldFields, "l", Long.class.getTypeName(), "42");
+    assertPrimitiveValue(objFieldFields, "bigDecimal", BigDecimal.class.getTypeName(), "3.1415926");
+    assertPrimitiveValue(
+        objFieldFields, "duration", Duration.class.getTypeName(), "PT342H56M7.89S");
+    assertPrimitiveValue(
+        objFieldFields, "localDateTime", LocalDateTime.class.getTypeName(), "2023-01-17T13:31");
+    assertPrimitiveValue(
+        objFieldFields, "uuid", UUID.class.getTypeName(), "3858f622-30ac-3c91-9f30-0c664312c63f");
+    assertPrimitiveValue(objFieldFields, "atomicLong", AtomicLong.class.getTypeName(), "123");
+    assertPrimitiveValue(
+        objFieldFields, "uri", URI.class.getTypeName(), "https://www.datadoghq.com");
   }
 
   @Test
@@ -291,14 +338,11 @@ public class SnapshotSerializationTest {
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
     System.out.println(buffer);
-    Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);
-    Map<String, Object> capturesJson = (Map<String, Object>) json.get(CAPTURES);
-    Map<String, Object> returnJson = (Map<String, Object>) capturesJson.get(RETURN);
-    Map<String, Object> locals = (Map<String, Object>) returnJson.get(LOCALS);
+    Map<String, Object> locals = getLocalsFromJson(buffer);
     assertArrayItem(locals, "localObjArray", "foo", null, "42");
   }
 
-  class ObjetArrayClass {
+  static class ObjetArrayClass {
     ComplexClass[] complexClasses = new ComplexClass[3];
   }
 
@@ -314,10 +358,7 @@ public class SnapshotSerializationTest {
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
     System.out.println(buffer);
-    Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);
-    Map<String, Object> capturesJson = (Map<String, Object>) json.get(CAPTURES);
-    Map<String, Object> returnJson = (Map<String, Object>) capturesJson.get(RETURN);
-    Map<String, Object> locals = (Map<String, Object>) returnJson.get(LOCALS);
+    Map<String, Object> locals = getLocalsFromJson(buffer);
     Map<String, Object> localObjMap = (Map<String, Object>) locals.get("localObj");
     Map<String, Object> localObjFieldsMap = (Map<String, Object>) localObjMap.get(FIELDS);
     Map<String, Object> complexClasses =
@@ -327,7 +368,7 @@ public class SnapshotSerializationTest {
         complexClasses.get(TYPE));
   }
 
-  class PrimitiveArrayClass {
+  static class PrimitiveArrayClass {
     byte[] byteArray = new byte[] {1, 2, 3};
     short[] shortArray = new short[] {128, 129, 130};
     char[] charArray = new char[] {'a', 'b', 'c'};
@@ -350,10 +391,7 @@ public class SnapshotSerializationTest {
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
     System.out.println(buffer);
-    Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);
-    Map<String, Object> capturesJson = (Map<String, Object>) json.get(CAPTURES);
-    Map<String, Object> returnJson = (Map<String, Object>) capturesJson.get(RETURN);
-    Map<String, Object> locals = (Map<String, Object>) returnJson.get(LOCALS);
+    Map<String, Object> locals = getLocalsFromJson(buffer);
     Map<String, Object> localObjMap = (Map<String, Object>) locals.get("localObj");
     Map<String, Object> localObjFieldsMap = (Map<String, Object>) localObjMap.get(FIELDS);
     assertArrayItem(localObjFieldsMap, "byteArray", "1", "2", "3");
@@ -402,11 +440,6 @@ public class SnapshotSerializationTest {
         objFieldFields, "complexObjField", AnotherClass.class.getTypeName(), DEPTH_REASON);
     assertNotCaptured(
         objFieldFields, "complexObjField", AnotherClass.class.getTypeName(), DEPTH_REASON);
-    assertNotCaptured(
-        objFieldFields,
-        "this$0",
-        "com.datadog.debugger.agent.SnapshotSerializationTest",
-        DEPTH_REASON);
     assertPrimitiveValue(arguments, "strArg", String.class.getTypeName(), null);
     assertPrimitiveValue(arguments, "intArg", "int", "0");
     assertPrimitiveValue(arguments, "objArg", ComplexClass.class.getTypeName(), null);
@@ -421,11 +454,6 @@ public class SnapshotSerializationTest {
         objLocalFields, "complexObjField", AnotherClass.class.getTypeName(), DEPTH_REASON);
     assertNotCaptured(
         objLocalFields, "complexObjField", AnotherClass.class.getTypeName(), DEPTH_REASON);
-    assertNotCaptured(
-        objLocalFields,
-        "this$0",
-        "com.datadog.debugger.agent.SnapshotSerializationTest",
-        DEPTH_REASON);
   }
 
   @Test
@@ -449,11 +477,6 @@ public class SnapshotSerializationTest {
     assertPrimitiveValue(complexObjFieldFields, "anotherIntField", "int", "11");
     assertPrimitiveValue(
         complexObjFieldFields, "anotherStrField", String.class.getTypeName(), "foobar");
-    assertNotCaptured(
-        complexObjFieldFields,
-        "this$0",
-        "com.datadog.debugger.agent.SnapshotSerializationTest",
-        DEPTH_REASON);
     assertPrimitiveValue(arguments, "strArg", String.class.getTypeName(), null);
     assertPrimitiveValue(arguments, "intArg", "int", "0");
     assertPrimitiveValue(arguments, "objArg", ComplexClass.class.getTypeName(), null);
@@ -472,11 +495,6 @@ public class SnapshotSerializationTest {
     assertPrimitiveValue(localComplexObjFieldFields, "anotherIntField", "int", "11");
     assertPrimitiveValue(
         localComplexObjFieldFields, "anotherStrField", String.class.getTypeName(), "foobar");
-    assertNotCaptured(
-        localComplexObjFieldFields,
-        "this$0",
-        "com.datadog.debugger.agent.SnapshotSerializationTest",
-        DEPTH_REASON);
   }
 
   private Map<String, Object> doRefDepth(int maxRefDepth) throws IOException {
@@ -812,6 +830,13 @@ public class SnapshotSerializationTest {
     } else {
       Assert.assertEquals(true, prim.get(IS_NULL));
     }
+  }
+
+  private Map<String, Object> getLocalsFromJson(String buffer) throws IOException {
+    Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);
+    Map<String, Object> capturesJson = (Map<String, Object>) json.get(CAPTURES);
+    Map<String, Object> returnJson = (Map<String, Object>) capturesJson.get(RETURN);
+    return (Map<String, Object>) returnJson.get(LOCALS);
   }
 
   private Map<String, Object> getFieldsFromJson(String buffer) throws IOException {

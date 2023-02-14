@@ -7,9 +7,13 @@ import static datadog.trace.instrumentation.testng.TestNGDecorator.DECORATE;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.lang.reflect.Method;
+import org.testng.IClass;
 import org.testng.ITestContext;
 import org.testng.ITestListener;
+import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
+import org.testng.internal.ConstructorOrMethod;
 
 public class TracingListener implements ITestListener {
 
@@ -34,8 +38,28 @@ public class TracingListener implements ITestListener {
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
 
-    DECORATE.afterStart(span, version);
+    DECORATE.afterStart(span, version, getTestClass(result), getTestMethod(result));
     DECORATE.onTestStart(span, result);
+  }
+
+  private Class<?> getTestClass(final ITestResult result) {
+    IClass testClass = result.getTestClass();
+    if (testClass == null) {
+      return null;
+    }
+    return testClass.getRealClass();
+  }
+
+  private Method getTestMethod(final ITestResult result) {
+    ITestNGMethod method = result.getMethod();
+    if (method == null) {
+      return null;
+    }
+    ConstructorOrMethod constructorOrMethod = method.getConstructorOrMethod();
+    if (constructorOrMethod == null) {
+      return null;
+    }
+    return constructorOrMethod.getMethod();
   }
 
   @Override

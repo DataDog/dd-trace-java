@@ -25,4 +25,9 @@ public final class StringValue extends Literal<String> {
   public String toString() {
     return "StringLiteral{" + "value=" + value + '}';
   }
+
+  @Override
+  public String prettyPrint() {
+    return "\"" + value + "\"";
+  }
 }

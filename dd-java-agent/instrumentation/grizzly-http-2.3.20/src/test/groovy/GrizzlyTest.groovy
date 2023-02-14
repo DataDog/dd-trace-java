@@ -106,6 +106,11 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     true
   }
 
+  @Override
+  boolean testBlocking() {
+    true
+  }
+
   static class SimpleExceptionMapper implements ExceptionMapper<Throwable> {
 
     @Override

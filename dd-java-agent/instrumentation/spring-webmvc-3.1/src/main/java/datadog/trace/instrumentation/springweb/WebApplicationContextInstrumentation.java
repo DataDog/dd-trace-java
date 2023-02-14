@@ -41,6 +41,7 @@ public class WebApplicationContextInstrumentation extends Instrumenter.Tracing
     return new String[] {
       packageName + ".SpringWebHttpServerDecorator",
       packageName + ".ServletRequestURIAdapter",
+      packageName + ".BeanDefinitionRepairer",
       packageName + ".HandlerMappingResourceNameFilter",
       packageName + ".HandlerMappingResourceNameFilter$BeanDefinition",
       packageName + ".PathMatchingHttpServletRequestWrapper",

@@ -83,6 +83,11 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     return GrizzlyDecorator.GRIZZLY_REQUEST.toString()
   }
 
+  @Override
+  boolean testBlocking() {
+    true
+  }
+
   static class SimpleExceptionMapper implements ExceptionMapper<Throwable> {
 
     @Override

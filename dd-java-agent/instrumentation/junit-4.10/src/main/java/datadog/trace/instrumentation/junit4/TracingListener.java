@@ -7,7 +7,8 @@ import static datadog.trace.instrumentation.junit4.JUnit4Decorator.DECORATE;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import java.util.ArrayList;
+import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.List;
 import junit.runner.Version;
 import org.junit.Ignore;
@@ -21,11 +22,11 @@ public class TracingListener extends RunListener {
   private final String version;
 
   public TracingListener() {
-    this.version = Version.id();
+    version = Version.id();
   }
 
   @Override
-  public void testStarted(final Description description) throws Exception {
+  public void testStarted(final Description description) {
     if (DECORATE.skipTrace(description)) {
       return;
     }
@@ -43,7 +44,7 @@ public class TracingListener extends RunListener {
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
 
-    DECORATE.afterStart(span, version);
+    DECORATE.afterStart(span, version, description.getTestClass(), getTestMethod(description));
     DECORATE.onTestStart(span, description);
   }
 
@@ -102,26 +103,47 @@ public class TracingListener extends RunListener {
       return;
     }
 
-    final List<String> testNames = new ArrayList<>();
+    final List<Method> testMethods;
     if (description.getMethodName() != null && !"".equals(description.getMethodName())) {
-      testNames.add(description.getMethodName());
+      testMethods = Collections.singletonList(getTestMethod(description));
     } else if (description.getTestClass() != null) {
       // If @Ignore annotation is kept at class level, the instrumentation
       // reports every method annotated with @Test as skipped test.
-      testNames.addAll(DECORATE.testNames(description.getTestClass(), Test.class));
+      testMethods = DECORATE.testMethods(description.getTestClass(), Test.class);
+    } else {
+      testMethods = Collections.emptyList();
     }
 
     final Ignore ignore = description.getAnnotation(Ignore.class);
     final String reason = ignore != null ? ignore.value() : null;
 
-    for (final String testName : testNames) {
+    for (final Method testMethod : testMethods) {
       final AgentSpan span = startSpan("junit.test");
-      DECORATE.afterStart(span, version);
-      DECORATE.onTestIgnored(span, description, testName, reason);
+      DECORATE.afterStart(span, version, description.getTestClass(), getTestMethod(description));
+      DECORATE.onTestIgnored(span, description, testMethod.getName(), reason);
       DECORATE.beforeFinish(span);
       // We set a duration of 1 ns, because a span with duration==0 has a special treatment in the
       // tracer.
       span.finishWithDuration(1L);
+    }
+  }
+
+  // cannot handle test methods with parameters (e.g. ones that use pl.pragmatists.JUnitParams)
+  private Method getTestMethod(final Description description) {
+    String methodName = description.getMethodName();
+    if (methodName == null || methodName.isEmpty()) {
+      return null;
+    }
+
+    Class<?> testClass = description.getTestClass();
+    if (testClass == null) {
+      return null;
+    }
+
+    try {
+      return testClass.getMethod(methodName);
+    } catch (NoSuchMethodException e) {
+      return null;
     }
   }
 }

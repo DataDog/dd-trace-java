@@ -4,6 +4,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.StatsDClient;
+import datadog.trace.api.experimental.ProfilingContext;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.InternalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -493,6 +494,11 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   @Override
   public void flushMetrics() {
     tracer.flushMetrics();
+  }
+
+  @Override
+  public ProfilingContext getProfilingContext() {
+    return tracer != null ? tracer.getProfilingContext() : ProfilingContext.NoOp.INSTANCE;
   }
 
   @Override

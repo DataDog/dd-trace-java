@@ -25,7 +25,8 @@ class IfElseExpressionTest {
           executed[1] = true;
           return null;
         };
-    DSL.doif(test, thenExpression, elseExpression).evaluate(RefResolverHelper.createResolver(this));
+    IfElseExpression expression = DSL.doif(test, thenExpression, elseExpression);
+    expression.evaluate(RefResolverHelper.createResolver(this));
     assertTrue(executed[0]);
     assertFalse(executed[1]);
   }

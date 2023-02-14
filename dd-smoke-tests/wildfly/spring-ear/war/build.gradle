@@ -1,0 +1,10 @@
+apply plugin: 'java'
+apply plugin: 'war'
+
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+  compileOnly 'org.springframework:spring-webmvc:5.3.0'
+}

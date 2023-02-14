@@ -13,9 +13,9 @@ class StringValueTest {
     assertTrue(instance.isNull());
     assertFalse(instance.isUndefined());
     assertFalse(instance.isEmpty());
-
     assertNull(instance.getValue());
     assertEquals(-1, instance.length());
+    assertEquals("\"null\"", instance.prettyPrint());
   }
 
   @ParameterizedTest
@@ -25,8 +25,8 @@ class StringValueTest {
     assertFalse(instance.isNull());
     assertFalse(instance.isUndefined());
     assertEquals(expected.isEmpty(), instance.isEmpty());
-
     assertEquals(expected, instance.getValue());
     assertEquals(expected.length(), instance.length());
+    assertEquals("\"" + expected + "\"", instance.prettyPrint());
   }
 }

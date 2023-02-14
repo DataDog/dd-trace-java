@@ -1,5 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.Expression.nullSafePrettyPrint;
+
 import com.datadog.debugger.el.Expression;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
@@ -24,5 +26,15 @@ public final class IfElseExpression implements Expression<Void> {
       elseExpression.evaluate(valueRefResolver);
     }
     return null;
+  }
+
+  @Override
+  public String prettyPrint() {
+    return "if "
+        + nullSafePrettyPrint(test)
+        + " then "
+        + nullSafePrettyPrint(thenExpression)
+        + " else "
+        + nullSafePrettyPrint(elseExpression);
   }
 }

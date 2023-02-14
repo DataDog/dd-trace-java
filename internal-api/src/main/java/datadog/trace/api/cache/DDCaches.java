@@ -53,4 +53,8 @@ public final class DDCaches {
   public static <K, V> DDCache<K, V> newUnboundedCache(final int initialCapacity) {
     return new CHMCache<>(initialCapacity);
   }
+
+  public static <K, V> DDPartialKeyCache<K, V> newFixedSizePartialKeyCache(final int capacity) {
+    return new FixedSizeCache.FixedSizePartialKeyCache<>(capacity);
+  }
 }

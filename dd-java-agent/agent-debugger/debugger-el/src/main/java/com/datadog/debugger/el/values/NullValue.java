@@ -29,6 +29,11 @@ public final class NullValue extends Literal<Object> {
 
   @Override
   public String toString() {
-    return "NULL";
+    return "null";
+  }
+
+  @Override
+  public String prettyPrint() {
+    return "null";
   }
 }

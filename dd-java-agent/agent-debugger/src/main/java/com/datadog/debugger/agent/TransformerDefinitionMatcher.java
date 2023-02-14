@@ -3,14 +3,13 @@ package com.datadog.debugger.agent;
 import static com.datadog.debugger.agent.Trie.reverseStr;
 
 import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.util.ClassFileHelper;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.tree.ClassNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -135,17 +134,12 @@ public class TransformerDefinitionMatcher {
   private List<ProbeDefinition> matchProbeDefinitionsBySourceFile(
       String className, byte[] classfileBuffer) {
     // try to match filename, need to retrieve the source filename from classfile
-    // first we try match the package name to determine if it makes sense to parse byte code
     String reversedClassName = reverseStr(className);
     int idx = reversedClassName.indexOf('/');
     boolean hasPackageName = idx > -1;
     String reversedPackageName = reversedClassName.substring(idx + 1);
     // Retrieve the actual source file name
-    // TODO maybe by scanning the byte array directly we can avoid doing an expensive parsing
-    ClassReader reader = new ClassReader(classfileBuffer);
-    ClassNode classNode = new ClassNode();
-    reader.accept(classNode, ClassReader.SKIP_FRAMES);
-    String sourceFileName = classNode.sourceFile;
+    String sourceFileName = ClassFileHelper.extractSourceFile(classfileBuffer);
     if (sourceFileName == null) {
       return Collections.emptyList();
     }

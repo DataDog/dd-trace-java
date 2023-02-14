@@ -15,4 +15,12 @@ public final class BooleanValue extends Literal<Boolean> {
   public String toString() {
     return "BooleanLiteral{" + "value=" + value + '}';
   }
+
+  @Override
+  public String prettyPrint() {
+    if (value == null) {
+      return "null";
+    }
+    return String.valueOf(value.booleanValue());
+  }
 }

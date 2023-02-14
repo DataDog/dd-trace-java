@@ -75,6 +75,8 @@
 1 org.springframework.core.$Proxy*
 1 org.springframework.instrument.classloading.ShadowingClassLoader
 1 org.springframework.instrument.classloading.SimpleThrowawayClassLoader
+1 org.springframework.util.ConcurrentLruCache$*
+1 com.fasterxml.jackson.databind.util.internal.PrivateMaxEntriesMap$*
 1 org.eclipse.osgi.framework.internal.protocol.*
 1 sun.*
 0 sun.net.www.http.HttpClient
@@ -176,6 +178,7 @@
 2 org.apache.xerces.*
 2 org.apache.xml.*
 2 org.apache.xpath.*
+2 org.bouncycastle.*
 2 org.h2.*
 0 org.h2.Driver
 # Some runnables that get instrumented

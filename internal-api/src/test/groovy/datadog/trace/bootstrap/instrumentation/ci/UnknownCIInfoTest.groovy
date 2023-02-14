@@ -37,7 +37,8 @@ class UnknownCIInfoTest extends CITagsProviderImplTest {
     ]
 
     when:
-    def ciTagsProvider = ciTagsProvider()
+    def ciProviderInfo = instanceProvider()
+    def ciTagsProvider = ciTagsProvider(ciProviderInfo)
 
     then:
     ciTagsProvider.ciTags == expectedTags
@@ -45,12 +46,16 @@ class UnknownCIInfoTest extends CITagsProviderImplTest {
 
   def "test workspace is null if target folder does not exist"() {
     when:
-    def ciInfo = new UnknownCIInfo("this-target-folder-does-not-exist", workspaceForTests)
-    def ciTagsProvider = new CITagsProviderImpl(
-      ciInfo,
-      new CILocalGitInfoBuilder(),
-      new UserSuppliedGitInfoBuilder(),
-      GIT_FOLDER_FOR_TESTS)
+    def ciProviderInfo = new UnknownCIInfo("this-target-folder-does-not-exist", workspaceForTests)
+    def ciLocalGitInfoBuilder = new CILocalGitInfoBuilder()
+    def userSuppliedGitInfoBuilder = new UserSuppliedGitInfoBuilder()
+
+    def ciInfo = ciProviderInfo.buildCIInfo()
+    def ciGitInfo = ciProviderInfo.buildCIGitInfo()
+    def localGitInfo = ciLocalGitInfoBuilder.build(ciInfo.getCiWorkspace(), GIT_FOLDER_FOR_TESTS)
+    def userSuppliedGitInfo = userSuppliedGitInfoBuilder.build()
+
+    def ciTagsProvider = new CITagsProviderImpl(ciInfo, ciGitInfo, localGitInfo, userSuppliedGitInfo)
 
     then:
     ciTagsProvider.ciTags.get("$Tags.CI_WORKSPACE_PATH") == null

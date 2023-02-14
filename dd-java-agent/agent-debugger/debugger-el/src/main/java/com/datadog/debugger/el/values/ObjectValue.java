@@ -16,4 +16,15 @@ public final class ObjectValue extends Literal<Object> {
   public String toString() {
     return "ObjectLiteral{" + "value=" + value + '}';
   }
+
+  @Override
+  public String prettyPrint() {
+    if (value == null || value == Values.NULL_OBJECT) {
+      return "null";
+    }
+    if (value == Values.UNDEFINED_OBJECT) {
+      return value.toString();
+    }
+    return value.getClass().getTypeName();
+  }
 }

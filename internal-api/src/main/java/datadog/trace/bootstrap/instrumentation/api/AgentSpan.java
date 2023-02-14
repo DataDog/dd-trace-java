@@ -123,11 +123,6 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
   boolean eligibleForDropping();
 
-  void startWork();
-
-  /** Mark the end of a task associated with the span */
-  void finishWork();
-
   /** RequestContext for the Instrumentation Gateway */
   RequestContext getRequestContext();
 

@@ -1,5 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.Expression.nullSafePrettyPrint;
+
 import com.datadog.debugger.el.Value;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
@@ -22,5 +24,10 @@ public final class IsUndefinedExpression implements BooleanExpression {
     }
     Value<?> value = valueExpression.evaluate(valueRefResolver);
     return value.isUndefined() ? Boolean.TRUE : Boolean.FALSE;
+  }
+
+  @Override
+  public String prettyPrint() {
+    return "isUndefined(" + nullSafePrettyPrint(valueExpression) + ")";
   }
 }

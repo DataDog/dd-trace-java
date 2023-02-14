@@ -1,27 +1,33 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
+import static datadog.trace.util.Strings.toJson;
+
+import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.ci.InstrumentationBridge;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.ci.CIInfo;
+import datadog.trace.bootstrap.instrumentation.ci.CIProviderInfo;
 import datadog.trace.bootstrap.instrumentation.ci.CIProviderInfoFactory;
-import datadog.trace.bootstrap.instrumentation.ci.CITagsProvider;
 import datadog.trace.bootstrap.instrumentation.ci.CITagsProviderImpl;
+import datadog.trace.bootstrap.instrumentation.ci.codeowners.Codeowners;
+import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.info.CILocalGitInfoBuilder;
 import datadog.trace.bootstrap.instrumentation.ci.git.info.UserSuppliedGitInfoBuilder;
+import datadog.trace.bootstrap.instrumentation.ci.source.MethodLinesResolver;
+import datadog.trace.bootstrap.instrumentation.ci.source.SourcePathResolver;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public abstract class TestDecorator extends BaseDecorator {
-
-  private static final Logger log = LoggerFactory.getLogger(TestDecorator.class);
 
   public static final String TEST_TYPE = "test";
   public static final String TEST_PASS = "pass";
@@ -33,19 +39,44 @@ public abstract class TestDecorator extends BaseDecorator {
 
   private final boolean isCI;
   private final Map<String, String> ciTags;
+  private final Codeowners codeowners;
+  private final SourcePathResolver sourcePathResolver;
+  private final MethodLinesResolver methodLinesResolver;
 
   public TestDecorator() {
-    this(
-        new CITagsProviderImpl(
-            CIProviderInfoFactory.createCIProviderInfo(),
-            new CILocalGitInfoBuilder(),
-            new UserSuppliedGitInfoBuilder(),
-            GIT_FOLDER_NAME));
+    CIProviderInfo ciProviderInfo = CIProviderInfoFactory.createCIProviderInfo();
+    CILocalGitInfoBuilder ciLocalGitInfoBuilder = new CILocalGitInfoBuilder();
+    UserSuppliedGitInfoBuilder userSuppliedGitInfoBuilder = new UserSuppliedGitInfoBuilder();
+
+    CIInfo ciInfo = ciProviderInfo.buildCIInfo();
+    String repoRoot = ciInfo.getCiWorkspace();
+
+    GitInfo ciGitInfo = ciProviderInfo.buildCIGitInfo();
+    GitInfo localGitInfo = ciLocalGitInfoBuilder.build(repoRoot, GIT_FOLDER_NAME);
+    GitInfo userSuppliedGitInfo = userSuppliedGitInfoBuilder.build();
+
+    CITagsProviderImpl ciTagsProvider =
+        new CITagsProviderImpl(ciInfo, ciGitInfo, localGitInfo, userSuppliedGitInfo);
+    ciTags = ciTagsProvider.getCiTags();
+
+    isCI = ciProviderInfo.isCI();
+
+    codeowners = InstrumentationBridge.createCodeowners(repoRoot);
+    sourcePathResolver = InstrumentationBridge.createSourcePathResolver(repoRoot);
+    methodLinesResolver = InstrumentationBridge.createMethodLinesResolver();
   }
 
-  TestDecorator(final CITagsProvider ciTagsProvider) {
-    isCI = ciTagsProvider.isCI();
-    ciTags = ciTagsProvider.getCiTags();
+  TestDecorator(
+      boolean isCI,
+      Map<String, String> ciTags,
+      Codeowners codeowners,
+      SourcePathResolver sourcePathResolver,
+      MethodLinesResolver methodLinesResolver) {
+    this.isCI = isCI;
+    this.ciTags = ciTags;
+    this.codeowners = codeowners;
+    this.sourcePathResolver = sourcePathResolver;
+    this.methodLinesResolver = methodLinesResolver;
   }
 
   public boolean isCI() {
@@ -120,25 +151,58 @@ public abstract class TestDecorator extends BaseDecorator {
     return super.afterStart(span);
   }
 
-  public AgentSpan afterStart(final AgentSpan span, final String version) {
+  public AgentSpan afterStart(
+      final AgentSpan span,
+      final String version,
+      final Class<?> testClass,
+      final Method testMethod) {
     // Version can be null. The testing framework version extraction is best-effort basis.
     if (version != null) {
       span.setTag(Tags.TEST_FRAMEWORK_VERSION, version);
     }
+    if (Config.get().isCiVisibilitySourceDataEnabled()) {
+      populateSourceDataTags(span, testClass, testMethod);
+    }
     return afterStart(span);
   }
 
-  public List<String> testNames(
+  private void populateSourceDataTags(AgentSpan span, Class<?> testClass, Method testMethod) {
+    if (testClass == null) {
+      return;
+    }
+
+    String sourcePath = sourcePathResolver.getSourcePath(testClass);
+    if (sourcePath == null || sourcePath.isEmpty()) {
+      return;
+    }
+
+    span.setTag(Tags.TEST_SOURCE_FILE, sourcePath);
+
+    if (testMethod != null) {
+      MethodLinesResolver.MethodLines testMethodLines = methodLinesResolver.getLines(testMethod);
+      if (testMethodLines.isValid()) {
+        span.setTag(Tags.TEST_SOURCE_START, testMethodLines.getStartLineNumber());
+        span.setTag(Tags.TEST_SOURCE_END, testMethodLines.getFinishLineNumber());
+      }
+    }
+
+    Collection<String> testCodeOwners = codeowners.getOwners(sourcePath);
+    if (testCodeOwners != null) {
+      span.setTag(Tags.TEST_CODEOWNERS, toJson(testCodeOwners));
+    }
+  }
+
+  public List<Method> testMethods(
       final Class<?> testClass, final Class<? extends Annotation> testAnnotation) {
-    final List<String> testNames = new ArrayList<>();
+    final List<Method> testMethods = new ArrayList<>();
 
     final Method[] methods = testClass.getMethods();
     for (final Method method : methods) {
       if (method.getAnnotation(testAnnotation) != null) {
-        testNames.add(method.getName());
+        testMethods.add(method);
       }
     }
-    return testNames;
+    return testMethods;
   }
 
   public boolean isTestSpan(final AgentSpan activeSpan) {
