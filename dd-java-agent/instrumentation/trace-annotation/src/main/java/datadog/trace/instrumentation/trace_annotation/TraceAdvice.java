@@ -33,9 +33,7 @@ public class TraceAdvice {
       resourceName = DECORATE.spanNameForMethod(method);
     }
     if (traceAnnotation != null && traceAnnotation.measured()) {
-      //?
       DECORATE.measureSpan(span);
-      span.setMeasured(true);
     }
     span.setResourceName(resourceName);
     DECORATE.afterStart(span);
