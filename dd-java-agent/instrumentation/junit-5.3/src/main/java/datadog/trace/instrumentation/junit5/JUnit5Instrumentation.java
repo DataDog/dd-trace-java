@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.ServiceLoader;
@@ -53,6 +54,9 @@ public class JUnit5Instrumentation extends Instrumenter.CiVisibility
 
   public static class JUnit5Advice {
 
+    @SuppressFBWarnings(
+        value = "UC_USELESS_OBJECT",
+        justification = "listeners is the return value of the instrumented method")
     @Advice.OnMethodExit
     public static void addTracingListener(
         @Advice.Return(readOnly = false) Collection<TestExecutionListener> listeners) {
