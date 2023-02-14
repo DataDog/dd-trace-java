@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.trace_annotation;
 
-import datadog.trace.api.DDTags;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
@@ -32,5 +30,4 @@ public class TraceDecorator extends BaseDecorator {
   public boolean useLegacyOperationName() {
     return useLegacyOperationName;
   }
-
 }
