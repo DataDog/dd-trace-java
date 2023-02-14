@@ -20,8 +20,6 @@ import datadog.trace.bootstrap.instrumentation.traceannotation.TraceAnnotationCo
 import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import net.bytebuddy.description.method.MethodDescription;
@@ -79,7 +77,6 @@ public class TraceConfigInstrumentation implements Instrumenter {
   public TraceConfigInstrumentation() {
     final String configString = Strings.trim(InstrumenterConfig.get().getTraceMethods());
     classMethodsToTrace = TraceAnnotationConfigParser.parse(configString);
-
   }
 
   @Override
