@@ -5,6 +5,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_MEASURE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_INJECTION;
@@ -27,6 +28,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTIO
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_CONFIG;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
@@ -47,9 +49,11 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
+import datadog.trace.bootstrap.instrumentation.traceannotation.TraceAnnotationConfigParser;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class InstrumenterConfig {
@@ -89,7 +93,8 @@ public class InstrumenterConfig {
 
   private final String traceAnnotations;
   private final String traceMethods;
-
+  private final String measureMethods;
+  private Map<String, Set<String>> methodsToMeasure;
   private final boolean internalExitOnFailure;
 
   private InstrumenterConfig() {
@@ -171,6 +176,7 @@ public class InstrumenterConfig {
     traceAnnotations = configProvider.getString(TRACE_ANNOTATIONS, DEFAULT_TRACE_ANNOTATIONS);
 
     traceMethods = configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS);
+    measureMethods = configProvider.getString(MEASURE_METHODS,DEFAULT_MEASURE_METHODS)
 
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
   }
@@ -296,6 +302,12 @@ public class InstrumenterConfig {
 
   public String getTraceMethods() {
     return traceMethods;
+  }
+  public Map<String,Set<String>> getMeasuredMethods(){
+    if(methodsToMeasure==null || methodsToMeasure.isEmpty()){
+      methodsToMeasure = TraceAnnotationConfigParser.parse(measureMethods);
+    }
+    return methodsToMeasure;
   }
 
   public boolean isInternalExitOnFailure() {

@@ -4,15 +4,19 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.trace_annotation.TraceDecorator.DECORATE;
 
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Trace;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.Method;
+import java.util.Map;
+import java.util.Set;
+
 import net.bytebuddy.asm.Advice;
 
 public class TraceAdvice {
   private static final String DEFAULT_OPERATION_NAME = "trace.annotation";
-
+  private static final Map<String, Set<String>> methodsToMeasure = InstrumenterConfig.get().getMeasuredMethods();
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Origin final Method method) {
     final Trace traceAnnotation = method.getAnnotation(Trace.class);
@@ -32,9 +36,9 @@ public class TraceAdvice {
     if (resourceName == null || resourceName.length() == 0) {
       resourceName = DECORATE.spanNameForMethod(method);
     }
-    if (traceAnnotation != null && traceAnnotation.measured()) {
-      //?
-      DECORATE.measureSpan(span);
+    if ((traceAnnotation != null && traceAnnotation.measured())
+        || filter(method.getDeclaringClass().getName(), method.getName())) {
+
       span.setMeasured(true);
     }
     span.setResourceName(resourceName);
@@ -52,5 +56,10 @@ public class TraceAdvice {
     DECORATE.beforeFinish(scope);
     scope.close();
     scope.span().finish();
+  }
+
+  public static boolean filter(String clazz, String method){
+    return (!methodsToMeasure.isEmpty() && methodsToMeasure!=null)
+        && methodsToMeasure.containsKey(clazz) && methodsToMeasure.get(clazz).contains(method);
   }
 }
