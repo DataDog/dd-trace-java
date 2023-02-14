@@ -3,6 +3,7 @@ package com.datadog.debugger.instrumentation;
 import static com.datadog.debugger.instrumentation.Types.DEBUGGER_CONTEXT_TYPE;
 import static com.datadog.debugger.instrumentation.Types.DEBUGGER_SPAN_TYPE;
 import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
+import static com.datadog.debugger.util.ClassFileHelper.stripPackagePath;
 
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.Where;
@@ -10,7 +11,13 @@ import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import java.util.List;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
-import org.objectweb.asm.tree.*;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.InsnList;
+import org.objectweb.asm.tree.InsnNode;
+import org.objectweb.asm.tree.LabelNode;
+import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.TryCatchBlockNode;
+import org.objectweb.asm.tree.VarInsnNode;
 
 public class SpanInstrumentor extends Instrumentor {
   private int spanVar;
@@ -131,7 +138,7 @@ public class SpanInstrumentor extends Instrumentor {
   }
 
   private String buildResourceName() {
-    String resourceName = classNode.name + "." + methodNode.name;
+    String resourceName = stripPackagePath(classNode.name) + "." + methodNode.name;
     if (isLineProbe) {
       Where.SourceLine[] targetLines = definition.getWhere().getSourceLines();
       if (targetLines == null || targetLines.length == 0) {
