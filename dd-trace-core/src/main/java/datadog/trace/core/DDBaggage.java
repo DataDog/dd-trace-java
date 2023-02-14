@@ -4,7 +4,6 @@ import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableMap;
 
 import datadog.trace.bootstrap.instrumentation.api.Baggage;
-
 import java.util.HashMap;
 import java.util.Map;
 

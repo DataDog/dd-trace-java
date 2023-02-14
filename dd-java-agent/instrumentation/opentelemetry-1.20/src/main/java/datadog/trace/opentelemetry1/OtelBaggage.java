@@ -51,7 +51,8 @@ public class OtelBaggage implements Baggage {
     if (this.delegate.isEmpty()) {
       return DDBaggage.empty();
     }
-    datadog.trace.bootstrap.instrumentation.api.Baggage.BaggageBuilder builder = DDBaggage.builder();
+    datadog.trace.bootstrap.instrumentation.api.Baggage.BaggageBuilder builder =
+        DDBaggage.builder();
     for (Map.Entry<String, BaggageEntry> entry : this.delegate.asMap().entrySet()) {
       builder.put(entry.getKey(), entry.getValue().getValue());
     }
