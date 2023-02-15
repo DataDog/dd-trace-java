@@ -6,6 +6,7 @@ import datadog.trace.core.CoreTracer
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
+import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING
 
 class HttpResourceDecoratorTest extends DDSpecification {
@@ -94,6 +95,32 @@ class HttpResourceDecoratorTest extends DDSpecification {
 
     then:
     span.resourceName.toString() == "/"
+  }
+
+  def "returns mapped client path"() {
+    setup:
+    injectSysConfig(TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING, "/a/*:/test")
+
+    AgentSpan span = tracer.startSpan("test")
+
+    when:
+    decorator().withClientPath(span, "GET", "/a/foo")
+
+    then:
+    span.resourceName.toString() == "GET /test"
+  }
+
+  def "returns original client path"() {
+    setup:
+    injectSysConfig(TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING, "/a/*:*")
+
+    AgentSpan span = tracer.startSpan("test")
+
+    when:
+    decorator().withClientPath(span, "GET", "/a/foo")
+
+    then:
+    span.resourceName.toString() == "GET /a/foo"
   }
 
   // Need a new one for every test after config injection
