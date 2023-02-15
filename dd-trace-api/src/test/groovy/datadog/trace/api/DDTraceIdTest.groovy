@@ -4,9 +4,13 @@ import datadog.trace.test.util.DDSpecification
 
 import java.security.SecureRandom
 
+import static datadog.trace.api.IdGenerationStrategy.Trace128bitStrategy.GENERATION
+import static datadog.trace.api.IdGenerationStrategy.Trace128bitStrategy.GENERATION_AND_LOG_INJECTION
+import static datadog.trace.api.IdGenerationStrategy.Trace128bitStrategy.UNSUPPORTED
+
 class DDTraceIdTest extends DDSpecification {
 
-  def "convert ids from/to long and check strings"() {
+  def "convert 64-bit ids from/to long and check strings"() {
     when:
     final ddid = DDTraceId.from(longId)
 
@@ -26,7 +30,7 @@ class DDTraceIdTest extends DDSpecification {
     Long.MIN_VALUE | DDTraceId.from(Long.MIN_VALUE) | "9223372036854775808"  | "8" + "0" * 15
   }
 
-  def "convert ids from/to String"() {
+  def "convert 64-bit ids from/to String"() {
     when:
     final ddid = DDTraceId.from(stringId)
 
@@ -43,12 +47,35 @@ class DDTraceIdTest extends DDSpecification {
     "${BigInteger.valueOf(Long.MAX_VALUE).plus(1)}" | DDTraceId.from(Long.MIN_VALUE)
   }
 
+  def "convert 128-bit ids from/to String"() {
+    when:
+    def parsedId = DDTraceId.from(stringId)
+    def id = DDTraceId.create(high, low, null)
+
+    then:
+    id == parsedId
+    parsedId.toString() == stringId
+    id.toString() == stringId
+
+    where:
+    high           | low            | stringId
+    Long.MIN_VALUE | Long.MIN_VALUE | "80000000000000008000000000000000"
+    Long.MIN_VALUE | 1L             | "80000000000000000000000000000001"
+    Long.MIN_VALUE | Long.MAX_VALUE | "80000000000000007fffffffffffffff"
+    1L             | Long.MIN_VALUE | "00000000000000018000000000000000"
+    1L             | 1L             | "00000000000000010000000000000001"
+    1L             | Long.MAX_VALUE | "00000000000000017fffffffffffffff"
+    Long.MAX_VALUE | Long.MIN_VALUE | "7fffffffffffffff8000000000000000"
+    Long.MAX_VALUE | 1L             | "7fffffffffffffff0000000000000001"
+    Long.MAX_VALUE | Long.MAX_VALUE | "7fffffffffffffff7fffffffffffffff"
+  }
+
   def "fail on illegal String"() {
     when:
     DDTraceId.from(stringId)
 
     then:
-    thrown NumberFormatException
+    thrown IllegalArgumentException
 
     where:
     stringId << [
@@ -113,7 +140,7 @@ class DDTraceIdTest extends DDSpecification {
 
   def "generate id with #strategyName"() {
     when:
-    def strategy = IdGenerationStrategy.fromName(strategyName)
+    def strategy = IdGenerationStrategy.fromName(strategyName, trace128bitStrategy)
     def traceIds = (0..32768).collect { strategy.generateTraceId() }
     Set<DDTraceId> checked = new HashSet<>()
 
@@ -124,17 +151,21 @@ class DDTraceIdTest extends DDSpecification {
       assert traceId != DDTraceId.ZERO
       assert traceId.equals(traceId)
       assert traceId.hashCode() == (int) (traceId.toLong() ^ (traceId.toLong() >>> 32))
-      assert !checked.contains(traceId)
-      checked.add(traceId)
+      assert checked.add(traceId)
     }
 
     where:
-    strategyName << ["RANDOM", "SEQUENTIAL", "SECURE_RANDOM"]
+    strategyName    | trace128bitStrategy
+    "RANDOM"        | UNSUPPORTED
+    "RANDOM"        | GENERATION
+    "SEQUENTIAL"    | UNSUPPORTED
+    "SECURE_RANDOM" | UNSUPPORTED
+    "SECURE_RANDOM" | GENERATION
   }
 
   def "return null for non existing strategy #strategyName"() {
     when:
-    def strategy = IdGenerationStrategy.fromName(strategyName)
+    def strategy = IdGenerationStrategy.fromName(strategyName, UNSUPPORTED)
 
     then:
     strategy == null
@@ -208,7 +239,7 @@ class DDTraceIdTest extends DDSpecification {
     def provider = Mock(IdGenerationStrategy.ThrowingSupplier)
 
     when:
-    new IdGenerationStrategy.SRandom(provider)
+    new IdGenerationStrategy.SRandom(UNSUPPORTED, provider)
 
     then:
     1 * provider.get() >> { throw new IllegalArgumentException("SecureRandom init exception") }
@@ -223,7 +254,7 @@ class DDTraceIdTest extends DDSpecification {
     def random = Mock(SecureRandom)
 
     when:
-    def strategy = new IdGenerationStrategy.SRandom(provider)
+    def strategy = new IdGenerationStrategy.SRandom(UNSUPPORTED, provider)
     strategy.generateTraceId().toLong() == 47
     strategy.generateSpanId() == 11
 
@@ -234,5 +265,40 @@ class DDTraceIdTest extends DDSpecification {
     1 * random.nextLong() >> { 0 }
     1 * random.nextLong() >> { 11 }
     0 * _
+  }
+
+  def "SecureRandom128 ids can only be zero for span id"() {
+    setup:
+    def provider = Mock(IdGenerationStrategy.ThrowingSupplier)
+    def random = Mock(SecureRandom)
+
+    when:
+    def strategy = new IdGenerationStrategy.SRandom(GENERATION, provider)
+    strategy.generateTraceId().toLong() == 0
+    strategy.generateTraceId().toLong() == 47
+    strategy.generateSpanId() == 11
+
+    then:
+    1 * provider.get() >> { random }
+    1 * random.nextLong() >> { 0 }
+    1 * random.nextLong() >> { 47 }
+    1 * random.nextLong() >> { 0 }
+    1 * random.nextLong() >> { 11 }
+    0 * _
+  }
+
+  def "trace 128-bit strategy choices"() {
+    when:
+    def strategy = IdGenerationStrategy.Trace128bitStrategy.get(withGeneration, withLogInjection)
+
+    then:
+    strategy == expected
+
+    where:
+    withGeneration | withLogInjection | expected
+    false          | false            | UNSUPPORTED
+    false          | true             | UNSUPPORTED
+    true           | false            | GENERATION
+    true           | true             | GENERATION_AND_LOG_INJECTION
   }
 }

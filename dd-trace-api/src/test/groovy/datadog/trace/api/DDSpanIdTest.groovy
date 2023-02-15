@@ -2,6 +2,8 @@ package datadog.trace.api
 
 import datadog.trace.test.util.DDSpecification
 
+import static datadog.trace.api.IdGenerationStrategy.Trace128bitStrategy.UNSUPPORTED
+
 class DDSpanIdTest extends DDSpecification {
 
   def "convert ids from/to String #stringId"() {
@@ -117,7 +119,7 @@ class DDSpanIdTest extends DDSpecification {
 
   def "generate id with #strategyName"() {
     when:
-    def strategy = IdGenerationStrategy.fromName(strategyName)
+    def strategy = IdGenerationStrategy.fromName(strategyName, UNSUPPORTED)
     def spanIds = (0..32768).collect { strategy.generateSpanId() }
     Set<Long> checked = new HashSet<>()
 

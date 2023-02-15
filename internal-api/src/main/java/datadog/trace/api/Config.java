@@ -67,6 +67,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERV
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
@@ -274,6 +276,8 @@ import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES;
 import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES_FILE;
 import static datadog.trace.api.config.TracerConfig.SPAN_TAGS;
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
+import static datadog.trace.api.config.TracerConfig.TRACE_128_BIT_TRACEID_GENERATION_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_ARGS;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PATH;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT;
@@ -301,6 +305,7 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 import static datadog.trace.util.Strings.toEnvVar;
 
+import datadog.trace.api.IdGenerationStrategy.Trace128bitStrategy;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.naming.SpanNaming;
@@ -598,6 +603,9 @@ public class Config {
 
   private final boolean secureRandom;
 
+  private final boolean trace128bitTraceIdGenerationEnabled;
+  private final boolean trace128bitTraceIdLoggingEnabled;
+
   private final Set<String> grpcIgnoredInboundMethods;
   private final Set<String> grpcIgnoredOutboundMethods;
   private final boolean grpcServerTrimPackageResource;
@@ -690,19 +698,30 @@ public class Config {
     }
 
     String strategyName = configProvider.getString(ID_GENERATION_STRATEGY);
+    trace128bitTraceIdGenerationEnabled =
+        configProvider.getBoolean(
+            TRACE_128_BIT_TRACEID_GENERATION_ENABLED,
+            DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED);
+    trace128bitTraceIdLoggingEnabled =
+        configProvider.getBoolean(
+            TRACE_128_BIT_TRACEID_LOGGING_ENABLED, DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED);
+    Trace128bitStrategy trace128bitStrategy =
+        Trace128bitStrategy.get(
+            trace128bitTraceIdGenerationEnabled, trace128bitTraceIdLoggingEnabled);
     if (secureRandom) {
       strategyName = "SECURE_RANDOM";
     }
     if (strategyName == null) {
       strategyName = "RANDOM";
     }
-    IdGenerationStrategy strategy = IdGenerationStrategy.fromName(strategyName);
+    IdGenerationStrategy strategy =
+        IdGenerationStrategy.fromName(strategyName, trace128bitStrategy);
     if (strategy == null) {
       log.warn(
           "*** you are trying to use an unknown id generation strategy {} - falling back to RANDOM",
           strategyName);
       strategyName = "RANDOM";
-      strategy = IdGenerationStrategy.fromName(strategyName);
+      strategy = IdGenerationStrategy.fromName(strategyName, trace128bitStrategy);
     }
     if (!strategyName.equals("RANDOM") && !strategyName.equals("SECURE_RANDOM")) {
       log.warn(
@@ -2167,6 +2186,14 @@ public class Config {
 
   public IdGenerationStrategy getIdGenerationStrategy() {
     return idGenerationStrategy;
+  }
+
+  public boolean isTrace128bitTraceIdGenerationEnabled() {
+    return trace128bitTraceIdGenerationEnabled;
+  }
+
+  public boolean isTrace128bitTraceIdLoggingEnabled() {
+    return trace128bitTraceIdLoggingEnabled;
   }
 
   public Set<String> getGrpcIgnoredInboundMethods() {
