@@ -836,6 +836,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         edgeTags.size() == DSM_EDGE_TAGS.size()
       }
     }
+
+    cleanup:
+    TEST_WRITER.waitForTraces(1)
   }
 
   def "test success with multiple header attached parent"() {
