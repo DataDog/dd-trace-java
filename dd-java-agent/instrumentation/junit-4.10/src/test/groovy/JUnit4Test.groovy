@@ -34,7 +34,7 @@ class JUnit4Test extends TestFrameworkTest {
     assertTraces(1) {
       trace(3, true) {
         long testModuleId = testModuleSpan(it, 1, TestDecorator.TEST_PASS)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestSucceed", TestDecorator.TEST_PASS)
+        long testSuiteId = testSuiteSpan(it, 2, testModuleId, testModuleId, "org.example.TestSucceed", TestDecorator.TEST_PASS)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceed", "test_succeed", TestDecorator.TEST_PASS)
       }
     }
@@ -48,7 +48,7 @@ class JUnit4Test extends TestFrameworkTest {
     assertTraces(1) {
       trace(3, true) {
         long testModuleId = testModuleSpan(it, 1, TestDecorator.TEST_PASS)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestInheritance", TestDecorator.TEST_PASS)
+        long testSuiteId = testSuiteSpan(it, 2, testModuleId, testModuleId, "org.example.TestInheritance", TestDecorator.TEST_PASS)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestInheritance", "test_succeed", TestDecorator.TEST_PASS)
       }
     }
@@ -66,7 +66,7 @@ class JUnit4Test extends TestFrameworkTest {
     assertTraces(1) {
       trace(3, true) {
         long testModuleId = testModuleSpan(it, 1, TestDecorator.TEST_FAIL)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestFailed", TestDecorator.TEST_FAIL)
+        long testSuiteId = testSuiteSpan(it, 2, testModuleId, testModuleId, "org.example.TestFailed", TestDecorator.TEST_FAIL)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailed", "test_failed", TestDecorator.TEST_FAIL, null, exception)
       }
     }
@@ -87,7 +87,7 @@ class JUnit4Test extends TestFrameworkTest {
     assertTraces(1) {
       trace(3, true) {
         long testModuleId = testModuleSpan(it, 1, TestDecorator.TEST_FAIL)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestError", TestDecorator.TEST_FAIL)
+        long testSuiteId = testSuiteSpan(it, 2, testModuleId, testModuleId, "org.example.TestError", TestDecorator.TEST_FAIL)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestError", "test_error", TestDecorator.TEST_FAIL, null, exception)
       }
     }
@@ -104,7 +104,7 @@ class JUnit4Test extends TestFrameworkTest {
     assertTraces(1) {
       trace(3, true) {
         long testModuleId = testModuleSpan(it, 1, TestDecorator.TEST_SKIP)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestSkipped", TestDecorator.TEST_SKIP)
+        long testSuiteId = testSuiteSpan(it, 2, testModuleId, testModuleId, "org.example.TestSkipped", TestDecorator.TEST_SKIP)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkipped", "test_skipped", TestDecorator.TEST_SKIP, testTags, null, true)
       }
     }
@@ -121,7 +121,7 @@ class JUnit4Test extends TestFrameworkTest {
     assertTraces(1) {
       trace(4, true) {
         long testModuleId = testModuleSpan(it, 2, TestDecorator.TEST_SKIP)
-        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestSkippedClass", TestDecorator.TEST_SKIP, testTags, null, true)
+        long testSuiteId = testSuiteSpan(it, 3, testModuleId, testModuleId, "org.example.TestSkippedClass", TestDecorator.TEST_SKIP, testTags, null, true)
         testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_class_skipped", TestDecorator.TEST_SKIP, testTags, null, true)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_class_another_skipped", TestDecorator.TEST_SKIP, testTags, null, true)
       }
@@ -139,7 +139,7 @@ class JUnit4Test extends TestFrameworkTest {
     assertTraces(1) {
       trace(4, true) {
         long testModuleId = testModuleSpan(it, 2, TestDecorator.TEST_PASS)
-        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestSucceedAndSkipped", TestDecorator.TEST_PASS)
+        long testSuiteId = testSuiteSpan(it, 3, testModuleId, testModuleId, "org.example.TestSucceedAndSkipped", TestDecorator.TEST_PASS)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", TestDecorator.TEST_SKIP, testTags, null, true)
         testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", TestDecorator.TEST_PASS)
       }
@@ -157,7 +157,7 @@ class JUnit4Test extends TestFrameworkTest {
     assertTraces(1) {
       trace(5, true) {
         long testModuleId = testModuleSpan(it, 3, TestDecorator.TEST_FAIL)
-        long testSuiteId = testSuiteSpan(it, 4, testModuleId, "org.example.TestFailedAndSucceed", TestDecorator.TEST_FAIL)
+        long testSuiteId = testSuiteSpan(it, 4, testModuleId, testModuleId, "org.example.TestFailedAndSucceed", TestDecorator.TEST_FAIL)
         testSpan(it, 2, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_succeed", TestDecorator.TEST_PASS)
         testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_failed", TestDecorator.TEST_FAIL, null, exception)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_another_succeed", TestDecorator.TEST_PASS)
@@ -176,7 +176,7 @@ class JUnit4Test extends TestFrameworkTest {
     assertTraces(1) {
       trace(4, true) {
         long testModuleId = testModuleSpan(it, 2, TestDecorator.TEST_FAIL)
-        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestFailedSuiteTearDown", TestDecorator.TEST_FAIL, null, exception)
+        long testSuiteId = testSuiteSpan(it, 3, testModuleId, testModuleId, "org.example.TestFailedSuiteTearDown", TestDecorator.TEST_FAIL, null, exception)
         testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestFailedSuiteTearDown", "test_succeed", TestDecorator.TEST_PASS)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedSuiteTearDown", "test_another_succeed", TestDecorator.TEST_PASS)
       }
@@ -194,7 +194,7 @@ class JUnit4Test extends TestFrameworkTest {
     assertTraces(1) {
       trace(2, true) {
         long testModuleId = testModuleSpan(it, 0, TestDecorator.TEST_FAIL)
-        testSuiteSpan(it, 1, testModuleId, "org.example.TestFailedSuiteSetup", TestDecorator.TEST_FAIL, null, exception)
+        testSuiteSpan(it, 1, testModuleId, testModuleId, "org.example.TestFailedSuiteSetup", TestDecorator.TEST_FAIL, null, exception)
       }
     }
 
@@ -210,7 +210,7 @@ class JUnit4Test extends TestFrameworkTest {
     assertTraces(1) {
       trace(3, true) {
         long testModuleId = testModuleSpan(it, 1, TestDecorator.TEST_SKIP)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestAssumption", TestDecorator.TEST_SKIP)
+        long testSuiteId = testSuiteSpan(it, 2, testModuleId, testModuleId, "org.example.TestAssumption", TestDecorator.TEST_SKIP)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestAssumption", "test_fail_assumption", TestDecorator.TEST_SKIP, testTags)
       }
     }
@@ -227,7 +227,7 @@ class JUnit4Test extends TestFrameworkTest {
     assertTraces(1) {
       trace(3, true) {
         long testModuleId = testModuleSpan(it, 1, TestDecorator.TEST_PASS)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestSucceedWithCategories",
+        long testSuiteId = testSuiteSpan(it, 2, testModuleId, testModuleId, "org.example.TestSucceedWithCategories",
           TestDecorator.TEST_PASS, null, null, false,
           ["org.example.Slow", "org.example.Flaky"])
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedWithCategories", "test_succeed",
@@ -245,7 +245,7 @@ class JUnit4Test extends TestFrameworkTest {
     assertTraces(1) {
       trace(3, true) {
         long testModuleId = testModuleSpan(it, 1, TestDecorator.TEST_SKIP)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestSuiteSetUpAssumption", TestDecorator.TEST_SKIP)
+        long testSuiteId = testSuiteSpan(it, 2, testModuleId, testModuleId, "org.example.TestSuiteSetUpAssumption", TestDecorator.TEST_SKIP)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSuiteSetUpAssumption", "test_succeed", TestDecorator.TEST_SKIP, null, null, true)
       }
     }
@@ -259,7 +259,7 @@ class JUnit4Test extends TestFrameworkTest {
     assertTraces(1) {
       trace(4, true) {
         long testModuleId = testModuleSpan(it, 2, TestDecorator.TEST_PASS)
-        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestAssumptionAndSucceed", TestDecorator.TEST_PASS)
+        long testSuiteId = testSuiteSpan(it, 3, testModuleId, testModuleId, "org.example.TestAssumptionAndSucceed", TestDecorator.TEST_PASS)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestAssumptionAndSucceed", "test_fail_assumption", TestDecorator.TEST_SKIP, testTags)
         testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestAssumptionAndSucceed", "test_succeed", TestDecorator.TEST_PASS)
       }
@@ -278,10 +278,10 @@ class JUnit4Test extends TestFrameworkTest {
       trace(6, true) {
         long testModuleId = testModuleSpan(it, 3, TestDecorator.TEST_PASS)
 
-        long firstSuiteId = testSuiteSpan(it, 4, testModuleId, "org.example.TestSucceed", TestDecorator.TEST_PASS)
+        long firstSuiteId = testSuiteSpan(it, 4, testModuleId, testModuleId, "org.example.TestSucceed", TestDecorator.TEST_PASS)
         testSpan(it, 0, testModuleId, firstSuiteId, "org.example.TestSucceed", "test_succeed", TestDecorator.TEST_PASS)
 
-        long secondSuiteId = testSuiteSpan(it, 5, testModuleId, "org.example.TestSucceedAndSkipped", TestDecorator.TEST_PASS)
+        long secondSuiteId = testSuiteSpan(it, 5, testModuleId, testModuleId, "org.example.TestSucceedAndSkipped", TestDecorator.TEST_PASS)
         testSpan(it, 1, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", TestDecorator.TEST_SKIP, testTags, null, true)
         testSpan(it, 2, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", TestDecorator.TEST_PASS)
       }
@@ -300,10 +300,10 @@ class JUnit4Test extends TestFrameworkTest {
       trace(7, true) {
         long testModuleId = testModuleSpan(it, 4, TestDecorator.TEST_FAIL)
 
-        long firstSuiteId = testSuiteSpan(it, 6, testModuleId, "org.example.TestSucceed", TestDecorator.TEST_PASS)
+        long firstSuiteId = testSuiteSpan(it, 6, testModuleId, testModuleId, "org.example.TestSucceed", TestDecorator.TEST_PASS)
         testSpan(it, 3, testModuleId, firstSuiteId, "org.example.TestSucceed", "test_succeed", TestDecorator.TEST_PASS)
 
-        long secondSuiteId = testSuiteSpan(it, 5, testModuleId, "org.example.TestFailedAndSucceed", TestDecorator.TEST_FAIL)
+        long secondSuiteId = testSuiteSpan(it, 5, testModuleId, testModuleId, "org.example.TestFailedAndSucceed", TestDecorator.TEST_FAIL)
         testSpan(it, 2, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_succeed", TestDecorator.TEST_PASS)
         testSpan(it, 1, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_failed", TestDecorator.TEST_FAIL, null, exception)
         testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_another_succeed", TestDecorator.TEST_PASS)
@@ -321,7 +321,7 @@ class JUnit4Test extends TestFrameworkTest {
     assertTraces(1) {
       trace(4, true) {
         long testModuleId = testModuleSpan(it, 2, TestDecorator.TEST_PASS)
-        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestParameterized", TestDecorator.TEST_PASS)
+        long testSuiteId = testSuiteSpan(it, 3, testModuleId, testModuleId, "org.example.TestParameterized", TestDecorator.TEST_PASS)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "parameterized_test_succeed", TestDecorator.TEST_PASS, testTags_1)
         testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestParameterized", "parameterized_test_succeed", TestDecorator.TEST_PASS, testTags_0)
       }

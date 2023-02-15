@@ -176,7 +176,7 @@ public abstract class TestDecorator extends BaseDecorator {
       final String testSuiteName,
       final @Nullable String version,
       final @Nullable Class<?> testClass,
-      final @Nullable List<String> categories) {
+      final @Nullable Collection<String> categories) {
     span.setSpanType(InternalSpanTypes.TEST_SUITE_END);
     span.setTag(Tags.SPAN_KIND, testSuiteSpanKind());
 
@@ -192,7 +192,7 @@ public abstract class TestDecorator extends BaseDecorator {
 
     if (categories != null && !categories.isEmpty()) {
       span.setTag(
-          Tags.TEST_TRAITS, toJson(Collections.singletonMap("category", toJson(categories))));
+          Tags.TEST_TRAITS, toJson(Collections.singletonMap("category", toJson(categories)), true));
     }
 
     if (testClass != null) {
@@ -238,7 +238,7 @@ public abstract class TestDecorator extends BaseDecorator {
       final @Nullable String version,
       final @Nullable Class<?> testClass,
       final @Nullable Method testMethod,
-      final @Nullable List<String> categories) {
+      final @Nullable Collection<String> categories) {
 
     span.setSpanType(InternalSpanTypes.TEST);
     span.setTag(Tags.SPAN_KIND, testSpanKind());
@@ -260,7 +260,7 @@ public abstract class TestDecorator extends BaseDecorator {
 
     if (categories != null && !categories.isEmpty()) {
       span.setTag(
-          Tags.TEST_TRAITS, toJson(Collections.singletonMap("category", toJson(categories))));
+          Tags.TEST_TRAITS, toJson(Collections.singletonMap("category", toJson(categories)), true));
     }
 
     if (Config.get().isCiVisibilitySourceDataEnabled()) {
