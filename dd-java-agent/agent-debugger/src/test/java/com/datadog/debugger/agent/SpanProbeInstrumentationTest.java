@@ -1,5 +1,6 @@
 package com.datadog.debugger.agent;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -16,11 +17,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.joor.Reflect;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
 
 public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
   private static final String SPAN_ID = "beae1807-f3b0-4ea8-a74f-826790c5e6f8";
+  private static final String SPAN_PROBEID_TAG =
+      "debugger.probeid:beae1807-f3b0-4ea8-a74f-826790c5e6f8";
 
   @Test
   public void methodSimpleSpan() throws IOException, URISyntaxException {
@@ -30,8 +32,10 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(3, result);
     assertEquals(1, tracer.spans.size());
-    assertEquals(CLASS_NAME + ".main", tracer.spans.get(0).resourceName);
-    assertTrue(tracer.spans.get(0).isFinished());
+    MockSpan span = tracer.spans.get(0);
+    assertEquals(CLASS_NAME + ".main", span.resourceName);
+    assertTrue(span.isFinished());
+    assertArrayEquals(new String[] {SPAN_PROBEID_TAG}, span.tags);
   }
 
   @Test
@@ -46,7 +50,7 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
     MockSpan span = tracer.spans.get(0);
     assertEquals(CLASS_NAME + ".main", span.resourceName);
     assertTrue(span.isFinished());
-    Assert.assertArrayEquals(new String[] {"tag1:foo1", "tag2:foo2"}, span.tags);
+    assertArrayEquals(new String[] {"tag1:foo1", "tag2:foo2", SPAN_PROBEID_TAG}, span.tags);
   }
 
   @Test
@@ -57,8 +61,10 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(3, result);
     assertEquals(1, tracer.spans.size());
-    assertEquals(CLASS_NAME + ".main:L4-8", tracer.spans.get(0).resourceName);
-    assertTrue(tracer.spans.get(0).isFinished());
+    MockSpan span = tracer.spans.get(0);
+    assertEquals(CLASS_NAME + ".main:L4-8", span.resourceName);
+    assertTrue(span.isFinished());
+    assertArrayEquals(new String[] {SPAN_PROBEID_TAG}, span.tags);
   }
 
   @Test

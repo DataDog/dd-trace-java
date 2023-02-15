@@ -67,7 +67,7 @@ public class SpanInstrumentor extends Instrumentor {
     InsnList insnList = new InsnList();
     ldc(insnList, buildResourceName());
     // stack: [string]
-    pushTags(insnList, definition.getTags());
+    pushTags(insnList, addProbeIdWithTags(definition.getId(), definition.getTags()));
     // stack: [string, tags]
     invokeStatic(
         insnList,
