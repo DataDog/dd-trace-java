@@ -2,17 +2,16 @@ package datadog.trace.instrumentation.junit5;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.decorator.TestDecorator.TEST_SKIP;
 import static datadog.trace.instrumentation.junit5.JUnit5Decorator.DECORATE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import java.lang.reflect.Method;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.Test;
 import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.UniqueId;
@@ -20,10 +19,13 @@ import org.junit.platform.engine.support.descriptor.ClassSource;
 import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.TestExecutionListener;
 import org.junit.platform.launcher.TestIdentifier;
+import org.junit.platform.launcher.TestPlan;
 
 public class TracingListener implements TestExecutionListener {
 
   private final Map<String, String> versionsByEngineId;
+
+  private volatile TestPlan testPlan;
 
   public TracingListener(Iterable<TestEngine> testEngines) {
     final Map<String, String> versions = new HashMap<>();
@@ -36,11 +38,101 @@ public class TracingListener implements TestExecutionListener {
   }
 
   @Override
-  public void executionStarted(final TestIdentifier testIdentifier) {
-    if (!testIdentifier.isTest()) {
+  public void testPlanExecutionStarted(TestPlan testPlan) {
+    this.testPlan = testPlan;
+
+    final AgentSpan span = startSpan("junit.test_module");
+    final AgentScope scope = activateSpan(span);
+    scope.setAsyncPropagation(true);
+
+    String versions = getVersions(testPlan);
+    DECORATE.onTestModuleStart(span, versions);
+  }
+
+  @Override
+  public void testPlanExecutionFinished(TestPlan testPlan) {
+    final AgentSpan span = AgentTracer.activeSpan();
+    if (!DECORATE.isTestModuleSpan(AgentTracer.activeSpan())) {
       return;
     }
 
+    final AgentScope scope = AgentTracer.activeScope();
+    if (scope != null) {
+      scope.close();
+    }
+
+    DECORATE.onTestModuleFinish(span);
+    span.finish();
+  }
+
+  @Override
+  public void executionStarted(final TestIdentifier testIdentifier) {
+    if (testIdentifier.isContainer()) {
+      containerExecutionStarted(testIdentifier);
+    } else if (testIdentifier.isTest()) {
+      testCaseExecutionStarted(testIdentifier);
+    }
+  }
+
+  @Override
+  public void executionFinished(
+      final TestIdentifier testIdentifier, final TestExecutionResult testExecutionResult) {
+    if (testIdentifier.isContainer()) {
+      containerExecutionFinished(testIdentifier, testExecutionResult);
+    } else if (testIdentifier.isTest()) {
+      testCaseExecutionFinished(testIdentifier, testExecutionResult);
+    }
+  }
+
+  private void containerExecutionStarted(TestIdentifier testIdentifier) {
+    if (JUnit5Utils.isRootContainer(testIdentifier) || JUnit5Utils.isTestCase(testIdentifier)) {
+      return;
+    }
+
+    if (!DECORATE.tryTestSuiteStart(testIdentifier)) {
+      return;
+    }
+
+    final AgentSpan span = startSpan("junit.test_suite");
+    final AgentScope scope = activateSpan(span);
+    scope.setAsyncPropagation(true);
+
+    DECORATE.onTestSuiteStart(span, getVersion(testIdentifier), testIdentifier);
+  }
+
+  private void containerExecutionFinished(
+      TestIdentifier testIdentifier, final TestExecutionResult testExecutionResult) {
+    if (JUnit5Utils.isRootContainer(testIdentifier) || JUnit5Utils.isTestCase(testIdentifier)) {
+      return;
+    }
+
+    if (!DECORATE.tryTestSuiteFinish(testIdentifier)) {
+      return;
+    }
+
+    final AgentSpan span = AgentTracer.activeSpan();
+    if (!DECORATE.isTestSuiteSpan(AgentTracer.activeSpan())) {
+      return;
+    }
+
+    if (JUnit5Utils.isAssumptionFailure(testExecutionResult)) {
+      for (TestIdentifier child : testPlan.getChildren(testIdentifier)) {
+        executionSkipped(
+            child, testExecutionResult.getThrowable().map(Throwable::getMessage).orElse(null));
+      }
+    }
+
+    final AgentScope scope = AgentTracer.activeScope();
+    if (scope != null) {
+      scope.close();
+    }
+
+    DECORATE.onPossibleFailure(span, testExecutionResult);
+    DECORATE.onTestSuiteFinish(span, testIdentifier);
+    span.finish();
+  }
+
+  private void testCaseExecutionStarted(TestIdentifier testIdentifier) {
     // If there is an active span that represents a test
     // we don't want to generate another child test span.
     // This can happen when the user executes a certain test
@@ -66,20 +158,8 @@ public class TracingListener implements TestExecutionListener {
             });
   }
 
-  private String getVersion(TestIdentifier testIdentifier) {
-    return UniqueId.parse(testIdentifier.getUniqueId())
-        .getEngineId()
-        .map(versionsByEngineId::get)
-        .orElse(null);
-  }
-
-  @Override
-  public void executionFinished(
-      final TestIdentifier testIdentifier, final TestExecutionResult testExecutionResult) {
-    if (!testIdentifier.isTest()) {
-      return;
-    }
-
+  private void testCaseExecutionFinished(
+      TestIdentifier testIdentifier, final TestExecutionResult testExecutionResult) {
     testIdentifier
         .getSource()
         .filter(testSource -> testSource instanceof MethodSource)
@@ -95,7 +175,8 @@ public class TracingListener implements TestExecutionListener {
                 scope.close();
               }
 
-              DECORATE.onTestFinish(span, (MethodSource) testSource, testExecutionResult);
+              DECORATE.onPossibleFailure(span, testExecutionResult);
+              DECORATE.onTestFinish(span, (MethodSource) testSource);
               span.finish();
             });
   }
@@ -109,33 +190,72 @@ public class TracingListener implements TestExecutionListener {
               final String version = getVersion(testIdentifier);
               if (testSource instanceof ClassSource) {
                 // The annotation @Disabled is kept at type level.
-                executionSkipped((ClassSource) testSource, version, reason);
+                containerExecutionSkipped(testIdentifier, version, reason);
               } else if (testSource instanceof MethodSource) {
                 // The annotation @Disabled is kept at method level.
-                executionSkipped((MethodSource) testSource, version, reason);
+                testCaseExecutionSkipped(
+                    testIdentifier, (MethodSource) testSource, version, reason);
               }
             });
   }
 
-  private void executionSkipped(
-      final ClassSource classSource, final String version, final String reason) {
-    // If @Disabled annotation is kept at type level, the instrumentation
-    // reports every method annotated with @Test as skipped test.
-    Class<?> testClass = classSource.getJavaClass();
-    final List<Method> testMethods = DECORATE.testMethods(testClass, Test.class);
+  private void containerExecutionSkipped(
+      final TestIdentifier testIdentifier, final String version, final String reason) {
+    final AgentSpan span = startSpan("junit.test_suite");
+    final AgentScope scope = activateSpan(span);
 
-    for (final Method testMethod : testMethods) {
-      MethodSource methodSource = MethodSource.from(testClass, testMethod);
-      executionSkipped(methodSource, version, reason);
+    DECORATE.onTestSuiteStart(span, version, testIdentifier);
+    span.setTag(Tags.TEST_SKIP_REASON, reason);
+
+    for (TestIdentifier child : testPlan.getChildren(testIdentifier)) {
+      executionSkipped(child, reason);
     }
+
+    DECORATE.onTestSuiteFinish(span, testIdentifier);
+
+    scope.close();
+    span.finish();
   }
 
-  private void executionSkipped(
-      final MethodSource methodSource, final String version, final String reason) {
+  private void testCaseExecutionSkipped(
+      final TestIdentifier testIdentifier,
+      final MethodSource methodSource,
+      final String version,
+      final String reason) {
     final AgentSpan span = startSpan("junit.test");
-    DECORATE.onTestIgnore(span, version, methodSource, reason);
+    final AgentScope scope = activateSpan(span);
+
+    DECORATE.onTestStart(span, version, methodSource, testIdentifier);
+
+    span.setTag(Tags.TEST_STATUS, TEST_SKIP);
+    span.setTag(Tags.TEST_SKIP_REASON, reason);
+
+    DECORATE.onTestFinish(span, methodSource);
+
+    scope.close();
     // We set a duration of 1 ns, because a span with duration==0 has a special treatment in the
     // tracer.
     span.finishWithDuration(1L);
+  }
+
+  private String getVersions(TestPlan testPlan) {
+    StringBuilder versions = new StringBuilder();
+    for (TestIdentifier root : testPlan.getRoots()) {
+      String version = getVersion(root);
+      if (version != null) {
+        if (versions.length() > 0) {
+          versions.append(',');
+        }
+        versions.append(version);
+      }
+    }
+    return versions.length() > 0 ? versions.toString() : null;
+  }
+
+  private String getVersion(TestIdentifier testIdentifier) {
+    return UniqueId.parse(testIdentifier.getUniqueId())
+        .getEngineId()
+        .map(versionsByEngineId::get)
+        .orElse(null);
   }
 }
