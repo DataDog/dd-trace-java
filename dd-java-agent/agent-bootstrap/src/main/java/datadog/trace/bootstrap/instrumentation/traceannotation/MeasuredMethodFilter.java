@@ -22,7 +22,7 @@ public class MeasuredMethodFilter {
   public boolean filter(Method method) {
     String clazz = method.getDeclaringClass().getName();
     return methodsToMeasure.containsKey(clazz)
-        && (methodsToMeasure.get(clazz).contains(method.getName()) ||
-        methodsToMeasure.get(clazz).contains("*"));
+        && (methodsToMeasure.get(clazz).contains(method.getName())
+            || methodsToMeasure.get(clazz).contains("*"));
   }
 }

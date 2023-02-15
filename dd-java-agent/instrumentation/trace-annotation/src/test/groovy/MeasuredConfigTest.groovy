@@ -11,7 +11,6 @@ class MeasuredConfigTest extends AgentTestRunner {
     super.configurePreAgent()
     injectSysConfig("dd.trace.methods", "package.ClassName[method1,method2];${ConfigTracedCallable.name}[call];${ConfigTracedCallable2.name}[*];${Animal.name}[animalSound];${DictionaryElement.name}[*];${Floor.name}[setNumber];${Mammal.name}[*]")
     injectSysConfig("dd.measure.methods", "package.ClassName[method1,method2];${ConfigTracedCallable.name}[call];${ConfigTracedCallable2.name}[*];${Animal.name}[animalSound];${DictionaryElement.name}[*];${Floor.name}[setNumber];${Mammal.name}[*]")
-
   }
 
   class ConfigTracedCallable implements Callable<String> {

@@ -391,26 +391,26 @@ class TraceAnnotationsTest extends AgentTestRunner {
   }
 
   def "test measured flag"() {
-      setup:
-      // Test measured single span in new trace
-      SayTracedHello.sayHAMeasured()
+    setup:
+    // Test measured single span in new trace
+    SayTracedHello.sayHAMeasured()
 
-      expect:
-      assertTraces(1) {
-        trace(1) {
-          span {
-            serviceName "test"
-            resourceName "SayTracedHello.sayHAMeasured"
-            operationName "SAY_HA"
-            spanType "DB"
-            measured true
-            parent()
-            errored false
-            tags {
-              "$Tags.COMPONENT" "trace"
-              defaultTags()
-            }
+    expect:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          serviceName "test"
+          resourceName "SayTracedHello.sayHAMeasured"
+          operationName "SAY_HA"
+          spanType "DB"
+          measured true
+          parent()
+          errored false
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
           }
+        }
       }
     }
 

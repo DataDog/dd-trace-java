@@ -33,7 +33,8 @@ public class SayTracedHello {
     activeSpan().setSpanType("DB");
     return "HA EARTH!!";
   }
-  @Trace(operationName = "SAY_HA",measured = true)
+
+  @Trace(operationName = "SAY_HA", measured = true)
   public static String sayHAMeasured() {
     activeSpan().setTag(DDTags.SERVICE_NAME, "test");
     activeSpan().setSpanType("DB");
