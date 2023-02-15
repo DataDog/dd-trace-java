@@ -12,11 +12,8 @@ import java.util.List;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class SqsReceiveRequestInstrumentation extends Instrumenter.Tracing
+public class SqsReceiveRequestInstrumentation extends AbstractSqsInstrumentation
     implements Instrumenter.ForSingleType {
-  public SqsReceiveRequestInstrumentation() {
-    super("aws-sdk");
-  }
 
   @Override
   public String instrumentedType() {

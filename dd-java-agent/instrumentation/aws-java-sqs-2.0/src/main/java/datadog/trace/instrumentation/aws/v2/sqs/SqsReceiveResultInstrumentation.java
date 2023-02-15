@@ -13,11 +13,8 @@ import net.bytebuddy.asm.Advice;
 import software.amazon.awssdk.services.sqs.model.Message;
 
 @AutoService(Instrumenter.class)
-public class SqsReceiveResultInstrumentation extends Instrumenter.Tracing
+public class SqsReceiveResultInstrumentation extends AbstractSqsInstrumentation
     implements Instrumenter.ForSingleType {
-  public SqsReceiveResultInstrumentation() {
-    super("aws-sdk");
-  }
 
   @Override
   public String instrumentedType() {
