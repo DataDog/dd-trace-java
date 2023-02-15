@@ -1,16 +1,13 @@
 package datadog.trace.agent.tooling;
 
-import com.sun.jna.Pointer;
 import com.sun.jna.Memory;
 import com.sun.jna.NativeLong;
+import com.sun.jna.Pointer;
+import datadog.trace.bootstrap.instrumentation.api.UsmMessage;
+import java.net.Inet6Address;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.security.ssl.SSLSocketImpl;
-
-import java.net.Inet4Address;
-import java.net.Inet6Address;
-
-import datadog.trace.bootstrap.instrumentation.api.UsmMessage;
 
 public abstract class UsmMessageImpl {
   enum MessageType {
@@ -27,7 +24,7 @@ public abstract class UsmMessageImpl {
   // TODO: sync with systemprobe code
   static final NativeLong USM_IOCTL_ID = new NativeLong(0xda7ad09L);;
 
-  static abstract class BaseUsmMessage implements UsmMessage {
+  abstract static class BaseUsmMessage implements UsmMessage {
 
     // Message type [1 byte]
     static final int HEADER_SIZE = 1;
@@ -51,7 +48,9 @@ public abstract class UsmMessageImpl {
     @Override
     public boolean validate() {
       if (offset > getMessageSize()) {
-        log.warn(String.format("invalid message size, expected: %d actual: %d", getMessageSize(), offset));
+        log.warn(
+            String.format(
+                "invalid message size, expected: %d actual: %d", getMessageSize(), offset));
         return false;
       }
       return true;
@@ -81,19 +80,19 @@ public abstract class UsmMessageImpl {
       // we reserve 2 long for ip, as IPv6 takes 128 bytes
       int ipReservedSize = Long.BYTES * 2;
       byte[] srcIPBuffer = socket.getLocalAddress().getAddress();
-      //if IPv4 (4 bytes long), encode it into low part of the reserved space
-      if (srcIPBuffer.length == 4){
-        pointer.write(offset+Long.BYTES, srcIPBuffer, 0, srcIPBuffer.length);
-      }else{
+      // if IPv4 (4 bytes long), encode it into low part of the reserved space
+      if (srcIPBuffer.length == 4) {
+        pointer.write(offset + Long.BYTES, srcIPBuffer, 0, srcIPBuffer.length);
+      } else {
         pointer.write(offset, srcIPBuffer, 0, srcIPBuffer.length);
       }
       offset += ipReservedSize;
 
       byte[] dstIPBuffer = socket.getInetAddress().getAddress();
-      //if IPv4 (4 bytes long), encode it into low part of the reserved space
-      if (dstIPBuffer.length == 4){
-        pointer.write(offset+Long.BYTES, dstIPBuffer, 0, dstIPBuffer.length);
-      }else{
+      // if IPv4 (4 bytes long), encode it into low part of the reserved space
+      if (dstIPBuffer.length == 4) {
+        pointer.write(offset + Long.BYTES, dstIPBuffer, 0, dstIPBuffer.length);
+      } else {
         pointer.write(offset, dstIPBuffer, 0, dstIPBuffer.length);
       }
 
@@ -129,8 +128,13 @@ public abstract class UsmMessageImpl {
     public CloseConnectionUsmMessage(SSLSocketImpl socket) {
       super(MessageType.CLOSE_CONNECTION, socket);
       log.debug("close socket:");
-      log.debug("src host: " + socket.getLocalAddress().toString() + " src port: " + socket.getLocalPort());
-      log.debug("dst host: " + socket.getInetAddress().toString() + " dst port: " + socket.getPeerPort());
+      log.debug(
+          "src host: "
+              + socket.getLocalAddress().toString()
+              + " src port: "
+              + socket.getLocalPort());
+      log.debug(
+          "dst host: " + socket.getInetAddress().toString() + " dst port: " + socket.getPeerPort());
     }
 
     @Override
@@ -152,8 +156,13 @@ public abstract class UsmMessageImpl {
       super(MessageType.REQUEST, socket);
 
       log.debug("Request packet:");
-      log.debug("src host: " + socket.getLocalAddress().toString() + " src port: " + socket.getLocalPort());
-      log.debug("dst host: " + socket.getInetAddress().toString() + " dst port: " + socket.getPeerPort());
+      log.debug(
+          "src host: "
+              + socket.getLocalAddress().toString()
+              + " src port: "
+              + socket.getLocalPort());
+      log.debug(
+          "dst host: " + socket.getInetAddress().toString() + " dst port: " + socket.getPeerPort());
       log.debug("intercepted byte len: " + len);
 
       // check the buffer is not larger than max allowed,
@@ -180,5 +189,4 @@ public abstract class UsmMessageImpl {
       return MAX_HTTPS_BUFFER_SIZE + Integer.BYTES;
     }
   }
-
 }

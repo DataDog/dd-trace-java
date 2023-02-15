@@ -1,16 +1,16 @@
 package datadog.trace.instrumentation.sslsocketimpl;
 
-import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.instrumentation.api.UsmMessageFactory;
-import datadog.trace.bootstrap.instrumentation.api.UsmExtractor;
-import datadog.trace.bootstrap.instrumentation.api.UsmMessage;
-import net.bytebuddy.asm.Advice;
-import sun.security.ssl.SSLSocketImpl;
-
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
+
+import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.instrumentation.api.UsmExtractor;
+import datadog.trace.bootstrap.instrumentation.api.UsmMessage;
+import datadog.trace.bootstrap.instrumentation.api.UsmMessageFactory;
+import net.bytebuddy.asm.Advice;
+import sun.security.ssl.SSLSocketImpl;
 
 @AutoService(Instrumenter.class)
 public class SslSocketImplInstrumentation extends Instrumenter.Usm
@@ -23,9 +23,7 @@ public class SslSocketImplInstrumentation extends Instrumenter.Usm
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        isMethod()
-            .and(named("close")
-                .and(takesArguments(0))),
+        isMethod().and(named("close").and(takesArguments(0))),
         SslSocketImplInstrumentation.class.getName() + "$CloseAdvice");
   }
 
@@ -36,8 +34,7 @@ public class SslSocketImplInstrumentation extends Instrumenter.Usm
 
   public static class CloseAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void close(
-        @Advice.This SSLSocketImpl socket) {
+    public static void close(@Advice.This SSLSocketImpl socket) {
       UsmMessage message = UsmMessageFactory.Supplier.getCloseMessage(socket);
       UsmExtractor.Supplier.send(message);
     }

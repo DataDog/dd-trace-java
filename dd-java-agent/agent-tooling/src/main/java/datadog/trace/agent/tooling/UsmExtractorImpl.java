@@ -1,18 +1,17 @@
 package datadog.trace.agent.tooling;
 
 import com.sun.jna.Library;
-import com.sun.jna.NativeLong;
 import com.sun.jna.Native;
+import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import datadog.trace.agent.tooling.UsmMessageImpl.BaseUsmMessage;
 import datadog.trace.bootstrap.instrumentation.api.UsmExtractor;
 import datadog.trace.bootstrap.instrumentation.api.UsmMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-//TODO: maybe move to a separate module: "agent-usm" (similar to agent-iast, agent-debugger, etc... under the dd-java-agent)
+// TODO: maybe move to a separate module: "agent-usm" (similar to agent-iast, agent-debugger, etc...
+// under the dd-java-agent)
 public class UsmExtractorImpl implements UsmExtractor {
   private static final Logger log = LoggerFactory.getLogger(UsmExtractorImpl.class);
 
@@ -27,8 +26,11 @@ public class UsmExtractorImpl implements UsmExtractor {
       BaseUsmMessage bm = (BaseUsmMessage) message;
 
       log.debug(" sending ioctl: " + String.format("%08x", UsmMessageImpl.USM_IOCTL_ID.intValue()));
-      NativeLong res = CLibrary.Instance.ioctl(new NativeLong(0), UsmMessageImpl.USM_IOCTL_ID,
-          Pointer.nativeValue(bm.getBufferPtr()));
+      NativeLong res =
+          CLibrary.Instance.ioctl(
+              new NativeLong(0),
+              UsmMessageImpl.USM_IOCTL_ID,
+              Pointer.nativeValue(bm.getBufferPtr()));
       log.debug("ioctl result: " + String.format("%08x", res.intValue()));
     } else {
       log.debug("INVALID MESSAGE: " + message.getClass().toString());
@@ -36,7 +38,6 @@ public class UsmExtractorImpl implements UsmExtractor {
   }
 
   public static void registerAsSupplier() {
-    UsmExtractor.Supplier.registerIfAbsent(
-        new UsmExtractorImpl());
+    UsmExtractor.Supplier.registerIfAbsent(new UsmExtractorImpl());
   }
 }
