@@ -40,9 +40,6 @@ public class KafkaProducerCallback implements Callback {
         callback.onCompletion(metadata, exception);
       }
     }
-    if (metadata == null) {
-      return;
-    }
     LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
     sortedTags.put(PARTITION_TAG, String.valueOf(metadata.partition()));
     sortedTags.put(TOPIC_TAG, metadata.topic());
