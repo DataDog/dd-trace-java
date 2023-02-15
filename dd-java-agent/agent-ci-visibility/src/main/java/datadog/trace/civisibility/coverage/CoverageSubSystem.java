@@ -17,6 +17,8 @@ public class CoverageSubSystem {
   public static void start(Instrumentation instrumentation) throws Exception {
     AgentOptions agentOptions = new AgentOptions();
     agentOptions.setOutput(AgentOptions.OutputMode.file);
+    agentOptions.setInclBootstrapClasses(false);
+    agentOptions.setExcludes("datadog.**:org.jacoco.**");
     Agent agent = Agent.getInstance(agentOptions);
 
     IRuntime runtime = createRuntime(instrumentation);
@@ -28,7 +30,7 @@ public class CoverageSubSystem {
       throws Exception {
 
     if (redefineJavaBaseModule(inst)) {
-      return new InjectedClassRuntime(Object.class, "$JaCoCo");
+      return new InjectedClassRuntime(Object.class, "$DDJaCoCo");
     }
 
     return ModifiedSystemClassRuntime.createFor(inst,
