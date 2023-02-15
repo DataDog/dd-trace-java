@@ -10,10 +10,12 @@ import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.DECORAT
 
 import datadog.trace.api.Config;
 import datadog.trace.api.TracePropagationStyle;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.SdkRequest;
+import software.amazon.awssdk.core.SdkResponse;
 import software.amazon.awssdk.core.interceptor.Context;
 import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
@@ -27,6 +29,12 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       new ExecutionAttribute<>("DatadogSpan");
 
   private static final Logger log = LoggerFactory.getLogger(TracingExecutionInterceptor.class);
+
+  private final ContextStore<SdkResponse, String> contextStore;
+
+  public TracingExecutionInterceptor(ContextStore<SdkResponse, String> contextStore) {
+    this.contextStore = contextStore;
+  }
 
   @Override
   public void beforeExecution(
@@ -98,6 +106,13 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       DECORATE.onResponse(span, context.httpResponse());
       DECORATE.beforeFinish(span);
       span.finish();
+    }
+    if (!AWS_LEGACY_TRACING && isPollingRequest(context.request())) {
+      // store queueUrl inside response for SqsReceiveResultInstrumentation
+      context
+          .request()
+          .getValueForField("QueueUrl", String.class)
+          .ifPresent(queueUrl -> contextStore.put(context.response(), queueUrl));
     }
   }
 

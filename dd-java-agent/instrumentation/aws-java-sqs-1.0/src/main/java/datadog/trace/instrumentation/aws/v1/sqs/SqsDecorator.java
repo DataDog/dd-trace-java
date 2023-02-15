@@ -18,8 +18,7 @@ public class SqsDecorator extends MessagingClientDecorator {
   public static final CharSequence SQS_RECEIVE = UTF8BytesString.create("SQS.ReceiveMessage");
   public static final CharSequence SQS_DELIVER = UTF8BytesString.create("SQS.DeliverMessage");
 
-  public static final boolean SQS_LEGACY_TRACING =
-      Config.get().isLegacyTracingEnabled(false, "sqs");
+  public static final boolean SQS_LEGACY_TRACING = Config.get().isLegacyTracingEnabled(true, "sqs");
 
   private final String spanKind;
   private final CharSequence spanType;
@@ -66,12 +65,17 @@ public class SqsDecorator extends MessagingClientDecorator {
     return spanKind;
   }
 
-  public void onConsume(final AgentSpan span) {
+  public void onConsume(final AgentSpan span, final String queueUrl) {
     span.setResourceName(SQS_RECEIVE);
+    span.setTag("aws.service", "AmazonSQS");
+    span.setTag("aws.operation", "ReceiveMessageRequest");
+    span.setTag("aws.agent", COMPONENT_NAME);
+    span.setTag("aws.queue.url", queueUrl);
   }
 
-  public void onTimeInQueue(final AgentSpan span) {
-    span.setResourceName(SQS_DELIVER);
+  public void onTimeInQueue(final AgentSpan span, final String queueUrl) {
     span.setServiceName("sqs");
+    span.setResourceName(SQS_DELIVER);
+    span.setTag("aws.queue.url", queueUrl);
   }
 }

@@ -8,8 +8,8 @@ import java.util.ListIterator;
 public class TracingListIterator extends TracingIterator<ListIterator<Message>>
     implements ListIterator<Message> {
 
-  public TracingListIterator(ListIterator<Message> delegate) {
-    super(delegate);
+  public TracingListIterator(ListIterator<Message> delegate, String queueUrl) {
+    super(delegate, queueUrl);
   }
 
   @Override

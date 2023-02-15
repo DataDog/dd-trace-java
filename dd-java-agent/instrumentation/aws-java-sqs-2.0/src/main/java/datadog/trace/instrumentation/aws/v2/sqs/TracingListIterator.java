@@ -8,8 +8,8 @@ import software.amazon.awssdk.services.sqs.model.Message;
 public class TracingListIterator extends TracingIterator<ListIterator<Message>>
     implements ListIterator<Message> {
 
-  public TracingListIterator(ListIterator<Message> delegate) {
-    super(delegate);
+  public TracingListIterator(ListIterator<Message> delegate, String queueUrl, String requestId) {
+    super(delegate, queueUrl, requestId);
   }
 
   @Override

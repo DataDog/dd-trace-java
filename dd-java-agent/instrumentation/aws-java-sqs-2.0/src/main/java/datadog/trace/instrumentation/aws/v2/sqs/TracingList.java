@@ -8,9 +8,13 @@ import software.amazon.awssdk.services.sqs.model.Message;
 
 public class TracingList implements List<Message> {
   private final List<Message> delegate;
+  private final String queueUrl;
+  private final String requestId;
 
-  public TracingList(List<Message> delegate) {
+  public TracingList(List<Message> delegate, String queueUrl, String requestId) {
     this.delegate = delegate;
+    this.queueUrl = queueUrl;
+    this.requestId = requestId;
   }
 
   @Override
@@ -85,8 +89,7 @@ public class TracingList implements List<Message> {
 
   @Override
   public Message get(int index) {
-    // TODO: should this be instrumented as well?
-    return delegate.get(index);
+    return delegate.get(index); // not currently covered by iteration span
   }
 
   @Override
@@ -122,12 +125,12 @@ public class TracingList implements List<Message> {
   @Override
   public ListIterator<Message> listIterator(int index) {
     // every iteration will add spans. Not only the very first one
-    return new TracingListIterator(delegate.listIterator(index));
+    return new TracingListIterator(delegate.listIterator(index), queueUrl, requestId);
   }
 
   @Override
   public List<Message> subList(int fromIndex, int toIndex) {
-    return new TracingList(delegate.subList(fromIndex, toIndex));
+    return new TracingList(delegate.subList(fromIndex, toIndex), queueUrl, requestId);
   }
 
   @Override

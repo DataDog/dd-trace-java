@@ -22,9 +22,11 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
   private static final Logger log = LoggerFactory.getLogger(TracingIterator.class);
 
   protected final L delegate;
+  private final String queueUrl;
 
-  public TracingIterator(L delegate) {
+  public TracingIterator(L delegate, String queueUrl) {
     this.delegate = delegate;
+    this.queueUrl = queueUrl;
   }
 
   @Override
@@ -57,7 +59,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
           } else {
             queueSpan = startSpan(AWS_HTTP, spanContext, MILLISECONDS.toMicros(timeInQueueStart));
             BROKER_DECORATE.afterStart(queueSpan);
-            BROKER_DECORATE.onTimeInQueue(queueSpan);
+            BROKER_DECORATE.onTimeInQueue(queueSpan, queueUrl);
             span = startSpan(AWS_HTTP, queueSpan.context());
             BROKER_DECORATE.beforeFinish(queueSpan);
             // The queueSpan will be finished after inner span has been activated to ensure that
@@ -67,7 +69,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
           span = startSpan(AWS_HTTP, null);
         }
         CONSUMER_DECORATE.afterStart(span);
-        CONSUMER_DECORATE.onConsume(span);
+        CONSUMER_DECORATE.onConsume(span, queueUrl);
         activateNext(span);
         if (null != queueSpan) {
           queueSpan.finish();
