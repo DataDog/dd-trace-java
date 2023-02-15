@@ -64,7 +64,7 @@ public final class AgentBootstrap {
 
     // for dynamic injection flow, we need to "register" the args since jvm doesn't
     // handle them as it does in a startup flow via -D flag
-    if (agentArgs != "") {
+    if (agentArgs != null && agentArgs != "") {
       // split arguments by space character
       String[] args = agentArgs.split(" ");
       for (String arg : args) {
