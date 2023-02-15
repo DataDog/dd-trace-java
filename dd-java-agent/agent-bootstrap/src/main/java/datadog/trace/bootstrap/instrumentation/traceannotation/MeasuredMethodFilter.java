@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.traceannotation;
 
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.util.Strings;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.Map;
@@ -15,8 +16,8 @@ public class MeasuredMethodFilter {
         || InstrumenterConfig.get().getMeasureMethods() == null) {
       methodsToMeasure = Collections.emptyMap();
     }
-    methodsToMeasure =
-        TraceAnnotationConfigParser.parse(InstrumenterConfig.get().getMeasureMethods());
+    String configString = Strings.trim(InstrumenterConfig.get().getMeasureMethods());
+    methodsToMeasure = TraceAnnotationConfigParser.parse(configString);
   }
 
   public boolean filter(Method method) {
