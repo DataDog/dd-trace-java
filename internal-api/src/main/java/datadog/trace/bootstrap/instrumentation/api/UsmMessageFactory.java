@@ -14,7 +14,8 @@ public interface UsmMessageFactory {
       return SUPPLIER.getCloseMessage(socket);
     }
 
-    public static UsmMessage getRequestMessage(SSLSocketImpl socket, byte[] buffer, int bufferOffset, int len) {
+    public static UsmMessage getRequestMessage(
+        SSLSocketImpl socket, byte[] buffer, int bufferOffset, int len) {
       return SUPPLIER.getRequestMessage(socket, buffer, bufferOffset, len);
     }
 

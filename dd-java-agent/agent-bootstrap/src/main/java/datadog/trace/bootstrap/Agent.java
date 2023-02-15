@@ -202,8 +202,8 @@ public class Agent {
       startCwsAgent();
     }
 
-    if (usmEnabled){
-      //TODO: @Val
+    if (usmEnabled) {
+      // TODO: @Val
     }
 
     /*
