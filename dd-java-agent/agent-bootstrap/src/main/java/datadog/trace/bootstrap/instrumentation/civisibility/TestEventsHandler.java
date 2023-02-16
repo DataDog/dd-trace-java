@@ -152,7 +152,7 @@ public class TestEventsHandler {
     }
   }
 
-  public void onFailure(@Nullable final Throwable throwable) {
+  public void onFailure(final @Nullable Throwable throwable) {
     if (throwable == null) {
       return;
     }
@@ -170,11 +170,11 @@ public class TestEventsHandler {
   public void onTestStart(
       final String testSuiteName,
       final String testName,
-      final String testParameters,
-      final Collection<String> categories,
-      final String version,
-      final Class<?> testClass,
-      final Method testMethod) {
+      final @Nullable String testParameters,
+      final @Nullable Collection<String> categories,
+      final @Nullable String version,
+      final @Nullable Class<?> testClass,
+      final @Nullable Method testMethod) {
     if (skipTrace(testClass)) {
       return;
     }
@@ -234,12 +234,12 @@ public class TestEventsHandler {
   public void onTestIgnore(
       final String testSuiteName,
       final String testName,
-      final String testParameters,
-      final List<String> categories,
-      final String version,
-      final Class<?> testClass,
-      final Method testMethod,
-      final String reason) {
+      final @Nullable String testParameters,
+      final @Nullable List<String> categories,
+      final @Nullable String version,
+      final @Nullable Class<?> testClass,
+      final @Nullable Method testMethod,
+      final @Nullable String reason) {
     if (skipTrace(testClass)) {
       return;
     }
@@ -264,25 +264,25 @@ public class TestEventsHandler {
     return isTestSuiteSpan(AgentTracer.activeSpan());
   }
 
-  private static boolean isTestModuleSpan(final @Nullable AgentSpan activeSpan) {
+  private static boolean isTestModuleSpan(final AgentSpan activeSpan) {
     return activeSpan != null
         && DDSpanTypes.TEST_MODULE_END.equals(activeSpan.getSpanType())
         && TestDecorator.TEST_TYPE.equals(activeSpan.getTag(Tags.TEST_TYPE));
   }
 
-  private static boolean isTestSuiteSpan(final @Nullable AgentSpan activeSpan) {
+  private static boolean isTestSuiteSpan(final AgentSpan activeSpan) {
     return activeSpan != null
         && DDSpanTypes.TEST_SUITE_END.equals(activeSpan.getSpanType())
         && TestDecorator.TEST_TYPE.equals(activeSpan.getTag(Tags.TEST_TYPE));
   }
 
-  private static boolean isTestSpan(@Nullable final AgentSpan activeSpan) {
+  private static boolean isTestSpan(final AgentSpan activeSpan) {
     return activeSpan != null
         && DDSpanTypes.TEST.equals(activeSpan.getSpanType())
         && TestDecorator.TEST_TYPE.equals(activeSpan.getTag(Tags.TEST_TYPE));
   }
 
-  private static boolean skipTrace(final @Nullable Class<?> testClass) {
+  private static boolean skipTrace(final Class<?> testClass) {
     return testClass != null && testClass.getAnnotation(DisableTestTrace.class) != null;
   }
 }
