@@ -41,9 +41,11 @@ class TestDecoratorTest extends BaseDecoratorTest {
     1 * span.setTag(Tags.OS_PLATFORM, decorator.osPlatform())
     1 * span.setTag(Tags.OS_VERSION, decorator.osVersion())
     1 * span.setTag(DDTags.ORIGIN_KEY, decorator.origin())
-    decorator.ciTags.each {
+
+    InstrumentationBridge.ciTags.each {
       1 * span.setTag(it.key, it.value)
     }
+
     _ * span.setTag(_, _) // Want to allow other calls from child implementations.
     _ * span.setServiceName(_)
     _ * span.setOperationName(_)
@@ -85,7 +87,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
         }
 
         @Override
-        protected CharSequence component() {
+        CharSequence component() {
           return "test-component"
         }
       }

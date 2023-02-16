@@ -1,12 +1,10 @@
 package datadog.trace.instrumentation.junit4;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.junit4.JUnit4Decorator.DECORATE;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.civisibility.TestEventsHandler;
+import java.lang.reflect.Method;
+import java.util.List;
 import junit.runner.Version;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -18,44 +16,26 @@ import org.junit.runners.model.TestClass;
 
 public class TracingListener extends RunListener {
 
-  public static final TracingListener INSTANCE = new TracingListener();
+  private final TestEventsHandler testEventsHandler;
 
   private final String version;
 
-  private TracingListener() {
+  public TracingListener() {
     version = Version.id();
+    testEventsHandler = new TestEventsHandler(DECORATE);
   }
 
   @Override
   public void testRunStarted(Description description) {
-    final AgentSpan span = startSpan("junit.test_module");
-    final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
-
-    DECORATE.onTestModuleStart(span, version);
+    testEventsHandler.onTestModuleStart(version);
   }
 
   @Override
   public void testRunFinished(Result result) {
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!DECORATE.isTestModuleSpan(AgentTracer.activeSpan())) {
-      return;
-    }
-
-    final AgentScope scope = AgentTracer.activeScope();
-    if (scope != null) {
-      scope.close();
-    }
-
-    DECORATE.onTestModuleFinish(span);
-    span.finish();
+    testEventsHandler.onTestModuleFinish();
   }
 
   public void testSuiteStarted(final TestClass junitTestClass) {
-    if (DECORATE.skipTrace(junitTestClass)) {
-      return;
-    }
-
     boolean containsTestCases = !junitTestClass.getAnnotatedMethods(Test.class).isEmpty();
     if (!containsTestCases) {
       // Not all test suites contain tests.
@@ -64,22 +44,13 @@ public class TracingListener extends RunListener {
       return;
     }
 
-    if (!DECORATE.tryTestSuiteStart(junitTestClass)) {
-      return;
-    }
-
-    final AgentSpan span = startSpan("junit.test_suite");
-    final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
-
-    DECORATE.onTestSuiteStart(span, version, junitTestClass);
+    String testSuiteName = junitTestClass.getName();
+    Class<?> testClass = junitTestClass.getJavaClass();
+    List<String> categories = JUnit4Utils.getCategories(testClass, null);
+    testEventsHandler.onTestSuiteStart(testSuiteName, testClass, version, categories);
   }
 
   public void testSuiteFinished(final TestClass junitTestClass) {
-    if (DECORATE.skipTrace(junitTestClass)) {
-      return;
-    }
-
     boolean containsTestCases = !junitTestClass.getAnnotatedMethods(Test.class).isEmpty();
     if (!containsTestCases) {
       // Not all test suites contain tests.
@@ -88,93 +59,40 @@ public class TracingListener extends RunListener {
       return;
     }
 
-    if (!DECORATE.tryTestSuiteFinish(junitTestClass)) {
-      return;
-    }
-
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!DECORATE.isTestSuiteSpan(AgentTracer.activeSpan())) {
-      return;
-    }
-
-    final AgentScope scope = AgentTracer.activeScope();
-    if (scope != null) {
-      scope.close();
-    }
-
-    DECORATE.onTestSuiteFinish(span, junitTestClass);
-    span.finish();
+    String testSuiteName = junitTestClass.getName();
+    Class<?> testClass = junitTestClass.getJavaClass();
+    testEventsHandler.onTestSuiteFinish(testSuiteName, testClass);
   }
 
   @Override
   public void testStarted(final Description description) {
-    if (DECORATE.skipTrace(description)) {
-      return;
-    }
+    Class<?> testClass = description.getTestClass();
+    Method testMethod = JUnit4Utils.getTestMethod(description);
 
-    // If there is an active span that represents a test
-    // we don't want to generate another child test span.
-    // This can happen when the user executes a certain test
-    // using the different test engines.
-    // (e.g. JUnit 4 tests using JUnit5 engine)
-    if (DECORATE.isTestSpan(AgentTracer.activeSpan())) {
-      return;
-    }
+    String testSuiteName = description.getClassName();
+    String testName = JUnit4Utils.getTestName(description, testMethod);
+    String testParameters = JUnit4Utils.getParameters(description);
+    List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
 
-    final AgentSpan span = startSpan("junit.test");
-    final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
-
-    DECORATE.onTestStart(span, version, description);
+    testEventsHandler.onTestStart(
+        testSuiteName, testName, testParameters, categories, version, testClass, testMethod);
   }
 
   @Override
   public void testFinished(final Description description) {
-    if (DECORATE.skipTrace(description)) {
-      return;
-    }
-
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!DECORATE.isTestSpan(span)) {
-      return;
-    }
-
-    final AgentScope scope = AgentTracer.activeScope();
-    if (scope != null) {
-      scope.close();
-    }
-
-    DECORATE.onTestFinish(span, description);
-    span.finish();
+    String testSuiteName = description.getClassName();
+    Class<?> testClass = description.getTestClass();
+    testEventsHandler.onTestFinish(testSuiteName, testClass);
   }
 
-  // the same callback is executed both for test cases and test suited (in case of setup/teardown
-  // errors)
+  // same callback is executed both for test cases and test suites (for setup/teardown errors)
   @Override
   public void testFailure(final Failure failure) {
-    if (DECORATE.skipTrace(failure.getDescription())) {
-      return;
-    }
-
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!DECORATE.isTestSpan(span) && !DECORATE.isTestSuiteSpan(span)) {
-      return;
-    }
-
-    DECORATE.onTestFailure(span, failure);
+    testEventsHandler.onFailure(failure.getException());
   }
 
   @Override
   public void testAssumptionFailure(final Failure failure) {
-    if (DECORATE.skipTrace(failure.getDescription())) {
-      return;
-    }
-
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!DECORATE.isTestSpan(span) && !DECORATE.isTestSuiteSpan(span)) {
-      return;
-    }
-
     String reason;
     Throwable throwable = failure.getException();
     if (throwable != null) {
@@ -183,51 +101,72 @@ public class TracingListener extends RunListener {
       reason = null;
     }
 
-    Description description = failure.getDescription();
-    if (JUnit4Utils.isTestCaseDescription(description)) {
-      DECORATE.onTestAssumptionFailure(span, reason);
+    testEventsHandler.onSkip(reason);
 
-    } else if (JUnit4Utils.isTestSuiteDescription(description)) {
-      DECORATE.onTestSuiteAssumptionFailure(span, version, description, reason);
+    Description description = failure.getDescription();
+    if (JUnit4Utils.isTestSuiteDescription(description)) {
+      List<Method> testMethods = JUnit4Utils.getTestMethods(description.getTestClass());
+      for (Method testMethod : testMethods) {
+        testIgnored(description, testMethod, reason);
+      }
     }
   }
 
   @Override
   public void testIgnored(final Description description) {
-    if (DECORATE.skipTrace(description)) {
-      return;
-    }
-
     final Ignore ignore = description.getAnnotation(Ignore.class);
     final String reason = ignore != null ? ignore.value() : null;
 
     if (JUnit4Utils.isTestCaseDescription(description)) {
-      final AgentSpan span = startSpan("junit.test");
-      DECORATE.onTestIgnored(
-          span, version, description, JUnit4Utils.getTestMethod(description), reason);
-      // We set a duration of 1 ns, because a span with duration==0 has a special treatment in the
-      // tracer.
-      span.finishWithDuration(1L);
+      Method testMethod = JUnit4Utils.getTestMethod(description);
+      testIgnored(description, testMethod, reason);
 
     } else if (JUnit4Utils.isTestSuiteDescription(description)) {
 
-      final AgentSpan existingSpan = AgentTracer.activeSpan();
-      if (DECORATE.isTestSuiteSpan(existingSpan)) {
+      if (testEventsHandler.isTestSuiteInProgress()) {
         // if assumption fails during suite setup,
         // JUnit will call testIgnored instead of testAssumptionFailure
-        DECORATE.onTestSuiteAssumptionFailure(existingSpan, version, description, reason);
-        return;
+
+        testEventsHandler.onSkip(reason);
+        List<Method> testMethods = JUnit4Utils.getTestMethods(description.getTestClass());
+        for (Method testMethod : testMethods) {
+          testIgnored(description, testMethod, reason);
+        }
+
+      } else {
+        Class<?> testClass = description.getTestClass();
+        String testSuiteName = testClass.getName();
+        List<String> categories = JUnit4Utils.getCategories(testClass, null);
+
+        testEventsHandler.onTestSuiteStart(testSuiteName, testClass, version, categories);
+        testEventsHandler.onSkip(reason);
+
+        List<Method> testMethods = JUnit4Utils.getTestMethods(testClass);
+        for (Method testMethod : testMethods) {
+          testIgnored(description, testMethod, reason);
+        }
+
+        testEventsHandler.onTestSuiteFinish(testSuiteName, testClass);
       }
-
-      final AgentSpan span = startSpan("junit.test_suite");
-      final AgentScope scope = activateSpan(span);
-
-      DECORATE.onTestSuiteIgnored(span, version, description, reason);
-
-      scope.close();
-      // We set a duration of 1 ns, because a span with duration==0 has a special treatment in the
-      // tracer.
-      span.finishWithDuration(1L);
     }
+  }
+
+  private void testIgnored(Description description, Method testMethod, String reason) {
+    Class<?> testClass = description.getTestClass();
+
+    String testSuiteName = description.getClassName();
+    String testName = JUnit4Utils.getTestName(description, testMethod);
+    String testParameters = JUnit4Utils.getParameters(description);
+    List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
+
+    testEventsHandler.onTestIgnore(
+        testSuiteName,
+        testName,
+        testParameters,
+        categories,
+        version,
+        testClass,
+        testMethod,
+        reason);
   }
 }

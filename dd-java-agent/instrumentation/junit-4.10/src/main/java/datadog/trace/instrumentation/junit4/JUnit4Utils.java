@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.Description;
 import org.junit.runner.notification.RunListener;
@@ -233,6 +234,18 @@ public abstract class JUnit4Utils {
   }
 
   public static boolean isTestSuiteDescription(final Description description) {
-    return description.getTestClass() != null;
+    return description.getTestClass() != null && !isTestCaseDescription(description);
+  }
+
+  public static List<Method> getTestMethods(final Class<?> testClass) {
+    final List<Method> testMethods = new ArrayList<>();
+
+    final Method[] methods = testClass.getMethods();
+    for (final Method method : methods) {
+      if (method.getAnnotation(Test.class) != null) {
+        testMethods.add(method);
+      }
+    }
+    return testMethods;
   }
 }

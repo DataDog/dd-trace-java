@@ -83,7 +83,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
           errorTags(exception.class, exception.message)
         }
 
-        ciTags.each { key, val ->
+        InstrumentationBridge.ciTags.each { key, val ->
           tag(key, val)
         }
 
@@ -156,7 +156,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
           "$Tags.TEST_TRAITS" Strings.toJson(["category": Strings.toJson(categories)], true)
         }
 
-        ciTags.each { key, val ->
+        InstrumentationBridge.ciTags.each { key, val ->
           tag(key, val)
         }
 
@@ -240,7 +240,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
           "$Tags.TEST_TRAITS" Strings.toJson(["category": Strings.toJson(categories)], true)
         }
 
-        ciTags.each { key, val ->
+        InstrumentationBridge.ciTags.each { key, val ->
           tag(key, val)
         }
 
@@ -259,10 +259,6 @@ abstract class TestFrameworkTest extends AgentTestRunner {
 
   String component = component()
 
-  boolean isCI = isCI()
-
-  Map<String, String> ciTags = ciTags()
-
   abstract String expectedOperationPrefix()
 
   abstract String expectedTestFramework()
@@ -270,8 +266,4 @@ abstract class TestFrameworkTest extends AgentTestRunner {
   abstract String expectedTestFrameworkVersion()
 
   abstract String component()
-
-  abstract boolean isCI()
-
-  abstract Map<String, String> ciTags()
 }

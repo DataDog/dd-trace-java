@@ -1,19 +1,18 @@
 package datadog.trace.instrumentation.junit5;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.decorator.TestDecorator.TEST_SKIP;
 import static datadog.trace.instrumentation.junit5.JUnit5Decorator.DECORATE;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.civisibility.TestEventsHandler;
+import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.TestExecutionResult;
+import org.junit.platform.engine.TestSource;
+import org.junit.platform.engine.TestTag;
 import org.junit.platform.engine.UniqueId;
 import org.junit.platform.engine.support.descriptor.ClassSource;
 import org.junit.platform.engine.support.descriptor.MethodSource;
@@ -23,46 +22,32 @@ import org.junit.platform.launcher.TestPlan;
 
 public class TracingListener implements TestExecutionListener {
 
+  private final TestEventsHandler testEventsHandler;
+
   private final Map<String, String> versionsByEngineId;
 
   private volatile TestPlan testPlan;
 
-  public TracingListener(Iterable<TestEngine> testEngines) {
+  public TracingListener(final Iterable<TestEngine> testEngines) {
     final Map<String, String> versions = new HashMap<>();
-    testEngines.forEach(
-        testEngine ->
-            testEngine
-                .getVersion()
-                .ifPresent(version -> versions.put(testEngine.getId(), version)));
+    for (TestEngine testEngine : testEngines) {
+      testEngine.getVersion().ifPresent(version -> versions.put(testEngine.getId(), version));
+    }
     versionsByEngineId = Collections.unmodifiableMap(versions);
+    testEventsHandler = new TestEventsHandler(DECORATE);
   }
 
   @Override
-  public void testPlanExecutionStarted(TestPlan testPlan) {
+  public void testPlanExecutionStarted(final TestPlan testPlan) {
     this.testPlan = testPlan;
 
-    final AgentSpan span = startSpan("junit.test_module");
-    final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
-
     String versions = getVersions(testPlan);
-    DECORATE.onTestModuleStart(span, versions);
+    testEventsHandler.onTestModuleStart(versions);
   }
 
   @Override
-  public void testPlanExecutionFinished(TestPlan testPlan) {
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!DECORATE.isTestModuleSpan(AgentTracer.activeSpan())) {
-      return;
-    }
-
-    final AgentScope scope = AgentTracer.activeScope();
-    if (scope != null) {
-      scope.close();
-    }
-
-    DECORATE.onTestModuleFinish(span);
-    span.finish();
+  public void testPlanExecutionFinished(final TestPlan testPlan) {
+    testEventsHandler.onTestModuleFinish();
   }
 
   @Override
@@ -84,161 +69,143 @@ public class TracingListener implements TestExecutionListener {
     }
   }
 
-  private void containerExecutionStarted(TestIdentifier testIdentifier) {
+  private void containerExecutionStarted(final TestIdentifier testIdentifier) {
     if (JUnit5Utils.isRootContainer(testIdentifier) || JUnit5Utils.isTestCase(testIdentifier)) {
       return;
     }
 
-    if (!DECORATE.tryTestSuiteStart(testIdentifier)) {
-      return;
-    }
-
-    final AgentSpan span = startSpan("junit.test_suite");
-    final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
-
-    DECORATE.onTestSuiteStart(span, getVersion(testIdentifier), testIdentifier);
+    Class<?> testClass = JUnit5Utils.getJavaClass(testIdentifier);
+    String testSuiteName =
+        testClass != null ? testClass.getName() : testIdentifier.getLegacyReportingName();
+    String version = getVersion(testIdentifier);
+    List<String> tags =
+        testIdentifier.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
+    testEventsHandler.onTestSuiteStart(testSuiteName, testClass, version, tags);
   }
 
   private void containerExecutionFinished(
-      TestIdentifier testIdentifier, final TestExecutionResult testExecutionResult) {
+      final TestIdentifier testIdentifier, final TestExecutionResult testExecutionResult) {
     if (JUnit5Utils.isRootContainer(testIdentifier) || JUnit5Utils.isTestCase(testIdentifier)) {
       return;
     }
 
-    if (!DECORATE.tryTestSuiteFinish(testIdentifier)) {
-      return;
-    }
+    Throwable throwable = testExecutionResult.getThrowable().orElse(null);
+    if (throwable != null) {
+      if (JUnit5Utils.isAssumptionFailure(throwable)) {
 
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!DECORATE.isTestSuiteSpan(AgentTracer.activeSpan())) {
-      return;
-    }
+        String reason = throwable.getMessage();
+        testEventsHandler.onSkip(reason);
 
-    if (JUnit5Utils.isAssumptionFailure(testExecutionResult)) {
-      for (TestIdentifier child : testPlan.getChildren(testIdentifier)) {
-        executionSkipped(
-            child, testExecutionResult.getThrowable().map(Throwable::getMessage).orElse(null));
+        for (TestIdentifier child : testPlan.getChildren(testIdentifier)) {
+          executionSkipped(child, reason);
+        }
+
+      } else {
+        testEventsHandler.onFailure(throwable);
       }
     }
 
-    final AgentScope scope = AgentTracer.activeScope();
-    if (scope != null) {
-      scope.close();
-    }
-
-    DECORATE.onPossibleFailure(span, testExecutionResult);
-    DECORATE.onTestSuiteFinish(span, testIdentifier);
-    span.finish();
+    Class<?> testClass = JUnit5Utils.getJavaClass(testIdentifier);
+    String testSuiteName =
+        testClass != null ? testClass.getName() : testIdentifier.getLegacyReportingName();
+    testEventsHandler.onTestSuiteFinish(testSuiteName, testClass);
   }
 
-  private void testCaseExecutionStarted(TestIdentifier testIdentifier) {
-    // If there is an active span that represents a test
-    // we don't want to generate another child test span.
-    // This can happen when the user executes a certain test
-    // using the different test engines.
-    // (e.g. JUnit 4 tests using JUnit5 engine)
-    if (DECORATE.isTestSpan(AgentTracer.activeSpan())) {
+  private void testCaseExecutionStarted(final TestIdentifier testIdentifier) {
+    TestSource testSource = testIdentifier.getSource().orElse(null);
+    if (!(testSource instanceof MethodSource)) {
       return;
     }
 
-    testIdentifier
-        .getSource()
-        .filter(testSource -> testSource instanceof MethodSource)
-        .map(testSource -> (MethodSource) testSource)
-        .ifPresent(
-            methodSource -> {
-              final AgentSpan span = startSpan("junit.test");
-              final AgentScope scope = activateSpan(span);
-              scope.setAsyncPropagation(true);
+    MethodSource methodSource = (MethodSource) testSource;
 
-              final String version = getVersion(testIdentifier);
+    String testSuitName = methodSource.getClassName();
+    String testName = methodSource.getMethodName();
+    String testParameters = JUnit5Utils.getParameters(methodSource, testIdentifier);
 
-              DECORATE.onTestStart(span, version, methodSource, testIdentifier);
-            });
+    List<String> tags =
+        testIdentifier.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
+
+    String version = getVersion(testIdentifier);
+
+    Class<?> testClass = JUnit5Utils.getTestClass(methodSource);
+    Method testMethod = JUnit5Utils.getTestMethod(methodSource);
+
+    testEventsHandler.onTestStart(
+        testSuitName, testName, testParameters, tags, version, testClass, testMethod);
   }
 
   private void testCaseExecutionFinished(
-      TestIdentifier testIdentifier, final TestExecutionResult testExecutionResult) {
-    testIdentifier
-        .getSource()
-        .filter(testSource -> testSource instanceof MethodSource)
-        .ifPresent(
-            testSource -> {
-              final AgentSpan span = AgentTracer.activeSpan();
-              if (span == null || !DECORATE.isTestSpan(AgentTracer.activeSpan())) {
-                return;
-              }
+      final TestIdentifier testIdentifier, final TestExecutionResult testExecutionResult) {
+    TestSource testSource = testIdentifier.getSource().orElse(null);
+    if (!(testSource instanceof MethodSource)) {
+      return;
+    }
 
-              final AgentScope scope = AgentTracer.activeScope();
-              if (scope != null) {
-                scope.close();
-              }
+    Throwable throwable = testExecutionResult.getThrowable().orElse(null);
+    if (throwable != null) {
+      if (JUnit5Utils.isAssumptionFailure(throwable)) {
+        testEventsHandler.onSkip(throwable.getMessage());
+      } else {
+        testEventsHandler.onFailure(throwable);
+      }
+    }
 
-              DECORATE.onPossibleFailure(span, testExecutionResult);
-              DECORATE.onTestFinish(span, (MethodSource) testSource);
-              span.finish();
-            });
+    MethodSource methodSource = (MethodSource) testSource;
+    String testSuiteName = methodSource.getClassName();
+    Class<?> testClass = JUnit5Utils.getTestClass(methodSource);
+    testEventsHandler.onTestFinish(testSuiteName, testClass);
   }
 
   @Override
   public void executionSkipped(final TestIdentifier testIdentifier, final String reason) {
-    testIdentifier
-        .getSource()
-        .ifPresent(
-            testSource -> {
-              final String version = getVersion(testIdentifier);
-              if (testSource instanceof ClassSource) {
-                // The annotation @Disabled is kept at type level.
-                containerExecutionSkipped(testIdentifier, version, reason);
-              } else if (testSource instanceof MethodSource) {
-                // The annotation @Disabled is kept at method level.
-                testCaseExecutionSkipped(
-                    testIdentifier, (MethodSource) testSource, version, reason);
-              }
-            });
+    TestSource testSource = testIdentifier.getSource().orElse(null);
+
+    if (testSource instanceof ClassSource) {
+      // The annotation @Disabled is kept at type level.
+      containerExecutionSkipped(testIdentifier, reason);
+
+    } else if (testSource instanceof MethodSource) {
+      // The annotation @Disabled is kept at method level.
+      testCaseExecutionSkipped(testIdentifier, (MethodSource) testSource, reason);
+    }
   }
 
-  private void containerExecutionSkipped(
-      final TestIdentifier testIdentifier, final String version, final String reason) {
-    final AgentSpan span = startSpan("junit.test_suite");
-    final AgentScope scope = activateSpan(span);
+  private void containerExecutionSkipped(final TestIdentifier testIdentifier, final String reason) {
+    Class<?> testClass = JUnit5Utils.getJavaClass(testIdentifier);
+    String testSuiteName =
+        testClass != null ? testClass.getName() : testIdentifier.getLegacyReportingName();
+    String version = getVersion(testIdentifier);
+    List<String> tags =
+        testIdentifier.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
 
-    DECORATE.onTestSuiteStart(span, version, testIdentifier);
-    span.setTag(Tags.TEST_SKIP_REASON, reason);
+    testEventsHandler.onTestSuiteStart(testSuiteName, testClass, version, tags);
+    testEventsHandler.onSkip(reason);
 
     for (TestIdentifier child : testPlan.getChildren(testIdentifier)) {
       executionSkipped(child, reason);
     }
 
-    DECORATE.onTestSuiteFinish(span, testIdentifier);
-
-    scope.close();
-    span.finish();
+    testEventsHandler.onTestSuiteFinish(testSuiteName, testClass);
   }
 
   private void testCaseExecutionSkipped(
-      final TestIdentifier testIdentifier,
-      final MethodSource methodSource,
-      final String version,
-      final String reason) {
-    final AgentSpan span = startSpan("junit.test");
-    final AgentScope scope = activateSpan(span);
+      final TestIdentifier testIdentifier, final MethodSource methodSource, final String reason) {
+    String testSuiteName = methodSource.getClassName();
+    String testName = methodSource.getMethodName();
+    String testParameters = JUnit5Utils.getParameters(methodSource, testIdentifier);
+    List<String> tags =
+        testIdentifier.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
+    String version = getVersion(testIdentifier);
 
-    DECORATE.onTestStart(span, version, methodSource, testIdentifier);
+    Class<?> testClass = JUnit5Utils.getTestClass(methodSource);
+    Method testMethod = JUnit5Utils.getTestMethod(methodSource);
 
-    span.setTag(Tags.TEST_STATUS, TEST_SKIP);
-    span.setTag(Tags.TEST_SKIP_REASON, reason);
-
-    DECORATE.onTestFinish(span, methodSource);
-
-    scope.close();
-    // We set a duration of 1 ns, because a span with duration==0 has a special treatment in the
-    // tracer.
-    span.finishWithDuration(1L);
+    testEventsHandler.onTestIgnore(
+        testSuiteName, testName, testParameters, tags, version, testClass, testMethod, reason);
   }
 
-  private String getVersions(TestPlan testPlan) {
+  private String getVersions(final TestPlan testPlan) {
     StringBuilder versions = new StringBuilder();
     for (TestIdentifier root : testPlan.getRoots()) {
       String version = getVersion(root);
@@ -252,7 +219,7 @@ public class TracingListener implements TestExecutionListener {
     return versions.length() > 0 ? versions.toString() : null;
   }
 
-  private String getVersion(TestIdentifier testIdentifier) {
+  private String getVersion(final TestIdentifier testIdentifier) {
     return UniqueId.parse(testIdentifier.getUniqueId())
         .getEngineId()
         .map(versionsByEngineId::get)

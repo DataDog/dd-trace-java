@@ -1,22 +1,22 @@
 package datadog.trace.instrumentation.testng;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.testng.TestNGDecorator.DECORATE;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.civisibility.TestEventsHandler;
+import java.lang.reflect.Method;
 import org.testng.ITestContext;
 import org.testng.ITestListener;
 import org.testng.ITestResult;
 
 public class TracingListener implements ITestListener {
 
+  private final TestEventsHandler testEventsHandler;
+
   private final String version;
 
   public TracingListener(final String version) {
     this.version = version;
+    testEventsHandler = new TestEventsHandler(DECORATE);
   }
 
   @Override
@@ -27,52 +27,34 @@ public class TracingListener implements ITestListener {
 
   @Override
   public void onTestStart(final ITestResult result) {
-    // If there is an active span that represents a test
-    // we don't want to generate another child test span.
-    // This can happen when the user executes a certain test
-    // using the different test engines.
-    // (e.g. JUnit 4 tests using JUnit5 engine)
-    if (DECORATE.isTestSpan(AgentTracer.activeSpan())) {
-      return;
-    }
+    String testSuiteName = result.getInstanceName();
+    String testName =
+        (result.getTestName() != null) ? result.getTestName() : result.getMethod().getMethodName();
+    String testParameters = TestNGUtils.getParameters(result);
 
-    final AgentSpan span = startSpan("testng.test");
-    final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
+    Class<?> testClass = TestNGUtils.getTestClass(result);
+    Method testMethod = TestNGUtils.getTestMethod(result);
 
-    DECORATE.onTestStart(span, version, result);
+    // TODO support categories
+    testEventsHandler.onTestStart(
+        testSuiteName, testName, testParameters, null, version, testClass, testMethod);
   }
 
   @Override
   public void onTestSuccess(final ITestResult result) {
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!DECORATE.isTestSpan(span)) {
-      return;
-    }
-
-    final AgentScope scope = AgentTracer.activeScope();
-    if (scope != null) {
-      scope.close();
-    }
-
-    DECORATE.onTestSuccess(span, result);
-    span.finish();
+    final String testSuiteName = result.getInstanceName();
+    final Class<?> testClass = TestNGUtils.getTestClass(result);
+    testEventsHandler.onTestFinish(testSuiteName, testClass);
   }
 
   @Override
   public void onTestFailure(final ITestResult result) {
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!DECORATE.isTestSpan(span)) {
-      return;
-    }
+    final Throwable throwable = result.getThrowable();
+    testEventsHandler.onFailure(throwable);
 
-    final AgentScope scope = AgentTracer.activeScope();
-    if (scope != null) {
-      scope.close();
-    }
-
-    DECORATE.onTestFailure(span, result);
-    span.finish();
+    final String testSuiteName = result.getInstanceName();
+    final Class<?> testClass = TestNGUtils.getTestClass(result);
+    testEventsHandler.onTestFinish(testSuiteName, testClass);
   }
 
   @Override
@@ -82,19 +64,13 @@ public class TracingListener implements ITestListener {
 
   @Override
   public void onTestSkipped(final ITestResult result) {
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!DECORATE.isTestSpan(span)) {
-      return;
-    }
+    // Typically the way of skipping a TestNG test is throwing a SkipException
+    Throwable throwable = result.getThrowable();
+    String reason = throwable != null ? throwable.getMessage() : null;
+    testEventsHandler.onSkip(reason);
 
-    final AgentScope scope = AgentTracer.activeScope();
-    if (scope != null) {
-      scope.close();
-    }
-
-    DECORATE.onTestIgnored(span, result);
-    // We set a duration of 1 ns, because a span with duration==0 has a special treatment in the
-    // tracer.
-    span.finishWithDuration(1L);
+    final String testSuiteName = result.getInstanceName();
+    final Class<?> testClass = TestNGUtils.getTestClass(result);
+    testEventsHandler.onTestFinish(testSuiteName, testClass);
   }
 }

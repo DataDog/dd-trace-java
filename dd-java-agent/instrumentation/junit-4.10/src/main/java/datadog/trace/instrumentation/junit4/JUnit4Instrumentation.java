@@ -6,11 +6,13 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import java.util.List;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.junit.rules.RuleChain;
+import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
 
 @AutoService(Instrumenter.class)
@@ -50,8 +52,18 @@ public class JUnit4Instrumentation extends Instrumenter.CiVisibility
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addTracingListener(
         @Advice.This(typing = Assigner.Typing.DYNAMIC) final RunNotifier runNotifier) {
-      runNotifier.removeListener(TracingListener.INSTANCE);
-      runNotifier.addListener(TracingListener.INSTANCE);
+      List<RunListener> listeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);
+      if (listeners == null) {
+        return;
+      }
+
+      for (RunListener listener : listeners) {
+        if (JUnit4Utils.isTracingListener(listener)) {
+          return;
+        }
+      }
+
+      runNotifier.addListener(new TracingListener());
     }
 
     // JUnit 4.10 and above

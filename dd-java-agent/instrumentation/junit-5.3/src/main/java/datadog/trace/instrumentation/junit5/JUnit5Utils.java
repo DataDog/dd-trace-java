@@ -4,7 +4,6 @@ import datadog.trace.util.Strings;
 import java.lang.reflect.Method;
 import org.junit.platform.commons.JUnitException;
 import org.junit.platform.commons.util.ReflectionUtils;
-import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.TestSource;
 import org.junit.platform.engine.support.descriptor.ClassSource;
 import org.junit.platform.engine.support.descriptor.MethodSource;
@@ -123,10 +122,6 @@ public abstract class JUnit5Utils {
   private static MethodSource getMethodSourceOrNull(TestIdentifier testIdentifier) {
     return (MethodSource)
         testIdentifier.getSource().filter(s -> s instanceof MethodSource).orElse(null);
-  }
-
-  public static boolean isAssumptionFailure(TestExecutionResult result) {
-    return result.getThrowable().map(JUnit5Utils::isAssumptionFailure).orElse(false);
   }
 
   public static boolean isAssumptionFailure(Throwable throwable) {

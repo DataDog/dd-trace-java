@@ -3,7 +3,6 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 import static datadog.trace.util.Strings.toJson;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.codeowners.Codeowners;
@@ -14,42 +13,17 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.LongAdder;
 import javax.annotation.Nullable;
 
 public abstract class TestDecorator extends BaseDecorator {
 
   public static final String TEST_TYPE = "test";
-  public static final String TEST_PASS = "pass";
-  public static final String TEST_FAIL = "fail";
-  public static final String TEST_SKIP = "skip";
-  public static final UTF8BytesString CIAPP_TEST_ORIGIN = UTF8BytesString.create("ciapp-test");
 
-  private volatile TestState testModuleState;
-  private final ConcurrentMap<TestSuiteDescriptor, Integer> testSuiteNestedCallCounters =
-      new ConcurrentHashMap<>();
-
-  private final ConcurrentMap<TestSuiteDescriptor, TestState> testSuiteStates =
-      new ConcurrentHashMap<>();
-
-  public boolean isCI() {
-    return InstrumentationBridge.isCi();
-  }
-
-  public Map<String, String> getCiTags() {
-    return InstrumentationBridge.getCiTags();
-  }
+  private static final UTF8BytesString CIAPP_TEST_ORIGIN = UTF8BytesString.create("ciapp-test");
 
   protected abstract String testFramework();
 
@@ -103,6 +77,11 @@ public abstract class TestDecorator extends BaseDecorator {
   }
 
   @Override
+  public CharSequence component() {
+    return null;
+  }
+
+  @Override
   public AgentSpan afterStart(final AgentSpan span) {
     span.setTag(Tags.TEST_FRAMEWORK, testFramework());
     span.setTag(Tags.TEST_TYPE, testType());
@@ -123,7 +102,7 @@ public abstract class TestDecorator extends BaseDecorator {
     return super.afterStart(span);
   }
 
-  protected void afterTestModuleStart(final AgentSpan span, final @Nullable String version) {
+  public void afterTestModuleStart(final AgentSpan span, final @Nullable String version) {
     span.setSpanType(InternalSpanTypes.TEST_MODULE_END);
     span.setTag(Tags.SPAN_KIND, testModuleSpanKind());
 
@@ -136,46 +115,14 @@ public abstract class TestDecorator extends BaseDecorator {
       span.setTag(Tags.TEST_FRAMEWORK_VERSION, version);
     }
 
-    testModuleState = new TestState(span.getSpanId());
-
     afterStart(span);
   }
 
-  protected void beforeTestModuleFinish(AgentSpan span) {
-    span.setTag(Tags.TEST_MODULE_ID, testModuleState.id);
-
-    String testModuleStatus = (String) span.getTag(Tags.TEST_STATUS);
-    if (testModuleStatus == null) {
-      span.setTag(Tags.TEST_STATUS, testModuleState.getStatus());
-    }
-
-    beforeFinish(span);
-  }
-
-  protected boolean tryTestSuiteStart(String testSuiteName, Class<?> testClass) {
-    if (testModuleState == null) {
-      // do not create test suite spans for legacy setups that do not create modules
-      return false;
-    }
-
-    TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    Integer counter = testSuiteNestedCallCounters.merge(testSuiteDescriptor, 1, Integer::sum);
-    return counter == 1;
-  }
-
-  protected boolean tryTestSuiteFinish(String testSuiteName, Class<?> testClass) {
-    TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    Integer counter =
-        testSuiteNestedCallCounters.merge(
-            testSuiteDescriptor, -1, (a, b) -> a + b > 0 ? a + b : null);
-    return counter == null;
-  }
-
-  protected void afterTestSuiteStart(
+  public void afterTestSuiteStart(
       final AgentSpan span,
       final String testSuiteName,
-      final @Nullable String version,
       final @Nullable Class<?> testClass,
+      final @Nullable String version,
       final @Nullable Collection<String> categories) {
     span.setSpanType(InternalSpanTypes.TEST_SUITE_END);
     span.setTag(Tags.SPAN_KIND, testSuiteSpanKind());
@@ -205,32 +152,10 @@ public abstract class TestDecorator extends BaseDecorator {
       }
     }
 
-    TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    testSuiteStates.put(testSuiteDescriptor, new TestState(span.getSpanId()));
-
     afterStart(span);
   }
 
-  protected void beforeTestSuiteFinish(
-      AgentSpan span, final String testSuiteName, final @Nullable Class<?> testClass) {
-    TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    TestState testSuiteState = testSuiteStates.remove(testSuiteDescriptor);
-
-    span.setTag(Tags.TEST_SUITE_ID, testSuiteState.id);
-    span.setTag(Tags.TEST_MODULE_ID, testModuleState.id);
-
-    String testSuiteStatus = (String) span.getTag(Tags.TEST_STATUS);
-    if (testSuiteStatus == null) {
-      testSuiteStatus = testSuiteState.getStatus();
-    }
-
-    span.setTag(Tags.TEST_STATUS, testSuiteStatus);
-    testModuleState.reportChildStatus(testSuiteStatus);
-
-    beforeFinish(span);
-  }
-
-  protected void afterTestStart(
+  public void afterTestStart(
       final AgentSpan span,
       final String testSuiteName,
       final String testName,
@@ -296,126 +221,6 @@ public abstract class TestDecorator extends BaseDecorator {
     Collection<String> testCodeOwners = codeowners.getOwners(sourcePath);
     if (testCodeOwners != null) {
       span.setTag(Tags.TEST_CODEOWNERS, toJson(testCodeOwners));
-    }
-  }
-
-  protected void beforeTestFinish(
-      AgentSpan span, String testSuiteName, @Nullable Class<?> testClass) {
-    TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    TestState testSuiteState = testSuiteStates.get(testSuiteDescriptor);
-    if (testSuiteState != null) {
-      span.setTag(Tags.TEST_SUITE_ID, testSuiteState.id);
-      span.setTag(Tags.TEST_MODULE_ID, testModuleState.id);
-
-      String testCaseStatus = (String) span.getTag(Tags.TEST_STATUS);
-      testSuiteState.reportChildStatus(testCaseStatus);
-
-    } else {
-      // TODO log a warning (when test suite level visibility support is there for all frameworks
-    }
-
-    beforeFinish(span);
-  }
-
-  public List<Method> testMethods(
-      final Class<?> testClass, final Class<? extends Annotation> testAnnotation) {
-    final List<Method> testMethods = new ArrayList<>();
-
-    final Method[] methods = testClass.getMethods();
-    for (final Method method : methods) {
-      if (method.getAnnotation(testAnnotation) != null) {
-        testMethods.add(method);
-      }
-    }
-    return testMethods;
-  }
-
-  public boolean isTestSpan(@Nullable final AgentSpan activeSpan) {
-    if (activeSpan == null) {
-      return false;
-    }
-
-    return DDSpanTypes.TEST.equals(activeSpan.getSpanType())
-        && testType().equals(activeSpan.getTag(Tags.TEST_TYPE));
-  }
-
-  public boolean isTestSuiteSpan(@Nullable final AgentSpan activeSpan) {
-    if (activeSpan == null) {
-      return false;
-    }
-
-    return DDSpanTypes.TEST_SUITE_END.equals(activeSpan.getSpanType())
-        && testType().equals(activeSpan.getTag(Tags.TEST_TYPE));
-  }
-
-  public boolean isTestModuleSpan(@Nullable final AgentSpan activeSpan) {
-    if (activeSpan == null) {
-      return false;
-    }
-
-    return DDSpanTypes.TEST_MODULE_END.equals(activeSpan.getSpanType())
-        && testType().equals(activeSpan.getTag(Tags.TEST_TYPE));
-  }
-
-  private static final class TestSuiteDescriptor {
-    private final String testSuiteName;
-    private final Class<?> testClass;
-
-    private TestSuiteDescriptor(String testSuiteName, Class<?> testClass) {
-      this.testSuiteName = testSuiteName;
-      this.testClass = testClass;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      TestSuiteDescriptor that = (TestSuiteDescriptor) o;
-      return Objects.equals(testSuiteName, that.testSuiteName)
-          && Objects.equals(testClass, that.testClass);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(testSuiteName, testClass);
-    }
-  }
-
-  private static final class TestState {
-    private final long id;
-    private final LongAdder childrenPassed = new LongAdder();
-    private final LongAdder childrenFailed = new LongAdder();
-    private final AtomicInteger nested = new AtomicInteger(0);
-
-    private TestState(long id) {
-      this.id = id;
-    }
-
-    public void reportChildStatus(String status) {
-      switch (status) {
-        case TEST_PASS:
-          childrenPassed.increment();
-          break;
-        case TEST_FAIL:
-          childrenFailed.increment();
-          break;
-        default:
-          break;
-      }
-    }
-
-    public String getStatus() {
-      if (childrenFailed.sum() > 0) {
-        return TEST_FAIL;
-      } else if (childrenPassed.sum() > 0) {
-        return TEST_PASS;
-      } else {
-        return TEST_SKIP;
-      }
     }
   }
 }
