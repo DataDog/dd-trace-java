@@ -61,7 +61,7 @@ public class TraceUtils {
     return name;
   }
 
-  public static String normalizeSpanType(final String spanType) {
+  public static CharSequence normalizeSpanType(final CharSequence spanType) {
     if (spanType != null && spanType.length() > MAX_TYPE_LEN) {
       log.debug(
           "Fixing malformed trace. Type is too long (reason:type_truncate), truncating span.type to length={}",
@@ -85,6 +85,7 @@ public class TraceUtils {
   }
 
   // spotless:off
+
   /**
    * Normalizes a tag value:
    * - Only letters, digits, ":", ".", "-", "_" and "/" are allowed.
@@ -146,6 +147,7 @@ public class TraceUtils {
   }
 
   // spotless:off
+
   /**
    * Normalizes the span name:
    * - Only alphanumeric chars, "_" and "." are allowed.

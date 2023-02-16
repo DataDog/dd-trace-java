@@ -37,7 +37,7 @@ public class DDIntakeTraceInterceptor implements TraceInterceptor {
   private void process(DDSpan span) {
     span.setServiceName(normalizeServiceName(span.getServiceName()));
     span.setOperationName(normalizeOperationName(span.getOperationName()));
-    span.setSpanType(normalizeSpanType(span.getSpanType()));
+    span.setSpanType(normalizeSpanType(span.getType()));
 
     if (span.getResourceName() == null || span.getResourceName().length() == 0) {
       log.debug(
@@ -52,7 +52,7 @@ public class DDIntakeTraceInterceptor implements TraceInterceptor {
     }
 
     final short httpStatusCode = span.getHttpStatusCode();
-    if (!isValidStatusCode(httpStatusCode)) {
+    if (httpStatusCode != 0 && !isValidStatusCode(httpStatusCode)) {
       log.debug(
           "Fixing malformed trace. HTTP status code is invalid (reason:invalid_http_status_code), dropping invalid http.status_code={}: {}",
           httpStatusCode,
@@ -63,6 +63,6 @@ public class DDIntakeTraceInterceptor implements TraceInterceptor {
 
   @Override
   public int priority() {
-    return 0;
+    return 1;
   }
 }
