@@ -67,8 +67,8 @@ public abstract class IdGenerationStrategy {
     @Override
     public DDTraceId generateTraceId() {
       return this.trace128bitStrategy != UNSUPPORTED
-          ? DDTraceId.from(generateHighOrderBits(), ThreadLocalRandom.current().nextLong())
-          : DDTraceId.from(ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE));
+          ? DDTrace128Id.from(generateHighOrderBits(), ThreadLocalRandom.current().nextLong())
+          : DDTrace64Id.from(ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE));
     }
 
     @Override
@@ -87,7 +87,7 @@ public abstract class IdGenerationStrategy {
 
     @Override
     public DDTraceId generateTraceId() {
-      return DDTraceId.from(id.incrementAndGet());
+      return DDTrace64Id.from(id.incrementAndGet());
     }
 
     @Override
@@ -128,8 +128,8 @@ public abstract class IdGenerationStrategy {
     @Override
     public DDTraceId generateTraceId() {
       return this.trace128bitStrategy != UNSUPPORTED
-          ? DDTraceId.from(generateHighOrderBits(), secureRandom.nextLong())
-          : DDTraceId.from(getNonZeroPositiveLong());
+          ? DDTrace128Id.from(generateHighOrderBits(), secureRandom.nextLong())
+          : DDTrace64Id.from(getNonZeroPositiveLong());
     }
 
     @Override

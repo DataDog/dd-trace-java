@@ -9,6 +9,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTrace64Id;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -77,7 +78,7 @@ class XRayHttpCodec {
                           : MILLISECONDS.toSeconds(
                               context.getTrace().getTimeSource().getCurrentTimeMillis())))
               .append(TRACE_ID_PADDING)
-              .append(context.getTraceId().toHexStringPadded(16))
+              .append(context.getTraceId().toHexString()) // TODO FIXME Not always 64-bit trace id
               .append(';' + PARENT_PREFIX)
               .append(DDSpanId.toHexStringPadded(context.getSpanId()));
 
@@ -214,7 +215,7 @@ class XRayHttpCodec {
           if (part.startsWith(ROOT_PREFIX)) {
             if (interpreter.traceId == null || interpreter.traceId == DDTraceId.ZERO) {
               interpreter.traceId =
-                  DDTraceId.fromHexTruncatedWithOriginal(
+                  DDTrace64Id.fromHexTruncatedWithOriginal(
                       part.substring(ROOT_PREAMBLE + TRACE_ID_PADDING.length()));
             }
           } else if (part.startsWith(PARENT_PREFIX)) {

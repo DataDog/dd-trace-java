@@ -4,6 +4,7 @@ import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTrace64Id;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -72,11 +73,10 @@ class HaystackHttpCodec {
             getBaggageItemIgnoreCase(context.getBaggageItems(), HAYSTACK_TRACE_ID_BAGGAGE_KEY);
         String injectedTraceId;
         if (originalHaystackTraceId != null
-            && DDTraceId.fromHex(convertUUIDToHexString(originalHaystackTraceId))
-                .equals(context.getTraceId())) {
+            && convertUUIDToTraceId(originalHaystackTraceId).equals(context.getTraceId())) {
           injectedTraceId = originalHaystackTraceId;
         } else {
-          injectedTraceId = convertLongToUUID(context.getTraceId().toLong());
+          injectedTraceId = convertTraceIdToUuidString(context.getTraceId());
         }
         setter.set(carrier, TRACE_ID_KEY, injectedTraceId);
         context.setTag(HAYSTACK_TRACE_ID_BAGGAGE_KEY, injectedTraceId);
@@ -202,7 +202,7 @@ class HaystackHttpCodec {
           if (null != firstValue) {
             switch (classification) {
               case TRACE_ID:
-                traceId = DDTraceId.fromHex(convertUUIDToHexString(value));
+                traceId = convertUUIDToTraceId(value);
                 addBaggageItem(HAYSTACK_TRACE_ID_BAGGAGE_KEY, value);
                 break;
               case SPAN_ID:
@@ -248,6 +248,38 @@ class HaystackHttpCodec {
     protected int defaultSamplingPriority() {
       return PrioritySampling.SAMPLER_KEEP;
     }
+  }
+
+  @SuppressForbidden
+  private static String convertTraceIdToUuidString(DDTraceId id) {
+    // This is not a true/real UUID, as we don't care about the version and variant markers
+    //  the creation is just taking the least significant bits and doing static most significant
+    // ones.
+    //  this is done for the purpose of being able to maintain cardinality and idempotence of the
+    // conversion
+    String hexString = id.toHexString();
+    if (hexString.length() == 32) {
+      return hexString.substring(0, 8)
+          + "-"
+          + hexString.substring(8, 12)
+          + "-"
+          + hexString.substring(12, 16)
+          + hexString.substring(16, 20)
+          + hexString.substring(20, 32);
+    } else { // 16 char long id
+      return DATADOG + "-" + hexString.substring(0, 4) + "-" + hexString.substring(4);
+    }
+  }
+
+  @SuppressForbidden
+  private static DDTraceId convertUUIDToTraceId(String value) {
+    if (value.contains("-")) {
+      value = value.replace("-", "");
+    }
+    if (value.length() == 32) {
+      return DDTraceId.from(value);
+    }
+    return DDTrace64Id.fromHex(value);
   }
 
   private static String convertLongToUUID(long id) {

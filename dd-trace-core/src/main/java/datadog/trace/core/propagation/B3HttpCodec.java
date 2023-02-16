@@ -4,6 +4,8 @@ import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTrace128Id;
+import datadog.trace.api.DDTrace64Id;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -52,7 +54,7 @@ class B3HttpCodec {
     @Override
     public <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
-      final String injectedTraceId = context.getTraceId().toHexStringOrOriginal();
+      final String injectedTraceId = context.getTraceId().toHexString();
       final String injectedSpanId = DDSpanId.toHexString(context.getSpanId());
       setter.set(carrier, TRACE_ID_KEY, injectedTraceId);
       setter.set(carrier, SPAN_ID_KEY, injectedSpanId);
@@ -69,7 +71,7 @@ class B3HttpCodec {
     @Override
     public <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
-      final String injectedTraceId = context.getTraceId().toHexStringOrOriginal();
+      final String injectedTraceId = context.getTraceId().toHexString();
       final String injectedSpanId = DDSpanId.toHexString(context.getSpanId());
       final StringBuilder injectedB3Id = new StringBuilder(100);
       injectedB3Id.append(injectedTraceId).append('-').append(injectedSpanId);
@@ -150,8 +152,10 @@ class B3HttpCodec {
         log.debug("Header {} exceeded max length of 32: {}", TRACE_ID_KEY, tId);
         traceId = DDTraceId.ZERO;
         return false;
-      } else {
-        traceId = DDTraceId.fromHexTruncatedWithOriginal(tId);
+      } else if (length == 32) {
+        traceId = DDTrace128Id.from(tId);
+      } else if (length == 16) {
+        traceId = DDTrace64Id.fromHex(tId);
       }
       if (tags.isEmpty()) {
         tags = new TreeMap<>();

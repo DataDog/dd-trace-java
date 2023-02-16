@@ -10,6 +10,7 @@ import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
 import datadog.cws.erpc.Erpc;
 import datadog.cws.erpc.Request;
+import datadog.trace.api.DDTrace64Id;
 import datadog.trace.api.DDTraceId;
 
 /**
@@ -143,7 +144,7 @@ public class ErpcTls implements Tls {
 
   public DDTraceId getTraceId(int threadId) {
     long offset = getTraceIdOffset(threadId);
-    return DDTraceId.from(tls.getLong(offset));
+    return DDTrace64Id.from(tls.getLong(offset));
   }
 
   public DDTraceId getTraceId() {
