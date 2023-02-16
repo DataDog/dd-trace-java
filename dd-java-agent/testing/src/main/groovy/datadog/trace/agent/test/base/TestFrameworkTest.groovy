@@ -8,10 +8,15 @@ import datadog.trace.api.civisibility.InstrumentationBridge
 import datadog.trace.api.civisibility.codeowners.Codeowners
 import datadog.trace.api.civisibility.source.MethodLinesResolver
 import datadog.trace.api.civisibility.source.SourcePathResolver
+import datadog.trace.api.config.CiVisibilityConfig
+import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator
 import datadog.trace.util.Strings
 import spock.lang.Unroll
+
+import java.nio.file.Files
+import java.nio.file.Path
 
 @Unroll
 abstract class TestFrameworkTest extends AgentTestRunner {
@@ -23,6 +28,8 @@ abstract class TestFrameworkTest extends AgentTestRunner {
   static final int DUMMY_TEST_METHOD_START = 12
   static final int DUMMY_TEST_METHOD_END = 18
   static final Collection<String> DUMMY_CODE_OWNERS = ["owner1", "owner2"]
+
+  private static Path agentKeyFile
 
   def setupSpec() {
     InstrumentationBridge.ci = true
@@ -43,7 +50,17 @@ abstract class TestFrameworkTest extends AgentTestRunner {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig("dd.civisibility.enabled", "true")
+
+    agentKeyFile = Files.createTempFile("TestFrameworkTest", "dummy_agent_key")
+    Files.write(agentKeyFile, "dummy".getBytes())
+
+    injectSysConfig(GeneralConfig.API_KEY_FILE, agentKeyFile.toString())
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_ENABLED, "true")
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED, "true")
+  }
+
+  def cleanupSpec() {
+    Files.deleteIfExists(agentKeyFile)
   }
 
   Long testModuleSpan(final TraceAssert trace,
