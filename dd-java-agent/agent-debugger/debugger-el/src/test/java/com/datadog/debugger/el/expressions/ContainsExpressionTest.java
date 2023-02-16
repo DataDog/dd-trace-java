@@ -1,5 +1,6 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.el.DSL;
@@ -16,7 +17,7 @@ class ContainsExpressionTest {
   void nullExpression() {
     ContainsExpression expression = new ContainsExpression(null, null);
     assertFalse(expression.evaluate(resolver));
-    assertEquals("contains(null, null)", expression.prettyPrint());
+    assertEquals("contains(null, null)", print(expression));
   }
 
   @Test
@@ -24,7 +25,7 @@ class ContainsExpressionTest {
     ContainsExpression expression =
         new ContainsExpression(DSL.value(Values.UNDEFINED_OBJECT), new StringValue(null));
     assertFalse(expression.evaluate(resolver));
-    assertEquals("contains(UNDEFINED, \"null\")", expression.prettyPrint());
+    assertEquals("contains(UNDEFINED, \"null\")", print(expression));
   }
 
   @Test
@@ -32,10 +33,10 @@ class ContainsExpressionTest {
     ContainsExpression expression =
         new ContainsExpression(DSL.value("abcd"), new StringValue("bc"));
     assertTrue(expression.evaluate(resolver));
-    assertEquals("contains(\"abcd\", \"bc\")", expression.prettyPrint());
+    assertEquals("contains(\"abcd\", \"bc\")", print(expression));
 
     expression = new ContainsExpression(DSL.value("abc"), new StringValue("dc"));
     assertFalse(expression.evaluate(resolver));
-    assertEquals("contains(\"abc\", \"dc\")", expression.prettyPrint());
+    assertEquals("contains(\"abc\", \"dc\")", print(expression));
   }
 }

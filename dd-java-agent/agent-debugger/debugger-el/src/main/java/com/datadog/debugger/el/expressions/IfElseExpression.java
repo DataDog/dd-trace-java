@@ -1,8 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
-import static com.datadog.debugger.el.Expression.nullSafePrettyPrint;
-
 import com.datadog.debugger.el.Expression;
+import com.datadog.debugger.el.Visitor;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
 /** TODO: Primordial support for 'debugger watches' support */
@@ -29,12 +28,19 @@ public final class IfElseExpression implements Expression<Void> {
   }
 
   @Override
-  public String prettyPrint() {
-    return "if "
-        + nullSafePrettyPrint(test)
-        + " then "
-        + nullSafePrettyPrint(thenExpression)
-        + " else "
-        + nullSafePrettyPrint(elseExpression);
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
+  }
+
+  public BooleanExpression getTest() {
+    return test;
+  }
+
+  public Expression<?> getThenExpression() {
+    return thenExpression;
+  }
+
+  public Expression<?> getElseExpression() {
+    return elseExpression;
   }
 }

@@ -43,7 +43,7 @@ public class DebuggerContext {
   }
 
   public interface Tracer {
-    DebuggerSpan createSpan(String operationName, String[] tags);
+    DebuggerSpan createSpan(String resourceName, String[] tags);
   }
 
   public interface SnapshotSerializer {

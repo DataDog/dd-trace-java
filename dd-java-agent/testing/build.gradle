@@ -16,6 +16,7 @@ excludedClassesCoverage += [
   // https://issues.apache.org/jira/browse/GROOVY-9610
   'datadog.trace.agent.test.AgentTestRunner',
   'datadog.trace.agent.test.AbortTransformationException',
+  'datadog.trace.agent.test.naming.VersionedNamingTestBase',
   'datadog.trace.agent.test.server.http.TestHttpServer.*',
   'datadog.trace.agent.test.utils.*',
   // Avoid applying jacoco instrumentation to classes instrumented by tested agent

@@ -31,6 +31,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.gateway.Events.ET",
   "datadog.trace.api.profiling.ProfilingSnapshot.Kind",
   "datadog.trace.api.WithGlobalTracer.1",
+  "datadog.trace.api.naming.**",
   // an enum
   "datadog.trace.api.sampling.AdaptiveSampler",
   "datadog.trace.api.sampling.ConstantSampler",

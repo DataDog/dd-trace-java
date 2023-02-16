@@ -1,5 +1,6 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static com.datadog.debugger.el.expressions.ComparisonOperator.EQ;
 import static com.datadog.debugger.el.expressions.ComparisonOperator.GE;
 import static com.datadog.debugger.el.expressions.ComparisonOperator.GT;
@@ -30,7 +31,7 @@ class ComparisonExpressionTest {
       String prettyPrint) {
     ComparisonExpression expression = new ComparisonExpression(left, right, operator);
     assertEquals(expected, expression.evaluate(NoopResolver.INSTANCE));
-    assertEquals(prettyPrint, expression.prettyPrint());
+    assertEquals(prettyPrint, print(expression));
   }
 
   private static Stream<Arguments> expressions() {
@@ -123,7 +124,7 @@ class ComparisonExpressionTest {
       String prettyPrint) {
     ComparisonExpression expression = new ComparisonExpression(left, right, operator);
     assertEquals(expected, expression.evaluate(NoopResolver.INSTANCE));
-    assertEquals(prettyPrint, expression.prettyPrint());
+    assertEquals(prettyPrint, print(expression));
   }
 
   private static Stream<Arguments> expressionStrs() {

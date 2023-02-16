@@ -29,11 +29,6 @@ public class KafkaProducerCallback implements Callback {
   public void onCompletion(final RecordMetadata metadata, final Exception exception) {
     PRODUCER_DECORATE.onError(span, exception);
     PRODUCER_DECORATE.beforeFinish(span);
-    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-    sortedTags.put(PARTITION_TAG, String.valueOf(metadata.partition()));
-    sortedTags.put(TOPIC_TAG, metadata.topic());
-    sortedTags.put(TYPE_TAG, "kafka_produce");
-    AgentTracer.get().getDataStreamsMonitoring().trackBacklog(sortedTags, metadata.offset());
     span.finish();
     if (callback != null) {
       if (parent != null) {
@@ -45,5 +40,13 @@ public class KafkaProducerCallback implements Callback {
         callback.onCompletion(metadata, exception);
       }
     }
+    if (metadata == null) {
+      return;
+    }
+    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+    sortedTags.put(PARTITION_TAG, String.valueOf(metadata.partition()));
+    sortedTags.put(TOPIC_TAG, metadata.topic());
+    sortedTags.put(TYPE_TAG, "kafka_produce");
+    AgentTracer.get().getDataStreamsMonitoring().trackBacklog(sortedTags, metadata.offset());
   }
 }
