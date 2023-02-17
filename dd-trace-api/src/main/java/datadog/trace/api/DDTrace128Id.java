@@ -10,21 +10,16 @@ import datadog.trace.api.internal.util.HexStringUtils;
  * demand and cached.
  *
  * <p>{@link DDTrace128Id} can represent either a 128-bits TraceId or a 64-bit TraceId. For 128-bit
- * TraceId, {@link #mostSigBits} contains a 32-bit timestamp store on the 32 higher bits and
- * {@link #leastSigBits} contains a unique and random 64-bit id. For 64-bit TraceId, {@link
- * #mostSigBits} is set to <code>0</code> and {@link #leastSigBits} contains a unique and random
- * 63-bit id.
+ * TraceId, {@link #mostSigBits} contains a 32-bit timestamp store on the 32 higher bits and {@link
+ * #leastSigBits} contains a unique and random 64-bit id. For 64-bit TraceId, {@link #mostSigBits}
+ * is set to <code>0</code> and {@link #leastSigBits} contains a unique and random 63-bit id.
  */
 public class DDTrace128Id implements DDTraceId {
   public static final DDTrace128Id ZERO =
       new DDTrace128Id(0, 0, "00000000000000000000000000000000");
-  /**
-   * Represents the high-order 64 bits of the 128-bit trace id.
-   */
+  /** Represents the high-order 64 bits of the 128-bit trace id. */
   private final long mostSigBits;
-  /**
-   * Represents the low-order 64 bits of the 128-bit trace id.
-   */
+  /** Represents the low-order 64 bits of the 128-bit trace id. */
   private final long leastSigBits;
 
   private String str; // cache for string representation
@@ -39,7 +34,7 @@ public class DDTrace128Id implements DDTraceId {
    * Create a new 128-bit {@link DDTrace128Id} from the given {@code long}s interpreted as high
    * order and low order bits of the 128-bit id. DDTraceId
    *
-   * @param mostSigBits  A {@code long} representing the high-order bits of the {@link DDTrace128Id}.
+   * @param mostSigBits A {@code long} representing the high-order bits of the {@link DDTrace128Id}.
    * @param leastSigBits A {@code long} representing the random id low-order bits.
    * @return The created trace id instance.
    */

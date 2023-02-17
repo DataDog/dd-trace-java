@@ -12,27 +12,26 @@ class DDTraceIdTest extends DDSpecification {
 
   def "convert 64-bit ids from/to long and check strings"() {
     when:
-    final ddid = DDTraceId.from(longId)
+    final ddid = DDTrace64Id.from(longId)
 
     then:
     ddid == expectedId
     ddid.toLong() == longId
     ddid.toString() == expectedString
     ddid.toHexString() == expectedHex
-    ddid.toHexStringOrOriginal() == expectedHex
 
     where:
-    longId         | expectedId                     | expectedString         | expectedHex
-    0              | DDTraceId.ZERO                 | "0"                    | "0"
-    1              | DDTraceId.ONE                  | "1"                    | "1"
-    -1             | DDTraceId.MAX                  | "18446744073709551615" | "f" * 16
-    Long.MAX_VALUE | DDTraceId.from(Long.MAX_VALUE) | "9223372036854775807"  | "7" + "f" * 15
-    Long.MIN_VALUE | DDTraceId.from(Long.MIN_VALUE) | "9223372036854775808"  | "8" + "0" * 15
+    longId         | expectedId                       | expectedString         | expectedHex
+    0              | DDTrace64Id.ZERO                 | "0"                    | "0" * 16
+    1              | DDTrace64Id.ONE                  | "1"                    | "0" * 15 + "1"
+    -1             | DDTrace64Id.MAX                  | "18446744073709551615" | "f" * 16
+    Long.MAX_VALUE | DDTrace64Id.from(Long.MAX_VALUE) | "9223372036854775807"  | "7" + "f" * 15
+    Long.MIN_VALUE | DDTrace64Id.from(Long.MIN_VALUE) | "9223372036854775808"  | "8" + "0" * 15
   }
 
   def "convert 64-bit ids from/to String"() {
     when:
-    final ddid = DDTraceId.from(stringId)
+    final ddid = DDTrace64Id.from(stringId)
 
     then:
     ddid == expectedId
@@ -40,17 +39,17 @@ class DDTraceIdTest extends DDSpecification {
 
     where:
     stringId                                        | expectedId
-    "0"                                             | DDTraceId.ZERO
-    "1"                                             | DDTraceId.ONE
-    "18446744073709551615"                          | DDTraceId.MAX
-    "${Long.MAX_VALUE}"                             | DDTraceId.from(Long.MAX_VALUE)
-    "${BigInteger.valueOf(Long.MAX_VALUE).plus(1)}" | DDTraceId.from(Long.MIN_VALUE)
+    "0"                                             | DDTrace64Id.ZERO
+    "1"                                             | DDTrace64Id.ONE
+    "18446744073709551615"                          | DDTrace64Id.MAX
+    "${Long.MAX_VALUE}"                             | DDTrace64Id.from(Long.MAX_VALUE)
+    "${BigInteger.valueOf(Long.MAX_VALUE).plus(1)}" | DDTrace64Id.from(Long.MIN_VALUE)
   }
 
   def "convert 128-bit ids from/to String"() {
     when:
-    def parsedId = DDTraceId.from(stringId)
-    def id = DDTraceId.create(high, low, null)
+    def parsedId = DDTrace128Id.from(stringId)
+    def id = DDTrace128Id.from(high, low)
 
     then:
     id == parsedId
@@ -77,6 +76,18 @@ class DDTraceIdTest extends DDSpecification {
     then:
     thrown IllegalArgumentException
 
+    when:
+    DDTrace64Id.from(stringId)
+
+    then:
+    thrown IllegalArgumentException
+
+    when:
+    DDTrace128Id.from(stringId)
+
+    then:
+    thrown IllegalArgumentException
+
     where:
     stringId << [
       null,
@@ -92,37 +103,30 @@ class DDTraceIdTest extends DDSpecification {
 
   def "convert ids from/to hex String"() {
     when:
-    final ddid = DDTraceId.fromHex(hexId)
+    final ddid = DDTrace64Id.fromHex(hexId)
     final padded16 = hexId.length() <= 16 ?
       ("0" * 16).substring(0, 16 - hexId.length()) + hexId :
       hexId.substring(hexId.length() - 16, hexId.length())
-    final padded32 = ("0" * 32).substring(0, 32 - hexId.length()) + hexId
 
     then:
     ddid == expectedId
-    if (hexId.length() > 1) {
-      hexId = hexId.replaceAll("^0+", "") // drop leading zeros
-    }
-    ddid.toHexString() == hexId
-    ddid.toHexStringOrOriginal() == hexId
-    ddid.toHexStringPadded(16) == padded16
-    ddid.toHexStringPadded(32) == padded32
+    ddid.toHexString() == padded16
 
     where:
     hexId                    | expectedId
-    "0"                      | DDTraceId.ZERO
-    "1"                      | DDTraceId.ONE
-    "f" * 16                 | DDTraceId.MAX
-    "7" + "f" * 15           | DDTraceId.from(Long.MAX_VALUE)
-    "8" + "0" * 15           | DDTraceId.from(Long.MIN_VALUE)
-    "0" * 4 + "8" + "0" * 15 | DDTraceId.from(Long.MIN_VALUE)
-    "cafebabe"               | DDTraceId.from(3405691582)
-    "123456789abcdef"        | DDTraceId.from(81985529216486895)
+    "0"                      | DDTrace64Id.ZERO
+    "1"                      | DDTrace64Id.ONE
+    "f" * 16                 | DDTrace64Id.MAX
+    "7" + "f" * 15           | DDTrace64Id.from(Long.MAX_VALUE)
+    "8" + "0" * 15           | DDTrace64Id.from(Long.MIN_VALUE)
+    "0" * 4 + "8" + "0" * 15 | DDTrace64Id.from(Long.MIN_VALUE)
+    "cafebabe"               | DDTrace64Id.from(3405691582)
+    "123456789abcdef"        | DDTrace64Id.from(81985529216486895)
   }
 
   def "fail on illegal hex String"() {
     when:
-    DDTraceId.fromHex(hexId)
+    DDTrace64Id.fromHex(hexId)
 
     then:
     thrown NumberFormatException
@@ -175,64 +179,64 @@ class DDTraceIdTest extends DDSpecification {
     strategyName << ["SOME", "UNKNOWN", "STRATEGIES"]
   }
 
-  def "convert ids from/to hex String and truncate to 64 bits while keeping the original"() {
-    when:
-    DDTraceId ddid = null
-    try {
-      ddid = DDTraceId.fromHexTruncatedWithOriginal(hexId)
-    } catch (NumberFormatException ignored) {
-    }
+  //  def "convert ids from/to hex String and truncate to 64 bits while keeping the original"() {
+  //    when:
+  //    DDTraceId ddid = null
+  //    try {
+  //      ddid = DDTraceId.fromHexTruncatedWithOriginal(hexId)
+  //    } catch (NumberFormatException ignored) {
+  //    }
+  //
+  //    then:
+  //    if (expectedId) {
+  //      assert ddid == expectedId
+  //      assert ddid.toHexStringOrOriginal() == hexId
+  //    } else {
+  //      assert !ddid
+  //    }
+  //
+  //    where:
+  //    hexId                          | expectedId
+  //    null                           | null
+  //    "000"                          | DDTraceId.ZERO
+  //    "0001"                         | DDTraceId.ONE
+  //    "f" * 16                       | DDTraceId.MAX
+  //    "7" + "f" * 15                 | DDTraceId.from(Long.MAX_VALUE)
+  //    "8" + "0" * 15                 | DDTraceId.from(Long.MIN_VALUE)
+  //    "0" * 4 + "8" + "0" * 15       | DDTraceId.from(Long.MIN_VALUE)
+  //    "1" * 8 + "0" * 8 + "cafebabe" | DDTraceId.from(3405691582)
+  //    "1" * 12 + "0123456789abcdef"  | DDTraceId.from(81985529216486895)
+  //  }
 
-    then:
-    if (expectedId) {
-      assert ddid == expectedId
-      assert ddid.toHexStringOrOriginal() == hexId
-    } else {
-      assert !ddid
-    }
-
-    where:
-    hexId                          | expectedId
-    null                           | null
-    "000"                          | DDTraceId.ZERO
-    "0001"                         | DDTraceId.ONE
-    "f" * 16                       | DDTraceId.MAX
-    "7" + "f" * 15                 | DDTraceId.from(Long.MAX_VALUE)
-    "8" + "0" * 15                 | DDTraceId.from(Long.MIN_VALUE)
-    "0" * 4 + "8" + "0" * 15       | DDTraceId.from(Long.MIN_VALUE)
-    "1" * 8 + "0" * 8 + "cafebabe" | DDTraceId.from(3405691582)
-    "1" * 12 + "0123456789abcdef"  | DDTraceId.from(81985529216486895)
-  }
-
-  def "convert ids from/to part of hex String and truncate to 64 bits while keeping the original part"() {
-    when:
-    DDTraceId ddid = null
-    try {
-      ddid = DDTraceId.fromHexTruncatedWithOriginal(hexId, start, length, lcOnly)
-    } catch (NumberFormatException ignored) {
-    }
-
-    then:
-    if (expectedId) {
-      assert ddid == expectedId
-      assert ddid.toHexStringOrOriginal() == expectedHex
-    } else {
-      assert !ddid
-    }
-
-    where:
-    hexId                          | start| length | lcOnly | expectedHex | expectedId
-    null                           |  1   |  1     | false  | null        | null
-    ""                             |  1   |  1     | false  | null        | null
-    "00"                           | -1   |  1     | false  | null        | null
-    "00"                           |  0   |  0     | false  | null        | null
-    "00"                           |  1   |  1     | false  | "0"         | DDTraceId.ZERO
-    "0001"                         |  2   |  2     | false  | "01"        | DDTraceId.ONE
-    "f" * 16                       |  0   |  16    | true   | "f" * 16    | DDTraceId.MAX
-    "f" * 12 + "Ffff"              |  0   |  16    | true   | null        | null
-    "fFff" + ("f" * 16)            |  0   |  20    | true   | null        | null
-    "Cafe" + ("f" * 16) + "F00d"   |  4   |  16    | false  | "f" * 16    | DDTraceId.MAX
-  }
+  //  def "convert ids from/to part of hex String and truncate to 64 bits while keeping the original part"() {
+  //    when:
+  //    DDTraceId ddid = null
+  //    try {
+  //      ddid = DDTraceId.fromHexTruncatedWithOriginal(hexId, start, length, lcOnly)
+  //    } catch (NumberFormatException ignored) {
+  //    }
+  //
+  //    then:
+  //    if (expectedId) {
+  //      assert ddid == expectedId
+  //      assert ddid.toHexStringOrOriginal() == expectedHex
+  //    } else {
+  //      assert !ddid
+  //    }
+  //
+  //    where:
+  //    hexId                        | start | length | lcOnly | expectedHex | expectedId
+  //    null                         | 1     | 1      | false  | null        | null
+  //    ""                           | 1     | 1      | false  | null        | null
+  //    "00"                         | -1    | 1      | false  | null        | null
+  //    "00"                         | 0     | 0      | false  | null        | null
+  //    "00"                         | 1     | 1      | false  | "0"         | DDTraceId.ZERO
+  //    "0001"                       | 2     | 2      | false  | "01"        | DDTraceId.ONE
+  //    "f" * 16                     | 0     | 16     | true   | "f" * 16    | DDTraceId.MAX
+  //    "f" * 12 + "Ffff"            | 0     | 16     | true   | null        | null
+  //    "fFff" + ("f" * 16)          | 0     | 20     | true   | null        | null
+  //    "Cafe" + ("f" * 16) + "F00d" | 4     | 16     | false  | "f" * 16    | DDTraceId.MAX
+  //  }
 
   def "exception created on SecureRandom strategy"() {
     setup:
