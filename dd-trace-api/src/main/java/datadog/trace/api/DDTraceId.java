@@ -22,7 +22,7 @@ public interface DDTraceId {
     if (s.length() == 32) {
       return DDTrace128Id.from(s);
     }
-    return DDTrace64Id.create(DDId.parseUnsignedLong(s), s);
+    return DDTrace64Id.create(DDId.parseUnsignedLong(s), s, null);
   }
 
   /**

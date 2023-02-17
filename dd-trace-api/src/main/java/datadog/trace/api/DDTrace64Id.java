@@ -15,7 +15,7 @@ import datadog.trace.api.internal.util.HexStringUtils;
  * set to <code>0</code> and {@link #id} contains a unique and random 63-bit id.
  */
 public class DDTrace64Id implements DDTraceId {
-  public static final DDTrace64Id ZERO = new DDTrace64Id(0, "0", null);
+  public static final DDTrace64Id ZERO = new DDTrace64Id(0, "0", "0000000000000000");
   public static final DDTrace64Id MAX =
       new DDTrace64Id(-1, "18446744073709551615", null); // All bits set
 
@@ -31,7 +31,7 @@ public class DDTrace64Id implements DDTraceId {
    * @return DDTraceId
    */
   public static DDTrace64Id from(long id) {
-    return DDTrace64Id.create(id, null);
+    return DDTrace64Id.create(id, null, null);
   }
 
   /**
@@ -46,7 +46,7 @@ public class DDTrace64Id implements DDTraceId {
     if (s == null) {
       throw new IllegalArgumentException("s can't be null");
     }
-    return DDTrace64Id.create(DDId.parseUnsignedLong(s), s);
+    return DDTrace64Id.create(DDId.parseUnsignedLong(s), s, null);
   }
 
   /**
@@ -58,7 +58,11 @@ public class DDTrace64Id implements DDTraceId {
    * @throws NumberFormatException
    */
   public static DDTrace64Id fromHex(String s) throws NumberFormatException {
-    return DDTrace64Id.create(DDId.parseUnsignedLongHex(s), null);
+    if (s == null) {
+      throw new NumberFormatException("null");
+    }
+    String hex = s.length() == 16 ? s : null;
+    return DDTrace64Id.create(DDId.parseUnsignedLongHex(s), null, hex);
   }
 
   /**
@@ -77,25 +81,26 @@ public class DDTrace64Id implements DDTraceId {
 
     int len = s.length();
     int trimmed = Math.min(s.length(), 16);
+    // TODO Set s to to with a 16 char length or remove the method
     return new DDTrace64Id(
         HexStringUtils.parseUnsignedLongHex(s, len - trimmed, trimmed, false), null, s);
   }
 
-  static DDTrace64Id create(long id, String str) {
+  static DDTrace64Id create(long id, String str, String hex) {
     if (id == 0) return ZERO;
     if (id == -1) return MAX;
-    return new DDTrace64Id(id, str, null);
+    return new DDTrace64Id(id, str, hex);
   }
 
   private final long id;
 
   private String str; // cache for string representation
-  private String hex; //
+  private String hex; // cache for hex representation
 
-  private DDTrace64Id(long id, String str, String original) {
+  private DDTrace64Id(long id, String str, String hex) {
     this.id = id;
     this.str = str;
-    this.hex = original;
+    this.hex = hex;
   }
 
   /**
@@ -117,9 +122,11 @@ public class DDTrace64Id implements DDTraceId {
    */
   @Override
   public String toHexString() {
-    // TODO use the cached String and trim it if necessary
-    //    return Long.toHexString(this.id);
-    return DDId.toHexStringPadded(this.id, 16);
+    String hex = this.hex;
+    if (hex == null) {
+      this.hex = hex = DDId.toHexStringPadded(this.id, 16);
+    }
+    return hex;
   }
 
   @Override
