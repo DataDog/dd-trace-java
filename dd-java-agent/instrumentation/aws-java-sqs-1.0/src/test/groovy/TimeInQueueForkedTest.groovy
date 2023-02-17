@@ -261,7 +261,7 @@ class TimeInQueueForkedTest extends AgentTestRunner {
 
   def producerSpan(TraceAssert traceAssert, parent) {
     traceAssert.span {
-      serviceName "sqs"
+      serviceName "A-service"
       operationName "aws.http"
       resourceName "SQS.SendMessageBatch"
       spanType DDSpanTypes.HTTP_CLIENT

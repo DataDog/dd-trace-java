@@ -28,6 +28,11 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   public static final boolean AWS_LEGACY_TRACING =
       Config.get().isLegacyTracingEnabled(false, "aws-sdk");
 
+  public static final boolean SQS_LEGACY_TRACING = Config.get().isLegacyTracingEnabled(true, "sqs");
+
+  private static final String SQS_SERVICE_NAME =
+      AWS_LEGACY_TRACING || SQS_LEGACY_TRACING ? "sqs" : Config.get().getServiceName();
+
   private final QualifiedClassNameCache cache =
       new QualifiedClassNameCache(
           new Function<Class<?>, CharSequence>() {
@@ -68,7 +73,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       case "SQS.SendMessageBatch":
       case "SQS.ReceiveMessage":
       case "SQS.DeleteMessage":
-        span.setServiceName("sqs");
+      case "SQS.DeleteMessageBatch":
+        span.setServiceName(SQS_SERVICE_NAME);
         break;
       case "SNS.Publish":
         span.setServiceName("sns");
