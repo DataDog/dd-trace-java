@@ -8,8 +8,11 @@ public class DatabaseNamingV1 implements NamingSchema.ForDatabase {
   private String normalizeDatabaseType(@Nonnull String databaseType) {
     // there will more entries (e.g. postgres,..) since the name we use is not always
     // the one chosen for v1 naming conventions
-    if ("mongo".equals(databaseType)) {
-      return "mongodb";
+    switch (databaseType) {
+      case "mongo":
+        return "mongodb";
+      case "elasticsearch.rest":
+        return "elasticsearch";
     }
     return databaseType;
   }
