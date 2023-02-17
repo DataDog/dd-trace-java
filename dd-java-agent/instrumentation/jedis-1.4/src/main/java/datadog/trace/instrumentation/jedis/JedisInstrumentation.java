@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jedis.JedisClientDecorator.DECORATE;
-import static datadog.trace.instrumentation.jedis.JedisClientDecorator.REDIS_COMMAND;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -22,9 +21,6 @@ import redis.clients.jedis.Protocol.Command;
 @AutoService(Instrumenter.class)
 public final class JedisInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType {
-
-  private static final String SERVICE_NAME = "redis";
-  private static final String COMPONENT_NAME = SERVICE_NAME + "-command";
 
   public JedisInstrumentation() {
     super("jedis", "redis");
@@ -63,7 +59,7 @@ public final class JedisInstrumentation extends Instrumenter.Tracing
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.Argument(1) final Command command) {
-      final AgentSpan span = startSpan(REDIS_COMMAND);
+      final AgentSpan span = startSpan(JedisClientDecorator.OPERATION_NAME);
       DECORATE.afterStart(span);
       DECORATE.onStatement(span, command.name());
       return activateSpan(span);

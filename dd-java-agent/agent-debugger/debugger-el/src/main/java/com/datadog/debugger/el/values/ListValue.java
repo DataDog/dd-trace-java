@@ -1,6 +1,7 @@
 package com.datadog.debugger.el.values;
 
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.expressions.ValueExpression;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.Values;
@@ -152,16 +153,19 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
   }
 
   @Override
-  public String prettyPrint() {
-    if (arrayHolder != null) {
-      return arrayType.getTypeName() + "[]";
-    }
-    if (listHolder instanceof List) {
-      return "List";
-    }
-    if (listHolder instanceof Set) {
-      return "Set";
-    }
-    return "null";
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
+  }
+
+  public Object getListHolder() {
+    return listHolder;
+  }
+
+  public Object getArrayHolder() {
+    return arrayHolder;
+  }
+
+  public Class<?> getArrayType() {
+    return arrayType;
   }
 }

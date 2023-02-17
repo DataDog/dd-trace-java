@@ -1,5 +1,8 @@
 package datadog.trace.api;
 
+import static datadog.trace.api.internal.util.HexStringUtils.numberFormatOutOfLongRange;
+
+import datadog.trace.api.internal.util.HexStringUtils;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -11,19 +14,6 @@ final class DDId {
 
   // Don't allow instances
   private DDId() {}
-
-  private static int firstNonZeroCharacter(String s, int start) {
-    int firstNonZero = start;
-    for (; firstNonZero < s.length(); firstNonZero++) {
-      if (s.charAt(firstNonZero) != '0') break;
-    }
-    return firstNonZero;
-  }
-
-  private static NumberFormatException numberFormatOutOfRange(String s) {
-    return new NumberFormatException(
-        String.format("String value %s exceeds range of unsigned long.", s));
-  }
 
   private static final long MAX_FIRST_PART = 0x1999999999999999L; // Max unsigned 64 bits / 10
 
@@ -42,7 +32,7 @@ final class DDId {
         if (len <= 18) { // Signed 64 bits max is 19 digits, so this always fits
           return Long.parseLong(s);
         } else if (len > 20) { // Unsigned 64 bits max is 20 digits, so this always overflows
-          throw numberFormatOutOfRange(s);
+          throw numberFormatOutOfLongRange(s);
         }
         // Now do the first part and the last character
         long first = 0;
@@ -59,12 +49,12 @@ final class DDId {
           throw new NumberFormatException("Illegal character in " + s);
         }
         if (first > MAX_FIRST_PART) {
-          throw numberFormatOutOfRange(s);
+          throw numberFormatOutOfLongRange(s);
         }
         long guard = first * 10;
         long result = guard + last;
         if (guard < 0 && result >= 0) {
-          throw numberFormatOutOfRange(s);
+          throw numberFormatOutOfLongRange(s);
         }
         return result;
       }
@@ -74,34 +64,7 @@ final class DDId {
   }
 
   static long parseUnsignedLongHex(String s) throws NumberFormatException {
-    if (s == null) {
-      throw new NumberFormatException("null");
-    }
-
-    return parseUnsignedLongHex(s, 0, s.length());
-  }
-
-  static long parseUnsignedLongHex(String s, int start, int len) throws NumberFormatException {
-    if (len > 0) {
-      if (len > 16 && (len - firstNonZeroCharacter(s, start)) > 16) {
-        // Unsigned 64 bits max is 16 digits, so this always overflows
-        throw numberFormatOutOfRange(s);
-      }
-      long result = 0;
-      int ok = 0;
-      for (int i = 0; i < len; i++, start++) {
-        char c = s.charAt(start);
-        int d = Character.digit(c, 16);
-        ok |= d;
-        result = result << 4 | d;
-      }
-      if (ok < 0) {
-        throw new NumberFormatException("Illegal character in " + s);
-      }
-      return result;
-    } else {
-      throw new NumberFormatException("Empty input string");
-    }
+    return HexStringUtils.parseUnsignedLongHex(s, 0, s == null ? 0 : s.length(), false);
   }
 
   private static final byte[] HEX_DIGITS = {

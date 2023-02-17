@@ -1,5 +1,6 @@
 package com.datadog.debugger.el.expressions;
 
+import com.datadog.debugger.el.Visitor;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
 /**
@@ -36,7 +37,19 @@ public final class BinaryExpression implements BooleanExpression {
   }
 
   @Override
-  public String prettyPrint() {
-    return left.prettyPrint() + " " + operator.prettyPrint() + " " + right.prettyPrint();
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
+  }
+
+  public BooleanExpression getLeft() {
+    return left;
+  }
+
+  public BooleanExpression getRight() {
+    return right;
+  }
+
+  public BinaryOperator getOperator() {
+    return operator;
   }
 }

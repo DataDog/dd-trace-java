@@ -1,5 +1,9 @@
 package datadog.smoketest;
 
+import static com.datadog.debugger.el.DSL.eq;
+import static com.datadog.debugger.el.DSL.ref;
+import static com.datadog.debugger.el.DSL.when;
+import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -7,6 +11,8 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
+import com.datadog.debugger.el.DSL;
+import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.probe.LogProbe;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Platform;
@@ -157,6 +163,61 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
     assertEquals(1, snapshot.getCaptures().getReturn().getLocals().size()); // @return
     assertNull(snapshot.getCaptures().getReturn().getThrowable());
     assertNull(snapshot.getCaptures().getReturn().getFields());
+  }
+
+  @Test
+  @DisplayName("testFullMethodWithCondition")
+  void testFullMethodWithCondition() throws Exception {
+    final String METHOD_NAME = "fullMethod";
+    LogProbe probe =
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            .where(MAIN_CLASS_NAME, METHOD_NAME)
+            .when(
+                new ProbeCondition(
+                    when(eq(ref("argStr"), DSL.value("foobar"))), "argStr == \"foobar\""))
+            .captureSnapshot(true)
+            .build();
+    setCurrentConfiguration(createConfig(probe));
+    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, "3").start();
+    RecordedRequest request = retrieveSnapshotRequest();
+    assertNotNull(request);
+    assertFalse(logHasErrors(logFilePath, it -> false));
+    String bodyStr = request.getBody().readUtf8();
+    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
+    System.out.println(bodyStr);
+    Snapshot snapshot = adapter.fromJson(bodyStr).get(0).getDebugger().getSnapshot();
+    assertEquals("123356536", snapshot.getProbe().getId());
+    assertEquals(
+        "ProbeCondition{dslExpression='argStr == \"foobar\"'}",
+        snapshot.getProbe().getScript().toString());
+    assertFullMethodCaptureArgs(snapshot.getCaptures().getEntry());
+  }
+
+  @Test
+  @DisplayName("testFullMethodWithLogTemplate")
+  void testFullMethodWithLogTemplate() throws Exception {
+    final String METHOD_NAME = "fullMethod";
+    final String LOG_TEMPLATE = "log line {argInt} {argStr} {argDouble} {argMap} {argVar}";
+    LogProbe probe =
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            .where(MAIN_CLASS_NAME, METHOD_NAME)
+            .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
+            .build();
+    setCurrentConfiguration(createConfig(probe));
+    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, "3").start();
+    RecordedRequest request = retrieveSnapshotRequest();
+    assertNotNull(request);
+    assertFalse(logHasErrors(logFilePath, it -> false));
+    String bodyStr = request.getBody().readUtf8();
+    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
+    System.out.println(bodyStr);
+    JsonSnapshotSerializer.IntakeRequest intakeRequest = adapter.fromJson(bodyStr).get(0);
+    assertEquals("123356536", intakeRequest.getDebugger().getSnapshot().getProbe().getId());
+    assertEquals(
+        "log line 42 foobar 3.42 {[key1=val1], [key2=val2], [key3=val3]} [var1, var2, var3]",
+        intakeRequest.getMessage());
   }
 
   private void assertFullMethodCaptureArgs(Snapshot.CapturedContext context) {

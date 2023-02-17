@@ -2,7 +2,7 @@
 "ddsource":"dd_debugger",
 "debugger":\{
 "snapshot":\{
-"captures":\{\},
+"captures":\{"entry":\{"arguments":\{\},"locals":\{\}\}\},
 "evaluationErrors":\[\{"expr":"obj.field","message":"Cannot dereference obj"\}\],
 "id":"[^"]+",
 "language":"java",

@@ -1,5 +1,6 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -19,7 +20,7 @@ class GetMemberExpressionTest {
     assertNotNull(val);
     assertFalse(val.isUndefined());
     assertEquals(parent.getB(), val.getValue());
-    assertEquals("ref.b", expr.prettyPrint());
+    assertEquals("ref.b", print(expr));
   }
 
   @Test
@@ -34,6 +35,6 @@ class GetMemberExpressionTest {
     assertNotNull(val);
     assertFalse(val.isUndefined());
     assertEquals(root.getB(), val.getValue());
-    assertEquals("ref.ref.b", expr.prettyPrint());
+    assertEquals("ref.ref.b", print(expr));
   }
 }

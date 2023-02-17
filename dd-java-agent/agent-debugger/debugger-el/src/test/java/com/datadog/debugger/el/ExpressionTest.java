@@ -1,6 +1,7 @@
 package com.datadog.debugger.el;
 
 import static com.datadog.debugger.el.DSL.*;
+import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.el.expressions.IsEmptyExpression;
@@ -56,28 +57,20 @@ class ExpressionTest {
 
   @Test
   void testPrettyPrint() {
-    assertEquals("\"foo\" == \"bar\"", eq(value("foo"), value("bar")).prettyPrint());
-    assertEquals("1 == 1", eq(value(1), value(1)).prettyPrint());
-    assertEquals("1 > 1", gt(value(1), value(1)).prettyPrint());
-    assertEquals("1 >= 1", ge(value(1), value(1)).prettyPrint());
-    assertEquals("1 < 1", lt(value(1), value(1)).prettyPrint());
-    assertEquals("1 <= 1", le(value(1), value(1)).prettyPrint());
+    assertEquals("\"foo\" == \"bar\"", print(eq(value("foo"), value("bar"))));
+    assertEquals("1 == 1", print(eq(value(1), value(1))));
+    assertEquals("1 > 1", print(gt(value(1), value(1))));
+    assertEquals("1 >= 1", print(ge(value(1), value(1))));
+    assertEquals("1 < 1", print(lt(value(1), value(1))));
+    assertEquals("1 <= 1", print(le(value(1), value(1))));
     assertEquals(
         "when(this.strField == \"foo\" && @duration > 0)",
-        when(and(
-                eq(getMember(ref("this"), "strField"), value("foo")),
-                gt(ref("@duration"), value(0))))
-            .prettyPrint());
+        print(
+            when(
+                and(
+                    eq(getMember(ref("this"), "strField"), value("foo")),
+                    gt(ref("@duration"), value(0))))));
     assertEquals(
-        "len(list[idx].map)", len(getMember(index(ref("list"), ref("idx")), "map")).prettyPrint());
-    assertTrue(new MyExpression().prettyPrint().contains("MyExpression"));
-  }
-
-  static class MyExpression implements Expression {
-
-    @Override
-    public Object evaluate(ValueReferenceResolver valueRefResolver) {
-      return null;
-    }
+        "len(list[idx].map)", print(len(getMember(index(ref("list"), ref("idx")), "map"))));
   }
 }

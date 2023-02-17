@@ -16,10 +16,14 @@ class DebuggerTracerTest {
     DebuggerTracer debuggerTracer = new DebuggerTracer();
     DebuggerSpan span = debuggerTracer.createSpan("a-span", new String[] {"foo:bar"});
     AgentSpan underlyingSpan = ((DebuggerTracer.DebuggerSpanImpl) span).underlyingSpan;
-    assertEquals("a-span", underlyingSpan.getSpanName());
+    assertEquals("dd.dynamic.span", underlyingSpan.getSpanName());
+    assertEquals("a-span", underlyingSpan.getResourceName());
     assertEquals(0, underlyingSpan.getDurationNano());
     assertEquals(
-        "a-span", ((DebuggerTracer.DebuggerSpanImpl) span).currentScope.span().getSpanName());
+        "dd.dynamic.span",
+        ((DebuggerTracer.DebuggerSpanImpl) span).currentScope.span().getSpanName());
+    assertEquals(
+        "a-span", ((DebuggerTracer.DebuggerSpanImpl) span).currentScope.span().getResourceName());
     span.finish();
     assertNotEquals(0, underlyingSpan.getDurationNano());
   }

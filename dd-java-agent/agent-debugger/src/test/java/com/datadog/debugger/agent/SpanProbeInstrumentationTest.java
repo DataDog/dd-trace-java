@@ -25,13 +25,25 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
   @Test
   public void methodSimpleSpan() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    MockTracer tracer =
-        installSingleSpan(CLASS_NAME, "main", "int (java.lang.String)", "main-span", null);
+    MockTracer tracer = installSingleSpan(CLASS_NAME, "main", "int (java.lang.String)", null);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(3, result);
     assertEquals(1, tracer.spans.size());
-    assertEquals("main-span", tracer.spans.get(0).name);
+    assertEquals(CLASS_NAME + ".main", tracer.spans.get(0).resourceName);
+    assertTrue(tracer.spans.get(0).isFinished());
+  }
+
+  @Test
+  public void methodSimpleSpanWithPackage() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot10";
+    final String SIMPLE_CLASS_NAME = CLASS_NAME.substring(CLASS_NAME.lastIndexOf('.') + 1);
+    MockTracer tracer = installSingleSpan(CLASS_NAME, "main", "int (java.lang.String)", null);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    assertEquals(1764, result);
+    assertEquals(1, tracer.spans.size());
+    assertEquals(SIMPLE_CLASS_NAME + ".main", tracer.spans.get(0).resourceName);
     assertTrue(tracer.spans.get(0).isFinished());
   }
 
@@ -39,14 +51,13 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
   public void methodSimpleSpanWithTags() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     MockTracer tracer =
-        installSingleSpan(
-            CLASS_NAME, "main", "int (java.lang.String)", "main-span", "tag1:foo1", "tag2:foo2");
+        installSingleSpan(CLASS_NAME, "main", "int (java.lang.String)", "tag1:foo1", "tag2:foo2");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(3, result);
     assertEquals(1, tracer.spans.size());
     MockSpan span = tracer.spans.get(0);
-    assertEquals("main-span", span.name);
+    assertEquals(CLASS_NAME + ".main", span.resourceName);
     assertTrue(span.isFinished());
     Assert.assertArrayEquals(new String[] {"tag1:foo1", "tag2:foo2"}, span.tags);
   }
@@ -54,19 +65,19 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
   @Test
   public void lineRangeSimpleSpan() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    MockTracer tracer = installSingleSpan(CLASS_NAME + ".java", 4, 8, "main-span", null);
+    MockTracer tracer = installSingleSpan(CLASS_NAME + ".java", 4, 8, null);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(3, result);
     assertEquals(1, tracer.spans.size());
-    assertEquals("main-span", tracer.spans.get(0).name);
+    assertEquals(CLASS_NAME + ".main:L4-8", tracer.spans.get(0).resourceName);
     assertTrue(tracer.spans.get(0).isFinished());
   }
 
   @Test
   public void invalidLineSimpleSpan() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    MockTracer tracer = installSingleSpan(CLASS_NAME + ".java", 4, 10, "main-span", null);
+    MockTracer tracer = installSingleSpan(CLASS_NAME + ".java", 4, 10, null);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(3, result);
@@ -77,14 +88,14 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
   }
 
   private MockTracer installSingleSpan(
-      String typeName, String methodName, String signature, String spanName, String... tags) {
-    SpanProbe spanProbe = createSpan(SPAN_ID, spanName, typeName, methodName, signature, tags);
+      String typeName, String methodName, String signature, String... tags) {
+    SpanProbe spanProbe = createSpan(SPAN_ID, typeName, methodName, signature, tags);
     return installSpanProbes(spanProbe);
   }
 
   private MockTracer installSingleSpan(
-      String sourceFile, int lineFrom, int lineTill, String spanName, String... tags) {
-    SpanProbe spanProbe = createSpan(SPAN_ID, spanName, sourceFile, lineFrom, lineTill, tags);
+      String sourceFile, int lineFrom, int lineTill, String... tags) {
+    SpanProbe spanProbe = createSpan(SPAN_ID, sourceFile, lineFrom, lineTill, tags);
     return installSpanProbes(spanProbe);
   }
 
@@ -114,8 +125,8 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
     List<MockSpan> spans = new ArrayList<>();
 
     @Override
-    public DebuggerSpan createSpan(String operationName, String[] tags) {
-      MockSpan mockSpan = new MockSpan(operationName, tags);
+    public DebuggerSpan createSpan(String resourceName, String[] tags) {
+      MockSpan mockSpan = new MockSpan(resourceName, tags);
       spans.add(mockSpan);
       return mockSpan;
     }
@@ -124,11 +135,11 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
   static class MockSpan implements DebuggerSpan {
     boolean finished;
     Throwable throwable;
-    String name;
+    String resourceName;
     String[] tags;
 
-    public MockSpan(String name, String[] tags) {
-      this.name = name;
+    public MockSpan(String resourceName, String[] tags) {
+      this.resourceName = resourceName;
       this.tags = tags;
     }
 
@@ -148,27 +159,16 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
   }
 
   private static SpanProbe createSpan(
-      String id,
-      String spanName,
-      String typeName,
-      String methodName,
-      String signature,
-      String[] tags) {
+      String id, String typeName, String methodName, String signature, String[] tags) {
     return SpanProbe.builder()
         .probeId(id)
         .where(typeName, methodName, signature)
         .tags(tags)
-        .name(spanName)
         .build();
   }
 
   private static SpanProbe createSpan(
-      String id, String spanName, String sourceFile, int lineFrom, int lineTill, String[] tags) {
-    return SpanProbe.builder()
-        .probeId(id)
-        .where(sourceFile, lineFrom, lineTill)
-        .tags(tags)
-        .name(spanName)
-        .build();
+      String id, String sourceFile, int lineFrom, int lineTill, String[] tags) {
+    return SpanProbe.builder().probeId(id).where(sourceFile, lineFrom, lineTill).tags(tags).build();
   }
 }

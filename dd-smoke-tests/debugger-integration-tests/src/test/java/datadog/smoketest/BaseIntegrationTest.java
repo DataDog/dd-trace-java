@@ -180,8 +180,9 @@ public abstract class BaseIntegrationTest {
       }
       try {
         JsonAdapter<Configuration> adapter =
-            MoshiHelper.createMoshiConfig().adapter(Configuration.class);
+            MoshiConfigTestHelper.createMoshiConfig().adapter(Configuration.class);
         String json = adapter.toJson(configuration);
+        System.out.println("Sending json config: " + json);
         String remoteConfigJson = RemoteConfigHelper.encode(json, UUID.randomUUID().toString());
         return new MockResponse().setResponseCode(200).setBody(remoteConfigJson);
       } catch (Exception e) {

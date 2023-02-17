@@ -1,5 +1,6 @@
 package com.datadog.debugger.el.values;
 
+import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.Test;
@@ -15,7 +16,7 @@ class StringValueTest {
     assertFalse(instance.isEmpty());
     assertNull(instance.getValue());
     assertEquals(-1, instance.length());
-    assertEquals("\"null\"", instance.prettyPrint());
+    assertEquals("\"null\"", print(instance));
   }
 
   @ParameterizedTest
@@ -27,6 +28,6 @@ class StringValueTest {
     assertEquals(expected.isEmpty(), instance.isEmpty());
     assertEquals(expected, instance.getValue());
     assertEquals(expected.length(), instance.length());
-    assertEquals("\"" + expected + "\"", instance.prettyPrint());
+    assertEquals("\"" + expected + "\"", print(instance));
   }
 }

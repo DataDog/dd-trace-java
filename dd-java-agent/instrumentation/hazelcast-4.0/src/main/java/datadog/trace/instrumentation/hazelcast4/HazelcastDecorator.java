@@ -5,19 +5,24 @@ import static datadog.trace.instrumentation.hazelcast4.HazelcastConstants.HAZELC
 import static datadog.trace.instrumentation.hazelcast4.HazelcastConstants.HAZELCAST_NAME;
 import static datadog.trace.instrumentation.hazelcast4.HazelcastConstants.HAZELCAST_OPERATION;
 import static datadog.trace.instrumentation.hazelcast4.HazelcastConstants.HAZELCAST_SERVICE;
+import static datadog.trace.instrumentation.hazelcast4.HazelcastConstants.INSTRUMENTATION_NAME;
 
+import datadog.trace.api.Config;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import datadog.trace.util.Strings;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Decorate Hazelcast distributed object span's with relevant contextual information. */
 public class HazelcastDecorator extends ClientDecorator {
 
-  private static final Logger log = LoggerFactory.getLogger(HazelcastDecorator.class);
+  private static final String SERVICE_NAME =
+      SpanNaming.instance()
+          .namingSchema()
+          .cache()
+          .service(Config.get().getServiceName(), INSTRUMENTATION_NAME);
 
   public static final HazelcastDecorator DECORATE = new HazelcastDecorator();
 
@@ -38,7 +43,7 @@ public class HazelcastDecorator extends ClientDecorator {
 
   @Override
   protected String service() {
-    return COMPONENT_NAME.toString();
+    return SERVICE_NAME;
   }
 
   /** Decorate trace based on service execution metadata. */
