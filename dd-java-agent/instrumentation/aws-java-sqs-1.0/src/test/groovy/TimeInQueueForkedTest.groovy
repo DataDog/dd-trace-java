@@ -56,7 +56,7 @@ class TimeInQueueForkedTest extends AgentTestRunner {
     "just one more message"
   ]
 
-  def "sync messages without SentTimestamps have no time-in-queue spans"() {
+  def "sync messages without SentTimestamps have no time-in-queue span"() {
     setup:
     def client = AmazonSQSClientBuilder.standard()
       .withEndpointConfiguration(endpoint)
@@ -92,7 +92,7 @@ class TimeInQueueForkedTest extends AgentTestRunner {
     client.shutdown()
   }
 
-  def "async messages without SentTimestamps have no time-in-queue spans"() {
+  def "async messages without SentTimestamps have no time-in-queue span"() {
     setup:
     def client = AmazonSQSAsyncClientBuilder.standard()
       .withEndpointConfiguration(endpoint)
@@ -128,7 +128,7 @@ class TimeInQueueForkedTest extends AgentTestRunner {
     client.shutdown()
   }
 
-  def "sync messages with SentTimestamps have time-in-queue spans"() {
+  def "sync messages with SentTimestamps have time-in-queue span"() {
     setup:
     def client = AmazonSQSClientBuilder.standard()
       .withEndpointConfiguration(endpoint)
@@ -165,7 +165,7 @@ class TimeInQueueForkedTest extends AgentTestRunner {
     client.shutdown()
   }
 
-  def "async messages with SentTimestamps have time-in-queue spans"() {
+  def "async messages with SentTimestamps have time-in-queue span"() {
     setup:
     def client = AmazonSQSAsyncClientBuilder.standard()
       .withEndpointConfiguration(endpoint)
@@ -229,7 +229,7 @@ class TimeInQueueForkedTest extends AgentTestRunner {
   }
 
   private void assertSqsTraceWithTimeInQueue() {
-    def sendSpan
+    def sendSpan, queueSpan
     assertTraces(6) {
       trace(2) {
         basicSpan(it, "parent")
@@ -239,22 +239,19 @@ class TimeInQueueForkedTest extends AgentTestRunner {
       trace(2) {
         consumerSpan(it, span(1))
         timeInQueueSpan(it, sendSpan)
+        queueSpan = span(1)
       }
-      trace(2) {
-        consumerSpan(it, span(1))
-        timeInQueueSpan(it, sendSpan)
+      trace(1) {
+        consumerSpan(it, queueSpan)
       }
-      trace(2) {
-        consumerSpan(it, span(1))
-        timeInQueueSpan(it, sendSpan)
+      trace(1) {
+        consumerSpan(it, queueSpan)
       }
-      trace(2) {
-        consumerSpan(it, span(1))
-        timeInQueueSpan(it, sendSpan)
+      trace(1) {
+        consumerSpan(it, queueSpan)
       }
-      trace(2) {
-        consumerSpan(it, span(1))
-        timeInQueueSpan(it, sendSpan)
+      trace(1) {
+        consumerSpan(it, queueSpan)
       }
     }
   }

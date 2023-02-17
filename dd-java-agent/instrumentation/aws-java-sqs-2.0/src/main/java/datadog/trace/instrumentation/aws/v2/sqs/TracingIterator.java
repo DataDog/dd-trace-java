@@ -24,6 +24,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
   protected final L delegate;
   private final String queueUrl;
   private final String requestId;
+  private AgentSpan.Context batchContext;
 
   public TracingIterator(L delegate, String queueUrl, String requestId) {
     this.delegate = delegate;
@@ -52,33 +53,37 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
     try {
       closePrevious(true);
       if (message != null) {
-        AgentSpan span, queueSpan = null;
-        if (Config.get().isSqsPropagationEnabled()) {
-          AgentSpan.Context spanContext = propagate().extract(message, GETTER);
-          long timeInQueueStart = GETTER.extractTimeInQueueStart(message);
-          if (timeInQueueStart == 0 || SQS_LEGACY_TRACING) {
-            span = startSpan(AWS_HTTP, spanContext);
-          } else {
-            queueSpan = startSpan(AWS_HTTP, spanContext, MILLISECONDS.toMicros(timeInQueueStart));
-            BROKER_DECORATE.afterStart(queueSpan);
-            BROKER_DECORATE.onTimeInQueue(queueSpan, queueUrl, requestId);
-            span = startSpan(AWS_HTTP, queueSpan.context());
-            BROKER_DECORATE.beforeFinish(queueSpan);
-            // The queueSpan will be finished after inner span has been activated to ensure that
-            // spans are written out together by TraceStructureWriter when running in strict mode
+        AgentSpan queueSpan = null;
+        if (batchContext == null) {
+          // first grab any incoming distributed context
+          AgentSpan.Context spanContext =
+              Config.get().isSqsPropagationEnabled() ? propagate().extract(message, GETTER) : null;
+          // next add a time-in-queue span for non-legacy SQS traces
+          if (!SQS_LEGACY_TRACING) {
+            long timeInQueueStart = GETTER.extractTimeInQueueStart(message);
+            if (timeInQueueStart > 0) {
+              queueSpan = startSpan(AWS_HTTP, spanContext, MILLISECONDS.toMicros(timeInQueueStart));
+              BROKER_DECORATE.afterStart(queueSpan);
+              BROKER_DECORATE.onTimeInQueue(queueSpan, queueUrl, requestId);
+              spanContext = queueSpan.context();
+              // The queueSpan will be finished after inner span has been activated to ensure that
+              // spans are written out together by TraceStructureWriter when running in strict mode
+            }
           }
-        } else {
-          span = startSpan(AWS_HTTP, null);
+          // re-use this context for any other messages received in this batch
+          batchContext = spanContext;
         }
+        AgentSpan span = startSpan(AWS_HTTP, batchContext);
         CONSUMER_DECORATE.afterStart(span);
         CONSUMER_DECORATE.onConsume(span, queueUrl, requestId);
         activateNext(span);
-        if (null != queueSpan) {
+        if (queueSpan != null) {
+          BROKER_DECORATE.beforeFinish(queueSpan);
           queueSpan.finish();
         }
       }
     } catch (Exception e) {
-      log.debug("Error starting new message span", e);
+      log.debug("Problem tracing new SQS message span", e);
     }
   }
 
