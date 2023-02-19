@@ -18,7 +18,6 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Set;
 import javax.annotation.Nullable;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -199,7 +198,6 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
     private final List<String> sourceRoots;
     private final RepoIndexingStats indexingStats;
     private final Path repoRoot;
-    private final Set<SourceType> sourceTypes;
 
     private Path currentSourceRoot;
 
@@ -209,7 +207,6 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
       trieBuilder = new ClassNameTrie.Builder();
       sourceRoots = new ArrayList<>();
       indexingStats = new RepoIndexingStats();
-      sourceTypes = EnumSet.noneOf(SourceType.class);
     }
 
     @Override
@@ -225,7 +222,6 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
         String fileName = file.getFileName().toString();
         SourceType sourceType = SourceType.getByFileName(fileName);
         if (sourceType != null) {
-          sourceTypes.add(sourceType);
           indexingStats.sourceFilesVisited++;
 
           if (currentSourceRoot == null) {
@@ -265,7 +261,7 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
     }
 
     public RepoIndex getIndex() {
-      return new RepoIndex(trieBuilder.buildTrie(), sourceRoots, sourceTypes);
+      return new RepoIndex(trieBuilder.buildTrie(), sourceRoots);
     }
   }
 
@@ -277,23 +273,10 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
   private static final class RepoIndex {
     private final ClassNameTrie trie;
     private final List<String> sourceRoots;
-    private final Set<SourceType> sourceTypes;
-    private final boolean hasNonJavaSources;
 
-    private RepoIndex(ClassNameTrie trie, List<String> sourceRoots, Set<SourceType> sourceTypes) {
+    private RepoIndex(ClassNameTrie trie, List<String> sourceRoots) {
       this.trie = trie;
       this.sourceRoots = sourceRoots;
-      this.sourceTypes = sourceTypes;
-      hasNonJavaSources = hasNonJavaSources(sourceTypes);
-    }
-
-    private boolean hasNonJavaSources(Set<SourceType> sourceTypes) {
-      for (SourceType sourceType : sourceTypes) {
-        if (sourceType != SourceType.JAVA) {
-          return true;
-        }
-      }
-      return false;
     }
   }
 
