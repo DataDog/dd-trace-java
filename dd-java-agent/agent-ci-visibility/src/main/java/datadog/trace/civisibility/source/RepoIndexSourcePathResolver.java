@@ -17,6 +17,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -61,7 +62,7 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
     }
 
     String topLevelClassName = stripNestedClassNames(c.getName());
-    for (SourceType sourceType : SourceType.values()) {
+    for (SourceType sourceType : index.sourceTypes) {
       String extension = sourceType.getExtension();
       String classNameWithExtension = topLevelClassName + extension;
       int sourceRootIdx = index.trie.apply(classNameWithExtension);
@@ -75,11 +76,11 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
     }
 
     boolean packagePrivateClass = (c.getModifiers() & ACCESS_MODIFIERS) == 0;
-    if (packagePrivateClass) {
-      return getSourcePathForPackagePrivateClass(c);
+    if (packagePrivateClass || index.hasNonJavaSources) {
+      return getSourcePathForPackagePrivateOrNonJavaClass(c);
 
     } else {
-      log.warn("Could not find source root for class {}", c.getName());
+      log.debug("Could not find source root for class {}", c.getName());
       return null;
     }
   }
@@ -98,7 +99,7 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
    * files. For such classes filename is extracted from SourceFile attribute that is available in
    * the compiled class.
    */
-  private String getSourcePathForPackagePrivateClass(Class<?> c) {
+  private String getSourcePathForPackagePrivateOrNonJavaClass(Class<?> c) {
     try {
       SourceFileAttributeVisitor sourceFileAttributeVisitor = new SourceFileAttributeVisitor();
 
@@ -177,6 +178,7 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
     private final List<String> sourceRoots;
     private final RepoIndexingStats indexingStats;
     private final Path repoRoot;
+    private final Set<SourceType> sourceTypes;
 
     private Path currentSourceRoot;
 
@@ -186,6 +188,7 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
       trieBuilder = new ClassNameTrie.Builder();
       sourceRoots = new ArrayList<>();
       indexingStats = new RepoIndexingStats();
+      sourceTypes = EnumSet.noneOf(SourceType.class);
     }
 
     @Override
@@ -201,6 +204,7 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
         String fileName = file.getFileName().toString();
         SourceType sourceType = SourceType.getByFileName(fileName);
         if (sourceType != null) {
+          sourceTypes.add(sourceType);
           indexingStats.sourceFilesVisited++;
 
           if (currentSourceRoot == null) {
@@ -240,7 +244,7 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
     }
 
     public RepoIndex getIndex() {
-      return new RepoIndex(trieBuilder.buildTrie(), sourceRoots);
+      return new RepoIndex(trieBuilder.buildTrie(), sourceRoots, sourceTypes);
     }
   }
 
@@ -252,16 +256,30 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
   private static final class RepoIndex {
     private final ClassNameTrie trie;
     private final List<String> sourceRoots;
+    private final Set<SourceType> sourceTypes;
+    private final boolean hasNonJavaSources;
 
-    private RepoIndex(ClassNameTrie trie, List<String> sourceRoots) {
+    private RepoIndex(ClassNameTrie trie, List<String> sourceRoots, Set<SourceType> sourceTypes) {
       this.trie = trie;
       this.sourceRoots = sourceRoots;
+      this.sourceTypes = sourceTypes;
+      hasNonJavaSources = hasNonJavaSources(sourceTypes);
+    }
+
+    private boolean hasNonJavaSources(Set<SourceType> sourceTypes) {
+      for (SourceType sourceType : sourceTypes) {
+        if (sourceType != SourceType.JAVA) {
+          return true;
+        }
+      }
+      return false;
     }
   }
 
   enum SourceType {
     JAVA(".java"),
-    GROOVY(".groovy");
+    GROOVY(".groovy"),
+    KOTLIN(".kt");
 
     private final String extension;
 
