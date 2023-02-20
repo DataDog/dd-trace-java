@@ -13,6 +13,8 @@ public class DatabaseNamingV1 implements NamingSchema.ForDatabase {
         return "mongodb";
       case "elasticsearch.rest":
         return "elasticsearch";
+      case "postgresql":
+        return "postgres";
     }
     return databaseType;
   }
