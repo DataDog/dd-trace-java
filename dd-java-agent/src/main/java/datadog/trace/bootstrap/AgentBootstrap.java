@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
+import java.util.Vector;
 import java.util.jar.JarFile;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -66,13 +67,13 @@ public final class AgentBootstrap {
     // handle them as it does in a startup flow via -D flag
     if (agentArgs != null && agentArgs != "") {
       // split arguments by space character
-      String[] args = agentArgs.split(" ");
+      Vector<String> args = strSplit(agentArgs, ' ');
       for (String arg : args) {
         // we only parse the arguments of the form "arg=value" (e.g:
         // dd.debug.enabled=true)
-        String[] keyValTuple = arg.split("=");
-        if (keyValTuple.length == 2) {
-          System.setProperty(keyValTuple[0], keyValTuple[1]);
+        Vector<String> keyValTuple = strSplit(arg, '=');
+        if (keyValTuple.size() == 2) {
+          System.setProperty(keyValTuple.get(0), keyValTuple.get(1));
         }
       }
     }
@@ -243,6 +244,26 @@ public final class AgentBootstrap {
     inst.appendToBootstrapClassLoaderSearch(new JarFile(javaagentFile));
 
     return ddJavaAgentJarURL;
+  }
+
+  public static Vector<String> strSplit(String str, char sep) {
+    if (str == null) return null;
+
+    Vector<String> result = new Vector<String>();
+
+    int begin = 0;
+    for (int sep_idx = str.indexOf(sep);
+        begin < str.length() && sep_idx != -1;
+        sep_idx = str.indexOf(sep, begin)) {
+      result.add(str.substring(begin, sep_idx));
+      begin = sep_idx + 1;
+      while (begin < str.length() && str.charAt(begin) == sep) {
+        begin++;
+      }
+    }
+    result.add(str.substring(begin));
+
+    return result;
   }
 
   @SuppressForbidden
