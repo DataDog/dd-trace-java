@@ -188,4 +188,19 @@ class StringsTest extends DDSpecification {
     ['value1', 'value2']   | "[\"value1\",\"value2\"]"
     ['va"lu"e1', 'value2'] | "[\"va\\\"lu\\\"e1\",\"value2\"]"
   }
+
+  def "test split"() {
+    when:
+    String[] splits = Strings.split(input, sep)
+
+    then:
+    splits == expected
+
+    where:
+    input          | sep         | expected
+    null           | ' ' as char | null
+    "abc def"      | ' ' as char | ["abc", "def"]
+    "abc def ghi"  | ' ' as char | ["abc", "def", "ghi"]
+    "abc  def ghi" | ' ' as char | ["abc", "def", "ghi"]
+  }
 }
