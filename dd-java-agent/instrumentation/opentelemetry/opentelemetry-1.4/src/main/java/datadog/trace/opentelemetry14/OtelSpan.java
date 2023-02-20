@@ -1,5 +1,6 @@
 package datadog.trace.opentelemetry14;
 
+import static datadog.trace.bootstrap.instrumentation.api.ScopeSource.INSTRUMENTATION;
 import static io.opentelemetry.api.trace.StatusCode.ERROR;
 import static io.opentelemetry.api.trace.StatusCode.OK;
 import static io.opentelemetry.api.trace.StatusCode.UNSET;
@@ -7,7 +8,7 @@ import static io.opentelemetry.api.trace.StatusCode.UNSET;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
+import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
@@ -18,13 +19,16 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
-class OtelSpan implements Span {
+public class OtelSpan implements Span {
   private final AgentSpan delegate;
   private StatusCode statusCode;
   private boolean recording;
 
-  OtelSpan(AgentSpan delegate) {
+  public OtelSpan(AgentSpan delegate) {
     this.delegate = delegate;
+    if (delegate instanceof AttachableWrapper) {
+      ((AttachableWrapper) delegate).attachWrapper(this);
+    }
     this.statusCode = UNSET;
     this.recording = true;
   }
@@ -91,15 +95,13 @@ class OtelSpan implements Span {
 
   @Override
   public boolean isRecording() {
-    // TODO Should we use DDSpan.isFinished()?
     return this.recording;
   }
 
   @Override
   public Scope makeCurrent() {
     Scope scope = Span.super.makeCurrent();
-    AgentScope agentScope =
-        AgentTracer.get().activateSpan(this.delegate, ScopeSource.INSTRUMENTATION);
+    AgentScope agentScope = AgentTracer.get().activateSpan(this.delegate, INSTRUMENTATION);
     return new OtelScope(scope, agentScope);
   }
 }
