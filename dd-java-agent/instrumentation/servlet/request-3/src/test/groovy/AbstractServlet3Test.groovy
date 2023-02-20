@@ -109,7 +109,7 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
       }
   }
 
-  protected void setupDispatchServlets(CONTEXT context, Class<Servlet> dispatchServlet) {
+  protected void setupDispatchServlets(CONTEXT context, Class<? extends Servlet> dispatchServlet) {
     ServerEndpoint.values()
       .findAll { !(it in [NOT_FOUND, UNKNOWN, MATRIX_PARAM]) }
       .each {
