@@ -7,6 +7,7 @@ import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Vector;
 import javax.annotation.Nonnull;
 
 public final class Strings {
@@ -105,6 +106,26 @@ public final class Strings {
   public static String getPackageName(final String className) {
     int lastDot = className.lastIndexOf('.');
     return lastDot < 0 ? "" : className.substring(0, lastDot);
+  }
+
+  public static String[] split(String str, char sep) {
+    if (str == null) return null;
+
+    Vector<String> result = new Vector<String>();
+
+    int begin = 0;
+    for (int sep_idx = str.indexOf(sep);
+        begin < str.length() && sep_idx != -1;
+        sep_idx = str.indexOf(sep, begin)) {
+      result.add(str.substring(begin, sep_idx));
+      begin = sep_idx + 1;
+      while (begin < str.length() && str.charAt(begin) == sep) {
+        begin++;
+      }
+    }
+    result.add(str.substring(begin));
+
+    return result.toArray(new String[result.size()]);
   }
 
   public static String join(CharSequence joiner, Iterable<? extends CharSequence> strings) {
