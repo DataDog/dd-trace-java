@@ -7,7 +7,11 @@ public class DatabaseNamingV0 implements NamingSchema.ForDatabase {
   @Nonnull
   @Override
   public String operation(@Nonnull String databaseType) {
-    return databaseType + ".query";
+    String postfix = ".query";
+    if ("couchbase".equals(databaseType)) {
+      postfix = ".call";
+    }
+    return databaseType + postfix;
   }
 
   @Nonnull

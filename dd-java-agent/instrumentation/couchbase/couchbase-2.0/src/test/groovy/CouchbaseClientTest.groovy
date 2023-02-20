@@ -5,6 +5,7 @@ import com.couchbase.client.java.document.JsonDocument
 import com.couchbase.client.java.document.json.JsonObject
 import com.couchbase.client.java.env.CouchbaseEnvironment
 import com.couchbase.client.java.query.N1qlQuery
+import datadog.trace.api.Config
 import datadog.trace.test.util.Flaky
 import spock.lang.Unroll
 import util.AbstractCouchbaseTest
@@ -14,7 +15,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 @Flaky
 @Unroll
-class CouchbaseClientTest extends AbstractCouchbaseTest {
+abstract class CouchbaseClientTest extends AbstractCouchbaseTest {
   def "test hasBucket #type"() {
     setup:
 
@@ -121,5 +122,26 @@ class CouchbaseClientTest extends AbstractCouchbaseTest {
 
     cleanup:
     cleanupCluster(cluster, environment)
+  }
+}
+
+class CouchbaseClientV0ForkedTest extends CouchbaseClientTest {
+
+}
+
+class CouchbaseClientV1ForkedTest extends CouchbaseClientTest {
+  @Override
+  protected int version() {
+    return 1
+  }
+
+  @Override
+  protected String service() {
+    return Config.get().getServiceName() + "-couchbase"
+  }
+
+  @Override
+  protected String operation() {
+    return "couchbase.query"
   }
 }
