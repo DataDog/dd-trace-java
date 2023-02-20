@@ -819,7 +819,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     when:
     def response = client.newCall(request).execute()
     response.body().string() == PATH_PARAM.body
-    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.waitForTraces(2)
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
@@ -836,9 +836,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         edgeTags.size() == DSM_EDGE_TAGS.size()
       }
     }
-
-    cleanup:
-    TEST_WRITER.waitForTraces(1)
   }
 
   def "test success with multiple header attached parent"() {
