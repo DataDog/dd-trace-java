@@ -749,6 +749,11 @@ public class DDSpanContext
   }
 
   @Override
+  public void set(int offset, int value) {
+    profilingTags[offset] = value;
+  }
+
+  @Override
   public void clear() {
     for (int i = 0; i < profilingTags.length; i++) {
       profilingContextIntegration.clearContext(i);

@@ -18,7 +18,6 @@ import datadog.communication.monitor.Recording;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.api.Dictionary;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.EndpointCheckpointerHolder;
 import datadog.trace.api.EndpointTracker;
@@ -164,8 +163,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final boolean disableSamplingMechanismValidation;
   private final TimeSource timeSource;
   private final ProfilingContextIntegration profilingContextIntegration;
-
-  private final Dictionary constantPool = new Dictionary();
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -589,7 +586,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     propagationTagsFactory = PropagationTags.factory(config);
     this.profilingContextIntegration = profilingContextIntegration;
-    profilingContextIntegration.setConstantPool(constantPool);
   }
 
   @Override
@@ -971,10 +967,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public void registerCheckpointer(EndpointCheckpointer implementation) {
     this.endpointCheckpointer.register(implementation);
-  }
-
-  public int encodeConstant(CharSequence key) {
-    return constantPool.encode(key);
   }
 
   @Override

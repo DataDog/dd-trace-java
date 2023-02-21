@@ -1,7 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import datadog.trace.api.Dictionary;
-
 public interface ProfilingContextIntegration
     extends datadog.trace.api.experimental.ProfilingContext {
   /** Invoked when a trace first propagates to a thread */
@@ -15,8 +13,6 @@ public interface ProfilingContextIntegration
   boolean isQueuingTimeEnabled();
 
   void recordQueueingTime(long duration);
-
-  void setConstantPool(Dictionary dictionary);
 
   int[] createContextStorage(CharSequence operationName);
 
@@ -55,9 +51,6 @@ public interface ProfilingContextIntegration
 
     @Override
     public void recordQueueingTime(long duration) {}
-
-    @Override
-    public void setConstantPool(Dictionary dictionary) {}
 
     @Override
     public int[] createContextStorage(CharSequence operationName) {

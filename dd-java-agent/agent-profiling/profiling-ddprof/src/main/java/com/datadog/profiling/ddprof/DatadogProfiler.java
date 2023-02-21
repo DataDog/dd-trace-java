@@ -335,16 +335,14 @@ public final class DatadogProfiler {
     }
   }
 
+  public int offsetOf(String attribute) {
+    return contextSetter.offsetOf(attribute);
+  }
+
+  @Deprecated(/* "remove after profiler update" */ )
   public boolean setContextValue(String attribute, String value) {
     if (contextSetter != null) {
       return contextSetter.setContextValue(attribute, value);
-    }
-    return false;
-  }
-
-  public boolean clearContextValue(String attribute) {
-    if (contextSetter != null) {
-      return contextSetter.clearContextValue(attribute);
     }
     return false;
   }

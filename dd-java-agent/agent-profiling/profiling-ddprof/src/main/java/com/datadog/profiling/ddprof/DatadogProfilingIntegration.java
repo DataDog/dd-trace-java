@@ -1,8 +1,11 @@
 package com.datadog.profiling.ddprof;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+
 import datadog.trace.api.Dictionary;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
  * This class must be installed early to be able to see all scope initialisations, which means it
@@ -22,12 +25,7 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   private static final boolean SPAN_NAME_ATTRIBUTED_ENABLED =
       DatadogProfilerConfig.isSpanNameContextAttributeEnabled();
 
-  private static final AtomicReferenceFieldUpdater<DatadogProfilingIntegration, Dictionary>
-      CONSTANT_POOL_UPDATER =
-          AtomicReferenceFieldUpdater.newUpdater(
-              DatadogProfilingIntegration.class, Dictionary.class, "constantPool");
-
-  private volatile Dictionary constantPool;
+  private final Dictionary constantPool = new Dictionary();
 
   @Override
   public void onAttach() {
@@ -50,12 +48,27 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
 
   @Override
   public void setContextValue(String attribute, String value) {
-    DDPROF.setContextValue(attribute, value);
+    int offset = DDPROF.offsetOf(attribute);
+    if (offset >= 0) {
+      int encoding = constantPool.encode(value);
+      AgentSpan activeSpan = activeSpan();
+      if (activeSpan.context() instanceof ProfilingContext) {
+        ((ProfilingContext) activeSpan.context()).set(offset, encoding);
+      }
+      DDPROF.setContext(offset, encoding);
+    }
   }
 
   @Override
   public void clearContextValue(String attribute) {
-    DDPROF.clearContextValue(attribute);
+    int offset = DDPROF.offsetOf(attribute);
+    if (offset >= 0) {
+      AgentSpan activeSpan = activeSpan();
+      if (activeSpan.context() instanceof ProfilingContext) {
+        ((ProfilingContext) activeSpan.context()).set(offset, 0);
+      }
+      DDPROF.clearContext(offset);
+    }
   }
 
   @Override
@@ -65,11 +78,6 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
 
   @Override
   public void recordQueueingTime(long duration) {}
-
-  @Override
-  public void setConstantPool(Dictionary dictionary) {
-    CONSTANT_POOL_UPDATER.compareAndSet(this, null, dictionary);
-  }
 
   @Override
   public int[] createContextStorage(CharSequence operationName) {

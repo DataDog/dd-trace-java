@@ -32,10 +32,6 @@ class TestProfilingContextIntegration implements ProfilingContextIntegration {
   }
 
   @Override
-  void setConstantPool(Dictionary dictionary) {
-  }
-
-  @Override
   int[] createContextStorage(CharSequence operationName) {
     return new int[0]
   }
