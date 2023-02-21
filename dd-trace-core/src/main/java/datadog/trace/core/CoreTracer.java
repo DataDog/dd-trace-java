@@ -18,6 +18,7 @@ import datadog.communication.monitor.Recording;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.Dictionary;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.EndpointCheckpointerHolder;
 import datadog.trace.api.EndpointTracker;
@@ -163,6 +164,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final boolean disableSamplingMechanismValidation;
   private final TimeSource timeSource;
   private final ProfilingContextIntegration profilingContextIntegration;
+
+  private final Dictionary constantPool = new Dictionary();
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -969,6 +972,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.endpointCheckpointer.register(implementation);
   }
 
+  public int encodeConstant(CharSequence key) {
+    return constantPool.encode(key);
+  }
+
   @Override
   public SubscriptionService getSubscriptionService(RequestContextSlot slot) {
     return (SubscriptionService) this.instrumentationGateway.getCallbackProvider(slot);
@@ -1352,6 +1359,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final CharSequence operationName =
           this.operationName != null ? this.operationName : resourceName;
 
+      // don't encode the operation name unless it's actually defined
+      final int encodedOperationName =
+          this.operationName != null ? encodeConstant(operationName) : 0;
+
       final int tagsSize =
           (null == tags ? 0 : tags.size())
               + defaultSpanTags.size()
@@ -1378,7 +1389,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               requestContextDataIast,
               pathwayContext,
               disableSamplingMechanismValidation,
-              propagationTags);
+              propagationTags,
+              encodedOperationName);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`

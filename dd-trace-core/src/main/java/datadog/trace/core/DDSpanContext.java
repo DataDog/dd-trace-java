@@ -131,6 +131,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
 
   private volatile BlockResponseFunction blockResponseFunction;
 
+  private volatile int encodedOperationName;
+
   public DDSpanContext(
       final DDTraceId traceId,
       final long spanId,
@@ -151,6 +153,50 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
       final PathwayContext pathwayContext,
       final boolean disableSamplingMechanismValidation,
       final PropagationTags propagationTags) {
+    this(
+        traceId,
+        spanId,
+        parentId,
+        parentServiceName,
+        serviceName,
+        operationName,
+        resourceName,
+        samplingPriority,
+        origin,
+        baggageItems,
+        errorFlag,
+        spanType,
+        tagsSize,
+        trace,
+        requestContextDataAppSec,
+        requestContextDataIast,
+        pathwayContext,
+        disableSamplingMechanismValidation,
+        propagationTags,
+        0);
+  }
+
+  public DDSpanContext(
+      final DDTraceId traceId,
+      final long spanId,
+      final long parentId,
+      final CharSequence parentServiceName,
+      final String serviceName,
+      final CharSequence operationName,
+      final CharSequence resourceName,
+      final int samplingPriority,
+      final CharSequence origin,
+      final Map<String, String> baggageItems,
+      final boolean errorFlag,
+      final CharSequence spanType,
+      final int tagsSize,
+      final PendingTrace trace,
+      final Object requestContextDataAppSec,
+      final Object requestContextDataIast,
+      final PathwayContext pathwayContext,
+      final boolean disableSamplingMechanismValidation,
+      final PropagationTags propagationTags,
+      final int encodedOperationName) {
 
     assert trace != null;
     this.trace = trace;
@@ -199,6 +245,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
     if (samplingPriority != PrioritySampling.UNSET) {
       setSamplingPriority(samplingPriority, SamplingMechanism.UNKNOWN);
     }
+    this.encodedOperationName = encodedOperationName;
   }
 
   @Override
@@ -257,6 +304,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
 
   public void setOperationName(final CharSequence operationName) {
     this.operationName = operationName;
+    this.encodedOperationName = trace.getTracer().encodeConstant(operationName);
   }
 
   public boolean getErrorFlag() {

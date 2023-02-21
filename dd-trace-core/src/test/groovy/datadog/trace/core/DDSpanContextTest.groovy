@@ -251,6 +251,23 @@ class DDSpanContextTest extends DDCoreSpecification {
     span.resourceName == "fakeResource"
   }
 
+  def "setting operation name triggers constant encoding"() {
+    when:
+    def span = tracer.buildSpan("fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .start()
+
+    then: "encoded operation name matches operation name"
+    span.context.encodedOperationName == tracer.encodeConstant("fakeOperation")
+
+    when:
+    span.setOperationName("newOperationName")
+
+    then:
+    span.context.encodedOperationName == tracer.encodeConstant("newOperationName")
+  }
+
   private static String dataTag(String tag) {
     "_dd.${tag}.json"
   }
