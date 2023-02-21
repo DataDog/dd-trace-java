@@ -36,6 +36,8 @@ public class MetricProbesInstrumentationTest {
   private static final String METRIC_ID1 = "beae1807-f3b0-4ea8-a74f-826790c5e6f6";
   private static final String METRIC_ID2 = "beae1807-f3b0-4ea8-a74f-826790c5e6f7";
   private static final String SERVICE_NAME = "service-name";
+  private static final String METRIC_PROBEID_TAG =
+      "debugger.probeid:beae1807-f3b0-4ea8-a74f-826790c5e6f8";
 
   private Instrumentation instr = ByteBuddyAgent.install();
   private ClassFileTransformer currentTransformer;
@@ -59,7 +61,7 @@ public class MetricProbesInstrumentationTest {
     Assert.assertEquals(3, result);
     Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
     Assert.assertEquals(1, listener.counters.get(METRIC_NAME).longValue());
-    Assert.assertArrayEquals(null, listener.lastTags);
+    Assert.assertArrayEquals(new String[] {METRIC_PROBEID_TAG}, listener.lastTags);
   }
 
   @Test
@@ -80,7 +82,8 @@ public class MetricProbesInstrumentationTest {
     Assert.assertEquals(3, result);
     Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
     Assert.assertEquals(1, listener.counters.get(METRIC_NAME).longValue());
-    Assert.assertArrayEquals(new String[] {"tag1:foo1", "tag2:foo2"}, listener.lastTags);
+    Assert.assertArrayEquals(
+        new String[] {"tag1:foo1", "tag2:foo2", METRIC_PROBEID_TAG}, listener.lastTags);
   }
 
   @Test
@@ -179,7 +182,7 @@ public class MetricProbesInstrumentationTest {
     Assert.assertEquals(48, result);
     Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
     Assert.assertEquals(31, listener.counters.get(METRIC_NAME).longValue());
-    Assert.assertArrayEquals(null, listener.lastTags);
+    Assert.assertArrayEquals(new String[] {METRIC_PROBEID_TAG}, listener.lastTags);
   }
 
   @Test
@@ -197,7 +200,7 @@ public class MetricProbesInstrumentationTest {
             new String[] {"tag1:foo1"});
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
-    Assert.assertArrayEquals(new String[] {"tag1:foo1"}, listener.lastTags);
+    Assert.assertArrayEquals(new String[] {"tag1:foo1", METRIC_PROBEID_TAG}, listener.lastTags);
   }
 
   @Test
@@ -217,7 +220,7 @@ public class MetricProbesInstrumentationTest {
     Assert.assertEquals(48, result);
     Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
     Assert.assertEquals(31, listener.counters.get(METRIC_NAME).longValue());
-    Assert.assertArrayEquals(null, listener.lastTags);
+    Assert.assertArrayEquals(new String[] {METRIC_PROBEID_TAG}, listener.lastTags);
   }
 
   @Test
@@ -239,7 +242,7 @@ public class MetricProbesInstrumentationTest {
     Assert.assertEquals(48, result);
     Assert.assertTrue(listener.counters.containsKey(METRIC_NAME));
     Assert.assertEquals(31, listener.counters.get(METRIC_NAME).longValue());
-    Assert.assertArrayEquals(new String[] {"tag1:foo1"}, listener.lastTags);
+    Assert.assertArrayEquals(new String[] {"tag1:foo1", METRIC_PROBEID_TAG}, listener.lastTags);
   }
 
   @Test
@@ -382,7 +385,7 @@ public class MetricProbesInstrumentationTest {
             CLASS_NAME,
             "f",
             "()",
-            new ValueScript(DSL.ref("this.intValue"), "this.intValue"));
+            new ValueScript(DSL.getMember(DSL.ref("this"), "intValue"), "this.intValue"));
 
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "f").get();
@@ -401,7 +404,7 @@ public class MetricProbesInstrumentationTest {
             METRIC_NAME,
             COUNT,
             CLASS_NAME,
-            new ValueScript(DSL.ref("this.intValue"), "intValue"),
+            new ValueScript(DSL.getMember(DSL.ref("this"), "intValue"), "intValue"),
             24);
     MetricForwarderListener listener = installMetricProbes(metricProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);

@@ -3,7 +3,7 @@ package com.datadog.appsec.powerwaf;
 import com.datadog.appsec.config.TraceSegmentPostProcessor;
 import com.datadog.appsec.gateway.AppSecRequestContext;
 import com.datadog.appsec.report.raw.events.AppSecEvent100;
-import datadog.trace.api.TraceSegment;
+import datadog.trace.api.internal.TraceSegment;
 import io.sqreen.powerwaf.PowerwafMetrics;
 import java.util.Collection;
 

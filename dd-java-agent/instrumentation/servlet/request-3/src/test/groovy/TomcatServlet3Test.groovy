@@ -80,6 +80,7 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
 
     @Override
     void stop() {
+      //      sleep 10_000
       server.stop()
       server.destroy()
     }

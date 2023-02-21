@@ -64,10 +64,10 @@ public final class InstrumenterState {
 
   /** Resets the default instrumentation state so nothing is blocked or applied. */
   public static void resetDefaultState() {
-    int instrumentationCount = instrumentationNames.length;
+    int maxInstrumentationCount = instrumentationNames.length;
 
     int wordsPerClassLoaderState =
-        ((instrumentationCount << 1) + BITS_PER_WORD - 1) >> ADDRESS_BITS_PER_WORD;
+        ((maxInstrumentationCount << 1) + BITS_PER_WORD - 1) >> ADDRESS_BITS_PER_WORD;
 
     if (defaultState.length > 0) { // optimization: skip clear if there's no old state
       classLoaderStates.clear();
@@ -91,9 +91,8 @@ public final class InstrumenterState {
     updateState(classLoader, instrumentationId, APPLIED);
     if (log.isDebugEnabled()) {
       log.debug(
-          "Instrumentation applied - instrumentation.names=[{}] instrumentation.class={} instrumentation.target.classloader={}",
-          Strings.join(",", instrumentationNames[instrumentationId]),
-          instrumentationClasses[instrumentationId],
+          "Instrumentation applied - {} instrumentation.target.classloader={}",
+          describe(instrumentationId),
           classLoader);
     }
     if (null != observer) {
@@ -106,9 +105,8 @@ public final class InstrumenterState {
     updateState(classLoader, instrumentationId, BLOCKED);
     if (log.isDebugEnabled()) {
       log.debug(
-          "Instrumentation blocked - instrumentation.names=[{}] instrumentation.class={} instrumentation.target.classloader={}",
-          Strings.join(",", instrumentationNames[instrumentationId]),
-          instrumentationClasses[instrumentationId],
+          "Instrumentation blocked - {} instrumentation.target.classloader={}",
+          describe(instrumentationId),
           classLoader);
     }
   }
@@ -120,6 +118,17 @@ public final class InstrumenterState {
     long bitsToSet = ((long) BLOCKED) << (bitIndex & BIT_INDEX_MASK);
     synchronized (defaultState) {
       defaultState[wordIndex] |= bitsToSet;
+    }
+  }
+
+  public static String describe(int instrumentationId) {
+    if (instrumentationId >= 0 && instrumentationId < instrumentationNames.length) {
+      return "instrumentation.names=["
+          + Strings.join(",", instrumentationNames[instrumentationId])
+          + "] instrumentation.class="
+          + instrumentationClasses[instrumentationId];
+    } else {
+      return "<unknown instrumentation>";
     }
   }
 

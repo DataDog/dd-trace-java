@@ -1,6 +1,6 @@
 package com.datadog.iast
 
-import datadog.trace.api.TraceSegment
+import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.gateway.InstrumentationGateway
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.gateway.RequestContext

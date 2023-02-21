@@ -7,7 +7,6 @@ import com.google.common.collect.Sets
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.checkpoints.TestEndpointCheckpointer
-import datadog.trace.agent.test.checkpoints.TimelineTracingContextTracker
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
 import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter
 import datadog.trace.agent.tooling.AgentInstaller
@@ -30,9 +29,9 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.PendingTrace
-import datadog.trace.core.datastreams.DataStreamsCheckpointer
-import datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer
-import datadog.trace.core.datastreams.StubDataStreamsCheckpointer
+import datadog.trace.bootstrap.instrumentation.api.DataStreamsMonitoring
+import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring
+import datadog.trace.bootstrap.instrumentation.api.NoopDataStreamsMonitoring
 import datadog.trace.test.util.DDSpecification
 import de.thetaphi.forbiddenapis.SuppressForbidden
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
@@ -56,7 +55,6 @@ import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
-
 /**
  * A spock test runner which automatically applies instrumentation and exposes a global trace
  * writer.
@@ -124,10 +122,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   @SuppressWarnings('PropertyName')
   @Shared
-  TimelineTracingContextTracker TEST_TRACKER = Spy(TimelineTracingContextTracker.register())
-
-  @SuppressWarnings('PropertyName')
-  @Shared
   Set<DDSpanId> TEST_SPANS = Sets.newHashSet()
 
   @SuppressWarnings('PropertyName')
@@ -136,7 +130,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   @SuppressWarnings('PropertyName')
   @Shared
-  DataStreamsCheckpointer TEST_DATA_STREAMS_CHECKPOINTER
+  DataStreamsMonitoring TEST_DATA_STREAMS_MONITORING
 
   @Shared
   ClassFileTransformer activeTransformer
@@ -186,12 +180,12 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
         void register(EventListener listener) {}
       }
-    TEST_DATA_STREAMS_CHECKPOINTER = new StubDataStreamsCheckpointer()
+    TEST_DATA_STREAMS_MONITORING = new NoopDataStreamsMonitoring()
     if (isDataStreamsEnabled()) {
       // Fast enough so tests don't take forever
       long bucketDuration = TimeUnit.MILLISECONDS.toNanos(50)
       WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
-      TEST_DATA_STREAMS_CHECKPOINTER = new DefaultDataStreamsCheckpointer(sink, features, SystemTimeSource.INSTANCE, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
+      TEST_DATA_STREAMS_MONITORING = new DefaultDataStreamsMonitoring(sink, features, SystemTimeSource.INSTANCE, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
     }
     TEST_WRITER = new ListWriter()
     TEST_TRACER =
@@ -201,7 +195,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       .idGenerationStrategy(IdGenerationStrategy.fromName("SEQUENTIAL"))
       .statsDClient(STATS_D_CLIENT)
       .strictTraceWrites(useStrictTraceWrites())
-      .dataStreamsCheckpointer(TEST_DATA_STREAMS_CHECKPOINTER)
+      .dataStreamsMonitoring(TEST_DATA_STREAMS_MONITORING)
       .profilingContextIntegration(TEST_PROFILING_CONTEXT_INTEGRATION)
       .build())
     TEST_TRACER.registerCheckpointer(TEST_CHECKPOINTER)
@@ -226,9 +220,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   }
 
   void setup() {
-    // re-register in case a new JVM is spawned
-    TimelineTracingContextTracker.register()
-
     configureLoggingLevels()
 
     assertThreadsEachCleanup = false
@@ -243,15 +234,13 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     println "Starting test: ${getSpecificationContext().getCurrentIteration().getName()}"
     TEST_TRACER.flush()
     TEST_SPANS.clear()
-    TEST_TRACKER.clear()
     TEST_WRITER.start()
     TEST_DATA_STREAMS_WRITER.clear()
-    TEST_DATA_STREAMS_CHECKPOINTER.clear()
+    TEST_DATA_STREAMS_MONITORING.clear()
 
     def util = new MockUtil()
     util.attachMock(STATS_D_CLIENT, this)
     util.attachMock(TEST_CHECKPOINTER, this)
-    util.attachMock(TEST_TRACKER, this)
 
     originalAppSecRuntimeValue = ActiveSubsystems.APPSEC_ACTIVE
     ActiveSubsystems.APPSEC_ACTIVE = true
@@ -262,10 +251,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     def util = new MockUtil()
     util.detachMock(STATS_D_CLIENT)
     util.detachMock(TEST_CHECKPOINTER)
-    util.detachMock(TEST_TRACKER)
-
-
-    TEST_TRACKER.print()
 
     ActiveSubsystems.APPSEC_ACTIVE = originalAppSecRuntimeValue
   }

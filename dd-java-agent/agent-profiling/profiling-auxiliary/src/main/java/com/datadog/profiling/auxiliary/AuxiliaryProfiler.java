@@ -1,5 +1,7 @@
 package com.datadog.profiling.auxiliary;
 
+import static datadog.trace.api.Config.isDatadogProfilerSafeInCurrentEnvironment;
+
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.utils.ProfilingMode;
 import datadog.trace.api.Platform;
@@ -14,7 +16,7 @@ import org.slf4j.LoggerFactory;
  * A pluggable auxiliary profiler.<br>
  * An auxiliary profiler is an external profiler implementation which provides an added value on top
  * of the built in JFR. An example of such auxiliary profiler would be <a
- * href="https://github.com/jvm-profiling-tools/async-profiler">Async Profiler</a> <br>
+ * href="https://github.com/DataDog/java-profiler">Java Profiler</a> <br>
  * <br>
  * The profiler implementations must extend {@linkplain AuxiliaryImplementation} interface and are
  * instantiated via an {@linkplain AuxiliaryImplementation.Provider} instance registered in {@code
@@ -40,9 +42,10 @@ public final class AuxiliaryProfiler {
     String auxilliaryType =
         Platform.isLinux()
                 && configProvider.getBoolean(
-                    ProfilingConfig.PROFILING_ASYNC_ENABLED,
-                    ProfilingConfig.PROFILING_ASYNC_ENABLED_DEFAULT)
-            ? "async"
+                    ProfilingConfig.PROFILING_DATADOG_PROFILER_ENABLED,
+                    configProvider.getBoolean(
+                        "profiling.async.enabled", isDatadogProfilerSafeInCurrentEnvironment()))
+            ? "ddprof"
             : configProvider.getString(
                 ProfilingConfig.PROFILING_AUXILIARY_TYPE,
                 ProfilingConfig.PROFILING_AUXILIARY_TYPE_DEFAULT);
@@ -61,7 +64,7 @@ public final class AuxiliaryProfiler {
         break;
       }
     }
-    this.implementation = impl != null ? impl : AuxiliaryImplementation.NULL;
+    this.implementation = impl;
   }
 
   AuxiliaryProfiler(AuxiliaryImplementation impl) {

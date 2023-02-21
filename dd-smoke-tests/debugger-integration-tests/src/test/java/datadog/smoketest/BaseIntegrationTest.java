@@ -9,6 +9,7 @@ import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.util.MoshiHelper;
+import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
 import datadog.trace.bootstrap.debugger.Snapshot;
@@ -203,7 +204,7 @@ public abstract class BaseIntegrationTest {
   }
 
   protected JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> createAdapterForSnapshot() {
-    return MoshiHelper.createMoshiSnapshot()
+    return MoshiSnapshotTestHelper.createMoshiSnapshot()
         .adapter(
             Types.newParameterizedType(List.class, JsonSnapshotSerializer.IntakeRequest.class));
   }

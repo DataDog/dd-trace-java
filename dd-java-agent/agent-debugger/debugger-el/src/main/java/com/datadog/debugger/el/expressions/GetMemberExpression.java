@@ -1,5 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.Expression.nullSafePrettyPrint;
+
 import com.datadog.debugger.el.Generated;
 import com.datadog.debugger.el.Value;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
@@ -50,5 +52,10 @@ public class GetMemberExpression implements ValueExpression {
 
   public String getMemberName() {
     return memberName;
+  }
+
+  @Override
+  public String prettyPrint() {
+    return nullSafePrettyPrint(target) + "." + memberName;
   }
 }

@@ -176,7 +176,7 @@ class DDSpanContextTest extends DDCoreSpecification {
 
   def "set TraceSegment tags and data on correct span"() {
     setup:
-    def extracted = new ExtractedContext(DDTraceId.from(123), 456, SAMPLER_KEEP, "789", 0, [:], [:], null, tracer.getDatadogTagsFactory().empty())
+    def extracted = new ExtractedContext(DDTraceId.from(123), 456, SAMPLER_KEEP, "789", 0, [:], [:], null, tracer.getPropagationTagsFactory().empty())
     .withRequestContextDataAppSec("dummy")
 
     def top = tracer.buildSpan("top").asChildOf((AgentSpan.Context) extracted).start()
@@ -225,14 +225,30 @@ class DDSpanContextTest extends DDCoreSpecification {
     context.getTag(SPAN_SAMPLING_MECHANISM_TAG) == SPAN_SAMPLING_RATE
     context.getTag(SPAN_SAMPLING_RULE_RATE_TAG) == rate
     context.getTag(SPAN_SAMPLING_MAX_PER_SECOND_TAG) == (limit == Integer.MAX_VALUE ? null : limit)
-    context.getSamplingPriority() == USER_KEEP
-    context.getDatadogTags().createTagMap() == ["_dd.p.dm":"-" + SPAN_SAMPLING_RATE]
+    // single span sampling should not change the trace sampling priority
+    context.getSamplingPriority() == UNSET
+    // make sure the `_dd.p.dm` tag has not been set by single span sampling
+    context.getPropagationTags().createTagMap() == [:]
 
     where:
     rate | limit
     1.0  | 10
     0.5  | 100
     0.25 | Integer.MAX_VALUE
+  }
+
+  def "setting resource name to null is ignored"() {
+    setup:
+    def span = tracer.buildSpan("fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .start()
+
+    when:
+    span.setResourceName(null)
+
+    then:
+    span.resourceName == "fakeResource"
   }
 
   private static String dataTag(String tag) {

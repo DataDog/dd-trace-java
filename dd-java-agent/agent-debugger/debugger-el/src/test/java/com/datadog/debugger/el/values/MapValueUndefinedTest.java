@@ -16,6 +16,11 @@ class MapValueUndefinedTest {
   }
 
   @Test
+  void prettyPrint() {
+    assertEquals("null", instance.prettyPrint());
+  }
+
+  @Test
   void isEmpty() {
     assertTrue(instance.isEmpty());
   }

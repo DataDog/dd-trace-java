@@ -1,3 +1,4 @@
+import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.instrumentation.netty40.server.NettyHttpServerDecorator
@@ -24,6 +25,7 @@ import io.netty.util.CharsetUtil
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
@@ -87,6 +89,12 @@ class Netty40ServerTest extends HttpServerTest<EventLoopGroup> {
                         break
                       case EXCEPTION:
                         throw new Exception(endpoint.body)
+                      case USER_BLOCK:
+                        Blocking.forUser('user-to-block').blockIfMatch()
+                      // should never be output:
+                        response = new DefaultFullHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(200))
+                        response.content = 'should never be reached'
+                        break
                       default:
                         content = Unpooled.copiedBuffer(NOT_FOUND.body, CharsetUtil.UTF_8)
                         response = new DefaultFullHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(NOT_FOUND.status), content)
@@ -142,5 +150,10 @@ class Netty40ServerTest extends HttpServerTest<EventLoopGroup> {
   @Override
   String expectedOperationName() {
     "netty.request"
+  }
+
+  @Override
+  boolean testBlocking() {
+    true
   }
 }

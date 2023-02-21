@@ -1,7 +1,7 @@
+import datadog.smoketest.controller.ServletRequestTestSuite
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.iast.InstrumentationBridge
-import datadog.smoketest.controller.TestSuite
 import datadog.trace.api.iast.source.WebModule
 
 import javax.servlet.http.HttpServletRequest
@@ -28,7 +28,7 @@ class TestGetParameterInstrumentation extends AgentTestRunner {
     servletRequest.getParameterValues("param1") >> ["value1", "value2"]
     servletRequest.getParameterNames() >> {return Collections.enumeration(arrayList)}
     final wrapper = new HttpServletRequestWrapper(servletRequest)
-    final TestSuite testSuite = new TestSuite(wrapper)
+    final ServletRequestTestSuite testSuite = new ServletRequestTestSuite(wrapper)
 
 
     when:

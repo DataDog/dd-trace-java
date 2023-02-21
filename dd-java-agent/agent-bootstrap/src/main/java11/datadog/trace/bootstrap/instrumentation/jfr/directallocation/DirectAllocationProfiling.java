@@ -39,16 +39,8 @@ public class DirectAllocationProfiling {
       DirectAllocationSource source, Class<?> caller, long bytes) {
     boolean firstHit = histogram.record(caller, source, bytes);
     if (sampler.sample() || firstHit) {
-      return new DirectAllocationSampleEvent(className(caller), source.name(), bytes);
+      return new DirectAllocationSampleEvent(caller.getName(), source.name(), bytes);
     }
     return null;
-  }
-
-  public DirectAllocationSampleEvent sample(DirectAllocationSource source, int bytes) {
-    return sample(source, Void.TYPE, bytes);
-  }
-
-  static String className(Class<?> caller) {
-    return caller == Void.TYPE ? "native" : caller.getName();
   }
 }

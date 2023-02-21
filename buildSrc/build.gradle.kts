@@ -31,7 +31,7 @@ dependencies {
   implementation(gradleApi())
   implementation(localGroovy())
 
-  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.12.20")
+  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.12.22")
 
   implementation("org.eclipse.aether", "aether-connector-basic", "1.1.0")
   implementation("org.eclipse.aether", "aether-transport-http", "1.1.0")
@@ -46,6 +46,7 @@ dependencies {
 }
 
 tasks.test {
-  //useJUnitPlatform()
-  //dependsOn(":call-site-instrumentation-plugin:build")
+  // useJUnitPlatform()
+  // dependsOn(":call-site-instrumentation-plugin:build")
+  // enabled = !project.hasProperty("skipBuildSrcTest")
 }

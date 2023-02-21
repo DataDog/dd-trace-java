@@ -8,12 +8,12 @@ import datadog.trace.bootstrap.debugger.el.Values;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
+import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,13 +33,14 @@ public class Snapshot {
   private final ProbeDetails probe;
   private final String language;
   private final transient CapturedThread thread;
-  private final transient Set<String> capturingProbeIds = new HashSet<>();
+  private final transient Map<String, SnapshotStatus> snapshotStatuses = new LinkedHashMap<>();
   private final transient Map<String, List<EvaluationError>> errorsByProbeIds = new HashMap<>();
   private final transient String thisClassName;
   private String traceId; // trace_id
   private String spanId; // span_id
   private List<EvaluationError> evaluationErrors;
   private final transient SummaryBuilder summaryBuilder;
+  private transient boolean capturing = true;
 
   public Snapshot(java.lang.Thread thread, ProbeDetails probeDetails, String thisClassName) {
     this.startTs = System.nanoTime();
@@ -51,7 +52,7 @@ public class Snapshot {
     this.probe = probeDetails;
     this.thisClassName = thisClassName;
     this.summaryBuilder = probeDetails.summaryBuilder;
-    addCapturingProbeId(probeDetails);
+    addSnapshotStatus(probeDetails);
   }
 
   public Snapshot(
@@ -81,17 +82,23 @@ public class Snapshot {
     this.spanId = spanId;
     this.thisClassName = thisClassName;
     this.summaryBuilder = probeDetails.summaryBuilder;
-    addCapturingProbeId(this.probe);
+    addSnapshotStatus(this.probe);
   }
 
-  private void addCapturingProbeId(ProbeDetails probe) {
-    if (probe != null) {
-      capturingProbeIds.add(probe.id);
+  private void addSnapshotStatus(ProbeDetails probe) {
+    if (probe == null) {
+      return;
+    }
+    snapshotStatuses.put(probe.id, new SnapshotStatus(probe.captureSnapshot, true, probe));
+    for (ProbeDetails additionalProbe : probe.additionalProbes) {
+      snapshotStatuses.put(
+          additionalProbe.id,
+          new SnapshotStatus(additionalProbe.captureSnapshot, true, additionalProbe));
     }
   }
 
   public void setEntry(CapturedContext context) {
-    summaryBuilder.addEntry(context);
+    processSummaries(SummaryBuilder::addEntry, context);
     context.setThisClassName(thisClassName);
     if (checkCapture(context, MethodLocation.ENTRY)) {
       captures.setEntry(context);
@@ -101,7 +108,7 @@ public class Snapshot {
   public void setExit(CapturedContext context) {
     duration = System.nanoTime() - startTs;
     context.addExtension(ValueReferences.DURATION_EXTENSION_NAME, duration);
-    summaryBuilder.addExit(context);
+    processSummaries(SummaryBuilder::addExit, context);
     context.setThisClassName(thisClassName);
     if (checkCapture(context, MethodLocation.EXIT)) {
       captures.setReturn(context);
@@ -109,7 +116,7 @@ public class Snapshot {
   }
 
   public void addLine(CapturedContext context, int line) {
-    summaryBuilder.addLine(context);
+    processSummaries(SummaryBuilder::addLine, context);
     context.setThisClassName(thisClassName);
     if (checkCapture(context, MethodLocation.DEFAULT)) {
       captures.addLine(line, context);
@@ -174,72 +181,61 @@ public class Snapshot {
     return evaluationErrors;
   }
 
-  public String getSummary() {
-    return summaryBuilder.build();
+  public String buildSummary() {
+    String summary = summaryBuilder.build();
+    List<EvaluationError> errors = summaryBuilder.getEvaluationErrors();
+    if (!errors.isEmpty()) {
+      if (evaluationErrors == null) {
+        evaluationErrors = new ArrayList<>();
+      }
+      evaluationErrors.addAll(errors);
+    }
+    return summary;
   }
 
   public void commit() {
-    if (!isCapturing() && errorsByProbeIds.isEmpty()) {
-      DebuggerContext.skipSnapshot(probe.id, DebuggerContext.SkipCause.CONDITION);
-      for (ProbeDetails probeDetails : probe.additionalProbes) {
-        DebuggerContext.skipSnapshot(probeDetails.id, DebuggerContext.SkipCause.CONDITION);
+    for (Map.Entry<String, SnapshotStatus> entry : snapshotStatuses.entrySet()) {
+      String currentProbeId = entry.getKey();
+      SnapshotStatus status = entry.getValue();
+      if (!status.sending) {
+        DebuggerContext.skipSnapshot(currentProbeId, DebuggerContext.SkipCause.CONDITION);
+        continue;
       }
-      return;
-    }
-    // only rate limit if a condition is defined
-    if (probe.getScript() != null && probe.isSnapshotProbe()) {
-      if (!ProbeRateLimiter.tryProbe(probe.id)) {
-        DebuggerContext.skipSnapshot(probe.id, DebuggerContext.SkipCause.RATE);
-        return;
+      // only rate limit if a condition is defined
+      if (status.probeDetails.getScript() != null) {
+        if (!ProbeRateLimiter.tryProbe(currentProbeId)) {
+          DebuggerContext.skipSnapshot(currentProbeId, DebuggerContext.SkipCause.RATE);
+          continue;
+        }
       }
-    }
-    // generates id only when effectively committing
-    this.id = UUID.randomUUID().toString();
-    /*
-     * Record stack trace having the caller of this method as 'top' frame.
-     * For this it is necessary to discard:
-     * - Thread.currentThread().getStackTrace()
-     * - Snapshot.recordStackTrace()
-     * - Snapshot.commit()
-     */
-    recordStackTrace(3);
-    if (capturingProbeIds.contains(probe.id) || errorsByProbeIds.containsKey(probe.id)) {
-      DebuggerContext.addSnapshot(this);
-    } else {
-      DebuggerContext.skipSnapshot(probe.id, DebuggerContext.SkipCause.CONDITION);
-    }
-    for (ProbeDetails additionalProbe : probe.additionalProbes) {
-      if (capturingProbeIds.contains(additionalProbe.id)
-          || errorsByProbeIds.containsKey(additionalProbe.id)) {
-        DebuggerContext.addSnapshot(copy(additionalProbe.id, UUID.randomUUID().toString()));
-      } else {
-        DebuggerContext.skipSnapshot(additionalProbe.id, DebuggerContext.SkipCause.CONDITION);
-      }
+      /*
+       * Record stack trace having the caller of this method as 'top' frame.
+       * For this it is necessary to discard:
+       * - Thread.currentThread().getStackTrace()
+       * - Snapshot.recordStackTrace()
+       * - Snapshot.commit()
+       */
+      recordStackTrace(3);
+      DebuggerContext.addSnapshot(duplicateSnapshotForProbe(status.probeDetails));
     }
   }
 
-  private Snapshot copy(String probeId, String newSnapshotId) {
+  private Snapshot duplicateSnapshotForProbe(ProbeDetails probe) {
     Snapshot snapshot =
         new Snapshot(
-            newSnapshotId,
+            UUID.randomUUID().toString(),
             version,
             timestamp,
             duration,
             stack,
-            captures,
-            new ProbeDetails(
-                probeId,
-                probe.location,
-                probe.evaluateAt,
-                probe.script,
-                probe.tags,
-                summaryBuilder),
+            probe.captureSnapshot ? captures : new Captures(),
+            probe,
             language,
             thread,
             thisClassName,
             traceId,
             spanId);
-    List<EvaluationError> evalErrors = errorsByProbeIds.get(probeId);
+    List<EvaluationError> evalErrors = errorsByProbeIds.get(probe.id);
     if (evalErrors != null) {
       snapshot.evaluationErrors = new ArrayList<>(evalErrors);
     }
@@ -248,35 +244,32 @@ public class Snapshot {
 
   // /!\ Called by instrumentation /!\
   public boolean isCapturing() {
-    return !capturingProbeIds.isEmpty();
+    return capturing;
   }
 
   private boolean checkCapture(CapturedContext capture, MethodLocation methodLocation) {
-    if (evaluateConditions(probe, methodLocation)) {
-      DebuggerScript script = probe.getScript();
-      if (!executeScript(script, capture, probe.id)) {
-        capturingProbeIds.remove(probe.id);
-      }
-      if (capture.hasEvaluationErrors()) {
-        evaluationErrors = extractEvaluationErrors(capture);
-        errorsByProbeIds.put(probe.id, evaluationErrors);
-      }
-    }
-    List<ProbeDetails> additionalProbes = probe.additionalProbes;
-    if (!additionalProbes.isEmpty()) {
-      for (ProbeDetails additionalProbe : additionalProbes) {
-        if (evaluateConditions(additionalProbe, methodLocation)
-            && executeScript(additionalProbe.getScript(), capture, additionalProbe.id)) {
-          capturingProbeIds.add(additionalProbe.id);
-        } else if (capture.hasEvaluationErrors()) {
-          errorsByProbeIds.put(additionalProbe.id, extractEvaluationErrors(capture));
+    boolean ret = false;
+    for (Map.Entry<String, SnapshotStatus> entry : snapshotStatuses.entrySet()) {
+      String currentProbeId = entry.getKey();
+      SnapshotStatus status = entry.getValue();
+      if (evaluateConditions(status.probeDetails, methodLocation)) {
+        DebuggerScript<Boolean> script = status.probeDetails.getScript();
+        if (!executeScript(script, capture, currentProbeId)) {
+          status.sending = false;
+          status.capturing = false; // force to stop capturing
         }
       }
+      if (capture.hasEvaluationErrors()) {
+        status.hasErrors = true;
+        errorsByProbeIds.put(currentProbeId, extractEvaluationErrors(capture));
+        status.sending = true;
+      }
+      ret |= status.capturing && !status.hasErrors;
     }
-    boolean ret = isCapturing();
     if (ret) {
       capture.freeze();
     }
+    capturing = ret; // if false, prevent exit part to capture data
     return ret;
   }
 
@@ -296,7 +289,7 @@ public class Snapshot {
   }
 
   private static boolean executeScript(
-      DebuggerScript script, CapturedContext capture, String probeId) {
+      DebuggerScript<Boolean> script, CapturedContext capture, String probeId) {
     if (script == null) {
       return true;
     }
@@ -321,6 +314,17 @@ public class Snapshot {
       stack.add(CapturedStackFrame.from(ste));
     }
     summaryBuilder.addStack(stack);
+    for (ProbeDetails additionalProbe : this.probe.additionalProbes) {
+      additionalProbe.summaryBuilder.addStack(stack);
+    }
+  }
+
+  private void processSummaries(
+      BiConsumer<SummaryBuilder, CapturedContext> contextConsumer, CapturedContext context) {
+    contextConsumer.accept(summaryBuilder, context);
+    for (ProbeDetails additionalProbe : this.probe.additionalProbes) {
+      contextConsumer.accept(additionalProbe.summaryBuilder, context);
+    }
   }
 
   public enum Kind {
@@ -348,6 +352,7 @@ public class Snapshot {
     private final String id;
     private final ProbeLocation location;
     private final MethodLocation evaluateAt;
+    private final transient boolean captureSnapshot;
     private final DebuggerScript script;
     private final transient List<ProbeDetails> additionalProbes;
     private final String tags;
@@ -358,6 +363,7 @@ public class Snapshot {
           id,
           location,
           MethodLocation.DEFAULT,
+          true,
           null,
           null,
           new SnapshotSummaryBuilder(location),
@@ -368,23 +374,34 @@ public class Snapshot {
         String id,
         ProbeLocation location,
         MethodLocation evaluateAt,
-        DebuggerScript script,
+        boolean captureSnapshot,
+        DebuggerScript<Boolean> script,
         String tags,
         SummaryBuilder summaryBuilder) {
-      this(id, location, evaluateAt, script, tags, summaryBuilder, Collections.emptyList());
+      this(
+          id,
+          location,
+          evaluateAt,
+          captureSnapshot,
+          script,
+          tags,
+          summaryBuilder,
+          Collections.emptyList());
     }
 
     public ProbeDetails(
         String id,
         ProbeLocation location,
         MethodLocation evaluateAt,
-        DebuggerScript script,
+        boolean captureSnapshot,
+        DebuggerScript<Boolean> script,
         String tags,
         SummaryBuilder summaryBuilder,
         List<ProbeDetails> additionalProbes) {
       this.id = id;
       this.location = location;
       this.evaluateAt = evaluateAt;
+      this.captureSnapshot = captureSnapshot;
       this.script = script;
       this.additionalProbes = additionalProbes;
       this.tags = tags;
@@ -403,7 +420,7 @@ public class Snapshot {
       return evaluateAt;
     }
 
-    public DebuggerScript getScript() {
+    public DebuggerScript<Boolean> getScript() {
       return script;
     }
 
@@ -605,6 +622,8 @@ public class Snapshot {
     private Limits limits = Limits.DEFAULT;
     private String thisClassName;
     private List<EvaluationError> evaluationErrors;
+    private String traceId;
+    private String spanId;
 
     public CapturedContext() {}
 
@@ -640,10 +659,6 @@ public class Snapshot {
         String rawName = name.substring(ValueReferences.SYNTHETIC_PREFIX.length());
         target = tryRetrieveSynthetic(rawName);
         checkUndefined(name, target, rawName, "Cannot find synthetic var: ");
-      } else if (name.startsWith(ValueReferences.FIELD_PREFIX)) {
-        String rawName = name.substring(ValueReferences.FIELD_PREFIX.length());
-        target = tryRetrieveField(rawName);
-        checkUndefined(name, target, rawName, "Cannot find field: ");
       } else {
         target = tryRetrieve(name);
         checkUndefined(name, target, name, "Cannot find symbol: ");
@@ -653,7 +668,7 @@ public class Snapshot {
 
     private void checkUndefined(String expr, Object target, String name, String msg) {
       if (target == Values.UNDEFINED_OBJECT) {
-        addEvalError(expr, msg + name);
+        addEvaluationError(expr, msg + name);
       }
     }
 
@@ -681,14 +696,6 @@ public class Snapshot {
       }
       checkUndefined(memberName, target, memberName, "Cannot dereference to field: ");
       return target;
-    }
-
-    private Object tryRetrieveField(String name) {
-      if (fields == null) {
-        return Values.UNDEFINED_OBJECT;
-      }
-      Object field = fields.get(name);
-      return field != null ? field : Values.UNDEFINED_OBJECT;
     }
 
     private Object tryRetrieveSynthetic(String name) {
@@ -780,9 +787,20 @@ public class Snapshot {
       for (CapturedValue value : values) {
         fields.put(value.name, value);
       }
+      traceId = extractSpecialId("dd.trace_id");
+      spanId = extractSpecialId("dd.span_id");
     }
 
-    public void addEvalError(String expr, String message) {
+    private String extractSpecialId(String idName) {
+      CapturedValue capturedValue = fields.get(idName);
+      if (capturedValue == null) {
+        return null;
+      }
+      Object value = capturedValue.getValue();
+      return value instanceof String ? (String) value : null;
+    }
+
+    public void addEvaluationError(String expr, String message) {
       if (evaluationErrors == null) {
         evaluationErrors = new ArrayList<>();
       }
@@ -827,6 +845,14 @@ public class Snapshot {
 
     public String getThisClassName() {
       return thisClassName;
+    }
+
+    public String getTraceId() {
+      return traceId;
+    }
+
+    public String getSpanId() {
+      return spanId;
     }
 
     /**
@@ -1207,6 +1233,23 @@ public class Snapshot {
 
     public String getMessage() {
       return message;
+    }
+  }
+
+  private static class SnapshotStatus {
+    boolean capturing;
+    boolean sending;
+    boolean hasErrors;
+    ProbeDetails probeDetails;
+
+    public SnapshotStatus(boolean capturing, boolean sending, ProbeDetails probeDetails) {
+      this.capturing = capturing;
+      this.sending = sending;
+      this.probeDetails = probeDetails;
+    }
+
+    public boolean isCapturing() {
+      return capturing;
     }
   }
 }

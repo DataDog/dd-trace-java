@@ -78,29 +78,29 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(50)
-    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
+    context.setCheckpoint(new LinkedHashMap<>(["direction": "out", "type": "kafka"]), pointConsumer)
     timeSource.advance(25)
     context.setCheckpoint(
-      new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
+      new LinkedHashMap<>(["direction": "in", "group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
     timeSource.advance(30)
     context.setCheckpoint(
-      new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
+      new LinkedHashMap<>(["direction": "in", "group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
 
     then:
     context.isStarted()
     pointConsumer.points.size() == 3
     verifyFirstPoint(pointConsumer.points[0])
     with(pointConsumer.points[1]) {
-      edgeTags == ["group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 3
+      edgeTags == ["direction:in", "group:group", "topic:topic", "type:kafka"]
+      edgeTags.size() == 4
       parentHash == pointConsumer.points[0].hash
       hash != 0
       pathwayLatencyNano == 25
       edgeLatencyNano == 25
     }
     with(pointConsumer.points[2]) {
-      edgeTags == ["group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 3
+      edgeTags == ["direction:in", "group:group", "topic:topic", "type:kafka"]
+      edgeTags.size() == 4
       // this point should have the first point as parent,
       // as the loop protection will reset the parent if two identical
       // points (same hash for tag values) are about to form a hierarchy

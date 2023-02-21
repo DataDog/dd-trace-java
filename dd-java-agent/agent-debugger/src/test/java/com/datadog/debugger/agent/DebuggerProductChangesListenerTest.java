@@ -1,6 +1,9 @@
 package com.datadog.debugger.agent;
 
+import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.lenient;
 
 import com.datadog.debugger.probe.LogProbe;
@@ -181,6 +184,22 @@ public class DebuggerProductChangesListenerTest {
         () -> listener.accept(createConfigKey("bad-config-id"), null, pollingHinter));
   }
 
+  @Test
+  public void createNewInstancesForLogProbe() {
+    SimpleAcceptor acceptor = new SimpleAcceptor();
+    DebuggerProductChangesListener listener =
+        new DebuggerProductChangesListener(tracerConfig, acceptor);
+    LogProbe logProbe = createLogProbe(UUID.randomUUID().toString());
+    acceptLogProbe(listener, logProbe);
+    listener.commit(pollingHinter);
+    LogProbe receivedProbe = acceptor.getConfiguration().getLogProbes().iterator().next();
+    receivedProbe.addAdditionalProbe(createLogProbe(UUID.randomUUID().toString()));
+    listener.commit(pollingHinter);
+    LogProbe receivedProbe2 = acceptor.getConfiguration().getLogProbes().iterator().next();
+    assertNotSame(receivedProbe, receivedProbe2);
+    assertTrue(receivedProbe2.getAdditionalProbes().isEmpty());
+  }
+
   byte[] toContent(Configuration configuration) {
     return DebuggerProductChangesListener.Adapter.CONFIGURATION_JSON_ADAPTER
         .toJson(configuration)
@@ -246,10 +265,11 @@ public class DebuggerProductChangesListenerTest {
   }
 
   LogProbe createLogProbe(String id) {
+    final String LOG_LINE = "hello {world}";
     return LogProbe.builder()
         .probeId(id)
         .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
-        .template("hello {world}")
+        .template(LOG_LINE, parseTemplate(LOG_LINE))
         .build();
   }
 

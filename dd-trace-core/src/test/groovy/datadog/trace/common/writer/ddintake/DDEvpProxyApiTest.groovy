@@ -15,7 +15,7 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.Payload
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
-import datadog.trace.core.propagation.DatadogTags
+import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
 import org.msgpack.jackson.dataformat.MessagePackFactory
@@ -229,7 +229,7 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
       null,
       AgentTracer.NoopPathwayContext.INSTANCE,
       false,
-      DatadogTags.factory().empty())
+      PropagationTags.factory().empty())
 
     def span = DDSpan.create(timestamp, context)
     span.setTag(tag, value)

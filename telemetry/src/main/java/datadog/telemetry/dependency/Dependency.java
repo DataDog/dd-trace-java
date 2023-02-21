@@ -253,7 +253,7 @@ public final class Dependency {
 
   /** Check is string is valid artifactId. Should be a non-capital single word. */
   private static boolean isValidArtifactId(String artifactId) {
-    return artifactId != null
+    return hasText(artifactId)
         && !artifactId.contains(" ")
         && !artifactId.contains(".")
         && !Character.isUpperCase(artifactId.charAt(0));
@@ -261,10 +261,14 @@ public final class Dependency {
 
   /** Check is string is valid groupId. Should be a non-capital plural-word separated with dot. */
   private static boolean isValidGroupId(String group) {
-    return group != null
+    return hasText(group)
         && !group.contains(" ")
         && group.contains(".")
         && !Character.isUpperCase(group.charAt(0));
+  }
+
+  private static boolean hasText(final String value) {
+    return value != null && !value.isEmpty();
   }
 
   private static boolean equalsNonNull(String s1, String s2) {

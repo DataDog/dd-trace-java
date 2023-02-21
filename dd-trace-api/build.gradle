@@ -14,7 +14,13 @@ excludedClassesCoverage += [
   'datadog.trace.api.PropagationStyle',
   'datadog.trace.api.TracePropagationStyle',
   'datadog.trace.api.SpanCorrelation*',
-  'datadog.trace.api.interceptor.MutableSpan'
+  'datadog.trace.api.internal.TraceSegment',
+  'datadog.trace.api.internal.TraceSegment.NoOp',
+  'datadog.trace.api.config.ProfilingConfig',
+  'datadog.trace.api.interceptor.MutableSpan',
+  'datadog.trace.api.experimental.ProfilingContext',
+  'datadog.trace.api.experimental.ProfilingContext.NoOp',
+  'datadog.appsec.api.blocking.*',
 ]
 
 description = 'dd-trace-api'

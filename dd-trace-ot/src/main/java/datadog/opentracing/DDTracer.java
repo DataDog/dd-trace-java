@@ -4,8 +4,10 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.StatsDClient;
+import datadog.trace.api.experimental.ProfilingContext;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.InternalTracer;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -493,6 +495,20 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   @Override
   public void flushMetrics() {
     tracer.flushMetrics();
+  }
+
+  @Override
+  public ProfilingContext getProfilingContext() {
+    return tracer != null ? tracer.getProfilingContext() : ProfilingContext.NoOp.INSTANCE;
+  }
+
+  @Override
+  public TraceSegment getTraceSegment() {
+    AgentSpan.Context ctx = tracer.activeSpan().context();
+    if (ctx instanceof DDSpanContext) {
+      return ((DDSpanContext) ctx).getTraceSegment();
+    }
+    return null;
   }
 
   @Override

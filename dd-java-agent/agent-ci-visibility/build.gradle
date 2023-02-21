@@ -1,0 +1,40 @@
+plugins {
+  id 'com.github.johnrengelman.shadow'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/version.gradle"
+
+minimumBranchCoverage = 0.7
+minimumInstructionCoverage = 0.8
+
+excludedClassesCoverage += [
+  "datadog.trace.civisibility.CIInfo",
+  "datadog.trace.civisibility.CiVisibilitySystem",
+  "datadog.trace.civisibility.git.GitInfo",
+  "datadog.trace.civisibility.git.CommitInfo",
+  "datadog.trace.civisibility.git.PersonInfo",
+  "datadog.trace.civisibility.git.GitObject",
+  "datadog.trace.civisibility.source.*"
+]
+
+dependencies {
+  api deps.slf4j
+
+  implementation deps.asm
+  implementation deps.asmcommons
+
+  implementation project(':internal-api')
+  implementation project(':internal-api:internal-api-9')
+
+  testImplementation project(":utils:test-utils")
+  testImplementation("com.google.jimfs:jimfs:1.1") // an in-memory file system for testing code that works with files
+}
+
+shadowJar {
+  dependencies deps.excludeShared
+}
+
+jar {
+  archiveClassifier = 'unbundled'
+}

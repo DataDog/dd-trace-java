@@ -11,14 +11,16 @@ import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.util.Strings;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.lang.instrument.ClassFileTransformer;
+import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import net.bytebuddy.asm.AsmVisitorWrapper;
-import net.bytebuddy.description.ByteCodeElement;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
@@ -90,7 +92,7 @@ public interface Instrumenter {
 
   /** Instrumentation that wants to apply additional structure checks after type matching. */
   interface WithTypeStructure {
-    ElementMatcher<? extends ByteCodeElement> structureMatcher();
+    ElementMatcher<TypeDescription> structureMatcher();
   }
 
   /** Instrumentation that provides method advice. */
@@ -156,7 +158,7 @@ public interface Instrumenter {
     }
 
     @Override
-    public final void instrument(TransformerBuilder transformerBuilder) {
+    public void instrument(TransformerBuilder transformerBuilder) {
       if (isEnabled()) {
         transformerBuilder.applyInstrumentation(this);
       } else {
@@ -302,14 +304,47 @@ public interface Instrumenter {
   }
 
   /** Parent class for all IAST related instrumentations */
+  @SuppressForbidden
   abstract class Iast extends Default {
+
+    private static final Logger log = LoggerFactory.getLogger(Instrumenter.Iast.class);
+
     public Iast(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
     }
 
     @Override
+    public void instrument(TransformerBuilder transformerBuilder) {
+      if (isEnabled()) {
+        preloadClassNames();
+      }
+      super.instrument(transformerBuilder);
+    }
+
+    @Override
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.IAST);
+    }
+
+    /**
+     * Force loading of classes that need to be instrumented, but are using during instrumentation.
+     */
+    private void preloadClassNames() {
+      String[] list = getClassNamesToBePreloaded();
+      if (list != null) {
+        for (String clazz : list) {
+          try {
+            Class.forName(clazz);
+          } catch (Throwable t) {
+            log.debug("Error force loading {} class", clazz);
+          }
+        }
+      }
+    }
+
+    /** Get classes to force load* */
+    public String[] getClassNamesToBePreloaded() {
+      return null;
     }
   }
 
@@ -328,6 +363,8 @@ public interface Instrumenter {
 
   interface TransformerBuilder {
     void applyInstrumentation(HasAdvice instrumenter);
+
+    ClassFileTransformer installOn(Instrumentation instrumentation);
   }
 
   interface AdviceTransformation {

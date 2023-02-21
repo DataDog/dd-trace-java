@@ -4,7 +4,6 @@ import static com.datadog.debugger.el.DSL.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.el.DSL;
-import com.datadog.debugger.el.Predicate;
 import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.values.ObjectValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
@@ -22,142 +21,136 @@ class HasAnyExpressionTest {
   @Test
   void testNullPredicate() {
     ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
-    assertFalse(new HasAnyExpression(null, null).evaluate(resolver).test());
-    assertFalse(
-        new HasAnyExpression(value(Values.UNDEFINED_OBJECT), null).evaluate(resolver).test());
-    assertTrue(new HasAnyExpression(value(this), null).evaluate(resolver).test());
-    assertTrue(
-        new HasAnyExpression(value(Collections.singletonList(this)), null)
-            .evaluate(resolver)
-            .test());
-    assertTrue(
-        new HasAnyExpression(value(Collections.singletonMap(this, this)), null)
-            .evaluate(resolver)
-            .test());
+    HasAnyExpression expression = new HasAnyExpression(null, null);
+    assertFalse(expression.evaluate(resolver));
+    assertEquals("hasAny(null, true)", expression.prettyPrint());
+    expression = new HasAnyExpression(value(Values.UNDEFINED_OBJECT), null);
+    assertFalse(expression.evaluate(resolver));
+    assertEquals("hasAny(UNDEFINED, true)", expression.prettyPrint());
+    expression = new HasAnyExpression(value(this), null);
+    assertTrue(expression.evaluate(resolver));
+    assertEquals(
+        "hasAny(com.datadog.debugger.el.expressions.HasAnyExpressionTest, true)",
+        expression.prettyPrint());
+    expression = new HasAnyExpression(value(Collections.singletonList(this)), null);
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("hasAny(List, true)", expression.prettyPrint());
+    expression = new HasAnyExpression(value(Collections.singletonMap(this, this)), null);
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("hasAny(Map, true)", expression.prettyPrint());
   }
 
   @Test
   void testNullHasAny() {
     ValueReferenceResolver ctx = RefResolverHelper.createResolver(this);
-    HasAnyExpression expression = any(null, PredicateExpression.TRUE);
-    Predicate predicate = expression.evaluate(ctx);
-    assertNotNull(predicate);
-    assertFalse(predicate.test());
+    HasAnyExpression expression = any(null, BooleanExpression.TRUE);
+    assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAny(null, true)", expression.prettyPrint());
 
-    expression = any(null, PredicateExpression.FALSE);
-    predicate = expression.evaluate(ctx);
-    assertNotNull(predicate);
-    assertFalse(predicate.test());
+    expression = any(null, BooleanExpression.FALSE);
+    assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAny(null, false)", expression.prettyPrint());
 
-    expression = any(null, eq(ref(".testField"), value(10)));
-    predicate = expression.evaluate(ctx);
-    assertNotNull(predicate);
-    assertFalse(predicate.test());
+    expression = any(null, eq(ref("testField"), value(10)));
+    assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAny(null, testField == 10)", expression.prettyPrint());
   }
 
   @Test
   void testUndefinedHasAny() {
     ValueReferenceResolver ctx = RefResolverHelper.createResolver(this);
     HasAnyExpression expression = any(value(Values.UNDEFINED_OBJECT), TRUE);
-    Predicate predicate = expression.evaluate(ctx);
-    assertNotNull(predicate);
-    assertFalse(predicate.test());
+    assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAny(UNDEFINED, true)", expression.prettyPrint());
 
     expression = any(null, FALSE);
-    predicate = expression.evaluate(ctx);
-    assertNotNull(predicate);
-    assertFalse(predicate.test());
+    assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAny(null, false)", expression.prettyPrint());
 
-    expression = any(value(Values.UNDEFINED_OBJECT), eq(ref(".testField"), value(10)));
-    predicate = expression.evaluate(ctx);
-    assertNotNull(predicate);
-    assertFalse(predicate.test());
+    expression = any(value(Values.UNDEFINED_OBJECT), eq(ref("testField"), value(10)));
+    assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAny(UNDEFINED, testField == 10)", expression.prettyPrint());
   }
 
   @Test
   void testSingleElementHasAny() {
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null, null);
     ValueExpression<?> targetExpression = new ObjectValue(this);
     HasAnyExpression expression = any(targetExpression, TRUE);
-    Predicate predicate = expression.evaluate(ctx);
-    assertNotNull(predicate);
-    assertTrue(predicate.test());
+    assertTrue(expression.evaluate(ctx));
+    assertEquals(
+        "hasAny(com.datadog.debugger.el.expressions.HasAnyExpressionTest, true)",
+        expression.prettyPrint());
 
     expression = any(targetExpression, FALSE);
-    predicate = expression.evaluate(ctx);
-    assertNotNull(predicate);
-    assertFalse(predicate.test());
+    assertFalse(expression.evaluate(ctx));
+    assertEquals(
+        "hasAny(com.datadog.debugger.el.expressions.HasAnyExpressionTest, false)",
+        expression.prettyPrint());
 
     expression =
         any(
             targetExpression,
             eq(getMember(ref(ValueReferences.ITERATOR_REF), "testField"), value(10)));
-    predicate = expression.evaluate(ctx);
-    assertNotNull(predicate);
-    assertTrue(predicate.test());
+    assertTrue(expression.evaluate(ctx));
+    assertEquals(
+        "hasAny(com.datadog.debugger.el.expressions.HasAnyExpressionTest, @it.testField == 10)",
+        expression.prettyPrint());
   }
 
   @Test
   void testArrayHasAny() {
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null, null);
     ValueExpression<?> targetExpression = DSL.value(new Object[] {this, "hello"});
 
     HasAnyExpression expression = any(targetExpression, TRUE);
-    Predicate predicate = expression.evaluate(ctx);
-    assertNotNull(predicate);
-    assertTrue(predicate.test());
+    assertTrue(expression.evaluate(ctx));
+    assertEquals("hasAny(java.lang.Object[], true)", expression.prettyPrint());
 
     expression = any(targetExpression, FALSE);
-    predicate = expression.evaluate(ctx);
-    assertNotNull(predicate);
-    assertFalse(predicate.test());
+    assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAny(java.lang.Object[], false)", expression.prettyPrint());
 
     expression =
         any(
             targetExpression,
             eq(getMember(ref(ValueReferences.ITERATOR_REF), "testField"), value(10)));
-    predicate = expression.evaluate(ctx);
-    assertNotNull(predicate);
-    assertTrue(predicate.test());
+    assertTrue(expression.evaluate(ctx));
+    assertEquals("hasAny(java.lang.Object[], @it.testField == 10)", expression.prettyPrint());
 
     expression = any(targetExpression, eq(ref(ValueReferences.ITERATOR_REF), value("hello")));
-    predicate = expression.evaluate(ctx);
-    assertNotNull(predicate);
-    assertTrue(predicate.test());
+    assertTrue(expression.evaluate(ctx));
+    assertEquals("hasAny(java.lang.Object[], @it == \"hello\")", expression.prettyPrint());
   }
 
   @Test
   void testListHasAny() {
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null, null);
     ValueExpression<?> targetExpression = DSL.value(Arrays.asList(this, "hello"));
 
     HasAnyExpression expression = any(targetExpression, TRUE);
-    Predicate predicate = expression.evaluate(ctx);
-    assertNotNull(predicate);
-    assertTrue(predicate.test());
+    assertTrue(expression.evaluate(ctx));
+    assertEquals("hasAny(List, true)", expression.prettyPrint());
 
     expression = any(targetExpression, FALSE);
-    predicate = expression.evaluate(ctx);
-    assertNotNull(predicate);
-    assertFalse(predicate.test());
+    assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAny(List, false)", expression.prettyPrint());
 
     expression =
         any(
             targetExpression,
             eq(getMember(ref(ValueReferences.ITERATOR_REF), "testField"), value(10)));
-    predicate = expression.evaluate(ctx);
-    assertNotNull(predicate);
-    assertTrue(predicate.test());
+    assertTrue(expression.evaluate(ctx));
+    assertEquals("hasAny(List, @it.testField == 10)", expression.prettyPrint());
 
     expression = any(targetExpression, eq(ref(ValueReferences.ITERATOR_REF), value("hello")));
-    predicate = expression.evaluate(ctx);
-    assertNotNull(predicate);
-    assertTrue(predicate.test());
+    assertTrue(expression.evaluate(ctx));
+    assertEquals("hasAny(List, @it == \"hello\")", expression.prettyPrint());
   }
 
   @Test
   void testMapHasAny() {
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null, null);
     Map<String, String> valueMap = new HashMap<>();
     valueMap.put("a", "a");
     valueMap.put("b", null);
@@ -165,41 +158,35 @@ class HasAnyExpressionTest {
     ValueExpression<?> targetExpression = DSL.value(valueMap);
 
     HasAnyExpression expression = any(targetExpression, TRUE);
-    Predicate predicate = expression.evaluate(ctx);
-    assertNotNull(predicate);
-    assertTrue(predicate.test());
+    assertTrue(expression.evaluate(ctx));
+    assertEquals("hasAny(Map, true)", expression.prettyPrint());
 
     expression = any(targetExpression, FALSE);
-    predicate = expression.evaluate(ctx);
-    assertNotNull(predicate);
-    assertFalse(predicate.test());
+    assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAny(Map, false)", expression.prettyPrint());
 
     expression =
         any(targetExpression, eq(getMember(ref(ValueReferences.ITERATOR_REF), "key"), value("b")));
-    predicate = expression.evaluate(ctx);
-    assertNotNull(predicate);
-    assertTrue(predicate.test());
+    assertTrue(expression.evaluate(ctx));
+    assertEquals("hasAny(Map, @it.key == \"b\")", expression.prettyPrint());
 
     expression =
         any(
             targetExpression,
             eq(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value("a")));
-    predicate = expression.evaluate(ctx);
-    assertNotNull(predicate);
-    assertTrue(predicate.test());
+    assertTrue(expression.evaluate(ctx));
+    assertEquals("hasAny(Map, @it.value == \"a\")", expression.prettyPrint());
 
     expression =
         any(targetExpression, eq(getMember(ref(ValueReferences.ITERATOR_REF), "key"), value("c")));
-    predicate = expression.evaluate(ctx);
-    assertNotNull(predicate);
-    assertFalse(predicate.test());
+    assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAny(Map, @it.key == \"c\")", expression.prettyPrint());
 
     expression =
         any(
             targetExpression,
             eq(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value("c")));
-    predicate = expression.evaluate(ctx);
-    assertNotNull(predicate);
-    assertFalse(predicate.test());
+    assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAny(Map, @it.value == \"c\")", expression.prettyPrint());
   }
 }

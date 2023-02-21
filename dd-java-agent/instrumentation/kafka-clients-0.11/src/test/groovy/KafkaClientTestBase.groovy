@@ -1,9 +1,11 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
+import datadog.trace.test.util.Flaky
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
@@ -22,7 +24,6 @@ import org.springframework.kafka.listener.MessageListener
 import org.springframework.kafka.test.rule.KafkaEmbedded
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
-import spock.lang.Ignore
 import spock.lang.Unroll
 
 import java.util.concurrent.LinkedBlockingQueue
@@ -45,6 +46,15 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
 
     injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
     injectSysConfig("dd.data.streams.enabled", "true")
+  }
+
+  public static final LinkedHashMap<String, String> PRODUCER_PATHWAY_EDGE_TAGS
+
+  static {
+    PRODUCER_PATHWAY_EDGE_TAGS = new LinkedHashMap<>(3)
+    PRODUCER_PATHWAY_EDGE_TAGS.put("direction", "out")
+    PRODUCER_PATHWAY_EDGE_TAGS.put("topic", SHARED_TOPIC)
+    PRODUCER_PATHWAY_EDGE_TAGS.put("type", "kafka")
   }
 
   abstract String expectedServiceName()
@@ -108,6 +118,8 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     }
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+      // wait for produce offset 0, commit offset 0 on partition 0 and 1, and commit offset 1 on 1 partition.
+      TEST_DATA_STREAMS_WRITER.waitForBacklogs(4)
     }
 
     then:
@@ -156,6 +168,17 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
           "type:kafka"
         ]
         edgeTags.size() == 5
+      }
+      List<String> produce = ["partition:"+received.partition(), "topic:"+SHARED_TOPIC, "type:kafka_produce"]
+      List<String> commit = [
+        "consumer_group:sender",
+        "partition:"+received.partition(),
+        "topic:"+SHARED_TOPIC,
+        "type:kafka_commit"
+      ]
+      verifyAll(TEST_DATA_STREAMS_WRITER.backlogs) {
+        contains(new AbstractMap.SimpleEntry<List<String>, Long>(commit, 1).toString())
+        contains(new AbstractMap.SimpleEntry<List<String>, Long>(produce, 0).toString())
       }
     }
 
@@ -212,6 +235,8 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     }
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+      // wait for produce offset 0, commit offset 0 on partition 0 and 1, and commit offset 1 on 1 partition.
+      TEST_DATA_STREAMS_WRITER.waitForBacklogs(4)
     }
 
     then:
@@ -260,6 +285,17 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
           "type:kafka"
         ]
         edgeTags.size() == 5
+      }
+      List<String> produce = ["partition:"+received.partition(), "topic:"+SHARED_TOPIC, "type:kafka_produce"]
+      List<String> commit = [
+        "consumer_group:sender",
+        "partition:"+received.partition(),
+        "topic:"+SHARED_TOPIC,
+        "type:kafka_commit"
+      ]
+      verifyAll(TEST_DATA_STREAMS_WRITER.backlogs) {
+        contains(new AbstractMap.SimpleEntry<List<String>, Long>(commit, 1).toString())
+        contains(new AbstractMap.SimpleEntry<List<String>, Long>(produce, 0).toString())
       }
     }
 
@@ -610,7 +646,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
 
   }
 
-  @Ignore("Repeatedly fails with a partition set to 1 but expects 0 https://github.com/DataDog/dd-trace-java/issues/3864")
+  @Flaky("Repeatedly fails with a partition set to 1 but expects 0 https://github.com/DataDog/dd-trace-java/issues/3864")
   def "test spring kafka template produce and batch consume"() {
     setup:
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
@@ -650,6 +686,8 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     }
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+      // wait for produce offset 0, commit offset 0 on partition 0 and 1, and commit offset 1 on 1 partition.
+      TEST_DATA_STREAMS_WRITER.waitForBacklogs(4)
     }
 
     then:
@@ -816,6 +854,9 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
         if (tombstone) {
           "$InstrumentationTags.TOMBSTONE" true
         }
+        if ({isDataStreamsEnabled()}) {
+          "$DDTags.PATHWAY_HASH" { String }
+        }
         defaultTags()
       }
     }
@@ -874,6 +915,9 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
         "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
         if (tombstone) {
           "$InstrumentationTags.TOMBSTONE" true
+        }
+        if ({isDataStreamsEnabled()}) {
+          "$DDTags.PATHWAY_HASH" { String }
         }
         defaultTags(distributedRootSpan)
       }

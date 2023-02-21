@@ -60,7 +60,7 @@ profiling_test_matrix: &profiling_test_matrix
 
 system_test_matrix: &system_test_matrix
   parameters:
-    weblog-variant: [ 'spring-boot', 'spring-boot-jetty', 'spring-boot-openliberty', 'jersey-grizzly2', 'resteasy-netty3','ratpack', 'vertx3' ]
+    weblog-variant: [ 'spring-boot', 'spring-boot-jetty', 'spring-boot-openliberty', 'spring-boot-3-native', 'jersey-grizzly2', 'resteasy-netty3','ratpack', 'vertx3' ]
 
 agent_integration_tests_modules: &agent_integration_tests_modules "dd-trace-core|communication|internal-api|utils"
 core_modules: &core_modules "dd-java-agent|dd-trace-core|communication|internal-api|telemetry|utils|dd-java-agent/agent-bootstrap|dd-java-agent/agent-installer|dd-java-agent/agent-tooling|dd-java-agent/agent-builder|dd-java-agent/appsec|dd-java-agent/agent-crashtracking"
@@ -91,9 +91,15 @@ commands:
 
             if [[ -n "${CIRCLE_PR_NUMBER}" ]]
             then
-              FETCH_REFS="${FETCH_REFS} +refs/pull/${CIRCLE_PR_NUMBER}/merge:pr/${CIRCLE_PR_NUMBER}/merge"
+              FETCH_REFS="${FETCH_REFS} +refs/pull/${CIRCLE_PR_NUMBER}/merge:refs/pull/${CIRCLE_PR_NUMBER}/merge +refs/pull/${CIRCLE_PR_NUMBER}/head:refs/pull/${CIRCLE_PR_NUMBER}/head"
               git fetch -u origin ${FETCH_REFS}
-              git checkout "pr/${CIRCLE_PR_NUMBER}/merge"
+
+              if git merge-base --is-ancestor $(git show-ref --hash refs/pull/${CIRCLE_PR_NUMBER}/head) $(git show-ref --hash refs/pull/${CIRCLE_PR_NUMBER}/merge); then
+                git checkout "pull/${CIRCLE_PR_NUMBER}/merge"
+              else
+                echo "[WARN] There is a merge conflict between master and PR ${CIRCLE_PR_NUMBER}, merge branch cannot be checked out."
+                git checkout "pull/${CIRCLE_PR_NUMBER}/head"
+              fi
             fi
 
             # Everything falls back to the main cache
@@ -120,41 +126,23 @@ commands:
     steps:
       - setup_remote_docker:
           version: 20.10.14
+          # DLC shares Docker layers across jobs (at an extra cost).
+          # But its time to setup (~1min) exceeds the time required to prefetch all images we use.
           docker_layer_caching: true
 
       - run:
-          name: Testcontainers environment variables
-          command: |
-            echo "export FORWARDED_DOCKER_HOST=$DOCKER_HOST" >> $BASH_ENV
-            echo "export DOCKER_HOST=tcp://localhost:60906" >> $BASH_ENV
-            echo "export TESTCONTAINERS_HOST_OVERRIDE=localhost" >> $BASH_ENV
-            echo "export TESTCONTAINERS_RYUK_DISABLED=true" >> $BASH_ENV
+          name: Prepare testcontainers environment
+          command: .circleci/prepare_docker_env.sh
 
       - run:
           name: Testcontainers tunnels
           background: true
-          command: |
-            cd $DOCKER_CERT_PATH
-            mv key.pem remote-key.pem
-            mv cert.pem remote-cert.pem
-            mv ca.pem remote-ca.pem
-            
-            openssl genrsa -out ca-key.pem 4096
-            openssl req -new -x509 -days 365 -key ca-key.pem -sha256 -subj "/C=US/CN=localhost/emailAddress=admin@datadoghq.com" -out ca.pem
-            openssl genrsa -out server-key.pem 4096
-            openssl req -subj "/CN=localhost" -sha256 -new -key server-key.pem -out server.csr
-            echo subjectAltName = DNS:localhost,IP:10.10.10.20,IP:127.0.0.1 >> extfile.cnf
-            echo extendedKeyUsage = serverAuth >> extfile.cnf
-            openssl x509 -req -days 365 -sha256 -in server.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out server-cert.pem -extfile extfile.cnf
-            openssl genrsa -out key.pem 4096
-            openssl req -subj '/CN=client' -new -key key.pem -out client.csr
-            echo extendedKeyUsage = clientAuth > extfile-client.cnf
-            openssl x509 -req -days 365 -sha256 -in client.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out cert.pem -extfile extfile-client.cnf
-            rm -v client.csr server.csr extfile.cnf extfile-client.cnf
-            chmod -v 0400 ca-key.pem key.pem server-key.pem
-            chmod -v 0444 ca.pem server-cert.pem cert.pem
-            
-            autoforward --port 60906 --remote $FORWARDED_DOCKER_HOST --forward remote-docker --secure --server-key $DOCKER_CERT_PATH/server-key.pem --server-cert $DOCKER_CERT_PATH/server-cert.pem --remote-key $DOCKER_CERT_PATH/remote-key.pem --remote-cert $DOCKER_CERT_PATH/remote-cert.pem --remote-ca $DOCKER_CERT_PATH/remote-ca.pem
+          command: .circleci/start_docker_autoforward.sh
+
+      - run:
+          name: Prefetch Docker images
+          background: true
+          command: .circleci/fetch_docker_images.sh
 
   early_return_for_forked_pull_requests:
     description: >-
@@ -199,7 +187,8 @@ commands:
     steps:
       - run:
           name: Max Memory Used
-          command: cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
+          # The file does not seem to exist when DLC is disabled
+          command: cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes || true
           when: always
 
 jobs:
@@ -221,7 +210,7 @@ jobs:
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew clean compile shadowJar check -PskipTests
+            ./gradlew clean compile shadowJar test -PskipTests -PskipBuildSrcTest
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
             --rerun-tasks
@@ -285,6 +274,48 @@ jobs:
           <<: *build_cache_paths
 
       - display_memory_usage
+
+  spotless:
+    <<: *defaults
+    resource_class: large
+
+    steps:
+      - setup_code
+
+      - run:
+          name: Run spotless
+          command: >-
+            JAVA_HOME=$JAVA_11_HOME
+            ./gradlew spotlessCheck -PskipBuildSrcTest
+            << pipeline.parameters.gradle_flags >>
+            --max-workers=8
+
+  check:
+    <<: *defaults
+    resource_class: xlarge
+
+    steps:
+      - setup_code
+
+      - restore_cache:
+          <<: *dependency_cache_keys
+
+      - restore_cache:
+          <<: *build_cache_keys
+
+      - run:
+          name: Check Project
+          command: >-
+            MAVEN_OPTS="-Xms64M -Xmx256M"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+            ./gradlew check -PskipTests
+            << pipeline.parameters.gradle_flags >>
+            --max-workers=8
+
+      - run:
+          name: Cancel workflow
+          when: on_fail
+          command: .circleci/cancel_workflow.sh
 
   build_clean_cache:
     <<: *defaults
@@ -369,8 +400,9 @@ jobs:
       profile:
         type: boolean
         default: false
-
-
+      continueOnFailure:
+        type: boolean
+        default: false
 
     steps:
       - setup_code
@@ -389,6 +421,7 @@ jobs:
             or:
               - equal: ["smoke", << parameters.stage >>]
               - equal: ["instrumentation", << parameters.stage >>]
+              - equal: ["flaky", << parameters.stage >>]
           steps:
             - setup_testcontainers
 
@@ -403,10 +436,12 @@ jobs:
             MAVEN_OPTS="-Xms64M -Xmx512M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms<< parameters.maxDaemonHeapSize >> -Xmx<< parameters.maxDaemonHeapSize >> $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
             ./gradlew <<# parameters.gradleTarget >><< parameters.gradleTarget >>:<</ parameters.gradleTarget >><< parameters.testTask >> << parameters.gradleParameters >>
+            -PskipBuildSrcTest
             <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
             --max-workers=<< parameters.maxWorkers >>
             --continue
+            <<# parameters.continueOnFailure >> || true <</ parameters.continueOnFailure >>
 
       - run:
           name: Collect reports
@@ -653,13 +688,25 @@ jobs:
 
 build_test_jobs: &build_test_jobs
   - build
+  - spotless
+
+  - fan_in:
+      requires:
+        - build
+        - spotless
+      name: ok_to_test
+      stage: ok_to_test
+
+  - check:
+      requires:
+        - ok_to_test
 
   - xlarge_tests:
       requires:
-        - build
+        - ok_to_test
       name: z_test_<< matrix.testJvm >>_base
       triggeredBy: *core_modules
-      gradleParameters: "-PskipInstTests -PskipSmokeTests -PskipProfilingTests"
+      gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
       stage: core
       maxWorkers: 6
       matrix:
@@ -667,10 +714,10 @@ build_test_jobs: &build_test_jobs
 
   - xlarge_tests:
       requires:
-        - build
+        - ok_to_test
       name: z_test_8_base
       triggeredBy: *core_modules
-      gradleParameters: "-PskipInstTests -PskipSmokeTests -PskipProfilingTests"
+      gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
       testTask: test jacocoTestReport jacocoTestCoverageVerification
       stage: core
       maxWorkers: 6
@@ -678,9 +725,10 @@ build_test_jobs: &build_test_jobs
 
   - xlarge_tests:
       requires:
-        - build
+        - ok_to_test
       name: z_test_<< matrix.testJvm >>_inst
       gradleTarget: ":dd-java-agent:instrumentation"
+      gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       maxWorkers: 8
@@ -689,9 +737,10 @@ build_test_jobs: &build_test_jobs
 
   - xlarge_tests:
       requires:
-        - build
+        - ok_to_test
       name: z_test_8_inst
       gradleTarget: ":dd-java-agent:instrumentation"
+      gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       maxWorkers: 8
@@ -699,20 +748,33 @@ build_test_jobs: &build_test_jobs
 
   - xlarge_tests:
       requires:
-        - build
+        - ok_to_test
       name: test_8_inst_latest
       testTask: latestDepTest
       gradleTarget: ":dd-java-agent:instrumentation"
+      gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       maxWorkers: 8
       testJvm: "8"
 
+  - huge_tests:
+      requires:
+        - ok_to_test
+      name: z_test_8_flaky
+      gradleParameters: "-PrunFlakyTests"
+      continueOnFailure: true
+      triggeredBy: *core_modules
+      stage: flaky
+      maxWorkers: 4
+      testJvm: "8"
+
   - tests:
       requires:
-        - build
+        - ok_to_test
       maxWorkers: 4
       gradleTarget: ":dd-java-agent:agent-profiling"
+      gradleParameters: "-PskipFlakyTests"
       triggeredBy: *profiling_modules
       stage: profiling
       name: test_<< matrix.testJvm >>_profiling
@@ -721,10 +783,11 @@ build_test_jobs: &build_test_jobs
 
   - tests:
       requires:
-        - build
+        - ok_to_test
       maxWorkers: 4
       name: test_<< matrix.testJvm >>_iast
       gradleTarget: ":dd-java-agent:agent-iast"
+      gradleParameters: "-PskipFlakyTests"
       triggeredBy: *iast_modules
       stage: iast
       matrix:
@@ -732,10 +795,11 @@ build_test_jobs: &build_test_jobs
 
   - tests:
       requires:
-        - build
+        - ok_to_test
       name: test_<< matrix.testJvm >>_debugger
       maxWorkers: 4
       gradleTarget: ":dd-java-agent:agent-debugger"
+      gradleParameters: "-PskipFlakyTests"
       triggeredBy: *debugger_modules
       stage: debugger
       matrix:
@@ -743,9 +807,10 @@ build_test_jobs: &build_test_jobs
 
   - huge_tests:
       requires:
-        - build
+        - ok_to_test
       name: z_test_<< matrix.testJvm >>_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
+      gradleParameters: "-PskipFlakyTests"
       stage: smoke
       maxWorkers: 8
       matrix:
@@ -753,25 +818,27 @@ build_test_jobs: &build_test_jobs
 
   - huge_tests:
       requires:
-        - build
+        - ok_to_test
       name: test_IBM11_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
+      gradleParameters: "-PskipFlakyTests"
       stage: smoke
       maxWorkers: 8
       testJvm: "IBM11"
 
   - huge_tests:
       requires:
-        - build
+        - ok_to_test
       name: test_IBM17_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
+      gradleParameters: "-PskipFlakyTests"
       stage: smoke
       maxWorkers: 8
       testJvm: "IBM17"
 
   - xlarge_tests:
       requires:
-        - build
+        - ok_to_test
       name: test_GRAALVM11_smoke
       gradleTarget: "stageMainDist :dd-smoke-test:spring-native"
       stage: smoke
@@ -779,7 +846,7 @@ build_test_jobs: &build_test_jobs
 
   - xlarge_tests:
       requires:
-        - build
+        - ok_to_test
       name: test_GRAALVM17_smoke
       gradleTarget: "stageMainDist :dd-smoke-test:spring-native"
       stage: smoke
@@ -788,9 +855,10 @@ build_test_jobs: &build_test_jobs
 
   - huge_tests:
       requires:
-        - build
+        - ok_to_test
       name: z_test_8_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
+      gradleParameters: "-PskipFlakyTests"
       stage: smoke
       maxWorkers: 8
       testJvm: "8"
@@ -816,18 +884,18 @@ build_test_jobs: &build_test_jobs
 
   - agent_integration_tests:
       requires:
-        - build
+        - ok_to_test
       triggeredBy: *agent_integration_tests_modules
       testTask: traceAgentTest
       testJvm: "8"
 
   - test_published_artifacts:
       requires:
-        - build
+        - ok_to_test
 
   - muzzle:
       requires:
-        - build
+        - ok_to_test
       filters:
         branches:
           ignore:
@@ -837,7 +905,7 @@ build_test_jobs: &build_test_jobs
 
   - system-tests:
       requires:
-        - build
+        - ok_to_test
       matrix:
           <<: *system_test_matrix
   - fan_in:
@@ -880,6 +948,7 @@ build_test_jobs: &build_test_jobs
   # and it will be simpler to require different JVM versions for different branches and old releases
   - fan_in:
       requires:
+        - check
         - test_published_artifacts
         - agent_integration_tests
         - test_8

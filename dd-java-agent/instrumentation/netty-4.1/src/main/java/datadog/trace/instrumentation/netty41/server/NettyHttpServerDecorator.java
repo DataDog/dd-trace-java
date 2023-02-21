@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.netty41.server;
 
 import static io.netty.handler.codec.http.HttpHeaderNames.HOST;
 
+import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -9,12 +11,18 @@ import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class NettyHttpServerDecorator
     extends HttpServerDecorator<HttpRequest, Channel, HttpResponse, HttpHeaders> {
@@ -85,5 +93,53 @@ public class NettyHttpServerDecorator
   @Override
   protected int status(final HttpResponse httpResponse) {
     return httpResponse.status().code();
+  }
+
+  @Override
+  protected BlockResponseFunction createBlockResponseFunction(
+      HttpRequest httpRequest, Channel channel) {
+    return new NettyBlockResponseFunction(channel.pipeline(), httpRequest);
+  }
+
+  public static class NettyBlockResponseFunction implements BlockResponseFunction {
+    private final ChannelPipeline pipeline;
+    public static final Logger log = LoggerFactory.getLogger(NettyBlockResponseFunction.class);
+    private final HttpRequest httpRequestMessage;
+
+    public NettyBlockResponseFunction(ChannelPipeline pipeline, HttpRequest httpRequestMessage) {
+      this.pipeline = pipeline;
+      this.httpRequestMessage = httpRequestMessage;
+    }
+
+    @Override
+    public boolean tryCommitBlockingResponse(int statusCode, BlockingContentType templateType) {
+      ChannelHandler handlerBefore = pipeline.get(HttpServerTracingHandler.class);
+      if (handlerBefore == null) {
+        handlerBefore = pipeline.get(HttpServerRequestTracingHandler.class);
+        if (handlerBefore == null) {
+          log.warn(
+              "Can't block without an HttpServerTracingHandler or HttpServerRequestTracingHandler in the pipeline");
+          return false;
+        }
+      }
+
+      try {
+        pipeline
+            .addAfter(
+                pipeline.context(handlerBefore).name(),
+                "blocking_handler",
+                new BlockingResponseHandler(statusCode, templateType))
+            .addBefore(
+                "blocking_handler", "before_blocking_handler", new ChannelInboundHandlerAdapter());
+      } catch (RuntimeException rte) {
+        log.warn("Failed adding blocking handler", rte);
+        return false;
+      }
+
+      ChannelHandlerContext context = pipeline.context("before_blocking_handler");
+      context.fireChannelRead(httpRequestMessage);
+
+      return true;
+    }
   }
 }

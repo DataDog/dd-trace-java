@@ -1,4 +1,3 @@
-
 apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
@@ -48,7 +47,7 @@ dependencies {
 
   // latest async-http-client incompatable with 5.0+ netty
   latestDepTestImplementation group: 'io.netty', name: 'netty-codec-http', version: '(,5.0)'
-  latestDepTestImplementation group: 'org.asynchttpclient', name: 'async-http-client', version: '+'
+  latestDepTestImplementation group: 'org.asynchttpclient', name: 'async-http-client', version: '2.+'
 }
 
 // We need to force the dependency to the earliest supported version because other libraries declare newer versions.

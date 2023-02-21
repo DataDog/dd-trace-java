@@ -2,6 +2,7 @@ package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.probe.MetricProbe.MetricKind.COUNT;
 import static com.datadog.debugger.probe.MetricProbe.MetricKind.GAUGE;
+import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -45,17 +46,11 @@ public class ConfigurationTest {
     ArrayList<MetricProbe> metricProbes = new ArrayList<>(config.getMetricProbes());
     assertEquals(4, metricProbes.size());
     assertEquals("datadog.debugger.calls", metricProbes.get(0).getMetricName());
-    assertEquals(
-        "ValueScript{expr=NumericLiteral{value=42}, dsl='42'}",
-        metricProbes.get(0).getValue().toString());
+    assertEquals("ValueScript{dsl='42'}", metricProbes.get(0).getValue().toString());
     assertEquals("datadog.debugger.gauge_value", metricProbes.get(1).getMetricName());
-    assertEquals(
-        "ValueScript{expr=ValueRefExpression{symbolName='value'}, dsl='value'}",
-        metricProbes.get(1).getValue().toString());
+    assertEquals("ValueScript{dsl='value'}", metricProbes.get(1).getValue().toString());
     assertEquals("datadog.debugger.refpathvalue", metricProbes.get(2).getMetricName());
-    assertEquals(
-        "ValueScript{expr=GetMemberExpression{target=ValueRefExpression{symbolName='obj'}, memberName='field'}, dsl='obj.field'}",
-        metricProbes.get(2).getValue().toString());
+    assertEquals("ValueScript{dsl='obj.field'}", metricProbes.get(2).getValue().toString());
     assertEquals("datadog.debugger.novalue", metricProbes.get(3).getMetricName());
   }
 
@@ -299,7 +294,7 @@ public class ConfigurationTest {
         .captureSnapshot(false)
         .where(typeName, methodName, signature)
         .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
-        .template(template)
+        .template(template, parseTemplate(template))
         .tags("tag1:value1", "tag2:value2")
         .build();
   }

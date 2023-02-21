@@ -93,6 +93,8 @@ public interface KnownAddresses {
 
   Address<Object> GRPC_SERVER_REQUEST_MESSAGE = new Address<>("grpc.server.request.message");
 
+  Address<String> USER_ID = new Address<>("usr.id");
+
   static Address<?> forName(String name) {
     switch (name) {
       case "server.request.body":
@@ -135,6 +137,8 @@ public interface KnownAddresses {
         return HEADERS_NO_COOKIES;
       case "grpc.server.request.message":
         return GRPC_SERVER_REQUEST_MESSAGE;
+      case "usr.id":
+        return USER_ID;
       default:
         return null;
     }

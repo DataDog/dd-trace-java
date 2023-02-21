@@ -48,6 +48,12 @@ public class NettyChannelHandlerContextInstrumentation extends Instrumenter.Trac
       packageName + ".client.NettyHttpClientDecorator",
       packageName + ".server.ResponseExtractAdapter",
       packageName + ".server.NettyHttpServerDecorator",
+      packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
+      packageName + ".server.BlockingResponseHandler",
+      packageName + ".server.BlockingResponseHandler$IgnoreAllWritesHandler",
+      packageName + ".server.HttpServerRequestTracingHandler",
+      packageName + ".server.HttpServerResponseTracingHandler",
+      packageName + ".server.HttpServerTracingHandler"
     };
   }
 

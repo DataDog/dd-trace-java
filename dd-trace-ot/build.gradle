@@ -17,6 +17,7 @@ excludedClassesCoverage += [
   "datadog.opentracing.OTScopeManager.OTScope",
   "datadog.opentracing.OTSpan",
   "datadog.opentracing.OTSpanContext",
+  "datadog.opentracing.CustomScopeManagerWrapper.CustomScopeState",
   // The builder is generated
   "datadog.opentracing.DDTracer.DDTracerBuilder"
 ]
@@ -83,6 +84,7 @@ shadowJar {
 
   dependencies {
     // direct dependencies
+    exclude(project(':dd-trace-api'))
     exclude(dependency('io.opentracing:'))
     exclude(dependency('io.opentracing.contrib:'))
     exclude(dependency('org.slf4j:'))
@@ -102,6 +104,7 @@ shadowJar {
     exclude('datadog.opentracing.resolver.*')
     exclude('datadog.trace.api.*')
     exclude('datadog.trace.api.config.*')
+    exclude('datadog.trace.api.experimental.*')
     exclude('datadog.trace.api.interceptor.*')
     exclude('datadog.trace.api.internal.*')
     exclude('datadog.trace.api.sampling.*')

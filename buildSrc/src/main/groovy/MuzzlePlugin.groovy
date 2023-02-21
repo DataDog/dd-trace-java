@@ -15,16 +15,21 @@ import org.eclipse.aether.spi.connector.transport.TransporterFactory
 import org.eclipse.aether.transport.http.HttpTransporterFactory
 import org.eclipse.aether.version.Version
 import org.gradle.api.Action
+import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
+import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.FileCollection
 import org.gradle.api.model.ObjectFactory
+import org.gradle.api.provider.Property
 import org.gradle.api.tasks.SourceSet
+import org.gradle.workers.WorkAction
+import org.gradle.workers.WorkParameters
+import org.gradle.workers.WorkerExecutor
 
 import java.lang.reflect.Method
-import java.security.SecureClassLoader
-import java.util.concurrent.atomic.AtomicReference
 import java.util.regex.Pattern
 
 /**
@@ -39,7 +44,6 @@ class MuzzlePlugin implements Plugin<Project> {
    * Remote repositories used to query version ranges and fetch dependencies
    */
   private static final List<RemoteRepository> MUZZLE_REPOS
-  private static final AtomicReference<ClassLoader> TOOLING_LOADER = new AtomicReference<>()
 
   static {
     RemoteRepository central = new RemoteRepository.Builder("central", "default", "https://repo1.maven.org/maven2/").build()
@@ -69,29 +73,19 @@ class MuzzlePlugin implements Plugin<Project> {
       }
     }
 
-    def muzzle = project.task('muzzle') {
-      group = 'Muzzle'
+    def muzzle = project.task(['type': MuzzleTask], 'muzzle') {
       description = "Run instrumentation muzzle on compile time dependencies"
       doLast {
         if (!project.muzzle.directives.any { it.assertPass }) {
           project.getLogger().info('No muzzle pass directives configured. Asserting pass against instrumentation compile-time dependencies')
-          final ClassLoader userCL = createCompileDepsClassLoader(project, bootstrapProject)
-          final ClassLoader instrumentationCL = createInstrumentationClassloader(project, toolingProject)
-          Method assertionMethod = instrumentationCL.loadClass('datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin')
-            .getMethod('assertInstrumentationMuzzled', ClassLoader.class, ClassLoader.class, boolean.class, String.class)
-          assertionMethod.invoke(null, instrumentationCL, userCL, true, null)
+          assertMuzzle(bootstrapProject, toolingProject, project)
         }
-        println "Muzzle executing for $project"
       }
     }
-    def printReferences = project.task('printReferences') {
-      group = 'Muzzle'
+    def printReferences = project.task(['type': MuzzleTask],'printReferences') {
       description = "Print references created by instrumentation muzzle"
       doLast {
-        final ClassLoader instrumentationCL = createInstrumentationClassloader(project, toolingProject)
-        Method assertionMethod = instrumentationCL.loadClass('datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin')
-          .getMethod('printMuzzleReferences', ClassLoader.class)
-        assertionMethod.invoke(null, instrumentationCL)
+        printMuzzle(project)
       }
     }
     bootstrapProject.afterEvaluate {
@@ -169,76 +163,24 @@ class MuzzlePlugin implements Plugin<Project> {
                    |</testsuite>\n""".stripMargin()
   }
 
-  private static ClassLoader getOrCreateToolingLoader(Project toolingProject) {
-    synchronized (TOOLING_LOADER) {
-      final ClassLoader toolingLoader = TOOLING_LOADER.get()
-      if (toolingLoader == null) {
-        Set<URL> ddUrls = new HashSet<>()
-        toolingProject.getLogger().info('creating classpath for agent-tooling')
-        for (File f : toolingProject.sourceSets.main.runtimeClasspath.getFiles()) {
-          toolingProject.getLogger().info('--' + f)
-          ddUrls.add(f.toURI().toURL())
-        }
-        def loader = new URLClassLoader(ddUrls.toArray(new URL[0]), (ClassLoader) null)
-        assert TOOLING_LOADER.compareAndSet(null, loader)
-        return TOOLING_LOADER.get()
-      } else {
-        return toolingLoader
-      }
+  static FileCollection createMuzzleClassPath(Project project, Project bootstrapProject, String muzzleTaskName) {
+    FileCollection cp = project.files()
+    project.getLogger().info("Creating classpath for $muzzleTaskName")
+    // add project jars first so we can test different dd-trace-api versions
+    if ('muzzle' == muzzleTaskName) {
+      cp += project.configurations.compileClasspath
+    } else {
+      cp += project.configurations.getByName(muzzleTaskName)
     }
-  }
-
-  /**
-   * Create a classloader with core agent classes and project instrumentation on the classpath.
-   */
-  private static ClassLoader createInstrumentationClassloader(Project project, Project toolingProject) {
-    project.getLogger().info("Creating instrumentation classpath for: " + project.getName())
-    Set<URL> ddUrls = new HashSet<>()
-    for (File f : project.sourceSets.main.runtimeClasspath.getFiles()) {
-      project.getLogger().info('--' + f)
-      ddUrls.add(f.toURI().toURL())
-    }
-    return new URLClassLoader(ddUrls.toArray(new URL[0]), getOrCreateToolingLoader(toolingProject))
-  }
-
-  /**
-   * Create a classloader with all compile-time dependencies on the classpath
-   */
-  private static ClassLoader createCompileDepsClassLoader(Project project, Project bootstrapProject) {
-    List<URL> userUrls = new ArrayList<>()
-    project.getLogger().info("Creating compile-time classpath for: " + project.getName())
-    for (File f : project.configurations.compileClasspath.getFiles()) {
-      project.getLogger().info('--' + f)
-      userUrls.add(f.toURI().toURL())
-    }
-    for (File f : bootstrapProject.sourceSets.main.runtimeClasspath.getFiles()) {
-      project.getLogger().info('--' + f)
-      userUrls.add(f.toURI().toURL())
-    }
-    return new URLClassLoader(userUrls.toArray(new URL[0]), (ClassLoader) null)
-  }
-
-  /**
-   * Create a classloader with dependencies for a single muzzle task.
-   */
-  private static ClassLoader createClassLoaderForTask(Project project, Project bootstrapProject, String muzzleTaskName) {
-    final List<URL> userUrls = new ArrayList<>()
-
-    project.getLogger().info("Creating task classpath")
-    project.configurations.getByName(muzzleTaskName).resolvedConfiguration.files.each { File jarFile ->
-      project.getLogger().info("-- Added to instrumentation classpath: $jarFile")
-      userUrls.add(jarFile.toURI().toURL())
-    }
-
     for (SourceSet sourceSet: bootstrapProject.sourceSets) {
       if (sourceSet.name.startsWith('main')) {
-        for (File f : sourceSet.runtimeClasspath.getFiles()) {
-          project.getLogger().info("-- Added to instrumentation bootstrap classpath: $f")
-          userUrls.add(f.toURI().toURL())
-        }
+        cp += sourceSet.runtimeClasspath
       }
     }
-    return new URLClassLoader(userUrls.toArray(new URL[0]), (ClassLoader) null)
+    if (project.getLogger().isInfoEnabled()) {
+      cp.forEach { project.getLogger().info("-- $it") }
+    }
+    return cp
   }
 
   /**
@@ -373,33 +315,9 @@ class MuzzlePlugin implements Plugin<Project> {
       })
     }
 
-    def muzzleTask = instrumentationProject.task(taskName) {
-      it.group = 'Muzzle'
+    def muzzleTask = instrumentationProject.task(['type': MuzzleTask], taskName) {
       doLast {
-        final ClassLoader instrumentationCL = createInstrumentationClassloader(instrumentationProject, toolingProject)
-        def ccl = Thread.currentThread().contextClassLoader
-        def bogusLoader = new SecureClassLoader() {
-          @Override
-          String toString() {
-            return "bogus"
-          }
-        }
-        Thread.currentThread().contextClassLoader = bogusLoader
-        final ClassLoader userCL = createClassLoaderForTask(instrumentationProject, bootstrapProject, taskName)
-        try {
-          // find all instrumenters, get muzzle, and assert
-          Method assertionMethod = instrumentationCL.loadClass('datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin')
-            .getMethod('assertInstrumentationMuzzled', ClassLoader.class, ClassLoader.class, boolean.class, String.class)
-          assertionMethod.invoke(null, instrumentationCL, userCL, muzzleDirective.assertPass, muzzleDirective.name ?: muzzleDirective.module)
-        } finally {
-          Thread.currentThread().contextClassLoader = ccl
-        }
-
-        for (Thread thread : Thread.getThreads()) {
-          if (thread.contextClassLoader == bogusLoader || thread.contextClassLoader == instrumentationCL || thread.contextClassLoader == userCL) {
-            throw new GradleException("Task $taskName has spawned a thread: $thread with classloader $thread.contextClassLoader. This will prevent GC of dynamic muzzle classes. Aborting muzzle run.")
-          }
-        }
+        assertMuzzle(bootstrapProject, toolingProject, instrumentationProject, muzzleDirective)
       }
     }
     runAfter.finalizedBy(muzzleTask)
@@ -483,8 +401,8 @@ class MuzzleDirective {
   String versions
   Set<String> skipVersions = new HashSet<>()
   List<String> additionalDependencies = new ArrayList<>()
-  List<RemoteRepository> additionalRepositories = new ArrayList<>();
-  List<String> excludedDependencies = new ArrayList<>();
+  List<RemoteRepository> additionalRepositories = new ArrayList<>()
+  List<String> excludedDependencies = new ArrayList<>()
   boolean assertPass
   boolean assertInverse = false
   boolean coreJdk = false
@@ -610,5 +528,71 @@ class MuzzleExtension {
     }
     // Add existing repositories
     directive.additionalRepositories.addAll(additionalRepositories)
+  }
+}
+
+abstract class MuzzleTask extends DefaultTask {
+  {
+    group = 'Muzzle'
+  }
+
+  @javax.inject.Inject
+  abstract WorkerExecutor getWorkerExecutor()
+
+  void assertMuzzle(Project bootstrapProject, Project toolingProject, Project instrumentationProject, MuzzleDirective muzzleDirective = null) {
+    workerExecutor.noIsolation().submit(MuzzleAction.class, parameters -> {
+      parameters.toolingClassPath.setFrom(toolingProject.sourceSets.main.runtimeClasspath as FileCollection)
+      parameters.instrumentationClassPath.setFrom(instrumentationProject.sourceSets.main.runtimeClasspath as FileCollection)
+      parameters.testApplicationClassPath.setFrom(MuzzlePlugin.createMuzzleClassPath(instrumentationProject, bootstrapProject, name))
+      if (muzzleDirective) {
+        parameters.assertPass.set(muzzleDirective.assertPass)
+        parameters.muzzleDirective.set(muzzleDirective.name ?: muzzleDirective.module)
+      } else {
+        parameters.assertPass.set(true)
+      }
+    })
+  }
+
+  void printMuzzle(Project instrumentationProject) {
+    FileCollection cp = instrumentationProject.sourceSets.main.runtimeClasspath
+    ClassLoader cl = new URLClassLoader(cp*.toURI()*.toURL() as URL[], null as ClassLoader)
+    Method printMethod = cl.loadClass('datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin')
+      .getMethod('printMuzzleReferences', ClassLoader.class)
+    printMethod.invoke(null, cl)
+  }
+}
+
+interface MuzzleWorkParameters extends WorkParameters {
+  ConfigurableFileCollection getToolingClassPath()
+  ConfigurableFileCollection getInstrumentationClassPath()
+  ConfigurableFileCollection getTestApplicationClassPath()
+  Property<Boolean> getAssertPass()
+  Property<String> getMuzzleDirective()
+}
+
+abstract class MuzzleAction implements WorkAction<MuzzleWorkParameters> {
+  private static final Object lock = new Object()
+  private static volatile ClassLoader toolCL
+
+  @Override
+  void execute() {
+    if (!toolCL) {
+      synchronized (lock) {
+        if (!toolCL) {
+          toolCL = createClassLoader(parameters.toolingClassPath)
+        }
+      }
+    }
+    ClassLoader instCL = createClassLoader(parameters.instrumentationClassPath, toolCL)
+    ClassLoader testCL = createClassLoader(parameters.testApplicationClassPath)
+    boolean assertPass = parameters.assertPass.get()
+    String muzzleDirective = parameters.muzzleDirective.getOrNull()
+    Method assertionMethod = instCL.loadClass('datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin')
+      .getMethod('assertInstrumentationMuzzled', ClassLoader.class, ClassLoader.class, boolean.class, String.class)
+    assertionMethod.invoke(null, instCL, testCL, assertPass, muzzleDirective)
+  }
+
+  static ClassLoader createClassLoader(cp, parent = null) {
+    return new URLClassLoader(cp*.toURI()*.toURL() as URL[], parent as ClassLoader)
   }
 }

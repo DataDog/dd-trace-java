@@ -11,11 +11,13 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import net.bytebuddy.asm.Advice;
 import org.glassfish.grizzly.http.server.Request;
+import org.glassfish.grizzly.http.server.Response;
 
 @AutoService(Instrumenter.class)
 public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing
@@ -42,8 +44,10 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing
       packageName + ".ExtractAdapter$Request",
       packageName + ".ExtractAdapter$Response",
       packageName + ".GrizzlyDecorator",
+      packageName + ".GrizzlyDecorator$GrizzlyBlockResponseFunction",
       packageName + ".RequestURIDataAdapter",
-      packageName + ".SpanClosingListener"
+      packageName + ".SpanClosingListener",
+      packageName + ".GrizzlyBlockingHelper",
     };
   }
 
@@ -60,7 +64,8 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing
   public static class HandleAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(@Advice.Argument(0) final Request request) {
+    public static AgentScope methodEnter(
+        @Advice.Argument(0) final Request request, @Advice.Argument(1) final Response response) {
       if (request.getAttribute(DD_SPAN_ATTRIBUTE) != null) {
         return null;
       }
@@ -76,7 +81,11 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);
       request.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
       request.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
-      request.addAfterServiceListener(SpanClosingListener.LISTENER);
+
+      Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
+      if (rba == null || !GrizzlyBlockingHelper.block(request, response, rba, scope)) {
+        request.addAfterServiceListener(SpanClosingListener.LISTENER);
+      }
 
       return scope;
     }

@@ -1,6 +1,7 @@
 package datadog.telemetry;
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.telemetry.TelemetryRunnable.TelemetryPeriodicAction;
 import datadog.telemetry.dependency.DependencyPeriodicAction;
 import datadog.telemetry.dependency.DependencyService;
 import datadog.telemetry.dependency.DependencyServiceImpl;
@@ -9,7 +10,8 @@ import datadog.trace.api.Config;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.util.AgentThreadFactory;
 import java.lang.instrument.Instrumentation;
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 import okhttp3.OkHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,7 +25,7 @@ public class TelemetrySystem {
   private static DependencyService DEPENDENCY_SERVICE;
 
   static DependencyService createDependencyService(Instrumentation instrumentation) {
-    if (instrumentation != null) {
+    if (instrumentation != null && Config.get().isTelemetryDependencyServiceEnabled()) {
       DependencyServiceImpl dependencyService = new DependencyServiceImpl();
       dependencyService.installOn(instrumentation);
       dependencyService.schedulePeriodicResolution();
@@ -37,12 +39,15 @@ public class TelemetrySystem {
       OkHttpClient okHttpClient,
       DependencyService dependencyService) {
     DEPENDENCY_SERVICE = dependencyService;
+
+    List<TelemetryPeriodicAction> actions = new ArrayList<>();
+    actions.add(new IntegrationPeriodicAction());
+    if (null != dependencyService) {
+      actions.add(new DependencyPeriodicAction(dependencyService));
+    }
+
     TelemetryRunnable telemetryRunnable =
-        new TelemetryRunnable(
-            okHttpClient,
-            telemetryService,
-            Arrays.asList(
-                new DependencyPeriodicAction(dependencyService), new IntegrationPeriodicAction()));
+        new TelemetryRunnable(okHttpClient, telemetryService, actions);
     return AgentThreadFactory.newAgentThread(
         AgentThreadFactory.AgentThread.TELEMETRY, telemetryRunnable);
   }

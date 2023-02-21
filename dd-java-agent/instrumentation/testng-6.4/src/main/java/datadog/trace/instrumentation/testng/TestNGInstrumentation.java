@@ -32,7 +32,11 @@ public class TestNGInstrumentation extends Instrumenter.CiVisibility
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".TestNGDecorator", packageName + ".TracingListener"};
+    return new String[] {
+      packageName + ".TestNGDecorator",
+      packageName + ".TracingListener",
+      packageName + ".TestNGUtils"
+    };
   }
 
   public static class TestNGAdvice {

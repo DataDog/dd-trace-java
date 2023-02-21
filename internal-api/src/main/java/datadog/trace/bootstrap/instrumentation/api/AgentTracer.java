@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 
 import datadog.trace.api.*;
+import datadog.trace.api.experimental.ProfilingContext;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -10,6 +11,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.InternalTracer;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
@@ -113,7 +115,11 @@ public class AgentTracer {
   private AgentTracer() {}
 
   public interface TracerAPI
-      extends datadog.trace.api.Tracer, InternalTracer, AgentPropagation, EndpointCheckpointer {
+      extends datadog.trace.api.Tracer,
+          InternalTracer,
+          AgentPropagation,
+          EndpointCheckpointer,
+          ScopeStateAware {
     AgentSpan startSpan(CharSequence spanName);
 
     AgentSpan startSpan(CharSequence spanName, long startTimeMicros);
@@ -169,6 +175,8 @@ public class AgentTracer {
     AgentSpan.Context notifyExtensionStart(Object event);
 
     void notifyExtensionEnd(AgentSpan span, Object result, boolean isError);
+
+    DataStreamsMonitoring getDataStreamsMonitoring();
   }
 
   public interface SpanBuilder {
@@ -200,6 +208,8 @@ public class AgentTracer {
   static class NoopTracerAPI implements TracerAPI {
 
     protected NoopTracerAPI() {}
+
+    private final DataStreamsMonitoring dataStreamsMonitoring = new NoopDataStreamsMonitoring();
 
     @Override
     public AgentSpan startSpan(final CharSequence spanName) {
@@ -283,6 +293,16 @@ public class AgentTracer {
 
     @Override
     public void flushMetrics() {}
+
+    @Override
+    public ProfilingContext getProfilingContext() {
+      return ProfilingContext.NoOp.INSTANCE;
+    }
+
+    @Override
+    public TraceSegment getTraceSegment() {
+      return null;
+    }
 
     @Override
     public String getTraceId() {
@@ -380,6 +400,16 @@ public class AgentTracer {
 
     @Override
     public void notifyExtensionEnd(AgentSpan span, Object result, boolean isError) {}
+
+    @Override
+    public ScopeState newScopeState() {
+      return null;
+    }
+
+    @Override
+    public DataStreamsMonitoring getDataStreamsMonitoring() {
+      return dataStreamsMonitoring;
+    }
   }
 
   public static final class NoopAgentSpan implements AgentSpan {
@@ -509,12 +539,6 @@ public class AgentTracer {
     public boolean eligibleForDropping() {
       return true;
     }
-
-    @Override
-    public void startWork() {}
-
-    @Override
-    public void finishWork() {}
 
     @Override
     public RequestContext getRequestContext() {
@@ -880,6 +904,11 @@ public class AgentTracer {
     @Override
     public boolean isStarted() {
       return false;
+    }
+
+    @Override
+    public long getHash() {
+      return 0L;
     }
 
     @Override

@@ -1,6 +1,7 @@
 package datadog.smoketest.debugger;
 
 import static datadog.smoketest.debugger.TestApplicationHelper.waitForInstrumentation;
+import static datadog.smoketest.debugger.TestApplicationHelper.waitForTransformerInstalled;
 import static datadog.smoketest.debugger.TestApplicationHelper.waitForUpload;
 
 import java.lang.management.ManagementFactory;
@@ -9,11 +10,20 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class DebuggerTestApplication {
-  private static final Map<String, Runnable> methodsByName = new HashMap<>();
   private static final String LOG_FILENAME = System.getenv().get("DD_LOG_FILE");
 
   public static void main(String[] args) throws Exception {
+    waitForTransformerInstalled(LOG_FILENAME);
     System.out.println(DebuggerTestApplication.class.getName());
+    Main.run(args);
+  }
+}
+
+class Main {
+  private static final Map<String, Runnable> methodsByName = new HashMap<>();
+  private static final String LOG_FILENAME = System.getenv().get("DD_LOG_FILE");
+
+  static void run(String[] args) throws Exception {
     registerMethods();
     String methodName = args[0];
     Runnable method = methodsByName.get(methodName);
@@ -22,7 +32,7 @@ public class DebuggerTestApplication {
     }
     int expectedUploads = Integer.parseInt(args[1]);
     System.out.println("Waiting for instrumentation...");
-    waitForInstrumentation(LOG_FILENAME);
+    waitForInstrumentation(LOG_FILENAME, Main.class.getName());
     System.out.println("Executing method: " + methodName);
     method.run();
     System.out.println("Executed");
@@ -31,10 +41,10 @@ public class DebuggerTestApplication {
   }
 
   private static void registerMethods() {
-    methodsByName.put("emptyMethod", DebuggerTestApplication::emptyMethod);
-    methodsByName.put("managementMethod", DebuggerTestApplication::managementMethod);
-    methodsByName.put("fullMethod", DebuggerTestApplication::runFullMethod);
-    methodsByName.put("multiProbesFullMethod", DebuggerTestApplication::runFullMethod);
+    methodsByName.put("emptyMethod", Main::emptyMethod);
+    methodsByName.put("managementMethod", Main::managementMethod);
+    methodsByName.put("fullMethod", Main::runFullMethod);
+    methodsByName.put("multiProbesFullMethod", Main::runFullMethod);
   }
 
   private static void emptyMethod() {}

@@ -3,9 +3,11 @@ package datadog.smoketest;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.openjdk.jmc.common.item.Attribute.attr;
 import static org.openjdk.jmc.common.unit.UnitLookup.NUMBER;
+import static org.openjdk.jmc.common.unit.UnitLookup.PLAIN_TEXT;
 
 import com.datadog.profiling.testing.ProfilingTestUtils;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -58,6 +60,7 @@ import org.openjdk.jmc.common.unit.UnitLookup;
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import spock.util.environment.OperatingSystem;
 
 @DisabledIfSystemProperty(named = "java.vm.name", matches = ".*J9.*")
 class JFRBasedProfilingIntegrationTest {
@@ -91,6 +94,9 @@ class JFRBasedProfilingIntegrationTest {
   public static final IAttribute<IQuantity> LOCAL_ROOT_SPAN_ID =
       attr("localRootSpanId", "localRootSpanId", "localRootSpanId", NUMBER);
   public static final IAttribute<IQuantity> SPAN_ID = attr("spanId", "spanId", "spanId", NUMBER);
+
+  public static final IAttribute<String> FOO = attr("foo", "", "", PLAIN_TEXT);
+  public static final IAttribute<String> BAR = attr("bar", "", "", PLAIN_TEXT);
 
   private MockWebServer profilingServer;
   private MockWebServer tracingServer;
@@ -137,13 +143,23 @@ class JFRBasedProfilingIntegrationTest {
   @Test
   @DisplayName("Test continuous recording - no jmx delay")
   public void testContinuousRecording_no_jmx_delay(final TestInfo testInfo) throws Exception {
-    testWithRetry(() -> testContinuousRecording(0, ENDPOINT_COLLECTION_ENABLED, true), testInfo, 5);
+    testWithRetry(
+        () ->
+            testContinuousRecording(
+                0, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux()),
+        testInfo,
+        5);
   }
 
   @Test
   @DisplayName("Test continuous recording - 1 sec jmx delay")
   public void testContinuousRecording(final TestInfo testInfo) throws Exception {
-    testWithRetry(() -> testContinuousRecording(1, ENDPOINT_COLLECTION_ENABLED, true), testInfo, 5);
+    testWithRetry(
+        () ->
+            testContinuousRecording(
+                1, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux()),
+        testInfo,
+        5);
   }
 
   private void testContinuousRecording(
@@ -512,11 +528,21 @@ class JFRBasedProfilingIntegrationTest {
         IItemCollection executionSamples =
             events.apply(ItemFilters.type("datadog.ExecutionSample"));
         Set<Long> rootSpanIds = new HashSet<>();
+        Set<String> values = new HashSet<>();
         for (IItemIterable executionSampleEvents : executionSamples) {
           IMemberAccessor<IQuantity, IItem> rootSpanIdAccessor =
               LOCAL_ROOT_SPAN_ID.getAccessor(executionSampleEvents.getType());
+          IMemberAccessor<String, IItem> fooAccessor =
+              FOO.getAccessor(executionSampleEvents.getType());
+          IMemberAccessor<String, IItem> barAccessor =
+              BAR.getAccessor(executionSampleEvents.getType());
           for (IItem executionSample : executionSampleEvents) {
             rootSpanIds.add(rootSpanIdAccessor.getMember(executionSample).longValue());
+            String foo = fooAccessor.getMember(executionSample);
+            if (foo != null) {
+              values.add(foo);
+            }
+            assertNull(barAccessor.getMember(executionSample));
           }
         }
         int matches = 0;
@@ -530,6 +556,10 @@ class JFRBasedProfilingIntegrationTest {
         }
         // we expect a rough correspondence between these events
         assertTrue(matches > 0);
+        assertFalse(values.isEmpty());
+        for (String value : values) {
+          assertTrue(value.startsWith("context"));
+        }
       }
     }
     if (asyncProfilerEnabled) {
@@ -558,11 +588,6 @@ class JFRBasedProfilingIntegrationTest {
     assertEquals(Runtime.getRuntime().availableProcessors(), val);
 
     assertTrue(events.apply(ItemFilters.type("datadog.ProfilerSetting")).hasItems());
-  }
-
-  private static String getStringParameter(
-      final String name, final Multimap<String, Object> parameters) {
-    return getParameter(name, String.class, parameters);
   }
 
   private static <T> T getParameter(
@@ -638,7 +663,7 @@ class JFRBasedProfilingIntegrationTest {
             "-Ddd.env=smoketest",
             "-Ddd.version=99",
             "-Ddd.profiling.enabled=true",
-            "-Ddd.profiling.async.enabled=" + asyncProfilerEnabled,
+            "-Ddd.profiling.ddprof.enabled=" + asyncProfilerEnabled,
             "-Ddd.profiling.agentless=" + (apiKey != null),
             "-Ddd.profiling.start-delay=" + profilingStartDelaySecs,
             "-Ddd.profiling.upload.period=" + profilingUploadPeriodSecs,
@@ -647,7 +672,9 @@ class JFRBasedProfilingIntegrationTest {
             "-Ddd.profiling.endpoint.collection.enabled=" + endpointCollectionEnabled,
             "-Ddd.profiling.upload.timeout=" + PROFILING_UPLOAD_TIMEOUT_SECONDS,
             "-Ddd.profiling.debug.dump_path=/tmp/dd-profiler",
+            "-Ddd.profiling.ddprof.experimental.queueing.time.enabled=true",
             "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
+            "-Ddd.profiling.experimental.context.attributes=foo,bar",
             "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",
             "-XX:+IgnoreUnrecognizedVMOptions",
             "-XX:+UnlockCommercialFeatures",

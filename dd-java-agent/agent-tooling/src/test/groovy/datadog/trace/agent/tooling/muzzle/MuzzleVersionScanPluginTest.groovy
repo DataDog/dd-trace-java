@@ -26,15 +26,15 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
     instrumentationLoader.addClass(TestInstrumentationClasses)
     instrumentationLoader.addClass(BaseInst)
     instCP.each { instrumentationLoader.addClass(it) }
-    def userClassLoader = new AddableClassLoader(TestInstrumentationClasses)
-    userCP.each { userClassLoader.addClass(it) }
+    def testApplicationLoader = new AddableClassLoader(TestInstrumentationClasses)
+    testCP.each { testApplicationLoader.addClass(it) }
 
     expect:
-    MuzzleVersionScanPlugin.assertInstrumentationMuzzled(instrumentationLoader, userClassLoader, assertPass, null)
+    MuzzleVersionScanPlugin.assertInstrumentationMuzzled(instrumentationLoader, testApplicationLoader, assertPass, null)
 
     where:
     // spotless:off
-    assertPass | instCP                                                                              | userCP
+    assertPass | instCP                                                                              | testCP
     true       | [EmptyInst, EmptyInst.Muzzle]                                                       | []
     false      | [BasicInst, BasicInst.Muzzle, SomeAdvice]                                           | []
     false      | [BasicInst, BasicInst.Muzzle, SomeAdvice]                                           | [AdviceParameter, AdviceStaticReference]
@@ -52,10 +52,10 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
     instrumentationLoader.addClass(TestInstrumentationClasses)
     instrumentationLoader.addClass(BaseInst)
     instCP.each { instrumentationLoader.addClass(it) }
-    def userClassLoader = new AddableClassLoader(TestInstrumentationClasses)
+    def testApplicationLoader = new AddableClassLoader(TestInstrumentationClasses)
 
     when:
-    MuzzleVersionScanPlugin.assertInstrumentationMuzzled(instrumentationLoader, userClassLoader, true, null)
+    MuzzleVersionScanPlugin.assertInstrumentationMuzzled(instrumentationLoader, testApplicationLoader, true, null)
 
     then:
     def ex = thrown(RuntimeException)
@@ -73,12 +73,12 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
     def instrumentationLoader = new ServiceEnabledClassLoader(Instrumenter, Instrumenter.Default, BaseInst,
       ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator, inst, muzzle)
     helpers.each { instrumentationLoader.addClass(it) }
-    def userClassLoader = new AddableClassLoader()
+    def testApplicationLoader = new AddableClassLoader()
 
     expect:
-    MuzzleVersionScanPlugin.assertInstrumentationMuzzled(instrumentationLoader, userClassLoader, true, null)
+    MuzzleVersionScanPlugin.assertInstrumentationMuzzled(instrumentationLoader, testApplicationLoader, true, null)
     !helpers.findAll {
-      userClassLoader.loadClass(it.name) != null
+      testApplicationLoader.loadClass(it.name) != null
     }.isEmpty()
 
     where:
@@ -94,10 +94,10 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
     def instrumentationLoader = new ServiceEnabledClassLoader(Instrumenter, Instrumenter.Default, BaseInst,
       ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator, inst, muzzle)
     helpers.each { instrumentationLoader.addClass(it) }
-    def userClassLoader = new AddableClassLoader()
+    def testApplicationLoader = new AddableClassLoader()
 
     when:
-    MuzzleVersionScanPlugin.assertInstrumentationMuzzled(instrumentationLoader, userClassLoader, true, null)
+    MuzzleVersionScanPlugin.assertInstrumentationMuzzled(instrumentationLoader, testApplicationLoader, true, null)
 
     then:
     def ex = thrown(IllegalArgumentException)

@@ -8,12 +8,15 @@ import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.values.ObjectValue;
 import com.datadog.debugger.el.values.UndefinedValue;
 import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
+import datadog.trace.bootstrap.debugger.el.Values;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
@@ -36,6 +39,7 @@ import org.slf4j.LoggerFactory;
 public class MetricInstrumentor extends Instrumentor {
   private static final Logger LOGGER = LoggerFactory.getLogger(MetricInstrumentor.class);
   private static final InsnList EMPTY_INSN_LIST = new InsnList();
+  private static final String PROBEID_TAG_NAME = "debugger.probeid";
 
   private final MetricProbe metricProbe;
 
@@ -85,7 +89,9 @@ public class MetricInstrumentor extends Instrumentor {
       // consider the metric as an increment counter one
       insnList.add(new LdcInsnNode(metricProbe.getMetricName()));
       ldc(insnList, 1L); // stack [long]
-      pushTags(insnList, metricProbe.getTags()); // stack [long, array]
+      pushTags(
+          insnList,
+          addProbeIdWithTags(metricProbe.getId(), metricProbe.getTags())); // stack [long, array]
       invokeStatic(
           insnList,
           DEBUGGER_CONTEXT_TYPE,
@@ -102,15 +108,16 @@ public class MetricInstrumentor extends Instrumentor {
   private InsnList internalCallMetric(
       String metricMethodName, MetricProbe metricProbe, InsnList insnList) {
     InsnList nullBranch = new InsnList();
+    Value<?> result;
     try {
-      metricProbe
-          .getValue()
-          .execute(new CompileToInsnList(classNode, methodNode, Type.LONG_TYPE, nullBranch));
+      result =
+          metricProbe
+              .getValue()
+              .execute(new CompileToInsnList(classNode, methodNode, Type.LONG_TYPE, nullBranch));
     } catch (InvalidValueException ex) {
       reportError(ex.getMessage());
       return EMPTY_INSN_LIST;
     }
-    Value<?> result = metricProbe.getValue().getResult();
     if (result.isNull() || result.isUndefined()) {
       return EMPTY_INSN_LIST;
     }
@@ -146,7 +153,10 @@ public class MetricInstrumentor extends Instrumentor {
     }
     // insert metric name at the beginning of the list
     insnList.insert(new LdcInsnNode(metricProbe.getMetricName())); // stack [string, long]
-    pushTags(insnList, metricProbe.getTags()); // stack [string, long, array]
+    pushTags(
+        insnList,
+        addProbeIdWithTags(
+            metricProbe.getId(), metricProbe.getTags())); // stack [string, long, array]
     invokeStatic(
         insnList,
         DEBUGGER_CONTEXT_TYPE,
@@ -157,6 +167,15 @@ public class MetricInstrumentor extends Instrumentor {
         Types.asArray(STRING_TYPE, 1));
     insnList.add(nullBranch);
     return insnList;
+  }
+
+  private ProbeDefinition.Tag[] addProbeIdWithTags(String probeId, ProbeDefinition.Tag[] tags) {
+    if (tags == null) {
+      return new ProbeDefinition.Tag[] {new ProbeDefinition.Tag(PROBEID_TAG_NAME, probeId)};
+    }
+    ProbeDefinition.Tag[] newTags = Arrays.copyOf(tags, tags.length + 1);
+    newTags[newTags.length - 1] = new ProbeDefinition.Tag(PROBEID_TAG_NAME, probeId);
+    return newTags;
   }
 
   private InsnList callGauge(MetricProbe metricProbe) {
@@ -246,17 +265,13 @@ public class MetricInstrumentor extends Instrumentor {
       if (name == null || name.isEmpty()) {
         throw new IllegalArgumentException("empty name for lookup operation");
       }
-      InsnList insnList = new InsnList();
-      Type currentType;
-      String rawName = name;
-      if (name.startsWith(ValueReferences.FIELD_PREFIX)) {
-        rawName = name.substring(ValueReferences.FIELD_PREFIX.length());
-        currentType = tryRetrieveField(rawName, insnList);
-      } else {
-        currentType = tryRetrieve(name, insnList);
+      if (name.equals(ValueReferences.THIS)) {
+        return Values.THIS_OBJECT;
       }
+      InsnList insnList = new InsnList();
+      Type currentType = tryRetrieve(name, insnList);
       if (currentType == null) {
-        reportError("Cannot resolve symbol " + rawName);
+        reportError("Cannot resolve symbol " + name);
         return null;
       }
       convertIfRequired(currentType, expectedType, insnList);
@@ -265,15 +280,25 @@ public class MetricInstrumentor extends Instrumentor {
 
     @Override
     public Object getMember(Object target, String name) {
-      if (target instanceof ResolverResult) {
+      Type currentType = null;
+      InsnList insnList = null;
+      if (target == Values.THIS_OBJECT) {
+        insnList = new InsnList();
+        currentType = tryRetrieveField(name, insnList);
+        convertIfRequired(currentType, expectedType, insnList);
+      } else if (target instanceof ResolverResult) {
         ResolverResult result = (ResolverResult) target;
-        Type currentType = followReferences(result.type, name, result.insnList);
-        if (currentType != null) {
-          return new ObjectValue(new ResolverResult(currentType, result.insnList));
-        }
+        insnList = result.insnList;
+        currentType = followReferences(result.type, name, insnList);
+      }
+      if (currentType != null) {
+        return new ObjectValue(new ResolverResult(currentType, insnList));
       }
       return UndefinedValue.INSTANCE;
     }
+
+    @Override
+    public void addEvaluationError(String expr, String message) {}
 
     private Type followReferences(Type currentType, String name, InsnList insnList) {
       Class<?> clazz;
@@ -327,7 +352,11 @@ public class MetricInstrumentor extends Instrumentor {
       int counter = 0;
       int slot = isStatic ? 0 : 1;
       for (Type argType : argTypes) {
-        String currentArgName = argumentNames[slot];
+        String currentArgName = null;
+        if (localVarsBySlot.length > 0) {
+          LocalVariableNode localVarNode = localVarsBySlot[slot];
+          currentArgName = localVarNode != null ? localVarNode.name : null;
+        }
         if (currentArgName == null) {
           // if argument names are not resolved correctly let's assign p+arg_index
           currentArgName = "p" + counter;

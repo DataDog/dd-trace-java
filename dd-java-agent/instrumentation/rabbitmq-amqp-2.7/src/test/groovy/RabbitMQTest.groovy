@@ -10,6 +10,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -766,7 +767,6 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
         if (expectTimestamp) {
           "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it instanceof Long && it >= 0 }
         }
-
         // FIXME: this is broken in the instrumentation
         // `it` should never be null
         "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it == null || it >= 0 }
@@ -809,6 +809,9 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
         }
         if (exception) {
           errorTags(exception.class, errorMsg)
+        }
+        if ({ isDataStreamsEnabled() }){
+          "$DDTags.PATHWAY_HASH" { String }
         }
         defaultTags(distributedRootSpan)
       }

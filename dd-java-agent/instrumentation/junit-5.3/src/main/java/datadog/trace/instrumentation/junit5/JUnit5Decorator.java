@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.junit5;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
-import datadog.trace.util.Strings;
+import java.lang.reflect.Method;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.TestIdentifier;
@@ -28,26 +28,39 @@ public class JUnit5Decorator extends TestDecorator {
   }
 
   public void onTestStart(
-      final AgentSpan span, final MethodSource methodSource, final TestIdentifier testIdentifier) {
-    onTestStart(span, methodSource.getClassName(), methodSource.getMethodName());
+      final AgentSpan span,
+      final String version,
+      final MethodSource methodSource,
+      final TestIdentifier testIdentifier) {
+    String testSuitName = methodSource.getClassName();
+    String testName = methodSource.getMethodName();
+    String testParameters = JUnit5Utils.getParameters(methodSource, testIdentifier);
 
-    if (hasParameters(methodSource)) {
-      // No public access to the test parameters map in JUnit5.
-      // In this case, we store the displayName in the "metadata.test_name" object.
-      // The test display name used to have the parameters.
-      span.setTag(
-          Tags.TEST_PARAMETERS,
-          "{\"metadata\":{\"test_name\":\""
-              + Strings.escapeToJson(testIdentifier.getDisplayName())
-              + "\"}}");
-    }
+    Class<?> testClass = JUnit5Utils.getTestClass(methodSource);
+    Method testMethod = JUnit5Utils.getTestMethod(methodSource);
+
+    afterTestStart(span, testSuitName, testName, testParameters, version, testClass, testMethod);
+
+    span.setTag(Tags.TEST_STATUS, TEST_PASS);
   }
 
-  public void onTestStart(final AgentSpan span, final String testSuite, final String testName) {
-    span.setResourceName(testSuite + "." + testName);
-    span.setTag(Tags.TEST_SUITE, testSuite);
-    span.setTag(Tags.TEST_NAME, testName);
-    span.setTag(Tags.TEST_STATUS, TEST_PASS);
+  public void onTestIgnore(
+      final AgentSpan span,
+      final String version,
+      final MethodSource methodSource,
+      final String reason) {
+    String testSuiteName = methodSource.getClassName();
+    String testName = methodSource.getMethodName();
+
+    Class<?> testClass = JUnit5Utils.getTestClass(methodSource);
+    Method testMethod = JUnit5Utils.getTestMethod(methodSource);
+
+    afterTestStart(span, testSuiteName, testName, null, version, testClass, testMethod);
+
+    span.setTag(Tags.TEST_STATUS, TEST_SKIP);
+    span.setTag(Tags.TEST_SKIP_REASON, reason);
+
+    beforeFinish(span);
   }
 
   public void onTestFinish(final AgentSpan span, final TestExecutionResult result) {
@@ -71,17 +84,7 @@ public class JUnit5Decorator extends TestDecorator {
                   span.setTag(Tags.TEST_STATUS, TEST_FAIL);
               }
             });
-  }
 
-  public void onTestIgnore(
-      final AgentSpan span, final String testSuite, final String testName, final String reason) {
-    onTestStart(span, testSuite, testName);
-    span.setTag(Tags.TEST_STATUS, TEST_SKIP);
-    span.setTag(Tags.TEST_SKIP_REASON, reason);
-  }
-
-  private boolean hasParameters(final MethodSource methodSource) {
-    return methodSource.getMethodParameterTypes() != null
-        && !methodSource.getMethodParameterTypes().isEmpty();
+    beforeFinish(span);
   }
 }

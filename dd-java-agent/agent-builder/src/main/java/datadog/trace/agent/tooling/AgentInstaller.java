@@ -13,6 +13,7 @@ import datadog.trace.api.ProductActivation;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.util.AgentTaskScheduler;
+import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -23,7 +24,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.agent.builder.AgentBuilder;
-import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
@@ -75,7 +75,7 @@ public class AgentInstaller {
    *
    * @return the agent's class transformer
    */
-  public static ResettableClassFileTransformer installBytebuddyAgent(
+  public static ClassFileTransformer installBytebuddyAgent(
       final Instrumentation inst,
       final boolean skipAdditionalLibraryMatcher,
       final Set<Instrumenter.TargetSystem> enabledSystems,
@@ -126,9 +126,10 @@ public class AgentInstaller {
     }
 
     Instrumenters instrumenters = Instrumenters.load(AgentInstaller.class.getClassLoader());
+    int maxInstrumentationId = instrumenters.maxInstrumentationId();
 
     // pre-size state before registering instrumentations to reduce number of allocations
-    InstrumenterState.setMaxInstrumentationId(instrumenters.maxInstrumentationId());
+    InstrumenterState.setMaxInstrumentationId(maxInstrumentationId);
 
     // This needs to be a separate loop through all the instrumenters before we start adding
     // advice so that we can exclude field injection, since that will try to check exclusion
@@ -146,7 +147,12 @@ public class AgentInstaller {
       }
     }
 
-    AgentTransformerBuilder transformerBuilder = new AgentTransformerBuilder(agentBuilder);
+    Instrumenter.TransformerBuilder transformerBuilder;
+    if (InstrumenterConfig.get().isLegacyInstallerEnabled()) {
+      transformerBuilder = new LegacyTransformerBuilder(agentBuilder);
+    } else {
+      transformerBuilder = new CombiningTransformerBuilder(agentBuilder, maxInstrumentationId);
+    }
 
     int installedCount = 0;
     for (Instrumenter instrumenter : instrumenters) {

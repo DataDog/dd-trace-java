@@ -123,6 +123,7 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
 
   static class MockSpan implements DebuggerSpan {
     boolean finished;
+    Throwable throwable;
     String name;
     String[] tags;
 
@@ -134,6 +135,11 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
     @Override
     public void finish() {
       finished = true;
+    }
+
+    @Override
+    public void setError(Throwable t) {
+      this.throwable = t;
     }
 
     public boolean isFinished() {

@@ -8,21 +8,33 @@ class TestProfilingContextIntegration implements ProfilingContextIntegration {
   final AtomicInteger attachments = new AtomicInteger()
   final AtomicInteger detachments = new AtomicInteger()
   @Override
-  void onAttach(int tid) {
+  void onAttach() {
     attachments.incrementAndGet()
   }
 
   @Override
-  void onDetach(int tid) {
+  void onDetach() {
     detachments.incrementAndGet()
   }
 
   @Override
-  void setContext(int tid, long rootSpanId, long spanId) {
+  void setContext(long rootSpanId, long spanId) {
   }
 
   @Override
-  int getNativeThreadId() {
-    return -1
+  boolean isQueuingTimeEnabled() {
+    return true
+  }
+
+  @Override
+  void recordQueueingTime(long duration) {
+  }
+
+  @Override
+  void setContextValue(String attribute, String value) {
+  }
+
+  @Override
+  void clearContextValue(String attribute) {
   }
 }

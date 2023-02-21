@@ -1,5 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.Expression.nullSafePrettyPrint;
+
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
@@ -26,12 +28,22 @@ public class IndexExpression implements ValueExpression {
     if (keyValue == Value.undefined()) {
       return result;
     }
-    if (targetValue instanceof MapValue) {
-      result = ((MapValue) targetValue).get(keyValue.getValue());
+    try {
+      if (targetValue instanceof MapValue) {
+        result = ((MapValue) targetValue).get(keyValue.getValue());
+      }
+      if (targetValue instanceof ListValue) {
+        result = ((ListValue) targetValue).get(keyValue.getValue());
+      }
+    } catch (IllegalArgumentException ex) {
+      valueRefResolver.addEvaluationError(prettyPrint(), ex.getMessage());
     }
-    if (targetValue instanceof ListValue) {
-      result = ((ListValue) targetValue).get(keyValue.getValue());
-    }
+
     return result;
+  }
+
+  @Override
+  public String prettyPrint() {
+    return nullSafePrettyPrint(target) + "[" + nullSafePrettyPrint(key) + "]";
   }
 }

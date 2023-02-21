@@ -1,11 +1,14 @@
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.instrumentation.jaxrs.JaxRsClientDecorator
+import datadog.trace.test.util.Flaky
 import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl
 import org.glassfish.jersey.client.ClientConfig
 import org.glassfish.jersey.client.ClientProperties
 import org.glassfish.jersey.client.JerseyClientBuilder
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder
+import org.spockframework.runtime.ConditionNotSatisfiedError
 import spock.lang.IgnoreIf
+import spock.lang.Retry
 import spock.lang.Timeout
 
 import javax.ws.rs.client.Client
@@ -46,6 +49,8 @@ abstract class JaxRsClientTest extends HttpClientTest {
   abstract ClientBuilder builder()
 }
 
+@Flaky
+@Retry(exceptions = [ConditionNotSatisfiedError])
 @Timeout(5)
 class JerseyClientTest extends JaxRsClientTest {
 

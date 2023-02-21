@@ -7,7 +7,7 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.TraceSegment;
+import datadog.trace.api.internal.TraceSegment;
 import io.sqreen.powerwaf.Powerwaf;
 import io.sqreen.powerwaf.RuleSetInfo;
 import java.util.Collection;

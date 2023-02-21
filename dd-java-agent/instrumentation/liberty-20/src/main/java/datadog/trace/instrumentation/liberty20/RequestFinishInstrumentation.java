@@ -28,6 +28,7 @@ public class RequestFinishInstrumentation extends Instrumenter.Tracing
       packageName + ".HttpServletExtractAdapter$Request",
       packageName + ".HttpServletExtractAdapter$Response",
       packageName + ".LibertyDecorator",
+      packageName + ".LibertyDecorator$LibertyBlockResponseFunction",
       packageName + ".RequestURIDataAdapter",
     };
   }

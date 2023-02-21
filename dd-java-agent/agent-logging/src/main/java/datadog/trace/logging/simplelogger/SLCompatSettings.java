@@ -173,8 +173,10 @@ public class SLCompatSettings {
         FileOutputStream outputStream = null;
         try {
           File outputFile = new File(logFile);
-          outputFile.getParentFile().mkdirs();
-
+          File parentFile = outputFile.getParentFile();
+          if (parentFile != null) {
+            parentFile.mkdirs();
+          }
           outputStream = new FileOutputStream(outputFile);
           PrintStream printStream = new PrintStream(outputStream, true);
           return printStream;

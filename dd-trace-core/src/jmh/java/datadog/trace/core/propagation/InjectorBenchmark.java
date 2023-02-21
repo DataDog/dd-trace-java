@@ -51,8 +51,8 @@ public class InjectorBenchmark {
   long spanId;
   CoreTracer tracer;
   DDSpanContext spanContext;
-  DatadogTags datadogTags;
-  boolean modifyDatadogTags = false;
+  PropagationTags propagationTags;
+  boolean modifyPropagationTags = false;
 
   @Setup(Level.Trial)
   public void setUp(Blackhole blackhole) {
@@ -72,13 +72,19 @@ public class InjectorBenchmark {
         String feature = propagationAndFeatures[i];
         switch (feature) {
           case "x-dth":
-            datadogTags =
-                DatadogTags.factory().fromHeaderValue("_dd.p.anytag=value,_dd.p.dm=934086a686-4");
+            propagationTags =
+                PropagationTags.factory()
+                    .fromHeaderValue(
+                        PropagationTags.HeaderType.DATADOG,
+                        "_dd.p.anytag=value,_dd.p.dm=934086a686-4");
             break;
           case "x-dth-mod":
-            datadogTags =
-                DatadogTags.factory().fromHeaderValue("_dd.p.anytag=value,_dd.p.dm=934086a686-4");
-            modifyDatadogTags = true;
+            propagationTags =
+                PropagationTags.factory()
+                    .fromHeaderValue(
+                        PropagationTags.HeaderType.DATADOG,
+                        "_dd.p.anytag=value,_dd.p.dm=934086a686-4");
+            modifyPropagationTags = true;
             break;
           default:
             System.out.println("Unknown benchmark feature " + feature + ". Will be ignored!");
@@ -120,7 +126,7 @@ public class InjectorBenchmark {
             null,
             null,
             false,
-            datadogTags);
+            propagationTags);
   }
 
   int mechanism = 0;
@@ -129,9 +135,9 @@ public class InjectorBenchmark {
   public void injectContext(Blackhole blackhole) {
     injector.inject(spanContext, headers, MAP_SETTER);
     blackhole.consume(headers);
-    if (modifyDatadogTags) {
+    if (modifyPropagationTags) {
       int sm = mechanism = (mechanism + 1) % 4;
-      datadogTags.updateTraceSamplingPriority(1, sm, "service");
+      propagationTags.updateTraceSamplingPriority(1, sm);
     }
   }
 

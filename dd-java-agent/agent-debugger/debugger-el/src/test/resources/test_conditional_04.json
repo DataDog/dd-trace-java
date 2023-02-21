@@ -3,7 +3,9 @@
   "json": {
     "eq": [
       {"getmember": [
-        {"ref": "this.container"},
+        {"getmember": [
+          {"ref": "this"},
+          "container"]},
         "msg"
       ]},
       "hello"

@@ -12,6 +12,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.datadog.debugger.el.DSL;
+import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -73,7 +75,12 @@ public class ConfigurationUpdaterTest {
   @Test
   public void acceptNoProbes() {
     ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(inst, this::createTransformer, tracerConfig, debuggerSink);
+        new ConfigurationUpdater(
+            inst,
+            this::createTransformer,
+            tracerConfig,
+            debuggerSink,
+            new ClassesToRetransformFinder());
     configurationUpdater.accept(null);
     verify(inst, never()).addTransformer(any(), eq(true));
     verifyNoInteractions(debuggerSink);
@@ -84,7 +91,11 @@ public class ConfigurationUpdaterTest {
     when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
-            inst, this::createTransformer, tracerConfig, debuggerSinkWithMockStatusSink);
+            inst,
+            this::createTransformer,
+            tracerConfig,
+            debuggerSinkWithMockStatusSink,
+            new ClassesToRetransformFinder());
     List<LogProbe> logProbes =
         Collections.singletonList(
             LogProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build());
@@ -112,7 +123,11 @@ public class ConfigurationUpdaterTest {
     when(inst.getAllLoadedClasses()).thenReturn(classes);
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
-            inst, this::createTransformer, tracerConfig, debuggerSinkWithMockStatusSink);
+            inst,
+            this::createTransformer,
+            tracerConfig,
+            debuggerSinkWithMockStatusSink,
+            new ClassesToRetransformFinder());
     List<LogProbe> logProbes =
         Arrays.stream(classes)
             .map(getClassName)
@@ -132,7 +147,11 @@ public class ConfigurationUpdaterTest {
     when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
-            inst, this::createTransformer, tracerConfig, debuggerSinkWithMockStatusSink);
+            inst,
+            this::createTransformer,
+            tracerConfig,
+            debuggerSinkWithMockStatusSink,
+            new ClassesToRetransformFinder());
     List<LogProbe> logProbes =
         Arrays.asList(
             LogProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build(),
@@ -154,7 +173,11 @@ public class ConfigurationUpdaterTest {
     when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
-            inst, this::createTransformer, tracerConfig, debuggerSinkWithMockStatusSink);
+            inst,
+            this::createTransformer,
+            tracerConfig,
+            debuggerSinkWithMockStatusSink,
+            new ClassesToRetransformFinder());
     // phase 1: single probe definition
     List<LogProbe> logProbes =
         Arrays.asList(
@@ -184,7 +207,11 @@ public class ConfigurationUpdaterTest {
     when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
-            inst, this::createTransformer, tracerConfig, debuggerSinkWithMockStatusSink);
+            inst,
+            this::createTransformer,
+            tracerConfig,
+            debuggerSinkWithMockStatusSink,
+            new ClassesToRetransformFinder());
     // phase 1: duplicated probe definition
     List<LogProbe> logProbes =
         Arrays.asList(
@@ -216,7 +243,11 @@ public class ConfigurationUpdaterTest {
     when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
-            inst, this::createTransformer, tracerConfig, debuggerSinkWithMockStatusSink);
+            inst,
+            this::createTransformer,
+            tracerConfig,
+            debuggerSinkWithMockStatusSink,
+            new ClassesToRetransformFinder());
     List<LogProbe> logProbes =
         Arrays.asList(
             LogProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build());
@@ -238,7 +269,8 @@ public class ConfigurationUpdaterTest {
   public void acceptSourceFileLineNumber() throws UnmodifiableClassException {
     when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
     ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
+        new ConfigurationUpdater(
+            inst, this::createTransformer, tracerConfig, new ClassesToRetransformFinder());
     List<LogProbe> logProbes =
         Collections.singletonList(
             LogProbe.builder()
@@ -264,7 +296,8 @@ public class ConfigurationUpdaterTest {
         };
     when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class, runnable.getClass()});
     ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
+        new ConfigurationUpdater(
+            inst, this::createTransformer, tracerConfig, new ClassesToRetransformFinder());
     List<LogProbe> logProbes =
         Collections.singletonList(
             LogProbe.builder()
@@ -289,7 +322,8 @@ public class ConfigurationUpdaterTest {
         };
     when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class, runnable.getClass()});
     ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
+        new ConfigurationUpdater(
+            inst, this::createTransformer, tracerConfig, new ClassesToRetransformFinder());
     List<LogProbe> logProbes =
         Collections.singletonList(
             LogProbe.builder()
@@ -314,7 +348,8 @@ public class ConfigurationUpdaterTest {
               assertEquals(0, configuration.getDefinitions().size());
               return transformer;
             },
-            tracerConfig);
+            tracerConfig,
+            new ClassesToRetransformFinder());
     List<LogProbe> logProbes =
         Arrays.asList(
             LogProbe.builder()
@@ -347,7 +382,8 @@ public class ConfigurationUpdaterTest {
               assertEquals(expectedDefinitions.get(), configuration.getDefinitions().size());
               return transformer;
             },
-            tracerConfig);
+            tracerConfig,
+            new ClassesToRetransformFinder());
     List<LogProbe> logProbes =
         Collections.singletonList(
             LogProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build());
@@ -373,7 +409,11 @@ public class ConfigurationUpdaterTest {
     when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class, HashMap.class});
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
-            inst, this::createTransformer, tracerConfig, debuggerSinkWithMockStatusSink);
+            inst,
+            this::createTransformer,
+            tracerConfig,
+            debuggerSinkWithMockStatusSink,
+            new ClassesToRetransformFinder());
     LogProbe probe1 =
         LogProbe.builder()
             .language(LANGUAGE)
@@ -417,7 +457,8 @@ public class ConfigurationUpdaterTest {
               return transformer;
             },
             tracerConfig,
-            debuggerSinkWithMockStatusSink);
+            debuggerSinkWithMockStatusSink,
+            new ClassesToRetransformFinder());
     LogProbe probe1 =
         LogProbe.builder()
             .language(LANGUAGE)
@@ -454,7 +495,11 @@ public class ConfigurationUpdaterTest {
     when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
-            inst, this::createTransformer, tracerConfig, debuggerSinkWithMockStatusSink);
+            inst,
+            this::createTransformer,
+            tracerConfig,
+            debuggerSinkWithMockStatusSink,
+            new ClassesToRetransformFinder());
     List<LogProbe> logProbes =
         Collections.singletonList(
             LogProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build());
@@ -471,22 +516,31 @@ public class ConfigurationUpdaterTest {
   public void resolve() {
     when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
     ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
+        new ConfigurationUpdater(
+            inst, this::createTransformer, tracerConfig, new ClassesToRetransformFinder());
     List<LogProbe> logProbes =
         Collections.singletonList(
-            LogProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build());
+            LogProbe.builder()
+                .probeId(PROBE_ID)
+                .where("java.lang.String", "concat")
+                .when(
+                    new ProbeCondition(
+                        DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("foo"))), "arg == 'foo'"))
+                .build());
     configurationUpdater.accept(createApp(logProbes));
     Snapshot.ProbeDetails probeDetails = configurationUpdater.resolve(PROBE_ID, String.class);
     Assertions.assertEquals(PROBE_ID, probeDetails.getId());
     Assertions.assertEquals("java.lang.String", probeDetails.getLocation().getType());
     Assertions.assertEquals("concat", probeDetails.getLocation().getMethod());
+    Assertions.assertNotNull(probeDetails.getScript());
   }
 
   @Test
   public void resolveFails() throws UnmodifiableClassException {
     when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
     ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
+        new ConfigurationUpdater(
+            inst, this::createTransformer, tracerConfig, new ClassesToRetransformFinder());
     List<LogProbe> logProbes =
         Collections.singletonList(
             LogProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build());
@@ -510,7 +564,8 @@ public class ConfigurationUpdaterTest {
               .build());
     }
     ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
+        new ConfigurationUpdater(
+            inst, this::createTransformer, tracerConfig, new ClassesToRetransformFinder());
     configurationUpdater.accept(createApp(logProbes));
     Assertions.assertEquals(
         ConfigurationUpdater.MAX_ALLOWED_LOG_PROBES,
@@ -545,7 +600,8 @@ public class ConfigurationUpdaterTest {
     logProbes.add(
         LogProbe.builder().probeId("foo").tags(tags).where("java.lang.String", "concat").build());
     ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
+        new ConfigurationUpdater(
+            inst, this::createTransformer, tracerConfig, new ClassesToRetransformFinder());
     configurationUpdater.accept(createApp(logProbes));
     Assertions.assertEquals(
         expectation ? 1 : 0, configurationUpdater.getAppliedDefinitions().size());
@@ -555,7 +611,8 @@ public class ConfigurationUpdaterTest {
   public void acceptNewMetric() {
     when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
     ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
+        new ConfigurationUpdater(
+            inst, this::createTransformer, tracerConfig, new ClassesToRetransformFinder());
     List<MetricProbe> metricProbes =
         Collections.singletonList(
             MetricProbe.builder().probeId(METRIC_ID).where("java.lang.String", "concat").build());
@@ -571,7 +628,8 @@ public class ConfigurationUpdaterTest {
   public void acceptNewLog() {
     when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
     ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
+        new ConfigurationUpdater(
+            inst, this::createTransformer, tracerConfig, new ClassesToRetransformFinder());
     List<LogProbe> logProbes =
         Collections.singletonList(
             LogProbe.builder().probeId(LOG_ID).where("java.lang.String", "concat").build());
@@ -587,7 +645,8 @@ public class ConfigurationUpdaterTest {
   public void acceptDeleteMetric() throws UnmodifiableClassException {
     when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class, HashMap.class});
     ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
+        new ConfigurationUpdater(
+            inst, this::createTransformer, tracerConfig, new ClassesToRetransformFinder());
     MetricProbe metricProbe1 =
         MetricProbe.builder()
             .language(LANGUAGE)
@@ -620,7 +679,8 @@ public class ConfigurationUpdaterTest {
   public void acceptDeleteLog() throws UnmodifiableClassException {
     when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class, HashMap.class});
     ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
+        new ConfigurationUpdater(
+            inst, this::createTransformer, tracerConfig, new ClassesToRetransformFinder());
     LogProbe logProbe1 =
         LogProbe.builder()
             .language(LANGUAGE)
@@ -653,7 +713,8 @@ public class ConfigurationUpdaterTest {
   public void acceptClearMetrics() throws UnmodifiableClassException {
     when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
     ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
+        new ConfigurationUpdater(
+            inst, this::createTransformer, tracerConfig, new ClassesToRetransformFinder());
     List<MetricProbe> metricProbes =
         Collections.singletonList(
             MetricProbe.builder().probeId(METRIC_ID).where("java.lang.String", "concat").build());
@@ -668,7 +729,8 @@ public class ConfigurationUpdaterTest {
   public void acceptClearLogs() throws UnmodifiableClassException {
     when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
     ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
+        new ConfigurationUpdater(
+            inst, this::createTransformer, tracerConfig, new ClassesToRetransformFinder());
     List<LogProbe> logProbes =
         Collections.singletonList(
             LogProbe.builder().probeId(LOG_ID).where("java.lang.String", "concat").build());
@@ -684,7 +746,8 @@ public class ConfigurationUpdaterTest {
     when(inst.getAllLoadedClasses())
         .thenReturn(new Class[] {String.class, HashMap.class, StringBuilder.class});
     ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(inst, this::createTransformer, tracerConfig);
+        new ConfigurationUpdater(
+            inst, this::createTransformer, tracerConfig, new ClassesToRetransformFinder());
     List<LogProbe> logProbes =
         Arrays.asList(
             LogProbe.builder()

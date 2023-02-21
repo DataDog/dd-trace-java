@@ -1,13 +1,23 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.api.DDTags
+import datadog.trace.api.civisibility.InstrumentationBridge
+import datadog.trace.api.civisibility.codeowners.Codeowners
+import datadog.trace.api.civisibility.source.MethodLinesResolver
+import datadog.trace.api.civisibility.source.SourcePathResolver
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.bootstrap.instrumentation.ci.CIProviderInfo
-import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo
 
 class TestDecoratorTest extends BaseDecoratorTest {
+
+  def setupSpec() {
+    InstrumentationBridge.ci = true
+    InstrumentationBridge.ciTags = Collections.singletonMap("sample-ci-key", "sample-ci-value")
+    InstrumentationBridge.codeowners = Stub(Codeowners)
+    InstrumentationBridge.sourcePathResolver = Stub(SourcePathResolver)
+    InstrumentationBridge.methodLinesResolver = Stub(MethodLinesResolver)
+  }
 
   def span = Mock(AgentSpan)
 
@@ -54,7 +64,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
 
   @Override
   def newDecorator() {
-    return new TestDecorator(newMockCiInfo()) {
+    return new TestDecorator() {
         @Override
         protected String testFramework() {
           return "test-framework"
@@ -78,28 +88,6 @@ class TestDecoratorTest extends BaseDecoratorTest {
         @Override
         protected CharSequence component() {
           return "test-component"
-        }
-      }
-  }
-
-  def newMockCiInfo() {
-    return new CIProviderInfo() {
-
-        @Override
-        protected GitInfo buildCIGitInfo() {
-          return GitInfo.NOOP
-        }
-
-        @Override
-        protected CIProviderInfo.CIInfo buildCIInfo() {
-          return CIProviderInfo.CIInfo.NOOP
-        }
-
-        @Override
-        Map<String, String> getCiTags() {
-          def mockCiTags = new HashMap()
-          mockCiTags.put("sample-ci-key", "sample-ci-value")
-          return mockCiTags
         }
       }
   }

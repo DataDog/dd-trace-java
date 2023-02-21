@@ -1,0 +1,12 @@
+{
+  "dsl": "len(strField) > 0 && substring(strField, 0, 3) == \"foo\" && startsWith(strField, \"foo\") && endsWith(strField, \"bar\" && contains(strField, \"ooba\"))",
+  "json": {
+    "and": [
+      {"gt": [{"len": {"ref": "strField"}}, 0]},
+      {"eq": [{"substring": [{"ref": "strField"}, 0, 3]}, "foo"]},
+      {"startsWith": [{"ref": "strField"}, "foo"]},
+      {"endsWith": [{"ref": "strField"}, "bar"]},
+      {"contains": [{"ref": "strField"}, "ooba"]}
+    ]
+  }
+}

@@ -27,6 +27,7 @@ class FilterCollectionExpressionTest {
     assertFalse(filtered.isEmpty());
     assertFalse(filtered.isNull());
     assertFalse(filtered.isUndefined());
+    assertEquals("filter(int[], @it < 2)", expression.prettyPrint());
   }
 
   @Test
@@ -39,6 +40,7 @@ class FilterCollectionExpressionTest {
     assertTrue(filtered.isEmpty());
     assertFalse(filtered.isNull());
     assertFalse(filtered.isUndefined());
+    assertEquals("filter(int[], @it < 2)", expression.prettyPrint());
   }
 
   @Test
@@ -49,6 +51,7 @@ class FilterCollectionExpressionTest {
     CollectionValue<?> filtered = expression.evaluate(RefResolverHelper.createResolver(this));
     assertEquals(collection, filtered);
     assertTrue(filtered.isNull());
+    assertEquals("filter(null, @it < 2)", expression.prettyPrint());
   }
 
   @Test
@@ -59,6 +62,7 @@ class FilterCollectionExpressionTest {
     CollectionValue<?> filtered = expression.evaluate(RefResolverHelper.createResolver(this));
     assertEquals(collection, filtered);
     assertTrue(filtered.isNull());
+    assertEquals("filter(null, @it < 2)", expression.prettyPrint());
   }
 
   @Test
@@ -69,6 +73,7 @@ class FilterCollectionExpressionTest {
     CollectionValue<?> filtered = expression.evaluate(RefResolverHelper.createResolver(this));
     assertEquals(collection, filtered);
     assertTrue(filtered.isUndefined());
+    assertEquals("filter(null, @it < 2)", expression.prettyPrint());
   }
 
   @Test
@@ -98,6 +103,7 @@ class FilterCollectionExpressionTest {
     assertFalse(filtered.isEmpty());
     assertFalse(filtered.isNull());
     assertFalse(filtered.isUndefined());
+    assertEquals("filter(Map, @it.value < 2)", expression.prettyPrint());
   }
 
   @Test
@@ -110,6 +116,7 @@ class FilterCollectionExpressionTest {
     assertTrue(filtered.isEmpty());
     assertFalse(filtered.isNull());
     assertFalse(filtered.isUndefined());
+    assertEquals("filter(Map, @it < 2)", expression.prettyPrint());
   }
 
   @Test
@@ -120,6 +127,7 @@ class FilterCollectionExpressionTest {
     CollectionValue<?> filtered = expression.evaluate(RefResolverHelper.createResolver(this));
     assertEquals(collection, filtered);
     assertTrue(filtered.isNull());
+    assertEquals("filter(null, @it < 2)", expression.prettyPrint());
   }
 
   @Test
@@ -130,6 +138,7 @@ class FilterCollectionExpressionTest {
     CollectionValue<?> filtered = expression.evaluate(RefResolverHelper.createResolver(this));
     assertEquals(collection, filtered);
     assertTrue(filtered.isNull());
+    assertEquals("filter(null, @it < 2)", expression.prettyPrint());
   }
 
   @Test
@@ -140,5 +149,6 @@ class FilterCollectionExpressionTest {
     CollectionValue<?> filtered = expression.evaluate(RefResolverHelper.createResolver(this));
     assertEquals(collection, filtered);
     assertTrue(filtered.isUndefined());
+    assertEquals("filter(null, @it < 2)", expression.prettyPrint());
   }
 }

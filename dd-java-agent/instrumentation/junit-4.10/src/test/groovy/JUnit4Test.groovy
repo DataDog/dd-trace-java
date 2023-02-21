@@ -105,7 +105,7 @@ class JUnit4Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(1) {
-        testSpan(it, 0, "org.example.TestSkippedClass", "test_class_skipped", TestDecorator.TEST_SKIP, testTags,null, true)
+        testSpan(it, 0, "org.example.TestSkippedClass", "test_class_skipped", TestDecorator.TEST_SKIP, testTags, null, true)
       }
     }
 

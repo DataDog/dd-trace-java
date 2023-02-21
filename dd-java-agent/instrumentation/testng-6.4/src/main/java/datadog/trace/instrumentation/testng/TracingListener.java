@@ -20,6 +20,12 @@ public class TracingListener implements ITestListener {
   }
 
   @Override
+  public void onStart(final ITestContext context) {}
+
+  @Override
+  public void onFinish(final ITestContext context) {}
+
+  @Override
   public void onTestStart(final ITestResult result) {
     // If there is an active span that represents a test
     // we don't want to generate another child test span.
@@ -34,14 +40,13 @@ public class TracingListener implements ITestListener {
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
 
-    DECORATE.afterStart(span, version);
-    DECORATE.onTestStart(span, result);
+    DECORATE.onTestStart(span, version, result);
   }
 
   @Override
   public void onTestSuccess(final ITestResult result) {
     final AgentSpan span = AgentTracer.activeSpan();
-    if (span == null) {
+    if (span == null || !DECORATE.isTestSpan(AgentTracer.activeSpan())) {
       return;
     }
 
@@ -51,14 +56,13 @@ public class TracingListener implements ITestListener {
     }
 
     DECORATE.onTestSuccess(span);
-    DECORATE.beforeFinish(span);
     span.finish();
   }
 
   @Override
   public void onTestFailure(final ITestResult result) {
     final AgentSpan span = AgentTracer.activeSpan();
-    if (span == null) {
+    if (span == null || !DECORATE.isTestSpan(AgentTracer.activeSpan())) {
       return;
     }
 
@@ -68,14 +72,18 @@ public class TracingListener implements ITestListener {
     }
 
     DECORATE.onTestFailure(span, result);
-    DECORATE.beforeFinish(span);
     span.finish();
+  }
+
+  @Override
+  public void onTestFailedButWithinSuccessPercentage(final ITestResult result) {
+    onTestFailure(result);
   }
 
   @Override
   public void onTestSkipped(final ITestResult result) {
     final AgentSpan span = AgentTracer.activeSpan();
-    if (span == null) {
+    if (span == null || !DECORATE.isTestSpan(AgentTracer.activeSpan())) {
       return;
     }
 
@@ -85,20 +93,8 @@ public class TracingListener implements ITestListener {
     }
 
     DECORATE.onTestIgnored(span, result);
-    DECORATE.beforeFinish(span);
     // We set a duration of 1 ns, because a span with duration==0 has a special treatment in the
     // tracer.
     span.finishWithDuration(1L);
   }
-
-  @Override
-  public void onTestFailedButWithinSuccessPercentage(final ITestResult result) {
-    onTestFailure(result);
-  }
-
-  @Override
-  public void onStart(final ITestContext context) {}
-
-  @Override
-  public void onFinish(final ITestContext context) {}
 }

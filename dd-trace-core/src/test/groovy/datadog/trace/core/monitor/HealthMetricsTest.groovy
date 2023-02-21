@@ -5,6 +5,7 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.RemoteApi
 import datadog.trace.common.writer.RemoteWriter
 import datadog.trace.test.util.DDSpecification
+import datadog.trace.test.util.Flaky
 import spock.lang.Ignore
 import spock.lang.Subject
 
@@ -98,6 +99,7 @@ class HealthMetricsTest extends DDSpecification {
     ]
   }
 
+  @Flaky
   def "test onPartialPublish"() {
     setup:
     def latch = new CountDownLatch(1)

@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.servlet;
 
+import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
-import datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType;
 import java.io.IOException;
 import java.io.OutputStream;
 import javax.servlet.http.HttpServletRequest;
@@ -16,15 +16,16 @@ public class ServletBlockingHelper {
   public static void commitBlockingResponse(
       HttpServletRequest httpServletRequest,
       HttpServletResponse resp,
-      Flow.Action.RequestBlockingAction rba) {
-    int statusCode = BlockingActionHelper.getHttpCode(rba.getStatusCode());
+      int statusCode_,
+      BlockingContentType bct) {
+    int statusCode = BlockingActionHelper.getHttpCode(statusCode_);
     if (!start(resp, statusCode)) {
       return;
     }
 
     String acceptHeader = httpServletRequest.getHeader("Accept");
-    TemplateType type =
-        BlockingActionHelper.determineTemplateType(rba.getBlockingContentType(), acceptHeader);
+    BlockingActionHelper.TemplateType type =
+        BlockingActionHelper.determineTemplateType(bct, acceptHeader);
     byte[] template = BlockingActionHelper.getTemplate(type);
     String contentType = BlockingActionHelper.getContentType(type);
 
@@ -37,6 +38,15 @@ public class ServletBlockingHelper {
     } catch (IOException e) {
       log.warn("Error sending error page", e);
     }
+  }
+
+  public static void commitBlockingResponse(
+      HttpServletRequest httpServletRequest,
+      HttpServletResponse resp,
+      Flow.Action.RequestBlockingAction rba) {
+
+    commitBlockingResponse(
+        httpServletRequest, resp, rba.getStatusCode(), rba.getBlockingContentType());
   }
 
   private static boolean start(HttpServletResponse resp, int statusCode) {

@@ -29,7 +29,7 @@ class DDSpanTest extends DDCoreSpecification {
   @Shared def writer = new ListWriter()
   @Shared def sampler = new RateByServiceTraceSampler()
   @Shared def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
-  @Shared def datadogTagsFactory = tracer.getDatadogTagsFactory()
+  @Shared def propagationTagsFactory = tracer.getPropagationTagsFactory()
 
   def cleanup() {
     tracer?.close()
@@ -274,7 +274,7 @@ class DDSpanTest extends DDCoreSpecification {
     where:
     extractedContext                                                                                                                          | _
     new TagContext("some-origin", [:])                                                                                                        | _
-    new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, "some-origin", 0, [:], [:], null, datadogTagsFactory.empty()) | _
+    new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, "some-origin", 0, [:], [:], null, propagationTagsFactory.empty()) | _
   }
 
   def "isRootSpan() in and not in the context of distributed tracing"() {
@@ -293,7 +293,7 @@ class DDSpanTest extends DDCoreSpecification {
     where:
     extractedContext                                                                                                                          | isTraceRootSpan
     null                                                                                                                                      | true
-    new ExtractedContext(DDTraceId.from(123), 456, PrioritySampling.SAMPLER_KEEP, "789", 0, [:], [:], null, datadogTagsFactory.empty()) | false
+    new ExtractedContext(DDTraceId.from(123), 456, PrioritySampling.SAMPLER_KEEP, "789", 0, [:], [:], null, propagationTagsFactory.empty()) | false
   }
 
   def "getApplicationRootSpan() in and not in the context of distributed tracing"() {
@@ -315,7 +315,7 @@ class DDSpanTest extends DDCoreSpecification {
     where:
     extractedContext                                                                                                                          | isTraceRootSpan
     null                                                                                                                                      | true
-    new ExtractedContext(DDTraceId.from(123), 456, PrioritySampling.SAMPLER_KEEP, "789", 0, [:], [:], null, datadogTagsFactory.empty()) | false
+    new ExtractedContext(DDTraceId.from(123), 456, PrioritySampling.SAMPLER_KEEP, "789", 0, [:], [:], null, propagationTagsFactory.empty()) | false
   }
 
   def 'publishing of root span closes the request context data'() {
@@ -344,7 +344,7 @@ class DDSpanTest extends DDCoreSpecification {
 
   def "infer top level from parent service name"() {
     setup:
-    def datadogTagsFactory = tracer.getDatadogTagsFactory()
+    def propagationTagsFactory = tracer.getPropagationTagsFactory()
     when:
     DDSpanContext context =
       new DDSpanContext(
@@ -366,7 +366,7 @@ class DDSpanTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      datadogTagsFactory.empty())
+      propagationTagsFactory.empty())
     then:
     context.isTopLevel() == expectTopLevel
 
@@ -423,7 +423,8 @@ class DDSpanTest extends DDCoreSpecification {
     span.getTag(SPAN_SAMPLING_MECHANISM_TAG) == SPAN_SAMPLING_RATE
     span.getTag(SPAN_SAMPLING_RULE_RATE_TAG) == rate
     span.getTag(SPAN_SAMPLING_MAX_PER_SECOND_TAG) == (limit == Integer.MAX_VALUE ? null : limit)
-    span.samplingPriority() == USER_KEEP
+    // single span sampling should not change the trace sampling priority
+    span.samplingPriority() == UNSET
 
     where:
     rate | limit

@@ -18,7 +18,6 @@ import datadog.trace.context.TraceScope
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.test.DDCoreSpecification
-import spock.lang.Retry
 import spock.lang.Shared
 
 import java.lang.ref.WeakReference
@@ -69,6 +68,91 @@ class ScopeManagerTest extends DDCoreSpecification {
 
   def cleanup() {
     tracer.close()
+  }
+
+  def "scope state should be able to fetch and activate state when there is no active span"() {
+    when:
+    def initialScopeState = scopeManager.newScopeState()
+    initialScopeState.fetchFromActive()
+
+    then:
+    scopeManager.active() == null
+
+    when:
+    def newScopeState = scopeManager.newScopeState()
+    newScopeState.activate()
+
+    then:
+    scopeManager.active() == null
+
+    when:
+    def span = tracer.buildSpan("test").start()
+    def scope = tracer.activateSpan(span)
+
+    then:
+    scope.span() == span
+    scopeManager.active() == scope
+
+    when:
+    initialScopeState.activate()
+
+    then:
+    scopeManager.active() == null
+
+    when:
+    newScopeState.activate()
+
+    then:
+    scopeManager.active() == scope
+
+    when:
+    span.finish()
+    scope.close()
+    writer.waitForTraces(1)
+
+    then:
+    writer == [[scope.span()]]
+    scopeManager.active() == null
+
+    when:
+    initialScopeState.activate()
+
+    then:
+    scopeManager.active() == null
+  }
+
+  def "scope state should be able to fetch and activate state when there is an active span"() {
+    when:
+    def span = tracer.buildSpan("test").start()
+    def scope = tracer.activateSpan(span)
+    def initialScopeState = scopeManager.newScopeState()
+    initialScopeState.fetchFromActive()
+
+    then:
+    scope.span() == span
+    scopeManager.active() == scope
+
+    when:
+    def newScopeState = scopeManager.newScopeState()
+    newScopeState.activate()
+
+    then:
+    scopeManager.active() == null
+
+    when:
+    initialScopeState.activate()
+
+    then:
+    scopeManager.active() == scope
+
+    when:
+    span.finish()
+    scope.close()
+    writer.waitForTraces(1)
+
+    then:
+    scopeManager.active() == null
+    writer == [[scope.span()]]
   }
 
   def "non-ddspan activation results in a continuable scope"() {
@@ -211,7 +295,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     concurrent << [false, true]
   }
 
-  @Retry
+  // @Flaky("awaitGC is flaky")
   def "test continuation doesn't have hard reference on scope"() {
     when:
     def span = tracer.buildSpan("test").start()
@@ -467,8 +551,8 @@ class ScopeManagerTest extends DDCoreSpecification {
     assertEvents([ACTIVATE, ACTIVATE])
     1 * statsDClient.incrementCounter("scope.close.error")
     1 * rootSpanCheckpointer.onRootSpanStarted(_)
-    3 * listener.setContext(_, _, _)
-    1 * listener.onAttach(_)
+    3 * listener.setContext(_, _)
+    1 * listener.onAttach()
     0 * _
 
     when:
@@ -478,8 +562,8 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     1 * rootSpanCheckpointer.onRootSpanFinished(_, _)
     _ * statsDClient.close()
-    1 * listener.setContext(_, 0, 0)
-    1 * listener.onDetach(_)
+    1 * listener.setContext(0, 0)
+    1 * listener.onDetach()
     assertEvents([ACTIVATE, ACTIVATE, CLOSE, CLOSE])
     0 * _
 
@@ -506,8 +590,8 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeScope() == firstScope
     assertEvents([ACTIVATE])
     1 * rootSpanCheckpointer.onRootSpanStarted(_)
-    1 * listener.onAttach(_)
-    1 * listener.setContext(_, _, _)
+    1 * listener.onAttach()
+    1 * listener.setContext(_, _)
     0 * _
 
     when:
@@ -519,7 +603,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeSpan() == secondSpan
     tracer.activeScope() == secondScope
     assertEvents([ACTIVATE, ACTIVATE])
-    1 * listener.setContext(_, _, _)
+    1 * listener.setContext(_, _)
     0 * _
 
     when:
@@ -531,7 +615,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeSpan() == thirdSpan
     tracer.activeScope() == thirdScope
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
-    1 * listener.setContext(_, _, _)
+    1 * listener.setContext(_, _)
     0 * _
 
     when:
@@ -543,7 +627,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeScope() == thirdScope
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
     1 * statsDClient.incrementCounter("scope.close.error")
-    1 * listener.setContext(_, _, _)
+    1 * listener.setContext(_, _)
     0 * _
 
     when:
@@ -556,7 +640,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE, CLOSE, CLOSE, ACTIVATE])
     _ * statsDClient.close()
-    1 * listener.setContext(_, _, _)
+    1 * listener.setContext(_, _)
     0 * _
 
     when:
@@ -583,8 +667,8 @@ class ScopeManagerTest extends DDCoreSpecification {
       CLOSE
     ])
     _ * statsDClient.close()
-    1 * listener.setContext(_, 0, 0)
-    1 * listener.onDetach(_)
+    1 * listener.setContext(0, 0)
+    1 * listener.onDetach()
     0 * _
   }
 
@@ -614,7 +698,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeSpan() == thirdSpan
     tracer.activeScope() == thirdScope
     assertEvents([ACTIVATE, ACTIVATE])
-    1 * listener.setContext(_, _, _)
+    1 * listener.setContext(_, _)
     0 * _
 
     when:
@@ -631,7 +715,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then: 'Closing scope above multiple activated scope does not close it'
     assertEvents([ACTIVATE, ACTIVATE, CLOSE, ACTIVATE])
-    1 * listener.setContext(_, _, _)
+    1 * listener.setContext(_, _)
     _ * statsDClient.close()
     0 * _
 
@@ -970,7 +1054,7 @@ class ScopeManagerTest extends DDCoreSpecification {
       assert scopeManager.active() == null
     }).get()
     then: "the listener is not notified"
-    0 * listener.onAttach(_)
+    0 * listener.onAttach()
 
     when: "scopes activate on threads"
     AgentSpan span = tracer.buildSpan("foo").start()
@@ -991,7 +1075,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     }
 
     then: "the first activation notifies the listener"
-    numThreads * listener.onAttach(_)
+    numThreads * listener.onAttach()
     _ * _
 
     cleanup:

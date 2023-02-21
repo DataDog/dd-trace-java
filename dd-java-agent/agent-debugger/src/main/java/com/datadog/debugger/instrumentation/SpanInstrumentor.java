@@ -50,6 +50,16 @@ public class SpanInstrumentor extends Instrumentor {
   private InsnList createCatchHandler(LabelNode handlerLabel) {
     InsnList handler = new InsnList();
     handler.add(handlerLabel);
+    // stack [exception]
+    handler.add(new InsnNode(Opcodes.DUP));
+    // stack [exception, exception]
+    handler.add(new VarInsnNode(Opcodes.ALOAD, spanVar));
+    // stack [exception, exception, span]
+    handler.add(new InsnNode(Opcodes.SWAP));
+    // stack [exception, span, exception]
+    invokeInterface(
+        handler, DEBUGGER_SPAN_TYPE, "setError", Type.VOID_TYPE, Type.getType(Throwable.class));
+    // stack [exception]
     debuggerSpanFinish(handler);
     handler.add(new InsnNode(Opcodes.ATHROW));
     return handler;
