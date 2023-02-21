@@ -3,6 +3,7 @@ package datadog.trace.core
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
@@ -17,10 +18,11 @@ class DDSpanContextTest extends DDCoreSpecification {
 
   def writer
   def tracer
+  def profilingContext = Mock(ProfilingContextIntegration)
 
   def setup() {
     writer = new ListWriter()
-    tracer = tracerBuilder().writer(writer).build()
+    tracer = tracerBuilder().writer(writer).profilingContextIntegration(profilingContext).build()
   }
 
   def cleanup() {
@@ -259,13 +261,13 @@ class DDSpanContextTest extends DDCoreSpecification {
       .start()
 
     then: "encoded operation name matches operation name"
-    span.context.encodedOperationName == tracer.encodeConstant("fakeOperation")
+    1 * profilingContext.createContextStorage("fakeOperation")
 
     when:
     span.setOperationName("newOperationName")
 
     then:
-    span.context.encodedOperationName == tracer.encodeConstant("newOperationName")
+    1 * profilingContext.updateOperationName("newOperationName", _, false)
   }
 
   private static String dataTag(String tag) {

@@ -4,6 +4,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext;
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import java.util.Collections;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Level;
@@ -60,7 +61,8 @@ public class PendingTraceWrite {
                 null,
                 NoopPathwayContext.INSTANCE,
                 false,
-                null));
+                null,
+                ProfilingContextIntegration.NoOp.INSTANCE));
     span =
         DDSpan.create(
             System.currentTimeMillis() * 1000,
@@ -83,7 +85,8 @@ public class PendingTraceWrite {
                 null,
                 NoopPathwayContext.INSTANCE,
                 false,
-                null));
+                null,
+                ProfilingContextIntegration.NoOp.INSTANCE));
   }
 
   @Threads(4)

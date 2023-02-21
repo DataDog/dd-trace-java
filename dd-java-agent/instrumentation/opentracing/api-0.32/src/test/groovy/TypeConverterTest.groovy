@@ -4,6 +4,7 @@ import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
@@ -87,7 +88,8 @@ class TypeConverterTest extends AgentTestRunner {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().empty()) {
+      PropagationTags.factory().empty(),
+      ProfilingContextIntegration.NoOp.INSTANCE) {
         @Override void setServiceName(final String serviceName) {
           // override this method that is called from the DDSpanContext constructor
           // because it causes NPE when calls trace.getTracer from within setServiceName

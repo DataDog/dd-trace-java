@@ -5,6 +5,7 @@ import datadog.trace.api.DDTraceId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.common.writer.ddintake.DDIntakeApi
 import datadog.trace.common.writer.ddintake.DDIntakeMapperDiscovery
 import datadog.trace.core.CoreTracer
@@ -203,7 +204,8 @@ class DDIntakeWriterTest extends DDCoreSpecification{
       null,
       AgentTracer.NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().empty())
+      PropagationTags.factory().empty(),
+      ProfilingContextIntegration.NoOp.INSTANCE)
     return new DDSpan(0, context)
   }
 

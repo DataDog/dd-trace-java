@@ -3,6 +3,7 @@ package datadog.trace.core.propagation
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
@@ -50,7 +51,8 @@ class HttpInjectorTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.usr=123"))
+      PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.usr=123"),
+      ProfilingContextIntegration.NoOp.INSTANCE)
 
     final Map<String, String> carrier = Mock()
 
@@ -137,7 +139,8 @@ class HttpInjectorTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.usr=123"))
+      PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.usr=123"),
+      ProfilingContextIntegration.NoOp.INSTANCE)
 
     final Map<String, String> carrier = Mock()
 

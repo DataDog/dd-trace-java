@@ -4,6 +4,7 @@ import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.time.TimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.propagation.PropagationTags
 import spock.lang.Timeout
@@ -37,7 +38,8 @@ class PendingTraceTest extends PendingTraceTestBase {
       null,
       AgentTracer.NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().empty()))
+      PropagationTags.factory().empty(),
+      ProfilingContextIntegration.NoOp.INSTANCE))
   }
 
   @Timeout(value = 60, unit = TimeUnit.SECONDS)

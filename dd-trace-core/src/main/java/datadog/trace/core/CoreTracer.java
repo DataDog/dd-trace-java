@@ -1360,10 +1360,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final CharSequence operationName =
           this.operationName != null ? this.operationName : resourceName;
 
-      // don't encode the operation name unless it's actually defined
-      final int encodedOperationName =
-          this.operationName != null ? encodeConstant(operationName) : 0;
-
       final int tagsSize =
           (null == tags ? 0 : tags.size())
               + defaultSpanTags.size()
@@ -1391,7 +1387,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               pathwayContext,
               disableSamplingMechanismValidation,
               propagationTags,
-              encodedOperationName);
+              profilingContextIntegration);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`

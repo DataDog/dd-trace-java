@@ -5,6 +5,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext;
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.common.writer.LoggingWriter;
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4;
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5;
@@ -118,6 +119,7 @@ public class TracerMapperMap {
             null,
             NoopPathwayContext.INSTANCE,
             false,
-            null));
+            null,
+            ProfilingContextIntegration.NoOp.INSTANCE));
   }
 }

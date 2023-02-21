@@ -10,6 +10,8 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  */
 public class DatadogProfilingIntegration implements ProfilingContextIntegration {
 
+  private static final int[] EMPTY_TAGS = new int[0];
+
   private static final DatadogProfiler DDPROF = DatadogProfiler.getInstance();
   private static final boolean WALLCLOCK_ENABLED =
       DatadogProfilerConfig.isWallClockProfilerEnabled();
@@ -17,14 +19,15 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   private static final boolean QUEUEING_TIME_ENABLED =
       WALLCLOCK_ENABLED && DatadogProfilerConfig.isQueueingTimeEnabled();
 
+  private static final boolean SPAN_NAME_ATTRIBUTED_ENABLED =
+      DatadogProfilerConfig.isSpanNameContextAttributeEnabled();
+
   private static final AtomicReferenceFieldUpdater<DatadogProfilingIntegration, Dictionary>
       CONSTANT_POOL_UPDATER =
           AtomicReferenceFieldUpdater.newUpdater(
               DatadogProfilingIntegration.class, Dictionary.class, "constantPool");
 
   private volatile Dictionary constantPool;
-
-  private static final int WALLCLOCK_INTERVAL = DatadogProfilerConfig.getWallInterval();
 
   @Override
   public void onAttach() {
@@ -66,5 +69,35 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   @Override
   public void setConstantPool(Dictionary dictionary) {
     CONSTANT_POOL_UPDATER.compareAndSet(this, null, dictionary);
+  }
+
+  @Override
+  public int[] createContextStorage(CharSequence operationName) {
+    if (DDPROF.registeredTagCount() > 0) {
+      int[] tags = new int[DDPROF.registeredTagCount()];
+      updateOperationName(operationName, tags, false);
+      return tags;
+    }
+    return EMPTY_TAGS;
+  }
+
+  @Override
+  public void updateOperationName(CharSequence operationName, int[] storage, boolean active) {
+    if (SPAN_NAME_ATTRIBUTED_ENABLED && operationName != null) {
+      storage[0] = constantPool.encode(operationName);
+      if (active) {
+        DDPROF.setContext(0, storage[0]);
+      }
+    }
+  }
+
+  @Override
+  public void setContext(int offset, int value) {
+    DDPROF.setContext(offset, value);
+  }
+
+  @Override
+  public void clearContext(int offset) {
+    DDPROF.clearContext(offset);
   }
 }

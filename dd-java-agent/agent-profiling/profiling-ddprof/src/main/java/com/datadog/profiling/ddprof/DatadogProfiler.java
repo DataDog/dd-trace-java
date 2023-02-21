@@ -17,6 +17,7 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallInterval
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isAllocationProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isCpuProfilerEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isMemoryLeakProfilingEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isSpanNameContextAttributeEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabled;
 import static com.datadog.profiling.utils.ProfilingMode.ALLOCATION;
 import static com.datadog.profiling.utils.ProfilingMode.CPU;
@@ -151,6 +152,9 @@ public final class DatadogProfiler {
       profilingModes.add(WALL);
     }
     this.orderedContextAttributes = new ArrayList<>(contextAttributes);
+    if (isSpanNameContextAttributeEnabled(configProvider)) {
+      orderedContextAttributes.add(0, "operationName");
+    }
     this.contextSetter = new ContextSetter(profiler, orderedContextAttributes);
     try {
       // sanity test - force load Datadog profiler to catch it not being available early
@@ -343,5 +347,24 @@ public final class DatadogProfiler {
       return contextSetter.clearContextValue(attribute);
     }
     return false;
+  }
+
+  /**
+   * Caller must make sure the constant pool is dumped to the profiler before the chunk is rotated.
+   * Caller needs to ensure that attributeOffset is defined too.
+   *
+   * @param attributeOffset
+   * @param dictionarizedValue
+   */
+  public void setContext(int attributeOffset, int dictionarizedValue) {
+    // TODO needs a profiler update to implement
+  }
+
+  public void clearContext(int attributeOffset) {
+    // TODO needs a profiler update to implement
+  }
+
+  public int registeredTagCount() {
+    return orderedContextAttributes.size();
   }
 }

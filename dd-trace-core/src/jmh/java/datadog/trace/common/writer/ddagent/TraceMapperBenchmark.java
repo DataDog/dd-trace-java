@@ -14,6 +14,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext;
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
@@ -122,7 +123,8 @@ public class TraceMapperBenchmark {
             null,
             NoopPathwayContext.INSTANCE,
             false,
-            propagationTags);
+            propagationTags,
+            ProfilingContextIntegration.NoOp.INSTANCE);
     DDSpanHelper.setAllTags(rootContext, tags);
     DDSpan root = DDSpanHelper.create(System.currentTimeMillis() * 1000, rootContext);
     root.setResourceName(UTF8BytesString.create("benchmark"));

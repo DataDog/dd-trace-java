@@ -4,6 +4,7 @@ import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
@@ -93,6 +94,7 @@ class TypeConverterTest extends DDSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().empty())
+      PropagationTags.factory().empty(),
+      ProfilingContextIntegration.NoOp.INSTANCE)
   }
 }

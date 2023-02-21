@@ -3,6 +3,7 @@ package datadog.trace.core.propagation
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.test.DDCoreSpecification
@@ -41,7 +42,8 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.usr=123"))
+      PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.usr=123"),
+      ProfilingContextIntegration.NoOp.INSTANCE)
 
     final Map<String, String> carrier = Mock()
 
@@ -98,7 +100,8 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=-4,_dd.p.anytag=value"))
+      PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=-4,_dd.p.anytag=value"),
+      ProfilingContextIntegration.NoOp.INSTANCE)
 
     mockedContext.beginEndToEnd()
 
@@ -145,7 +148,8 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().empty())
+      PropagationTags.factory().empty(),
+      ProfilingContextIntegration.NoOp.INSTANCE)
 
     mockedContext.setSamplingPriority(USER_KEEP, MANUAL)
 

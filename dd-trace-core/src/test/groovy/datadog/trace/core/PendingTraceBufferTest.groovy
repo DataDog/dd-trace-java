@@ -7,6 +7,7 @@ import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.context.TraceScope
 import datadog.trace.core.monitor.HealthMetrics
@@ -399,7 +400,8 @@ class PendingTraceBufferTest extends DDSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().empty())
+      PropagationTags.factory().empty(),
+      ProfilingContextIntegration.NoOp.INSTANCE)
     return DDSpan.create(0, context)
   }
 
@@ -424,7 +426,8 @@ class PendingTraceBufferTest extends DDSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().empty())
+      PropagationTags.factory().empty(),
+      ProfilingContextIntegration.NoOp.INSTANCE)
     return DDSpan.create(0, context)
   }
 }

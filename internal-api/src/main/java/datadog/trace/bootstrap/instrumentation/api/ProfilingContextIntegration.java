@@ -1,9 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.Dictionary;
-import datadog.trace.api.experimental.ProfilingContext;
 
-public interface ProfilingContextIntegration extends ProfilingContext {
+public interface ProfilingContextIntegration
+    extends datadog.trace.api.experimental.ProfilingContext {
   /** Invoked when a trace first propagates to a thread */
   void onAttach();
 
@@ -18,7 +18,17 @@ public interface ProfilingContextIntegration extends ProfilingContext {
 
   void setConstantPool(Dictionary dictionary);
 
+  int[] createContextStorage(CharSequence operationName);
+
+  void updateOperationName(CharSequence operationName, int[] storage, boolean active);
+
+  void setContext(int offset, int value);
+
+  void clearContext(int offset);
+
   final class NoOp implements ProfilingContextIntegration {
+
+    private static final int[] EMPTY = new int[0];
 
     public static final ProfilingContextIntegration INSTANCE =
         new ProfilingContextIntegration.NoOp();
@@ -48,5 +58,19 @@ public interface ProfilingContextIntegration extends ProfilingContext {
 
     @Override
     public void setConstantPool(Dictionary dictionary) {}
+
+    @Override
+    public int[] createContextStorage(CharSequence operationName) {
+      return EMPTY;
+    }
+
+    @Override
+    public void updateOperationName(CharSequence operationName, int[] storage, boolean active) {}
+
+    @Override
+    public void setContext(int offset, int value) {}
+
+    @Override
+    public void clearContext(int offset) {}
   }
 }

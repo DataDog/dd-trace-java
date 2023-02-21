@@ -36,10 +36,27 @@ class TestProfilingContextIntegration implements ProfilingContextIntegration {
   }
 
   @Override
+  int[] createContextStorage(CharSequence operationName) {
+    return new int[0]
+  }
+
+  @Override
+  void updateOperationName(CharSequence operationName, int[] storage, boolean active) {
+  }
+
+  @Override
   void setContextValue(String attribute, String value) {
   }
 
   @Override
   void clearContextValue(String attribute) {
+  }
+
+  @Override
+  void setContext(int offset, int value) {
+  }
+
+  @Override
+  void clearContext(int offset) {
   }
 }

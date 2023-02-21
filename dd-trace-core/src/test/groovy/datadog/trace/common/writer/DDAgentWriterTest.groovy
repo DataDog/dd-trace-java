@@ -4,6 +4,7 @@ import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.core.CoreTracer
@@ -213,7 +214,8 @@ class DDAgentWriterTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().empty())
+      PropagationTags.factory().empty(),
+      ProfilingContextIntegration.NoOp.INSTANCE)
     return new DDSpan(0, context)
   }
 }

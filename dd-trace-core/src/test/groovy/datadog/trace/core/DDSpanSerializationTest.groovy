@@ -7,6 +7,7 @@ import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
@@ -170,7 +171,8 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      null)
+      null,
+      ProfilingContextIntegration.NoOp.INSTANCE)
     context.setAllTags(tags)
     def span = DDSpan.create(0, context)
     CaptureBuffer capture = new CaptureBuffer()
@@ -241,7 +243,8 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      null)
+      null,
+      ProfilingContextIntegration.NoOp.INSTANCE)
     context.setAllTags(tags)
     def span = DDSpan.create(0, context)
     CaptureBuffer capture = new CaptureBuffer()
@@ -311,7 +314,8 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      null)
+      null,
+      ProfilingContextIntegration.NoOp.INSTANCE)
     context.setTag('key1', 'value1')
     context.setTag('key2', [
       'sub1': 'v1',
@@ -381,7 +385,8 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      null)
+      null,
+      ProfilingContextIntegration.NoOp.INSTANCE)
     context.setTag('key1', 'value1')
     context.setTag('key2', [
       'sub1': 'v1',
@@ -462,7 +467,8 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      null)
+      null,
+      ProfilingContextIntegration.NoOp.INSTANCE)
     ctx.setAllTags(["k1": "v1"])
     return ctx
   }

@@ -1,6 +1,6 @@
 package datadog.trace.core.scopemanager;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import java.util.ArrayDeque;
@@ -50,7 +50,7 @@ final class ScopeStack {
       }
     }
     if (top == null) {
-      onBecomeEmpty();
+      onBecomeEmpty(curScope);
     } else {
       onTopChanged(top);
     }
@@ -110,20 +110,21 @@ final class ScopeStack {
   }
 
   private void onTopChanged(ContinuableScope top) {
-    long spanId = top.span.getSpanId();
-    AgentSpan rootSpan = top.span.getLocalRootSpan();
-    long rootSpanId = rootSpan == null ? spanId : rootSpan.getSpanId();
-    profilingContextIntegration.setContext(rootSpanId, spanId);
+    if (top.span.context() instanceof ProfilingContext) {
+      ((ProfilingContext) top.span.context()).apply();
+    }
   }
 
-  /** Notifies context thread listeners that this thread has a context now */
+  /** Notifies profiler that there is a context associated with the current thread */
   private void onBecomeNonEmpty() {
     profilingContextIntegration.onAttach();
   }
 
-  /** Notifies context thread listeners that this thread no longer has a context */
-  private void onBecomeEmpty() {
-    profilingContextIntegration.setContext(0, 0);
+  /** Notifies profiler that there is no longer a context associated with the thread */
+  private void onBecomeEmpty(ContinuableScope wasTop) {
     profilingContextIntegration.onDetach();
+    if (wasTop.span.context() instanceof ProfilingContext) {
+      ((ProfilingContext) wasTop.span.context()).clear();
+    }
   }
 }

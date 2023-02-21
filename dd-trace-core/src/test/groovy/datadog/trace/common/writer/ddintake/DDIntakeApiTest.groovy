@@ -11,6 +11,7 @@ import datadog.trace.api.WellKnownTags
 import datadog.trace.api.intake.TrackType
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.Payload
 import datadog.trace.core.DDSpan
@@ -261,7 +262,8 @@ class DDIntakeApiTest extends DDCoreSpecification {
       null,
       AgentTracer.NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().empty())
+      PropagationTags.factory().empty(),
+      ProfilingContextIntegration.NoOp.INSTANCE)
 
     def span = DDSpan.create(timestamp, context)
     span.setTag(tag, value)

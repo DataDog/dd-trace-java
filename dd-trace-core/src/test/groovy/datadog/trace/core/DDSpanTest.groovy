@@ -7,6 +7,7 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.common.sampling.RateByServiceTraceSampler
@@ -366,7 +367,8 @@ class DDSpanTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      propagationTagsFactory.empty())
+      propagationTagsFactory.empty(),
+      ProfilingContextIntegration.NoOp.INSTANCE)
     then:
     context.isTopLevel() == expectTopLevel
 

@@ -7,6 +7,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.core.BlackholeWriter;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpanContext;
@@ -126,7 +127,8 @@ public class InjectorBenchmark {
             null,
             null,
             false,
-            propagationTags);
+            propagationTags,
+            ProfilingContextIntegration.NoOp.INSTANCE);
   }
 
   int mechanism = 0;

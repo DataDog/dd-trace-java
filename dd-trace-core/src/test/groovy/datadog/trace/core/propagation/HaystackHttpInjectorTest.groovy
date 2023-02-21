@@ -2,6 +2,7 @@ package datadog.trace.core.propagation
 
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
@@ -41,7 +42,8 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      null)
+      null,
+      ProfilingContextIntegration.NoOp.INSTANCE)
 
     final Map<String, String> carrier = Mock()
 
@@ -95,7 +97,8 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      null)
+      null,
+      ProfilingContextIntegration.NoOp.INSTANCE)
 
     final Map<String, String> carrier = Mock()
 
