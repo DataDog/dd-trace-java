@@ -11,7 +11,9 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.Producer
+import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.StringSerializer
 import org.junit.Rule
@@ -26,6 +28,8 @@ import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
 import spock.lang.Unroll
 
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.Future
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
@@ -185,6 +189,24 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     cleanup:
     producer.close()
     container?.stop()
+  }
+
+  def "test producing message too large"() {
+    setup:
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    // set a low max request size, so that we can crash it
+    senderProps.put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, 10)
+    Producer<String, String> producer = new KafkaProducer<>(senderProps, new StringSerializer(), new StringSerializer())
+
+    when:
+    String greeting = "Hello Spring Kafka"
+    Future<RecordMetadata> future = producer.send(new ProducerRecord(SHARED_TOPIC, greeting)) { meta, ex ->
+    }
+    future.get()
+    then:
+    thrown ExecutionException
+    cleanup:
+    producer.close()
   }
 
   def "test spring kafka template produce and consume"() {
