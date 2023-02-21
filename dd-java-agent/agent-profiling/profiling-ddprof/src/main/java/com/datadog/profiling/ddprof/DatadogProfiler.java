@@ -30,6 +30,7 @@ import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.utils.ProfilingMode;
 import com.datadoghq.profiler.ContextSetter;
 import com.datadoghq.profiler.JavaProfiler;
+import datadog.trace.api.Dictionary;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.IOException;
@@ -104,6 +105,8 @@ public final class DatadogProfiler {
   private final ContextSetter contextSetter;
 
   private final List<String> orderedContextAttributes;
+
+  private final Dictionary constantPool = new Dictionary();
 
   private DatadogProfiler() throws UnsupportedEnvironmentException {
     this(ConfigProvider.getInstance());
@@ -335,6 +338,10 @@ public final class DatadogProfiler {
     }
   }
 
+  public int encodeConstant(CharSequence value) {
+    return constantPool.encode(value);
+  }
+
   public int offsetOf(String attribute) {
     return contextSetter.offsetOf(attribute);
   }
@@ -359,6 +366,10 @@ public final class DatadogProfiler {
   }
 
   public void clearContext(int attributeOffset) {
+    // TODO needs a profiler update to implement
+  }
+
+  public void dumpConstants() {
     // TODO needs a profiler update to implement
   }
 

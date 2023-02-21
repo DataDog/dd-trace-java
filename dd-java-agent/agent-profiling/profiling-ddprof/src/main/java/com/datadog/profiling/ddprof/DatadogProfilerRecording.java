@@ -32,6 +32,7 @@ final class DatadogProfilerRecording implements OngoingRecording {
   @Nonnull
   @Override
   public RecordingData stop() {
+    profiler.dumpConstants();
     profiler.stopProfiler();
     return new DatadogProfilerRecordingData(
         recordingFile, started, Instant.now(), ProfilingSnapshot.Kind.PERIODIC);

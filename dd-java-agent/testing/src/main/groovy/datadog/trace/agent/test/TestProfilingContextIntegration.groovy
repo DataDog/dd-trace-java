@@ -1,6 +1,5 @@
 package datadog.trace.agent.test
 
-import datadog.trace.api.Dictionary
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 
 import java.util.concurrent.atomic.AtomicInteger

@@ -2,7 +2,6 @@ package com.datadog.profiling.ddprof;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
-import datadog.trace.api.Dictionary;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
@@ -24,8 +23,6 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
 
   private static final boolean SPAN_NAME_ATTRIBUTED_ENABLED =
       DatadogProfilerConfig.isSpanNameContextAttributeEnabled();
-
-  private final Dictionary constantPool = new Dictionary();
 
   @Override
   public void onAttach() {
@@ -50,7 +47,7 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   public void setContextValue(String attribute, String value) {
     int offset = DDPROF.offsetOf(attribute);
     if (offset >= 0) {
-      int encoding = constantPool.encode(value);
+      int encoding = DDPROF.encodeConstant(value);
       AgentSpan activeSpan = activeSpan();
       if (activeSpan.context() instanceof ProfilingContext) {
         ((ProfilingContext) activeSpan.context()).set(offset, encoding);
@@ -92,7 +89,7 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   @Override
   public void updateOperationName(CharSequence operationName, int[] storage, boolean active) {
     if (SPAN_NAME_ATTRIBUTED_ENABLED && operationName != null) {
-      storage[0] = constantPool.encode(operationName);
+      storage[0] = DDPROF.encodeConstant(operationName);
       if (active) {
         DDPROF.setContext(0, storage[0]);
       }
