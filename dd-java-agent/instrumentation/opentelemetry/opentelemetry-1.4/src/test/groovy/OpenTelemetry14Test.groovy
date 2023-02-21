@@ -320,7 +320,18 @@ class OpenTelemetry14Test extends AgentTestRunner {
     then:
     currentSpan == otelSpan
 
+    when:
+    def ddSpan = TEST_TRACER.startSpan("other-name")
+    def ddScope = TEST_TRACER.activateSpan(ddSpan, MANUAL)
+    currentSpan = Span.current()
+
+    then:
+    currentSpan.spanContext.traceId == ddSpan.traceId.toHexStringPadded(32)
+    currentSpan.spanContext.spanId == DDSpanId.toHexString(ddSpan.spanId)
+
     cleanup:
+    ddScope.close()
+    ddSpan.finish()
     scope.close()
     otelSpan.end()
   }

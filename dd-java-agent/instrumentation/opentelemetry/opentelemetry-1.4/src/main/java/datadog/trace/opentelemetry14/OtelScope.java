@@ -1,6 +1,7 @@
 package datadog.trace.opentelemetry14;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import io.opentelemetry.context.Scope;
 
 public class OtelScope implements Scope {
@@ -10,6 +11,9 @@ public class OtelScope implements Scope {
   public OtelScope(Scope scope, AgentScope delegate) {
     this.scope = scope;
     this.delegate = delegate;
+    if (delegate instanceof AttachableWrapper) {
+      ((AttachableWrapper) delegate).attachWrapper(this);
+    }
   }
 
   @Override
