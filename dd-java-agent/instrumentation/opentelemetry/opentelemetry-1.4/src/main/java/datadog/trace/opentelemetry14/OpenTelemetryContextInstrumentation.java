@@ -1,5 +1,6 @@
 package datadog.trace.opentelemetry14;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
@@ -13,25 +14,53 @@ import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Context;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForSingleType {
-  public static final String OTEL_CONTEXT_CLASSNAME = "io.opentelemetry.context.Context";
+    implements Instrumenter.CanShortcutTypeMatching {
 
   public OpenTelemetryContextInstrumentation() {
     super("opentelemetry", "opentelemetry-1");
   }
 
   @Override
-  public String instrumentedType() {
-    return OTEL_CONTEXT_CLASSNAME;
+  public String hierarchyMarkerType() {
+    return "io.opentelemetry.context.ContextStorage";
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    return implementsInterface(named(hierarchyMarkerType()));
+  }
+
+  @Override
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "io.opentelemetry.context.ThreadLocalContextStorage",
+      "io.opentelemetry.context.StrictContextStorage",
+    };
+  }
+
+  @Override
+  public boolean onlyMatchKnownTypes() {
+    return isShortcutMatchingEnabled(false);
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".OtelContext", packageName + ".OtelSpan",
+      packageName + ".OtelContext",
+      packageName + ".OtelScope",
+      packageName + ".OtelSpan",
+      packageName + ".OtelSpan$NoopSpan",
+      packageName + ".OtelSpan$NoopSpanContext",
+      packageName + ".OtelSpanBuilder",
+      packageName + ".OtelSpanContext",
+      packageName + ".OtelTracer",
+      packageName + ".OtelTracerBuilder",
+      packageName + ".OtelTracerProvider",
     };
   }
 
@@ -42,7 +71,7 @@ public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
         isMethod()
             .and(named("current"))
             .and(takesNoArguments())
-            .and(returns(named(OTEL_CONTEXT_CLASSNAME))),
+            .and(returns(named("io.opentelemetry.context.Context"))),
         OpenTelemetryContextInstrumentation.class.getName() + "$ContextCurrentAdvice");
   }
 
