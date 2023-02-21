@@ -111,11 +111,11 @@ deploy_to_di_backend:automatic:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_BRANCH == "ojung/test-ci"'
       when: on_success
   trigger:
     project: DataDog/debugger-backend
-    branch: main
+    branch: ojung/fix-ci
   variables:
     UPSTREAM_PACKAGE_JOB: build
     UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
