@@ -46,12 +46,6 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".OtelScope",
-      packageName + ".OtelSpan",
-      packageName + ".OtelSpanBuilder",
-      packageName + ".OtelSpanContext",
-      packageName + ".OtelTracer",
-      packageName + ".OtelTracerBuilder",
       packageName + ".OtelTracerProvider",
     };
   }
