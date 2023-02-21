@@ -4,7 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.elasticsearch.ElasticsearchTransportClientDecorator.DECORATE;
-import static datadog.trace.instrumentation.elasticsearch.ElasticsearchTransportClientDecorator.ELASTICSEARCH_QUERY;
+import static datadog.trace.instrumentation.elasticsearch.ElasticsearchTransportClientDecorator.OPERATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -66,7 +66,7 @@ public class Elasticsearch6TransportClientInstrumentation extends Instrumenter.T
         @Advice.Argument(value = 2, readOnly = false)
             ActionListener<ActionResponse> actionListener) {
 
-      final AgentSpan span = startSpan(ELASTICSEARCH_QUERY);
+      final AgentSpan span = startSpan(OPERATION_NAME);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, action.getClass(), actionRequest.getClass());
 
