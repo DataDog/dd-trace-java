@@ -57,4 +57,21 @@ class DictionaryTest extends DDSpecification {
     then: "no encodings are duplicated"
     bitset.cardinality() == 2 * (numCollisionsAdded + 1)
   }
+
+  def "test dump"() {
+    setup: "encode lots of keys"
+    Dictionary dictionary = new Dictionary()
+    Map<CharSequence, Integer> reference = new HashMap<>()
+    for (int i = 0; i < 10000; i++) {
+      def key = UUID.randomUUID().toString()
+      reference.put(key, dictionary.encode(key))
+    }
+
+    when: "dump the dictionary to a hashmap"
+    def target = new HashMap()
+    dictionary.dump({int encoding, CharSequence key -> target.put(key, encoding)})
+
+    then: "consume what was encoded"
+    target == reference
+  }
 }

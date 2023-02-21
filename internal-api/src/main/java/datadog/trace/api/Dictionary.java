@@ -9,6 +9,11 @@ import java.util.function.IntSupplier;
 /** Maps text to an integer encoding. Adapted from async-profiler. */
 public class Dictionary {
 
+  @FunctionalInterface
+  public interface ConstantConsumer {
+    void accept(int encoding, CharSequence key);
+  }
+
   private static final int ROW_BITS = 7;
   private static final int ROWS = (1 << ROW_BITS);
   private static final int CELLS = 3;
@@ -84,5 +89,25 @@ public class Dictionary {
     int index(int row, int col) {
       return baseIndex + (col << ROW_BITS) + row;
     }
+
+    void dump(ConstantConsumer consumer) {
+      for (int i = 0; i < ROWS; i++) {
+        Row row = rows[i];
+        for (int j = 0; j < CELLS; j++) {
+          CharSequence key = row.keys.get(j);
+          if (key != null) {
+            consumer.accept(index(i, j), key);
+          }
+        }
+        Table nextTable = row.next;
+        if (nextTable != null) {
+          nextTable.dump(consumer);
+        }
+      }
+    }
+  }
+
+  public void dump(ConstantConsumer consumer) {
+    table.dump(consumer);
   }
 }
