@@ -98,6 +98,8 @@ class JFRBasedProfilingIntegrationTest {
   public static final IAttribute<String> FOO = attr("foo", "", "", PLAIN_TEXT);
   public static final IAttribute<String> BAR = attr("bar", "", "", PLAIN_TEXT);
 
+  public static final IAttribute<String> OPERATION = attr("operation", "", "", PLAIN_TEXT);
+
   private MockWebServer profilingServer;
   private MockWebServer tracingServer;
 
@@ -528,6 +530,7 @@ class JFRBasedProfilingIntegrationTest {
         IItemCollection executionSamples =
             events.apply(ItemFilters.type("datadog.ExecutionSample"));
         Set<Long> rootSpanIds = new HashSet<>();
+        Set<String> operations = new HashSet<>();
         Set<String> values = new HashSet<>();
         for (IItemIterable executionSampleEvents : executionSamples) {
           IMemberAccessor<IQuantity, IItem> rootSpanIdAccessor =
@@ -536,8 +539,14 @@ class JFRBasedProfilingIntegrationTest {
               FOO.getAccessor(executionSampleEvents.getType());
           IMemberAccessor<String, IItem> barAccessor =
               BAR.getAccessor(executionSampleEvents.getType());
+          IMemberAccessor<String, IItem> operationAccessor =
+              OPERATION.getAccessor(executionSampleEvents.getType());
           for (IItem executionSample : executionSampleEvents) {
-            rootSpanIds.add(rootSpanIdAccessor.getMember(executionSample).longValue());
+            long rootSpanId = rootSpanIdAccessor.getMember(executionSample).longValue();
+            rootSpanIds.add(rootSpanId);
+            if (rootSpanId != 0) {
+              operations.add(operationAccessor.getMember(executionSample));
+            }
             String foo = fooAccessor.getMember(executionSample);
             if (foo != null) {
               values.add(foo);
@@ -545,6 +554,8 @@ class JFRBasedProfilingIntegrationTest {
             assertNull(barAccessor.getMember(executionSample));
           }
         }
+        assertEquals(1, operations.size(), "wrong number of operation names");
+        assertEquals("trace.annotation", operations.iterator().next(), "wrong operation names");
         int matches = 0;
         for (IItemIterable event : endpointEvents) {
           IMemberAccessor<IQuantity, IItem> rootSpanIdAccessor =

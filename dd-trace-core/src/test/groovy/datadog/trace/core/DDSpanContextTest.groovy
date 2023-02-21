@@ -3,6 +3,7 @@ package datadog.trace.core
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
@@ -17,10 +18,13 @@ class DDSpanContextTest extends DDCoreSpecification {
 
   def writer
   def tracer
+  def profilingContextIntegration
 
   def setup() {
     writer = new ListWriter()
-    tracer = tracerBuilder().writer(writer).build()
+    profilingContextIntegration = Mock(ProfilingContextIntegration)
+    tracer = tracerBuilder().writer(writer)
+      .profilingContextIntegration(profilingContextIntegration).build()
   }
 
   def cleanup() {
@@ -249,6 +253,25 @@ class DDSpanContextTest extends DDCoreSpecification {
 
     then:
     span.resourceName == "fakeResource"
+  }
+
+  def "setting operation name triggers constant encoding"() {
+    when:
+    def span = tracer.buildSpan("fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .start()
+
+    then: "encoded operation name matches operation name"
+    1 * profilingContextIntegration.encode("fakeOperation") >> 1
+    span.context.encodedOperationName == 1
+
+    when:
+    span.setOperationName("newOperationName")
+
+    then:
+    1 * profilingContextIntegration.encode("newOperationName") >> 2
+    span.context.encodedOperationName == 2
   }
 
   private static String dataTag(String tag) {

@@ -17,6 +17,7 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallInterval
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isAllocationProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isCpuProfilerEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isMemoryLeakProfilingEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isSpanNameContextAttributeEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabled;
 import static com.datadog.profiling.utils.ProfilingMode.ALLOCATION;
 import static com.datadog.profiling.utils.ProfilingMode.CPU;
@@ -151,6 +152,9 @@ public final class DatadogProfiler {
       profilingModes.add(WALL);
     }
     this.orderedContextAttributes = new ArrayList<>(contextAttributes);
+    if (isSpanNameContextAttributeEnabled(configProvider)) {
+      orderedContextAttributes.add(0, "operation");
+    }
     this.contextSetter = new ContextSetter(profiler, orderedContextAttributes);
     try {
       // sanity test - force load Datadog profiler to catch it not being available early
@@ -321,27 +325,74 @@ public final class DatadogProfiler {
     return cmdString;
   }
 
-  public void setContext(long spanId, long rootSpanId) {
+  public int operationNameOffset() {
+    return offsetOf("operation");
+  }
+
+  public int offsetOf(String attribute) {
+    return contextSetter.offsetOf(attribute);
+  }
+
+  public void setSpanContext(long spanId, long rootSpanId) {
     if (profiler != null) {
       try {
         profiler.setContext(spanId, rootSpanId);
+      } catch (IllegalStateException e) {
+        log.warn("Failed to clear context", e);
+      }
+    }
+  }
+
+  public void clearSpanContext() {
+    if (profiler != null) {
+      try {
+        profiler.setContext(0L, 0L);
       } catch (IllegalStateException e) {
         log.warn("Failed to set context", e);
       }
     }
   }
 
-  public boolean setContextValue(String attribute, String value) {
+  public boolean setContextValue(int offset, int encoding) {
+    if (contextSetter != null && offset >= 0) {
+      return contextSetter.setContextValue(offset, encoding);
+    }
+    return false;
+  }
+
+  public boolean setContextValue(int offset, CharSequence value) {
+    if (contextSetter != null && offset >= 0) {
+      int encoding = encode(value);
+      return contextSetter.setContextValue(offset, encoding);
+    }
+    return false;
+  }
+
+  public boolean setContextValue(String attribute, CharSequence value) {
     if (contextSetter != null) {
-      return contextSetter.setContextValue(attribute, value);
+      return setContextValue(contextSetter.offsetOf(attribute), value);
     }
     return false;
   }
 
   public boolean clearContextValue(String attribute) {
     if (contextSetter != null) {
-      return contextSetter.clearContextValue(attribute);
+      return clearContextValue(contextSetter.offsetOf(attribute));
     }
     return false;
+  }
+
+  public boolean clearContextValue(int offset) {
+    if (contextSetter != null && offset >= 0) {
+      return contextSetter.clearContextValue(offset);
+    }
+    return false;
+  }
+
+  int encode(CharSequence constant) {
+    if (constant != null && profiler != null) {
+      return contextSetter.encode(constant.toString());
+    }
+    return 0;
   }
 }
