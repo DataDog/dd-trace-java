@@ -1,6 +1,8 @@
 package com.datadog.profiling.ddprof;
 
+import datadog.trace.api.Dictionary;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
  * This class must be installed early to be able to see all scope initialisations, which means it
@@ -14,6 +16,13 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
 
   private static final boolean QUEUEING_TIME_ENABLED =
       WALLCLOCK_ENABLED && DatadogProfilerConfig.isQueueingTimeEnabled();
+
+  private static final AtomicReferenceFieldUpdater<DatadogProfilingIntegration, Dictionary>
+      CONSTANT_POOL_UPDATER =
+          AtomicReferenceFieldUpdater.newUpdater(
+              DatadogProfilingIntegration.class, Dictionary.class, "constantPool");
+
+  private volatile Dictionary constantPool;
 
   private static final int WALLCLOCK_INTERVAL = DatadogProfilerConfig.getWallInterval();
 
@@ -53,4 +62,9 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
 
   @Override
   public void recordQueueingTime(long duration) {}
+
+  @Override
+  public void setConstantPool(Dictionary dictionary) {
+    CONSTANT_POOL_UPDATER.compareAndSet(this, null, dictionary);
+  }
 }

@@ -1,5 +1,6 @@
 package datadog.trace.agent.test
 
+import datadog.trace.api.Dictionary
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -28,6 +29,10 @@ class TestProfilingContextIntegration implements ProfilingContextIntegration {
 
   @Override
   void recordQueueingTime(long duration) {
+  }
+
+  @Override
+  void setConstantPool(Dictionary dictionary) {
   }
 
   @Override

@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.trace.api.Dictionary;
 import datadog.trace.api.experimental.ProfilingContext;
 
 public interface ProfilingContextIntegration extends ProfilingContext {
@@ -14,6 +15,8 @@ public interface ProfilingContextIntegration extends ProfilingContext {
   boolean isQueuingTimeEnabled();
 
   void recordQueueingTime(long duration);
+
+  void setConstantPool(Dictionary dictionary);
 
   final class NoOp implements ProfilingContextIntegration {
 
@@ -42,5 +45,8 @@ public interface ProfilingContextIntegration extends ProfilingContext {
 
     @Override
     public void recordQueueingTime(long duration) {}
+
+    @Override
+    public void setConstantPool(Dictionary dictionary) {}
   }
 }

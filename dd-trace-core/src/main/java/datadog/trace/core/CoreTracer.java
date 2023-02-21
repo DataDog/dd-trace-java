@@ -589,6 +589,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     propagationTagsFactory = PropagationTags.factory(config);
     this.profilingContextIntegration = profilingContextIntegration;
+    profilingContextIntegration.setConstantPool(constantPool);
   }
 
   @Override
