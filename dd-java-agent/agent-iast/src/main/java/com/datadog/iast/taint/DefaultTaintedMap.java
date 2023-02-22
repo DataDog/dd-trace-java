@@ -269,13 +269,8 @@ public final class DefaultTaintedMap implements TaintedMap {
     return iterator(0, table.length);
   }
 
-  @Override
-  public long getEstimatedSize() {
-    return estimatedSize.get();
-  }
-
-  @Override
-  public boolean isFlat() {
+  /** Testing only. */
+  boolean isFlat() {
     return isFlat;
   }
 }

@@ -6,9 +6,8 @@ import static datadog.trace.plugin.csi.impl.CallSiteFactory.typeResolver;
 
 import datadog.trace.plugin.csi.AdviceGenerator.CallSiteResult;
 import datadog.trace.plugin.csi.impl.CallSiteSpecification;
-import datadog.trace.plugin.csi.util.CallSiteUtils;
-import datadog.trace.plugin.csi.util.ErrorCode;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.FileVisitResult;
@@ -20,7 +19,6 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -31,8 +29,9 @@ public class PluginApplication {
       final Path parameters = getParameters(args);
       final Configuration configuration = getConfiguration(parameters);
       final List<CallSiteSpecification> specs = searchForCallSites(configuration);
+      final AdviceGenerator adviceGenerator = getAdviceGenerator(configuration);
       final List<CallSiteResult> result =
-          specs.stream().map(generateAdviceClosure(configuration)).collect(Collectors.toList());
+          specs.stream().map(adviceGenerator::generate).collect(Collectors.toList());
       final boolean failed = result.stream().anyMatch(it -> !it.isSuccess());
       printReport(configuration, result, failed);
       System.exit(failed ? 1 : 0);
@@ -40,27 +39,6 @@ public class PluginApplication {
       e.printStackTrace(System.err);
       System.exit(1);
     }
-  }
-
-  private static Function<CallSiteSpecification, CallSiteResult> generateAdviceClosure(
-      final Configuration configuration) {
-    final AdviceGenerator adviceGenerator = getAdviceGenerator(configuration);
-    return spec -> {
-      final CallSiteResult result = adviceGenerator.generate(spec);
-      if (result.isSuccess()) {
-        Extension.EXTENSIONS.stream()
-            .filter(ext -> ext.appliesTo(spec))
-            .forEach(
-                ext -> {
-                  try {
-                    ext.apply(configuration, result);
-                  } catch (final Throwable e) {
-                    result.addError(e, ErrorCode.EXTENSION_ERROR, ext.getClass());
-                  }
-                });
-      }
-      return result;
-    };
   }
 
   private static void printReport(
@@ -94,24 +72,30 @@ public class PluginApplication {
 
   private static AdviceGenerator getAdviceGenerator(final Configuration configuration) {
     final URL[] urls =
-        configuration.classPath.stream().map(CallSiteUtils::toURL).toArray(URL[]::new);
+        configuration.classPath.stream().map(PluginApplication::toURL).toArray(URL[]::new);
     final ClassLoader loader = new URLClassLoader(urls);
     final TypeResolver resolver = typeResolver(loader);
     return adviceGenerator(configuration.targetFolder.toFile(), resolver);
   }
 
+  private static URL toURL(final Path path) {
+    try {
+      return path.toUri().toURL();
+    } catch (MalformedURLException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   private static Configuration getConfiguration(final Path parameters) {
     try {
       final List<String> lines = Files.readAllLines(parameters);
-      final Path projectFolder = Paths.get(lines.get(0));
-      final Path classesFolder = Paths.get(lines.get(1));
-      final Path targetFolder = Paths.get(lines.get(2));
-      final String suffix = lines.get(3).trim();
-      final List<String> reporters = Arrays.asList(lines.get(4).trim().split(","));
+      final Path classesFolder = Paths.get(lines.get(0));
+      final Path targetFolder = Paths.get(lines.get(1));
+      final String suffix = lines.get(2).trim();
+      final List<String> reporters = Arrays.asList(lines.get(3).trim().split(","));
       final List<Path> classPaths =
-          lines.stream().skip(5).map(Paths::get).collect(Collectors.toList());
-      return new Configuration(
-          projectFolder, classesFolder, targetFolder, classPaths, suffix, reporters);
+          lines.stream().skip(4).map(Paths::get).collect(Collectors.toList());
+      return new Configuration(classesFolder, targetFolder, classPaths, suffix, reporters);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -129,51 +113,24 @@ public class PluginApplication {
     return parameters;
   }
 
-  public static class Configuration {
-    private final Path srcFolder;
+  private static class Configuration {
     private final Path classesFolder;
     private final Path targetFolder;
     private final List<Path> classPath;
     private final String suffix;
     private final List<String> reporters;
 
-    public Configuration(
-        final Path srcFolder,
+    private Configuration(
         final Path classesFolder,
         final Path targetFolder,
         final List<Path> classPath,
         final String suffix,
         final List<String> reporters) {
-      this.srcFolder = srcFolder;
       this.classesFolder = classesFolder;
       this.targetFolder = targetFolder;
       this.classPath = classPath;
       this.suffix = suffix;
       this.reporters = reporters;
-    }
-
-    public Path getSrcFolder() {
-      return srcFolder;
-    }
-
-    public Path getClassesFolder() {
-      return classesFolder;
-    }
-
-    public Path getTargetFolder() {
-      return targetFolder;
-    }
-
-    public List<Path> getClassPath() {
-      return classPath;
-    }
-
-    public String getSuffix() {
-      return suffix;
-    }
-
-    public List<String> getReporters() {
-      return reporters;
     }
   }
 }

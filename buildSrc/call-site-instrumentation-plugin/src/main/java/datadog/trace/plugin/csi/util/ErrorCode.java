@@ -382,16 +382,6 @@ public enum ErrorCode implements Function<Object[], String> {
     }
   },
 
-  // Errors in extensions
-
-  EXTENSION_ERROR {
-    @Override
-    public String apply(final Object[] objects) {
-      final Class<?> extension = (Class<?>) objects[0];
-      return String.format("Failed to apply extension %s", extension);
-    }
-  },
-
   // Others
 
   UNCAUGHT_ERROR {

@@ -3,15 +3,12 @@ package datadog.trace.plugin.csi.impl
 import datadog.trace.plugin.csi.HasErrors
 import datadog.trace.plugin.csi.ValidationContext
 import datadog.trace.plugin.csi.util.MethodType
-import groovy.transform.CompileDynamic
 import org.objectweb.asm.Type
 import spock.lang.Specification
 
 import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
 import java.lang.reflect.Method
-import java.nio.file.Files
-import java.nio.file.Paths
 import java.util.stream.Collectors
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.ParameterSpecification
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.AdviceSpecification
@@ -25,24 +22,19 @@ import static datadog.trace.plugin.csi.impl.CallSiteFactory.specificationBuilder
 import static datadog.trace.plugin.csi.impl.CallSiteFactory.typeResolver
 import static datadog.trace.plugin.csi.util.CallSiteConstants.TYPE_RESOLVER
 
-@CompileDynamic
 abstract class BaseCsiPluginTest extends Specification {
 
   protected static void assertNoErrors(final HasErrors hasErrors) {
-    final errors = hasErrors.errors.collect { error ->
-      "${error.message}: ${error.cause == null ? '-' : error.causeString}"
-    }
+    final errors = hasErrors.errors
+      .map(error -> "${error.message}: ${error.cause == null ? '-' : error.causeString}")
+      .collect(Collectors.toList())
     assert errors == []
   }
 
   protected static File fetchClass(final Class<?> clazz) {
-    final folder = Paths.get(clazz.getResource('/').toURI()).resolve('../../')
-    final classFile = clazz.getName().replaceAll('\\.', File.separator) + '.class'
-    final groovy = folder.resolve('groovy/test').resolve(classFile)
-    if (Files.exists(groovy)) {
-      return groovy.toFile()
-    }
-    return folder.resolve('java/test').resolve(classFile).toFile()
+    final folder = new File(clazz.getResource('.').toURI())
+    final classFile = clazz.getName().replace(clazz.getPackage().getName() + '.', '') + '.class'
+    return new File(folder, classFile)
   }
 
   protected static CallSiteSpecification buildClassSpecification(final Class<?> clazz) {
@@ -116,7 +108,7 @@ abstract class BaseCsiPluginTest extends Specification {
 
   private abstract static class AdviceSpecificationBuilder {
     protected MethodType advice
-    protected Map<Integer, ParameterSpecification> parameters = [:]
+    protected Map<Integer, ParameterSpecification> parameters
     protected String signature
     protected boolean invokeDynamic
 
@@ -129,6 +121,7 @@ abstract class BaseCsiPluginTest extends Specification {
     }
 
     void parameters(final ParameterSpecification... parameters) {
+      this.parameters = [:]
       parameters.eachWithIndex { entry, int i -> this.parameters.put(i, entry) }
       parameters.grep { it instanceof ArgumentSpecification }
         .collect { it as ArgumentSpecification}

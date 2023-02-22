@@ -47,13 +47,8 @@ public class RequestBuilder {
   private final Application application;
   private final Host host;
   private final String runtimeId;
-  private final boolean debug;
 
   public RequestBuilder(HttpUrl httpUrl) {
-    this(httpUrl, false);
-  }
-
-  public RequestBuilder(HttpUrl httpUrl, boolean debug) {
     this.httpUrl = httpUrl.newBuilder().addPathSegments(API_ENDPOINT).build();
 
     Config config = Config.get();
@@ -81,8 +76,6 @@ public class RequestBuilder {
             .kernelRelease(HostInfo.getKernelRelease())
             .kernelVersion(HostInfo.getKernelVersion())
             .containerId(containerInfo.getContainerId());
-
-    this.debug = debug;
   }
 
   public Request build(RequestType requestType) {
@@ -99,8 +92,7 @@ public class RequestBuilder {
             .seqId(SEQ_ID.incrementAndGet())
             .application(application)
             .host(host)
-            .payload(payload)
-            .debug(debug);
+            .payload(payload);
 
     String json = JSON_ADAPTER.toJson(telemetry);
     RequestBody body = RequestBody.create(JSON, json);

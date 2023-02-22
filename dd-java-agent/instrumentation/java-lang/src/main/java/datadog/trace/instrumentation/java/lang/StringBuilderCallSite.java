@@ -2,21 +2,21 @@ package datadog.trace.instrumentation.java.lang;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
-import datadog.trace.api.iast.IastAdvice.Propagation;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.model.PropagationTypes;
 import datadog.trace.api.iast.propagation.StringModule;
 import datadog.trace.util.stacktrace.StackUtils;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-@Propagation(PropagationTypes.STRING)
 @CallSite(spi = IastAdvice.class)
 public class StringBuilderCallSite {
 
-  @CallSite.After("void java.lang.StringBuilder.<init>(java.lang.String)")
-  @CallSite.After("void java.lang.StringBuilder.<init>(java.lang.CharSequence)")
+  @CallSite.AfterArray(
+      value = {
+        @CallSite.After("void java.lang.StringBuilder.<init>(java.lang.String)"),
+        @CallSite.After("void java.lang.StringBuilder.<init>(java.lang.CharSequence)")
+      })
   @Nonnull
   public static StringBuilder afterInit(
       @CallSite.This @Nonnull final StringBuilder self,
@@ -32,8 +32,12 @@ public class StringBuilderCallSite {
     return self;
   }
 
-  @CallSite.After("java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.String)")
-  @CallSite.After("java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.CharSequence)")
+  @CallSite.AfterArray(
+      value = {
+        @CallSite.After("java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.String)"),
+        @CallSite.After(
+            "java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.CharSequence)")
+      })
   @Nonnull
   public static StringBuilder afterAppend(
       @CallSite.This @Nonnull final StringBuilder self,

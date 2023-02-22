@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling.csi
 
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteUtils
 import datadog.trace.test.util.DDSpecification
-import groovy.transform.CompileDynamic
 import net.bytebuddy.jar.asm.MethodVisitor
 import net.bytebuddy.jar.asm.Opcodes
 import net.bytebuddy.jar.asm.Type
@@ -29,10 +28,9 @@ import static net.bytebuddy.jar.asm.Type.INT_TYPE
 import static net.bytebuddy.jar.asm.Type.LONG_TYPE
 import static net.bytebuddy.jar.asm.Type.SHORT_TYPE
 
-@CompileDynamic
 class CallSiteUtilsTest extends DDSpecification {
 
-  void 'test push int value "#value" onto stack'(final int value, final int opcode) {
+  def 'test push int value "#value" onto stack'(final int value, final int opcode) {
     setup:
     final visitor = Mock(MethodVisitor)
 
@@ -70,7 +68,7 @@ class CallSiteUtilsTest extends DDSpecification {
     Byte.MAX_VALUE      | Opcodes.BIPUSH
   }
 
-  void 'test swap [..., #secondToLastSize, #lastSize]'(final int secondToLastSize,
+  def 'test swap [..., #secondToLastSize, #lastSize]'(final int secondToLastSize,
     final int lastSize,
     final List<Integer> opcodes) {
     setup:
@@ -93,7 +91,7 @@ class CallSiteUtilsTest extends DDSpecification {
     2                | 1        | [Opcodes.DUP_X2, Opcodes.POP]
   }
 
-  void 'test stack clone of #items'(final List<StackObject> items, final List<StackObject> expected) {
+  def 'test stack clone of #items'(final List<StackObject> items, final List<StackObject> expected) {
     setup:
     final stack = buildStack(items)
     final visitor = mockMethodVisitor(stack)
@@ -155,7 +153,7 @@ class CallSiteUtilsTest extends DDSpecification {
     [forInt(1), forInt(2), forInt(3)]              | [2, 2, 0] | [forInt(3), forInt(3), forInt(1)]
   }
 
-  void 'test stack dup with array before of #items'(final List<StackObject> items, final List<StackObject> expected) {
+  def 'test stack dup with array before of #items'(final List<StackObject> items, final List<StackObject> expected) {
     setup:
     final stack = buildStack(items)
     final visitor = mockMethodVisitor(stack)
@@ -187,7 +185,7 @@ class CallSiteUtilsTest extends DDSpecification {
     [forObject('PI = '), forDouble(3.14D), forChar((char) '?'), forBoolean(true)] | items
   }
 
-  void 'test stack dup with array after of #items'(final List<StackObject> items, final List<StackObject> expected) {
+  def 'test stack dup with array after of #items'(final List<StackObject> items, final List<StackObject> expected) {
     setup:
     final stack = buildStack(items)
     final visitor = mockMethodVisitor(stack)
