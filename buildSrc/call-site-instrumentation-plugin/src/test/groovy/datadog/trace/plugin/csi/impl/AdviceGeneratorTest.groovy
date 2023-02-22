@@ -1,25 +1,31 @@
 package datadog.trace.plugin.csi.impl
 
 import com.github.javaparser.JavaParser
+import com.github.javaparser.ast.Node
 import com.github.javaparser.ast.body.MethodDeclaration
 import com.github.javaparser.ast.body.TypeDeclaration
+import com.github.javaparser.ast.expr.ClassExpr
+import com.github.javaparser.ast.expr.NormalAnnotationExpr
+import com.github.javaparser.ast.type.ClassOrInterfaceType
 import datadog.trace.agent.tooling.csi.CallSite
+import datadog.trace.plugin.csi.AdviceGenerator
 import datadog.trace.plugin.csi.AdviceGenerator.AdviceResult
 import datadog.trace.plugin.csi.AdviceGenerator.CallSiteResult
+import groovy.transform.CompileDynamic
 import spock.lang.Requires
 import spock.lang.TempDir
 
 import javax.servlet.ServletRequest
 import java.lang.invoke.MethodHandles
 import java.lang.invoke.MethodType
-import java.util.stream.Collectors
 
 import static CallSiteFactory.pointcutParser
 
-final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
+@CompileDynamic
+final class AdviceGeneratorTest extends BaseCsiPluginTest {
 
   @TempDir
-  File buildDir
+  private File buildDir
 
   @CallSite
   class BeforeAdvice {
@@ -27,10 +33,10 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     static void before(@CallSite.Argument final String algorithm) {}
   }
 
-  def 'test before advice'() {
+  void 'test before advice'() {
     setup:
     final spec = buildClassSpecification(BeforeAdvice)
-    final generator = buildFreemarkerAdviceGenerator(buildDir)
+    final generator = buildAdviceGenerator(buildDir)
 
     when:
     final result = generator.generate(spec)
@@ -40,12 +46,13 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     final advice = findAdvice(result, 'before')
     assertNoErrors(advice)
     final javaFile = new JavaParser().parse(advice.file).getResult().get()
+    assert javaFile.parsed == Node.Parsedness.PARSED
     final packageDcl = javaFile.getPackageDeclaration().get()
     packageDcl.name.asString() == BeforeAdvice.package.name
     final adviceClass = javaFile.getType(0)
     adviceClass.name.asString().endsWith(BeforeAdvice.simpleName + 'Before')
-    final interfaces = adviceClass.asClassOrInterfaceDeclaration().implementedTypes.collect {it.name.asString() }
-    interfaces == ['CallSiteAdvice', 'Pointcut', 'InvokeAdvice', 'HasFlags', 'HasHelpers']
+    final interfaces = getImplementedTypes(adviceClass)
+    interfaces.containsAll(['CallSiteAdvice', 'Pointcut', 'InvokeAdvice', 'HasFlags', 'HasHelpers'])
     final methods = groupMethods(adviceClass)
     getStatements(methods['pointcut']) == ['return this;']
     getStatements(methods['type']) == ['return "java/security/MessageDigest";']
@@ -55,7 +62,7 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     getStatements(methods['flags']) == ['return COMPUTE_MAX_STACK;']
     getStatements(methods['apply']) == [
       'handler.dupParameters(descriptor, StackDupMode.COPY);',
-      'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/FreemarkerAdviceGeneratorTest$BeforeAdvice", "before", "(Ljava/lang/String;)V", false);',
+      'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/AdviceGeneratorTest$BeforeAdvice", "before", "(Ljava/lang/String;)V", false);',
       'handler.method(opcode, owner, name, descriptor, isInterface);'
     ]
   }
@@ -68,10 +75,10 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test around advice'() {
+  void 'test around advice'() {
     setup:
     final spec = buildClassSpecification(AroundAdvice)
-    final generator = buildFreemarkerAdviceGenerator(buildDir)
+    final generator = buildAdviceGenerator(buildDir)
 
     when:
     final result = generator.generate(spec)
@@ -81,12 +88,13 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     final advice = findAdvice(result, 'around')
     assertNoErrors(advice)
     final javaFile = new JavaParser().parse(advice.file).getResult().get()
+    assert javaFile.parsed == Node.Parsedness.PARSED
     final packageDcl = javaFile.getPackageDeclaration().get()
     packageDcl.name.asString() == AroundAdvice.package.name
     final adviceClass = javaFile.getType(0)
     adviceClass.name.asString().endsWith(AroundAdvice.simpleName + 'Around')
-    final interfaces = adviceClass.asClassOrInterfaceDeclaration().implementedTypes.collect {it.name.asString() }
-    interfaces == ['CallSiteAdvice', 'Pointcut', 'InvokeAdvice', 'HasHelpers']
+    final interfaces = getImplementedTypes(adviceClass)
+    interfaces.containsAll(['CallSiteAdvice', 'Pointcut', 'InvokeAdvice', 'HasHelpers'])
     final methods = groupMethods(adviceClass)
     getStatements(methods['pointcut']) == ['return this;']
     getStatements(methods['type']) == ['return "java/lang/String";']
@@ -94,7 +102,7 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     getStatements(methods['descriptor']) == ['return "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;";']
     getStatements(methods['helperClassNames']) == ['return new String[] { "' + AroundAdvice.name + '" };']
     getStatements(methods['apply']) == [
-      'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/FreemarkerAdviceGeneratorTest$AroundAdvice", "around", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;", false);'
+      'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/AdviceGeneratorTest$AroundAdvice", "around", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;", false);'
     ]
   }
 
@@ -106,25 +114,26 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test after advice'() {
+  void 'test after advice'() {
     setup:
     final spec = buildClassSpecification(AfterAdvice)
-    final generator = buildFreemarkerAdviceGenerator(buildDir)
+    final generator = buildAdviceGenerator(buildDir)
 
     when:
     final result = generator.generate(spec)
 
     then:
     assertNoErrors(result)
-    final advice = findAdvice(result, 'after' )
+    final advice = findAdvice(result, 'after')
     assertNoErrors(advice)
     final javaFile = new JavaParser().parse(advice.file).getResult().get()
+    assert javaFile.parsed == Node.Parsedness.PARSED
     final packageDcl = javaFile.getPackageDeclaration().get()
     packageDcl.name.asString() == AfterAdvice.package.name
     final adviceClass = javaFile.getType(0)
     adviceClass.name.asString().endsWith(AfterAdvice.simpleName + 'After')
-    final interfaces = adviceClass.asClassOrInterfaceDeclaration().implementedTypes.collect {it.name.asString() }
-    interfaces == ['CallSiteAdvice', 'Pointcut', 'InvokeAdvice', 'HasFlags', 'HasHelpers']
+    final interfaces = getImplementedTypes(adviceClass)
+    interfaces.containsAll(['CallSiteAdvice', 'Pointcut', 'InvokeAdvice', 'HasFlags', 'HasHelpers'])
     final methods = groupMethods(adviceClass)
     getStatements(methods['pointcut']) == ['return this;']
     getStatements(methods['type']) == ['return "java/net/URL";']
@@ -135,7 +144,7 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     getStatements(methods['apply']) == [
       'handler.dupInvoke(owner, descriptor, StackDupMode.COPY);',
       'handler.method(opcode, owner, name, descriptor, isInterface);',
-      'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/FreemarkerAdviceGeneratorTest$AfterAdvice", "after", "(Ljava/net/URL;Ljava/lang/String;)Ljava/net/URL;", false);',
+      'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/AdviceGeneratorTest$AfterAdvice", "after", "(Ljava/net/URL;Ljava/lang/String;)Ljava/net/URL;", false);',
       'handler.instruction(Opcodes.POP);'
     ]
   }
@@ -147,20 +156,25 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     interface SampleSpi {}
   }
 
-  def 'test generator with spi'() {
+  void 'test generator with spi'() {
     setup:
     final spec = buildClassSpecification(SpiAdvice)
-    final generator = buildFreemarkerAdviceGenerator(buildDir)
+    final generator = buildAdviceGenerator(buildDir)
 
     when:
     final result = generator.generate(spec)
 
     then:
     assertNoErrors(result)
-    final advice = findAdvice(result, 'before' )
+    final advice = findAdvice(result, 'before')
     assertNoErrors(advice)
-    final text = advice.file.text
-    text.contains('@AutoService(FreemarkerAdviceGeneratorTest.SpiAdvice.SampleSpi.class)')
+    final javaFile = new JavaParser().parse(advice.file).getResult().get()
+    assert javaFile.parsed == Node.Parsedness.PARSED
+    final adviceClass = javaFile.getType(0)
+    final autoService = adviceClass.annotations.find { it.nameAsString.endsWith('AutoService') } as NormalAnnotationExpr
+    final value = autoService.pairs.find { it.nameAsString == 'value' }.value as ClassExpr
+    final spiType = value.type as ClassOrInterfaceType
+    spiType.toString() == 'AdviceGeneratorTest.SpiAdvice.SampleSpi'
   }
 
   @CallSite
@@ -177,25 +191,26 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
   @Requires({
     jvm.java9Compatible
   })
-  def 'test invoke dynamic after advice'() {
+  void 'test invoke dynamic after advice'() {
     setup:
     final spec = buildClassSpecification(InvokeDynamicAfterAdvice)
-    final generator = buildFreemarkerAdviceGenerator(buildDir)
+    final generator = buildAdviceGenerator(buildDir)
 
     when:
     final result = generator.generate(spec)
 
     then:
     assertNoErrors(result)
-    final advice = findAdvice(result, 'after' )
+    final advice = findAdvice(result, 'after')
     assertNoErrors(advice)
     final javaFile = new JavaParser().parse(advice.file).getResult().get()
+    assert javaFile.parsed == Node.Parsedness.PARSED
     final packageDcl = javaFile.getPackageDeclaration().get()
     packageDcl.name.asString() == InvokeDynamicAfterAdvice.package.name
     final adviceClass = javaFile.getType(0)
     adviceClass.name.asString().endsWith(InvokeDynamicAfterAdvice.simpleName + 'After')
-    final interfaces = adviceClass.asClassOrInterfaceDeclaration().implementedTypes.collect {it.name.asString() }
-    interfaces == ['CallSiteAdvice', 'Pointcut', 'InvokeDynamicAdvice', 'HasFlags', 'HasHelpers', 'HasMinJavaVersion']
+    final interfaces = getImplementedTypes(adviceClass)
+    interfaces.containsAll(['CallSiteAdvice', 'Pointcut', 'InvokeDynamicAdvice', 'HasFlags', 'HasHelpers', 'HasMinJavaVersion'])
     final methods = groupMethods(adviceClass)
     getStatements(methods['pointcut']) == ['return this;']
     getStatements(methods['type']) == ['return "java/lang/invoke/StringConcatFactory";']
@@ -206,7 +221,7 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     getStatements(methods['apply']) == [
       'handler.dupParameters(descriptor, StackDupMode.PREPEND_ARRAY);',
       'handler.invokeDynamic(name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);',
-      'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/FreemarkerAdviceGeneratorTest$InvokeDynamicAfterAdvice", "after", "([Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/String;", false);'
+      'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/AdviceGeneratorTest$InvokeDynamicAfterAdvice", "after", "([Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/String;", false);'
     ]
   }
 
@@ -228,25 +243,26 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
   @Requires({
     jvm.java9Compatible
   })
-  def 'test invoke dynamic around advice'() {
+  void 'test invoke dynamic around advice'() {
     setup:
     final spec = buildClassSpecification(InvokeDynamicAroundAdvice)
-    final generator = buildFreemarkerAdviceGenerator(buildDir)
+    final generator = buildAdviceGenerator(buildDir)
 
     when:
     final result = generator.generate(spec)
 
     then:
     assertNoErrors(result)
-    final advice = findAdvice(result, 'around' )
+    final advice = findAdvice(result, 'around')
     assertNoErrors(advice)
     final javaFile = new JavaParser().parse(advice.file).getResult().get()
+    assert javaFile.parsed == Node.Parsedness.PARSED
     final packageDcl = javaFile.getPackageDeclaration().get()
     packageDcl.name.asString() == InvokeDynamicAroundAdvice.package.name
     final adviceClass = javaFile.getType(0)
     adviceClass.name.asString().endsWith(InvokeDynamicAroundAdvice.simpleName + 'Around')
-    final interfaces = adviceClass.asClassOrInterfaceDeclaration().implementedTypes.collect {it.name.asString() }
-    interfaces == ['CallSiteAdvice', 'Pointcut', 'InvokeDynamicAdvice', 'HasHelpers', 'HasMinJavaVersion']
+    final interfaces = getImplementedTypes(adviceClass)
+    interfaces.containsAll(['CallSiteAdvice', 'Pointcut', 'InvokeDynamicAdvice', 'HasHelpers', 'HasMinJavaVersion'])
     final methods = groupMethods(adviceClass)
     getStatements(methods['pointcut']) == ['return this;']
     getStatements(methods['type']) == ['return "java/lang/invoke/StringConcatFactory";']
@@ -254,7 +270,7 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     getStatements(methods['descriptor']) == ['return "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;";']
     getStatements(methods['helperClassNames']) == ['return new String[] { "' + InvokeDynamicAroundAdvice.name + '" };']
     getStatements(methods['apply']) == [
-      'handler.invokeDynamic(name, descriptor, new Handle(Opcodes.H_INVOKESTATIC, "datadog/trace/plugin/csi/impl/FreemarkerAdviceGeneratorTest$InvokeDynamicAroundAdvice", "around", "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;", false), bootstrapMethodArguments);',
+      'handler.invokeDynamic(name, descriptor, new Handle(Opcodes.H_INVOKESTATIC, "datadog/trace/plugin/csi/impl/AdviceGeneratorTest$InvokeDynamicAroundAdvice", "around", "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;", false), bootstrapMethodArguments);',
     ]
   }
 
@@ -274,25 +290,26 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
   @Requires({
     jvm.java9Compatible
   })
-  def 'test invoke dynamic with constants advice'() {
+  void 'test invoke dynamic with constants advice'() {
     setup:
     final spec = buildClassSpecification(InvokeDynamicWithConstantsAdvice)
-    final generator = buildFreemarkerAdviceGenerator(buildDir)
+    final generator = buildAdviceGenerator(buildDir)
 
     when:
     final result = generator.generate(spec)
 
     then:
     assertNoErrors(result)
-    final advice = findAdvice(result, 'after' )
+    final advice = findAdvice(result, 'after')
     assertNoErrors(advice)
     final javaFile = new JavaParser().parse(advice.file).getResult().get()
+    assert javaFile.parsed == Node.Parsedness.PARSED
     final packageDcl = javaFile.getPackageDeclaration().get()
     packageDcl.name.asString() == InvokeDynamicWithConstantsAdvice.package.name
     final adviceClass = javaFile.getType(0)
     adviceClass.name.asString().endsWith(InvokeDynamicWithConstantsAdvice.simpleName + 'After')
-    final interfaces = adviceClass.asClassOrInterfaceDeclaration().implementedTypes.collect {it.name.asString() }
-    interfaces == ['CallSiteAdvice', 'Pointcut', 'InvokeDynamicAdvice', 'HasFlags', 'HasHelpers', 'HasMinJavaVersion']
+    final interfaces = getImplementedTypes(adviceClass)
+    interfaces.containsAll(['CallSiteAdvice', 'Pointcut', 'InvokeDynamicAdvice', 'HasFlags', 'HasHelpers', 'HasMinJavaVersion'])
     final methods = groupMethods(adviceClass)
     getStatements(methods['pointcut']) == ['return this;']
     getStatements(methods['type']) == ['return "java/lang/invoke/StringConcatFactory";']
@@ -304,7 +321,7 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
       'handler.dupParameters(descriptor, StackDupMode.PREPEND_ARRAY);',
       'handler.invokeDynamic(name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);',
       'handler.loadConstantArray(bootstrapMethodArguments);',
-      'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/FreemarkerAdviceGeneratorTest$InvokeDynamicWithConstantsAdvice", "after", "([Ljava/lang/Object;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;", false);'
+      'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/AdviceGeneratorTest$InvokeDynamicWithConstantsAdvice", "after", "([Ljava/lang/Object;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;", false);'
     ]
   }
 
@@ -316,18 +333,18 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     static void before() {}
   }
 
-  def 'test multiple methods with the same name advice'() {
+  void 'test multiple methods with the same name advice'() {
     setup:
     final spec = buildClassSpecification(SameMethodNameAdvice)
-    final generator = buildFreemarkerAdviceGenerator(buildDir)
+    final generator = buildAdviceGenerator(buildDir)
 
     when:
     final result = generator.generate(spec)
 
     then:
     assertNoErrors(result)
-    final advices = result.advices.map { it.file.name }.collect(Collectors.toList())
-    advices.containsAll(['FreemarkerAdviceGeneratorTest$SameMethodNameAdviceBefore0.java', 'FreemarkerAdviceGeneratorTest$SameMethodNameAdviceBefore1.java'])
+    final advices = result.advices.collect { it.file.name }
+    advices.containsAll(['AdviceGeneratorTest$SameMethodNameAdviceBefore0.java', 'AdviceGeneratorTest$SameMethodNameAdviceBefore1.java'])
   }
 
   @CallSite
@@ -341,18 +358,18 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test array advice'() {
+  void 'test array advice'() {
     setup:
     final spec = buildClassSpecification(ArrayAdvice)
-    final generator = buildFreemarkerAdviceGenerator(buildDir)
+    final generator = buildAdviceGenerator(buildDir)
 
     when:
     final result = generator.generate(spec)
 
     then:
     assertNoErrors(result)
-    final advices = result.advices.map { it.file.name }.collect(Collectors.toList())
-    advices.containsAll(['FreemarkerAdviceGeneratorTest$ArrayAdviceAfter0.java', 'FreemarkerAdviceGeneratorTest$ArrayAdviceAfter1.java'])
+    final advices = result.advices.collect { it.file.name }
+    advices.containsAll(['AdviceGeneratorTest$ArrayAdviceAfter0.java', 'AdviceGeneratorTest$ArrayAdviceAfter1.java'])
   }
 
   @CallSite(minJavaVersion = 9)
@@ -363,22 +380,23 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test min java version advice'() {
+  void 'test min java version advice'() {
     setup:
     final spec = buildClassSpecification(MinJavaVersionAdvice)
-    final generator = buildFreemarkerAdviceGenerator(buildDir)
+    final generator = buildAdviceGenerator(buildDir)
 
     when:
     final result = generator.generate(spec)
 
     then:
     assertNoErrors(result)
-    final advice = findAdvice(result, 'after' )
+    final advice = findAdvice(result, 'after')
     assertNoErrors(advice)
     final javaFile = new JavaParser().parse(advice.file).getResult().get()
+    assert javaFile.parsed == Node.Parsedness.PARSED
     final adviceClass = javaFile.getType(0)
-    final interfaces = adviceClass.asClassOrInterfaceDeclaration().implementedTypes.collect {it.name.asString() }
-    interfaces == ['CallSiteAdvice', 'Pointcut', 'InvokeAdvice', 'HasFlags', 'HasHelpers', 'HasMinJavaVersion']
+    final interfaces = getImplementedTypes(adviceClass)
+    interfaces.containsAll(['CallSiteAdvice', 'Pointcut', 'InvokeAdvice', 'HasFlags', 'HasHelpers', 'HasMinJavaVersion'])
     final methods = groupMethods(adviceClass)
     getStatements(methods['minJavaVersion']) == ['return 9;']
   }
@@ -399,7 +417,7 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
   void 'partial arguments with before advice'() {
     setup:
     CallSiteSpecification spec = buildClassSpecification(PartialArgumentsBeforeAdvice)
-    FreemarkerAdviceGenerator generator = buildFreemarkerAdviceGenerator(buildDir)
+    final generator = buildAdviceGenerator(buildDir)
 
     when:
     CallSiteResult result = generator.generate(spec)
@@ -407,14 +425,15 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     then:
     assertNoErrors result
     List<String> adviceFiles = result.advices*.file*.name
-    adviceFiles == [
-      'FreemarkerAdviceGeneratorTest$PartialArgumentsBeforeAdviceBefore0.java',
-      'FreemarkerAdviceGeneratorTest$PartialArgumentsBeforeAdviceBefore1.java',
-      'FreemarkerAdviceGeneratorTest$PartialArgumentsBeforeAdviceBefore2.java',
-    ]
+    adviceFiles.containsAll([
+      'AdviceGeneratorTest$PartialArgumentsBeforeAdviceBefore0.java',
+      'AdviceGeneratorTest$PartialArgumentsBeforeAdviceBefore1.java',
+      'AdviceGeneratorTest$PartialArgumentsBeforeAdviceBefore2.java',
+    ])
 
     when:
-    def javaFile = new JavaParser().parse(result.advices.findFirst().get().file).result.get()
+    def javaFile = new JavaParser().parse(result.advices.first().file).result.get()
+    assert javaFile.parsed == Node.Parsedness.PARSED
     def adviceClass = javaFile.getType(0)
     def methods = groupMethods(adviceClass)
 
@@ -427,12 +446,13 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     getStatements(methods['apply']) == [
       'int[] parameterIndices = new int[] { 0 };',
       'handler.dupParameters(descriptor, parameterIndices, owner);',
-      'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/FreemarkerAdviceGeneratorTest$PartialArgumentsBeforeAdvice", "before", "(Ljava/lang/String;)V", false);',
+      'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/AdviceGeneratorTest$PartialArgumentsBeforeAdvice", "before", "(Ljava/lang/String;)V", false);',
       'handler.method(opcode, owner, name, descriptor, isInterface);',
     ]
 
     when:
     javaFile = new JavaParser().parse(result.advices*.file[1]).result.get()
+    assert javaFile.parsed == Node.Parsedness.PARSED
     adviceClass = javaFile.getType(0)
     methods = groupMethods(adviceClass)
 
@@ -440,12 +460,13 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     getStatements(methods['apply']) == [
       'int[] parameterIndices = new int[] { 1 };',
       'handler.dupParameters(descriptor, parameterIndices, null);',
-      'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/FreemarkerAdviceGeneratorTest$PartialArgumentsBeforeAdvice", "before", "([Ljava/lang/Object;)V", false);',
+      'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/AdviceGeneratorTest$PartialArgumentsBeforeAdvice", "before", "([Ljava/lang/Object;)V", false);',
       'handler.method(opcode, owner, name, descriptor, isInterface);',
     ]
 
     when:
     javaFile = new JavaParser().parse(result.advices*.file[2]).result.get()
+    assert javaFile.parsed == Node.Parsedness.PARSED
     adviceClass = javaFile.getType(0)
     methods = groupMethods(adviceClass)
 
@@ -453,17 +474,21 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
     getStatements(methods['apply']) == [
       'int[] parameterIndices = new int[] { 0 };',
       'handler.dupInvoke(owner, descriptor, parameterIndices);',
-      'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/FreemarkerAdviceGeneratorTest$PartialArgumentsBeforeAdvice", "before", "(Ljava/lang/String;I)V", false);',
+      'handler.method(Opcodes.INVOKESTATIC, "datadog/trace/plugin/csi/impl/AdviceGeneratorTest$PartialArgumentsBeforeAdvice", "before", "(Ljava/lang/String;I)V", false);',
       'handler.method(opcode, owner, name, descriptor, isInterface);',
     ]
   }
 
-  private static List<String> getStatements(final MethodDeclaration method) {
-    return method.body.get().statements.collect { it.toString() }
+  private static List<String> getImplementedTypes(final TypeDeclaration<?> type) {
+    return type.asClassOrInterfaceDeclaration().implementedTypes*.nameAsString
   }
 
-  private static FreemarkerAdviceGenerator buildFreemarkerAdviceGenerator(final File targetFolder) {
-    return new FreemarkerAdviceGenerator(targetFolder, pointcutParser())
+  private static List<String> getStatements(final MethodDeclaration method) {
+    return method.body.get().statements*.toString()
+  }
+
+  private static AdviceGenerator buildAdviceGenerator(final File targetFolder) {
+    return new AdviceGeneratorImpl(targetFolder, pointcutParser())
   }
 
   private static Map<String, MethodDeclaration> groupMethods(final TypeDeclaration<?> classNode) {
@@ -472,6 +497,6 @@ final class FreemarkerAdviceGeneratorTest extends BaseCsiPluginTest {
   }
 
   private static AdviceResult findAdvice(final CallSiteResult result, final String name) {
-    return result.advices.filter { it.specification.advice.methodName == name }.findFirst().get()
+    return result.advices.find { it.specification.advice.methodName == name }
   }
 }

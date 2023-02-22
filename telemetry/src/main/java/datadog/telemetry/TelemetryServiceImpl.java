@@ -20,6 +20,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import okhttp3.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -121,18 +122,19 @@ public class TelemetryServiceImpl implements TelemetryService {
 
     // New metrics
     if (!metrics.isEmpty()) {
-      Payload payload =
-          new GenerateMetrics()
-              .namespace("appsec")
-              .libLanguage("java")
-              .libVersion("0.0.0")
-              .series(drainOrEmpty(metrics));
-      Request request =
-          requestBuilderSupplier
-              .get()
-              .build(
-                  RequestType.GENERATE_METRICS, payload.requestType(RequestType.GENERATE_METRICS));
-      queue.offer(request);
+      drainOrEmpty(metrics).stream()
+          .collect(Collectors.groupingBy(Metric::getNamespace))
+          .forEach(
+              (namespace, metrics) -> {
+                Payload payload = new GenerateMetrics().namespace(namespace).series(metrics);
+                Request request =
+                    requestBuilderSupplier
+                        .get()
+                        .build(
+                            RequestType.GENERATE_METRICS,
+                            payload.requestType(RequestType.GENERATE_METRICS));
+                queue.offer(request);
+              });
     }
 
     // Heartbeat request if needed

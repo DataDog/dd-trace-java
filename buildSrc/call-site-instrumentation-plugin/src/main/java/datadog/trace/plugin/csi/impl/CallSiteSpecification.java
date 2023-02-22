@@ -84,8 +84,8 @@ public class CallSiteSpecification implements Validatable {
     return helpers;
   }
 
-  public Stream<AdviceSpecification> getAdvices() {
-    return advices.stream();
+  public List<AdviceSpecification> getAdvices() {
+    return advices;
   }
 
   /**
