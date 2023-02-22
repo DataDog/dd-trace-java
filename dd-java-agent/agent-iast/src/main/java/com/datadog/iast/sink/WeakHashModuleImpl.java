@@ -3,6 +3,7 @@ package com.datadog.iast.sink;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.overhead.Operations;
+import datadog.trace.api.Config;
 import datadog.trace.api.iast.sink.WeakHashModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -10,6 +11,14 @@ import java.util.Locale;
 import javax.annotation.Nonnull;
 
 public class WeakHashModuleImpl extends SinkModuleBase implements WeakHashModule {
+
+  private Config config;
+
+  @Override
+  public void registerDependencies(@Nonnull Dependencies dependencies) {
+    super.registerDependencies(dependencies);
+    config = dependencies.getConfig();
+  }
 
   @Override
   public void onHashingAlgorithm(@Nonnull final String algorithm) {

@@ -1,7 +1,8 @@
 package com.datadog.iast.sink;
 
-import com.datadog.iast.IastModuleBase;
+import com.datadog.iast.HasDependencies;
 import com.datadog.iast.IastRequestContext;
+import com.datadog.iast.Reporter;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Location;
 import com.datadog.iast.model.Range;
@@ -9,17 +10,30 @@ import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.model.VulnerabilityType.InjectionType;
 import com.datadog.iast.overhead.Operations;
+import com.datadog.iast.overhead.OverheadController;
 import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.Ranges.RangesProvider;
 import com.datadog.iast.taint.TaintedObject;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
+import datadog.trace.util.stacktrace.StackWalker;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /** Base class with utility methods for with sinks */
-public abstract class SinkModuleBase extends IastModuleBase {
+public abstract class SinkModuleBase implements HasDependencies {
+
+  protected OverheadController overheadController;
+  protected Reporter reporter;
+  protected StackWalker stackWalker;
+
+  @Override
+  public void registerDependencies(@Nonnull final Dependencies dependencies) {
+    overheadController = dependencies.getOverheadController();
+    reporter = dependencies.getReporter();
+    stackWalker = dependencies.getStackWalker();
+  }
 
   protected final <E> void checkInjection(
       @Nullable final AgentSpan span,

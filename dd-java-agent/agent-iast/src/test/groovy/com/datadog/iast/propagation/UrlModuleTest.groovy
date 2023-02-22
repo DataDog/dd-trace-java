@@ -16,7 +16,7 @@ class UrlModuleTest extends IastModuleImplTestBase {
   private List<Object> objectHolder
 
   def setup() {
-    module = registerDependencies(new UrlModuleImpl())
+    module = new UrlModuleImpl()
     objectHolder = []
   }
 
