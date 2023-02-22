@@ -168,7 +168,8 @@ class AppSecRequestContextSpecification extends DDSpecification {
     service.init()
     CurrentAppSecConfig config = service.lastConfig['waf']
     String uniqueId = UUID.randomUUID() as String
-    PowerwafContext context = Powerwaf.createContext(uniqueId, config.mergedAppSecConfig.rawConfig)
+    config.dirtyStatus.markAllDirty()
+    PowerwafContext context = Powerwaf.createContext(uniqueId, config.mergedUpdateConfig.rawConfig)
     new Additive(context)
   }
 
