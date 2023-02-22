@@ -47,9 +47,7 @@ public class DDIntakeTraceInterceptor implements TraceInterceptor {
       span.setResourceName(span.getOperationName());
     }
 
-    if (span.getTag("env") != null) {
-      span.setTag("env", TraceUtils.normalizeEnv((String) span.getTag("env")));
-    }
+    span.setTag("env", TraceUtils.normalizeEnv((String) span.getTag("env")));
 
     final short httpStatusCode = span.getHttpStatusCode();
     if (httpStatusCode != 0 && !isValidStatusCode(httpStatusCode)) {
