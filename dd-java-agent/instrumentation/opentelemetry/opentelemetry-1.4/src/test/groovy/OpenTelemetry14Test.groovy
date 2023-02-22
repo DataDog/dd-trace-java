@@ -21,6 +21,13 @@ class OpenTelemetry14Test extends AgentTestRunner {
   @Subject
   def tracer = GlobalOpenTelemetry.get().tracerProvider.get("some-instrumentation")
 
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+
+    injectSysConfig("dd.integration.opentelemetry.experimental.enabled", "true")
+  }
+
   def "test injection"() {
     setup:
     def builder = tracer.spanBuilder("some-name")

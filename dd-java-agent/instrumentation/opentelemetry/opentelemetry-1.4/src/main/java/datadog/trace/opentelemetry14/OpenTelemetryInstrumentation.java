@@ -17,7 +17,12 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
   public OpenTelemetryInstrumentation() {
-    super("opentelemetry", "opentelemetry-1");
+    super("opentelemetry.experimental", "opentelemetry-1");
+  }
+
+  @Override
+  protected boolean defaultEnabled() {
+    return false;
   }
 
   @Override

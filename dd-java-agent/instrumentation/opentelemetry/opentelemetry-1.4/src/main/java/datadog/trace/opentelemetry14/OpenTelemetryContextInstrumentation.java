@@ -22,7 +22,12 @@ public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
 
   public OpenTelemetryContextInstrumentation() {
-    super("opentelemetry", "opentelemetry-1");
+    super("opentelemetry.experimental", "opentelemetry-1");
+  }
+
+  @Override
+  protected boolean defaultEnabled() {
+    return false;
   }
 
   @Override
@@ -81,7 +86,10 @@ public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
       AgentSpan agentSpan = AgentTracer.activeSpan();
       Span otelSpan = null;
       if (agentSpan instanceof AttachableWrapper) {
-        otelSpan = (OtelSpan) ((AttachableWrapper) agentSpan).getWrapper();
+        Object wrapper = ((AttachableWrapper) agentSpan).getWrapper();
+        if (wrapper instanceof OtelSpan) {
+          otelSpan = (OtelSpan) wrapper;
+        }
       }
       if (otelSpan == null) {
         otelSpan = agentSpan == null ? OtelSpan.invalid() : new OtelSpan(agentSpan);
