@@ -3,7 +3,6 @@ plugins {
   id 'org.springframework.boot' version '3.0.0'
   id 'io.spring.dependency-management' version '1.0.14.RELEASE'
   id "com.diffplug.spotless" version "6.11.0"
-  id 'pl.allegro.tech.build.axion-release' version '1.14.2'
 }
 
 def sharedRootDir = "$rootDir/../../../"
