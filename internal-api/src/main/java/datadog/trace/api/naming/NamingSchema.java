@@ -11,6 +11,13 @@ public interface NamingSchema {
   ForCache cache();
 
   /**
+   * Get the naming policy for clients (http, soap, ...).
+   *
+   * @return a {@link NamingSchema.ForCache} instance.
+   */
+  ForClient client();
+
+  /**
    * Get the naming policy for databases.
    *
    * @return a {@link NamingSchema.ForDatabase} instance.
@@ -36,6 +43,17 @@ public interface NamingSchema {
      */
     @Nonnull
     String service(@Nonnull String ddService, @Nonnull String cacheSystem);
+  }
+
+  interface ForClient {
+    /**
+     * Calculate the operation name for a client span.
+     *
+     * @param protocol the protocol used (e.g. http, ftp, ..)
+     * @return the operation name
+     */
+    @Nonnull
+    String operation(@Nonnull String protocol);
   }
 
   interface ForDatabase {
