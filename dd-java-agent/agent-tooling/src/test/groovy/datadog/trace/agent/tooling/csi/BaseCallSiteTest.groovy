@@ -2,10 +2,8 @@ package datadog.trace.agent.tooling.csi
 
 import datadog.trace.agent.tooling.bytebuddy.csi.Advices
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteInstrumentation
-import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteSupplier
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteTransformer
 import datadog.trace.test.util.DDSpecification
-import groovy.transform.CompileDynamic
 import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.dynamic.DynamicType
@@ -17,6 +15,8 @@ import net.bytebuddy.utility.JavaModule
 import net.bytebuddy.utility.nullability.MaybeNull
 import datadog.trace.agent.tooling.csi.CallSiteAdvice.HasHelpers
 import datadog.trace.agent.tooling.csi.CallSiteAdvice.HasFlags
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 import java.security.MessageDigest
 
@@ -29,8 +29,10 @@ import java.security.ProtectionDomain
 import static net.bytebuddy.matcher.ElementMatchers.any
 import static net.bytebuddy.matcher.ElementMatchers.named
 
-@CompileDynamic
 class BaseCallSiteTest extends DDSpecification {
+
+  protected static final Logger LOG = LoggerFactory.getLogger(CallSiteTransformerInvokeDynamicTest)
+
 
   protected InvokeAdvice mockInvokeAdvice(final Pointcut target) {
     return Mock(InvokeAdvice) {
@@ -113,8 +115,8 @@ class BaseCallSiteTest extends DDSpecification {
         final Object[] args = params as Object[]
         adviceFinder.call(args[0] as String, args[1] as String, args[2] as String)
       }
-      hasFlag(_ as int) >> { params -> (params as Object[])[0] as int & computedFlags }
-      computeMaxStack() >> { COMPUTE_MAX_STACK & computedFlags }
+      hasFlag(_ as int) >> { params -> (params as Object[])[0] as int & computedFlags}
+      computeMaxStack() >> { COMPUTE_MAX_STACK & computedFlags}
     }
   }
 
@@ -162,33 +164,20 @@ class BaseCallSiteTest extends DDSpecification {
 
   protected static CallSiteInstrumentation buildInstrumentation(final Iterable<CallSiteAdvice> advices,
     final ElementMatcher<TypeDescription> callerType = any()) {
-    return new CallSiteInstrumentation('csi') {
+    return new CallSiteInstrumentation(advices, 'csi') {
         @Override
         ElementMatcher<TypeDescription> callerType() {
           return callerType
-        }
-
-        @Override
-        protected CallSiteSupplier callSites() {
-          return { advices }
         }
       }
   }
 
   protected static CallSiteInstrumentation buildInstrumentation(final Class<?> spiClass,
     final ElementMatcher<TypeDescription> callerType = any()) {
-    return new CallSiteInstrumentation('csi') {
+    return new CallSiteInstrumentation(spiClass, 'csi') {
         @Override
         ElementMatcher<TypeDescription> callerType() {
           return callerType
-        }
-
-        @Override
-        protected CallSiteSupplier callSites() {
-          return {
-            final targetClassLoader = CallSiteInstrumentation.classLoader
-            return (ServiceLoader<CallSiteAdvice>) ServiceLoader.load(spiClass, targetClassLoader)
-          }
         }
       }
   }

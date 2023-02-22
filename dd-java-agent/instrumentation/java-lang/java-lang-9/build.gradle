@@ -33,10 +33,10 @@ dependencies {
 }
 
 project.tasks.withType(AbstractCompile).configureEach {
-  setJavaVersion(it, 11)
   if (it.name != 'compileCsiJava') {
     sourceCompatibility = JavaVersion.VERSION_1_9
     targetCompatibility = JavaVersion.VERSION_1_9
+    setJavaVersion(it, 11)
     if (it instanceof JavaCompile) {
       it.options.release.set(9)
     }

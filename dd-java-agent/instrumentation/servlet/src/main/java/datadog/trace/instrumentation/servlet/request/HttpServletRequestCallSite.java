@@ -2,11 +2,7 @@ package datadog.trace.instrumentation.servlet.request;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
-import datadog.trace.api.iast.IastAdvice.Propagation;
-import datadog.trace.api.iast.IastAdvice.Source;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.model.PropagationTypes;
-import datadog.trace.api.iast.model.SourceTypes;
 import datadog.trace.api.iast.source.WebModule;
 import datadog.trace.util.stacktrace.StackUtils;
 import java.util.ArrayList;
@@ -19,11 +15,12 @@ import javax.servlet.http.HttpServletRequest;
 @CallSite(spi = IastAdvice.class)
 public class HttpServletRequestCallSite {
 
-  @Source(SourceTypes.REQUEST_HEADER_VALUE)
-  @CallSite.After(
-      "java.lang.String javax.servlet.http.HttpServletRequest.getHeader(java.lang.String)")
-  @CallSite.After(
-      "java.lang.String javax.servlet.http.HttpServletRequestWrapper.getHeader(java.lang.String)")
+  @CallSite.AfterArray({
+    @CallSite.After(
+        "java.lang.String javax.servlet.http.HttpServletRequest.getHeader(java.lang.String)"),
+    @CallSite.After(
+        "java.lang.String javax.servlet.http.HttpServletRequestWrapper.getHeader(java.lang.String)"),
+  })
   public static String afterGetHeader(
       @CallSite.This final HttpServletRequest self,
       @CallSite.Argument final String headerName,
@@ -39,11 +36,12 @@ public class HttpServletRequestCallSite {
     return headerValue;
   }
 
-  @Source(SourceTypes.REQUEST_HEADER_VALUE)
-  @CallSite.After(
-      "java.util.Enumeration javax.servlet.http.HttpServletRequest.getHeaders(java.lang.String)")
-  @CallSite.After(
-      "java.util.Enumeration javax.servlet.http.HttpServletRequestWrapper.getHeaders(java.lang.String)")
+  @CallSite.AfterArray({
+    @CallSite.After(
+        "java.util.Enumeration javax.servlet.http.HttpServletRequest.getHeaders(java.lang.String)"),
+    @CallSite.After(
+        "java.util.Enumeration javax.servlet.http.HttpServletRequestWrapper.getHeaders(java.lang.String)"),
+  })
   public static Enumeration<?> afterGetHeaders(
       @CallSite.This final HttpServletRequest self,
       @CallSite.Argument final String headerName,
@@ -74,10 +72,11 @@ public class HttpServletRequestCallSite {
     }
   }
 
-  @Source(SourceTypes.REQUEST_HEADER_NAME)
-  @CallSite.After("java.util.Enumeration javax.servlet.http.HttpServletRequest.getHeaderNames()")
-  @CallSite.After(
-      "java.util.Enumeration javax.servlet.http.HttpServletRequestWrapper.getHeaderNames()")
+  @CallSite.AfterArray({
+    @CallSite.After("java.util.Enumeration javax.servlet.http.HttpServletRequest.getHeaderNames()"),
+    @CallSite.After(
+        "java.util.Enumeration javax.servlet.http.HttpServletRequestWrapper.getHeaderNames()"),
+  })
   public static Enumeration<?> afterGetHeaderNames(
       @CallSite.This final HttpServletRequest self,
       @CallSite.Return final Enumeration<?> enumeration)
@@ -107,10 +106,12 @@ public class HttpServletRequestCallSite {
     }
   }
 
-  @Propagation(PropagationTypes.COOKIE)
-  @CallSite.After("javax.servlet.http.Cookie[] javax.servlet.http.HttpServletRequest.getCookies()")
-  @CallSite.After(
-      "javax.servlet.http.Cookie[] javax.servlet.http.HttpServletRequestWrapper.getCookies()")
+  @CallSite.AfterArray({
+    @CallSite.After(
+        "javax.servlet.http.Cookie[] javax.servlet.http.HttpServletRequest.getCookies()"),
+    @CallSite.After(
+        "javax.servlet.http.Cookie[] javax.servlet.http.HttpServletRequestWrapper.getCookies()")
+  })
   public static Cookie[] afterGetCookies(
       @CallSite.This final HttpServletRequest self, @CallSite.Return final Cookie[] cookies) {
     if (null != cookies && cookies.length > 0) {

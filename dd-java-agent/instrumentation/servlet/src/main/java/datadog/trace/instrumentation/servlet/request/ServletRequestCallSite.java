@@ -2,9 +2,7 @@ package datadog.trace.instrumentation.servlet.request;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
-import datadog.trace.api.iast.IastAdvice.Source;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.model.SourceTypes;
 import datadog.trace.api.iast.source.WebModule;
 import datadog.trace.util.stacktrace.StackUtils;
 import java.io.BufferedReader;
@@ -18,14 +16,15 @@ import javax.servlet.ServletRequest;
 @CallSite(spi = IastAdvice.class)
 public class ServletRequestCallSite {
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
-  @CallSite.After("java.lang.String javax.servlet.ServletRequest.getParameter(java.lang.String)")
-  @CallSite.After(
-      "java.lang.String javax.servlet.http.HttpServletRequest.getParameter(java.lang.String)")
-  @CallSite.After(
-      "java.lang.String javax.servlet.http.HttpServletRequestWrapper.getParameter(java.lang.String)")
-  @CallSite.After(
-      "java.lang.String javax.servlet.ServletRequestWrapper.getParameter(java.lang.String)")
+  @CallSite.AfterArray({
+    @CallSite.After("java.lang.String javax.servlet.ServletRequest.getParameter(java.lang.String)"),
+    @CallSite.After(
+        "java.lang.String javax.servlet.http.HttpServletRequest.getParameter(java.lang.String)"),
+    @CallSite.After(
+        "java.lang.String javax.servlet.http.HttpServletRequestWrapper.getParameter(java.lang.String)"),
+    @CallSite.After(
+        "java.lang.String javax.servlet.ServletRequestWrapper.getParameter(java.lang.String)")
+  })
   public static String afterGetParameter(
       @CallSite.This final ServletRequest self,
       @CallSite.Argument final String paramName,
@@ -41,12 +40,14 @@ public class ServletRequestCallSite {
     return paramValue;
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_NAME)
-  @CallSite.After("java.util.Enumeration javax.servlet.ServletRequest.getParameterNames()")
-  @CallSite.After("java.util.Enumeration javax.servlet.http.HttpServletRequest.getParameterNames()")
-  @CallSite.After(
-      "java.util.Enumeration javax.servlet.http.HttpServletRequestWrapper.getParameterNames()")
-  @CallSite.After("java.util.Enumeration javax.servlet.ServletRequestWrapper.getParameterNames()")
+  @CallSite.AfterArray({
+    @CallSite.After("java.util.Enumeration javax.servlet.ServletRequest.getParameterNames()"),
+    @CallSite.After(
+        "java.util.Enumeration javax.servlet.http.HttpServletRequest.getParameterNames()"),
+    @CallSite.After(
+        "java.util.Enumeration javax.servlet.http.HttpServletRequestWrapper.getParameterNames()"),
+    @CallSite.After("java.util.Enumeration javax.servlet.ServletRequestWrapper.getParameterNames()")
+  })
   public static Enumeration<?> afterGetParameterNames(
       @CallSite.This final ServletRequest self, @CallSite.Return final Enumeration<?> enumeration)
       throws Throwable {
@@ -73,15 +74,16 @@ public class ServletRequestCallSite {
     }
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
-  @CallSite.After(
-      "java.lang.String[] javax.servlet.ServletRequest.getParameterValues(java.lang.String)")
-  @CallSite.After(
-      "java.lang.String[] javax.servlet.http.HttpServletRequest.getParameterValues(java.lang.String)")
-  @CallSite.After(
-      "java.lang.String[] javax.servlet.http.HttpServletRequestWrapper.getParameterValues(java.lang.String)")
-  @CallSite.After(
-      "java.lang.String[] javax.servlet.ServletRequestWrapper.getParameterValues(java.lang.String)")
+  @CallSite.AfterArray({
+    @CallSite.After(
+        "java.lang.String[] javax.servlet.ServletRequest.getParameterValues(java.lang.String)"),
+    @CallSite.After(
+        "java.lang.String[] javax.servlet.http.HttpServletRequest.getParameterValues(java.lang.String)"),
+    @CallSite.After(
+        "java.lang.String[] javax.servlet.http.HttpServletRequestWrapper.getParameterValues(java.lang.String)"),
+    @CallSite.After(
+        "java.lang.String[] javax.servlet.ServletRequestWrapper.getParameterValues(java.lang.String)")
+  })
   public static String[] afterGetParameterValues(
       @CallSite.This final ServletRequest self,
       @CallSite.Argument final String paramName,
@@ -101,14 +103,16 @@ public class ServletRequestCallSite {
     return parameterValues;
   }
 
-  @Source(SourceTypes.REQUEST_BODY)
-  @CallSite.After("javax.servlet.ServletInputStream javax.servlet.ServletRequest.getInputStream()")
-  @CallSite.After(
-      "javax.servlet.ServletInputStream javax.servlet.http.HttpServletRequest.getInputStream()")
-  @CallSite.After(
-      "javax.servlet.ServletInputStream javax.servlet.http.HttpServletRequestWrapper.getInputStream()")
-  @CallSite.After(
-      "javax.servlet.ServletInputStream javax.servlet.ServletRequestWrapper.getInputStream()")
+  @CallSite.AfterArray({
+    @CallSite.After(
+        "javax.servlet.ServletInputStream  javax.servlet.ServletRequest.getInputStream()"),
+    @CallSite.After(
+        "javax.servlet.ServletInputStream  javax.servlet.http.HttpServletRequest.getInputStream()"),
+    @CallSite.After(
+        "javax.servlet.ServletInputStream  javax.servlet.http.HttpServletRequestWrapper.getInputStream()"),
+    @CallSite.After(
+        "javax.servlet.ServletInputStream  javax.servlet.ServletRequestWrapper.getInputStream()")
+  })
   public static ServletInputStream afterGetInputStream(
       @CallSite.This final ServletRequest self,
       @CallSite.Return final ServletInputStream inputStream) {
@@ -123,11 +127,13 @@ public class ServletRequestCallSite {
     return inputStream;
   }
 
-  @Source(SourceTypes.REQUEST_BODY)
-  @CallSite.After("java.io.BufferedReader javax.servlet.ServletRequest.getReader()")
-  @CallSite.After("java.io.BufferedReader javax.servlet.http.HttpServletRequest.getReader()")
-  @CallSite.After("java.io.BufferedReader javax.servlet.http.HttpServletRequestWrapper.getReader()")
-  @CallSite.After("java.io.BufferedReader javax.servlet.ServletRequestWrapper.getReader()")
+  @CallSite.AfterArray({
+    @CallSite.After("java.io.BufferedReader  javax.servlet.ServletRequest.getReader()"),
+    @CallSite.After("java.io.BufferedReader  javax.servlet.http.HttpServletRequest.getReader()"),
+    @CallSite.After(
+        "java.io.BufferedReader  javax.servlet.http.HttpServletRequestWrapper.getReader()"),
+    @CallSite.After("java.io.BufferedReader  javax.servlet.ServletRequestWrapper.getReader()")
+  })
   public static BufferedReader afterGetReader(
       @CallSite.This final ServletRequest self,
       @CallSite.Return final BufferedReader bufferedReader) {

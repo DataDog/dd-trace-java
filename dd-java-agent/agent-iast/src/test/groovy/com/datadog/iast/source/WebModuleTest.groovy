@@ -15,7 +15,7 @@ class WebModuleTest extends IastModuleImplTestBase {
   private WebModule module
 
   def setup() {
-    module = new WebModuleImpl()
+    module = registerDependencies(new WebModuleImpl())
   }
 
   void 'test #method: null or empty'(final String method, final String name) {

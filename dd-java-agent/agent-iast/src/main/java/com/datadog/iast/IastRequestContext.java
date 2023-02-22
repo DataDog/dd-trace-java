@@ -18,14 +18,10 @@ public class IastRequestContext {
   private final OverheadContext overheadContext;
 
   public IastRequestContext() {
-    this(TaintedObjects.acquire());
-  }
-
-  public IastRequestContext(final TaintedObjects taintedObjects) {
     this.vulnerabilityBatch = new VulnerabilityBatch();
     this.spanDataIsSet = new AtomicBoolean(false);
     this.overheadContext = new OverheadContext();
-    this.taintedObjects = taintedObjects;
+    this.taintedObjects = TaintedObjects.acquire();
   }
 
   public VulnerabilityBatch getVulnerabilityBatch() {

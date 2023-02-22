@@ -85,6 +85,8 @@ class RequestBuilderSpecification extends DDSpecification {
 
   void 'metrics can be serialized'() {
     GenerateMetrics payload = new GenerateMetrics(
+      libLanguage: 'java',
+      libVersion: '0.0.1',
       series: [
         new Metric(
         common: false,
@@ -107,6 +109,8 @@ class RequestBuilderSpecification extends DDSpecification {
     body['api_version'] == 'v1'
     body['request_type'] == 'generate-metrics'
     with(body['payload']) {
+      lib_language == 'java'
+      lib_version == '0.0.1'
       series == [
         [
           common: false,

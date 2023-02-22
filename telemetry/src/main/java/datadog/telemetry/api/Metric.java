@@ -14,9 +14,6 @@ import java.util.List;
 
 public class Metric {
 
-  /** Non-serializable field with the namespace of the current metric */
-  private transient String namespace = "appsec";
-
   @com.squareup.moshi.Json(name = "common")
   private Boolean common;
 
@@ -31,13 +28,7 @@ public class Metric {
 
   public enum TypeEnum {
     @com.squareup.moshi.Json(name = "gauge")
-    GAUGE(String.valueOf("gauge")),
-
-    @com.squareup.moshi.Json(name = "rate")
-    RATE(String.valueOf("rate")),
-
-    @com.squareup.moshi.Json(name = "count")
-    COUNT(String.valueOf("count"));
+    GAUGE(String.valueOf("gauge"));
 
     final String value;
 
@@ -164,26 +155,12 @@ public class Metric {
     return this;
   }
 
-  public Metric namespace(final String namespace) {
-    setNamespace(namespace);
-    return this;
-  }
-
-  public void setNamespace(final String namespace) {
-    this.namespace = namespace;
-  }
-
-  public String getNamespace() {
-    return namespace;
-  }
-
   /** Create a string representation of this pojo. */
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class Metric {\n");
 
-    sb.append(" namespace: ").append(namespace).append("\n");
     sb.append("    common: ").append(common).append("\n");
     sb.append("    metric: ").append(metric).append("\n");
     sb.append("    points: ").append(points).append("\n");

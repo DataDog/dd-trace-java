@@ -25,10 +25,6 @@ public interface TaintedObjects {
 
   void release();
 
-  long getEstimatedSize();
-
-  boolean isFlat();
-
   static TaintedObjects acquire() {
     TaintedObjectsImpl taintedObjects = TaintedObjectsImpl.pool.poll();
     if (taintedObjects == null) {
@@ -84,16 +80,6 @@ public interface TaintedObjects {
       map.clear();
       pool.offer(this);
     }
-
-    @Override
-    public long getEstimatedSize() {
-      return map.getEstimatedSize();
-    }
-
-    @Override
-    public boolean isFlat() {
-      return map.isFlat();
-    }
   }
 
   class TaintedObjectsDebugAdapter implements TaintedObjects {
@@ -148,16 +134,6 @@ public interface TaintedObjects {
         }
       }
       delegated.release();
-    }
-
-    @Override
-    public long getEstimatedSize() {
-      return delegated.getEstimatedSize();
-    }
-
-    @Override
-    public boolean isFlat() {
-      return delegated.isFlat();
     }
 
     private void logTainted(final TaintedObject tainted) {

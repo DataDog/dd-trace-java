@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.csi;
 
 import java.lang.annotation.ElementType;
-import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
@@ -25,7 +24,6 @@ public @interface CallSite {
 
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.CLASS)
-  @Repeatable(AfterArray.class)
   @interface After {
     /**
      * Pointcut expression for the advice (e.g. {@code java.lang.StringBuilder
@@ -44,7 +42,6 @@ public @interface CallSite {
 
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.CLASS)
-  @Repeatable(AroundArray.class)
   @interface Around {
     /**
      * Pointcut expression for the advice (e.g. {@code java.lang.StringBuilder
@@ -63,7 +60,6 @@ public @interface CallSite {
 
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.CLASS)
-  @Repeatable(BeforeArray.class)
   @interface Before {
     /**
      * Pointcut expression for the advice (e.g. {@code java.lang.StringBuilder
