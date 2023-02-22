@@ -72,4 +72,18 @@ class DDIntakeTraceInterceptorTest extends DDCoreSpecification {
     def span = trace[0]
     span.type == originalSpanType
   }
+
+  def "test default env setting"() {
+    setup:
+    tracer.buildSpan("my-operation-name").start().finish()
+    writer.waitForTraces(1)
+
+    expect:
+    def trace = writer.firstTrace()
+    trace.size() == 1
+
+    def span = trace[0]
+
+    span.getTag("env") == "none"
+  }
 }

@@ -19,6 +19,7 @@ public class TraceUtils {
 
   static final String DEFAULT_SERVICE_NAME = "unnamed-service";
   static final String DEFAULT_OPERATION_NAME = "unnamed_operation";
+  static final String DEFAULT_ENV = "none";
 
   private static final Logger log = LoggerFactory.getLogger(TraceUtils.class);
 
@@ -73,7 +74,7 @@ public class TraceUtils {
 
   public static String normalizeEnv(final String env) {
     if (env == null || env.length() == 0) {
-      return "";
+      return DEFAULT_ENV;
     }
 
     String e = truncate(env, MAX_ENV_LEN);
