@@ -5,6 +5,7 @@ import datadog.trace.util.ClassNameTrie;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Modifier;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
@@ -61,27 +62,47 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
     }
 
     String topLevelClassName = stripNestedClassNames(c.getName());
-    for (SourceType sourceType : SourceType.values()) {
-      String extension = sourceType.getExtension();
-      String classNameWithExtension = topLevelClassName + extension;
-      int sourceRootIdx = index.trie.apply(classNameWithExtension);
-      if (sourceRootIdx >= 0) {
-        String sourceRoot = index.sourceRoots.get(sourceRootIdx);
-        return sourceRoot
-            + File.separatorChar
-            + topLevelClassName.replace('.', File.separatorChar)
-            + extension;
-      }
+    SourceType sourceType = detectSourceType(c);
+    String extension = sourceType.getExtension();
+    String classNameWithExtension = topLevelClassName + extension;
+    int sourceRootIdx = index.trie.apply(classNameWithExtension);
+    if (sourceRootIdx >= 0) {
+      String sourceRoot = index.sourceRoots.get(sourceRootIdx);
+      return sourceRoot
+          + File.separatorChar
+          + topLevelClassName.replace('.', File.separatorChar)
+          + extension;
     }
 
     boolean packagePrivateClass = (c.getModifiers() & ACCESS_MODIFIERS) == 0;
-    if (packagePrivateClass) {
-      return getSourcePathForPackagePrivateClass(c);
+    if (packagePrivateClass || sourceType != SourceType.JAVA) {
+      return getSourcePathForPackagePrivateOrNonJavaClass(c);
 
     } else {
-      log.warn("Could not find source root for class {}", c.getName());
+      log.debug("Could not find source root for class {}", c.getName());
       return null;
     }
+  }
+
+  private SourceType detectSourceType(Class<?> c) {
+    Class<?>[] interfaces = c.getInterfaces();
+    for (Class<?> anInterface : interfaces) {
+      String interfaceName = anInterface.getName();
+      if ("groovy.lang.GroovyObject".equals(interfaceName)) {
+        return SourceType.GROOVY;
+      }
+    }
+
+    Annotation[] annotations = c.getAnnotations();
+    for (Annotation annotation : annotations) {
+      Class<? extends Annotation> annotationType = annotation.annotationType();
+      if ("kotlin.Metadata".equals(annotationType.getName())) {
+        return SourceType.KOTLIN;
+      }
+    }
+
+    // assuming Java
+    return SourceType.JAVA;
   }
 
   private String stripNestedClassNames(String className) {
@@ -98,7 +119,7 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
    * files. For such classes filename is extracted from SourceFile attribute that is available in
    * the compiled class.
    */
-  private String getSourcePathForPackagePrivateClass(Class<?> c) {
+  private String getSourcePathForPackagePrivateOrNonJavaClass(Class<?> c) {
     try {
       SourceFileAttributeVisitor sourceFileAttributeVisitor = new SourceFileAttributeVisitor();
 
@@ -261,7 +282,8 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
 
   enum SourceType {
     JAVA(".java"),
-    GROOVY(".groovy");
+    GROOVY(".groovy"),
+    KOTLIN(".kt");
 
     private final String extension;
 
