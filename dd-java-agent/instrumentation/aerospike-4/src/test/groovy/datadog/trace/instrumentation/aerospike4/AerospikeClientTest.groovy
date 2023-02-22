@@ -42,34 +42,34 @@ abstract class AerospikeClientTest extends AerospikeBaseTest {
 
 class AerospikeClientV0ForkedTest extends AerospikeClientTest {
   @Override
-  protected int version() {
+  int version() {
     return 0
   }
 
   @Override
-  protected String service() {
+  String service() {
     return "aerospike"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "aerospike.query"
   }
 }
 
 class AerospikeClientV1ForkedTest extends AerospikeClientTest {
   @Override
-  protected int version() {
+  int version() {
     return 1
   }
 
   @Override
-  protected String service() {
+  String service() {
     return Config.get().getServiceName() + "-aerospike"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "aerospike.query"
   }
 }

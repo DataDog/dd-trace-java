@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlConnectionDecorator
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
@@ -12,7 +13,7 @@ import spock.lang.Shared
 import spock.lang.Timeout
 
 @Timeout(5)
-class SpringRestTemplateTest extends HttpClientTest {
+abstract class SpringRestTemplateTest extends HttpClientTest {
 
   @Shared
   ClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory()
@@ -60,4 +61,10 @@ class SpringRestTemplateTest extends HttpClientTest {
     // FIXME: exception wrapped in ResourceAccessException
     return false
   }
+}
+
+class SpringRestTemplateV0ForkedTest extends SpringRestTemplateTest implements TestingGenericHttpNamingConventions.ClientV0 {
+}
+
+class SpringRestTemplateV1ForkedTest extends SpringRestTemplateTest implements TestingGenericHttpNamingConventions.ClientV1 {
 }

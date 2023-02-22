@@ -53,7 +53,16 @@ public interface NamingSchema {
      * @return the operation name
      */
     @Nonnull
-    String operation(@Nonnull String protocol);
+    String operationForProtocol(@Nonnull String protocol);
+
+    /**
+     * Calculate the operation name for a client span.
+     *
+     * @param component the name of the instrumentation componen
+     * @return the operation name
+     */
+    @Nonnull
+    String operationForComponent(@Nonnull String component);
   }
 
   interface ForDatabase {

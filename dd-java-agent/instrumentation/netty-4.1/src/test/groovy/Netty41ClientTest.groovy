@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator
 import io.netty.channel.AbstractChannel
@@ -9,11 +10,7 @@ import io.netty.handler.codec.http.HttpRequestEncoder
 import io.netty.handler.codec.http.HttpVersion
 import io.netty.handler.ssl.SslContextBuilder
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory
-import org.asynchttpclient.AsyncCompletionHandler
-import org.asynchttpclient.AsyncHttpClient
-import org.asynchttpclient.BoundRequestBuilder
-import org.asynchttpclient.DefaultAsyncHttpClientConfig
-import org.asynchttpclient.Response
+import org.asynchttpclient.*
 import org.asynchttpclient.proxy.ProxyServer
 import spock.lang.AutoCleanup
 import spock.lang.Timeout
@@ -26,7 +23,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static org.asynchttpclient.Dsl.asyncHttpClient
 
 @Timeout(5)
-class Netty41ClientTest extends HttpClientTest {
+abstract class Netty41ClientTest extends HttpClientTest {
 
   def clientConfig = DefaultAsyncHttpClientConfig.Builder.newInstance()
   .setConnectTimeout(CONNECT_TIMEOUT_MS)
@@ -66,11 +63,6 @@ class Netty41ClientTest extends HttpClientTest {
   @Override
   CharSequence component() {
     return NettyHttpClientDecorator.DECORATE.component()
-  }
-
-  @Override
-  String expectedOperationName() {
-    return "netty.client.request"
   }
 
   @Override
@@ -147,5 +139,11 @@ class Netty41ClientTest extends HttpClientTest {
     then:
     noExceptionThrown()
   }
+}
 
+class Netty41ClientV0ForkedTest extends Netty41ClientTest implements TestingNettyHttpNamingConventions.ClientV0 {
+
+}
+
+class Netty41ClientV1ForkedTest extends Netty41ClientTest implements TestingNettyHttpNamingConventions.ClientV1 {
 }

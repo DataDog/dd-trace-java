@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.naming.SpanNaming
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.Flaky
 import groovy.json.JsonSlurper
@@ -103,7 +104,7 @@ abstract class Elasticsearch5RestClientTest extends VersionedNamingTestBase {
         span {
           serviceName service()
           resourceName "GET _cluster/health"
-          operationName "http.request"
+          operationName SpanNaming.instance().namingSchema().client().operationForComponent("apache-httpasyncclient")
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
           tags {
@@ -120,38 +121,38 @@ abstract class Elasticsearch5RestClientTest extends VersionedNamingTestBase {
   }
 }
 
-class Elasticsearch6RestClientV0ForkedTest extends Elasticsearch5RestClientTest {
+class Elasticsearch5RestClientV0ForkedTest extends Elasticsearch5RestClientTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 0
   }
 
   @Override
-  protected String service() {
+  String service() {
     return "elasticsearch"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "elasticsearch.rest.query"
   }
 }
 
-class Elasticsearch6RestClientV1ForkedTest extends Elasticsearch5RestClientTest {
+class Elasticsearch5RestClientV1ForkedTest extends Elasticsearch5RestClientTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 1
   }
 
   @Override
-  protected String service() {
+  String service() {
     return Config.get().getServiceName() + "-elasticsearch"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "elasticsearch.query"
   }
 }

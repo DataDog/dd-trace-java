@@ -418,34 +418,34 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
 
 class CouchbaseClient31V0ForkedTest extends CouchbaseClient31Test {
   @Override
-  protected int version() {
+  int version() {
     return 0
   }
 
   @Override
-  protected String service() {
+  String service() {
     return "couchbase"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "couchbase.call"
   }
 }
 
 class CouchbaseClient31V1ForkedTest extends CouchbaseClient31Test {
   @Override
-  protected int version() {
+  int version() {
     return 1
   }
 
   @Override
-  protected String service() {
+  String service() {
     return Config.get().getServiceName() + "-couchbase"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "couchbase.query"
   }
 }

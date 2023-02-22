@@ -145,12 +145,12 @@ abstract class UrlConnectionTest extends VersionedNamingTestBase {
   }
 
   @Override
-  protected final String service() {
+  final String service() {
     return null
   }
 
   @Override
-  protected final String operation() {
+  final String operation() {
     return null
   }
 
@@ -160,7 +160,7 @@ abstract class UrlConnectionTest extends VersionedNamingTestBase {
 class UrlConnectionV0ForkedTest extends UrlConnectionTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 0
   }
 
@@ -173,7 +173,7 @@ class UrlConnectionV0ForkedTest extends UrlConnectionTest {
 class UrlConnectionV1ForkedTest extends UrlConnectionTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 1
   }
 
