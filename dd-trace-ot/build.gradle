@@ -90,7 +90,11 @@ shadowJar {
     exclude(dependency('org.slf4j:'))
   }
 
-  relocate('com.', 'ddtrot.com.')
+  relocate('com.', 'ddtrot.com.') {
+    // don't relocate native methods
+    exclude('com.kenai.jffi.*')
+    exclude('com.kenai.jffi.internal.*')
+  }
   relocate('dogstatsd/', 'ddtrot/dogstatsd/')
   relocate('jni/', 'ddtrot/jni/')
   relocate('jnr/', 'ddtrot/jnr/')
