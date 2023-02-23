@@ -104,6 +104,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
           tag(key, val)
         }
 
+        "$Tags.ENV" String
         "$Tags.OS_VERSION" String
         "$Tags.OS_PLATFORM" String
         "$Tags.OS_ARCHITECTURE" String
@@ -177,6 +178,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
           tag(key, val)
         }
 
+        "$Tags.ENV" String
         "$Tags.OS_VERSION" String
         "$Tags.OS_PLATFORM" String
         "$Tags.OS_ARCHITECTURE" String
@@ -261,6 +263,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
           tag(key, val)
         }
 
+        "$Tags.ENV" String
         "$Tags.OS_VERSION" String
         "$Tags.OS_PLATFORM" String
         "$Tags.OS_ARCHITECTURE" String

@@ -92,4 +92,6 @@ public class Tags {
   public static final String DD_SERVICE = "dd.service";
   public static final String DD_VERSION = "dd.version";
   public static final String DD_ENV = "dd.env";
+
+  public static final String ENV = "env";
 }
