@@ -87,6 +87,14 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.value(!agentServiceCheck(config));
     writer.name("debug");
     writer.value(config.isDebugEnabled());
+    writer.name("trace_propagation_style_extract");
+    writer.beginArray();
+    writeSet(writer, config.getTracePropagationStylesToExtract());
+    writer.endArray();
+    writer.name("trace_propagation_style_inject");
+    writer.beginArray();
+    writeSet(writer, config.getTracePropagationStylesToInject());
+    writer.endArray();
     writer.name("analytics_enabled");
     writer.value(config.isTraceAnalyticsEnabled());
     writer.name("sample_rate");
@@ -166,6 +174,12 @@ public final class StatusLogger extends JsonAdapter<Config>
       }
     }
     writer.endObject();
+  }
+
+  private static void writeSet(JsonWriter writer, Set<?> set) throws IOException {
+    for (Object o : set) {
+      writer.value(o.toString());
+    }
   }
 
   @Override

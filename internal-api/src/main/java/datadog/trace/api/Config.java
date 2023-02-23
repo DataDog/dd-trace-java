@@ -898,19 +898,19 @@ public class Config {
       // * dd.propagation.style.(extract|inject)
       Set<PropagationStyle> deprecatedExtract =
           getSettingsSetFromEnvironment(
-              PROPAGATION_STYLE_EXTRACT, PropagationStyle::valueOfConfigName);
+              PROPAGATION_STYLE_EXTRACT, PropagationStyle::valueOfConfigName, true);
       Set<PropagationStyle> deprecatedInject =
           getSettingsSetFromEnvironment(
-              PROPAGATION_STYLE_INJECT, PropagationStyle::valueOfConfigName);
+              PROPAGATION_STYLE_INJECT, PropagationStyle::valueOfConfigName, true);
       Set<TracePropagationStyle> common =
           getSettingsSetFromEnvironment(
-              TRACE_PROPAGATION_STYLE, TracePropagationStyle::valueOfDisplayName);
+              TRACE_PROPAGATION_STYLE, TracePropagationStyle::valueOfDisplayName, false);
       Set<TracePropagationStyle> extract =
           getSettingsSetFromEnvironment(
-              TRACE_PROPAGATION_STYLE_EXTRACT, TracePropagationStyle::valueOfDisplayName);
+              TRACE_PROPAGATION_STYLE_EXTRACT, TracePropagationStyle::valueOfDisplayName, false);
       Set<TracePropagationStyle> inject =
           getSettingsSetFromEnvironment(
-              TRACE_PROPAGATION_STYLE_INJECT, TracePropagationStyle::valueOfDisplayName);
+              TRACE_PROPAGATION_STYLE_INJECT, TracePropagationStyle::valueOfDisplayName, false);
       String extractOrigin = TRACE_PROPAGATION_STYLE_EXTRACT;
       String injectOrigin = TRACE_PROPAGATION_STYLE_INJECT;
       // Check if we should use the common setting for extraction
@@ -2629,9 +2629,11 @@ public class Config {
     return Config.get().isTraceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled);
   }
 
-  private <T> Set<T> getSettingsSetFromEnvironment(String name, Function<String, T> mapper) {
+  private <T> Set<T> getSettingsSetFromEnvironment(
+      String name, Function<String, T> mapper, boolean splitOnWS) {
     final String value = configProvider.getString(name, "");
-    return convertStringSetToSet(name, parseStringIntoSetOfNonEmptyStrings(value), mapper);
+    return convertStringSetToSet(
+        name, parseStringIntoSetOfNonEmptyStrings(value, splitOnWS), mapper);
   }
 
   private <F, T> Set<T> convertSettingsSet(Set<F> fromSet, Function<F, Iterable<T>> mapper) {
@@ -2686,6 +2688,12 @@ public class Config {
 
   @Nonnull
   private static Set<String> parseStringIntoSetOfNonEmptyStrings(final String str) {
+    return parseStringIntoSetOfNonEmptyStrings(str, true);
+  }
+
+  @Nonnull
+  private static Set<String> parseStringIntoSetOfNonEmptyStrings(
+      final String str, boolean splitOnWS) {
     // Using LinkedHashSet to preserve original string order
     final Set<String> result = new LinkedHashSet<>();
     // Java returns single value when splitting an empty string. We do not need that value, so
@@ -2694,7 +2702,7 @@ public class Config {
     int i = 0;
     for (; i < str.length(); ++i) {
       char c = str.charAt(i);
-      if (Character.isWhitespace(c) || c == ',') {
+      if (c == ',' || (splitOnWS && Character.isWhitespace(c))) {
         if (i - start - 1 > 0) {
           result.add(str.substring(start, i));
         }
