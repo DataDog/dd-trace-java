@@ -1,24 +1,32 @@
-package datadog.trace.instrumentation.micronaut;
+package datadog.trace.instrumentation.micronaut.v2_0;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.micronaut.MicronautDecorator.DECORATE;
 import static datadog.trace.instrumentation.micronaut.MicronautDecorator.SPAN_ATTRIBUTE;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpVersion;
 import io.micronaut.http.MediaTypeConverter;
-import io.micronaut.http.server.netty.NettyHttpRequest;
+import io.micronaut.http.MutableHttpResponse;
 import net.bytebuddy.asm.Advice;
 
-public class WriteDefaultErrorResponseAdvice {
+public class WriteFinalNettyResponseAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void beginRequest(
-      @Advice.Argument(1) final NettyHttpRequest nettyHttpRequest,
-      @Advice.Argument(2) final Throwable cause) {
-    AgentSpan span = nettyHttpRequest.getAttribute(SPAN_ATTRIBUTE, AgentSpan.class).orElse(null);
+      @Advice.Argument(0) final MutableHttpResponse<?> message,
+      @Advice.Argument(1) final HttpRequest<?> request) {
+    AgentSpan span = request.getAttribute(SPAN_ATTRIBUTE, AgentSpan.class).orElse(null);
     if (null == span) {
       return;
     }
-    DECORATE.onError(span, cause);
+
+    try (final AgentScope scope = activateSpan(span)) {
+      DECORATE.onResponse(span, message);
+      DECORATE.beforeFinish(span);
+      span.finish();
+    }
   }
 
   private static void muzzleCheck(MediaTypeConverter mediaTypeConverter) {

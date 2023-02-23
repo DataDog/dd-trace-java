@@ -22,6 +22,8 @@ testSets {
 dependencies {
   compileOnly group: 'io.micronaut', name: 'micronaut-http-server-netty', version: '2.0.0'
 
+  implementation project(':dd-java-agent:instrumentation:micronaut')
+
   testImplementation project(':dd-java-agent:instrumentation:netty-4.1')
   testImplementation group: 'io.micronaut', name: 'micronaut-http-server-netty', version: '2.0.0'
 

@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.micronaut;
+package datadog.trace.instrumentation.micronaut.v2_0;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -59,7 +59,7 @@ public final class MicronautInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".MicronautDecorator",
+      "datadog.trace.instrumentation.micronaut.MicronautDecorator",
     };
   }
 }

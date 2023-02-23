@@ -1,0 +1,9 @@
+/*
+ * Classes that are common to all versions of the Micronaut instrumentation.
+ */
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'io.micronaut', name: 'micronaut-http-server-netty', version: '2.0.0'
+}

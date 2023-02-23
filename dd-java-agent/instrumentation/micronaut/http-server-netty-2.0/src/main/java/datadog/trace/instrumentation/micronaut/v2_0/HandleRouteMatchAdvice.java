@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.micronaut;
+package datadog.trace.instrumentation.micronaut.v2_0;
 
 import static datadog.trace.instrumentation.micronaut.MicronautDecorator.DECORATE;
 import static datadog.trace.instrumentation.micronaut.MicronautDecorator.PARENT_SPAN_ATTRIBUTE;

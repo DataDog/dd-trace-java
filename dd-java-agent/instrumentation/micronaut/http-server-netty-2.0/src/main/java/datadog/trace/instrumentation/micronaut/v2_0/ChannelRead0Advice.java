@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.micronaut;
+package datadog.trace.instrumentation.micronaut.v2_0;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
