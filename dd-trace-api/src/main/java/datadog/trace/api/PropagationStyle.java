@@ -11,7 +11,7 @@ import java.util.List;
 @Deprecated
 public enum PropagationStyle {
   DATADOG(TracePropagationStyle.DATADOG),
-  B3(TracePropagationStyle.B3, TracePropagationStyle.B3MULTI),
+  B3(TracePropagationStyle.B3SINGLE, TracePropagationStyle.B3MULTI),
   HAYSTACK(TracePropagationStyle.HAYSTACK),
   XRAY(TracePropagationStyle.XRAY);
 
