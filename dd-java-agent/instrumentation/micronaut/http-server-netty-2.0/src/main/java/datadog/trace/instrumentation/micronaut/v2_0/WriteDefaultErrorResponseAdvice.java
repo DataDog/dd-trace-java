@@ -22,9 +22,9 @@ public class WriteDefaultErrorResponseAdvice {
   }
 
   private static void muzzleCheck(MediaTypeConverter mediaTypeConverter) {
-    // Removed in 3.0.0
-    mediaTypeConverter.convert(null, null);
     // Added in 2.0.0
     HttpVersion version = HttpVersion.HTTP_2_0;
+    // Removed in 3.0.0
+    mediaTypeConverter.convert(null, null);
   }
 }
