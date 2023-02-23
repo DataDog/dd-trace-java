@@ -1,6 +1,6 @@
 package datadog.trace.agent.test.base
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.PortUtils
 import net.bytebuddy.utility.JavaModule
@@ -11,7 +11,7 @@ import spock.lang.Subject
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
-abstract class WithHttpServer<SERVER> extends AgentTestRunner {
+abstract class WithHttpServer<SERVER> extends VersionedNamingTestBase {
 
   @Shared
   @Subject
