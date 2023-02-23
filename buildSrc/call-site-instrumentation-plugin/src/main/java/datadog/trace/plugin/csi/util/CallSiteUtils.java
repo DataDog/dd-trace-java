@@ -2,6 +2,9 @@ package datadog.trace.plugin.csi.util;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.nio.file.Path;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.annotation.Nonnull;
@@ -66,5 +69,13 @@ public abstract class CallSiteUtils {
 
   public static String repeat(final char value, int count) {
     return repeat(Character.toString(value), count);
+  }
+
+  public static URL toURL(final Path path) {
+    try {
+      return path.toUri().toURL();
+    } catch (MalformedURLException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

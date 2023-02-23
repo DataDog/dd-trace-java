@@ -4,6 +4,7 @@ import datadog.trace.agent.tooling.bytebuddy.csi.Advices
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteTransformer
 import datadog.trace.agent.tooling.csi.CallSiteAdvice.MethodHandler
 import datadog.trace.api.function.TriFunction
+import groovy.transform.CompileDynamic
 import net.bytebuddy.jar.asm.Opcodes
 import net.bytebuddy.jar.asm.Type
 import org.spockframework.runtime.ConditionNotSatisfiedError
@@ -14,9 +15,10 @@ import java.util.function.Consumer
 import static datadog.trace.agent.tooling.csi.CallSiteAdvice.HasFlags.COMPUTE_MAX_STACK
 import static datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode.COPY
 
+@CompileDynamic
 class CallSiteTransformerTest extends BaseCallSiteTest {
 
-  def 'test call site transformer'() {
+  void 'test call site transformer'() {
     setup:
     final source = Type.getType(StringConcatExample)
     final target = renameType(source, 'Test')
@@ -42,7 +44,7 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
     result == 'Goodbye World!'
   }
 
-  def 'test call site with non matching advice'() {
+  void 'test call site with non matching advice'() {
     setup:
     final source = Type.getType(StringConcatExample)
     final target = renameType(source, 'TestNoAdvices')
@@ -57,7 +59,7 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
     result == 'Hello World!'
   }
 
-  def 'test modifying stack advices with compute max stack? #computeMax'(final boolean computeMax,
+  void 'test modifying stack advices with compute max stack? #computeMax'(final boolean computeMax,
     final Class<? extends Exception> expectedThrown) {
     setup:
     final source = Type.getType(StringConcatExample)
@@ -102,7 +104,7 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
     false      | VerifyError
   }
 
-  def 'test modifying stack advices with category II items in the stack'() {
+  void 'test modifying stack advices with category II items in the stack'() {
     setup:
     final source = Type.getType(StringConcatCategory2Example)
     final target = renameType(source, 'Test')
@@ -132,7 +134,7 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
     }
   }
 
-  def 'test stack based duplication with arrays'() {
+  void 'test stack based duplication with arrays'() {
     setup:
     final source = Type.getType(CallSiteWithArraysExample)
     final target = renameType(source, 'Test')
@@ -165,7 +167,7 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
     }
   }
 
-  def 'dupParameters with owner argument'() {
+  void 'dupParameters with owner argument'() {
     // case where there is no annotation with @This but we're instrumenting an instance method
     // (that is, the advice is not interested in the object whose method is being called)
     setup:

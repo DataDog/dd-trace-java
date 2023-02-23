@@ -2,10 +2,13 @@ package datadog.trace.instrumentation.java.security;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
+import datadog.trace.api.iast.IastAdvice.Sink;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.model.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.WeakHashModule;
 import java.security.Provider;
 
+@Sink(VulnerabilityTypes.WEAK_HASH)
 @CallSite(spi = IastAdvice.class)
 public class WeakHashInstrumentationCallSite {
 
