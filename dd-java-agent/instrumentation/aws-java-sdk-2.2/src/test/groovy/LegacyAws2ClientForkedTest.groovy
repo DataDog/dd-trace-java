@@ -44,7 +44,13 @@ import java.util.concurrent.atomic.AtomicReference
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
-class Aws2ClientTest extends AgentTestRunner {
+class LegacyAws2ClientForkedTest extends AgentTestRunner {
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("aws-sdk.legacy.tracing.enabled", "true")
+  }
 
   private static final StaticCredentialsProvider CREDENTIALS_PROVIDER = StaticCredentialsProvider
   .create(AwsBasicCredentials.create("my-access-key", "my-secret-key"))
@@ -96,7 +102,7 @@ class Aws2ClientTest extends AgentTestRunner {
     response.class.simpleName.startsWith(operation) || response instanceof ResponseInputStream
 
     assertTraces(1) {
-      trace(1) {
+      trace(2) {
         span {
           serviceName "$ddService"
           operationName "aws.http"
@@ -133,6 +139,24 @@ class Aws2ClientTest extends AgentTestRunner {
             } else if (service == "Kinesis") {
               "aws.stream.name" "somestream"
             }
+            defaultTags()
+          }
+        }
+        span {
+          operationName "http.request"
+          resourceName "$method $path"
+          spanType DDSpanTypes.HTTP_CLIENT
+          errored false
+          measured true
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "apache-httpclient"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" "localhost"
+            "$Tags.PEER_PORT" server.address.port
+            "$Tags.HTTP_URL" "${server.address}${path}"
+            "$Tags.HTTP_METHOD" "$method"
+            "$Tags.HTTP_STATUS" 200
             defaultTags()
           }
         }
@@ -209,7 +233,7 @@ class Aws2ClientTest extends AgentTestRunner {
     executed
     response != null
 
-    assertTraces(1) {
+    assertTraces(2) {
       trace(1) {
         span {
           serviceName "$ddService"
@@ -244,6 +268,28 @@ class Aws2ClientTest extends AgentTestRunner {
             } else if (service == "Kinesis") {
               "aws.stream.name" "somestream"
             }
+            defaultTags()
+          }
+        }
+      }
+      // TODO: this should be part of the same trace but netty instrumentation doesn't cooperate
+      trace(1) {
+        span {
+          operationName "netty.client.request"
+          resourceName "$method $path"
+          spanType DDSpanTypes.HTTP_CLIENT
+          errored false
+          measured true
+          parent()
+          tags {
+            "$Tags.COMPONENT" "netty-client"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" "localhost"
+            "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+            "$Tags.PEER_PORT" server.address.port
+            "$Tags.HTTP_URL" "${server.address}${path}"
+            "$Tags.HTTP_METHOD" "$method"
+            "$Tags.HTTP_STATUS" 200
             defaultTags()
           }
         }
@@ -321,7 +367,7 @@ class Aws2ClientTest extends AgentTestRunner {
     thrown SdkClientException
 
     assertTraces(1) {
-      trace(1) {
+      trace(5) {
         span {
           serviceName "java-aws-sdk"
           operationName "aws.http"
@@ -342,6 +388,25 @@ class Aws2ClientTest extends AgentTestRunner {
             "aws.bucket.name" "somebucket"
             errorTags SdkClientException, "Unable to execute HTTP request: Read timed out"
             defaultTags()
+          }
+        }
+        (1..4).each {
+          span {
+            operationName "http.request"
+            resourceName "GET /somebucket/somekey"
+            spanType DDSpanTypes.HTTP_CLIENT
+            errored true
+            childOf(span(0))
+            tags {
+              "$Tags.COMPONENT" "apache-httpclient"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.PEER_HOSTNAME" "localhost"
+              "$Tags.PEER_PORT" server.address.port
+              "$Tags.HTTP_URL" "$server.address/somebucket/somekey"
+              "$Tags.HTTP_METHOD" "GET"
+              errorTags SocketTimeoutException, "Read timed out"
+              defaultTags()
+            }
           }
         }
       }

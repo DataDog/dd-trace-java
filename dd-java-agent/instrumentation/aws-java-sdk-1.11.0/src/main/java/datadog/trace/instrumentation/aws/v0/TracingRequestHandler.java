@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.aws.v0;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.DECORATE;
 
@@ -11,9 +12,13 @@ import com.amazonaws.Request;
 import com.amazonaws.Response;
 import com.amazonaws.handlers.HandlerContextKey;
 import com.amazonaws.handlers.RequestHandler2;
+import datadog.trace.api.Config;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Tracing Request Handler */
 public class TracingRequestHandler extends RequestHandler2 {
@@ -23,6 +28,8 @@ public class TracingRequestHandler extends RequestHandler2 {
       new HandlerContextKey<>("DatadogScope"); // same as OnErrorDecorator.SCOPE_CONTEXT_KEY
 
   private static final CharSequence AWS_HTTP = UTF8BytesString.create("aws.http");
+
+  private static final Logger log = LoggerFactory.getLogger(TracingRequestHandler.class);
 
   @Override
   public AmazonWebServiceRequest beforeMarshalling(final AmazonWebServiceRequest request) {
@@ -42,6 +49,13 @@ public class TracingRequestHandler extends RequestHandler2 {
       activateNext(span); // this scope will last until next poll
     }
     request.addHandlerContext(SCOPE_CONTEXT_KEY, activateSpan(span));
+    if (Config.get().isAwsPropagationEnabled()) {
+      try {
+        propagate().inject(span, request, DECORATE, TracePropagationStyle.XRAY);
+      } catch (Throwable e) {
+        log.warn("Unable to inject trace header", e);
+      }
+    }
   }
 
   @Override

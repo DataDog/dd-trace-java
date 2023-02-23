@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.aws.v2;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -13,7 +14,8 @@ import software.amazon.awssdk.core.interceptor.SdkExecutionAttribute;
 import software.amazon.awssdk.http.SdkHttpRequest;
 import software.amazon.awssdk.http.SdkHttpResponse;
 
-public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, SdkHttpResponse> {
+public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, SdkHttpResponse>
+    implements AgentPropagation.Setter<SdkHttpRequest.Builder> {
   public static final AwsSdkClientDecorator DECORATE = new AwsSdkClientDecorator();
 
   public static final CharSequence AWS_HTTP = UTF8BytesString.create("aws.http");
@@ -115,5 +117,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   @Override
   protected int status(final SdkHttpResponse response) {
     return response.statusCode();
+  }
+
+  @Override
+  public void set(SdkHttpRequest.Builder carrier, String key, String value) {
+    carrier.putHeader(key, value);
   }
 }

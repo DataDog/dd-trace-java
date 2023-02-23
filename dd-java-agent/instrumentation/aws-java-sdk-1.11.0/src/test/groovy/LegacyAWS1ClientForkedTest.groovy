@@ -34,6 +34,8 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.Flaky
+import org.apache.http.conn.HttpHostConnectException
+import org.apache.http.impl.execchain.RequestAbortedException
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 
@@ -43,7 +45,13 @@ import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-class AWS1ClientTest extends AgentTestRunner {
+class LegacyAWS1ClientForkedTest extends AgentTestRunner {
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("aws-sdk.legacy.tracing.enabled", "true")
+  }
 
   private static final CREDENTIALS_PROVIDER_CHAIN = new AWSCredentialsProviderChain(
   new EnvironmentVariableCredentialsProvider(),
@@ -128,7 +136,7 @@ class AWS1ClientTest extends AgentTestRunner {
     client.requestHandler2s.findAll{ it.getClass().getSimpleName() == "TracingRequestHandler" }.size() == 1
 
     assertTraces(1) {
-      trace(1) {
+      trace(2) {
         span {
           serviceName "$ddService"
           operationName "aws.http"
@@ -152,6 +160,24 @@ class AWS1ClientTest extends AgentTestRunner {
             for (def addedTag : additionalTags) {
               "$addedTag.key" "$addedTag.value"
             }
+            defaultTags()
+          }
+        }
+        span {
+          operationName "http.request"
+          resourceName "$method $path"
+          spanType DDSpanTypes.HTTP_CLIENT
+          errored false
+          measured true
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "apache-httpclient"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" "localhost"
+            "$Tags.PEER_PORT" server.address.port
+            "$Tags.HTTP_URL" "${server.address}${path}"
+            "$Tags.HTTP_METHOD" "$method"
+            "$Tags.HTTP_STATUS" 200
             defaultTags()
           }
         }
@@ -217,7 +243,7 @@ class AWS1ClientTest extends AgentTestRunner {
     thrown SdkClientException
 
     assertTraces(1) {
-      trace(1) {
+      trace(2) {
         span {
           serviceName "java-aws-sdk"
           operationName "aws.http"
@@ -241,6 +267,24 @@ class AWS1ClientTest extends AgentTestRunner {
               "$addedTag.key" "$addedTag.value"
             }
             errorTags SdkClientException, ~/Unable to execute HTTP request/
+            defaultTags()
+          }
+        }
+        span {
+          operationName "http.request"
+          resourceName "$method /$url"
+          spanType DDSpanTypes.HTTP_CLIENT
+          errored true
+          measured true
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "apache-httpclient"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" "localhost"
+            "$Tags.PEER_PORT" UNUSABLE_PORT
+            "$Tags.HTTP_URL" "http://localhost:${UNUSABLE_PORT}/$url"
+            "$Tags.HTTP_METHOD" "$method"
+            errorTags HttpHostConnectException, ~/Connection refused/
             defaultTags()
           }
         }
@@ -319,7 +363,7 @@ class AWS1ClientTest extends AgentTestRunner {
     thrown AmazonClientException
 
     assertTraces(1) {
-      trace(1) {
+      trace(5) {
         span {
           serviceName "java-aws-sdk"
           operationName "aws.http"
@@ -346,6 +390,30 @@ class AWS1ClientTest extends AgentTestRunner {
               errorTags SdkClientException, "Unable to execute HTTP request: Request did not complete before the request timeout configuration."
             }
             defaultTags()
+          }
+        }
+        (1..4).each {
+          span {
+            operationName "http.request"
+            resourceName "GET /someBucket/someKey"
+            spanType DDSpanTypes.HTTP_CLIENT
+            errored true
+            measured true
+            childOf(span(0))
+            tags {
+              "$Tags.COMPONENT" "apache-httpclient"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.PEER_HOSTNAME" "localhost"
+              "$Tags.PEER_PORT" server.address.port
+              "$Tags.HTTP_URL" "$server.address/someBucket/someKey"
+              "$Tags.HTTP_METHOD" "GET"
+              try {
+                errorTags SocketException, "Socket closed"
+              } catch (AssertionError e) {
+                errorTags RequestAbortedException, "Request aborted"
+              }
+              defaultTags()
+            }
           }
         }
       }

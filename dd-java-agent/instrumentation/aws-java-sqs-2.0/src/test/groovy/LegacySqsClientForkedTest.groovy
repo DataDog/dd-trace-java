@@ -1,10 +1,5 @@
 import com.amazon.sqs.javamessaging.ProviderConfiguration
 import com.amazon.sqs.javamessaging.SQSConnectionFactory
-import com.amazonaws.SDKGlobalConfiguration
-import com.amazonaws.auth.AWSStaticCredentialsProvider
-import com.amazonaws.auth.AnonymousAWSCredentials
-import com.amazonaws.client.builder.AwsClientBuilder
-import com.amazonaws.services.sqs.AmazonSQSClientBuilder
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanId
@@ -13,34 +8,43 @@ import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.elasticmq.rest.sqs.SQSRestServerBuilder
+import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
+import software.amazon.awssdk.core.SdkSystemSetting
+import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.sqs.SqsClient
+import software.amazon.awssdk.services.sqs.model.CreateQueueRequest
+import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest
+import software.amazon.awssdk.services.sqs.model.SendMessageRequest
 import spock.lang.Shared
 
 import javax.jms.Session
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
-class SqsClientTest extends AgentTestRunner {
+class LegacySqsClientForkedTest extends AgentTestRunner {
 
   def setup() {
-    System.setProperty(SDKGlobalConfiguration.ACCESS_KEY_SYSTEM_PROPERTY, "my-access-key")
-    System.setProperty(SDKGlobalConfiguration.SECRET_KEY_SYSTEM_PROPERTY, "my-secret-key")
+    System.setProperty(SdkSystemSetting.AWS_ACCESS_KEY_ID.property(), "my-access-key")
+    System.setProperty(SdkSystemSetting.AWS_SECRET_ACCESS_KEY.property(), "my-secret-key")
   }
 
   @Override
-  protected void configurePreAgent() {
+  void configurePreAgent() {
     super.configurePreAgent()
+    injectSysConfig("aws-sdk.legacy.tracing.enabled", "true")
+
     // Set a service name that gets sorted early with SORT_BY_NAMES
     injectSysConfig(GeneralConfig.SERVICE_NAME, "A")
   }
 
   @Shared
-  def credentialsProvider = new AWSStaticCredentialsProvider(new AnonymousAWSCredentials())
+  def credentialsProvider = AnonymousCredentialsProvider.create()
   @Shared
   def server = SQSRestServerBuilder.withInterface("localhost").withDynamicPort().start()
   @Shared
   def address = server.waitUntilStarted().localAddress()
   @Shared
-  def endpoint = new AwsClientBuilder.EndpointConfiguration("http://localhost:${address.port}", "elasticmq")
+  def endpoint = URI.create("http://localhost:${address.port}")
 
   def cleanupSpec() {
     if (server != null) {
@@ -50,28 +54,29 @@ class SqsClientTest extends AgentTestRunner {
 
   def "trace details propagated via SQS system message attributes"() {
     setup:
-    def client = AmazonSQSClientBuilder.standard()
-      .withEndpointConfiguration(endpoint)
-      .withCredentials(credentialsProvider)
+    def client = SqsClient.builder()
+      .region(Region.EU_CENTRAL_1)
+      .endpointOverride(endpoint)
+      .credentialsProvider(credentialsProvider)
       .build()
-    def queueUrl = client.createQueue('somequeue').queueUrl
+    def queueUrl = client.createQueue(CreateQueueRequest.builder().queueName('somequeue').build()).queueUrl()
     TEST_WRITER.clear()
 
     when:
     TraceUtils.runUnderTrace('parent', {
-      client.sendMessage(queueUrl, 'sometext')
+      client.sendMessage(SendMessageRequest.builder().queueUrl(queueUrl).messageBody('sometext').build())
     })
-    def messages = client.receiveMessage(queueUrl).messages
+    def messages = client.receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build()).messages()
 
     then:
     def sendSpan
     assertTraces(2) {
-      trace(2) {
+      trace(3) {
         basicSpan(it, "parent")
         span {
           serviceName "sqs"
           operationName "aws.http"
-          resourceName "SQS.SendMessage"
+          resourceName "Sqs.SendMessage"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
           measured true
@@ -84,21 +89,39 @@ class SqsClientTest extends AgentTestRunner {
             "$Tags.HTTP_STATUS" 200
             "$Tags.PEER_PORT" address.port
             "$Tags.PEER_HOSTNAME" "localhost"
-            "aws.service" "AmazonSQS"
-            "aws.endpoint" "http://localhost:${address.port}"
-            "aws.operation" "SendMessageRequest"
+            "aws.service" "Sqs"
+            "aws.operation" "SendMessage"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "http.request"
+          resourceName "POST /"
+          spanType DDSpanTypes.HTTP_CLIENT
+          errored false
+          measured true
+          childOf(span(1))
+          tags {
+            "$Tags.COMPONENT" "apache-httpclient"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" "localhost"
+            "$Tags.PEER_PORT" address.port
+            "$Tags.HTTP_URL" "http://localhost:${address.port}/"
+            "$Tags.HTTP_METHOD" "POST"
+            "$Tags.HTTP_STATUS" 200
             defaultTags()
           }
         }
         sendSpan = span(1)
       }
-      trace(1) {
+      trace(2) {
         span {
           serviceName "sqs"
           operationName "aws.http"
-          resourceName "SQS.ReceiveMessage"
+          resourceName "Sqs.ReceiveMessage"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
           measured true
@@ -111,29 +134,48 @@ class SqsClientTest extends AgentTestRunner {
             "$Tags.HTTP_STATUS" 200
             "$Tags.PEER_PORT" address.port
             "$Tags.PEER_HOSTNAME" "localhost"
-            "aws.service" "AmazonSQS"
-            "aws.endpoint" "http://localhost:${address.port}"
-            "aws.operation" "ReceiveMessageRequest"
+            "aws.service" "Sqs"
+            "aws.operation" "ReceiveMessage"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "http.request"
+          resourceName "POST /"
+          spanType DDSpanTypes.HTTP_CLIENT
+          errored false
+          measured true
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "apache-httpclient"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" "localhost"
+            "$Tags.PEER_PORT" address.port
+            "$Tags.HTTP_URL" "http://localhost:${address.port}/"
+            "$Tags.HTTP_METHOD" "POST"
+            "$Tags.HTTP_STATUS" 200
             defaultTags()
           }
         }
       }
     }
 
-    assert messages[0].attributes['AWSTraceHeader'] =~
+    assert messages[0].attributesAsStrings()['AWSTraceHeader'] =~
     /Root=1-[0-9a-f]{8}-00000000${sendSpan.traceId.toHexStringPadded(16)};Parent=${DDSpanId.toHexStringPadded(sendSpan.spanId)};Sampled=1/
 
     cleanup:
-    client.shutdown()
+    client.close()
   }
 
   def "trace details propagated from SQS to JMS"() {
     setup:
-    def client = AmazonSQSClientBuilder.standard()
-      .withEndpointConfiguration(endpoint)
-      .withCredentials(credentialsProvider)
+    def client = SqsClient.builder()
+      .region(Region.EU_CENTRAL_1)
+      .endpointOverride(endpoint)
+      .credentialsProvider(credentialsProvider)
       .build()
 
     def connectionFactory = new SQSConnectionFactory(new ProviderConfiguration(), client)
@@ -147,22 +189,20 @@ class SqsClientTest extends AgentTestRunner {
     when:
     connection.start()
     TraceUtils.runUnderTrace('parent', {
-      client.sendMessage(queue.queueUrl, 'sometext')
+      client.sendMessage(SendMessageRequest.builder().queueUrl(queue.queueUrl).messageBody('sometext').build())
     })
     def message = consumer.receive()
     consumer.receiveNoWait()
 
     then:
     def sendSpan
-    // Order has changed in 1.10+ versions of amazon-sqs-java-messaging-lib
-    // so sort by names service/operation/resource
     assertTraces(4, SORT_TRACES_BY_NAMES) {
-      trace(2) {
+      trace(3) {
         basicSpan(it, "parent")
         span {
           serviceName "sqs"
           operationName "aws.http"
-          resourceName "SQS.SendMessage"
+          resourceName "Sqs.SendMessage"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
           measured true
@@ -175,11 +215,29 @@ class SqsClientTest extends AgentTestRunner {
             "$Tags.HTTP_STATUS" 200
             "$Tags.PEER_PORT" address.port
             "$Tags.PEER_HOSTNAME" "localhost"
-            "aws.service" "AmazonSQS"
-            "aws.endpoint" "http://localhost:${address.port}"
-            "aws.operation" "SendMessageRequest"
+            "aws.service" "Sqs"
+            "aws.operation" "SendMessage"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "http.request"
+          resourceName "POST /"
+          spanType DDSpanTypes.HTTP_CLIENT
+          errored false
+          measured true
+          childOf(span(1))
+          tags {
+            "$Tags.COMPONENT" "apache-httpclient"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" "localhost"
+            "$Tags.PEER_PORT" address.port
+            "$Tags.HTTP_URL" "http://localhost:${address.port}/"
+            "$Tags.HTTP_METHOD" "POST"
+            "$Tags.HTTP_STATUS" 200
             defaultTags()
           }
         }
@@ -197,19 +255,16 @@ class SqsClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "jms"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            // This shows up in 1.10+ versions of amazon-sqs-java-messaging-lib
-            if (isLatestDepTest) {
-              "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-            }
+            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             defaultTags(true)
           }
         }
       }
-      trace(1) {
+      trace(2) {
         span {
           serviceName "sqs"
           operationName "aws.http"
-          resourceName "SQS.DeleteMessage"
+          resourceName "Sqs.DeleteMessage"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
           measured true
@@ -222,20 +277,38 @@ class SqsClientTest extends AgentTestRunner {
             "$Tags.HTTP_STATUS" 200
             "$Tags.PEER_PORT" address.port
             "$Tags.PEER_HOSTNAME" "localhost"
-            "aws.service" "AmazonSQS"
-            "aws.endpoint" "http://localhost:${address.port}"
-            "aws.operation" "DeleteMessageRequest"
+            "aws.service" "Sqs"
+            "aws.operation" "DeleteMessage"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "http.request"
+          resourceName "POST /"
+          spanType DDSpanTypes.HTTP_CLIENT
+          errored false
+          measured true
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "apache-httpclient"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" "localhost"
+            "$Tags.PEER_PORT" address.port
+            "$Tags.HTTP_URL" "http://localhost:${address.port}/"
+            "$Tags.HTTP_METHOD" "POST"
+            "$Tags.HTTP_STATUS" 200
             defaultTags()
           }
         }
       }
-      trace(1) {
+      trace(2) {
         span {
           serviceName "sqs"
           operationName "aws.http"
-          resourceName "SQS.ReceiveMessage"
+          resourceName "Sqs.ReceiveMessage"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
           measured true
@@ -248,11 +321,29 @@ class SqsClientTest extends AgentTestRunner {
             "$Tags.HTTP_STATUS" 200
             "$Tags.PEER_PORT" address.port
             "$Tags.PEER_HOSTNAME" "localhost"
-            "aws.service" "AmazonSQS"
-            "aws.endpoint" "http://localhost:${address.port}"
-            "aws.operation" "ReceiveMessageRequest"
+            "aws.service" "Sqs"
+            "aws.operation" "ReceiveMessage"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "http.request"
+          resourceName "POST /"
+          spanType DDSpanTypes.HTTP_CLIENT
+          errored false
+          measured true
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "apache-httpclient"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" "localhost"
+            "$Tags.PEER_PORT" address.port
+            "$Tags.HTTP_URL" "http://localhost:${address.port}/"
+            "$Tags.HTTP_METHOD" "POST"
+            "$Tags.HTTP_STATUS" 200
             defaultTags()
           }
         }
@@ -266,6 +357,6 @@ class SqsClientTest extends AgentTestRunner {
     cleanup:
     session.close()
     connection.stop()
-    client.shutdown()
+    client.close()
   }
 }
