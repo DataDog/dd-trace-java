@@ -1,0 +1,29 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  extraRepository("gradle-libs-releases-local", "https://repo.gradle.org/artifactory/libs-releases-local")
+
+  pass {
+    group = 'dev.gradleplugins'
+    module = 'gradle-api'
+    versions = '[2.14,)'
+  }
+}
+
+repositories {
+  maven {
+    url "https://repo.gradle.org/artifactory/libs-releases-local"
+  }
+}
+
+dependencies {
+  // technically we support Gradle starting from v1.0, but no proper Jars of that version are published
+  // (org.gradle:gradle-core lacks some Task types that the instrumentation uses)
+  compileOnly 'dev.gradleplugins:gradle-api:2.14'
+
+  testImplementation(group: 'dev.gradleplugins', name: 'gradle-api') {
+    version {
+      strictly '2.14'
+    }
+  }
+}
