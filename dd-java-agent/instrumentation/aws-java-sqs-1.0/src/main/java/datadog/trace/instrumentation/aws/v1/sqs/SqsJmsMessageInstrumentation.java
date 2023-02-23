@@ -15,11 +15,8 @@ import javax.jms.JMSException;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class SqsJmsMessageInstrumentation extends Instrumenter.Tracing
+public class SqsJmsMessageInstrumentation extends AbstractSqsInstrumentation
     implements Instrumenter.ForSingleType {
-  public SqsJmsMessageInstrumentation() {
-    super("aws-sdk");
-  }
 
   @Override
   public String instrumentedType() {

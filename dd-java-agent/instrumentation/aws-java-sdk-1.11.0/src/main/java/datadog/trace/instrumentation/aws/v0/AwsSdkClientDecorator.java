@@ -4,6 +4,7 @@ import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
 import com.amazonaws.Response;
+import datadog.trace.api.Config;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -23,6 +24,14 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   private static final Pattern AMAZON_PATTERN = Pattern.compile("Amazon", Pattern.LITERAL);
 
   static final CharSequence COMPONENT_NAME = UTF8BytesString.create("java-aws-sdk");
+
+  public static final boolean AWS_LEGACY_TRACING =
+      Config.get().isLegacyTracingEnabled(false, "aws-sdk");
+
+  public static final boolean SQS_LEGACY_TRACING = Config.get().isLegacyTracingEnabled(true, "sqs");
+
+  private static final String SQS_SERVICE_NAME =
+      AWS_LEGACY_TRACING || SQS_LEGACY_TRACING ? "sqs" : Config.get().getServiceName();
 
   private final QualifiedClassNameCache cache =
       new QualifiedClassNameCache(
@@ -64,7 +73,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       case "SQS.SendMessageBatch":
       case "SQS.ReceiveMessage":
       case "SQS.DeleteMessage":
-        span.setServiceName("sqs");
+      case "SQS.DeleteMessageBatch":
+        span.setServiceName(SQS_SERVICE_NAME);
         break;
       case "SNS.Publish":
         span.setServiceName("sns");

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.aws.v2;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
@@ -24,6 +25,14 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
   // We only want tag interceptor to take priority
   private static final byte RESOURCE_NAME_PRIORITY = ResourceNamePriorities.TAG_INTERCEPTOR - 1;
+
+  public static final boolean AWS_LEGACY_TRACING =
+      Config.get().isLegacyTracingEnabled(false, "aws-sdk");
+
+  public static final boolean SQS_LEGACY_TRACING = Config.get().isLegacyTracingEnabled(true, "sqs");
+
+  private static final String SQS_SERVICE_NAME =
+      AWS_LEGACY_TRACING || SQS_LEGACY_TRACING ? "sqs" : Config.get().getServiceName();
 
   public AgentSpan onSdkRequest(final AgentSpan span, final SdkRequest request) {
     // S3
@@ -69,7 +78,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       case "Sqs.SendMessageBatch":
       case "Sqs.ReceiveMessage":
       case "Sqs.DeleteMessage":
-        span.setServiceName("sqs");
+      case "Sqs.DeleteMessageBatch":
+        span.setServiceName(SQS_SERVICE_NAME);
         break;
       case "Sns.Publish":
         span.setServiceName("sns");

@@ -14,6 +14,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 
 /**
@@ -54,7 +55,9 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing
 
       final AgentScope scope = activeScope();
       // check name in case TracingRequestHandler failed to activate the span
-      if (scope != null && AWS_HTTP.equals(scope.span().getSpanName())) {
+      if (scope != null
+          && (AWS_HTTP.equals(scope.span().getSpanName())
+              || scope.span() instanceof AgentTracer.NoopAgentSpan)) {
         scope.close();
       }
 
@@ -102,7 +105,9 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing
 
         final AgentScope scope = activeScope();
         // check name in case TracingRequestHandler failed to activate the span
-        if (scope != null && AWS_HTTP.equals(scope.span().getSpanName())) {
+        if (scope != null
+            && (AWS_HTTP.equals(scope.span().getSpanName())
+                || scope.span() instanceof AgentTracer.NoopAgentSpan)) {
           scope.close();
         }
 

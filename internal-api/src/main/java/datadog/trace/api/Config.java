@@ -1283,8 +1283,8 @@ public class Config {
             DEBUGGER_INSTRUMENT_THE_WORLD, DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD);
     debuggerExcludeFile = configProvider.getString(DEBUGGER_EXCLUDE_FILE);
 
-    awsPropagationEnabled = isPropagationEnabled(true, "aws");
-    sqsPropagationEnabled = awsPropagationEnabled && isPropagationEnabled(true, "sqs");
+    awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
+    sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
 
     kafkaClientPropagationEnabled = isPropagationEnabled(true, "kafka", "kafka.client");
     kafkaClientPropagationDisabledTopics =

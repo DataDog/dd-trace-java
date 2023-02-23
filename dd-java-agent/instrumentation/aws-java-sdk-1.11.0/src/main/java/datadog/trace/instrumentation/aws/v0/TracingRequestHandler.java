@@ -1,9 +1,11 @@
 package datadog.trace.instrumentation.aws.v0;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.AWS_HTTP;
+import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.AWS_LEGACY_TRACING;
 import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.DECORATE;
 
 import com.amazonaws.AmazonWebServiceRequest;
@@ -32,17 +34,25 @@ public class TracingRequestHandler extends RequestHandler2 {
 
   @Override
   public void beforeRequest(final Request<?> request) {
-    final AgentSpan span = startSpan(AWS_HTTP);
-    DECORATE.afterStart(span);
-    DECORATE.onRequest(span, request);
-    request.addHandlerContext(SPAN_CONTEXT_KEY, span);
-    if (Config.get().isAwsPropagationEnabled()) {
-      try {
-        propagate().inject(span, request, DECORATE, TracePropagationStyle.XRAY);
-      } catch (Throwable e) {
-        log.warn("Unable to inject trace header", e);
+    final AgentSpan span;
+    if (!AWS_LEGACY_TRACING && isPollingRequest(request.getOriginalRequest())) {
+      // SQS messages spans are created by aws-java-sqs-1.0 - replace client scope with no-op,
+      // so we can tell when receive call is complete without affecting the rest of the trace
+      span = noopSpan();
+    } else {
+      span = startSpan(AWS_HTTP);
+      DECORATE.afterStart(span);
+      DECORATE.onRequest(span, request);
+      request.addHandlerContext(SPAN_CONTEXT_KEY, span);
+      if (Config.get().isAwsPropagationEnabled()) {
+        try {
+          propagate().inject(span, request, DECORATE, TracePropagationStyle.XRAY);
+        } catch (Throwable e) {
+          log.warn("Unable to inject trace header", e);
+        }
       }
     }
+
     // This scope will be closed by AwsHttpClientInstrumentation
     activateSpan(span);
   }
@@ -67,5 +77,11 @@ public class TracingRequestHandler extends RequestHandler2 {
       DECORATE.beforeFinish(span);
       span.finish();
     }
+  }
+
+  private static boolean isPollingRequest(AmazonWebServiceRequest request) {
+    return null != request
+        && "com.amazonaws.services.sqs.model.ReceiveMessageRequest"
+            .equals(request.getClass().getName());
   }
 }

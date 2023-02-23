@@ -14,6 +14,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -65,7 +66,9 @@ public final class AwsHttpClientInstrumentation extends AbstractAwsClientInstrum
     public static AgentScope methodEnter(@Advice.This final Object thiz) {
       final AgentScope scope = activeScope();
       // check name in case TracingExecutionInterceptor failed to activate the span
-      if (scope != null && AWS_HTTP.equals(scope.span().getSpanName())) {
+      if (scope != null
+          && (AWS_HTTP.equals(scope.span().getSpanName())
+              || scope.span() instanceof AgentTracer.NoopAgentSpan)) {
         if (thiz instanceof MakeAsyncHttpRequestStage) {
           scope.close(); // close async legacy HTTP span to avoid Netty leak
         } else {
