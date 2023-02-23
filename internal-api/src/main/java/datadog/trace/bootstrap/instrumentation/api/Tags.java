@@ -9,6 +9,8 @@ public class Tags {
   public static final String SPAN_KIND_CONSUMER = "consumer";
   public static final String SPAN_KIND_BROKER = "broker";
   public static final String SPAN_KIND_TEST = "test";
+  public static final String SPAN_KIND_TEST_SUITE = "test_suite_end";
+  public static final String SPAN_KIND_TEST_MODULE = "test_module_end";
 
   public static final String HTTP_URL = "http.url";
   public static final String HTTP_HOSTNAME = "http.hostname";
@@ -38,6 +40,8 @@ public class Tags {
   public static final String DB_STATEMENT = "db.statement";
   public static final String MESSAGE_BUS_DESTINATION = "message_bus.destination";
 
+  public static final String TEST_MODULE = "test.module";
+  public static final String TEST_BUNDLE = "test.bundle";
   public static final String TEST_SUITE = "test.suite";
   public static final String TEST_NAME = "test.name";
   public static final String TEST_STATUS = "test.status";
@@ -50,6 +54,11 @@ public class Tags {
   public static final String TEST_SOURCE_FILE = "test.source.file";
   public static final String TEST_SOURCE_START = "test.source.start";
   public static final String TEST_SOURCE_END = "test.source.end";
+  public static final String TEST_TRAITS = "test.traits";
+
+  public static final String TEST_SESSION_ID = "test_session_id";
+  public static final String TEST_MODULE_ID = "test_module_id";
+  public static final String TEST_SUITE_ID = "test_suite_id";
 
   public static final String CI_PROVIDER_NAME = "ci.provider.name";
   public static final String CI_PIPELINE_ID = "ci.pipeline.id";

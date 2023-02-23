@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
+import javax.annotation.Nonnull;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Label;
@@ -23,8 +24,9 @@ public class MethodLinesResolverImpl implements MethodLinesResolver {
   private final DDCache<Class<?>, ClassMethodLines> methodLinesCache =
       DDCaches.newFixedSizeIdentityCache(16);
 
+  @Nonnull
   @Override
-  public MethodLines getLines(Method method) {
+  public MethodLines getLines(@Nonnull Method method) {
     try {
       ClassMethodLines classMethodLines =
           methodLinesCache.computeIfAbsent(method.getDeclaringClass(), ClassMethodLines::parse);
