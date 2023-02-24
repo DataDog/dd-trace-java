@@ -351,9 +351,6 @@ jobs:
       - image: *default_container
 
     parameters:
-      testTask:
-        type: string
-        default: "test"
       testJvm:
         type: string
         default: ""
@@ -365,7 +362,6 @@ jobs:
         default: ""
       gradleTarget:
         type: string
-        default: ""
       triggeredBy:
         type: string
         default: ".*"
@@ -414,7 +410,9 @@ jobs:
             
             MAVEN_OPTS="-Xms64M -Xmx512M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms<< parameters.maxDaemonHeapSize >> -Xmx<< parameters.maxDaemonHeapSize >> $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
-            ./gradlew <<# parameters.gradleTarget >><< parameters.gradleTarget >>:<</ parameters.gradleTarget >><< parameters.testTask >> << parameters.gradleParameters >>
+            ./gradlew
+            << parameters.gradleTarget >>
+            << parameters.gradleParameters >>
             -PskipBuildSrcTest
             <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
@@ -679,6 +677,7 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
       name: z_test_<< matrix.testJvm >>_base
       triggeredBy: *core_modules
+      gradleTarget: ":baseTest"
       gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
       stage: core
       maxWorkers: 6
@@ -690,8 +689,8 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
       name: z_test_8_base
       triggeredBy: *core_modules
+      gradleTarget: :baseTest jacocoTestReport jacocoTestCoverageVerification
       gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests"
-      testTask: test jacocoTestReport jacocoTestCoverageVerification
       stage: core
       maxWorkers: 6
       testJvm: "8"
@@ -700,7 +699,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: z_test_<< matrix.testJvm >>_inst
-      gradleTarget: ":dd-java-agent:instrumentation"
+      gradleTarget: ":instrumentationTest"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
@@ -712,7 +711,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: z_test_8_inst
-      gradleTarget: ":dd-java-agent:instrumentation"
+      gradleTarget: ":instrumentationTest"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
@@ -723,8 +722,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: test_8_inst_latest
-      testTask: latestDepTest
-      gradleTarget: ":dd-java-agent:instrumentation"
+      gradleTarget: "latestDepTest"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
@@ -735,6 +733,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: z_test_8_flaky
+      gradleTarget: "test"
       gradleParameters: "-PrunFlakyTests"
       continueOnFailure: true
       triggeredBy: *core_modules
@@ -746,7 +745,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       maxWorkers: 4
-      gradleTarget: ":dd-java-agent:agent-profiling"
+      gradleTarget: ":profilingTest"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *profiling_modules
       stage: profiling
@@ -759,7 +758,7 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
       maxWorkers: 4
       name: test_<< matrix.testJvm >>_iast
-      gradleTarget: ":dd-java-agent:agent-iast"
+      gradleTarget: ":dd-java-agent:agent-iast:test"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *iast_modules
       stage: iast
@@ -771,7 +770,7 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
       name: test_<< matrix.testJvm >>_debugger
       maxWorkers: 4
-      gradleTarget: ":dd-java-agent:agent-debugger"
+      gradleTarget: ":debuggerTest"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *debugger_modules
       stage: debugger
@@ -782,7 +781,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: z_test_<< matrix.testJvm >>_smoke
-      gradleTarget: "stageMainDist :dd-smoke-test"
+      gradleTarget: "stageMainDist :smokeTest"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
       maxWorkers: 8
@@ -793,7 +792,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: test_IBM11_smoke
-      gradleTarget: "stageMainDist :dd-smoke-test"
+      gradleTarget: "stageMainDist :smokeTest"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
       maxWorkers: 8
@@ -803,7 +802,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: test_IBM17_smoke
-      gradleTarget: "stageMainDist :dd-smoke-test"
+      gradleTarget: "stageMainDist :smokeTest"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
       maxWorkers: 8
@@ -813,7 +812,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: test_GRAALVM11_smoke
-      gradleTarget: "stageMainDist :dd-smoke-test:spring-native"
+      gradleTarget: "stageMainDist :dd-smoke-test:spring-native:test"
       stage: smoke
       testJvm: "GRAALVM11"
 
@@ -821,7 +820,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: test_GRAALVM17_smoke
-      gradleTarget: "stageMainDist :dd-smoke-test:spring-native"
+      gradleTarget: "stageMainDist :dd-smoke-test:spring-native:test"
       stage: smoke
       testJvm: "GRAALVM17"
 
@@ -830,7 +829,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: z_test_8_smoke
-      gradleTarget: "stageMainDist :dd-smoke-test"
+      gradleTarget: "stageMainDist :smokeTest"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
       maxWorkers: 8
@@ -859,7 +858,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       triggeredBy: *agent_integration_tests_modules
-      testTask: traceAgentTest
+      gradleTarget: traceAgentTest
       testJvm: "8"
 
   - test_published_artifacts:
