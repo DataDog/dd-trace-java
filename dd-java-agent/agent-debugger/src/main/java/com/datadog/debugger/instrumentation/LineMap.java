@@ -2,6 +2,8 @@ package com.datadog.debugger.instrumentation;
 
 import java.util.Map;
 import java.util.TreeMap;
+
+import org.objectweb.asm.Label;
 import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LineNumberNode;
 
@@ -20,6 +22,15 @@ class LineMap {
     Map.Entry<Integer, LabelNode> nextLine = lineLabels.ceilingEntry(line);
     if (nextLine == null) return null;
     return nextLine.getValue();
+  }
+
+  int getLine(Label label) {
+    for (Map.Entry<Integer, LabelNode> entry : lineLabels.entrySet()) {
+      if (entry.getValue().getLabel().equals(label)) {
+        return entry.getKey();
+      }
+    }
+    return -1;
   }
 
   boolean isEmpty() {

@@ -121,6 +121,15 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  public void oskarTest() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01Oskar";
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installSingleProbe(CLASS_NAME, "main", "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+  }
+
+  @Test
   public void singleLineProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     DebuggerTransformerTest.TestSnapshotListener listener =

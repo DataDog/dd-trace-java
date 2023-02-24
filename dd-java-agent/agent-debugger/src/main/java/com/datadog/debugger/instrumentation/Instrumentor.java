@@ -6,12 +6,11 @@ import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage.Kind;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+import org.objectweb.asm.*;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldNode;
@@ -26,7 +25,9 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 
-/** Common class for generating instrumentation */
+/**
+ * Common class for generating instrumentation
+ */
 public class Instrumentor {
   protected static final String CONSTRUCTOR_NAME = "<init>";
   protected static final String PROBEID_TAG_NAME = "debugger.probeid";
@@ -44,6 +45,49 @@ public class Instrumentor {
   protected int argOffset;
   protected final LocalVariableNode[] localVarsBySlot;
   protected LabelNode returnHandlerLabel;
+
+  protected Map<Location, List<LocalVariableNode>> scopes;
+
+  private class Location {
+    final int startLine;
+    final int endLine;
+
+    private Location(int startLine, int endLine) {
+      this.startLine = startLine;
+      this.endLine = endLine;
+    }
+
+    private Location(LocalVariableNode localVariableNode) {
+      this.startLine = lineMap.getLine(localVariableNode.start.getLabel());
+      this.endLine = lineMap.getLine(localVariableNode.end.getLabel());
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+
+      Location location = (Location) o;
+
+      if (startLine != location.startLine) return false;
+      return endLine == location.endLine;
+    }
+
+    @Override
+    public int hashCode() {
+      int result = startLine;
+      result = 31 * result + endLine;
+      return result;
+    }
+
+    @Override
+    public String toString() {
+      return "Location{" +
+          "startLine=" + startLine +
+          ", endLine=" + endLine +
+          '}';
+    }
+  }
 
   public Instrumentor(
       ProbeDefinition definition,
@@ -66,6 +110,28 @@ public class Instrumentor {
       argOffset += t.getSize();
     }
     localVarsBySlot = extractLocalVariables(argTypes);
+    scopes = extractScopes();
+    List<Map.Entry<Location, List<LocalVariableNode>>> entries = new ArrayList<>(scopes.entrySet());
+    Collections.reverse(entries);
+    for (Map.Entry<Location, List<LocalVariableNode>> entry : entries) {
+      System.out.println(entry.getKey());
+      System.out.println("-------------------------------");
+      System.out.println(entry.getValue().stream().map(s -> s.name).collect(Collectors.joining("\n")));
+      System.out.println();
+    }
+  }
+
+  private Map<Location, List<LocalVariableNode>> extractScopes() {
+    fillLineMap();
+    Map<Location, List<LocalVariableNode>> scopes = new HashMap<>();
+    for (LocalVariableNode localVariable : methodNode.localVariables) {
+      Location l = new Location(localVariable);
+      scopes.merge(l, new ArrayList<>(Collections.singletonList(localVariable)), (prev, next) -> {
+        prev.addAll(next);
+        return prev;
+      });
+    }
+    return scopes;
   }
 
   private LocalVariableNode[] extractLocalVariables(Type[] argTypes) {
@@ -321,7 +387,7 @@ public class Instrumentor {
 
   protected ProbeDefinition.Tag[] addProbeIdWithTags(String probeId, ProbeDefinition.Tag[] tags) {
     if (tags == null) {
-      return new ProbeDefinition.Tag[] {new ProbeDefinition.Tag(PROBEID_TAG_NAME, probeId)};
+      return new ProbeDefinition.Tag[]{new ProbeDefinition.Tag(PROBEID_TAG_NAME, probeId)};
     }
     ProbeDefinition.Tag[] newTags = Arrays.copyOf(tags, tags.length + 1);
     newTags[newTags.length - 1] = new ProbeDefinition.Tag(PROBEID_TAG_NAME, probeId);
