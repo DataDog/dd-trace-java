@@ -1,149 +1,172 @@
 package datadog.trace.instrumentation.junit4;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.junit4.JUnit4Decorator.DECORATE;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.civisibility.TestEventsHandler;
 import java.lang.reflect.Method;
-import java.util.Collections;
 import java.util.List;
 import junit.runner.Version;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.Description;
+import org.junit.runner.Result;
 import org.junit.runner.notification.Failure;
 import org.junit.runner.notification.RunListener;
+import org.junit.runners.model.TestClass;
 
 public class TracingListener extends RunListener {
+
+  private final TestEventsHandler testEventsHandler;
 
   private final String version;
 
   public TracingListener() {
     version = Version.id();
+    testEventsHandler = new TestEventsHandler(DECORATE);
+  }
+
+  @Override
+  public void testRunStarted(Description description) {
+    testEventsHandler.onTestModuleStart(version);
+  }
+
+  @Override
+  public void testRunFinished(Result result) {
+    testEventsHandler.onTestModuleFinish();
+  }
+
+  public void testSuiteStarted(final TestClass junitTestClass) {
+    boolean containsTestCases = !junitTestClass.getAnnotatedMethods(Test.class).isEmpty();
+    if (!containsTestCases) {
+      // Not all test suites contain tests.
+      // Given that test suites can be nested in other test suites,
+      // we are only interested in the innermost ones where the actual test cases reside
+      return;
+    }
+
+    String testSuiteName = junitTestClass.getName();
+    Class<?> testClass = junitTestClass.getJavaClass();
+    List<String> categories = JUnit4Utils.getCategories(testClass, null);
+    testEventsHandler.onTestSuiteStart(testSuiteName, testClass, version, categories);
+  }
+
+  public void testSuiteFinished(final TestClass junitTestClass) {
+    boolean containsTestCases = !junitTestClass.getAnnotatedMethods(Test.class).isEmpty();
+    if (!containsTestCases) {
+      // Not all test suites contain tests.
+      // Given that test suites can be nested in other test suites,
+      // we are only interested in the innermost ones where the actual test cases reside
+      return;
+    }
+
+    String testSuiteName = junitTestClass.getName();
+    Class<?> testClass = junitTestClass.getJavaClass();
+    testEventsHandler.onTestSuiteFinish(testSuiteName, testClass);
   }
 
   @Override
   public void testStarted(final Description description) {
-    if (DECORATE.skipTrace(description)) {
-      return;
-    }
+    Class<?> testClass = description.getTestClass();
+    Method testMethod = JUnit4Utils.getTestMethod(description);
 
-    // If there is an active span that represents a test
-    // we don't want to generate another child test span.
-    // This can happen when the user executes a certain test
-    // using the different test engines.
-    // (e.g. JUnit 4 tests using JUnit5 engine)
-    if (DECORATE.isTestSpan(AgentTracer.activeSpan())) {
-      return;
-    }
+    String testSuiteName = description.getClassName();
+    String testName = JUnit4Utils.getTestName(description, testMethod);
+    String testParameters = JUnit4Utils.getParameters(description);
+    List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
 
-    final AgentSpan span = startSpan("junit.test");
-    final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
-
-    DECORATE.afterStart(span, version, description.getTestClass(), getTestMethod(description));
-    DECORATE.onTestStart(span, description);
+    testEventsHandler.onTestStart(
+        testSuiteName, testName, testParameters, categories, version, testClass, testMethod);
   }
 
   @Override
-  public void testFinished(final Description description) throws Exception {
-    if (DECORATE.skipTrace(description)) {
-      return;
-    }
-
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (span == null) {
-      return;
-    }
-
-    final AgentScope scope = AgentTracer.activeScope();
-    if (scope != null) {
-      scope.close();
-    }
-
-    DECORATE.onTestFinish(span);
-    DECORATE.beforeFinish(span);
-    span.finish();
+  public void testFinished(final Description description) {
+    String testSuiteName = description.getClassName();
+    Class<?> testClass = description.getTestClass();
+    testEventsHandler.onTestFinish(testSuiteName, testClass);
   }
 
+  // same callback is executed both for test cases and test suites (for setup/teardown errors)
   @Override
-  public void testFailure(final Failure failure) throws Exception {
-    if (DECORATE.skipTrace(failure.getDescription())) {
-      return;
-    }
-
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (span == null) {
-      return;
-    }
-
-    DECORATE.onTestFailure(span, failure);
+  public void testFailure(final Failure failure) {
+    testEventsHandler.onFailure(failure.getException());
   }
 
   @Override
   public void testAssumptionFailure(final Failure failure) {
-    if (DECORATE.skipTrace(failure.getDescription())) {
-      return;
+    String reason;
+    Throwable throwable = failure.getException();
+    if (throwable != null) {
+      reason = throwable.getMessage();
+    } else {
+      reason = null;
     }
 
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (span == null) {
-      return;
-    }
+    testEventsHandler.onSkip(reason);
 
-    DECORATE.onTestAssumptionFailure(span, failure);
+    Description description = failure.getDescription();
+    if (JUnit4Utils.isTestSuiteDescription(description)) {
+      List<Method> testMethods = JUnit4Utils.getTestMethods(description.getTestClass());
+      for (Method testMethod : testMethods) {
+        testIgnored(description, testMethod, reason);
+      }
+    }
   }
 
   @Override
-  public void testIgnored(final Description description) throws Exception {
-    if (DECORATE.skipTrace(description)) {
-      return;
-    }
-
-    final List<Method> testMethods;
-    if (description.getMethodName() != null && !"".equals(description.getMethodName())) {
-      testMethods = Collections.singletonList(getTestMethod(description));
-    } else if (description.getTestClass() != null) {
-      // If @Ignore annotation is kept at class level, the instrumentation
-      // reports every method annotated with @Test as skipped test.
-      testMethods = DECORATE.testMethods(description.getTestClass(), Test.class);
-    } else {
-      testMethods = Collections.emptyList();
-    }
-
+  public void testIgnored(final Description description) {
     final Ignore ignore = description.getAnnotation(Ignore.class);
     final String reason = ignore != null ? ignore.value() : null;
 
-    for (final Method testMethod : testMethods) {
-      final AgentSpan span = startSpan("junit.test");
-      DECORATE.afterStart(span, version, description.getTestClass(), getTestMethod(description));
-      DECORATE.onTestIgnored(span, description, testMethod.getName(), reason);
-      DECORATE.beforeFinish(span);
-      // We set a duration of 1 ns, because a span with duration==0 has a special treatment in the
-      // tracer.
-      span.finishWithDuration(1L);
+    if (JUnit4Utils.isTestCaseDescription(description)) {
+      Method testMethod = JUnit4Utils.getTestMethod(description);
+      testIgnored(description, testMethod, reason);
+
+    } else if (JUnit4Utils.isTestSuiteDescription(description)) {
+
+      if (testEventsHandler.isTestSuiteInProgress()) {
+        // if assumption fails during suite setup,
+        // JUnit will call testIgnored instead of testAssumptionFailure
+
+        testEventsHandler.onSkip(reason);
+        List<Method> testMethods = JUnit4Utils.getTestMethods(description.getTestClass());
+        for (Method testMethod : testMethods) {
+          testIgnored(description, testMethod, reason);
+        }
+
+      } else {
+        Class<?> testClass = description.getTestClass();
+        String testSuiteName = testClass.getName();
+        List<String> categories = JUnit4Utils.getCategories(testClass, null);
+
+        testEventsHandler.onTestSuiteStart(testSuiteName, testClass, version, categories);
+        testEventsHandler.onSkip(reason);
+
+        List<Method> testMethods = JUnit4Utils.getTestMethods(testClass);
+        for (Method testMethod : testMethods) {
+          testIgnored(description, testMethod, reason);
+        }
+
+        testEventsHandler.onTestSuiteFinish(testSuiteName, testClass);
+      }
     }
   }
 
-  // cannot handle test methods with parameters (e.g. ones that use pl.pragmatists.JUnitParams)
-  private Method getTestMethod(final Description description) {
-    String methodName = description.getMethodName();
-    if (methodName == null || methodName.isEmpty()) {
-      return null;
-    }
-
+  private void testIgnored(Description description, Method testMethod, String reason) {
     Class<?> testClass = description.getTestClass();
-    if (testClass == null) {
-      return null;
-    }
 
-    try {
-      return testClass.getMethod(methodName);
-    } catch (NoSuchMethodException e) {
-      return null;
-    }
+    String testSuiteName = description.getClassName();
+    String testName = JUnit4Utils.getTestName(description, testMethod);
+    String testParameters = JUnit4Utils.getParameters(description);
+    List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
+
+    testEventsHandler.onTestIgnore(
+        testSuiteName,
+        testName,
+        testParameters,
+        categories,
+        version,
+        testClass,
+        testMethod,
+        reason);
   }
 }

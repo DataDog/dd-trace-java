@@ -1,6 +1,6 @@
 import datadog.trace.agent.test.base.TestFrameworkTest
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator
+import datadog.trace.bootstrap.instrumentation.civisibility.TestEventsHandler
 import datadog.trace.instrumentation.testng.TestNGDecorator
 import org.example.TestError
 import org.example.TestFailed
@@ -25,7 +25,7 @@ class TestNGTest extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(1) {
-        testSpan(it, 0, "org.example.TestSucceed", "test_succeed", TestDecorator.TEST_PASS)
+        testSpan(it, 0, null, null, "org.example.TestSucceed", "test_succeed", TestEventsHandler.TEST_PASS)
       }
     }
   }
@@ -40,7 +40,7 @@ class TestNGTest extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(1) {
-        testSpan(it, 0, "org.example.TestInheritance", "test_succeed", TestDecorator.TEST_PASS)
+        testSpan(it, 0, null, null, "org.example.TestInheritance", "test_succeed", TestEventsHandler.TEST_PASS)
       }
     }
   }
@@ -59,7 +59,7 @@ class TestNGTest extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(1) {
-        testSpan(it, 0, "org.example.TestFailed", "test_failed", TestDecorator.TEST_FAIL, null, exception)
+        testSpan(it, 0, null, null, "org.example.TestFailed", "test_failed", TestEventsHandler.TEST_FAIL, null, exception)
       }
     }
 
@@ -81,19 +81,19 @@ class TestNGTest extends TestFrameworkTest {
     expect:
     assertTraces(5) {
       trace(1) {
-        testSpan(it, 0, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestDecorator.TEST_FAIL, null, exception)
+        testSpan(it, 0, null, null, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestEventsHandler.TEST_FAIL, null, exception)
       }
       trace(1) {
-        testSpan(it, 0, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestDecorator.TEST_FAIL, null, exception)
+        testSpan(it, 0, null, null, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestEventsHandler.TEST_FAIL, null, exception)
       }
       trace(1) {
-        testSpan(it, 0, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestDecorator.TEST_PASS)
+        testSpan(it, 0, null, null, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestEventsHandler.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestDecorator.TEST_PASS)
+        testSpan(it, 0, null, null, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestEventsHandler.TEST_PASS)
       }
       trace(1) {
-        testSpan(it, 0, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestDecorator.TEST_PASS)
+        testSpan(it, 0, null, null, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestEventsHandler.TEST_PASS)
       }
     }
 
@@ -111,7 +111,7 @@ class TestNGTest extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(1) {
-        testSpan(it, 0, "org.example.TestError", "test_error", TestDecorator.TEST_FAIL, null, exception)
+        testSpan(it, 0, null, null, "org.example.TestError", "test_error", TestEventsHandler.TEST_FAIL, null, exception)
       }
     }
 
@@ -129,12 +129,12 @@ class TestNGTest extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(1) {
-        testSpan(it, 0, "org.example.TestSkipped", "test_skipped", TestDecorator.TEST_SKIP, testTags, null, true)
+        testSpan(it, 0, null, null, "org.example.TestSkipped", "test_skipped", TestEventsHandler.TEST_SKIP, testTags)
       }
     }
 
     where:
-    testTags = ["$Tags.TEST_SKIP_REASON": "Ignore reason in test"]
+    testTags = [(Tags.TEST_SKIP_REASON): "Ignore reason in test"]
   }
 
   def "test parameterized generates spans"() {
@@ -147,21 +147,21 @@ class TestNGTest extends TestFrameworkTest {
     expect:
     assertTraces(2) {
       trace(1) {
-        testSpan(it, 0, "org.example.TestParameterized", "parameterized_test_succeed", TestDecorator.TEST_PASS, testTags_0)
+        testSpan(it, 0, null, null, "org.example.TestParameterized", "parameterized_test_succeed", TestEventsHandler.TEST_PASS, testTags_0)
       }
       trace(1) {
-        testSpan(it, 0, "org.example.TestParameterized", "parameterized_test_succeed", TestDecorator.TEST_PASS, testTags_1)
+        testSpan(it, 0, null, null, "org.example.TestParameterized", "parameterized_test_succeed", TestEventsHandler.TEST_PASS, testTags_1)
       }
     }
 
     where:
-    testTags_0 = ["$Tags.TEST_PARAMETERS": '{"arguments":{"0":"hello","1":"true"}}']
-    testTags_1 = ["$Tags.TEST_PARAMETERS": '{"arguments":{"0":"\\\"goodbye\\\"","1":"false"}}']
+    testTags_0 = [(Tags.TEST_PARAMETERS): '{"arguments":{"0":"hello","1":"true"}}']
+    testTags_1 = [(Tags.TEST_PARAMETERS): '{"arguments":{"0":"\\\"goodbye\\\"","1":"false"}}']
   }
 
   @Override
-  String expectedOperationName() {
-    return "testng.test"
+  String expectedOperationPrefix() {
+    return "testng"
   }
 
   @Override
@@ -179,15 +179,5 @@ class TestNGTest extends TestFrameworkTest {
   @Override
   String component() {
     return TestNGDecorator.DECORATE.component()
-  }
-
-  @Override
-  boolean isCI() {
-    return TestNGDecorator.DECORATE.isCI()
-  }
-
-  @Override
-  Map<String, String> ciTags() {
-    return TestNGDecorator.DECORATE.getCiTags()
   }
 }

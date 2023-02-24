@@ -114,8 +114,8 @@ class TraceUtilsTest extends DDSpecification {
 
     where:
     env | expected
-    null | ""
-    "" | ""
+    null             | TraceUtils.DEFAULT_ENV
+    ""               | TraceUtils.DEFAULT_ENV
     "ok" | "ok"
     repeat("a",300)|repeat("a",200)
   }

@@ -66,7 +66,7 @@ public class HttpCodec {
         case DATADOG:
           result.put(style, DatadogHttpCodec.newInjector(reverseBaggageMapping));
           break;
-        case B3:
+        case B3SINGLE:
           result.put(style, B3HttpCodec.SINGLE_INJECTOR);
           break;
         case B3MULTI:
@@ -77,6 +77,9 @@ public class HttpCodec {
           break;
         case XRAY:
           result.put(style, XRayHttpCodec.newInjector(reverseBaggageMapping));
+          break;
+        case NONE:
+          result.put(style, NoneCodec.INJECTOR);
           break;
         default:
           log.debug("No implementation found to inject propagation style: {}", style);
@@ -96,7 +99,7 @@ public class HttpCodec {
         case DATADOG:
           extractors.add(DatadogHttpCodec.newExtractor(taggedHeaders, baggageMapping, config));
           break;
-        case B3:
+        case B3SINGLE:
           extractors.add(B3HttpCodec.newSingleExtractor(taggedHeaders, baggageMapping, config));
           break;
         case B3MULTI:
@@ -107,6 +110,9 @@ public class HttpCodec {
           break;
         case XRAY:
           extractors.add(XRayHttpCodec.newExtractor(taggedHeaders, baggageMapping));
+          break;
+        case NONE:
+          extractors.add(NoneCodec.EXTRACTOR);
           break;
         default:
           log.debug("No implementation found to extract propagation style: {}", style);

@@ -38,6 +38,9 @@ public class SnapshotSummaryBuilder implements SummaryBuilder {
     if (exit == null) {
       return;
     }
+    if (exit.getArguments() != null) {
+      arguments = formatCapturedValues(exit.getArguments());
+    }
     if (exit.getLocals() == null) {
       return;
     }

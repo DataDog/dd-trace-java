@@ -15,6 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.instrumentation.netty38.ChannelTraceContext;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.MessageEvent;
@@ -58,7 +59,11 @@ public class HttpClientRequestTracingHandler extends SimpleChannelDownstreamHand
     try (final AgentScope scope = activateSpan(span)) {
       decorate.afterStart(span);
       decorate.onRequest(span, request);
-      decorate.onPeerConnection(span, (InetSocketAddress) ctx.getChannel().getRemoteAddress());
+
+      SocketAddress socketAddress = ctx.getChannel().getRemoteAddress();
+      if (socketAddress instanceof InetSocketAddress) {
+        decorate.onPeerConnection(span, (InetSocketAddress) socketAddress);
+      }
 
       propagate().inject(span, request.headers(), SETTER);
       propagate()

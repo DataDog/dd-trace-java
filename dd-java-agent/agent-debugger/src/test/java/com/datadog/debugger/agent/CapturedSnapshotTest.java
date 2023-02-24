@@ -19,8 +19,8 @@ import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.MoshiHelper;
-import com.datadog.debugger.util.MoshiSnapshotHelper;
-import com.datadog.debugger.util.ValueSerializer;
+import com.datadog.debugger.util.MoshiSnapshotTestHelper;
+import com.datadog.debugger.util.SerializerWithLimits;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CorrelationAccess;
@@ -76,7 +76,7 @@ public class CapturedSnapshotTest {
   private static final String PROBE_ID2 = "beae1807-f3b0-4ea8-a74f-826790c5e6f7";
   private static final String SERVICE_NAME = "service-name";
   private static final JsonAdapter<Snapshot.CapturedValue> VALUE_ADAPTER =
-      new MoshiSnapshotHelper.CapturedValueAdapter();
+      new MoshiSnapshotTestHelper.CapturedValueAdapter();
   private static final JsonAdapter<Map<String, Object>> GENERIC_ADAPTER =
       MoshiHelper.createGenericAdapter();
 
@@ -1112,7 +1112,8 @@ public class CapturedSnapshotTest {
     // it's important there is no null key in this map, as Jackson is not happy about it
     // it's means here that argument names are not resolved correctly
     Assert.assertFalse(arguments.containsKey(null));
-    Assert.assertEquals(3, arguments.size());
+    Assert.assertEquals(4, arguments.size());
+    Assert.assertTrue(arguments.containsKey("this"));
     Assert.assertTrue(arguments.containsKey("apiKey"));
     Assert.assertTrue(arguments.containsKey("uriInfo"));
     Assert.assertTrue(arguments.containsKey("value"));
@@ -1608,7 +1609,7 @@ public class CapturedSnapshotTest {
         if (type == null) {
           Assert.fail("no type for element");
         }
-        if (ValueSerializer.isPrimitive(type)) {
+        if (SerializerWithLimits.isPrimitive(type)) {
           result.add(element.get("value"));
         } else {
           Assert.fail("not implemented");

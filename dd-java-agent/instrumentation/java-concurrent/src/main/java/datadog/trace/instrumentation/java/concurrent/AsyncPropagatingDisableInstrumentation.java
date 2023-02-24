@@ -75,7 +75,8 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
       "net.sf.ehcache.store.disk.DiskStorageFactory",
       "org.springframework.jms.listener.DefaultMessageListenerContainer",
       "org.apache.activemq.broker.TransactionBroker",
-      "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager"
+      "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager",
+      "io.grpc.internal.SerializingExecutor"
     };
   }
 
@@ -170,6 +171,8 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
         advice);
     transformation.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
+    transformation.applyAdvice(
+        named("schedule").and(isDeclaredBy(named("io.grpc.internal.SerializingExecutor"))), advice);
   }
 
   public static class DisableAsyncAdvice {

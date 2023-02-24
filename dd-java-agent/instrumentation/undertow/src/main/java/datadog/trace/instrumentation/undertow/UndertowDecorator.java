@@ -1,9 +1,10 @@
 package datadog.trace.instrumentation.undertow;
 
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
@@ -24,13 +25,9 @@ public class UndertowDecorator
       InstanceStore.of(AttachmentKey.class);
 
   @SuppressWarnings("unchecked")
-  public static final AttachmentKey<Boolean> DD_HTTPSERVEREXCHANGE_DISPATCH =
+  public static final AttachmentKey<AgentScope.Continuation> DD_UNDERTOW_CONTINUATION =
       attachmentStore.putIfAbsent(
-          "DD_HTTPSERVEREXCHANGE_DISPATCH", AttachmentKey.create(Boolean.class));
-
-  @SuppressWarnings("unchecked")
-  public static final AttachmentKey<AgentSpan> DD_UNDERTOW_SPAN =
-      attachmentStore.putIfAbsent("DD_UNDERTOW_SPAN", AttachmentKey.create(AgentSpan.class));
+          "DD_UNDERTOW_CONTINUATION", AttachmentKey.create(AgentScope.Continuation.class));
 
   public static final UndertowDecorator DECORATE = new UndertowDecorator();
 
@@ -82,5 +79,11 @@ public class UndertowDecorator
   @Override
   protected int status(final HttpServerExchange exchange) {
     return exchange.getResponseCode();
+  }
+
+  @Override
+  protected BlockResponseFunction createBlockResponseFunction(
+      HttpServerExchange httpServerExchange, HttpServerExchange httpServerExchange1) {
+    return new UndertowBlockResponseFunction(httpServerExchange);
   }
 }

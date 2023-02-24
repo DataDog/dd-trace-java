@@ -1,5 +1,6 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -16,7 +17,7 @@ public class SubStringExpressionTest {
   void nullExpression() {
     SubStringExpression expression = new SubStringExpression(null, 0, 0);
     assertTrue(expression.evaluate(resolver).isUndefined());
-    assertEquals("substring(null, 0, 0)", expression.prettyPrint());
+    assertEquals("substring(null, 0, 0)", print(expression));
   }
 
   @Test
@@ -24,20 +25,20 @@ public class SubStringExpressionTest {
     SubStringExpression expression =
         new SubStringExpression(DSL.value(Values.UNDEFINED_OBJECT), 0, 0);
     assertTrue(expression.evaluate(resolver).isUndefined());
-    assertEquals("substring(UNDEFINED, 0, 0)", expression.prettyPrint());
+    assertEquals("substring(UNDEFINED, 0, 0)", print(expression));
   }
 
   @Test
   void stringExpression() {
     SubStringExpression expression = new SubStringExpression(DSL.value("abc"), 0, 1);
     assertEquals("a", expression.evaluate(resolver).getValue());
-    assertEquals("substring(\"abc\", 0, 1)", expression.prettyPrint());
+    assertEquals("substring(\"abc\", 0, 1)", print(expression));
   }
 
   @Test
   void stringOutOfBoundsExpression() {
     SubStringExpression expression = new SubStringExpression(DSL.value("abc"), 0, 10);
     assertTrue(expression.evaluate(resolver).isUndefined());
-    assertEquals("substring(\"abc\", 0, 10)", expression.prettyPrint());
+    assertEquals("substring(\"abc\", 0, 10)", print(expression));
   }
 }

@@ -22,7 +22,7 @@
         {"!=":  [{"ref": "field"}, 0]},
         {"not":  {"==":  [{"ref": "field"}, 0]}},
         {"hasAll":  [{"ref": "field"}, {"eq":  [{"ref": "@it"}, 10]}]},
-        {"isEmpty": {"ref": "this.field2"}}
+        {"isEmpty": {"getmember": [{"ref": "this"}, "field2"]}}
       ]}
     ]
   },

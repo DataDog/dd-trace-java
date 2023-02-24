@@ -50,7 +50,7 @@ public final class Servlet3Instrumentation extends Instrumenter.Tracing
       packageName + ".HttpServletExtractAdapter$Response",
       packageName + ".Servlet3Decorator",
       packageName + ".ServletRequestURIAdapter",
-      packageName + ".TagSettingAsyncListener",
+      packageName + ".FinishAsyncDispatchListener",
       "datadog.trace.instrumentation.servlet.ServletBlockingHelper",
     };
   }

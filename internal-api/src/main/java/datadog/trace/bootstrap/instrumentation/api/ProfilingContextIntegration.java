@@ -9,12 +9,30 @@ public interface ProfilingContextIntegration extends ProfilingContext {
   /** Invoked when a thread exits */
   void onDetach();
 
+  void setContext(ProfilerContext profilerContext);
+
+  void clearContext();
+
   void setContext(long rootSpanId, long spanId);
+
+  boolean isQueuingTimeEnabled();
+
+  void recordQueueingTime(long duration);
+
+  default int encode(CharSequence constant) {
+    return 0;
+  }
 
   final class NoOp implements ProfilingContextIntegration {
 
     public static final ProfilingContextIntegration INSTANCE =
         new ProfilingContextIntegration.NoOp();
+
+    @Override
+    public void setContextValue(String attribute, String value) {}
+
+    @Override
+    public void clearContextValue(String attribute) {}
 
     @Override
     public void onAttach() {}
@@ -23,12 +41,20 @@ public interface ProfilingContextIntegration extends ProfilingContext {
     public void onDetach() {}
 
     @Override
+    public void setContext(ProfilerContext profilerContext) {}
+
+    @Override
+    public void clearContext() {}
+
+    @Override
     public void setContext(long rootSpanId, long spanId) {}
 
     @Override
-    public void setContextValue(String attribute, String value) {}
+    public boolean isQueuingTimeEnabled() {
+      return false;
+    }
 
     @Override
-    public void clearContextValue(String attribute) {}
+    public void recordQueueingTime(long duration) {}
   }
 }

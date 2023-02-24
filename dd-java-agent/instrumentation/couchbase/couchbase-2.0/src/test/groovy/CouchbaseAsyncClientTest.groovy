@@ -4,6 +4,8 @@ import com.couchbase.client.java.document.JsonDocument
 import com.couchbase.client.java.document.json.JsonObject
 import com.couchbase.client.java.env.CouchbaseEnvironment
 import com.couchbase.client.java.query.N1qlQuery
+import datadog.trace.api.Config
+import datadog.trace.test.util.Flaky
 import spock.lang.Unroll
 import spock.util.concurrent.BlockingVariable
 import util.AbstractCouchbaseTest
@@ -11,8 +13,9 @@ import util.AbstractCouchbaseTest
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
+@Flaky
 @Unroll
-class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
+abstract class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
   static final int TIMEOUT = 30
 
   @Override
@@ -177,5 +180,26 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
 
     cleanup:
     cleanupCluster(cluster, environment)
+  }
+}
+
+class CouchbaseAsyncClientV0ForkedTest extends CouchbaseAsyncClientTest {
+
+}
+
+class CouchbaseAsyncClientV1ForkedTest extends CouchbaseAsyncClientTest {
+  @Override
+  protected int version() {
+    return 1
+  }
+
+  @Override
+  protected String service() {
+    return Config.get().getServiceName() + "-couchbase"
+  }
+
+  @Override
+  protected String operation() {
+    return "couchbase.query"
   }
 }

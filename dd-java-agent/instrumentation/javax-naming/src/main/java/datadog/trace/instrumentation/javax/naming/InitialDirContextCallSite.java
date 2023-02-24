@@ -2,13 +2,16 @@ package datadog.trace.instrumentation.javax.naming;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
+import datadog.trace.api.iast.IastAdvice.Sink;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.model.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.LdapInjectionModule;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.naming.Name;
 import javax.naming.directory.SearchControls;
 
+@Sink(VulnerabilityTypes.LDAP_INJECTION)
 @CallSite(spi = IastAdvice.class)
 public class InitialDirContextCallSite {
 

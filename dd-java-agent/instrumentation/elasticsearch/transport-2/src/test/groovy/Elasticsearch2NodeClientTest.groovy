@@ -1,19 +1,20 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.test.util.Flaky
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
 import org.elasticsearch.common.io.FileSystemUtils
 import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.index.IndexNotFoundException
 import org.elasticsearch.node.Node
 import org.elasticsearch.node.NodeBuilder
-import spock.lang.Retry
 import spock.lang.Shared
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-@Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
-class Elasticsearch2NodeClientTest extends AgentTestRunner {
+@Flaky
+abstract class Elasticsearch2NodeClientTest extends VersionedNamingTestBase {
   public static final long TIMEOUT = 10000 // 10 seconds
 
   @Shared
@@ -67,9 +68,9 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "ClusterHealthAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -95,9 +96,9 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "GetAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           errored true
           tags {
@@ -162,9 +163,9 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
     assertTraces(6) {
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "CreateIndexAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -179,9 +180,9 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
       }
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "ClusterHealthAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -195,9 +196,9 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
       }
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "GetAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -217,9 +218,9 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
       }
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "IndexAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -237,9 +238,9 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
       }
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "PutMappingAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -254,9 +255,9 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
       }
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "GetAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -283,5 +284,41 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
     indexName = "test-index"
     indexType = "test-type"
     id = "1"
+  }
+}
+
+class Elasticsearch2NodeClientV0ForkedTest extends Elasticsearch2NodeClientTest {
+
+  @Override
+  protected int version() {
+    return 0
+  }
+
+  @Override
+  protected String service() {
+    return "elasticsearch"
+  }
+
+  @Override
+  protected String operation() {
+    return "elasticsearch.query"
+  }
+}
+
+class Elasticsearch2NodeClientV1ForkedTest extends Elasticsearch2NodeClientTest {
+
+  @Override
+  protected int version() {
+    return 1
+  }
+
+  @Override
+  protected String service() {
+    return Config.get().getServiceName() + "-elasticsearch"
+  }
+
+  @Override
+  protected String operation() {
+    return "elasticsearch.query"
   }
 }

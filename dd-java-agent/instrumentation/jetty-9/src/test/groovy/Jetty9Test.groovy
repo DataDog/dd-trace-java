@@ -1,3 +1,4 @@
+import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import org.eclipse.jetty.server.Request
@@ -20,6 +21,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 
 class Jetty9Test extends HttpServerTest<Server> {
 
@@ -140,6 +142,9 @@ class Jetty9Test extends HttpServerTest<Server> {
           break
         case EXCEPTION:
           throw new Exception(endpoint.body)
+        case USER_BLOCK:
+          Blocking.forUser('user-to-block').blockIfMatch()
+          break
         default:
           response.status = NOT_FOUND.status
           response.writer.print(NOT_FOUND.body)

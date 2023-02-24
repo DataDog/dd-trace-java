@@ -34,4 +34,6 @@ public interface StringModule extends IastModule {
   void onStringTrim(@Nonnull String self, @Nullable String result);
 
   void onStringRepeat(@Nonnull String self, int count, @Nonnull String result);
+
+  void onStringConstructor(@Nonnull String self, @Nonnull String result);
 }

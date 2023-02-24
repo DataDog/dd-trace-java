@@ -9,6 +9,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
@@ -46,6 +47,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   public static final String DD_SPAN_ATTRIBUTE = "datadog.span";
   public static final String DD_DISPATCH_SPAN_ATTRIBUTE = "datadog.span.dispatch";
+  public static final String DD_FIN_DISP_LIST_SPAN_ATTRIBUTE =
+      "datadog.span.finish_dispatch_listener";
   public static final String DD_RESPONSE_ATTRIBUTE = "datadog.response";
 
   public static final LinkedHashMap<String, String> SERVER_PATHWAY_EDGE_TAGS;
@@ -134,6 +137,16 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     boolean clientIpResolverEnabled =
         config.isClientIpEnabled()
             || traceClientIpResolverEnabled && ActiveSubsystems.APPSEC_ACTIVE;
+
+    if (ActiveSubsystems.APPSEC_ACTIVE) {
+      RequestContext requestContext = span.getRequestContext();
+      if (requestContext != null) {
+        BlockResponseFunction brf = createBlockResponseFunction(request, connection);
+        if (brf != null) {
+          requestContext.setBlockResponseFunction(brf);
+        }
+      }
+    }
 
     if (context != null) {
       if (clientIpResolverEnabled) {
@@ -247,6 +260,11 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
 
     return span;
+  }
+
+  protected BlockResponseFunction createBlockResponseFunction(
+      REQUEST request, CONNECTION connection) {
+    return null;
   }
 
   public AgentSpan onResponse(final AgentSpan span, final RESPONSE response) {

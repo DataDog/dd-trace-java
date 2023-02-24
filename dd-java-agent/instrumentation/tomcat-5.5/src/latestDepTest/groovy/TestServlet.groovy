@@ -1,3 +1,4 @@
+import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServerTest
 import jakarta.servlet.http.HttpServlet
 import jakarta.servlet.http.HttpServletRequest
@@ -15,6 +16,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 
 class TestServlet extends HttpServlet {
 
@@ -74,6 +76,9 @@ class TestServlet extends HttpServlet {
           throw new Exception(endpoint.body)
         case CUSTOM_EXCEPTION:
           throw new InputMismatchException(endpoint.body)
+        case USER_BLOCK:
+          Blocking.forUser('user-to-block').blockIfMatch()
+          break
       }
     }
   }

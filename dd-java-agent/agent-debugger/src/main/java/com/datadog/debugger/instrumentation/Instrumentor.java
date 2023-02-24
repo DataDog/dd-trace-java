@@ -7,6 +7,7 @@ import com.datadog.debugger.probe.Where;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage.Kind;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import org.objectweb.asm.Opcodes;
@@ -28,6 +29,7 @@ import org.objectweb.asm.tree.TypeInsnNode;
 /** Common class for generating instrumentation */
 public class Instrumentor {
   protected static final String CONSTRUCTOR_NAME = "<init>";
+  protected static final String PROBEID_TAG_NAME = "debugger.probeid";
 
   protected final ProbeDefinition definition;
   protected final ClassLoader classLoader;
@@ -315,5 +317,14 @@ public class Instrumentor {
 
   protected void reportWarning(String message) {
     diagnostics.add(new DiagnosticMessage(Kind.WARN, message));
+  }
+
+  protected ProbeDefinition.Tag[] addProbeIdWithTags(String probeId, ProbeDefinition.Tag[] tags) {
+    if (tags == null) {
+      return new ProbeDefinition.Tag[] {new ProbeDefinition.Tag(PROBEID_TAG_NAME, probeId)};
+    }
+    ProbeDefinition.Tag[] newTags = Arrays.copyOf(tags, tags.length + 1);
+    newTags[newTags.length - 1] = new ProbeDefinition.Tag(PROBEID_TAG_NAME, probeId);
+    return newTags;
   }
 }

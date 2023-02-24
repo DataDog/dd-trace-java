@@ -248,17 +248,22 @@ public final class LogInstrumentor extends Instrumentor {
   private void collectArguments(InsnList insnList) {
     // expected stack top: [capturedcontext]
     Type[] argTypes = Type.getArgumentTypes(methodNode.desc);
-    if (argTypes.length == 0) {
+    if (argTypes.length == 0 && isStatic) {
       // bail out if no args
       return;
     }
     insnList.add(new InsnNode(Opcodes.DUP)); // stack: [capturedcontext, capturedcontext]
-    ldc(insnList, argTypes.length); // stack: [capturedcontext, capturedcontext, int]
+    ldc(
+        insnList,
+        argTypes.length + (isStatic ? 0 : 1)); // stack: [capturedcontext, capturedcontext, int]
     insnList.add(
         new TypeInsnNode(
             Opcodes.ANEWARRAY,
             CAPTURED_VALUE.getInternalName())); // stack: [capturedcontext, capture, array]
-    int counter = 0;
+    if (!isStatic) {
+      captureThis(insnList);
+    }
+    int counter = isStatic ? 0 : 1;
     int slot = isStatic ? 0 : 1;
     for (Type argType : argTypes) {
       String currentArgName = null;
@@ -268,7 +273,7 @@ public final class LogInstrumentor extends Instrumentor {
       }
       if (currentArgName == null) {
         // if argument names are not resolved correctly let's assign p+arg_index
-        currentArgName = "p" + counter;
+        currentArgName = "p" + (counter - (isStatic ? 0 : 1));
       }
       insnList.add(
           new InsnNode(Opcodes.DUP)); // stack: [capturedcontext, capturedcontext, array, array]
@@ -302,6 +307,23 @@ public final class LogInstrumentor extends Instrumentor {
         "addArguments",
         Type.VOID_TYPE,
         Types.asArray(CAPTURED_VALUE, 1)); // // stack: [capturedcontext]
+  }
+
+  private void captureThis(InsnList insnList) {
+    insnList.add(new InsnNode(Opcodes.DUP));
+    // stack: [capturedcontext, capturedcontext, array, array]
+    ldc(insnList, 0);
+    // stack: [capturedcontext, capturedcontext, array, array, int]
+    ldc(insnList, "this");
+    // stack: [capturedcontext, capturedcontext, array, array, int, string]
+    ldc(insnList, Type.getObjectType(classNode.name).getInternalName());
+    // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name]
+    insnList.add(new VarInsnNode(Opcodes.ALOAD, 0));
+    // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name, this]
+    addCapturedValueOf(insnList, capture);
+    // stack: [capturedcontext, capturedcontext, array, array, int, field_value]
+    insnList.add(new InsnNode(Opcodes.AASTORE));
+    // stack: [capturedcontext, capturedcontext, array]
   }
 
   private void tryBox(Type type, InsnList insnList) {

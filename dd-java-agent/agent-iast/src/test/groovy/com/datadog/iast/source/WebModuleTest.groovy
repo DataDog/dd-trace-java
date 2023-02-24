@@ -15,7 +15,7 @@ class WebModuleTest extends IastModuleImplTestBase {
   private WebModule module
 
   def setup() {
-    module = registerDependencies(new WebModuleImpl())
+    module = new WebModuleImpl()
   }
 
   void 'test #method: null or empty'(final String method, final String name) {
@@ -265,5 +265,85 @@ class WebModuleTest extends IastModuleImplTestBase {
     "comment" | SourceType.REQUEST_COOKIE_COMMENT | false
     "domain"  | SourceType.REQUEST_COOKIE_DOMAIN  | false
     "path"    | SourceType.REQUEST_COOKIE_PATH    | false
+  }
+
+  void 'test onGetInputStream without span'() {
+    when:
+    module.onGetInputStream(Mock(InputStream))
+
+    then:
+    1 * tracer.activeSpan() >> null
+    0 * _
+  }
+
+  void 'test onGetReader without span'() {
+    when:
+    module.onGetReader(Mock(BufferedReader))
+
+    then:
+    1 * tracer.activeSpan() >> null
+    0 * _
+  }
+
+  void 'test onGetInputStream null or empty'() {
+    when:
+    module.onGetInputStream(null)
+
+    then:
+    0 * _
+  }
+
+  void 'test onGetReader null or empty'() {
+    when:
+    module.onGetReader(null)
+
+    then:
+    0 * _
+  }
+
+  void 'test onGetInputStream'() {
+    given:
+    final span = Mock(AgentSpan)
+    tracer.activeSpan() >> span
+    final reqCtx = Mock(RequestContext)
+    span.getRequestContext() >> reqCtx
+    final ctx = new IastRequestContext()
+    reqCtx.getData(RequestContextSlot.IAST) >> ctx
+    final InputStream io = Mock(InputStream)
+
+    when:
+    module.onGetInputStream(io)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    1 * span.getRequestContext() >> reqCtx
+    1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
+    0 * _
+
+    def to = ctx.getTaintedObjects().get(io)
+    assert to != null
+  }
+
+  void 'test onGetReader'() {
+    given:
+    final span = Mock(AgentSpan)
+    tracer.activeSpan() >> span
+    final reqCtx = Mock(RequestContext)
+    span.getRequestContext() >> reqCtx
+    final ctx = new IastRequestContext()
+    reqCtx.getData(RequestContextSlot.IAST) >> ctx
+    final BufferedReader reader = Mock(BufferedReader)
+
+    when:
+    module.onGetReader(reader)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    1 * span.getRequestContext() >> reqCtx
+    1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
+    0 * _
+
+    def to = ctx.getTaintedObjects().get(reader)
+    assert to != null
   }
 }

@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.jetty76;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_FIN_DISP_LIST_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty76.JettyDecorator.DECORATE;
 import static java.util.Collections.singletonMap;
@@ -56,6 +57,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
       packageName + ".ExtractAdapter$Response",
       packageName + ".JettyDecorator",
       packageName + ".RequestURIDataAdapter",
+      "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
       "datadog.trace.instrumentation.jetty.JettyBlockingHelper",
     };
   }
@@ -185,6 +187,13 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
         DECORATE.onResponse(span, connection);
         DECORATE.beforeFinish(span);
         span.finish();
+      }
+
+      // Jetty doesn't always call async listeners
+      // Finish the dispatch listener span if it hasn't already
+      Runnable r = (Runnable) req.getAttribute(DD_FIN_DISP_LIST_SPAN_ATTRIBUTE);
+      if (r != null) {
+        r.run();
       }
     }
   }

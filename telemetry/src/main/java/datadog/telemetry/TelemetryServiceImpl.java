@@ -20,6 +20,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import okhttp3.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +41,11 @@ public class TelemetryServiceImpl implements TelemetryService {
   private final Queue<Request> queue = new ArrayBlockingQueue<>(16);
 
   private long lastPreparationTimestamp;
+  /*
+   * Keep track of Open Tracing and Open Telemetry integrations activation as they are mutually exclusive.
+   */
+  private boolean openTracingIntegrationEnabled;
+  private boolean openTelemetryIntegrationEnabled;
 
   public TelemetryServiceImpl(
       Supplier<RequestBuilder> requestBuilderSupplier,
@@ -49,6 +55,8 @@ public class TelemetryServiceImpl implements TelemetryService {
     this.requestBuilderSupplier = requestBuilderSupplier;
     this.timeSource = timeSource;
     this.heartbeatIntervalMs = heartBeatIntervalSec * 1000; // we use time in milliseconds
+    this.openTracingIntegrationEnabled = false;
+    this.openTelemetryIntegrationEnabled = false;
   }
 
   @Override
@@ -85,6 +93,13 @@ public class TelemetryServiceImpl implements TelemetryService {
 
   @Override
   public boolean addIntegration(Integration integration) {
+    if ("opentelemetry-1".equals(integration.getName())) {
+      this.openTelemetryIntegrationEnabled = true;
+      warnAboutExclusiveIntegrations();
+    } else if ("opentracing".equals(integration.getName())) {
+      this.openTracingIntegrationEnabled = true;
+      warnAboutExclusiveIntegrations();
+    }
     return this.integrations.offer(integration);
   }
 
@@ -121,18 +136,19 @@ public class TelemetryServiceImpl implements TelemetryService {
 
     // New metrics
     if (!metrics.isEmpty()) {
-      Payload payload =
-          new GenerateMetrics()
-              .namespace("appsec")
-              .libLanguage("java")
-              .libVersion("0.0.0")
-              .series(drainOrEmpty(metrics));
-      Request request =
-          requestBuilderSupplier
-              .get()
-              .build(
-                  RequestType.GENERATE_METRICS, payload.requestType(RequestType.GENERATE_METRICS));
-      queue.offer(request);
+      drainOrEmpty(metrics).stream()
+          .collect(Collectors.groupingBy(Metric::getNamespace))
+          .forEach(
+              (namespace, metrics) -> {
+                Payload payload = new GenerateMetrics().namespace(namespace).series(metrics);
+                Request request =
+                    requestBuilderSupplier
+                        .get()
+                        .build(
+                            RequestType.GENERATE_METRICS,
+                            payload.requestType(RequestType.GENERATE_METRICS));
+                queue.offer(request);
+              });
     }
 
     // Heartbeat request if needed
@@ -152,6 +168,13 @@ public class TelemetryServiceImpl implements TelemetryService {
   @Override
   public int getHeartbeatInterval() {
     return heartbeatIntervalMs;
+  }
+
+  private void warnAboutExclusiveIntegrations() {
+    if (this.openTelemetryIntegrationEnabled && this.openTracingIntegrationEnabled) {
+      log.warn(
+          "Both Open Tracing and Open Telemetry integrations are enabled but mutually exclusive. Tracing performance can be degraded.");
+    }
   }
 
   private static <T> List<T> drainOrNull(BlockingQueue<T> srcQueue) {

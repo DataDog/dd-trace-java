@@ -8,7 +8,15 @@ apply from: "$rootDir/gradle/version.gradle"
 minimumBranchCoverage = 0.7
 minimumInstructionCoverage = 0.8
 
-excludedClassesCoverage += ["com.datadog.ci.CiVisibilitySystem", "datadog.trace.bootstrap.instrumentation.ci.source.*"]
+excludedClassesCoverage += [
+  "datadog.trace.civisibility.CIInfo",
+  "datadog.trace.civisibility.CiVisibilitySystem",
+  "datadog.trace.civisibility.git.GitInfo",
+  "datadog.trace.civisibility.git.CommitInfo",
+  "datadog.trace.civisibility.git.PersonInfo",
+  "datadog.trace.civisibility.git.GitObject",
+  "datadog.trace.civisibility.source.*"
+]
 
 dependencies {
   api deps.slf4j
@@ -16,11 +24,10 @@ dependencies {
   implementation deps.asm
   implementation deps.asmcommons
 
-  implementation "com.datadoghq:dd-javac-plugin-client:0.1.0"
-
   implementation project(':internal-api')
   implementation project(':internal-api:internal-api-9')
 
+  testImplementation project(":utils:test-utils")
   testImplementation("com.google.jimfs:jimfs:1.1") // an in-memory file system for testing code that works with files
 }
 

@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.blocking
 
+import datadog.appsec.api.blocking.BlockingContentType
 import datadog.trace.api.Config
-import datadog.trace.api.gateway.Flow
 import datadog.trace.test.util.DDSpecification
 
 import java.nio.charset.StandardCharsets
@@ -13,7 +13,7 @@ class BlockingActionHelperSpecification extends DDSpecification {
 
   void 'determineTemplate with auto returns #templateType for "#accept"'() {
     expect:
-    BlockingActionHelper.determineTemplateType(Flow.Action.BlockingContentType.AUTO, accept) == templateType
+    BlockingActionHelper.determineTemplateType(BlockingContentType.AUTO, accept) == templateType
 
     where:
     accept   | templateType
@@ -35,12 +35,12 @@ class BlockingActionHelperSpecification extends DDSpecification {
 
   void 'determineTemplate with json'() {
     expect:
-    BlockingActionHelper.determineTemplateType(Flow.Action.BlockingContentType.JSON, 'text/html') == JSON
+    BlockingActionHelper.determineTemplateType(BlockingContentType.JSON, 'text/html') == JSON
   }
 
   void 'determineTemplate with html'() {
     expect:
-    BlockingActionHelper.determineTemplateType(Flow.Action.BlockingContentType.HTML, 'application/json') == HTML
+    BlockingActionHelper.determineTemplateType(BlockingContentType.HTML, 'application/json') == HTML
   }
 
   void 'getHttpCode return #result for #input'() {

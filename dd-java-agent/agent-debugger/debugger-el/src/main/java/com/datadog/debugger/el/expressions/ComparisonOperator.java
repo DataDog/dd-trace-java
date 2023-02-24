@@ -1,6 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.StringValue;
 import java.math.BigDecimal;
@@ -74,8 +75,12 @@ public enum ComparisonOperator {
 
   public abstract Boolean apply(Value<?> left, Value<?> right);
 
-  public String prettyPrint() {
+  public String getSymbol() {
     return symbol;
+  }
+
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
   }
 
   protected static boolean isNan(Number... numbers) {

@@ -1,6 +1,7 @@
 package com.datadog.debugger.el.values;
 
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.expressions.ValueExpression;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.Values;
@@ -8,10 +9,11 @@ import java.lang.reflect.Array;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * A list-like {@linkplain Value}.<br>
- * Allows wrapping of arrays as well as {@linkplain List} instances.
+ * Allows wrapping of arrays as well as {@linkplain List} or {@link Set} instances.
  */
 public class ListValue implements CollectionValue<Object>, ValueExpression<ListValue> {
   private final Object listHolder;
@@ -52,8 +54,8 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
   }
 
   public boolean isEmpty() {
-    if (listHolder instanceof List) {
-      return ((List<?>) listHolder).isEmpty();
+    if (listHolder instanceof Collection) {
+      return ((Collection<?>) listHolder).isEmpty();
     } else if (listHolder instanceof Value) {
       Value<?> val = (Value<?>) listHolder;
       return val.isNull() || val.isUndefined();
@@ -65,8 +67,8 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
   }
 
   public int count() {
-    if (listHolder instanceof List) {
-      return ((List<?>) listHolder).size();
+    if (listHolder instanceof Collection) {
+      return ((Collection<?>) listHolder).size();
     } else if (listHolder == Value.nullValue()) {
       return 0;
     } else if (arrayHolder != null) {
@@ -92,6 +94,8 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
     }
     if (listHolder instanceof List) {
       return Value.of(((List<?>) listHolder).get(index));
+    } else if (listHolder instanceof Set) {
+      throw new UnsupportedOperationException("Cannot access Set by index");
     } else if (listHolder instanceof Value) {
       return (Value<?>) listHolder;
     } else if (arrayHolder != null) {
@@ -149,13 +153,19 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
   }
 
   @Override
-  public String prettyPrint() {
-    if (arrayHolder != null) {
-      return arrayType.getTypeName() + "[]";
-    }
-    if (listHolder instanceof List) {
-      return "List";
-    }
-    return "null";
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
+  }
+
+  public Object getListHolder() {
+    return listHolder;
+  }
+
+  public Object getArrayHolder() {
+    return arrayHolder;
+  }
+
+  public Class<?> getArrayType() {
+    return arrayType;
   }
 }

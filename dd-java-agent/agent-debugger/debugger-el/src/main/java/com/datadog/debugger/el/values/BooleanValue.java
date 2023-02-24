@@ -1,6 +1,7 @@
 package com.datadog.debugger.el.values;
 
 import com.datadog.debugger.el.Literal;
+import com.datadog.debugger.el.Visitor;
 
 /** Constant boolean value */
 public final class BooleanValue extends Literal<Boolean> {
@@ -17,10 +18,7 @@ public final class BooleanValue extends Literal<Boolean> {
   }
 
   @Override
-  public String prettyPrint() {
-    if (value == null) {
-      return "null";
-    }
-    return String.valueOf(value.booleanValue());
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
   }
 }

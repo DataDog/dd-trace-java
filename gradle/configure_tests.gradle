@@ -63,3 +63,26 @@ tasks.withType(Test).configureEach {
 
   timeout = testTimeoutDuration
 }
+
+// Setup flaky tests jobs. Done in afterEvaluate so that it applies to latestDepTest.
+project.afterEvaluate {
+  tasks.withType(Test).configureEach {
+    // JUnit 5 support
+    if (project.findProperty("enableJunitPlatform") == true) {
+      useJUnitPlatform {
+        if (project.rootProject.hasProperty("skipFlakyTests")) {
+          excludeTags "flaky"
+        } else if (project.rootProject.hasProperty("runFlakyTests")) {
+          includeTags "flaky"
+        }
+      }
+    }
+
+    // Spock support
+    if (project.rootProject.hasProperty("skipFlakyTests")) {
+      jvmArgs += ["-Drun.flaky.tests=false"]
+    } else if (project.rootProject.hasProperty("runFlakyTests")) {
+      jvmArgs += ["-Drun.flaky.tests=true"]
+    }
+  }
+}

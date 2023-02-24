@@ -101,6 +101,9 @@ public class TagInterceptor {
 
   private boolean interceptResourceName(DDSpanContext span, Object value) {
     if (ruleFlags.isEnabled(RESOURCE_NAME)) {
+      if (null == value) {
+        return false;
+      }
       if (value instanceof CharSequence) {
         span.setResourceName((CharSequence) value, ResourceNamePriorities.TAG_INTERCEPTOR);
       } else {

@@ -6,6 +6,7 @@ import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.propagation.StringModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import groovy.transform.CompileDynamic
 import org.junit.jupiter.api.Assertions
 
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
@@ -13,6 +14,7 @@ import static com.datadog.iast.taint.TaintUtils.fromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.getStringFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.taintFormat
 
+@CompileDynamic
 class StringModuleTest extends IastModuleImplTestBase {
 
   private StringModule module
@@ -20,11 +22,11 @@ class StringModuleTest extends IastModuleImplTestBase {
   private List<Object> objectHolder
 
   def setup() {
-    module = registerDependencies(new StringModuleImpl())
+    module = new StringModuleImpl()
     objectHolder = []
   }
 
-  void 'onStringBuilderAppend null or empty (#builder, #param)'(final StringBuilder builder, final String param) {
+  void 'onStringBuilderAppend null or empty (#builder, #param)'(StringBuilder builder, final String param) {
     given:
     final result = builder?.append(param)
 
@@ -40,7 +42,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     sb('')  | ''
   }
 
-  void 'onStringBuilderAppend without span (#builder, #param)'(final StringBuilder builder, final String param, final int mockCalls) {
+  void 'onStringBuilderAppend without span (#builder, #param)'(StringBuilder builder, final String param, final int mockCalls) {
     given:
     final result = builder?.append(param)
 
@@ -108,7 +110,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     sb('1==>234<==5==>678<==9') | 'a==>bcd<==e==>fgh<==i' | 1         | '1==>234<==5==>678<==9a==>bcd<==e==>fgh<==i'
   }
 
-  void 'onStringBuilderInit null or empty (#builder, #param)'(final StringBuilder builder, final String param) {
+  void 'onStringBuilderInit null or empty (#builder, #param)'(StringBuilder builder, final String param) {
     given:
     final result = builder?.append(param)
 
@@ -124,7 +126,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     sb('')  | ''
   }
 
-  void 'onStringBuilderInit without span (#builder, #param)'(final StringBuilder builder, final String param, final int mockCalls) {
+  void 'onStringBuilderInit without span (#builder, #param)'(StringBuilder builder, final String param, final int mockCalls) {
     given:
     final result = builder?.append(param)
 
@@ -190,7 +192,7 @@ class StringModuleTest extends IastModuleImplTestBase {
 
   void 'onStringBuilderToString without span'() {
     given:
-    final builder = sb('1')
+    def builder = sb('1')
     final result = builder.toString()
 
     when:
@@ -735,15 +737,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     "a==>b<==c==>d<==e" | 2     | "a==>b<==c==>d<==ea==>b<==c==>d<==e"
   }
 
-  private static StringBuilder sb() {
-    return sb('')
-  }
-
-  private static StringBuilder sb(final String string) {
-    return new StringBuilder(string)
-  }
-
-  def 'test toUpperCase for null arguments'() {
+  void 'test toUpperCase for null arguments'() {
     when:
     module.onStringToUpperCase(null, null)
 
@@ -891,5 +885,115 @@ class StringModuleTest extends IastModuleImplTestBase {
     "\u00cc\u00cc==>123<==B"     | "i̇==>̀i̇<==̀123b"         | "lt"   | 6          | 10           | [[2, 3]]
     "\u00cc\u00ccFFFF==>123<==B" | "i̇̀i̇̀==>fff<==f123b"     | "lt"   | 10         | 14           | [[6, 3]]
     "A==>\u00cc\u00cc\u00cc<==B" | "a==>ììì<==b"          | "en"   | 5          | 5            | [[1, 3]]
+  }
+
+  void 'test trim and make sure IastRequestContext is called'() {
+    given:
+
+    final span = Mock(AgentSpan)
+    tracer.activeSpan() >> span
+    final reqCtx = Mock(RequestContext)
+    span.getRequestContext() >> reqCtx
+    final ctx = new IastRequestContext()
+    reqCtx.getData(RequestContextSlot.IAST) >> ctx
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+    def result = self.trim()
+
+
+    when:
+    module.onStringTrim(self, result)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    1 * span.getRequestContext() >> reqCtx
+    1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    testString     | expected
+    "==>123<==   " | "==>123<=="
+  }
+
+  void 'test trim for not empty string cases'() {
+    given:
+
+    final span = Mock(AgentSpan)
+    tracer.activeSpan() >> span
+    final reqCtx = Mock(RequestContext)
+    span.getRequestContext() >> reqCtx
+    final ctx = new IastRequestContext()
+    reqCtx.getData(RequestContextSlot.IAST) >> ctx
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+    def result = self.trim()
+
+
+    when:
+    module.onStringTrim(self, result)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    testString                                                     | expected
+    " ==>   <== ==>   <== ==>456<== ==>ABC<== ==>   <== ==>   <==" | "==>456<== ==>ABC<=="
+    " ==>   <== ==>   <== ==>456<== ==>   <== ==>   <=="           | "==>456<=="
+    " ==>   <== ==>   <== ==>456<== ==>   <== "                    | "==>456<=="
+    " ==>   <== ==>   <== ==>456<== "                              | "==>456<=="
+    "==>   <== ==>   <== ==>456<== "                               | "==>456<=="
+    "==>ABC<==123==>456<== "                                       | "==>ABC<==123==>456<=="
+    "==>ABC<==123   ==>   <== "                                    | "==>ABC<==123"
+    "==>ABC<==   ==>   <== "                                       | "==>ABC<=="
+    "==>ABC<==   ==>   <=="                                        | "==>ABC<=="
+    " ==>   <== 789==>456<== "                                     | "789==>456<=="
+    "==>   <== 789==>456<== "                                      | "789==>456<=="
+    "==>   <== ==>456<== "                                         | "==>456<=="
+    "==>   <== ==>456<=="                                          | "==>456<=="
+    "==>   <====>456<=="                                           | "==>456<=="
+    "==>123<=="                                                    | "==>123<=="
+    "   ==>123<=="                                                 | "==>123<=="
+    "==>123<==   "                                                 | "==>123<=="
+  }
+
+  void 'test trim for empty string cases'() {
+    given:
+
+    final span = Mock(AgentSpan)
+    tracer.activeSpan() >> span
+    final reqCtx = Mock(RequestContext)
+    span.getRequestContext() >> reqCtx
+    final ctx = new IastRequestContext()
+    reqCtx.getData(RequestContextSlot.IAST) >> ctx
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+    def result = self.trim()
+
+
+    when:
+    module.onStringTrim(self, result)
+
+    then:
+    null == taintedObjects.get(result)
+    result == expected
+
+    where:
+    testString              | expected
+    " ==>   <== "           | ""
+    ""                      | ""
+    " ==>   <== ==>   <== " | ""
+    "==>   <== ==>   <=="   | ""
+    "123"                   | "123"
+    " 123 "                 | "123"
+  }
+
+  private static StringBuilder sb() {
+    return sb('')
+  }
+
+  private static StringBuilder sb(final String string) {
+    return new StringBuilder(string)
   }
 }

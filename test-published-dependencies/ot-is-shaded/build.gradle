@@ -91,6 +91,9 @@ tasks.register('checkJarContents', CheckJarContentsTask) {
     '^[^/]*\\.version$',
     '^DDSketch.proto$',
     '^META-INF/.*$',
+    '^com/$',
+    '^com/kenai/$',
+    '^com/kenai/jffi/.*$',
     '^datadog/.*$',
     '^ddtrot/.*$'
   ]

@@ -3,9 +3,10 @@ package datadog.trace.instrumentation.aerospike4
 import com.aerospike.client.AerospikeClient
 import com.aerospike.client.Bin
 import com.aerospike.client.Key
+import datadog.trace.api.Config
 import spock.lang.Shared
 
-class AerospikeClientTest extends AerospikeBaseTest {
+abstract class AerospikeClientTest extends AerospikeBaseTest {
 
   @Shared
   AerospikeClient client
@@ -36,5 +37,39 @@ class AerospikeClientTest extends AerospikeBaseTest {
         aerospikeSpan(it, 0, "AerospikeClient.get")
       }
     }
+  }
+}
+
+class AerospikeClientV0ForkedTest extends AerospikeClientTest {
+  @Override
+  protected int version() {
+    return 0
+  }
+
+  @Override
+  protected String service() {
+    return "aerospike"
+  }
+
+  @Override
+  protected String operation() {
+    return "aerospike.query"
+  }
+}
+
+class AerospikeClientV1ForkedTest extends AerospikeClientTest {
+  @Override
+  protected int version() {
+    return 1
+  }
+
+  @Override
+  protected String service() {
+    return Config.get().getServiceName() + "-aerospike"
+  }
+
+  @Override
+  protected String operation() {
+    return "aerospike.query"
   }
 }

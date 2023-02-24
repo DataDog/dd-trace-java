@@ -2,11 +2,13 @@ package datadog.trace.instrumentation.jetty70;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import datadog.trace.instrumentation.jetty.JettyBlockResponseFunction;
 import javax.servlet.ServletException;
 import org.eclipse.jetty.server.HttpConnection;
 import org.eclipse.jetty.server.Request;
@@ -84,5 +86,10 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
       onError(span, throwable);
     }
     return super.onResponse(span, response);
+  }
+
+  @Override
+  protected BlockResponseFunction createBlockResponseFunction(Request request, Request connection) {
+    return new JettyBlockResponseFunction(request);
   }
 }

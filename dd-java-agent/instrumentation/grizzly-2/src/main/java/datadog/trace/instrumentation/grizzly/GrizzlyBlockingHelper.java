@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.grizzly;
 
 import static datadog.trace.instrumentation.grizzly.GrizzlyDecorator.DECORATE;
 
+import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -35,16 +36,25 @@ public class GrizzlyBlockingHelper {
 
   public static boolean block(
       Request request, Response response, Flow.Action.RequestBlockingAction rba, AgentScope scope) {
+    return block(request, response, rba.getStatusCode(), rba.getBlockingContentType(), scope);
+  }
+
+  public static boolean block(
+      Request request,
+      Response response,
+      int statusCode,
+      BlockingContentType bct,
+      AgentScope scope) {
     if (GET_OUTPUT_STREAM == null) {
       return false;
     }
 
     try {
       OutputStream os = (OutputStream) GET_OUTPUT_STREAM.invoke(response);
-      response.setStatus(BlockingActionHelper.getHttpCode(rba.getStatusCode()));
+      response.setStatus(BlockingActionHelper.getHttpCode(statusCode));
       String acceptHeader = request.getHeader("Accept");
       BlockingActionHelper.TemplateType type =
-          BlockingActionHelper.determineTemplateType(rba.getBlockingContentType(), acceptHeader);
+          BlockingActionHelper.determineTemplateType(bct, acceptHeader);
       response.setHeader("Content-type", BlockingActionHelper.getContentType(type));
       byte[] template = BlockingActionHelper.getTemplate(type);
       response.setHeader("Content-length", Integer.toString(template.length));

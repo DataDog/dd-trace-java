@@ -10,21 +10,14 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
 public class SpanProbe extends ProbeDefinition {
-  private String name;
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
   public SpanProbe() {
-    this(LANGUAGE, null, true, null, null, null);
+    this(LANGUAGE, null, true, null, null);
   }
 
-  public SpanProbe(
-      String language, String id, boolean active, String[] tagStrs, Where where, String name) {
+  public SpanProbe(String language, String id, boolean active, String[] tagStrs, Where where) {
     super(language, id, active, tagStrs, where, MethodLocation.DEFAULT);
-    this.name = name;
-  }
-
-  public String getName() {
-    return name;
   }
 
   @Override
@@ -39,7 +32,7 @@ public class SpanProbe extends ProbeDefinition {
   @Generated
   @Override
   public int hashCode() {
-    int result = Objects.hash(language, id, active, tagMap, where, evaluateAt, name);
+    int result = Objects.hash(language, id, active, tagMap, where, evaluateAt);
     result = 31 * result + Arrays.hashCode(tags);
     return result;
   }
@@ -56,8 +49,7 @@ public class SpanProbe extends ProbeDefinition {
         && Arrays.equals(tags, that.tags)
         && Objects.equals(tagMap, that.tagMap)
         && Objects.equals(where, that.where)
-        && Objects.equals(evaluateAt, that.evaluateAt)
-        && Objects.equals(name, that.name);
+        && Objects.equals(evaluateAt, that.evaluateAt);
   }
 
   @Generated
@@ -80,8 +72,6 @@ public class SpanProbe extends ProbeDefinition {
         + where
         + ", evaluateAt="
         + evaluateAt
-        + ", name="
-        + name
         + "} ";
   }
 
@@ -90,15 +80,8 @@ public class SpanProbe extends ProbeDefinition {
   }
 
   public static class Builder extends ProbeDefinition.Builder<Builder> {
-    private String name;
-
-    public SpanProbe.Builder name(String name) {
-      this.name = name;
-      return this;
-    }
-
     public SpanProbe build() {
-      return new SpanProbe(LANGUAGE, probeId, active, tagStrs, where, name);
+      return new SpanProbe(LANGUAGE, probeId, active, tagStrs, where);
     }
   }
 }

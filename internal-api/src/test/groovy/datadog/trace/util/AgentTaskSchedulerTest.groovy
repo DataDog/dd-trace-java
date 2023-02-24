@@ -2,7 +2,6 @@ package datadog.trace.util
 
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.test.util.GCUtils
-import spock.lang.Retry
 
 import java.lang.ref.WeakReference
 import java.util.concurrent.CountDownLatch
@@ -12,7 +11,6 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.SECONDS
 
-@Retry
 class AgentTaskSchedulerTest extends DDSpecification {
 
   AgentTaskScheduler scheduler
@@ -46,6 +44,7 @@ class AgentTaskSchedulerTest extends DDSpecification {
     latch.await(500, MILLISECONDS)
   }
 
+  //@Flaky("awaitGC is flaky")
   def "test weak scheduling"() {
     setup:
     def latch = new CountDownLatch(Integer.MAX_VALUE)

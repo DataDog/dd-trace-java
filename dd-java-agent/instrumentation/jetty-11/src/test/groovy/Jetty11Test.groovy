@@ -1,3 +1,4 @@
+import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import jakarta.servlet.http.HttpServlet
@@ -143,6 +144,9 @@ class Jetty11Test extends HttpServerTest<Server> {
           case QUERY_PARAM:
             response.status = endpoint.status
             response.writer.print(endpoint.bodyForQuery(request.queryString))
+            break
+          case USER_BLOCK:
+            Blocking.forUser('user-to-block').blockIfMatch()
             break
           case REDIRECT:
             response.sendRedirect(endpoint.body)

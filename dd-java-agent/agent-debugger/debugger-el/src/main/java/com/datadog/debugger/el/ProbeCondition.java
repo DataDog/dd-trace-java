@@ -30,6 +30,10 @@ public final class ProbeCondition implements DebuggerScript<Boolean> {
     return dslExpression;
   }
 
+  public WhenExpression getWhen() {
+    return when;
+  }
+
   public static class ProbeConditionJsonAdapter extends JsonAdapter<ProbeCondition> {
     @Override
     public ProbeCondition fromJson(JsonReader reader) throws IOException {
@@ -104,5 +108,9 @@ public final class ProbeCondition implements DebuggerScript<Boolean> {
       return true;
     }
     return false;
+  }
+
+  public void accept(Visitor visitor) {
+    when.accept(visitor);
   }
 }

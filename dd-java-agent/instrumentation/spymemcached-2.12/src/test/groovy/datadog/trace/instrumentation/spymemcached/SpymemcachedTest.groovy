@@ -1,8 +1,9 @@
 package datadog.trace.instrumentation.spymemcached
 
 import com.google.common.util.concurrent.MoreExecutors
-import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import net.spy.memcached.CASResponse
@@ -22,14 +23,13 @@ import java.util.concurrent.BlockingQueue
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.locks.ReentrantLock
 
-import static CompletionListener.COMPONENT_NAME
-import static CompletionListener.OPERATION_NAME
-import static CompletionListener.SERVICE_NAME
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
+import static datadog.trace.instrumentation.spymemcached.MemcacheClientDecorator.*
+import static datadog.trace.instrumentation.spymemcached.MemcacheClientDecorator.COMPONENT_NAME
 import static net.spy.memcached.ConnectionFactoryBuilder.Protocol.BINARY
 
-class SpymemcachedTest extends AgentTestRunner {
+abstract class SpymemcachedTest extends VersionedNamingTestBase {
 
   @Shared
   def parentOperation = "parent-span"
@@ -665,22 +665,22 @@ class SpymemcachedTest extends AgentTestRunner {
     }
   }
 
-  def getSpan(TraceAssert trace, int index, String operation, String error = null, String result = null) {
+  def getSpan(TraceAssert trace, int index, String resource, String error = null, String result = null) {
     return trace.span {
       if (index > 0) {
         childOf(trace.span(0))
       }
 
-      serviceName SERVICE_NAME
-      operationName OPERATION_NAME
-      resourceName operation
+      serviceName service()
+      operationName operation()
+      resourceName resource
       spanType DDSpanTypes.MEMCACHED
       errored(error != null && error != "canceled")
       topLevel true
       tags {
         "$Tags.COMPONENT" COMPONENT_NAME
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-        "$Tags.DB_TYPE" CompletionListener.DB_TYPE
+        "$Tags.DB_TYPE" DB_TYPE
 
         if (error == "canceled") {
           "${CompletionListener.DB_COMMAND_CANCELLED}" true
@@ -709,5 +709,41 @@ class SpymemcachedTest extends AgentTestRunner {
         defaultTags()
       }
     }
+  }
+}
+
+class SpymemcachedV0ForkedTest extends SpymemcachedTest {
+
+  @Override
+  protected int version() {
+    return 0
+  }
+
+  @Override
+  protected String service() {
+    return "memcached"
+  }
+
+  @Override
+  protected String operation() {
+    return "memcached.query"
+  }
+}
+
+class SpymemcachedV1ForkedTest extends SpymemcachedTest {
+
+  @Override
+  protected int version() {
+    return 1
+  }
+
+  @Override
+  protected String service() {
+    return Config.get().getServiceName() + "-memcached"
+  }
+
+  @Override
+  protected String operation() {
+    return "memcached.command"
   }
 }

@@ -2,13 +2,14 @@ package datadog.trace.instrumentation.junit4;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.junit.rules.RuleChain;
 import org.junit.runner.notification.RunListener;
@@ -24,7 +25,7 @@ public class JUnit4Instrumentation extends Instrumenter.CiVisibility
 
   @Override
   public String hierarchyMarkerType() {
-    return "org.junit.runner.Runner";
+    return "org.junit.runner.notification.RunNotifier";
   }
 
   @Override
@@ -44,29 +45,25 @@ public class JUnit4Instrumentation extends Instrumenter.CiVisibility
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        named("run").and(takesArgument(0, named("org.junit.runner.notification.RunNotifier"))),
-        JUnit4Instrumentation.class.getName() + "$JUnit4Advice");
+        isConstructor(), JUnit4Instrumentation.class.getName() + "$JUnit4Advice");
   }
 
   public static class JUnit4Advice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void addTracingListener(@Advice.Argument(0) final RunNotifier runNotifier) {
-      // No public accessor to get already installed listeners.
-      // The installed RunListeners list are obtained using reflection.
-      final List<RunListener> runListeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);
-      if (runListeners == null) {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void addTracingListener(
+        @Advice.This(typing = Assigner.Typing.DYNAMIC) final RunNotifier runNotifier) {
+      List<RunListener> listeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);
+      if (listeners == null) {
         return;
       }
 
-      // This prevents installing the TracingListener multiple times.
-      for (final RunListener listener : runListeners) {
+      for (RunListener listener : listeners) {
         if (JUnit4Utils.isTracingListener(listener)) {
           return;
         }
       }
 
-      final TracingListener tracingListener = new TracingListener();
-      runNotifier.addListener(tracingListener);
+      runNotifier.addListener(new TracingListener());
     }
 
     // JUnit 4.10 and above

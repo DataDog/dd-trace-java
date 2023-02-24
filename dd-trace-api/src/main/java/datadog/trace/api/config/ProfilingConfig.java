@@ -147,5 +147,13 @@ public final class ProfilingConfig {
   public static final String PROFILING_CONTEXT_ATTRIBUTES =
       "profiling.experimental.context.attributes";
 
+  public static final String PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED =
+      "profiling.experimental.context.attributes.span.name.enabled";
+
+  public static final String PROFILING_QUEUEING_TIME_ENABLED =
+      "profiling.ddprof.experimental.queueing.time.enabled";
+
+  public static final boolean PROFILING_QUEUEING_TIME_ENABLED_DEFAULT = false;
+
   private ProfilingConfig() {}
 }

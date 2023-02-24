@@ -1,8 +1,9 @@
 package springdata
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.test.util.Flaky
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.common.io.FileSystemUtils
 import org.elasticsearch.common.settings.Settings
@@ -16,13 +17,12 @@ import org.springframework.data.elasticsearch.core.ResultsExtractor
 import org.springframework.data.elasticsearch.core.query.IndexQueryBuilder
 import org.springframework.data.elasticsearch.core.query.NativeSearchQuery
 import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder
-import spock.lang.Retry
 import spock.lang.Shared
 
 import java.util.concurrent.atomic.AtomicLong
 
-@Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
-class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
+@Flaky
+abstract class Elasticsearch2SpringTemplateTest extends VersionedNamingTestBase {
   public static final long TIMEOUT = 10000 // 10 seconds
 
   @Shared
@@ -73,9 +73,9 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "RefreshAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           errored true
           tags {
@@ -132,9 +132,9 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
     assertTraces(7) {
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "CreateIndexAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -149,9 +149,9 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
       }
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "ClusterHealthAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -165,9 +165,9 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
       }
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "SearchAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -183,9 +183,9 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
       }
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "IndexAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -203,9 +203,9 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
       }
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "PutMappingAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -220,9 +220,9 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
       }
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "RefreshAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -240,9 +240,9 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
       }
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "SearchAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -271,7 +271,10 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
     setup:
 
     template.createIndex(indexName)
+    TEST_WRITER.waitForTraces(1)
     testNode.client().admin().cluster().prepareHealth().setWaitForYellowStatus().execute().actionGet(TIMEOUT)
+    TEST_WRITER.waitForTraces(2)
+
     template.index(IndexQueryBuilder.newInstance()
       .withObject(new Doc(id: 1, data: "doc a"))
       .withIndexName(indexName)
@@ -322,9 +325,9 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "elasticsearch"
+          serviceName service()
           resourceName "SearchAction"
-          operationName "elasticsearch.query"
+          operationName operation()
           spanType DDSpanTypes.ELASTICSEARCH
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
@@ -344,5 +347,41 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
 
     where:
     indexName = "test-index-extract"
+  }
+}
+
+class Elasticsearch2SpringTemplateV0ForkedTest extends Elasticsearch2SpringTemplateTest {
+
+  @Override
+  protected int version() {
+    return 0
+  }
+
+  @Override
+  protected String service() {
+    return "elasticsearch"
+  }
+
+  @Override
+  protected String operation() {
+    return "elasticsearch.query"
+  }
+}
+
+class Elasticsearch2SpringTemplateV1ForkedTest extends Elasticsearch2SpringTemplateTest {
+
+  @Override
+  protected int version() {
+    return 1
+  }
+
+  @Override
+  protected String service() {
+    return datadog.trace.api.Config.get().getServiceName() + "-elasticsearch"
+  }
+
+  @Override
+  protected String operation() {
+    return "elasticsearch.query"
   }
 }

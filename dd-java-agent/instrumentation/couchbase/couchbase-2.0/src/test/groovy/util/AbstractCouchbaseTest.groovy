@@ -13,8 +13,8 @@ import com.couchbase.mock.Bucket
 import com.couchbase.mock.BucketConfiguration
 import com.couchbase.mock.CouchbaseMock
 import com.couchbase.mock.http.query.QueryServer
-import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -27,7 +27,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-abstract class AbstractCouchbaseTest extends AgentTestRunner {
+abstract class AbstractCouchbaseTest extends VersionedNamingTestBase {
 
   static final USERNAME = "Administrator"
   static final PASSWORD = "password"
@@ -137,9 +137,9 @@ abstract class AbstractCouchbaseTest extends AgentTestRunner {
 
   void assertCouchbaseCall(TraceAssert trace, String name, String bucketName = null, Object parentSpan = null) {
     trace.span {
-      serviceName "couchbase"
+      serviceName service()
       resourceName name
-      operationName "couchbase.call"
+      operationName operation()
       spanType DDSpanTypes.COUCHBASE
       errored false
       if (parentSpan == null) {
@@ -157,5 +157,20 @@ abstract class AbstractCouchbaseTest extends AgentTestRunner {
         defaultTags()
       }
     }
+  }
+
+  @Override
+  protected int version() {
+    return 0
+  }
+
+  @Override
+  protected String service() {
+    return "couchbase"
+  }
+
+  @Override
+  protected String operation() {
+    return "couchbase.call"
   }
 }

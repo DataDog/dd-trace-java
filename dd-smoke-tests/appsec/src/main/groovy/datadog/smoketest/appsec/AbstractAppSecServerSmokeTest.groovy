@@ -48,7 +48,7 @@ abstract class AbstractAppSecServerSmokeTest extends AbstractServerSmokeTest {
   // enable remote config so that appsec is partially enabled (rc is now enabled by default)
   [
     '-Ddd.remote_config.url=https://127.0.0.1:54670/invalid_endpoint',
-    '-Ddd.remote_config.initial.poll.interval=3600'
+    '-Ddd.remote_config.poll_interval.seconds=3600'
   ]:
   ['-Ddd.remote_config.enabled=false']
   )

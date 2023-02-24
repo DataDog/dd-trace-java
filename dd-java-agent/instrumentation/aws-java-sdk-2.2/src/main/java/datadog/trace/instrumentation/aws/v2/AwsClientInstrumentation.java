@@ -1,12 +1,16 @@
 package datadog.trace.instrumentation.aws.v2;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.List;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import software.amazon.awssdk.core.SdkResponse;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 
 /** AWS SDK v2 instrumentation */
@@ -17,6 +21,11 @@ public final class AwsClientInstrumentation extends AbstractAwsClientInstrumenta
   @Override
   public String instrumentedType() {
     return "software.amazon.awssdk.core.client.builder.SdkDefaultClientBuilder";
+  }
+
+  @Override
+  public Map<String, String> contextStore() {
+    return singletonMap("software.amazon.awssdk.core.SdkResponse", "java.lang.String");
   }
 
   @Override
@@ -34,7 +43,9 @@ public final class AwsClientInstrumentation extends AbstractAwsClientInstrumenta
           return; // list already has our interceptor, return to builder
         }
       }
-      interceptors.add(new TracingExecutionInterceptor());
+      interceptors.add(
+          new TracingExecutionInterceptor(
+              InstrumentationContext.get(SdkResponse.class, String.class)));
     }
   }
 }

@@ -7,3 +7,36 @@ tasks.named("compileTestGroovy").configure {
   //instead, but kotlin plugin doesn't support it (yet?)
   classpath += files(compileTestKotlin.destinationDirectory)
 }
+
+// Having Groovy, Kotlin and Java in the same project is a bit problematic
+// this removes Kotlin from main source set to avoid compilation issues
+sourceSets {
+  main {
+    kotlin {
+      srcDirs = []
+    }
+    java {
+      srcDirs = ["src/main/java"]
+    }
+  }
+}
+
+// this creates Kotlin dirs to make JavaCompile tasks work
+def createKotlinDirs = tasks.register("createKotlinDirs") {
+  def dirsToCreate = ["classes/kotlin/main"]
+  doFirst {
+    dirsToCreate.forEach {
+      new File(project.buildDir, it).mkdirs()
+    }
+  }
+
+  outputs.dirs(
+    dirsToCreate.collect {
+      project.layout.buildDirectory.dir(it)
+    }
+    )
+}
+
+tasks.withType(JavaCompile).configureEach {
+  inputs.files(createKotlinDirs)
+}

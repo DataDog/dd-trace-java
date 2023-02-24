@@ -2,6 +2,7 @@ package com.datadog.debugger.agent;
 
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.remoteconfig.state.ParsedConfigKey;
@@ -35,6 +36,9 @@ public class DebuggerProductChangesListener implements ProductListener {
     static final JsonAdapter<LogProbe> LOG_PROBE_JSON_ADAPTER =
         MoshiHelper.createMoshiConfig().adapter(LogProbe.class);
 
+    static final JsonAdapter<SpanProbe> SPAN_PROBE_JSON_ADAPTER =
+        MoshiHelper.createMoshiConfig().adapter(SpanProbe.class);
+
     static Configuration deserializeConfiguration(byte[] content) throws IOException {
       return CONFIGURATION_JSON_ADAPTER.fromJson(
           Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
@@ -47,6 +51,11 @@ public class DebuggerProductChangesListener implements ProductListener {
 
     static LogProbe deserializeLogProbe(byte[] content) throws IOException {
       return LOG_PROBE_JSON_ADAPTER.fromJson(
+          Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
+    }
+
+    static SpanProbe deserializeSpanProbe(byte[] content) throws IOException {
+      return SPAN_PROBE_JSON_ADAPTER.fromJson(
           Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
     }
   }
@@ -79,7 +88,10 @@ public class DebuggerProductChangesListener implements ProductListener {
       configChunks.put(configId, (builder) -> builder.add(metricProbe));
     } else if (configId.startsWith("logProbe_")) {
       LogProbe logProbe = Adapter.deserializeLogProbe(content);
-      configChunks.put(configId, (builder) -> builder.add(logProbe));
+      configChunks.put(configId, (builder) -> builder.add(logProbe.copy()));
+    } else if (configId.startsWith("spanProbe_")) {
+      SpanProbe spanProbe = Adapter.deserializeSpanProbe(content);
+      configChunks.put(configId, (builder) -> builder.add(spanProbe));
     } else if (IS_UUID.test(configId)) {
       Configuration newConfig = Adapter.deserializeConfiguration(content);
       if (newConfig.getService().equals(serviceName)) {

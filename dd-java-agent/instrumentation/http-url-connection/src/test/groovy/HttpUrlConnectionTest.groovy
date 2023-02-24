@@ -10,10 +10,9 @@ import sun.net.www.protocol.https.HttpsURLConnectionImpl
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
-import static datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlState.OPERATION_NAME
 
 @Timeout(5)
-class HttpUrlConnectionTest extends HttpClientTest {
+abstract class HttpUrlConnectionTest extends HttpClientTest {
 
   static final RESPONSE = "Hello."
   static final STATUS = 200
@@ -102,7 +101,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
           if (renameService) {
             serviceName "localhost"
           }
-          operationName OPERATION_NAME
+          operationName operation()
           resourceName "GET $url.path"
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
@@ -122,7 +121,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
           if (renameService) {
             serviceName "localhost"
           }
-          operationName OPERATION_NAME
+          operationName operation()
           resourceName "GET $url.path"
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
@@ -192,7 +191,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
           if (renameService) {
             serviceName "localhost"
           }
-          operationName OPERATION_NAME
+          operationName operation()
           resourceName "GET $url.path"
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
@@ -212,7 +211,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
           if (renameService) {
             serviceName "localhost"
           }
-          operationName OPERATION_NAME
+          operationName operation()
           resourceName "GET $url.path"
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
@@ -267,7 +266,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
           if (renameService) {
             serviceName "localhost"
           }
-          operationName OPERATION_NAME
+          operationName operation()
           resourceName "GET $url.path"
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
@@ -338,7 +337,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
           if (renameService) {
             serviceName "localhost"
           }
-          operationName OPERATION_NAME
+          operationName operation()
           resourceName "POST $url.path"
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
@@ -372,5 +371,24 @@ class HttpUrlConnectionTest extends HttpClientTest {
 
     then:
     instance != null
+  }
+}
+
+class HttpUrlConnectionV0ForkedTest extends HttpUrlConnectionTest {}
+
+class HttpUrlConnectionV1ForkedTest extends HttpUrlConnectionTest {
+  @Override
+  protected int version() {
+    return 1
+  }
+
+  @Override
+  protected String service() {
+    return null
+  }
+
+  @Override
+  protected String operation() {
+    return "http.client.request"
   }
 }

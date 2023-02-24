@@ -2,48 +2,21 @@ package datadog.trace.agent.tooling.bytebuddy.csi;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.csi.CallSiteAdvice;
-import java.util.ServiceLoader;
 import javax.annotation.Nonnull;
 
 /**
- * Instrumented using a {@link CallSiteTransformer} to perform the actual instrumentation. It will
- * fetch the instance of the {@link CallSiteAdvice} from SPI according to the specified marker
- * interface.
+ * Instrumented using a {@link CallSiteTransformer} to perform the actual instrumentation. The
+ * method {@link #callSites()} should be implemented by subclasses to fetch the actual {@link
+ * CallSiteAdvice} implementations.
  */
 public abstract class CallSiteInstrumentation extends Instrumenter.Default
     implements Instrumenter.ForCallSite {
 
-  private final Class<?> spiInterface;
   private Advices advices;
 
-  /**
-   * Create a new instance of the instrumenter.
-   *
-   * @param spiInterface marker interface implemented by the chosen {@link CallSiteAdvice} instances
-   */
   public CallSiteInstrumentation(
-      @Nonnull final Class<?> spiInterface,
-      @Nonnull final String name,
-      @Nonnull final String... additionalNames) {
+      @Nonnull final String name, @Nonnull final String... additionalNames) {
     super(name, additionalNames);
-    this.spiInterface = spiInterface;
-    this.advices = null;
-  }
-
-  protected CallSiteInstrumentation(
-      @Nonnull final Iterable<CallSiteAdvice> advices,
-      @Nonnull final String name,
-      @Nonnull final String... additionalNames) {
-    super(name, additionalNames);
-    this.spiInterface = null;
-    this.advices = Advices.fromCallSites(advices);
-  }
-
-  @SuppressWarnings("unchecked")
-  private static Iterable<CallSiteAdvice> fetchAdvicesFromSpi(
-      @Nonnull final Class<?> spiInterface) {
-    final ClassLoader targetClassLoader = CallSiteInstrumentation.class.getClassLoader();
-    return (ServiceLoader<CallSiteAdvice>) ServiceLoader.load(spiInterface, targetClassLoader);
   }
 
   @Override
@@ -59,9 +32,11 @@ public abstract class CallSiteInstrumentation extends Instrumenter.Default
     return new CallSiteTransformer(advices());
   }
 
+  protected abstract CallSiteSupplier callSites();
+
   private Advices advices() {
     if (null == advices) {
-      advices = Advices.fromCallSites(fetchAdvicesFromSpi(spiInterface));
+      advices = Advices.fromCallSites(callSites().get());
     }
     return advices;
   }

@@ -11,6 +11,7 @@ import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.util.Strings;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
@@ -157,7 +158,7 @@ public interface Instrumenter {
     }
 
     @Override
-    public final void instrument(TransformerBuilder transformerBuilder) {
+    public void instrument(TransformerBuilder transformerBuilder) {
       if (isEnabled()) {
         transformerBuilder.applyInstrumentation(this);
       } else {
@@ -303,14 +304,47 @@ public interface Instrumenter {
   }
 
   /** Parent class for all IAST related instrumentations */
+  @SuppressForbidden
   abstract class Iast extends Default {
+
+    private static final Logger log = LoggerFactory.getLogger(Instrumenter.Iast.class);
+
     public Iast(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
     }
 
     @Override
+    public void instrument(TransformerBuilder transformerBuilder) {
+      if (isEnabled()) {
+        preloadClassNames();
+      }
+      super.instrument(transformerBuilder);
+    }
+
+    @Override
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.IAST);
+    }
+
+    /**
+     * Force loading of classes that need to be instrumented, but are using during instrumentation.
+     */
+    private void preloadClassNames() {
+      String[] list = getClassNamesToBePreloaded();
+      if (list != null) {
+        for (String clazz : list) {
+          try {
+            Class.forName(clazz);
+          } catch (Throwable t) {
+            log.debug("Error force loading {} class", clazz);
+          }
+        }
+      }
+    }
+
+    /** Get classes to force load* */
+    public String[] getClassNamesToBePreloaded() {
+      return null;
     }
   }
 

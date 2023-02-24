@@ -2,6 +2,7 @@ package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.probe.MetricProbe.MetricKind.COUNT;
 import static com.datadog.debugger.probe.MetricProbe.MetricKind.GAUGE;
+import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -187,7 +188,6 @@ public class ConfigurationTest {
     // span probe
     assertEquals(1, config0.getSpanProbes().size());
     SpanProbe spanProbe1 = config0.getSpanProbes().iterator().next();
-    assertEquals("span", spanProbe1.getName());
     SpanProbe spanProbe2 = config1.getSpanProbes().iterator().next();
     assertEquals("12-23", spanProbe2.getWhere().getLines()[0]);
   }
@@ -199,7 +199,7 @@ public class ConfigurationTest {
     LogProbe log1 =
         createLog(
             "log1", "this is a log line with arg={arg}", "java.lang.String", "indexOf", "(String)");
-    SpanProbe span1 = createSpan("span1", "java.lang.String", "indexOf", "(String)", "span");
+    SpanProbe span1 = createSpan("span1", "java.lang.String", "indexOf", "(String)");
     Configuration.FilterList allowList =
         new Configuration.FilterList(
             Arrays.asList("java.lang.util"), Arrays.asList("java.lang.String"));
@@ -228,7 +228,7 @@ public class ConfigurationTest {
             "java.lang.String",
             "indexOf",
             "(String)");
-    SpanProbe span2 = createSpan("span2", "String.java", 12, 23, "span");
+    SpanProbe span2 = createSpan("span2", "String.java", 12, 23);
     Configuration.FilterList allowList =
         new Configuration.FilterList(
             Arrays.asList("java.lang.util"), Arrays.asList("java.lang.String"));
@@ -293,13 +293,13 @@ public class ConfigurationTest {
         .captureSnapshot(false)
         .where(typeName, methodName, signature)
         .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
-        .template(template)
+        .template(template, parseTemplate(template))
         .tags("tag1:value1", "tag2:value2")
         .build();
   }
 
   private static SpanProbe createSpan(
-      String id, String typeName, String methodName, String signature, String spanName) {
+      String id, String typeName, String methodName, String signature) {
     return SpanProbe.builder()
         .language("java")
         .probeId(id)
@@ -307,19 +307,16 @@ public class ConfigurationTest {
         .where(typeName, methodName, signature)
         .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
         .tags("tag1:value1", "tag2:value2")
-        .name(spanName)
         .build();
   }
 
-  private static SpanProbe createSpan(
-      String id, String sourceFile, int lineFrom, int lineTill, String spanName) {
+  private static SpanProbe createSpan(String id, String sourceFile, int lineFrom, int lineTill) {
     return SpanProbe.builder()
         .language("java")
         .probeId(id)
         .active(true)
         .where(sourceFile, lineFrom, lineTill)
         .tags("tag1:value1", "tag2:value2")
-        .name(spanName)
         .build();
   }
 }
