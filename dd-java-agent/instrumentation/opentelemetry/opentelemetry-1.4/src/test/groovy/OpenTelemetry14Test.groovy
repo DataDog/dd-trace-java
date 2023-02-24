@@ -364,16 +364,16 @@ class OpenTelemetry14Test extends AgentTestRunner {
     DDSpanId.toHexString(ddChildSpan.spanId) == current.getSpanContext().spanId
 
     when:
-    def otelGreatChildSpan = tracer.spanBuilder("another-name").startSpan()
-    otelGreatChildSpan.makeCurrent()
+    def otelGrandChildSpan = tracer.spanBuilder("another-name").startSpan()
+    otelGrandChildSpan.makeCurrent()
     activeSpan = TEST_TRACER.activeSpan()
 
     then:
     activeSpan.operationName == "another-name"
-    DDSpanId.toHexString(activeSpan.spanId) == otelGreatChildSpan.getSpanContext().spanId
+    DDSpanId.toHexString(activeSpan.spanId) == otelGrandChildSpan.getSpanContext().spanId
 
     when:
-    otelGreatChildSpan.end()
+    otelGrandChildSpan.end()
     ddChildSpan.finish()
     otelParentSpan.end()
 

@@ -173,7 +173,7 @@ public class TelemetryServiceImpl implements TelemetryService {
   private void warnAboutExclusiveIntegrations() {
     if (this.openTelemetryIntegrationEnabled && this.openTracingIntegrationEnabled) {
       log.warn(
-          "Both Open Tracing and Open Telemetry integrations are enabled whereas mutually exclusive. Tracing performance can be degraded.");
+          "Both Open Tracing and Open Telemetry integrations are enabled but mutually exclusive. Tracing performance can be degraded.");
     }
   }
 
