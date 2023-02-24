@@ -22,7 +22,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
   new BigDecimal(System.getProperty("java.specification.version")).isAtLeast(17.0)
 })
 @Unroll
-class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
+abstract class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
   static final Closure<Doc> FIND
   static {
     // This method is different in Spring Data 2+

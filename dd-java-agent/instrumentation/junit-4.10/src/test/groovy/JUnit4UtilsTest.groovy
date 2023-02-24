@@ -1,10 +1,8 @@
-import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.DisableTestTrace
 import datadog.trace.instrumentation.junit4.JUnit4Utils
 import org.junit.runner.Description
+import spock.lang.Specification
 
-@DisableTestTrace(reason = "avoid self-tracing")
-class JUnit4UtilsTest extends AgentTestRunner {
+class JUnit4UtilsTest extends Specification {
 
   def "test get test name: #methodName"() {
     setup:

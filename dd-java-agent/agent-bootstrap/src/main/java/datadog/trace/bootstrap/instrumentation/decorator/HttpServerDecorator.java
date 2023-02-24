@@ -47,6 +47,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   public static final String DD_SPAN_ATTRIBUTE = "datadog.span";
   public static final String DD_DISPATCH_SPAN_ATTRIBUTE = "datadog.span.dispatch";
+  public static final String DD_FIN_DISP_LIST_SPAN_ATTRIBUTE =
+      "datadog.span.finish_dispatch_listener";
   public static final String DD_RESPONSE_ATTRIBUTE = "datadog.response";
 
   public static final LinkedHashMap<String, String> SERVER_PATHWAY_EDGE_TAGS;

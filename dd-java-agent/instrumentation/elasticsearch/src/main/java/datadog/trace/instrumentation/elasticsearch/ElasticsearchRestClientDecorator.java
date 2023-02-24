@@ -1,31 +1,32 @@
 package datadog.trace.instrumentation.elasticsearch;
 
-import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
+import datadog.trace.api.Config;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 import org.elasticsearch.client.Response;
 
-public class ElasticsearchRestClientDecorator extends DatabaseClientDecorator {
+public class ElasticsearchRestClientDecorator extends DBTypeProcessingDatabaseClientDecorator {
 
-  public static final CharSequence ELASTICSEARCH_REST_QUERY =
-      UTF8BytesString.create("elasticsearch.rest.query");
+  private static final String SERVICE_NAME =
+      SpanNaming.instance()
+          .namingSchema()
+          .database()
+          .service(Config.get().getServiceName(), "elasticsearch");
+
+  public static final CharSequence OPERATION_NAME =
+      UTF8BytesString.create(
+          SpanNaming.instance().namingSchema().database().operation("elasticsearch.rest"));
   public static final CharSequence ELASTICSEARCH_JAVA =
       UTF8BytesString.create("elasticsearch-java");
 
   public static final ElasticsearchRestClientDecorator DECORATE =
       new ElasticsearchRestClientDecorator();
-
-  @Override
-  public AgentSpan afterStart(AgentSpan span) {
-    span.setServiceName(dbType());
-    span.setTag(DB_TYPE, dbType());
-    return super.afterStart(span);
-  }
 
   @Override
   protected String[] instrumentationNames() {
@@ -34,7 +35,7 @@ public class ElasticsearchRestClientDecorator extends DatabaseClientDecorator {
 
   @Override
   protected String service() {
-    return "elasticsearch";
+    return SERVICE_NAME;
   }
 
   @Override
@@ -80,4 +81,7 @@ public class ElasticsearchRestClientDecorator extends DatabaseClientDecorator {
     }
     return span;
   }
+
+  @Override
+  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
 }

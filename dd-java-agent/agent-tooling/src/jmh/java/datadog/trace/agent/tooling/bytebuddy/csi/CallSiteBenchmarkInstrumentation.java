@@ -6,7 +6,6 @@ import datadog.trace.agent.tooling.csi.InvokeAdvice;
 import datadog.trace.agent.tooling.csi.Pointcut;
 import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import java.util.Collections;
-import java.util.List;
 import java.util.Set;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.jar.asm.Opcodes;
@@ -15,7 +14,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class CallSiteBenchmarkInstrumentation extends CallSiteInstrumentation {
 
   public CallSiteBenchmarkInstrumentation() {
-    super(buildCallSites(), "call-site");
+    super("call-site");
   }
 
   @Override
@@ -33,8 +32,19 @@ public class CallSiteBenchmarkInstrumentation extends CallSiteInstrumentation {
     return true;
   }
 
-  private static List<CallSiteAdvice> buildCallSites() {
-    return Collections.<CallSiteAdvice>singletonList(new GetParameterCallSite());
+  @Override
+  protected CallSiteSupplier callSites() {
+    return CallSites.INSTANCE;
+  }
+
+  public static class CallSites implements CallSiteSupplier {
+
+    public static final CallSiteSupplier INSTANCE = new CallSites();
+
+    @Override
+    public Iterable<CallSiteAdvice> get() {
+      return Collections.singletonList(new GetParameterCallSite());
+    }
   }
 
   public static final class CallSiteMatcher

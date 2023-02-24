@@ -72,6 +72,17 @@ class RepoIndexSourcePathResolverTest extends Specification {
     sourcePathResolver.getSourcePath(PackagePrivateClass) == expectedSourcePath
   }
 
+  def "test source path resolution for non-java class whose file name is different from class name"() {
+    setup:
+    def expectedSourcePath = givenSourceFile(RepoIndexSourcePathResolverTest, repoRoot + "/src")
+
+    when:
+    def sourcePathResolver = new RepoIndexSourcePathResolver(repoRoot, sourceRootResolver, fileSystem)
+
+    then:
+    sourcePathResolver.getSourcePath(PublicClassWhoseNameDoesNotCorrespondToFileName) == expectedSourcePath
+  }
+
   def "test source path for non-indexed class"() {
     setup:
 
@@ -110,7 +121,7 @@ class RepoIndexSourcePathResolverTest extends Specification {
   def "test source path resolution for repo with multiple files"() {
     setup:
     def expectedSourcePathOne = givenSourceFile(RepoIndexSourcePathResolverTest, repoRoot + "/src")
-    def expectedSourcePathTwo = givenSourceFile(RepoIndexSourcePathResolver, repoRoot + "/src")
+    def expectedSourcePathTwo = givenSourceFile(RepoIndexSourcePathResolver, repoRoot + "/src", RepoIndexSourcePathResolver.SourceType.JAVA)
 
     givenRepoFile(fileSystem.getPath(repoRoot, "README.md"))
 
@@ -123,8 +134,8 @@ class RepoIndexSourcePathResolverTest extends Specification {
     sourcePathResolver.getSourcePath(RepoIndexSourcePathResolver) == expectedSourcePathTwo
   }
 
-  private String givenSourceFile(Class c, String sourceRoot) {
-    def classPath = fileSystem.getPath(generateSourceFileName(c, sourceRoot))
+  private String givenSourceFile(Class c, String sourceRoot, RepoIndexSourcePathResolver.SourceType sourceType = RepoIndexSourcePathResolver.SourceType.GROOVY) {
+    def classPath = fileSystem.getPath(generateSourceFileName(c, sourceRoot, sourceType))
     sourceRootResolver.getSourceRoot(classPath) >> fileSystem.getPath(sourceRoot)
 
     givenRepoFile(classPath)
@@ -137,8 +148,8 @@ class RepoIndexSourcePathResolverTest extends Specification {
     Files.write(file, "STUB FILE BODY".getBytes())
   }
 
-  private static String generateSourceFileName(Class c, String sourceRoot) {
-    return sourceRoot + File.separator + c.getName().replace(".", File.separator) + RepoIndexSourcePathResolver.SourceType.GROOVY.extension
+  private static String generateSourceFileName(Class c, String sourceRoot, RepoIndexSourcePathResolver.SourceType sourceType = RepoIndexSourcePathResolver.SourceType.GROOVY) {
+    return sourceRoot + File.separator + c.getName().replace(".", File.separator) + sourceType.extension
   }
 
   private static final class InnerClass {
@@ -149,4 +160,7 @@ class RepoIndexSourcePathResolverTest extends Specification {
 
 @PackageScope
 class PackagePrivateClass {
+}
+
+class PublicClassWhoseNameDoesNotCorrespondToFileName {
 }

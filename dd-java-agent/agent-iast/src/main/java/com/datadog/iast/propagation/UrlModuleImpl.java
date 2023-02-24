@@ -2,7 +2,6 @@ package com.datadog.iast.propagation;
 
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 
-import com.datadog.iast.IastModuleBase;
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.taint.TaintedObject;
@@ -11,7 +10,8 @@ import datadog.trace.api.iast.propagation.UrlModule;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class UrlModuleImpl extends IastModuleBase implements UrlModule {
+public class UrlModuleImpl implements UrlModule {
+
   @Override
   public void onDecode(
       @Nonnull final String value, @Nullable final String encoding, @Nonnull final String result) {

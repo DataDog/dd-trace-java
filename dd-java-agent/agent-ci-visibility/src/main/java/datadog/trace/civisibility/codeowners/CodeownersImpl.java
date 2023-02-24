@@ -9,6 +9,7 @@ import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class CodeownersImpl implements Codeowners {
@@ -26,7 +27,7 @@ public class CodeownersImpl implements Codeowners {
    * @return the list of teams/people who own the provided path
    */
   @Override
-  public @Nullable Collection<String> getOwners(String path) {
+  public @Nullable Collection<String> getOwners(@Nonnull String path) {
     char[] pathCharacters = path.toCharArray();
     for (Entry entry : entries) {
       if (entry.getMatcher().consume(pathCharacters, 0) >= 0) {

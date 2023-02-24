@@ -4,8 +4,10 @@ import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
 import com.amazonaws.Response;
+import datadog.trace.api.Config;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.QualifiedClassNameCache;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
@@ -13,13 +15,23 @@ import java.net.URI;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
-public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response> {
+public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response>
+    implements AgentPropagation.Setter<Request<?>> {
   public static final AwsSdkClientDecorator DECORATE = new AwsSdkClientDecorator();
+  public static final CharSequence AWS_HTTP = UTF8BytesString.create("aws.http");
 
   private static final Pattern REQUEST_PATTERN = Pattern.compile("Request", Pattern.LITERAL);
   private static final Pattern AMAZON_PATTERN = Pattern.compile("Amazon", Pattern.LITERAL);
 
   static final CharSequence COMPONENT_NAME = UTF8BytesString.create("java-aws-sdk");
+
+  public static final boolean AWS_LEGACY_TRACING =
+      Config.get().isLegacyTracingEnabled(false, "aws-sdk");
+
+  public static final boolean SQS_LEGACY_TRACING = Config.get().isLegacyTracingEnabled(true, "sqs");
+
+  private static final String SQS_SERVICE_NAME =
+      AWS_LEGACY_TRACING || SQS_LEGACY_TRACING ? "sqs" : Config.get().getServiceName();
 
   private final QualifiedClassNameCache cache =
       new QualifiedClassNameCache(
@@ -61,7 +73,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       case "SQS.SendMessageBatch":
       case "SQS.ReceiveMessage":
       case "SQS.DeleteMessage":
-        span.setServiceName("sqs");
+      case "SQS.DeleteMessageBatch":
+        span.setServiceName(SQS_SERVICE_NAME);
         break;
       case "SNS.Publish":
         span.setServiceName("sns");
@@ -137,5 +150,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   @Override
   protected int status(final Response response) {
     return response.getHttpResponse().getStatusCode();
+  }
+
+  @Override
+  public void set(Request<?> carrier, String key, String value) {
+    carrier.addHeader(key, value);
   }
 }

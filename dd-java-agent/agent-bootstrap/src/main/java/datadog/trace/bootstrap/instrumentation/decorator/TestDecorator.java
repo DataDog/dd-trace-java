@@ -13,30 +13,17 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
+import java.util.Collections;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 public abstract class TestDecorator extends BaseDecorator {
 
   public static final String TEST_TYPE = "test";
-  public static final String TEST_PASS = "pass";
-  public static final String TEST_FAIL = "fail";
-  public static final String TEST_SKIP = "skip";
-  public static final UTF8BytesString CIAPP_TEST_ORIGIN = UTF8BytesString.create("ciapp-test");
 
-  public TestDecorator() {}
-
-  public boolean isCI() {
-    return InstrumentationBridge.isCi();
-  }
-
-  public Map<String, String> getCiTags() {
-    return InstrumentationBridge.getCiTags();
-  }
+  private static final UTF8BytesString CIAPP_TEST_ORIGIN = UTF8BytesString.create("ciapp-test");
 
   protected abstract String testFramework();
 
@@ -44,8 +31,16 @@ public abstract class TestDecorator extends BaseDecorator {
     return TEST_TYPE;
   }
 
-  protected String spanKind() {
+  protected String testSpanKind() {
     return Tags.SPAN_KIND_TEST;
+  }
+
+  protected String testSuiteSpanKind() {
+    return Tags.SPAN_KIND_TEST_SUITE;
+  }
+
+  protected String testModuleSpanKind() {
+    return Tags.SPAN_KIND_TEST_MODULE;
   }
 
   protected String runtimeName() {
@@ -78,12 +73,16 @@ public abstract class TestDecorator extends BaseDecorator {
 
   @Override
   protected CharSequence spanType() {
-    return InternalSpanTypes.TEST;
+    return null;
+  }
+
+  @Override
+  public CharSequence component() {
+    return null;
   }
 
   @Override
   public AgentSpan afterStart(final AgentSpan span) {
-    span.setTag(Tags.SPAN_KIND, spanKind());
     span.setTag(Tags.TEST_FRAMEWORK, testFramework());
     span.setTag(Tags.TEST_TYPE, testType());
     span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP);
@@ -103,18 +102,77 @@ public abstract class TestDecorator extends BaseDecorator {
     return super.afterStart(span);
   }
 
-  protected AgentSpan afterTestStart(
+  public void afterTestModuleStart(final AgentSpan span, final @Nullable String version) {
+    span.setSpanType(InternalSpanTypes.TEST_MODULE_END);
+    span.setTag(Tags.SPAN_KIND, testModuleSpanKind());
+
+    span.setResourceName(InstrumentationBridge.getModule());
+    span.setTag(Tags.TEST_MODULE, InstrumentationBridge.getModule());
+    span.setTag(Tags.TEST_BUNDLE, InstrumentationBridge.getModule());
+
+    // Version can be null. The testing framework version extraction is best-effort basis.
+    if (version != null) {
+      span.setTag(Tags.TEST_FRAMEWORK_VERSION, version);
+    }
+
+    afterStart(span);
+  }
+
+  public void afterTestSuiteStart(
+      final AgentSpan span,
+      final String testSuiteName,
+      final @Nullable Class<?> testClass,
+      final @Nullable String version,
+      final @Nullable Collection<String> categories) {
+    span.setSpanType(InternalSpanTypes.TEST_SUITE_END);
+    span.setTag(Tags.SPAN_KIND, testSuiteSpanKind());
+
+    span.setResourceName(testSuiteName);
+    span.setTag(Tags.TEST_SUITE, testSuiteName);
+    span.setTag(Tags.TEST_MODULE, InstrumentationBridge.getModule());
+    span.setTag(Tags.TEST_BUNDLE, InstrumentationBridge.getModule());
+
+    // Version can be null. The testing framework version extraction is best-effort basis.
+    if (version != null) {
+      span.setTag(Tags.TEST_FRAMEWORK_VERSION, version);
+    }
+
+    if (categories != null && !categories.isEmpty()) {
+      span.setTag(
+          Tags.TEST_TRAITS, toJson(Collections.singletonMap("category", toJson(categories)), true));
+    }
+
+    if (testClass != null) {
+      if (Config.get().isCiVisibilitySourceDataEnabled()) {
+        SourcePathResolver sourcePathResolver = InstrumentationBridge.getSourcePathResolver();
+        String sourcePath = sourcePathResolver.getSourcePath(testClass);
+        if (sourcePath != null && !sourcePath.isEmpty()) {
+          span.setTag(Tags.TEST_SOURCE_FILE, sourcePath);
+        }
+      }
+    }
+
+    afterStart(span);
+  }
+
+  public void afterTestStart(
       final AgentSpan span,
       final String testSuiteName,
       final String testName,
-      final String testParameters,
-      final String version,
-      final Class<?> testClass,
-      final Method testMethod) {
+      final @Nullable String testParameters,
+      final @Nullable String version,
+      final @Nullable Class<?> testClass,
+      final @Nullable Method testMethod,
+      final @Nullable Collection<String> categories) {
+
+    span.setSpanType(InternalSpanTypes.TEST);
+    span.setTag(Tags.SPAN_KIND, testSpanKind());
 
     span.setResourceName(testSuiteName + "." + testName);
-    span.setTag(Tags.TEST_SUITE, testSuiteName);
     span.setTag(Tags.TEST_NAME, testName);
+    span.setTag(Tags.TEST_SUITE, testSuiteName);
+    span.setTag(Tags.TEST_MODULE, InstrumentationBridge.getModule());
+    span.setTag(Tags.TEST_BUNDLE, InstrumentationBridge.getModule());
 
     if (testParameters != null) {
       span.setTag(Tags.TEST_PARAMETERS, testParameters);
@@ -125,11 +183,16 @@ public abstract class TestDecorator extends BaseDecorator {
       span.setTag(Tags.TEST_FRAMEWORK_VERSION, version);
     }
 
+    if (categories != null && !categories.isEmpty()) {
+      span.setTag(
+          Tags.TEST_TRAITS, toJson(Collections.singletonMap("category", toJson(categories)), true));
+    }
+
     if (Config.get().isCiVisibilitySourceDataEnabled()) {
       populateSourceDataTags(span, testClass, testMethod);
     }
 
-    return afterStart(span);
+    afterStart(span);
   }
 
   private void populateSourceDataTags(AgentSpan span, Class<?> testClass, Method testMethod) {
@@ -159,27 +222,5 @@ public abstract class TestDecorator extends BaseDecorator {
     if (testCodeOwners != null) {
       span.setTag(Tags.TEST_CODEOWNERS, toJson(testCodeOwners));
     }
-  }
-
-  public List<Method> testMethods(
-      final Class<?> testClass, final Class<? extends Annotation> testAnnotation) {
-    final List<Method> testMethods = new ArrayList<>();
-
-    final Method[] methods = testClass.getMethods();
-    for (final Method method : methods) {
-      if (method.getAnnotation(testAnnotation) != null) {
-        testMethods.add(method);
-      }
-    }
-    return testMethods;
-  }
-
-  public boolean isTestSpan(final AgentSpan activeSpan) {
-    if (activeSpan == null) {
-      return false;
-    }
-
-    return spanKind().equals(activeSpan.getSpanType())
-        && testType().equals(activeSpan.getTag(Tags.TEST_TYPE));
   }
 }

@@ -32,7 +32,7 @@ class SqsClientTest extends AgentTestRunner {
   protected void configurePreAgent() {
     super.configurePreAgent()
     // Set a service name that gets sorted early with SORT_BY_NAMES
-    injectSysConfig(GeneralConfig.SERVICE_NAME, "A")
+    injectSysConfig(GeneralConfig.SERVICE_NAME, "A-service")
   }
 
   @Shared
@@ -66,10 +66,12 @@ class SqsClientTest extends AgentTestRunner {
     })
     def messages = client.receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build()).messages()
 
+    messages.forEach {/* consume to create message spans */ }
+
     then:
     def sendSpan
     assertTraces(2) {
-      trace(3) {
+      trace(2) {
         basicSpan(it, "parent")
         span {
           serviceName "sqs"
@@ -95,67 +97,26 @@ class SqsClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span {
-          operationName "http.request"
-          resourceName "POST /"
-          spanType DDSpanTypes.HTTP_CLIENT
-          errored false
-          measured true
-          childOf(span(1))
-          tags {
-            "$Tags.COMPONENT" "apache-httpclient"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_HOSTNAME" "localhost"
-            "$Tags.PEER_PORT" address.port
-            "$Tags.HTTP_URL" "http://localhost:${address.port}/"
-            "$Tags.HTTP_METHOD" "POST"
-            "$Tags.HTTP_STATUS" 200
-            defaultTags()
-          }
-        }
-        sendSpan = span(2)
+        sendSpan = span(1)
       }
-      trace(2) {
+      trace(1) {
         span {
           serviceName "sqs"
           operationName "aws.http"
           resourceName "Sqs.ReceiveMessage"
-          spanType DDSpanTypes.HTTP_CLIENT
+          spanType DDSpanTypes.MESSAGE_CONSUMER
           errored false
           measured true
-          parent()
+          childOf(sendSpan)
           tags {
             "$Tags.COMPONENT" "java-aws-sdk"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.HTTP_URL" "http://localhost:${address.port}/"
-            "$Tags.HTTP_METHOD" "POST"
-            "$Tags.HTTP_STATUS" 200
-            "$Tags.PEER_PORT" address.port
-            "$Tags.PEER_HOSTNAME" "localhost"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "aws.service" "Sqs"
             "aws.operation" "ReceiveMessage"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             "aws.requestId" "00000000-0000-0000-0000-000000000000"
-            defaultTags()
-          }
-        }
-        span {
-          operationName "http.request"
-          resourceName "POST /"
-          spanType DDSpanTypes.HTTP_CLIENT
-          errored false
-          measured true
-          childOf(span(0))
-          tags {
-            "$Tags.COMPONENT" "apache-httpclient"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_HOSTNAME" "localhost"
-            "$Tags.PEER_PORT" address.port
-            "$Tags.HTTP_URL" "http://localhost:${address.port}/"
-            "$Tags.HTTP_METHOD" "POST"
-            "$Tags.HTTP_STATUS" 200
-            defaultTags()
+            defaultTags(true)
           }
         }
       }
@@ -195,7 +156,7 @@ class SqsClientTest extends AgentTestRunner {
     then:
     def sendSpan
     assertTraces(4, SORT_TRACES_BY_NAMES) {
-      trace(3) {
+      trace(2) {
         basicSpan(it, "parent")
         span {
           serviceName "sqs"
@@ -221,25 +182,7 @@ class SqsClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span {
-          operationName "http.request"
-          resourceName "POST /"
-          spanType DDSpanTypes.HTTP_CLIENT
-          errored false
-          measured true
-          childOf(span(1))
-          tags {
-            "$Tags.COMPONENT" "apache-httpclient"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_HOSTNAME" "localhost"
-            "$Tags.PEER_PORT" address.port
-            "$Tags.HTTP_URL" "http://localhost:${address.port}/"
-            "$Tags.HTTP_METHOD" "POST"
-            "$Tags.HTTP_STATUS" 200
-            defaultTags()
-          }
-        }
-        sendSpan = span(2)
+        sendSpan = span(1)
       }
       trace(1) {
         span {
@@ -258,7 +201,7 @@ class SqsClientTest extends AgentTestRunner {
           }
         }
       }
-      trace(2) {
+      trace(1) {
         span {
           serviceName "sqs"
           operationName "aws.http"
@@ -283,66 +226,25 @@ class SqsClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span {
-          operationName "http.request"
-          resourceName "POST /"
-          spanType DDSpanTypes.HTTP_CLIENT
-          errored false
-          measured true
-          childOf(span(0))
-          tags {
-            "$Tags.COMPONENT" "apache-httpclient"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_HOSTNAME" "localhost"
-            "$Tags.PEER_PORT" address.port
-            "$Tags.HTTP_URL" "http://localhost:${address.port}/"
-            "$Tags.HTTP_METHOD" "POST"
-            "$Tags.HTTP_STATUS" 200
-            defaultTags()
-          }
-        }
       }
-      trace(2) {
+      trace(1) {
         span {
           serviceName "sqs"
           operationName "aws.http"
           resourceName "Sqs.ReceiveMessage"
-          spanType DDSpanTypes.HTTP_CLIENT
+          spanType DDSpanTypes.MESSAGE_CONSUMER
           errored false
           measured true
-          parent()
+          childOf(sendSpan)
           tags {
             "$Tags.COMPONENT" "java-aws-sdk"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.HTTP_URL" "http://localhost:${address.port}/"
-            "$Tags.HTTP_METHOD" "POST"
-            "$Tags.HTTP_STATUS" 200
-            "$Tags.PEER_PORT" address.port
-            "$Tags.PEER_HOSTNAME" "localhost"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "aws.service" "Sqs"
             "aws.operation" "ReceiveMessage"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             "aws.requestId" "00000000-0000-0000-0000-000000000000"
-            defaultTags()
-          }
-        }
-        span {
-          operationName "http.request"
-          resourceName "POST /"
-          spanType DDSpanTypes.HTTP_CLIENT
-          errored false
-          measured true
-          childOf(span(0))
-          tags {
-            "$Tags.COMPONENT" "apache-httpclient"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_HOSTNAME" "localhost"
-            "$Tags.PEER_PORT" address.port
-            "$Tags.HTTP_URL" "http://localhost:${address.port}/"
-            "$Tags.HTTP_METHOD" "POST"
-            "$Tags.HTTP_STATUS" 200
-            defaultTags()
+            defaultTags(true)
           }
         }
       }

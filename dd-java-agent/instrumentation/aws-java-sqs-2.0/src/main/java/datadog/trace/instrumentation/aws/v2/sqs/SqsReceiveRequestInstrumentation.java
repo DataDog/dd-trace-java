@@ -14,11 +14,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class SqsReceiveRequestInstrumentation extends Instrumenter.Tracing
+public class SqsReceiveRequestInstrumentation extends AbstractSqsInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.WithTypeStructure {
-  public SqsReceiveRequestInstrumentation() {
-    super("aws-sdk");
-  }
 
   @Override
   public String instrumentedType() {

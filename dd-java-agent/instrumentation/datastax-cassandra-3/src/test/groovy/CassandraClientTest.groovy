@@ -1,7 +1,8 @@
 import com.datastax.driver.core.Cluster
 import com.datastax.driver.core.Session
-import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -17,7 +18,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
-class CassandraClientTest extends AgentTestRunner {
+abstract class CassandraClientTest extends VersionedNamingTestBase {
   private static final int ASYNC_TIMEOUT_MS = 5000
 
   @Override
@@ -134,8 +135,8 @@ class CassandraClientTest extends AgentTestRunner {
 
   def cassandraSpan(TraceAssert trace, String statement, String keyspace, boolean renameService, Object parentSpan = null, Throwable exception = null) {
     trace.span {
-      serviceName renameService && keyspace ? keyspace : "cassandra"
-      operationName "cassandra.query"
+      serviceName renameService && keyspace ? keyspace : service()
+      operationName operation()
       resourceName statement
       spanType DDSpanTypes.CASSANDRA
       if (parentSpan == null) {
@@ -154,5 +155,41 @@ class CassandraClientTest extends AgentTestRunner {
         defaultTags()
       }
     }
+  }
+}
+
+class CassandraClientV0ForkedTest extends CassandraClientTest {
+
+  @Override
+  protected int version() {
+    return 0
+  }
+
+  @Override
+  protected String service() {
+    return "cassandra"
+  }
+
+  @Override
+  protected String operation() {
+    return "cassandra.query"
+  }
+}
+
+class CassandraClientV1ForkedTest extends CassandraClientTest {
+
+  @Override
+  protected int version() {
+    return 1
+  }
+
+  @Override
+  protected String service() {
+    return Config.get().getServiceName() + "-cassandra"
+  }
+
+  @Override
+  protected String operation() {
+    return "cassandra.query"
   }
 }

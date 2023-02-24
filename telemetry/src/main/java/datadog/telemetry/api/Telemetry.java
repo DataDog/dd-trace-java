@@ -26,6 +26,9 @@ public class Telemetry {
   @com.squareup.moshi.Json(name = "seq_id")
   private Long seqId;
 
+  @com.squareup.moshi.Json(name = "debug")
+  private Boolean debug;
+
   @com.squareup.moshi.Json(name = "tracer_time")
   private Long tracerTime;
 
@@ -127,6 +130,25 @@ public class Telemetry {
 
   public Telemetry seqId(Long seqId) {
     this.seqId = seqId;
+    return this;
+  }
+
+  /**
+   * Get debug
+   *
+   * @return debug
+   */
+  public Boolean getDebug() {
+    return debug;
+  }
+
+  /** Set runtimeId */
+  public void setDebug(Boolean debug) {
+    this.debug = debug;
+  }
+
+  public Telemetry debug(Boolean debug) {
+    this.debug = debug;
     return this;
   }
 

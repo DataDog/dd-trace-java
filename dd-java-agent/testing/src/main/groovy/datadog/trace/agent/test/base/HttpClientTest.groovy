@@ -1,7 +1,8 @@
 package datadog.trace.agent.test.base
 
-import datadog.trace.agent.test.AgentTestRunner
+
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.server.http.HttpProxy
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
@@ -27,7 +28,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecora
 import static org.junit.Assume.assumeTrue
 
 @Unroll
-abstract class HttpClientTest extends AgentTestRunner {
+abstract class HttpClientTest extends VersionedNamingTestBase {
   protected static final BODY_METHODS = ["POST", "PUT"]
   protected static final int CONNECT_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(3) as int
   protected static final int READ_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(5) as int
@@ -780,7 +781,7 @@ abstract class HttpClientTest extends AgentTestRunner {
   }
 
   String expectedOperationName() {
-    return "http.request"
+    return operation()
   }
 
   int size(int size) {
@@ -821,5 +822,20 @@ abstract class HttpClientTest extends AgentTestRunner {
     // FIXME: this hack is here because callback with parent is broken in play-ws when the stream()
     // function is used.  There is no way to stop a test from a derived class hence the flag
     true
+  }
+
+  @Override
+  protected int version() {
+    return 0
+  }
+
+  @Override
+  protected String service() {
+    return null
+  }
+
+  @Override
+  protected String operation() {
+    return "http.request"
   }
 }

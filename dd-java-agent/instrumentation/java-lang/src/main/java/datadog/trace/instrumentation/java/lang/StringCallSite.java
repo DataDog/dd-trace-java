@@ -2,7 +2,9 @@ package datadog.trace.instrumentation.java.lang;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
+import datadog.trace.api.iast.IastAdvice.Propagation;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.model.PropagationTypes;
 import datadog.trace.api.iast.propagation.StringModule;
 import datadog.trace.util.stacktrace.StackUtils;
 import java.util.ArrayList;
@@ -11,6 +13,7 @@ import java.util.Locale;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+@Propagation(PropagationTypes.STRING)
 @CallSite(spi = IastAdvice.class)
 public class StringCallSite {
 
@@ -21,12 +24,12 @@ public class StringCallSite {
       @CallSite.Argument @Nullable final String param,
       @CallSite.Return @Nonnull final String result) {
     final StringModule module = InstrumentationBridge.STRING;
-    try {
-      if (module != null) {
+    if (module != null) {
+      try {
         module.onStringConcat(self, param, result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afetConcat threw", e);
       }
-    } catch (final Throwable e) {
-      module.onUnexpectedException("afetConcat threw", e);
     }
     return result;
   }
@@ -37,12 +40,12 @@ public class StringCallSite {
       @CallSite.Argument final int beginIndex,
       @CallSite.Return final String result) {
     final StringModule module = InstrumentationBridge.STRING;
-    try {
-      if (module != null) {
+    if (module != null) {
+      try {
         module.onStringSubSequence(self, beginIndex, self != null ? self.length() : 0, result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterSubstring threw", e);
       }
-    } catch (final Throwable e) {
-      module.onUnexpectedException("afterSubstring threw", e);
     }
     return result;
   }
@@ -54,12 +57,12 @@ public class StringCallSite {
       @CallSite.Argument final int endIndex,
       @CallSite.Return final String result) {
     final StringModule module = InstrumentationBridge.STRING;
-    try {
-      if (module != null) {
+    if (module != null) {
+      try {
         module.onStringSubSequence(self, beginIndex, endIndex, result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterSubstring threw", e);
       }
-    } catch (final Throwable e) {
-      module.onUnexpectedException("afterSubstring threw", e);
     }
     return result;
   }
@@ -71,12 +74,12 @@ public class StringCallSite {
       @CallSite.Argument final int endIndex,
       @CallSite.Return final CharSequence result) {
     final StringModule module = InstrumentationBridge.STRING;
-    try {
-      if (module != null) {
+    if (module != null) {
+      try {
         module.onStringSubSequence(self, beginIndex, endIndex, result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterSubSequence threw", e);
       }
-    } catch (final Throwable e) {
-      module.onUnexpectedException("afterSubSequence threw", e);
     }
     return result;
   }
@@ -88,12 +91,12 @@ public class StringCallSite {
       @CallSite.Argument final CharSequence[] elements,
       @CallSite.Return final String result) {
     final StringModule module = InstrumentationBridge.STRING;
-    try {
-      if (module != null) {
+    if (module != null) {
+      try {
         module.onStringJoin(result, delimiter, elements);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterJoin threw", e);
       }
-    } catch (final Throwable e) {
-      module.onUnexpectedException("afterJoin threw", e);
     }
     return result;
   }
@@ -114,42 +117,42 @@ public class StringCallSite {
       throw StackUtils.filterDatadog(e);
     }
     final StringModule module = InstrumentationBridge.STRING;
-    try {
-      if (module != null) {
+    if (module != null) {
+      try {
         module.onStringJoin(result, delimiter, copy.toArray(new CharSequence[copy.size()]));
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterSubSequence threw", e);
       }
-    } catch (final Throwable e) {
-      module.onUnexpectedException("afterSubSequence threw", e);
     }
     return result;
   }
 
   @CallSite.After("java.lang.String java.lang.String.toUpperCase()")
-  public static String afterToUppercase(
+  public static String afterToUpperCase(
       @CallSite.This final String self, @CallSite.Return final String result) {
     final StringModule module = InstrumentationBridge.STRING;
-    try {
-      if (module != null) {
+    if (module != null) {
+      try {
         module.onStringToUpperCase(self, result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterToUppercase threw", e);
       }
-    } catch (final Throwable e) {
-      module.onUnexpectedException("afterToUppercase threw", e);
     }
     return result;
   }
 
   @CallSite.After("java.lang.String java.lang.String.toUpperCase(java.util.Locale)")
-  public static String afterToUppercase(
+  public static String afterToUpperCase(
       @CallSite.This final String self,
       @CallSite.Argument final Locale locale,
       @CallSite.Return final String result) {
     final StringModule module = InstrumentationBridge.STRING;
-    try {
-      if (module != null) {
+    if (module != null) {
+      try {
         module.onStringToUpperCase(self, result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterToUppercase threw", e);
       }
-    } catch (final Throwable e) {
-      module.onUnexpectedException("afterToUppercase threw", e);
     }
     return result;
   }
@@ -158,28 +161,28 @@ public class StringCallSite {
   public static String afterToLowerCase(
       @CallSite.This final String self, @CallSite.Return final String result) {
     final StringModule module = InstrumentationBridge.STRING;
-    try {
-      if (module != null) {
+    if (module != null) {
+      try {
         module.onStringToLowerCase(self, result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterToLowerCase threw", e);
       }
-    } catch (final Throwable e) {
-      module.onUnexpectedException("afterToLowerCase threw", e);
     }
     return result;
   }
 
   @CallSite.After("java.lang.String java.lang.String.toLowerCase(java.util.Locale)")
-  public static String afterToLowercase(
+  public static String afterToLowerCase(
       @CallSite.This final String self,
       @CallSite.Argument final Locale locale,
       @CallSite.Return final String result) {
     final StringModule module = InstrumentationBridge.STRING;
-    try {
-      if (module != null) {
+    if (module != null) {
+      try {
         module.onStringToLowerCase(self, result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterToLowerCase threw", e);
       }
-    } catch (final Throwable e) {
-      module.onUnexpectedException("afterToLowerCase threw", e);
     }
     return result;
   }
@@ -188,12 +191,12 @@ public class StringCallSite {
   public static String afterTrim(
       @CallSite.This final String self, @CallSite.Return final String result) {
     final StringModule module = InstrumentationBridge.STRING;
-    try {
-      if (module != null) {
+    if (module != null) {
+      try {
         module.onStringTrim(self, result);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afetConcat threw", e);
       }
-    } catch (final Throwable e) {
-      module.onUnexpectedException("afetConcat threw", e);
     }
     return result;
   }
