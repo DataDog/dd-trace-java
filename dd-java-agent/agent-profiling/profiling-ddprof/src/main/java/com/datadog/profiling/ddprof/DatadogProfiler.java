@@ -271,6 +271,10 @@ public final class DatadogProfiler {
     throw new IllegalStateException("Datadog profiler session has already been started");
   }
 
+  void dump(Path path) {
+    profiler.dump(path);
+  }
+
   String cmdStartProfiling(Path file) throws IllegalStateException {
     // 'start' = start, 'jfr=7' = store in JFR format ready for concatenation
     StringBuilder cmd = new StringBuilder("start,jfr=7");
