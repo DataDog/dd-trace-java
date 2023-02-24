@@ -254,8 +254,7 @@ class OpenTracing31Test extends AgentTestRunner {
 
     then:
     tracer.scopeManager().active().delegate == secondScope.delegate
-    1 * STATS_D_CLIENT.incrementCounter("scope.close.error")
-    1 * STATS_D_CLIENT.incrementCounter("scope.user.close.error")
+    1 * STATS_D_CLIENT.incrementCounter("scope.close.error", ['source:manual'])
     _ * TEST_CHECKPOINTER._
     0 * _
 

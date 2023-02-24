@@ -549,7 +549,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then:
     assertEvents([ACTIVATE, ACTIVATE])
-    1 * statsDClient.incrementCounter("scope.close.error")
+    1 * statsDClient.incrementCounter("scope.close.error", _)
     1 * rootSpanCheckpointer.onRootSpanStarted(_)
     3 * listener.setContext(_, _)
     1 * listener.onAttach()
@@ -572,7 +572,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then:
     assertEvents([ACTIVATE, ACTIVATE, CLOSE, CLOSE])
-    1 * statsDClient.incrementCounter("scope.close.error")
+    1 * statsDClient.incrementCounter("scope.close.error", _)
   }
 
   def "closing scope out of order - complex"() {
@@ -626,7 +626,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeSpan() == thirdSpan
     tracer.activeScope() == thirdScope
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
-    1 * statsDClient.incrementCounter("scope.close.error")
+    1 * statsDClient.incrementCounter("scope.close.error", _)
     1 * listener.setContext(_, _)
     0 * _
 
@@ -706,7 +706,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then: 'Closing a scope once that has been activated multiple times does not close'
     assertEvents([ACTIVATE, ACTIVATE])
-    1 * statsDClient.incrementCounter("scope.close.error")
+    1 * statsDClient.incrementCounter("scope.close.error", _)
     0 * _
 
     when:

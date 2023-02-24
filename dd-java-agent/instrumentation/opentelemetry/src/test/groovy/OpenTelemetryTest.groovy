@@ -212,8 +212,7 @@ class OpenTelemetryTest extends AgentTestRunner {
 
     then:
     tracer.currentSpan.delegate == secondScope.delegate.span()
-    1 * STATS_D_CLIENT.incrementCounter("scope.close.error")
-    1 * STATS_D_CLIENT.incrementCounter("scope.user.close.error")
+    1 * STATS_D_CLIENT.incrementCounter("scope.close.error", ['source:manual'])
     _ * TEST_CHECKPOINTER._
     0 * _
 
