@@ -12,8 +12,6 @@ import org.springframework.web.reactive.function.client.ClientResponse;
 
 public class SpringWebfluxHttpClientDecorator
     extends HttpClientDecorator<ClientRequest, ClientResponse> {
-
-  public static final CharSequence HTTP_REQUEST = UTF8BytesString.create("http.request");
   public static final CharSequence SPRING_WEBFLUX_CLIENT =
       UTF8BytesString.create("spring-webflux-client");
   public static final CharSequence CANCELLED = UTF8BytesString.create("cancelled");
@@ -24,6 +22,8 @@ public class SpringWebfluxHttpClientDecorator
 
   public static final SpringWebfluxHttpClientDecorator DECORATE =
       new SpringWebfluxHttpClientDecorator();
+
+  public static final CharSequence HTTP_REQUEST = UTF8BytesString.create(DECORATE.operationName());
 
   public void onCancel(final AgentSpan span) {
     span.setTag("event", CANCELLED);

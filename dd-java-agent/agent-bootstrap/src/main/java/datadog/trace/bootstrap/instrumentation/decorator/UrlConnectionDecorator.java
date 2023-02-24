@@ -1,5 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -7,11 +10,19 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.function.Function;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class UrlConnectionDecorator extends UriBasedClientDecorator {
+  private static final DDCache<String, CharSequence> CACHE = DDCaches.newFixedSizeCache(16);
+
+  private static final Function<String, CharSequence> ADDER =
+      protocol ->
+          UTF8BytesString.create(
+              SpanNaming.instance().namingSchema().client().operationForProtocol(protocol));
+
   private static final Logger LOGGER = LoggerFactory.getLogger(UrlConnectionDecorator.class);
 
   public static final CharSequence COMPONENT = UTF8BytesString.create("UrlConnection");
@@ -49,5 +60,9 @@ public class UrlConnectionDecorator extends UriBasedClientDecorator {
     } catch (URISyntaxException e) {
       LOGGER.debug("Error tagging url", e);
     }
+  }
+
+  public CharSequence operationName(@Nonnull final String protocol) {
+    return CACHE.computeIfAbsent(protocol, ADDER);
   }
 }

@@ -131,17 +131,17 @@ class CouchbaseClientV0ForkedTest extends CouchbaseClientTest {
 
 class CouchbaseClientV1ForkedTest extends CouchbaseClientTest {
   @Override
-  protected int version() {
+  int version() {
     return 1
   }
 
   @Override
-  protected String service() {
+  String service() {
     return Config.get().getServiceName() + "-couchbase"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "couchbase.query"
   }
 }

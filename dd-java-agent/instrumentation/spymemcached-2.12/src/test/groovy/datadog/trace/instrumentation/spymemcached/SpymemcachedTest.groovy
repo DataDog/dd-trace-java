@@ -715,17 +715,17 @@ abstract class SpymemcachedTest extends VersionedNamingTestBase {
 class SpymemcachedV0ForkedTest extends SpymemcachedTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 0
   }
 
   @Override
-  protected String service() {
+  String service() {
     return "memcached"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "memcached.query"
   }
 }
@@ -733,17 +733,17 @@ class SpymemcachedV0ForkedTest extends SpymemcachedTest {
 class SpymemcachedV1ForkedTest extends SpymemcachedTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 1
   }
 
   @Override
-  protected String service() {
+  String service() {
     return Config.get().getServiceName() + "-memcached"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "memcached.command"
   }
 }

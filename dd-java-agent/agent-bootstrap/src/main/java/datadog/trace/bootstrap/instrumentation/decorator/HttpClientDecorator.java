@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -94,5 +95,12 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
       }
     }
     return span;
+  }
+
+  public String operationName() {
+    return SpanNaming.instance()
+        .namingSchema()
+        .client()
+        .operationForComponent(component().toString());
   }
 }

@@ -1,3 +1,4 @@
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import okhttp3.Call
@@ -14,7 +15,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 import static java.util.concurrent.TimeUnit.SECONDS
 
-class OkHttp3AsyncTest extends OkHttp3Test {
+abstract class OkHttp3AsyncTest extends OkHttp3Test {
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
     def reqBody = HttpMethod.requiresRequestBody(method) ? RequestBody.create(MediaType.parse("text/plain"), body) : null
@@ -70,4 +71,26 @@ class OkHttp3AsyncTest extends OkHttp3Test {
 
     method = "GET"
   }
+}
+
+
+class OkHttp3AsyncV0ForkedTest extends OkHttp3AsyncTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "okhttp.request"
+  }
+}
+
+class OkHttp3AsyncV1ForkedTest extends OkHttp3AsyncTest implements TestingGenericHttpNamingConventions.ClientV1 {
 }

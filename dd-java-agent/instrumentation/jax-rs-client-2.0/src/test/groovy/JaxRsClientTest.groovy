@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.jaxrs.JaxRsClientDecorator
 import datadog.trace.test.util.Flaky
 import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl
@@ -42,7 +43,17 @@ abstract class JaxRsClientTest extends HttpClientTest {
   }
 
   @Override
-  String expectedOperationName() {
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
     return "jax-rs.client.call"
   }
 
@@ -67,8 +78,7 @@ class JerseyClientTest extends JaxRsClientTest {
   }
 }
 
-@Timeout(5)
-class ResteasyClientTest extends JaxRsClientTest {
+abstract class ResteasyClientTest extends JaxRsClientTest {
 
   @Override
   ClientBuilder builder() {
@@ -80,6 +90,14 @@ class ResteasyClientTest extends JaxRsClientTest {
   boolean testRedirects() {
     false
   }
+}
+
+@Timeout(5)
+class ResteasyClientV0ForkedTest extends ResteasyClientTest {
+}
+
+@Timeout(5)
+class ResteasyClientV1ForkedTest extends ResteasyClientTest implements TestingGenericHttpNamingConventions.ClientV1 {
 }
 
 @Timeout(5)

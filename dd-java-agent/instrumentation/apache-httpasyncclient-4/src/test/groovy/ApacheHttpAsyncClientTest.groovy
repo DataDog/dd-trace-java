@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator
 import org.apache.http.HttpResponse
 import org.apache.http.client.config.RequestConfig
@@ -12,7 +13,7 @@ import spock.lang.Timeout
 import java.util.concurrent.CountDownLatch
 
 @Timeout(5)
-class ApacheHttpAsyncClientTest extends HttpClientTest {
+abstract class ApacheHttpAsyncClientTest extends HttpClientTest {
 
   @Shared
   RequestConfig requestConfig = RequestConfig.custom()
@@ -80,4 +81,10 @@ class ApacheHttpAsyncClientTest extends HttpClientTest {
   boolean testRemoteConnection() {
     false // otherwise SocketTimeoutException for https requests
   }
+}
+
+class ApacheHttpAsyncClientV0ForkedTest extends ApacheHttpAsyncClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
+}
+
+class ApacheHttpAsyncClientV1ForkedTest extends ApacheHttpAsyncClientTest implements TestingGenericHttpNamingConventions.ClientV1 {
 }

@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.commonshttpclient.CommonsHttpClientDecorator
 import org.apache.commons.httpclient.HttpClient
 import org.apache.commons.httpclient.HttpMethod
@@ -13,7 +14,7 @@ import spock.lang.Shared
 import spock.lang.Timeout
 
 @Timeout(5)
-class CommonsHttpClientTest extends HttpClientTest {
+abstract class CommonsHttpClientTest extends HttpClientTest {
   @Shared
   HttpClient client = new HttpClient()
 
@@ -73,4 +74,10 @@ class CommonsHttpClientTest extends HttpClientTest {
     // Generates 4 spans
     false
   }
+}
+
+class CommonsHttpClientV0ForkedTest extends CommonsHttpClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
+}
+
+class CommonsHttpClientV1ForkedTest extends CommonsHttpClientTest implements TestingGenericHttpNamingConventions.ClientV1 {
 }
