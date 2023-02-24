@@ -43,6 +43,10 @@ public abstract class TestDecorator extends BaseDecorator {
     return Tags.SPAN_KIND_TEST_MODULE;
   }
 
+  protected String testSessionSpanKind() {
+    return Tags.SPAN_KIND_TEST_SESSION;
+  }
+
   protected String runtimeName() {
     return System.getProperty("java.runtime.name");
   }

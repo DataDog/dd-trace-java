@@ -33,7 +33,8 @@ public class CiVisibilityTraceInterceptor implements TraceInterceptor {
     if (type == null
         || (!DDSpanTypes.TEST.contentEquals(type)
             && !DDSpanTypes.TEST_SUITE_END.contentEquals(type)
-            && !DDSpanTypes.TEST_MODULE_END.contentEquals(type))) {
+            && !DDSpanTypes.TEST_MODULE_END.contentEquals(type)
+            && !DDSpanTypes.TEST_SESSION_END.contentEquals(type))) {
       return Collections.emptyList();
     }
 

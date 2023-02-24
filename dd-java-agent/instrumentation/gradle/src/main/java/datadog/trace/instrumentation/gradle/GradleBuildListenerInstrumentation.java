@@ -12,7 +12,7 @@ public class GradleBuildListenerInstrumentation extends Instrumenter.CiVisibilit
     implements Instrumenter.ForSingleType {
 
   public GradleBuildListenerInstrumentation() {
-    super("gradle-test-result-processor");
+    super("gradle-build-listener");
   }
 
   @Override
@@ -22,7 +22,12 @@ public class GradleBuildListenerInstrumentation extends Instrumenter.CiVisibilit
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".GradleBuildListener"};
+    return new String[] {
+      packageName + ".GradleBuildListener",
+      packageName + ".GradleBuildListener$TestTaskStartAction",
+      packageName + ".GradleBuildListener$TestTaskFinishAction",
+      packageName + ".GradleDecorator"
+    };
   }
 
   @Override

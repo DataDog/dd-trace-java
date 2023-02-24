@@ -17,9 +17,8 @@ repositories {
 }
 
 dependencies {
-  // technically we support Gradle starting from v1.0, but no proper Jars of that version are published
-  // (org.gradle:gradle-core lacks some Task types that the instrumentation uses)
   compileOnly 'org.gradle:gradle-core:1.0'
+  compileOnly 'org.codehaus.groovy:groovy:2.5.21'
 
   testImplementation(group: 'org.gradle', name: 'gradle-core') {
     version {
