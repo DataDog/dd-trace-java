@@ -12,6 +12,7 @@ public abstract class InstrumentationBridge {
   private static volatile Codeowners CODEOWNERS;
   private static volatile MethodLinesResolver METHOD_LINES_RESOLVER;
   private static volatile SourcePathResolver SOURCE_PATH_RESOLVER;
+  private static volatile String MODULE;
 
   public static boolean isCi() {
     return CI;
@@ -51,5 +52,13 @@ public abstract class InstrumentationBridge {
 
   public static void setSourcePathResolver(SourcePathResolver sourcePathResolver) {
     SOURCE_PATH_RESOLVER = sourcePathResolver;
+  }
+
+  public static String getModule() {
+    return MODULE;
+  }
+
+  public static void setModule(String MODULE) {
+    InstrumentationBridge.MODULE = MODULE;
   }
 }

@@ -3,9 +3,6 @@ import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
-import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.api.DDSpanTypes
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import org.bson.BsonDocument
 import org.bson.BsonString
@@ -17,13 +14,13 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-class Mongo4ClientTest extends MongoBaseTest {
+abstract class Mongo4ClientTest extends MongoBaseTest {
 
   @Shared
   MongoClient client
 
   def setup() throws Exception {
-    client = MongoClients.create("mongodb://localhost:$port/?appname=some-instance")
+    client = MongoClients.create("mongodb://localhost:$port/?appname=some-description")
   }
 
   def cleanup() throws Exception {
@@ -233,29 +230,40 @@ class Mongo4ClientTest extends MongoBaseTest {
     where:
     collectionName = randomCollectionName()
   }
+}
 
-  def mongoSpan(TraceAssert trace, int index, String operation, String statement, boolean renameService = false, String instance = "some-instance", Object parentSpan = null, Throwable exception = null) {
-    trace.span {
-      serviceName renameService ? instance : "mongo"
-      operationName "mongo.query"
-      resourceName matchesStatement(statement)
-      spanType DDSpanTypes.MONGO
-      if (parentSpan == null) {
-        parent()
-      } else {
-        childOf((DDSpan) parentSpan)
-      }
-      topLevel true
-      tags {
-        "$Tags.COMPONENT" "java-mongo"
-        "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-        "$Tags.PEER_HOSTNAME" "localhost"
-        "$Tags.PEER_PORT" port
-        "$Tags.DB_TYPE" "mongo"
-        "$Tags.DB_INSTANCE" instance
-        "$Tags.DB_OPERATION" operation
-        defaultTags()
-      }
-    }
+class Mongo4ClientV0ForkedTest extends Mongo4ClientTest {
+
+  @Override
+  protected int version() {
+    return 0
+  }
+
+  @Override
+  protected String service() {
+    return V0_SERVICE
+  }
+
+  @Override
+  protected String operation() {
+    return V0_OPERATION
+  }
+}
+
+class Mongo4ClientV1ForkedTest extends Mongo4ClientTest {
+
+  @Override
+  protected int version() {
+    return 1
+  }
+
+  @Override
+  protected String service() {
+    return V1_SERVICE
+  }
+
+  @Override
+  protected String operation() {
+    return V1_OPERATION
   }
 }

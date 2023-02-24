@@ -5,6 +5,7 @@ import datadog.trace.plugin.csi.impl.CallSiteSpecification.AdviceSpecification
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.AfterSpecification
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.AroundSpecification
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.BeforeSpecification
+import groovy.transform.CompileDynamic
 import org.objectweb.asm.Type
 
 import javax.servlet.ServletRequest
@@ -12,11 +13,12 @@ import java.lang.invoke.MethodHandles
 import java.lang.invoke.MethodType
 import java.util.stream.Collectors
 
+@CompileDynamic
 final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
 
   static class NonCallSite {}
 
-  def 'test specification builder for non call site'() {
+  void 'test specification builder for non call site'() {
     setup:
     final advice = fetchClass(NonCallSite)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -33,7 +35,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     interface Spi {}
   }
 
-  def 'test specification builder with custom spi class'() {
+  void 'test specification builder with custom spi class'() {
     setup:
     final advice = fetchClass(WithSpiClass)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -51,7 +53,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     static class SampleHelper2 {}
   }
 
-  def 'test specification builder with custom helper classes'() {
+  void 'test specification builder with custom helper classes'() {
     setup:
     final advice = fetchClass(HelpersAdvice)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -74,7 +76,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test specification builder for before advice'() {
+  void 'test specification builder for before advice'() {
     setup:
     final advice = fetchClass(BeforeAdvice)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -104,7 +106,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test specification builder for around advice'() {
+  void 'test specification builder for around advice'() {
     setup:
     final advice = fetchClass(AroundAdvice)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -134,7 +136,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test specification builder for after advice'() {
+  void 'test specification builder for after advice'() {
     setup:
     final advice = fetchClass(AfterAdvice)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -164,7 +166,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test specification builder for advice with @AllArguments'() {
+  void 'test specification builder for advice with @AllArguments'() {
     setup:
     final advice = fetchClass(AllArgsAdvice)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -199,7 +201,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test specification builder for before invoke dynamic'() {
+  void 'test specification builder for before invoke dynamic'() {
     setup:
     final advice = fetchClass(InvokeDynamicBeforeAdvice)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -238,7 +240,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test specification builder for around invoke dynamic'() {
+  void 'test specification builder for around invoke dynamic'() {
     setup:
     final advice = fetchClass(InvokeDynamicAroundAdvice)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -273,7 +275,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test invoke dynamic constants'() {
+  void 'test invoke dynamic constants'() {
     setup:
     final advice = fetchClass(TestInvokeDynamicConstants)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -304,7 +306,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     static void before(@CallSite.This final ServletRequest request) { }
   }
 
-  def 'test specification builder for before advice array'() {
+  void 'test specification builder for before advice array'() {
     setup:
     final advice = fetchClass(TestBeforeArray)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -314,7 +316,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
 
     then:
     result.clazz.className == TestBeforeArray.name
-    final list = result.advices.collect(Collectors.toList())
+    final list = result.advices
     list.size() == 2
     list.each {
       assert it instanceof BeforeSpecification
@@ -344,7 +346,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test specification builder for before advice array'() {
+  void 'test specification builder for around advice array'() {
     setup:
     final advice = fetchClass(TestAroundArray)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -354,7 +356,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
 
     then:
     result.clazz.className == TestAroundArray.name
-    final list = result.advices.collect(Collectors.toList())
+    final list = result.advices
     list.size() == 2
     list.each {
       assert it instanceof AroundSpecification
@@ -384,7 +386,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test specification builder for before advice array'() {
+  void 'test specification builder for before advice array'() {
     setup:
     final advice = fetchClass(TestAfterArray)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -394,7 +396,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
 
     then:
     result.clazz.className == TestAfterArray.name
-    final list = result.advices.collect(Collectors.toList())
+    final list = result.advices
     list.size() == 2
     list.each {
       assert it instanceof AfterSpecification
@@ -420,7 +422,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test specification builder for inherited methods'() {
+  void 'test specification builder for inherited methods'() {
     setup:
     final advice = fetchClass(TestInheritedMethod)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -450,7 +452,7 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  def 'test specification builder for min java version'() {
+  void 'test specification builder for min java version'() {
     setup:
     final advice = fetchClass(TestMinJavaVersion)
     final specificationBuilder = new AsmSpecificationBuilder()
@@ -463,11 +465,11 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     result.minJavaVersion == 9
   }
 
-  protected static List<Integer> getArguments(final AdviceSpecification advice) {
+  private static List<Integer> getArguments(final AdviceSpecification advice) {
     return advice.arguments.map(it -> it.index).collect(Collectors.toList())
   }
 
   private static AdviceSpecification findAdvice(final CallSiteSpecification result, final String name) {
-    return result.advices.filter { it.advice.methodName == name }.findFirst().get()
+    return result.advices.find { it.advice.methodName == name }
   }
 }

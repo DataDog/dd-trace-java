@@ -1,6 +1,5 @@
 package datadog.trace.common.writer.ddintake;
 
-import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.civisibility.writer.ddintake.CiTestCycleMapperV1;
@@ -19,32 +18,27 @@ public class DDIntakeMapperDiscovery implements RemoteMapperDiscovery {
 
   private RemoteMapper mapper;
 
-  public DDIntakeMapperDiscovery(final TrackType trackType) {
-    this.trackType = trackType;
-    this.wellKnownTags = Config.get().getWellKnownTags();
-  }
-
   public DDIntakeMapperDiscovery(final TrackType trackType, final WellKnownTags wellKnownTags) {
     this.trackType = trackType;
     this.wellKnownTags = wellKnownTags;
   }
 
   private void reset() {
-    this.mapper = null;
+    mapper = null;
   }
 
   @Override
   public void discover() {
     reset();
     if (TrackType.CITESTCYCLE.equals(trackType)) {
-      this.mapper = new CiTestCycleMapperV1(wellKnownTags);
+      mapper = new CiTestCycleMapperV1(wellKnownTags);
     } else {
-      this.mapper = RemoteMapper.NO_OP;
+      mapper = RemoteMapper.NO_OP;
     }
   }
 
   @Override
   public RemoteMapper getMapper() {
-    return this.mapper;
+    return mapper;
   }
 }

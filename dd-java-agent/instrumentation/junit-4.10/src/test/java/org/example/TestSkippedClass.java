@@ -8,4 +8,7 @@ public class TestSkippedClass {
 
   @Test
   public void test_class_skipped() {}
+
+  @Test
+  public void test_class_another_skipped() {}
 }

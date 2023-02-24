@@ -617,6 +617,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     'GET'  | null | 'x-datadog-test-request-header'  | 'bar' | [ 'request_header_tag': 'bar' ]
   }
 
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
   def "test #endpoint with response header #header tag mapping"() {
     setup:
     injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "true")
@@ -661,6 +662,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     QUERY_ENCODED_BOTH | 'GET'  | null | IG_RESPONSE_HEADER | 'mapped_response_header_tag' | [ 'mapped_response_header_tag': "$IG_RESPONSE_HEADER_VALUE" ]
   }
 
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
   def "test tag query string for #endpoint rawQuery=#rawQuery"() {
     setup:
     injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "true")
@@ -819,7 +821,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     when:
     def response = client.newCall(request).execute()
     response.body().string() == PATH_PARAM.body
-    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.waitForTraces(2)
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }

@@ -3,42 +3,42 @@ package com.datadog.iast;
 import static com.datadog.iast.IastTag.ANALYZED;
 import static com.datadog.iast.IastTag.SKIPPED;
 
+import com.datadog.iast.HasDependencies.Dependencies;
 import com.datadog.iast.overhead.OverheadController;
 import com.datadog.iast.taint.TaintedObjects;
+import com.datadog.iast.telemetry.IastTelemetry;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.internal.TraceSegment;
 import java.util.function.BiFunction;
+import javax.annotation.Nonnull;
 
 public class RequestEndedHandler implements BiFunction<RequestContext, IGSpanInfo, Flow<Void>> {
 
   private final OverheadController overheadController;
+  private final IastTelemetry telemetry;
 
-  public RequestEndedHandler(final OverheadController overheadController) {
-    this.overheadController = overheadController;
+  public RequestEndedHandler(@Nonnull final Dependencies dependencies) {
+    this.overheadController = dependencies.getOverheadController();
+    this.telemetry = dependencies.getTelemetry();
   }
 
   @Override
   public Flow<Void> apply(final RequestContext requestContext, final IGSpanInfo igSpanInfo) {
-    final IastRequestContext iastRequestContext = getIastRequestContext(requestContext);
+    final TraceSegment traceSegment = requestContext.getTraceSegment();
+    final IastRequestContext iastRequestContext = IastRequestContext.get(requestContext);
     if (iastRequestContext != null) {
-      ANALYZED.setTagTop(requestContext.getTraceSegment());
+      ANALYZED.setTagTop(traceSegment);
       final TaintedObjects taintedObjects = iastRequestContext.getTaintedObjects();
       if (taintedObjects != null) {
         taintedObjects.release();
       }
+      telemetry.onRequestEnded(iastRequestContext, traceSegment);
       overheadController.releaseRequest();
     } else {
-      SKIPPED.setTagTop(requestContext.getTraceSegment());
+      SKIPPED.setTagTop(traceSegment);
     }
     return Flow.ResultFlow.empty();
-  }
-
-  private static IastRequestContext getIastRequestContext(final RequestContext requestContext) {
-    if (requestContext == null) {
-      return null;
-    }
-    return requestContext.getData(RequestContextSlot.IAST);
   }
 }

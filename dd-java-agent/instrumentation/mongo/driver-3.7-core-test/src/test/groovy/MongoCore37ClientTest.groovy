@@ -3,9 +3,6 @@ import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
-import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.api.DDSpanTypes
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import org.bson.BsonDocument
 import org.bson.BsonString
@@ -17,7 +14,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-class MongoCore37ClientTest extends MongoBaseTest {
+abstract class MongoCore37ClientTest extends MongoBaseTest {
 
   @Shared
   MongoClient client
@@ -43,7 +40,7 @@ class MongoCore37ClientTest extends MongoBaseTest {
     then:
     assertTraces(1) {
       trace(1) {
-        mongoSpan(it, 0, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}", renameService)
+        mongoSpan(it, 0, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}", renameService, "some-instance")
       }
     }
 
@@ -81,7 +78,7 @@ class MongoCore37ClientTest extends MongoBaseTest {
     count == 0
     assertTraces(1) {
       trace(1) {
-        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}", false, "some-instance")
       }
     }
 
@@ -110,10 +107,10 @@ class MongoCore37ClientTest extends MongoBaseTest {
     estimatedCount == 1
     assertTraces(2) {
       trace(1) {
-        mongoSpan(it, 0, "insert", "{\"insert\":\"$collectionName\",\"ordered\":true,\"documents\":[]}")
+        mongoSpan(it, 0, "insert", "{\"insert\":\"$collectionName\",\"ordered\":true,\"documents\":[]}", false, "some-instance")
       }
       trace(1) {
-        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}", false, "some-instance")
       }
     }
 
@@ -147,10 +144,10 @@ class MongoCore37ClientTest extends MongoBaseTest {
     estimatedCount == 1
     assertTraces(2) {
       trace(1) {
-        mongoSpan(it, 0, "update", "{\"update\":\"$collectionName\",\"ordered\":true,\"updates\":[]}")
+        mongoSpan(it, 0, "update", "{\"update\":\"$collectionName\",\"ordered\":true,\"updates\":[]}", false, "some-instance")
       }
       trace(1) {
-        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}", false, "some-instance")
       }
     }
 
@@ -182,10 +179,10 @@ class MongoCore37ClientTest extends MongoBaseTest {
     estimatedCount == 0
     assertTraces(2) {
       trace(1) {
-        mongoSpan(it, 0, "delete", "{\"delete\":\"$collectionName\",\"ordered\":true,\"deletes\":[]}")
+        mongoSpan(it, 0, "delete", "{\"delete\":\"$collectionName\",\"ordered\":true,\"deletes\":[]}", false, "some-instance")
       }
       trace(1) {
-        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}", false, "some-instance")
       }
     }
 
@@ -233,29 +230,40 @@ class MongoCore37ClientTest extends MongoBaseTest {
     where:
     collectionName = randomCollectionName()
   }
+}
 
-  def mongoSpan(TraceAssert trace, int index, String operation, String statement, boolean renameService = false, String instance = "some-instance", Object parentSpan = null, Throwable exception = null) {
-    trace.span {
-      serviceName renameService ? instance : "mongo"
-      operationName "mongo.query"
-      resourceName matchesStatement(statement)
-      spanType DDSpanTypes.MONGO
-      if (parentSpan == null) {
-        parent()
-      } else {
-        childOf((DDSpan) parentSpan)
-      }
-      topLevel true
-      tags {
-        "$Tags.COMPONENT" "java-mongo"
-        "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-        "$Tags.PEER_HOSTNAME" "localhost"
-        "$Tags.PEER_PORT" port
-        "$Tags.DB_TYPE" "mongo"
-        "$Tags.DB_INSTANCE" instance
-        "$Tags.DB_OPERATION" operation
-        defaultTags()
-      }
-    }
+class MongoCore37ClientV0ForkedTest extends MongoCore37ClientTest {
+
+  @Override
+  protected int version() {
+    return 0
+  }
+
+  @Override
+  protected String service() {
+    return V0_SERVICE
+  }
+
+  @Override
+  protected String operation() {
+    return V0_OPERATION
+  }
+}
+
+class MongoCore37ClientV1ForkedTest extends MongoCore37ClientTest {
+
+  @Override
+  protected int version() {
+    return 1
+  }
+
+  @Override
+  protected String service() {
+    return V1_SERVICE
+  }
+
+  @Override
+  protected String operation() {
+    return V1_OPERATION
   }
 }

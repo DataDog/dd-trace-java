@@ -1,10 +1,12 @@
 package datadog.trace.api.civisibility.source;
 
 import java.lang.reflect.Method;
+import javax.annotation.Nonnull;
 
 public interface MethodLinesResolver {
 
-  MethodLines getLines(Method method);
+  @Nonnull
+  MethodLines getLines(@Nonnull Method method);
 
   final class MethodLines {
     public static final MethodLines EMPTY = new MethodLines(Integer.MAX_VALUE, Integer.MIN_VALUE);

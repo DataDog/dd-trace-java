@@ -5,6 +5,8 @@ import com.datastax.oss.driver.api.core.cql.ResultSet;
 import com.datastax.oss.driver.api.core.metadata.Node;
 import com.datastax.oss.driver.api.core.servererrors.CoordinatorException;
 import com.datastax.oss.driver.api.core.session.Session;
+import datadog.trace.api.Config;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -14,8 +16,14 @@ import java.net.SocketAddress;
 import java.util.Objects;
 
 public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Session> {
-
-  public static final CharSequence CASSANDRA_EXECUTE = UTF8BytesString.create("cassandra.execute");
+  private static final String DB_TYPE = "cassandra";
+  private static final String SERVICE_NAME =
+      SpanNaming.instance()
+          .namingSchema()
+          .database()
+          .service(Config.get().getServiceName(), DB_TYPE);
+  public static final CharSequence OPERATION_NAME =
+      UTF8BytesString.create(SpanNaming.instance().namingSchema().database().operation(DB_TYPE));
   public static final CharSequence JAVA_CASSANDRA = UTF8BytesString.create("java-cassandra");
 
   public static final CassandraClientDecorator DECORATE = new CassandraClientDecorator();
@@ -27,7 +35,7 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
 
   @Override
   protected String service() {
-    return "cassandra";
+    return SERVICE_NAME;
   }
 
   @Override
@@ -42,7 +50,7 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
 
   @Override
   protected String dbType() {
-    return "cassandra";
+    return DB_TYPE;
   }
 
   @Override
@@ -97,4 +105,7 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
 
     return span;
   }
+
+  @Override
+  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
 }
