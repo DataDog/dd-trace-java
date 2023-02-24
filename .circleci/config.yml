@@ -202,7 +202,7 @@ jobs:
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew clean compile shadowJar test -PskipTests -PskipBuildSrcTest
+            ./gradlew clean compile shadowJar test -PskipTests
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
             --rerun-tasks
@@ -264,7 +264,7 @@ jobs:
           name: Run spotless
           command: >-
             JAVA_HOME=$JAVA_11_HOME
-            ./gradlew spotlessCheck -PskipBuildSrcTest
+            ./gradlew spotlessCheck
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
 
@@ -286,7 +286,7 @@ jobs:
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew check -PskipTests
+            ./gradlew check -PskipTests -PrunBuildSrcTests
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
 
@@ -413,7 +413,6 @@ jobs:
             ./gradlew
             << parameters.gradleTarget >>
             << parameters.gradleParameters >>
-            -PskipBuildSrcTest
             <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
             --max-workers=<< parameters.maxWorkers >>
