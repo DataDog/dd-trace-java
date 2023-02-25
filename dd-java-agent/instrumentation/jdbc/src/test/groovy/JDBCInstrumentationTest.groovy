@@ -790,12 +790,12 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
       .connect(url, properties)
   }
   @Override
-  protected final String service() {
+  final String service() {
     return null
   }
 
   @Override
-  protected final String operation() {
+  final String operation() {
     return null
   }
 
@@ -807,7 +807,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
 class JDBCInstrumentationV0ForkedTest extends JDBCInstrumentationTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 0
   }
 
@@ -825,7 +825,7 @@ class JDBCInstrumentationV0ForkedTest extends JDBCInstrumentationTest {
 class JDBCInstrumentationV1ForkedTest extends JDBCInstrumentationTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 1
   }
 

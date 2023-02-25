@@ -1,5 +1,5 @@
 import datadog.trace.agent.test.base.HttpClientTest
-
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import org.eclipse.jetty.client.HttpClient
 import org.eclipse.jetty.client.HttpProxy
 import org.eclipse.jetty.client.HttpResponseException
@@ -13,7 +13,7 @@ import spock.lang.Subject
 
 import java.util.concurrent.ExecutionException
 
-class JettyClientTest extends HttpClientTest {
+abstract class JettyClientTest extends HttpClientTest {
 
   @Shared
   @Subject
@@ -91,4 +91,10 @@ class JettyClientTest extends HttpClientTest {
   boolean testProxy() {
     false // doesn't produce CONNECT span.
   }
+}
+
+class JettyClientV0ForkedTest extends JettyClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
+}
+
+class JettyClientV1ForkedTest extends JettyClientTest implements TestingGenericHttpNamingConventions.ClientV1 {
 }

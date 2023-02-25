@@ -40,6 +40,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.sampling.AdaptiveSampler",
   "datadog.trace.api.sampling.ConstantSampler",
   "datadog.trace.api.EndpointCheckpointerHolder",
+  "datadog.trace.api.iast.IastAdvice.Kind",
   "datadog.trace.bootstrap.ActiveSubsystems",
   "datadog.trace.bootstrap.config.provider.ConfigProvider.Singleton",
   "datadog.trace.bootstrap.instrumentation.api.java.lang.ProcessImplInstrumentationHelpers",
@@ -89,6 +90,7 @@ excludedClassesCoverage += [
   // Interface with default method
   "datadog.trace.api.StatsDClientManager",
   // a stub
+  "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration",
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOp",
 ]
 

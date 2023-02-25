@@ -290,17 +290,17 @@ abstract class Elasticsearch2NodeClientTest extends VersionedNamingTestBase {
 class Elasticsearch2NodeClientV0ForkedTest extends Elasticsearch2NodeClientTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 0
   }
 
   @Override
-  protected String service() {
+  String service() {
     return "elasticsearch"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "elasticsearch.query"
   }
 }
@@ -308,17 +308,17 @@ class Elasticsearch2NodeClientV0ForkedTest extends Elasticsearch2NodeClientTest 
 class Elasticsearch2NodeClientV1ForkedTest extends Elasticsearch2NodeClientTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 1
   }
 
   @Override
-  protected String service() {
+  String service() {
     return Config.get().getServiceName() + "-elasticsearch"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "elasticsearch.query"
   }
 }

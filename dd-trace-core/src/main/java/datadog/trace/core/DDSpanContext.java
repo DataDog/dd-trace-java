@@ -17,6 +17,8 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
+import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -45,7 +47,8 @@ import org.slf4j.LoggerFactory;
  * across Span boundaries and (2) any Datadog fields that are needed to identify or contextualize
  * the associated Span instance
  */
-public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSegment {
+public class DDSpanContext
+    implements AgentSpan.Context, RequestContext, TraceSegment, ProfilerContext {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
@@ -131,6 +134,10 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
 
   private volatile BlockResponseFunction blockResponseFunction;
 
+  private final ProfilingContextIntegration profilingContextIntegration;
+
+  private volatile int encodedOperationName;
+
   public DDSpanContext(
       final DDTraceId traceId,
       final long spanId,
@@ -151,6 +158,50 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
       final PathwayContext pathwayContext,
       final boolean disableSamplingMechanismValidation,
       final PropagationTags propagationTags) {
+    this(
+        traceId,
+        spanId,
+        parentId,
+        parentServiceName,
+        serviceName,
+        operationName,
+        resourceName,
+        samplingPriority,
+        origin,
+        baggageItems,
+        errorFlag,
+        spanType,
+        tagsSize,
+        trace,
+        requestContextDataAppSec,
+        requestContextDataIast,
+        pathwayContext,
+        disableSamplingMechanismValidation,
+        propagationTags,
+        ProfilingContextIntegration.NoOp.INSTANCE);
+  }
+
+  public DDSpanContext(
+      final DDTraceId traceId,
+      final long spanId,
+      final long parentId,
+      final CharSequence parentServiceName,
+      final String serviceName,
+      final CharSequence operationName,
+      final CharSequence resourceName,
+      final int samplingPriority,
+      final CharSequence origin,
+      final Map<String, String> baggageItems,
+      final boolean errorFlag,
+      final CharSequence spanType,
+      final int tagsSize,
+      final PendingTrace trace,
+      final Object requestContextDataAppSec,
+      final Object requestContextDataIast,
+      final PathwayContext pathwayContext,
+      final boolean disableSamplingMechanismValidation,
+      final PropagationTags propagationTags,
+      final ProfilingContextIntegration profilingContextIntegration) {
 
     assert trace != null;
     this.trace = trace;
@@ -199,6 +250,11 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
     if (samplingPriority != PrioritySampling.UNSET) {
       setSamplingPriority(samplingPriority, SamplingMechanism.UNKNOWN);
     }
+    this.profilingContextIntegration = profilingContextIntegration;
+    // as fast as we can try to make this operation, we still might need to activate/deactivate
+    // contexts at alarming rates in unpredictable async applications, so we'll try
+    // to get away with doing this just once per span
+    this.encodedOperationName = profilingContextIntegration.encode(operationName);
   }
 
   @Override
@@ -213,6 +269,16 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
   @Override
   public long getSpanId() {
     return spanId;
+  }
+
+  @Override
+  public long getRootSpanId() {
+    return getRootSpanContextOrThis().spanId;
+  }
+
+  @Override
+  public int getEncodedOperationName() {
+    return encodedOperationName;
   }
 
   public String getServiceName() {
@@ -257,6 +323,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
 
   public void setOperationName(final CharSequence operationName) {
     this.operationName = operationName;
+    this.encodedOperationName = profilingContextIntegration.encode(operationName);
   }
 
   public boolean getErrorFlag() {

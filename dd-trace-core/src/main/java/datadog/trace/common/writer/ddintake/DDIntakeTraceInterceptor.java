@@ -7,6 +7,7 @@ import static datadog.trace.util.TraceUtils.normalizeSpanType;
 
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
 import datadog.trace.util.TraceUtils;
 import java.util.Collection;
@@ -47,7 +48,7 @@ public class DDIntakeTraceInterceptor implements TraceInterceptor {
       span.setResourceName(span.getOperationName());
     }
 
-    span.setTag("env", TraceUtils.normalizeEnv((String) span.getTag("env")));
+    span.setTag(Tags.ENV, TraceUtils.normalizeEnv((String) span.getTag(Tags.ENV)));
 
     final short httpStatusCode = span.getHttpStatusCode();
     if (httpStatusCode != 0 && !isValidStatusCode(httpStatusCode)) {

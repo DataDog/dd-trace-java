@@ -18,6 +18,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -52,7 +53,7 @@ public class RepoIndexSourcePathResolver implements SourcePathResolver {
 
   @Nullable
   @Override
-  public String getSourcePath(Class<?> c) {
+  public String getSourcePath(@Nonnull Class<?> c) {
     if (index == null) {
       synchronized (indexInitializationLock) {
         if (index == null) {

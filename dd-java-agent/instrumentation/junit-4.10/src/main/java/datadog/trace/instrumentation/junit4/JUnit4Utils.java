@@ -4,9 +4,12 @@ import datadog.trace.util.Strings;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.Description;
 import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
@@ -129,6 +132,8 @@ public abstract class JUnit4Utils {
           }
         }
       }
+    } else if (methodName.contains("[")) {
+      methodName = testNameNormalizerRegex.matcher(methodName).replaceAll("");
     }
 
     try {
@@ -198,5 +203,49 @@ public abstract class JUnit4Utils {
     // No public access to the test parameters map in JUnit4.
     // In this case, we store the fullTestName in the "metadata.test_name" object.
     return "{\"metadata\":{\"test_name\":\"" + Strings.escapeToJson(methodName) + "\"}}";
+  }
+
+  public static List<String> getCategories(Class<?> testClass, @Nullable Method testMethod) {
+    List<String> categories = new ArrayList<>();
+
+    if (testClass != null) {
+      Category categoryAnnotation = testClass.getAnnotation(Category.class);
+      if (categoryAnnotation != null) {
+        for (Class<?> category : categoryAnnotation.value()) {
+          categories.add(category.getName());
+        }
+      }
+    }
+
+    if (testMethod != null) {
+      Category categoryAnnotation = testMethod.getAnnotation(Category.class);
+      if (categoryAnnotation != null) {
+        for (Class<?> category : categoryAnnotation.value()) {
+          categories.add(category.getName());
+        }
+      }
+    }
+
+    return categories;
+  }
+
+  public static boolean isTestCaseDescription(final Description description) {
+    return description.getMethodName() != null && !"".equals(description.getMethodName());
+  }
+
+  public static boolean isTestSuiteDescription(final Description description) {
+    return description.getTestClass() != null && !isTestCaseDescription(description);
+  }
+
+  public static List<Method> getTestMethods(final Class<?> testClass) {
+    final List<Method> testMethods = new ArrayList<>();
+
+    final Method[] methods = testClass.getMethods();
+    for (final Method method : methods) {
+      if (method.getAnnotation(Test.class) != null) {
+        testMethods.add(method);
+      }
+    }
+    return testMethods;
   }
 }

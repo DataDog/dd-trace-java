@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator
 import org.apache.hc.client5.http.async.methods.SimpleHttpRequests
 import org.apache.hc.client5.http.config.RequestConfig
@@ -11,7 +12,7 @@ import java.util.concurrent.TimeUnit
 
 import static org.apache.hc.core5.reactor.IOReactorConfig.custom
 
-class ApacheHttpAsyncClient5Test<T extends HttpRequest> extends HttpClientTest {
+abstract class ApacheHttpAsyncClient5Test<T extends HttpRequest> extends HttpClientTest {
 
   @Shared
   def ioReactorConfig = custom()
@@ -54,4 +55,10 @@ class ApacheHttpAsyncClient5Test<T extends HttpRequest> extends HttpClientTest {
     callback?.call()
     return response.code
   }
+}
+
+class ApacheHttpAsyncClient5NamingV0ForkedTest extends ApacheHttpAsyncClient5Test implements TestingGenericHttpNamingConventions.ClientV0 {
+}
+
+class ApacheHttpAsyncClient5NamingV1ForkedTest extends ApacheHttpAsyncClient5Test implements TestingGenericHttpNamingConventions.ClientV1 {
 }

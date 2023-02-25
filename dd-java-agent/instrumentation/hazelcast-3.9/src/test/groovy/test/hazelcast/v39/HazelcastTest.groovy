@@ -412,17 +412,17 @@ abstract class HazelcastTest extends VersionedNamingTestBase {
 class HazelcastV0ForkedTest extends HazelcastTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 0
   }
 
   @Override
-  protected String service() {
+  String service() {
     return "hazelcast-sdk"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "hazelcast.invoke"
   }
 }
@@ -430,17 +430,17 @@ class HazelcastV0ForkedTest extends HazelcastTest {
 class HazelcastV1ForkedTest extends HazelcastTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 1
   }
 
   @Override
-  protected String service() {
+  String service() {
     return datadog.trace.api.Config.get().getServiceName() + "-hazelcast"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "hazelcast.command"
   }
 }

@@ -235,17 +235,17 @@ abstract class MongoCore37ClientTest extends MongoBaseTest {
 class MongoCore37ClientV0ForkedTest extends MongoCore37ClientTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 0
   }
 
   @Override
-  protected String service() {
+  String service() {
     return V0_SERVICE
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return V0_OPERATION
   }
 }
@@ -253,17 +253,17 @@ class MongoCore37ClientV0ForkedTest extends MongoCore37ClientTest {
 class MongoCore37ClientV1ForkedTest extends MongoCore37ClientTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 1
   }
 
   @Override
-  protected String service() {
+  String service() {
     return V1_SERVICE
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return V1_OPERATION
   }
 }
