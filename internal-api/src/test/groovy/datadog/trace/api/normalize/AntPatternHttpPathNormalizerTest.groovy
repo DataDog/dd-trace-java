@@ -1,8 +1,9 @@
-package datadog.trace.bootstrap.instrumentation.decorator.http
+package datadog.trace.api.normalize
+
 
 import datadog.trace.test.util.DDSpecification
 
-class AntPatternPathNormalizerTest extends DDSpecification {
+class AntPatternHttpPathNormalizerTest extends DDSpecification {
   def "verify javadoc examples work"() {
     given:
     def matchers = [
@@ -18,7 +19,7 @@ class AntPatternPathNormalizerTest extends DDSpecification {
     matchers.removeAll {
       ignoreMatchers.contains(it.getKey())
     }
-    AntPatternPathNormalizer pathNormalizer = new AntPatternPathNormalizer(matchers)
+    AntPatternHttpPathNormalizer pathNormalizer = new AntPatternHttpPathNormalizer(matchers)
 
     when:
     String result = pathNormalizer.normalize(path)
@@ -65,7 +66,7 @@ class AntPatternPathNormalizerTest extends DDSpecification {
       "/com/datadoghq/dd-trace-java/**/*.jsp": "4",
       "/com/**/servlet/bla.jsp"              : "5",
     ]
-    AntPatternPathNormalizer pathNormalizer = new AntPatternPathNormalizer(matchers)
+    AntPatternHttpPathNormalizer pathNormalizer = new AntPatternHttpPathNormalizer(matchers)
 
     when:
     String result = pathNormalizer.normalize(path)
@@ -82,7 +83,7 @@ class AntPatternPathNormalizerTest extends DDSpecification {
     def matchers = [
       "/not/a/pattern": "1"
     ]
-    AntPatternPathNormalizer normalizer = new AntPatternPathNormalizer(matchers)
+    AntPatternHttpPathNormalizer normalizer = new AntPatternHttpPathNormalizer(matchers)
 
     when:
     String result = normalizer.normalize("/not/a/pattern")

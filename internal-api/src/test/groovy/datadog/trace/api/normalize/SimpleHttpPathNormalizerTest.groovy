@@ -1,11 +1,12 @@
-package datadog.trace.bootstrap.instrumentation.decorator.http
+package datadog.trace.api.normalize
+
 
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
-class SimplePathNormalizerTest extends DDSpecification {
+class SimpleHttpPathNormalizerTest extends DDSpecification {
   @Shared
-  SimplePathNormalizer simplePathNormalizer = new SimplePathNormalizer()
+  SimpleHttpPathNormalizer simplePathNormalizer = new SimpleHttpPathNormalizer()
 
   def "pulls path from url #input"() {
     when:

@@ -1,5 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.decorator.http
 
+import datadog.trace.api.Config
+import datadog.trace.api.normalize.AntPatternHttpPathNormalizer
+import datadog.trace.api.normalize.HttpPathNormalizers
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.core.CoreTracer
@@ -125,6 +128,7 @@ class HttpResourceDecoratorTest extends DDSpecification {
 
   // Need a new one for every test after config injection
   private static HttpResourceDecorator decorator() {
+    HttpPathNormalizers.INSTANCE = null
     return new HttpResourceDecorator()
   }
 }

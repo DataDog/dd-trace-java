@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.decorator.http;
+package datadog.trace.api.normalize;
 
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -10,8 +10,8 @@ import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class AntPatternPathNormalizer extends PathNormalizer {
-  private static final Logger log = LoggerFactory.getLogger(AntPatternPathNormalizer.class);
+final class AntPatternHttpPathNormalizer extends HttpPathNormalizer {
+  private static final Logger log = LoggerFactory.getLogger(AntPatternHttpPathNormalizer.class);
 
   /** Used to preserve original value as is when it's mapped to this value. */
   private static final String KEEP_AS_IS = "*";
@@ -36,7 +36,7 @@ final class AntPatternPathNormalizer extends PathNormalizer {
         }
       };
 
-  AntPatternPathNormalizer(Map<String, String> httpResourceNameMatchers) {
+  AntPatternHttpPathNormalizer(Map<String, String> httpResourceNameMatchers) {
     resourceNameMatchers = httpResourceNameMatchers;
 
     // Clean up invalid patterns
