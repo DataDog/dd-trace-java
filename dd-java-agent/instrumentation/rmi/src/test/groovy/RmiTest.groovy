@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -14,7 +14,7 @@ import static datadog.trace.agent.test.asserts.ListWriterAssert.assertTraces
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class RmiTest extends AgentTestRunner {
+abstract class RmiTest extends VersionedNamingTestBase {
   def registryPort = PortUtils.randomOpenPort()
   def serverRegistry = LocateRegistry.createRegistry(registryPort)
   def clientRegistry = LocateRegistry.getRegistry("localhost", registryPort)
@@ -41,7 +41,7 @@ class RmiTest extends AgentTestRunner {
         basicSpan(it, "parent")
         span {
           resourceName "Greeter.hello"
-          operationName "rmi.invoke"
+          operationName operation()
           childOf span(0)
           spanType DDSpanTypes.RPC
           measured true
@@ -121,7 +121,7 @@ class RmiTest extends AgentTestRunner {
         basicSpan(it, "parent", null, thrownException)
         span {
           resourceName "Greeter.exceptional"
-          operationName "rmi.invoke"
+          operationName operation()
           childOf span(0)
           errored true
           spanType DDSpanTypes.RPC
@@ -176,7 +176,7 @@ class RmiTest extends AgentTestRunner {
         basicSpan(it, "parent")
         span {
           resourceName "Greeter.hello"
-          operationName "rmi.invoke"
+          operationName operation()
           spanType DDSpanTypes.RPC
           childOf span(0)
           measured true
@@ -205,5 +205,41 @@ class RmiTest extends AgentTestRunner {
 
     cleanup:
     serverRegistry.unbind(ServerLegacy.RMI_ID)
+  }
+}
+
+class RmiV0ForkedTest extends RmiTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "rmi.invoke"
+  }
+}
+
+class RmiV1ForkedTest extends RmiTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "rmi.client.request"
   }
 }

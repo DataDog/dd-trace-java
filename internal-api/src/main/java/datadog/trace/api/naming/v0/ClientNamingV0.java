@@ -7,10 +7,18 @@ public class ClientNamingV0 implements NamingSchema.ForClient {
   @Nonnull
   @Override
   public String operationForProtocol(@Nonnull String protocol) {
-    String postfix = ".request";
-    if ("grpc".equals(protocol)) {
-      postfix = ".client";
+    final String postfix;
+    switch (protocol) {
+      case "grpc":
+        postfix = ".client";
+        break;
+      case "rmi":
+        postfix = ".invoke";
+        break;
+      default:
+        postfix = ".request";
     }
+
     return protocol + postfix;
   }
 
