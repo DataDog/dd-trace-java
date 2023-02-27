@@ -9,10 +9,11 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 
 public class AkkaHttpServerDecorator
     extends HttpServerDecorator<HttpRequest, HttpRequest, HttpResponse, HttpRequest> {
-  public static final AkkaHttpServerDecorator DECORATE = new AkkaHttpServerDecorator();
-
-  private static final CharSequence AKKA_REQUEST = UTF8BytesString.create("akka-http.request");
   private static final CharSequence AKKA_HTTP_SERVER = UTF8BytesString.create("akka-http-server");
+
+  public static final AkkaHttpServerDecorator DECORATE = new AkkaHttpServerDecorator();
+  public static final CharSequence AKKA_SERVER_REQUEST =
+      UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected String[] instrumentationNames() {
@@ -36,7 +37,7 @@ public class AkkaHttpServerDecorator
 
   @Override
   public CharSequence spanName() {
-    return AKKA_REQUEST;
+    return AKKA_SERVER_REQUEST;
   }
 
   @Override
