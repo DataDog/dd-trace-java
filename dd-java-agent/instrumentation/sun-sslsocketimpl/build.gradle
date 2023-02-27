@@ -1,15 +1,11 @@
-apply from: "$rootDir/gradle/java.gradle"
-
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
-
 muzzle {
   pass {
     coreJdk()
   }
 }
+
+apply from: "$rootDir/gradle/java.gradle"
+
+// dependencies {
+//   testImplementation project(':dd-java-agent:testing')
+// }
