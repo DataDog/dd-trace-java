@@ -19,6 +19,20 @@ import java.util.concurrent.atomic.AtomicReference
 abstract class GrpcStreamingTest extends VersionedNamingTestBase {
 
   @Override
+  final String service() {
+    return null
+  }
+
+  @Override
+  final String operation() {
+    return null
+  }
+
+  protected abstract String clientOperation()
+
+  protected abstract String serverOperation()
+
+  @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("dd.trace.grpc.ignored.inbound.methods", "example.Greeter/IgnoreInbound")
@@ -130,7 +144,7 @@ abstract class GrpcStreamingTest extends VersionedNamingTestBase {
     assertTraces(2) {
       trace((clientMessageCount * serverMessageCount) + 1) {
         span {
-          operationName operation()
+          operationName clientOperation()
           resourceName "example.Greeter/Conversation"
           spanType DDSpanTypes.RPC
           parent()
@@ -162,7 +176,7 @@ abstract class GrpcStreamingTest extends VersionedNamingTestBase {
       }
       trace(clientMessageCount + 1) {
         span {
-          operationName "grpc.server"
+          operationName serverOperation()
           resourceName "example.Greeter/Conversation"
           spanType DDSpanTypes.RPC
           childOf trace(0).get(0)
@@ -222,13 +236,13 @@ class GrpcStreamingV0ForkedTest extends GrpcStreamingTest {
   }
 
   @Override
-  String service() {
-    return null
+  protected String clientOperation() {
+    return "grpc.client"
   }
 
   @Override
-  String operation() {
-    return "grpc.client"
+  protected String serverOperation() {
+    return "grpc.server"
   }
 }
 
@@ -240,12 +254,12 @@ class GrpcStreamingV1ForkedTest extends GrpcStreamingTest {
   }
 
   @Override
-  String service() {
-    return null
+  protected String clientOperation() {
+    return "grpc.client.request"
   }
 
   @Override
-  String operation() {
-    return "grpc.client.request"
+  protected String serverOperation() {
+    return "grpc.server.request"
   }
 }
