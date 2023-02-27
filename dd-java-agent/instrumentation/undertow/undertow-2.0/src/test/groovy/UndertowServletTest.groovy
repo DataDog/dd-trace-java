@@ -10,16 +10,7 @@ import io.undertow.servlet.api.DeploymentManager
 import io.undertow.servlet.api.ServletContainer
 import io.undertow.servlet.api.ServletInfo
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.*
 
 abstract class UndertowServletTest extends HttpServerTest<Undertow> {
   private static final CONTEXT = "ctx"
