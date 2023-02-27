@@ -1,5 +1,5 @@
 import com.google.common.util.concurrent.MoreExecutors
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
@@ -37,7 +37,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.gateway.Events.EVENTS
 
-abstract class GrpcTest extends AgentTestRunner {
+abstract class GrpcTest extends VersionedNamingTestBase {
 
   @Shared
   def ig
@@ -122,7 +122,7 @@ abstract class GrpcTest extends AgentTestRunner {
       trace(3) {
         basicSpan(it, "parent")
         span {
-          operationName "grpc.client"
+          operationName operation()
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
           childOf span(0)
@@ -260,7 +260,7 @@ abstract class GrpcTest extends AgentTestRunner {
     assertTraces(2) {
       trace(1) {
         span {
-          operationName "grpc.client"
+          operationName operation()
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
           parent()
@@ -360,7 +360,7 @@ abstract class GrpcTest extends AgentTestRunner {
     assertTraces(2) {
       trace(1) {
         span {
-          operationName "grpc.client"
+          operationName operation()
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
           parent()
@@ -547,7 +547,7 @@ abstract class GrpcTest extends AgentTestRunner {
     assertTraces(1) {
       trace(2) {
         span {
-          operationName "grpc.client"
+          operationName operation()
           resourceName "example.Greeter/IgnoreInbound"
           spanType DDSpanTypes.RPC
           parent()
@@ -596,7 +596,7 @@ abstract class GrpcTest extends AgentTestRunner {
   }
 }
 
-class GrpcDataStreamsEnabledForkedTest extends GrpcTest {
+abstract class GrpcDataStreamsEnabledForkedTest extends GrpcTest {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
@@ -607,7 +607,42 @@ class GrpcDataStreamsEnabledForkedTest extends GrpcTest {
   protected boolean isDataStreamsEnabled() {
     return true
   }
+}
 
+class GrpcDataStreamsEnabledV0ForkedTest extends GrpcDataStreamsEnabledForkedTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "grpc.client"
+  }
+}
+
+class GrpcDataStreamsEnabledV1ForkedTest extends GrpcDataStreamsEnabledForkedTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "grpc.client.request"
+  }
 }
 
 class GrpcDataStreamsDisabledForkedTest extends GrpcTest {
@@ -620,5 +655,20 @@ class GrpcDataStreamsDisabledForkedTest extends GrpcTest {
   @Override
   protected boolean isDataStreamsEnabled() {
     return false
+  }
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "grpc.client"
   }
 }
