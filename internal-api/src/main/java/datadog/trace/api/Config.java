@@ -97,6 +97,8 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_METRICS;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_TIMEOUT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_ID;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SESSION_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ENABLED;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
@@ -535,6 +537,8 @@ public class Config {
   private final String ciVisibilityAgentlessUrl;
 
   private final boolean ciVisibilitySourceDataEnabled;
+  private final Long ciVisibilitySessionId;
+  private final Long ciVisibilityModuleId;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1226,6 +1230,9 @@ public class Config {
     ciVisibilitySourceDataEnabled =
         configProvider.getBoolean(
             CIVISIBILITY_SOURCE_DATA_ENABLED, DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED);
+
+    ciVisibilitySessionId = configProvider.getLong(CIVISIBILITY_SESSION_ID);
+    ciVisibilityModuleId = configProvider.getLong(CIVISIBILITY_MODULE_ID);
 
     final String ciVisibilityAgentlessUrlStr = configProvider.getString(CIVISIBILITY_AGENTLESS_URL);
     URI parsedCiVisibilityUri = null;
@@ -1959,6 +1966,14 @@ public class Config {
 
   public boolean isCiVisibilitySourceDataEnabled() {
     return ciVisibilitySourceDataEnabled;
+  }
+
+  public Long getCiVisibilitySessionId() {
+    return ciVisibilitySessionId;
+  }
+
+  public Long getCiVisibilityModuleId() {
+    return ciVisibilityModuleId;
   }
 
   public String getAppSecRulesFile() {

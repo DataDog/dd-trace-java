@@ -3,8 +3,10 @@ package datadog.trace.bootstrap.instrumentation.civisibility;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DisableTestTrace;
+import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -19,6 +21,9 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// FIXME move isTestModuleSpan etc from here and BuildEventsHandler to a utility class?
+// FIXME move TEST_PASS/TEST_FAIL/TEST_SKIP to a utility class
+// FIXME where possible, move classes to agent-ci-visibility module
 public class TestEventsHandler {
 
   private static final Logger log = LoggerFactory.getLogger(TestEventsHandler.class);
@@ -32,28 +37,44 @@ public class TestEventsHandler {
   private final ConcurrentMap<TestSuiteDescriptor, Integer> testSuiteNestedCallCounters =
       new ConcurrentHashMap<>();
 
-  private final ConcurrentMap<TestSuiteDescriptor, TestContext> testSuiteStates =
+  private final ConcurrentMap<TestSuiteDescriptor, TestContext> testSuiteContexts =
       new ConcurrentHashMap<>();
 
   private final TestDecorator testDecorator;
 
   public TestEventsHandler(TestDecorator testDecorator) {
     this.testDecorator = testDecorator;
+
+    Long sessionId = Config.get().getCiVisibilitySessionId();
+    Long moduleId = Config.get().getCiVisibilityModuleId();
+    if (sessionId != null && moduleId != null) {
+      testModuleContext = new ParentProcessTestContext(sessionId, moduleId);
+    }
   }
 
   public void onTestModuleStart(final @Nullable String version) {
+    if (testModuleContext != null) {
+      // do not create test module span if parent process provides module data
+      return;
+    }
+
     final AgentSpan span = startSpan(testDecorator.component() + ".test_module");
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
 
-    testModuleContext = new TestContext(span);
+    testModuleContext = new SpanTestContext(span);
 
-    testDecorator.afterTestModuleStart(span, version);
+    testDecorator.afterTestModuleStart(span, InstrumentationBridge.getModule(), version);
   }
 
   public void onTestModuleFinish() {
+    if (!testModuleContext.isLocalToCurrentProcess()) {
+      // do not create test module span if parent process provides module data
+      return;
+    }
+
     final AgentSpan span = AgentTracer.activeSpan();
-    if (!isTestModuleSpan(AgentTracer.activeSpan())) {
+    if (!isTestModuleSpan(span)) {
       return;
     }
 
@@ -64,6 +85,7 @@ public class TestEventsHandler {
 
     span.setTag(Tags.TEST_STATUS, testModuleContext.getStatus());
     span.setTag(Tags.TEST_MODULE_ID, testModuleContext.getId());
+    span.setTag(Tags.TEST_SESSION_ID, testModuleContext.getParentId());
 
     testDecorator.beforeFinish(span);
     span.finish();
@@ -87,7 +109,8 @@ public class TestEventsHandler {
     scope.setAsyncPropagation(true);
 
     TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    testSuiteStates.put(testSuiteDescriptor, new TestContext(span));
+    testSuiteContexts.put(
+        testSuiteDescriptor, new SpanTestContext(span, testModuleContext.getId()));
 
     testDecorator.afterTestSuiteStart(span, testSuiteName, testClass, version, categories);
   }
@@ -112,13 +135,14 @@ public class TestEventsHandler {
     }
 
     TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    TestContext testSuiteContext = testSuiteStates.remove(testSuiteDescriptor);
+    TestContext testSuiteContext = testSuiteContexts.remove(testSuiteDescriptor);
 
     span.setTag(Tags.TEST_STATUS, testSuiteContext.getStatus());
     testModuleContext.reportChildStatus(testSuiteContext.getStatus());
 
     span.setTag(Tags.TEST_SUITE_ID, testSuiteContext.getId());
     span.setTag(Tags.TEST_MODULE_ID, testModuleContext.getId());
+    span.setTag(Tags.TEST_SESSION_ID, testModuleContext.getParentId());
 
     testDecorator.beforeFinish(span);
     span.finish();
@@ -222,10 +246,11 @@ public class TestEventsHandler {
 
   private void beforeTestFinish(String testSuiteName, Class<?> testClass, AgentSpan span) {
     TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    TestContext testSuiteContext = testSuiteStates.get(testSuiteDescriptor);
+    TestContext testSuiteContext = testSuiteContexts.get(testSuiteDescriptor);
     if (testSuiteContext != null) {
       span.setTag(Tags.TEST_SUITE_ID, testSuiteContext.getId());
       span.setTag(Tags.TEST_MODULE_ID, testModuleContext.getId());
+      span.setTag(Tags.TEST_SESSION_ID, testModuleContext.getParentId());
 
       String testCaseStatus = (String) span.getTag(Tags.TEST_STATUS);
       testSuiteContext.reportChildStatus(testCaseStatus);

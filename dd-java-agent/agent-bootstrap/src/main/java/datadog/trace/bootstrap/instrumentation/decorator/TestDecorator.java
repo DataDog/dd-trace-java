@@ -106,13 +106,34 @@ public abstract class TestDecorator extends BaseDecorator {
     return super.afterStart(span);
   }
 
-  public void afterTestModuleStart(final AgentSpan span, final @Nullable String version) {
+  public void afterTestSessionStart(final AgentSpan span) {
+    span.setSpanType(InternalSpanTypes.TEST_SESSION_END);
+    span.setTag(Tags.SPAN_KIND, testSessionSpanKind());
+
+    span.setResourceName(
+        component() + ".test_session"); // FIXME "resource": "mocha.test_session.yarn test", ????
+
+    // FIXME set the following tags:
+    span.setTag("test.command", "N/A");
+    span.setTag("test.framework", "N/A");
+    span.setTag("test.framework_version", "N/A");
+    span.setTag("test_session.code_coverage.enabled", false);
+    span.setTag("test_session.itr.tests_skipping.enabled", false);
+    span.setTag("_dd.ci.itr.tests_skipped", "N/A");
+
+    // FIXME git info not populated???
+
+    afterStart(span);
+  }
+
+  public void afterTestModuleStart(
+      final AgentSpan span, final String moduleName, final @Nullable String version) {
     span.setSpanType(InternalSpanTypes.TEST_MODULE_END);
     span.setTag(Tags.SPAN_KIND, testModuleSpanKind());
 
-    span.setResourceName(InstrumentationBridge.getModule());
-    span.setTag(Tags.TEST_MODULE, InstrumentationBridge.getModule());
-    span.setTag(Tags.TEST_BUNDLE, InstrumentationBridge.getModule());
+    span.setResourceName(moduleName);
+    span.setTag(Tags.TEST_MODULE, moduleName);
+    span.setTag(Tags.TEST_BUNDLE, moduleName);
 
     // Version can be null. The testing framework version extraction is best-effort basis.
     if (version != null) {
