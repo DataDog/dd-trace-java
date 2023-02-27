@@ -3,11 +3,13 @@ package datadog.trace.agent.tooling;
 import com.sun.jna.Memory;
 import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
+import datadog.trace.bootstrap.instrumentation.api.UsmConnection;
 import datadog.trace.bootstrap.instrumentation.api.UsmMessage;
-import java.net.Inet6Address;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.security.ssl.SSLSocketImpl;
+
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectOutputStream;
 
 public abstract class UsmMessageImpl {
   enum MessageType {
@@ -60,7 +62,7 @@ public abstract class UsmMessageImpl {
       return totalMessageSize;
     }
 
-    public BaseUsmMessage(MessageType type, SSLSocketImpl socket) {
+    public BaseUsmMessage(MessageType type, UsmConnection connection) {
       messageType = type;
 
       totalMessageSize = HEADER_SIZE + CONNECTION_INFO_SIZE + dataSize();
@@ -72,14 +74,14 @@ public abstract class UsmMessageImpl {
       pointer.setByte(offset, (byte) messageType.ordinal());
       offset += Byte.BYTES;
 
-      encodeConnection(socket);
+      encodeConnection(connection);
     }
 
-    private void encodeConnection(SSLSocketImpl socket) {
+    private void encodeConnection(UsmConnection connection) {
 
       // we reserve 2 long for ip, as IPv6 takes 128 bytes
       int ipReservedSize = Long.BYTES * 2;
-      byte[] srcIPBuffer = socket.getLocalAddress().getAddress();
+      byte[] srcIPBuffer = connection.getSrcIP().getAddress();
       // if IPv4 (4 bytes long), encode it into low part of the reserved space
       if (srcIPBuffer.length == 4) {
         pointer.write(offset + Long.BYTES, srcIPBuffer, 0, srcIPBuffer.length);
@@ -88,7 +90,7 @@ public abstract class UsmMessageImpl {
       }
       offset += ipReservedSize;
 
-      byte[] dstIPBuffer = socket.getInetAddress().getAddress();
+      byte[] dstIPBuffer = connection.getDstIP().getAddress();
       // if IPv4 (4 bytes long), encode it into low part of the reserved space
       if (dstIPBuffer.length == 4) {
         pointer.write(offset + Long.BYTES, dstIPBuffer, 0, dstIPBuffer.length);
@@ -99,9 +101,9 @@ public abstract class UsmMessageImpl {
       offset += ipReservedSize;
 
       // encode src and dst ports
-      pointer.setShort(offset, (short) socket.getLocalPort());
+      pointer.setShort(offset, (short) connection.getSrcPort());
       offset += Short.BYTES;
-      pointer.setShort(offset, (short) socket.getPeerPort());
+      pointer.setShort(offset, (short) connection.getDstPort());
       offset += Short.BYTES;
 
       // we put 0 as netns
@@ -114,7 +116,7 @@ public abstract class UsmMessageImpl {
 
       // we turn on the first bit - indicating it is a tcp connection
       int metadata = 1;
-      if (socket.getLocalAddress() instanceof Inet6Address) {
+      if (connection.isIPV6()) {
         // turn on the 2nd bit indicating it is a ipv6 connection
         metadata |= 2;
       }
@@ -125,16 +127,16 @@ public abstract class UsmMessageImpl {
 
   static class CloseConnectionUsmMessage extends BaseUsmMessage {
 
-    public CloseConnectionUsmMessage(SSLSocketImpl socket) {
-      super(MessageType.CLOSE_CONNECTION, socket);
+    public CloseConnectionUsmMessage(UsmConnection connection) {
+      super(MessageType.CLOSE_CONNECTION, connection);
       log.debug("close socket:");
       log.debug(
           "src host: "
-              + socket.getLocalAddress().toString()
+              + connection.getSrcIP().toString()
               + " src port: "
-              + socket.getLocalPort());
+              + connection.getSrcPort());
       log.debug(
-          "dst host: " + socket.getInetAddress().toString() + " dst port: " + socket.getPeerPort());
+          "dst host: " + connection.getDstIP().toString() + " dst port: " + connection.getDstPort());
     }
 
     @Override
@@ -152,17 +154,17 @@ public abstract class UsmMessageImpl {
     // https://github.com/DataDog/datadog-agent/blob/main/pkg/network/ebpf/c/protocols/http-types.h#L7
     static final int MAX_HTTPS_BUFFER_SIZE = 8 * 20;
 
-    public RequestUsmMessage(SSLSocketImpl socket, byte[] buffer, int bufferOffset, int len) {
-      super(MessageType.REQUEST, socket);
+    public RequestUsmMessage(UsmConnection connection, byte[] buffer, int bufferOffset, int len) {
+      super(MessageType.REQUEST, connection);
 
       log.debug("Request packet:");
       log.debug(
           "src host: "
-              + socket.getLocalAddress().toString()
+              + connection.getSrcIP().toString()
               + " src port: "
-              + socket.getLocalPort());
+              + connection.getSrcPort());
       log.debug(
-          "dst host: " + socket.getInetAddress().toString() + " dst port: " + socket.getPeerPort());
+          "dst host: " + connection.getDstIP().toString() + " dst port: " + connection.getDstPort());
       log.debug("intercepted byte len: " + len);
 
       // check the buffer is not larger than max allowed,
