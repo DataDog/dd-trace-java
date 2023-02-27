@@ -16,6 +16,9 @@ public class ServerNamingV0 implements NamingSchema.ForServer {
   public String operationForComponent(@Nonnull String component) {
     // more cases will be added in subsequent PRs.
     // Defaulting to servlet.request since it's for the majority of http server instrumentations
+    if ("undertow-http-server".equals(component)) {
+      return "undertow-http.request";
+    }
     return "servlet.request";
   }
 }
