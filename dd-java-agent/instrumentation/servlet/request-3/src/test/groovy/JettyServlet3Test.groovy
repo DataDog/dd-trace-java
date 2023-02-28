@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
@@ -216,6 +217,11 @@ class JettyServlet3TestSync extends JettyServlet3Test {
   }
 }
 
+
+class JettyServlet3SyncV1ForkedTest extends JettyServlet3TestSync implements TestingGenericHttpNamingConventions.ServerV1 {
+
+}
+
 class JettyServlet3TestAsync extends JettyServlet3Test {
 
   @Override
@@ -235,6 +241,9 @@ class JettyServlet3TestAsync extends JettyServlet3Test {
   }
 }
 
+class JettyServlet3ASyncV1ForkedTest extends JettyServlet3TestAsync implements TestingGenericHttpNamingConventions.ServerV1 {
+
+}
 class JettyServlet3TestFakeAsync extends JettyServlet3Test {
 
   @Override

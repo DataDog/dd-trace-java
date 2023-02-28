@@ -7,6 +7,7 @@ import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.GenericClassValue;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -19,11 +20,13 @@ import java.util.Set;
 import java.util.function.Function;
 
 public class GrpcClientDecorator extends ClientDecorator {
-  public static final CharSequence GRPC_CLIENT = UTF8BytesString.create("grpc.client");
+  public static final CharSequence OPERATION_NAME =
+      UTF8BytesString.create(
+          SpanNaming.instance().namingSchema().client().operationForProtocol("grpc"));
   public static final CharSequence COMPONENT_NAME = UTF8BytesString.create("grpc-client");
   public static final CharSequence GRPC_MESSAGE = UTF8BytesString.create("grpc.message");
 
-  private static final LinkedHashMap<String, String> createClientPathwaySortedTags() {
+  private static LinkedHashMap<String, String> createClientPathwaySortedTags() {
     LinkedHashMap<String, String> result = new LinkedHashMap<>();
     result.put(DIRECTION_TAG, DIRECTION_OUT);
     result.put(TYPE_TAG, "grpc");
@@ -88,7 +91,7 @@ public class GrpcClientDecorator extends ClientDecorator {
       return null;
     }
     AgentSpan span =
-        startSpan(GRPC_CLIENT)
+        startSpan(OPERATION_NAME)
             .setTag("request.type", requestMessageType(method))
             .setTag("response.type", responseMessageType(method));
     span.setResourceName(method.getFullMethodName());

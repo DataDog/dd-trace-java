@@ -3,10 +3,12 @@ package datadog.smoketest;
 import static datadog.smoketest.SmokeTestUtils.buildDirectory;
 import static datadog.smoketest.SmokeTestUtils.createProcessBuilder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.openjdk.jmc.common.item.Attribute.attr;
 import static org.openjdk.jmc.common.unit.UnitLookup.NUMBER;
+import static org.openjdk.jmc.common.unit.UnitLookup.PLAIN_TEXT;
 
 import datadog.smoketest.profiling.CodeHotspotsApplication;
 import datadog.smoketest.profiling.GenerativeStackTraces;
@@ -53,6 +55,8 @@ import org.openjdk.jmc.flightrecorder.jdk.JdkAttributes;
 public final class CodeHotspotsTest {
   private static final int TEST_CASE_TIMEOUT = 5; // seconds
   private static final IAttribute<IQuantity> SPAN_ID = attr("spanId", "spanId", "spanId", NUMBER);
+  private static final IAttribute<String> OPERATION =
+      attr("operation", "operation", "operation", PLAIN_TEXT);
 
   private static final Path LOG_FILE_BASE =
       Paths.get(buildDirectory(), "reports", "testProcess." + CodeHotspotsTest.class.getName());
@@ -333,8 +337,10 @@ public final class CodeHotspotsTest {
     long nonQualifiedSamples = 0;
 
     Map<String, AtomicLong> spanSampleCnt = new HashMap<>();
+    Map<String, AtomicLong> operationSampleCnt = new HashMap<>();
     for (IItemIterable items : events) {
       IMemberAccessor<IQuantity, IItem> spanIdAccessor = SPAN_ID.getAccessor(items.getType());
+      IMemberAccessor<String, IItem> operationNameAccessor = OPERATION.getAccessor(items.getType());
       IMemberAccessor<String, IItem> threadNameAccessor =
           JdkAttributes.EVENT_THREAD_NAME.getAccessor(items.getType());
       for (IItem item : items) {
@@ -342,6 +348,7 @@ public final class CodeHotspotsTest {
         if (!threadName.contains("Worker")) {
           continue;
         }
+        String operationName = operationNameAccessor.getMember(item);
         long spanId = spanIdAccessor.getMember(item).longValue();
         if (spanId == 0) {
           nonQualifiedSamples++;
@@ -349,6 +356,9 @@ public final class CodeHotspotsTest {
           qualifiedSamples++;
           spanSampleCnt
               .computeIfAbsent(Long.toString(spanId), k -> new AtomicLong(0))
+              .incrementAndGet();
+          operationSampleCnt
+              .computeIfAbsent(operationName, k -> new AtomicLong(0))
               .incrementAndGet();
         }
       }
@@ -379,5 +389,12 @@ public final class CodeHotspotsTest {
     System.out.println("  P99     : " + p99.getResult());
 
     assertTrue(coverage >= minCoverage, "Expected coverage: " + coverage + " >= " + minCoverage);
+
+    // span names defined in CodeHotspotsApplication
+    assertFalse(operationSampleCnt.isEmpty(), "no operation names");
+    assertTrue(operationSampleCnt.size() <= 2, "too many operation names");
+    assertTrue(
+        operationSampleCnt.get("top") != null || operationSampleCnt.get("work_item") != null,
+        "wrong operation names: " + operationSampleCnt.keySet());
   }
 }

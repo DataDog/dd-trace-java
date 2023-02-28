@@ -16,7 +16,7 @@ public class HttpUrlState {
   private volatile boolean finished = false;
 
   public AgentSpan start(final HttpURLConnection connection) {
-    span = startSpan(DECORATE.operationName("http"));
+    span = startSpan(DECORATE.operationName());
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, connection);

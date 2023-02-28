@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientDecorator
 import org.apache.http.HttpHost
 import org.apache.http.HttpRequest
@@ -12,7 +13,7 @@ import org.apache.http.protocol.BasicHttpContext
 import spock.lang.Shared
 import spock.lang.Timeout
 
-abstract class ApacheHttpClientTest<T extends HttpRequest> extends HttpClientTest {
+abstract class ApacheHttpClientTest<T extends HttpRequest> extends HttpClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
   @Shared
   def client = new DefaultHttpClient()
 
@@ -175,8 +176,7 @@ class ApacheClientUriRequestResponseHandler extends ApacheHttpClientTest<HttpUri
   }
 }
 
-@Timeout(5)
-class ApacheClientUriRequestResponseHandlerContext extends ApacheHttpClientTest<HttpUriRequest> {
+abstract class ApacheClientUriRequestResponseHandlerContext extends ApacheHttpClientTest<HttpUriRequest> {
   @Override
   HttpUriRequest createRequest(String method, URI uri) {
     return new HttpUriRequest(method, uri)
@@ -186,4 +186,12 @@ class ApacheClientUriRequestResponseHandlerContext extends ApacheHttpClientTest<
   HttpResponse executeRequest(HttpUriRequest request, URI uri) {
     return client.execute(request, { response -> response })
   }
+}
+
+@Timeout(5)
+class ApacheClientUriRequestResponseHandlerContextV0ForkedTest extends ApacheClientUriRequestResponseHandlerContext {
+}
+
+@Timeout(5)
+class ApacheClientUriRequestResponseHandlerContextV1ForkedTest extends ApacheClientUriRequestResponseHandlerContext implements TestingGenericHttpNamingConventions.ClientV1 {
 }

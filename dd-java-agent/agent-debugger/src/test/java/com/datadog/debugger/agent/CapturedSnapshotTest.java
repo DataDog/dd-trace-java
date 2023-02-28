@@ -783,7 +783,7 @@ public class CapturedSnapshotTest {
   @Test
   public void simpleConditionTest() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot08";
-    LogProbe logProbes =
+    LogProbe logProbe =
         createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", "int (java.lang.String)")
             .when(
                 new ProbeCondition(
@@ -806,7 +806,7 @@ public class CapturedSnapshotTest {
                     "(fld == 11 && typed.fld.fld.msg == \"hello\") && (arg == '5' && @duration > 0)"))
             .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     for (int i = 0; i < 100; i++) {
       int result = Reflect.on(testClass).call("main", String.valueOf(i)).get();
@@ -815,6 +815,22 @@ public class CapturedSnapshotTest {
     Assert.assertEquals(1, listener.snapshots.size());
     assertCaptureArgs(
         listener.snapshots.get(0).getCaptures().getReturn(), "arg", "java.lang.String", "5");
+  }
+
+  @Test
+  public void simpleFalseConditionTest() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    LogProbe logProbe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", "int (java.lang.String)", "35")
+            .when(
+                new ProbeCondition(DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("5"))), "arg == '5'"))
+            .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
+            .build();
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "0").get();
+    Assert.assertEquals(3, result);
+    Assert.assertEquals(0, listener.snapshots.size());
   }
 
   @Test

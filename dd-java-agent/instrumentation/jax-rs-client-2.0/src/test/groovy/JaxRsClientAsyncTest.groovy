@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.jaxrs.JaxRsClientDecorator
 import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl
 import org.glassfish.jersey.client.ClientConfig
@@ -8,18 +9,13 @@ import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder
 import spock.lang.IgnoreIf
 import spock.lang.Timeout
 
-import javax.ws.rs.client.AsyncInvoker
-import javax.ws.rs.client.Client
-import javax.ws.rs.client.ClientBuilder
-import javax.ws.rs.client.Entity
-import javax.ws.rs.client.InvocationCallback
-import javax.ws.rs.client.WebTarget
+import javax.ws.rs.client.*
 import javax.ws.rs.core.MediaType
 import javax.ws.rs.core.Response
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
-abstract class JaxRsClientAsyncTest extends HttpClientTest {
+abstract class JaxRsClientAsyncTest extends HttpClientTest  {
   @Override
   def setup() {
   }
@@ -61,8 +57,20 @@ abstract class JaxRsClientAsyncTest extends HttpClientTest {
     return JaxRsClientDecorator.DECORATE.component()
   }
 
+
+
   @Override
-  String expectedOperationName() {
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
     return "jax-rs.client.call"
   }
 
@@ -85,8 +93,7 @@ class JerseyClientAsyncTest extends JaxRsClientAsyncTest {
   }
 }
 
-@Timeout(5)
-class ResteasyClientAsyncTest extends JaxRsClientAsyncTest {
+abstract class ResteasyClientAsyncTest extends JaxRsClientAsyncTest {
 
   @Override
   ClientBuilder builder() {
@@ -98,6 +105,13 @@ class ResteasyClientAsyncTest extends JaxRsClientAsyncTest {
   boolean testRedirects() {
     false
   }
+}
+@Timeout(5)
+class ResteasyClientAsyncV0ForkedTest extends ResteasyClientAsyncTest {
+}
+
+@Timeout(5)
+class ResteasyClientAsyncV1ForkedTest extends ResteasyClientAsyncTest implements TestingGenericHttpNamingConventions.ClientV1{
 }
 
 @Timeout(5)

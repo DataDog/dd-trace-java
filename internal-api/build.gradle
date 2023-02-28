@@ -90,6 +90,7 @@ excludedClassesCoverage += [
   // Interface with default method
   "datadog.trace.api.StatsDClientManager",
   // a stub
+  "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration",
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOp",
 ]
 

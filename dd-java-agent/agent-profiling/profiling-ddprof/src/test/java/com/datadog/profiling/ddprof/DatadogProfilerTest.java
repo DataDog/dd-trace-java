@@ -79,16 +79,16 @@ class DatadogProfilerTest {
     String cmd = profiler.cmdStartProfiling(targetFile);
 
     if (profiler.enabledModes().contains(ProfilingMode.CPU)) {
-      assertTrue(cmd.contains("cpu="));
+      assertTrue(cmd.contains("cpu="), cmd);
     }
     if (profiler.enabledModes().contains(ProfilingMode.WALL)) {
-      assertTrue(cmd.contains("wall="));
+      assertTrue(cmd.contains("wall="), cmd);
     }
     if (profiler.enabledModes().contains(ProfilingMode.ALLOCATION)) {
-      assertTrue(cmd.contains("alloc="));
+      assertTrue(cmd.matches(".*?memory=[0-9]+b?:.*?a.*"), cmd);
     }
     if (profiler.enabledModes().contains(ProfilingMode.MEMLEAK)) {
-      assertTrue(cmd.contains("memleak="));
+      assertTrue(cmd.matches(".*?memory=[0-9]+b?:.*?l.*"), cmd);
     }
   }
 

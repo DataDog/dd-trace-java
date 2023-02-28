@@ -153,17 +153,17 @@ abstract class IgniteCacheFailureTest extends VersionedNamingTestBase {
 class IgniteCacheFailureV0ForkedTest extends IgniteCacheFailureTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 0
   }
 
   @Override
-  protected String service() {
+  String service() {
     return AbstractIgniteTest.V0_SERVICE
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return AbstractIgniteTest.V0_OPERATION
   }
 }
@@ -171,17 +171,17 @@ class IgniteCacheFailureV0ForkedTest extends IgniteCacheFailureTest {
 class IgniteCacheFailureV1ForkedTest extends IgniteCacheFailureTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 1
   }
 
   @Override
-  protected String service() {
+  String service() {
     return AbstractIgniteTest.V1_SERVICE
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return AbstractIgniteTest.V1_OPERATION
   }
 }

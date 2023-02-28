@@ -388,17 +388,17 @@ abstract class Lettuce5SyncClientTest extends VersionedNamingTestBase {
 class Lettuce5AsyncClientV0ForkedTest extends Lettuce5AsyncClientTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 0
   }
 
   @Override
-  protected String service() {
+  String service() {
     return "redis"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "redis.query"
   }
 }
@@ -406,17 +406,17 @@ class Lettuce5AsyncClientV0ForkedTest extends Lettuce5AsyncClientTest {
 class Lettuce5AsyncClientV1ForkedTest extends Lettuce5AsyncClientTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 1
   }
 
   @Override
-  protected String service() {
+  String service() {
     return Config.get().getServiceName() + "-redis"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "redis.command"
   }
 }

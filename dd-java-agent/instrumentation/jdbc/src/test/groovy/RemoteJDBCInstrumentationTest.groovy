@@ -491,12 +491,12 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
   }
 
   @Override
-  protected final String service() {
+  final String service() {
     return null
   }
 
   @Override
-  protected final String operation() {
+  final String operation() {
     return null
   }
 
@@ -508,7 +508,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
 class RemoteJDBCInstrumentationV0ForkedTest extends RemoteJDBCInstrumentationTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 0
   }
 
@@ -533,7 +533,7 @@ class RemoteJDBCInstrumentationV1ForkedTest extends RemoteJDBCInstrumentationTes
   }
 
   @Override
-  protected int version() {
+  int version() {
     return 1
   }
 

@@ -18,7 +18,7 @@ abstract class AbstractServletTest<SERVER, CONTEXT> extends HttpServerTest<SERVE
 
   @Override
   String component() {
-    return TomcatDecorator.DECORATE.component()
+    return TomcatDecorator.TOMCAT_SERVER
   }
 
   @Override
@@ -28,7 +28,7 @@ abstract class AbstractServletTest<SERVER, CONTEXT> extends HttpServerTest<SERVE
 
   @Override
   String expectedOperationName() {
-    return "servlet.request"
+    return operation()
   }
 
   boolean hasHandlerSpan() {

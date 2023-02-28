@@ -50,14 +50,14 @@ class ScopeManagerTest extends DDCoreSpecification {
   EventCountingListener eventCountingListener
   EventCountingExtendedListener eventCountingExtendedListener
   EndpointCheckpointer rootSpanCheckpointer
-  ProfilingContextIntegration listener
+  ProfilingContextIntegration profilingContext
 
   def setup() {
-    listener = Mock(ProfilingContextIntegration)
+    profilingContext = Mock(ProfilingContextIntegration)
     rootSpanCheckpointer = Mock()
     writer = new ListWriter()
     statsDClient = Mock()
-    tracer = tracerBuilder().writer(writer).statsDClient(statsDClient).profilingContextIntegration(listener).build()
+    tracer = tracerBuilder().writer(writer).statsDClient(statsDClient).profilingContextIntegration(profilingContext).build()
     tracer.registerCheckpointer(rootSpanCheckpointer)
     scopeManager = tracer.scopeManager
     eventCountingListener = new EventCountingListener()
@@ -551,8 +551,10 @@ class ScopeManagerTest extends DDCoreSpecification {
     assertEvents([ACTIVATE, ACTIVATE])
     1 * statsDClient.incrementCounter("scope.close.error")
     1 * rootSpanCheckpointer.onRootSpanStarted(_)
-    3 * listener.setContext(_, _)
-    1 * listener.onAttach()
+    3 * profilingContext.setContext(_)
+    1 * profilingContext.onAttach()
+    1 * profilingContext.encode("foo")
+    1 * profilingContext.encode("bar")
     0 * _
 
     when:
@@ -562,8 +564,8 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     1 * rootSpanCheckpointer.onRootSpanFinished(_, _)
     _ * statsDClient.close()
-    1 * listener.setContext(0, 0)
-    1 * listener.onDetach()
+    1 * profilingContext.clearContext()
+    1 * profilingContext.onDetach()
     assertEvents([ACTIVATE, ACTIVATE, CLOSE, CLOSE])
     0 * _
 
@@ -590,8 +592,9 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeScope() == firstScope
     assertEvents([ACTIVATE])
     1 * rootSpanCheckpointer.onRootSpanStarted(_)
-    1 * listener.onAttach()
-    1 * listener.setContext(_, _)
+    1 * profilingContext.onAttach()
+    1 * profilingContext.setContext(_)
+    1 * profilingContext.encode("foo")
     0 * _
 
     when:
@@ -603,7 +606,8 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeSpan() == secondSpan
     tracer.activeScope() == secondScope
     assertEvents([ACTIVATE, ACTIVATE])
-    1 * listener.setContext(_, _)
+    1 * profilingContext.setContext(_)
+    1 * profilingContext.encode("bar")
     0 * _
 
     when:
@@ -615,7 +619,8 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeSpan() == thirdSpan
     tracer.activeScope() == thirdScope
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
-    1 * listener.setContext(_, _)
+    1 * profilingContext.setContext(_)
+    1 * profilingContext.encode("quux")
     0 * _
 
     when:
@@ -627,7 +632,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeScope() == thirdScope
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
     1 * statsDClient.incrementCounter("scope.close.error")
-    1 * listener.setContext(_, _)
+    1 * profilingContext.setContext(_)
     0 * _
 
     when:
@@ -640,7 +645,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE, CLOSE, CLOSE, ACTIVATE])
     _ * statsDClient.close()
-    1 * listener.setContext(_, _)
+    1 * profilingContext.setContext(_)
     0 * _
 
     when:
@@ -667,8 +672,8 @@ class ScopeManagerTest extends DDCoreSpecification {
       CLOSE
     ])
     _ * statsDClient.close()
-    1 * listener.setContext(0, 0)
-    1 * listener.onDetach()
+    1 * profilingContext.clearContext()
+    1 * profilingContext.onDetach()
     0 * _
   }
 
@@ -698,7 +703,8 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeSpan() == thirdSpan
     tracer.activeScope() == thirdScope
     assertEvents([ACTIVATE, ACTIVATE])
-    1 * listener.setContext(_, _)
+    1 * profilingContext.setContext(_)
+    1 * profilingContext.encode("quux")
     0 * _
 
     when:
@@ -715,7 +721,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then: 'Closing scope above multiple activated scope does not close it'
     assertEvents([ACTIVATE, ACTIVATE, CLOSE, ACTIVATE])
-    1 * listener.setContext(_, _)
+    1 * profilingContext.setContext(_)
     _ * statsDClient.close()
     0 * _
 
@@ -1054,7 +1060,7 @@ class ScopeManagerTest extends DDCoreSpecification {
       assert scopeManager.active() == null
     }).get()
     then: "the listener is not notified"
-    0 * listener.onAttach()
+    0 * profilingContext.onAttach()
 
     when: "scopes activate on threads"
     AgentSpan span = tracer.buildSpan("foo").start()
@@ -1075,7 +1081,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     }
 
     then: "the first activation notifies the listener"
-    numThreads * listener.onAttach()
+    numThreads * profilingContext.onAttach()
     _ * _
 
     cleanup:

@@ -81,14 +81,14 @@ class ProxyRequestHelperTest extends WithHttpServer<ConfigurableApplicationConte
       trace (3) {
         sortSpansByStart()
         //zuul
-        serverSpan(it, "servlet.request", DDSpanTypes.HTTP_SERVER)
+        serverSpan(it, operation(), DDSpanTypes.HTTP_SERVER)
         serverSpan(it, "spring.handler", DDSpanTypes.HTTP_SERVER)
         serverSpan(it, "http.request", DDSpanTypes.HTTP_CLIENT)
       }
       //spring application
       trace (2) {
         sortSpansByStart()
-        serverSpan(it, "servlet.request", DDSpanTypes.HTTP_SERVER, trace(0)[2])
+        serverSpan(it, operation(), DDSpanTypes.HTTP_SERVER, trace(0)[2])
         serverSpan(it, "spring.handler", DDSpanTypes.HTTP_SERVER)
       }
     }
@@ -111,25 +111,25 @@ class ProxyRequestHelperTest extends WithHttpServer<ConfigurableApplicationConte
     assertTraces(4) {
       trace (3) {
         sortSpansByStart()
-        serverSpan(it, "servlet.request", DDSpanTypes.HTTP_SERVER)
+        serverSpan(it, operation(), DDSpanTypes.HTTP_SERVER)
         serverSpan(it, "spring.handler", DDSpanTypes.HTTP_SERVER)
         serverSpan(it, "http.request", DDSpanTypes.HTTP_CLIENT)
       }
       trace (3) {
         sortSpansByStart()
-        serverSpan(it, "servlet.request", DDSpanTypes.HTTP_SERVER, trace(0)[2])
+        serverSpan(it, operation(), DDSpanTypes.HTTP_SERVER, trace(0)[2])
         serverSpan(it, "spring.handler", DDSpanTypes.HTTP_SERVER)
         serverSpan(it, "http.request", DDSpanTypes.HTTP_CLIENT)
       }
       trace (3) {
         sortSpansByStart()
-        serverSpan(it, "servlet.request", DDSpanTypes.HTTP_SERVER, trace(1)[2])
+        serverSpan(it, operation(), DDSpanTypes.HTTP_SERVER, trace(1)[2])
         serverSpan(it, "spring.handler", DDSpanTypes.HTTP_SERVER)
         serverSpan(it, "http.request", DDSpanTypes.HTTP_CLIENT)
       }
       trace (2) {
         sortSpansByStart()
-        serverSpan(it, "servlet.request", DDSpanTypes.HTTP_SERVER, trace(2)[2])
+        serverSpan(it, operation(), DDSpanTypes.HTTP_SERVER, trace(2)[2])
         serverSpan(it, "spring.handler", DDSpanTypes.HTTP_SERVER)
       }
     }
@@ -190,5 +190,20 @@ class ProxyRequestHelperTest extends WithHttpServer<ConfigurableApplicationConte
       operationName opName
       spanType type
     }
+  }
+  // tests for V1 will be added once servlet will support v1 naming
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "servlet.request"
   }
 }
