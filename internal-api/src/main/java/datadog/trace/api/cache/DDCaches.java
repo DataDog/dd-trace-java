@@ -55,6 +55,6 @@ public final class DDCaches {
   }
 
   public static <K, V> DDPartialKeyCache<K, V> newFixedSizePartialKeyCache(final int capacity) {
-    return new FixedSizeCache.FixedSizePartialKeyCache<>(capacity);
+    return new FixedSizePartialKeyCache<>(capacity);
   }
 }
