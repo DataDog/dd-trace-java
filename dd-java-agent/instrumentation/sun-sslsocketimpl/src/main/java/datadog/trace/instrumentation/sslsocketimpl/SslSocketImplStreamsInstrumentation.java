@@ -11,12 +11,11 @@ import datadog.trace.bootstrap.instrumentation.api.UsmConnection;
 import datadog.trace.bootstrap.instrumentation.api.UsmExtractor;
 import datadog.trace.bootstrap.instrumentation.api.UsmMessage;
 import datadog.trace.bootstrap.instrumentation.api.UsmMessageFactory;
+import java.net.Inet6Address;
 import net.bytebuddy.asm.Advice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.security.ssl.SSLSocketImpl;
-
-import java.net.Inet6Address;
 
 @AutoService(Instrumenter.class)
 public class SslSocketImplStreamsInstrumentation extends Instrumenter.Usm
@@ -71,8 +70,13 @@ public class SslSocketImplStreamsInstrumentation extends Instrumenter.Usm
         @Advice.Argument(2) int len) {
 
       boolean isIPv6 = socket.getLocalAddress() instanceof Inet6Address;
-      UsmConnection connection = new UsmConnection(socket.getLocalAddress(),socket.getLocalPort(),
-                                                                  socket.getInetAddress(),socket.getPeerPort(), isIPv6);
+      UsmConnection connection =
+          new UsmConnection(
+              socket.getLocalAddress(),
+              socket.getLocalPort(),
+              socket.getInetAddress(),
+              socket.getPeerPort(),
+              isIPv6);
       UsmMessage message =
           UsmMessageFactory.Supplier.getRequestMessage(connection, buffer, offset, len);
       UsmExtractor.Supplier.send(message);
@@ -89,7 +93,13 @@ public class SslSocketImplStreamsInstrumentation extends Instrumenter.Usm
         @Advice.Argument(2) int len) {
 
       boolean isIPv6 = socket.getLocalAddress() instanceof Inet6Address;
-      UsmConnection connection = new UsmConnection(socket.getLocalAddress(),socket.getLocalPort(),socket.getInetAddress(),socket.getPeerPort(), isIPv6);
+      UsmConnection connection =
+          new UsmConnection(
+              socket.getLocalAddress(),
+              socket.getLocalPort(),
+              socket.getInetAddress(),
+              socket.getPeerPort(),
+              isIPv6);
       UsmMessage message =
           UsmMessageFactory.Supplier.getRequestMessage(connection, buffer, offset, len);
       UsmExtractor.Supplier.send(message);

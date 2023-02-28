@@ -10,10 +10,9 @@ import datadog.trace.bootstrap.instrumentation.api.UsmConnection;
 import datadog.trace.bootstrap.instrumentation.api.UsmExtractor;
 import datadog.trace.bootstrap.instrumentation.api.UsmMessage;
 import datadog.trace.bootstrap.instrumentation.api.UsmMessageFactory;
+import java.net.Inet6Address;
 import net.bytebuddy.asm.Advice;
 import sun.security.ssl.SSLSocketImpl;
-
-import java.net.Inet6Address;
 
 @AutoService(Instrumenter.class)
 public class SslSocketImplInstrumentation extends Instrumenter.Usm
@@ -38,8 +37,14 @@ public class SslSocketImplInstrumentation extends Instrumenter.Usm
   public static class CloseAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void close(@Advice.This SSLSocketImpl socket) {
-      boolean isIPv6= socket.getLocalAddress() instanceof Inet6Address;
-      UsmConnection connection = new UsmConnection(socket.getLocalAddress(),socket.getLocalPort(),socket.getInetAddress(),socket.getPeerPort(), isIPv6);
+      boolean isIPv6 = socket.getLocalAddress() instanceof Inet6Address;
+      UsmConnection connection =
+          new UsmConnection(
+              socket.getLocalAddress(),
+              socket.getLocalPort(),
+              socket.getInetAddress(),
+              socket.getPeerPort(),
+              isIPv6);
       UsmMessage message = UsmMessageFactory.Supplier.getCloseMessage(connection);
       UsmExtractor.Supplier.send(message);
     }

@@ -1,9 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import java.net.InetAddress;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.InetAddress;
 public class UsmConnection {
 
   private static final Logger log = LoggerFactory.getLogger(UsmConnection.class);
@@ -40,5 +40,4 @@ public class UsmConnection {
   public boolean isIPV6() {
     return isIPv6;
   }
-
 }
