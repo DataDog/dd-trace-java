@@ -7,7 +7,9 @@ public class ServerNamingV0 implements NamingSchema.ForServer {
   @Nonnull
   @Override
   public String operationForProtocol(@Nonnull String protocol) {
-    // cases will be addressed in subsequent PRs (for grpc and rmi)
+    if ("grpc".equals(protocol)) {
+      return "grpc.server";
+    }
     return protocol + ".request";
   }
 

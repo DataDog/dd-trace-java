@@ -8,7 +8,7 @@ public class ServerNamingV1 implements NamingSchema.ForServer {
   @Nonnull
   @Override
   public String operationForProtocol(@Nonnull String protocol) {
-    return protocol + "server.request";
+    return protocol + ".server.request";
   }
 
   @Nonnull

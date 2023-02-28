@@ -47,6 +47,20 @@ abstract class GrpcTest extends VersionedNamingTestBase {
   def collectedAppSecReqMsgs = []
 
   @Override
+  final String service() {
+    return null
+  }
+
+  @Override
+  final String operation() {
+    return null
+  }
+
+  protected abstract String clientOperation()
+
+  protected abstract String serverOperation()
+
+  @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("dd.trace.grpc.ignored.inbound.methods", "example.Greeter/IgnoreInbound")
@@ -65,7 +79,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
     ig.registerCallback(EVENTS.requestHeader(), { reqCtx, name, value ->
       collectedAppSecHeaders[name] = value
     } as TriConsumer<RequestContext, String, String>)
-    ig.registerCallback(EVENTS.requestHeaderDone(),{
+    ig.registerCallback(EVENTS.requestHeaderDone(), {
       appSecHeaderDone = true
       Flow.ResultFlow.empty()
     } as Function<RequestContext, Flow<Void>>)
@@ -122,7 +136,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
       trace(3) {
         basicSpan(it, "parent")
         span {
-          operationName operation()
+          operationName clientOperation()
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
           childOf span(0)
@@ -157,7 +171,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
       }
       trace(2) {
         span {
-          operationName "grpc.server"
+          operationName serverOperation()
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
           childOf trace(0).get(1)
@@ -260,7 +274,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
     assertTraces(2) {
       trace(1) {
         span {
-          operationName operation()
+          operationName clientOperation()
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
           parent()
@@ -282,7 +296,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
       }
       trace(2) {
         span {
-          operationName "grpc.server"
+          operationName serverOperation()
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
           childOf trace(0).get(0)
@@ -360,7 +374,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
     assertTraces(2) {
       trace(1) {
         span {
-          operationName operation()
+          operationName clientOperation()
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
           parent()
@@ -372,7 +386,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             "status.code" "UNKNOWN"
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
-            if ({isDataStreamsEnabled()}) {
+            if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
             defaultTags()
@@ -381,7 +395,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
       }
       trace(2) {
         span {
-          operationName "grpc.server"
+          operationName serverOperation()
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
           childOf trace(0).get(0)
@@ -391,7 +405,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "grpc-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             errorTags error.class, error.message
-            if ({isDataStreamsEnabled()}) {
+            if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
             defaultTags(true)
@@ -482,7 +496,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
       }
       trace(2) {
         span {
-          operationName "grpc.server"
+          operationName serverOperation()
           resourceName "example.Greeter/Ignore"
           spanType DDSpanTypes.RPC
           parentSpanId DDSpanId.ZERO
@@ -547,7 +561,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
     assertTraces(1) {
       trace(2) {
         span {
-          operationName operation()
+          operationName clientOperation()
           resourceName "example.Greeter/IgnoreInbound"
           spanType DDSpanTypes.RPC
           parent()
@@ -617,13 +631,13 @@ class GrpcDataStreamsEnabledV0ForkedTest extends GrpcDataStreamsEnabledForkedTes
   }
 
   @Override
-  String service() {
-    return null
+  protected String clientOperation() {
+    return "grpc.client"
   }
 
   @Override
-  String operation() {
-    return "grpc.client"
+  protected String serverOperation() {
+    return "grpc.server"
   }
 }
 
@@ -635,13 +649,13 @@ class GrpcDataStreamsEnabledV1ForkedTest extends GrpcDataStreamsEnabledForkedTes
   }
 
   @Override
-  String service() {
-    return null
+  protected String clientOperation() {
+    return "grpc.client.request"
   }
 
   @Override
-  String operation() {
-    return "grpc.client.request"
+  protected String serverOperation() {
+    return "grpc.server.request"
   }
 }
 
@@ -663,12 +677,12 @@ class GrpcDataStreamsDisabledForkedTest extends GrpcTest {
   }
 
   @Override
-  String service() {
-    return null
+  protected String clientOperation() {
+    return "grpc.client"
   }
 
   @Override
-  String operation() {
-    return "grpc.client"
+  protected String serverOperation() {
+    return "grpc.server"
   }
 }

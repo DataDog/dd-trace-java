@@ -11,12 +11,12 @@ class HierarchyMatcherGrpcStreamingTest extends GrpcStreamingTest {
   }
 
   @Override
-  String service() {
-    return null
+  String clientOperation() {
+    return "grpc.client"
   }
 
   @Override
-  String operation() {
-    return "grpc.client"
+  String serverOperation() {
+    return "grpc.server"
   }
 }
