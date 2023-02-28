@@ -8,9 +8,6 @@ import datadog.trace.bootstrap.instrumentation.api.UsmMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectOutputStream;
-
 public abstract class UsmMessageImpl {
   enum MessageType {
     // message created from hooks on from read / write functions of AppInputStream
@@ -136,7 +133,10 @@ public abstract class UsmMessageImpl {
               + " src port: "
               + connection.getSrcPort());
       log.debug(
-          "dst host: " + connection.getDstIP().toString() + " dst port: " + connection.getDstPort());
+          "dst host: "
+              + connection.getDstIP().toString()
+              + " dst port: "
+              + connection.getDstPort());
     }
 
     @Override
@@ -164,7 +164,10 @@ public abstract class UsmMessageImpl {
               + " src port: "
               + connection.getSrcPort());
       log.debug(
-          "dst host: " + connection.getDstIP().toString() + " dst port: " + connection.getDstPort());
+          "dst host: "
+              + connection.getDstIP().toString()
+              + " dst port: "
+              + connection.getDstPort());
       log.debug("intercepted byte len: " + len);
 
       // check the buffer is not larger than max allowed,

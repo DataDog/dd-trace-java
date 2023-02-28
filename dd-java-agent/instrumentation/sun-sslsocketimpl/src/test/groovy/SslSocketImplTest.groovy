@@ -39,7 +39,7 @@ class SslSocketImplTest extends AgentTestRunner {
     HttpsURLConnection conn = (HttpsURLConnection)url.openConnection()
     conn.setRequestMethod(method)
     conn.setRequestProperty("Content-Type", "text/plain")
-    conn.setDoOutput(true);
+    conn.setDoOutput(true)
     conn.connect()
 
     // Mock message factory
