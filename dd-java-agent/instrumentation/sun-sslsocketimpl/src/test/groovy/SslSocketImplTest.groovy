@@ -18,8 +18,8 @@ class SslSocketImplTest extends AgentTestRunner {
   @Shared
   def server = httpServer {
     handlers {
-      all {
-        response.status(200).send(responseBody.get())
+      prefix("success") {
+        response.status(200).send()
       }
     }
   }
@@ -34,7 +34,7 @@ class SslSocketImplTest extends AgentTestRunner {
   def "simple HTTPS request"() {
     setup:
     HttpsURLConnection.setDefaultSSLSocketFactory(server.sslContext.getSocketFactory())
-    URL url = server.getSecureAddress().resolve("/foo").toURL()
+    URL url = server.getSecureAddress().resolve("/success").toURL()
 
     HttpsURLConnection conn = (HttpsURLConnection)url.openConnection()
     conn.setRequestMethod(method)
@@ -59,15 +59,14 @@ class SslSocketImplTest extends AgentTestRunner {
     extractorSupplierField.set(null, extractorMock)
 
     when:
-    conn.getOutputStream().write(body);
+    int status = conn.getResponseCode()
 
     then:
-    assert conn.connected
-    1 * factoryMock.getRequestMessage(*_)
-    1 * extractorMock.send(_)
+    status == 200
+    2 * factoryMock.getRequestMessage(*_) // expect 2 calls: one request, one response
+    2 * extractorMock.send(null) // `getRequestMessage` mock returns `null` so we expect to get it in send
 
     where:
     method = "POST"
-    body = (1..1000).join(" ").getBytes("utf-8")
   }
 }
