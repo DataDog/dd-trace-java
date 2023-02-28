@@ -1,9 +1,11 @@
 package datadog.trace.core.propagation.ptags;
 
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
+import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.DECISION_MAKER_TAG;
 
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.PropagationTags.HeaderType;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -11,6 +13,7 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import javax.annotation.Nonnull;
 
 public class PTagsFactory implements PropagationTags.Factory {
@@ -23,6 +26,7 @@ public class PTagsFactory implements PropagationTags.Factory {
   public PTagsFactory(int xDatadogTagsLimit) {
     this.xDatadogTagsLimit = xDatadogTagsLimit;
     DEC_ENC_MAP.put(DATADOG, new DatadogPTagsCodec(xDatadogTagsLimit));
+    DEC_ENC_MAP.put(W3C, new W3CPTagsCodec());
   }
 
   boolean isPropagationTagsDisabled() {
@@ -96,28 +100,62 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     @Override
     public void updateTraceSamplingPriority(int samplingPriority, int samplingMechanism) {
-      if (samplingPriority != PrioritySampling.UNSET && canChangeDecisionMaker) {
+      if (samplingPriority != PrioritySampling.UNSET && canChangeDecisionMaker
+          || samplingMechanism == SamplingMechanism.EXTERNAL_OVERRIDE) {
+        if (this.samplingPriority != samplingPriority) {
+          // This should invalidate any cached w3c header
+          clearCachedHeader(W3C);
+        }
         this.samplingPriority = samplingPriority;
         if (samplingPriority > 0) {
+          // TODO should try to keep the old sampling mechanism if we override the value?
+          if (samplingMechanism == SamplingMechanism.EXTERNAL_OVERRIDE) {
+            // There is no specific value for the EXTERNAL_OVERRIDE, so say that it's the DEFAULT
+            samplingMechanism = SamplingMechanism.DEFAULT;
+          }
           // Protect against possible SamplingMechanism.UNKNOWN (-1) that doesn't comply with the
           // format
           if (samplingMechanism >= 0) {
             TagValue newDM = TagValue.from("-" + samplingMechanism);
             if (!newDM.equals(decisionMakerTagValue)) {
-              // This should invalidate any cached datadog header
+              // This should invalidate any cached w3c and datadog header
               clearCachedHeader(DATADOG);
+              clearCachedHeader(W3C);
             }
             decisionMakerTagValue = newDM;
           }
         } else {
           // Drop the decision maker tag
           if (decisionMakerTagValue != null) {
-            // This should invalidate any cached datadog header
+            // This should invalidate any cached w3c and datadog header
             clearCachedHeader(DATADOG);
+            clearCachedHeader(W3C);
           }
           decisionMakerTagValue = null;
         }
       }
+    }
+
+    @Override
+    public int getSamplingPriority() {
+      return samplingPriority;
+    }
+
+    @Override
+    public void updateTraceOrigin(CharSequence origin) {
+      // TODO we should really have UTF8ByteStrings for the regular ones
+      CharSequence existing = this.origin;
+      if (Objects.equals(existing, origin)) {
+        return;
+      }
+      // Invalidate any cached w3c header
+      clearCachedHeader(W3C);
+      this.origin = TagValue.from(origin);
+    }
+
+    @Override
+    public CharSequence getOrigin() {
+      return origin;
     }
 
     @Override

@@ -33,10 +33,15 @@ public class PropagationTagsBenchmark {
    * The parameter is split at '|' and the first element is the propagation tags header type. The
    * rest of the elements are joined with ',' to form the header to be parsed.
    */
-  @Param({"datadog|_dd.p.anytag=value|_dd.p.dm=934086a686-4"})
+  @Param({
+    "datadog|_dd.p.anytag=value|_dd.p.dm=934086a686-4",
+    "w3c|dd=s:1;o:some;t.anytag:value;t.dm:934086a686-4",
+    "w3c|foo=bar|dd=s:1;o:some;t.anytag:value;t.dm:934086a686-4|bar=baz",
+    "w3c|foo=bar|dd=s:1;o:some;t.anytag:value;other:value;t.dm:934086a686-4|bar=baz"
+  })
   String extractHeaderType;
 
-  @Param("datadog")
+  @Param({"datadog", "w3c"})
   String injectHeaderType;
 
   PropagationTags.Factory factory;

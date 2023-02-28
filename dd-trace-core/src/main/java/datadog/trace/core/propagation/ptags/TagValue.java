@@ -111,7 +111,7 @@ final class TagValue extends TagElement {
     return c;
   }
 
-  private final CharSequence[] values = new String[Encoding.getNumValues()];
+  private final CharSequence[] values = new CharSequence[Encoding.getNumValues()];
   private final int source;
   private final int hash;
 

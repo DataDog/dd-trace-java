@@ -37,10 +37,11 @@ public class CiVisibilityTraceInterceptor implements TraceInterceptor {
       return Collections.emptyList();
     }
 
-    // If the trace belongs to a "test", we need to set the origin of all the spans of the trace to
-    // `ciapp-test`.
+    // If the trace belongs to a "test", we need to set the origin to `ciapp-test` and the
+    // `library_version` tag for all spans.
+    firstSpan.context().setOrigin(CIAPP_TEST_ORIGIN);
+    firstSpan.setTag(DDTags.LIBRARY_VERSION_TAG_KEY, DDTraceCoreInfo.VERSION);
     for (MutableSpan span : trace) {
-      ((DDSpan) span).context().setOrigin(CIAPP_TEST_ORIGIN);
       span.setTag(DDTags.LIBRARY_VERSION_TAG_KEY, DDTraceCoreInfo.VERSION);
     }
 

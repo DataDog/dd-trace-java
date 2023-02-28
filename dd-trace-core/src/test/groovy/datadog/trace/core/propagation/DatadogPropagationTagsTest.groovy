@@ -69,6 +69,25 @@ class DatadogPropagationTagsTest extends DDCoreSpecification {
     "_dd.p.dm=934086a665-12b"                                                                                                    | null                                       | ["_dd.propagation_error": "decoding_error"] // invalid dm tag value sampling mechanism contains invalid char
   }
 
+  def "datadog propagation tags should translate to w3c tags #headerValue"() {
+    setup:
+    def config = Mock(Config)
+    config.getxDatadogTagsMaxLength() >> 512
+    def propagationTagsFactory = PropagationTags.factory(config)
+
+    when:
+    def propagationTags = propagationTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, headerValue)
+
+    then:
+    propagationTags.headerValue(PropagationTags.HeaderType.W3C) == expectedHeaderValue
+    propagationTags.createTagMap() == tags
+
+    where:
+    headerValue                            | expectedHeaderValue               | tags
+    '_dd.p.dm=934086a686-4'                | 'dd=t.dm:934086a686-4'            | ['_dd.p.dm': '934086a686-4']
+    '_dd.p.dm=934086a686-4,_dd.p.f=w00t==' | 'dd=t.dm:934086a686-4;t.f:w00t~~' | ['_dd.p.dm': '934086a686-4', '_dd.p.f': 'w00t==']
+  }
+
   def "update propagation tags sampling mechanism #originalTagSet"() {
     setup:
     def config = Mock(Config)

@@ -34,7 +34,8 @@ public abstract class PropagationTags {
   }
 
   public enum HeaderType {
-    DATADOG;
+    DATADOG,
+    W3C;
 
     private static final int numValues = HeaderType.values().length;
 
@@ -54,6 +55,12 @@ public abstract class PropagationTags {
    * tag doesn't exist. Called on the root span context.
    */
   public abstract void updateTraceSamplingPriority(int samplingPriority, int samplingMechanism);
+
+  public abstract int getSamplingPriority();
+
+  public abstract void updateTraceOrigin(CharSequence origin);
+
+  public abstract CharSequence getOrigin();
 
   /**
    * Constructs a header value that includes valid propagated _dd.p.* tags and possibly a new

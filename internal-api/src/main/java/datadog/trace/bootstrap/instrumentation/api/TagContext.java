@@ -14,7 +14,7 @@ public class TagContext implements AgentSpan.Context.Extracted {
 
   private static final HttpHeaders EMPTY_HTTP_HEADERS = new HttpHeaders();
 
-  private final String origin;
+  private final CharSequence origin;
   private final Map<String, String> tags;
   private Object requestContextDataAppSec;
   private Object requestContextDataIast;
@@ -32,7 +32,7 @@ public class TagContext implements AgentSpan.Context.Extracted {
   }
 
   public TagContext(
-      final String origin,
+      final CharSequence origin,
       final Map<String, String> tags,
       HttpHeaders httpHeaders,
       final Map<String, String> baggage,
@@ -44,7 +44,7 @@ public class TagContext implements AgentSpan.Context.Extracted {
     this.samplingPriority = samplingPriority;
   }
 
-  public final String getOrigin() {
+  public final CharSequence getOrigin() {
     return origin;
   }
 
