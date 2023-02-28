@@ -5,7 +5,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_
 import datadog.trace.api.Config;
 import datadog.trace.core.propagation.ptags.PTagsFactory;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -35,7 +34,13 @@ public abstract class PropagationTags {
   }
 
   public enum HeaderType {
-    DATADOG
+    DATADOG;
+
+    private static final int numValues = HeaderType.values().length;
+
+    public static int getNumValues() {
+      return numValues;
+    }
   }
 
   public interface Factory {
@@ -69,13 +74,4 @@ public abstract class PropagationTags {
     fillTagMap(result);
     return result;
   }
-
-  // Internal methods used by the different HeaderType implementations
-  public abstract List<String> tagPairs();
-
-  public abstract int tagsSize();
-
-  public abstract boolean missingDecisionMaker();
-
-  public abstract String decisionMakerTagValue();
 }

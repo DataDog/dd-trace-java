@@ -44,6 +44,6 @@ public interface DDPartialKeyCache<K, V> {
 
   @FunctionalInterface
   interface Producer<T, R> {
-    R apply(T t, int m, int n);
+    R apply(T t, int h, int m, int n);
   }
 }
