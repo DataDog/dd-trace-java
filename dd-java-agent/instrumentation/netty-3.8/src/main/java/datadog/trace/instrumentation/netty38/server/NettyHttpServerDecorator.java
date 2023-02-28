@@ -32,8 +32,10 @@ public class NettyHttpServerDecorator
     extends HttpServerDecorator<HttpRequest, Channel, HttpResponse, HttpHeaders> {
   public static final CharSequence NETTY = UTF8BytesString.create("netty");
   public static final CharSequence NETTY_CONNECT = UTF8BytesString.create("netty.connect");
-  public static final CharSequence NETTY_REQUEST = UTF8BytesString.create("netty.request");
+
   public static final NettyHttpServerDecorator DECORATE = new NettyHttpServerDecorator();
+  private static final CharSequence NETTY_REQUEST =
+      UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected String[] instrumentationNames() {

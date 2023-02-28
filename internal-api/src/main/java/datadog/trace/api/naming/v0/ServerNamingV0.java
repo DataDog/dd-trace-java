@@ -24,8 +24,9 @@ public class ServerNamingV0 implements NamingSchema.ForServer {
       case "akka-http-server":
         prefix = "akka-http";
         break;
+      case "netty":
       case "finatra":
-        prefix = "finatra";
+        prefix = component;
         break;
       case "spray-http-server":
         prefix = "spray-http";
