@@ -1,7 +1,8 @@
-package datadog.trace.core.propagation;
+package datadog.trace.core.propagation.ptags;
 
-import static datadog.trace.core.propagation.PropagationTagsFactory.PROPAGATION_ERROR_TAG_KEY;
+import static datadog.trace.core.propagation.ptags.PTagsFactory.PROPAGATION_ERROR_TAG_KEY;
 
+import datadog.trace.core.propagation.PropagationTags;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -10,9 +11,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Captures configuration required for PropagationTags logic */
-final class DatadogPropagationTagsFactory {
+final class DatadogPTagsCodec {
 
-  private static final Logger log = LoggerFactory.getLogger(DatadogPropagationTagsFactory.class);
+  private static final Logger log = LoggerFactory.getLogger(DatadogPTagsCodec.class);
 
   private static final String ALLOWED_TAG_PREFIX = "_dd.p.";
   private static final String DECISION_MAKER_TAG = ALLOWED_TAG_PREFIX + "dm";
@@ -32,7 +33,7 @@ final class DatadogPropagationTagsFactory {
 
   private final int datadogTagsLimit;
 
-  DatadogPropagationTagsFactory(int datadogTagsLimit) {
+  DatadogPTagsCodec(int datadogTagsLimit) {
     this.datadogTagsLimit = datadogTagsLimit;
   }
 
@@ -54,7 +55,7 @@ final class DatadogPropagationTagsFactory {
    * @return a PropagationTags containing only _dd.p.* tags or an error if the header value is
    *     invalid
    */
-  public PropagationTags fromHeaderValue(PropagationTagsFactory tagsFactory, String value) {
+  public PropagationTags fromHeaderValue(PTagsFactory tagsFactory, String value) {
     if (value == null) {
       return tagsFactory.empty();
     }

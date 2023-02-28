@@ -1,18 +1,19 @@
-package datadog.trace.core.propagation;
+package datadog.trace.core.propagation.ptags;
 
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.PropagationTags.HeaderType;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-public class PropagationTagsFactory implements PropagationTags.Factory {
+public class PTagsFactory implements PropagationTags.Factory {
   static final String PROPAGATION_ERROR_TAG_KEY = "_dd.propagation_error";
 
-  private final DatadogPropagationTagsFactory ddFactory;
+  private final DatadogPTagsCodec ddFactory;
 
-  PropagationTagsFactory(int xDatadogTagsLimit) {
-    ddFactory = new DatadogPropagationTagsFactory(xDatadogTagsLimit);
+  public PTagsFactory(int xDatadogTagsLimit) {
+    ddFactory = new DatadogPTagsCodec(xDatadogTagsLimit);
   }
 
   @Override
@@ -80,22 +81,22 @@ public class PropagationTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
-    List<String> tagPairs() {
+    public List<String> tagPairs() {
       return propagatedTagPairs;
     }
 
     @Override
-    int tagsSize() {
+    public int tagsSize() {
       return propagatedTagsSize;
     }
 
     @Override
-    boolean missingDecisionMaker() {
+    public boolean missingDecisionMaker() {
       return isDecisionMakerTagMissing;
     }
 
     @Override
-    String decisionMakerTagValue() {
+    public String decisionMakerTagValue() {
       return decisionMakerTagValue;
     }
   }
@@ -122,22 +123,22 @@ public class PropagationTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
-    List<String> tagPairs() {
+    public List<String> tagPairs() {
       return Collections.emptyList();
     }
 
     @Override
-    int tagsSize() {
+    public int tagsSize() {
       return 0;
     }
 
     @Override
-    boolean missingDecisionMaker() {
+    public boolean missingDecisionMaker() {
       return false;
     }
 
     @Override
-    String decisionMakerTagValue() {
+    public String decisionMakerTagValue() {
       return null;
     }
   }

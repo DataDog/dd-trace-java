@@ -3,6 +3,7 @@ package datadog.trace.core.propagation;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 
 import datadog.trace.api.Config;
+import datadog.trace.core.propagation.ptags.PTagsFactory;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +27,7 @@ public abstract class PropagationTags {
   }
 
   public static PropagationTags.Factory factory(int datadogTagsLimit) {
-    return new PropagationTagsFactory(datadogTagsLimit);
+    return new PTagsFactory(datadogTagsLimit);
   }
 
   public static PropagationTags.Factory factory() {
@@ -70,11 +71,11 @@ public abstract class PropagationTags {
   }
 
   // Internal methods used by the different HeaderType implementations
-  abstract List<String> tagPairs();
+  public abstract List<String> tagPairs();
 
-  abstract int tagsSize();
+  public abstract int tagsSize();
 
-  abstract boolean missingDecisionMaker();
+  public abstract boolean missingDecisionMaker();
 
-  abstract String decisionMakerTagValue();
+  public abstract String decisionMakerTagValue();
 }
