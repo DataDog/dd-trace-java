@@ -1,6 +1,7 @@
 package datadog.trace.core.scopemanager;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import java.util.ArrayDeque;
@@ -110,20 +111,20 @@ final class ScopeStack {
   }
 
   private void onTopChanged(ContinuableScope top) {
-    long spanId = top.span.getSpanId();
-    AgentSpan rootSpan = top.span.getLocalRootSpan();
-    long rootSpanId = rootSpan == null ? spanId : rootSpan.getSpanId();
-    profilingContextIntegration.setContext(rootSpanId, spanId);
+    AgentSpan.Context context = top.span.context();
+    if (context instanceof ProfilerContext) {
+      profilingContextIntegration.setContext((ProfilerContext) context);
+    }
   }
 
-  /** Notifies context thread listeners that this thread has a context now */
+  /** Notifies profiler that this thread has a context now */
   private void onBecomeNonEmpty() {
     profilingContextIntegration.onAttach();
   }
 
-  /** Notifies context thread listeners that this thread no longer has a context */
+  /** Notifies profiler that this thread no longer has a context */
   private void onBecomeEmpty() {
-    profilingContextIntegration.setContext(0, 0);
+    profilingContextIntegration.clearContext();
     profilingContextIntegration.onDetach();
   }
 }

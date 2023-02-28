@@ -14,55 +14,11 @@ import java.util.List;
 
 public class GenerateMetrics extends Payload {
 
-  @com.squareup.moshi.Json(name = "lib_language")
-  private String libLanguage;
-
-  @com.squareup.moshi.Json(name = "lib_version")
-  private String libVersion;
-
   @com.squareup.moshi.Json(name = "namespace")
   private String namespace;
 
   @com.squareup.moshi.Json(name = "series")
   private List<Metric> series = new ArrayList<Metric>();
-
-  /**
-   * Get libLanguage
-   *
-   * @return libLanguage
-   */
-  public String getLibLanguage() {
-    return libLanguage;
-  }
-
-  /** Set libLanguage */
-  public void setLibLanguage(String libLanguage) {
-    this.libLanguage = libLanguage;
-  }
-
-  public GenerateMetrics libLanguage(String libLanguage) {
-    this.libLanguage = libLanguage;
-    return this;
-  }
-
-  /**
-   * Get libVersion
-   *
-   * @return libVersion
-   */
-  public String getLibVersion() {
-    return libVersion;
-  }
-
-  /** Set libVersion */
-  public void setLibVersion(String libVersion) {
-    this.libVersion = libVersion;
-  }
-
-  public GenerateMetrics libVersion(String libVersion) {
-    this.libVersion = libVersion;
-    return this;
-  }
 
   /**
    * Get namespace
@@ -113,8 +69,6 @@ public class GenerateMetrics extends Payload {
     StringBuilder sb = new StringBuilder();
     sb.append("class GenerateMetrics {\n");
     sb.append("    ").append(super.toString()).append("\n");
-    sb.append("    libLanguage: ").append(libLanguage).append("\n");
-    sb.append("    libVersion: ").append(libVersion).append("\n");
     sb.append("    namespace: ").append(namespace).append("\n");
     sb.append("    series: ").append(series).append("\n");
     sb.append("}");

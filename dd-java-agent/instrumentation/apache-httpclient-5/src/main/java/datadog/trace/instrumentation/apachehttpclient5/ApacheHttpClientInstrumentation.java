@@ -173,7 +173,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
           HelperMethods.doMethodEnter(new HostAndRequestAsHttpUriRequest(host, request));
 
       // Wrap the handler so we capture the status code
-      if (handler instanceof HttpClientResponseHandler) {
+      if (null != scope && handler instanceof HttpClientResponseHandler) {
         handler =
             new WrappingStatusSettingResponseHandler(
                 scope.span(), (HttpClientResponseHandler) handler);

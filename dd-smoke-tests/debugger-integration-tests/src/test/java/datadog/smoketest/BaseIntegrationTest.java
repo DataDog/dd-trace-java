@@ -110,7 +110,7 @@ public abstract class BaseIntegrationTest {
             "-Ddd.jmxfetch.enabled=false",
             "-Ddd.dynamic.instrumentation.enabled=true",
             // "-Ddd.remote_config.enabled=true", // default
-            "-Ddd.remote_config.initial.poll.interval=1",
+            "-Ddd.remote_config.poll_interval.seconds=1",
             /*"-Ddd.remote_config.integrity_check.enabled=false",
             "-Ddd.dynamic.instrumentation.probe.url=http://localhost:"
                 + probeServer.getPort()

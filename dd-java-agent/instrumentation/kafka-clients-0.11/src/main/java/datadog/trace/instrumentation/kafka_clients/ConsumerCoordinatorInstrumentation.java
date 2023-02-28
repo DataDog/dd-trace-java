@@ -63,11 +63,17 @@ public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Traci
       if (requestFuture.failed()) {
         return;
       }
+      if (offsets == null) {
+        return;
+      }
       String consumerGroup =
           InstrumentationContext.get(ConsumerCoordinator.class, String.class).get(coordinator);
       for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : offsets.entrySet()) {
         if (consumerGroup == null) {
           consumerGroup = "";
+        }
+        if (entry.getKey() == null || entry.getValue() == null) {
+          continue;
         }
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
         sortedTags.put(CONSUMER_GROUP_TAG, consumerGroup);

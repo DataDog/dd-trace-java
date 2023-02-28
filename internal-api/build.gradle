@@ -18,6 +18,10 @@ compileJava {
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/tries.gradle"
 
+tasks.compileTestJava.configure {
+  setJavaVersion(it, 8)
+}
+
 minimumBranchCoverage = 0.7
 minimumInstructionCoverage = 0.8
 excludedClassesCoverage += [
@@ -31,10 +35,12 @@ excludedClassesCoverage += [
   "datadog.trace.api.gateway.Events.ET",
   "datadog.trace.api.profiling.ProfilingSnapshot.Kind",
   "datadog.trace.api.WithGlobalTracer.1",
+  "datadog.trace.api.naming.**",
   // an enum
   "datadog.trace.api.sampling.AdaptiveSampler",
   "datadog.trace.api.sampling.ConstantSampler",
   "datadog.trace.api.EndpointCheckpointerHolder",
+  "datadog.trace.api.iast.IastAdvice.Kind",
   "datadog.trace.bootstrap.ActiveSubsystems",
   "datadog.trace.bootstrap.config.provider.ConfigProvider.Singleton",
   "datadog.trace.bootstrap.instrumentation.api.java.lang.ProcessImplInstrumentationHelpers",
@@ -84,6 +90,7 @@ excludedClassesCoverage += [
   // Interface with default method
   "datadog.trace.api.StatsDClientManager",
   // a stub
+  "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration",
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOp",
 ]
 

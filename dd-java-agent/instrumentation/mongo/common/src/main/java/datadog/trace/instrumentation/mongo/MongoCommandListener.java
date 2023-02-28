@@ -122,7 +122,7 @@ public final class MongoCommandListener implements CommandListener {
     if (listenerAccessor != null) {
       listenerAccessor.putIfAbsent(event.getConnectionDescription(), this);
     }
-    final AgentSpan span = startSpan(MongoDecorator.MONGO_QUERY);
+    final AgentSpan span = startSpan(MongoDecorator.OPERATION_NAME);
     try (final AgentScope scope = activateSpan(span)) {
       decorator.afterStart(span);
       decorator.onConnection(span, event);

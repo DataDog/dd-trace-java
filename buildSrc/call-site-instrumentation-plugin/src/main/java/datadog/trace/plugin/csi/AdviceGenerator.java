@@ -6,7 +6,6 @@ import datadog.trace.plugin.csi.impl.CallSiteSpecification.AdviceSpecification;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 
 /**
@@ -29,11 +28,11 @@ public interface AdviceGenerator {
 
     @Override
     public boolean isSuccess() {
-      return super.isSuccess() && getAdvices().allMatch(AdviceResult::isSuccess);
+      return super.isSuccess() && getAdvices().stream().allMatch(AdviceResult::isSuccess);
     }
 
-    public Stream<AdviceResult> getAdvices() {
-      return advices.stream();
+    public List<AdviceResult> getAdvices() {
+      return advices;
     }
 
     public void addAdvice(final AdviceResult advice) {

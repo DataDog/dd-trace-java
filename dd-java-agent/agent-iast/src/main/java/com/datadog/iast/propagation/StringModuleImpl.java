@@ -4,7 +4,6 @@ import static com.datadog.iast.taint.Ranges.mergeRanges;
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 import static com.datadog.iast.taint.Tainteds.getTainted;
 
-import com.datadog.iast.IastModuleBase;
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.taint.Ranges;
@@ -19,7 +18,7 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class StringModuleImpl extends IastModuleBase implements StringModule {
+public class StringModuleImpl implements StringModule {
 
   private static final int NULL_STR_LENGTH = "null".length();
 

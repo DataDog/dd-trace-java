@@ -16,8 +16,8 @@ public class GoogleHttpClientDecorator extends HttpClientDecorator<HttpRequest, 
   private static final Pattern URL_REPLACEMENT = Pattern.compile("%20");
   public static final CharSequence GOOGLE_HTTP_CLIENT =
       UTF8BytesString.create("google-http-client");
-  public static final CharSequence HTTP_REQUEST = UTF8BytesString.create("http.request");
   public static final GoogleHttpClientDecorator DECORATE = new GoogleHttpClientDecorator();
+  public static final CharSequence HTTP_REQUEST = UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected String method(final HttpRequest httpRequest) {

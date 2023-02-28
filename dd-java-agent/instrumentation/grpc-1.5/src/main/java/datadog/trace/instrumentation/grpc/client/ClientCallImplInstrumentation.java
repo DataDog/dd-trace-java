@@ -5,7 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.CLIENT_PATHWAY_EDGE_TAGS;
 import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.DECORATE;
-import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.GRPC_CLIENT;
+import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.OPERATION_NAME;
 import static datadog.trace.instrumentation.grpc.client.GrpcInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -66,7 +66,7 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
     public static void capture(@Advice.This io.grpc.ClientCall<?, ?> call) {
       AgentSpan span = AgentTracer.activeSpan();
       // embed the span in the call only if a grpc.client span is active
-      if (null != span && GRPC_CLIENT.equals(span.getOperationName())) {
+      if (null != span && OPERATION_NAME.equals(span.getOperationName())) {
         InstrumentationContext.get(ClientCall.class, AgentSpan.class).put(call, span);
       }
     }

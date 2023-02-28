@@ -7,6 +7,7 @@ import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -23,7 +24,9 @@ public class GrpcServerDecorator extends ServerDecorator {
       Config.get().isGrpcServerTrimPackageResource();
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getGrpcServerErrorStatuses();
 
-  public static final CharSequence GRPC_SERVER = UTF8BytesString.create("grpc.server");
+  public static final CharSequence GRPC_SERVER =
+      UTF8BytesString.create(
+          SpanNaming.instance().namingSchema().server().operationForProtocol("grpc"));
   public static final CharSequence COMPONENT_NAME = UTF8BytesString.create("grpc-server");
   public static final CharSequence GRPC_MESSAGE = UTF8BytesString.create("grpc.message");
 

@@ -1,6 +1,7 @@
 import com.google.common.io.Files
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.api.DDTags
 import org.apache.catalina.Context
 import org.apache.catalina.Engine
@@ -26,7 +27,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static org.junit.Assume.assumeTrue
 
 @Unroll
-class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
+abstract class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
 
   class TomcatServer implements HttpServer {
     def port = 0
@@ -290,4 +291,10 @@ class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
   }
 }
 
+class TomcatServletV0ForkedTest extends TomcatServletTest implements TestingGenericHttpNamingConventions.ServerV0 {
 
+}
+
+class TomcatServletV1ForkedTest extends TomcatServletTest implements TestingGenericHttpNamingConventions.ServerV1 {
+
+}

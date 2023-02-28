@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -14,7 +14,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-class RedissonClientTest extends AgentTestRunner {
+abstract class RedissonClientTest extends VersionedNamingTestBase {
 
   @Shared
   int port = PortUtils.randomOpenPort()
@@ -78,8 +78,8 @@ class RedissonClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "SET"
           spanType DDSpanTypes.REDIS
           topLevel true
@@ -105,8 +105,8 @@ class RedissonClientTest extends AgentTestRunner {
     assertTraces(2) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "SET"
           spanType DDSpanTypes.REDIS
           tags {
@@ -119,8 +119,8 @@ class RedissonClientTest extends AgentTestRunner {
       }
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "GET"
           spanType DDSpanTypes.REDIS
           topLevel true
@@ -143,8 +143,8 @@ class RedissonClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "SET"
           spanType DDSpanTypes.REDIS
           topLevel true
@@ -170,8 +170,8 @@ class RedissonClientTest extends AgentTestRunner {
     assertTraces(2) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "SET"
           spanType DDSpanTypes.REDIS
           tags {
@@ -184,8 +184,8 @@ class RedissonClientTest extends AgentTestRunner {
       }
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "GET"
           spanType DDSpanTypes.REDIS
           topLevel true
@@ -211,8 +211,8 @@ class RedissonClientTest extends AgentTestRunner {
     assertTraces(2) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "SET"
           spanType DDSpanTypes.REDIS
           tags {
@@ -225,8 +225,8 @@ class RedissonClientTest extends AgentTestRunner {
       }
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "INCR"
           spanType DDSpanTypes.REDIS
           topLevel true
@@ -249,8 +249,8 @@ class RedissonClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "PUBLISH"
           spanType DDSpanTypes.REDIS
           topLevel true
@@ -273,8 +273,8 @@ class RedissonClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "PFADD"
           spanType DDSpanTypes.REDIS
           topLevel true
@@ -300,8 +300,8 @@ class RedissonClientTest extends AgentTestRunner {
     assertTraces(2) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "PFADD"
           spanType DDSpanTypes.REDIS
           topLevel true
@@ -315,8 +315,8 @@ class RedissonClientTest extends AgentTestRunner {
       }
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "PFCOUNT"
           spanType DDSpanTypes.REDIS
           topLevel true
@@ -339,8 +339,8 @@ class RedissonClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "EVAL"
           spanType DDSpanTypes.REDIS
           topLevel true
@@ -363,8 +363,8 @@ class RedissonClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "SADD"
           spanType DDSpanTypes.REDIS
           topLevel true
@@ -390,8 +390,8 @@ class RedissonClientTest extends AgentTestRunner {
     assertTraces(2) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "SADD"
           spanType DDSpanTypes.REDIS
           topLevel true
@@ -405,8 +405,8 @@ class RedissonClientTest extends AgentTestRunner {
       }
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "SREM"
           spanType DDSpanTypes.REDIS
           topLevel true
@@ -429,8 +429,8 @@ class RedissonClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "RPUSH"
           spanType DDSpanTypes.REDIS
           topLevel true
@@ -455,8 +455,8 @@ class RedissonClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "SET"
           spanType DDSpanTypes.REDIS
           topLevel true
@@ -485,8 +485,8 @@ class RedissonClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "SET;GET"
           spanType DDSpanTypes.REDIS
           topLevel true
@@ -525,8 +525,8 @@ class RedissonClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
-          serviceName "redis"
-          operationName "redis.query"
+          serviceName service()
+          operationName operation()
           resourceName "SET;SET;GET;RPUSH;RPUSH;LRANGE"
           spanType DDSpanTypes.REDIS
           topLevel true
@@ -539,5 +539,40 @@ class RedissonClientTest extends AgentTestRunner {
         }
       }
     }
+  }
+}
+class RedissonClientV0ForkedTest extends RedissonClientTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return "redis"
+  }
+
+  @Override
+  String operation() {
+    return "redis.query"
+  }
+}
+
+class RedissonClientV1ForkedTest extends RedissonClientTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return datadog.trace.api.Config.get().getServiceName() + "-redis"
+  }
+
+  @Override
+  String operation() {
+    return "redis.command"
   }
 }

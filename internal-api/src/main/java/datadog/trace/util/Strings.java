@@ -247,6 +247,10 @@ public final class Strings {
   }
 
   public static String toJson(final Map<String, String> map) {
+    return toJson(map, false);
+  }
+
+  public static String toJson(final Map<String, String> map, boolean valuesAreJson) {
     if (map == null || map.isEmpty()) {
       return "{}";
     }
@@ -254,11 +258,15 @@ public final class Strings {
     final Iterator<Entry<String, String>> entriesIter = map.entrySet().iterator();
     while (entriesIter.hasNext()) {
       final Entry<String, String> entry = entriesIter.next();
-      sb.append("\"")
-          .append(escapeToJson(entry.getKey()))
-          .append("\":\"")
-          .append(escapeToJson(entry.getValue()))
-          .append("\"");
+
+      sb.append("\"").append(escapeToJson(entry.getKey())).append("\":");
+
+      if (valuesAreJson) {
+        sb.append(entry.getValue());
+      } else {
+        sb.append("\"").append(escapeToJson(entry.getValue())).append("\"");
+      }
+
       if (entriesIter.hasNext()) {
         sb.append(",");
       }

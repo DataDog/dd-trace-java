@@ -10,9 +10,10 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-class IgniteCacheAsyncTest extends AbstractIgniteTest {
+abstract class IgniteCacheAsyncTest extends AbstractIgniteTest {
 
-  @Shared IgniteCache cache
+  @Shared
+  IgniteCache cache
 
   def setup() {
     // Start with a fresh cache for each test
@@ -72,5 +73,40 @@ class IgniteCacheAsyncTest extends AbstractIgniteTest {
       }
     }
   }
+}
 
+class IgniteCacheAsyncV0ForkedTest extends IgniteCacheAsyncTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return AbstractIgniteTest.V0_SERVICE
+  }
+
+  @Override
+  String operation() {
+    return AbstractIgniteTest.V0_OPERATION
+  }
+}
+
+class IgniteCacheAsyncV1ForkedTest extends IgniteCacheAsyncTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return AbstractIgniteTest.V1_SERVICE
+  }
+
+  @Override
+  String operation() {
+    return AbstractIgniteTest.V1_OPERATION
+  }
 }

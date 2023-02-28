@@ -30,7 +30,6 @@ class TestDecoratorTest extends BaseDecoratorTest {
 
     then:
     1 * span.setTag(Tags.COMPONENT, "test-component")
-    1 * span.setTag(Tags.SPAN_KIND, decorator.spanKind())
     1 * span.setSpanType(decorator.spanType())
     1 * span.setTag(Tags.TEST_FRAMEWORK, decorator.testFramework())
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
@@ -42,9 +41,11 @@ class TestDecoratorTest extends BaseDecoratorTest {
     1 * span.setTag(Tags.OS_PLATFORM, decorator.osPlatform())
     1 * span.setTag(Tags.OS_VERSION, decorator.osVersion())
     1 * span.setTag(DDTags.ORIGIN_KEY, decorator.origin())
-    decorator.ciTags.each {
+
+    InstrumentationBridge.ciTags.each {
       1 * span.setTag(it.key, it.value)
     }
+
     _ * span.setTag(_, _) // Want to allow other calls from child implementations.
     _ * span.setServiceName(_)
     _ * span.setOperationName(_)
@@ -81,12 +82,12 @@ class TestDecoratorTest extends BaseDecoratorTest {
         }
 
         @Override
-        protected String spanKind() {
+        protected String testSpanKind() {
           return "test-type"
         }
 
         @Override
-        protected CharSequence component() {
+        CharSequence component() {
           return "test-component"
         }
       }

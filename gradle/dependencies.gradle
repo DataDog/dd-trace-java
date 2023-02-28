@@ -34,7 +34,7 @@ final class CachedData {
     testcontainers: '1.17.3',
     jmc           : "8.1.0-SNAPSHOT",
     autoservice   : "1.0-rc7",
-    jplib         : "0.14.0",
+    jplib         : "0.19.0",
     asm           : "9.4"
   ]
 

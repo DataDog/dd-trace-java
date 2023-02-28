@@ -33,7 +33,7 @@ public class CouchbaseOnSubscribe extends TracedOnSubscribe {
 
   public CouchbaseOnSubscribe(
       final Observable originalObservable, final Method method, final String bucket) {
-    super(originalObservable, "couchbase.call", DECORATE);
+    super(originalObservable, CouchbaseClientDecorator.OPERATION_NAME, DECORATE);
     resourceName = NAMES.getQualifiedName(method.getDeclaringClass(), method.getName()).toString();
     this.bucket = bucket;
   }

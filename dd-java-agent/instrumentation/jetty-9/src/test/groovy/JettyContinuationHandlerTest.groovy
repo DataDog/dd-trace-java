@@ -1,3 +1,4 @@
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import org.eclipse.jetty.continuation.Continuation
 import org.eclipse.jetty.continuation.ContinuationSupport
 import org.eclipse.jetty.server.Request
@@ -9,7 +10,7 @@ import javax.servlet.http.HttpServletResponse
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-class JettyContinuationHandlerTest extends Jetty9Test {
+abstract class JettyContinuationHandlerTest extends Jetty9Test {
 
   @Override
   AbstractHandler handler() {
@@ -40,4 +41,12 @@ class JettyContinuationHandlerTest extends Jetty9Test {
       baseRequest.handled = true
     }
   }
+}
+
+class JettyContinuationHandlerV0ForkedTest extends JettyContinuationHandlerTest implements TestingGenericHttpNamingConventions.ServerV0 {
+
+}
+
+class JettyContinuationHandlerV1ForkedTest extends JettyContinuationHandlerTest implements TestingGenericHttpNamingConventions.ServerV1 {
+
 }

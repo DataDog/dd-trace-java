@@ -8,6 +8,7 @@ import akka.http.javadsl.model.headers.RawHeader
 import akka.http.scaladsl.settings.ConnectionPoolSettings
 import akka.stream.ActorMaterializer
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.akkahttp.AkkaHttpClientDecorator
@@ -61,11 +62,6 @@ abstract class AkkaHttpClientInstrumentationTest extends HttpClientTest {
   }
 
   @Override
-  String expectedOperationName() {
-    return "akka-http.client.request"
-  }
-
-  @Override
   boolean testRedirects() {
     false
   }
@@ -91,7 +87,7 @@ abstract class AkkaHttpClientInstrumentationTest extends HttpClientTest {
       trace(1) {
         span {
           parent()
-          operationName "akka-http.client.request"
+          operationName operation()
           resourceName "akka-http.client.request"
           spanType DDSpanTypes.HTTP_CLIENT
           errored true
@@ -110,7 +106,8 @@ abstract class AkkaHttpClientInstrumentationTest extends HttpClientTest {
   }
 }
 
-class AkkaHttpJavaClientInstrumentationTest extends AkkaHttpClientInstrumentationTest {
+
+abstract class AkkaHttpJavaClientInstrumentationTest extends AkkaHttpClientInstrumentationTest {
   @Override
   CompletionStage<HttpResponse> doRequest(HttpRequest request) {
     if (callsNeedMaterializer) {
@@ -120,7 +117,8 @@ class AkkaHttpJavaClientInstrumentationTest extends AkkaHttpClientInstrumentatio
   }
 }
 
-class AkkaHttpScalaClientInstrumentationTest extends AkkaHttpClientInstrumentationTest {
+
+abstract class AkkaHttpScalaClientInstrumentationTest extends AkkaHttpClientInstrumentationTest {
   @Override
   CompletionStage<HttpResponse> doRequest(HttpRequest request) {
     def http = akka.http.scaladsl.Http.apply(system)
@@ -133,4 +131,47 @@ class AkkaHttpScalaClientInstrumentationTest extends AkkaHttpClientInstrumentati
     }
     return FutureConverters.toJava(f)
   }
+}
+
+class AkkaHttpJavaClientInstrumentationV0ForkedTest extends AkkaHttpJavaClientInstrumentationTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "akka-http.client.request"
+  }
+}
+
+class AkkaHttpJavaClientInstrumentationV1ForkedTest extends AkkaHttpJavaClientInstrumentationTest implements TestingGenericHttpNamingConventions.ClientV1 {
+}
+
+class AkkaHttpScalaClientInstrumentationV0ForkedTest extends AkkaHttpScalaClientInstrumentationTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "akka-http.client.request"
+  }
+}
+
+class AkkaHttpScalaClientInstrumentationV1ForkedTest extends AkkaHttpScalaClientInstrumentationTest implements TestingGenericHttpNamingConventions.ClientV1{
+
 }

@@ -174,4 +174,8 @@ class SpanAssert {
     @DelegatesTo(value = TagsAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
     assertTags(span, spec)
   }
+
+  DDSpan getSpan() {
+    return span
+  }
 }

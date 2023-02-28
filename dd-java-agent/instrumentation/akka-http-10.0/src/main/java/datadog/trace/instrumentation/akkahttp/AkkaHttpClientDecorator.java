@@ -8,10 +8,10 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 public class AkkaHttpClientDecorator extends HttpClientDecorator<HttpRequest, HttpResponse> {
-  public static final CharSequence AKKA_CLIENT_REQUEST =
-      UTF8BytesString.create("akka-http.client.request");
   public static final CharSequence AKKA_HTTP_CLIENT = UTF8BytesString.create("akka-http-client");
   public static final AkkaHttpClientDecorator DECORATE = new AkkaHttpClientDecorator();
+  public static final CharSequence AKKA_CLIENT_REQUEST =
+      UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected String[] instrumentationNames() {

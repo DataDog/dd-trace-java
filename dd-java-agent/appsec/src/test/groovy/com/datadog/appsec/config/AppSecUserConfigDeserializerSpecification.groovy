@@ -1,62 +1,35 @@
 package com.datadog.appsec.config
 
-import groovy.json.JsonOutput
 import spock.lang.Specification
 
-import java.nio.charset.StandardCharsets
-
 class AppSecUserConfigDeserializerSpecification extends Specification {
-  void 'rule toggling'() {
-    expect:
-    def res = AppSecUserConfigDeserializer.INSTANCE.deserialize(JsonOutput.toJson(
-      rules_override: [[
-          id: 'my id',
-          enabled: false
-        ]]
-      ).getBytes(StandardCharsets.UTF_8)).build('cfg key')
-    res.ruleToggling == [
-      'my id': Boolean.FALSE
-    ]
+
+  void 'all the components'() {
+    when:
+    def res = AppSecUserConfigDeserializer.INSTANCE.deserialize('''
+      {
+        "rules_override": [{"a": 0}],
+        "custom_rules": [{"b": 1}],
+        "exclusions": [{"c": 2}],
+        "actions": [{"d": 3}]
+      }'''.bytes).build('cfg key')
+
+    then:
+    res.ruleOverrides == [[a: 0]]
+    res.customRules == [[b: 1]]
+    res.exclusions == [[c: 2]]
+    res.actions == [[d: 3]]
   }
 
-  void 'if no overrides are specified discard'() {
-    expect:
-    def res = AppSecUserConfigDeserializer.INSTANCE.deserialize(JsonOutput.toJson(
-      rules_override: [[ id: 'my id', ]]
-      ).getBytes(StandardCharsets.UTF_8)).build('cfg key')
-    res.ruleToggling == [:]
-    res.ruleOverrides == [:]
-  }
+  void 'none of the components'() {
+    when:
+    def res = AppSecUserConfigDeserializer.INSTANCE.deserialize('{}'.bytes).build('cfg key')
 
-  void 'non toggling overrides'() {
-    expect:
-    def res = AppSecUserConfigDeserializer.INSTANCE.deserialize(JsonOutput.toJson(
-      rules_override: [[ id: 'my_id', on_match: ['block'], discarded_key: true]]
-      ).getBytes(StandardCharsets.UTF_8)).build('cfg key')
-    res.ruleToggling == [:]
-    res.ruleOverrides == [my_id: [on_match: ['block']]]
-  }
-
-  void 'mixing toggling and nontoggling overrides'() {
-    expect:
-    def res = AppSecUserConfigDeserializer.INSTANCE.deserialize(JsonOutput.toJson(
-      rules_override: [[ id: 'my_id', enabled: false, on_match: ['block'], discarded_key: true]]
-      ).getBytes(StandardCharsets.UTF_8)).build('cfg key')
-    res.ruleToggling == [my_id: Boolean.FALSE]
-    res.ruleOverrides == [my_id: [on_match: ['block']]]
-  }
-
-  void 'actions exclusions and custom rules are included verbatim'() {
-    expect:
-    def res = AppSecUserConfigDeserializer.INSTANCE.deserialize(JsonOutput.toJson(
-      actions: [[a:1]],
-      exclusions: [[b:2]],
-      custom_rules: [[c:3]]
-      ).getBytes(StandardCharsets.UTF_8)).build('cfg key')
-    res.ruleToggling == [:]
-    res.ruleOverrides == [:]
-    res.actions == [[a:1]]
-    res.exclusions == [[b:2]]
-    res.customRules == [[c:3]]
+    then:
+    res.ruleOverrides == []
+    res.customRules == []
+    res.exclusions == []
+    res.actions == []
+    res.configKey == 'cfg key'
   }
 }
