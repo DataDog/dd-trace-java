@@ -19,6 +19,21 @@ abstract class RmiTest extends VersionedNamingTestBase {
   def serverRegistry = LocateRegistry.createRegistry(registryPort)
   def clientRegistry = LocateRegistry.getRegistry("localhost", registryPort)
 
+
+  @Override
+  final String service() {
+    return null
+  }
+
+  @Override
+  final String operation() {
+    return null
+  }
+
+  protected abstract String clientOperation()
+
+  protected abstract String serverOperation()
+
   def cleanup() {
     UnicastRemoteObject.unexportObject(serverRegistry, true)
   }
@@ -41,7 +56,7 @@ abstract class RmiTest extends VersionedNamingTestBase {
         basicSpan(it, "parent")
         span {
           resourceName "Greeter.hello"
-          operationName operation()
+          operationName clientOperation()
           childOf span(0)
           spanType DDSpanTypes.RPC
           measured true
@@ -56,7 +71,7 @@ abstract class RmiTest extends VersionedNamingTestBase {
       trace(2) {
         span {
           resourceName "Server.hello"
-          operationName "rmi.request"
+          operationName serverOperation()
           spanType DDSpanTypes.RPC
           measured true
 
@@ -68,7 +83,7 @@ abstract class RmiTest extends VersionedNamingTestBase {
         }
         span {
           resourceName "Server.someMethod"
-          operationName "rmi.request"
+          operationName serverOperation()
           spanType DDSpanTypes.RPC
           measured true
           tags {
@@ -121,7 +136,7 @@ abstract class RmiTest extends VersionedNamingTestBase {
         basicSpan(it, "parent", null, thrownException)
         span {
           resourceName "Greeter.exceptional"
-          operationName operation()
+          operationName clientOperation()
           childOf span(0)
           errored true
           spanType DDSpanTypes.RPC
@@ -138,7 +153,7 @@ abstract class RmiTest extends VersionedNamingTestBase {
       trace(1) {
         span {
           resourceName "Server.exceptional"
-          operationName "rmi.request"
+          operationName serverOperation()
           errored true
           spanType DDSpanTypes.RPC
           measured true
@@ -176,7 +191,7 @@ abstract class RmiTest extends VersionedNamingTestBase {
         basicSpan(it, "parent")
         span {
           resourceName "Greeter.hello"
-          operationName operation()
+          operationName clientOperation()
           spanType DDSpanTypes.RPC
           childOf span(0)
           measured true
@@ -191,7 +206,7 @@ abstract class RmiTest extends VersionedNamingTestBase {
         span {
           childOf trace(0)[1]
           resourceName "ServerLegacy.hello"
-          operationName "rmi.request"
+          operationName serverOperation()
           spanType DDSpanTypes.RPC
           measured true
           tags {
@@ -216,12 +231,12 @@ class RmiV0ForkedTest extends RmiTest {
   }
 
   @Override
-  String service() {
-    return null
+  String serverOperation() {
+    return "rmi.request"
   }
 
   @Override
-  String operation() {
+  String clientOperation() {
     return "rmi.invoke"
   }
 }
@@ -234,12 +249,12 @@ class RmiV1ForkedTest extends RmiTest {
   }
 
   @Override
-  String service() {
-    return null
+  String serverOperation() {
+    return "rmi.server.request"
   }
 
   @Override
-  String operation() {
+  String clientOperation() {
     return "rmi.client.request"
   }
 }
