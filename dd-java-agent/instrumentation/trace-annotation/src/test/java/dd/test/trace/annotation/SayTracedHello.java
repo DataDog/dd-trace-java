@@ -40,6 +40,13 @@ public class SayTracedHello {
     return sayHello() + sayHA();
   }
 
+  @Trace(operationName = "SAY_HA", measured = true)
+  public static String sayHAMeasured() {
+    activeSpan().setTag(DDTags.SERVICE_NAME, "test");
+    activeSpan().setSpanType("DB");
+    return "HA!!";
+  }
+
   @Trace(operationName = "NEW_TRACE", resourceName = "WORLD")
   public static String sayHELLOsayHAWithResource() {
     activeSpan().setTag(DDTags.SERVICE_NAME, "test2");
