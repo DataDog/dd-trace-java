@@ -14,10 +14,10 @@ public class UsmConnection {
   private boolean isIPv6;
 
   public UsmConnection(InetAddress src, int srcPort, InetAddress dst, int dstPort, boolean isIPv6) {
-    this.srcIp =src;
+    this.srcIp = src;
     this.srcPort = srcPort;
     this.dstIp = dst;
-    this.dstPort=dstPort;
+    this.dstPort = dstPort;
     this.isIPv6 = isIPv6;
   }
 
