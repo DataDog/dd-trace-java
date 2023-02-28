@@ -1,13 +1,17 @@
 package datadog.trace.instrumentation.gradle;
 
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
+import java.nio.file.Path;
 
 public class GradleDecorator extends TestDecorator {
-  public static final GradleDecorator DECORATE = new GradleDecorator();
+
+  public GradleDecorator(Path currentPath) {
+    super(currentPath);
+  }
 
   @Override
   public String testFramework() {
-    return "gradle";
+    return null;
   }
 
   @Override

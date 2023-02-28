@@ -1,4 +1,4 @@
-package datadog.trace.civisibility.git
+package datadog.trace.api.civisibility.git
 
 
 import datadog.trace.test.util.DDSpecification

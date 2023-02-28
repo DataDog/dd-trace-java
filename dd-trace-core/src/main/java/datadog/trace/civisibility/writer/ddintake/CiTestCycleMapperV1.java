@@ -14,22 +14,15 @@ import datadog.trace.common.writer.RemoteMapper;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
-import datadog.trace.util.PidHelper;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import okhttp3.RequestBody;
 
 public class CiTestCycleMapperV1 implements RemoteMapper {
@@ -339,39 +332,10 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       if (traceCount() == 0) {
         return msgpackRequestBodyOf(Collections.singletonList(msgpackMapHeader(0)));
       } else if (header != null) {
-        dump(header, body);
         return msgpackRequestBodyOf(Arrays.asList(header, body));
       } else {
-        dump(body);
         return msgpackRequestBodyOf(Collections.singletonList(body));
       }
-    }
-
-    // FIXME DO NOT COMMIT THIS!!! ADDED FOR DEBUGGING
-    private void dump(ByteBuffer... buffers) {
-      try {
-        Path path =
-            Paths.get(
-                "/tmp",
-                "CI_trace_dump_" + PidHelper.getPid() + "_" + UUID.randomUUID() + ".msgpck");
-        Files.write(path, toArrays(buffers));
-      } catch (Exception e) {
-        System.err.println(e.getMessage());
-        e.printStackTrace();
-      }
-    }
-
-    private byte[] toArrays(ByteBuffer... buffers) throws Exception {
-      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-      WritableByteChannel channel = Channels.newChannel(outputStream);
-      for (ByteBuffer buffer : buffers) {
-        ByteBuffer roBuffer = buffer.asReadOnlyBuffer();
-        while (roBuffer.hasRemaining()) {
-          channel.write(roBuffer);
-        }
-      }
-      channel.close();
-      return outputStream.toByteArray();
     }
   }
 }

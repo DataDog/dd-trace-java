@@ -3,6 +3,7 @@ package datadog.trace.civisibility.git;
 import static datadog.trace.civisibility.git.RawParseUtils.decode;
 import static datadog.trace.civisibility.git.RawParseUtils.nextLF;
 
+import datadog.trace.api.civisibility.git.PersonInfo;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;

@@ -1,10 +1,15 @@
 package datadog.trace.instrumentation.junit5;
 
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
+import java.nio.file.Paths;
 
 public class JUnit5Decorator extends TestDecorator {
 
   public static final JUnit5Decorator DECORATE = new JUnit5Decorator();
+
+  public JUnit5Decorator() {
+    super(Paths.get("").toAbsolutePath());
+  }
 
   @Override
   public String testFramework() {

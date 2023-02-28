@@ -6,6 +6,8 @@ import org.junit.contrib.java.lang.system.EnvironmentVariables
 import org.junit.contrib.java.lang.system.RestoreSystemProperties
 import spock.lang.Specification
 
+import java.nio.file.Paths
+
 import static datadog.trace.civisibility.AppVeyorInfo.APPVEYOR
 import static datadog.trace.civisibility.AzurePipelinesInfo.AZURE
 import static datadog.trace.civisibility.BitBucketInfo.BITBUCKET
@@ -36,7 +38,7 @@ class CIProviderInfoFactoryTest extends Specification {
     environmentVariables.set(ciKeySelector, "true")
 
     when:
-    def ciProviderInfo = CIProviderInfoFactory.createCIProviderInfo()
+    def ciProviderInfo = CIProviderInfoFactory.createCIProviderInfo(Paths.get("").toAbsolutePath())
 
     then:
     ciProviderInfo.class == ciInfoClass

@@ -1,6 +1,8 @@
 package datadog.trace.civisibility.git
 
-
+import datadog.trace.api.civisibility.git.CommitInfo
+import datadog.trace.api.civisibility.git.GitInfo
+import datadog.trace.api.civisibility.git.PersonInfo
 import datadog.trace.test.util.DDSpecification
 
 import java.nio.file.Paths

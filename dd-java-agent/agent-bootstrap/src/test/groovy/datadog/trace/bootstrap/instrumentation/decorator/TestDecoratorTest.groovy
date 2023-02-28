@@ -1,6 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.api.DDTags
+import datadog.trace.api.civisibility.CIInfo
+import datadog.trace.api.civisibility.CIProviderInfo
+import datadog.trace.api.civisibility.CITagsProvider
 import datadog.trace.api.civisibility.InstrumentationBridge
 import datadog.trace.api.civisibility.codeowners.Codeowners
 import datadog.trace.api.civisibility.source.MethodLinesResolver
@@ -9,15 +12,9 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 
-class TestDecoratorTest extends BaseDecoratorTest {
+import java.nio.file.Paths
 
-  def setupSpec() {
-    InstrumentationBridge.ci = true
-    InstrumentationBridge.ciTags = Collections.singletonMap("sample-ci-key", "sample-ci-value")
-    InstrumentationBridge.codeowners = Stub(Codeowners)
-    InstrumentationBridge.sourcePathResolver = Stub(SourcePathResolver)
-    InstrumentationBridge.methodLinesResolver = Stub(MethodLinesResolver)
-  }
+class TestDecoratorTest extends BaseDecoratorTest {
 
   def span = Mock(AgentSpan)
 
@@ -41,10 +38,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     1 * span.setTag(Tags.OS_PLATFORM, decorator.osPlatform())
     1 * span.setTag(Tags.OS_VERSION, decorator.osVersion())
     1 * span.setTag(DDTags.ORIGIN_KEY, decorator.origin())
-
-    InstrumentationBridge.ciTags.each {
-      1 * span.setTag(it.key, it.value)
-    }
+    1 * span.setTag("sample-ci-key", "sample-ci-value")
 
     _ * span.setTag(_, _) // Want to allow other calls from child implementations.
     _ * span.setServiceName(_)
@@ -65,7 +59,29 @@ class TestDecoratorTest extends BaseDecoratorTest {
 
   @Override
   def newDecorator() {
-    return new TestDecorator() {
+    def rootPath = Paths.get("/dummy/root")
+    def currentPath = Paths.get("/dummy/root/module")
+
+    def ciInfo = Stub(CIInfo)
+    ciInfo.ciWorkspace >> rootPath.toString()
+
+    def ciProviderInfo = Stub(CIProviderInfo)
+    ciProviderInfo.buildCIInfo() >> ciInfo
+    InstrumentationBridge.setCIProviderInfoFactory({ path -> ciProviderInfo })
+
+    def ciTagsProvider = Stub(CITagsProvider)
+    ciTagsProvider.getCiTags(_) >> ["sample-ci-key": "sample-ci-value"]
+    InstrumentationBridge.ciTagsProvider = ciTagsProvider
+
+    def codeowners = Stub(Codeowners)
+    InstrumentationBridge.codeownersFactory = { repoRoot -> codeowners }
+
+    def sourcePathResolver = Stub(SourcePathResolver)
+    InstrumentationBridge.sourcePathResolverFactory = { repoRoot -> sourcePathResolver }
+
+    InstrumentationBridge.methodLinesResolver = Stub(MethodLinesResolver)
+
+    return new TestDecorator(currentPath) {
         @Override
         protected String testFramework() {
           return "test-framework"

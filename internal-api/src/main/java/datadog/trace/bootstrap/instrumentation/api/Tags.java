@@ -56,6 +56,7 @@ public class Tags {
   public static final String TEST_SOURCE_START = "test.source.start";
   public static final String TEST_SOURCE_END = "test.source.end";
   public static final String TEST_TRAITS = "test.traits";
+  public static final String TEST_COMMAND = "test.command";
 
   public static final String TEST_SESSION_ID = "test_session_id";
   public static final String TEST_MODULE_ID = "test_module_id";

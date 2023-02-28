@@ -1,4 +1,4 @@
-package datadog.trace.civisibility.git;
+package datadog.trace.api.civisibility.git;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;

@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DisableTestTrace;
-import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -64,7 +63,7 @@ public class TestEventsHandler {
 
     testModuleContext = new SpanTestContext(span);
 
-    testDecorator.afterTestModuleStart(span, InstrumentationBridge.getModule(), version);
+    testDecorator.afterTestModuleStart(span, null, version);
   }
 
   public void onTestModuleFinish() {

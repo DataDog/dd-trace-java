@@ -4,6 +4,8 @@ import static datadog.trace.util.Strings.toJson;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.civisibility.CIInfo;
+import datadog.trace.api.civisibility.CIProviderInfo;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.codeowners.Codeowners;
 import datadog.trace.api.civisibility.source.MethodLinesResolver;
@@ -14,6 +16,8 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.lang.reflect.Method;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -24,6 +28,26 @@ public abstract class TestDecorator extends BaseDecorator {
   public static final String TEST_TYPE = "test";
 
   private static final UTF8BytesString CIAPP_TEST_ORIGIN = UTF8BytesString.create("ciapp-test");
+
+  private final String modulePath;
+  private final Map<String, String> ciTags;
+  private final SourcePathResolver sourcePathResolver;
+  private final Codeowners codeowners;
+
+  protected TestDecorator(Path currentPath) {
+    CIProviderInfo ciProviderInfo = InstrumentationBridge.getCIProviderInfo(currentPath);
+    ciTags = InstrumentationBridge.getCiTags(ciProviderInfo);
+
+    CIInfo ciInfo = ciProviderInfo.buildCIInfo();
+    String repoRoot = ciInfo.getCiWorkspace();
+    sourcePathResolver = InstrumentationBridge.getSourcePathResolver(repoRoot);
+    codeowners = InstrumentationBridge.getCodeowners(repoRoot);
+
+    modulePath =
+        repoRoot != null && currentPath.startsWith(repoRoot)
+            ? Paths.get(repoRoot).relativize(currentPath).toString()
+            : null;
+  }
 
   protected abstract String testFramework();
 
@@ -98,7 +122,6 @@ public abstract class TestDecorator extends BaseDecorator {
     span.setTag(Tags.OS_VERSION, osVersion());
     span.setTag(DDTags.ORIGIN_KEY, CIAPP_TEST_ORIGIN);
 
-    Map<String, String> ciTags = InstrumentationBridge.getCiTags();
     for (final Map.Entry<String, String> ciTag : ciTags.entrySet()) {
       span.setTag(ciTag.getKey(), ciTag.getValue());
     }
@@ -106,34 +129,26 @@ public abstract class TestDecorator extends BaseDecorator {
     return super.afterStart(span);
   }
 
-  public void afterTestSessionStart(final AgentSpan span) {
+  public void afterTestSessionStart(
+      final AgentSpan span, final String projectName, String startCommand) {
     span.setSpanType(InternalSpanTypes.TEST_SESSION_END);
     span.setTag(Tags.SPAN_KIND, testSessionSpanKind());
 
-    span.setResourceName(
-        component() + ".test_session"); // FIXME "resource": "mocha.test_session.yarn test", ????
-
-    // FIXME set the following tags:
-    span.setTag("test.command", "N/A");
-    span.setTag("test.framework", "N/A");
-    span.setTag("test.framework_version", "N/A");
-    span.setTag("test_session.code_coverage.enabled", false);
-    span.setTag("test_session.itr.tests_skipping.enabled", false);
-    span.setTag("_dd.ci.itr.tests_skipped", "N/A");
-
-    // FIXME git info not populated???
+    span.setResourceName(projectName);
+    span.setTag(Tags.TEST_COMMAND, startCommand);
 
     afterStart(span);
   }
 
   public void afterTestModuleStart(
-      final AgentSpan span, final String moduleName, final @Nullable String version) {
+      final AgentSpan span, final @Nullable String moduleName, final @Nullable String version) {
     span.setSpanType(InternalSpanTypes.TEST_MODULE_END);
     span.setTag(Tags.SPAN_KIND, testModuleSpanKind());
 
-    span.setResourceName(moduleName);
-    span.setTag(Tags.TEST_MODULE, moduleName);
-    span.setTag(Tags.TEST_BUNDLE, moduleName);
+    String resolvedModuleName = moduleName != null ? moduleName : modulePath;
+    span.setResourceName(resolvedModuleName);
+    span.setTag(Tags.TEST_MODULE, resolvedModuleName);
+    span.setTag(Tags.TEST_BUNDLE, resolvedModuleName);
 
     // Version can be null. The testing framework version extraction is best-effort basis.
     if (version != null) {
@@ -154,8 +169,8 @@ public abstract class TestDecorator extends BaseDecorator {
 
     span.setResourceName(testSuiteName);
     span.setTag(Tags.TEST_SUITE, testSuiteName);
-    span.setTag(Tags.TEST_MODULE, InstrumentationBridge.getModule());
-    span.setTag(Tags.TEST_BUNDLE, InstrumentationBridge.getModule());
+    span.setTag(Tags.TEST_MODULE, modulePath);
+    span.setTag(Tags.TEST_BUNDLE, modulePath);
 
     // Version can be null. The testing framework version extraction is best-effort basis.
     if (version != null) {
@@ -169,7 +184,6 @@ public abstract class TestDecorator extends BaseDecorator {
 
     if (testClass != null) {
       if (Config.get().isCiVisibilitySourceDataEnabled()) {
-        SourcePathResolver sourcePathResolver = InstrumentationBridge.getSourcePathResolver();
         String sourcePath = sourcePathResolver.getSourcePath(testClass);
         if (sourcePath != null && !sourcePath.isEmpty()) {
           span.setTag(Tags.TEST_SOURCE_FILE, sourcePath);
@@ -196,8 +210,8 @@ public abstract class TestDecorator extends BaseDecorator {
     span.setResourceName(testSuiteName + "." + testName);
     span.setTag(Tags.TEST_NAME, testName);
     span.setTag(Tags.TEST_SUITE, testSuiteName);
-    span.setTag(Tags.TEST_MODULE, InstrumentationBridge.getModule());
-    span.setTag(Tags.TEST_BUNDLE, InstrumentationBridge.getModule());
+    span.setTag(Tags.TEST_MODULE, modulePath);
+    span.setTag(Tags.TEST_BUNDLE, modulePath);
 
     if (testParameters != null) {
       span.setTag(Tags.TEST_PARAMETERS, testParameters);
@@ -225,7 +239,6 @@ public abstract class TestDecorator extends BaseDecorator {
       return;
     }
 
-    SourcePathResolver sourcePathResolver = InstrumentationBridge.getSourcePathResolver();
     String sourcePath = sourcePathResolver.getSourcePath(testClass);
     if (sourcePath == null || sourcePath.isEmpty()) {
       return;
@@ -242,7 +255,6 @@ public abstract class TestDecorator extends BaseDecorator {
       }
     }
 
-    Codeowners codeowners = InstrumentationBridge.getCodeowners();
     Collection<String> testCodeOwners = codeowners.getOwners(sourcePath);
     if (testCodeOwners != null) {
       span.setTag(Tags.TEST_CODEOWNERS, toJson(testCodeOwners));

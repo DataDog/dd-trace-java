@@ -4,6 +4,9 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.civisibility.CIInfo
+import datadog.trace.api.civisibility.CIProviderInfo
+import datadog.trace.api.civisibility.CITagsProvider
 import datadog.trace.api.civisibility.InstrumentationBridge
 import datadog.trace.api.civisibility.codeowners.Codeowners
 import datadog.trace.api.civisibility.source.MethodLinesResolver
@@ -17,11 +20,12 @@ import spock.lang.Unroll
 
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.Paths
 
 @Unroll
 abstract class TestFrameworkTest extends AgentTestRunner {
 
-  static final String DUMMY_MODULE = "dummy_module"
+  static String DUMMY_MODULE
   static final String DUMMY_CI_TAG = "dummy_ci_tag"
   static final String DUMMY_CI_TAG_VALUE = "dummy_ci_tag_value"
   static final String DUMMY_SOURCE_PATH = "dummy_source_path"
@@ -32,19 +36,32 @@ abstract class TestFrameworkTest extends AgentTestRunner {
   private static Path agentKeyFile
 
   def setupSpec() {
-    InstrumentationBridge.ci = true
-    InstrumentationBridge.ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
+    def currentPath = Paths.get("").toAbsolutePath()
+    def rootPath = currentPath.parent
+    DUMMY_MODULE = rootPath.relativize(currentPath)
 
-    InstrumentationBridge.sourcePathResolver = Stub(SourcePathResolver)
-    InstrumentationBridge.sourcePathResolver.getSourcePath(_) >> DUMMY_SOURCE_PATH
+    def ciInfo = Stub(CIInfo)
+    ciInfo.ciWorkspace >> rootPath.toString()
+
+    def ciProviderInfo = Stub(CIProviderInfo)
+    ciProviderInfo.buildCIInfo() >> ciInfo
+    InstrumentationBridge.setCIProviderInfoFactory({ path -> ciProviderInfo })
+
+
+    def ciTagsProvider = Stub(CITagsProvider)
+    ciTagsProvider.getCiTags(_) >> [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
+    InstrumentationBridge.ciTagsProvider = ciTagsProvider
+
+    def sourcePathResolver = Stub(SourcePathResolver)
+    sourcePathResolver.getSourcePath(_) >> DUMMY_SOURCE_PATH
+    InstrumentationBridge.sourcePathResolverFactory = { repoRoot -> sourcePathResolver }
+
+    def codeowners = Stub(Codeowners)
+    codeowners.getOwners(DUMMY_SOURCE_PATH) >> DUMMY_CODE_OWNERS
+    InstrumentationBridge.codeownersFactory = { repoRoot -> codeowners }
 
     InstrumentationBridge.methodLinesResolver = Stub(MethodLinesResolver)
     InstrumentationBridge.methodLinesResolver.getLines(_) >> new MethodLinesResolver.MethodLines(DUMMY_TEST_METHOD_START, DUMMY_TEST_METHOD_END)
-
-    InstrumentationBridge.codeowners = Stub(Codeowners)
-    InstrumentationBridge.codeowners.getOwners(DUMMY_SOURCE_PATH) >> DUMMY_CODE_OWNERS
-
-    InstrumentationBridge.module = DUMMY_MODULE
   }
 
   @Override
@@ -100,9 +117,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
           errorTags(exception.class, exception.message)
         }
 
-        InstrumentationBridge.ciTags.each { key, val ->
-          tag(key, val)
-        }
+        "$DUMMY_CI_TAG" DUMMY_CI_TAG_VALUE
 
         "$Tags.ENV" String
         "$Tags.OS_VERSION" String
@@ -174,9 +189,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
           "$Tags.TEST_TRAITS" Strings.toJson(["category": Strings.toJson(categories)], true)
         }
 
-        InstrumentationBridge.ciTags.each { key, val ->
-          tag(key, val)
-        }
+        "$DUMMY_CI_TAG" DUMMY_CI_TAG_VALUE
 
         "$Tags.ENV" String
         "$Tags.OS_VERSION" String
@@ -259,9 +272,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
           "$Tags.TEST_TRAITS" Strings.toJson(["category": Strings.toJson(categories)], true)
         }
 
-        InstrumentationBridge.ciTags.each { key, val ->
-          tag(key, val)
-        }
+        "$DUMMY_CI_TAG" DUMMY_CI_TAG_VALUE
 
         "$Tags.ENV" String
         "$Tags.OS_VERSION" String
