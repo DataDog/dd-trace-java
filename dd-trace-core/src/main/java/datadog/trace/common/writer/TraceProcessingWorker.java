@@ -246,6 +246,7 @@ public class TraceProcessingWorker implements AutoCloseable {
     }
   }
 
+  // codenarc-disable
   public static class TraceRetryHandler implements Runnable {
 
     private final Request request;
