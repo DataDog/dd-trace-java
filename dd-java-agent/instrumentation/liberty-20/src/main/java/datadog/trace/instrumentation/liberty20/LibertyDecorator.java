@@ -27,9 +27,10 @@ public class LibertyDecorator
     extends HttpServerDecorator<
         HttpServletRequest, HttpServletRequest, HttpServletResponse, HttpServletRequest> {
 
-  public static final CharSequence SERVLET_REQUEST = UTF8BytesString.create("servlet.request");
   public static final CharSequence LIBERTY_SERVER = UTF8BytesString.create("liberty-server");
   public static final LibertyDecorator DECORATE = new LibertyDecorator();
+  public static final CharSequence SERVLET_REQUEST =
+      UTF8BytesString.create(DECORATE.operationName());
   public static final String DD_EXTRACTED_CONTEXT_ATTRIBUTE = "datadog.extracted-context";
   public static final String DD_CONTEXT_PATH_ATTRIBUTE = "datadog.context.path";
   public static final String DD_SERVLET_PATH_ATTRIBUTE = "datadog.servlet.path";
