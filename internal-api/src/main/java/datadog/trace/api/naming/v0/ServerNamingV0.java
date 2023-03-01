@@ -24,6 +24,9 @@ public class ServerNamingV0 implements NamingSchema.ForServer {
       case "akka-http-server":
         prefix = "akka-http";
         break;
+      case "finatra":
+        prefix = "finatra";
+        break;
       default:
         prefix = "servlet";
         break;
