@@ -87,6 +87,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.InstrumenterConfig",
   // can't reliably force same identity hash for different instance to cover branch
   "datadog.trace.api.cache.FixedSizeCache.IdentityHash",
+  "datadog.trace.api.cache.FixedSizeWeakKeyCache",
   // Interface with default method
   "datadog.trace.api.StatsDClientManager",
   // a stub
