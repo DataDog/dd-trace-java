@@ -7,7 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 public class HttpPathNormalizers {
   private static HttpPathNormalizers INSTANCE;
 
-  public static HttpPathNormalizers get() {
+  private static HttpPathNormalizers get() {
     if (null == INSTANCE) {
       INSTANCE = new HttpPathNormalizers();
     }

@@ -15,15 +15,14 @@ import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOU
 class HttpResourceDecoratorTest extends DDSpecification {
 
   @Shared
-  CoreTracer tracer
+  CoreTracer tracer = CoreTracer.builder().build()
 
   def setup() {
     injectSysConfig("http.server.route-based-naming", "false")
-
-    tracer = CoreTracer.builder().build()
+    HttpPathNormalizers.INSTANCE = null
   }
 
-  def cleanup() {
+  def cleanupSpec() {
     tracer.close()
   }
 
@@ -128,7 +127,6 @@ class HttpResourceDecoratorTest extends DDSpecification {
 
   // Need a new one for every test after config injection
   private static HttpResourceDecorator decorator() {
-    HttpPathNormalizers.INSTANCE = null
     return new HttpResourceDecorator()
   }
 }
