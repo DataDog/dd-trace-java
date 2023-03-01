@@ -30,6 +30,9 @@ public class ServerNamingV0 implements NamingSchema.ForServer {
       case "spray-http-server":
         prefix = "spray-http";
         break;
+      case "restlet-http-server":
+        prefix = "restlet-http";
+        break;
       default:
         prefix = "servlet";
         break;
