@@ -1,7 +1,7 @@
 import datadog.trace.agent.test.base.TestFrameworkTest
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.bootstrap.instrumentation.civisibility.TestEventsHandler
+import datadog.trace.bootstrap.instrumentation.civisibility.Constants
 import datadog.trace.instrumentation.junit5.JUnit5Decorator
 import org.example.TestAssumption
 import org.example.TestAssumptionAndSucceed
@@ -41,9 +41,9 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(3, true) {
-        long testModuleId = testModuleSpan(it, 1, TestEventsHandler.TEST_PASS)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestSucceed", TestEventsHandler.TEST_PASS)
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceed", "test_succeed", TestEventsHandler.TEST_PASS)
+        long testModuleId = testModuleSpan(it, 1, Constants.TEST_PASS)
+        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestSucceed", Constants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceed", "test_succeed", Constants.TEST_PASS)
       }
     }
   }
@@ -55,9 +55,9 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(3, true) {
-        long testModuleId = testModuleSpan(it, 1, TestEventsHandler.TEST_PASS)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestInheritance", TestEventsHandler.TEST_PASS)
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestInheritance", "test_succeed", TestEventsHandler.TEST_PASS)
+        long testModuleId = testModuleSpan(it, 1, Constants.TEST_PASS)
+        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestInheritance", Constants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestInheritance", "test_succeed", Constants.TEST_PASS)
       }
     }
   }
@@ -69,10 +69,10 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(4, true) {
-        long testModuleId = testModuleSpan(it, 2, TestEventsHandler.TEST_PASS)
-        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestParameterized", TestEventsHandler.TEST_PASS)
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "test_parameterized", TestEventsHandler.TEST_PASS, testTags_1)
-        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestParameterized", "test_parameterized", TestEventsHandler.TEST_PASS, testTags_0)
+        long testModuleId = testModuleSpan(it, 2, Constants.TEST_PASS)
+        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestParameterized", Constants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "test_parameterized", Constants.TEST_PASS, testTags_1)
+        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestParameterized", "test_parameterized", Constants.TEST_PASS, testTags_0)
       }
     }
 
@@ -88,10 +88,10 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(4, true) {
-        long testModuleId = testModuleSpan(it, 2, TestEventsHandler.TEST_PASS)
-        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestRepeated", TestEventsHandler.TEST_PASS)
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestRepeated", "test_repeated", TestEventsHandler.TEST_PASS)
-        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestRepeated", "test_repeated", TestEventsHandler.TEST_PASS)
+        long testModuleId = testModuleSpan(it, 2, Constants.TEST_PASS)
+        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestRepeated", Constants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestRepeated", "test_repeated", Constants.TEST_PASS)
+        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestRepeated", "test_repeated", Constants.TEST_PASS)
       }
     }
   }
@@ -103,10 +103,10 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(4, true) {
-        long testModuleId = testModuleSpan(it, 2, TestEventsHandler.TEST_PASS)
-        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestTemplate", TestEventsHandler.TEST_PASS)
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestTemplate", "test_template", TestEventsHandler.TEST_PASS, testTags_1)
-        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestTemplate", "test_template", TestEventsHandler.TEST_PASS, testTags_0)
+        long testModuleId = testModuleSpan(it, 2, Constants.TEST_PASS)
+        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestTemplate", Constants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestTemplate", "test_template", Constants.TEST_PASS, testTags_1)
+        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestTemplate", "test_template", Constants.TEST_PASS, testTags_0)
       }
     }
 
@@ -122,10 +122,10 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(4, true) {
-        long testModuleId = testModuleSpan(it, 2, TestEventsHandler.TEST_PASS)
-        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestFactory", TestEventsHandler.TEST_PASS)
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFactory", "test_factory", TestEventsHandler.TEST_PASS)
-        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestFactory", "test_factory", TestEventsHandler.TEST_PASS)
+        long testModuleId = testModuleSpan(it, 2, Constants.TEST_PASS)
+        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestFactory", Constants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFactory", "test_factory", Constants.TEST_PASS)
+        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestFactory", "test_factory", Constants.TEST_PASS)
       }
     }
   }
@@ -137,9 +137,9 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(3, true) {
-        long testModuleId = testModuleSpan(it, 1, TestEventsHandler.TEST_FAIL)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestFailed", TestEventsHandler.TEST_FAIL)
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailed", "test_failed", TestEventsHandler.TEST_FAIL, null, exception)
+        long testModuleId = testModuleSpan(it, 1, Constants.TEST_FAIL)
+        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestFailed", Constants.TEST_FAIL)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailed", "test_failed", Constants.TEST_FAIL, null, exception)
       }
     }
 
@@ -154,9 +154,9 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(3, true) {
-        long testModuleId = testModuleSpan(it, 1, TestEventsHandler.TEST_FAIL)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestError", TestEventsHandler.TEST_FAIL)
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestError", "test_error", TestEventsHandler.TEST_FAIL, null, exception)
+        long testModuleId = testModuleSpan(it, 1, Constants.TEST_FAIL)
+        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestError", Constants.TEST_FAIL)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestError", "test_error", Constants.TEST_FAIL, null, exception)
       }
     }
 
@@ -171,9 +171,9 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(3, true) {
-        long testModuleId = testModuleSpan(it, 1, TestEventsHandler.TEST_SKIP)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestSkipped", TestEventsHandler.TEST_SKIP)
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkipped", "test_skipped", TestEventsHandler.TEST_SKIP, testTags, null, true)
+        long testModuleId = testModuleSpan(it, 1, Constants.TEST_SKIP)
+        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestSkipped", Constants.TEST_SKIP)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkipped", "test_skipped", Constants.TEST_SKIP, testTags, null, true)
       }
     }
 
@@ -188,12 +188,12 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(6, true) {
-        long testModuleId = testModuleSpan(it, 4, TestEventsHandler.TEST_SKIP)
-        long testSuiteId = testSuiteSpan(it, 5, testModuleId, "org.example.TestSkippedClass", TestEventsHandler.TEST_SKIP, testTags)
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_case_skipped", TestEventsHandler.TEST_SKIP, testTags, null, true)
-        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_factory_skipped", TestEventsHandler.TEST_SKIP, testTags, null, true)
-        testSpan(it, 2, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_parameterized_skipped", TestEventsHandler.TEST_SKIP, parameterizedTestTags, null, true)
-        testSpan(it, 3, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_repeated_skipped", TestEventsHandler.TEST_SKIP, testTags, null, true)
+        long testModuleId = testModuleSpan(it, 4, Constants.TEST_SKIP)
+        long testSuiteId = testSuiteSpan(it, 5, testModuleId, "org.example.TestSkippedClass", Constants.TEST_SKIP, testTags)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_case_skipped", Constants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_factory_skipped", Constants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 2, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_parameterized_skipped", Constants.TEST_SKIP, parameterizedTestTags, null, true)
+        testSpan(it, 3, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_repeated_skipped", Constants.TEST_SKIP, testTags, null, true)
       }
     }
 
@@ -209,9 +209,9 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(3, true) {
-        long testModuleId = testModuleSpan(it, 1, TestEventsHandler.TEST_SKIP)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestAssumption", TestEventsHandler.TEST_SKIP)
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestAssumption", "test_fail_assumption", TestEventsHandler.TEST_SKIP, testTags)
+        long testModuleId = testModuleSpan(it, 1, Constants.TEST_SKIP)
+        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestAssumption", Constants.TEST_SKIP)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestAssumption", "test_fail_assumption", Constants.TEST_SKIP, testTags)
       }
     }
 
@@ -226,9 +226,9 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(3, true) {
-        long testModuleId = testModuleSpan(it, 1, TestEventsHandler.TEST_SKIP)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestAssumptionLegacy", TestEventsHandler.TEST_SKIP)
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestAssumptionLegacy", "test_fail_assumption_legacy", TestEventsHandler.TEST_SKIP, testTags)
+        long testModuleId = testModuleSpan(it, 1, Constants.TEST_SKIP)
+        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestAssumptionLegacy", Constants.TEST_SKIP)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestAssumptionLegacy", "test_fail_assumption_legacy", Constants.TEST_SKIP, testTags)
       }
     }
 
@@ -243,10 +243,10 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(4, true) {
-        long testModuleId = testModuleSpan(it, 2, TestEventsHandler.TEST_PASS)
-        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestSucceedAndSkipped", TestEventsHandler.TEST_PASS)
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", TestEventsHandler.TEST_SKIP, testTags, null, true)
-        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", TestEventsHandler.TEST_PASS)
+        long testModuleId = testModuleSpan(it, 2, Constants.TEST_PASS)
+        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestSucceedAndSkipped", Constants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", Constants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", Constants.TEST_PASS)
       }
     }
 
@@ -261,11 +261,11 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(5, true) {
-        long testModuleId = testModuleSpan(it, 3, TestEventsHandler.TEST_FAIL)
-        long testSuiteId = testSuiteSpan(it, 4, testModuleId, "org.example.TestFailedAndSucceed", TestEventsHandler.TEST_FAIL)
-        testSpan(it, 2, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_succeed", TestEventsHandler.TEST_PASS)
-        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_failed", TestEventsHandler.TEST_FAIL, null, exception)
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_another_succeed", TestEventsHandler.TEST_PASS)
+        long testModuleId = testModuleSpan(it, 3, Constants.TEST_FAIL)
+        long testSuiteId = testSuiteSpan(it, 4, testModuleId, "org.example.TestFailedAndSucceed", Constants.TEST_FAIL)
+        testSpan(it, 2, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_succeed", Constants.TEST_PASS)
+        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_failed", Constants.TEST_FAIL, null, exception)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_another_succeed", Constants.TEST_PASS)
       }
     }
 
@@ -280,10 +280,10 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(4, true) {
-        long testModuleId = testModuleSpan(it, 2, TestEventsHandler.TEST_FAIL)
-        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestFailedSuiteTearDown", TestEventsHandler.TEST_FAIL, null, exception)
-        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestFailedSuiteTearDown", "test_succeed", TestEventsHandler.TEST_PASS)
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedSuiteTearDown", "test_another_succeed", TestEventsHandler.TEST_PASS)
+        long testModuleId = testModuleSpan(it, 2, Constants.TEST_FAIL)
+        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestFailedSuiteTearDown", Constants.TEST_FAIL, null, exception)
+        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestFailedSuiteTearDown", "test_succeed", Constants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedSuiteTearDown", "test_another_succeed", Constants.TEST_PASS)
       }
     }
 
@@ -298,8 +298,8 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(2, true) {
-        long testModuleId = testModuleSpan(it, 0, TestEventsHandler.TEST_FAIL)
-        testSuiteSpan(it, 1, testModuleId, "org.example.TestFailedSuiteSetup", TestEventsHandler.TEST_FAIL, null, exception)
+        long testModuleId = testModuleSpan(it, 0, Constants.TEST_FAIL)
+        testSuiteSpan(it, 1, testModuleId, "org.example.TestFailedSuiteSetup", Constants.TEST_FAIL, null, exception)
       }
     }
 
@@ -314,12 +314,12 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(3, true) {
-        long testModuleId = testModuleSpan(it, 1, TestEventsHandler.TEST_PASS)
+        long testModuleId = testModuleSpan(it, 1, Constants.TEST_PASS)
         long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestSucceedWithCategories",
-          TestEventsHandler.TEST_PASS, null, null, false,
+          Constants.TEST_PASS, null, null, false,
           ["Slow", "Flaky"])
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedWithCategories", "test_succeed",
-          TestEventsHandler.TEST_PASS, null, null, false,
+          Constants.TEST_PASS, null, null, false,
           ["End2end", "Browser", "Slow", "Flaky"])
       }
     }
@@ -332,9 +332,9 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(3, true) {
-        long testModuleId = testModuleSpan(it, 1, TestEventsHandler.TEST_SKIP)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestSuiteSetUpAssumption", TestEventsHandler.TEST_SKIP, testTags)
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSuiteSetUpAssumption", "test_succeed", TestEventsHandler.TEST_SKIP, testTags, null, true)
+        long testModuleId = testModuleSpan(it, 1, Constants.TEST_SKIP)
+        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestSuiteSetUpAssumption", Constants.TEST_SKIP, testTags)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSuiteSetUpAssumption", "test_succeed", Constants.TEST_SKIP, testTags, null, true)
       }
     }
 
@@ -349,10 +349,10 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(4, true) {
-        long testModuleId = testModuleSpan(it, 2, TestEventsHandler.TEST_PASS)
-        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestAssumptionAndSucceed", TestEventsHandler.TEST_PASS)
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestAssumptionAndSucceed", "test_fail_assumption", TestEventsHandler.TEST_SKIP, testTags)
-        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestAssumptionAndSucceed", "test_succeed", TestEventsHandler.TEST_PASS)
+        long testModuleId = testModuleSpan(it, 2, Constants.TEST_PASS)
+        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestAssumptionAndSucceed", Constants.TEST_PASS)
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestAssumptionAndSucceed", "test_fail_assumption", Constants.TEST_SKIP, testTags)
+        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestAssumptionAndSucceed", "test_succeed", Constants.TEST_PASS)
       }
     }
 
@@ -367,14 +367,14 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(6, true) {
-        long testModuleId = testModuleSpan(it, 3, TestEventsHandler.TEST_PASS)
+        long testModuleId = testModuleSpan(it, 3, Constants.TEST_PASS)
 
-        long firstSuiteId = testSuiteSpan(it, 4, testModuleId, "org.example.TestSucceed", TestEventsHandler.TEST_PASS)
-        testSpan(it, 0, testModuleId, firstSuiteId, "org.example.TestSucceed", "test_succeed", TestEventsHandler.TEST_PASS)
+        long firstSuiteId = testSuiteSpan(it, 4, testModuleId, "org.example.TestSucceed", Constants.TEST_PASS)
+        testSpan(it, 0, testModuleId, firstSuiteId, "org.example.TestSucceed", "test_succeed", Constants.TEST_PASS)
 
-        long secondSuiteId = testSuiteSpan(it, 5, testModuleId, "org.example.TestSucceedAndSkipped", TestEventsHandler.TEST_PASS)
-        testSpan(it, 1, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", TestEventsHandler.TEST_SKIP, testTags, null, true)
-        testSpan(it, 2, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", TestEventsHandler.TEST_PASS)
+        long secondSuiteId = testSuiteSpan(it, 5, testModuleId, "org.example.TestSucceedAndSkipped", Constants.TEST_PASS)
+        testSpan(it, 1, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", Constants.TEST_SKIP, testTags, null, true)
+        testSpan(it, 2, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", Constants.TEST_PASS)
       }
     }
 
@@ -389,15 +389,15 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(7, true) {
-        long testModuleId = testModuleSpan(it, 4, TestEventsHandler.TEST_FAIL)
+        long testModuleId = testModuleSpan(it, 4, Constants.TEST_FAIL)
 
-        long firstSuiteId = testSuiteSpan(it, 6, testModuleId, "org.example.TestSucceed", TestEventsHandler.TEST_PASS)
-        testSpan(it, 3, testModuleId, firstSuiteId, "org.example.TestSucceed", "test_succeed", TestEventsHandler.TEST_PASS)
+        long firstSuiteId = testSuiteSpan(it, 6, testModuleId, "org.example.TestSucceed", Constants.TEST_PASS)
+        testSpan(it, 3, testModuleId, firstSuiteId, "org.example.TestSucceed", "test_succeed", Constants.TEST_PASS)
 
-        long secondSuiteId = testSuiteSpan(it, 5, testModuleId, "org.example.TestFailedAndSucceed", TestEventsHandler.TEST_FAIL)
-        testSpan(it, 2, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_succeed", TestEventsHandler.TEST_PASS)
-        testSpan(it, 1, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_failed", TestEventsHandler.TEST_FAIL, null, exception)
-        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_another_succeed", TestEventsHandler.TEST_PASS)
+        long secondSuiteId = testSuiteSpan(it, 5, testModuleId, "org.example.TestFailedAndSucceed", Constants.TEST_FAIL)
+        testSpan(it, 2, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_succeed", Constants.TEST_PASS)
+        testSpan(it, 1, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_failed", Constants.TEST_FAIL, null, exception)
+        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_another_succeed", Constants.TEST_PASS)
       }
     }
 
@@ -412,13 +412,13 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(5, true) {
-        long testModuleId = testModuleSpan(it, 2, TestEventsHandler.TEST_PASS)
+        long testModuleId = testModuleSpan(it, 2, Constants.TEST_PASS)
 
-        long topLevelSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestSucceedNested", TestEventsHandler.TEST_PASS)
-        testSpan(it, 1, testModuleId, topLevelSuiteId, "org.example.TestSucceedNested", "test_succeed", TestEventsHandler.TEST_PASS)
+        long topLevelSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestSucceedNested", Constants.TEST_PASS)
+        testSpan(it, 1, testModuleId, topLevelSuiteId, "org.example.TestSucceedNested", "test_succeed", Constants.TEST_PASS)
 
-        long nestedSuiteId = testSuiteSpan(it, 4, testModuleId, 'org.example.TestSucceedNested$NestedSuite', TestEventsHandler.TEST_PASS)
-        testSpan(it, 0, testModuleId, nestedSuiteId, 'org.example.TestSucceedNested$NestedSuite', "test_succeed_nested", TestEventsHandler.TEST_PASS)
+        long nestedSuiteId = testSuiteSpan(it, 4, testModuleId, 'org.example.TestSucceedNested$NestedSuite', Constants.TEST_PASS)
+        testSpan(it, 0, testModuleId, nestedSuiteId, 'org.example.TestSucceedNested$NestedSuite', "test_succeed_nested", Constants.TEST_PASS)
       }
     }
   }
@@ -430,13 +430,13 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(5, true) {
-        long testModuleId = testModuleSpan(it, 2, TestEventsHandler.TEST_SKIP)
+        long testModuleId = testModuleSpan(it, 2, Constants.TEST_SKIP)
 
-        long topLevelSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestSkippedNested", TestEventsHandler.TEST_SKIP, testTags)
-        testSpan(it, 1, testModuleId, topLevelSuiteId, "org.example.TestSkippedNested", "test_succeed", TestEventsHandler.TEST_SKIP, testTags, null, true)
+        long topLevelSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestSkippedNested", Constants.TEST_SKIP, testTags)
+        testSpan(it, 1, testModuleId, topLevelSuiteId, "org.example.TestSkippedNested", "test_succeed", Constants.TEST_SKIP, testTags, null, true)
 
-        long nestedSuiteId = testSuiteSpan(it, 4, testModuleId, 'org.example.TestSkippedNested$NestedSuite', TestEventsHandler.TEST_SKIP, testTags)
-        testSpan(it, 0, testModuleId, nestedSuiteId, 'org.example.TestSkippedNested$NestedSuite', "test_succeed_nested", TestEventsHandler.TEST_SKIP, testTags, null, true)
+        long nestedSuiteId = testSuiteSpan(it, 4, testModuleId, 'org.example.TestSkippedNested$NestedSuite', Constants.TEST_SKIP, testTags)
+        testSpan(it, 0, testModuleId, nestedSuiteId, 'org.example.TestSkippedNested$NestedSuite', "test_succeed_nested", Constants.TEST_SKIP, testTags, null, true)
       }
     }
 

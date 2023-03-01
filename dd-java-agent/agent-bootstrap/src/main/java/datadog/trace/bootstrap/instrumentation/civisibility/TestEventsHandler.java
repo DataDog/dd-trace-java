@@ -20,16 +20,9 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// FIXME move isTestModuleSpan etc from here and BuildEventsHandler to a utility class?
-// FIXME move TEST_PASS/TEST_FAIL/TEST_SKIP to a utility class
-// FIXME where possible, move classes to agent-ci-visibility module
 public class TestEventsHandler {
 
   private static final Logger log = LoggerFactory.getLogger(TestEventsHandler.class);
-
-  public static final String TEST_PASS = "pass";
-  public static final String TEST_FAIL = "fail";
-  public static final String TEST_SKIP = "skip";
 
   private volatile TestContext testModuleContext;
 
@@ -44,8 +37,9 @@ public class TestEventsHandler {
   public TestEventsHandler(TestDecorator testDecorator) {
     this.testDecorator = testDecorator;
 
-    Long sessionId = Config.get().getCiVisibilitySessionId();
-    Long moduleId = Config.get().getCiVisibilityModuleId();
+    Config config = Config.get();
+    Long sessionId = config.getCiVisibilitySessionId();
+    Long moduleId = config.getCiVisibilityModuleId();
     if (sessionId != null && moduleId != null) {
       testModuleContext = new ParentProcessTestContext(sessionId, moduleId);
     }
@@ -70,7 +64,8 @@ public class TestEventsHandler {
 
     final AgentSpan span = testModuleContext.getSpan();
     if (span == null) {
-      return;
+      throw new IllegalStateException(
+          "Test module context is local to current process, but has no span: " + testModuleContext);
     }
 
     span.setTag(Tags.TEST_STATUS, testModuleContext.getStatus());
@@ -165,7 +160,7 @@ public class TestEventsHandler {
       return;
     }
 
-    span.setTag(Tags.TEST_STATUS, TEST_SKIP);
+    span.setTag(Tags.TEST_STATUS, Constants.TEST_SKIP);
 
     if (reason != null) {
       span.setTag(Tags.TEST_SKIP_REASON, reason);
@@ -184,7 +179,7 @@ public class TestEventsHandler {
 
     span.setError(true);
     span.addThrowable(throwable);
-    span.setTag(Tags.TEST_STATUS, TEST_FAIL);
+    span.setTag(Tags.TEST_STATUS, Constants.TEST_FAIL);
   }
 
   public void onTestStart(
@@ -213,7 +208,7 @@ public class TestEventsHandler {
         span, testSuiteName, testName, testParameters, version, testClass, testMethod, categories);
 
     // setting status here optimistically, will rewrite if failure is encountered
-    span.setTag(Tags.TEST_STATUS, TEST_PASS);
+    span.setTag(Tags.TEST_STATUS, Constants.TEST_PASS);
   }
 
   public void onTestFinish(final String testSuiteName, final Class<?> testClass) {
@@ -283,12 +278,6 @@ public class TestEventsHandler {
 
   public boolean isTestSuiteInProgress() {
     return isTestSuiteSpan(AgentTracer.activeSpan());
-  }
-
-  private static boolean isTestModuleSpan(final AgentSpan activeSpan) {
-    return activeSpan != null
-        && DDSpanTypes.TEST_MODULE_END.equals(activeSpan.getSpanType())
-        && TestDecorator.TEST_TYPE.equals(activeSpan.getTag(Tags.TEST_TYPE));
   }
 
   private static boolean isTestSuiteSpan(final AgentSpan activeSpan) {

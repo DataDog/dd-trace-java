@@ -2,18 +2,18 @@ package datadog.trace.bootstrap.instrumentation.civisibility;
 
 abstract class AbstractTestContext implements TestContext {
 
-  private String status = TestEventsHandler.TEST_SKIP;
+  private String status = Constants.TEST_SKIP;
 
   @Override
   public synchronized void reportChildStatus(String childStatus) {
     switch (childStatus) {
-      case TestEventsHandler.TEST_PASS:
-        if (TestEventsHandler.TEST_SKIP.equals(status)) {
-          status = TestEventsHandler.TEST_PASS;
+      case Constants.TEST_PASS:
+        if (Constants.TEST_SKIP.equals(status)) {
+          status = Constants.TEST_PASS;
         }
         break;
-      case TestEventsHandler.TEST_FAIL:
-        status = TestEventsHandler.TEST_FAIL;
+      case Constants.TEST_FAIL:
+        status = Constants.TEST_FAIL;
         break;
       default:
         break;

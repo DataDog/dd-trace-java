@@ -23,10 +23,11 @@ public class GradleBuildListenerInstrumentation extends Instrumenter.CiVisibilit
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".GradleUtils",
+      packageName + ".GradleUtils$TestFramework",
+      packageName + ".GradleDecorator",
       packageName + ".GradleBuildListener",
-      packageName + ".GradleBuildListener$TestFramework",
-      packageName + ".GradleBuildListener$TestTaskExecutionListener",
-      packageName + ".GradleDecorator"
+      packageName + ".GradleBuildListener$TestTaskExecutionListener"
     };
   }
 

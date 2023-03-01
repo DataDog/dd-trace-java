@@ -1,21 +1,13 @@
 package datadog.trace.bootstrap.instrumentation.civisibility;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
-import datadog.trace.api.DDSpanTypes;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-// FIXME use Continuation for session and module spans?
-// FIXME better yet, try storing start timestamp in context and then creating the spans on receiving
-// the END events
-// FIXME the same needs to be replicated for modules in TestEventsHandler
 public class BuildEventsHandler<T> {
 
   private final ConcurrentMap<T, SessionContext> testSessionContexts = new ConcurrentHashMap<>();
@@ -24,10 +16,11 @@ public class BuildEventsHandler<T> {
       new ConcurrentHashMap<>();
 
   public void onTestSessionStart(
-      T sessionKey, TestDecorator sessionDecorator, String projectName, String startCommand) {
-    final AgentSpan span = startSpan(sessionDecorator.component() + ".test_session");
-    final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
+      final T sessionKey,
+      final TestDecorator sessionDecorator,
+      final String projectName,
+      final String startCommand) {
+    AgentSpan span = startSpan(sessionDecorator.component() + ".test_session");
 
     TestContext context = new SpanTestContext(span);
     testSessionContexts.put(sessionKey, new SessionContext(context, sessionDecorator));
@@ -35,28 +28,25 @@ public class BuildEventsHandler<T> {
     sessionDecorator.afterTestSessionStart(span, projectName, startCommand);
   }
 
-  public void onTestFrameworkDetected(T sessionKey, String frameworkName, String frameworkVersion) {
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!isTestSessionSpan(AgentTracer.activeSpan())) {
-      return;
+  public void onTestFrameworkDetected(
+      final T sessionKey, final String frameworkName, final String frameworkVersion) {
+    SessionContext sessionContext = testSessionContexts.get(sessionKey);
+    AgentSpan span = sessionContext.context.getSpan();
+    if (span == null) {
+      throw new IllegalStateException("Could not find session span for key: " + sessionKey);
     }
 
     span.setTag(Tags.TEST_FRAMEWORK, frameworkName);
     span.setTag(Tags.TEST_FRAMEWORK_VERSION, frameworkVersion);
   }
 
-  public void onTestSessionFinish(T sessionKey) {
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!isTestSessionSpan(AgentTracer.activeSpan())) {
-      return;
-    }
-
-    final AgentScope scope = AgentTracer.activeScope();
-    if (scope != null) {
-      scope.close();
-    }
-
+  public void onTestSessionFinish(final T sessionKey) {
     SessionContext sessionContext = testSessionContexts.remove(sessionKey);
+    AgentSpan span = sessionContext.context.getSpan();
+    if (span == null) {
+      throw new IllegalStateException("Could not find session span for key: " + sessionKey);
+    }
+
     span.setTag(Tags.TEST_STATUS, sessionContext.context.getStatus());
     span.setTag(Tags.TEST_SESSION_ID, sessionContext.context.getId());
 
@@ -64,74 +54,80 @@ public class BuildEventsHandler<T> {
     span.finish();
   }
 
-  public TestContext onTestModuleStart(T sessionKey, String moduleName) {
+  public ModuleAndSessionId onTestModuleStart(final T sessionKey, final String moduleName) {
     SessionContext sessionContext = testSessionContexts.get(sessionKey);
+    AgentSpan sessionSpan = sessionContext.context.getSpan();
+    if (sessionSpan == null) {
+      throw new IllegalStateException("Could not find session span for key: " + sessionKey);
+    }
 
-    final AgentSpan span = startSpan(sessionContext.decorator.component() + ".test_module");
+    AgentSpan span =
+        startSpan(sessionContext.decorator.component() + ".test_module", sessionSpan.context());
     // will overwrite in case of skip/failure
-    span.setTag(Tags.TEST_STATUS, TestEventsHandler.TEST_PASS);
+    span.setTag(Tags.TEST_STATUS, Constants.TEST_PASS);
 
-    final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
-
-    TestContext testModuleContext = new SpanTestContext(span);
     TestModuleDescriptor<T> testModuleDescriptor =
         new TestModuleDescriptor<>(sessionKey, moduleName);
-    testModuleContexts.put(testModuleDescriptor, testModuleContext);
+    testModuleContexts.put(testModuleDescriptor, new SpanTestContext(span));
 
-    // FIXME determine framework (see testDecorator.component())
-    // FIXME determine version (see NULL parameter below)
     sessionContext.decorator.afterTestModuleStart(span, moduleName, null);
 
-    return testModuleContext;
+    return new ModuleAndSessionId(span.getSpanId(), sessionSpan.getSpanId());
   }
 
   public void onModuleTestFrameworkDetected(
-      T sessionKey, String moduleName, String frameworkName, String frameworkVersion) {
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!isTestModuleSpan(AgentTracer.activeSpan())) {
-      return;
-    }
-
+      final T sessionKey,
+      final String moduleName,
+      final String frameworkName,
+      final String frameworkVersion) {
+    AgentSpan span = getTestModuleSpan(sessionKey, moduleName);
     span.setTag(Tags.TEST_FRAMEWORK, frameworkName);
     span.setTag(Tags.TEST_FRAMEWORK_VERSION, frameworkVersion);
   }
 
-  public void onTestModuleSkip(T sessionKey, String moduleName, String reason) {
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!isTestModuleSpan(span)) {
-      return;
-    }
-
-    span.setTag(Tags.TEST_STATUS, TestEventsHandler.TEST_SKIP);
+  public void onTestModuleSkip(final T sessionKey, final String moduleName, final String reason) {
+    AgentSpan span = getTestModuleSpan(sessionKey, moduleName);
+    span.setTag(Tags.TEST_STATUS, Constants.TEST_SKIP);
     span.setTag(Tags.TEST_SKIP_REASON, reason);
   }
 
-  public void onTestModuleFail(T sessionKey, String moduleName, Throwable throwable) {
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!isTestModuleSpan(span)) {
-      return;
-    }
-
+  public void onTestModuleFail(
+      final T sessionKey, final String moduleName, final Throwable throwable) {
+    AgentSpan span = getTestModuleSpan(sessionKey, moduleName);
     span.setError(true);
     span.addThrowable(throwable);
-    span.setTag(Tags.TEST_STATUS, TestEventsHandler.TEST_FAIL);
+    span.setTag(Tags.TEST_STATUS, Constants.TEST_FAIL);
+  }
+
+  private AgentSpan getTestModuleSpan(final T sessionKey, final String moduleName) {
+    TestModuleDescriptor<T> testModuleDescriptor =
+        new TestModuleDescriptor<>(sessionKey, moduleName);
+    TestContext testModuleContext = testModuleContexts.get(testModuleDescriptor);
+    final AgentSpan span = testModuleContext.getSpan();
+    if (span == null) {
+      throw new IllegalStateException(
+          "Could not find module span for session key "
+              + sessionKey
+              + " and module name "
+              + moduleName);
+    }
+    return span;
   }
 
   public void onTestModuleFinish(T sessionKey, String moduleName) {
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!isTestModuleSpan(span)) {
-      return;
-    }
-
-    final AgentScope scope = AgentTracer.activeScope();
-    if (scope != null) {
-      scope.close();
-    }
-
     TestModuleDescriptor<T> testModuleDescriptor =
         new TestModuleDescriptor<>(sessionKey, moduleName);
     TestContext testModuleContext = testModuleContexts.remove(testModuleDescriptor);
+
+    final AgentSpan span = testModuleContext.getSpan();
+    if (span == null) {
+      throw new IllegalStateException(
+          "Could not find module span for session key "
+              + sessionKey
+              + " and module name "
+              + moduleName);
+    }
+
     span.setTag(Tags.TEST_MODULE_ID, testModuleContext.getId());
 
     SessionContext sessionContext = testSessionContexts.get(sessionKey);
@@ -142,18 +138,6 @@ public class BuildEventsHandler<T> {
     span.finish();
   }
 
-  private static boolean isTestModuleSpan(final AgentSpan activeSpan) {
-    return activeSpan != null
-        && DDSpanTypes.TEST_MODULE_END.equals(activeSpan.getSpanType())
-        && TestDecorator.TEST_TYPE.equals(activeSpan.getTag(Tags.TEST_TYPE));
-  }
-
-  private static boolean isTestSessionSpan(final AgentSpan activeSpan) {
-    return activeSpan != null
-        && DDSpanTypes.TEST_SESSION_END.equals(activeSpan.getSpanType())
-        && TestDecorator.TEST_TYPE.equals(activeSpan.getTag(Tags.TEST_TYPE));
-  }
-
   private static final class SessionContext {
     private final TestContext context;
     private final TestDecorator decorator;
@@ -161,6 +145,16 @@ public class BuildEventsHandler<T> {
     private SessionContext(TestContext context, TestDecorator decorator) {
       this.context = context;
       this.decorator = decorator;
+    }
+  }
+
+  public static final class ModuleAndSessionId {
+    public final long moduleId;
+    public final long sessionId;
+
+    public ModuleAndSessionId(long moduleId, long sessionId) {
+      this.moduleId = moduleId;
+      this.sessionId = sessionId;
     }
   }
 }
