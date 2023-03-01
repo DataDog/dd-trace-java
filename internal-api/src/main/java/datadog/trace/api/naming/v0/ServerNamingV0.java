@@ -16,11 +16,18 @@ public class ServerNamingV0 implements NamingSchema.ForServer {
   @Nonnull
   @Override
   public String operationForComponent(@Nonnull String component) {
-    // more cases will be added in subsequent PRs.
-    // Defaulting to servlet.request since it's for the majority of http server instrumentations
-    if ("undertow-http-server".equals(component)) {
-      return "undertow-http.request";
+    final String prefix;
+    switch (component) {
+      case "undertow-http-server":
+        prefix = "undertow-http";
+        break;
+      case "akka-http-server":
+        prefix = "akka-http";
+        break;
+      default:
+        prefix = "servlet";
+        break;
     }
-    return "servlet.request";
+    return prefix + ".request";
   }
 }
