@@ -1,5 +1,6 @@
 package datadog.telemetry.dependency;
 
+import datadog.trace.api.Config;
 import datadog.trace.util.AgentTaskScheduler;
 import java.lang.instrument.Instrumentation;
 import java.net.URI;
@@ -84,12 +85,22 @@ public class DependencyServiceImpl implements DependencyService, Runnable {
     if (uri == null) {
       try {
         uri = location.toURI();
+        // Prepend missing slash to make opaque file URIs heirarchical.
+        // This is to fix malformed Windows URIs e.g., file:c:/temp/lib.jar
+        if (uri.isOpaque() && "file".equals(uri.getScheme())) {
+          String oldUri = uri.toASCIIString();
+          log.debug("Opaque URI found: '{}'", oldUri);
+          if (Config.get().isTelemetryConvertOpaqueUriEnabled()) {
+            uri = URI.create(uri.toASCIIString().replaceFirst("file:", "file:/"));
+            log.warn(
+                "Opaque URI '{}' changed to hierarchical URI '{}'", oldUri, uri.toASCIIString());
+          }
+        }
       } catch (URISyntaxException e) {
         log.warn("Error converting URL to URI", e);
         // silently ignored
       }
     }
-
     return uri;
   }
 

@@ -1,5 +1,7 @@
 package datadog.telemetry.dependency
 
+import datadog.trace.api.config.GeneralConfig
+
 import java.lang.instrument.ClassFileTransformer
 import java.lang.instrument.IllegalClassFormatException
 import java.lang.instrument.Instrumentation
@@ -166,5 +168,20 @@ class DependencyServiceImplSpecification extends DepSpecification {
 
     then:
     depService.drainDeterminedDependencies().isEmpty()
+  }
+
+  void 'opaque URL to hierarchical URI'() {
+    when:
+    injectSysConfig(GeneralConfig.TELEMETRY_CONVERT_OPAQUE_URI_ENABLED, "true")
+    File junitJar = getJar('junit-4.12.jar')
+    String opaquePath = junitJar.getAbsolutePath().substring(1)
+    URL url = new URL('file', null, opaquePath)
+    depService.addURL(url)
+    depService.resolveOneDependency()
+
+    then:
+    junitJar.getAbsolutePath().startsWith("/")
+    !opaquePath.startsWith("/")
+    depService.drainDeterminedDependencies().size() == 1
   }
 }

@@ -65,6 +65,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SECURE_RANDOM;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_CONVERT_OPAQUE_URI_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
@@ -138,6 +139,7 @@ import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.SITE;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
+import static datadog.trace.api.config.GeneralConfig.TELEMETRY_CONVERT_OPAQUE_URI_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_BUFFERING_ENABLED;
@@ -619,6 +621,7 @@ public class Config {
   private final boolean iastDeduplicationEnabled;
 
   private final int telemetryHeartbeatInterval;
+  private final boolean isTelemetryConvertOpaqueUriEnabled;
   private final boolean isTelemetryDependencyServiceEnabled;
 
   private final boolean azureAppServices;
@@ -1164,6 +1167,10 @@ public class Config {
         configProvider.getBoolean(
             TELEMETRY_DEPENDENCY_COLLECTION_ENABLED,
             DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED);
+
+    isTelemetryConvertOpaqueUriEnabled =
+        configProvider.getBoolean(
+            TELEMETRY_CONVERT_OPAQUE_URI_ENABLED, DEFAULT_TELEMETRY_CONVERT_OPAQUE_URI_ENABLED);
 
     clientIpEnabled = configProvider.getBoolean(CLIENT_IP_ENABLED, DEFAULT_CLIENT_IP_ENABLED);
 
@@ -1861,6 +1868,10 @@ public class Config {
 
   public boolean isTelemetryDependencyServiceEnabled() {
     return isTelemetryDependencyServiceEnabled;
+  }
+
+  public boolean isTelemetryConvertOpaqueUriEnabled() {
+    return isTelemetryConvertOpaqueUriEnabled;
   }
 
   public boolean isClientIpEnabled() {
