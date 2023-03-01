@@ -16,8 +16,12 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TestEventsHandler {
+
+  private static final Logger log = LoggerFactory.getLogger(TestEventsHandler.class);
 
   public static final String TEST_PASS = "pass";
   public static final String TEST_FAIL = "fail";
@@ -227,7 +231,7 @@ public class TestEventsHandler {
       testSuiteContext.reportChildStatus(testCaseStatus);
 
     } else {
-      // TODO put warning once TestNG support for test suites is implemented
+      log.debug("Could not find test suite for name {} and class {}", testSuiteName, testClass);
     }
   }
 
