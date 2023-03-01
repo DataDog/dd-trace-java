@@ -13,6 +13,8 @@ public interface BuildEventsHandler<T> {
 
   void onTestFrameworkDetected(T sessionKey, String frameworkName, String frameworkVersion);
 
+  void onTestSessionFail(T sessionKey, Throwable throwable);
+
   void onTestSessionFinish(T sessionKey);
 
   ModuleAndSessionId onTestModuleStart(T sessionKey, String moduleName);

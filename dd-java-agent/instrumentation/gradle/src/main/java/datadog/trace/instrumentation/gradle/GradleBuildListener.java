@@ -20,11 +20,9 @@ import org.gradle.api.invocation.Gradle;
 import org.gradle.api.tasks.TaskState;
 import org.gradle.process.JavaForkOptions;
 
-// FIXME add a separate switch for Gradle instrumentation (for projects that, like spring-boot, run
-// Gradle internally)
-// FIXME add integration tests (for inspiration see spring-boot:
-// org.springframework.boot.gradle.tasks.run.BootRunIntegrationTests and others in the same module)
 public class GradleBuildListener extends BuildAdapter {
+
+  private static final String DD_CIVISIBILITY_PROPERTY = "dd-civisibility";
 
   private final BuildEventsHandler<Gradle> buildEventsHandler =
       InstrumentationBridge.getBuildEventsHandler();
@@ -68,13 +66,24 @@ public class GradleBuildListener extends BuildAdapter {
     if (!isCiVisibilityEnabled(gradle.getStartParameter())) {
       return;
     }
+
+    Throwable failure = result.getFailure();
+    if (failure != null) {
+      buildEventsHandler.onTestSessionFail(gradle, failure);
+    }
+
     buildEventsHandler.onTestSessionFinish(gradle);
   }
 
   private static boolean isCiVisibilityEnabled(StartParameter startParameter) {
     Map<String, String> projectProperties = startParameter.getProjectProperties();
-    String ciBisibilityProperty = projectProperties.get("dd-civisibility");
-    return ciBisibilityProperty != null;
+    String ciVisibilityProperty = projectProperties.get(DD_CIVISIBILITY_PROPERTY);
+    if (ciVisibilityProperty != null) {
+      return true;
+    }
+    Map<String, String> systemPropertiesArgs = startParameter.getSystemPropertiesArgs();
+    String ciVisibilitySystemProperty = systemPropertiesArgs.get(DD_CIVISIBILITY_PROPERTY);
+    return ciVisibilitySystemProperty != null;
   }
 
   static final class TestTaskExecutionListener implements TaskExecutionListener {

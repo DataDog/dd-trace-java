@@ -37,14 +37,26 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
   @Override
   public void onTestFrameworkDetected(
       final T sessionKey, final String frameworkName, final String frameworkVersion) {
+    AgentSpan span = getTestSessionSpan(sessionKey);
+    span.setTag(Tags.TEST_FRAMEWORK, frameworkName);
+    span.setTag(Tags.TEST_FRAMEWORK_VERSION, frameworkVersion);
+  }
+
+  @Override
+  public void onTestSessionFail(final T sessionKey, final Throwable throwable) {
+    AgentSpan span = getTestSessionSpan(sessionKey);
+    span.setError(true);
+    span.addThrowable(throwable);
+    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_FAIL);
+  }
+
+  private AgentSpan getTestSessionSpan(T sessionKey) {
     SessionContext sessionContext = testSessionContexts.get(sessionKey);
     AgentSpan span = sessionContext.context.getSpan();
     if (span == null) {
       throw new IllegalStateException("Could not find session span for key: " + sessionKey);
     }
-
-    span.setTag(Tags.TEST_FRAMEWORK, frameworkName);
-    span.setTag(Tags.TEST_FRAMEWORK_VERSION, frameworkVersion);
+    return span;
   }
 
   @Override
