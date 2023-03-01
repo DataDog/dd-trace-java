@@ -34,6 +34,9 @@ public class ServerNamingV0 implements NamingSchema.ForServer {
       case "restlet-http-server":
         prefix = "restlet-http";
         break;
+      case "synapse-server":
+        prefix = "synapse";
+        break;
       default:
         prefix = "servlet";
         break;
