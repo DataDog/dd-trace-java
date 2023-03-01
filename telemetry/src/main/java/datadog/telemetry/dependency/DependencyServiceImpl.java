@@ -92,7 +92,7 @@ public class DependencyServiceImpl implements DependencyService, Runnable {
           log.debug("Opaque URI found: '{}'", oldUri);
           if (Config.get().isTelemetryConvertOpaqueUriEnabled()) {
             uri = URI.create(uri.toASCIIString().replaceFirst("file:", "file:/"));
-            log.dedbug(
+            log.debug(
                 "Opaque URI '{}' changed to hierarchical URI '{}'", oldUri, uri.toASCIIString());
           }
         }
