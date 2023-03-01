@@ -1,6 +1,9 @@
 package datadog.trace.api.civisibility;
 
 import datadog.trace.api.civisibility.codeowners.Codeowners;
+import datadog.trace.api.civisibility.decorator.TestDecorator;
+import datadog.trace.api.civisibility.events.BuildEventsHandler;
+import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.source.MethodLinesResolver;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import java.nio.file.Path;
@@ -13,6 +16,8 @@ public abstract class InstrumentationBridge {
   private static volatile CITagsProvider CI_TAGS_PROVIDER;
   private static volatile Codeowners.Factory CODEOWNERS_FACTORY;
   private static volatile SourcePathResolver.Factory SOURCE_PATH_RESOLVER_FACTORY;
+  private static volatile TestEventsHandler.Factory TEST_EVENTS_HANDLER_FACTORY;
+  private static volatile BuildEventsHandler.Factory BUILD_EVENTS_HANDLER_FACTORY;
 
   public static MethodLinesResolver getMethodLinesResolver() {
     return METHOD_LINES_RESOLVER;
@@ -52,5 +57,23 @@ public abstract class InstrumentationBridge {
 
   public static SourcePathResolver getSourcePathResolver(String repoRoot) {
     return SOURCE_PATH_RESOLVER_FACTORY.createSourcePathResolver(repoRoot);
+  }
+
+  public static void setTestEventsHandlerFactory(
+      TestEventsHandler.Factory testEventsHandlerFactory) {
+    TEST_EVENTS_HANDLER_FACTORY = testEventsHandlerFactory;
+  }
+
+  public static TestEventsHandler getTestEventsHandler(TestDecorator testDecorator) {
+    return TEST_EVENTS_HANDLER_FACTORY.create(testDecorator);
+  }
+
+  public static void setBuildEventsHandlerFactory(
+      BuildEventsHandler.Factory buildEventsHandlerFactory) {
+    BUILD_EVENTS_HANDLER_FACTORY = buildEventsHandlerFactory;
+  }
+
+  public static <U> BuildEventsHandler<U> getBuildEventsHandler() {
+    return BUILD_EVENTS_HANDLER_FACTORY.create();
   }
 }

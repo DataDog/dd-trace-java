@@ -9,12 +9,13 @@ import datadog.trace.api.civisibility.CIProviderInfo
 import datadog.trace.api.civisibility.CITagsProvider
 import datadog.trace.api.civisibility.InstrumentationBridge
 import datadog.trace.api.civisibility.codeowners.Codeowners
+import datadog.trace.api.civisibility.decorator.TestDecorator
+import datadog.trace.api.civisibility.events.impl.TestEventsHandlerImpl
 import datadog.trace.api.civisibility.source.MethodLinesResolver
 import datadog.trace.api.civisibility.source.SourcePathResolver
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator
 import datadog.trace.util.Strings
 import spock.lang.Unroll
 
@@ -47,7 +48,6 @@ abstract class TestFrameworkTest extends AgentTestRunner {
     ciProviderInfo.buildCIInfo() >> ciInfo
     InstrumentationBridge.setCIProviderInfoFactory({ path -> ciProviderInfo })
 
-
     def ciTagsProvider = Stub(CITagsProvider)
     ciTagsProvider.getCiTags(_) >> [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
     InstrumentationBridge.ciTagsProvider = ciTagsProvider
@@ -62,6 +62,8 @@ abstract class TestFrameworkTest extends AgentTestRunner {
 
     InstrumentationBridge.methodLinesResolver = Stub(MethodLinesResolver)
     InstrumentationBridge.methodLinesResolver.getLines(_) >> new MethodLinesResolver.MethodLines(DUMMY_TEST_METHOD_START, DUMMY_TEST_METHOD_END)
+
+    InstrumentationBridge.setTestEventsHandlerFactory { decorator -> new TestEventsHandlerImpl(decorator) }
   }
 
   @Override

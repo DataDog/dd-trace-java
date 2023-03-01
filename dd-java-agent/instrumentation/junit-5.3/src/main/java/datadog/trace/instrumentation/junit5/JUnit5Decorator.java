@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.junit5;
 
-import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.AbstractTestDecorator;
 import java.nio.file.Paths;
 
-public class JUnit5Decorator extends TestDecorator {
+public class JUnit5Decorator extends AbstractTestDecorator {
 
   public static final JUnit5Decorator DECORATE = new JUnit5Decorator();
 

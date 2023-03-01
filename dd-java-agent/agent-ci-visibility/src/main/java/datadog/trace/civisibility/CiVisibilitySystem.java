@@ -3,6 +3,8 @@ package datadog.trace.civisibility;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.codeowners.Codeowners;
+import datadog.trace.api.civisibility.events.impl.BuildEventsHandlerImpl;
+import datadog.trace.api.civisibility.events.impl.TestEventsHandlerImpl;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.codeowners.CodeownersProvider;
 import datadog.trace.civisibility.source.BestEfforSourcePathResolver;
@@ -40,5 +42,8 @@ public class CiVisibilitySystem {
                     new CompilerAidedSourcePathResolver(repoRoot),
                     new RepoIndexSourcePathResolver(repoRoot))
                 : emptySourcePathResolver);
+
+    InstrumentationBridge.setTestEventsHandlerFactory(TestEventsHandlerImpl::new);
+    InstrumentationBridge.setBuildEventsHandlerFactory(BuildEventsHandlerImpl::new);
   }
 }

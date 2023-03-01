@@ -113,7 +113,7 @@ public abstract class GradleUtils {
         return false;
       }
       TestFramework that = (TestFramework) o;
-      return name.equals(that.name) && version.equals(that.version);
+      return Objects.equals(name, that.name) && Objects.equals(version, that.version);
     }
 
     @Override

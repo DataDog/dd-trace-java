@@ -81,7 +81,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
 
     InstrumentationBridge.methodLinesResolver = Stub(MethodLinesResolver)
 
-    return new TestDecorator(currentPath) {
+    return new AbstractTestDecorator(currentPath) {
         @Override
         protected String testFramework() {
           return "test-framework"

@@ -1,20 +1,23 @@
-package datadog.trace.bootstrap.instrumentation.civisibility;
+package datadog.trace.api.civisibility.events.impl;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
+import datadog.trace.api.civisibility.CIConstants;
+import datadog.trace.api.civisibility.decorator.TestDecorator;
+import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-public class BuildEventsHandler<T> {
+public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
 
   private final ConcurrentMap<T, SessionContext> testSessionContexts = new ConcurrentHashMap<>();
 
   private final ConcurrentMap<TestModuleDescriptor<T>, TestContext> testModuleContexts =
       new ConcurrentHashMap<>();
 
+  @Override
   public void onTestSessionStart(
       final T sessionKey,
       final TestDecorator sessionDecorator,
@@ -28,6 +31,7 @@ public class BuildEventsHandler<T> {
     sessionDecorator.afterTestSessionStart(span, projectName, startCommand);
   }
 
+  @Override
   public void onTestFrameworkDetected(
       final T sessionKey, final String frameworkName, final String frameworkVersion) {
     SessionContext sessionContext = testSessionContexts.get(sessionKey);
@@ -40,6 +44,7 @@ public class BuildEventsHandler<T> {
     span.setTag(Tags.TEST_FRAMEWORK_VERSION, frameworkVersion);
   }
 
+  @Override
   public void onTestSessionFinish(final T sessionKey) {
     SessionContext sessionContext = testSessionContexts.remove(sessionKey);
     AgentSpan span = sessionContext.context.getSpan();
@@ -54,6 +59,7 @@ public class BuildEventsHandler<T> {
     span.finish();
   }
 
+  @Override
   public ModuleAndSessionId onTestModuleStart(final T sessionKey, final String moduleName) {
     SessionContext sessionContext = testSessionContexts.get(sessionKey);
     AgentSpan sessionSpan = sessionContext.context.getSpan();
@@ -64,7 +70,7 @@ public class BuildEventsHandler<T> {
     AgentSpan span =
         startSpan(sessionContext.decorator.component() + ".test_module", sessionSpan.context());
     // will overwrite in case of skip/failure
-    span.setTag(Tags.TEST_STATUS, Constants.TEST_PASS);
+    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_PASS);
 
     TestModuleDescriptor<T> testModuleDescriptor =
         new TestModuleDescriptor<>(sessionKey, moduleName);
@@ -75,6 +81,7 @@ public class BuildEventsHandler<T> {
     return new ModuleAndSessionId(span.getSpanId(), sessionSpan.getSpanId());
   }
 
+  @Override
   public void onModuleTestFrameworkDetected(
       final T sessionKey,
       final String moduleName,
@@ -85,18 +92,20 @@ public class BuildEventsHandler<T> {
     span.setTag(Tags.TEST_FRAMEWORK_VERSION, frameworkVersion);
   }
 
+  @Override
   public void onTestModuleSkip(final T sessionKey, final String moduleName, final String reason) {
     AgentSpan span = getTestModuleSpan(sessionKey, moduleName);
-    span.setTag(Tags.TEST_STATUS, Constants.TEST_SKIP);
+    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
     span.setTag(Tags.TEST_SKIP_REASON, reason);
   }
 
+  @Override
   public void onTestModuleFail(
       final T sessionKey, final String moduleName, final Throwable throwable) {
     AgentSpan span = getTestModuleSpan(sessionKey, moduleName);
     span.setError(true);
     span.addThrowable(throwable);
-    span.setTag(Tags.TEST_STATUS, Constants.TEST_FAIL);
+    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_FAIL);
   }
 
   private AgentSpan getTestModuleSpan(final T sessionKey, final String moduleName) {
@@ -114,6 +123,7 @@ public class BuildEventsHandler<T> {
     return span;
   }
 
+  @Override
   public void onTestModuleFinish(T sessionKey, String moduleName) {
     TestModuleDescriptor<T> testModuleDescriptor =
         new TestModuleDescriptor<>(sessionKey, moduleName);
@@ -145,16 +155,6 @@ public class BuildEventsHandler<T> {
     private SessionContext(TestContext context, TestDecorator decorator) {
       this.context = context;
       this.decorator = decorator;
-    }
-  }
-
-  public static final class ModuleAndSessionId {
-    public final long moduleId;
-    public final long sessionId;
-
-    public ModuleAndSessionId(long moduleId, long sessionId) {
-      this.moduleId = moduleId;
-      this.sessionId = sessionId;
     }
   }
 }

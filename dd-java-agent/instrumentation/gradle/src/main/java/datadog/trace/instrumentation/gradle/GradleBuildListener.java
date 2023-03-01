@@ -1,8 +1,9 @@
 package datadog.trace.instrumentation.gradle;
 
+import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.config.CiVisibilityConfig;
-import datadog.trace.bootstrap.instrumentation.civisibility.BuildEventsHandler;
-import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.AbstractTestDecorator;
 import datadog.trace.util.Strings;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -19,13 +20,14 @@ import org.gradle.process.JavaForkOptions;
 
 public class GradleBuildListener extends BuildAdapter {
 
-  private final BuildEventsHandler<Gradle> buildEventsHandler = new BuildEventsHandler<>();
+  private final BuildEventsHandler<Gradle> buildEventsHandler =
+      InstrumentationBridge.getBuildEventsHandler();
 
   @Override
   public void settingsEvaluated(Settings settings) {
     Gradle gradle = settings.getGradle();
     Path projectRoot = settings.getRootDir().toPath();
-    TestDecorator gradleDecorator = new GradleDecorator(projectRoot);
+    AbstractTestDecorator gradleDecorator = new GradleDecorator(projectRoot);
     ProjectDescriptor rootProject = settings.getRootProject();
     String projectName = rootProject.getName();
     String startCommand = GradleUtils.recreateStartCommand(settings.getStartParameter());

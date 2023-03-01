@@ -2,7 +2,8 @@ package datadog.trace.instrumentation.testng;
 
 import static datadog.trace.instrumentation.testng.TestNGDecorator.DECORATE;
 
-import datadog.trace.bootstrap.instrumentation.civisibility.TestEventsHandler;
+import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.events.TestEventsHandler;
 import java.lang.reflect.Method;
 import java.util.List;
 import org.testng.IConfigurationListener;
@@ -21,7 +22,7 @@ public class TracingListener extends TestNGClassListener
 
   public TracingListener(final String version) {
     this.version = version;
-    testEventsHandler = new TestEventsHandler(DECORATE);
+    testEventsHandler = InstrumentationBridge.getTestEventsHandler(DECORATE);
   }
 
   @Override

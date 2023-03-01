@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.civisibility;
+package datadog.trace.api.civisibility.events.impl;
 
 import java.util.Objects;
 

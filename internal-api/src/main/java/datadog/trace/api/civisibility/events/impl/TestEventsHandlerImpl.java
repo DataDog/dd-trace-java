@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.civisibility;
+package datadog.trace.api.civisibility.events.impl;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -6,11 +6,13 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DisableTestTrace;
+import datadog.trace.api.civisibility.CIConstants;
+import datadog.trace.api.civisibility.decorator.TestDecorator;
+import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.List;
@@ -20,9 +22,9 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class TestEventsHandler {
+public class TestEventsHandlerImpl implements TestEventsHandler {
 
-  private static final Logger log = LoggerFactory.getLogger(TestEventsHandler.class);
+  private static final Logger log = LoggerFactory.getLogger(TestEventsHandlerImpl.class);
 
   private volatile TestContext testModuleContext;
 
@@ -34,7 +36,7 @@ public class TestEventsHandler {
 
   private final TestDecorator testDecorator;
 
-  public TestEventsHandler(TestDecorator testDecorator) {
+  public TestEventsHandlerImpl(TestDecorator testDecorator) {
     this.testDecorator = testDecorator;
 
     Config config = Config.get();
@@ -45,6 +47,7 @@ public class TestEventsHandler {
     }
   }
 
+  @Override
   public void onTestModuleStart(final @Nullable String version) {
     if (testModuleContext != null) {
       // do not create test module span if parent process provides module data
@@ -56,6 +59,7 @@ public class TestEventsHandler {
     testDecorator.afterTestModuleStart(span, null, version);
   }
 
+  @Override
   public void onTestModuleFinish() {
     if (!testModuleContext.isLocalToCurrentProcess()) {
       // do not create test module span if parent process provides module data
@@ -76,6 +80,7 @@ public class TestEventsHandler {
     span.finish();
   }
 
+  @Override
   public void onTestSuiteStart(
       final String testSuiteName,
       final @Nullable Class<?> testClass,
@@ -102,6 +107,7 @@ public class TestEventsHandler {
     testDecorator.afterTestSuiteStart(span, testSuiteName, testClass, version, categories);
   }
 
+  @Override
   public void onTestSuiteFinish(final String testSuiteName, final @Nullable Class<?> testClass) {
     if (skipTrace(testClass)) {
       return;
@@ -154,19 +160,21 @@ public class TestEventsHandler {
     return counter == null;
   }
 
+  @Override
   public void onSkip(final @Nullable String reason) {
     final AgentSpan span = AgentTracer.activeSpan();
     if (!isTestSuiteSpan(span) && !isTestSpan(span)) {
       return;
     }
 
-    span.setTag(Tags.TEST_STATUS, Constants.TEST_SKIP);
+    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
 
     if (reason != null) {
       span.setTag(Tags.TEST_SKIP_REASON, reason);
     }
   }
 
+  @Override
   public void onFailure(final @Nullable Throwable throwable) {
     if (throwable == null) {
       return;
@@ -179,9 +187,10 @@ public class TestEventsHandler {
 
     span.setError(true);
     span.addThrowable(throwable);
-    span.setTag(Tags.TEST_STATUS, Constants.TEST_FAIL);
+    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_FAIL);
   }
 
+  @Override
   public void onTestStart(
       final String testSuiteName,
       final String testName,
@@ -208,9 +217,10 @@ public class TestEventsHandler {
         span, testSuiteName, testName, testParameters, version, testClass, testMethod, categories);
 
     // setting status here optimistically, will rewrite if failure is encountered
-    span.setTag(Tags.TEST_STATUS, Constants.TEST_PASS);
+    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_PASS);
   }
 
+  @Override
   public void onTestFinish(final String testSuiteName, final Class<?> testClass) {
     if (skipTrace(testClass)) {
       return;
@@ -247,6 +257,7 @@ public class TestEventsHandler {
     }
   }
 
+  @Override
   public void onTestIgnore(
       final String testSuiteName,
       final String testName,
@@ -276,6 +287,7 @@ public class TestEventsHandler {
     span.finishWithDuration(1L);
   }
 
+  @Override
   public boolean isTestSuiteInProgress() {
     return isTestSuiteSpan(AgentTracer.activeSpan());
   }

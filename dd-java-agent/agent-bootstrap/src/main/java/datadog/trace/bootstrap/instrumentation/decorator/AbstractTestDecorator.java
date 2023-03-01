@@ -8,6 +8,7 @@ import datadog.trace.api.civisibility.CIInfo;
 import datadog.trace.api.civisibility.CIProviderInfo;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.codeowners.Codeowners;
+import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.source.MethodLinesResolver;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -23,9 +24,7 @@ import java.util.Collections;
 import java.util.Map;
 import javax.annotation.Nullable;
 
-public abstract class TestDecorator extends BaseDecorator {
-
-  public static final String TEST_TYPE = "test";
+public abstract class AbstractTestDecorator extends BaseDecorator implements TestDecorator {
 
   private static final UTF8BytesString CIAPP_TEST_ORIGIN = UTF8BytesString.create("ciapp-test");
 
@@ -34,7 +33,7 @@ public abstract class TestDecorator extends BaseDecorator {
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
 
-  protected TestDecorator(Path currentPath) {
+  protected AbstractTestDecorator(Path currentPath) {
     CIProviderInfo ciProviderInfo = InstrumentationBridge.getCIProviderInfo(currentPath);
     ciTags = InstrumentationBridge.getCiTags(ciProviderInfo);
 
@@ -129,6 +128,7 @@ public abstract class TestDecorator extends BaseDecorator {
     return super.afterStart(span);
   }
 
+  @Override
   public void afterTestSessionStart(
       final AgentSpan span, final String projectName, String startCommand) {
     span.setSpanType(InternalSpanTypes.TEST_SESSION_END);
@@ -140,6 +140,7 @@ public abstract class TestDecorator extends BaseDecorator {
     afterStart(span);
   }
 
+  @Override
   public void afterTestModuleStart(
       final AgentSpan span, final @Nullable String moduleName, final @Nullable String version) {
     span.setSpanType(InternalSpanTypes.TEST_MODULE_END);
@@ -158,6 +159,7 @@ public abstract class TestDecorator extends BaseDecorator {
     afterStart(span);
   }
 
+  @Override
   public void afterTestSuiteStart(
       final AgentSpan span,
       final String testSuiteName,
@@ -194,6 +196,7 @@ public abstract class TestDecorator extends BaseDecorator {
     afterStart(span);
   }
 
+  @Override
   public void afterTestStart(
       final AgentSpan span,
       final String testSuiteName,

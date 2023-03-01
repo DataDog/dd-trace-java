@@ -2,7 +2,8 @@ package datadog.trace.instrumentation.junit4;
 
 import static datadog.trace.instrumentation.junit4.JUnit4Decorator.DECORATE;
 
-import datadog.trace.bootstrap.instrumentation.civisibility.TestEventsHandler;
+import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.events.TestEventsHandler;
 import java.lang.reflect.Method;
 import java.util.List;
 import junit.runner.Version;
@@ -22,7 +23,7 @@ public class TracingListener extends RunListener {
 
   public TracingListener() {
     version = Version.id();
-    testEventsHandler = new TestEventsHandler(DECORATE);
+    testEventsHandler = InstrumentationBridge.getTestEventsHandler(DECORATE);
   }
 
   @Override
