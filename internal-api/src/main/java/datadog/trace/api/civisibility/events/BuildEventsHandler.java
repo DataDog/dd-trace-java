@@ -4,7 +4,12 @@ import datadog.trace.api.civisibility.decorator.TestDecorator;
 
 public interface BuildEventsHandler<T> {
   void onTestSessionStart(
-      T sessionKey, TestDecorator sessionDecorator, String projectName, String startCommand);
+      T sessionKey,
+      TestDecorator sessionDecorator,
+      String projectName,
+      String startCommand,
+      String buildSystemName,
+      String buildSystemVersion);
 
   void onTestFrameworkDetected(T sessionKey, String frameworkName, String frameworkVersion);
 

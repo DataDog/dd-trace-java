@@ -130,12 +130,17 @@ public abstract class AbstractTestDecorator extends BaseDecorator implements Tes
 
   @Override
   public void afterTestSessionStart(
-      final AgentSpan span, final String projectName, String startCommand) {
+      final AgentSpan span,
+      final String projectName,
+      final String startCommand,
+      final String buildSystemName,
+      final String buildSystemVersion) {
     span.setSpanType(InternalSpanTypes.TEST_SESSION_END);
     span.setTag(Tags.SPAN_KIND, testSessionSpanKind());
 
     span.setResourceName(projectName);
     span.setTag(Tags.TEST_COMMAND, startCommand);
+    span.setTag(Tags.TEST_TOOLCHAIN, buildSystemName + ":" + buildSystemVersion);
 
     afterStart(span);
   }

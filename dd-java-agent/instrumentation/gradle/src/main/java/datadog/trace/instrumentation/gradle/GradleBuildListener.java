@@ -18,6 +18,10 @@ import org.gradle.api.invocation.Gradle;
 import org.gradle.api.tasks.TaskState;
 import org.gradle.process.JavaForkOptions;
 
+// FIXME add a separate switch for Gradle instrumentation (for projects that, like spring-boot, run
+// Gradle internally)
+// FIXME add integration tests (for inspiration see spring-boot:
+// org.springframework.boot.gradle.tasks.run.BootRunIntegrationTests and others in the same module)
 public class GradleBuildListener extends BuildAdapter {
 
   private final BuildEventsHandler<Gradle> buildEventsHandler =
@@ -31,7 +35,9 @@ public class GradleBuildListener extends BuildAdapter {
     ProjectDescriptor rootProject = settings.getRootProject();
     String projectName = rootProject.getName();
     String startCommand = GradleUtils.recreateStartCommand(settings.getStartParameter());
-    buildEventsHandler.onTestSessionStart(gradle, gradleDecorator, projectName, startCommand);
+    String gradleVersion = gradle.getGradleVersion();
+    buildEventsHandler.onTestSessionStart(
+        gradle, gradleDecorator, projectName, startCommand, "gradle", gradleVersion);
   }
 
   @Override

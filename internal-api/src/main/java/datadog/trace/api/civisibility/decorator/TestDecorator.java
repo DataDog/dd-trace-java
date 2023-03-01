@@ -8,7 +8,12 @@ import javax.annotation.Nullable;
 public interface TestDecorator {
   String TEST_TYPE = "test";
 
-  void afterTestSessionStart(AgentSpan span, String projectName, String startCommand);
+  void afterTestSessionStart(
+      AgentSpan span,
+      String projectName,
+      String startCommand,
+      String buildSystemName,
+      String buildSystemVersion);
 
   void afterTestModuleStart(AgentSpan span, @Nullable String moduleName, @Nullable String version);
 

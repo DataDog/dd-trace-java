@@ -22,13 +22,16 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
       final T sessionKey,
       final TestDecorator sessionDecorator,
       final String projectName,
-      final String startCommand) {
+      final String startCommand,
+      final String buildSystemName,
+      final String buildSystemVersion) {
     AgentSpan span = startSpan(sessionDecorator.component() + ".test_session");
 
     TestContext context = new SpanTestContext(span);
     testSessionContexts.put(sessionKey, new SessionContext(context, sessionDecorator));
 
-    sessionDecorator.afterTestSessionStart(span, projectName, startCommand);
+    sessionDecorator.afterTestSessionStart(
+        span, projectName, startCommand, buildSystemName, buildSystemVersion);
   }
 
   @Override
