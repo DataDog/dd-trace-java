@@ -27,6 +27,9 @@ public class ServerNamingV0 implements NamingSchema.ForServer {
       case "finatra":
         prefix = "finatra";
         break;
+      case "spray-http-server":
+        prefix = "spray-http";
+        break;
       default:
         prefix = "servlet";
         break;
