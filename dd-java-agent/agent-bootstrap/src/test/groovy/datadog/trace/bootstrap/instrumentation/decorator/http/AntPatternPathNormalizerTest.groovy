@@ -90,4 +90,25 @@ class AntPatternPathNormalizerTest extends DDSpecification {
     then:
     result == null
   }
+
+  def "keep the original path "() {
+    given:
+    def matchers = [
+      "/test/**/*.html": "*",
+      "/dev/**/*.html" : "dev"
+    ]
+    AntPatternPathNormalizer normalizer = new AntPatternPathNormalizer(matchers)
+
+    when:
+    String result = normalizer.normalize(path)
+
+    then:
+    result == normalizedPath
+
+    where:
+    path                     | normalizedPath
+    "/test/foo/bar.html"     | "/test/foo/bar.html"
+    "/test/foo/bar/baz.html" | "/test/foo/bar/baz.html"
+    "/dev/foo/bar/baz.html"  | "dev"
+  }
 }

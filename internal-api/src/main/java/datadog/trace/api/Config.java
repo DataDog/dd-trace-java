@@ -282,6 +282,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL;
 import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_RESOLVER_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE_EXTRACT;
@@ -426,6 +427,7 @@ public class Config {
   private final boolean httpServerRawResource;
   private final boolean httpServerRouteBasedNaming;
   private final Map<String, String> httpServerPathResourceNameMapping;
+  private final Map<String, String> httpClientPathResourceNameMapping;
   private final boolean httpClientTagQueryString;
   private final boolean httpClientSplitByDomain;
   private final boolean dbClientSplitByInstance;
@@ -829,6 +831,9 @@ public class Config {
 
     httpServerPathResourceNameMapping =
         configProvider.getOrderedMap(TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING);
+
+    httpClientPathResourceNameMapping =
+        configProvider.getOrderedMap(TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING);
 
     httpServerErrorStatuses =
         configProvider.getIntegerRange(
@@ -1526,6 +1531,10 @@ public class Config {
 
   public Map<String, String> getHttpServerPathResourceNameMapping() {
     return httpServerPathResourceNameMapping;
+  }
+
+  public Map<String, String> getHttpClientPathResourceNameMapping() {
+    return httpClientPathResourceNameMapping;
   }
 
   public BitSet getHttpServerErrorStatuses() {
@@ -2951,6 +2960,8 @@ public class Config {
         + httpServerRouteBasedNaming
         + ", httpServerPathResourceNameMapping="
         + httpServerPathResourceNameMapping
+        + ", httpClientPathResourceNameMapping="
+        + httpClientPathResourceNameMapping
         + ", httpClientTagQueryString="
         + httpClientTagQueryString
         + ", httpClientSplitByDomain="

@@ -29,27 +29,33 @@ public class HttpResourceDecorator {
   private static final DDCache<Pair<CharSequence, CharSequence>, CharSequence> RESOURCE_NAME_CACHE =
       DDCaches.newFixedSizeCache(64);
 
+  private static final DDCache<Pair<CharSequence, CharSequence>, CharSequence>
+      CLIENT_RESOURCE_NAME_CACHE = DDCaches.newFixedSizeCache(64);
+
   private final boolean shouldSetUrlResourceName =
       Config.get().isRuleEnabled("URLAsResourceNameRule");
 
-  private final AntPatternPathNormalizer antPatternPathNormalizer;
+  private final AntPatternPathNormalizer antPatternServerPathNormalizer;
+  private final AntPatternPathNormalizer antPatternClientPathNormalizer;
   private final SimplePathNormalizer simplePathNormalizer;
 
   private HttpResourceDecorator() {
-    antPatternPathNormalizer =
+    antPatternServerPathNormalizer =
         new AntPatternPathNormalizer(Config.get().getHttpServerPathResourceNameMapping());
+    antPatternClientPathNormalizer =
+        new AntPatternPathNormalizer(Config.get().getHttpClientPathResourceNameMapping());
     simplePathNormalizer = new SimplePathNormalizer();
   }
 
-  /**
-   * For use in places where we only want to use the simple path normalizer, otherwise use
-   * withPath()
-   */
   public final AgentSpan withClientPath(AgentSpan span, CharSequence method, CharSequence path) {
+    String resourcePath = antPatternClientPathNormalizer.normalize(path.toString());
+    if (resourcePath == null) {
+      resourcePath = simplePathNormalizer.normalize(path.toString());
+    }
+
     span.setResourceName(
-        RESOURCE_NAME_CACHE.computeIfAbsent(
-            Pair.of(method, (CharSequence) simplePathNormalizer.normalize(path.toString())),
-            RESOURCE_NAME_JOINER),
+        CLIENT_RESOURCE_NAME_CACHE.computeIfAbsent(
+            Pair.of(method, resourcePath), RESOURCE_NAME_JOINER),
         ResourceNamePriorities.HTTP_PATH_NORMALIZER);
     return span;
   }
@@ -61,7 +67,7 @@ public class HttpResourceDecorator {
     }
     byte priority;
 
-    String resourcePath = antPatternPathNormalizer.normalize(path.toString(), encoded);
+    String resourcePath = antPatternServerPathNormalizer.normalize(path.toString(), encoded);
     if (resourcePath != null) {
       priority = ResourceNamePriorities.HTTP_SERVER_CONFIG_PATTERN_MATCH;
     } else {
@@ -69,8 +75,7 @@ public class HttpResourceDecorator {
       priority = ResourceNamePriorities.HTTP_PATH_NORMALIZER;
     }
     span.setResourceName(
-        RESOURCE_NAME_CACHE.computeIfAbsent(
-            Pair.of(method, (CharSequence) resourcePath), RESOURCE_NAME_JOINER),
+        RESOURCE_NAME_CACHE.computeIfAbsent(Pair.of(method, resourcePath), RESOURCE_NAME_JOINER),
         priority);
     return span;
   }
