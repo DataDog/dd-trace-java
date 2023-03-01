@@ -7,8 +7,10 @@ import datadog.trace.bootstrap.instrumentation.decorator.AbstractTestDecorator;
 import datadog.trace.util.Strings;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.Map;
 import org.gradle.BuildAdapter;
 import org.gradle.BuildResult;
+import org.gradle.StartParameter;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.execution.TaskExecutionListener;
@@ -29,6 +31,9 @@ public class GradleBuildListener extends BuildAdapter {
 
   @Override
   public void settingsEvaluated(Settings settings) {
+    if (!isCiVisibilityEnabled(settings.getStartParameter())) {
+      return;
+    }
     Gradle gradle = settings.getGradle();
     Path projectRoot = settings.getRootDir().toPath();
     AbstractTestDecorator gradleDecorator = new GradleDecorator(projectRoot);
@@ -42,6 +47,9 @@ public class GradleBuildListener extends BuildAdapter {
 
   @Override
   public void projectsEvaluated(Gradle gradle) {
+    if (!isCiVisibilityEnabled(gradle.getStartParameter())) {
+      return;
+    }
     Project rootProject = gradle.getRootProject();
     Collection<GradleUtils.TestFramework> testFrameworks =
         GradleUtils.collectTestFrameworks(rootProject);
@@ -57,7 +65,16 @@ public class GradleBuildListener extends BuildAdapter {
   @Override
   public void buildFinished(BuildResult result) {
     Gradle gradle = result.getGradle();
+    if (!isCiVisibilityEnabled(gradle.getStartParameter())) {
+      return;
+    }
     buildEventsHandler.onTestSessionFinish(gradle);
+  }
+
+  private static boolean isCiVisibilityEnabled(StartParameter startParameter) {
+    Map<String, String> projectProperties = startParameter.getProjectProperties();
+    String ciBisibilityProperty = projectProperties.get("dd-civisibility");
+    return ciBisibilityProperty != null;
   }
 
   static final class TestTaskExecutionListener implements TaskExecutionListener {

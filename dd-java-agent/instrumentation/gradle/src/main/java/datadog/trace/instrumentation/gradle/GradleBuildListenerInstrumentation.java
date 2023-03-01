@@ -4,6 +4,8 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import org.gradle.invocation.DefaultGradle;
 
@@ -29,6 +31,12 @@ public class GradleBuildListenerInstrumentation extends Instrumenter.CiVisibilit
       packageName + ".GradleBuildListener",
       packageName + ".GradleBuildListener$TestTaskExecutionListener"
     };
+  }
+
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    return super.isApplicable(enabledSystems)
+        && Config.get().isCiVisibilityBuildInstrumentationEnabled();
   }
 
   @Override

@@ -98,6 +98,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED = true;
+  static final boolean DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED = true;
 
   static final boolean DEFAULT_REMOTE_CONFIG_ENABLED = true;
   static final boolean DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED = false;

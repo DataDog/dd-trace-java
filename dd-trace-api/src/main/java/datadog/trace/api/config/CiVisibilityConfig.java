@@ -9,6 +9,8 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_SOURCE_DATA_ENABLED = "civisibility.source.data.enabled";
   public static final String CIVISIBILITY_SESSION_ID = "civisibility.session.id";
   public static final String CIVISIBILITY_MODULE_ID = "civisibility.module.id";
+  public static final String CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED =
+      "civisibility.build.instrumentation.enabled";
 
   private CiVisibilityConfig() {}
 }
