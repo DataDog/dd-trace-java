@@ -171,7 +171,7 @@ commands:
         type: string
     steps:
       - save_cache:
-          key: dd-trace-java-dep<< parameters.cacheType >>-v2-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+          key: dd-trace-java-dep<< parameters.cacheType >>-v2-master-{{ checksum "_circle_ci_cache_base_id" }}-{{ .Revision }}
           paths:
             # Cached dependencies and wrappers for gradle
             - ~/.gradle/caches
@@ -1062,14 +1062,14 @@ workflows:
       *build_test_jobs
 
   weekly:
-    triggers:
-      - schedule:
-          # Run this job at 00:05 UTC every Monday
-          cron: "5 0 * * 1"
-          filters:
-            branches:
-              only:
-                - master
+    #triggers:
+    #  - schedule:
+    #      # Run this job at 00:05 UTC every Monday
+    #      cron: "5 0 * * 1"
+    #      filters:
+    #        branches:
+    #          only:
+    #            - master
     jobs:
       # This will rebuild a main caches with a new timestamp from a clean slate
       - build_clean_cache:
