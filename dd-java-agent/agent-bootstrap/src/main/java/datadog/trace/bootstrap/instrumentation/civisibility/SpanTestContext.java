@@ -5,15 +5,9 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 
 class SpanTestContext extends AbstractTestContext implements TestContext {
   private final AgentSpan span;
-  private final Long parentId;
 
   SpanTestContext(AgentSpan span) {
-    this(span, null);
-  }
-
-  SpanTestContext(AgentSpan span, Long parentId) {
     this.span = span;
-    this.parentId = parentId;
   }
 
   @Override
@@ -23,7 +17,7 @@ class SpanTestContext extends AbstractTestContext implements TestContext {
 
   @Override
   public Long getParentId() {
-    return parentId;
+    return null;
   }
 
   @Override
@@ -42,5 +36,10 @@ class SpanTestContext extends AbstractTestContext implements TestContext {
   @Override
   public boolean isLocalToCurrentProcess() {
     return true;
+  }
+
+  @Override
+  public AgentSpan getSpan() {
+    return span;
   }
 }

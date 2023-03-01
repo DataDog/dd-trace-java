@@ -138,7 +138,6 @@ abstract class TestFrameworkTest extends AgentTestRunner {
 
   Long testSuiteSpan(final TraceAssert trace,
     final int index,
-    final Long parentId,
     final Long testModuleId,
     final String testSuite,
     final String testStatus,
@@ -153,7 +152,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
     trace.span(index) {
       testSuiteId = span.getTag(Tags.TEST_SUITE_ID)
 
-      parentSpanId(BigInteger.valueOf(parentId))
+      parentSpanId(BigInteger.valueOf(testModuleId))
       operationName expectedOperationPrefix() + ".test_suite"
       resourceName testSuite
       spanType DDSpanTypes.TEST_SUITE_END

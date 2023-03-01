@@ -1,5 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.civisibility;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import javax.annotation.Nullable;
+
 class ParentProcessTestContext extends AbstractTestContext implements TestContext {
 
   private final long sessionId;
@@ -23,5 +26,11 @@ class ParentProcessTestContext extends AbstractTestContext implements TestContex
   @Override
   public boolean isLocalToCurrentProcess() {
     return false;
+  }
+
+  @Nullable
+  @Override
+  public AgentSpan getSpan() {
+    return null;
   }
 }

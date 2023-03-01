@@ -13,6 +13,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 // FIXME use Continuation for session and module spans?
+// FIXME better yet, try storing start timestamp in context and then creating the spans on receiving
+// the END events
+// FIXME the same needs to be replicated for modules in TestEventsHandler
 public class BuildEventsHandler<T> {
 
   private final ConcurrentMap<T, SessionContext> testSessionContexts = new ConcurrentHashMap<>();
@@ -71,7 +74,7 @@ public class BuildEventsHandler<T> {
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
 
-    TestContext testModuleContext = new SpanTestContext(span, sessionContext.context.getId());
+    TestContext testModuleContext = new SpanTestContext(span);
     TestModuleDescriptor<T> testModuleDescriptor =
         new TestModuleDescriptor<>(sessionKey, moduleName);
     testModuleContexts.put(testModuleDescriptor, testModuleContext);

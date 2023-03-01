@@ -35,7 +35,7 @@ abstract class TestNGTest extends TestFrameworkTest {
     assertTraces(1) {
       trace(3, true) {
         long testModuleId = testModuleSpan(it, 1, TestEventsHandler.TEST_PASS)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, testModuleId, "org.example.TestSucceed", TestEventsHandler.TEST_PASS)
+        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestSucceed", TestEventsHandler.TEST_PASS)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceed", "test_succeed", TestEventsHandler.TEST_PASS)
       }
     }
@@ -52,7 +52,7 @@ abstract class TestNGTest extends TestFrameworkTest {
     assertTraces(1) {
       trace(3, true) {
         long testModuleId = testModuleSpan(it, 1, TestEventsHandler.TEST_PASS)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, testModuleId, "org.example.TestInheritance", TestEventsHandler.TEST_PASS)
+        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestInheritance", TestEventsHandler.TEST_PASS)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestInheritance", "test_succeed", TestEventsHandler.TEST_PASS)
       }
     }
@@ -73,7 +73,7 @@ abstract class TestNGTest extends TestFrameworkTest {
     assertTraces(1) {
       trace(3, true) {
         long testModuleId = testModuleSpan(it, 1, TestEventsHandler.TEST_FAIL)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, testModuleId, "org.example.TestFailed", TestEventsHandler.TEST_FAIL)
+        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestFailed", TestEventsHandler.TEST_FAIL)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailed", "test_failed", TestEventsHandler.TEST_FAIL, null, exception)
       }
     }
@@ -97,7 +97,7 @@ abstract class TestNGTest extends TestFrameworkTest {
     assertTraces(1) {
       trace(7, true) {
         long testModuleId = testModuleSpan(it, 5, TestEventsHandler.TEST_FAIL)
-        long testSuiteId = testSuiteSpan(it, 6, testModuleId, testModuleId, "org.example.TestFailedWithSuccessPercentage", TestEventsHandler.TEST_FAIL)
+        long testSuiteId = testSuiteSpan(it, 6, testModuleId, "org.example.TestFailedWithSuccessPercentage", TestEventsHandler.TEST_FAIL)
         testSpan(it, 3, testModuleId, testSuiteId, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestEventsHandler.TEST_FAIL, null, exception)
         testSpan(it, 4, testModuleId, testSuiteId, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestEventsHandler.TEST_FAIL, null, exception)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestEventsHandler.TEST_PASS)
@@ -121,7 +121,7 @@ abstract class TestNGTest extends TestFrameworkTest {
     assertTraces(1) {
       trace(3, true) {
         long testModuleId = testModuleSpan(it, 1, TestEventsHandler.TEST_FAIL)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, testModuleId, "org.example.TestError", TestEventsHandler.TEST_FAIL)
+        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestError", TestEventsHandler.TEST_FAIL)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestError", "test_error", TestEventsHandler.TEST_FAIL, null, exception)
       }
     }
@@ -141,7 +141,7 @@ abstract class TestNGTest extends TestFrameworkTest {
     assertTraces(1) {
       trace(3, true) {
         long testModuleId = testModuleSpan(it, 1, TestEventsHandler.TEST_SKIP)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, testModuleId, "org.example.TestSkipped", TestEventsHandler.TEST_SKIP)
+        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestSkipped", TestEventsHandler.TEST_SKIP)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkipped", "test_skipped", TestEventsHandler.TEST_SKIP, testTags)
       }
     }
@@ -161,7 +161,7 @@ abstract class TestNGTest extends TestFrameworkTest {
     assertTraces(1) {
       trace(4, true) {
         long testModuleId = testModuleSpan(it, 2, TestEventsHandler.TEST_PASS)
-        long testSuiteId = testSuiteSpan(it, 3, testModuleId, testModuleId, "org.example.TestParameterized", TestEventsHandler.TEST_PASS)
+        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestParameterized", TestEventsHandler.TEST_PASS)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "parameterized_test_succeed", TestEventsHandler.TEST_PASS, testTags_1)
         testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestParameterized", "parameterized_test_succeed", TestEventsHandler.TEST_PASS, testTags_0)
       }
@@ -183,7 +183,7 @@ abstract class TestNGTest extends TestFrameworkTest {
     assertTraces(1) {
       trace(3, true) {
         long testModuleId = testModuleSpan(it, 1, TestEventsHandler.TEST_PASS)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, testModuleId, "org.example.TestSucceedGroups", TestEventsHandler.TEST_PASS,
+        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestSucceedGroups", TestEventsHandler.TEST_PASS,
           null, null, false, ["classGroup", "parentGroup"])
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedGroups", "test_succeed", TestEventsHandler.TEST_PASS,
           null, null, false, ["classGroup", "testCaseGroup", "parentGroup"])
@@ -202,7 +202,7 @@ abstract class TestNGTest extends TestFrameworkTest {
     assertTraces(1) {
       trace(4, true) {
         long testModuleId = testModuleSpan(it, 2, TestEventsHandler.TEST_SKIP)
-        long testSuiteId = testSuiteSpan(it, 3, testModuleId, testModuleId, "org.example.TestSkippedClass", TestEventsHandler.TEST_SKIP)
+        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestSkippedClass", TestEventsHandler.TEST_SKIP)
         testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_class_skipped", TestEventsHandler.TEST_SKIP, testTags)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_class_another_skipped", TestEventsHandler.TEST_SKIP, testTags)
       }
@@ -224,7 +224,7 @@ abstract class TestNGTest extends TestFrameworkTest {
     assertTraces(1) {
       trace(4, true) {
         long testModuleId = testModuleSpan(it, 2, TestEventsHandler.TEST_PASS)
-        long testSuiteId = testSuiteSpan(it, 3, testModuleId, testModuleId, "org.example.TestSucceedAndSkipped", TestEventsHandler.TEST_PASS)
+        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestSucceedAndSkipped", TestEventsHandler.TEST_PASS)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", TestEventsHandler.TEST_SKIP, testTags)
         testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", TestEventsHandler.TEST_PASS)
       }
@@ -245,7 +245,7 @@ abstract class TestNGTest extends TestFrameworkTest {
     assertTraces(1) {
       trace(5, true) {
         long testModuleId = testModuleSpan(it, 3, TestEventsHandler.TEST_FAIL)
-        long testSuiteId = testSuiteSpan(it, 4, testModuleId, testModuleId, "org.example.TestFailedAndSucceed", TestEventsHandler.TEST_FAIL)
+        long testSuiteId = testSuiteSpan(it, 4, testModuleId, "org.example.TestFailedAndSucceed", TestEventsHandler.TEST_FAIL)
         testSpan(it, 2, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_succeed", TestEventsHandler.TEST_PASS)
         testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_failed", TestEventsHandler.TEST_FAIL, null, exception)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_another_succeed", TestEventsHandler.TEST_PASS)
@@ -267,7 +267,7 @@ abstract class TestNGTest extends TestFrameworkTest {
     assertTraces(1) {
       trace(4, true) {
         long testModuleId = testModuleSpan(it, 2, TestEventsHandler.TEST_FAIL)
-        long testSuiteId = testSuiteSpan(it, 3, testModuleId, testModuleId, "org.example.TestFailedSuiteTearDown", TestEventsHandler.TEST_FAIL, null, exception)
+        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestFailedSuiteTearDown", TestEventsHandler.TEST_FAIL, null, exception)
         testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestFailedSuiteTearDown", "test_succeed", TestEventsHandler.TEST_PASS)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedSuiteTearDown", "test_another_succeed", TestEventsHandler.TEST_PASS)
       }
@@ -288,7 +288,7 @@ abstract class TestNGTest extends TestFrameworkTest {
     assertTraces(1) {
       trace(4, true) {
         long testModuleId = testModuleSpan(it, 2, TestEventsHandler.TEST_FAIL)
-        long testSuiteId = testSuiteSpan(it, 3, testModuleId, testModuleId, "org.example.TestFailedSuiteSetup", TestEventsHandler.TEST_FAIL, null, exception)
+        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestFailedSuiteSetup", TestEventsHandler.TEST_FAIL, null, exception)
         // if suite set up fails, TestNG will report that suite's test cases as skipped
         testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestFailedSuiteSetup", "test_succeed", TestEventsHandler.TEST_SKIP, testTags)
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedSuiteSetup", "test_another_succeed", TestEventsHandler.TEST_SKIP, testTags)
@@ -312,10 +312,10 @@ abstract class TestNGTest extends TestFrameworkTest {
       trace(6, true) {
         long testModuleId = testModuleSpan(it, 3, TestEventsHandler.TEST_PASS)
 
-        long firstSuiteId = testSuiteSpan(it, 4, testModuleId, testModuleId, "org.example.TestSucceed", TestEventsHandler.TEST_PASS)
+        long firstSuiteId = testSuiteSpan(it, 4, testModuleId, "org.example.TestSucceed", TestEventsHandler.TEST_PASS)
         testSpan(it, 0, testModuleId, firstSuiteId, "org.example.TestSucceed", "test_succeed", TestEventsHandler.TEST_PASS)
 
-        long secondSuiteId = testSuiteSpan(it, 5, testModuleId, testModuleId, "org.example.TestSucceedAndSkipped", TestEventsHandler.TEST_PASS)
+        long secondSuiteId = testSuiteSpan(it, 5, testModuleId, "org.example.TestSucceedAndSkipped", TestEventsHandler.TEST_PASS)
         testSpan(it, 1, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", TestEventsHandler.TEST_SKIP, testTags)
         testSpan(it, 2, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", TestEventsHandler.TEST_PASS)
       }
@@ -337,10 +337,10 @@ abstract class TestNGTest extends TestFrameworkTest {
       trace(7, true) {
         long testModuleId = testModuleSpan(it, 4, TestEventsHandler.TEST_FAIL)
 
-        long firstSuiteId = testSuiteSpan(it, 6, testModuleId, testModuleId, "org.example.TestSucceed", TestEventsHandler.TEST_PASS)
+        long firstSuiteId = testSuiteSpan(it, 6, testModuleId, "org.example.TestSucceed", TestEventsHandler.TEST_PASS)
         testSpan(it, 3, testModuleId, firstSuiteId, "org.example.TestSucceed", "test_succeed", TestEventsHandler.TEST_PASS)
 
-        long secondSuiteId = testSuiteSpan(it, 5, testModuleId, testModuleId, "org.example.TestFailedAndSucceed", TestEventsHandler.TEST_FAIL)
+        long secondSuiteId = testSuiteSpan(it, 5, testModuleId, "org.example.TestFailedAndSucceed", TestEventsHandler.TEST_FAIL)
         testSpan(it, 2, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_succeed", TestEventsHandler.TEST_PASS)
         testSpan(it, 1, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_failed", TestEventsHandler.TEST_FAIL, null, exception)
         testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_another_succeed", TestEventsHandler.TEST_PASS)
@@ -363,10 +363,10 @@ abstract class TestNGTest extends TestFrameworkTest {
       trace(5, true) {
         long testModuleId = testModuleSpan(it, 2, TestEventsHandler.TEST_PASS)
 
-        long topLevelSuiteId = testSuiteSpan(it, 3, testModuleId, testModuleId, "org.example.TestSucceedNested", TestEventsHandler.TEST_PASS)
+        long topLevelSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestSucceedNested", TestEventsHandler.TEST_PASS)
         testSpan(it, 1, testModuleId, topLevelSuiteId, "org.example.TestSucceedNested", "test_succeed", TestEventsHandler.TEST_PASS)
 
-        long nestedSuiteId = testSuiteSpan(it, 4, testModuleId, testModuleId, 'org.example.TestSucceedNested$NestedSuite', TestEventsHandler.TEST_PASS)
+        long nestedSuiteId = testSuiteSpan(it, 4, testModuleId, 'org.example.TestSucceedNested$NestedSuite', TestEventsHandler.TEST_PASS)
         testSpan(it, 0, testModuleId, nestedSuiteId, 'org.example.TestSucceedNested$NestedSuite', "test_succeed_nested", TestEventsHandler.TEST_PASS)
       }
     }
@@ -384,10 +384,10 @@ abstract class TestNGTest extends TestFrameworkTest {
       trace(5, true) {
         long testModuleId = testModuleSpan(it, 2, TestEventsHandler.TEST_PASS)
 
-        long topLevelSuiteId = testSuiteSpan(it, 3, testModuleId, testModuleId, "org.example.TestSkippedNested", TestEventsHandler.TEST_SKIP)
+        long topLevelSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestSkippedNested", TestEventsHandler.TEST_SKIP)
         testSpan(it, 1, testModuleId, topLevelSuiteId, "org.example.TestSkippedNested", "test_succeed", TestEventsHandler.TEST_SKIP, testTags)
 
-        long nestedSuiteId = testSuiteSpan(it, 4, testModuleId, testModuleId, 'org.example.TestSkippedNested$NestedSuite', TestEventsHandler.TEST_PASS)
+        long nestedSuiteId = testSuiteSpan(it, 4, testModuleId, 'org.example.TestSkippedNested$NestedSuite', TestEventsHandler.TEST_PASS)
         testSpan(it, 0, testModuleId, nestedSuiteId, 'org.example.TestSkippedNested$NestedSuite', "test_succeed_nested", TestEventsHandler.TEST_PASS)
       }
     }

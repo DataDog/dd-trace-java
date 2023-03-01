@@ -58,11 +58,7 @@ public class TestEventsHandler {
     }
 
     final AgentSpan span = startSpan(testDecorator.component() + ".test_module");
-    final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
-
     testModuleContext = new SpanTestContext(span);
-
     testDecorator.afterTestModuleStart(span, null, version);
   }
 
@@ -72,14 +68,9 @@ public class TestEventsHandler {
       return;
     }
 
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!isTestModuleSpan(span)) {
+    final AgentSpan span = testModuleContext.getSpan();
+    if (span == null) {
       return;
-    }
-
-    final AgentScope scope = AgentTracer.activeScope();
-    if (scope != null) {
-      scope.close();
     }
 
     span.setTag(Tags.TEST_STATUS, testModuleContext.getStatus());
@@ -103,13 +94,15 @@ public class TestEventsHandler {
       return;
     }
 
-    final AgentSpan span = startSpan(testDecorator.component() + ".test_suite");
+    AgentSpan moduleSpan = testModuleContext.getSpan();
+    AgentSpan.Context moduleSpanContext = moduleSpan != null ? moduleSpan.context() : null;
+
+    final AgentSpan span = startSpan(testDecorator.component() + ".test_suite", moduleSpanContext);
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
 
     TestSuiteDescriptor testSuiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    testSuiteContexts.put(
-        testSuiteDescriptor, new SpanTestContext(span, testModuleContext.getId()));
+    testSuiteContexts.put(testSuiteDescriptor, new SpanTestContext(span));
 
     testDecorator.afterTestSuiteStart(span, testSuiteName, testClass, version, categories);
   }
