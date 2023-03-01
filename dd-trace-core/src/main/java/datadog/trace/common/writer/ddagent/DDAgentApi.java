@@ -1,6 +1,7 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.prepareRequest;
+import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_PROCESSOR_RETRY;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
@@ -12,7 +13,9 @@ import datadog.communication.monitor.Recording;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.common.writer.RemoteResponseListener;
+import datadog.trace.common.writer.TraceProcessingWorker;
 import datadog.trace.core.DDTraceCoreInfo;
+import datadog.trace.util.AgentThreadFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -99,17 +102,17 @@ public class DDAgentApi extends RemoteApi {
     }
 
     HttpUrl tracesUrl = agentUrl.resolve(tracesEndpoint);
+    final Request request =
+        prepareRequest(tracesUrl, headers)
+            .addHeader(X_DATADOG_TRACE_COUNT, Integer.toString(payload.traceCount()))
+            .addHeader(DATADOG_DROPPED_TRACE_COUNT, Long.toString(payload.droppedTraces()))
+            .addHeader(DATADOG_DROPPED_SPAN_COUNT, Long.toString(payload.droppedSpans()))
+            .addHeader(
+                DATADOG_CLIENT_COMPUTED_STATS,
+                metricsEnabled && featuresDiscovery.supportsMetrics() ? "true" : "")
+            .put(payload.toRequest())
+            .build();
     try {
-      final Request request =
-          prepareRequest(tracesUrl, headers)
-              .addHeader(X_DATADOG_TRACE_COUNT, Integer.toString(payload.traceCount()))
-              .addHeader(DATADOG_DROPPED_TRACE_COUNT, Long.toString(payload.droppedTraces()))
-              .addHeader(DATADOG_DROPPED_SPAN_COUNT, Long.toString(payload.droppedSpans()))
-              .addHeader(
-                  DATADOG_CLIENT_COMPUTED_STATS,
-                  metricsEnabled && featuresDiscovery.supportsMetrics() ? "true" : "")
-              .put(payload.toRequest())
-              .build();
       this.totalTraces += payload.traceCount();
       this.receivedTraces += payload.traceCount();
       try (final Recording recording = sendPayloadTimer.start();
@@ -139,6 +142,17 @@ public class DDAgentApi extends RemoteApi {
         }
       }
     } catch (final IOException e) {
+
+      // add retry logic here
+      AgentThreadFactory.newAgentThread(
+          TRACE_PROCESSOR_RETRY,
+          new TraceProcessingWorker.TraceRetryHandler(
+              request, httpClient, agentErrorCounter, tracesUrl, responseListeners, payload));
+      // create a new retries thread that retries a certain number of times with increasing
+      // intervals between.
+      // add retried traces onto next payload
+      // implement a queueing system that allows the trace agent to flush traces when it has the
+      // capacity
       countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, e);
       return Response.failed(e);
     }

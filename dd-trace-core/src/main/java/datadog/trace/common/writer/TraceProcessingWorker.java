@@ -1,11 +1,16 @@
 package datadog.trace.common.writer;
 
+import static datadog.trace.common.writer.RemoteApi.getResponseBody;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_PROCESSOR;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.Moshi;
+import com.squareup.moshi.Types;
 import datadog.communication.ddagent.DroppingPolicy;
+import datadog.communication.monitor.Counter;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.FlushEvent;
 import datadog.trace.common.writer.ddagent.Prioritization;
@@ -13,9 +18,14 @@ import datadog.trace.common.writer.ddagent.PrioritizationStrategy;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
+import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.slf4j.Logger;
@@ -233,6 +243,103 @@ public class TraceProcessingWorker implements AutoCloseable {
 
     private void consumeBatch(MessagePassingQueue<Object> queue) {
       queue.drain(this::onEvent, queue.size());
+    }
+  }
+
+  public static class TraceRetryHandler implements Runnable {
+
+    private final Request request;
+
+    private int retryDelayMs = 100;
+    private final int maxRetries = 3;
+    private OkHttpClient httpClient;
+    private Counter agentErrorCounter;
+    private int retriedTraces = 0;
+    private HttpUrl tracesUrl;
+    private final List<RemoteResponseListener> responseListeners;
+    private Payload payload;
+
+    private static final JsonAdapter<Map<String, Map<String, Number>>> RESPONSE_ADAPTER =
+        new Moshi.Builder()
+            .build()
+            .adapter(
+                Types.newParameterizedType(
+                    Map.class,
+                    String.class,
+                    Types.newParameterizedType(Map.class, String.class, Double.class)));
+
+    public TraceRetryHandler(
+        final Request request,
+        final OkHttpClient httpClient,
+        final Counter agentErrorCounter,
+        final HttpUrl tracesUrl,
+        final List<RemoteResponseListener> responseListeners,
+        final Payload payload) {
+
+      this.request = request;
+      this.httpClient = httpClient;
+      this.agentErrorCounter = agentErrorCounter;
+      this.tracesUrl = tracesUrl;
+      this.responseListeners = responseListeners;
+      this.payload = payload;
+    }
+
+    @Override
+    public void run() {
+      try {
+        runDutyCycle();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+      log.debug("Datadog trace retry processor exited. Publishing traces stopped");
+    }
+
+    private void runDutyCycle() throws InterruptedException {
+      Thread thread = Thread.currentThread();
+      int retryCount = 0;
+      boolean retrySuccess = false;
+      while (!retrySuccess && retryCount < maxRetries && !thread.isInterrupted()) {
+
+        try (final okhttp3.Response response = httpClient.newCall(request).execute()) {
+          if (response.code() != 200) {
+            agentErrorCounter.incrementErrorCount(response.message(), payload.traceCount());
+            retryCount++;
+            retry();
+          } else {
+            retriedTraces += payload.traceCount();
+            retrySuccess = true;
+            log.debug("Successfully retried %d traces", retriedTraces);
+            retryCount++;
+            String responseString = null;
+            try {
+              responseString = getResponseBody(response);
+              if (!"".equals(responseString) && !"OK".equalsIgnoreCase(responseString)) {
+                final Map<String, Map<String, Number>> parsedResponse =
+                    RESPONSE_ADAPTER.fromJson(responseString);
+                final String endpoint = tracesUrl.toString();
+                for (final RemoteResponseListener listener : responseListeners) {
+                  listener.onResponse(endpoint, parsedResponse);
+                }
+              }
+              // return RemoteApi.Response.success(response.code(), responseString);
+            } catch (final IOException e) {
+              log.debug("Failed to parse DD agent response: {}", responseString, e);
+              // return RemoteApi.Response.success(response.code(), e);
+            }
+          }
+        } catch (final Exception e) {
+          retryCount++;
+          retry();
+        }
+      }
+      if (!retrySuccess) {
+        log.debug("Failed to retry %d traces after %d retries", payload.traceCount(), maxRetries);
+      }
+    }
+
+    private void retry() throws InterruptedException {
+      Thread.sleep(retryDelayMs);
+      retryDelayMs += 100;
     }
   }
 }
