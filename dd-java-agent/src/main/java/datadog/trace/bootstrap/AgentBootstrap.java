@@ -14,7 +14,6 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.CodeSource;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
@@ -65,18 +64,7 @@ public final class AgentBootstrap {
 
     // for dynamic injection flow, we need to "register" the args since jvm doesn't
     // handle them as it does in a startup flow via -D flag
-    if (agentArgs != null && agentArgs.length() != 0) {
-      // split arguments by space character
-      Vector<String> args = strSplit(agentArgs, ' ');
-      for (String arg : args) {
-        // we only parse the arguments of the form "arg=value" (e.g:
-        // dd.debug.enabled=true)
-        Vector<String> keyValTuple = strSplit(arg, '=');
-        if (keyValTuple.size() == 2) {
-          System.setProperty(keyValTuple.get(0), keyValTuple.get(1));
-        }
-      }
-    }
+    parseAsSystemProperties(agentArgs);
 
     try {
       final URL agentJarURL = installAgentJar(inst);
@@ -246,24 +234,27 @@ public final class AgentBootstrap {
     return ddJavaAgentJarURL;
   }
 
-  public static ArrayList<String> strSplit(String str, char sep) {
-    if (str == null) return null;
-
-    ArrayList<String> result = new ArrayList<String>();
+  public static void parseAsSystemProperties(String str) {
+    if (str == null || str.length() == 0) return;
 
     int begin = 0;
-    for (int sep_idx = str.indexOf(sep);
+    for (int sep_idx = str.indexOf(' ');
         begin < str.length() && sep_idx != -1;
-        sep_idx = str.indexOf(sep, begin)) {
-      result.add(str.substring(begin, sep_idx));
+        sep_idx = str.indexOf(' ', begin)) {
+      parseProperty(str.substring(begin, sep_idx));
       begin = sep_idx + 1;
-      while (begin < str.length() && str.charAt(begin) == sep) {
+      while (begin < str.length() && str.charAt(begin) == ' ') {
         begin++;
       }
     }
-    result.add(str.substring(begin));
+    parseProperty(str.substring(begin));
+  }
 
-    return result;
+  private static void parseProperty(String prop) {
+    int sep = prop.indexOf('=');
+    if (sep == -1) return;
+
+    System.setProperty(prop.substring(0, sep), prop.substring(sep));
   }
 
   @SuppressForbidden
