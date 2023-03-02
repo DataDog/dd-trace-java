@@ -101,8 +101,7 @@ public final class AgentBootstrap {
     Set<Throwable> stack = Collections.newSetFromMap(new IdentityHashMap<Throwable, Boolean>());
     Throwable t = ex;
     while (t != null && stack.add(t) && stack.size() <= MAX_EXCEPTION_CHAIN_LENGTH) {
-      // cannot do an instanceof check since most of the agent's code is loaded by an
-      // isolated CL
+      // cannot do an instanceof check since most of the agent's code is loaded by an isolated CL
       if (t.getClass().getName().equals(exClassName)) {
         return true;
       }
