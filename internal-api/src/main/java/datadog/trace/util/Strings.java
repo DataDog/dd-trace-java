@@ -3,11 +3,11 @@ package datadog.trace.util;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Vector;
 import javax.annotation.Nonnull;
 
 public final class Strings {
@@ -111,7 +111,7 @@ public final class Strings {
   public static String[] split(String str, char sep) {
     if (str == null) return null;
 
-    Vector<String> result = new Vector<String>();
+    ArrayList<String> result = new ArrayList<String>();
 
     int begin = 0;
     for (int sep_idx = str.indexOf(sep);
