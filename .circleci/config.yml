@@ -805,8 +805,12 @@ jobs:
       #       fi
 
       - store_artifacts:
-          path: system-tests/logs
-          destination: logs_java_<< parameters.weblog-variant >>_dev.tar.gz
+          path: system-tests/logs_apm_tracing_e2e
+          destination: logs_apm_tracing_e2e_java_<< parameters.weblog-variant >>_dev.tar.gz
+
+      - store_artifacts:
+          path: system-tests/logs_apm_tracing_e2e_single_span
+          destination: logs_apm_tracing_e2e_single_span_java_<< parameters.weblog-variant >>_dev.tar.gz
 
 build_test_jobs: &build_test_jobs
   - build:
