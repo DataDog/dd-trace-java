@@ -36,6 +36,25 @@ parameters:
     default: "^build.gradle$|^settings.gradle$|^gradle.properties$|^buildSrc/|^gradle/|.circleci"
 
 commands:
+  generate_cache_ids:
+    steps:
+      - run:
+          name: Generate cache ids
+          command: |
+            # Everything falls back to the main cache
+            BASE_CACHE_ID="main"
+            if [ "$CIRCLE_BRANCH" == "master" ];
+            then
+              # If we're on a the main branch, then they are the same
+              echo "${BASE_CACHE_ID}" >| _circle_ci_cache_id
+            else
+              # If we're on a PR branch, then we use the name of the branch and the
+              # PR number as a stable identifier for the branch cache
+              echo "${CIRCLE_BRANCH}-${CIRCLE_PULL_REQUEST##*/}" >| _circle_ci_cache_id
+            fi
+            # Have new branches start from the main cache
+            echo "${BASE_CACHE_ID}" >| _circle_ci_cache_base_id
+
   setup_code:
     steps:
       - checkout
@@ -57,19 +76,7 @@ commands:
               fi
             fi
 
-            # Everything falls back to the main cache
-            BASE_CACHE_ID="main"
-            if [ "$CIRCLE_BRANCH" == "master" ];
-            then
-              # If we're on a the main branch, then they are the same
-              echo "${BASE_CACHE_ID}" >| _circle_ci_cache_id
-            else
-              # If we're on a PR branch, then we use the name of the branch and the
-              # PR number as a stable identifier for the branch cache
-              echo "${CIRCLE_BRANCH}-${CIRCLE_PULL_REQUEST##*/}" >| _circle_ci_cache_id
-            fi
-            # Have new branches start from the main cache
-            echo "${BASE_CACHE_ID}" >| _circle_ci_cache_base_id
+      - generate_cache_ids
 
   setup_testcontainers:
     description: >-
@@ -209,6 +216,30 @@ commands:
             # Workspace
             - ~/dd-trace-java/.gradle
             - ~/dd-trace-java/workspace
+
+  setup_system_tests:
+    steps:
+      - generate_cache_ids
+
+      - restore_build_cache:
+          cacheType: lib
+
+      - run:
+          name: Install good version of docker-compose
+          command: |
+            sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
+
+      - run:
+          name: versions
+          command: |
+            docker --version
+            docker-compose --version
+
+      - run:
+          name: Clone System Tests repo
+          command: git clone https://github.com/DataDog/system-tests.git
+
 jobs:
   build:
     <<: *defaults
@@ -632,25 +663,7 @@ jobs:
       weblog-variant:
         type: string
     steps:
-      - setup_code
-      - restore_build_cache:
-          cacheType: lib
-
-      - run:
-          name: Install good version of docker-compose
-          command: |
-            sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-            sudo chmod +x /usr/local/bin/docker-compose
-
-      - run:
-          name: versions
-          command: |
-            docker --version
-            docker-compose --version
-
-      - run:
-          name: Clone System Tests repo
-          command: git clone https://github.com/DataDog/system-tests.git
+      - setup_system_tests
 
       - run:
           name: Copy jar file to system test binaries folder
@@ -693,6 +706,43 @@ jobs:
       - store_artifacts:
           path: system-tests/logs
           destination: logs_java_<< parameters.weblog-variant >>_dev.tar.gz
+
+  parametric-tests:
+    machine:
+      # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
+      image: ubuntu-2004:current
+    resource_class: large
+    steps:
+      - setup_system_tests
+
+      - run:
+          name: Copy jar files to system test binaries folder
+          command: |
+            ls -la ~/dd-trace-java/workspace/dd-trace-api/build/libs
+            ls -la ~/dd-trace-java/workspace/dd-trace-ot/build/libs
+            cp ~/dd-trace-java/workspace/dd-trace-api/build/libs/*.jar system-tests/binaries/
+            cp ~/dd-trace-java/workspace/dd-trace-ot/build/libs/*.jar system-tests/binaries/
+
+      - run:
+          name: Install Python 3.9
+          command: pyenv install 3.9
+
+      - run:
+          name: Install Requirements
+          command: |
+            cd system-tests/parametric
+            pyenv local 3.9
+            python --version
+            pip install wheel
+            pip install -r requirements.txt
+
+      - run:
+          name: Run
+          command: |
+            cd system-tests/parametric
+            export CLIENTS_ENABLED=java
+            python --version
+            ./run.sh
 
 build_test_jobs: &build_test_jobs
   - build:
@@ -987,6 +1037,11 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
       matrix:
           <<: *system_test_matrix
+
+  - parametric-tests:
+      requires:
+        - ok_to_test
+
   - fan_in:
       requires:
         - test_published_artifacts
