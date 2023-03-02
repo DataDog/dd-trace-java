@@ -103,6 +103,8 @@ public final class DatadogProfiler {
 
   private final List<String> orderedContextAttributes;
 
+  private final DatadogProfilerContext emptySnapshot = new DatadogProfilerContext(new int[0]);
+
   private DatadogProfiler() throws UnsupportedEnvironmentException {
     this(ConfigProvider.getInstance());
   }
@@ -394,5 +396,12 @@ public final class DatadogProfiler {
       return contextSetter.encode(constant.toString());
     }
     return 0;
+  }
+
+  public DatadogProfilerContext snapshot() {
+    if (orderedContextAttributes.isEmpty()) {
+      return emptySnapshot;
+    }
+    return new DatadogProfilerContext(contextSetter.snapshotTags());
   }
 }

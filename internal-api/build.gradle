@@ -93,6 +93,7 @@ excludedClassesCoverage += [
   // a stub
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration",
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOp",
+  "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOpSnapshot"
 ]
 
 excludedClassesBranchCoverage = [

@@ -23,6 +23,10 @@ public interface ProfilingContextIntegration extends ProfilingContext {
     return 0;
   }
 
+  default ContinuableContext snapshot() {
+    return NoOpSnapshot.INSTANCE;
+  }
+
   final class NoOp implements ProfilingContextIntegration {
 
     public static final ProfilingContextIntegration INSTANCE =
@@ -56,5 +60,13 @@ public interface ProfilingContextIntegration extends ProfilingContext {
 
     @Override
     public void recordQueueingTime(long duration) {}
+  }
+
+  public static final class NoOpSnapshot implements ContinuableContext {
+    public static final ContinuableContext INSTANCE = new NoOpSnapshot();
+
+    public void activate() {}
+
+    public void deactivate() {}
   }
 }

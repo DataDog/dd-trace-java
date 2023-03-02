@@ -2,6 +2,7 @@ package datadog.trace.core.scopemanager;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ContinuableContext;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 /**
@@ -16,8 +17,9 @@ final class SingleContinuation extends AbstractContinuation {
   SingleContinuation(
       final ContinuableScopeManager scopeManager,
       final AgentSpan spanUnderScope,
-      final byte source) {
-    super(scopeManager, spanUnderScope, source);
+      final byte source,
+      final ContinuableContext profilingContext) {
+    super(scopeManager, spanUnderScope, source, profilingContext);
   }
 
   @Override

@@ -1,5 +1,6 @@
 package com.datadog.profiling.ddprof;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -110,8 +111,14 @@ class DatadogProfilerTest {
             configProvider(true, true, true, true), new HashSet<>(Arrays.asList("foo", "bar")));
     assertTrue(profiler.setContextValue("foo", "abc"));
     assertTrue(profiler.setContextValue("bar", "abc"));
+    DatadogProfilerContext context = profiler.snapshot();
+    assertEquals(profiler.encode("abc"), context.tags[profiler.offsetOf("foo")]);
+    assertEquals(profiler.encode("abc"), context.tags[profiler.offsetOf("bar")]);
     assertTrue(profiler.setContextValue("foo", "xyz"));
     assertFalse(profiler.setContextValue("xyz", "foo"));
+    context = profiler.snapshot();
+    assertEquals(profiler.encode("xyz"), context.tags[profiler.offsetOf("foo")]);
+    assertEquals(profiler.encode("abc"), context.tags[profiler.offsetOf("bar")]);
   }
 
   private static ConfigProvider configProvider(

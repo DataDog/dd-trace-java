@@ -1,5 +1,6 @@
 package com.datadog.profiling.ddprof;
 
+import datadog.trace.bootstrap.instrumentation.api.ContinuableContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 
@@ -9,7 +10,7 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
  */
 public class DatadogProfilingIntegration implements ProfilingContextIntegration {
 
-  private static final DatadogProfiler DDPROF = DatadogProfiler.getInstance();
+  static final DatadogProfiler DDPROF = DatadogProfiler.getInstance();
   private static final int SPAN_NAME_INDEX = DDPROF.operationNameOffset();
   private static final boolean WALLCLOCK_ENABLED =
       DatadogProfilerConfig.isWallClockProfilerEnabled();
@@ -51,6 +52,11 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   @Override
   public void setContext(long rootSpanId, long spanId) {
     DDPROF.setSpanContext(spanId, rootSpanId);
+  }
+
+  @Override
+  public ContinuableContext snapshot() {
+    return DDPROF.snapshot();
   }
 
   @Override

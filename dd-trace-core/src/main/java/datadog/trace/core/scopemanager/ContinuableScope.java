@@ -5,6 +5,7 @@ import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
+import datadog.trace.bootstrap.instrumentation.api.ContinuableContext;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
@@ -34,6 +35,10 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
     this.span = span;
     this.flags = source;
     this.isAsyncPropagating = isAsyncPropagating;
+  }
+
+  public ContinuableContext auxiliaryContext() {
+    return null;
   }
 
   @Override
@@ -130,7 +135,9 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
   @Override
   public final AbstractContinuation capture() {
     return isAsyncPropagating
-        ? new SingleContinuation(scopeManager, span, source()).register()
+        ? new SingleContinuation(
+                scopeManager, span, source(), scopeManager.captureAuxiliaryContext())
+            .register()
         : null;
   }
 
@@ -142,7 +149,9 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
   @Override
   public final AbstractContinuation captureConcurrent() {
     return isAsyncPropagating
-        ? new ConcurrentContinuation(scopeManager, span, source()).register()
+        ? new ConcurrentContinuation(
+                scopeManager, span, source(), scopeManager.captureAuxiliaryContext())
+            .register()
         : null;
   }
 

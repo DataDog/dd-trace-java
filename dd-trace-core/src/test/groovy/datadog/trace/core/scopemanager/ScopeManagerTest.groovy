@@ -10,6 +10,7 @@ import datadog.trace.api.scopemanager.ExtendedScopeListener
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan
+import datadog.trace.bootstrap.instrumentation.api.ContinuableContext
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.common.writer.ListWriter
@@ -429,6 +430,23 @@ class ScopeManagerTest extends DDCoreSpecification {
     true            | false
     false           | true
     true            | true
+  }
+
+  def "continuation restores and activates profiling context"() {
+    setup:
+    ContinuableContext auxContext = Mock(ContinuableContext)
+    when: "propagate a span"
+    def span = tracer.buildSpan("span").start()
+    def scope = tracer.activateSpan(span)
+    def continuation = concurrentChild ? scope.captureConcurrent() : scope.capture()
+    continuation.activate()
+    then: "profiling context captured, aux context activated"
+    1 * profilingContext.onAttach()
+    1 * profilingContext.snapshot() >> auxContext
+    1 * auxContext.activate()
+
+    where:
+    concurrentChild << [true, false]
   }
 
   def "continuation allows adding spans even after other spans were completed"() {

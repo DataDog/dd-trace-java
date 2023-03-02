@@ -12,6 +12,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ContinuableContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
@@ -45,6 +46,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
   private final int depthLimit;
   private final boolean inheritAsyncPropagation;
   final HealthMetrics healthMetrics;
+  private final ProfilingContextIntegration profilingContextIntegration;
 
   /**
    * Constructor with NOOP Profiling and HealthMetrics implementations.
@@ -85,6 +87,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     this.extendedScopeListeners = new CopyOnWriteArrayList<>();
     this.healthMetrics = healthMetrics;
     this.tlsScopeStack = new ScopeStackThreadLocal(profilingContextIntegration);
+    this.profilingContextIntegration = profilingContextIntegration;
   }
 
   @Override
@@ -101,9 +104,15 @@ public final class ContinuableScopeManager implements AgentScopeManager {
   @Override
   public AgentScope.Continuation captureSpan(final AgentSpan span) {
     AbstractContinuation continuation =
-        new SingleContinuation(this, span, ScopeSource.INSTRUMENTATION.id());
+        new SingleContinuation(
+            this, span, ScopeSource.INSTRUMENTATION.id(), captureAuxiliaryContext());
     continuation.register();
     return continuation;
+  }
+
+  ContinuableContext captureAuxiliaryContext() {
+    // this is intended to be extended to capture other context sources
+    return profilingContextIntegration.snapshot();
   }
 
   private AgentScope activate(

@@ -1,6 +1,7 @@
 package datadog.trace.core.scopemanager;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ContinuableContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
@@ -51,7 +52,7 @@ final class ScopeStack {
       }
     }
     if (top == null) {
-      onBecomeEmpty();
+      onBecomeEmpty(curScope);
     } else {
       onTopChanged(top);
     }
@@ -111,6 +112,11 @@ final class ScopeStack {
   }
 
   private void onTopChanged(ContinuableScope top) {
+    ContinuableContext auxiliaryContext = top.auxiliaryContext();
+    if (auxiliaryContext != null) {
+      auxiliaryContext.activate();
+    }
+    // TODO can this be hidden behind auxiliary context?
     AgentSpan.Context context = top.span.context();
     if (context instanceof ProfilerContext) {
       profilingContextIntegration.setContext((ProfilerContext) context);
@@ -123,7 +129,14 @@ final class ScopeStack {
   }
 
   /** Notifies profiler that this thread no longer has a context */
-  private void onBecomeEmpty() {
+  private void onBecomeEmpty(ContinuableScope oldScope) {
+    if (oldScope != null) {
+      ContinuableContext auxiliaryContext = oldScope.auxiliaryContext();
+      if (auxiliaryContext != null) {
+        auxiliaryContext.deactivate();
+      }
+    }
+    // TODO can this be hidden behind auxiliary context?
     profilingContextIntegration.clearContext();
     profilingContextIntegration.onDetach();
   }

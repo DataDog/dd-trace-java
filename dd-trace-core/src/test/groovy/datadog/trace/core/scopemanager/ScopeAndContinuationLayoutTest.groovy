@@ -14,11 +14,11 @@ class ScopeAndContinuationLayoutTest extends DDSpecification {
   }
 
   def "single continuation layout"() {
-    expect: layoutAcceptable(SingleContinuation, 32)
+    expect: layoutAcceptable(SingleContinuation, 40)
   }
 
   def "concurrent continuation layout"() {
-    expect: layoutAcceptable(ConcurrentContinuation, 32)
+    expect: layoutAcceptable(ConcurrentContinuation, 40)
   }
 
   def layoutAcceptable(Class<?> klass, int acceptableSize) {
