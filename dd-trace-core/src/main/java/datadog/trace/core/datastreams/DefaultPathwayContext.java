@@ -313,7 +313,7 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   public static DefaultPathwayContext base64Decode(
-      TimeSource timeSource, WellKnownTags wellKnownTags, byte[] data) throws IOException{
+      TimeSource timeSource, WellKnownTags wellKnownTags, byte[] data) throws IOException {
     return decode(timeSource, wellKnownTags, Base64Decoder.INSTANCE.decode(data));
   }
 
