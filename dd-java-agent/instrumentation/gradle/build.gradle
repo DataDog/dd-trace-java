@@ -6,8 +6,18 @@ muzzle {
   pass {
     group = 'org.gradle'
     module = 'gradle-core'
-    versions = '[1.0,)'
+    versions = '[1.0,4.2)'
   }
+  pass {
+    group = 'org.gradle'
+    module = 'gradle-core'
+    versions = '[4.2,)'
+    // starting with versions 4.2 some of the classes were moved into core-api artifact,
+    // but core-api is only available for versions 5.6 and later
+    extraDependency 'org.gradle:gradle-core-api:5.6'
+  }
+  // gradle jars are published only up to version 6.1.1,
+  // anything that comes later is not covered by muzzle
 }
 
 repositories {
