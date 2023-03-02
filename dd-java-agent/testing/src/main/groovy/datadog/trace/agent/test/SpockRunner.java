@@ -14,9 +14,9 @@ import java.util.TreeSet;
 import java.util.jar.JarFile;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import net.bytebuddy.dynamic.ClassFileLocator;
-import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.model.InitializationError;
-import org.spockframework.runtime.Sputnik;
+
+// import org.spockframework.runtime.Sputnik;
 
 /**
  * Runs a spock test in an agent-friendly way.
@@ -25,7 +25,7 @@ import org.spockframework.runtime.Sputnik;
  *   <li>Adds agent bootstrap classes to bootstrap classpath.
  * </ul>
  */
-public class SpockRunner extends Sputnik {
+public class SpockRunner { // extends Sputnik {
   /**
    * An exact copy of {@link datadog.trace.bootstrap.Constants#BOOTSTRAP_PACKAGE_PREFIXES}.
    *
@@ -66,22 +66,22 @@ public class SpockRunner extends Sputnik {
     setupBootstrapClasspath();
   }
 
-  private final InstrumentationClassLoader customLoader;
+  //  private final InstrumentationClassLoader customLoader;
 
   public SpockRunner(final Class<?> clazz)
       throws InitializationError, NoSuchFieldException, SecurityException, IllegalArgumentException,
           IllegalAccessException {
-    super(shadowTestClass(clazz));
-    assertNoBootstrapClassesInTestClass(clazz);
-    // access the classloader created in shadowTestClass above
-    final Field clazzField = Sputnik.class.getDeclaredField("clazz");
-    try {
-      clazzField.setAccessible(true);
-      customLoader =
-          (InstrumentationClassLoader) ((Class<?>) clazzField.get(this)).getClassLoader();
-    } finally {
-      clazzField.setAccessible(false);
-    }
+    //    super(shadowTestClass(clazz));
+    //    assertNoBootstrapClassesInTestClass(clazz);
+    //    // access the classloader created in shadowTestClass above
+    //    final Field clazzField = Sputnik.class.getDeclaredField("clazz");
+    //    try {
+    //      clazzField.setAccessible(true);
+    //      customLoader =
+    //          (InstrumentationClassLoader) ((Class<?>) clazzField.get(this)).getClassLoader();
+    //    } finally {
+    //      clazzField.setAccessible(false);
+    //    }
   }
 
   private static void assertNoBootstrapClassesInTestClass(final Class<?> testClass) {
@@ -127,16 +127,16 @@ public class SpockRunner extends Sputnik {
     }
   }
 
-  @Override
-  public void run(final RunNotifier notifier) {
-    final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
-    try {
-      Thread.currentThread().setContextClassLoader(customLoader);
-      super.run(notifier);
-    } finally {
-      Thread.currentThread().setContextClassLoader(contextLoader);
-    }
-  }
+  //  @Override
+  //  public void run(final RunNotifier notifier) {
+  //    final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+  //    try {
+  //      Thread.currentThread().setContextClassLoader(customLoader);
+  //      super.run(notifier);
+  //    } finally {
+  //      Thread.currentThread().setContextClassLoader(contextLoader);
+  //    }
+  //  }
 
   private static void setupBootstrapClasspath() {
     // Ensure there weren't any bootstrap classes loaded prematurely.

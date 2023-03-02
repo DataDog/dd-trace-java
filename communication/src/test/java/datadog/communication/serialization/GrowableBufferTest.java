@@ -1,6 +1,6 @@
 package datadog.communication.serialization;
 
-import static groovy.util.GroovyTestCase.assertEquals;
+import static groovy.test.GroovyTestCase.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
