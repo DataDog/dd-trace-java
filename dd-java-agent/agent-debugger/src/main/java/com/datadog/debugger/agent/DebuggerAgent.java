@@ -1,7 +1,5 @@
 package com.datadog.debugger.agent;
 
-import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
-
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.uploader.BatchUploader;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
@@ -12,6 +10,9 @@ import datadog.remoteconfig.SizeCheckedInputStream;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.Snapshot;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -22,8 +23,8 @@ import java.lang.ref.WeakReference;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 /** Debugger agent implementation */
 public class DebuggerAgent {
@@ -93,6 +94,8 @@ public class DebuggerAgent {
     } else {
       log.debug("No configuration poller available from SharedCommunicationObjects");
     }
+
+    instrumentation.addTransformer(new SymbolExtractionTransformer());
   }
 
   private static void setupSourceFileTracking(

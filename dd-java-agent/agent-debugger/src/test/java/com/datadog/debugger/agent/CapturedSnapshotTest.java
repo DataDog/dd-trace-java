@@ -1,17 +1,5 @@
 package com.datadog.debugger.agent;
 
-import static com.datadog.debugger.util.MoshiSnapshotHelper.DEPTH_REASON;
-import static com.datadog.debugger.util.MoshiSnapshotHelper.FIELD_COUNT_REASON;
-import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
-import static utils.InstrumentationTestHelper.compile;
-import static utils.InstrumentationTestHelper.compileAndLoadClass;
-import static utils.InstrumentationTestHelper.loadClass;
-import static utils.TestHelper.getFixtureContent;
-
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
@@ -31,6 +19,22 @@ import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.bootstrap.debugger.SnapshotSummaryBuilder;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import groovy.lang.GroovyClassLoader;
+import net.bytebuddy.agent.ByteBuddyAgent;
+import org.jetbrains.kotlin.cli.common.ExitCode;
+import org.jetbrains.kotlin.cli.common.arguments.K2JVMCompilerArguments;
+import org.jetbrains.kotlin.cli.common.messages.MessageRenderer;
+import org.jetbrains.kotlin.cli.common.messages.PrintingMessageCollector;
+import org.jetbrains.kotlin.cli.jvm.K2JVMCompiler;
+import org.jetbrains.kotlin.config.Services;
+import org.joor.Reflect;
+import org.joor.ReflectException;
+import org.junit.Assert;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import utils.SourceCompiler;
+
 import java.io.File;
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
@@ -53,21 +57,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import net.bytebuddy.agent.ByteBuddyAgent;
-import org.jetbrains.kotlin.cli.common.ExitCode;
-import org.jetbrains.kotlin.cli.common.arguments.K2JVMCompilerArguments;
-import org.jetbrains.kotlin.cli.common.messages.MessageRenderer;
-import org.jetbrains.kotlin.cli.common.messages.PrintingMessageCollector;
-import org.jetbrains.kotlin.cli.jvm.K2JVMCompiler;
-import org.jetbrains.kotlin.config.Services;
-import org.joor.Reflect;
-import org.joor.ReflectException;
-import org.junit.Assert;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
-import utils.SourceCompiler;
+
+import static com.datadog.debugger.util.MoshiSnapshotHelper.DEPTH_REASON;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.FIELD_COUNT_REASON;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
+import static utils.InstrumentationTestHelper.compile;
+import static utils.InstrumentationTestHelper.compileAndLoadClass;
+import static utils.InstrumentationTestHelper.loadClass;
+import static utils.TestHelper.getFixtureContent;
 
 public class CapturedSnapshotTest {
   private static final String LANGUAGE = "java";
@@ -118,6 +119,49 @@ public class CapturedSnapshotTest {
     assertCaptureArgs(snapshot.getCaptures().getEntry(), "arg", "java.lang.String", "1");
     assertCaptureArgs(snapshot.getCaptures().getReturn(), "arg", "java.lang.String", "1");
     Assert.assertTrue(snapshot.retrieveDuration() > 0);
+  }
+
+  @Test
+  public void oskarTest() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01Oskar";
+    instr.addTransformer(new SymbolExtractionTransformer());
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+  }
+
+  @Test
+  public void oskarTest2() throws IOException, URISyntaxException {
+    instr.addTransformer(new SymbolExtractionTransformer());
+    Class<?> testClass2 = compileAndLoadClass("CapturedSnapshot02Oskar");
+    Reflect.on(testClass2).call("main", "1").get();
+  }
+
+  @Test
+  public void oskarTest3() throws IOException, URISyntaxException {
+    instr.addTransformer(new SymbolExtractionTransformer());
+    Class<?> testClass = compileAndLoadClass("CapturedSnapshot03Oskar");
+    int result = Reflect.on(testClass).call("main", "1").get();
+  }
+
+  @Test
+  public void oskarTest4() throws IOException, URISyntaxException {
+    instr.addTransformer(new SymbolExtractionTransformer());
+    Class<?> testClass = compileAndLoadClass("CapturedSnapshot04Oskar");
+    int result = Reflect.on(testClass).call("main", "1").get();
+  }
+
+  @Test
+  public void oskarTest5() throws IOException, URISyntaxException {
+    instr.addTransformer(new SymbolExtractionTransformer());
+    Class<?> testClass = compileAndLoadClass("CapturedSnapshot05Oskar");
+    int result = Reflect.on(testClass).call("main", "1").get();
+  }
+
+  @Test
+  public void oskarTest6() throws IOException, URISyntaxException {
+    instr.addTransformer(new SymbolExtractionTransformer());
+    Class<?> testClass = compileAndLoadClass("CapturedSnapshot06Oskar");
+    int result = Reflect.on(testClass).call("main", "1").get();
   }
 
   @Test
