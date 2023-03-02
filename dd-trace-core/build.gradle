@@ -34,7 +34,7 @@ testSets {
   traceAgentTest
 }
 
-tasks.withType(Test).findByName('forkedTest').configure {
+tasks.withType(Test).configureEach {
   // Needed for FootprintForkedTest on Java 17
   jvmArgs += ['-Djol.magicFieldOffset=true']
 }

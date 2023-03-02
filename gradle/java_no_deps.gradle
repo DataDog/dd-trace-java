@@ -15,12 +15,12 @@ ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainers
 }
 
 // Task for tests that want to run forked in their own separate JVM
-tasks.register('forkedTest', Test) {
-}
-
-test {
-  finalizedBy "forkedTest"
-}
+//tasks.register('forkedTest', Test) {
+//}
+//
+//test {
+//  finalizedBy "forkedTest"
+//}
 
 def applyCodeCoverage = !(
   project.path.startsWith(":dd-smoke-tests") ||

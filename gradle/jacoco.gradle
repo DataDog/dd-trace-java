@@ -4,23 +4,23 @@ jacoco {
   toolVersion = "0.8.5"
 }
 
-tasks.register('forkedTestJacocoData') {
-  dependsOn "forkedTest"
-
-  doLast {
-    if (file("$buildDir/jacoco/forkedTest.exec").exists()) {
-      jacocoTestReport {
-        executionData(forkedTest)
-      }
-      jacocoTestCoverageVerification {
-        executionData(forkedTest)
-      }
-    }
-  }
-}
+//tasks.register('forkedTestJacocoData') {
+//  dependsOn "forkedTest"
+//
+//  doLast {
+//    if (file("$buildDir/jacoco/forkedTest.exec").exists()) {
+//      jacocoTestReport {
+//        executionData(forkedTest)
+//      }
+//      jacocoTestCoverageVerification {
+//        executionData(forkedTest)
+//      }
+//    }
+//  }
+//}
 
 tasks.named('jacocoTestReport').configure {
-  dependsOn('test', 'forkedTestJacocoData')
+  dependsOn('test') //, 'forkedTestJacocoData')
   reports {
     xml.enabled true
     csv.enabled false

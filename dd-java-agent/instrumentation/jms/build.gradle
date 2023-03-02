@@ -27,17 +27,17 @@ testSets {
   latestDepTest {
   }
 
-  latestDepForkedTest {
-    extendsFrom latestDepTest
-    dirName = 'test'
-  }
+  //  latestDepForkedTest {
+  //    extendsFrom latestDepTest
+  //    dirName = 'test'
+  //  }
 }
 
 apply from: "$rootDir/gradle/configure_tests.gradle"
 
-latestDepTest {
-  finalizedBy 'latestDepForkedTest'
-}
+//latestDepTest {
+//  finalizedBy 'latestDepForkedTest'
+//}
 
 dependencies {
   compileOnly group: 'javax.jms', name: 'jms-api', version: '1.1-rev-1'

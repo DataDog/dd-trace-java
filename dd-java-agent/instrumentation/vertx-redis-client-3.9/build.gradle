@@ -17,17 +17,17 @@ testSets {
     dirName = 'test'
   }
 
-  latestDepForkedTest {
-    extendsFrom latestDepTest
-    dirName = 'test'
-  }
+  //  latestDepForkedTest {
+  //    extendsFrom latestDepTest
+  //    dirName = 'test'
+  //  }
 }
 
 apply from: "$rootDir/gradle/configure_tests.gradle"
 
-latestDepTest {
-  finalizedBy 'latestDepForkedTest'
-}
+//latestDepTest {
+//  finalizedBy 'latestDepForkedTest'
+//}
 
 dependencies {
   compileOnly project(':dd-java-agent:instrumentation:vertx-redis-client-3.9:stubs')
