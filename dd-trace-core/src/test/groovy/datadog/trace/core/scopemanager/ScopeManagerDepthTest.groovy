@@ -16,9 +16,10 @@ class ScopeManagerDepthTest extends DDCoreSpecification {
     def scopeManager = tracer.scopeManager
 
     when: "fill up the scope stack"
+    AgentSpan span = null
     AgentScope scope = null
     for (int i = 0; i < depth; i++) {
-      def span = tracer.buildSpan("test").start()
+      span = tracer.buildSpan("test").start()
       scope = tracer.activateSpan(span)
       assert scope instanceof ContinuableScope
     }
@@ -27,7 +28,7 @@ class ScopeManagerDepthTest extends DDCoreSpecification {
     scopeManager.scopeStack().depth() == depth
 
     when: "activate span over limit"
-    def span = tracer.buildSpan("test").start()
+    span = tracer.buildSpan("test").start()
     scope = tracer.activateSpan(span)
 
     then: "a noop instance is returned"
@@ -57,10 +58,11 @@ class ScopeManagerDepthTest extends DDCoreSpecification {
     def scopeManager = tracer.scopeManager
 
     when: "fill up the scope stack"
+    AgentSpan span = null
     AgentScope scope = null
     for (int i = 0; i < defaultLimit; i++) {
-      def span = tracer.buildSpan("test").start()
-      scope = tracer.activateSpan(span)
+      span = tracer.buildSpan("test").start()
+      scope = tracer.activateSpan(span1)
       assert scope instanceof ContinuableScope
     }
 
@@ -68,7 +70,7 @@ class ScopeManagerDepthTest extends DDCoreSpecification {
     scopeManager.scopeStack().depth() == defaultLimit
 
     when: "activate a scope"
-    def span = tracer.buildSpan("test").start()
+    span = tracer.buildSpan("test").start()
     scope = tracer.activateSpan(span)
 
     then: "a real scope is returned"

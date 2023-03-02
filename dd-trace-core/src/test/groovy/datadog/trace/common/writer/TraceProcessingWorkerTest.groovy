@@ -232,8 +232,8 @@ class TraceProcessingWorkerTest extends DDSpecification {
     AtomicInteger acceptedSpanCount = new AtomicInteger()
     PayloadDispatcher countingDispatcher = Mock(PayloadDispatcher)
     countingDispatcher.addTrace(_) >> {
-      List trace = it[0]
-      acceptedSpanCount.getAndAdd(trace.size())
+      List addedTrace = it[0] as List
+      acceptedSpanCount.getAndAdd(addedTrace.size())
       acceptedCount.getAndIncrement()
     }
     AtomicInteger sampledSpansCount = new AtomicInteger()
@@ -308,8 +308,8 @@ class TraceProcessingWorkerTest extends DDSpecification {
     AtomicInteger spansCount = new AtomicInteger()
     PayloadDispatcher countingDispatcher = Mock(PayloadDispatcher)
     countingDispatcher.addTrace(_) >> {
-      List trace = it[0]
-      spansCount.getAndAdd(trace.size())
+      List addedTrace = it[0] as List
+      spansCount.getAndAdd(addedTrace.size())
       chunksCount.getAndIncrement()
     }
     AtomicInteger sampledSpansCount = new AtomicInteger()

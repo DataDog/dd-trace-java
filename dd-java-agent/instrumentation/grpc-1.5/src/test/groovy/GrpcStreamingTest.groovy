@@ -97,7 +97,7 @@ abstract class GrpcStreamingTest extends VersionedNamingTestBase {
     GreeterGrpc.GreeterStub client = GreeterGrpc.newStub(channel).withWaitForReady()
 
     when:
-    def observer = client.conversation(new StreamObserver<Helloworld.Response>() {
+    def clientObserver = client.conversation(new StreamObserver<Helloworld.Response>() {
         @Override
         void onNext(Helloworld.Response value) {
           if (TEST_TRACER.activeScope().isAsyncPropagating()) {
@@ -126,9 +126,9 @@ abstract class GrpcStreamingTest extends VersionedNamingTestBase {
 
     clientRange.each {
       def message = Helloworld.Response.newBuilder().setMessage("call $it").build()
-      observer.onNext(message)
+      clientObserver.onNext(message)
     }
-    observer.onCompleted()
+    clientObserver.onCompleted()
 
     then:
     error.get() == null

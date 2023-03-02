@@ -6,6 +6,7 @@ import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.agent.test.utils.PortUtils
+import groovy.xml.XmlParser
 import groovy.xml.XmlUtil
 import spock.lang.IgnoreIf
 

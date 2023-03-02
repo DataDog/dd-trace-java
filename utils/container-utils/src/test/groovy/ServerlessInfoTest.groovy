@@ -1,15 +1,11 @@
 import datadog.common.container.ServerlessInfo
 import datadog.trace.test.util.DDSpecification
-import org.junit.Rule
-import org.junit.contrib.java.lang.system.EnvironmentVariables
 
 class ServerlessInfoTest extends DDSpecification {
-  @Rule
-  public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
 
   def "test serverless detection"() {
     given:
-    environmentVariables.set(ServerlessInfo.AWS_FUNCTION_VARIABLE, functionName)
+    injectEnvConfig(ServerlessInfo.AWS_FUNCTION_VARIABLE, functionName)
 
     when:
     def info = new ServerlessInfo()
