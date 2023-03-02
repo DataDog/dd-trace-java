@@ -14,12 +14,12 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.CodeSource;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
-import java.util.Vector;
 import java.util.jar.JarFile;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -246,10 +246,10 @@ public final class AgentBootstrap {
     return ddJavaAgentJarURL;
   }
 
-  public static Vector<String> strSplit(String str, char sep) {
+  public static ArrayList<String> strSplit(String str, char sep) {
     if (str == null) return null;
 
-    Vector<String> result = new Vector<String>();
+    ArrayList<String> result = new ArrayList<String>();
 
     int begin = 0;
     for (int sep_idx = str.indexOf(sep);
