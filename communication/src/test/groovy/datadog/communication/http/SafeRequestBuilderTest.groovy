@@ -3,7 +3,7 @@ package datadog.communication.http
 import com.google.common.truth.Truth
 import okhttp3.Request
 import org.junit.Assert
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class SafeRequestBuilderTest {
   Request.Builder testBuilder = new Request.Builder()

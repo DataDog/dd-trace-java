@@ -1,31 +1,22 @@
 package datadog.communication.serialization;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ThreadLocalRandom;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import java.util.stream.Stream;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
 
-@RunWith(Parameterized.class)
 public class IntPackingTest {
 
-  private final long[] input;
-
-  public IntPackingTest(long[] input) {
-    this.input = input;
-  }
-
-  @Parameterized.Parameters
-  public static Object[][] inputs() {
-    return new Object[][] {
-      {
+  public static Stream<long[]> inputs() {
+    return Stream.of(
         new long[] {
           -1,
           Long.MIN_VALUE,
@@ -58,9 +49,7 @@ public class IntPackingTest {
           -0xFFFFFFFFFL,
           -0xFFFFFFFFFFL,
           -0xFFFFFFFFFFFFL
-        }
-      },
-      {
+        },
         new long[] {
           -1,
           Integer.MIN_VALUE,
@@ -83,12 +72,10 @@ public class IntPackingTest {
           -0xFFF,
           -0xFFFF,
           -0xFFFFFF
-        }
-      },
-      {random(100)},
-      {random(10_000)},
-      {random(100_000)},
-    };
+        },
+        random(100),
+        random(10_000),
+        random(100_000));
   }
 
   private static long[] random(int size) {
@@ -101,8 +88,9 @@ public class IntPackingTest {
     return random;
   }
 
-  @Test
-  public void packLongs() {
+  @ParameterizedTest
+  @MethodSource("inputs")
+  public void packLongs(long[] input) {
     ByteBuffer buffer = ByteBuffer.allocate(input.length * 9 + 10);
     MessageFormatter messageFormatter =
         new MsgPackWriter(
@@ -117,15 +105,16 @@ public class IntPackingTest {
                       assertEquals(i, unpacker.unpackLong());
                     }
                   } catch (IOException e) {
-                    Assert.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(input, (x, w) -> w.writeObject(x, null));
     messageFormatter.flush();
   }
 
-  @Test
-  public void packInts() {
+  @ParameterizedTest
+  @MethodSource("inputs")
+  public void packInts(long[] input) {
     final int[] asInts = new int[input.length];
     for (int i = 0; i < input.length; ++i) {
       asInts[i] = (int) input[i];
@@ -143,7 +132,7 @@ public class IntPackingTest {
                       assertEquals(i, unpacker.unpackInt());
                     }
                   } catch (IOException e) {
-                    Assert.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
 
