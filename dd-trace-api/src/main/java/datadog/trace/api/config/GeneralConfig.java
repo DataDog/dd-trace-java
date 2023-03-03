@@ -58,8 +58,6 @@ public final class GeneralConfig {
   public static final String TELEMETRY_HEARTBEAT_INTERVAL = "telemetry.heartbeat.interval";
   public static final String TELEMETRY_DEPENDENCY_COLLECTION_ENABLED =
       "telemetry.dependency-collection.enabled";
-  public static final String TELEMETRY_CONVERT_OPAQUE_URI_ENABLED =
-      "telemetry.convert-opaque-uri.enabled";
 
   private GeneralConfig() {}
 }
