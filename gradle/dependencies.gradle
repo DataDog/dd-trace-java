@@ -61,7 +61,7 @@ final class CachedData {
 
     spock                : [
       "org.spockframework:spock-core:${versions.spock}",
-      "org.spockframework:spock-junit4:${versions.spock}",
+//      "org.spockframework:spock-junit4:${versions.spock}",
       // Used by Spock for mocking:
       "org.objenesis:objenesis:3.3" // Last version to support Java7
     ],

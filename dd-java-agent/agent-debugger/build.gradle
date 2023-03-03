@@ -44,7 +44,6 @@ dependencies {
 
   testImplementation deps.junit5
   testImplementation group: 'org.ow2.asm', name: 'asm-util', version: versions.asm
-  testImplementation group: "org.junit.jupiter", name: "junit-jupiter-params", version: "${versions.junit5}"
   testImplementation project(':dd-java-agent:agent-debugger:debugger-test-scala')
   testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.7.0")
   testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:${versions.junit5}")
