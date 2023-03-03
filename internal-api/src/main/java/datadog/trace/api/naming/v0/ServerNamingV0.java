@@ -26,6 +26,7 @@ public class ServerNamingV0 implements NamingSchema.ForServer {
         break;
       case "netty":
       case "finatra":
+      case "axway-http":
         prefix = component;
         break;
       case "spray-http-server":
