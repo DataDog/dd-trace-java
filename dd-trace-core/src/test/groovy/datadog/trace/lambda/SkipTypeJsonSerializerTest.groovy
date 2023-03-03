@@ -3,35 +3,39 @@ package datadog.trace.lambda
 import datadog.trace.core.test.DDCoreSpecification
 import com.squareup.moshi.Moshi
 
-abstract class ImpossibleToSerialize {
-  public abstract void randomMethod()
+abstract class AbstractSerialize {
   public String randomString
 }
 
+class SubClass extends AbstractSerialize {
+  SubClass() {
+    this.randomString = "tutu"
+  }
+}
 
-class SkipAbstractTypeJsonSerializer extends DDCoreSpecification {
+class SkipAbstractTypeJsonSerializerTest extends DDCoreSpecification {
 
   static class TestJsonObject {
 
     public String field1
     public boolean field2
-    public ImpossibleToSerialize field3
+    public AbstractSerialize field3
     public NestedJsonObject field4
 
     TestJsonObject() {
       this.field1 = "toto"
       this.field2 = true
-      this.field3 = null
+      this.field3 = new SubClass()
       this.field4 = new NestedJsonObject()
     }
   }
 
   static class NestedJsonObject {
 
-    public ImpossibleToSerialize field
+    public AbstractSerialize field
 
     NestedJsonObject() {
-      this.field = null
+      this.field = new SubClass()
     }
   }
 
@@ -46,6 +50,6 @@ class SkipAbstractTypeJsonSerializer extends DDCoreSpecification {
     def result = adapter.toJson(new TestJsonObject())
 
     then:
-    result == "{\"field1\":{},\"field2\":true,\"field3\":{\"field\":{}}}"
+    result == "{\"field1\":\"toto\",\"field2\":true,\"field3\":{\"randomString\":\"tutu\"},\"field4\":{\"field\":{\"randomString\":\"tutu\"}}}"
   }
 }
