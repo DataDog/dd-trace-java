@@ -15,8 +15,8 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.assertj.core.api.ThrowableAssert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class InstrumentationGatewayTest {
 
@@ -28,7 +28,7 @@ public class InstrumentationGatewayTest {
   private Callback callback;
   private Events<Object> events;
 
-  @Before
+  @BeforeEach
   public void setUp() {
     gateway = new InstrumentationGateway();
     ss = gateway.getSubscriptionService(RequestContextSlot.APPSEC);

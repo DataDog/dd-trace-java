@@ -118,7 +118,6 @@ dependencies {
   testImplementation project(":utils:test-utils")
   testImplementation("org.assertj:assertj-core:2.9.1")
   testImplementation deps.junit5
-  testImplementation("org.junit.vintage:junit-vintage-engine:${versions.junit5}")
   testImplementation deps.commonsMath
   testImplementation deps.mockito
   testImplementation deps.truth
