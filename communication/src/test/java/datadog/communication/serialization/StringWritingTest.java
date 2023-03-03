@@ -1,7 +1,8 @@
 package datadog.communication.serialization;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import java.io.IOException;
@@ -11,14 +12,12 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import java.util.stream.Stream;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
 
-@RunWith(Parameterized.class)
 public class StringWritingTest {
 
   private static final EncodingCache NO_CACHE = null;
@@ -27,17 +26,10 @@ public class StringWritingTest {
   private static final EncodingCache CACHE =
       s -> MEMOISATION.computeIfAbsent(s, s1 -> ((String) s1).getBytes(StandardCharsets.UTF_8));
 
-  private final List<Map<String, String>> maps;
   private static final int TEN_KB = 10 << 10;
 
-  public StringWritingTest(List<Map<String, String>> maps) {
-    this.maps = maps;
-  }
-
-  @Parameterized.Parameters
-  public static Object[][] maps() {
-    return new Object[][] {
-      {
+  public static Stream<List<Map<String, String>>> maps() {
+    return Stream.of(
         Arrays.asList(
             new HashMap<String, String>() {
               {
@@ -68,8 +60,6 @@ public class StringWritingTest {
                 put("CJK", "罿潯罿潯罿潯罿潯罿潯");
               }
             }),
-      },
-      {
         Arrays.asList(
             new HashMap<String, String>() {
               {
@@ -88,9 +78,7 @@ public class StringWritingTest {
                 put("hani", "道可道非常道名可名非常名");
                 put("foo", "bar");
               }
-            })
-      },
-      {
+            }),
         Arrays.asList(
             new HashMap<String, String>() {
               {
@@ -105,9 +93,7 @@ public class StringWritingTest {
                 put("hani", "道可道非常道名可名非常名名名名名名名名名名名");
                 put("foo", "bar");
               }
-            })
-      },
-      {
+            }),
         Arrays.asList(
             new HashMap<String, String>() {
               {
@@ -122,34 +108,34 @@ public class StringWritingTest {
                     "\uD83D\uDC4D\uD83D\uDC4D\uD83D\uDC4D\uD83D\uDC4D\uD83D\uDC4D\uD83D\uDC4D\uD83D\uDC4D\uD83D\uDC4D\uD83D\uDC4D\uD83D\uDC4D\uD83D\uDC4D\uD83D\uDC4D\uD83D\uDC4D\uD83D\uDC4D\uD83D\uDC4D\uD83D\uDC4D\uD83D\uDC4D");
                 put("foo", "bar");
               }
-            })
-      }
-    };
+            }));
   }
 
-  @Test
-  public void testSerialiseTextMapWithCache() {
+  @ParameterizedTest
+  @MethodSource("maps")
+  public void testSerialiseTextMapWithCache(List<Map<String, String>> maps) {
     MsgPackWriter packer =
         new MsgPackWriter(
-            new FlushingBuffer(TEN_KB, (messageCount, buffer) -> testBufferContents(buffer)));
+            new FlushingBuffer(TEN_KB, (messageCount, buffer) -> testBufferContents(maps, buffer)));
     for (Map<String, String> map : maps) {
       packer.format(map, (m, p) -> p.writeMap(m, CACHE));
     }
     packer.flush();
   }
 
-  @Test
-  public void testSerialiseTextMapWithoutCache() {
+  @ParameterizedTest
+  @MethodSource("maps")
+  public void testSerialiseTextMapWithoutCache(List<Map<String, String>> maps) {
     MsgPackWriter packer =
         new MsgPackWriter(
-            new FlushingBuffer(TEN_KB, (messageCount, buffer) -> testBufferContents(buffer)));
+            new FlushingBuffer(TEN_KB, (messageCount, buffer) -> testBufferContents(maps, buffer)));
     for (Map<String, String> map : maps) {
       packer.format(map, (m, p) -> p.writeMap(m, NO_CACHE));
     }
     packer.flush();
   }
 
-  private void testBufferContents(ByteBuffer buffer) {
+  private void testBufferContents(List<Map<String, String>> maps, ByteBuffer buffer) {
     try {
       MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
       for (Map<String, String> map : maps) {
@@ -164,7 +150,7 @@ public class StringWritingTest {
         }
       }
     } catch (IOException e) {
-      Assert.fail(e.getMessage());
+      fail(e.getMessage());
     }
   }
 }
