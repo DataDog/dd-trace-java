@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory;
 class LocationsCollectingTransformer implements ClassFileTransformer {
   private static final Logger log = LoggerFactory.getLogger(LocationsCollectingTransformer.class);
 
-  private static final int MAX_CACHED_JARS = 4096;
+  private static final int MAX_CACHED_JARS = 1024;
   private final DependencyServiceImpl dependencyService;
   private final DDCache<ProtectionDomain, Boolean> seenDomains =
       DDCaches.newFixedSizeWeakKeyCache(MAX_CACHED_JARS);
