@@ -728,7 +728,7 @@ public class DDSpan
 
   @Override
   public String toString() {
-    return context.toString() + ", duration_ns=" + durationNano;
+    return context.toString() + ", duration_ns=" + durationNano + ", forceKeep=" + forceKeep;
   }
 
   @Override
