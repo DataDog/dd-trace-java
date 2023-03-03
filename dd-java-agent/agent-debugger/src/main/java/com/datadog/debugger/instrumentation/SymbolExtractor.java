@@ -14,6 +14,7 @@ import org.objectweb.asm.tree.MethodNode;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -24,7 +25,99 @@ public class SymbolExtractor {
   public SymbolExtractor(String classFilePath, byte[] classFileBuffer) {
     ClassNode classNode = parseClassFile(classFilePath, classFileBuffer);
     this.classExtraction = extractScopes(classNode);
-    extractBlockScopes(classNode.methods.get(1));
+//    extractBlockScopes(classNode.methods.get(1));
+    extractScopesFromVariables(classNode.methods.get(1));
+  }
+
+  private void extractScopesFromVariables(MethodNode methodNode) {
+    LineNavigator lineNavigator = new LineNavigator(methodNode.instructions);
+    Map<Label, Integer> monotonicLineMap = getMonotonicLineMap(methodNode);
+    List<Block> blocks = new ArrayList<>();
+    Map<LabelNode, List<LocalVariableNode>> varsByEndLabel = new HashMap<>();
+    for (LocalVariableNode localVariable : methodNode.localVariables) {
+      varsByEndLabel.merge(localVariable.end, new ArrayList<>(Collections.singletonList(localVariable)), (curr, next) -> {
+        curr.addAll(next);
+        return curr;
+      });
+    }
+
+    for (Map.Entry<LabelNode, List<LocalVariableNode>> entry : varsByEndLabel.entrySet()) {
+      List<Variable> variables = new ArrayList<>();
+      int minLine = Integer.MAX_VALUE;
+      for (LocalVariableNode var : entry.getValue()) {
+//        int line = lineNavigator.getNextLine(var.start);
+        int line = monotonicLineMap.get(var.start.getLabel());
+        minLine = Math.min(line, minLine);
+        variables.add(new Variable(var.name, line));
+      }
+//      int endLine = lineNavigator.getPreviousLine(entry.getKey(), minLine);
+      int endLine = monotonicLineMap.get(entry.getKey().getLabel());
+      blocks.add(new Block(minLine, endLine, variables));
+    }
+
+    System.out.println(blocks);
+  }
+
+  static class LineNavigator {
+    private final InsnList insns;
+
+    LineNavigator(InsnList insns) {
+      this.insns = insns;
+      AbstractInsnNode node = insns.getFirst();
+      while (node != null) {
+        if (node.getType() == AbstractInsnNode.LINE) {
+          LineNumberNode lineNumberNode = (LineNumberNode) node;
+          System.out.println("line: " + lineNumberNode.line);
+        }
+        node = node.getNext();
+      }
+    }
+
+    public int getNextLine(LabelNode label) {
+      int index = insns.indexOf(label);
+      AbstractInsnNode node = insns.get(index);
+      while (node != null) {
+        if (node.getType() == AbstractInsnNode.LINE) {
+          LineNumberNode lineNumberNode = (LineNumberNode) node;
+          return lineNumberNode.line;
+        }
+        node = node.getNext();
+      }
+      return -1;
+    }
+
+    public int getPreviousLine(LabelNode label, int minLine) {
+      int index = insns.indexOf(label);
+      AbstractInsnNode node = insns.get(index);
+      while (node != null) {
+        if (node.getType() == AbstractInsnNode.LINE) {
+          LineNumberNode lineNumberNode = (LineNumberNode) node;
+          if (lineNumberNode.line >= minLine) {
+            return lineNumberNode.line;
+          }
+        }
+        node = node.getPrevious();
+      }
+      return -1;
+    }
+  }
+
+  private Map<Label, Integer> getMonotonicLineMap(MethodNode methodNode) {
+    Map<Label, Integer> map = new HashMap<>();
+    AbstractInsnNode node = methodNode.instructions.getFirst();
+    int maxLine = 0;
+    while (node != null) {
+      if (node.getType() == AbstractInsnNode.LINE) {
+        LineNumberNode lineNumberNode = (LineNumberNode) node;
+        maxLine = Math.max(lineNumberNode.line, maxLine);
+      }
+      if (node.getType() == AbstractInsnNode.LABEL) {
+        LabelNode labelNode = (LabelNode) node;
+        map.put(labelNode.getLabel(), maxLine);
+      }
+      node = node.getNext();
+    }
+    return map;
   }
 
   private void extractBlockScopes(MethodNode methodNode) {
@@ -55,7 +148,7 @@ public class SymbolExtractor {
           continue;
         }
 
-        blocks.add(new Block(currentLine, jumpTarget));
+        blocks.add(new Block(currentLine, jumpTarget, Collections.emptyList()));
       }
     }
     System.out.println("blocks = " + blocks);
@@ -79,12 +172,12 @@ public class SymbolExtractor {
   private static int getIndex(InsnList instructions, Label jumpLabel) {
     int index = 0;
     for (AbstractInsnNode instruction : instructions) {
-      index++;
       if (instruction.getType() == AbstractInsnNode.LABEL) {
         if (((LabelNode) instruction).getLabel() == jumpLabel) {
           break;
         }
       }
+      index++;
     }
     return index;
   }
@@ -96,6 +189,7 @@ public class SymbolExtractor {
   private boolean isIf(AbstractInsnNode ain) {
     return isIf(ain.getOpcode());
   }
+
   private boolean isIf(int opcode) {
     return opcode == Opcodes.IFEQ ||
         opcode == Opcodes.IFNE ||
@@ -122,6 +216,7 @@ public class SymbolExtractor {
   private boolean isJump(AbstractInsnNode ain) {
     return isJump(ain.getOpcode());
   }
+
   private boolean isJump(int opcode) {
     return opcode == Opcodes.GOTO || opcode == Opcodes.RETURN;
   }
@@ -129,10 +224,12 @@ public class SymbolExtractor {
   static class Block {
     private final int startLine;
     private final int endLine;
+    private final List<Variable> variables;
 
-    Block(int startLine, int endLine) {
+    Block(int startLine, int endLine, List<Variable> variables) {
       this.startLine = startLine;
       this.endLine = endLine;
+      this.variables = variables;
     }
 
     public int getStartLine() {
@@ -148,6 +245,33 @@ public class SymbolExtractor {
       return "Block{" +
           "startLine=" + startLine +
           ", endLine=" + endLine +
+          ", variables=" + variables +
+          '}';
+    }
+  }
+
+  static class Variable {
+    private final String name;
+    private final int line;
+
+    Variable(String name, int line) {
+      this.name = name;
+      this.line = line;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public int getLine() {
+      return line;
+    }
+
+    @Override
+    public String toString() {
+      return "Variable{" +
+          "name='" + name + '\'' +
+          ", line=" + line +
           '}';
     }
   }

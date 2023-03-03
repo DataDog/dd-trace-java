@@ -7,8 +7,10 @@ public class CapturedSnapshot04Oskar {
         String var3 = "var3";
         for (int k = 0; k < 10; k++) {
           String var4 = "var4";
+          System.out.println("var4 = " + var4);
         }
         String var5 = "var5";
+        System.out.println("var5 = " + var5);
       }
     }
     return var1.length();

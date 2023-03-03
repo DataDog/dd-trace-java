@@ -1,9 +1,12 @@
 public class CapturedSnapshot06Oskar {
   public static int main(String arg) {
+    int var1 = 1;
     try {
-      throw new RuntimeException("foo");
+      int var2 = 2;
+      throw new RuntimeException("" + var1);
     } catch (RuntimeException rte) {
-      System.out.println("rte = " + rte.getMessage());
+      int var3 = 3;
+      System.out.println("rte = " + rte.getMessage() + var3);
     }
     return arg.length();
   }

@@ -5,6 +5,12 @@ public class CapturedSnapshot03Oskar {
       String var2 = "var2";
       System.out.println(var2);
     } else {
+      System.out.println(var1);
+      String var31 = "var31";
+      String var32 = "var32";
+      System.out.println(var1);
+      String var30 = "var30";
+      System.out.println(var1);
       String var3 = "var3";
       System.out.println(var3);
       if (arg.equals(var3)) {

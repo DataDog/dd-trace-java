@@ -165,6 +165,27 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  public void oskarTest7() throws IOException, URISyntaxException {
+    instr.addTransformer(new SymbolExtractionTransformer());
+    Class<?> testClass = compileAndLoadClass("CapturedSnapshot07Oskar");
+    int result = Reflect.on(testClass).call("main", "1").get();
+  }
+
+  @Test
+  public void oskarTest8() throws IOException, URISyntaxException {
+    instr.addTransformer(new SymbolExtractionTransformer());
+    Class<?> testClass = compileAndLoadClass("CapturedSnapshot08Oskar");
+    int result = Reflect.on(testClass).call("main", "1").get();
+  }
+
+  @Test
+  public void oskarTest9() throws IOException, URISyntaxException {
+    instr.addTransformer(new SymbolExtractionTransformer());
+    Class<?> testClass = compileAndLoadClass("CapturedSnapshot09Oskar");
+    int result = Reflect.on(testClass).call("main", "1").get();
+  }
+
+  @Test
   public void singleLineProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     DebuggerTransformerTest.TestSnapshotListener listener =
