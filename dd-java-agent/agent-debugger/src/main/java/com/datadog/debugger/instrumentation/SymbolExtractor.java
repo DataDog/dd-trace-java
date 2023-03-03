@@ -2,11 +2,8 @@ package com.datadog.debugger.instrumentation;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Label;
-import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.InsnList;
-import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LineNumberNode;
 import org.objectweb.asm.tree.LocalVariableNode;
@@ -25,12 +22,20 @@ public class SymbolExtractor {
   public SymbolExtractor(String classFilePath, byte[] classFileBuffer) {
     ClassNode classNode = parseClassFile(classFilePath, classFileBuffer);
     this.classExtraction = extractScopes(classNode);
-//    extractBlockScopes(classNode.methods.get(1));
-    extractScopesFromVariables(classNode.methods.get(1));
+    System.out.println();
   }
 
-  private void extractScopesFromVariables(MethodNode methodNode) {
-    LineNavigator lineNavigator = new LineNavigator(methodNode.instructions);
+  private ClassExtraction extractScopes(ClassNode classNode) {
+    List<MethodExtraction> methods = new ArrayList<>();
+    for (MethodNode method : classNode.methods) {
+      List<Block> scopes = extractScopesFromVariables(method);
+      MethodExtraction methodExtraction = new MethodExtraction(method.name, scopes);
+      methods.add(methodExtraction);
+    }
+    return new ClassExtraction(classNode.name, classNode.sourceFile, methods);
+  }
+
+  private List<Block> extractScopesFromVariables(MethodNode methodNode) {
     Map<Label, Integer> monotonicLineMap = getMonotonicLineMap(methodNode);
     List<Block> blocks = new ArrayList<>();
     Map<LabelNode, List<LocalVariableNode>> varsByEndLabel = new HashMap<>();
@@ -45,180 +50,47 @@ public class SymbolExtractor {
       List<Variable> variables = new ArrayList<>();
       int minLine = Integer.MAX_VALUE;
       for (LocalVariableNode var : entry.getValue()) {
-//        int line = lineNavigator.getNextLine(var.start);
         int line = monotonicLineMap.get(var.start.getLabel());
         minLine = Math.min(line, minLine);
         variables.add(new Variable(var.name, line));
       }
-//      int endLine = lineNavigator.getPreviousLine(entry.getKey(), minLine);
       int endLine = monotonicLineMap.get(entry.getKey().getLabel());
       blocks.add(new Block(minLine, endLine, variables));
     }
 
-    System.out.println(blocks);
+    return blocks;
   }
 
-  static class LineNavigator {
-    private final InsnList insns;
-
-    LineNavigator(InsnList insns) {
-      this.insns = insns;
-      AbstractInsnNode node = insns.getFirst();
-      while (node != null) {
-        if (node.getType() == AbstractInsnNode.LINE) {
-          LineNumberNode lineNumberNode = (LineNumberNode) node;
-          System.out.println("line: " + lineNumberNode.line);
-        }
-        node = node.getNext();
+  private int getFirstLine(MethodNode methodNode) {
+    AbstractInsnNode node = methodNode.instructions.getFirst();
+    while (node != null) {
+      if (node.getType() == AbstractInsnNode.LINE) {
+        LineNumberNode lineNumberNode = (LineNumberNode) node;
+        return lineNumberNode.line;
       }
+      node = node.getNext();
     }
-
-    public int getNextLine(LabelNode label) {
-      int index = insns.indexOf(label);
-      AbstractInsnNode node = insns.get(index);
-      while (node != null) {
-        if (node.getType() == AbstractInsnNode.LINE) {
-          LineNumberNode lineNumberNode = (LineNumberNode) node;
-          return lineNumberNode.line;
-        }
-        node = node.getNext();
-      }
-      return -1;
-    }
-
-    public int getPreviousLine(LabelNode label, int minLine) {
-      int index = insns.indexOf(label);
-      AbstractInsnNode node = insns.get(index);
-      while (node != null) {
-        if (node.getType() == AbstractInsnNode.LINE) {
-          LineNumberNode lineNumberNode = (LineNumberNode) node;
-          if (lineNumberNode.line >= minLine) {
-            return lineNumberNode.line;
-          }
-        }
-        node = node.getPrevious();
-      }
-      return -1;
-    }
+    return 0;
   }
 
   private Map<Label, Integer> getMonotonicLineMap(MethodNode methodNode) {
     Map<Label, Integer> map = new HashMap<>();
     AbstractInsnNode node = methodNode.instructions.getFirst();
-    int maxLine = 0;
+    int maxLine = getFirstLine(methodNode);
     while (node != null) {
       if (node.getType() == AbstractInsnNode.LINE) {
         LineNumberNode lineNumberNode = (LineNumberNode) node;
         maxLine = Math.max(lineNumberNode.line, maxLine);
       }
       if (node.getType() == AbstractInsnNode.LABEL) {
-        LabelNode labelNode = (LabelNode) node;
-        map.put(labelNode.getLabel(), maxLine);
+        if (node instanceof LabelNode) {
+          LabelNode labelNode = (LabelNode) node;
+          map.put(labelNode.getLabel(), maxLine);
+        }
       }
       node = node.getNext();
     }
     return map;
-  }
-
-  private void extractBlockScopes(MethodNode methodNode) {
-    LineMap lineMap = getLineMap(methodNode);
-    List<Block> blocks = new ArrayList<>();
-    int currentLine = 0;
-    for (AbstractInsnNode instruction : methodNode.instructions) {
-      if (instruction.getType() == AbstractInsnNode.LINE) {
-        currentLine = ((LineNumberNode) instruction).line;
-        continue;
-      }
-      if (instruction.getType() == AbstractInsnNode.JUMP_INSN) {
-        JumpInsnNode jumpInsnNode = (JumpInsnNode) instruction;
-        int jumpTarget = lineMap.getLine(jumpInsnNode.label.getLabel()) - 1;
-
-        // Jumps that go to labels without line number we ignore for the time being
-        if (jumpTarget == -1) {
-          continue;
-        }
-
-        // For-loops loop back to a previous line number for the comparison of i
-        if (currentLine > jumpTarget) {
-          jumpTarget = findNextValidLine(methodNode.instructions, jumpInsnNode.label.getLabel(), currentLine);
-        }
-
-        // Too small
-        if (jumpTarget - currentLine <= 1) {
-          continue;
-        }
-
-        blocks.add(new Block(currentLine, jumpTarget, Collections.emptyList()));
-      }
-    }
-    System.out.println("blocks = " + blocks);
-  }
-
-  private int findNextValidLine(InsnList instructions, Label jumpLabel, int floor) {
-    int index = getIndex(instructions, jumpLabel);
-    AbstractInsnNode insn = instructions.get(index).getNext();
-    while (insn != null) {
-      if (insn.getType() == AbstractInsnNode.LINE) {
-        int line = ((LineNumberNode) insn).line;
-        if (line > floor) {
-          return line;
-        }
-      }
-      insn = insn.getNext();
-    }
-    return -1;
-  }
-
-  private static int getIndex(InsnList instructions, Label jumpLabel) {
-    int index = 0;
-    for (AbstractInsnNode instruction : instructions) {
-      if (instruction.getType() == AbstractInsnNode.LABEL) {
-        if (((LabelNode) instruction).getLabel() == jumpLabel) {
-          break;
-        }
-      }
-      index++;
-    }
-    return index;
-  }
-
-  private boolean isBlockStart(AbstractInsnNode ain) {
-    return isIf(ain);
-  }
-
-  private boolean isIf(AbstractInsnNode ain) {
-    return isIf(ain.getOpcode());
-  }
-
-  private boolean isIf(int opcode) {
-    return opcode == Opcodes.IFEQ ||
-        opcode == Opcodes.IFNE ||
-        opcode == Opcodes.IFLT ||
-        opcode == Opcodes.IFGE ||
-        opcode == Opcodes.IFGT ||
-        opcode == Opcodes.IFLE ||
-        opcode == Opcodes.IFNONNULL ||
-        opcode == Opcodes.IFNULL ||
-        opcode == Opcodes.IF_ICMPEQ ||
-        opcode == Opcodes.IF_ICMPNE ||
-        opcode == Opcodes.IF_ICMPLT ||
-        opcode == Opcodes.IF_ICMPGE ||
-        opcode == Opcodes.IF_ICMPGT ||
-        opcode == Opcodes.IF_ICMPLE ||
-        opcode == Opcodes.IF_ACMPEQ ||
-        opcode == Opcodes.IF_ACMPNE;
-  }
-
-  private boolean isBlockEnd(AbstractInsnNode ain) {
-    return isJump(ain);
-  }
-
-  private boolean isJump(AbstractInsnNode ain) {
-    return isJump(ain.getOpcode());
-  }
-
-  private boolean isJump(int opcode) {
-    return opcode == Opcodes.GOTO || opcode == Opcodes.RETURN;
   }
 
   static class Block {
@@ -276,7 +148,6 @@ public class SymbolExtractor {
     }
   }
 
-
   private ClassNode parseClassFile(String classFilePath, byte[] classfileBuffer) {
     ClassReader reader = new ClassReader(classfileBuffer);
     ClassNode classNode = new ClassNode();
@@ -284,85 +155,8 @@ public class SymbolExtractor {
     return classNode;
   }
 
-  private ClassExtraction extractScopes(ClassNode classNode) {
-//    LineMap lineMap = getLineMap(classNode);
-//    List<MethodExtraction> methods = new ArrayList<>();
-//    for (MethodNode method : classNode.methods) {
-//      Map<Location, List<LocalVariableNode>> locals = new HashMap<>();
-//      for (LocalVariableNode localVariable : method.localVariables) {
-//        Location l = new Location(
-//            lineMap.getLine(localVariable.start.getLabel()),
-//            lineMap.getLine(localVariable.end.getLabel())
-//        );
-//        AbstractInsnNode node = method.instructions.getFirst();
-//        locals.merge(l, new ArrayList<>(Collections.singletonList(localVariable)), (prev, next) -> {
-//          prev.addAll(next);
-//          return prev;
-//        });
-//      }
-//      methods.add(new MethodExtraction(method.name, locals));
-//    }
-    return new ClassExtraction(classNode.name, classNode.sourceFile, Collections.emptyList());
-  }
-
-//  private LineMap getLineMap(ClassNode classNode) {
-//    LineMap lineMap = new LineMap();
-//    for (MethodNode methodNode : classNode.methods) {
-//      getLineMap(lineMap, methodNode);
-//    }
-//    return lineMap;
-//  }
-
-  private static LineMap getLineMap(MethodNode methodNode) {
-    LineMap lineMap = new LineMap();
-    AbstractInsnNode node = methodNode.instructions.getFirst();
-    while (node != null) {
-      if (node.getType() == AbstractInsnNode.LINE) {
-        lineMap.addLine((LineNumberNode) node);
-      }
-      node = node.getNext();
-    }
-    return lineMap;
-  }
-
   public ClassExtraction getClassExtraction() {
     return classExtraction;
-  }
-
-  private static class Location {
-    final int startLine;
-    final int endLine;
-
-    private Location(int startLine, int endLine) {
-      this.startLine = startLine;
-      this.endLine = endLine;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-
-      Location location = (Location) o;
-
-      if (startLine != location.startLine) return false;
-      return endLine == location.endLine;
-    }
-
-    @Override
-    public int hashCode() {
-      int result = startLine;
-      result = 31 * result + endLine;
-      return result;
-    }
-
-    @Override
-    public String toString() {
-      return "Location{" +
-          "startLine=" + startLine +
-          ", endLine=" + endLine +
-          '}';
-    }
   }
 
   public static class ClassExtraction {
@@ -371,7 +165,7 @@ public class SymbolExtractor {
 
     private final String sourcePath;
 
-    private final int startLine = 0;
+    private final int startLine = 1;
 
     private final List<MethodExtraction> methods;
 
@@ -407,14 +201,14 @@ public class SymbolExtractor {
 
     private final String methodName;
 
-    private final Map<Location, List<LocalVariableNode>> scopes;
+    private final List<Block> scopes;
 
-    private MethodExtraction(String methodName, Map<Location, List<LocalVariableNode>> scopes) {
+    private MethodExtraction(String methodName, List<Block> scopes) {
       this.methodName = methodName;
       this.scopes = scopes;
     }
 
-    public Map<Location, List<LocalVariableNode>> getScopes() {
+    public List<Block> getScopes() {
       return scopes;
     }
 

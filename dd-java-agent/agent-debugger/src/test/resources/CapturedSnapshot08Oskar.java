@@ -4,7 +4,7 @@ public class CapturedSnapshot08Oskar {
     {
       int var2 = 2;
       int var3 = 3;
-      int var4 = var2 + var3;
+      int var4 = var2 + var3; // Wow, why is this not in the LocalVariableTable?
     }
     return arg.length();
   }
