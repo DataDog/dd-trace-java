@@ -11,12 +11,11 @@ import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
-import datadog.trace.core.Base64Decoder;
-import datadog.trace.core.Base64Encoder;
 import datadog.trace.util.FNV64Hash;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -179,7 +178,7 @@ public class DefaultPathwayContext implements PathwayContext {
               + TimeUnit.NANOSECONDS.toMillis(edgeStartNanoTicks - pathwayStartNanoTicks);
 
       VarEncodingHelper.encodeSignedVarLong(outputBuffer, edgeStartMillis);
-      return Base64Encoder.INSTANCE.encode(outputBuffer.trimmedCopy());
+      return Base64.getEncoder().encode(outputBuffer.trimmedCopy());
     } finally {
       lock.unlock();
     }
@@ -314,7 +313,7 @@ public class DefaultPathwayContext implements PathwayContext {
 
   public static DefaultPathwayContext base64Decode(
       TimeSource timeSource, WellKnownTags wellKnownTags, byte[] data) throws IOException {
-    return decode(timeSource, wellKnownTags, Base64Decoder.INSTANCE.decode(data));
+    return decode(timeSource, wellKnownTags, Base64.getDecoder().decode(data));
   }
 
   public static DefaultPathwayContext decode(

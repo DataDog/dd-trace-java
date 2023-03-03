@@ -5,7 +5,6 @@ import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint
-import datadog.trace.core.Base64Decoder
 import datadog.trace.core.test.DDCoreSpecification
 
 import java.util.function.Consumer
@@ -339,7 +338,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     timeSource.advance(MILLISECONDS.toNanos(50))
     context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
 
-    def encoded = Base64Decoder.INSTANCE.decode(context.encode())
+    def encoded = java.util.Base64.getDecoder().decode(context.encode())
     Map<String, byte[]> carrier = [(PathwayContext.PROPAGATION_KEY): encoded]
     timeSource.advance(MILLISECONDS.toNanos(1))
     def decodedContext = DefaultPathwayContext.extractBinary(carrier, contextVisitor, timeSource, wellKnownTags)
