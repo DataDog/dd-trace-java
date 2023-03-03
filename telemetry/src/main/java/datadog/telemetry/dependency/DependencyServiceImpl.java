@@ -89,6 +89,7 @@ public class DependencyServiceImpl implements DependencyService, Runnable {
         // silently ignored
       }
     }
+
     return uri;
   }
 
