@@ -148,7 +148,7 @@ public class LambdaHandler {
     if (null != obj) {
       try {
         json = adapter.toJson(obj);
-      } catch (IllegalArgumentException e) {
+      } catch (Exception e) {
         log.debug("could not write the value into a string", e);
       }
     }
