@@ -23,11 +23,12 @@ import org.slf4j.LoggerFactory;
 public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object, Object, Void> {
   private static final Logger log = LoggerFactory.getLogger(AxwayHTTPPluginDecorator.class);
 
-  public static final CharSequence AXWAY_REQUEST = UTF8BytesString.create("axway.request");
   public static final CharSequence AXWAY_TRY_TRANSACTION =
       UTF8BytesString.create("axway.trytransaction");
 
   public static final AxwayHTTPPluginDecorator DECORATE = new AxwayHTTPPluginDecorator();
+
+  public static final CharSequence AXWAY_REQUEST = UTF8BytesString.create(DECORATE.operationName());
 
   private static final MethodHandles.Lookup lookup = MethodHandles.lookup();
 
