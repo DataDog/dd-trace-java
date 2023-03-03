@@ -3,34 +3,42 @@ package datadog.trace.lambda
 import datadog.trace.core.test.DDCoreSpecification
 import com.squareup.moshi.Moshi
 
-class SkipTypeJsonSerializerTest extends DDCoreSpecification {
+abstract class ImpossibleToSerialize {
+  public abstract void randomMethod()
+  public String randomString
+}
+
+
+class SkipAbstractTypeJsonSerializer extends DDCoreSpecification {
 
   static class TestJsonObject {
 
     public String field1
     public boolean field2
-    public NestedJsonObject field3
+    public ImpossibleToSerialize field3
+    public NestedJsonObject field4
 
     TestJsonObject() {
       this.field1 = "toto"
       this.field2 = true
-      this.field3 = new NestedJsonObject()
+      this.field3 = null
+      this.field4 = new NestedJsonObject()
     }
   }
 
   static class NestedJsonObject {
 
-    public String field
+    public ImpossibleToSerialize field
 
     NestedJsonObject() {
-      this.field = "tutu"
+      this.field = null
     }
   }
 
   def "test skip String serialization"() {
     given:
     def adapter = new Moshi.Builder()
-      .add(SkipTypeJsonSerializer.newFactory("java.lang.String"))
+      .add(SkipAbstractTypeJsonSerializer.newFactory())
       .build()
       .adapter(Object)
 

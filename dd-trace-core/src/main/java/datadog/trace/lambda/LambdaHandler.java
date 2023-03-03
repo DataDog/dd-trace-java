@@ -54,9 +54,8 @@ public class LambdaHandler {
   private static final MediaType jsonMediaType = MediaType.parse("application/json");
   private static final JsonAdapter<Object> adapter =
       new Moshi.Builder()
-          // we need to bypass those classes as moshi fails to marshal this into JSON
-          .add(SkipTypeJsonSerializer.newFactory("org.joda.time.Chronology"))
-          .add(SkipTypeJsonSerializer.newFactory("java.nio.ByteBuffer"))
+          // we need to bypass abstract Classes as we can't JSON serialize them
+          .add(SkipAbstractTypeJsonSerializer.newFactory())
           .build()
           .adapter(Object.class);
 
@@ -149,7 +148,7 @@ public class LambdaHandler {
     if (null != obj) {
       try {
         json = adapter.toJson(obj);
-      } catch (Exception e) {
+      } catch (IllegalArgumentException e) {
         log.debug("could not write the value into a string", e);
       }
     }
