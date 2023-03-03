@@ -34,7 +34,7 @@ public final class InstrumenterState {
 
   /** Tracks which instrumentations were applied (per-class-loader) and which were blocked. */
   private static final DDCache<ClassLoader, AtomicLongArray> classLoaderStates =
-      DDCaches.newFixedSizeWeakKeyCache(64);
+      DDCaches.newFixedSizeWeakKeyCache(512);
 
   private static Observer observer;
 

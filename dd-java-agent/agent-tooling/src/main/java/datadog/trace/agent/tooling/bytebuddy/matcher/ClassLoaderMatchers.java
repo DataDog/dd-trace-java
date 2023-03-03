@@ -128,7 +128,7 @@ public final class ClassLoaderMatchers {
   static final List<String> hasClassResourceNames = new ArrayList<>();
 
   /** Cache of classloader-instance -> has-class mask. */
-  static final DDCache<ClassLoader, BitSet> hasClassCache = DDCaches.newFixedSizeWeakKeyCache(64);
+  static final DDCache<ClassLoader, BitSet> hasClassCache = DDCaches.newFixedSizeWeakKeyCache(512);
 
   /** Distinct result used to mark an incompatible classloader that the tracer should skip. */
   static final BitSet INCOMPATIBLE_CLASS_LOADER = new BitSet();
