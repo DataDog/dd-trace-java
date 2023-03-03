@@ -139,7 +139,8 @@ abstract class FixedSizeCache<K, V> implements DDCache<K, V> {
     }
 
     int hash(K key) {
-      return System.identityHashCode(key);
+      int hash = System.identityHashCode(key);
+      return hash - (hash << 7); // multiply by -127 to improve identityHashCode spread
     }
 
     boolean equals(K key, Pair<K, V> current) {
