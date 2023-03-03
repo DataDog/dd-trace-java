@@ -1,5 +1,6 @@
 package datadog.trace.core.datastreams;
 
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.datadoghq.sketch.ddsketch.encoding.ByteArrayInput;
@@ -190,7 +191,7 @@ public class DefaultPathwayContext implements PathwayContext {
     if (bytes == null) {
       return null;
     }
-    return new String(bytes, UTF_8);
+    return new String(bytes, ISO_8859_1);
   }
 
   @Override
