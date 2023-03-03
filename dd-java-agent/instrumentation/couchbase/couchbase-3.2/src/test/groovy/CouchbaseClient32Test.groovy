@@ -20,6 +20,7 @@ import org.testcontainers.couchbase.CouchbaseContainer
 import spock.lang.Shared
 
 import java.time.Duration
+import java.util.concurrent.TimeoutException
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -118,6 +119,9 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
 
     then:
     ex != null
+    !(ex.cause instanceof TimeoutException)
+    !(ex.cause instanceof InterruptedException)
+
     assertTraces(1) {
       sortSpansByStart()
       trace(2) {
