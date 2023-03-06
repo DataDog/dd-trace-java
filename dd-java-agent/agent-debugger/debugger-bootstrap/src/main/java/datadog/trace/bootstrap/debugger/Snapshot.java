@@ -271,7 +271,11 @@ public class Snapshot {
   }
 
   private boolean resolveEvaluateAt(ProbeDetails probe, MethodLocation methodLocation) {
-    if (methodLocation == MethodLocation.DEFAULT || methodLocation == MethodLocation.ENTRY) {
+    if (methodLocation == MethodLocation.DEFAULT) {
+      // line probe, no evaluation of probe's evaluateAt
+      return true;
+    }
+    if (methodLocation == MethodLocation.ENTRY) {
       return probe.getEvaluateAt() == MethodLocation.DEFAULT
           || probe.getEvaluateAt() == MethodLocation.ENTRY;
     }
@@ -474,6 +478,10 @@ public class Snapshot {
           + '\''
           + ", probeLocation="
           + location
+          + ", evaluateAt="
+          + evaluateAt
+          + ", captureSnapshot="
+          + captureSnapshot
           + ", script="
           + script
           + ", tags="
@@ -1277,6 +1285,22 @@ public class Snapshot {
 
     public void setHasLogTemplateErrors() {
       this.hasLogTemplateErrors = true;
+    }
+
+    @Override
+    public String toString() {
+      return "SnapshotStatus{"
+          + "capturing="
+          + capturing
+          + ", sending="
+          + sending
+          + ", hasConditionErrors="
+          + hasConditionErrors
+          + ", hasLogTemplateErrors="
+          + hasLogTemplateErrors
+          + ", probeDetails="
+          + probeDetails
+          + '}';
     }
   }
 }

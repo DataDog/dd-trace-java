@@ -3,10 +3,8 @@ package datadog.trace.agent.test.naming
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.config.TracerConfig
 
-abstract class VersionedNamingTestBase extends AgentTestRunner {
-  protected abstract int version()
-  protected abstract String service()
-  protected abstract String operation()
+abstract class VersionedNamingTestBase extends AgentTestRunner implements VersionedNamingTest {
+
 
   @Override
   protected void configurePreAgent() {

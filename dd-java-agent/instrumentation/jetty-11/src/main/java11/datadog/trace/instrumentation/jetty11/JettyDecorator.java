@@ -15,9 +15,11 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 
 public class JettyDecorator extends HttpServerDecorator<Request, Request, Response, Request> {
-  public static final CharSequence SERVLET_REQUEST = UTF8BytesString.create("servlet.request");
   public static final CharSequence JETTY_SERVER = UTF8BytesString.create("jetty-server");
   public static final JettyDecorator DECORATE = new JettyDecorator();
+  public static final CharSequence SERVLET_REQUEST =
+      UTF8BytesString.create(DECORATE.operationName());
+
   public static final String DD_CONTEXT_PATH_ATTRIBUTE = "datadog.context.path";
   public static final String DD_SERVLET_PATH_ATTRIBUTE = "datadog.servlet.path";
 

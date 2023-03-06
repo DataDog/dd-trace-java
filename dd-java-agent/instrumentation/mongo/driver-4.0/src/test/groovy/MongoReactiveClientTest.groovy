@@ -399,17 +399,17 @@ abstract class MongoReactiveClientTest extends MongoBaseTest {
 class MongoReactiveClientV0ForkedTest extends MongoReactiveClientTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 0
   }
 
   @Override
-  protected String service() {
+  String service() {
     return V0_SERVICE
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return V0_OPERATION
   }
 }
@@ -417,17 +417,17 @@ class MongoReactiveClientV0ForkedTest extends MongoReactiveClientTest {
 class MongoReactiveClientV1ForkedTest extends MongoReactiveClientTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 1
   }
 
   @Override
-  protected String service() {
+  String service() {
     return V1_SERVICE
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return V1_OPERATION
   }
 }

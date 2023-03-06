@@ -21,7 +21,13 @@ public class ClientNamingV1 implements NamingSchema.ForClient {
 
   @Nonnull
   @Override
-  public String operation(@Nonnull String protocol) {
+  public String operationForProtocol(@Nonnull String protocol) {
     return normalizeProtocol(protocol) + ".client.request";
+  }
+
+  @Nonnull
+  @Override
+  public String operationForComponent(@Nonnull String component) {
+    return "http.client.request";
   }
 }

@@ -14,8 +14,10 @@ public class FinatraDecorator extends HttpServerDecorator<Request, Request, Resp
   public static final CharSequence FINATRA = UTF8BytesString.create("finatra");
   public static final CharSequence FINATRA_CONTROLLER =
       UTF8BytesString.create("finatra.controller");
-  private static final CharSequence FINATRA_REQUEST = UTF8BytesString.create("finatra.request");
   public static final FinatraDecorator DECORATE = new FinatraDecorator();
+
+  private static final CharSequence FINATRA_REQUEST =
+      UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected CharSequence component() {

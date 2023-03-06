@@ -5,8 +5,6 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getCStack;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getContextAttributes;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getCpuInterval;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getLogLevel;
-import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getMemleakCapacity;
-import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getMemleakInterval;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSafeMode;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSchedulingEvent;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSchedulingEventInterval;
@@ -271,6 +269,10 @@ public final class DatadogProfiler {
     throw new IllegalStateException("Datadog profiler session has already been started");
   }
 
+  void dump(Path path) {
+    profiler.dump(path);
+  }
+
   String cmdStartProfiling(Path file) throws IllegalStateException {
     // 'start' = start, 'jfr=7' = store in JFR format ready for concatenation
     StringBuilder cmd = new StringBuilder("start,jfr=7");
@@ -307,18 +309,16 @@ public final class DatadogProfiler {
       }
     }
     cmd.append(",loglevel=").append(getLogLevel(configProvider));
-    if (profilingModes.contains(ALLOCATION)) {
-      // allocation profiling is enabled
-      cmd.append(",alloc=").append(getAllocationInterval(configProvider)).append('b');
-    }
-    if (profilingModes.contains(MEMLEAK)) {
-      // memleak profiling is enabled
-      cmd.append(",memleak=")
-          .append(getMemleakInterval(configProvider))
-          .append('b')
-          .append(",memleakcap=")
-          .append(getMemleakCapacity(configProvider))
-          .append('b');
+    if (profilingModes.contains(ALLOCATION) || profilingModes.contains(MEMLEAK)) {
+      // allocation profiling or live heap profiling is enabled
+      cmd.append(",memory=").append(getAllocationInterval(configProvider)).append('b');
+      cmd.append(':');
+      if (profilingModes.contains(ALLOCATION)) {
+        cmd.append('a');
+      }
+      if (profilingModes.contains(MEMLEAK)) {
+        cmd.append('l');
+      }
     }
     String cmdString = cmd.toString();
     log.debug("Datadog profiler command line: {}", cmdString);

@@ -34,7 +34,7 @@ final class DatadogProfilerRecording implements OngoingRecording {
   public RecordingData stop() {
     profiler.stopProfiler();
     return new DatadogProfilerRecordingData(
-        recordingFile, started, Instant.now(), ProfilingSnapshot.Kind.PERIODIC);
+        recordingFile, started, Instant.now(), ProfilingSnapshot.Kind.ON_SHUTDOWN);
   }
 
   // @VisibleForTesting
@@ -45,19 +45,13 @@ final class DatadogProfilerRecording implements OngoingRecording {
   @Nonnull
   @Override
   public RecordingData snapshot(@Nonnull Instant start, @Nonnull ProfilingSnapshot.Kind kind) {
-    profiler.stop(this);
-    RecordingData data =
-        new DatadogProfilerRecordingData(recordingFile, start, Instant.now(), kind);
     try {
-      recordingFile = profiler.newRecording();
-    } catch (IOException | IllegalStateException e) {
-      if (log.isDebugEnabled()) {
-        log.warn("Unable to start Datadog profiler recording", e);
-      } else {
-        log.warn("Unable to start Datadog profiler recording: {}", e.getMessage());
-      }
+      Path recFile = Files.createTempFile("dd-profiler-snapshot-", ".jfr");
+      profiler.dump(recFile);
+      return new DatadogProfilerRecordingData(recFile, start, Instant.now(), kind);
+    } catch (Throwable t) {
+      throw new RuntimeException(t);
     }
-    return data;
   }
 
   @Override

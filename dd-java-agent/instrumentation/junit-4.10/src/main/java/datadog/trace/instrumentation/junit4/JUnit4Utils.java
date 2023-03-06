@@ -208,13 +208,15 @@ public abstract class JUnit4Utils {
   public static List<String> getCategories(Class<?> testClass, @Nullable Method testMethod) {
     List<String> categories = new ArrayList<>();
 
-    if (testClass != null) {
+    while (testClass != null) {
       Category categoryAnnotation = testClass.getAnnotation(Category.class);
       if (categoryAnnotation != null) {
         for (Class<?> category : categoryAnnotation.value()) {
           categories.add(category.getName());
         }
       }
+      // Category annotation is not inherited in versions before 4.12
+      testClass = testClass.getSuperclass();
     }
 
     if (testMethod != null) {

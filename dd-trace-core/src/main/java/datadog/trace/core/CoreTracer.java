@@ -776,7 +776,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
       if (encodedContext != null) {
         log.debug("Injecting pathway context {}", pathwayContext);
-        setter.set(carrier, PathwayContext.PROPAGATION_KEY, encodedContext);
+        setter.set(carrier, PathwayContext.PROPAGATION_KEY_BASE64, encodedContext);
         injectPathwayTags(span, pathwayContext);
       }
     } catch (IOException e) {

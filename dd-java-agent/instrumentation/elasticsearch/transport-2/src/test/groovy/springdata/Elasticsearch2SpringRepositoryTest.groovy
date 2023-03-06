@@ -303,17 +303,17 @@ abstract class Elasticsearch2SpringRepositoryTest extends VersionedNamingTestBas
 class Elasticsearch2SpringRepositoryV0ForkedTest extends Elasticsearch2SpringRepositoryTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 0
   }
 
   @Override
-  protected String service() {
+  String service() {
     return "elasticsearch"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "elasticsearch.query"
   }
 }
@@ -321,17 +321,17 @@ class Elasticsearch2SpringRepositoryV0ForkedTest extends Elasticsearch2SpringRep
 class Elasticsearch2SpringRepositoryV1ForkedTest extends Elasticsearch2SpringRepositoryTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 1
   }
 
   @Override
-  protected String service() {
+  String service() {
     return datadog.trace.api.Config.get().getServiceName() + "-elasticsearch"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "elasticsearch.query"
   }
 }

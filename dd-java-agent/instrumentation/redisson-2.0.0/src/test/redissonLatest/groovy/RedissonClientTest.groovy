@@ -544,17 +544,17 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
 class RedissonClientV0ForkedTest extends RedissonClientTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 0
   }
 
   @Override
-  protected String service() {
+  String service() {
     return "redis"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "redis.query"
   }
 }
@@ -562,17 +562,17 @@ class RedissonClientV0ForkedTest extends RedissonClientTest {
 class RedissonClientV1ForkedTest extends RedissonClientTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 1
   }
 
   @Override
-  protected String service() {
+  String service() {
     return datadog.trace.api.Config.get().getServiceName() + "-redis"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "redis.command"
   }
 }

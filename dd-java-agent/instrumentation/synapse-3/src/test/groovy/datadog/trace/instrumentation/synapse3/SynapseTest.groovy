@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.synapse3
 
-import datadog.trace.agent.test.AgentTestRunner
+
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
@@ -30,7 +32,7 @@ import java.lang.reflect.Field
 import java.util.concurrent.TimeUnit
 
 @Flaky("Occasionally times out when receiving traces")
-class SynapseTest extends AgentTestRunner {
+abstract class SynapseTest extends VersionedNamingTestBase {
 
   String expectedServiceName() {
     CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME)
@@ -91,6 +93,8 @@ class SynapseTest extends AgentTestRunner {
     InetSocketAddress address = (InetSocketAddress)endPoints[0].getAddress()
     return address.getPort()
   }
+
+  abstract String expectedServerOperation()
 
   def cleanupSpec() {
     server.shutdown()
@@ -228,7 +232,7 @@ class SynapseTest extends AgentTestRunner {
   def serverSpan(TraceAssert trace, int index, String method, int statusCode, String query = null, Object parentSpan = null, boolean distributedRootSpan = false, boolean legacyOperationName = false) {
     trace.span {
       serviceName expectedServiceName()
-      operationName legacyOperationName ? "http.request" : "synapse.request"
+      operationName legacyOperationName ? "http.request" : expectedServerOperation()
       resourceName "${method} /services/SimpleStockQuoteService"
       spanType DDSpanTypes.HTTP_SERVER
       errored statusCode >= 500
@@ -257,7 +261,7 @@ class SynapseTest extends AgentTestRunner {
   def proxySpan(TraceAssert trace, int index, String method, int statusCode, Object parentSpan = null) {
     trace.span {
       serviceName expectedServiceName()
-      operationName "synapse.request"
+      operationName expectedServerOperation()
       resourceName "${method} /services/StockQuoteProxy"
       spanType DDSpanTypes.HTTP_SERVER
       errored statusCode >= 500
@@ -285,7 +289,7 @@ class SynapseTest extends AgentTestRunner {
   def clientSpan(TraceAssert trace, int index, String method, int statusCode, Object parentSpan = null) {
     trace.span {
       serviceName expectedServiceName()
-      operationName "http.request"
+      operationName operation()
       resourceName "${method} /services/SimpleStockQuoteService"
       spanType DDSpanTypes.HTTP_CLIENT
       errored statusCode >= 500
@@ -305,5 +309,21 @@ class SynapseTest extends AgentTestRunner {
       }
     }
   }
+}
 
+class SynapseV0ForkedTest extends SynapseTest implements TestingGenericHttpNamingConventions.ClientV0 {
+
+
+  @Override
+  String expectedServerOperation() {
+    return "synapse.request"
+  }
+}
+
+class SynapseV1ForkedTest extends SynapseTest implements TestingGenericHttpNamingConventions.ClientV1 {
+
+  @Override
+  String expectedServerOperation() {
+    return "http.server.request"
+  }
 }

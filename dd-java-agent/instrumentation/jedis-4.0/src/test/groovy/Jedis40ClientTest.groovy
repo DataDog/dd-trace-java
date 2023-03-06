@@ -301,17 +301,17 @@ abstract class Jedis40ClientTest extends VersionedNamingTestBase {
 class Jedis40ClientV0ForkedTest extends Jedis40ClientTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 0
   }
 
   @Override
-  protected String service() {
+  String service() {
     return "redis"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "redis.query"
   }
 }
@@ -319,17 +319,17 @@ class Jedis40ClientV0ForkedTest extends Jedis40ClientTest {
 class Jedis40ClientV1ForkedTest extends Jedis40ClientTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 1
   }
 
   @Override
-  protected String service() {
+  String service() {
     return Config.get().getServiceName() + "-redis"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "redis.command"
   }
 }

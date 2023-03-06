@@ -1,5 +1,7 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.incompatibleClassLoader;
+
 import java.security.ProtectionDomain;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.type.TypeDescription;
@@ -28,14 +30,13 @@ public class GlobalIgnoresMatcher implements AgentBuilder.RawMatcher {
       JavaModule module,
       Class<?> classBeingRedefined,
       ProtectionDomain protectionDomain) {
-    if (ClassLoaderMatchers.skipClassLoader(classLoader)) {
-      return true;
-    }
+    // put cheaper name checks first...
     String name = typeDescription.getName();
     return GlobalIgnores.isIgnored(name, skipAdditionalLibraryMatcher)
         || CustomExcludes.isExcluded(name)
         || CodeSourceExcludes.isExcluded(protectionDomain)
-        || ProxyClassIgnores.isIgnored(name);
+        || ProxyClassIgnores.isIgnored(name)
+        || incompatibleClassLoader(classLoader);
   }
 
   @Override

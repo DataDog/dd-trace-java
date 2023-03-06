@@ -161,17 +161,17 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
 class CassandraClientV0ForkedTest extends CassandraClientTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 0
   }
 
   @Override
-  protected String service() {
+  String service() {
     return "cassandra"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "cassandra.query"
   }
 }
@@ -179,17 +179,17 @@ class CassandraClientV0ForkedTest extends CassandraClientTest {
 class CassandraClientV1ForkedTest extends CassandraClientTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 1
   }
 
   @Override
-  protected String service() {
+  String service() {
     return Config.get().getServiceName() + "-cassandra"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "cassandra.query"
   }
 }
