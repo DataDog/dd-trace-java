@@ -39,7 +39,7 @@ class PathTraversalModuleTest extends IastModuleImplTestBase {
     overheadController.consumeQuota(_, _) >> true
   }
 
-  void 'iast module detects path traversal with String path (#path)'(final String path, final String expected) {
+  void 'iast module detects path traversal with String path (#path)'() {
     setup:
     final param = mapTainted(path)
 
@@ -59,7 +59,7 @@ class PathTraversalModuleTest extends IastModuleImplTestBase {
     '/==>var<==' | "/==>var<=="
   }
 
-  void 'iast module detects path traversal with URI (#path)'(final String path, final String expected) {
+  void 'iast module detects path traversal with URI (#path)'() {
     setup:
     final param = mapTaintedURI(path)
 
@@ -79,7 +79,7 @@ class PathTraversalModuleTest extends IastModuleImplTestBase {
     '/==>var<==' | "/==>var<=="
   }
 
-  void 'iast module detects path traversal with String (#parent, #child)'(final String first, final String rest, final String expected) {
+  void 'iast module detects path traversal with String (#first, #rest)'() {
     setup:
     final parent = mapTainted(first)
     final children = mapTainted(rest)
@@ -103,7 +103,7 @@ class PathTraversalModuleTest extends IastModuleImplTestBase {
     '/==>var<==' | 'log'       | "/==>var<==${SP}log"
   }
 
-  void 'iast module detects path traversal with String (#first, #rest)'(final String first, final String[] rest, final String expected) {
+  void 'iast module detects path traversal with String (#first, #rest)'() {
     setup:
     final parent = mapTainted(first)
     final children = mapTaintedArray(rest)

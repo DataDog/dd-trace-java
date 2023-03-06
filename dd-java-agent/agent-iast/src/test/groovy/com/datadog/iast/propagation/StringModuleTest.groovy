@@ -26,7 +26,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     objectHolder = []
   }
 
-  void 'onStringBuilderAppend null or empty (#builder, #param)'(StringBuilder builder, final String param) {
+  void 'onStringBuilderAppend null or empty (#builder, #param)'() {
     given:
     final result = builder?.append(param)
 
@@ -42,7 +42,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     sb('')  | ''
   }
 
-  void 'onStringBuilderAppend without span (#builder, #param)'(StringBuilder builder, final String param, final int mockCalls) {
+  void 'onStringBuilderAppend without span (#builder, #param)'() {
     given:
     final result = builder?.append(param)
 
@@ -59,7 +59,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     sb('3') | '4'   | 1
   }
 
-  void 'onStringBuilderAppend (#builder, #param)'(StringBuilder builder, String param, final int mockCalls, final String expected) {
+  void 'onStringBuilderAppend (#builder, #param)'() {
     given:
     final span = Mock(AgentSpan)
     tracer.activeSpan() >> span
@@ -110,7 +110,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     sb('1==>234<==5==>678<==9') | 'a==>bcd<==e==>fgh<==i' | 1         | '1==>234<==5==>678<==9a==>bcd<==e==>fgh<==i'
   }
 
-  void 'onStringBuilderInit null or empty (#builder, #param)'(StringBuilder builder, final String param) {
+  void 'onStringBuilderInit null or empty (#builder, #param)'() {
     given:
     final result = builder?.append(param)
 
@@ -126,7 +126,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     sb('')  | ''
   }
 
-  void 'onStringBuilderInit without span (#builder, #param)'(StringBuilder builder, final String param, final int mockCalls) {
+  void 'onStringBuilderInit without span (#builder, #param)'() {
     given:
     final result = builder?.append(param)
 
@@ -143,7 +143,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     sb()    | '4'   | 1
   }
 
-  void 'onStringBuilderInit (#builder, #param)'(StringBuilder builder, String param, final int mockCalls, final String expected) {
+  void 'onStringBuilderInit (#builder, #param)'() {
     given:
     final span = Mock(AgentSpan)
     tracer.activeSpan() >> span
@@ -203,7 +203,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     0 * _
   }
 
-  void 'onStringBuilderToString (#builder)'(StringBuilder builder, final String expected) {
+  void 'onStringBuilderToString (#builder)'() {
     given:
     final span = Mock(AgentSpan)
     tracer.activeSpan() >> span
@@ -247,10 +247,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     sb('==>123<==456') | '==>123<==456'
   }
 
-  void 'onStringConcatFactory null or empty (#args)'(final List<String> args,
-    final String recipe,
-    final List<Object> constants,
-    final List<Integer> recipeOffsets) {
+  void 'onStringConcatFactory null or empty (#args)'() {
     given:
     final result = args.inject('') { res, item -> res + item }
 
@@ -270,10 +267,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     ['', '']     | '\u0001 \u0001' | null      | [0, -1, 1]
   }
 
-  void 'onStringConcatFactory without span (#args)'(final List<String> args,
-    final String recipe,
-    final List<Object> constants,
-    final List<Integer> recipeOffsets) {
+  void 'onStringConcatFactory without span (#args)'() {
     given:
     final result = args.inject('') { res, item -> res + item }
 
@@ -291,11 +285,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     ['3', '4']  | '\u0001 \u0001' | null      | [0, -1, 1]
   }
 
-  void 'onStringConcatFactory (#args, #recipe, #constants)'(List<String> args,
-    final String recipe,
-    final List<Object> constants,
-    final List<Integer> recipeOffsets,
-    final String expected) {
+  void 'onStringConcatFactory (#args, #recipe, #constants)'() {
     given:
     final span = Mock(AgentSpan)
     tracer.activeSpan() >> span
@@ -377,7 +367,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     ""   | ""
   }
 
-  void 'onStringConcat without span (#left, #right)'(final String left, final String right) {
+  void 'onStringConcat without span (#left, #right)'() {
     given:
     final result = left + right
 
@@ -394,7 +384,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     "3"  | "4"
   }
 
-  void 'onStringConcat (#left, #right)'(String left, String right, final String expected) {
+  void 'onStringConcat (#left, #right)'() {
     given:
     final span = Mock(AgentSpan)
     tracer.activeSpan() >> span
@@ -442,7 +432,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     "==>123<==" | "==>456<==" | "==>123<====>456<=="
   }
 
-  void 'onStringSubSequence null ,empty or string not changed after subsequence (#self, #beginIndex, #endIndex)'(final String self, final int beginIndex, final int endIndex) {
+  void 'onStringSubSequence null ,empty or string not changed after subsequence (#self, #beginIndex, #endIndex)'() {
     given:
     final result = self?.substring(beginIndex, endIndex)
 
@@ -459,7 +449,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     "not_changed" | 0          | 11
   }
 
-  void 'onStringSubSequence without span (#self, #beginIndex, #endIndex)'(final String self, final int beginIndex, final int endIndex, final int mockCalls) {
+  void 'onStringSubSequence without span (#self, #beginIndex, #endIndex)'() {
     given:
     final result = self?.substring(beginIndex, endIndex)
 
@@ -548,7 +538,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     "01==>234<==5==>678<==90" | 4          | 8        | "==>4<==5==>67<=="
   }
 
-  void 'onStringJoin without null delimiter or elements (#delimiter, #elements)'(final CharSequence delimiter, final CharSequence[] elements) {
+  void 'onStringJoin without null delimiter or elements (#delimiter, #elements)'() {
     when:
     String.join(delimiter, elements)
 
@@ -562,7 +552,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     null      | null
   }
 
-  void 'onStringJoin without span (#delimiter, #elements)'(final CharSequence delimiter, final CharSequence[] elements, final int mockCalls) {
+  void 'onStringJoin without span (#delimiter, #elements)'() {
     given:
     final result = String.join(delimiter, elements)
 
@@ -589,7 +579,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     new StringBuilder("-") | [new StringBuilder("123"), new StringBuilder("456")] | 1
   }
 
-  void 'onStringJoin (#delimiter, #elements)'(final CharSequence delimiter, final CharSequence[] elements, final String expected) {
+  void 'onStringJoin (#delimiter, #elements)'() {
     given:
     final span = Mock(AgentSpan)
     tracer.activeSpan() >> span
@@ -657,7 +647,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     ]                                                                                                                    | "stringParam1,stringParam2,stringParam3:==>taintedString<==, ==>taintedString<==, ==>taintedString<=="
   }
 
-  void 'onStringRepeat that can not be tainted (#self, #count)'(final String self, final int count, final String expected) {
+  void 'onStringRepeat that can not be tainted (#self, #count)'() {
     when:
     module.onStringRepeat(self, count, expected)
 
@@ -673,7 +663,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     "abc" | 1     | "abc"
   }
 
-  void 'onStringRepeat without span (#self, #count)'(final String self, final int count, final String expected, final int mockCalls) {
+  void 'onStringRepeat without span (#self, #count)'() {
     when:
     module.onStringRepeat(self, count, expected)
 
