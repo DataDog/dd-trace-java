@@ -42,6 +42,7 @@ import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.dynamic.DynamicType
 import net.bytebuddy.utility.JavaModule
+import org.junit.runner.RunWith
 import org.slf4j.LoggerFactory
 import org.spockframework.mock.MockUtil
 import spock.lang.Shared
@@ -73,7 +74,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevi
 @SuppressWarnings('UnnecessaryDotClass')
 //@ExtendWith(InstrumentationTestFactoryExtension.class)
 //@ExtendWith(InstrumentationExtension.class)
-//@RunWith(SpockRunner.class)
+@RunWith(SpockRunner.class)
 //@InstrumentedSpecification
 abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.Listener {
   private static final long TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(10)

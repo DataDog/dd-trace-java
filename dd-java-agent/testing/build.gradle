@@ -46,6 +46,8 @@ dependencies {
 
   api deps.groovy
 
+  implementation 'org.junit.platform:junit-platform-runner:1.9.2'
+
   testImplementation project(':utils:test-utils')
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
 
