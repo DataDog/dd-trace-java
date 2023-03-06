@@ -1,8 +1,8 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
 import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
-import datadog.trace.agent.tooling.WeakCaches;
-import datadog.trace.bootstrap.WeakCache;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import java.lang.ref.WeakReference;
 import java.net.URL;
 import java.util.Objects;
@@ -58,7 +58,8 @@ public final class TypeInfoCache<T> {
   static final ClassLoader BOOTSTRAP_LOADER = null;
   static final LoaderId BOOTSTRAP_LOADER_ID = null;
 
-  private static final WeakCache<ClassLoader, LoaderId> loaderIds = WeakCaches.newWeakCache(64);
+  private static final DDCache<ClassLoader, LoaderId> loaderIds =
+      DDCaches.newFixedSizeWeakKeyCache(64);
 
   /** Supports classloader comparisons without strongly referencing the classloader. */
   private static final class LoaderId extends WeakReference<ClassLoader> {

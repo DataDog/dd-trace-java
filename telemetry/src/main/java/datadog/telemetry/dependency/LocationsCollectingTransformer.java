@@ -1,7 +1,7 @@
 package datadog.telemetry.dependency;
 
-import datadog.trace.agent.tooling.WeakCaches;
-import datadog.trace.bootstrap.WeakCache;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import java.lang.instrument.ClassFileTransformer;
 import java.net.URL;
 import java.security.CodeSource;
@@ -12,14 +12,16 @@ import org.slf4j.LoggerFactory;
 class LocationsCollectingTransformer implements ClassFileTransformer {
   private static final Logger log = LoggerFactory.getLogger(LocationsCollectingTransformer.class);
 
-  private static final int MAX_CACHED_JARS = 4096;
+  private static final int MAX_CACHED_JARS = 1024;
   private final DependencyServiceImpl dependencyService;
-  private final WeakCache<ProtectionDomain, Boolean> seenDomains =
-      WeakCaches.newWeakCache(MAX_CACHED_JARS);
+  private final DDCache<ProtectionDomain, Boolean> seenDomains =
+      DDCaches.newFixedSizeWeakKeyCache(MAX_CACHED_JARS);
+
+  private final ProtectionDomain tracerDomain =
+      LocationsCollectingTransformer.class.getProtectionDomain();
 
   public LocationsCollectingTransformer(DependencyServiceImpl dependencyService) {
     this.dependencyService = dependencyService;
-    seenDomains.put(LocationsCollectingTransformer.class.getProtectionDomain(), true);
   }
 
   @Override
@@ -29,7 +31,7 @@ class LocationsCollectingTransformer implements ClassFileTransformer {
       Class<?> classBeingRedefined,
       ProtectionDomain protectionDomain,
       byte[] classfileBuffer) {
-    if (protectionDomain != null) {
+    if (protectionDomain != null && !protectionDomain.equals(tracerDomain)) {
       seenDomains.computeIfAbsent(protectionDomain, this::addDependency);
     }
     // returning 'null' is the best way to indicate that no transformation has been done.

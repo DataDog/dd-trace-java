@@ -1,5 +1,6 @@
 package datadog.trace.core.datastreams;
 
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.datadoghq.sketch.ddsketch.encoding.ByteArrayInput;
@@ -178,7 +179,7 @@ public class DefaultPathwayContext implements PathwayContext {
               + TimeUnit.NANOSECONDS.toMillis(edgeStartNanoTicks - pathwayStartNanoTicks);
 
       VarEncodingHelper.encodeSignedVarLong(outputBuffer, edgeStartMillis);
-      return outputBuffer.trimmedCopy();
+      return Base64.getEncoder().encode(outputBuffer.trimmedCopy());
     } finally {
       lock.unlock();
     }
@@ -190,7 +191,7 @@ public class DefaultPathwayContext implements PathwayContext {
     if (bytes == null) {
       return null;
     }
-    return new String(Base64.getEncoder().encode(bytes), UTF_8);
+    return new String(bytes, ISO_8859_1);
   }
 
   @Override
@@ -253,9 +254,18 @@ public class DefaultPathwayContext implements PathwayContext {
 
     @Override
     public boolean accept(String key, byte[] value) {
+      // older versions support, should be removed in the future
       if (PathwayContext.PROPAGATION_KEY.equalsIgnoreCase(key)) {
         try {
           extractedContext = decode(timeSource, wellKnownTags, value);
+        } catch (IOException e) {
+          return false;
+        }
+      }
+
+      if (PathwayContext.PROPAGATION_KEY_BASE64.equalsIgnoreCase(key)) {
+        try {
+          extractedContext = base64Decode(timeSource, wellKnownTags, value);
         } catch (IOException e) {
           return false;
         }
@@ -298,8 +308,13 @@ public class DefaultPathwayContext implements PathwayContext {
 
   public static DefaultPathwayContext strDecode(
       TimeSource timeSource, WellKnownTags wellKnownTags, String data) throws IOException {
-    byte[] byteValue = Base64.getDecoder().decode(data);
-    return decode(timeSource, wellKnownTags, byteValue);
+    byte[] base64Bytes = data.getBytes(UTF_8);
+    return base64Decode(timeSource, wellKnownTags, base64Bytes);
+  }
+
+  public static DefaultPathwayContext base64Decode(
+      TimeSource timeSource, WellKnownTags wellKnownTags, byte[] data) throws IOException {
+    return decode(timeSource, wellKnownTags, Base64.getDecoder().decode(data));
   }
 
   public static DefaultPathwayContext decode(
