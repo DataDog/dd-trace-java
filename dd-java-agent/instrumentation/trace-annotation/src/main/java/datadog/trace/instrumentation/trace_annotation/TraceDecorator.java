@@ -45,7 +45,6 @@ public class TraceDecorator extends BaseDecorator {
     CharSequence resourceName = null;
     boolean measured = false;
 
-
     Trace traceAnnotation = method.getAnnotation(Trace.class);
     if (null != traceAnnotation) {
       operationName = traceAnnotation.operationName();
@@ -60,7 +59,6 @@ public class TraceDecorator extends BaseDecorator {
       } catch (Throwable ignore) {
         // dd-trace-api < 1.10.0 on classpath
       }
-
     }
 
     if (operationName == null || operationName.length() == 0) {
@@ -82,7 +80,6 @@ public class TraceDecorator extends BaseDecorator {
     if (measured || MeasuredMethodFilter.filter(method)) {
       span.setMeasured(true);
     }
-
 
     return span;
   }
