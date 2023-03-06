@@ -7,7 +7,6 @@ class SQLNormalizerTest extends DDSpecification {
 
   def "test normalize #sql"() {
     when:
-    // todo: paramertize this
     UTF8BytesString normalized = SQLNormalizer.normalize(sql, true)
     then:
     normalized as String == expected
