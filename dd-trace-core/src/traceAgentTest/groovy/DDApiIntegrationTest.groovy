@@ -195,7 +195,7 @@ class DDApiIntegrationTest extends DDSpecification {
     // spotless:on
   }
 
-  def "Sending traces to unix domain socket succeeds (test #test)"() {
+  def "Sending traces to unix domain socket succeeds"() {
     setup:
     beforeTest(enableV05)
     expect:
