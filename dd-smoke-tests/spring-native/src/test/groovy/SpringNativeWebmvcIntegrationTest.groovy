@@ -12,6 +12,9 @@ class SpringNativeWebmvcIntegrationTest extends AbstractServerSmokeTest {
     command.addAll(nativeJavaProperties)
     command.addAll((String[]) [
       "-Ddd.writer.type=MultiWriter:TraceStructureWriter:${output.getAbsolutePath()},DDAgentWriter",
+      // trigger use of moshi for parsing sampling rules
+      "-Ddd.trace.sampling.rules=[]",
+      "-Ddd.span.sampling.rules=[]",
       "--server.port=${httpPort}"
     ])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
