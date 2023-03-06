@@ -146,7 +146,7 @@ public class SQLCommenter {
       return true;
     }
     if (obj instanceof String) {
-      return obj == "";
+      return obj.equals("");
     }
     if (obj instanceof Number) {
       Number number = (Number) obj;
@@ -255,15 +255,13 @@ public class SQLCommenter {
     public SQLCommenter build() {
       SQLCommenter commenter = new SQLCommenter();
       SortedMap<String, Object> tags = new TreeMap<>();
-      switch (this.injectionMode) {
-        case SQL_COMMENT_INJECTION_STATIC:
-          tags = commenter.sortedKeyValuePairs(String.valueOf(this.dbService));
-          break;
-        case SQL_COMMENT_INJECTION_FULL:
-          tags =
-              commenter.sortedKeyValuePairs(
-                  this.traceId, this.spanId, this.samplingPriority, String.valueOf(this.dbService));
-          break;
+      if (this.injectionMode.equals(SQL_COMMENT_INJECTION_STATIC)) {
+        tags = commenter.sortedKeyValuePairs(String.valueOf(this.dbService));
+
+      } else if (this.injectionMode.equals(SQL_COMMENT_INJECTION_FULL)) {
+        tags =
+            commenter.sortedKeyValuePairs(
+                this.traceId, this.spanId, this.samplingPriority, String.valueOf(this.dbService));
       }
       commenter.commentedSQL = commenter.augmentSQLStatement(this.sql, tags);
       return commenter;
