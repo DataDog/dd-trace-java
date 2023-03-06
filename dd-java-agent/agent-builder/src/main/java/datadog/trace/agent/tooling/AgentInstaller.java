@@ -41,9 +41,8 @@ public class AgentInstaller {
 
   static {
     addByteBuddyRawSetting();
-    // register weak map/cache suppliers as early as possible
+    // register weak map supplier as early as possible
     WeakMaps.registerAsSupplier();
-    WeakCaches.registerAsSupplier();
   }
 
   public static void installBytebuddyAgent(final Instrumentation inst) {
