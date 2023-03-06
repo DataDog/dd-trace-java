@@ -1,6 +1,8 @@
 ext {
   // need access to sun.misc package
   skipSettingCompilerRelease = true
+  // Use JUnit 4 runner for compatibility issues with SpockRunner
+  useJUnit4Compatibility = true
 }
 
 apply from: "$rootDir/gradle/java.gradle"
