@@ -7,22 +7,27 @@ import java.util.Map;
 import java.util.Set;
 
 public class MeasuredMethodFilter {
-  public static final MeasuredMethodFilter FILTER = new MeasuredMethodFilter();
-  private static Map<String, Set<String>> methodsToMeasure;
+  private static final Map<String, Set<String>> methodsToMeasure;
+  private static final boolean filterIsEmpty;
 
-  public MeasuredMethodFilter() {
-    if (InstrumenterConfig.get().getMeasureMethods().isEmpty()
-        || InstrumenterConfig.get().getMeasureMethods() == null) {
+  static {
+    String configString = InstrumenterConfig.get().getMeasureMethods();
+    if (configString == null || configString.isEmpty()) {
       methodsToMeasure = Collections.emptyMap();
+      filterIsEmpty = true;
+    } else {
+      methodsToMeasure = TraceAnnotationConfigParser.parse(configString);
+      filterIsEmpty = methodsToMeasure.isEmpty();
     }
-    methodsToMeasure =
-        TraceAnnotationConfigParser.parse(InstrumenterConfig.get().getMeasureMethods());
   }
 
-  public boolean filter(Method method) {
-    String clazz = method.getDeclaringClass().getName();
-    return methodsToMeasure.containsKey(clazz)
-        && (methodsToMeasure.get(clazz).contains(method.getName())
-            || methodsToMeasure.get(clazz).contains("*"));
+  public static boolean filter(Method method) {
+    if (!filterIsEmpty) {
+      String clazz = method.getDeclaringClass().getName();
+      return methodsToMeasure.containsKey(clazz)
+          && (methodsToMeasure.get(clazz).contains(method.getName())
+              || methodsToMeasure.get(clazz).contains("*"));
+    }
+    return false;
   }
 }
