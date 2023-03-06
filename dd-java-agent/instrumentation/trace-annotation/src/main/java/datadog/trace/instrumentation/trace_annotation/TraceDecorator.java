@@ -75,7 +75,7 @@ public class TraceDecorator extends BaseDecorator {
     AgentSpan span = startSpan(operationName);
     DECORATE.afterStart(span);
     span.setResourceName(resourceName);
-    if (measured || MeasuredMethodFilter.FILTER.filter(method)) {
+    if (measured || MeasuredMethodFilter.filter(method)) {
       span.setMeasured(true);
     }
 

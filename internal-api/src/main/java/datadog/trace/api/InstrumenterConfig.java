@@ -390,6 +390,7 @@ public class InstrumenterConfig {
         + ", traceMethods='"
         + traceMethods
         + '\''
+        + ", measureMethods= '"
         + measureMethods
         + '\''
         + ", internalExitOnFailure="
