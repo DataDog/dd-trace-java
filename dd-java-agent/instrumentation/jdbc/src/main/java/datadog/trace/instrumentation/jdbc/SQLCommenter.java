@@ -16,12 +16,12 @@ import java.util.stream.Collectors;
 
 public class SQLCommenter {
   private static final String UTF8 = StandardCharsets.UTF_8.toString();
-  private static final String PARENT_SERVICE = "ddps";
-  private static final String DATABASE_SERVICE = "dddbs";
-  private static final String DD_ENV = "dde";
-  private static final String DD_VERSION = "ddpv";
-  private static final String TRACEPARENT = "traceparent";
-  public static final String W3C_CONTEXT_VERSION = "00";
+  protected static final String PARENT_SERVICE = "ddps";
+  protected static final String DATABASE_SERVICE = "dddbs";
+  protected static final String DD_ENV = "dde";
+  protected static final String DD_VERSION = "ddpv";
+  protected static final String TRACEPARENT = "traceparent";
+  protected static final String W3C_CONTEXT_VERSION = "00";
   public String commentedSQL;
 
   public String getCommentedSQL() {
