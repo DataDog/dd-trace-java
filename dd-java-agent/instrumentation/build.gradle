@@ -21,6 +21,11 @@ subprojects { Project subProj ->
   apply plugin: 'instrument'
   apply plugin: 'muzzle'
 
+  ext {
+    // Use JUnit 4 runner for compatibility issues with SpockRunner
+    useJUnit4Compatibility = true
+  }
+
   configurations {
     // classpath used by the instrumentation muzzle plugin
     instrumentationMuzzle {
