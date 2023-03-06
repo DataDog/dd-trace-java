@@ -4,6 +4,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 
+import static datadog.trace.api.TracePropagationStyle.SQL_COMMENT
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
@@ -85,6 +86,9 @@ class HttpInjectorTest extends DDCoreSpecification {
         1 * carrier.put(B3_KEY, traceId.toString() + "-" + spanId.toString())
       }
     }
+    if (styles.contains(SQL_COMMENT) && samplingPriority != UNSET) {
+      1 * carrier.put(SqlCommentInjector.SAMPLING_PRIORITY, "1")
+    }
     0 * _
 
     cleanup:
@@ -107,6 +111,7 @@ class HttpInjectorTest extends DDCoreSpecification {
     [B3MULTI]                    | UNSET            | UNKNOWN           | null
     [B3MULTI]                    | SAMPLER_KEEP     | DEFAULT           | "saipan"
     [B3MULTI, DATADOG]           | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    [SQL_COMMENT]                | SAMPLER_KEEP     | DEFAULT           | null
     // spotless:on
   }
 
@@ -128,7 +133,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       "fakeResource",
       samplingPriority,
       origin,
-      ["k1": "v1", "k2": "v2","some-baggage-item":"some-baggage-value"],
+      ["k1": "v1", "k2": "v2", "some-baggage-item": "some-baggage-value"],
       false,
       "fakeType",
       0,
@@ -171,6 +176,12 @@ class HttpInjectorTest extends DDCoreSpecification {
       } else {
         1 * carrier.put(B3_KEY, traceId.toString() + "-" + spanId.toString())
       }
+    } else if (style == SQL_COMMENT) {
+      if (samplingPriority == SAMPLER_DROP) {
+        1 * carrier.put(SqlCommentInjector.SAMPLING_PRIORITY, "0")
+      } else {
+        1 * carrier.put(SqlCommentInjector.SAMPLING_PRIORITY, "1")
+      }
     }
     0 * _
 
@@ -179,16 +190,18 @@ class HttpInjectorTest extends DDCoreSpecification {
 
     where:
     // spotless:off
-    style    | samplingPriority | samplingMechanism | origin
-    DATADOG  | UNSET            | UNKNOWN           | null
-    DATADOG  | SAMPLER_KEEP     | DEFAULT           | null
-    DATADOG  | SAMPLER_KEEP     | DEFAULT           | "saipan"
-    B3SINGLE | UNSET            | UNKNOWN           | null
-    B3SINGLE | SAMPLER_KEEP     | DEFAULT           | null
-    B3SINGLE | SAMPLER_KEEP     | DEFAULT           | "saipan"
-    B3MULTI  | UNSET            | UNKNOWN           | null
-    B3MULTI  | SAMPLER_KEEP     | DEFAULT           | null
-    B3MULTI  | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    style       | samplingPriority | samplingMechanism | origin
+    DATADOG     | UNSET            | UNKNOWN           | null
+    DATADOG     | SAMPLER_KEEP     | DEFAULT           | null
+    DATADOG     | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    B3SINGLE    | UNSET            | UNKNOWN           | null
+    B3SINGLE    | SAMPLER_KEEP     | DEFAULT           | null
+    B3SINGLE    | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    B3MULTI     | UNSET            | UNKNOWN           | null
+    B3MULTI     | SAMPLER_KEEP     | DEFAULT           | null
+    B3MULTI     | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    SQL_COMMENT | SAMPLER_KEEP     | DEFAULT           | null
+    SQL_COMMENT | SAMPLER_DROP     | DEFAULT           | null
     // spotless:on
   }
 }
