@@ -1,5 +1,10 @@
-import datadog.trace.agent.test.AgentTestRunner
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
+
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -33,12 +38,7 @@ import java.util.concurrent.Future
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
-
-abstract class KafkaClientTestBase extends AgentTestRunner {
+abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   static final SHARED_TOPIC = "shared.topic"
 
   @Rule
@@ -61,7 +61,27 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     PRODUCER_PATHWAY_EDGE_TAGS.put("type", "kafka")
   }
 
-  abstract String expectedServiceName()
+  @Override
+  int version() {
+    0
+  }
+
+  @Override
+  String operation() {
+    return null
+  }
+
+  String operationForProducer() {
+    "kafka.produce"
+  }
+
+  String operationForConsumer() {
+    "kafka.consume"
+  }
+
+  String serviceForTimeInQueue() {
+    "kafka"
+  }
 
   abstract boolean hasQueueSpan()
 
@@ -856,8 +876,8 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     boolean tombstone = false
   ) {
     trace.span {
-      serviceName hasQueueSpan() ? expectedServiceName() : "kafka"
-      operationName "kafka.produce"
+      serviceName service()
+      operationName operationForProducer()
       resourceName "Produce Topic $SHARED_TOPIC"
       spanType "queue"
       errored false
@@ -889,7 +909,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     DDSpan parentSpan = null
   ) {
     trace.span {
-      serviceName splitByDestination() ? "$SHARED_TOPIC" : "kafka"
+      serviceName splitByDestination() ? "$SHARED_TOPIC" :  serviceForTimeInQueue()
       operationName "kafka.deliver"
       resourceName "$SHARED_TOPIC"
       spanType "queue"
@@ -916,8 +936,8 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     boolean distributedRootSpan = !hasQueueSpan()
   ) {
     trace.span {
-      serviceName hasQueueSpan() ? expectedServiceName() : "kafka"
-      operationName "kafka.consume"
+      serviceName service()
+      operationName operationForConsumer()
       resourceName "Consume Topic $SHARED_TOPIC"
       spanType "queue"
       errored false
@@ -947,17 +967,12 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
   }
 }
 
-class KafkaClientForkedTest extends KafkaClientTestBase {
+abstract class KafkaClientForkedTest extends KafkaClientTestBase {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig("dd.service", "KafkaClientTest")
     injectSysConfig("dd.kafka.legacy.tracing.enabled", "false")
-  }
-
-  @Override
-  String expectedServiceName() {
-    return "KafkaClientTest"
+    injectSysConfig("dd.service", "KafkaClientTest")
   }
 
   @Override
@@ -971,6 +986,40 @@ class KafkaClientForkedTest extends KafkaClientTestBase {
   }
 }
 
+class KafkaClientV0ForkedTest extends KafkaClientForkedTest {
+  @Override
+  String service() {
+    return "KafkaClientTest"
+  }
+}
+
+class KafkaClientV1ForkedTest extends KafkaClientForkedTest {
+  @Override
+  int version() {
+    1
+  }
+
+  @Override
+  String service() {
+    return "KafkaClientTest"
+  }
+
+  @Override
+  String operationForProducer() {
+    "kafka.send"
+  }
+
+  @Override
+  String operationForConsumer() {
+    return "kafka.process"
+  }
+
+  @Override
+  String serviceForTimeInQueue() {
+    "kafka-queue"
+  }
+}
+
 class KafkaClientSplitByDestinationForkedTest extends KafkaClientTestBase {
   @Override
   void configurePreAgent() {
@@ -981,7 +1030,7 @@ class KafkaClientSplitByDestinationForkedTest extends KafkaClientTestBase {
   }
 
   @Override
-  String expectedServiceName() {
+  String service() {
     return "KafkaClientTest"
   }
 
@@ -996,15 +1045,16 @@ class KafkaClientSplitByDestinationForkedTest extends KafkaClientTestBase {
   }
 }
 
-class KafkaClientLegacyTracingForkedTest extends KafkaClientTestBase {
+abstract class KafkaClientLegacyTracingForkedTest extends KafkaClientTestBase {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
+    injectSysConfig("dd.service", "KafkaClientLegacyTest")
     injectSysConfig("dd.kafka.legacy.tracing.enabled", "true")
   }
 
   @Override
-  String expectedServiceName() {
+  String service() {
     return "kafka"
   }
 
@@ -1019,6 +1069,34 @@ class KafkaClientLegacyTracingForkedTest extends KafkaClientTestBase {
   }
 }
 
+class KafkaClientLegacyTracingV0ForkedTest extends KafkaClientLegacyTracingForkedTest{
+
+
+}
+
+class KafkaClientLegacyTracingV1ForkedTest extends KafkaClientLegacyTracingForkedTest{
+
+  @Override
+  int version() {
+    1
+  }
+
+  @Override
+  String operationForProducer() {
+    "kafka.send"
+  }
+
+  @Override
+  String operationForConsumer() {
+    return "kafka.process"
+  }
+
+  @Override
+  String serviceForTimeInQueue() {
+    "kafka-queue"
+  }
+}
+
 class KafkaClientDataStreamsDisabledForkedTest extends KafkaClientTestBase {
   @Override
   void configurePreAgent() {
@@ -1029,8 +1107,8 @@ class KafkaClientDataStreamsDisabledForkedTest extends KafkaClientTestBase {
   }
 
   @Override
-  String expectedServiceName() {
-    return "KafkaClientDataStreamsDisabledForkedTest"
+  String service() {
+    return "kafka"
   }
 
   @Override
