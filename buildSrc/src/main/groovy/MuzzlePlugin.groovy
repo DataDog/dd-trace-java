@@ -163,9 +163,23 @@ class MuzzlePlugin implements Plugin<Project> {
                    |</testsuite>\n""".stripMargin()
   }
 
+  static FileCollection createAgentClassPath(Project project) {
+    FileCollection cp = project.files()
+    project.getLogger().info("Creating agent classpath for $project")
+    for (SourceSet sourceSet : project.sourceSets) {
+      if (sourceSet.name.startsWith('main')) {
+        cp += sourceSet.runtimeClasspath
+      }
+    }
+    if (project.getLogger().isInfoEnabled()) {
+      cp.forEach { project.getLogger().info("-- $it") }
+    }
+    return cp
+  }
+
   static FileCollection createMuzzleClassPath(Project project, String muzzleTaskName) {
     FileCollection cp = project.files()
-    project.getLogger().info("Creating classpath for $muzzleTaskName")
+    project.getLogger().info("Creating muzzle classpath for $muzzleTaskName")
     if ('muzzle' == muzzleTaskName) {
       cp += project.configurations.compileClasspath
     } else {
@@ -535,9 +549,9 @@ abstract class MuzzleTask extends DefaultTask {
 
   void assertMuzzle(Project bootstrapProject, Project toolingProject, Project instrumentationProject, MuzzleDirective muzzleDirective = null) {
     workerExecutor.noIsolation().submit(MuzzleAction.class, parameters -> {
-      parameters.bootstrapClassPath.setFrom(bootstrapProject.sourceSets.main.runtimeClasspath as FileCollection)
-      parameters.toolingClassPath.setFrom(toolingProject.sourceSets.main.runtimeClasspath as FileCollection)
-      parameters.instrumentationClassPath.setFrom(instrumentationProject.sourceSets.main.runtimeClasspath as FileCollection)
+      parameters.bootstrapClassPath.setFrom(MuzzlePlugin.createAgentClassPath(bootstrapProject))
+      parameters.toolingClassPath.setFrom(MuzzlePlugin.createAgentClassPath(toolingProject))
+      parameters.instrumentationClassPath.setFrom(MuzzlePlugin.createAgentClassPath(instrumentationProject))
       parameters.testApplicationClassPath.setFrom(MuzzlePlugin.createMuzzleClassPath(instrumentationProject, name))
       if (muzzleDirective) {
         parameters.assertPass.set(muzzleDirective.assertPass)
@@ -547,6 +561,8 @@ abstract class MuzzleTask extends DefaultTask {
       }
     })
   }
+
+
 
   void printMuzzle(Project instrumentationProject) {
     FileCollection cp = instrumentationProject.sourceSets.main.runtimeClasspath
