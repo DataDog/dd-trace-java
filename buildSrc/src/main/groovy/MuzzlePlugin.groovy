@@ -541,6 +541,7 @@ abstract class MuzzleTask extends DefaultTask {
 
   void assertMuzzle(Project bootstrapProject, Project toolingProject, Project instrumentationProject, MuzzleDirective muzzleDirective = null) {
     workerExecutor.noIsolation().submit(MuzzleAction.class, parameters -> {
+      parameters.bootstrapClassPath.setFrom(bootstrapProject.sourceSets.main.runtimeClasspath as FileCollection)
       parameters.toolingClassPath.setFrom(toolingProject.sourceSets.main.runtimeClasspath as FileCollection)
       parameters.instrumentationClassPath.setFrom(instrumentationProject.sourceSets.main.runtimeClasspath as FileCollection)
       parameters.testApplicationClassPath.setFrom(MuzzlePlugin.createMuzzleClassPath(instrumentationProject, bootstrapProject, name))
@@ -563,6 +564,7 @@ abstract class MuzzleTask extends DefaultTask {
 }
 
 interface MuzzleWorkParameters extends WorkParameters {
+  ConfigurableFileCollection getBootstrapClassPath()
   ConfigurableFileCollection getToolingClassPath()
   ConfigurableFileCollection getInstrumentationClassPath()
   ConfigurableFileCollection getTestApplicationClassPath()
@@ -572,19 +574,27 @@ interface MuzzleWorkParameters extends WorkParameters {
 
 abstract class MuzzleAction implements WorkAction<MuzzleWorkParameters> {
   private static final Object lock = new Object()
+  private static volatile ClassLoader bootCL
   private static volatile ClassLoader toolCL
 
   @Override
   void execute() {
+    if (!bootCL) {
+      synchronized (lock) {
+        if (!bootCL) {
+          bootCL = createClassLoader(parameters.bootstrapClassPath)
+        }
+      }
+    }
     if (!toolCL) {
       synchronized (lock) {
         if (!toolCL) {
-          toolCL = createClassLoader(parameters.toolingClassPath)
+          toolCL = createClassLoader(parameters.toolingClassPath, bootCL)
         }
       }
     }
     ClassLoader instCL = createClassLoader(parameters.instrumentationClassPath, toolCL)
-    ClassLoader testCL = createClassLoader(parameters.testApplicationClassPath)
+    ClassLoader testCL = createClassLoader(parameters.testApplicationClassPath, bootCL)
     boolean assertPass = parameters.assertPass.get()
     String muzzleDirective = parameters.muzzleDirective.getOrNull()
     Method assertionMethod = instCL.loadClass('datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin')
