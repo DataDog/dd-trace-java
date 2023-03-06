@@ -90,8 +90,6 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
         DECORATE.onConnection(
             span, connection, InstrumentationContext.get(Connection.class, DBInfo.class));
         if (span != null && DECORATE.injectSQLComment()) {
-          // set the dbm trace injected tag on the span
-          span.setTag(DBM_TRACE_INJECTED, true);
           SQLCommenter.Builder carrier =
               SQLCommenter.newBuilder()
                   .withInjectionMode(SQL_COMMENT_INJECTION_MODE)
@@ -101,6 +99,8 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
             // forces a sampling decision & sets the priority on the carrier
             propagate().inject(span, carrier, SETTER, TracePropagationStyle.SQL_COMMENT);
             carrier.withTraceId(span.getTraceId()).withSpanId(span.getSpanId());
+            // set the dbm trace injected tag on the span
+            span.setTag(DBM_TRACE_INJECTED, true);
           }
           sql = carrier.build().getCommentedSQL();
         }

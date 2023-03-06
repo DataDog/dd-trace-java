@@ -249,7 +249,6 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     }
 
     expect:
-    def addDbmTag = dbmTraceInjected()
     resultSet.next()
     resultSet.getInt(1) == 3
     assertTraces(1) {
@@ -273,9 +272,6 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             // since Connection.getClientInfo will not provide the username
             "$Tags.DB_USER" jdbcUserNames.get(driver)
             "$Tags.DB_OPERATION" operation
-            if (addDbmTag) {
-              "$InstrumentationTags.DBM_TRACE_INJECTED" true
-            }
             defaultTags()
           }
         }
@@ -307,7 +303,6 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     }
 
     expect:
-    def addDbmTag = dbmTraceInjected()
     resultSet.next()
     resultSet.getInt(1) == 3
     assertTraces(1) {
@@ -331,9 +326,6 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             // since Connection.getClientInfo will not provide the username
             "$Tags.DB_USER" jdbcUserNames.get(driver)
             "$Tags.DB_OPERATION" operation
-            if (addDbmTag) {
-              "$InstrumentationTags.DBM_TRACE_INJECTED" true
-            }
             defaultTags()
           }
         }
@@ -365,7 +357,6 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     }
 
     expect:
-    def addDbmTag = dbmTraceInjected()
     resultSet.next()
     resultSet.getInt(1) == 3
     assertTraces(1) {
@@ -389,9 +380,6 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             // since Connection.getClientInfo will not provide the username
             "$Tags.DB_USER" jdbcUserNames.get(driver)
             "${Tags.DB_OPERATION}" operation
-            if (addDbmTag) {
-              "$InstrumentationTags.DBM_TRACE_INJECTED" true
-            }
             defaultTags()
           }
         }
@@ -485,7 +473,6 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     runUnderTrace("parent") {
       return statement.executeUpdate() == 0
     }
-    def addDbmTag = dbmTraceInjected()
     assertTraces(1) {
       trace(2) {
         basicSpan(it, "parent")
@@ -504,9 +491,6 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             "$Tags.DB_INSTANCE" dbName.toLowerCase()
             if (username != null) {
               "$Tags.DB_USER" username
-            }
-            if (addDbmTag) {
-              "$InstrumentationTags.DBM_TRACE_INJECTED" true
             }
             "$Tags.DB_OPERATION" operation
             defaultTags()
@@ -582,7 +566,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.DB_USER" username
             }
             "$Tags.DB_OPERATION" operation
-            if (addDbmTag) {
+            if (addDbmTag && !prepareStatement) {
               "$InstrumentationTags.DBM_TRACE_INJECTED" true
             }
             defaultTags()
@@ -752,7 +736,6 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     for (int i = 0; i < numQueries; ++i) {
       res[i] == 3
     }
-    def addDbmTag = dbmTraceInjected()
     assertTraces(5) {
       trace(1) {
         span {
@@ -769,9 +752,6 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             "$Tags.DB_INSTANCE" dbName.toLowerCase()
             "$Tags.DB_USER" "SA"
             "$Tags.DB_OPERATION" "SELECT"
-            if (addDbmTag) {
-              "$InstrumentationTags.DBM_TRACE_INJECTED" true
-            }
             defaultTags()
           }
         }
@@ -791,9 +771,6 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.DB_INSTANCE" dbName.toLowerCase()
               "$Tags.DB_USER" "SA"
               "$Tags.DB_OPERATION" "SELECT"
-              if (addDbmTag) {
-                "$InstrumentationTags.DBM_TRACE_INJECTED" true
-              }
               defaultTags()
             }
           }
