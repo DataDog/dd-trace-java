@@ -107,6 +107,7 @@ nexusPublishing {
       internal {
         nexusUrl = uri("https://artifactual.us1.staging.dog/repository/maven-releases/")
         snapshotRepositoryUrl = uri("https://artifactual.us1.staging.dog/repository/maven-snapshots/")
+        username = "anonymous"
       }
     }
   }
