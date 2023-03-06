@@ -5,7 +5,7 @@ import datadog.trace.core.DDSpanContext;
 
 public class SqlCommentInjector {
 
-  private static final String SAMPLING_PRIORITY = "sampling_priority";
+  protected static final String SAMPLING_PRIORITY = "sampling_priority";
   private static final String SAMPLING_PRIORITY_ACCEPT = String.valueOf(1);
   private static final String SAMPLING_PRIORITY_DROP = String.valueOf(0);
 
