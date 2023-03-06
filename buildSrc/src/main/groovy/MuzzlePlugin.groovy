@@ -163,19 +163,13 @@ class MuzzlePlugin implements Plugin<Project> {
                    |</testsuite>\n""".stripMargin()
   }
 
-  static FileCollection createMuzzleClassPath(Project project, Project bootstrapProject, String muzzleTaskName) {
+  static FileCollection createMuzzleClassPath(Project project, String muzzleTaskName) {
     FileCollection cp = project.files()
     project.getLogger().info("Creating classpath for $muzzleTaskName")
-    // add project jars first so we can test different dd-trace-api versions
     if ('muzzle' == muzzleTaskName) {
       cp += project.configurations.compileClasspath
     } else {
       cp += project.configurations.getByName(muzzleTaskName)
-    }
-    for (SourceSet sourceSet: bootstrapProject.sourceSets) {
-      if (sourceSet.name.startsWith('main')) {
-        cp += sourceSet.runtimeClasspath
-      }
     }
     if (project.getLogger().isInfoEnabled()) {
       cp.forEach { project.getLogger().info("-- $it") }
@@ -544,7 +538,7 @@ abstract class MuzzleTask extends DefaultTask {
       parameters.bootstrapClassPath.setFrom(bootstrapProject.sourceSets.main.runtimeClasspath as FileCollection)
       parameters.toolingClassPath.setFrom(toolingProject.sourceSets.main.runtimeClasspath as FileCollection)
       parameters.instrumentationClassPath.setFrom(instrumentationProject.sourceSets.main.runtimeClasspath as FileCollection)
-      parameters.testApplicationClassPath.setFrom(MuzzlePlugin.createMuzzleClassPath(instrumentationProject, bootstrapProject, name))
+      parameters.testApplicationClassPath.setFrom(MuzzlePlugin.createMuzzleClassPath(instrumentationProject, name))
       if (muzzleDirective) {
         parameters.assertPass.set(muzzleDirective.assertPass)
         parameters.muzzleDirective.set(muzzleDirective.name ?: muzzleDirective.module)
