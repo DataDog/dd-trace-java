@@ -17,10 +17,6 @@ system_test_matrix: &system_test_matrix
   parameters:
     weblog-variant: [ 'spring-boot', 'spring-boot-jetty', 'spring-boot-openliberty', 'spring-boot-3-native', 'jersey-grizzly2', 'resteasy-netty3','ratpack', 'vertx3' ]
 
-system_test_e2e_matrix: &system_test_e2e_matrix
-  parameters:
-    weblog-variant: [ 'spring-boot' ]
-
 agent_integration_tests_modules: &agent_integration_tests_modules "dd-trace-core|communication|internal-api|utils"
 core_modules: &core_modules "dd-java-agent|dd-trace-core|communication|internal-api|telemetry|utils|dd-java-agent/agent-bootstrap|dd-java-agent/agent-installer|dd-java-agent/agent-tooling|dd-java-agent/agent-builder|dd-java-agent/appsec|dd-java-agent/agent-crashtracking"
 instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation|dd-java-agent/agent-tooling|dd-java-agent/agent-installer|dd-java-agent/agent-builder|dd-java-agent/agent-bootstrap|dd-java-agent/appsec|dd-java-agent/testing|dd-trace-core|dd-trace-api|internal-api"
@@ -688,6 +684,22 @@ jobs:
             DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
 
       - run:
+          name: Run APM E2E default tests
+          # Stop the job after 5m to avoid excessive overhead. Will need adjustment as more tests are added.
+          no_output_timeout: 5m
+          command: |
+            cd system-tests
+            DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh APM_TRACING_E2E
+
+      - run:
+          name: Run APM E2E Single Span tests
+          # Stop the job after 5m to avoid excessive overhead. Will need adjustment as more tests are added.
+          no_output_timeout: 5m
+          command: |
+            cd system-tests
+            DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh APM_TRACING_E2E_SINGLE_SPAN
+
+      - run:
           name: Upload data to CI Visibility
           command: |
             cd system-tests
@@ -710,6 +722,14 @@ jobs:
       - store_artifacts:
           path: system-tests/logs
           destination: logs_java_<< parameters.weblog-variant >>_dev.tar.gz
+
+      - store_artifacts:
+          path: system-tests/logs_apm_tracing_e2e
+          destination: logs_java_apm_tracing_e2e_<< parameters.weblog-variant >>_dev.tar.gz
+
+      - store_artifacts:
+          path: system-tests/logs_apm_tracing_e2e_single_span
+          destination: logs_java_apm_tracing_e2e_single_span_<< parameters.weblog-variant >>_dev.tar.gz
 
   parametric-tests:
     machine:
@@ -747,73 +767,6 @@ jobs:
             export CLIENTS_ENABLED=java
             python --version
             ./run.sh
-
-  system-tests-e2e:
-    machine:
-      # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
-      image: ubuntu-2004:current
-    resource_class: large
-    parameters:
-      weblog-variant:
-        type: string
-    steps:
-      - setup_system_tests
-
-      - run:
-          name: Copy jar file to system test binaries folder
-          command: |
-            ls -la ~/dd-trace-java/workspace/dd-java-agent/build/libs
-            cp ~/dd-trace-java/workspace/dd-java-agent/build/libs/*.jar system-tests/binaries/
-
-      - run:
-          name: Build
-          command: |
-            cd system-tests
-            ./build.sh java --weblog-variant << parameters.weblog-variant >> 
-
-      - run:
-          name: Run APM E2E default tests
-          # Stop the job after 5m to avoid excessive overhead. Will need adjustment as more tests are added.
-          no_output_timeout: 5m
-          command: |
-            cd system-tests
-            DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh APM_TRACING_E2E
-
-      - run:
-          name: Run APM E2E Single Span tests
-          # Stop the job after 5m to avoid excessive overhead. Will need adjustment as more tests are added.
-          no_output_timeout: 5m
-          command: |
-            cd system-tests
-            DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh APM_TRACING_E2E_SINGLE_SPAN
-
-      - run:
-          name: Upload data to CI Visibility
-          command: |
-            cd system-tests
-            export DD_API_KEY=$SYSTEM_TESTS_CI_API_KEY
-            export DD_APP_KEY=$SYSTEM_TESTS_CI_APP_KEY
-
-            # Causes conflicts with DD_API_KEY and datadog-ci tool
-            unset DATADOG_API_KEY
-            
-            echo "Uploading tests results to CI Visibility"  
-            utils/scripts/upload_results_CI_visibility.sh dev java-tracer << pipeline.id >>-<< pipeline.number >>-e2e
-
-            if [[ $CIRCLE_BRANCH == "master" ]]; then
-              echo "Updating dashboard from dd-trace-java main branch"
-              utils/scripts/update_dashboard_CI_visibility.sh java-tracer << pipeline.id >>-<< pipeline.number >>-e2e
-            else
-              echo "Skipping CI Visibility dashboard update due to it is not a main branch"
-            fi
-
-      - store_artifacts:
-          path: system-tests/logs_apm_tracing_e2e
-          destination: logs_apm_tracing_e2e_java_<< parameters.weblog-variant >>_dev.tar.gz
-
-      - store_artifacts:
-          path: system-tests/logs_apm_tracing_e2e_single_span
-          destination: logs_apm_tracing_e2e_single_span_java_<< parameters.weblog-variant >>_dev.tar.gz
 
 build_test_jobs: &build_test_jobs
   - build:
@@ -1112,12 +1065,6 @@ build_test_jobs: &build_test_jobs
   - parametric-tests:
       requires:
         - ok_to_test
-
-  - system-tests-e2e:
-      requires:
-        - ok_to_test
-      matrix:
-          <<: *system_test_e2e_matrix
 
   - fan_in:
       requires:
