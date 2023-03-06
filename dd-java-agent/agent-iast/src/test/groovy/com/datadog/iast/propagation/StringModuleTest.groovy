@@ -552,7 +552,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     null      | null
   }
 
-  void 'onStringJoin without span (#delimiter, #elements)'() {
+  void 'onStringJoin without span (#delimiter, #elements)'(CharSequence delimiter, CharSequence[] elements) {
     given:
     final result = String.join(delimiter, elements)
 
@@ -579,7 +579,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     new StringBuilder("-") | [new StringBuilder("123"), new StringBuilder("456")] | 1
   }
 
-  void 'onStringJoin (#delimiter, #elements)'() {
+  void 'onStringJoin (#delimiter, #elements)'(CharSequence delimiter, CharSequence[] elements) {
     given:
     final span = Mock(AgentSpan)
     tracer.activeSpan() >> span
