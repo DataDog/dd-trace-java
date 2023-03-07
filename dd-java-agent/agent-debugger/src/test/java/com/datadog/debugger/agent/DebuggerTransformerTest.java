@@ -52,8 +52,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.joor.Reflect;
-import org.junit.Assert;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -97,7 +97,7 @@ public class DebuggerTransformerTest {
 
     @Override
     public void addSnapshot(Snapshot snapshot) {
-      this.snapshots.add(snapshot);
+      snapshots.add(snapshot);
     }
 
     @Override
@@ -114,7 +114,7 @@ public class DebuggerTransformerTest {
     TrackingClassFileTransformer(String targetClassName, LogProbe probe, byte[][] codeOutput) {
       assertTrue(codeOutput != null && codeOutput.length == 2);
       this.targetClassName = targetClassName;
-      this.delegate =
+      delegate =
           new DebuggerTransformer(
               Config.get(),
               new Configuration(SERVICE_NAME, Collections.singletonList(probe)),
@@ -230,10 +230,10 @@ public class DebuggerTransformerTest {
         ArrayList.class,
         null,
         getClassFileBytes(ArrayList.class));
-    Assert.assertTrue(instrumentedClassFile.exists());
-    Assert.assertTrue(origClassFile.exists());
-    Assert.assertTrue(instrumentedClassFile.delete());
-    Assert.assertTrue(origClassFile.delete());
+    Assertions.assertTrue(instrumentedClassFile.exists());
+    Assertions.assertTrue(origClassFile.exists());
+    Assertions.assertTrue(instrumentedClassFile.delete());
+    Assertions.assertTrue(origClassFile.delete());
   }
 
   @Test
@@ -272,7 +272,7 @@ public class DebuggerTransformerTest {
               probeInfo.clazz,
               null,
               getClassFileBytes(probeInfo.clazz));
-      Assert.assertNotNull(newClassBuffer);
+      Assertions.assertNotNull(newClassBuffer);
     }
     byte[] newClassBuffer =
         debuggerTransformer.transform(
@@ -281,7 +281,7 @@ public class DebuggerTransformerTest {
             HashSet.class,
             null,
             getClassFileBytes(HashSet.class));
-    Assert.assertNull(newClassBuffer);
+    Assertions.assertNull(newClassBuffer);
   }
 
   static class ProbeTestInfo {
@@ -326,7 +326,7 @@ public class DebuggerTransformerTest {
             String.class,
             null,
             getClassFileBytes(String.class));
-    Assert.assertNull(newClassBuffer);
+    Assertions.assertNull(newClassBuffer);
     newClassBuffer =
         debuggerTransformer.transform(
             ClassLoader.getSystemClassLoader(),
@@ -334,7 +334,7 @@ public class DebuggerTransformerTest {
             HashMap.class,
             null,
             getClassFileBytes(HashMap.class));
-    Assert.assertNull(newClassBuffer);
+    Assertions.assertNull(newClassBuffer);
   }
 
   @Test
@@ -360,11 +360,11 @@ public class DebuggerTransformerTest {
             String.class,
             null,
             getClassFileBytes(String.class));
-    Assert.assertNull(newClassBuffer);
-    Assert.assertNotNull(lastResult.get());
-    Assert.assertTrue(lastResult.get().isBlocked());
-    Assert.assertFalse(lastResult.get().isInstalled());
-    Assert.assertEquals("java.lang.String", lastResult.get().getTypeName());
+    Assertions.assertNull(newClassBuffer);
+    Assertions.assertNotNull(lastResult.get());
+    Assertions.assertTrue(lastResult.get().isBlocked());
+    Assertions.assertFalse(lastResult.get().isInstalled());
+    Assertions.assertEquals("java.lang.String", lastResult.get().getTypeName());
   }
 
   @Test
@@ -384,11 +384,11 @@ public class DebuggerTransformerTest {
             null, // classBeingRedefined
             null,
             getClassFileBytes(ArrayList.class));
-    Assert.assertNotNull(newClassBuffer);
-    Assert.assertNotNull(lastResult.get());
-    Assert.assertFalse(lastResult.get().isBlocked());
-    Assert.assertTrue(lastResult.get().isInstalled());
-    Assert.assertEquals("java.util.ArrayList", lastResult.get().getTypeName());
+    Assertions.assertNotNull(newClassBuffer);
+    Assertions.assertNotNull(lastResult.get());
+    Assertions.assertFalse(lastResult.get().isBlocked());
+    Assertions.assertTrue(lastResult.get().isInstalled());
+    Assertions.assertEquals("java.util.ArrayList", lastResult.get().getTypeName());
   }
 
   @ParameterizedTest(
@@ -670,7 +670,7 @@ public class DebuggerTransformerTest {
   }
 
   private static void assertTransformation(byte[] original, byte[] transformed) {
-    Assert.assertNotNull(transformed);
+    Assertions.assertNotNull(transformed);
     String diff = diff(asmify(transformed), asmify(original));
     // make sure the instrumentation actually changed anything
     assertFalse(diff.isEmpty());

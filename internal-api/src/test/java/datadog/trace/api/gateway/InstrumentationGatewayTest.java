@@ -15,8 +15,8 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.assertj.core.api.ThrowableAssert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class InstrumentationGatewayTest {
 
@@ -28,7 +28,7 @@ public class InstrumentationGatewayTest {
   private Callback callback;
   private Events<Object> events;
 
-  @Before
+  @BeforeEach
   public void setUp() {
     gateway = new InstrumentationGateway();
     ss = gateway.getSubscriptionService(RequestContextSlot.APPSEC);
@@ -177,7 +177,7 @@ public class InstrumentationGatewayTest {
     cbp.getCallback(events.responseHeader()).accept(null, null, null);
     ss.registerCallback(events.responseHeaderDone(), callback.function);
     cbp.getCallback(events.responseHeaderDone()).apply(null);
-    assertThat(this.callback.count).isEqualTo(Events.MAX_EVENTS);
+    assertThat(callback.count).isEqualTo(Events.MAX_EVENTS);
   }
 
   @Test
@@ -381,9 +381,9 @@ public class InstrumentationGatewayTest {
     public Callback(RequestContext ctxt, Flow<Void> flow) {
       this.ctxt = ctxt;
       this.flow = flow;
-      this.function =
+      function =
           input -> {
-            this.count++;
+            count++;
             return flow;
           };
     }
@@ -449,7 +449,7 @@ public class InstrumentationGatewayTest {
 
     private final Function<RequestContext, Flow<Void>> function =
         input -> {
-          this.count++;
+          count++;
           throw new IllegalArgumentException();
         };
 

@@ -1,6 +1,7 @@
 package com.datadog.debugger.instrumentation;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.objectweb.asm.Opcodes.AALOAD;
 import static org.objectweb.asm.Opcodes.AASTORE;
 import static org.objectweb.asm.Opcodes.BALOAD;
@@ -19,7 +20,7 @@ import static org.objectweb.asm.Opcodes.SALOAD;
 import static org.objectweb.asm.Opcodes.SASTORE;
 
 import java.util.stream.Stream;
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -84,7 +85,7 @@ class TypesTest {
   @ParameterizedTest
   @MethodSource("provideGetArrayType")
   void testGetArrayType(Class<?> clazz, int opcode) {
-    Assert.assertEquals(Type.getType(clazz), Types.getArrayType(opcode));
+    Assertions.assertEquals(Type.getType(clazz), Types.getArrayType(opcode));
   }
 
   private static Stream<Arguments> provideGetArrayType() {
@@ -110,7 +111,7 @@ class TypesTest {
   @ParameterizedTest
   @MethodSource("provideGetElementType")
   void testGetElementType(Class<?> clazz, int opcode) {
-    Assert.assertEquals(Type.getType(clazz), Types.getElementType(opcode));
+    Assertions.assertEquals(Type.getType(clazz), Types.getElementType(opcode));
   }
 
   private static Stream<Arguments> provideGetElementType() {
@@ -136,7 +137,7 @@ class TypesTest {
   @ParameterizedTest
   @MethodSource("provideGetFrameItemType")
   void testGetFrameItemType(Class<?> clazz, Object opcode) {
-    Assert.assertEquals(Type.getType(clazz), Types.getFrameItemType(opcode));
+    Assertions.assertEquals(Type.getType(clazz), Types.getFrameItemType(opcode));
   }
 
   private static Stream<Arguments> provideGetFrameItemType() {
