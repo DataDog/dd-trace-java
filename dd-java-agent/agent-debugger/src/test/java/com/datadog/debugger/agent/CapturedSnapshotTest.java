@@ -64,6 +64,7 @@ import org.joor.Reflect;
 import org.joor.ReflectException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -117,7 +118,7 @@ public class CapturedSnapshotTest {
     Assertions.assertNotNull(snapshot.getCaptures().getReturn());
     assertCaptureArgs(snapshot.getCaptures().getEntry(), "arg", "java.lang.String", "1");
     assertCaptureArgs(snapshot.getCaptures().getReturn(), "arg", "java.lang.String", "1");
-    Assertions.assertTrue(snapshot.retrieveDuration() > 0);
+    Assertions.assertTrue(snapshot.getDuration() > 0);
   }
 
   @Test
@@ -145,9 +146,7 @@ public class CapturedSnapshotTest {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
-    Assertions.assertEquals(1, listener.snapshots.size());
-    Snapshot snapshot = listener.snapshots.get(0);
-    Assertions.assertEquals(Snapshot.ProbeDetails.UNKNOWN.getId(), snapshot.getProbe().getId());
+    Assertions.assertEquals(0, listener.snapshots.size());
   }
 
   @Test
@@ -309,6 +308,7 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  @Disabled("no more support of line range")
   public void insideSynchronizedBlock() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot02";
     final int LINE_START = 46;
@@ -336,6 +336,7 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  @Disabled("no more support of line range")
   public void outsideSynchronizedBlock() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot02";
     final int LINE_START = 45;
@@ -1408,7 +1409,14 @@ public class CapturedSnapshotTest {
       Collection<LogProbe> logProbes,
       Map<String, InstrumentationResult> instrumentationResults) {
     Assertions.assertEquals(expectedClassName, callingClass.getName());
+    List<LogProbe> logProbeList = new ArrayList<>();
     for (LogProbe probe : logProbes) {
+      logProbeList.add(probe);
+      for (ProbeDefinition def : probe.getAdditionalProbes()) {
+        logProbeList.add((LogProbe) def);
+      }
+    }
+    for (LogProbe probe : logProbeList) {
       if (probe.getId().equals(id)) {
         String typeName = probe.getWhere().getTypeName();
         String methodName = probe.getWhere().getMethodName();

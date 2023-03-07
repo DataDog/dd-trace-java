@@ -26,7 +26,6 @@ import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.MoshiSnapshotHelper;
 import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.squareup.moshi.JsonAdapter;
-import com.squareup.moshi.Moshi;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.Limits;
@@ -98,6 +97,12 @@ public class SnapshotSerializationTest {
             ManagementFactory.getOperatingSystemMXBean());
     context.addFields(
         new Snapshot.CapturedValue[] {normalValuedField, normalNullField, notCapturedField});
+    context.evaluate(
+        PROBE_ID,
+        new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
+        String.class.getTypeName(),
+        -1,
+        Snapshot.MethodLocation.EXIT);
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
     String snapshotRegex =
@@ -222,8 +227,7 @@ public class SnapshotSerializationTest {
                 true,
                 new ProbeCondition(DSL.when(DSL.gt(DSL.ref("^n"), DSL.value(0))), "n > 0"),
                 "",
-                new SnapshotSummaryBuilder(PROBE_LOCATION)),
-            String.class.getTypeName());
+                new SnapshotSummaryBuilder(PROBE_LOCATION)));
     Snapshot.Captures captures = snapshot.getCaptures();
     Snapshot.CapturedContext lineCapturedContext = new Snapshot.CapturedContext();
     lineCapturedContext.addFields(
@@ -716,7 +720,7 @@ public class SnapshotSerializationTest {
   @Test
   public void capturesAdapterNull() {
     MoshiSnapshotHelper.CapturesAdapter capturesAdapter =
-        new MoshiSnapshotHelper.CapturesAdapter(new Moshi.Builder().build(), null);
+        new MoshiSnapshotHelper.CapturesAdapter(MoshiHelper.createMoshiSnapshot(), null);
     Assertions.assertEquals("null", capturesAdapter.toJson(null));
   }
 
@@ -1072,9 +1076,7 @@ public class SnapshotSerializationTest {
 
   private Snapshot createSnapshot() {
     return new Snapshot(
-        Thread.currentThread(),
-        new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION),
-        String.class.getTypeName());
+        Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
   }
 
   private static JsonAdapter<Snapshot> createSnapshotAdapter() {
