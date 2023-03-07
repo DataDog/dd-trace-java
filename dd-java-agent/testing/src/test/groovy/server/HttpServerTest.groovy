@@ -64,11 +64,11 @@ class HttpServerTest extends AgentTestRunner {
       .url("$server.address")
       .get()
       .build()
-    def response = client.newCall(request).execute()
+    def clientResponse = client.newCall(request).execute()
 
     then:
-    response.code() == 404
-    response.body().string().contains("<title>Error 404 </title>")
+    clientResponse.code() == 404
+    clientResponse.body().string().contains("<title>Error 404 </title>")
 
     cleanup:
     server.stop()
@@ -97,20 +97,20 @@ class HttpServerTest extends AgentTestRunner {
     }
 
     when:
-    def request = new Request.Builder()
+    def clientRequest = new Request.Builder()
       .url("$server.address/$path")
 
     if (method == "get") {
-      request."$method"()
+      clientRequest."$method"()
     } else {
-      request."$method"(body())
+      clientRequest."$method"(body())
     }
 
-    def response = client.newCall(request.build()).execute()
+    def clientResponse = client.newCall(clientRequest.build()).execute()
 
     then:
-    response.code() == 200
-    response.body().string().trim() == "/$path response"
+    clientResponse.code() == 200
+    clientResponse.body().string().trim() == "/$path response"
 
     cleanup:
     server.stop()
@@ -154,11 +154,11 @@ class HttpServerTest extends AgentTestRunner {
       request."$method"()
     }
 
-    def response = client.newCall(request.build()).execute()
+    def clientResponse = client.newCall(request.build()).execute()
 
     then:
-    response.code() == code
-    response.body().string().trim() == "$resp"
+    clientResponse.code() == code
+    clientResponse.body().string().trim() == "$resp"
     server.lastRequest.contentType == contentType
     server.lastRequest.text.empty == !hasContent
 
@@ -189,11 +189,11 @@ class HttpServerTest extends AgentTestRunner {
       .header(headerKey, headerValue)
       .build()
 
-    def response = client.newCall(request).execute()
+    def clientResponse = client.newCall(request).execute()
 
     then:
-    response.code() == 200
-    response.body().string().trim() == ""
+    clientResponse.code() == 200
+    clientResponse.body().string().trim() == ""
 
     server.lastRequest.contentType == null
     server.lastRequest.headers.get(headerKey) == headerValue
@@ -245,11 +245,11 @@ class HttpServerTest extends AgentTestRunner {
       .url("$server.address/redirect")
       .get()
       .build()
-    def response = client.newCall(request).execute()
+    def clientResponse = client.newCall(request).execute()
 
     then:
-    response.code() == code
-    response.body().string() == body
+    clientResponse.code() == code
+    clientResponse.body().string() == body
 
     cleanup:
     server.stop()
@@ -276,11 +276,11 @@ class HttpServerTest extends AgentTestRunner {
       .head()
       .build()
 
-    def response = client.newCall(request).execute()
+    def clientResponse = client.newCall(request).execute()
 
     then:
-    response.code() == 200
-    response.body().string().trim() == ""
+    clientResponse.code() == 200
+    clientResponse.body().string().trim() == ""
 
     cleanup:
     server.stop()
@@ -303,11 +303,11 @@ class HttpServerTest extends AgentTestRunner {
       .get()
       .build()
 
-    def response = client.newCall(request).execute()
+    def clientResponse = client.newCall(request).execute()
 
     then:
-    response.code() == 200
-    response.body().string().trim() == "done"
+    clientResponse.code() == 200
+    clientResponse.body().string().trim() == "done"
 
     assertTraces(1) {
       server.distributedRequestTrace(it)
@@ -335,13 +335,13 @@ class HttpServerTest extends AgentTestRunner {
       .get()
       .build()
 
-    def response = runUnderTrace("parent") {
+    def clientResponse = runUnderTrace("parent") {
       client.newCall(request).execute()
     }
 
     then:
-    response.code() == 200
-    response.body().string().trim() == "done"
+    clientResponse.code() == 200
+    clientResponse.body().string().trim() == "done"
 
     assertTraces(1) {
       trace(1) {
@@ -371,11 +371,11 @@ class HttpServerTest extends AgentTestRunner {
       .get()
       .build()
 
-    def response = client.newCall(request).execute()
+    def clientResponse = client.newCall(request).execute()
 
     then:
-    response.code() == 200
-    response.body().string().trim() == "done"
+    clientResponse.code() == 200
+    clientResponse.body().string().trim() == "done"
 
     // parent<->child relation can't be tested because okhttp isnt traced here
     assertTraces(1) {
@@ -404,11 +404,11 @@ class HttpServerTest extends AgentTestRunner {
       .get()
       .build()
 
-    def response = client.newCall(request).execute()
+    def clientResponse = client.newCall(request).execute()
 
     then:
-    response.code() == 500
-    response.message().startsWith("assert !req.orig.handled")
+    clientResponse.code() == 500
+    clientResponse.message().startsWith("assert !req.orig.handled")
 
     cleanup:
     server.stop()
@@ -430,11 +430,11 @@ class HttpServerTest extends AgentTestRunner {
       .get()
       .build()
 
-    def response = client.newCall(request).execute()
+    def clientResponse = client.newCall(request).execute()
 
     then:
-    response.code() == 500
-    response.message().startsWith("assert body != null?")
+    clientResponse.code() == 500
+    clientResponse.message().startsWith("assert body != null?")
 
     cleanup:
     server.stop()

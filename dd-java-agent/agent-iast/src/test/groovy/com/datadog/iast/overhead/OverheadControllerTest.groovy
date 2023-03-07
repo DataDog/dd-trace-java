@@ -10,7 +10,11 @@ import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.AgentTaskScheduler
 import spock.lang.Shared
 
-import java.util.concurrent.*
+import java.util.concurrent.Callable
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
+import java.util.concurrent.Semaphore
 
 class OverheadControllerTest extends DDSpecification {
 
@@ -206,15 +210,15 @@ class OverheadControllerTest extends DDSpecification {
         return results
       } as Callable<Boolean[]>)
     }
-    def results = futures.collect({
+    def futuresResults = futures.collect({
       it.get()
     })
 
     then:
     // At least one request ran.
-    results.flatten().any { it }
+    futuresResults.flatten().any { it }
     // At least one request did not run.
-    results.flatten().any { !it }
+    futuresResults.flatten().any { !it }
     // In the final state, there is no consumed available request.
     overheadController.availableRequests.available() == Config.get().getIastMaxConcurrentRequests()
 
