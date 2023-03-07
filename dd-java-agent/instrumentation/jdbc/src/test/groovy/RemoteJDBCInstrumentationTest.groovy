@@ -5,6 +5,7 @@ import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.testcontainers.containers.MySQLContainer
 import org.testcontainers.containers.PostgreSQLContainer
@@ -191,6 +192,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     TEST_WRITER.waitForTraces(1)
 
     then:
+    def addDbmTag = dbmTraceInjected()
     resultSet.next()
     resultSet.getInt(1) == 3
     assertTraces(1) {
@@ -215,6 +217,9 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             // since Connection.getClientInfo will not provide the username
             "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
             "$Tags.DB_OPERATION" operation
+            if (addDbmTag) {
+              "$InstrumentationTags.DBM_TRACE_INJECTED" true
+            }
             defaultTags()
           }
         }
@@ -426,6 +431,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     TEST_WRITER.waitForTraces(1)
 
     then:
+    def addDbmTag = dbmTraceInjected()
     statement.updateCount == 0
     assertTraces(1) {
       trace(2) {
@@ -449,6 +455,9 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             // since Connection.getClientInfo will not provide the username
             "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
             "${Tags.DB_OPERATION}" operation
+            if (addDbmTag) {
+              "$InstrumentationTags.DBM_TRACE_INJECTED" true
+            }
             defaultTags()
           }
         }
@@ -503,6 +512,8 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
   protected abstract String service(String dbType)
 
   protected abstract String operation(String dbType)
+
+  protected abstract boolean dbmTraceInjected()
 }
 
 class RemoteJDBCInstrumentationV0ForkedTest extends RemoteJDBCInstrumentationTest {
@@ -520,6 +531,11 @@ class RemoteJDBCInstrumentationV0ForkedTest extends RemoteJDBCInstrumentationTes
   @Override
   protected String operation(String dbType) {
     return "${dbType}.query"
+  }
+
+  @Override
+  protected boolean dbmTraceInjected() {
+    return false
   }
 }
 
@@ -540,6 +556,47 @@ class RemoteJDBCInstrumentationV1ForkedTest extends RemoteJDBCInstrumentationTes
   @Override
   protected String service(String dbType) {
     return Config.get().getServiceName()
+  }
+
+  @Override
+  protected String operation(String dbType) {
+    return "${remapDbType(dbType)}.query"
+  }
+
+  @Override
+  protected boolean dbmTraceInjected() {
+    return false
+  }
+}
+
+class RemoteDBMTraceInjectedForkedTest extends RemoteJDBCInstrumentationTest {
+
+  def remapDbType(String dbType) {
+    if ("postgresql" == dbType) {
+      return "postgres"
+    }
+    return dbType
+  }
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.sql.commenter.injection.mode", "full")
+  }
+
+  @Override
+  protected boolean dbmTraceInjected() {
+    return true
+  }
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  protected String service(String dbType) {
+    return Config.get().getServiceName() + "-${remapDbType(dbType)}"
   }
 
   @Override

@@ -4,7 +4,7 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.normalize.SQLNormalizer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import java.util.function.BiFunction;
+import java.util.function.Function;
 
 public final class DBQueryInfo {
 
@@ -12,38 +12,25 @@ public final class DBQueryInfo {
 
   private static final DDCache<String, DBQueryInfo> CACHED_PREPARED_STATEMENTS =
       DDCaches.newFixedSizeCache(512);
-
-  private static final BiFunction<String, Boolean, DBQueryInfo> NORMALIZE = DBQueryInfo::new;
+  private static final Function<String, DBQueryInfo> NORMALIZE = DBQueryInfo::new;
 
   public static DBQueryInfo ofStatement(String sql) {
-    return ofStatement(sql, false);
-  }
-
-  public static DBQueryInfo ofStatement(String sql, boolean stripSQLComment) {
-    return NORMALIZE.apply(sql, stripSQLComment);
+    return NORMALIZE.apply(sql);
   }
 
   public static DBQueryInfo ofPreparedStatement(String sql) {
-    return ofPreparedStatement(sql, false);
-  }
-
-  public static DBQueryInfo ofPreparedStatement(String sql, boolean stripSQLComment) {
     if (sql.length() > MAX_SQL_LENGTH_TO_CACHE) {
-      return NORMALIZE.apply(sql, stripSQLComment);
+      return NORMALIZE.apply(sql);
     } else {
-      // if a prepared statement has a sql comment injected, we strip the comment
-      // so, it does not get added to the span. This also prevents us from obfuscating more
-      // than necessary.
-      return CACHED_PREPARED_STATEMENTS.computeIfAbsent(
-          sql, k -> NORMALIZE.apply(sql, stripSQLComment));
+      return CACHED_PREPARED_STATEMENTS.computeIfAbsent(sql, NORMALIZE);
     }
   }
 
   private final UTF8BytesString operation;
   private final UTF8BytesString sql;
 
-  public DBQueryInfo(String sql, boolean stripSQLComment) {
-    this.sql = SQLNormalizer.normalize(sql, stripSQLComment);
+  public DBQueryInfo(String sql) {
+    this.sql = SQLNormalizer.normalize(sql);
     this.operation = UTF8BytesString.create(extractOperation(this.sql));
   }
 
@@ -60,16 +47,39 @@ public final class DBQueryInfo {
       return null;
     }
     int start = 0;
+    boolean insideComment = false;
     for (int i = 0; i < sql.length(); ++i) {
-      if (Character.isAlphabetic(sql.charAt(i))) {
+      char c = sql.charAt(i);
+      if (c == '/' && i + 1 < sql.length() && sql.charAt(i + 1) == '*') {
+        insideComment = true;
+        i++;
+        continue;
+      }
+      if (c == '*' && i + 1 < sql.length() && sql.charAt(i + 1) == '/') {
+        insideComment = false;
+        i++;
+        continue;
+      }
+      if (!insideComment && Character.isAlphabetic(c)) {
         start = i;
         break;
       }
     }
+
     int firstWhitespace = -1;
     for (int i = start; i < sql.length(); ++i) {
       char c = sql.charAt(i);
-      if (Character.isWhitespace(c)) {
+      if (c == '/' && i + 1 < sql.length() && sql.charAt(i + 1) == '*') {
+        insideComment = true;
+        i++;
+        continue;
+      }
+      if (c == '*' && i + 1 < sql.length() && sql.charAt(i + 1) == '/') {
+        insideComment = false;
+        i++;
+        continue;
+      }
+      if (!insideComment && Character.isWhitespace(c)) {
         firstWhitespace = i;
         break;
       }
