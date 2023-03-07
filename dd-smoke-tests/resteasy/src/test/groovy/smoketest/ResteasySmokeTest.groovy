@@ -8,7 +8,7 @@ import spock.lang.IgnoreIf
 @IgnoreIf({
   System.getProperty("java.vendor").contains("IBM") && System.getProperty("java.version").contains("1.8.")
 })
-class TestUndertow extends AbstractServerSmokeTest {
+class ResteasySmokeTest extends AbstractServerSmokeTest {
 
 
   @Override
@@ -29,8 +29,6 @@ class TestUndertow extends AbstractServerSmokeTest {
       withSystemProperty(datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED, true),
       withSystemProperty(datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED, false)
     ])
-    //command.add("-Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=8000")
-    //command.add("-Xdebug")
     if (Platform.isJavaVersionAtLeast(17)) {
       command.addAll((String[]) ["--add-opens", "java.base/java.lang=ALL-UNNAMED"])
     }
