@@ -57,7 +57,7 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
   public static class PreparedStatementAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.This Statement statement) {
+    public static AgentScope onEnter(@Advice.This final Statement statement) {
       int depth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);
       if (depth > 0) {
         return null;

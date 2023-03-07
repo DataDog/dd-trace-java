@@ -11,6 +11,7 @@ import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.SQL_COMMENT_INJECTION_FULL;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.SQL_COMMENT_INJECTION_MODE;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.SQL_COMMENT_INJECTION_STATIC;
 import static datadog.trace.instrumentation.jdbc.SQLCommentInjectorAdaptor.SETTER;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -61,7 +62,6 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
     return new String[] {
       packageName + ".JDBCDecorator",
       packageName + ".SQLCommenter",
-      packageName + ".SQLCommenter$Builder",
       packageName + ".SQLCommentInjectorAdaptor",
     };
   }
@@ -77,7 +77,7 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
         @Advice.Argument(value = 0, readOnly = false) String sql,
-        @Advice.This Statement statement) {
+        @Advice.This final Statement statement) {
       // TODO consider matching known non-wrapper implementations to avoid this check
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);
       if (callDepth > 0) {
@@ -89,22 +89,30 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
         DECORATE.afterStart(span);
         DECORATE.onConnection(
             span, connection, InstrumentationContext.get(Connection.class, DBInfo.class));
-        if (span != null && DECORATE.injectSQLComment()) {
-          SQLCommenter.Builder carrier =
-              SQLCommenter.newBuilder()
-                  .withInjectionMode(SQL_COMMENT_INJECTION_MODE)
-                  .withSqlInput(sql)
-                  .withDbService(span.getServiceName());
-          if (SQL_COMMENT_INJECTION_MODE.equals(SQL_COMMENT_INJECTION_FULL)) {
+        final String copy = sql;
+        if (span != null && JDBCDecorator.injectSQLComment()) {
+          if (SQL_COMMENT_INJECTION_MODE.equals(SQL_COMMENT_INJECTION_STATIC)) {
+            SQLCommenter carrier =
+                new SQLCommenter(SQL_COMMENT_INJECTION_STATIC, sql, span.getServiceName());
+            carrier.inject();
+            sql = carrier.getCommentedSQL();
+          } else if (SQL_COMMENT_INJECTION_MODE.equals(SQL_COMMENT_INJECTION_FULL)) {
+            SQLCommenter carrier =
+                new SQLCommenter(
+                    SQL_COMMENT_INJECTION_FULL,
+                    sql,
+                    span.getServiceName(),
+                    span.getTraceId(),
+                    span.getSpanId());
             // forces a sampling decision & sets the priority on the carrier
             propagate().inject(span, carrier, SETTER, TracePropagationStyle.SQL_COMMENT);
-            carrier.withTraceId(span.getTraceId()).withSpanId(span.getSpanId());
+            carrier.inject();
+            sql = carrier.getCommentedSQL();
             // set the dbm trace injected tag on the span
             span.setTag(DBM_TRACE_INJECTED, true);
           }
-          sql = carrier.build().getCommentedSQL();
         }
-        DECORATE.onStatement(span, DBQueryInfo.ofStatement(sql, DECORATE.injectSQLComment()));
+        DECORATE.onStatement(span, DBQueryInfo.ofStatement(copy));
         return activateSpan(span);
       } catch (SQLException e) {
         // if we can't get the connection for any reason

@@ -184,7 +184,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final HttpCodec.Injector injector;
 
   private final Map<TracePropagationStyle, HttpCodec.Injector> injectors;
-
   private final HttpCodec.Extractor extractor;
 
   private final InstrumentationGateway instrumentationGateway;

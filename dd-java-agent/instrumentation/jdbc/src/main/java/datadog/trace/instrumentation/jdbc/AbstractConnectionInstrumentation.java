@@ -3,8 +3,6 @@ package datadog.trace.instrumentation.jdbc;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.SQL_COMMENT_INJECTION_STATIC;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logQueryInfoInjection;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
@@ -13,7 +11,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -36,8 +33,6 @@ public abstract class AbstractConnectionInstrumentation extends Instrumenter.Tra
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".JDBCDecorator",
-      packageName + ".SQLCommenter",
-      packageName + ".SQLCommenter$Builder",
     };
   }
 
@@ -53,31 +48,15 @@ public abstract class AbstractConnectionInstrumentation extends Instrumenter.Tra
 
   public static class ConnectionPrepareAdvice {
 
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(
-        @Advice.This Connection connection,
-        @Advice.Argument(value = 0, readOnly = false) String sql) {
-      if (DECORATE.injectSQLComment()) {
-        final DBInfo dbInfo = DECORATE.parseDBInfoFromConnection(connection);
-        String dbService = DECORATE.dbService(dbInfo);
-        SQLCommenter.Builder carrier =
-            SQLCommenter.newBuilder()
-                .withInjectionMode(SQL_COMMENT_INJECTION_STATIC)
-                .withSqlInput(sql)
-                .withDbService(dbService);
-        sql = carrier.build().getCommentedSQL();
-      }
-    }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addDBInfo(
         @Advice.This Connection connection,
-        @Advice.Argument(value = 0) final String sql,
+        @Advice.Argument(0) final String sql,
         @Advice.Return final PreparedStatement statement) {
       ContextStore<Statement, DBQueryInfo> contextStore =
           InstrumentationContext.get(Statement.class, DBQueryInfo.class);
       if (null == contextStore.get(statement)) {
-        DBQueryInfo info = DBQueryInfo.ofPreparedStatement(sql, DECORATE.injectSQLComment());
+        DBQueryInfo info = DBQueryInfo.ofPreparedStatement(sql);
         contextStore.put(statement, info);
         logQueryInfoInjection(connection, statement, info);
       }
