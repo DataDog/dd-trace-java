@@ -14,9 +14,7 @@ def testTimeoutDuration = Duration.of(9, ChronoUnit.MINUTES)
 
 // Go through the Test tasks and configure them
 tasks.withType(Test).configureEach {
-  if (project.findProperty("enableJunitPlatform") == true) {
-    useJUnitPlatform()
-  }
+  useJUnitPlatform()
 
   // All tests must complete within 15 minutes.
   // This value is quite big because with lower values (3 mins) we were experiencing large number of false positives
@@ -68,13 +66,11 @@ tasks.withType(Test).configureEach {
 project.afterEvaluate {
   tasks.withType(Test).configureEach {
     // JUnit 5 support
-    if (project.findProperty("enableJunitPlatform") == true) {
-      useJUnitPlatform {
-        if (project.rootProject.hasProperty("skipFlakyTests")) {
-          excludeTags "flaky"
-        } else if (project.rootProject.hasProperty("runFlakyTests")) {
-          includeTags "flaky"
-        }
+    testFramework {
+      if (project.rootProject.hasProperty("skipFlakyTests")) {
+        excludeTags "flaky"
+      } else if (project.rootProject.hasProperty("runFlakyTests")) {
+        includeTags "flaky"
       }
     }
 

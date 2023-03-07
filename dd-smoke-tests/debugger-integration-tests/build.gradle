@@ -2,10 +2,6 @@ plugins {
   id "com.github.johnrengelman.shadow"
 }
 
-ext {
-  enableJunitPlatform = true
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 
 description = 'Debugger Integration Tests.'
