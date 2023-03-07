@@ -69,6 +69,7 @@
 1 com.jprofiler.*
 1 com.lowagie.*
 1 com.mchange.*
+1 com.mongodb.*
 1 com.mysql.*
 1 com.neo4j.*
 1 com.netscape.*
@@ -190,6 +191,7 @@
 1 org.xnio.*
 1 org.yaml.*
 1 reactor.*
+1 software.amazon.awssdk.*
 1 springfox.*
 1 tech.jhipster.*
 1 weblogic.*
@@ -197,6 +199,6 @@
 
 # --------- testing ----------------
 
+1 org.gradle.*
 1 org.spockframework.*
 1 worker.org.gradle.*
-1 org.gradle.*
