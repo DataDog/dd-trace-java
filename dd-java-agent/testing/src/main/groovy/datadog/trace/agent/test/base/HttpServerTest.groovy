@@ -1449,17 +1449,56 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
+
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4681", suites = ["GrizzlyAsyncTest", "GrizzlyTest"])
+  def 'test blocking of request with redirect response'() {
+    setup:
+    assumeTrue(testBlocking())
+
+    def request = request(SUCCESS, 'GET', null)
+      .addHeader(IG_BLOCK_HEADER, 'none').build()
+    def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+
+    expect:
+    response.code() == 301
+    response.header('location') == 'https://www.google.com/'
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+    def trace = TEST_WRITER.get(0)
+
+    then:
+    trace.size() == 1
+    trace[0].tags['http.status_code'] == 301
+
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
+  }
+
   def 'user blocking'() {
     setup:
+    assumeTrue(testUserBlocking())
     BlockingService origBlockingService = Blocking.SERVICE
     BlockingService bs = new BlockingService() {
         @Override
         BlockingDetails shouldBlockUser(@Nonnull String userId) {
-          userId == 'user-to-block' ? new BlockingDetails(403, BlockingContentType.JSON) : null
+          userId == 'user-to-block' ?
+            new BlockingDetails(403, BlockingContentType.JSON, ['X-Header': 'X-Header-Value']) :
+            null
         }
 
         @Override
-        boolean tryCommitBlockingResponse(int statusCode, @Nonnull BlockingContentType type) {
+        boolean tryCommitBlockingResponse(int statusCode, @Nonnull BlockingContentType type,
+                                          @Nonnull Map<String, String> extraHeaders) {
           RequestContext reqCtx = AgentTracer.get().activeSpan().requestContext
           if (reqCtx == null) {
             return false
@@ -1469,10 +1508,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           if (blockResponseFunction == null) {
             throw new UnsupportedOperationException("Do not know how to commit blocking response for this server")
           }
-          blockResponseFunction.tryCommitBlockingResponse(statusCode, type)
+          blockResponseFunction.tryCommitBlockingResponse(statusCode, type, extraHeaders)
         }
       }
-    assumeTrue(testUserBlocking())
     Blocking.blockingService = bs
 
     def request = request(USER_BLOCK, 'GET', null)
@@ -1483,6 +1521,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     expect:
     response.code() == USER_BLOCK.status
     response.header('Content-type') =~ /(?i)\Aapplication\/json(?:;\s?charset=utf-8)?\z/
+    response.header('X-Header') == 'X-Header-Value'
     response.body().charStream().text.contains('"title": "You\'ve been blocked"')
 
     when:
@@ -1683,7 +1722,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         context.doneHeaderValue = stringOrEmpty(context.doneHeaderValue) + context.matchingHeaderValue
       }
 
-      if (context.blockingContentType) {
+      if (context.blockingContentType && context.blockingContentType != 'none') {
         new Flow.ResultFlow<Void>(null) {
             @Override
             Flow.Action getAction() {
@@ -1691,6 +1730,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
                 BlockingContentType.valueOf(context.blockingContentType.toUpperCase(Locale.ROOT)))
             }
           }
+      } else if (context.blockingContentType && context.blockingContentType == 'none') {
+        new Flow.ResultFlow<Void>(null) {
+          @Override
+          Flow.Action getAction() {
+            Flow.Action.RequestBlockingAction.forRedirect(301, 'https://www.google.com/')
+          }
+        }
       } else {
         Flow.ResultFlow.empty()
       }

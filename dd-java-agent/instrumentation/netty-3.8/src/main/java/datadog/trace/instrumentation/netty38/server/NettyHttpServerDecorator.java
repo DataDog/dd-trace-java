@@ -14,6 +14,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
+import java.util.Map;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandler;
 import org.jboss.netty.channel.ChannelHandlerContext;
@@ -118,7 +119,8 @@ public class NettyHttpServerDecorator
     }
 
     @Override
-    public boolean tryCommitBlockingResponse(int statusCode, BlockingContentType templateType) {
+    public boolean tryCommitBlockingResponse(
+        int statusCode, BlockingContentType templateType, Map<String, String> extraHeaders) {
       ChannelHandler handlerBefore = pipeline.get(HttpServerTracingHandler.class);
       if (handlerBefore == null) {
         handlerBefore = pipeline.get(HttpServerRequestTracingHandler.class);
@@ -133,7 +135,7 @@ public class NettyHttpServerDecorator
         pipeline.addAfter(
             handlerBefore.getClass().getName(),
             "blocking_handler",
-            new BlockingResponseHandler(statusCode, templateType));
+            new BlockingResponseHandler(statusCode, templateType, extraHeaders));
         pipeline.addBefore(
             "blocking_handler", "before_blocking_handler", new SimpleChannelUpstreamHandler());
       } catch (RuntimeException rte) {

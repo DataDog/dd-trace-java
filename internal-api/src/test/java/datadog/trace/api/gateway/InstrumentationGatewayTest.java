@@ -10,6 +10,7 @@ import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -136,6 +137,22 @@ public class InstrumentationGatewayTest {
     assertThat(rba.isBlocking()).isTrue();
     assertThat(rba.getStatusCode()).isEqualTo(400);
     assertThat(rba.getBlockingContentType()).isEqualTo(BlockingContentType.HTML);
+
+    rba =
+        new Flow.Action.RequestBlockingAction(
+            400,
+            BlockingContentType.HTML,
+            Collections.singletonMap("Location", "https://www.google.com/"));
+    assertThat(rba.isBlocking()).isTrue();
+    assertThat(rba.getStatusCode()).isEqualTo(400);
+    assertThat(rba.getBlockingContentType()).isEqualTo(BlockingContentType.HTML);
+    assertThat(rba.getExtraHeaders().get("Location")).isEqualTo("https://www.google.com/");
+
+    rba = Flow.Action.RequestBlockingAction.forRedirect(301, "https://www.google.com/");
+    assertThat(rba.isBlocking()).isTrue();
+    assertThat(rba.getStatusCode()).isEqualTo(301);
+    assertThat(rba.getBlockingContentType()).isEqualTo(BlockingContentType.NONE);
+    assertThat(rba.getExtraHeaders().get("Location")).isEqualTo("https://www.google.com/");
   }
 
   @Test
