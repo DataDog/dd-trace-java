@@ -169,7 +169,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return super.onConnection(span, dbInfo);
   }
 
-  public DBInfo parseDBInfoFromConnection(final Connection connection) {
+  public static DBInfo parseDBInfoFromConnection(final Connection connection) {
     DBInfo dbInfo;
     try {
       final DatabaseMetaData metaData = connection.getMetaData();
@@ -209,7 +209,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   /** For customers who elect to enable SQL comment injection */
-  public boolean injectSQLComment() {
+  public static boolean injectSQLComment() {
     return SQL_COMMENT_INJECTION_MODE.equals(SQL_COMMENT_INJECTION_FULL)
         || SQL_COMMENT_INJECTION_MODE.equals(SQL_COMMENT_INJECTION_STATIC);
   }
