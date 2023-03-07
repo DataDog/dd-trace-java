@@ -11,7 +11,7 @@ public class HeaderParamInjectorInstrumentation extends Instrumenter.Iast
     implements Instrumenter.ForSingleType {
 
   public HeaderParamInjectorInstrumentation() {
-    super("Header Value Injector for RestEasy");
+    super("resteasy");
   }
 
   @Override
