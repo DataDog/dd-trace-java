@@ -16,6 +16,8 @@ final class AntPatternPathNormalizer extends PathNormalizer {
   /** Used to preserve original value as is when it's mapped to this value. */
   private static final String KEEP_AS_IS = "*";
 
+  private static final String ADD_TRAILING_SLASH = "*/";
+
   private final Map<String, String> resourceNameMatchers;
   private final AntPathMatcher matcher = new AntPathMatcher();
 
@@ -26,10 +28,16 @@ final class AntPatternPathNormalizer extends PathNormalizer {
         public String apply(String path) {
           for (Map.Entry<String, String> resourceNameMatcher : resourceNameMatchers.entrySet()) {
             if (matcher.match(resourceNameMatcher.getKey(), path)) {
-              if (KEEP_AS_IS.equals(resourceNameMatcher.getValue())) {
+              String value = resourceNameMatcher.getValue();
+              if (KEEP_AS_IS.equals(value)) {
                 return path;
+              } else if (ADD_TRAILING_SLASH.equals(value)) {
+                if (path.endsWith("/")) {
+                  return path;
+                }
+                return path + "/";
               }
-              return resourceNameMatcher.getValue();
+              return value;
             }
           }
           return null;

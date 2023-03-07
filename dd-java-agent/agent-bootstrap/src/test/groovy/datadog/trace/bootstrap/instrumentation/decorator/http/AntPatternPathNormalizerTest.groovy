@@ -111,4 +111,24 @@ class AntPatternPathNormalizerTest extends DDSpecification {
     "/test/foo/bar/baz.html" | "/test/foo/bar/baz.html"
     "/dev/foo/bar/baz.html"  | "dev"
   }
+
+  def "add trailing slash"() {
+    given:
+    def matchers = [
+      "/test/**": "*/",
+    ]
+    AntPatternPathNormalizer normalizer = new AntPatternPathNormalizer(matchers)
+
+    when:
+    String result = normalizer.normalize(path)
+
+    then:
+    result == normalizedPath
+
+    where:
+    path         | normalizedPath
+    "/test/foo/" | "/test/foo/"
+    "/test/foo"  | "/test/foo/"
+    "/dev/foo"   | null
+  }
 }
