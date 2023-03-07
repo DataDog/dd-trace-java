@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.TestExecutionResult;
@@ -208,6 +209,10 @@ public class TracingListener implements TestExecutionListener {
   private String getVersions(final TestPlan testPlan) {
     StringBuilder versions = new StringBuilder();
     for (TestIdentifier root : testPlan.getRoots()) {
+      Set<TestIdentifier> rootChildren = testPlan.getChildren(root);
+      if (rootChildren.isEmpty()) {
+        continue;
+      }
       String version = getVersion(root);
       if (version != null) {
         if (versions.length() > 0) {
