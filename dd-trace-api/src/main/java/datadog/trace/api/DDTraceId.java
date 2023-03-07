@@ -197,6 +197,39 @@ public class DDTraceId {
   }
 
   /**
+   * Returns the zero padded hex representation, in lower case, of the unsigned 64 bit id or the
+   * original. The size will be rounded up to 16 or 32 characters. The hex {@code String} will NOT
+   * be cached.
+   *
+   * @param size the size in characters of the 0 padded String (rounded up to 16 or 32)
+   * @return zero padded hex String
+   */
+  public String toHexStringPaddedOrOriginal(int size) {
+    if (size > 16) {
+      size = 32;
+    } else if (size < 16) {
+      size = 16;
+    }
+    String h = this.hex;
+    if (h == null) {
+      h = DDId.toHexStringPadded(this.id, size);
+    }
+    int len = h.length();
+    if (len == size) {
+      return h;
+    } else if (len > size) {
+      return h.substring((len - 1) - size, len);
+    } else {
+      StringBuilder sb = new StringBuilder(size);
+      for (int i = len; i < size; i++) {
+        sb.append('0');
+      }
+      sb.append(h);
+      return sb.toString();
+    }
+  }
+
+  /**
    * Returns the id as a long representing the bits of the unsigned 64 bit id. This means that
    * values larger than Long.MAX_VALUE will be represented as negative numbers.
    *

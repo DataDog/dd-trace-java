@@ -1254,7 +1254,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final Map<String, String> baggage;
       final PendingTrace parentTrace;
       final int samplingPriority;
-      final String origin;
+      final CharSequence origin;
       final Map<String, String> coreTags;
       final Map<String, ?> rootSpanTags;
 
