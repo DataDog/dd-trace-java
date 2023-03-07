@@ -11,7 +11,7 @@ public class PathParamInjectorInstrumentation extends Instrumenter.Iast
     implements Instrumenter.ForSingleType {
 
   public PathParamInjectorInstrumentation() {
-    super("Path param Value Injector for RestEasy");
+    super("resteasy");
   }
 
   @Override
