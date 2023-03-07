@@ -4,6 +4,7 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LineNumberNode;
 import org.objectweb.asm.tree.LocalVariableNode;
@@ -22,7 +23,6 @@ public class SymbolExtractor {
   public SymbolExtractor(String classFilePath, byte[] classFileBuffer) {
     ClassNode classNode = parseClassFile(classFilePath, classFileBuffer);
     this.classExtraction = extractScopes(classNode);
-    System.out.println();
   }
 
   private ClassExtraction extractScopes(ClassNode classNode) {
@@ -32,7 +32,14 @@ public class SymbolExtractor {
       MethodExtraction methodExtraction = new MethodExtraction(method.name, scopes);
       methods.add(methodExtraction);
     }
-    return new ClassExtraction(classNode.name, classNode.sourceFile, methods);
+    int classStartLine = methods.get(0).scopes.get(0).startLine;
+    MethodExtraction lastMethod = methods.get(methods.size() - 1);
+    int classEndLine = lastMethod.scopes.get(lastMethod.scopes.size() - 1).endLine;
+    List<Variable> fields = new ArrayList<>();
+    for (FieldNode fieldNode : classNode.fields) {
+      fields.add(new Variable(fieldNode.name, 0));
+    }
+    return new ClassExtraction(classNode.name, classNode.sourceFile, classStartLine, classEndLine, fields, methods);
   }
 
   private List<Block> extractScopesFromVariables(MethodNode methodNode) {
@@ -165,13 +172,20 @@ public class SymbolExtractor {
 
     private final String sourcePath;
 
-    private final int startLine = 1;
+    private final int startLine;
+
+    private final int endLine;
+
+    private final List<Variable> fields;
 
     private final List<MethodExtraction> methods;
 
-    private ClassExtraction(String className, String sourcePath, List<MethodExtraction> methods) {
+    private ClassExtraction(String className, String sourcePath, int startLine, int endLine, List<Variable> fields, List<MethodExtraction> methods) {
       this.className = className;
       this.sourcePath = sourcePath;
+      this.startLine = startLine;
+      this.endLine = endLine;
+      this.fields = fields;
       this.methods = methods;
     }
 

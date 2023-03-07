@@ -11,10 +11,14 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.security.ProtectionDomain;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class SymbolExtractionTransformer implements ClassFileTransformer {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SymbolExtractionTransformer.class);
+
+  private final List<SymbolExtractor> classExtractions = new CopyOnWriteArrayList<>();
 
   public SymbolExtractionTransformer() {
   }
@@ -27,12 +31,17 @@ public class SymbolExtractionTransformer implements ClassFileTransformer {
       ProtectionDomain protectionDomain,
       byte[] classfileBuffer
   ) {
-    if (className.contains("Oskar")) {
+//    if (className.contains("Oskar")) {
       dumpOriginalClassFile(className, classfileBuffer);
       SymbolExtractor symbolExtractor = new SymbolExtractor(className, classfileBuffer);
-      dump(symbolExtractor.getClassExtraction());
-    }
+      classExtractions.add(symbolExtractor);
+//      dump(symbolExtractor.getClassExtraction());
+//    }
     return null;
+  }
+
+  public List<SymbolExtractor> getClassExtractions() {
+    return classExtractions;
   }
 
   private void dump(SymbolExtractor.ClassExtraction classExtraction) {

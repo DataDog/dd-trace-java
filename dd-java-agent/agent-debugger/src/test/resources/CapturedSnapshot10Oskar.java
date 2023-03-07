@@ -1,12 +1,14 @@
-import java.util.function.Supplier;
-
-public class CapturedSnapshot09Oskar {
+public class CapturedSnapshot10Oskar {
   public static int main(String arg) {
-    int outside = 12;
-    Supplier<Integer> lambda = () -> {
-      int var1 = 1;
-      return var1 + outside;
-    };
-    return lambda.get();
+    Inner winner = new Inner();
+    return winner.addTo(12);
+  }
+
+  static class Inner {
+    private final int field1 = 1;
+    public int addTo(int arg) {
+      int var1 = 2;
+      return var1 + arg;
+    }
   }
 }

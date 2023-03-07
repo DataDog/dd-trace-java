@@ -124,16 +124,20 @@ public class CapturedSnapshotTest {
   @Test
   public void oskarTest() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01Oskar";
-    instr.addTransformer(new SymbolExtractionTransformer());
+    SymbolExtractionTransformer transformer = new SymbolExtractionTransformer();
+    instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
+    System.out.println();
   }
 
   @Test
   public void oskarTest2() throws IOException, URISyntaxException {
-    instr.addTransformer(new SymbolExtractionTransformer());
+    SymbolExtractionTransformer transformer = new SymbolExtractionTransformer();
+    instr.addTransformer(transformer);
     Class<?> testClass2 = compileAndLoadClass("CapturedSnapshot02Oskar");
     Reflect.on(testClass2).call("main", "1").get();
+    System.out.println();
   }
 
   @Test
@@ -145,9 +149,11 @@ public class CapturedSnapshotTest {
 
   @Test
   public void oskarTest4() throws IOException, URISyntaxException {
-    instr.addTransformer(new SymbolExtractionTransformer());
+    SymbolExtractionTransformer transformer = new SymbolExtractionTransformer();
+    instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass("CapturedSnapshot04Oskar");
     int result = Reflect.on(testClass).call("main", "1").get();
+    System.out.println();
   }
 
   @Test
@@ -159,9 +165,11 @@ public class CapturedSnapshotTest {
 
   @Test
   public void oskarTest6() throws IOException, URISyntaxException {
-    instr.addTransformer(new SymbolExtractionTransformer());
+    SymbolExtractionTransformer transformer = new SymbolExtractionTransformer();
+    instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass("CapturedSnapshot06Oskar");
     int result = Reflect.on(testClass).call("main", "1").get();
+    System.out.println();
   }
 
   @Test
@@ -180,9 +188,38 @@ public class CapturedSnapshotTest {
 
   @Test
   public void oskarTest9() throws IOException, URISyntaxException {
-    instr.addTransformer(new SymbolExtractionTransformer());
+    SymbolExtractionTransformer transformer = new SymbolExtractionTransformer();
+    instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass("CapturedSnapshot09Oskar");
     int result = Reflect.on(testClass).call("main", "1").get();
+    System.out.println();
+  }
+
+  @Test
+  public void oskarTest10() throws IOException, URISyntaxException {
+    SymbolExtractionTransformer transformer = new SymbolExtractionTransformer();
+    instr.addTransformer(transformer);
+    Class<?> testClass = compileAndLoadClass("CapturedSnapshot10Oskar");
+    int result = Reflect.on(testClass).call("main", "1").get();
+    System.out.println();
+  }
+
+  @Test
+  public void oskarTest11() throws IOException, URISyntaxException {
+    SymbolExtractionTransformer transformer = new SymbolExtractionTransformer();
+    instr.addTransformer(transformer);
+    Class<?> testClass = compileAndLoadClass("CapturedSnapshot11Oskar");
+    int result = Reflect.on(testClass).call("main", 1).get();
+    System.out.println();
+  }
+
+  @Test
+  public void oskarTest12() throws IOException, URISyntaxException {
+    SymbolExtractionTransformer transformer = new SymbolExtractionTransformer();
+    instr.addTransformer(transformer);
+    Class<?> testClass = compileAndLoadClass("CapturedSnapshot12Oskar");
+    int result = Reflect.on(testClass).call("main", 1).get();
+    System.out.println();
   }
 
   @Test
