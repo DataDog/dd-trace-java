@@ -11,6 +11,7 @@ import datadog.trace.api.iast.sink.SqlInjectionModule;
 @CallSite(spi = IastAdvice.class)
 public class IastStatementCallSite {
 
+  @CallSite.Before("void java.sql.Statement.addBatch(java.lang.String)")
   @CallSite.Before("java.sql.ResultSet java.sql.Statement.executeQuery(java.lang.String)")
   @CallSite.Before("int java.sql.Statement.executeUpdate(java.lang.String)")
   @CallSite.Before("boolean java.sql.Statement.execute(java.lang.String)")

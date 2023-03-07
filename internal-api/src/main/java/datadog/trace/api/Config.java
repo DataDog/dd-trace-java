@@ -39,10 +39,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DEBUG_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DEDUPLICATION_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONCURRENT_REQUESTS;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REQUEST_SAMPLING;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_VULNERABILITIES_PER_REQUEST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
@@ -147,11 +143,8 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGAT
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED;
-import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED;
-import static datadog.trace.api.config.IastConfig.IAST_MAX_CONCURRENT_REQUESTS;
-import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING;
+import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE;
 import static datadog.trace.api.config.IastConfig.IAST_TELEMETRY_VERBOSITY;
-import static datadog.trace.api.config.IastConfig.IAST_VULNERABILITIES_PER_REQUEST;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_HASH_ALGORITHMS;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD;
@@ -298,6 +291,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA;
 import static datadog.trace.api.config.TracerConfig.TRACE_STRICT_WRITES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
+import static datadog.trace.api.iast.IastDetectionMode.DEFAULT;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
@@ -305,6 +299,7 @@ import static datadog.trace.util.Strings.toEnvVar;
 
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TracerConfig;
+import datadog.trace.api.iast.IastDetectionMode;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
@@ -525,6 +520,7 @@ public class Config {
   private final String appSecHttpBlockedTemplateHtml;
   private final String appSecHttpBlockedTemplateJson;
 
+  private final IastDetectionMode iastDetectionMode;
   private final int iastMaxConcurrentRequests;
   private final int iastVulnerabilitiesPerRequest;
   private final float iastRequestSampling;
@@ -1199,14 +1195,13 @@ public class Config {
 
     iastDebugEnabled = configProvider.getBoolean(IAST_DEBUG_ENABLED, DEFAULT_IAST_DEBUG_ENABLED);
 
-    iastMaxConcurrentRequests =
-        configProvider.getInteger(
-            IAST_MAX_CONCURRENT_REQUESTS, DEFAULT_IAST_MAX_CONCURRENT_REQUESTS);
+    iastDetectionMode =
+        configProvider.getEnum(IAST_DETECTION_MODE, IastDetectionMode.class, DEFAULT);
+    iastMaxConcurrentRequests = iastDetectionMode.getIastMaxConcurrentRequests(configProvider);
     iastVulnerabilitiesPerRequest =
-        configProvider.getInteger(
-            IAST_VULNERABILITIES_PER_REQUEST, DEFAULT_IAST_VULNERABILITIES_PER_REQUEST);
-    iastRequestSampling =
-        configProvider.getFloat(IAST_REQUEST_SAMPLING, DEFAULT_IAST_REQUEST_SAMPLING);
+        iastDetectionMode.getIastVulnerabilitiesPerRequest(configProvider);
+    iastRequestSampling = iastDetectionMode.getIastRequestSampling(configProvider);
+    iastDeduplicationEnabled = iastDetectionMode.isIastDeduplicationEnabled(configProvider);
     iastWeakHashAlgorithms =
         tryMakeImmutableSet(
             configProvider.getSet(IAST_WEAK_HASH_ALGORITHMS, DEFAULT_IAST_WEAK_HASH_ALGORITHMS));
@@ -1214,8 +1209,6 @@ public class Config {
         getPattern(
             DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS,
             configProvider.getString(IAST_WEAK_CIPHER_ALGORITHMS));
-    iastDeduplicationEnabled =
-        configProvider.getBoolean(IAST_DEDUPLICATION_ENABLED, DEFAULT_IAST_DEDUPLICATION_ENABLED);
     iastTelemetryVerbosity =
         configProvider.getEnum(IAST_TELEMETRY_VERBOSITY, Verbosity.class, Verbosity.INFORMATION);
 

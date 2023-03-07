@@ -7,10 +7,14 @@ import java.util.Collection;
 public class NoOpTelemetryCollector implements IastTelemetryCollector {
 
   @Override
-  public void addMetric(final IastMetric metric, final long value, final String tag) {}
+  public boolean addMetric(final IastMetric metric, final long value, final String tag) {
+    return true;
+  }
 
   @Override
-  public void merge(Collection<MetricData> metrics) {}
+  public boolean merge(Collection<MetricData> metrics) {
+    return true;
+  }
 
   @Override
   public Collection<MetricData> drainMetrics() {
