@@ -32,16 +32,16 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
 
   @Shared
   private Map<String, String> jdbcUrls = [
-    "h2"    : "jdbc:h2:mem:$dbName",
-    "derby" : "jdbc:derby:memory:$dbName",
-    "hsqldb": "jdbc:hsqldb:mem:$dbName",
+    "h2"        : "jdbc:h2:mem:$dbName",
+    "derby"     : "jdbc:derby:memory:$dbName",
+    "hsqldb"    : "jdbc:hsqldb:mem:$dbName",
   ]
 
   @Shared
   private Map<String, String> jdbcDriverClassNames = [
-    "h2"    : "org.h2.Driver",
-    "derby" : "org.apache.derby.jdbc.EmbeddedDriver",
-    "hsqldb": "org.hsqldb.jdbc.JDBCDriver",
+    "h2"        : "org.h2.Driver",
+    "derby"     : "org.apache.derby.jdbc.EmbeddedDriver",
+    "hsqldb"    : "org.hsqldb.jdbc.JDBCDriver",
   ]
 
   @Shared
@@ -807,6 +807,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     return newDriver(driverClass)
       .connect(url, properties)
   }
+
   @Override
   final String service() {
     return null

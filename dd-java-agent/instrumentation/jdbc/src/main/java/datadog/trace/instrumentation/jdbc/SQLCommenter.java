@@ -5,16 +5,17 @@ import static datadog.trace.instrumentation.jdbc.JDBCDecorator.SQL_COMMENT_INJEC
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
+import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.Iterator;
-import java.util.List;
-import java.util.SortedMap;
-import java.util.TreeMap;
-import java.util.stream.Collectors;
+import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SQLCommenter {
+
+  private static final Logger log = LoggerFactory.getLogger(SQLCommenter.class);
   private static final String UTF8 = StandardCharsets.UTF_8.toString();
   protected static final String PARENT_SERVICE = "ddps";
   protected static final String DATABASE_SERVICE = "dddbs";
@@ -22,74 +23,92 @@ public class SQLCommenter {
   protected static final String DD_VERSION = "ddpv";
   protected static final String TRACEPARENT = "traceparent";
   protected static final String W3C_CONTEXT_VERSION = "00";
+  private static final char EQUALS = '=';
+  private static final char COMMA = ',';
+  private static final char QUOTE = '\'';
+  private static final int COMMENT_CAPACITY = computeBuilderCapacity();
   public String commentedSQL;
+  String injectionMode;
+  String sql;
+  DDTraceId traceId;
+  long spanId;
+  Integer samplingPriority;
+  String dbService;
 
   public String getCommentedSQL() {
     return commentedSQL;
   }
 
-  public static SQLCommenter.Builder newBuilder() {
-    return new Builder();
+  public Integer getSamplingPriority() {
+    return samplingPriority;
   }
 
-  /**
-   * toComment takes a map of tags and creates a new sql comment using the sqlcommenter spec. This
-   * is used to inject APM context into sql statements for APM<->DBM linking
-   *
-   * @param tags
-   * @return String
-   */
-  public String toComment(final SortedMap<String, Object> tags) {
-    final List<String> keyValuePairsList =
-        tags.entrySet().stream()
-            .filter(entry -> !isBlank(entry.getValue()))
-            .map(
-                entry -> {
-                  try {
-                    return String.format(
-                        "%s='%s'",
-                        urlEncode(entry.getKey()),
-                        urlEncode(String.format("%s", entry.getValue())));
-                  } catch (Exception e) {
-                    throw new RuntimeException(e);
-                  }
-                })
-            .collect(Collectors.toList());
-    StringBuilder sb = new StringBuilder();
-    Iterator<String> iterator = keyValuePairsList.iterator();
-    while (iterator.hasNext()) {
-      sb.append(iterator.next());
-      if (iterator.hasNext()) {
-        sb.append(",");
-      }
-    }
-    return sb.toString();
+  public void setSamplingPriority(Integer samplingPriority) {
+    this.samplingPriority = samplingPriority;
   }
 
-  public String augmentSQLStatement(final String sqlStmt, final SortedMap<String, Object> tags) {
-    if (sqlStmt == null || sqlStmt.isEmpty() || tags.isEmpty()) {
-      return sqlStmt;
-    }
+  public SQLCommenter(final String injectionMode, final String sql, final String dbService) {
+    this.injectionMode = injectionMode;
+    this.sql = sql;
+    this.dbService = dbService;
+  }
 
+  public SQLCommenter(
+      final String injectionMode,
+      final String sql,
+      final String dbService,
+      final DDTraceId traceId,
+      final long spanId,
+      final Integer samplingPriority) {
+    this.injectionMode = injectionMode;
+    this.sql = sql;
+    this.dbService = dbService;
+    this.traceId = traceId;
+    this.spanId = spanId;
+    this.samplingPriority = samplingPriority;
+  }
+
+  public SQLCommenter(
+      final String injectionMode,
+      final String sql,
+      final String dbService,
+      final DDTraceId traceId,
+      final long spanId) {
+    this.injectionMode = injectionMode;
+    this.sql = sql;
+    this.dbService = dbService;
+    this.traceId = traceId;
+    this.spanId = spanId;
+  }
+
+  public void inject() {
+    if (this.sql == null || this.sql.isEmpty()) {
+      this.commentedSQL = this.sql;
+      return;
+    }
     // If the SQL already has a comment, just return it.
-    final byte[] sqlStmtBytes = sqlStmt.getBytes(StandardCharsets.UTF_8);
+    final byte[] sqlStmtBytes = this.sql.getBytes(StandardCharsets.UTF_8);
     if (hasDDComment(sqlStmtBytes)) {
-      return sqlStmt;
+      this.commentedSQL = this.sql;
+      return;
     }
 
-    String commentStr = toComment(tags);
-    if (commentStr.isEmpty()) {
-      return sqlStmt;
+    final String comment =
+        toComment(
+            this.injectionMode, this.dbService, this.traceId, this.spanId, this.samplingPriority);
+    if (comment.isEmpty()) {
+      this.commentedSQL = this.sql;
+      return;
     }
 
-    int capacity = commentStr.length() + sqlStmt.length() + 5;
+    int capacity = comment.length() + this.sql.length() + 5;
     ByteBuffer buffer = ByteBuffer.allocate(capacity);
     buffer.put("/*".getBytes(StandardCharsets.UTF_8));
-    buffer.put(commentStr.getBytes(StandardCharsets.UTF_8));
+    buffer.put(comment.getBytes(StandardCharsets.UTF_8));
     buffer.put("*/ ".getBytes(StandardCharsets.UTF_8));
     buffer.put(sqlStmtBytes);
 
-    return new String(buffer.array(), 0, buffer.position(), StandardCharsets.UTF_8);
+    this.commentedSQL = new String(buffer.array(), 0, buffer.position(), StandardCharsets.UTF_8);
   }
 
   private boolean hasDDComment(byte[] sql) {
@@ -138,10 +157,67 @@ public class SQLCommenter {
       }
     }
     // check that the substring is followed by an equals sign
-    return arr[startIndex + substring.length()] == '=';
+    return arr[startIndex + substring.length()] == EQUALS;
   }
 
-  private boolean isBlank(Object obj) {
+  protected static String toComment(
+      final String injectionMode,
+      final String dbService,
+      final DDTraceId traceId,
+      final long spanId,
+      final Integer samplingPriority) {
+    StringBuilder sb = new StringBuilder(COMMENT_CAPACITY);
+    final Config config = Config.get();
+    if (injectComment(injectionMode)) {
+      append(sb, PARENT_SERVICE, config.getServiceName());
+      append(sb, DATABASE_SERVICE, dbService);
+      append(sb, DD_ENV, config.getEnv());
+      append(sb, DD_VERSION, config.getVersion());
+      if (injectionMode.equals(SQL_COMMENT_INJECTION_FULL)) {
+        append(sb, TRACEPARENT, traceParent(traceId, spanId, samplingPriority));
+      }
+    }
+    if (sb.length() > 0) {
+      sb.deleteCharAt(sb.length() - 1); // remove trailing comma
+    }
+    return sb.toString();
+  }
+
+  private static void append(StringBuilder sb, String key, Object value) {
+    if (!isBlank(value)) {
+      try {
+        sb.append(URLEncoder.encode(key, UTF8));
+        sb.append(EQUALS);
+        sb.append(QUOTE);
+        sb.append(URLEncoder.encode(Objects.toString(value), UTF8));
+        sb.append(QUOTE);
+        sb.append(COMMA);
+      } catch (UnsupportedEncodingException e) {
+        if (log.isDebugEnabled()) {
+          log.debug("exception thrown while encoding sql comment %s", e);
+        }
+      }
+    }
+  }
+
+  private static boolean injectComment(String injectionMode) {
+    return injectionMode.equals(SQL_COMMENT_INJECTION_FULL)
+        || injectionMode.equals(SQL_COMMENT_INJECTION_STATIC);
+  }
+
+  private static int computeBuilderCapacity() {
+    int tagKeysLen =
+        PARENT_SERVICE.length()
+            + DATABASE_SERVICE.length()
+            + DD_ENV.length()
+            + DD_VERSION.length()
+            + TRACEPARENT.length();
+    int extraCharsLen = 4 * 5 + 4; // two quotes, one equals & one comma + \* */
+    int traceParentValueLen = 55;
+    return tagKeysLen + extraCharsLen + traceParentValueLen;
+  }
+
+  private static boolean isBlank(Object obj) {
     if (obj == null) {
       return true;
     }
@@ -155,33 +231,7 @@ public class SQLCommenter {
     return false;
   }
 
-  private static String urlEncode(String s) throws Exception {
-    return URLEncoder.encode(s, UTF8);
-  }
-
-  public SortedMap<String, Object> sortedKeyValuePairs(String dbInstance) {
-    SortedMap<String, Object> sortedMap = new TreeMap<>();
-    final Config config = Config.get();
-    sortedMap.put(PARENT_SERVICE, config.getServiceName());
-    sortedMap.put(DATABASE_SERVICE, dbInstance);
-    sortedMap.put(DD_ENV, config.getEnv());
-    sortedMap.put(DD_VERSION, config.getVersion());
-    return sortedMap;
-  }
-
-  public SortedMap<String, Object> sortedKeyValuePairs(
-      DDTraceId traceId, long spanId, Integer priority, String dbService) {
-    SortedMap<String, Object> sortedMap = new TreeMap<>();
-    final Config config = Config.get();
-    sortedMap.put(PARENT_SERVICE, config.getServiceName());
-    sortedMap.put(DATABASE_SERVICE, dbService);
-    sortedMap.put(DD_ENV, config.getEnv());
-    sortedMap.put(DD_VERSION, config.getVersion());
-    sortedMap.put(TRACEPARENT, traceParent(traceId, spanId, priority));
-    return sortedMap;
-  }
-
-  private String traceParent(DDTraceId traceId, long spanId, Integer priority) {
+  private static String traceParent(DDTraceId traceId, long spanId, Integer priority) {
     long traceSampledFlag = 0L;
     if (priority != null && priority >= 1) {
       traceSampledFlag = 1L;
@@ -192,7 +242,7 @@ public class SQLCommenter {
     return encodeTraceParent(Long.parseLong(traceId.toString()), spanId, traceSampledFlag);
   }
 
-  public static String encodeTraceParent(long traceID, long spanID, long sampled) {
+  protected static String encodeTraceParent(long traceID, long spanID, long sampled) {
     ByteBuffer bb = ByteBuffer.allocate(55);
     bb.put(W3C_CONTEXT_VERSION.getBytes(StandardCharsets.US_ASCII));
     bb.put((byte) '-');
@@ -212,59 +262,5 @@ public class SQLCommenter {
     String sampledStr = Long.toHexString(sampled);
     bb.put(sampledStr.getBytes(StandardCharsets.US_ASCII));
     return new String(bb.array(), StandardCharsets.US_ASCII);
-  }
-
-  public static class Builder {
-    String injectionMode;
-    String sql;
-    DDTraceId traceId;
-    long spanId;
-    Integer samplingPriority;
-    String dbService;
-
-    public Builder withInjectionMode(String injectionMode) {
-      this.injectionMode = injectionMode;
-      return this;
-    }
-
-    public Builder withSqlInput(String sql) {
-      this.sql = sql;
-      return this;
-    }
-
-    public Builder withTraceId(DDTraceId traceId) {
-      this.traceId = traceId;
-      return this;
-    }
-
-    public Builder withSpanId(long spanId) {
-      this.spanId = spanId;
-      return this;
-    }
-
-    public Builder withSamplingPriority(Integer samplingPriority) {
-      this.samplingPriority = samplingPriority;
-      return this;
-    }
-
-    public Builder withDbService(String dbService) {
-      this.dbService = dbService;
-      return this;
-    }
-
-    public SQLCommenter build() {
-      SQLCommenter commenter = new SQLCommenter();
-      SortedMap<String, Object> tags = new TreeMap<>();
-      if (this.injectionMode.equals(SQL_COMMENT_INJECTION_STATIC)) {
-        tags = commenter.sortedKeyValuePairs(String.valueOf(this.dbService));
-
-      } else if (this.injectionMode.equals(SQL_COMMENT_INJECTION_FULL)) {
-        tags =
-            commenter.sortedKeyValuePairs(
-                this.traceId, this.spanId, this.samplingPriority, String.valueOf(this.dbService));
-      }
-      commenter.commentedSQL = commenter.augmentSQLStatement(this.sql, tags);
-      return commenter;
-    }
   }
 }
