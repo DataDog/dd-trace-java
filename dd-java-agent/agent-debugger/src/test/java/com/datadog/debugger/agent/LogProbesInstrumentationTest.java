@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -511,7 +512,14 @@ public class LogProbesInstrumentationTest {
       Collection<LogProbe> logProbes,
       Map<String, InstrumentationResult> instrumentationResults) {
     Assertions.assertEquals(expectedClassName, callingClass.getName());
+    List<LogProbe> logProbeList = new ArrayList<>();
     for (LogProbe probe : logProbes) {
+      logProbeList.add(probe);
+      for (ProbeDefinition def : probe.getAdditionalProbes()) {
+        logProbeList.add((LogProbe) def);
+      }
+    }
+    for (LogProbe probe : logProbeList) {
       if (probe.getId().equals(id)) {
         String typeName = probe.getWhere().getTypeName();
         String methodName = probe.getWhere().getMethodName();

@@ -214,7 +214,6 @@ class CaptureAssertionHelper {
             break;
           }
         case ENTRY_EXIT:
-        case LINE_RANGE:
           {
             returnLocals =
                 new Snapshot.CapturedValue[] {

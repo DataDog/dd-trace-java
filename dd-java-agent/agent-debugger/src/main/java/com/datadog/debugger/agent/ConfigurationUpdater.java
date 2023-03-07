@@ -242,6 +242,9 @@ public class ConfigurationUpdater
     }
     for (ProbeDefinition definition : changes.getAddedDefinitions()) {
       appliedDefinitions.put(definition.getId(), definition);
+      for (ProbeDefinition additionalDef : definition.getAdditionalProbes()) {
+        appliedDefinitions.put(additionalDef.getId(), additionalDef);
+      }
     }
     LOGGER.debug("Stored appliedDefinitions: {}", appliedDefinitions.values());
   }
@@ -252,7 +255,9 @@ public class ConfigurationUpdater
     ProbeDefinition definition = appliedDefinitions.get(id);
     if (definition == null) {
       LOGGER.info(
-          "Cannot resolve probe, re-transforming calling class: {}", callingClass.getName());
+          "Cannot resolve probe id={}, re-transforming calling class: {}",
+          id,
+          callingClass.getName());
       retransformClasses(Collections.singletonList(callingClass));
       return null;
     }

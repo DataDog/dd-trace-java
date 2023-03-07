@@ -23,6 +23,6 @@ public final class SnapshotProvider {
         return null;
       }
     }
-    return new Snapshot(Thread.currentThread(), probeDetails, callingClass.getTypeName());
+    return new Snapshot(Thread.currentThread(), probeDetails);
   }
 }

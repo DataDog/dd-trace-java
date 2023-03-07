@@ -160,7 +160,7 @@ public class ConfigurationUpdaterTest {
     verify(inst).addTransformer(any(), eq(true));
     verify(inst).getAllLoadedClasses();
     Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(1, appliedDefinitions.size());
+    assertEquals(2, appliedDefinitions.size());
     assertTrue(appliedDefinitions.containsKey(PROBE_ID));
     assertEquals(1, appliedDefinitions.get(PROBE_ID).getAdditionalProbes().size());
     assertEquals(PROBE_ID2, appliedDefinitions.get(PROBE_ID).getAdditionalProbes().get(0).getId());
@@ -195,7 +195,7 @@ public class ConfigurationUpdaterTest {
             LogProbe.builder().probeId(PROBE_ID2).where("java.lang.String", "concat").build());
     configurationUpdater.accept(createApp(logProbes));
     appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(1, appliedDefinitions.size());
+    assertEquals(2, appliedDefinitions.size());
     assertEquals(1, appliedDefinitions.get(PROBE_ID).getAdditionalProbes().size());
     assertEquals(PROBE_ID2, appliedDefinitions.get(PROBE_ID).getAdditionalProbes().get(0).getId());
     verify(probeStatusSink, times(2)).addReceived(eq(PROBE_ID)); // re-installed for PROBE_ID2
@@ -221,7 +221,7 @@ public class ConfigurationUpdaterTest {
     verify(inst).addTransformer(any(), eq(true));
     verify(inst).getAllLoadedClasses();
     Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(1, appliedDefinitions.size());
+    assertEquals(2, appliedDefinitions.size());
     assertEquals(1, appliedDefinitions.get(PROBE_ID).getAdditionalProbes().size());
     assertTrue(appliedDefinitions.containsKey(PROBE_ID));
     assertEquals(PROBE_ID2, appliedDefinitions.get(PROBE_ID).getAdditionalProbes().get(0).getId());
@@ -231,7 +231,7 @@ public class ConfigurationUpdaterTest {
             LogProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build());
     configurationUpdater.accept(createApp(logProbes));
     appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(1, appliedDefinitions.size());
+    assertEquals(2, appliedDefinitions.size());
     assertTrue(appliedDefinitions.containsKey(PROBE_ID));
     assertEquals(0, appliedDefinitions.get(PROBE_ID).getAdditionalProbes().size());
     verify(probeStatusSink, times(2)).addReceived(eq(PROBE_ID)); // re-installed for PROBE_ID2
