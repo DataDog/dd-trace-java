@@ -400,7 +400,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     given:
     def conditions = new PollingConditions(timeout: 1)
     boolean supportsDataStreaming = false
-    def features = Stub(DDAgentFeaturesDiscovery) {
+    def features = Mock(DDAgentFeaturesDiscovery) {
       supportsDataStreams() >> { return supportsDataStreaming }
     }
     def timeSource = new ControllableTimeSource()
