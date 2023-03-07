@@ -11,7 +11,7 @@ public class CookieParamInjectorInstrumentation extends Instrumenter.Iast
     implements Instrumenter.ForSingleType {
 
   public CookieParamInjectorInstrumentation() {
-    super("Cookie Param Value Injector for RestEasy");
+    super("resteasy");
   }
 
   @Override
