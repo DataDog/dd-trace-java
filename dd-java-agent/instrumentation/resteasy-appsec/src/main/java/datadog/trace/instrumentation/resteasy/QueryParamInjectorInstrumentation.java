@@ -11,7 +11,7 @@ public class QueryParamInjectorInstrumentation extends Instrumenter.Iast
     implements Instrumenter.ForSingleType {
 
   public QueryParamInjectorInstrumentation() {
-    super("Query Param Value Injector for RestEasy");
+    super("resteasy");
   }
 
   @Override
