@@ -39,7 +39,7 @@ class TestUndertow extends AbstractServerSmokeTest {
     processBuilder.directory(new File(buildDirectory))
   }
 
-  def "Test path parameter in RestEasy"() {
+  def "test path parameter"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/bypathparam/pathParamValue"
     boolean sqlInjectionFound = false
