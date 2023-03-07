@@ -14,6 +14,7 @@ def testTimeoutDuration = Duration.of(9, ChronoUnit.MINUTES)
 
 // Go through the Test tasks and configure them
 tasks.withType(Test).configureEach {
+  // Use JUnit 5 to run tests
   useJUnitPlatform()
 
   // All tests must complete within 15 minutes.
@@ -65,7 +66,7 @@ tasks.withType(Test).configureEach {
 // Setup flaky tests jobs. Done in afterEvaluate so that it applies to latestDepTest.
 project.afterEvaluate {
   tasks.withType(Test).configureEach {
-    // JUnit 5 support
+    // Flaky tests management for JUnit 5
     testFramework {
       if (project.rootProject.hasProperty("skipFlakyTests")) {
         excludeTags "flaky"
@@ -74,7 +75,7 @@ project.afterEvaluate {
       }
     }
 
-    // Spock support
+    // Flaky tests management for Spock
     if (project.rootProject.hasProperty("skipFlakyTests")) {
       jvmArgs += ["-Drun.flaky.tests=false"]
     } else if (project.rootProject.hasProperty("runFlakyTests")) {
