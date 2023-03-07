@@ -28,7 +28,7 @@ public class HeaderParamInjectorAdvice {
             module.onHeaderValue(null, (String) result);
           }
         } catch (final Throwable e) {
-          module.onUnexpectedException("PathParamInjectorAdvice.onExit threw", e);
+          module.onUnexpectedException("HeaderParamInjectorAdvice.onExit threw", e);
         }
       }
     }
