@@ -179,7 +179,7 @@ class GraphQLTest extends AgentTestRunner {
       '  }\n' +
       '}'
     def expectedQuery = 'query findBookById {\n' +
-      '  bookById(id: "") {\n' +
+      '  bookById(id: {String}) {\n' +
       '    id\n' +
       '    title\n' +
       '    color\n' +
@@ -295,7 +295,7 @@ class GraphQLTest extends AgentTestRunner {
       '  }\n' +
       '}'
     def expectedQuery = 'query findBookById {\n' +
-      '  bookById(id: "") {\n' +
+      '  bookById(id: {String}) {\n' +
       '    id\n' +
       '    cover\n' +
       '  }\n' +
