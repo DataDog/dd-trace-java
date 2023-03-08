@@ -1,6 +1,6 @@
 package datadog.trace.api.normalize;
 
-public abstract class HttpPathNormalizer {
+abstract class HttpPathNormalizer {
   public final String normalize(String path) {
     return normalize(path, false);
   }

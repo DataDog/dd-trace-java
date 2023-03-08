@@ -98,7 +98,7 @@ class AntPatternHttpPathNormalizerTest extends DDSpecification {
       "/test/**/*.html": "*",
       "/dev/**/*.html" : "dev"
     ]
-    AntPatternPathNormalizer normalizer = new AntPatternPathNormalizer(matchers)
+    AntPatternHttpPathNormalizer normalizer = new AntPatternHttpPathNormalizer(matchers)
 
     when:
     String result = normalizer.normalize(path)

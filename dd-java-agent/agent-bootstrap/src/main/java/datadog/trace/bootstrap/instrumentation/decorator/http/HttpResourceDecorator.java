@@ -2,7 +2,11 @@ package datadog.trace.bootstrap.instrumentation.decorator.http;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.normalize.HttpResourceNames;
-import datadog.trace.bootstrap.instrumentation.api.*;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.URIUtils;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
 public class HttpResourceDecorator {
   public static final HttpResourceDecorator HTTP_RESOURCE_DECORATOR = new HttpResourceDecorator();

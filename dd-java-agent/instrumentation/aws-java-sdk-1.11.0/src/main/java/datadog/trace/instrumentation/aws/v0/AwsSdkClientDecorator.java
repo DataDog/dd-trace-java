@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.aws.v0;
 
+import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.RPC_COMMAND_NAME;
+
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
@@ -66,7 +68,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
     CharSequence awsRequestName = cache.getQualifiedName(awsOperation, awsServiceName);
 
-    span.setResourceName(awsRequestName);
+    span.setResourceName(awsRequestName, RPC_COMMAND_NAME);
 
     switch (awsRequestName.toString()) {
       case "SQS.SendMessage":
