@@ -1,7 +1,10 @@
 package datadog.telemetry;
 
-import datadog.telemetry.api.*;
-
+import datadog.telemetry.api.Dependency;
+import datadog.telemetry.api.DistributionSeries;
+import datadog.telemetry.api.Integration;
+import datadog.telemetry.api.LogMessage;
+import datadog.telemetry.api.Metric;
 import java.util.Map;
 import java.util.Queue;
 import okhttp3.Request;

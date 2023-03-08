@@ -1,6 +1,19 @@
 package datadog.telemetry;
 
-import datadog.telemetry.api.*;
+import datadog.telemetry.api.AppDependenciesLoaded;
+import datadog.telemetry.api.AppIntegrationsChange;
+import datadog.telemetry.api.AppStarted;
+import datadog.telemetry.api.Dependency;
+import datadog.telemetry.api.DistributionSeries;
+import datadog.telemetry.api.Distributions;
+import datadog.telemetry.api.GenerateMetrics;
+import datadog.telemetry.api.Integration;
+import datadog.telemetry.api.KeyValue;
+import datadog.telemetry.api.LogMessage;
+import datadog.telemetry.api.Logs;
+import datadog.telemetry.api.Metric;
+import datadog.telemetry.api.Payload;
+import datadog.telemetry.api.RequestType;
 import datadog.trace.api.time.TimeSource;
 import java.util.Collections;
 import java.util.LinkedList;
