@@ -71,7 +71,6 @@ public class RequestBuilder {
             .runtimeVersion(Platform.getRuntimeVersion())
             .runtimePatches(Platform.getRuntimePatches());
 
-    ContainerInfo containerInfo = ContainerInfo.get();
     this.host =
         new Host()
             .hostname(HostInfo.getHostname())
@@ -80,7 +79,7 @@ public class RequestBuilder {
             .kernelName(HostInfo.getKernelName())
             .kernelRelease(HostInfo.getKernelRelease())
             .kernelVersion(HostInfo.getKernelVersion())
-            .containerId(containerInfo.getContainerId());
+            .architecture(HostInfo.getArchitecture());
 
     this.debug = debug;
   }

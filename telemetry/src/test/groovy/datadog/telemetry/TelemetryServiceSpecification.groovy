@@ -177,7 +177,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     def metric
 
     when:
-    metric = new Metric(metric: 'my metric', tags: ['my tag'],
+    metric = new Metric(namespace: 'appsec', metric: 'my metric', tags: ['my tag'],
     type: Metric.TypeEnum.GAUGE, points: [[0.1, 0.2], [0.2, 0.1]])
     telemetryService.addMetric(metric)
     def queue = telemetryService.prepareRequests()

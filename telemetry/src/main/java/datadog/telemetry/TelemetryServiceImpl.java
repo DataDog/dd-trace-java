@@ -1,15 +1,6 @@
 package datadog.telemetry;
 
-import datadog.telemetry.api.AppDependenciesLoaded;
-import datadog.telemetry.api.AppIntegrationsChange;
-import datadog.telemetry.api.AppStarted;
-import datadog.telemetry.api.Dependency;
-import datadog.telemetry.api.GenerateMetrics;
-import datadog.telemetry.api.Integration;
-import datadog.telemetry.api.KeyValue;
-import datadog.telemetry.api.Metric;
-import datadog.telemetry.api.Payload;
-import datadog.telemetry.api.RequestType;
+import datadog.telemetry.api.*;
 import datadog.trace.api.time.TimeSource;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -29,6 +20,8 @@ public class TelemetryServiceImpl implements TelemetryService {
 
   private static final Logger log = LoggerFactory.getLogger(TelemetryServiceImpl.class);
 
+  private static final int MAX_ELEMENTS_PER_REQUEST = 100;
+
   private final Supplier<RequestBuilder> requestBuilderSupplier;
   private final TimeSource timeSource;
   private final int heartbeatIntervalMs;
@@ -37,6 +30,10 @@ public class TelemetryServiceImpl implements TelemetryService {
   private final BlockingQueue<Dependency> dependencies = new LinkedBlockingQueue<>();
   private final BlockingQueue<Metric> metrics =
       new LinkedBlockingQueue<>(1024); // recommended capacity?
+
+  private final BlockingQueue<LogMessage> logMessages = new LinkedBlockingQueue<>(1024);
+
+  private final BlockingQueue<DistributionSeries> distributionSeries = new LinkedBlockingQueue<>(1024);
 
   private final Queue<Request> queue = new ArrayBlockingQueue<>(16);
 
@@ -109,6 +106,16 @@ public class TelemetryServiceImpl implements TelemetryService {
   }
 
   @Override
+  public boolean addLogMessage(LogMessage message) {
+    return this.logMessages.offer(message);
+  }
+
+  @Override
+  public boolean addDistributionSeries(DistributionSeries series) {
+    return false;
+  }
+
+  @Override
   public Queue<Request> prepareRequests() {
     // New integrations
     if (!integrations.isEmpty()) {
@@ -151,6 +158,39 @@ public class TelemetryServiceImpl implements TelemetryService {
               });
     }
 
+    // New messages
+    if (!logMessages.isEmpty()) {
+      for (List<LogMessage> messages = drainOrEmpty(logMessages, MAX_ELEMENTS_PER_REQUEST);
+           !messages.isEmpty();
+           messages = drainOrEmpty(logMessages, MAX_ELEMENTS_PER_REQUEST)) {
+        Request request =
+                requestBuilderSupplier
+                        .get()
+                        .build(
+                            RequestType.LOGS,
+                            new Logs().messages(messages)
+                        );
+        queue.offer(request);
+      }
+    }
+
+    // New Distributions
+    if (!distributionSeries.isEmpty()) {
+      drainOrEmpty(distributionSeries).stream()
+              .collect(Collectors.groupingBy(DistributionSeries::getNamespace))
+              .forEach(
+                      (namespace, metrics) -> {
+                        Payload payload = new Distributions().namespace(namespace).series(metrics);
+                        Request request =
+                                requestBuilderSupplier
+                                        .get()
+                                        .build(
+                                                RequestType.DISTRIBUTIONS,
+                                                payload.requestType(RequestType.DISTRIBUTIONS));
+                        queue.offer(request);
+                      });
+    }
+
     // Heartbeat request if needed
     long curTime = this.timeSource.getCurrentTimeMillis();
     if (!queue.isEmpty()) {
@@ -178,16 +218,20 @@ public class TelemetryServiceImpl implements TelemetryService {
   }
 
   private static <T> List<T> drainOrNull(BlockingQueue<T> srcQueue) {
-    return drainOrDefault(srcQueue, null);
+    return drainOrDefault(srcQueue, null, Integer.MAX_VALUE);
   }
 
   private static <T> List<T> drainOrEmpty(BlockingQueue<T> srcQueue) {
-    return drainOrDefault(srcQueue, Collections.<T>emptyList());
+    return drainOrDefault(srcQueue, Collections.<T>emptyList(), Integer.MAX_VALUE);
   }
 
-  private static <T> List<T> drainOrDefault(BlockingQueue<T> srcQueue, List<T> defaultList) {
+  private static <T> List<T> drainOrEmpty(BlockingQueue<T> srcQueue, int maxItems) {
+    return drainOrDefault(srcQueue, Collections.<T>emptyList(), maxItems);
+  }
+
+  private static <T> List<T> drainOrDefault(BlockingQueue<T> srcQueue, List<T> defaultList, int maxItems) {
     List<T> list = new LinkedList<>();
-    int drained = srcQueue.drainTo(list);
+    int drained = srcQueue.drainTo(list,maxItems);
     if (drained > 0) {
       return list;
     }
