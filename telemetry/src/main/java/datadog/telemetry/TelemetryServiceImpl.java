@@ -24,7 +24,6 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import okhttp3.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +43,8 @@ public class TelemetryServiceImpl implements TelemetryService {
 
   private final BlockingQueue<LogMessage> logMessages = new LinkedBlockingQueue<>(1024);
 
-  private final BlockingQueue<DistributionSeries> distributionSeries = new LinkedBlockingQueue<>(1024);
+  private final BlockingQueue<DistributionSeries> distributionSeries =
+      new LinkedBlockingQueue<>(1024);
 
   private final Queue<Request> queue = new ArrayBlockingQueue<>(16);
 
@@ -155,7 +155,11 @@ public class TelemetryServiceImpl implements TelemetryService {
     // New metrics
     if (!metrics.isEmpty()) {
       Payload payload = new GenerateMetrics().namespace("tracer").series(drainOrEmpty(metrics));
-      Request request = requestBuilderSupplier.get().build(RequestType.GENERATE_METRICS, payload.requestType(RequestType.GENERATE_METRICS));
+      Request request =
+          requestBuilderSupplier
+              .get()
+              .build(
+                  RequestType.GENERATE_METRICS, payload.requestType(RequestType.GENERATE_METRICS));
       queue.offer(request);
     }
 
@@ -165,17 +169,18 @@ public class TelemetryServiceImpl implements TelemetryService {
       Request request =
           requestBuilderSupplier
               .get()
-              .build(
-                  RequestType.LOGS,
-                  payload.requestType(RequestType.LOGS)
-              );
+              .build(RequestType.LOGS, payload.requestType(RequestType.LOGS));
       queue.offer(request);
     }
 
     // New Distributions
     if (!distributionSeries.isEmpty()) {
-      Payload payload = new Distributions().namespace("tracer").series(drainOrEmpty(distributionSeries));
-      Request request = requestBuilderSupplier.get().build(RequestType.DISTRIBUTIONS, payload.requestType(RequestType.DISTRIBUTIONS));
+      Payload payload =
+          new Distributions().namespace("tracer").series(drainOrEmpty(distributionSeries));
+      Request request =
+          requestBuilderSupplier
+              .get()
+              .build(RequestType.DISTRIBUTIONS, payload.requestType(RequestType.DISTRIBUTIONS));
       queue.offer(request);
     }
 
@@ -217,9 +222,10 @@ public class TelemetryServiceImpl implements TelemetryService {
     return drainOrDefault(srcQueue, Collections.<T>emptyList(), maxItems);
   }
 
-  private static <T> List<T> drainOrDefault(BlockingQueue<T> srcQueue, List<T> defaultList, int maxItems) {
+  private static <T> List<T> drainOrDefault(
+      BlockingQueue<T> srcQueue, List<T> defaultList, int maxItems) {
     List<T> list = new LinkedList<>();
-    int drained = srcQueue.drainTo(list,maxItems);
+    int drained = srcQueue.drainTo(list, maxItems);
     if (drained > 0) {
       return list;
     }

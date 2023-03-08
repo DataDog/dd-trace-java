@@ -41,7 +41,6 @@ public class Application {
   @com.squareup.moshi.Json(name = "products")
   private Products products;
 
-
   /**
    * Get env
    *
