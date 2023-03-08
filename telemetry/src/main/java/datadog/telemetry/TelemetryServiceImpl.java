@@ -33,8 +33,6 @@ public class TelemetryServiceImpl implements TelemetryService {
 
   private static final Logger log = LoggerFactory.getLogger(TelemetryServiceImpl.class);
 
-  private static final int MAX_ELEMENTS_PER_REQUEST = 100;
-
   private final Supplier<RequestBuilder> requestBuilderSupplier;
   private final TimeSource timeSource;
   private final int heartbeatIntervalMs;
@@ -156,52 +154,29 @@ public class TelemetryServiceImpl implements TelemetryService {
 
     // New metrics
     if (!metrics.isEmpty()) {
-      drainOrEmpty(metrics).stream()
-          .collect(Collectors.groupingBy(Metric::getNamespace))
-          .forEach(
-              (namespace, metrics) -> {
-                Payload payload = new GenerateMetrics().namespace(namespace).series(metrics);
-                Request request =
-                    requestBuilderSupplier
-                        .get()
-                        .build(
-                            RequestType.GENERATE_METRICS,
-                            payload.requestType(RequestType.GENERATE_METRICS));
-                queue.offer(request);
-              });
+      Payload payload = new GenerateMetrics().namespace("tracer").series(drainOrEmpty(metrics));
+      Request request = requestBuilderSupplier.get().build(RequestType.GENERATE_METRICS, payload.requestType(RequestType.GENERATE_METRICS));
+      queue.offer(request);
     }
 
     // New messages
     if (!logMessages.isEmpty()) {
-      for (List<LogMessage> messages = drainOrEmpty(logMessages, MAX_ELEMENTS_PER_REQUEST);
-           !messages.isEmpty();
-           messages = drainOrEmpty(logMessages, MAX_ELEMENTS_PER_REQUEST)) {
-        Request request =
-                requestBuilderSupplier
-                        .get()
-                        .build(
-                            RequestType.LOGS,
-                            new Logs().messages(messages)
-                        );
-        queue.offer(request);
-      }
+      Payload payload = new Logs().messages(drainOrEmpty(logMessages));
+      Request request =
+          requestBuilderSupplier
+              .get()
+              .build(
+                  RequestType.LOGS,
+                  payload.requestType(RequestType.LOGS)
+              );
+      queue.offer(request);
     }
 
     // New Distributions
     if (!distributionSeries.isEmpty()) {
-      drainOrEmpty(distributionSeries).stream()
-              .collect(Collectors.groupingBy(DistributionSeries::getNamespace))
-              .forEach(
-                      (namespace, metrics) -> {
-                        Payload payload = new Distributions().namespace(namespace).series(metrics);
-                        Request request =
-                                requestBuilderSupplier
-                                        .get()
-                                        .build(
-                                                RequestType.DISTRIBUTIONS,
-                                                payload.requestType(RequestType.DISTRIBUTIONS));
-                        queue.offer(request);
-                      });
+      Payload payload = new Distributions().namespace("tracer").series(drainOrEmpty(distributionSeries));
+      Request request = requestBuilderSupplier.get().build(RequestType.DISTRIBUTIONS, payload.requestType(RequestType.DISTRIBUTIONS));
+      queue.offer(request);
     }
 
     // Heartbeat request if needed
