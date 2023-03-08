@@ -16,8 +16,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.Pair;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.env.CapturedEnvironment;
-import datadog.trace.api.http.HttpResourceNames;
-import datadog.trace.api.normalize.HttpPathNormalizers;
+import datadog.trace.api.normalize.HttpResourceNames;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
@@ -112,19 +111,16 @@ public class TagInterceptor {
     if (shouldSetUrlResourceAsName) {
       if (HTTP_METHOD.equals(tag)) {
         if (span.getTags().containsValue(HTTP_URL)) {
-          Pair<String, Byte> normalized =
-              HttpPathNormalizers.chainWithPriority(span.getTags().get(HTTP_URL).toString(), false);
-          span.setResourceName(
-              HttpResourceNames.compute(value.toString(), normalized.getLeft()),
-              normalized.getRight());
+          Pair<CharSequence, Byte> normalized =
+              HttpResourceNames.computeForServer(
+                  value.toString(), span.getTags().get(HTTP_URL).toString(), false);
+          span.setResourceName(normalized.getLeft(), normalized.getRight());
         }
       } else if (HTTP_URL.equals(tag)) {
-        Pair<String, Byte> normalized =
-            HttpPathNormalizers.chainWithPriority(value.toString(), false);
-        span.setResourceName(
-            HttpResourceNames.compute(
-                (CharSequence) span.getTags().get(HTTP_METHOD), normalized.getLeft()),
-            normalized.getRight());
+        Pair<CharSequence, Byte> normalized =
+            HttpResourceNames.computeForServer(
+                (CharSequence) span.getTags().get(HTTP_METHOD), value.toString(), false);
+        span.setResourceName(normalized.getLeft(), normalized.getRight());
       }
     }
     return false;

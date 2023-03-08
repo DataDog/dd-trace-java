@@ -1,8 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator.http
 
-import datadog.trace.api.Config
-import datadog.trace.api.normalize.AntPatternHttpPathNormalizer
-import datadog.trace.api.normalize.HttpPathNormalizers
+import datadog.trace.api.normalize.HttpResourceNames
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.core.CoreTracer
@@ -19,7 +17,7 @@ class HttpResourceDecoratorTest extends DDSpecification {
 
   def setup() {
     injectSysConfig("http.server.route-based-naming", "false")
-    HttpPathNormalizers.INSTANCE = null
+    HttpResourceNames.INSTANCE = null
   }
 
   def cleanupSpec() {

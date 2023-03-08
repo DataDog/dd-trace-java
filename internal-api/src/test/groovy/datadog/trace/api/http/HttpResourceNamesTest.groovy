@@ -1,12 +1,12 @@
 package datadog.trace.api.http
 
-
+import datadog.trace.api.normalize.HttpResourceNames
 import spock.lang.Specification
 
 class HttpResourceNamesTest extends Specification {
   def "works as expected" () {
     when:
-    def resourceName = HttpResourceNames.compute(method, path)
+    def resourceName = HttpResourceNames.join(method, path)
 
     then:
     resourceName.toString() == expected
