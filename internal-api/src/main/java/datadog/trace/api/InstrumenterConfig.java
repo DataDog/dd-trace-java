@@ -82,7 +82,7 @@ public class InstrumenterConfig {
   private final List<String> excludedCodeSources;
 
   private final ResolverCacheConfig resolverCacheConfig;
-  private final boolean resolverUseLoadClassEnabled;
+  private final boolean resolverUseLoadClass;
   private final int resolverResetInterval;
 
   private final boolean runtimeContextFieldInjection;
@@ -158,7 +158,7 @@ public class InstrumenterConfig {
     resolverCacheConfig =
         configProvider.getEnum(
             RESOLVER_CACHE_CONFIG, ResolverCacheConfig.class, ResolverCacheConfig.DEFAULT);
-    resolverUseLoadClassEnabled = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
+    resolverUseLoadClass = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
     resolverResetInterval =
         Platform.isNativeImageBuilder()
             ? 0
@@ -278,8 +278,8 @@ public class InstrumenterConfig {
     return resolverCacheConfig.typePoolSize();
   }
 
-  public boolean isResolverUseLoadClassEnabled() {
-    return resolverUseLoadClassEnabled;
+  public boolean isResolverUseLoadClass() {
+    return resolverUseLoadClass;
   }
 
   public int getResolverResetInterval() {
@@ -369,8 +369,8 @@ public class InstrumenterConfig {
         + excludedCodeSources
         + ", resolverCacheConfig="
         + resolverCacheConfig
-        + ", resolverUseLoadClassEnabled="
-        + resolverUseLoadClassEnabled
+        + ", resolverUseLoadClass="
+        + resolverUseLoadClass
         + ", resolverResetInterval="
         + resolverResetInterval
         + ", runtimeContextFieldInjection="

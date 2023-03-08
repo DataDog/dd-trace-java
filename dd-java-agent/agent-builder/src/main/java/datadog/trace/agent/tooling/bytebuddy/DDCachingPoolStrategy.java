@@ -60,7 +60,7 @@ public final class DDCachingPoolStrategy
       WeakReference::new;
 
   public static final DDCachingPoolStrategy INSTANCE =
-      new DDCachingPoolStrategy(InstrumenterConfig.get().isResolverUseLoadClassEnabled());
+      new DDCachingPoolStrategy(InstrumenterConfig.get().isResolverUseLoadClass());
 
   public static void registerAsSupplier() {
     SharedTypePools.registerIfAbsent(INSTANCE);
