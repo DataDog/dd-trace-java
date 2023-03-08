@@ -38,31 +38,32 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import spock.lang.Unroll
 
+import javax.annotation.Nonnull
 import java.util.function.BiFunction
 import java.util.function.Function
 import java.util.function.Supplier
-import javax.annotation.Nonnull
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
@@ -74,7 +75,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.SERVER_PATHWAY_EDGE_TAGS
 import static org.junit.Assume.assumeTrue
 
@@ -448,21 +448,40 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     return runUnderTrace("controller", closure)
   }
 
+  static class CodeAndBody {
+    final int code
+    final String body
+    final Throwable throwable
+
+    CodeAndBody(Response response) {
+      this.code = response.code()
+      this.body = response.body().string()
+    }
+    CodeAndBody(Throwable t) {
+      this.throwable = t
+    }
+  }
+
   @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
   def "test success with #count requests"() {
     setup:
     def request = request(SUCCESS, method, body).build()
-    List<Response> responses = (1..count).collect {
-      return client.newCall(request).execute()
+    List<CodeAndBody> responses = (1..count).collect {
+      try {
+        new CodeAndBody(client.newCall(request).execute())
+      } catch (Throwable t) {
+        new CodeAndBody(t)
+      }
     }
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
 
     expect:
-    responses.each { response ->
-      assert response.code() == SUCCESS.status
-      assert response.body().string() == SUCCESS.body
+    responses.each {
+      assert it.throwable == null
+      assert it.code == SUCCESS.status
+      assert it.body == SUCCESS.body
     }
 
     and:
