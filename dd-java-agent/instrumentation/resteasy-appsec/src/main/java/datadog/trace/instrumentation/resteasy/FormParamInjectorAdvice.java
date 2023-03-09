@@ -4,16 +4,17 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.source.WebModule;
 import java.util.Collection;
 import net.bytebuddy.asm.Advice;
-import org.jboss.resteasy.core.HeaderParamInjector;
+import org.jboss.resteasy.core.FormParamInjector;
 
-public class HeaderParamInjectorAdvice {
+public class FormParamInjectorAdvice {
   @Advice.OnMethodExit
   public static void onExit(
-      @Advice.This HeaderParamInjector self,
+      @Advice.This FormParamInjector self,
       @Advice.Return(readOnly = true) Object result,
       @Advice.FieldValue("paramName") String paramName) {
     if (result instanceof String || result instanceof Collection) {
       final WebModule module = InstrumentationBridge.WEB;
+      System.out.println("Inside FormParamInjectorAdvice.onExit");
 
       if (module != null) {
         try {
@@ -21,14 +22,14 @@ public class HeaderParamInjectorAdvice {
             Collection collection = (Collection) result;
             for (Object o : collection) {
               if (o instanceof String) {
-                module.onHeaderValue(paramName, (String) o);
+                module.onParameterValue(paramName, (String) o);
               }
             }
           } else {
-            module.onHeaderValue(paramName, (String) result);
+            module.onParameterValue(paramName, (String) result);
           }
         } catch (final Throwable e) {
-          module.onUnexpectedException("HeaderParamInjectorAdvice.onExit threw", e);
+          module.onUnexpectedException("FormParamInjectorAdvice.onExit threw", e);
         }
       }
     }
