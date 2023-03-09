@@ -348,9 +348,9 @@ jobs:
     steps:
       - setup_code
       - restore_dependency_cache:
-          cacheType: lib
+          cacheType: smoke
       - restore_build_cache:
-          cacheType: lib
+          cacheType: smoke
 
       - run:
           name: Check Project
