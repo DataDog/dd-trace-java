@@ -17,7 +17,7 @@ import static datadog.trace.api.sampling.PrioritySampling.UNSET
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE
-import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.*
+import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.ENQUEUED_FOR_SERIALIZATION
 
 class TraceProcessingWorkerTest extends DDSpecification {
 
@@ -232,8 +232,8 @@ class TraceProcessingWorkerTest extends DDSpecification {
     AtomicInteger acceptedSpanCount = new AtomicInteger()
     PayloadDispatcher countingDispatcher = Mock(PayloadDispatcher)
     countingDispatcher.addTrace(_) >> {
-      List trace = it[0]
-      acceptedSpanCount.getAndAdd(trace.size())
+      List traceList = it[0]
+      acceptedSpanCount.getAndAdd(traceList.size())
       acceptedCount.getAndIncrement()
     }
     AtomicInteger sampledSpansCount = new AtomicInteger()
@@ -308,8 +308,8 @@ class TraceProcessingWorkerTest extends DDSpecification {
     AtomicInteger spansCount = new AtomicInteger()
     PayloadDispatcher countingDispatcher = Mock(PayloadDispatcher)
     countingDispatcher.addTrace(_) >> {
-      List trace = it[0]
-      spansCount.getAndAdd(trace.size())
+      List traceList = it[0]
+      spansCount.getAndAdd(traceList.size())
       chunksCount.getAndIncrement()
     }
     AtomicInteger sampledSpansCount = new AtomicInteger()

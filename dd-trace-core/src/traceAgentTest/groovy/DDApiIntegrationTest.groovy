@@ -9,7 +9,6 @@ import datadog.trace.common.writer.Payload
 import datadog.trace.common.writer.RemoteApi
 import datadog.trace.common.writer.RemoteResponseListener
 import datadog.trace.common.writer.ddagent.DDAgentApi
-
 import datadog.trace.common.writer.ddagent.TraceMapper
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
@@ -195,7 +194,7 @@ class DDApiIntegrationTest extends DDSpecification {
     // spotless:on
   }
 
-  def "Sending traces to unix domain socket succeeds (test #test)"() {
+  def "Sending traces to unix domain socket succeeds (enableV05 #enableV05)"() {
     setup:
     beforeTest(enableV05)
     expect:

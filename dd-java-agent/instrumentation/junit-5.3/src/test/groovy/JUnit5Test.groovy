@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.base.TestFrameworkTest
+import datadog.trace.api.DisableTestTrace
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.civisibility.TestEventsHandler
 import datadog.trace.instrumentation.junit5.JUnit5Decorator
@@ -30,6 +31,7 @@ import org.opentest4j.AssertionFailedError
 
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
+@DisableTestTrace(reason = "avoid self-tracing")
 class JUnit5Test extends TestFrameworkTest {
 
   def "test success generate spans"() {
@@ -475,7 +477,7 @@ class JUnit5Test extends TestFrameworkTest {
 
   @Override
   String expectedTestFrameworkVersion() {
-    return "5.3.0"
+    return "5.8.2"
   }
 
   @Override

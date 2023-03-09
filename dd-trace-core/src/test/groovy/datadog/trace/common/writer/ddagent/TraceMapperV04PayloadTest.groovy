@@ -9,7 +9,7 @@ import datadog.trace.common.writer.Payload
 import datadog.trace.common.writer.TraceGenerator
 import datadog.trace.core.DDSpanContext
 import datadog.trace.test.util.DDSpecification
-import org.junit.Assert
+import org.junit.jupiter.api.Assertions
 import org.msgpack.core.MessageFormat
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
@@ -19,9 +19,20 @@ import java.nio.channels.WritableByteChannel
 
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED
 import static datadog.trace.common.writer.TraceGenerator.generateRandomTraces
-import static org.junit.Assert.assertEquals
-import static org.junit.Assert.assertFalse
-import static org.msgpack.core.MessageFormat.*
+import static org.junit.jupiter.api.Assertions.assertEquals
+import static org.junit.jupiter.api.Assertions.assertFalse
+import static org.msgpack.core.MessageFormat.FLOAT32
+import static org.msgpack.core.MessageFormat.FLOAT64
+import static org.msgpack.core.MessageFormat.INT16
+import static org.msgpack.core.MessageFormat.INT32
+import static org.msgpack.core.MessageFormat.INT64
+import static org.msgpack.core.MessageFormat.INT8
+import static org.msgpack.core.MessageFormat.NEGFIXINT
+import static org.msgpack.core.MessageFormat.POSFIXINT
+import static org.msgpack.core.MessageFormat.UINT16
+import static org.msgpack.core.MessageFormat.UINT32
+import static org.msgpack.core.MessageFormat.UINT64
+import static org.msgpack.core.MessageFormat.UINT8
 
 class TraceMapperV04PayloadTest extends DDSpecification {
 
@@ -163,7 +174,7 @@ class TraceMapperV04PayloadTest extends DDSpecification {
                   n = unpacker.unpackDouble()
                   break
                 default:
-                  Assert.fail("Unexpected type in metrics values: " + format)
+                  Assertions.fail("Unexpected type in metrics values: " + format)
               }
               if (DD_MEASURED.toString() == key) {
                 assert ((n == 1) && expectedSpan.isMeasured()) || !expectedSpan.isMeasured()
@@ -208,7 +219,7 @@ class TraceMapperV04PayloadTest extends DDSpecification {
           }
         }
       } catch (IOException e) {
-        Assert.fail(e.getMessage())
+        Assertions.fail(e.getMessage())
       } finally {
         mapper.reset()
         captured.position(0)

@@ -79,7 +79,7 @@ class PathTraversalModuleTest extends IastModuleImplTestBase {
     '/==>var<==' | "/==>var<=="
   }
 
-  void 'iast module detects path traversal with String (#parent, #child)'(final String first, final String rest, final String expected) {
+  void 'iast module detects path traversal with String (#first, #rest)'() {
     setup:
     final parent = mapTainted(first)
     final children = mapTainted(rest)

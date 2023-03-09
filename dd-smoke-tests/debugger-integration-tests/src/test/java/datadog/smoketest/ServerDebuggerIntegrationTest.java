@@ -27,8 +27,8 @@ import okhttp3.Response;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
-import org.junit.Assert;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -47,6 +47,7 @@ public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
   private HttpUrl controlUrl;
   private OkHttpClient httpClient = new OkHttpClient();
 
+  @Override
   @BeforeEach
   void setup(TestInfo testInfo) throws Exception {
     super.setup(testInfo);
@@ -56,6 +57,7 @@ public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
     controlUrl = controlServer.url(CONTROL_URL);
   }
 
+  @Override
   @AfterEach
   void teardown() throws Exception {
     super.teardown();
@@ -214,8 +216,8 @@ public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
     statuses.put(diagnostics.getStatus(), diagnostics);
     diagnostics = retrieveProbeStatusRequest().getDiagnostics();
     statuses.put(diagnostics.getStatus(), diagnostics);
-    Assert.assertTrue(statuses.containsKey(ProbeStatus.Status.RECEIVED));
-    Assert.assertEquals(
+    Assertions.assertTrue(statuses.containsKey(ProbeStatus.Status.RECEIVED));
+    Assertions.assertEquals(
         "Cannot find method datadog/smoketest/debugger/ServerDebuggerTestApplication::unknownMethodName",
         statuses.get(ProbeStatus.Status.ERROR).getException().getMessage());
   }

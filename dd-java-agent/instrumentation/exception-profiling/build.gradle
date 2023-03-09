@@ -5,7 +5,6 @@ ext {
   // By default tests with be compiled for `minJavaVersionForTests` version,
   // but in this case we would like to avoid this since we would like to run with ZULU8
   skipSettingTestJavaVersion = true
-  enableJunitPlatform = true
 }
 
 apply from: "$rootDir/gradle/java.gradle"

@@ -31,3 +31,8 @@ dependencies {
   latestDepTestImplementation group: 'org.glassfish.jersey.containers', name: 'jersey-container-grizzly2-http', version: '2.+'
   latestDepTestImplementation group: 'org.glassfish.jersey.inject', name: 'jersey-hk2', version: '2.+'
 }
+
+configurations.testRuntimeClasspath {
+  // jersey-container-grizzly2-http transitively imports its own set repackaged asm classes
+  exclude group: 'org.ow2.asm'
+}

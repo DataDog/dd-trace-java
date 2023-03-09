@@ -14,9 +14,8 @@ import java.util.TreeSet;
 import java.util.jar.JarFile;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import net.bytebuddy.dynamic.ClassFileLocator;
+import org.junit.platform.runner.JUnitPlatform;
 import org.junit.runner.notification.RunNotifier;
-import org.junit.runners.model.InitializationError;
-import org.spockframework.runtime.Sputnik;
 
 /**
  * Runs a spock test in an agent-friendly way.
@@ -25,7 +24,7 @@ import org.spockframework.runtime.Sputnik;
  *   <li>Adds agent bootstrap classes to bootstrap classpath.
  * </ul>
  */
-public class SpockRunner extends Sputnik {
+public class SpockRunner extends JUnitPlatform {
   /**
    * An exact copy of {@link datadog.trace.bootstrap.Constants#BOOTSTRAP_PACKAGE_PREFIXES}.
    *
@@ -69,12 +68,12 @@ public class SpockRunner extends Sputnik {
   private final InstrumentationClassLoader customLoader;
 
   public SpockRunner(final Class<?> clazz)
-      throws InitializationError, NoSuchFieldException, SecurityException, IllegalArgumentException,
+      throws NoSuchFieldException, SecurityException, IllegalArgumentException,
           IllegalAccessException {
     super(shadowTestClass(clazz));
     assertNoBootstrapClassesInTestClass(clazz);
     // access the classloader created in shadowTestClass above
-    final Field clazzField = Sputnik.class.getDeclaredField("clazz");
+    final Field clazzField = JUnitPlatform.class.getDeclaredField("testClass");
     try {
       clazzField.setAccessible(true);
       customLoader =

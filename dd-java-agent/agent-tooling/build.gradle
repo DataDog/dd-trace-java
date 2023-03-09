@@ -1,5 +1,6 @@
 plugins {
   id 'me.champeau.jmh'
+  id 'java-test-fixtures'
 }
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/tries.gradle"
