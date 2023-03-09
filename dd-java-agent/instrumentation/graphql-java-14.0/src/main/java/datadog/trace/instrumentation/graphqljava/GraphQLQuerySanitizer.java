@@ -17,10 +17,6 @@ import graphql.util.TreeTransformerUtil;
 public final class GraphQLQuerySanitizer extends NodeVisitorStub {
   private static final NodeVisitor REPLACE_VALUES_VISITOR = new GraphQLQuerySanitizer();
   private static final AstTransformer AST_TRANSFORMER = new AstTransformer();
-  private static final EnumValue enumValueInt = new EnumValue("{Int}");
-  private static final EnumValue enumValueString = new EnumValue("{String}");
-  private static final EnumValue enumValueFloat = new EnumValue("{Float}");
-  private static final EnumValue enumValueBoolean = new EnumValue("{Boolean}");
 
   public static String sanitizeQuery(Node<?> node) {
     Node sanitizedQuery = AST_TRANSFORMER.transform(node, REPLACE_VALUES_VISITOR);
@@ -29,22 +25,22 @@ public final class GraphQLQuerySanitizer extends NodeVisitorStub {
 
   @Override
   public TraversalControl visitIntValue(IntValue node, TraverserContext<Node> context) {
-    return TreeTransformerUtil.changeNode(context, enumValueInt);
+    return TreeTransformerUtil.changeNode(context, new EnumValue("{Int}"));
   }
 
   @Override
   public TraversalControl visitBooleanValue(BooleanValue node, TraverserContext<Node> context) {
-    return TreeTransformerUtil.changeNode(context, enumValueBoolean);
+    return TreeTransformerUtil.changeNode(context, new EnumValue("{Boolean}"));
   }
 
   @Override
   public TraversalControl visitFloatValue(FloatValue node, TraverserContext<Node> context) {
-    return TreeTransformerUtil.changeNode(context, enumValueFloat);
+    return TreeTransformerUtil.changeNode(context, new EnumValue("{Float}"));
   }
 
   @Override
   public TraversalControl visitStringValue(StringValue node, TraverserContext<Node> context) {
-    return TreeTransformerUtil.changeNode(context, enumValueString);
+    return TreeTransformerUtil.changeNode(context, new EnumValue("{String}"));
   }
 
 }

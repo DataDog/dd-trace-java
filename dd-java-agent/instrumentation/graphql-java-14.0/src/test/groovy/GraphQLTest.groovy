@@ -4,7 +4,6 @@ import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import graphql.ExecutionInput
 import graphql.ExecutionResult
 import graphql.GraphQL
 import graphql.schema.DataFetcher
@@ -67,8 +66,8 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
 
   def "successful query produces spans"() {
     setup:
-    def query = 'query findBookById($id: ID) {\n' +
-      '  bookById(id: $id) {\n' +
+    def query = 'query findBookById {\n' +
+      '  bookById(id: "book-1") {\n' +
       '    id #test\n' +
       '    name\n' +
       '    pageCount\n' +
@@ -79,8 +78,8 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
       '    isbn\n' +
       '  }\n' +
       '}'
-    def expectedQuery = 'query findBookById($id: ID) {\n' +
-      '  bookById(id: $id) {\n' +
+    def expectedQuery = 'query findBookById {\n' +
+      '  bookById(id: {String}) {\n' +
       '    id\n' +
       '    name\n' +
       '    pageCount\n' +
@@ -92,8 +91,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
       '  }\n' +
       '}\n'
 
-    ExecutionInput input = ExecutionInput.newExecutionInput().query(query).variables([id: "book-1"]).build()
-    ExecutionResult result = graphql.execute(input)
+    ExecutionResult result = graphql.execute(query)
 
     expect:
     result.getErrors().isEmpty()
