@@ -1,11 +1,13 @@
 package datadog.trace.core.propagation;
 
-import static datadog.trace.core.propagation.HttpCodec.CLIENT_IP_KEY;
+import static datadog.trace.core.propagation.HttpCodec.CF_CONNECTING_IP_KEY;
+import static datadog.trace.core.propagation.HttpCodec.CF_CONNECTING_IP_V6_KEY;
+import static datadog.trace.core.propagation.HttpCodec.FASTLY_CLIENT_IP_KEY;
 import static datadog.trace.core.propagation.HttpCodec.FORWARDED_FOR_KEY;
 import static datadog.trace.core.propagation.HttpCodec.FORWARDED_KEY;
 import static datadog.trace.core.propagation.HttpCodec.TRUE_CLIENT_IP_KEY;
 import static datadog.trace.core.propagation.HttpCodec.USER_AGENT_KEY;
-import static datadog.trace.core.propagation.HttpCodec.VIA_KEY;
+import static datadog.trace.core.propagation.HttpCodec.X_CLIENT_IP_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_CLUSTER_CLIENT_IP_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_FOR_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_HOST_KEY;
@@ -175,20 +177,27 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
         getHeaders().xRealIp = value;
         return true;
       }
-      if (CLIENT_IP_KEY.equalsIgnoreCase(key)) {
-        getHeaders().clientIp = value;
+      if (X_CLIENT_IP_KEY.equalsIgnoreCase(key)) {
+        getHeaders().xClientIp = value;
         return true;
       }
       if (TRUE_CLIENT_IP_KEY.equalsIgnoreCase(key)) {
         getHeaders().trueClientIp = value;
         return true;
       }
-    }
-
-    if (VIA_KEY.equalsIgnoreCase(key)) {
-      getHeaders().via = value;
+      if (FASTLY_CLIENT_IP_KEY.equalsIgnoreCase(key)) {
+        getHeaders().fastlyClientIp = value;
+        return true;
+      }
+      if (CF_CONNECTING_IP_KEY.equalsIgnoreCase(key)) {
+        getHeaders().cfConnectingIp = value;
+        return true;
+      }
+    } else if (CF_CONNECTING_IP_V6_KEY.equalsIgnoreCase(key)) {
+      getHeaders().cfConnectingIpv6 = value;
       return true;
     }
+
     return false;
   }
 

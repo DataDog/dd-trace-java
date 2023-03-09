@@ -168,11 +168,13 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     _ * ctx.getXForwarded()
     _ * ctx.getXClusterClientIp() >> null
     _ * ctx.getXRealIp() >> null
-    _ * ctx.getClientIp() >> null
+    _ * ctx.getXClientIp() >> null
     _ * ctx.getUserAgent() >> "some-user-agent"
     _ * ctx.getCustomIpHeader() >> null
     _ * ctx.getTrueClientIp() >> null
-    _ * ctx.getVia() >> null
+    _ * ctx.getFastlyClientIp() >> null
+    _ * ctx.getCfConnectingIp() >> null
+    _ * ctx.getCfConnectingIpv6() >> null
     1 * this.span.setTag(Tags.HTTP_FORWARDED, "by=<identifier>;for=<identifier>;host=<host>;proto=<http|https>")
     1 * this.span.setTag(Tags.HTTP_FORWARDED_PROTO, "https")
     1 * this.span.setTag(Tags.HTTP_FORWARDED_HOST, "somehost")
@@ -207,7 +209,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def decorator = newDecorator()
 
     when:
-    1 * ctx.getClientIp() >> headerIpAddr
+    1 * ctx.getXClientIp() >> headerIpAddr
     decorator.onRequest(this.span, [peerIp: peerIpAddr], null, ctx)
 
     then:
@@ -265,9 +267,13 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     decorator.onRequest(this.span, [peerIp: '4.4.4.4'], null, ctx)
 
     then:
-    2 * ctx.getForwarded() >> 'for=2.3.4.5'
+    2 * ctx.getXForwardedFor() >> '2.3.4.5'
     1 * this.span.setTag(Tags.HTTP_CLIENT_IP, '2.3.4.5')
-    1 * this.span.setTag(Tags.HTTP_FORWARDED, 'for=2.3.4.5')
+    1 * this.span.setTag(Tags.HTTP_FORWARDED_IP, '2.3.4.5')
+
+    // Forwarded doesn't participate in client ip resolution anymore
+    1 * ctx.getForwarded() >> 'for=9.9.9.9'
+    1 * this.span.setTag(Tags.HTTP_FORWARDED, 'for=9.9.9.9')
   }
 
   void 'client ip reporting with custom header'() {
