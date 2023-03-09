@@ -41,5 +41,5 @@ dependencies {
   testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:$coroutinesVersion"
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:kotlin-coroutines'))
 
-  latestDepTestImplementation group: 'org.jetbrains.kotlinx', name: "kotlinx-coroutines-core", version: '1.+'
+  latestDepTestImplementation group: 'org.jetbrains.kotlinx', name: "kotlinx-coroutines-core", version: '1.6.+'
 }
