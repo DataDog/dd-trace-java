@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator.http
 
+import datadog.trace.api.normalize.HttpResourceNames
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.core.CoreTracer
@@ -12,15 +13,14 @@ import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOU
 class HttpResourceDecoratorTest extends DDSpecification {
 
   @Shared
-  CoreTracer tracer
+  CoreTracer tracer = CoreTracer.builder().build()
 
   def setup() {
     injectSysConfig("http.server.route-based-naming", "false")
-
-    tracer = CoreTracer.builder().build()
+    HttpResourceNames.INSTANCE = null
   }
 
-  def cleanup() {
+  def cleanupSpec() {
     tracer.close()
   }
 

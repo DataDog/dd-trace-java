@@ -1,10 +1,10 @@
-package datadog.trace.bootstrap.instrumentation.decorator.http;
+package datadog.trace.api.normalize;
 
 // public because this is used in the testing module but groovy accesses it through Class.forName
 // which is banned
-public final class SimplePathNormalizer extends PathNormalizer {
+public final class SimpleHttpPathNormalizer extends HttpPathNormalizer {
   // package private so things outside groovy for tests can't create an instance
-  SimplePathNormalizer() {}
+  SimpleHttpPathNormalizer() {}
 
   @Override
   public String normalize(String path, boolean encoded) {

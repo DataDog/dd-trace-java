@@ -24,7 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
-import datadog.trace.bootstrap.instrumentation.decorator.http.SimplePathNormalizer
+import datadog.trace.api.normalize.SimpleHttpPathNormalizer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.test.util.Flaky
@@ -148,7 +148,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
     def encoded = !hasDecodedResource()
     def path = encoded ? endpoint.resolve(address).rawPath : endpoint.resolve(address).path
-    return "$method ${new SimplePathNormalizer().normalize(path, encoded)}"
+    return "$method ${new SimpleHttpPathNormalizer().normalize(path, encoded)}"
   }
 
   String expectedUrl(ServerEndpoint endpoint, URI address) {
