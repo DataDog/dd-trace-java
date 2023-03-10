@@ -9,7 +9,9 @@ import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.source.WebModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import groovy.transform.CompileDynamic
 
+@CompileDynamic
 class WebModuleTest extends IastModuleImplTestBase {
 
   private WebModule module
@@ -345,5 +347,52 @@ class WebModuleTest extends IastModuleImplTestBase {
 
     def to = ctx.getTaintedObjects().get(reader)
     assert to != null
+  }
+
+  void 'test onQueryString without span'() {
+    when:
+    module.onQueryString('query string')
+
+    then:
+    1 * tracer.activeSpan() >> null
+    0 * _
+  }
+
+  void 'test onQueryString with null or empty query string'() {
+    when:
+    module.onQueryString(value)
+
+    then:
+    0 * _
+
+    where:
+    value | _
+    null  | _
+    ''    | _
+  }
+
+  void 'test onQueryString'() {
+    given:
+    final span = Mock(AgentSpan)
+    tracer.activeSpan() >> span
+    final reqCtx = Mock(RequestContext)
+    span.getRequestContext() >> reqCtx
+    final ctx = new IastRequestContext()
+    reqCtx.getData(RequestContextSlot.IAST) >> ctx
+    final value = 'key=value'
+
+    when:
+    module.onQueryString(value)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    1 * span.getRequestContext() >> reqCtx
+    1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
+    0 * _
+
+    final tainted = ctx.getTaintedObjects().get(value)
+    tainted != null
+    tainted.ranges.length == 1
+    tainted.ranges.first().source.origin == SourceType.REQUEST_QUERY
   }
 }

@@ -18,6 +18,7 @@ public final class SourceType {
   public static final byte REQUEST_COOKIE_DOMAIN = 8;
   public static final byte REQUEST_COOKIE_PATH = 9;
   public static final byte REQUEST_BODY = 10;
+  public static final byte REQUEST_QUERY = 11;
 
   public static String toString(final byte sourceType) {
     switch (sourceType) {
@@ -41,6 +42,8 @@ public final class SourceType {
         return SourceTypes.REQUEST_COOKIE_PATH;
       case REQUEST_BODY:
         return SourceTypes.REQUEST_BODY;
+      case REQUEST_QUERY:
+        return SourceTypes.REQUEST_QUERY;
       default:
         return null;
     }
