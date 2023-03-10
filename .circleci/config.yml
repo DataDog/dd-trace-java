@@ -3,15 +3,15 @@ version: 2.1
 defaults: &defaults
   working_directory: ~/dd-trace-java
   docker:
-    - image: &default_container datadog/dd-trace-java-docker-build:latest
+    - image: &default_container << pipeline.parameters.docker_image >>:<< pipeline.parameters.docker_image_tag >>
 
 test_matrix: &test_matrix
   parameters:
-    testJvm: [ "IBM8", "SEMERU8", "ZULU8", "ORACLE8", "11", "ZULU11", "17" ]
+    testJvm: [ "ibm8", "semeru8", "zulu8", "oracle8", "11", "zulu11", "17" ]
 
 profiling_test_matrix: &profiling_test_matrix
   parameters:
-    testJvm: [ "8", "ZULU8", "ORACLE8", "11", "ZULU11", "17" ]
+    testJvm: [ "8", "zulu8", "oracle8", "11", "zulu11", "17" ]
 
 system_test_matrix: &system_test_matrix
   parameters:
@@ -34,6 +34,14 @@ parameters:
     # Pattern for files that should always trigger a test jobs
     type: string
     default: "^build.gradle$|^settings.gradle$|^gradle.properties$|^buildSrc/|^gradle/|.circleci"
+
+  docker_image:
+    type: string
+    default: ghcr.io/datadog/dd-trace-java-docker-build
+
+  docker_image_tag:
+    type: string
+    default: base
 
 commands:
   generate_cache_ids:
@@ -419,7 +427,7 @@ jobs:
     resource_class: large
 
     docker:
-      - image: *default_container
+      - image: << pipeline.parameters.docker_image >>:<< parameters.testJvm >>
 
     parameters:
       testJvm:
@@ -474,7 +482,7 @@ jobs:
       - run:
           name: Run tests
           command: >-
-            if [[ << parameters.profile >> ]] && [[ << parameters.testJvm >> != "IBM8" ]] && [[ << parameters.testJvm >> != "ORACLE8" ]]; 
+            if [[ << parameters.profile >> ]] && [[ << parameters.testJvm >> != "ibm8" ]] && [[ << parameters.testJvm >> != "oracle8" ]];
             then
               PROFILER_COMMAND="-XX:StartFlightRecording=settings=profile,filename=/tmp/<< parameters.stage >>-<< parameters.testJvm >>.jfr,dumponexit=true"
             fi
@@ -558,10 +566,11 @@ jobs:
 
   agent_integration_tests:
     <<: *tests
+
     resource_class: medium
 
     docker:
-      - image: *default_container
+      - image: << pipeline.parameters.docker_image >>:7
       - image: datadog/agent:7.34.0
         environment:
           - DD_APM_ENABLED=true
@@ -571,6 +580,9 @@ jobs:
   test_published_artifacts:
     <<: *defaults
     resource_class: large
+
+    docker:
+      - image: << pipeline.parameters.docker_image >>:7
 
     steps:
       - setup_code
@@ -961,42 +973,42 @@ build_test_jobs: &build_test_jobs
   - huge_tests:
       requires:
         - ok_to_test
-      name: test_IBM11_smoke
+      name: test_semeru11_smoke
       gradleTarget: "stageMainDist :smokeTest"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
       cacheType: smoke
       maxWorkers: 8
-      testJvm: "IBM11"
+      testJvm: "semeru11"
 
   - huge_tests:
       requires:
         - ok_to_test
-      name: test_IBM17_smoke
+      name: test_semeru17_smoke
       gradleTarget: "stageMainDist :smokeTest"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
       cacheType: smoke
       maxWorkers: 8
-      testJvm: "IBM17"
+      testJvm: "semeru17"
 
   - xlarge_tests:
       requires:
         - ok_to_test
-      name: test_GRAALVM11_smoke
+      name: test_graalvm11_smoke
       gradleTarget: "stageMainDist :dd-smoke-test:spring-native:test"
       stage: smoke
       cacheType: smoke
-      testJvm: "GRAALVM11"
+      testJvm: "graalvm11"
 
   - xlarge_tests:
       requires:
         - ok_to_test
-      name: test_GRAALVM17_smoke
+      name: test_graalvm17_smoke
       gradleTarget: "stageMainDist :dd-smoke-test:spring-native:test"
       stage: smoke
       cacheType: smoke
-      testJvm: "GRAALVM17"
+      testJvm: "graalvm17"
 
 
   - huge_tests:
@@ -1065,9 +1077,9 @@ build_test_jobs: &build_test_jobs
       requires:
         - test_published_artifacts
         - test_8_profiling
-        - test_ORACLE8_profiling
-        - test_ZULU8_profiling
-        - test_ZULU11_profiling
+        - test_oracle8_profiling
+        - test_zulu8_profiling
+        - test_zulu11_profiling
         - test_11_profiling
         - test_17_profiling
       name: profiling
@@ -1077,9 +1089,9 @@ build_test_jobs: &build_test_jobs
       requires:
         - test_published_artifacts
         - test_8_debugger
-        - test_ORACLE8_debugger
-        - test_ZULU8_debugger
-        - test_ZULU11_debugger
+        - test_oracle8_debugger
+        - test_zulu8_debugger
+        - test_zulu11_debugger
         - test_11_debugger
         - test_17_debugger
       name: debugger
@@ -1089,9 +1101,9 @@ build_test_jobs: &build_test_jobs
       requires:
         - test_published_artifacts
         - test_8_iast
-        - test_ORACLE8_iast
-        - test_ZULU8_iast
-        - test_ZULU11_iast
+        - test_oracle8_iast
+        - test_zulu8_iast
+        - test_zulu11_iast
         - test_11_iast
         - test_17_iast
       name: iast
@@ -1105,12 +1117,12 @@ build_test_jobs: &build_test_jobs
         - test_published_artifacts
         - agent_integration_tests
         - test_8
-        - test_IBM8
+        - test_ibm8
         - test_11
-        - test_IBM11_smoke
+        - test_semeru11_smoke
         - test_17
-        - test_IBM17_smoke
-        - test_ZULU8
+        - test_semeru17_smoke
+        - test_zulu8
         - profiling
         - iast
         - debugger
