@@ -307,6 +307,7 @@ import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.api.naming.SpanNaming;
+import datadog.trace.bootstrap.config.provider.AgentArgsConfigSource;
 import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
@@ -349,14 +350,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Config reads values with the following priority: 1) system properties, 2) environment variables,
- * 3) optional configuration file, 4) platform dependant properties. It also includes default values
- * to ensure a valid config.
+ * Config reads values with the following priority:
+ *
+ * <ol>
+ *   <li>system properties
+ *   <li>environment variables
+ *   <li>java agent arguments
+ *   <li>optional configuration file
+ *   <li>platform dependant properties. It also includes default values * to ensure a valid config
+ * </ol>
  *
  * <p>
  *
  * <p>System properties are {@link Config#PREFIX}'ed. Environment variables are the same as the
- * system property, but uppercased and '.' is replaced with '_'.
+ * system properties, but uppercased and '.' is replaced with '_'. Java agent arguments are the same
+ * as the system properties
  */
 @Deprecated
 public class Config {
@@ -656,7 +664,8 @@ public class Config {
     // FIXME: We should use better authentication mechanism
     final String apiKeyFile = configProvider.getString(API_KEY_FILE);
     String tmpApiKey =
-        configProvider.getStringExcludingSource(API_KEY, null, SystemPropertiesConfigSource.class);
+        configProvider.getStringExcludingSources(
+            API_KEY, null, SystemPropertiesConfigSource.class, AgentArgsConfigSource.class);
     if (apiKeyFile != null) {
       try {
         tmpApiKey =

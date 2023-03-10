@@ -45,6 +45,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.net.URL;
 import java.util.EnumSet;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
@@ -134,7 +135,10 @@ public class Agent {
   private static boolean telemetryEnabled = true;
   private static boolean debuggerEnabled = false;
 
-  public static void start(final Instrumentation inst, final URL agentJarURL) {
+  private static Properties agentArgProperties;
+
+  public static void start(
+      final Instrumentation inst, final URL agentJarURL, final String agentArgs) {
     StaticEventLogger.begin("Agent");
     StaticEventLogger.begin("Agent.start");
 
@@ -144,6 +148,9 @@ public class Agent {
       startDatadogAgent(inst);
       return;
     }
+
+    agentArgProperties = AgentArgsParser.parseAgentArgs(agentArgs);
+    injectAgentArgPropertiesConfig();
 
     // Retro-compatibility for the old way to configure CI Visibility
     if ("true".equals(ddGetProperty("dd.integration.junit.enabled"))
@@ -290,6 +297,21 @@ public class Agent {
     }
 
     StaticEventLogger.end("Agent.start");
+  }
+
+  private static void injectAgentArgPropertiesConfig() {
+    if (agentArgProperties == null) {
+      return;
+    }
+    try {
+      final Class<?> agentArgsConfigSource =
+          AGENT_CLASSLOADER.loadClass(
+              "datadog.trace.bootstrap.config.provider.AgentArgsConfigSource");
+      final Method setAgentArgs = agentArgsConfigSource.getMethod("setAgentArgs", Properties.class);
+      setAgentArgs.invoke(null, agentArgProperties);
+    } catch (final Exception ex) {
+      log.error("Error setting agent args config: {}", agentArgProperties, ex);
+    }
   }
 
   public static void shutdown(final boolean sync) {
@@ -916,7 +938,9 @@ public class Agent {
   }
 
   private static void setSystemPropertyDefault(final String property, final String value) {
-    if (System.getProperty(property) == null && ddGetEnv(property) == null) {
+    if (System.getProperty(property) == null
+        && ddGetEnv(property) == null
+        && ddGetAgentArg(property) == null) {
       System.setProperty(property, value);
     }
   }
@@ -939,15 +963,18 @@ public class Agent {
   private static boolean isDebugMode() {
     final String tracerDebugLevelSysprop = "dd.trace.debug";
     final String tracerDebugLevelProp = System.getProperty(tracerDebugLevelSysprop);
-
     if (tracerDebugLevelProp != null) {
       return Boolean.parseBoolean(tracerDebugLevelProp);
     }
 
     final String tracerDebugLevelEnv = ddGetEnv(tracerDebugLevelSysprop);
-
     if (tracerDebugLevelEnv != null) {
       return Boolean.parseBoolean(tracerDebugLevelEnv);
+    }
+
+    final String tracerDebugLevelAgentArg = ddGetAgentArg(tracerDebugLevelSysprop);
+    if (tracerDebugLevelAgentArg != null) {
+      return Boolean.parseBoolean(tracerDebugLevelAgentArg);
     }
     return false;
   }
@@ -959,6 +986,9 @@ public class Agent {
     String featureEnabled = System.getProperty(featureEnabledSysprop);
     if (featureEnabled == null) {
       featureEnabled = ddGetEnv(featureEnabledSysprop);
+    }
+    if (featureEnabled == null) {
+      featureEnabled = ddGetAgentArg(featureEnabledSysprop);
     }
 
     if (feature.isEnabledByDefault()) {
@@ -977,6 +1007,10 @@ public class Agent {
     String settingValue = getNullIfEmpty(System.getProperty(featureEnabledSysprop));
     if (settingValue == null) {
       settingValue = getNullIfEmpty(ddGetEnv(featureEnabledSysprop));
+      settingValue = settingValue != null && settingValue.isEmpty() ? null : settingValue;
+    }
+    if (settingValue == null) {
+      settingValue = getNullIfEmpty(ddGetAgentArg(featureEnabledSysprop));
       settingValue = settingValue != null && settingValue.isEmpty() ? null : settingValue;
     }
 
@@ -1020,13 +1054,18 @@ public class Agent {
     final String tracerCustomLogManSysprop = "dd.app.customlogmanager";
     final String customLogManagerProp = System.getProperty(tracerCustomLogManSysprop);
     final String customLogManagerEnv = ddGetEnv(tracerCustomLogManSysprop);
+    final String customLogManagerAgentArg = ddGetAgentArg(tracerCustomLogManSysprop);
 
-    if (customLogManagerProp != null || customLogManagerEnv != null) {
+    if (customLogManagerProp != null
+        || customLogManagerEnv != null
+        || customLogManagerAgentArg != null) {
       log.debug("Prop - customlogmanager: {}", customLogManagerProp);
       log.debug("Env - customlogmanager: {}", customLogManagerEnv);
+      log.debug("Agent arg - customlogmanager: {}", customLogManagerAgentArg);
       // Allow setting to skip these automatic checks:
       return Boolean.parseBoolean(customLogManagerProp)
-          || Boolean.parseBoolean(customLogManagerEnv);
+          || Boolean.parseBoolean(customLogManagerEnv)
+          || Boolean.parseBoolean(customLogManagerAgentArg);
     }
 
     if (libraries.contains(WILDFLY)) {
@@ -1058,13 +1097,18 @@ public class Agent {
     final String tracerCustomJMXBuilderSysprop = "dd.app.customjmxbuilder";
     final String customJMXBuilderProp = System.getProperty(tracerCustomJMXBuilderSysprop);
     final String customJMXBuilderEnv = ddGetEnv(tracerCustomJMXBuilderSysprop);
+    final String customJMXBuilderAgentArg = ddGetAgentArg(tracerCustomJMXBuilderSysprop);
 
-    if (customJMXBuilderProp != null || customJMXBuilderEnv != null) {
+    if (customJMXBuilderProp != null
+        || customJMXBuilderEnv != null
+        || customJMXBuilderAgentArg != null) {
       log.debug("Prop - customjmxbuilder: {}", customJMXBuilderProp);
       log.debug("Env - customjmxbuilder: {}", customJMXBuilderEnv);
+      log.debug("Agent arg - customjmxbuilder: {}", customJMXBuilderAgentArg);
       // Allow setting to skip these automatic checks:
       return Boolean.parseBoolean(customJMXBuilderProp)
-          || Boolean.parseBoolean(customJMXBuilderEnv);
+          || Boolean.parseBoolean(customJMXBuilderEnv)
+          || Boolean.parseBoolean(customJMXBuilderAgentArg);
     }
 
     if (libraries.contains(WILDFLY)) {
@@ -1086,11 +1130,17 @@ public class Agent {
     return false;
   }
 
-  /** Looks for the "dd." system property first then the "DD_" environment variable equivalent. */
+  /**
+   * Looks for the "dd." system property first, then for the "DD_" environment variable equivalent,
+   * then for the equivalent agent argument (same as the system property)
+   */
   private static String ddGetProperty(final String sysProp) {
     String value = System.getProperty(sysProp);
     if (null == value) {
       value = ddGetEnv(sysProp);
+    }
+    if (null == value) {
+      value = ddGetAgentArg(sysProp);
     }
     return value;
   }
@@ -1098,6 +1148,11 @@ public class Agent {
   /** Looks for the "DD_" environment variable equivalent of the given "dd." system property. */
   private static String ddGetEnv(final String sysProp) {
     return System.getenv(toEnvVar(sysProp));
+  }
+
+  /** Looks for the agent argument equivalent of the given "dd." system property. */
+  private static String ddGetAgentArg(final String sysProp) {
+    return agentArgProperties != null ? agentArgProperties.getProperty(sysProp) : null;
   }
 
   private static boolean okHttpMayIndirectlyLoadJUL() {
