@@ -8,7 +8,10 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -93,6 +96,28 @@ public final class ConfigProvider {
       }
     }
     return defaultValue;
+  }
+
+  public String getStringExcludingSources(
+      String key, String defaultValue, Class<? extends ConfigProvider.Source>... excludedSources) {
+    for (ConfigProvider.Source source : sources) {
+      if (!isExcluded(source, excludedSources)) {
+        String value = source.get(key);
+        if (value != null) {
+          return value;
+        }
+      }
+    }
+    return defaultValue;
+  }
+
+  private static boolean isExcluded(Source source, Class<? extends Source>[] excludedSources) {
+    for (Class<? extends Source> excludedSource : excludedSources) {
+      if (excludedSource.isAssignableFrom(source.getClass())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public boolean isSet(String key) {
@@ -266,74 +291,81 @@ public final class ConfigProvider {
   }
 
   public static ConfigProvider createDefault() {
-    Properties configProperties =
-        loadConfigurationFile(
-            new ConfigProvider(new SystemPropertiesConfigSource(), new EnvironmentConfigSource()));
-    if (configProperties.isEmpty()) {
-      return new ConfigProvider(
-          new SystemPropertiesConfigSource(),
-          new EnvironmentConfigSource(),
-          new CapturedEnvironmentConfigSource());
-    } else {
-      return new ConfigProvider(
-          new SystemPropertiesConfigSource(),
-          new EnvironmentConfigSource(),
-          new PropertiesConfigSource(configProperties, true),
-          new CapturedEnvironmentConfigSource());
+    List<ConfigProvider.Source> sources = new ArrayList<>();
+    sources.add(new SystemPropertiesConfigSource());
+    sources.add(new EnvironmentConfigSource());
+    if (!AgentArgsConfigSource.isEmpty()) {
+      sources.add(new AgentArgsConfigSource());
     }
+    Properties configProperties = loadConfigurationFile();
+    if (!configProperties.isEmpty()) {
+      sources.add(new PropertiesConfigSource(configProperties, true));
+    }
+    sources.add(new CapturedEnvironmentConfigSource());
+    return configProvider(true, sources);
   }
 
   public static ConfigProvider withoutCollector() {
-    Properties configProperties =
-        loadConfigurationFile(
-            new ConfigProvider(
-                false, new SystemPropertiesConfigSource(), new EnvironmentConfigSource()));
-    if (configProperties.isEmpty()) {
-      return new ConfigProvider(
-          false,
-          new SystemPropertiesConfigSource(),
-          new EnvironmentConfigSource(),
-          new CapturedEnvironmentConfigSource());
-    } else {
-      return new ConfigProvider(
-          false,
-          new SystemPropertiesConfigSource(),
-          new EnvironmentConfigSource(),
-          new PropertiesConfigSource(configProperties, true),
-          new CapturedEnvironmentConfigSource());
+    List<ConfigProvider.Source> sources = new ArrayList<>();
+    sources.add(new SystemPropertiesConfigSource());
+    sources.add(new EnvironmentConfigSource());
+    if (!AgentArgsConfigSource.isEmpty()) {
+      sources.add(new AgentArgsConfigSource());
     }
+    Properties configProperties = loadConfigurationFile();
+    if (!configProperties.isEmpty()) {
+      sources.add(new PropertiesConfigSource(configProperties, true));
+    }
+    sources.add(new CapturedEnvironmentConfigSource());
+    return configProvider(false, sources);
   }
 
   public static ConfigProvider withPropertiesOverride(Properties properties) {
     PropertiesConfigSource providedConfigSource = new PropertiesConfigSource(properties, false);
-    Properties configProperties =
-        loadConfigurationFile(
-            new ConfigProvider(
-                new SystemPropertiesConfigSource(),
-                new EnvironmentConfigSource(),
-                providedConfigSource));
-    if (configProperties.isEmpty()) {
-      return new ConfigProvider(
-          new SystemPropertiesConfigSource(),
-          new EnvironmentConfigSource(),
-          providedConfigSource,
-          new CapturedEnvironmentConfigSource());
-    } else {
-      return new ConfigProvider(
-          providedConfigSource,
-          new SystemPropertiesConfigSource(),
-          new EnvironmentConfigSource(),
-          new PropertiesConfigSource(configProperties, true),
-          new CapturedEnvironmentConfigSource());
+    Properties configProperties = loadConfigurationFile(providedConfigSource);
+
+    List<ConfigProvider.Source> sources = new ArrayList<>();
+    if (!configProperties.isEmpty()) {
+      sources.add(providedConfigSource);
     }
+    sources.add(new SystemPropertiesConfigSource());
+    sources.add(new EnvironmentConfigSource());
+    if (!AgentArgsConfigSource.isEmpty()) {
+      sources.add(new AgentArgsConfigSource());
+    }
+    if (!configProperties.isEmpty()) {
+      sources.add(new PropertiesConfigSource(configProperties, true));
+    } else {
+      sources.add(providedConfigSource);
+    }
+    sources.add(new CapturedEnvironmentConfigSource());
+    return configProvider(true, sources);
+  }
+
+  private static Properties loadConfigurationFile(
+      ConfigProvider.Source... additionalConfigSources) {
+    List<ConfigProvider.Source> sources = new ArrayList<>();
+    sources.add(new SystemPropertiesConfigSource());
+    sources.add(new EnvironmentConfigSource());
+    if (!AgentArgsConfigSource.isEmpty()) {
+      sources.add(new AgentArgsConfigSource());
+    }
+    Collections.addAll(sources, additionalConfigSources);
+    return loadConfigurationFile(configProvider(true, sources));
+  }
+
+  private static ConfigProvider configProvider(
+      boolean collectConfig, Collection<ConfigProvider.Source> sources) {
+    Source[] sourcesArray = sources.toArray(new Source[0]);
+    return new ConfigProvider(collectConfig, sourcesArray);
   }
 
   /**
    * Loads the optional configuration properties file into the global {@link Properties} object.
    *
+   * @param configProvider
    * @return The {@link Properties} object. the returned instance might be empty of file does not
    *     exist or if it is in a wrong format.
-   * @param configProvider
    */
   @SuppressForbidden
   private static Properties loadConfigurationFile(ConfigProvider configProvider) {

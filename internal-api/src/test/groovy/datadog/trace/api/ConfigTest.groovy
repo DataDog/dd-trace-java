@@ -1,6 +1,7 @@
 package datadog.trace.api
 
 import datadog.trace.api.env.FixedCapturedEnvironment
+import datadog.trace.bootstrap.config.provider.AgentArgsConfigSource
 import datadog.trace.bootstrap.config.provider.ConfigConverter
 import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.test.util.DDSpecification
@@ -18,6 +19,10 @@ import static datadog.trace.api.DDTags.RUNTIME_ID_TAG
 import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG
 import static datadog.trace.api.DDTags.SERVICE
 import static datadog.trace.api.DDTags.SERVICE_TAG
+import static datadog.trace.api.TracePropagationStyle.B3MULTI
+import static datadog.trace.api.TracePropagationStyle.B3SINGLE
+import static datadog.trace.api.TracePropagationStyle.DATADOG
+import static datadog.trace.api.TracePropagationStyle.HAYSTACK
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED
@@ -74,8 +79,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_PERIOD
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_ENABLED
-import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_POLL_INTERVAL_SECONDS
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_MAX_PAYLOAD_SIZE
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_POLL_INTERVAL_SECONDS
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX
@@ -110,7 +115,6 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RUL
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
-import static datadog.trace.api.TracePropagationStyle.*
 
 class ConfigTest extends DDSpecification {
 
@@ -145,6 +149,10 @@ class ConfigTest extends DDSpecification {
   private static final DD_PROFILING_TAGS_ENV = "DD_PROFILING_TAGS"
   private static final DD_PROFILING_PROXY_PASSWORD_ENV = "DD_PROFILING_PROXY_PASSWORD"
   private static final DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH = "DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH"
+
+  def cleanup() {
+    AgentArgsConfigSource.agentArgs = null
+  }
 
   def "specify overrides via properties"() {
     setup:
@@ -2194,5 +2202,93 @@ class ConfigTest extends DDSpecification {
     null                     | null                     | null     | "b3 single header" | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3SINGLE]          | [DATADOG]
     null                     | null                     | null     | "b3"               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3MULTI]           | [DATADOG]
     // spotless:on
+  }
+
+  def "agent args are used by config"() {
+    setup:
+    Properties args = new Properties()
+    args.put(PREFIX + SERVICE_NAME, "args service name")
+    AgentArgsConfigSource.agentArgs = args
+
+    when:
+    rebuildConfig()
+    def config = new Config()
+
+    then:
+    config.serviceName == "args service name"
+  }
+
+  def "agent args override captured env props"() {
+    setup:
+    Properties args = new Properties()
+    args.put(PREFIX + SERVICE_NAME, "args service name")
+    AgentArgsConfigSource.agentArgs = args
+
+    def capturedEnv = new HashMap<String, String>()
+    capturedEnv.put(SERVICE_NAME, "captured props service name")
+    fixedCapturedEnvironment.load(capturedEnv)
+
+    when:
+    def config = new Config()
+
+    then:
+    config.serviceName == "args service name"
+  }
+
+  def "sys props override agent args"() {
+    setup:
+    System.setProperty(PREFIX + SERVICE_NAME, "system prop service name")
+
+    Properties args = new Properties()
+    args.put(PREFIX + SERVICE_NAME, "args service name")
+    AgentArgsConfigSource.agentArgs = args
+
+    when:
+    def config = new Config()
+
+    then:
+    config.serviceName == "system prop service name"
+  }
+
+  def "env vars override agent args"() {
+    setup:
+    environmentVariables.set(DD_SERVICE_NAME_ENV, "env service name")
+
+    Properties args = new Properties()
+    args.put(PREFIX + SERVICE_NAME, "args service name")
+    AgentArgsConfigSource.agentArgs = args
+
+    when:
+    def config = new Config()
+
+    then:
+    config.serviceName == "env service name"
+  }
+
+  def "agent args are used for looking up properties file"() {
+    Properties args = new Properties()
+    args.put(PREFIX + CONFIGURATION_FILE, "src/test/resources/dd-java-tracer.properties")
+    AgentArgsConfigSource.agentArgs = args
+
+    when:
+    def config = new Config()
+
+    then:
+    config.configFileStatus == "src/test/resources/dd-java-tracer.properties"
+    config.serviceName == "set-in-properties"
+  }
+
+  def "fallback to properties file has lower priority than agent args"() {
+    Properties args = new Properties()
+    args.put(PREFIX + CONFIGURATION_FILE, "src/test/resources/dd-java-tracer.properties")
+    args.put(PREFIX + SERVICE_NAME, "args service name")
+    AgentArgsConfigSource.agentArgs = args
+
+    when:
+    def config = new Config()
+
+    then:
+    config.configFileStatus == "src/test/resources/dd-java-tracer.properties"
+    config.serviceName == "args service name"
   }
 }

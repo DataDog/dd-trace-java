@@ -54,7 +54,7 @@ public final class AgentCLI {
    * @param interval the interval (in seconds) to wait for each trace
    */
   public static void sendSampleTraces(final int count, final double interval) {
-    Agent.start(null, Agent.class.getProtectionDomain().getCodeSource().getLocation());
+    Agent.start(null, Agent.class.getProtectionDomain().getCodeSource().getLocation(), null);
 
     int numTraces = 0;
     while (++numTraces <= count || count < 0) {
