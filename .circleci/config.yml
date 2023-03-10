@@ -719,17 +719,12 @@ jobs:
               echo "Skipping CI Visibility dashboard update due to it is not a main branch"
             fi
 
-      - store_artifacts:
-          path: system-tests/logs
-          destination: logs_java_<< parameters.weblog-variant >>_dev.tar.gz
+      - run:
+          name: Collect artifacts
+          command: tar -cvzf logs_java_<< parameters.weblog-variant >>_dev.tar.gz -C system-tests logs logs_apm_tracing_e2e logs_apm_tracing_e2e_single_span
 
       - store_artifacts:
-          path: system-tests/logs_apm_tracing_e2e
-          destination: logs_java_apm_tracing_e2e_<< parameters.weblog-variant >>_dev.tar.gz
-
-      - store_artifacts:
-          path: system-tests/logs_apm_tracing_e2e_single_span
-          destination: logs_java_apm_tracing_e2e_single_span_<< parameters.weblog-variant >>_dev.tar.gz
+          path: logs_java_<< parameters.weblog-variant >>_dev.tar.gz
 
   parametric-tests:
     machine:
