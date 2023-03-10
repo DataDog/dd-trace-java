@@ -131,4 +131,18 @@ public class WebModuleImpl implements WebModule {
     taintedObjects.taintInputString(
         headerValue, new Source(SourceType.REQUEST_HEADER_VALUE, headerName, headerValue));
   }
+
+  @Override
+  public void onCookieValue(@Nullable final String cookieName, @Nullable final String cookieValue) {
+    if (!canBeTainted(cookieValue)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    taintedObjects.taintInputString(
+        cookieValue, new Source(SourceType.REQUEST_COOKIE_VALUE, cookieName, cookieValue));
+  }
 }
