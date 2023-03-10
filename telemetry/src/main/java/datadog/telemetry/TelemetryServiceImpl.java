@@ -32,8 +32,15 @@ public class TelemetryServiceImpl implements TelemetryService {
 
   private static final Logger log = LoggerFactory.getLogger(TelemetryServiceImpl.class);
 
+  private static final int MAX_ELEMENTS_PER_REQUEST = 100;
+
+  // https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/producing-telemetry.md#when-to-use-it-1
+  private static final int MAX_DEPENDENCIES_PER_REQUEST = 2000;
+
   private final Supplier<RequestBuilder> requestBuilderSupplier;
   private final TimeSource timeSource;
+  private final int maxElementsPerReq;
+  private final int maxDepsPerReq;
   private final int heartbeatIntervalMs;
   private final BlockingQueue<KeyValue> configurations = new LinkedBlockingQueue<>();
   private final BlockingQueue<Integration> integrations = new LinkedBlockingQueue<>();
@@ -59,12 +66,28 @@ public class TelemetryServiceImpl implements TelemetryService {
       Supplier<RequestBuilder> requestBuilderSupplier,
       TimeSource timeSource,
       int heartBeatIntervalSec) {
+    this(
+        requestBuilderSupplier,
+        timeSource,
+        heartBeatIntervalSec,
+        MAX_ELEMENTS_PER_REQUEST,
+        MAX_DEPENDENCIES_PER_REQUEST);
+  }
 
+  // For testing purpose
+  TelemetryServiceImpl(
+      Supplier<RequestBuilder> requestBuilderSupplier,
+      TimeSource timeSource,
+      int heartBeatIntervalSec,
+      int maxElementsPerReq,
+      int maxDepsPerReq) {
     this.requestBuilderSupplier = requestBuilderSupplier;
     this.timeSource = timeSource;
     this.heartbeatIntervalMs = heartBeatIntervalSec * 1000; // we use time in milliseconds
     this.openTracingIntegrationEnabled = false;
     this.openTelemetryIntegrationEnabled = false;
+    this.maxElementsPerReq = maxElementsPerReq;
+    this.maxDepsPerReq = maxDepsPerReq;
   }
 
   @Override
@@ -72,8 +95,8 @@ public class TelemetryServiceImpl implements TelemetryService {
     Payload payload =
         new AppStarted()
             ._configuration(drainOrNull(configurations)) // absent if nothing
-            .integrations(drainOrEmpty(integrations)) // empty list if nothing
-            .dependencies(drainOrEmpty(dependencies)) // empty list if nothing
+            .integrations(drainOrEmpty(integrations, maxElementsPerReq)) // empty list if nothing
+            .dependencies(drainOrEmpty(dependencies, maxDepsPerReq)) // empty list if nothing
             .requestType(RequestType.APP_STARTED);
 
     queue.offer(requestBuilderSupplier.get().build(RequestType.APP_STARTED, payload));
@@ -123,14 +146,15 @@ public class TelemetryServiceImpl implements TelemetryService {
 
   @Override
   public boolean addDistributionSeries(DistributionSeries series) {
-    return false;
+    return this.distributionSeries.offer(series);
   }
 
   @Override
   public Queue<Request> prepareRequests() {
     // New integrations
-    if (!integrations.isEmpty()) {
-      Payload payload = new AppIntegrationsChange().integrations(drainOrEmpty(integrations));
+    while (!integrations.isEmpty()) {
+      Payload payload =
+          new AppIntegrationsChange().integrations(drainOrEmpty(integrations, maxElementsPerReq));
       Request request =
           requestBuilderSupplier
               .get()
@@ -141,8 +165,9 @@ public class TelemetryServiceImpl implements TelemetryService {
     }
 
     // New dependencies
-    if (!dependencies.isEmpty()) {
-      Payload payload = new AppDependenciesLoaded().dependencies(drainOrEmpty(dependencies));
+    while (!dependencies.isEmpty()) {
+      Payload payload =
+          new AppDependenciesLoaded().dependencies(drainOrEmpty(dependencies, maxDepsPerReq));
       Request request =
           requestBuilderSupplier
               .get()
@@ -153,8 +178,11 @@ public class TelemetryServiceImpl implements TelemetryService {
     }
 
     // New metrics
-    if (!metrics.isEmpty()) {
-      Payload payload = new GenerateMetrics().namespace("tracer").series(drainOrEmpty(metrics));
+    while (!metrics.isEmpty()) {
+      Payload payload =
+          new GenerateMetrics()
+              .namespace("tracer")
+              .series(drainOrEmpty(metrics, maxElementsPerReq));
       Request request =
           requestBuilderSupplier
               .get()
@@ -164,8 +192,8 @@ public class TelemetryServiceImpl implements TelemetryService {
     }
 
     // New messages
-    if (!logMessages.isEmpty()) {
-      Payload payload = new Logs().messages(drainOrEmpty(logMessages));
+    while (!logMessages.isEmpty()) {
+      Payload payload = new Logs().messages(drainOrEmpty(logMessages, maxElementsPerReq));
       Request request =
           requestBuilderSupplier
               .get()
@@ -174,9 +202,11 @@ public class TelemetryServiceImpl implements TelemetryService {
     }
 
     // New Distributions
-    if (!distributionSeries.isEmpty()) {
+    while (!distributionSeries.isEmpty()) {
       Payload payload =
-          new Distributions().namespace("tracer").series(drainOrEmpty(distributionSeries));
+          new Distributions()
+              .namespace("tracer")
+              .series(drainOrEmpty(distributionSeries, maxElementsPerReq));
       Request request =
           requestBuilderSupplier
               .get()
