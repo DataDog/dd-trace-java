@@ -5,8 +5,13 @@ import datadog.telemetry.api.AppIntegrationsChange
 import datadog.telemetry.api.AppStarted
 import datadog.telemetry.api.Dependency
 import datadog.telemetry.api.DependencyType
+import datadog.telemetry.api.DistributionSeries
+import datadog.telemetry.api.Distributions
 import datadog.telemetry.api.GenerateMetrics
 import datadog.telemetry.api.Integration
+import datadog.telemetry.api.LogMessage
+import datadog.telemetry.api.LogMessageLevel
+import datadog.telemetry.api.Logs
 import datadog.telemetry.api.Metric
 import datadog.telemetry.api.RequestType
 import datadog.trace.api.time.TimeSource
@@ -188,6 +193,77 @@ class TelemetryServiceSpecification extends DDSpecification {
         p.namespace == 'tracer' &&  // top level namespace is "tracer" by default
         p.requestType &&
         p.series.first().is(metric)
+    }) >> REQUEST
+    queue.first().is(REQUEST)
+    0 * requestBuilder._
+  }
+
+  void 'added distribution series are reported in distributions'() {
+    def series
+
+    when:
+    series = new DistributionSeries(namespace: 'appsec', metric: 'my metric', tags: ['my tag'], points: [[0.1, 0.2], [0.2, 0.1]])
+    telemetryService.addDistributionSeries(series)
+    def queue = telemetryService.prepareRequests()
+
+    then:
+    1 * requestBuilder.build(RequestType.DISTRIBUTIONS, { Distributions p ->
+      p.requestType == RequestType.DISTRIBUTIONS &&
+        p.namespace == 'tracer' &&  // top level namespace is "tracer" by default
+        p.requestType &&
+        p.series.first().is(series)
+    }) >> REQUEST
+    queue.first().is(REQUEST)
+    0 * requestBuilder._
+  }
+
+  void 'send #messages log messages in #requests requests'() {
+    def logMessage
+    def telemetry
+
+    when:
+    telemetry = new TelemetryServiceImpl(requestBuilderSupplier, timeSource, 1, 10, 1)
+    logMessage = new LogMessage(message: 'hello world', level: LogMessageLevel.DEBUG)
+    for (int i=0; i<messages; i++) {
+      telemetry.addLogMessage(logMessage)
+    }
+    def queue = telemetry.prepareRequests()
+
+    then:
+    requests * requestBuilder.build(RequestType.LOGS, { Logs p ->
+      p.requestType == RequestType.LOGS &&
+        p.messages.first().is(logMessage)
+    }) >> REQUEST
+    queue.first().is(REQUEST)
+    0 * requestBuilder._
+
+    where:
+    messages    | requests
+    10        | 1
+    11        | 2
+    100       | 10
+  }
+
+  void 'send max 10 dependencies per request'() {
+    def dep
+    def telemetry
+
+    when:
+    telemetry = new TelemetryServiceImpl(requestBuilderSupplier, timeSource, 1, 1, 10)
+    dep = new Dependency(name: 'dep')
+    for (int i=0; i<15; i++) {
+      telemetry.addDependency(dep)
+    }
+    def queue = telemetry.prepareRequests()
+
+    then:
+    1 * requestBuilder.build(RequestType.APP_DEPENDENCIES_LOADED, { AppDependenciesLoaded p ->
+      p.requestType == RequestType.APP_DEPENDENCIES_LOADED &&
+        p.dependencies.size() == 10
+    }) >> REQUEST
+    1 * requestBuilder.build(RequestType.APP_DEPENDENCIES_LOADED, { AppDependenciesLoaded p ->
+      p.requestType == RequestType.APP_DEPENDENCIES_LOADED &&
+        p.dependencies.size() == 5
     }) >> REQUEST
     queue.first().is(REQUEST)
     0 * requestBuilder._
