@@ -70,6 +70,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTER
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
@@ -283,6 +284,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_RESOLVER_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING;
+import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE_EXTRACT;
@@ -428,6 +430,7 @@ public class Config {
   private final boolean httpServerRouteBasedNaming;
   private final Map<String, String> httpServerPathResourceNameMapping;
   private final Map<String, String> httpClientPathResourceNameMapping;
+  private final boolean httpResourceRemoveTrailingSlash;
   private final boolean httpClientTagQueryString;
   private final boolean httpClientSplitByDomain;
   private final boolean dbClientSplitByInstance;
@@ -834,6 +837,11 @@ public class Config {
 
     httpClientPathResourceNameMapping =
         configProvider.getOrderedMap(TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING);
+
+    httpResourceRemoveTrailingSlash =
+        configProvider.getBoolean(
+            TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH,
+            DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH);
 
     httpServerErrorStatuses =
         configProvider.getIntegerRange(
@@ -1535,6 +1543,10 @@ public class Config {
 
   public Map<String, String> getHttpClientPathResourceNameMapping() {
     return httpClientPathResourceNameMapping;
+  }
+
+  public boolean getHttpResourceRemoveTrailingSlash() {
+    return httpResourceRemoveTrailingSlash;
   }
 
   public BitSet getHttpServerErrorStatuses() {
@@ -2966,6 +2978,8 @@ public class Config {
         + httpClientTagQueryString
         + ", httpClientSplitByDomain="
         + httpClientSplitByDomain
+        + ", httpResourceRemoveTrailingSlash"
+        + httpResourceRemoveTrailingSlash
         + ", dbClientSplitByInstance="
         + dbClientSplitByInstance
         + ", dbClientSplitByInstanceTypeSuffix="

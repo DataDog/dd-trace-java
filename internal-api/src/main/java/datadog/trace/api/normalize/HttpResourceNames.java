@@ -34,6 +34,7 @@ public class HttpResourceNames {
 
   private final AntPatternHttpPathNormalizer serverAntPatternHttpPathNormalizer;
   private final AntPatternHttpPathNormalizer clientAntPatternHttpPathNormalizer;
+  private final boolean removeTrailingSlash;
 
   private static HttpResourceNames instance() {
     if (null == INSTANCE) {
@@ -47,6 +48,7 @@ public class HttpResourceNames {
         new AntPatternHttpPathNormalizer(Config.get().getHttpServerPathResourceNameMapping());
     clientAntPatternHttpPathNormalizer =
         new AntPatternHttpPathNormalizer(Config.get().getHttpClientPathResourceNameMapping());
+    removeTrailingSlash = Config.get().getHttpResourceRemoveTrailingSlash();
   }
 
   public static AgentSpan setForServer(
@@ -91,6 +93,12 @@ public class HttpResourceNames {
   }
 
   public static CharSequence join(CharSequence method, CharSequence path) {
+    if (instance().removeTrailingSlash
+        && path != null
+        && path.length() > 1
+        && path.charAt(path.length() - 1) == '/') {
+      path = path.subSequence(0, path.length() - 1);
+    }
     return JOINER_CACHE.computeIfAbsent(Pair.of(method, path), JOINER);
   }
 }
