@@ -11,7 +11,7 @@ public class FormParamInjectorInstrumentation extends Instrumenter.Iast
     implements Instrumenter.ForSingleType {
 
   public FormParamInjectorInstrumentation() {
-    super("formparaminjector");
+    super("resteasy");
   }
 
   @Override
