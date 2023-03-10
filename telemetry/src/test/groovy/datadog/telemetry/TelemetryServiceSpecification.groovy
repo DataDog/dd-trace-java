@@ -185,7 +185,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     then:
     1 * requestBuilder.build(RequestType.GENERATE_METRICS, { GenerateMetrics p ->
       p.requestType == RequestType.GENERATE_METRICS &&
-        p.namespace == 'appsec' &&
+        p.namespace == 'tracer' &&  // top level namespace is "tracer" by default
         p.requestType &&
         p.series.first().is(metric)
     }) >> REQUEST
