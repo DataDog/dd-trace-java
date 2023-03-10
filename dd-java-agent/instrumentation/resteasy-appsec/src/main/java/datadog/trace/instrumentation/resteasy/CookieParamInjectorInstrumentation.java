@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.resteasy;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -17,7 +18,8 @@ public class CookieParamInjectorInstrumentation extends Instrumenter.Iast
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        named("inject").and(isPublic()), packageName + ".CookieParamInjectorAdvice");
+        named("inject").and(isPublic()).and(takesArguments(2)),
+        packageName + ".CookieParamInjectorAdvice");
   }
 
   @Override
