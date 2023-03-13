@@ -14,13 +14,31 @@ public class HttpResourceNames {
 
   private static final Function<Pair<CharSequence, CharSequence>, UTF8BytesString> JOINER =
       input -> {
-        if (input.getLeft() == null) {
-          return UTF8BytesString.create(input.getRight());
-        } else if (input.getRight() == null) {
+        CharSequence path = input.getRight();
+        if (path == null) {
           return DEFAULT_RESOURCE_NAME;
         }
-        return UTF8BytesString.create(
-            input.getLeft().toString().toUpperCase() + " " + input.getRight());
+        StringBuilder sb;
+        CharSequence method = input.getLeft();
+        if (method == null) {
+          sb = new StringBuilder(path.length());
+        } else {
+          sb = new StringBuilder(path.length() + method.length() + 1);
+          sb.append(method);
+          // uppercase the method part of the resource name
+          for (int i = 0; i < sb.length(); i++) {
+            sb.setCharAt(i, Character.toUpperCase(sb.charAt(i)));
+          }
+          sb.append(' ');
+        }
+        int l = path.length() - 1;
+        if (instance().removeTrailingSlash && l > 0 && path.charAt(l) == '/') {
+          // remove trailing slash from the resource name path if needed
+          sb.append(path, 0, l);
+        } else {
+          sb.append(path);
+        }
+        return UTF8BytesString.create(sb);
       };
 
   private static final DDCache<Pair<CharSequence, CharSequence>, CharSequence> JOINER_CACHE =
@@ -93,12 +111,6 @@ public class HttpResourceNames {
   }
 
   public static CharSequence join(CharSequence method, CharSequence path) {
-    if (instance().removeTrailingSlash
-        && path != null
-        && path.length() > 1
-        && path.charAt(path.length() - 1) == '/') {
-      path = path.subSequence(0, path.length() - 1);
-    }
     return JOINER_CACHE.computeIfAbsent(Pair.of(method, path), JOINER);
   }
 }
