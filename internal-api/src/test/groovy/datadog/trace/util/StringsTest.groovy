@@ -1,5 +1,6 @@
 package datadog.trace.util
 
+
 import datadog.trace.test.util.DDSpecification
 
 class StringsTest extends DDSpecification {
@@ -187,5 +188,77 @@ class StringsTest extends DDSpecification {
     ['value1']             | "[\"value1\"]"
     ['value1', 'value2']   | "[\"value1\",\"value2\"]"
     ['va"lu"e1', 'value2'] | "[\"va\\\"lu\\\"e1\",\"value2\"]"
+  }
+
+  def "parse a single-element key-value list"() {
+    given:
+    def args = "key1=value1"
+
+    when:
+    def properties = Strings.parseCommaSeparatedKeyValueList(args)
+
+    then:
+    properties != null
+    properties.size() == 1
+    properties.get("key1") == "value1"
+  }
+
+  def "parse a multi-element key-value list"() {
+    given:
+    def args = "key1=value1,key2=value2"
+
+    when:
+    def properties = Strings.parseCommaSeparatedKeyValueList(args)
+
+    then:
+    properties != null
+    properties.size() == 2
+    properties.get("key2") == "value2"
+  }
+
+  def "parse null key-value list"() {
+    given:
+    def args = null
+
+    when:
+    def properties = Strings.parseCommaSeparatedKeyValueList(args)
+
+    then:
+    properties == null
+  }
+
+  def "parse empty key-value list"() {
+    given:
+    def args = ""
+
+    when:
+    def properties = Strings.parseCommaSeparatedKeyValueList(args)
+
+    then:
+    properties == null
+  }
+
+  def "parse malformed key-value list"() {
+    given:
+    def args = "key=value,,,=="
+
+    when:
+    def properties = Strings.parseCommaSeparatedKeyValueList(args)
+
+    then:
+    properties == null
+  }
+
+  def "parses a single-element key-value list containing value with a space"() {
+    given:
+    def args = "key=value with spaces"
+
+    when:
+    def properties = Strings.parseCommaSeparatedKeyValueList(args)
+
+    then:
+    properties != null
+    properties.size() == 1
+    properties.get("key") == "value with spaces"
   }
 }

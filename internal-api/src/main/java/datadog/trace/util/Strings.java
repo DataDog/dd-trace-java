@@ -3,13 +3,19 @@ package datadog.trace.util;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Scanner;
 import javax.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class Strings {
+
+  private static final Logger log = LoggerFactory.getLogger(Strings.class);
 
   public static String escapeToJson(String string) {
     if (string == null || string.isEmpty()) {
@@ -281,5 +287,36 @@ public final class Strings {
     }
     json.append("]");
     return json.toString();
+  }
+
+  /**
+   * Parses a comma-separated list of key-value pairs. Key and value within a pair should be
+   * separated with '=' character. For simplicity quoting is not supported
+   *
+   * @param keyValueList in form "key1=value1,key2=value2,..."
+   * @return parsed pairs, or {@code null} if provided string was empty or malformed
+   */
+  public static Map<String, String> parseCommaSeparatedKeyValueList(String keyValueList) {
+    if (keyValueList == null || keyValueList.isEmpty()) {
+      return null;
+    }
+    try {
+      Map<String, String> args = new HashMap<>();
+
+      Scanner scanner = new Scanner(keyValueList);
+      scanner.useDelimiter(",");
+      while (scanner.hasNext()) {
+        String arg = scanner.next();
+        int idx = arg.indexOf('=');
+        String key = arg.substring(0, idx);
+        String value = arg.substring(idx + 1);
+        args.put(key, value);
+      }
+      return args;
+
+    } catch (Exception ex) {
+      log.error("Error parsing agent args: {}", keyValueList, ex);
+      return null;
+    }
   }
 }
