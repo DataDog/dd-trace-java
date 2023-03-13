@@ -8,6 +8,7 @@ import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.common.metrics.Sink;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -38,13 +39,15 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private final WellKnownTags wellKnownTags;
   private final byte[] tracerVersionValue;
   private final byte[] primaryTagValue;
+  private final long payloadSizeLimit;
 
   public MsgPackDatastreamsPayloadWriter(
-      Sink sink, WellKnownTags wellKnownTags, String tracerVersion, String primaryTag) {
+      Sink sink, WellKnownTags wellKnownTags, String tracerVersion, String primaryTag, long payloadSizeLimit) {
     buffer = new GrowableBuffer(INITIAL_CAPACITY);
     writer = new MsgPackWriter(buffer);
     this.sink = sink;
     this.wellKnownTags = wellKnownTags;
+    this.payloadSizeLimit = payloadSizeLimit;
     tracerVersionValue = tracerVersion.getBytes(ISO_8859_1);
     primaryTagValue = primaryTag == null ? new byte[0] : primaryTag.getBytes(ISO_8859_1);
   }
@@ -53,8 +56,31 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     buffer.reset();
   }
 
-  @Override
-  public void writePayload(Collection<StatsBucket> data) {
+  private long getApproximateBucketSize(StatsBucket bucket) {
+    long size = 0L;
+    // assuming 3 bytes per character
+    long charSize = 3L;
+
+    for (StatsGroup group : bucket.getGroups()) {
+      // hash + parent hash + sketches + tags
+      size += group.getPathwayLatency().serializedSize() +
+          group.getEdgeLatency().serializedSize() +
+          Long.BYTES * 2;
+      for (String tag: group.getEdgeTags()) {
+        size += tag.length() * charSize;
+      }
+    }
+
+    for (Map.Entry<List<String>, Long> backlogEntry: bucket.getBacklogs()) {
+      for (String tag: backlogEntry.getKey()) {
+        size += tag.length() * charSize + Long.BYTES;
+      }
+    }
+
+    return size;
+  }
+
+  private void write(Collection<StatsBucket> data) {
     writer.startMap(6);
     /* 1 */
     writer.writeUTF8(ENV);
@@ -104,6 +130,27 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     buffer.mark();
     sink.accept(buffer.messageCount(), buffer.slice());
     buffer.reset();
+  }
+
+  @Override
+  public void writePayload(Collection<StatsBucket> data) {
+    long size = 0;
+    List<StatsBucket> payloads = new ArrayList<>();
+
+    for (StatsBucket bucket: data) {
+      long nextSize = getApproximateBucketSize(bucket);
+      if (size > 0 && size + nextSize > payloadSizeLimit) {
+        write(payloads);
+
+        payloads.clear();
+        size = 0;
+      }
+
+      size += nextSize;
+      payloads.add(bucket);
+    }
+
+    write(payloads);
   }
 
   private void writeBucket(StatsBucket bucket, Writable packer) {

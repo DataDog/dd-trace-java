@@ -46,7 +46,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     requestBodies = []
   }
 
-  def "Write bucket to mock server"() {
+  def "Write buckets to mock server in chunks"() {
     given:
     def conditions = new PollingConditions(timeout: 2)
 
@@ -72,7 +72,8 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     def timeSource = new ControllableTimeSource()
 
     when:
-    def dataStreams = new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource)
+    // payload size limit is set to 1 to force split each bucket to a separate payload
+    def dataStreams = new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource, 1)
     dataStreams.start()
     dataStreams.accept(new StatsPoint([], 9, 0, timeSource.currentTimeNanos, 0, 0))
     dataStreams.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
@@ -88,15 +89,16 @@ class DataStreamsWritingTest extends DDCoreSpecification {
 
     then:
     conditions.eventually {
-      assert requestBodies.size() == 1
+      assert requestBodies.size() == 2
     }
-    validateMessage(requestBodies[0])
+    validateFistMessage(requestBodies[0])
+    validateSecondMessage(requestBodies[1])
 
     cleanup:
     dataStreams.close()
   }
 
-  def validateMessage(byte[] message) {
+  def validateSecondMessage(byte[] message){
     GzipSource gzipSource = new GzipSource(Okio.source(new ByteArrayInputStream(message)))
 
     BufferedSource bufferedSource = Okio.buffer(gzipSource)
@@ -114,9 +116,60 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     assert unpacker.unpackString() == "TracerVersion"
     assert unpacker.unpackString() == DDTraceCoreInfo.VERSION
     assert unpacker.unpackString() == "Stats"
-    assert unpacker.unpackArrayHeader() == 2  // 2 time buckets
+    assert unpacker.unpackArrayHeader() == 1
 
-    // FIRST BUCKET
+    // BUCKET
+    assert unpacker.unpackMapHeader() == 3
+    assert unpacker.unpackString() == "Start"
+    unpacker.skipValue()
+    assert unpacker.unpackString() == "Duration"
+    assert unpacker.unpackLong() == DEFAULT_BUCKET_DURATION_NANOS
+    assert unpacker.unpackString() == "Stats"
+    assert unpacker.unpackArrayHeader() == 2 // 2 groups in second bucket
+
+    Set<Long> availableHashes = [1L, 3L] // we don't know the order the groups will be reported
+    2.times {
+      assert unpacker.unpackMapHeader() == 5
+      assert unpacker.unpackString() == "PathwayLatency"
+      unpacker.skipValue()
+      assert unpacker.unpackString() == "EdgeLatency"
+      unpacker.skipValue()
+      assert unpacker.unpackString() == "Hash"
+      def hash = unpacker.unpackLong()
+      assert availableHashes.remove(hash)
+      assert unpacker.unpackString() == "ParentHash"
+      assert unpacker.unpackLong() == (hash == 1 ? 2 : 4)
+      assert unpacker.unpackString() == "EdgeTags"
+      assert unpacker.unpackArrayHeader() == 3
+      assert unpacker.unpackString() == "type:testType"
+      assert unpacker.unpackString() == "group:testGroup"
+      assert unpacker.unpackString() == (hash == 1 ? "topic:testTopic" : "topic:testTopic2")
+    }
+
+    return true
+  }
+
+  def validateFistMessage(byte[] message) {
+    GzipSource gzipSource = new GzipSource(Okio.source(new ByteArrayInputStream(message)))
+
+    BufferedSource bufferedSource = Okio.buffer(gzipSource)
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(bufferedSource.inputStream())
+
+    assert unpacker.unpackMapHeader() == 6
+    assert unpacker.unpackString() == "Env"
+    assert unpacker.unpackString() == "test"
+    assert unpacker.unpackString() == "Service"
+    assert unpacker.unpackString() == Config.get().getServiceName()
+    assert unpacker.unpackString() == "Lang"
+    assert unpacker.unpackString() == "java"
+    assert unpacker.unpackString() == "PrimaryTag"
+    assert unpacker.unpackString() == "region-1"
+    assert unpacker.unpackString() == "TracerVersion"
+    assert unpacker.unpackString() == DDTraceCoreInfo.VERSION
+    assert unpacker.unpackString() == "Stats"
+    assert unpacker.unpackArrayHeader() == 1
+
+    // BUCKET
     assert unpacker.unpackMapHeader() == 4
     assert unpacker.unpackString() == "Start"
     unpacker.skipValue()
@@ -166,34 +219,6 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     assert unpacker.unpackString() == "type:kafka_produce"
     assert unpacker.unpackString() == "Value"
     assert unpacker.unpackLong() == 130
-
-    // SECOND BUCKET
-    assert unpacker.unpackMapHeader() == 3
-    assert unpacker.unpackString() == "Start"
-    unpacker.skipValue()
-    assert unpacker.unpackString() == "Duration"
-    assert unpacker.unpackLong() == DEFAULT_BUCKET_DURATION_NANOS
-    assert unpacker.unpackString() == "Stats"
-    assert unpacker.unpackArrayHeader() == 2 // 2 groups in second bucket
-
-    Set<Long> availableHashes = [1L, 3L] // we don't know the order the groups will be reported
-    2.times {
-      assert unpacker.unpackMapHeader() == 5
-      assert unpacker.unpackString() == "PathwayLatency"
-      unpacker.skipValue()
-      assert unpacker.unpackString() == "EdgeLatency"
-      unpacker.skipValue()
-      assert unpacker.unpackString() == "Hash"
-      def hash = unpacker.unpackLong()
-      assert availableHashes.remove(hash)
-      assert unpacker.unpackString() == "ParentHash"
-      assert unpacker.unpackLong() == (hash == 1 ? 2 : 4)
-      assert unpacker.unpackString() == "EdgeTags"
-      assert unpacker.unpackArrayHeader() == 3
-      assert unpacker.unpackString() == "type:testType"
-      assert unpacker.unpackString() == "group:testGroup"
-      assert unpacker.unpackString() == (hash == 1 ? "topic:testTopic" : "topic:testTopic2")
-    }
 
     return true
   }
