@@ -244,10 +244,6 @@ public class TelemetryServiceImpl implements TelemetryService {
     return drainOrDefault(srcQueue, null, Integer.MAX_VALUE);
   }
 
-  private static <T> List<T> drainOrEmpty(BlockingQueue<T> srcQueue) {
-    return drainOrDefault(srcQueue, Collections.<T>emptyList(), Integer.MAX_VALUE);
-  }
-
   private static <T> List<T> drainOrEmpty(BlockingQueue<T> srcQueue, int maxItems) {
     return drainOrDefault(srcQueue, Collections.<T>emptyList(), maxItems);
   }
