@@ -1,4 +1,5 @@
-package datadog.trace.bootstrap
+package datadog.trace.bootstrap.config.provider
+
 
 import spock.lang.Specification
 

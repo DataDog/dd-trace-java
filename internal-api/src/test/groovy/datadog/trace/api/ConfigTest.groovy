@@ -1,7 +1,7 @@
 package datadog.trace.api
 
 import datadog.trace.api.env.FixedCapturedEnvironment
-import datadog.trace.bootstrap.config.provider.AgentArgsConfigSource
+import datadog.trace.bootstrap.config.provider.AgentArgsInjector
 import datadog.trace.bootstrap.config.provider.ConfigConverter
 import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.test.util.DDSpecification
@@ -149,10 +149,6 @@ class ConfigTest extends DDSpecification {
   private static final DD_PROFILING_TAGS_ENV = "DD_PROFILING_TAGS"
   private static final DD_PROFILING_PROXY_PASSWORD_ENV = "DD_PROFILING_PROXY_PASSWORD"
   private static final DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH = "DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH"
-
-  def cleanup() {
-    AgentArgsConfigSource.agentArgs = null
-  }
 
   def "specify overrides via properties"() {
     setup:
@@ -2206,9 +2202,7 @@ class ConfigTest extends DDSpecification {
 
   def "agent args are used by config"() {
     setup:
-    Properties args = new Properties()
-    args.put(PREFIX + SERVICE_NAME, "args service name")
-    AgentArgsConfigSource.agentArgs = args
+    AgentArgsInjector.injectAgentArgsConfig([(PREFIX + SERVICE_NAME): "args service name"])
 
     when:
     rebuildConfig()
@@ -2220,9 +2214,7 @@ class ConfigTest extends DDSpecification {
 
   def "agent args override captured env props"() {
     setup:
-    Properties args = new Properties()
-    args.put(PREFIX + SERVICE_NAME, "args service name")
-    AgentArgsConfigSource.agentArgs = args
+    AgentArgsInjector.injectAgentArgsConfig([(PREFIX + SERVICE_NAME): "args service name"])
 
     def capturedEnv = new HashMap<String, String>()
     capturedEnv.put(SERVICE_NAME, "captured props service name")
@@ -2239,9 +2231,7 @@ class ConfigTest extends DDSpecification {
     setup:
     System.setProperty(PREFIX + SERVICE_NAME, "system prop service name")
 
-    Properties args = new Properties()
-    args.put(PREFIX + SERVICE_NAME, "args service name")
-    AgentArgsConfigSource.agentArgs = args
+    AgentArgsInjector.injectAgentArgsConfig([(PREFIX + SERVICE_NAME): "args service name"])
 
     when:
     def config = new Config()
@@ -2254,9 +2244,7 @@ class ConfigTest extends DDSpecification {
     setup:
     environmentVariables.set(DD_SERVICE_NAME_ENV, "env service name")
 
-    Properties args = new Properties()
-    args.put(PREFIX + SERVICE_NAME, "args service name")
-    AgentArgsConfigSource.agentArgs = args
+    AgentArgsInjector.injectAgentArgsConfig([(PREFIX + SERVICE_NAME): "args service name"])
 
     when:
     def config = new Config()
@@ -2266,9 +2254,8 @@ class ConfigTest extends DDSpecification {
   }
 
   def "agent args are used for looking up properties file"() {
-    Properties args = new Properties()
-    args.put(PREFIX + CONFIGURATION_FILE, "src/test/resources/dd-java-tracer.properties")
-    AgentArgsConfigSource.agentArgs = args
+    setup:
+    AgentArgsInjector.injectAgentArgsConfig([(PREFIX + CONFIGURATION_FILE): "src/test/resources/dd-java-tracer.properties"])
 
     when:
     def config = new Config()
@@ -2279,10 +2266,11 @@ class ConfigTest extends DDSpecification {
   }
 
   def "fallback to properties file has lower priority than agent args"() {
-    Properties args = new Properties()
-    args.put(PREFIX + CONFIGURATION_FILE, "src/test/resources/dd-java-tracer.properties")
-    args.put(PREFIX + SERVICE_NAME, "args service name")
-    AgentArgsConfigSource.agentArgs = args
+    setup:
+    AgentArgsInjector.injectAgentArgsConfig([
+      (PREFIX + CONFIGURATION_FILE): "src/test/resources/dd-java-tracer.properties",
+      (PREFIX + SERVICE_NAME)      : "args service name"
+    ])
 
     when:
     def config = new Config()
