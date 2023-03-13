@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.gradle;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.config.CiVisibilityConfig;
@@ -7,10 +8,8 @@ import datadog.trace.bootstrap.instrumentation.decorator.AbstractTestDecorator;
 import datadog.trace.util.Strings;
 import java.nio.file.Path;
 import java.util.Collection;
-import java.util.Map;
 import org.gradle.BuildAdapter;
 import org.gradle.BuildResult;
-import org.gradle.StartParameter;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.execution.TaskExecutionListener;
@@ -29,7 +28,7 @@ public class GradleBuildListener extends BuildAdapter {
 
   @Override
   public void settingsEvaluated(Settings settings) {
-    if (!isCiVisibilityEnabled(settings.getStartParameter())) {
+    if (!Config.get().isCiVisibilityEnabled()) {
       return;
     }
     Gradle gradle = settings.getGradle();
@@ -45,7 +44,7 @@ public class GradleBuildListener extends BuildAdapter {
 
   @Override
   public void projectsEvaluated(Gradle gradle) {
-    if (!isCiVisibilityEnabled(gradle.getStartParameter())) {
+    if (!Config.get().isCiVisibilityEnabled()) {
       return;
     }
     Project rootProject = gradle.getRootProject();
@@ -62,28 +61,17 @@ public class GradleBuildListener extends BuildAdapter {
 
   @Override
   public void buildFinished(BuildResult result) {
-    Gradle gradle = result.getGradle();
-    if (!isCiVisibilityEnabled(gradle.getStartParameter())) {
+    if (!Config.get().isCiVisibilityEnabled()) {
       return;
     }
 
+    Gradle gradle = result.getGradle();
     Throwable failure = result.getFailure();
     if (failure != null) {
       buildEventsHandler.onTestSessionFail(gradle, failure);
     }
 
     buildEventsHandler.onTestSessionFinish(gradle);
-  }
-
-  private static boolean isCiVisibilityEnabled(StartParameter startParameter) {
-    Map<String, String> projectProperties = startParameter.getProjectProperties();
-    String ciVisibilityProperty = projectProperties.get(DD_CIVISIBILITY_PROPERTY);
-    if (ciVisibilityProperty != null) {
-      return true;
-    }
-    Map<String, String> systemPropertiesArgs = startParameter.getSystemPropertiesArgs();
-    String ciVisibilitySystemProperty = systemPropertiesArgs.get(DD_CIVISIBILITY_PROPERTY);
-    return ciVisibilitySystemProperty != null;
   }
 
   static final class TestTaskExecutionListener implements TaskExecutionListener {
@@ -103,8 +91,9 @@ public class GradleBuildListener extends BuildAdapter {
       Project project = task.getProject();
       Gradle gradle = project.getGradle();
       String projectName = project.getName();
+      String startCommand = GradleUtils.recreateStartCommand(gradle.getStartParameter());
       BuildEventsHandler.ModuleAndSessionId moduleAndSessionId =
-          buildEventsHandler.onTestModuleStart(gradle, projectName);
+          buildEventsHandler.onTestModuleStart(gradle, projectName, startCommand);
 
       Collection<GradleUtils.TestFramework> testFrameworks =
           GradleUtils.collectTestFrameworks(project);

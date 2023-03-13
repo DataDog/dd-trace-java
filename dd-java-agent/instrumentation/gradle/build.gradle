@@ -29,14 +29,4 @@ repositories {
 dependencies {
   compileOnly 'org.gradle:gradle-core:1.0'
   compileOnly 'org.codehaus.groovy:groovy:2.5.21'
-
-  testImplementation gradleTestKit()
-}
-
-project.afterEvaluate {
-  tasks.withType(Test).configureEach {
-    // normally instrumentation tests are run with JUnit 4 to support SpockRunner,
-    // but Gradle instrumentation tests work differently and can be run with JUnit 5
-    useJUnitPlatform()
-  }
 }

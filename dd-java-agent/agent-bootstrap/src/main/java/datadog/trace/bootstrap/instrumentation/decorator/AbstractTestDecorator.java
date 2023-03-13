@@ -147,7 +147,10 @@ public abstract class AbstractTestDecorator extends BaseDecorator implements Tes
 
   @Override
   public void afterTestModuleStart(
-      final AgentSpan span, final @Nullable String moduleName, final @Nullable String version) {
+      final AgentSpan span,
+      final @Nullable String moduleName,
+      final @Nullable String version,
+      final @Nullable String startCommand) {
     span.setSpanType(InternalSpanTypes.TEST_MODULE_END);
     span.setTag(Tags.SPAN_KIND, testModuleSpanKind());
 
@@ -155,6 +158,7 @@ public abstract class AbstractTestDecorator extends BaseDecorator implements Tes
     span.setResourceName(resolvedModuleName);
     span.setTag(Tags.TEST_MODULE, resolvedModuleName);
     span.setTag(Tags.TEST_BUNDLE, resolvedModuleName);
+    span.setTag(Tags.TEST_COMMAND, startCommand);
 
     // Version can be null. The testing framework version extraction is best-effort basis.
     if (version != null) {

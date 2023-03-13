@@ -56,7 +56,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
     final AgentSpan span = startSpan(testDecorator.component() + ".test_module");
     testModuleContext = new SpanTestContext(span);
-    testDecorator.afterTestModuleStart(span, null, version);
+    testDecorator.afterTestModuleStart(span, null, version, null);
   }
 
   @Override

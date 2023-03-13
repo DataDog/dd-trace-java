@@ -15,7 +15,11 @@ public interface TestDecorator {
       String buildSystemName,
       String buildSystemVersion);
 
-  void afterTestModuleStart(AgentSpan span, @Nullable String moduleName, @Nullable String version);
+  void afterTestModuleStart(
+      AgentSpan span,
+      @Nullable String moduleName,
+      @Nullable String version,
+      @Nullable String startCommand);
 
   void afterTestSuiteStart(
       AgentSpan span,

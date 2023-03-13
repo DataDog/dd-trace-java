@@ -17,7 +17,7 @@ public interface BuildEventsHandler<T> {
 
   void onTestSessionFinish(T sessionKey);
 
-  ModuleAndSessionId onTestModuleStart(T sessionKey, String moduleName);
+  ModuleAndSessionId onTestModuleStart(T sessionKey, String moduleName, String startCommand);
 
   void onModuleTestFrameworkDetected(
       T sessionKey, String moduleName, String frameworkName, String frameworkVersion);

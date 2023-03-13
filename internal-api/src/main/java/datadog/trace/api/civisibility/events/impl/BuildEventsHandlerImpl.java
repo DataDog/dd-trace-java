@@ -75,7 +75,8 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
   }
 
   @Override
-  public ModuleAndSessionId onTestModuleStart(final T sessionKey, final String moduleName) {
+  public ModuleAndSessionId onTestModuleStart(
+      final T sessionKey, final String moduleName, String startCommand) {
     SessionContext sessionContext = testSessionContexts.get(sessionKey);
     AgentSpan sessionSpan = sessionContext.context.getSpan();
     if (sessionSpan == null) {
@@ -91,7 +92,7 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
         new TestModuleDescriptor<>(sessionKey, moduleName);
     testModuleContexts.put(testModuleDescriptor, new SpanTestContext(span));
 
-    sessionContext.decorator.afterTestModuleStart(span, moduleName, null);
+    sessionContext.decorator.afterTestModuleStart(span, moduleName, null, startCommand);
 
     return new ModuleAndSessionId(span.getSpanId(), sessionSpan.getSpanId());
   }
