@@ -93,7 +93,9 @@ public class DefaultPathwayContext implements PathwayContext {
 
   @Override
   public void setCheckpoint(
-      LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer) {
+      LinkedHashMap<String, String> sortedTags,
+      Consumer<StatsPoint> pointConsumer,
+      Long defaultMessageTimestamp) {
     long startNanos = timeSource.getCurrentTimeNanos();
     long nanoTicks = timeSource.getNanoTicks();
     lock.lock();
@@ -104,9 +106,15 @@ public class DefaultPathwayContext implements PathwayContext {
       PathwayHashBuilder pathwayHashBuilder = new PathwayHashBuilder(wellKnownTags);
 
       if (!started) {
-        pathwayStartNanos = startNanos;
-        pathwayStartNanoTicks = nanoTicks;
-        edgeStartNanoTicks = nanoTicks;
+        if (defaultMessageTimestamp != null) {
+          pathwayStartNanos = defaultMessageTimestamp;
+          pathwayStartNanoTicks = timestampToTicks(startNanos, nanoTicks, pathwayStartNanos);
+          edgeStartNanoTicks = pathwayStartNanoTicks;
+        } else {
+          pathwayStartNanos = startNanos;
+          pathwayStartNanoTicks = nanoTicks;
+          edgeStartNanoTicks = nanoTicks;
+        }
         hash = 0;
         started = true;
         log.debug("Started {}", this);
@@ -328,9 +336,8 @@ public class DefaultPathwayContext implements PathwayContext {
 
     // Convert the start time to the current JVM's nanoclock
     long nowNanos = timeSource.getCurrentTimeNanos();
-    long nanosSinceStart = nowNanos - pathwayStartNanos;
     long nowNanoTicks = timeSource.getNanoTicks();
-    long pathwayStartNanoTicks = nowNanoTicks - nanosSinceStart;
+    long pathwayStartNanoTicks = timestampToTicks(nowNanos, nowNanoTicks, pathwayStartNanos);
 
     long edgeStartMillis = VarEncodingHelper.decodeSignedVarLong(input);
     long edgeStartNanoTicks =
@@ -343,6 +350,10 @@ public class DefaultPathwayContext implements PathwayContext {
         pathwayStartNanoTicks,
         edgeStartNanoTicks,
         hash);
+  }
+
+  private static long timestampToTicks(long nowNanos, long nowNanoTicks, long timestamp) {
+    return nowNanoTicks - nowNanos + timestamp;
   }
 
   private static class PathwayHashBuilder {

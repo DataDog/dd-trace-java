@@ -787,7 +787,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public <C> void injectBinaryPathwayContext(
       AgentSpan span, C carrier, BinarySetter<C> setter, LinkedHashMap<String, String> sortedTags) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
-    pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring);
+    pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring, null);
 
     try {
       byte[] encodedContext = span.context().getPathwayContext().encode();
@@ -813,7 +813,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public <C> void injectPathwayContext(
       AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
-    pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring);
+    pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring, null);
     try {
       String encodedContext = pathwayContext.strEncode();
       if (encodedContext != null) {
@@ -858,9 +858,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public void setDataStreamCheckpoint(AgentSpan span, LinkedHashMap<String, String> sortedTags) {
+  public void setDataStreamCheckpoint(
+      AgentSpan span, LinkedHashMap<String, String> sortedTags, Long defaultMessageTimestamp) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
-    pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring);
+    pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring, defaultMessageTimestamp);
     injectPathwayTags(span, pathwayContext);
   }
 

@@ -247,7 +247,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         sortedTags.put(PARTITION_TAG, String.valueOf(record.partition()));
         sortedTags.put(TOPIC_TAG, record.topic());
         sortedTags.put(TYPE_TAG, "kafka");
-        AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
+        AgentTracer.get().setDataStreamCheckpoint(span, sortedTags, null);
       } else {
         span = startSpan(KAFKA_CONSUME, null);
       }
@@ -313,7 +313,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         sortedTags.put(PARTITION_TAG, String.valueOf(record.partition()));
         sortedTags.put(TOPIC_TAG, record.topic());
         sortedTags.put(TYPE_TAG, "kafka");
-        AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
+        AgentTracer.get().setDataStreamCheckpoint(span, sortedTags, null);
       } else {
         span = startSpan(KAFKA_CONSUME, null);
       }

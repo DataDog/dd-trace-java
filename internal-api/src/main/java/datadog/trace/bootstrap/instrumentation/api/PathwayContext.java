@@ -13,7 +13,10 @@ public interface PathwayContext {
   long getHash();
 
   // The input tags should be sorted.
-  void setCheckpoint(LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer);
+  void setCheckpoint(
+      LinkedHashMap<String, String> sortedTags,
+      Consumer<StatsPoint> pointConsumer,
+      Long defaultMessageTimestamp);
 
   byte[] encode() throws IOException;
 

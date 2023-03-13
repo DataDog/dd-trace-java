@@ -25,6 +25,7 @@ import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.record.TimestampType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,7 +96,12 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           sortedTags.put(PARTITION_TAG, String.valueOf(val.partition()));
           sortedTags.put(TOPIC_TAG, val.topic());
           sortedTags.put(TYPE_TAG, "kafka");
-          AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
+          Long messageTimestamp = null;
+          if (val.timestampType() == TimestampType.CREATE_TIME
+              || val.timestampType() == TimestampType.LOG_APPEND_TIME) {
+            messageTimestamp = val.timestamp();
+          }
+          AgentTracer.get().setDataStreamCheckpoint(span, sortedTags, messageTimestamp);
         } else {
           span = startSpan(operationName, null);
         }
