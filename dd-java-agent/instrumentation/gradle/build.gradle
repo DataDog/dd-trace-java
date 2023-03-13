@@ -30,3 +30,7 @@ dependencies {
   compileOnly 'org.gradle:gradle-core:1.0'
   compileOnly 'org.codehaus.groovy:groovy:2.5.21'
 }
+
+forbiddenApisMain {
+  failOnMissingClasses = false
+}
