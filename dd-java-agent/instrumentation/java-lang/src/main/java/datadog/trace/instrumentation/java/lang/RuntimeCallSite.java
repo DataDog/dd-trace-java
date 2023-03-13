@@ -9,7 +9,6 @@ import datadog.trace.api.iast.sink.CommandInjectionModule;
 import java.io.File;
 import javax.annotation.Nullable;
 
-// TODO deal with the environment
 @Sink(VulnerabilityTypes.COMMAND_INJECTION)
 @CallSite(spi = IastAdvice.class)
 public class RuntimeCallSite {
@@ -50,7 +49,7 @@ public class RuntimeCallSite {
       final CommandInjectionModule module = InstrumentationBridge.COMMAND_INJECTION;
       if (module != null) {
         try {
-          module.onRuntimeExec(command);
+          module.onRuntimeExec(envp, command);
         } catch (final Throwable e) {
           module.onUnexpectedException("beforeExec threw", e);
         }
@@ -67,7 +66,7 @@ public class RuntimeCallSite {
       final CommandInjectionModule module = InstrumentationBridge.COMMAND_INJECTION;
       if (module != null) {
         try {
-          module.onRuntimeExec(cmdArray);
+          module.onRuntimeExec(envp, cmdArray);
         } catch (final Throwable e) {
           module.onUnexpectedException("beforeExec threw", e);
         }
@@ -85,7 +84,7 @@ public class RuntimeCallSite {
       final CommandInjectionModule module = InstrumentationBridge.COMMAND_INJECTION;
       if (module != null) {
         try {
-          module.onRuntimeExec(command);
+          module.onRuntimeExec(envp, command);
         } catch (final Throwable e) {
           module.onUnexpectedException("beforeExec threw", e);
         }
@@ -103,7 +102,7 @@ public class RuntimeCallSite {
       final CommandInjectionModule module = InstrumentationBridge.COMMAND_INJECTION;
       if (module != null) {
         try {
-          module.onRuntimeExec(cmdArray);
+          module.onRuntimeExec(envp, cmdArray);
         } catch (final Throwable e) {
           module.onUnexpectedException("beforeExec threw", e);
         }

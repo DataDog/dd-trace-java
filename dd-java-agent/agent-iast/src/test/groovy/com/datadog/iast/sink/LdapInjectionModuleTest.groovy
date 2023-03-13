@@ -8,10 +8,12 @@ import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.sink.LdapInjectionModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import groovy.transform.CompileDynamic
 
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.taintFormat
 
+@CompileDynamic
 class LdapInjectionModuleTest extends IastModuleImplTestBase {
 
   private List<Object> objectHolder
@@ -20,6 +22,8 @@ class LdapInjectionModuleTest extends IastModuleImplTestBase {
 
   private LdapInjectionModule module
 
+  private AgentSpan span
+
   def setup() {
     module = registerDependencies(new LdapInjectionModuleImpl())
     objectHolder = []
@@ -27,11 +31,10 @@ class LdapInjectionModuleTest extends IastModuleImplTestBase {
     final reqCtx = Mock(RequestContext) {
       getData(RequestContextSlot.IAST) >> ctx
     }
-    final span = Mock(AgentSpan) {
+    span = Mock(AgentSpan) {
       getSpanId() >> 123456
       getRequestContext() >> reqCtx
     }
-    tracer.activeSpan() >> span
   }
 
   void 'iast module detect LDAP injection on search(#name, #filter, #args)'(final String name, final String filter, final List<Object> args, final String expected) {
@@ -46,25 +49,34 @@ class LdapInjectionModuleTest extends IastModuleImplTestBase {
     module.onDirContextSearch(taintedName, taintedFilter, mapedArgs)
 
     then:
+    tracer.activeSpan() >> span
     if (expected != null) {
       1 * reporter.report(_, _) >> { elements -> assertVulnerability(elements[1] as Vulnerability, expected) }
     } else {
       0 * reporter.report(_, _)
     }
 
+    when:
+    module.onDirContextSearch(taintedName, taintedFilter, mapedArgs)
+
+    then:
+    tracer.activeSpan() >> null
+    0 * reporter.report(_, _)
+
     where:
-    name         | filter                                 | args                         | expected
-    'name'       | '(&(uid={0})(userPassword={1}))'       | ['arg1', 'arg2']             | null
-    null         | '(&(uid={0})(userPassword={1}))'       | ['arg1', 'arg2']             | null
-    'name'       | null                                   | ['arg1', 'arg2']             | null
-    'name'       | '(&(uid=arg1)(userPassword=arg2))'     | null                         | null
-    'name'       | '(&(uid={0})(userPassword={1}))'       | ['arg1', null]               | null
-    '==>name<==' | '(&(uid={0})(userPassword={1}))'       | ['arg1', 'arg2']             | '==>name<== (&(uid={0})(userPassword={1})) arg1 arg2'
-    'na==>m<==e' | '(&(uid={0})(userPassword={1}))'       | ['arg1', 'arg2']             | 'na==>m<==e (&(uid={0})(userPassword={1})) arg1 arg2'
-    'na==>m<==e' | '(&(==>uid<==={0})(userPassword={1}))' | ['arg1', 'arg2']             | 'na==>m<==e (&(==>uid<==={0})(userPassword={1})) arg1 arg2'
-    'na==>m<==e' | '(&(==>uid<==={0})(userPassword={1}))' | ['a==>r<==g1', 'arg2']       | 'na==>m<==e (&(==>uid<==={0})(userPassword={1})) a==>r<==g1 arg2'
-    'na==>m<==e' | '(&(==>uid<==={0})(userPassword={1}))' | [new Object(), 'a==>r<==g2'] | 'na==>m<==e (&(==>uid<==={0})(userPassword={1})) a==>r<==g2'
-    'na==>m<==e' | '(&(==>uid<==={0})(userPassword={1}))' | [new Object(), null]         | 'na==>m<==e (&(==>uid<==={0})(userPassword={1}))'
+    name         | filter                                 | args                   | expected
+    ''           | ''                                     | []                     | null
+    'name'       | '(&(uid={0})(userPassword={1}))'       | ['arg1', 'arg2']       | null
+    null         | '(&(uid={0})(userPassword={1}))'       | ['arg1', 'arg2']       | null
+    'name'       | null                                   | ['arg1', 'arg2']       | null
+    'name'       | '(&(uid=arg1)(userPassword=arg2))'     | null                   | null
+    'name'       | '(&(uid={0})(userPassword={1}))'       | ['arg1', null]         | null
+    '==>name<==' | '(&(uid={0})(userPassword={1}))'       | ['arg1', 'arg2']       | '==>name<== (&(uid={0})(userPassword={1})) arg1 arg2'
+    'na==>m<==e' | '(&(uid={0})(userPassword={1}))'       | ['arg1', 'arg2']       | 'na==>m<==e (&(uid={0})(userPassword={1})) arg1 arg2'
+    'na==>m<==e' | '(&(==>uid<==={0})(userPassword={1}))' | ['arg1', 'arg2']       | 'na==>m<==e (&(==>uid<==={0})(userPassword={1})) arg1 arg2'
+    'na==>m<==e' | '(&(==>uid<==={0})(userPassword={1}))' | ['a==>r<==g1', 'arg2'] | 'na==>m<==e (&(==>uid<==={0})(userPassword={1})) a==>r<==g1 arg2'
+    'na==>m<==e' | '(&(==>uid<==={0})(userPassword={1}))' | [23L, 'a==>r<==g2']    | 'na==>m<==e (&(==>uid<==={0})(userPassword={1})) 23 a==>r<==g2'
+    'na==>m<==e' | '(&(==>uid<==={0})(userPassword={1}))' | [23L, null]            | 'na==>m<==e (&(==>uid<==={0})(userPassword={1})) 23'
   }
 
 
