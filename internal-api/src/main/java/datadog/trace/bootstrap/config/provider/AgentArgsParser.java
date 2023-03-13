@@ -1,6 +1,7 @@
-package datadog.trace.bootstrap;
+package datadog.trace.bootstrap.config.provider;
 
-import java.util.Properties;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,12 +17,12 @@ public class AgentArgsParser {
    * @param agentArgs in form "key1=value1,key2=value2,..."
    * @return parsed arguments
    */
-  public static Properties parseAgentArgs(String agentArgs) {
+  public static Map<String, String> parseAgentArgs(String agentArgs) {
     if (agentArgs == null || agentArgs.isEmpty()) {
       return null;
     }
     try {
-      Properties properties = new Properties();
+      Map<String, String> args = new HashMap<>();
 
       Scanner scanner = new Scanner(agentArgs);
       scanner.useDelimiter(",");
@@ -30,9 +31,9 @@ public class AgentArgsParser {
         int idx = arg.indexOf('=');
         String key = arg.substring(0, idx);
         String value = arg.substring(idx + 1);
-        properties.put(key, value);
+        args.put(key, value);
       }
-      return properties;
+      return args;
 
     } catch (Exception ex) {
       log.error("Error parsing agent args: {}", agentArgs, ex);
