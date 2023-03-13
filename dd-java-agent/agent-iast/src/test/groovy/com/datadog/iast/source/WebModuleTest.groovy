@@ -3,10 +3,10 @@ package com.datadog.iast.source
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.IastRequestContext
 import com.datadog.iast.model.Source
-import com.datadog.iast.model.SourceType
 import com.datadog.iast.taint.Ranges
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.source.WebModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import groovy.transform.CompileDynamic
@@ -76,8 +76,8 @@ class WebModuleTest extends IastModuleImplTestBase {
 
     where:
     method            | name    | source
-    'onParameterName' | 'param' | SourceType.REQUEST_PARAMETER_NAME
-    'onHeaderName'    | 'param' | SourceType.REQUEST_HEADER_NAME
+    'onParameterName' | 'param' | SourceTypes.REQUEST_PARAMETER_NAME
+    'onHeaderName'    | 'param' | SourceTypes.REQUEST_HEADER_NAME
   }
 
   void 'test #method: null or empty'(final String method, final String name, final String value) {
@@ -149,12 +149,12 @@ class WebModuleTest extends IastModuleImplTestBase {
 
     where:
     method             | name    | value   | source
-    'onParameterValue' | null    | "value" | SourceType.REQUEST_PARAMETER_VALUE
-    'onParameterValue' | ""      | "value" | SourceType.REQUEST_PARAMETER_VALUE
-    'onParameterValue' | "param" | "value" | SourceType.REQUEST_PARAMETER_VALUE
-    'onHeaderValue'    | null    | "value" | SourceType.REQUEST_HEADER_VALUE
-    'onHeaderValue'    | ""      | "value" | SourceType.REQUEST_HEADER_VALUE
-    'onHeaderValue'    | "param" | "value" | SourceType.REQUEST_HEADER_VALUE
+    'onParameterValue' | null    | "value" | SourceTypes.REQUEST_PARAMETER_VALUE
+    'onParameterValue' | ""      | "value" | SourceTypes.REQUEST_PARAMETER_VALUE
+    'onParameterValue' | "param" | "value" | SourceTypes.REQUEST_PARAMETER_VALUE
+    'onHeaderValue'    | null    | "value" | SourceTypes.REQUEST_HEADER_VALUE
+    'onHeaderValue'    | ""      | "value" | SourceTypes.REQUEST_HEADER_VALUE
+    'onHeaderValue'    | "param" | "value" | SourceTypes.REQUEST_HEADER_VALUE
   }
 
   void 'test onCookies without span'() {
@@ -203,7 +203,7 @@ class WebModuleTest extends IastModuleImplTestBase {
 
   void 'test onCookieGetter without span'() {
     when:
-    module.onCookieGetter(new Object(), null, "result", SourceType.REQUEST_COOKIE_NAME)
+    module.onCookieGetter(new Object(), null, "result", SourceTypes.REQUEST_COOKIE_NAME)
 
     then:
     1 * tracer.activeSpan() >> null
@@ -212,7 +212,7 @@ class WebModuleTest extends IastModuleImplTestBase {
 
   void 'test onCookieGetter null or empty'(final String value) {
     when:
-    module.onCookieGetter(new Object(), 'cookieName', value, SourceType.REQUEST_COOKIE_NAME)
+    module.onCookieGetter(new Object(), 'cookieName', value, SourceTypes.REQUEST_COOKIE_NAME)
 
     then:
     0 * _
@@ -257,16 +257,16 @@ class WebModuleTest extends IastModuleImplTestBase {
 
     where:
     value     | sourceTypeValue                   | isCookieTainted
-    "name"    | SourceType.REQUEST_COOKIE_NAME    | true
-    "value"   | SourceType.REQUEST_COOKIE_VALUE   | true
-    "comment" | SourceType.REQUEST_COOKIE_COMMENT | true
-    "domain"  | SourceType.REQUEST_COOKIE_DOMAIN  | true
-    "path"    | SourceType.REQUEST_COOKIE_PATH    | true
-    "name"    | SourceType.REQUEST_COOKIE_NAME    | false
-    "value"   | SourceType.REQUEST_COOKIE_VALUE   | false
-    "comment" | SourceType.REQUEST_COOKIE_COMMENT | false
-    "domain"  | SourceType.REQUEST_COOKIE_DOMAIN  | false
-    "path"    | SourceType.REQUEST_COOKIE_PATH    | false
+    "name"    | SourceTypes.REQUEST_COOKIE_NAME    | true
+    "value"   | SourceTypes.REQUEST_COOKIE_VALUE   | true
+    "comment" | SourceTypes.REQUEST_COOKIE_COMMENT | true
+    "domain"  | SourceTypes.REQUEST_COOKIE_DOMAIN  | true
+    "path"    | SourceTypes.REQUEST_COOKIE_PATH    | true
+    "name"    | SourceTypes.REQUEST_COOKIE_NAME    | false
+    "value"   | SourceTypes.REQUEST_COOKIE_VALUE   | false
+    "comment" | SourceTypes.REQUEST_COOKIE_COMMENT | false
+    "domain"  | SourceTypes.REQUEST_COOKIE_DOMAIN  | false
+    "path"    | SourceTypes.REQUEST_COOKIE_PATH    | false
   }
 
   void 'test onGetInputStream without span'() {
@@ -393,6 +393,6 @@ class WebModuleTest extends IastModuleImplTestBase {
     final tainted = ctx.getTaintedObjects().get(value)
     tainted != null
     tainted.ranges.length == 1
-    tainted.ranges.first().source.origin == SourceType.REQUEST_QUERY
+    tainted.ranges.first().source.origin == SourceTypes.REQUEST_QUERY
   }
 }

@@ -1,7 +1,6 @@
 package com.datadog.iast
 
 import com.datadog.iast.model.Source
-import com.datadog.iast.model.SourceType
 import com.datadog.iast.taint.TaintedObjects
 import com.datadog.iast.telemetry.NoOpTelemetry
 import datadog.trace.agent.test.AgentTestRunner
@@ -10,6 +9,7 @@ import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.SourceTypes
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
@@ -20,7 +20,7 @@ import java.util.function.Supplier
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
 
 class IastAgentTestRunner extends AgentTestRunner {
-  public static final EMPTY_SOURCE = new Source(SourceType.NONE, '', '')
+  public static final EMPTY_SOURCE = new Source(SourceTypes.NONE, '', '')
 
   void configurePreAgent() {
     super.configurePreAgent()
