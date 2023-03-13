@@ -133,10 +133,10 @@ final class ConfigConverter {
       nextSpace = nextSpace == -1 ? str.length() : nextSpace;
       // if we have a delimiter after this splitter, then try to move the splitter forward to
       // allow for tags with ':' in them
-      while (nextSplitter != -1 && nextSplitter < nextComma && nextSplitter < nextSpace) {
+      int end = nextComma < str.length() ? nextComma : nextSpace;
+      while (nextSplitter != -1 && nextSplitter < end) {
         nextSplitter = str.indexOf(':', nextSplitter + 1);
       }
-      int end;
       if (nextSplitter == -1) {
         // this is either the end of the string or the next position where the value should be
         // trimmed
@@ -161,7 +161,8 @@ final class ConfigConverter {
         badFormat = key.indexOf(',') != -1;
         if (!badFormat) {
           String value = str.substring(splitter + 1, end).trim();
-          if (!key.isEmpty() && !value.isEmpty()) {
+          badFormat = value.indexOf(' ') != -1;
+          if (!badFormat && !key.isEmpty() && !value.isEmpty()) {
             map.put(key, value);
           }
           splitter = nextSplitter;
