@@ -100,7 +100,7 @@ public final class KafkaConsumerGroupInstrumentation extends Instrumenter.Tracin
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void captureGroup(
         @Advice.This KafkaConsumer consumer, @Advice.Return ConsumerRecords records) {
-      String consumerGroup =
+      records.String consumerGroup =
           InstrumentationContext.get(KafkaConsumer.class, String.class).get(consumer);
 
       if (consumerGroup != null) {
