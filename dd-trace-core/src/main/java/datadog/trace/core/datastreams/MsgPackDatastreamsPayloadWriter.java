@@ -42,7 +42,11 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private final long payloadSizeLimit;
 
   public MsgPackDatastreamsPayloadWriter(
-      Sink sink, WellKnownTags wellKnownTags, String tracerVersion, String primaryTag, long payloadSizeLimit) {
+      Sink sink,
+      WellKnownTags wellKnownTags,
+      String tracerVersion,
+      String primaryTag,
+      long payloadSizeLimit) {
     buffer = new GrowableBuffer(INITIAL_CAPACITY);
     writer = new MsgPackWriter(buffer);
     this.sink = sink;
@@ -63,16 +67,17 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
     for (StatsGroup group : bucket.getGroups()) {
       // hash + parent hash + sketches + tags
-      size += group.getPathwayLatency().serializedSize() +
-          group.getEdgeLatency().serializedSize() +
-          Long.BYTES * 2;
-      for (String tag: group.getEdgeTags()) {
+      size +=
+          group.getPathwayLatency().serializedSize()
+              + group.getEdgeLatency().serializedSize()
+              + Long.BYTES * 2;
+      for (String tag : group.getEdgeTags()) {
         size += tag.length() * charSize;
       }
     }
 
-    for (Map.Entry<List<String>, Long> backlogEntry: bucket.getBacklogs()) {
-      for (String tag: backlogEntry.getKey()) {
+    for (Map.Entry<List<String>, Long> backlogEntry : bucket.getBacklogs()) {
+      for (String tag : backlogEntry.getKey()) {
         size += tag.length() * charSize + Long.BYTES;
       }
     }
@@ -137,7 +142,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     long size = 0;
     List<StatsBucket> payloads = new ArrayList<>();
 
-    for (StatsBucket bucket: data) {
+    for (StatsBucket bucket : data) {
       long nextSize = getApproximateBucketSize(bucket);
       if (size > 0 && size + nextSize > payloadSizeLimit) {
         write(payloads);

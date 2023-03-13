@@ -1106,7 +1106,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private static DataStreamsMonitoring createDataStreamsMonitoring(
       Config config, SharedCommunicationObjects sharedCommunicationObjects, TimeSource timeSource) {
     if (config.isDataStreamsEnabled()) {
-      return new DefaultDataStreamsMonitoring(config, sharedCommunicationObjects, timeSource, 512 * 1024 * 10);
+      return new DefaultDataStreamsMonitoring(
+          config, sharedCommunicationObjects, timeSource, 512 * 1024 * 10);
     } else {
       log.debug("Data streams monitoring not enabled.");
       return new NoopDataStreamsMonitoring();

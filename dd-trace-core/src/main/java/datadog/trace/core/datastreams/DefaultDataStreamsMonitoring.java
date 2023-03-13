@@ -59,7 +59,10 @@ public class DefaultDataStreamsMonitoring
   private volatile boolean supportsDataStreams = false;
 
   public DefaultDataStreamsMonitoring(
-      Config config, SharedCommunicationObjects sharedCommunicationObjects, TimeSource timeSource, long payloadSizeLimit) {
+      Config config,
+      SharedCommunicationObjects sharedCommunicationObjects,
+      TimeSource timeSource,
+      long payloadSizeLimit) {
     this(
         new OkHttpSink(
             sharedCommunicationObjects.okHttpClient,
@@ -75,14 +78,22 @@ public class DefaultDataStreamsMonitoring
   }
 
   public DefaultDataStreamsMonitoring(
-      Sink sink, DDAgentFeaturesDiscovery features, TimeSource timeSource, Config config, long payloadSizeLimit) {
+      Sink sink,
+      DDAgentFeaturesDiscovery features,
+      TimeSource timeSource,
+      Config config,
+      long payloadSizeLimit) {
     this(
         sink,
         features,
         timeSource,
         config.getWellKnownTags(),
         new MsgPackDatastreamsPayloadWriter(
-            sink, config.getWellKnownTags(), DDTraceCoreInfo.VERSION, config.getPrimaryTag(), payloadSizeLimit),
+            sink,
+            config.getWellKnownTags(),
+            DDTraceCoreInfo.VERSION,
+            config.getPrimaryTag(),
+            payloadSizeLimit),
         DEFAULT_BUCKET_DURATION_NANOS);
   }
 
