@@ -12,6 +12,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOU
 class HttpResourceNamesTest extends DDSpecification {
   def setup() {
     HttpResourceNames.INSTANCE = null
+    HttpResourceNames.JOINER_CACHE.clear()
   }
 
   def "uses the simple normalizer for servers by default"() {
