@@ -125,4 +125,20 @@ public class HttpServletRequestCallSite {
     }
     return cookies;
   }
+
+  @Source(SourceTypes.REQUEST_QUERY)
+  @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getQueryString()")
+  @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequestWrapper.getQueryString()")
+  public static String afterGetQueryString(
+      @CallSite.This final HttpServletRequest self, @CallSite.Return final String queryString) {
+    final WebModule module = InstrumentationBridge.WEB;
+    if (module != null) {
+      try {
+        module.onQueryString(queryString);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterGetQueryString threw", e);
+      }
+    }
+    return queryString;
+  }
 }

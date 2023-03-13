@@ -3,16 +3,18 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.source.WebModule
 import datadog.trace.instrumentation.servlet.request.HttpServletRequestCallSite
+import groovy.transform.CompileDynamic
 
 import javax.servlet.http.Cookie
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletRequestWrapper
 
+@CompileDynamic
 class HttpServletRequestCallSiteTest extends AgentTestRunner {
 
   @Override
   protected void configurePreAgent() {
-    injectSysConfig("dd.iast.enabled", "true")
+    injectSysConfig('dd.iast.enabled', 'true')
   }
 
   def 'test getHeader'(final Class<? extends HttpServletRequest> clazz) {
@@ -143,6 +145,27 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     then:
     final bomb = thrown(NuclearBomb)
     bomb.stackTrace.find { it.className == HttpServletRequestCallSite.name } == null
+
+    where:
+    clazz                     | _
+    HttpServletRequest        | _
+    HttpServletRequestWrapper | _
+  }
+
+  void 'test get query string'() {
+    setup:
+    final iastModule = Mock(WebModule)
+    InstrumentationBridge.registerIastModule(iastModule)
+    final testSuite = new TestHttpServletRequestCallSiteSuite(Mock(clazz) {
+      getQueryString() >> 'paramName=paramValue'
+    })
+
+    when:
+    testSuite.getQueryString()
+
+    then:
+
+    1 * iastModule.onQueryString('paramName=paramValue')
 
     where:
     clazz                     | _

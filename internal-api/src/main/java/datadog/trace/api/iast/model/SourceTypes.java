@@ -14,4 +14,5 @@ public abstract class SourceTypes {
   public static final String REQUEST_COOKIE_DOMAIN = "http.request.cookie.domain";
   public static final String REQUEST_COOKIE_PATH = "http.request.cookie.path";
   public static final String REQUEST_BODY = "http.request.body";
+  public static final String REQUEST_QUERY = "http.request.query";
 }
