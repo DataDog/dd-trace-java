@@ -67,10 +67,8 @@ public abstract class IdGenerationStrategy {
     @Override
     public DDTraceId generateTraceId() {
       return this.trace128bitStrategy != UNSUPPORTED
-          ? DDTrace128Id.from(generateHighOrderBits(), ThreadLocalRandom.current().nextLong())
-          : DDTrace64Id.from(ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE));
-      //      return DDTraceId.from(ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE)); //
-      // TODO CLEANUP
+          ? DD128bTraceId.from(generateHighOrderBits(), ThreadLocalRandom.current().nextLong())
+          : DD64bTraceId.from(ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE));
     }
 
     @Override
@@ -89,8 +87,7 @@ public abstract class IdGenerationStrategy {
 
     @Override
     public DDTraceId generateTraceId() {
-      return DDTrace64Id.from(id.incrementAndGet());
-      //      return DDTraceId.from(id.incrementAndGet()); // TODO CLEANUP
+      return DD64bTraceId.from(id.incrementAndGet());
     }
 
     @Override
@@ -131,9 +128,8 @@ public abstract class IdGenerationStrategy {
     @Override
     public DDTraceId generateTraceId() {
       return this.trace128bitStrategy != UNSUPPORTED
-          ? DDTrace128Id.from(generateHighOrderBits(), secureRandom.nextLong())
-          : DDTrace64Id.from(getNonZeroPositiveLong());
-      //      return DDTraceId.from(getNonZeroPositiveLong()); // TODO CLEANUP
+          ? DD128bTraceId.from(generateHighOrderBits(), secureRandom.nextLong())
+          : DD64bTraceId.from(getNonZeroPositiveLong());
     }
 
     @Override

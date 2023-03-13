@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import datadog.trace.api.DD64bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -36,7 +37,7 @@ public class PendingTraceWrite {
             .writer(new BlackholeWriter(blackhole, counters, tokens))
             .strictTraceWrites(false)
             .build();
-    DDTraceId traceId = DDTraceId.ONE;
+    DDTraceId traceId = DD64bTraceId.ONE;
     trace = tracer.createTrace(traceId);
     root =
         DDSpan.create(
