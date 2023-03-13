@@ -4,6 +4,7 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_MONITOR;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.time.TimeSource;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -33,6 +34,8 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
      */
     boolean setEnqueued(boolean enqueued);
   }
+
+  public RunningSpansBuffer runningSpans = null;
 
   private static class DelayingPendingTraceBuffer extends PendingTraceBuffer {
     private static final long FORCE_SEND_DELAY_MS = TimeUnit.SECONDS.toMillis(5);
@@ -147,8 +150,17 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
         try {
           while (!closed && !Thread.currentThread().isInterrupted()) {
 
-            Element pendingTrace = queue.take(); // block until available.
+            Element pendingTrace = null;
+            if (runningSpans == null) {
+              pendingTrace = queue.take(); // block until available;
+            } else {
+              pendingTrace = queue.poll(1, TimeUnit.SECONDS);
+              runningSpans.flushRunningSpans(System.currentTimeMillis());
+            }
 
+            if (pendingTrace == null) {
+              continue;
+            }
             if (pendingTrace instanceof FlushElement) {
               // Since this is an MPSC queue, the drain needs to be called on the consumer thread
               queue.drain(WriteDrain.WRITE_DRAIN);
@@ -183,10 +195,13 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       }
     }
 
-    public DelayingPendingTraceBuffer(int bufferSize, TimeSource timeSource) {
+    public DelayingPendingTraceBuffer(
+        int bufferSize, TimeSource timeSource, CoreTracer tracer, Config config) {
       this.queue = new MpscBlockingConsumerArrayQueue<>(bufferSize);
       this.worker = newAgentThread(TRACE_MONITOR, new Worker());
       this.timeSource = timeSource;
+      this.runningSpans =
+          new RunningSpansBuffer(tracer, config); // TODO don't instantiate if not in config
     }
   }
 
@@ -209,8 +224,9 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     }
   }
 
-  public static PendingTraceBuffer delaying(TimeSource timeSource) {
-    return new DelayingPendingTraceBuffer(BUFFER_SIZE, timeSource);
+  public static PendingTraceBuffer delaying(
+      TimeSource timeSource, CoreTracer tracer, Config config) {
+    return new DelayingPendingTraceBuffer(BUFFER_SIZE, timeSource, tracer, config);
   }
 
   public static PendingTraceBuffer discarding() {

@@ -48,7 +48,7 @@ import org.slf4j.LoggerFactory;
  * the associated Span instance
  */
 public class DDSpanContext
-    implements AgentSpan.Context, RequestContext, TraceSegment, ProfilerContext {
+    implements AgentSpan.Context, RequestContext, TraceSegment, ProfilerContext, Cloneable {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
@@ -137,6 +137,8 @@ public class DDSpanContext
   private final ProfilingContextIntegration profilingContextIntegration;
 
   private volatile int encodedOperationName;
+
+  private volatile int longRunningVersion = 0;
 
   public DDSpanContext(
       final DDTraceId traceId,
@@ -340,6 +342,10 @@ public class DDSpanContext
 
   public boolean isMeasured() {
     return measured;
+  }
+
+  public void setPartialVersion(int version) {
+    longRunningVersion = version;
   }
 
   public void setMeasured(boolean measured) {
@@ -672,7 +678,8 @@ public class DDSpanContext
               topLevel,
               httpStatusCode == 0 ? null : HTTP_STATUSES.get(httpStatusCode),
               // Get origin from rootSpan.context
-              getOrigin()));
+              getOrigin(),
+              longRunningVersion));
     }
   }
 
@@ -785,5 +792,10 @@ public class DDSpanContext
     // TODO is this decided?
     String tagKey = "_dd." + key + ".json";
     this.setTag(tagKey, value);
+  }
+
+  @Override // shallow clone, can this create a race?
+  protected Object clone() throws CloneNotSupportedException {
+    return super.clone();
   }
 }

@@ -732,4 +732,25 @@ public class DDSpan
   public Object getWrapper() {
     return WRAPPER_FIELD_UPDATER.get(this);
   }
+
+  // only for long running spans
+  private DDSpan(DDSpan prevSpan, DDSpanContext newContext, long endTimeNano) {
+    this.durationNano = endTimeNano - prevSpan.startTimeNano;
+    this.startTimeNano = prevSpan.getStartTime();
+    this.externalClock = prevSpan.externalClock;
+    this.forceKeep = prevSpan.forceKeep;
+    this.context = newContext;
+  }
+
+  public DDSpan cloneLongRunning(int version, long flushTimeNano) {
+    DDSpanContext newContext;
+    try {
+      newContext = (DDSpanContext) context.clone();
+    } catch (Exception e) {
+      return null;
+    }
+    context.setPartialVersion(-1);
+    newContext.setPartialVersion(version);
+    return new DDSpan(this, newContext, flushTimeNano);
+  }
 }

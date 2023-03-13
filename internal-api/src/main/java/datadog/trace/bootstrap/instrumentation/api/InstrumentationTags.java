@@ -85,4 +85,8 @@ public class InstrumentationTags {
   public static final String TWILIO_PARENT_SID = "twilio.parentSid";
   public static final UTF8BytesString DD_MEASURED = UTF8BytesString.create("_dd.measured");
   public static final UTF8BytesString DD_TOP_LEVEL = UTF8BytesString.create("_dd.top_level");
+  public static final UTF8BytesString DD_PARTIAL_VERSION =
+      UTF8BytesString.create("_dd.partial_version");
+  public static final UTF8BytesString DD_WAS_LONG_RUNNING =
+      UTF8BytesString.create("_dd.was_longrunning");
 }
