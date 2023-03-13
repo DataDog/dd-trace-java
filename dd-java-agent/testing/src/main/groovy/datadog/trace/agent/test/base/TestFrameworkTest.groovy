@@ -26,7 +26,7 @@ import java.nio.file.Paths
 @Unroll
 abstract class TestFrameworkTest extends AgentTestRunner {
 
-  static String DUMMY_MODULE
+  static String dummyModule
   static final String DUMMY_CI_TAG = "dummy_ci_tag"
   static final String DUMMY_CI_TAG_VALUE = "dummy_ci_tag_value"
   static final String DUMMY_SOURCE_PATH = "dummy_source_path"
@@ -39,7 +39,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
   def setupSpec() {
     def currentPath = Paths.get("").toAbsolutePath()
     def rootPath = currentPath.parent
-    DUMMY_MODULE = rootPath.relativize(currentPath)
+    dummyModule = rootPath.relativize(currentPath)
 
     def ciInfo = Stub(CIInfo)
     ciInfo.ciWorkspace >> rootPath.toString()
@@ -96,7 +96,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
 
       parent()
       operationName expectedOperationPrefix() + ".test_module"
-      resourceName DUMMY_MODULE
+      resourceName dummyModule
       spanType DDSpanTypes.TEST_MODULE_END
       errored exception != null
       duration({ it > 1L })
@@ -104,8 +104,8 @@ abstract class TestFrameworkTest extends AgentTestRunner {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_TEST_MODULE
         "$Tags.TEST_TYPE" TestDecorator.TEST_TYPE
-        "$Tags.TEST_MODULE" DUMMY_MODULE
-        "$Tags.TEST_BUNDLE" DUMMY_MODULE
+        "$Tags.TEST_MODULE" dummyModule
+        "$Tags.TEST_BUNDLE" dummyModule
         "$Tags.TEST_FRAMEWORK" testFramework
         if (testFrameworkVersion) {
           "$Tags.TEST_FRAMEWORK_VERSION" testFrameworkVersion
@@ -169,8 +169,8 @@ abstract class TestFrameworkTest extends AgentTestRunner {
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_TEST_SUITE
         "$Tags.TEST_TYPE" TestDecorator.TEST_TYPE
         "$Tags.TEST_MODULE_ID" testModuleId
-        "$Tags.TEST_MODULE" DUMMY_MODULE
-        "$Tags.TEST_BUNDLE" DUMMY_MODULE
+        "$Tags.TEST_MODULE" dummyModule
+        "$Tags.TEST_BUNDLE" dummyModule
         "$Tags.TEST_SUITE" testSuite
         "$Tags.TEST_FRAMEWORK" testFramework
         if (testFrameworkVersion) {
@@ -248,8 +248,8 @@ abstract class TestFrameworkTest extends AgentTestRunner {
         if (testSuiteId != null) {
           "$Tags.TEST_SUITE_ID" testSuiteId
         }
-        "$Tags.TEST_MODULE" DUMMY_MODULE
-        "$Tags.TEST_BUNDLE" DUMMY_MODULE
+        "$Tags.TEST_MODULE" dummyModule
+        "$Tags.TEST_BUNDLE" dummyModule
         "$Tags.TEST_SUITE" testSuite
         "$Tags.TEST_NAME" testName
         "$Tags.TEST_FRAMEWORK" testFramework
