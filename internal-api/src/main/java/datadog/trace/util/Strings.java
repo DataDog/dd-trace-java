@@ -315,7 +315,7 @@ public final class Strings {
       return args;
 
     } catch (Exception ex) {
-      log.error("Error parsing agent args: {}", keyValueList, ex);
+      log.error("Error parsing comma-separated key-value list: {}", keyValueList, ex);
       return null;
     }
   }

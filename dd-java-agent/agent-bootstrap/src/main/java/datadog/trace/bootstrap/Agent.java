@@ -145,7 +145,9 @@ public class Agent {
       return;
     }
 
-    injectAgentArgsConfig(agentArgs);
+    if (agentArgs != null && !agentArgs.isEmpty()) {
+      injectAgentArgsConfig(agentArgs);
+    }
 
     // Retro-compatibility for the old way to configure CI Visibility
     if ("true".equals(ddGetProperty("dd.integration.junit.enabled"))
