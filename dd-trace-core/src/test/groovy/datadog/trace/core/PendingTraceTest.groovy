@@ -52,7 +52,7 @@ class PendingTraceTest extends PendingTraceTestBase {
 
     then:
     trace.pendingReferenceCount == 1
-    trace.finishedSpans.asList() == [rootSpan]
+    trace.spans.asList() == [rootSpan]
     writer == []
 
     when: "root span buffer delay expires"
@@ -60,7 +60,7 @@ class PendingTraceTest extends PendingTraceTestBase {
 
     then:
     trace.pendingReferenceCount == 1
-    trace.finishedSpans.isEmpty()
+    trace.spans.isEmpty()
     writer == [[rootSpan]]
     writer.traceCount.get() == 1
   }

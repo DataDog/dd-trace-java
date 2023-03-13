@@ -657,6 +657,9 @@ public class Config {
 
   private final ConfigProvider configProvider;
 
+  private final boolean longRunningTraceEnabled;
+  private final long longRunningTraceFlushInterval;
+
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
     this(ConfigProvider.createDefault());
@@ -1436,6 +1439,25 @@ public class Config {
     // Setting this last because we have a few places where this can come from
     apiKey = tmpApiKey;
 
+    boolean longRunningEnabled =
+        configProvider.getBoolean(
+            TracerConfig.LONG_RUNNING_TRACE_ENABLED,
+            ConfigDefaults.DEFAULT_LONG_RUNNING_TRACE_ENABLED);
+    this.longRunningTraceFlushInterval =
+        configProvider.getLong(
+            TracerConfig.LONG_RUNNING_TRACE_FLUSH_INTERVAL,
+            ConfigDefaults.DEFAULT_LONG_RUNNING_TRACE_FLUSH_INTERVAL);
+
+    if (longRunningEnabled
+        && (longRunningTraceFlushInterval < 20 || longRunningTraceFlushInterval > 450)) {
+      log.warn(
+          "Provided long running trace flush interval of {} seconds. It should be between 20 seconds and 7.5 minutes. T"
+              + "he feature is disabled.",
+          longRunningTraceFlushInterval);
+      longRunningEnabled = false;
+    }
+    this.longRunningTraceEnabled = longRunningEnabled;
+
     if (profilingAgentless && apiKey == null) {
       log.warn(
           "Agentless profiling activated but no api key provided. Profile uploading will likely fail");
@@ -1498,6 +1520,14 @@ public class Config {
 
   public boolean isTraceEnabled() {
     return instrumenterConfig.isTraceEnabled();
+  }
+
+  public boolean isLongRunningTracesEnabled() {
+    return longRunningTraceEnabled;
+  }
+
+  public long getLongRunningFlushInterval() {
+    return longRunningTraceFlushInterval;
   }
 
   public boolean isIntegrationSynapseLegacyOperationName() {

@@ -4,6 +4,7 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_MONITOR;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.time.TimeSource;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -14,6 +15,10 @@ import org.slf4j.LoggerFactory;
 
 public abstract class PendingTraceBuffer implements AutoCloseable {
   private static final int BUFFER_SIZE = 1 << 12; // 4096
+
+  public boolean runningSpansEnabled() {
+    return false;
+  }
 
   public interface Element {
     long oldestFinishedTime();
@@ -45,6 +50,12 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
 
     private volatile boolean closed = false;
     private final AtomicInteger flushCounter = new AtomicInteger(0);
+
+    private final LongRunningTracesTracker runningTracesTracker;
+
+    public boolean runningSpansEnabled() {
+      return runningTracesTracker != null;
+    }
 
     /** if the queue is full, pendingTrace trace will be written immediately. */
     @Override
@@ -147,7 +158,17 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
         try {
           while (!closed && !Thread.currentThread().isInterrupted()) {
 
-            Element pendingTrace = queue.take(); // block until available.
+            Element pendingTrace = null;
+            if (runningSpansEnabled()) {
+              pendingTrace = queue.poll(1, TimeUnit.SECONDS);
+              runningTracesTracker.flushAndCompact(System.currentTimeMillis());
+            } else {
+              pendingTrace = queue.take(); // block until available;
+            }
+
+            if (pendingTrace == null) {
+              continue;
+            }
 
             if (pendingTrace instanceof FlushElement) {
               // Since this is an MPSC queue, the drain needs to be called on the consumer thread
@@ -159,8 +180,13 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
             // The element is no longer in the queue
             pendingTrace.setEnqueued(false);
 
-            long oldestFinishedTime = pendingTrace.oldestFinishedTime();
+            if (runningSpansEnabled()) {
+              if (runningTracesTracker.add(pendingTrace)) {
+                continue;
+              }
+            }
 
+            long oldestFinishedTime = pendingTrace.oldestFinishedTime();
             long finishTimestampMillis = TimeUnit.NANOSECONDS.toMillis(oldestFinishedTime);
             if (finishTimestampMillis <= timeSource.getCurrentTimeMillis() - FORCE_SEND_DELAY_MS) {
               // Root span is getting old. Send the trace to avoid being discarded by agent.
@@ -183,10 +209,13 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       }
     }
 
-    public DelayingPendingTraceBuffer(int bufferSize, TimeSource timeSource) {
+    public DelayingPendingTraceBuffer(int bufferSize, TimeSource timeSource, Config config) {
       this.queue = new MpscBlockingConsumerArrayQueue<>(bufferSize);
       this.worker = newAgentThread(TRACE_MONITOR, new Worker());
       this.timeSource = timeSource;
+      boolean runningSpansEnabled = config.isLongRunningTracesEnabled();
+      this.runningTracesTracker =
+          runningSpansEnabled ? new LongRunningTracesTracker(config, BUFFER_SIZE) : null;
     }
   }
 
@@ -209,8 +238,8 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     }
   }
 
-  public static PendingTraceBuffer delaying(TimeSource timeSource) {
-    return new DelayingPendingTraceBuffer(BUFFER_SIZE, timeSource);
+  public static PendingTraceBuffer delaying(TimeSource timeSource, Config config) {
+    return new DelayingPendingTraceBuffer(BUFFER_SIZE, timeSource, config);
   }
 
   public static PendingTraceBuffer discarding() {
