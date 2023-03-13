@@ -125,6 +125,7 @@ public class DDSpanContext
   private final Object requestContextDataAppSec;
 
   private final Object requestContextDataIast;
+  private final Object ciVisibilityContextData;
 
   private final boolean disableSamplingMechanismValidation;
 
@@ -175,6 +176,7 @@ public class DDSpanContext
         trace,
         requestContextDataAppSec,
         requestContextDataIast,
+        null,
         pathwayContext,
         disableSamplingMechanismValidation,
         propagationTags,
@@ -202,6 +204,52 @@ public class DDSpanContext
       final boolean disableSamplingMechanismValidation,
       final PropagationTags propagationTags,
       final ProfilingContextIntegration profilingContextIntegration) {
+    this(
+        traceId,
+        spanId,
+        parentId,
+        parentServiceName,
+        serviceName,
+        operationName,
+        resourceName,
+        samplingPriority,
+        origin,
+        baggageItems,
+        errorFlag,
+        spanType,
+        tagsSize,
+        trace,
+        requestContextDataAppSec,
+        requestContextDataIast,
+        null,
+        pathwayContext,
+        disableSamplingMechanismValidation,
+        propagationTags,
+        profilingContextIntegration);
+  }
+
+  public DDSpanContext(
+      final DDTraceId traceId,
+      final long spanId,
+      final long parentId,
+      final CharSequence parentServiceName,
+      final String serviceName,
+      final CharSequence operationName,
+      final CharSequence resourceName,
+      final int samplingPriority,
+      final CharSequence origin,
+      final Map<String, String> baggageItems,
+      final boolean errorFlag,
+      final CharSequence spanType,
+      final int tagsSize,
+      final PendingTrace trace,
+      final Object requestContextDataAppSec,
+      final Object requestContextDataIast,
+      final Object CiVisibilityContextData,
+      final PathwayContext pathwayContext,
+      final boolean disableSamplingMechanismValidation,
+      final PropagationTags propagationTags,
+      final ProfilingContextIntegration profilingContextIntegration) {
 
     assert trace != null;
     this.trace = trace;
@@ -220,6 +268,7 @@ public class DDSpanContext
 
     this.requestContextDataAppSec = requestContextDataAppSec;
     this.requestContextDataIast = requestContextDataIast;
+    this.ciVisibilityContextData = CiVisibilityContextData;
 
     assert pathwayContext != null;
     this.pathwayContext = pathwayContext;
@@ -710,6 +759,8 @@ public class DDSpanContext
   public Object getData(RequestContextSlot slot) {
     if (slot == RequestContextSlot.APPSEC) {
       return this.requestContextDataAppSec;
+    } else if (slot == RequestContextSlot.CI_VISIBILITY) {
+      return this.ciVisibilityContextData;
     } else if (slot == RequestContextSlot.IAST) {
       return this.requestContextDataIast;
     }

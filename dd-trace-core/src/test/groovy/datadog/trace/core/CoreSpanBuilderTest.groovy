@@ -3,6 +3,7 @@ package datadog.trace.core
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -379,5 +380,40 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     "a:x"         | [a: "x"]
     "a:a,a:b,a:c" | [a: "c"]
     "a:1,b-c:d"   | [a: "1", "b-c": "d"]
+  }
+
+  def "can overwrite RequestContext data with builder"() {
+    setup:
+    TagContext context = new TagContext()
+      .withCiVisibilityContextData("value")
+      .withRequestContextDataIast("value")
+      .withRequestContextDataAppSec("value")
+    def span1 = tracer.buildSpan("span1").asChildOf(context).start()
+
+    when:
+    def span2 = tracer.buildSpan("span2").asChildOf(span1.context()).start()
+
+    then:
+    span2.getRequestContext().getData(RequestContextSlot.APPSEC) == "value"
+    span2.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY) == "value"
+    span2.getRequestContext().getData(RequestContextSlot.IAST) == "value"
+
+    when:
+    def span3 = tracer.buildSpan("span3")
+      .asChildOf(span2.context())
+      .withRequestContextData(RequestContextSlot.APPSEC, "override")
+      .withRequestContextData(RequestContextSlot.CI_VISIBILITY, "override")
+      .withRequestContextData(RequestContextSlot.IAST, "override")
+      .start()
+
+    then:
+    span3.getRequestContext().getData(RequestContextSlot.APPSEC) == "override"
+    span3.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY) == "override"
+    span3.getRequestContext().getData(RequestContextSlot.IAST) == "override"
+
+    cleanup:
+    span3.finish()
+    span2.finish()
+    span1.finish()
   }
 }

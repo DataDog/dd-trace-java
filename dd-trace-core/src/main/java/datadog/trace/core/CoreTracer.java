@@ -1143,6 +1143,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private boolean errorFlag;
     private CharSequence spanType;
     private boolean ignoreScope = false;
+    private Map<RequestContextSlot, Object> requestContextData;
 
     CoreSpanBuilder(final CharSequence operationName, CoreTracer tracer) {
       this.operationName = operationName;
@@ -1241,6 +1242,17 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
+    @Override
+    public <T> AgentTracer.SpanBuilder withRequestContextData(RequestContextSlot slot, T data) {
+      Map<RequestContextSlot, Object> requestContextDataMap = requestContextData;
+      if (requestContextDataMap == null) {
+        requestContextData =
+            requestContextDataMap = new HashMap<>(RequestContextSlot.values().length);
+      }
+      requestContextDataMap.put(slot, data);
+      return this;
+    }
+
     /**
      * Build the SpanContext, if the actual span has a parent, the following attributes must be
      * propagated: - ServiceName - Baggage - Trace (a list of all spans related) - SpanType
@@ -1261,6 +1273,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final DDSpanContext context;
       Object requestContextDataAppSec;
       Object requestContextDataIast;
+      Object ciVisibilityContextData;
       final PathwayContext pathwayContext;
       final PropagationTags propagationTags;
 
@@ -1298,9 +1311,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         if (requestContext != null) {
           requestContextDataAppSec = requestContext.getData(RequestContextSlot.APPSEC);
           requestContextDataIast = requestContext.getData(RequestContextSlot.IAST);
+          ciVisibilityContextData = requestContext.getData(RequestContextSlot.CI_VISIBILITY);
         } else {
           requestContextDataAppSec = null;
           requestContextDataIast = null;
+          ciVisibilityContextData = null;
         }
         pathwayContext =
             ddsc.getPathwayContext().isStarted()
@@ -1335,12 +1350,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           baggage = tc.getBaggage();
           requestContextDataAppSec = tc.getRequestContextDataAppSec();
           requestContextDataIast = tc.getRequestContextDataIast();
+          ciVisibilityContextData = tc.getCiVisibilityContextData();
         } else {
           coreTags = null;
           origin = null;
           baggage = null;
           requestContextDataAppSec = null;
           requestContextDataIast = null;
+          ciVisibilityContextData = null;
         }
 
         rootSpanTags = localRootSpanTags;
@@ -1366,6 +1383,23 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               + defaultSpanTags.size()
               + (null == coreTags ? 0 : coreTags.size())
               + (null == rootSpanTags ? 0 : rootSpanTags.size());
+
+      if (requestContextData != null) {
+        for (Map.Entry<RequestContextSlot, Object> entry : requestContextData.entrySet()) {
+          switch (entry.getKey()) {
+            case APPSEC:
+              requestContextDataAppSec = entry.getValue();
+              break;
+            case CI_VISIBILITY:
+              ciVisibilityContextData = entry.getValue();
+              break;
+            case IAST:
+              requestContextDataIast = entry.getValue();
+              break;
+          }
+        }
+      }
+
       // some attributes are inherited from the parent
       context =
           new DDSpanContext(
@@ -1385,6 +1419,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               parentTrace,
               requestContextDataAppSec,
               requestContextDataIast,
+              ciVisibilityContextData,
               pathwayContext,
               disableSamplingMechanismValidation,
               propagationTags,

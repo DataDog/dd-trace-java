@@ -18,6 +18,7 @@ public class TagContext implements AgentSpan.Context.Extracted {
   private final Map<String, String> tags;
   private Object requestContextDataAppSec;
   private Object requestContextDataIast;
+  private Object ciVisibilityContextData;
   private final HttpHeaders httpHeaders;
   private final Map<String, String> baggage;
 
@@ -165,6 +166,15 @@ public class TagContext implements AgentSpan.Context.Extracted {
 
   public final TagContext withRequestContextDataIast(Object requestContextData) {
     this.requestContextDataIast = requestContextData;
+    return this;
+  }
+
+  public Object getCiVisibilityContextData() {
+    return ciVisibilityContextData;
+  }
+
+  public TagContext withCiVisibilityContextData(Object ciVisibilityContextData) {
+    this.ciVisibilityContextData = ciVisibilityContextData;
     return this;
   }
 
