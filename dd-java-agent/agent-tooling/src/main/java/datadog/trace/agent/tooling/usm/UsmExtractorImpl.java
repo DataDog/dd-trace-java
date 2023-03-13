@@ -1,10 +1,10 @@
-package datadog.trace.agent.tooling;
+package datadog.trace.agent.tooling.usm;
 
 import com.sun.jna.Library;
 import com.sun.jna.Native;
 import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
-import datadog.trace.agent.tooling.UsmMessageImpl.BaseUsmMessage;
+import datadog.trace.agent.tooling.usm.UsmMessageImpl.BaseUsmMessage;
 import datadog.trace.bootstrap.instrumentation.api.UsmExtractor;
 import datadog.trace.bootstrap.instrumentation.api.UsmMessage;
 import org.slf4j.Logger;

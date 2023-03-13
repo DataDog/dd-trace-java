@@ -253,7 +253,7 @@ public final class AgentBootstrap {
     int sep = prop.indexOf('=');
     if (sep == -1) return;
 
-    System.setProperty(prop.substring(0, sep), prop.substring(sep+1));
+    System.setProperty(prop.substring(0, sep), prop.substring(sep + 1));
   }
 
   @SuppressForbidden

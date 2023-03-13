@@ -1,4 +1,4 @@
-package datadog.trace.agent.tooling;
+package datadog.trace.agent.tooling.usm;
 
 import com.sun.jna.Memory;
 import com.sun.jna.NativeLong;

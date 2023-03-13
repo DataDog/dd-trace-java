@@ -1,7 +1,7 @@
-package datadog.trace.agent.tooling;
+package datadog.trace.agent.tooling.usm;
 
-import datadog.trace.agent.tooling.UsmMessageImpl.CloseConnectionUsmMessage;
-import datadog.trace.agent.tooling.UsmMessageImpl.RequestUsmMessage;
+import datadog.trace.agent.tooling.usm.UsmMessageImpl.CloseConnectionUsmMessage;
+import datadog.trace.agent.tooling.usm.UsmMessageImpl.RequestUsmMessage;
 import datadog.trace.bootstrap.instrumentation.api.UsmConnection;
 import datadog.trace.bootstrap.instrumentation.api.UsmMessage;
 import datadog.trace.bootstrap.instrumentation.api.UsmMessageFactory;
