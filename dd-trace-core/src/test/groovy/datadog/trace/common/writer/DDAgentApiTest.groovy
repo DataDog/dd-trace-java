@@ -8,8 +8,8 @@ import datadog.communication.monitor.Monitoring
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.trace.api.DD64bTraceId
 import datadog.trace.api.DDSpanId
-import datadog.trace.api.DDTraceId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
@@ -426,7 +426,7 @@ class DDAgentApiTest extends DDCoreSpecification {
   DDSpan buildSpan(long timestamp, String tag, String value, PropagationTags propagationTags) {
     def tracer = tracerBuilder().writer(new ListWriter()).build()
     def context = new DDSpanContext(
-      DDTraceId.ONE,
+      DD64bTraceId.ONE,
       1,
       DDSpanId.ZERO,
       null,
@@ -439,7 +439,7 @@ class DDAgentApiTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDTraceId.ONE),
+      tracer.pendingTraceFactory.create(DD64bTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,

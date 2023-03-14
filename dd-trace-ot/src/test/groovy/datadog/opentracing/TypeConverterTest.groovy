@@ -1,7 +1,7 @@
 package datadog.opentracing
 
+import datadog.trace.api.DD64bTraceId
 import datadog.trace.api.DDSpanId
-import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
@@ -75,7 +75,7 @@ class TypeConverterTest extends DDSpecification {
     trace.getTracer() >> tracer
 
     return new DDSpanContext(
-      DDTraceId.ONE,
+      DD64bTraceId.ONE,
       1,
       DDSpanId.ZERO,
       null,

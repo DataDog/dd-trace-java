@@ -1,7 +1,7 @@
 package datadog.trace.common.writer
 
+import datadog.trace.api.DD64bTraceId
 import datadog.trace.api.DDSpanId
-import datadog.trace.api.DDTraceId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ddagent.DDAgentApi
@@ -195,7 +195,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
     PendingTrace trace = Mock(PendingTrace)
     trace.getTracer() >> tracer
     def context = new DDSpanContext(
-      DDTraceId.ONE,
+      DD64bTraceId.ONE,
       1,
       DDSpanId.ZERO,
       null,

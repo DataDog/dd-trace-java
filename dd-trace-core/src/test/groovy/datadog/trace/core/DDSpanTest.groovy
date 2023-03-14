@@ -1,5 +1,6 @@
 package datadog.trace.core
 
+import datadog.trace.api.DD64bTraceId
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
@@ -18,7 +19,6 @@ import spock.lang.Shared
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.api.sampling.PrioritySampling.UNSET
-import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 import static datadog.trace.api.sampling.SamplingMechanism.SPAN_SAMPLING_RATE
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MAX_PER_SECOND_TAG
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG
@@ -272,9 +272,9 @@ class DDSpanTest extends DDCoreSpecification {
     child.@origin == null // Access field directly instead of getter.
 
     where:
-    extractedContext                                                                                                                          | _
-    new TagContext("some-origin", [:])                                                                                                        | _
-    new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, "some-origin", 0, [:], [:], null, propagationTagsFactory.empty()) | _
+    extractedContext                                                                                                                           | _
+    new TagContext("some-origin", [:])                                                                                                         | _
+    new ExtractedContext(DD64bTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, "some-origin", 0, [:], [:], null, propagationTagsFactory.empty()) | _
   }
 
   def "isRootSpan() in and not in the context of distributed tracing"() {
@@ -291,8 +291,8 @@ class DDSpanTest extends DDCoreSpecification {
     root.finish()
 
     where:
-    extractedContext                                                                                                                          | isTraceRootSpan
-    null                                                                                                                                      | true
+    extractedContext                                                                                                                        | isTraceRootSpan
+    null                                                                                                                                    | true
     new ExtractedContext(DDTraceId.from(123), 456, PrioritySampling.SAMPLER_KEEP, "789", 0, [:], [:], null, propagationTagsFactory.empty()) | false
   }
 
@@ -348,7 +348,7 @@ class DDSpanTest extends DDCoreSpecification {
     when:
     DDSpanContext context =
       new DDSpanContext(
-      DDTraceId.ONE,
+      DD64bTraceId.ONE,
       1,
       DDSpanId.ZERO,
       parentServiceName,
@@ -361,7 +361,7 @@ class DDSpanTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDTraceId.ONE),
+      tracer.pendingTraceFactory.create(DD64bTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,
