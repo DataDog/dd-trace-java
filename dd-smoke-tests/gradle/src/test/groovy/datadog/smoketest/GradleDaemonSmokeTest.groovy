@@ -9,12 +9,15 @@ import org.gradle.internal.impldep.org.apache.commons.io.FileUtils
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
+import org.junit.jupiter.api.Assumptions
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.TempDir
+import spock.lang.Unroll
 import spock.util.concurrent.PollingConditions
+import spock.util.environment.Jvm
 
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
@@ -28,6 +31,7 @@ import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static org.hamcrest.Matchers.emptyString
 import static org.hamcrest.Matchers.not
 
+@Unroll
 class GradleDaemonSmokeTest extends Specification {
 
   private static final String TEST_SERVICE_NAME = "test-gradle-service"
@@ -37,7 +41,9 @@ class GradleDaemonSmokeTest extends Specification {
   private static final String GRADLE_TEST_RESOURCE_EXTENSION = ".gradleTest"
   private static final String GRADLE_REGULAR_EXTENSION = ".gradle"
 
-  // TODO: Gradle daemons started by the TestKit have an idle period of 3 minutes so by the time tests finish, at least some of the daemons are still alive. Because of that the temporary TestKit folder cannot be fully deleted
+  // TODO: Gradle daemons started by the TestKit have an idle period of 3 minutes
+  //  so by the time tests finish, at least some of the daemons are still alive.
+  //  Because of that the temporary TestKit folder cannot be fully deleted
   @Shared
   @TempDir
   Path testKitFolder
@@ -78,6 +84,7 @@ class GradleDaemonSmokeTest extends Specification {
 
   def "Successful build emits session and module spans: Gradle v#gradleVersion"() {
     given:
+    givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenGradleProjectFiles("datadog/smoketest/success/")
 
     when:
@@ -131,6 +138,7 @@ class GradleDaemonSmokeTest extends Specification {
   // (`testImplementation` is not supported, and `compile` should be used instead)
   def "Successful legacy project build emits session and module spans: Gradle v#gradleVersion"() {
     given:
+    givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenGradleProjectFiles("datadog/smoketest/successLegacy/")
 
     when:
@@ -183,6 +191,7 @@ class GradleDaemonSmokeTest extends Specification {
 
   def "Successful multi-module build emits multiple module spans: Gradle v#gradleVersion"() {
     given:
+    givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenGradleProjectFiles("datadog/smoketest/successMultiModule/")
 
     when:
@@ -251,6 +260,7 @@ class GradleDaemonSmokeTest extends Specification {
 
   def "Failed build emits session and module spans: Gradle v#gradleVersion"() {
     given:
+    givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenGradleProjectFiles("datadog/smoketest/failure/")
 
     when:
@@ -310,6 +320,7 @@ class GradleDaemonSmokeTest extends Specification {
 
   def "Build without tests emits session and module spans: Gradle v#gradleVersion"() {
     given:
+    givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenGradleProjectFiles("datadog/smoketest/skip/")
 
     when:
@@ -362,6 +373,7 @@ class GradleDaemonSmokeTest extends Specification {
 
   def "Corrupted build emits session span: Gradle v#gradleVersion"() {
     given:
+    givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenGradleProjectFiles("datadog/smoketest/corruptedConfig/")
 
     when:
@@ -510,4 +522,40 @@ class GradleDaemonSmokeTest extends Specification {
     }
     return true
   }
+
+  void givenGradleVersionIsCompatibleWithCurrentJvm(String gradleVersion) {
+    Assumptions.assumeTrue(isSupported(gradleVersion),
+      "Current JVM " + Jvm.current.javaVersion + " does not support Gradle version " + gradleVersion)
+  }
+
+  private static boolean isSupported(String gradleVersion) {
+    // https://docs.gradle.org/current/userguide/compatibility.html
+    if (Jvm.current.java19Compatible) {
+      return gradleVersion >= "7.6"
+    } else if (Jvm.current.java18) {
+      return gradleVersion >= "7.5"
+    } else if (Jvm.current.java17) {
+      return gradleVersion >= "7.3"
+    } else if (Jvm.current.java16) {
+      return gradleVersion >= "7.0"
+    } else if (Jvm.current.java15) {
+      return gradleVersion >= "6.7"
+    } else if (Jvm.current.java14) {
+      return gradleVersion >= "6.3"
+    } else if (Jvm.current.java13) {
+      return gradleVersion >= "6.0"
+    } else if (Jvm.current.java12) {
+      return gradleVersion >= "5.4"
+    } else if (Jvm.current.java11) {
+      return gradleVersion >= "5.0"
+    } else if (Jvm.current.java10) {
+      return gradleVersion >= "4.7"
+    } else if (Jvm.current.java9) {
+      return gradleVersion >= "4.3"
+    } else if (Jvm.current.java8) {
+      return gradleVersion >= "2.0"
+    }
+    return false
+  }
+
 }
