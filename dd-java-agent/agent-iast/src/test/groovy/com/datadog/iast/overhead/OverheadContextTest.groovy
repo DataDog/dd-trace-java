@@ -4,7 +4,11 @@ import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.AgentTaskScheduler
 import com.datadog.iast.overhead.OverheadController.OverheadControllerImpl
+import groovy.transform.CompileDynamic
 
+import static datadog.trace.api.iast.IastDetectionMode.UNLIMITED
+
+@CompileDynamic
 class OverheadContextTest extends DDSpecification {
 
   void 'Can reset global overhead context'() {
@@ -28,7 +32,7 @@ class OverheadContextTest extends DDSpecification {
   void 'Quota is not consumed once it has been exhausted'() {
     given:
     def overheadContext = new OverheadContext()
-    boolean consumed = false
+    boolean consumed
 
     when: 'reduce quota by two'
     consumed = overheadContext.consumeQuota(2)
@@ -43,5 +47,17 @@ class OverheadContextTest extends DDSpecification {
     then: 'available quota still zero'
     !consumed
     overheadContext.getAvailableQuota() == 0
+  }
+
+  void 'Unlimited quota'() {
+    given:
+    final overheadContext = new OverheadContext(UNLIMITED)
+
+    when:
+    final consumed = (1..1_000_000).collect { overheadContext.consumeQuota(1) }
+
+    then:
+    !consumed.any { !it }
+    overheadContext.availableQuota == Integer.MAX_VALUE
   }
 }

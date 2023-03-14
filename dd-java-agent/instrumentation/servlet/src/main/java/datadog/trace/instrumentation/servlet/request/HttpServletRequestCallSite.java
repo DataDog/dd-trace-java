@@ -5,8 +5,8 @@ import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.IastAdvice.Propagation;
 import datadog.trace.api.iast.IastAdvice.Source;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.model.PropagationTypes;
-import datadog.trace.api.iast.model.SourceTypes;
+import datadog.trace.api.iast.PropagationTypes;
+import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.source.WebModule;
 import datadog.trace.util.stacktrace.StackUtils;
 import java.util.ArrayList;
@@ -19,7 +19,7 @@ import javax.servlet.http.HttpServletRequest;
 @CallSite(spi = IastAdvice.class)
 public class HttpServletRequestCallSite {
 
-  @Source(SourceTypes.REQUEST_HEADER_VALUE)
+  @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
   @CallSite.After(
       "java.lang.String javax.servlet.http.HttpServletRequest.getHeader(java.lang.String)")
   @CallSite.After(
@@ -39,7 +39,7 @@ public class HttpServletRequestCallSite {
     return headerValue;
   }
 
-  @Source(SourceTypes.REQUEST_HEADER_VALUE)
+  @Source(SourceTypes.REQUEST_HEADER_VALUE_STRING)
   @CallSite.After(
       "java.util.Enumeration javax.servlet.http.HttpServletRequest.getHeaders(java.lang.String)")
   @CallSite.After(
@@ -74,7 +74,7 @@ public class HttpServletRequestCallSite {
     }
   }
 
-  @Source(SourceTypes.REQUEST_HEADER_NAME)
+  @Source(SourceTypes.REQUEST_HEADER_NAME_STRING)
   @CallSite.After("java.util.Enumeration javax.servlet.http.HttpServletRequest.getHeaderNames()")
   @CallSite.After(
       "java.util.Enumeration javax.servlet.http.HttpServletRequestWrapper.getHeaderNames()")
@@ -124,5 +124,21 @@ public class HttpServletRequestCallSite {
       }
     }
     return cookies;
+  }
+
+  @Source(SourceTypes.REQUEST_QUERY_STRING)
+  @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getQueryString()")
+  @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequestWrapper.getQueryString()")
+  public static String afterGetQueryString(
+      @CallSite.This final HttpServletRequest self, @CallSite.Return final String queryString) {
+    final WebModule module = InstrumentationBridge.WEB;
+    if (module != null) {
+      try {
+        module.onQueryString(queryString);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("afterGetQueryString threw", e);
+      }
+    }
+    return queryString;
   }
 }

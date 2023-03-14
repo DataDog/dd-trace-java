@@ -24,6 +24,8 @@ public interface WebModule extends IastModule {
 
   void onHeaderValue(@Nullable String headerName, @Nullable String headerValue);
 
+  void onQueryString(@Nullable String queryString);
+
   <COOKIE> void onCookies(@Nullable COOKIE[] cookies);
 
   <COOKIE> void onCookieGetter(
@@ -31,6 +33,8 @@ public interface WebModule extends IastModule {
       @Nullable String cookieName,
       @Nullable String result,
       byte sourceTypeValue);
+
+  void onCookieValue(@Nullable String cookieName, @Nullable String cookieValue);
 
   void onGetInputStream(@Nullable InputStream inputStream);
 

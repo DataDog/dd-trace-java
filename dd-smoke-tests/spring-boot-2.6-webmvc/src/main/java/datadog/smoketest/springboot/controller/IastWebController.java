@@ -104,6 +104,11 @@ public class IastWebController {
         + testBean.getValue();
   }
 
+  @GetMapping("/query_string")
+  public String queryString(final HttpServletRequest request) {
+    return "QueryString is: " + request.getQueryString();
+  }
+
   private void withProcess(final Operation<Process> op) {
     Process process = null;
     try {

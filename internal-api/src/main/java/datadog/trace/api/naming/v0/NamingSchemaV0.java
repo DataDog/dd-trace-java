@@ -6,6 +6,7 @@ public class NamingSchemaV0 implements NamingSchema {
   private final NamingSchema.ForCache cacheNaming = new CacheNamingV0();
   private final NamingSchema.ForClient clientNaming = new ClientNamingV0();
   private final NamingSchema.ForDatabase databaseNaming = new DatabaseNamingV0();
+  private final NamingSchema.ForMessaging messagingNaming = new MessagingNamingV0();
   private final NamingSchema.ForServer serverNaming = new ServerNamingV0();
 
   @Override
@@ -21,6 +22,11 @@ public class NamingSchemaV0 implements NamingSchema {
   @Override
   public ForDatabase database() {
     return databaseNaming;
+  }
+
+  @Override
+  public ForMessaging messaging() {
+    return messagingNaming;
   }
 
   @Override

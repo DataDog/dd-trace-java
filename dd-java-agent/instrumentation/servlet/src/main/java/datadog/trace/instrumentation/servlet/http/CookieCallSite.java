@@ -4,14 +4,14 @@ import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.IastAdvice.Source;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.model.SourceTypes;
+import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.source.WebModule;
 import javax.servlet.http.Cookie;
 
 @CallSite(spi = IastAdvice.class)
 public class CookieCallSite {
 
-  @Source(SourceTypes.REQUEST_COOKIE_NAME)
+  @Source(SourceTypes.REQUEST_COOKIE_NAME_STRING)
   @CallSite.After("java.lang.String javax.servlet.http.Cookie.getName()")
   public static String afterGetName(
       @CallSite.This final Cookie self, @CallSite.Return final String result) {
@@ -26,7 +26,7 @@ public class CookieCallSite {
     return result;
   }
 
-  @Source(SourceTypes.REQUEST_COOKIE_VALUE)
+  @Source(SourceTypes.REQUEST_COOKIE_VALUE_STRING)
   @CallSite.After("java.lang.String javax.servlet.http.Cookie.getValue()")
   public static String getValue(
       @CallSite.This final Cookie self, @CallSite.Return final String result) {
@@ -41,7 +41,7 @@ public class CookieCallSite {
     return result;
   }
 
-  @Source(SourceTypes.REQUEST_COOKIE_COMMENT)
+  @Source(SourceTypes.REQUEST_COOKIE_COMMENT_STRING)
   @CallSite.After("java.lang.String javax.servlet.http.Cookie.getComment()")
   public static String afterGetComment(
       @CallSite.This final Cookie self, @CallSite.Return final String result) {
@@ -56,7 +56,7 @@ public class CookieCallSite {
     return result;
   }
 
-  @Source(SourceTypes.REQUEST_COOKIE_DOMAIN)
+  @Source(SourceTypes.REQUEST_COOKIE_DOMAIN_STRING)
   @CallSite.After("java.lang.String javax.servlet.http.Cookie.getDomain()")
   public static String afterGetDomain(
       @CallSite.This final Cookie self, @CallSite.Return final String result) {
@@ -71,7 +71,7 @@ public class CookieCallSite {
     return result;
   }
 
-  @Source(SourceTypes.REQUEST_COOKIE_PATH)
+  @Source(SourceTypes.REQUEST_COOKIE_PATH_STRING)
   @CallSite.After("java.lang.String javax.servlet.http.Cookie.getPath()")
   public static String afterGetPath(
       @CallSite.This final Cookie self, @CallSite.Return final String result) {

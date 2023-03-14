@@ -4,7 +4,7 @@ import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.IastAdvice.Sink;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.model.VulnerabilityTypes;
+import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.LdapInjectionModule;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -13,8 +13,11 @@ import javax.naming.directory.SearchControls;
 
 @Sink(VulnerabilityTypes.LDAP_INJECTION)
 @CallSite(spi = IastAdvice.class)
-public class InitialDirContextCallSite {
+// TODO add javax.naming.ldap.InitialLdapContext
+public class DirContextCallSite {
 
+  @CallSite.Before(
+      "javax.naming.NamingEnumeration javax.naming.directory.DirContext.search(java.lang.String, java.lang.String, javax.naming.directory.SearchControls)")
   @CallSite.Before(
       "javax.naming.NamingEnumeration javax.naming.directory.InitialDirContext.search(java.lang.String, java.lang.String, javax.naming.directory.SearchControls)")
   public static void beforeSearch(
@@ -24,6 +27,8 @@ public class InitialDirContextCallSite {
     onDirContextSearch(name, filter, null);
   }
 
+  @CallSite.Before(
+      "javax.naming.NamingEnumeration javax.naming.directory.DirContext.search(java.lang.String, java.lang.String, java.lang.Object[], javax.naming.directory.SearchControls)")
   @CallSite.Before(
       "javax.naming.NamingEnumeration javax.naming.directory.InitialDirContext.search(java.lang.String, java.lang.String, java.lang.Object[], javax.naming.directory.SearchControls)")
   public static void beforeSearch(
@@ -35,6 +40,8 @@ public class InitialDirContextCallSite {
   }
 
   @CallSite.Before(
+      "javax.naming.NamingEnumeration javax.naming.directory.DirContext.search(javax.naming.Name, java.lang.String, javax.naming.directory.SearchControls)")
+  @CallSite.Before(
       "javax.naming.NamingEnumeration javax.naming.directory.InitialDirContext.search(javax.naming.Name, java.lang.String, javax.naming.directory.SearchControls)")
   public static void beforeSearch(
       @CallSite.Argument @Nullable final Name name,
@@ -43,6 +50,8 @@ public class InitialDirContextCallSite {
     onDirContextSearch(null, filter, null);
   }
 
+  @CallSite.Before(
+      "javax.naming.NamingEnumeration javax.naming.directory.DirContext.search(javax.naming.Name, java.lang.String, java.lang.Object[], javax.naming.directory.SearchControls)")
   @CallSite.Before(
       "javax.naming.NamingEnumeration javax.naming.directory.InitialDirContext.search(javax.naming.Name, java.lang.String, java.lang.Object[], javax.naming.directory.SearchControls)")
   public static void beforeSearch(

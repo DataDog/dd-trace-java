@@ -4,13 +4,14 @@ import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
 import datadog.trace.api.iast.IastAdvice.Sink;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.model.VulnerabilityTypes;
+import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.SqlInjectionModule;
 
 @Sink(VulnerabilityTypes.SQL_INJECTION)
 @CallSite(spi = IastAdvice.class)
 public class IastStatementCallSite {
 
+  @CallSite.Before("void java.sql.Statement.addBatch(java.lang.String)")
   @CallSite.Before("java.sql.ResultSet java.sql.Statement.executeQuery(java.lang.String)")
   @CallSite.Before("int java.sql.Statement.executeUpdate(java.lang.String)")
   @CallSite.Before("boolean java.sql.Statement.execute(java.lang.String)")

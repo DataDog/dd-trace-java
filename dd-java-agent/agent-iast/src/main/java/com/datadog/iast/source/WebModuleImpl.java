@@ -4,9 +4,9 @@ import static com.datadog.iast.taint.Tainteds.canBeTainted;
 
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Source;
-import com.datadog.iast.model.SourceType;
 import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.TaintedObjects;
+import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.source.WebModule;
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -26,7 +26,7 @@ public class WebModuleImpl implements WebModule {
     }
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     taintedObjects.taintInputString(
-        paramName, new Source(SourceType.REQUEST_PARAMETER_NAME, paramName, null));
+        paramName, new Source(SourceTypes.REQUEST_PARAMETER_NAME, paramName, null));
   }
 
   @Override
@@ -41,7 +41,7 @@ public class WebModuleImpl implements WebModule {
     }
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     taintedObjects.taintInputString(
-        paramValue, new Source(SourceType.REQUEST_PARAMETER_VALUE, paramName, paramValue));
+        paramValue, new Source(SourceTypes.REQUEST_PARAMETER_VALUE, paramName, paramValue));
   }
 
   @Override
@@ -55,7 +55,7 @@ public class WebModuleImpl implements WebModule {
     }
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     taintedObjects.taintInputString(
-        headerName, new Source(SourceType.REQUEST_HEADER_NAME, headerName, null));
+        headerName, new Source(SourceTypes.REQUEST_HEADER_NAME, headerName, null));
   }
 
   @Override
@@ -101,7 +101,7 @@ public class WebModuleImpl implements WebModule {
       return;
     }
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    taintedObjects.taintInputObject(inputStream, new Source(SourceType.REQUEST_BODY, null, null));
+    taintedObjects.taintInputObject(inputStream, new Source(SourceTypes.REQUEST_BODY, null, null));
   }
 
   @Override
@@ -115,7 +115,7 @@ public class WebModuleImpl implements WebModule {
     }
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     taintedObjects.taintInputObject(
-        bufferedReader, new Source(SourceType.REQUEST_BODY, null, null));
+        bufferedReader, new Source(SourceTypes.REQUEST_BODY, null, null));
   }
 
   @Override
@@ -129,6 +129,34 @@ public class WebModuleImpl implements WebModule {
     }
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     taintedObjects.taintInputString(
-        headerValue, new Source(SourceType.REQUEST_HEADER_VALUE, headerName, headerValue));
+        headerValue, new Source(SourceTypes.REQUEST_HEADER_VALUE, headerName, headerValue));
+  }
+
+  @Override
+  public void onCookieValue(@Nullable final String cookieName, @Nullable final String cookieValue) {
+    if (!canBeTainted(cookieValue)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    taintedObjects.taintInputString(
+        cookieValue, new Source(SourceTypes.REQUEST_COOKIE_VALUE, cookieName, cookieValue));
+  }
+
+  @Override
+  public void onQueryString(@Nullable final String queryString) {
+    if (!canBeTainted(queryString)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    taintedObjects.taintInputString(
+        queryString, new Source(SourceTypes.REQUEST_QUERY, null, queryString));
   }
 }

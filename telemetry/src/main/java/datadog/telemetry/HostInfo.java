@@ -29,6 +29,7 @@ public class HostInfo {
   private static String osVersion;
   private static String kernelRelease;
   private static String kernelVersion;
+  private static String architecture;
 
   public static String getHostname() {
     if (hostname != null) {
@@ -86,6 +87,14 @@ public class HostInfo {
       }
     }
     return kernelVersion;
+  }
+
+  public static String getArchitecture() {
+    if (architecture == null) {
+      // In Linux, os.arch == uname -me
+      architecture = System.getProperty("os.arch");
+    }
+    return architecture;
   }
 
   private static String tryReadFile(Path file) {

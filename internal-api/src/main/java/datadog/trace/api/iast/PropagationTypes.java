@@ -1,4 +1,4 @@
-package datadog.trace.api.iast.model;
+package datadog.trace.api.iast;
 
 public abstract class PropagationTypes {
 

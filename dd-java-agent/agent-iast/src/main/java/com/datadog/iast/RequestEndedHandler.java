@@ -29,13 +29,16 @@ public class RequestEndedHandler implements BiFunction<RequestContext, IGSpanInf
     final TraceSegment traceSegment = requestContext.getTraceSegment();
     final IastRequestContext iastRequestContext = IastRequestContext.get(requestContext);
     if (iastRequestContext != null) {
-      ANALYZED.setTagTop(traceSegment);
-      final TaintedObjects taintedObjects = iastRequestContext.getTaintedObjects();
-      if (taintedObjects != null) {
-        taintedObjects.release();
+      try {
+        ANALYZED.setTagTop(traceSegment);
+        final TaintedObjects taintedObjects = iastRequestContext.getTaintedObjects();
+        if (taintedObjects != null) {
+          taintedObjects.release();
+        }
+        telemetry.onRequestEnded(iastRequestContext, traceSegment);
+      } finally {
+        overheadController.releaseRequest();
       }
-      telemetry.onRequestEnded(iastRequestContext, traceSegment);
-      overheadController.releaseRequest();
     } else {
       SKIPPED.setTagTop(traceSegment);
     }
