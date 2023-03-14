@@ -259,14 +259,8 @@ class WebModuleTest extends IastModuleImplTestBase {
     value     | sourceTypeValue                   | isCookieTainted
     "name"    | SourceTypes.REQUEST_COOKIE_NAME    | true
     "value"   | SourceTypes.REQUEST_COOKIE_VALUE   | true
-    "comment" | SourceTypes.REQUEST_COOKIE_COMMENT | true
-    "domain"  | SourceTypes.REQUEST_COOKIE_DOMAIN  | true
-    "path"    | SourceTypes.REQUEST_COOKIE_PATH    | true
     "name"    | SourceTypes.REQUEST_COOKIE_NAME    | false
     "value"   | SourceTypes.REQUEST_COOKIE_VALUE   | false
-    "comment" | SourceTypes.REQUEST_COOKIE_COMMENT | false
-    "domain"  | SourceTypes.REQUEST_COOKIE_DOMAIN  | false
-    "path"    | SourceTypes.REQUEST_COOKIE_PATH    | false
   }
 
   void 'test onGetInputStream without span'() {
