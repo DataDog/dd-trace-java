@@ -8,15 +8,7 @@ apply from: "$rootDir/gradle/version.gradle"
 minimumBranchCoverage = 0.7
 minimumInstructionCoverage = 0.8
 
-excludedClassesCoverage += [
-  "datadog.trace.civisibility.CIInfo",
-  "datadog.trace.civisibility.CiVisibilitySystem",
-  "datadog.trace.civisibility.git.GitInfo",
-  "datadog.trace.civisibility.git.CommitInfo",
-  "datadog.trace.civisibility.git.PersonInfo",
-  "datadog.trace.civisibility.git.GitObject",
-  "datadog.trace.civisibility.source.*"
-]
+excludedClassesCoverage += ["datadog.trace.civisibility.CiVisibilitySystem", "datadog.trace.civisibility.source.*"]
 
 dependencies {
   api deps.slf4j
