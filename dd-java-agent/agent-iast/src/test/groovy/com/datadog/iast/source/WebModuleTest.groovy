@@ -87,19 +87,23 @@ class WebModuleTest extends IastModuleImplTestBase {
     0 * _
 
     where:
-    method             | name    | value
-    'onParameterValue' | null    | null
-    'onParameterValue' | null    | ""
-    'onParameterValue' | ""      | null
-    'onParameterValue' | ""      | ""
-    'onParameterValue' | "param" | null
-    'onParameterValue' | "param" | ""
-    'onHeaderValue'    | null    | null
-    'onHeaderValue'    | null    | ""
-    'onHeaderValue'    | ""      | null
-    'onHeaderValue'    | ""      | ""
-    'onHeaderValue'    | "param" | null
-    'onHeaderValue'    | "param" | ""
+    method                   | name    | value
+    'onParameterValue'       | null    | null
+    'onParameterValue'       | null    | ""
+    'onParameterValue'       | ""      | null
+    'onParameterValue'       | ""      | ""
+    'onParameterValue'       | "param" | null
+    'onParameterValue'       | "param" | ""
+    'onHeaderValue'          | null    | null
+    'onHeaderValue'          | null    | ""
+    'onHeaderValue'          | ""      | null
+    'onHeaderValue'          | ""      | ""
+    'onHeaderValue'          | "param" | null
+    'onHeaderValue'          | "param" | ""
+    'onRequestPathParameter' | null    | null
+    'onRequestPathParameter' | null    | ''
+    'onRequestPathParameter' | 'param' | null
+    'onRequestPathParameter' | 'param' | ''
   }
 
   void 'test #method: without span'(final String method, final String name, final String value) {
@@ -111,13 +115,14 @@ class WebModuleTest extends IastModuleImplTestBase {
     0 * _
 
     where:
-    method             | name    | value
-    'onParameterValue' | null    | "value"
-    'onParameterValue' | ""      | "value"
-    'onParameterValue' | "param" | "value"
-    'onHeaderValue'    | null    | "value"
-    'onHeaderValue'    | ""      | "value"
-    'onHeaderValue'    | "param" | "value"
+    method                   | name    | value
+    'onParameterValue'       | null    | "value"
+    'onParameterValue'       | ""      | "value"
+    'onParameterValue'       | "param" | "value"
+    'onHeaderValue'          | null    | "value"
+    'onHeaderValue'          | ""      | "value"
+    'onHeaderValue'          | "param" | "value"
+    'onRequestPathParameter' | 'param' | 'value'
   }
 
   void 'test #method'(final String method, final String name, final String value, final byte source) {
@@ -147,13 +152,15 @@ class WebModuleTest extends IastModuleImplTestBase {
     to.ranges[0].source == new Source(source, name, value)
 
     where:
-    method             | name    | value   | source
-    'onParameterValue' | null    | "value" | SourceTypes.REQUEST_PARAMETER_VALUE
-    'onParameterValue' | ""      | "value" | SourceTypes.REQUEST_PARAMETER_VALUE
-    'onParameterValue' | "param" | "value" | SourceTypes.REQUEST_PARAMETER_VALUE
-    'onHeaderValue'    | null    | "value" | SourceTypes.REQUEST_HEADER_VALUE
-    'onHeaderValue'    | ""      | "value" | SourceTypes.REQUEST_HEADER_VALUE
-    'onHeaderValue'    | "param" | "value" | SourceTypes.REQUEST_HEADER_VALUE
+    method                   | name    | value   | source
+    'onParameterValue'       | null    | "value" | SourceTypes.REQUEST_PARAMETER_VALUE
+    'onParameterValue'       | ""      | "value" | SourceTypes.REQUEST_PARAMETER_VALUE
+    'onParameterValue'       | "param" | "value" | SourceTypes.REQUEST_PARAMETER_VALUE
+    'onHeaderValue'          | null    | "value" | SourceTypes.REQUEST_HEADER_VALUE
+    'onHeaderValue'          | ""      | "value" | SourceTypes.REQUEST_HEADER_VALUE
+    'onHeaderValue'          | "param" | "value" | SourceTypes.REQUEST_HEADER_VALUE
+    'onRequestPathParameter' | ''      | 'value' | SourceTypes.REQUEST_PATH_PARAMETER
+    'onRequestPathParameter' | 'param' | 'value' | SourceTypes.REQUEST_PATH_PARAMETER
   }
 
   void 'test onQueryString without span'() {

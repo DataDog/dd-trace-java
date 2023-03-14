@@ -95,4 +95,18 @@ public class WebModuleImpl implements WebModule {
     taintedObjects.taintInputString(
         queryString, new Source(SourceTypes.REQUEST_QUERY, null, queryString));
   }
+
+  @Override
+  public void onRequestPathParameter(@Nonnull String paramName, String value) {
+    if (paramName == null || !canBeTainted(value)) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    taintedObjects.taintInputString(
+        value, new Source(SourceTypes.REQUEST_PATH_PARAMETER, paramName, value));
+  }
 }
