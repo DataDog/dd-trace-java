@@ -6,6 +6,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.SQL_COMMENT_INJECTION_STATIC;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logQueryInfoInjection;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logString;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -101,12 +102,14 @@ public class DBMTraceInjectionConnectionInstrumentation extends AbstractConnecti
         @Advice.Argument(value = 0, readOnly = false) String sql,
         @Advice.Local("originalSql") String originalSql) {
       originalSql = sql;
+      logString("Orig sql in onenter " + sql);
       if (JDBCDecorator.injectSQLComment()) {
         final DBInfo dbInfo = JDBCDecorator.parseDBInfoFromConnection(connection);
         String dbService = DECORATE.dbService(dbInfo);
         SQLCommenter commenter = new SQLCommenter(SQL_COMMENT_INJECTION_STATIC, sql, dbService);
         commenter.inject();
         sql = commenter.getCommentedSQL();
+        logString("commented sql " + sql);
       }
     }
 
@@ -118,8 +121,13 @@ public class DBMTraceInjectionConnectionInstrumentation extends AbstractConnecti
         @Advice.Return final PreparedStatement statement) {
       ContextStore<Statement, DBQueryInfo> contextStore =
           InstrumentationContext.get(Statement.class, DBQueryInfo.class);
+      logString("passed orig sql pre ctx " + originalSql);
+      logString("actual sql pre ctx " + sql);
       if (null == contextStore.get(statement)) {
+        logString("passed orig sql " + originalSql);
+        logString("actual sql " + sql);
         DBQueryInfo info = DBQueryInfo.ofPreparedStatement(originalSql);
+        logString("new dbinfo " + info.getSql().toString());
         contextStore.put(statement, info);
         logQueryInfoInjection(connection, statement, info);
       }

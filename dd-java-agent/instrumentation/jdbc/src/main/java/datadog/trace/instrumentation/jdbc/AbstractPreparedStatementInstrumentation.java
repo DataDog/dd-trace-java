@@ -7,6 +7,7 @@ import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logMissingQueryInfo;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logSQLException;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logString;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
@@ -70,6 +71,8 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
           logMissingQueryInfo(statement);
           return null;
         }
+
+        logString("in prepared stmt execute for sql " + queryInfo.getSql().toString());
 
         final AgentSpan span = startSpan(DATABASE_QUERY);
         DECORATE.afterStart(span);

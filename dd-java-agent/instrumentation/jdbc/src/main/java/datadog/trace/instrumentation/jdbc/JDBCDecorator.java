@@ -198,6 +198,12 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return withQueryInfo(span, dbQueryInfo, JDBC_PREPARED_STATEMENT);
   }
 
+  public static void logString(String msg) {
+    if (log.isDebugEnabled()) {
+      log.debug(msg);
+    }
+  }
+
   private AgentSpan withQueryInfo(AgentSpan span, DBQueryInfo info, CharSequence component) {
     if (null != info) {
       span.setResourceName(info.getSql());

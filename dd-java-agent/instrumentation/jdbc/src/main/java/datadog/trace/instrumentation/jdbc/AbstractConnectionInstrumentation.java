@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ha
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logQueryInfoInjection;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logString;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -48,7 +49,7 @@ public abstract class AbstractConnectionInstrumentation extends Instrumenter.Tra
 
   public static class ConnectionPrepareAdvice {
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addDBInfo(
         @Advice.This Connection connection,
         @Advice.Argument(0) final String sql,
