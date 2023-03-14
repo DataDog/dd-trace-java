@@ -52,6 +52,8 @@ public final class TracerConfig {
   public static final String REQUEST_HEADER_TAGS = "trace.request_header.tags";
   public static final String RESPONSE_HEADER_TAGS = "trace.response_header.tags";
   public static final String BAGGAGE_MAPPING = "trace.header.baggage";
+  public static final String TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH =
+      "trace.http.resource.remove-trailing-slash";
   public static final String TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING =
       "trace.http.server.path-resource-name-mapping";
   public static final String TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING =
