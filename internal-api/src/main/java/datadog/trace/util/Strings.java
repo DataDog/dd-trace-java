@@ -10,12 +10,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Scanner;
 import javax.annotation.Nonnull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public final class Strings {
-
-  private static final Logger log = LoggerFactory.getLogger(Strings.class);
 
   public static String escapeToJson(String string) {
     if (string == null || string.isEmpty()) {
@@ -294,7 +290,8 @@ public final class Strings {
    * separated with '=' character. For simplicity quoting is not supported
    *
    * @param keyValueList in form "key1=value1,key2=value2,..."
-   * @return parsed pairs, or {@code null} if provided string was empty or malformed
+   * @return parsed pairs, or {@code null} if provided string was {@code null} or empty
+   * @throws IllegalArgumentException if provided string could not be parsed
    */
   public static Map<String, String> parseCommaSeparatedKeyValueList(String keyValueList) {
     if (keyValueList == null || keyValueList.isEmpty()) {
@@ -315,8 +312,8 @@ public final class Strings {
       return args;
 
     } catch (Exception ex) {
-      log.error("Error parsing comma-separated key-value list: {}", keyValueList, ex);
-      return null;
+      throw new IllegalArgumentException(
+          "Error parsing comma-separated key-value list: " + keyValueList, ex);
     }
   }
 }

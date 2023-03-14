@@ -243,10 +243,10 @@ class StringsTest extends DDSpecification {
     def args = "key=value,,,=="
 
     when:
-    def properties = Strings.parseCommaSeparatedKeyValueList(args)
+    Strings.parseCommaSeparatedKeyValueList(args)
 
     then:
-    properties == null
+    thrown IllegalArgumentException
   }
 
   def "parses a single-element key-value list containing value with a space"() {
