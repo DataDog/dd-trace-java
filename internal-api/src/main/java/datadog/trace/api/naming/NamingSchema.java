@@ -25,6 +25,13 @@ public interface NamingSchema {
   ForDatabase database();
 
   /**
+   * Get the naming policy for messaging.
+   *
+   * @return a {@link NamingSchema.ForMessaging} instance.
+   */
+  ForMessaging messaging();
+
+  /**
    * Get the naming policy for servers.
    *
    * @return a {@link NamingSchema.ForServer} instance.
@@ -91,6 +98,55 @@ public interface NamingSchema {
      */
     @Nonnull
     String service(@Nonnull String ddService, @Nonnull String databaseType);
+  }
+
+  interface ForMessaging {
+    /**
+     * Calculate the operation name for a messaging consumer span for process operation.
+     *
+     * @param messagingSystem the messaging system (e.g. jms, kafka,..)
+     * @return the operation name
+     */
+    @Nonnull
+    String inboundOperation(@Nonnull String messagingSystem);
+
+    /**
+     * Calculate the service name for a messaging producer span.
+     *
+     * @param ddService the configured service name as set by the user.
+     * @param messagingSystem the messaging system (e.g. jms, kafka, amqp,..)
+     * @return the service name
+     */
+    @Nonnull
+    String inboundService(@Nonnull String ddService, @Nonnull String messagingSystem);
+
+    /**
+     * Calculate the operation name for a messaging producer span.
+     *
+     * @param messagingSystem the messaging system (e.g. jms, kafka, amqp,..)
+     * @return the operation name
+     */
+    @Nonnull
+    String outboundOperation(@Nonnull String messagingSystem);
+
+    /**
+     * Calculate the service name for a messaging producer span.
+     *
+     * @param ddService the configured service name as set by the user.
+     * @param messagingSystem the messaging system (e.g. jms, kafka, amqp,..)
+     * @return the service name
+     */
+    @Nonnull
+    String outboundService(@Nonnull String ddService, @Nonnull String messagingSystem);
+
+    /**
+     * Calculate the service name for a messaging time in queue synthetic span.
+     *
+     * @param messagingSystem the messaging system (e.g. jms, kafka, amqp,..)
+     * @return the service name
+     */
+    @Nonnull
+    String timeInQueueService(@Nonnull String messagingSystem);
   }
 
   interface ForServer {
