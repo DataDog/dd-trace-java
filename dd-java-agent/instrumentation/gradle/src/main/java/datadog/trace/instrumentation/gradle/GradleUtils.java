@@ -120,5 +120,10 @@ public abstract class GradleUtils {
     public int hashCode() {
       return Objects.hash(name, version);
     }
+
+    @Override
+    public String toString() {
+      return "TestFramework{" + "name='" + name + '\'' + ", version='" + version + '\'' + '}';
+    }
   }
 }
