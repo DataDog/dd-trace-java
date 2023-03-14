@@ -1,4 +1,4 @@
-package datadog.trace.opentelemetry14;
+package datadog.trace.instrumentation.opentelemetry14;
 
 import static datadog.trace.bootstrap.instrumentation.api.ScopeSource.INSTRUMENTATION;
 import static io.opentelemetry.api.trace.StatusCode.ERROR;

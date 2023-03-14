@@ -1,4 +1,4 @@
-package datadog.trace.opentelemetry14;
+package datadog.trace.instrumentation.opentelemetry14;
 
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Context;
