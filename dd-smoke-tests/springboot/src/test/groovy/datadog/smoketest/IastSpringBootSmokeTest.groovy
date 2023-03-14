@@ -304,6 +304,26 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     }
   }
 
+  void 'request cookie propagation'() {
+    given:
+    final url = "http://localhost:${httpPort}/cookie"
+    final request = new Request.Builder().url(url).header('Cookie', 'name=value').get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasTainted { tainted ->
+      tainted.value == 'name' &&
+        tainted.ranges[0].source.origin == 'http.request.cookie.name'
+    }
+    hasTainted { tainted ->
+      tainted.value == 'value' &&
+        tainted.ranges[0].source.name == 'name' &&
+        tainted.ranges[0].source.origin == 'http.request.cookie.value'
+    }
+  }
+
   private static Function<DecodedSpan, Boolean> hasMetric(final String name, final Object value) {
     return { span -> value == span.metrics.get(name) }
   }
