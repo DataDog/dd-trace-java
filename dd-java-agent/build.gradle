@@ -228,7 +228,7 @@ tasks.withType(Test).configureEach {
     events "started"
   }
 
-  if (!project.hasProperty("disableShadowRelocate") || !disableShadowRelocate) {
+  if (project.hasProperty("disableShadowRelocate") && disableShadowRelocate) {
     exclude 'datadog/trace/agent/integration/classloading/ShadowPackageRenamingTest.class'
   }
 
