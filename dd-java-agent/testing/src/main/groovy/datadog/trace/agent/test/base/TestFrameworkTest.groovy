@@ -41,8 +41,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
     def rootPath = currentPath.parent
     dummyModule = rootPath.relativize(currentPath)
 
-    def ciInfo = Stub(CIInfo)
-    ciInfo.ciWorkspace >> rootPath.toString()
+    def ciInfo = CIInfo.builder().ciWorkspace(rootPath.toString()).build()
 
     def ciProviderInfo = Stub(CIProviderInfo)
     ciProviderInfo.buildCIInfo() >> ciInfo
