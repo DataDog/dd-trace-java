@@ -1,8 +1,10 @@
 package datadog.smoketest
 
 import datadog.trace.agent.test.utils.PortUtils
+import groovy.transform.CompileStatic
 import spock.lang.Shared
 import spock.lang.Specification
+
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.concurrent.TimeoutException
@@ -137,7 +139,7 @@ abstract class ProcessManager extends Specification {
   def checkLog(Closure checker) {
     logFilePaths.each { lfp ->
       def hasError = false
-      new File(lfp).eachLine {
+      ProcessManager.eachLine(new File(lfp)) {
         if (it.contains("ERROR") || it.contains("ASSERTION FAILED")
           || it.contains("Failed to handle exception in instrumentation")) {
           println it
@@ -170,5 +172,33 @@ abstract class ProcessManager extends Specification {
 
   String apiKey() {
     return "01234567890abcdef123456789ABCDEF"
+  }
+
+  // with Java 8, I'm getting an OutOfMemoryError
+  // it tries to allocate a StringBuffer with hundreds of megabytes
+  @CompileStatic
+  private static void eachLine(File file, Closure closure) {
+    file.withInputStream { inputStream ->
+      def reader = new InputStreamReader(inputStream)
+      def buffer = new char[4096]
+      def lineBuffer = new StringBuffer()
+      int charsRead
+      while ((charsRead = reader.read(buffer)) != -1) {
+        for (int i = 0; i < charsRead; i++) {
+          char c = buffer[i]
+          if (c == '\n' || c == '\r') {
+            if (lineBuffer.length() > 0) {
+              closure(lineBuffer.toString().trim())
+              lineBuffer.length = 0
+            }
+          } else {
+            lineBuffer.append(c)
+          }
+        }
+      }
+      if (lineBuffer.length() > 0) {
+        closure(lineBuffer.toString().trim())
+      }
+    }
   }
 }

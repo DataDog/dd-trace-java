@@ -42,7 +42,7 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     command.addAll([
       withSystemProperty(IAST_ENABLED, true),
       withSystemProperty(IAST_REQUEST_SAMPLING, 100),
-      withSystemProperty(IAST_DEBUG_ENABLED, true)
+      withSystemProperty(IAST_DEBUG_ENABLED, true),
     ])
     command.addAll((String[]) ["-jar", springBootShadowJar, "--server.port=${httpPort}"])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
@@ -321,6 +321,47 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
       tainted.value == 'value' &&
         tainted.ranges[0].source.name == 'name' &&
         tainted.ranges[0].source.origin == 'http.request.cookie.value'
+    }
+  }
+
+  void 'tainting of path variables — simple variant'() {
+    given:
+    String url = "http://localhost:${httpPort}/simple/foobar"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasTainted {
+      it.value == 'foobar' &&
+        it.ranges[0].source.origin == 'http.request.path.parameter' &&
+        it.ranges[0].source.name == 'var1'
+    }
+  }
+
+  void 'tainting of path variables — RequestMappingInfoHandlerMapping variant'() {
+    given:
+    String url = "http://localhost:${httpPort}/matrix/value;xxx=aaa,bbb;yyy=ccc/zzz=ddd"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    ['value', 'xxx', 'aaa', 'bbb', 'yyy', 'ccc'].each {
+      hasTainted { tainted ->
+        Map firstRange = tainted.ranges[0]
+        firstRange?.source?.origin == 'http.request.path.parameter' &&
+          firstRange?.source?.name == 'var1'
+      }
+    }
+    ['zzz=ddd', 'zzz', 'ddd'].each {
+      hasTainted { tainted ->
+        Map firstRange = tainted.ranges[0]
+        firstRange?.source?.origin == 'http.request.path.parameter' &&
+          firstRange?.source?.name == 'var2'
+      }
     }
   }
 

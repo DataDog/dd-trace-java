@@ -9,7 +9,10 @@ import java.nio.file.Paths;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.websocket.server.PathParam;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.MatrixVariable;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -101,6 +104,14 @@ public class IastWebController {
   @GetMapping("/path_param")
   public String pathParam(@PathParam("param") String param) {
     return "PathParam is: " + param;
+  }
+
+  @GetMapping("/matrix/{var1}/{var2}")
+  public String matrixAndPathVariables(
+      @PathVariable String var1,
+      @MatrixVariable(pathVar = "var1") MultiValueMap<String, String> m1,
+      @MatrixVariable(pathVar = "var2") MultiValueMap<String, String> m2) {
+    return "{var1=" + var1 + ", m1=" + m1 + ", m2=" + m2 + "}";
   }
 
   @PostMapping("/request_body/test")
