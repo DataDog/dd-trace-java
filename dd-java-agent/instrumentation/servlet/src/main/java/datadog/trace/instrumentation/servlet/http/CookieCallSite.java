@@ -18,7 +18,7 @@ public class CookieCallSite {
     final WebModule module = InstrumentationBridge.WEB;
     if (module != null) {
       try {
-        module.onCookieGetter(self, self.getName(), result, (byte) 5);
+        module.onCookieGetter(self, self.getName(), result, SourceTypes.REQUEST_COOKIE_NAME);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetName threw", e);
       }
@@ -33,54 +33,9 @@ public class CookieCallSite {
     final WebModule module = InstrumentationBridge.WEB;
     if (module != null) {
       try {
-        module.onCookieGetter(self, self.getName(), result, (byte) 6);
+        module.onCookieGetter(self, self.getName(), result, SourceTypes.REQUEST_COOKIE_VALUE);
       } catch (final Throwable e) {
         module.onUnexpectedException("getValue threw", e);
-      }
-    }
-    return result;
-  }
-
-  @Source(SourceTypes.REQUEST_COOKIE_COMMENT_STRING)
-  @CallSite.After("java.lang.String javax.servlet.http.Cookie.getComment()")
-  public static String afterGetComment(
-      @CallSite.This final Cookie self, @CallSite.Return final String result) {
-    final WebModule module = InstrumentationBridge.WEB;
-    if (module != null) {
-      try {
-        module.onCookieGetter(self, self.getName(), result, (byte) 7);
-      } catch (final Throwable e) {
-        module.onUnexpectedException("getComment threw", e);
-      }
-    }
-    return result;
-  }
-
-  @Source(SourceTypes.REQUEST_COOKIE_DOMAIN_STRING)
-  @CallSite.After("java.lang.String javax.servlet.http.Cookie.getDomain()")
-  public static String afterGetDomain(
-      @CallSite.This final Cookie self, @CallSite.Return final String result) {
-    final WebModule module = InstrumentationBridge.WEB;
-    if (module != null) {
-      try {
-        module.onCookieGetter(self, self.getName(), result, (byte) 8);
-      } catch (final Throwable e) {
-        module.onUnexpectedException("afterGetDomain threw", e);
-      }
-    }
-    return result;
-  }
-
-  @Source(SourceTypes.REQUEST_COOKIE_PATH_STRING)
-  @CallSite.After("java.lang.String javax.servlet.http.Cookie.getPath()")
-  public static String afterGetPath(
-      @CallSite.This final Cookie self, @CallSite.Return final String result) {
-    final WebModule module = InstrumentationBridge.WEB;
-    if (module != null) {
-      try {
-        module.onCookieGetter(self, self.getName(), result, (byte) 9);
-      } catch (final Throwable e) {
-        module.onUnexpectedException("afterGetPath threw", e);
       }
     }
     return result;
