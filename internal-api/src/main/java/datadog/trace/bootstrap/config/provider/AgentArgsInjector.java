@@ -11,7 +11,7 @@ public class AgentArgsInjector {
    * @param agentArgs Agent arguments to be parsed and set
    */
   public static void injectAgentArgsConfig(String agentArgs) {
-    Map<String, String> args = Strings.parseCommaSeparatedKeyValueList(agentArgs);
+    Map<String, String> args = ConfigConverter.parseMap(agentArgs, "javaagent arguments", '=');
     injectAgentArgsConfig(args);
   }
 

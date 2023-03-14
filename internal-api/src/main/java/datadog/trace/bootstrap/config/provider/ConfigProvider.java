@@ -195,7 +195,7 @@ public final class ConfigProvider {
     // We reverse iterate to allow overrides
     for (int i = sources.length - 1; 0 <= i; i--) {
       String value = sources[i].get(key);
-      merged.putAll(ConfigConverter.parseMap(value, key));
+      merged.putAll(ConfigConverter.parseMap(value, key, ':'));
     }
     return merged;
   }
