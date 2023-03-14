@@ -72,7 +72,6 @@ excludedClassesCoverage += [
   "datadog.trace.api.civisibility.git.GitInfo",
   "datadog.trace.api.civisibility.git.CommitInfo",
   "datadog.trace.api.civisibility.git.PersonInfo",
-  "datadog.trace.api.civisibility.git.GitObject",
   "datadog.trace.api.civisibility.source.MethodLinesResolver.MethodLines",
   "datadog.trace.logging.LoggingSettingsDescription",
   "datadog.trace.util.AgentProxySelector",
