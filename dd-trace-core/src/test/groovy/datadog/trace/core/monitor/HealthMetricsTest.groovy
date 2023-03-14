@@ -270,7 +270,84 @@ class HealthMetricsTest extends DDSpecification {
     cleanup:
     healthMetrics.close()
   }
-
+  def "test onSingleSpanSample"() {
+    setup:
+    def latch = new CountDownLatch(1)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    healthMetrics.start()
+    when:
+    healthMetrics.onSingleSpanSample()
+    latch.await(5, TimeUnit.SECONDS)
+    then:
+    1 * statsD.count("span.sampling.sampled", 1, _)
+    cleanup:
+    healthMetrics.close()
+  }
+  def "test onSingleSpanUnsampled"() {
+    setup:
+    def latch = new CountDownLatch(1)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    healthMetrics.start()
+    when:
+    healthMetrics.onSingleSpanUnsampled()
+    latch.await(5, TimeUnit.SECONDS)
+    then:
+    1 * statsD.count("span.sampling.unsampled", 1, _)
+    cleanup:
+    healthMetrics.close()
+  }
+  def "test onFinishSpan"() {
+    setup:
+    def latch = new CountDownLatch(1)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    healthMetrics.start()
+    when:
+    healthMetrics.onFinishSpan()
+    latch.await(5, TimeUnit.SECONDS)
+    then:
+    1 * statsD.count("span.pending.finished", 1, _)
+    cleanup:
+    healthMetrics.close()
+  }
+  def "test onActivateScope"() {
+    setup:
+    def latch = new CountDownLatch(1)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    healthMetrics.start()
+    when:
+    healthMetrics.onActivateScope()
+    latch.await(5, TimeUnit.SECONDS)
+    then:
+    1 * statsD.count("scope.activate.count", 1, _)
+    cleanup:
+    healthMetrics.close()
+  }
+  def "test onCloseScope"() {
+    setup:
+    def latch = new CountDownLatch(1)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    healthMetrics.start()
+    when:
+    healthMetrics.onCloseScope()
+    latch.await(5, TimeUnit.SECONDS)
+    then:
+    1 * statsD.count("scope.close.count", 1, _)
+    cleanup:
+    healthMetrics.close()
+  }
+  def "test onScopeStackOverflow"() {
+    setup:
+    def latch = new CountDownLatch(1)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    healthMetrics.start()
+    when:
+    healthMetrics.onScopeStackOverflow()
+    latch.await(5, TimeUnit.SECONDS)
+    then:
+    1 * statsD.count("scope.error.stack-overflow", 1, _)
+    cleanup:
+    healthMetrics.close()
+  }
   private static class Latched implements StatsDClient {
     final StatsDClient delegate
     final CountDownLatch latch

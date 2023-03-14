@@ -8,6 +8,7 @@ public final class FlushingBuffer implements StreamingBuffer {
   private final ByteBufferConsumer consumer;
 
   private int messageCount;
+  private int spanCount;
   private int mark;
 
   public FlushingBuffer(int capacity, ByteBufferConsumer consumer) {

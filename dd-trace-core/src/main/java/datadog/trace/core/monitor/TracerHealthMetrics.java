@@ -55,10 +55,16 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
       CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter serialFailedDroppedTraces =
       CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter serialFailedDroppedSpans =
+      CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter unsetPriorityDroppedTraces =
       CountersFactory.createFixedSizeStripedCounter(8);
 
   private final FixedSizeStripedLongCounter enqueuedSpans =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter singleSpanSampled =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter singleSpanUnsampled =
       CountersFactory.createFixedSizeStripedCounter(8);
 
   private final FixedSizeStripedLongCounter createdTraces =
@@ -66,13 +72,25 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   private final FixedSizeStripedLongCounter createdSpans =
       CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter finishedSpans =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter failedPublishSpanCount =
+      CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter sampledSpans =
       CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter manualTraces =
       CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter capturedContinuations =
+      CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter cancelledContinuations =
       CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter finishedContinuations =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter activatedScopes =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter closedScopes =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter scopeStackOverflow =
       CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter partialTraces =
       CountersFactory.createFixedSizeStripedCounter(8);
@@ -146,7 +164,8 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
-  public void onFailedPublish(final int samplingPriority) {
+  public void onFailedPublish(final int samplingPriority, final int spanCount) {
+    failedPublishSpanCount.inc(spanCount);
     switch (samplingPriority) {
       case USER_DROP:
         userDropDroppedTraces.inc();
@@ -185,6 +204,16 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
+  public void onSingleSpanSample() {
+    singleSpanSampled.inc();
+  }
+
+  @Override
+  public void onSingleSpanUnsampled() {
+    singleSpanUnsampled.inc();
+  }
+
+  @Override
   public void onSerialize(final int serializedSizeInBytes) {
     // DQH - Because of Java tracer's 2 phase acceptance and serialization scheme, this doesn't
     // map precisely
@@ -194,11 +223,17 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   @Override
   public void onFailedSerialize(final List<DDSpan> trace, final Throwable optionalCause) {
     serialFailedDroppedTraces.inc();
+    serialFailedDroppedSpans.inc(trace.size());
   }
 
   @Override
   public void onCreateSpan() {
     createdSpans.inc();
+  }
+
+  @Override
+  public void onFinishSpan() {
+    finishedSpans.inc();
   }
 
   @Override
@@ -220,6 +255,11 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
+  public void onCaptureContinuation() {
+    capturedContinuations.inc();
+  }
+
+  @Override
   public void onCancelContinuation() {
     cancelledContinuations.inc();
   }
@@ -227,6 +267,21 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   @Override
   public void onFinishContinuation() {
     finishedContinuations.inc();
+  }
+
+  @Override
+  public void onActivateScope() {
+    activatedScopes.inc();
+  }
+
+  @Override
+  public void onCloseScope() {
+    closedScopes.inc();
+  }
+
+  @Override
+  public void onScopeStackOverflow() {
+    scopeStackOverflow.inc();
   }
 
   @Override
@@ -274,6 +329,8 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
     private static final String[] SAMPLER_KEEP_TAG = new String[] {"priority:sampler_keep"};
     private static final String[] SERIAL_FAILED_TAG = new String[] {"failure:serial"};
     private static final String[] UNSET_TAG = new String[] {"priority:unset"};
+    private static final String[] PUBLISH_FAILED_TAG = new String[] {"failure:publish"};
+    private static final String[] SINGLE_SPAN_SAMPLER = new String[] {"sampler:single-span"};
 
     @Override
     public void run(TracerHealthMetrics target) {
@@ -311,14 +368,29 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
       reportIfChanged(target.statsd, "queue.enqueued.spans", target.enqueuedSpans, NO_TAGS);
       reportIfChanged(target.statsd, "trace.pending.created", target.createdTraces, NO_TAGS);
       reportIfChanged(target.statsd, "span.pending.created", target.createdSpans, NO_TAGS);
+      reportIfChanged(target.statsd, "span.pending.finished", target.finishedSpans, NO_TAGS);
+
       reportIfChanged(
           target.statsd, "span.continuations.canceled", target.cancelledContinuations, NO_TAGS);
       reportIfChanged(
           target.statsd, "span.continuations.finished", target.finishedContinuations, NO_TAGS);
       reportIfChanged(target.statsd, "queue.partial.traces", target.partialTraces, NO_TAGS);
-      reportIfChanged(target.statsd, "queue.dropped.spans", target.droppedSpans, NO_TAGS);
+      reportIfChanged(target.statsd, "queue.dropped.spans", target.droppedSpans, SAMPLER_DROP_TAG);
+      reportIfChanged(
+          target.statsd, "queue.dropped.spans", target.failedPublishSpanCount, PUBLISH_FAILED_TAG);
       reportIfChanged(
           target.statsd, "span.client.no-context", target.clientSpansWithoutContext, NO_TAGS);
+      reportIfChanged(
+          target.statsd, "span.sampling.sampled", target.singleSpanSampled, SINGLE_SPAN_SAMPLER);
+      reportIfChanged(
+          target.statsd,
+          "span.sampling.unsampled",
+          target.singleSpanUnsampled,
+          SINGLE_SPAN_SAMPLER);
+      reportIfChanged(target.statsd, "scope.activate.count", target.activatedScopes, NO_TAGS);
+      reportIfChanged(target.statsd, "scope.close.count", target.closedScopes, NO_TAGS);
+      reportIfChanged(
+          target.statsd, "scope.error.stack-overflow", target.scopeStackOverflow, NO_TAGS);
     }
 
     private void reportIfChanged(

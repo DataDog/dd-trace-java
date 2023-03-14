@@ -106,7 +106,7 @@ public abstract class RemoteWriter implements Writer {
   private void handleDroppedTrace(
       final String reason, final List<DDSpan> trace, final int samplingPriority) {
     log.debug("{}. Counted but dropping trace: {}", reason, trace);
-    healthMetrics.onFailedPublish(samplingPriority);
+    healthMetrics.onFailedPublish(trace.get(0).samplingPriority(), trace.size());
     incrementDropCounts(trace.size());
   }
 
