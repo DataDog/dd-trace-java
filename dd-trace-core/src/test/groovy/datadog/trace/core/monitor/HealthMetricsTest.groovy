@@ -79,7 +79,7 @@ class HealthMetricsTest extends DDSpecification {
     healthMetrics.start()
 
     when:
-    healthMetrics.onFailedPublish(samplingPriority)
+    healthMetrics.onFailedPublish(samplingPriority,_)
     latch.await(10, TimeUnit.SECONDS)
 
     then:

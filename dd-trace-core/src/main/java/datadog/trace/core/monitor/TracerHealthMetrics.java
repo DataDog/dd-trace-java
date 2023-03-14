@@ -223,7 +223,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   @Override
   public void onFailedSerialize(final List<DDSpan> trace, final Throwable optionalCause) {
     serialFailedDroppedTraces.inc();
-    serialFailedDroppedSpans.inc(trace.size());
+    serialFailedDroppedSpans.inc(trace != null ? trace.size() : 0);
   }
 
   @Override

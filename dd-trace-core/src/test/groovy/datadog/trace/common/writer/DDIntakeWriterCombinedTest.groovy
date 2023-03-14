@@ -244,7 +244,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
 
     then:
     // this will be checked during flushing
-    1 * healthMetrics.onFailedPublish(_)
+    1 * healthMetrics.onFailedPublish(_,_)
     1 * healthMetrics.onFlush(_)
     1 * healthMetrics.onShutdown(_)
     1 * healthMetrics.close()
@@ -451,7 +451,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
       onPublish(_, _) >> {
         numPublished.incrementAndGet()
       }
-      onFailedPublish(_) >> {
+      onFailedPublish(_,_) >> {
         numFailedPublish.incrementAndGet()
       }
       onFlush(_) >> {
@@ -562,7 +562,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
       onPublish(_, _) >> {
         numPublished.incrementAndGet()
       }
-      onFailedPublish(_) >> {
+      onFailedPublish(_,_) >> {
         numFailedPublish.incrementAndGet()
       }
       onSend(_, _, _) >> { repCount, sizeInBytes, response ->
