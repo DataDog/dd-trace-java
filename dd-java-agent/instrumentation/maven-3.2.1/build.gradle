@@ -1,0 +1,20 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = 'org.apache.maven'
+    module = 'maven-embedder'
+    versions = '[3.2.1,)'
+    assertInverse = true
+  }
+}
+
+dependencies {
+  compileOnly group: 'org.apache.maven', name: 'maven-embedder', version: '3.2.1'
+
+  testImplementation(group: 'org.apache.maven', name: 'maven-embedder') {
+    version {
+      strictly '3.2.1'
+    }
+  }
+}

@@ -1,0 +1,11 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'Maven Instrumentation Smoke Tests.'
+
+dependencies {
+  testImplementation project(':dd-smoke-tests')
+  testImplementation group: 'org.apache.maven', name: 'maven-embedder', version: '3.2.1'
+}
