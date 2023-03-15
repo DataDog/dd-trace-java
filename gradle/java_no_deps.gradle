@@ -203,6 +203,9 @@ project.afterEvaluate {
     } else {
       def name = it.name
       onlyIf { isJavaVersionAllowed(JavaVersion.current(), name) }
+      if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_16)) {
+        jvmArgs += ['--add-opens=java.base/java.lang=ALL-UNNAMED', '--add-opens=java.base/java.util=ALL-UNNAMED']
+      }
     }
 
     if (project.plugins.hasPlugin('org.unbroken-dome.test-sets') && configurations.hasProperty("latestDepTestRuntime")) {

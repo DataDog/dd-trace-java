@@ -22,8 +22,10 @@ public abstract class SourceTypes {
   public static final String REQUEST_BODY_STRING = "http.request.body";
   public static final byte REQUEST_QUERY = 8;
   public static final String REQUEST_QUERY_STRING = "http.request.query";
-  public static final byte REQUEST_PATH_PARAMETER = 12;
+  public static final byte REQUEST_PATH_PARAMETER = 9;
   public static final String REQUEST_PATH_PARAMETER_STRING = "http.request.path.parameter";
+  public static final byte REQUEST_MATRIX_PARAMETER = 10;
+  public static final String REQUEST_MATRIX_PARAMETER_STRING = "http.request.matrix.parameter";
 
   public static String toString(final byte sourceType) {
     switch (sourceType) {
@@ -45,6 +47,8 @@ public abstract class SourceTypes {
         return SourceTypes.REQUEST_QUERY_STRING;
       case SourceTypes.REQUEST_PATH_PARAMETER:
         return SourceTypes.REQUEST_PATH_PARAMETER_STRING;
+      case SourceTypes.REQUEST_MATRIX_PARAMETER:
+        return SourceTypes.REQUEST_MATRIX_PARAMETER_STRING;
       default:
         return null;
     }

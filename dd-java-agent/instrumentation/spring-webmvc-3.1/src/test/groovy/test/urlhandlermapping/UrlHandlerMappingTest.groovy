@@ -172,7 +172,7 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
     TEST_WRITER.waitForTraces(1)
 
     then:
-    1 * mod.onRequestPathParameter('id', '123')
+    1 * mod.onRequestPathParameter('id', '123', _)
     0 * mod._
 
     cleanup:

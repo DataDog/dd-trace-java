@@ -1,6 +1,7 @@
 package datadog.trace.api.iast.source;
 
 import datadog.trace.api.iast.IastModule;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public interface WebModule extends IastModule {
@@ -25,5 +26,9 @@ public interface WebModule extends IastModule {
 
   void onCookieValue(@Nullable String cookieName, @Nullable String cookieValue);
 
-  void onRequestPathParameter(@Nonnull String paramName, @Nonnull String value);
+  void onRequestPathParameter(
+      @Nonnull String paramName, @Nullable String value, @Nonnull Object iastRequestContext);
+
+  void onRequestMatrixParameter(
+      @Nonnull String paramName, @Nullable String value, @Nonnull Object iastRequestContext);
 }

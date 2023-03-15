@@ -7,6 +7,7 @@ import com.datadog.iast.model.Source;
 import com.datadog.iast.taint.TaintedObjects;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.source.WebModule;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class WebModuleImpl implements WebModule {
@@ -97,16 +98,26 @@ public class WebModuleImpl implements WebModule {
   }
 
   @Override
-  public void onRequestPathParameter(@Nonnull String paramName, String value) {
-    if (paramName == null || !canBeTainted(value)) {
+  public void onRequestPathParameter(
+      @Nonnull String paramName, @Nullable String value, @Nonnull Object ctx_) {
+    if (ctx_ == null || paramName == null || !canBeTainted(value)) {
       return;
     }
-    final IastRequestContext ctx = IastRequestContext.get();
-    if (ctx == null) {
-      return;
-    }
+    final IastRequestContext ctx = (IastRequestContext) ctx_;
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     taintedObjects.taintInputString(
         value, new Source(SourceTypes.REQUEST_PATH_PARAMETER, paramName, value));
+  }
+
+  @Override
+  public void onRequestMatrixParameter(
+      @Nonnull String paramName, @Nullable String value, @Nonnull Object ctx_) {
+    if (ctx_ == null || paramName == null || !canBeTainted(value)) {
+      return;
+    }
+    final IastRequestContext ctx = (IastRequestContext) ctx_;
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    taintedObjects.taintInputString(
+        value, new Source(SourceTypes.REQUEST_MATRIX_PARAMETER, paramName, value));
   }
 }

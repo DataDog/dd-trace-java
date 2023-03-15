@@ -98,7 +98,7 @@ public class HandleMatchAdvice {
               if (parameterName == null || value == null) {
                 continue; // should not happen
               }
-              module.onRequestPathParameter(parameterName, value);
+              module.onRequestPathParameter(parameterName, value, iastRequestContext);
             }
           }
 
@@ -114,12 +114,12 @@ public class HandleMatchAdvice {
               for (Map.Entry<String, Iterable<String>> ie : value.entrySet()) {
                 String innerKey = ie.getKey();
                 if (innerKey != null) {
-                  module.onRequestPathParameter(parameterName, innerKey);
+                  module.onRequestMatrixParameter(parameterName, innerKey, iastRequestContext);
                 }
                 Iterable<String> innerValues = ie.getValue();
                 if (innerValues != null) {
                   for (String iv : innerValues) {
-                    module.onRequestPathParameter(parameterName, iv);
+                    module.onRequestMatrixParameter(parameterName, iv, iastRequestContext);
                   }
                 }
               }
