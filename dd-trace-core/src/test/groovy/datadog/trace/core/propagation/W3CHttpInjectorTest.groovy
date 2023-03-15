@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation
 
+import datadog.trace.api.DD64bTraceId
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
@@ -42,7 +43,7 @@ class W3CHttpInjectorTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDTraceId.ONE),
+      tracer.pendingTraceFactory.create(DD64bTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,
@@ -96,7 +97,7 @@ class W3CHttpInjectorTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDTraceId.ONE),
+      tracer.pendingTraceFactory.create(DD64bTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,
@@ -142,7 +143,7 @@ class W3CHttpInjectorTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDTraceId.ONE),
+      tracer.pendingTraceFactory.create(DD64bTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,
