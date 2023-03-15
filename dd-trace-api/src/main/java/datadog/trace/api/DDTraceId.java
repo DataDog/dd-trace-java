@@ -1,7 +1,5 @@
 package datadog.trace.api;
 
-import datadog.trace.api.internal.util.HexStringUtils;
-
 /**
  * Class encapsulating the id used for TraceIds.
  *
@@ -45,63 +43,6 @@ public interface DDTraceId {
    */
   static DDTraceId fromHex(String s) throws NumberFormatException {
     return DD64bTraceId.create(DDId.parseUnsignedLongHex(s), null); // TODO Support 128b
-  }
-
-  /**
-   * Create a new {@code DDTraceId} from the given {@code String} hex representation of the unsigned
-   * 64 bit (or more) id truncated to 64 bits, while retaining the original {@code String}
-   * representation for use in headers.
-   *
-   * @param s String in hex of unsigned 64 bit (or more) id
-   * @return DDTraceId
-   * @throws NumberFormatException
-   */
-  static DDTraceId fromHexTruncatedWithOriginal(String s) throws NumberFormatException {
-    if (s == null) {
-      throw new NumberFormatException("null");
-    }
-
-    return fromHexTruncatedWithOriginal(s, 0, s.length(), false);
-  }
-
-  /**
-   * Create a new {@code DDTraceId} from the given {@code String} hex representation of the unsigned
-   * 64 bit (or more) id truncated to 64 bits, while retaining the original {@code String}
-   * representation for use in headers.
-   *
-   * @param s String in hex of unsigned 64 bit (or more) id
-   * @param start the start index of the hex value
-   * @param len the len of the hex value
-   * @param lowerCaseOnly if the allowed hex characters are lower case only
-   * @return DDTraceId
-   * @throws NumberFormatException
-   */
-  static DDTraceId fromHexTruncatedWithOriginal(String s, int start, int len, boolean lowerCaseOnly)
-      throws NumberFormatException {
-    if (s == null) {
-      throw new NumberFormatException("null");
-    }
-    int size = s.length();
-    if (start < 0 || len <= 0 || len > 32 || start + len > size) {
-      throw new NumberFormatException("Illegal start or length");
-    }
-    int trimmed = Math.min(len, 16);
-    int end = start + len;
-    int trimmedStart = end - trimmed;
-    if (trimmedStart > 0) {
-      // we need to check that the characters we don't parse are valid
-      HexStringUtils.parseUnsignedLongHex(s, start, trimmedStart, lowerCaseOnly);
-    }
-    String original;
-    if (start == 0 && end == len) {
-      original = s;
-    } else {
-      original = s.substring(start, end);
-    }
-    return new DD64bTraceId(
-        HexStringUtils.parseUnsignedLongHex(s, trimmedStart, trimmed, lowerCaseOnly),
-        null,
-        original);
   }
 
   /**

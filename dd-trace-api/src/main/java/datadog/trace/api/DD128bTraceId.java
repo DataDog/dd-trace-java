@@ -1,5 +1,7 @@
 package datadog.trace.api;
 
+import datadog.trace.api.internal.util.HexStringUtils;
+
 /**
  * Class encapsulating the unsigned 128-bit id used for TraceIds.
  *
@@ -7,24 +9,28 @@ package datadog.trace.api;
  * The string representations are either kept from parsing, or generated on demand and cached.
  *
  * <p>{@link DD128bTraceId} can represent either a 128-bit TraceId or a 64-bit TraceId. For 128-bit
- * TraceId, {@link #mostSigBits} contains a 32-bit timestamp store on the 32 higher bits and {@link
- * #leastSigBits} contains a unique and random 64-bit id. For 64-bit TraceId, {@link #mostSigBits}
- * is set to <code>0</code> and {@link #leastSigBits} contains a unique and random 63-bit id.
+ * TraceId, {@link #highOrderBits} contains a 32-bit timestamp store on the 32 higher bits and
+ * {@link #lowOrderBits} contains a unique and random 64-bit id. For 64-bit TraceId, {@link
+ * #highOrderBits} is set to <code>0</code> and {@link #lowOrderBits} contains a unique and random
+ * 63-bit id.
  */
 public class DD128bTraceId implements DDTraceId {
   public static final DD128bTraceId ZERO =
       new DD128bTraceId(0, 0, "00000000000000000000000000000000");
-
+  private static final long L63BITS_MASK = 9223372036854775807L;
   /** Represents the high-order 64 bits of the 128-bit trace id. */
-  private final long mostSigBits;
+  private final long highOrderBits;
   /** Represents the low-order 64 bits of the 128-bit trace id. */
-  private final long leastSigBits;
+  private final long lowOrderBits;
+  /**
+   * A lower-case, zero-padded, 32 hexadecimal character String representation of the DDTraceId
+   * instance.
+   */
+  private String str;
 
-  private String str; // cache for string representation
-
-  private DD128bTraceId(long mostSigBits, long leastSigBits, String str) {
-    this.mostSigBits = mostSigBits;
-    this.leastSigBits = leastSigBits;
+  private DD128bTraceId(long highOrderBits, long leastSigBits, String str) {
+    this.highOrderBits = highOrderBits;
+    this.lowOrderBits = leastSigBits;
     this.str = str;
   }
 
@@ -32,37 +38,131 @@ public class DD128bTraceId implements DDTraceId {
    * Create a new 128-bit {@link DD128bTraceId} from the given {@code long}s interpreted as high
    * order and low order bits of the 128-bit id.
    *
-   * @param mostSigBits A {@code long} representing the high-order bits of the {@link
+   * @param highOrderBits A {@code long} representing the high-order bits of the {@link
    *     DD128bTraceId}.
-   * @param leastSigBits A {@code long} representing the random id low-order bits.
+   * @param lowOrderBits A {@code long} representing the random id low-order bits.
    * @return The created TraceId instance.
    */
-  public static DD128bTraceId from(long mostSigBits, long leastSigBits) {
-    return new DD128bTraceId(mostSigBits, leastSigBits, null);
+  public static DD128bTraceId from(long highOrderBits, long lowOrderBits) {
+    return new DD128bTraceId(highOrderBits, lowOrderBits, null);
+  }
+
+  /**
+   * Create a new 128-bit {@link DD128bTraceId} from the given hexadecimal {@link String}
+   * representation.
+   *
+   * @param s The hexadecimal {@link String} representation to parse (a 32 lower or higher-case
+   *     hexadecimal characters maximum).
+   * @param lowerCaseOnly Whether the hexadecimal characters to parse are lower-case only or not.
+   * @return The created TraceId instance.
+   * @throws NumberFormatException If the hexadecimal {@link String} representation is not valid.
+   */
+  public static DD128bTraceId fromHex(String s, boolean lowerCaseOnly)
+      throws NumberFormatException {
+    return fromHex(s, 0, s.length(), lowerCaseOnly);
+  }
+
+  /**
+   * Create a new 128-bit {@link DD128bTraceId} from the given hexadecimal {@link String}
+   * representation.
+   *
+   * @param s The string containing the hexadecimal {@link String} representation to parse (32 lower
+   *     or higher-case hexadecimal characters maximum).
+   * @param start The start index of the hexadecimal {@link String} representation to parse.
+   * @param length The length of the hexadecimal {@link String} representation to parse.
+   * @param lowerCaseOnly Whether the hexadecimal characters to parse are lower-case only or not.
+   * @return The created TraceId instance.
+   * @throws NumberFormatException If the hexadecimal {@link String} representation is not valid.
+   */
+  public static DD128bTraceId fromHex(String s, int start, int length, boolean lowerCaseOnly)
+      throws NumberFormatException {
+    if (s == null) {
+      throw new IllegalArgumentException("s can't be null");
+    }
+    int stringLength = s.length();
+    if (start < 0 || length <= 0 || length > 32 || start + length > stringLength) {
+      throw new NumberFormatException("Illegal start or length");
+    }
+    // Parse high and low order bits
+    long highOrderBits, lowOrderBits;
+    if (length > 16) {
+      int highOrderLength = length - 16;
+      highOrderBits = HexStringUtils.parseUnsignedLongHex(s, start, highOrderLength, lowerCaseOnly);
+      lowOrderBits =
+          HexStringUtils.parseUnsignedLongHex(s, start + highOrderLength, 16, lowerCaseOnly);
+    } else {
+      highOrderBits = 0;
+      lowOrderBits = HexStringUtils.parseUnsignedLongHex(s, start, length, lowerCaseOnly);
+    }
+    // Extract hexadecimal string representation to cache
+    String str = null;
+    if (length == 32) {
+      if (start == 0) {
+        str = s;
+      } else {
+        str = s.substring(start, start + 32);
+      }
+      if (!lowerCaseOnly) {
+        str = str.toLowerCase();
+      }
+    }
+    return new DD128bTraceId(highOrderBits, lowOrderBits, str);
   }
 
   @Override
   public String toHexString() {
-    return null;
+    String s = this.str;
+    // This race condition is intentional and benign.
+    // The worst that can happen is that an identical value is produced and written into the field.
+    if (s == null) {
+      this.str =
+          s =
+              DDId.toHexStringPadded(this.highOrderBits, 16)
+                  + DDId.toHexStringPadded(this.lowOrderBits, 16);
+    }
+    return s;
   }
 
   @Override
   public String toHexStringPadded(int size) {
-    return null;
+    if (size <= 16) {
+      return DDId.toHexStringPadded(this.lowOrderBits, 16);
+    }
+    return toHexString();
   }
 
   @Override
   public String toHexStringOrOriginal() {
-    return null;
+    throw new RuntimeException("SHOULD NOT BE CALLED");
   }
 
   @Override
   public String toHexStringPaddedOrOriginal(int size) {
-    return null;
+    throw new RuntimeException("SHOULD NOT BE CALLED");
   }
 
   @Override
+  @Deprecated
   public long toLong() {
-    return 0;
+    return this.lowOrderBits;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (!(o instanceof DD128bTraceId)) return false;
+    DD128bTraceId ddId = (DD128bTraceId) o;
+    return this.highOrderBits == ddId.highOrderBits && this.lowOrderBits == ddId.lowOrderBits;
+  }
+
+  @Override
+  public int hashCode() {
+    long id = this.lowOrderBits;
+    return (int) (id ^ (id >>> 32));
+  }
+
+  @Override
+  public String toString() {
+    return toHexString();
   }
 }

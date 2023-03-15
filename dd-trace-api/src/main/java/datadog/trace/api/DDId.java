@@ -19,7 +19,7 @@ final class DDId {
 
   static long parseUnsignedLong(String s) throws NumberFormatException {
     if (s == null) {
-      throw new NumberFormatException("null");
+      throw new NumberFormatException("s can't be null");
     }
 
     int len = s.length();
