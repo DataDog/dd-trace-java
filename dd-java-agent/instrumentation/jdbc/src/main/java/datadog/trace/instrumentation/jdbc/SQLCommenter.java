@@ -9,7 +9,6 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,17 +16,17 @@ public class SQLCommenter {
 
   private static final Logger log = LoggerFactory.getLogger(SQLCommenter.class);
   private static final String UTF8 = StandardCharsets.UTF_8.toString();
-  protected static final String PARENT_SERVICE = "ddps";
-  protected static final String DATABASE_SERVICE = "dddbs";
-  protected static final String DD_ENV = "dde";
-  protected static final String DD_VERSION = "ddpv";
-  protected static final String TRACEPARENT = "traceparent";
-  protected static final String W3C_CONTEXT_VERSION = "00";
+  private static final String PARENT_SERVICE = "ddps";
+  private static final String DATABASE_SERVICE = "dddbs";
+  private static final String DD_ENV = "dde";
+  private static final String DD_VERSION = "ddpv";
+  private static final String TRACEPARENT = "traceparent";
+  private static final String W3C_CONTEXT_VERSION = "00";
   private static final char EQUALS = '=';
   private static final char COMMA = ',';
   private static final char QUOTE = '\'';
   private static final int COMMENT_CAPACITY = computeBuilderCapacity();
-  public String commentedSQL;
+  String commentedSQL;
   String injectionMode;
   String sql;
   DDTraceId traceId;
@@ -37,10 +36,6 @@ public class SQLCommenter {
 
   public String getCommentedSQL() {
     return commentedSQL;
-  }
-
-  public Integer getSamplingPriority() {
-    return samplingPriority;
   }
 
   public void setSamplingPriority(Integer samplingPriority) {
@@ -96,7 +91,7 @@ public class SQLCommenter {
     this.commentedSQL = new String(buffer.array(), 0, buffer.position(), StandardCharsets.UTF_8);
   }
 
-  private boolean hasDDComment(byte[] sql) {
+  private static boolean hasDDComment(byte[] sql) {
     // first check to see if sql starts with a comment
     if (sql.length < 1 || !(sql[0] == '/' && sql[1] == '*')) {
       return false;
@@ -132,7 +127,7 @@ public class SQLCommenter {
     return found;
   }
 
-  private boolean hasMatchingSubstring(byte[] arr, int startIndex, String substring) {
+  private static boolean hasMatchingSubstring(byte[] arr, int startIndex, String substring) {
     if (startIndex + substring.length() >= arr.length) {
       return false;
     }
@@ -168,13 +163,13 @@ public class SQLCommenter {
     return sb.toString();
   }
 
-  private static void append(StringBuilder sb, String key, Object value) {
-    if (!isBlank(value)) {
+  private static void append(StringBuilder sb, String key, String value) {
+    if (null != value && !value.isEmpty()) {
       try {
         sb.append(URLEncoder.encode(key, UTF8));
         sb.append(EQUALS);
         sb.append(QUOTE);
-        sb.append(URLEncoder.encode(Objects.toString(value), UTF8));
+        sb.append(URLEncoder.encode(value, UTF8));
         sb.append(QUOTE);
         sb.append(COMMA);
       } catch (UnsupportedEncodingException e) {
@@ -200,20 +195,6 @@ public class SQLCommenter {
     int extraCharsLen = 4 * 5 + 4; // two quotes, one equals & one comma + \* */
     int traceParentValueLen = 55;
     return tagKeysLen + extraCharsLen + traceParentValueLen;
-  }
-
-  private static boolean isBlank(Object obj) {
-    if (obj == null) {
-      return true;
-    }
-    if (obj instanceof String) {
-      return obj.equals("");
-    }
-    if (obj instanceof Number) {
-      Number number = (Number) obj;
-      return number.doubleValue() == 0.0;
-    }
-    return false;
   }
 
   private static String traceParent(DDTraceId traceId, long spanId, Integer priority) {
