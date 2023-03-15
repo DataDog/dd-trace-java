@@ -58,21 +58,6 @@ public class SQLCommenter {
       final String sql,
       final String dbService,
       final DDTraceId traceId,
-      final long spanId,
-      final Integer samplingPriority) {
-    this.injectionMode = injectionMode;
-    this.sql = sql;
-    this.dbService = dbService;
-    this.traceId = traceId;
-    this.spanId = spanId;
-    this.samplingPriority = samplingPriority;
-  }
-
-  public SQLCommenter(
-      final String injectionMode,
-      final String sql,
-      final String dbService,
-      final DDTraceId traceId,
       final long spanId) {
     this.injectionMode = injectionMode;
     this.sql = sql;
