@@ -149,10 +149,13 @@ public final class DatadogProfiler {
     if (isWallClockProfilerEnabled(configProvider)) {
       profilingModes.add(WALL);
     }
-    this.orderedContextAttributes = new ArrayList<>(contextAttributes);
+    this.orderedContextAttributes = new ArrayList<>();
     if (isSpanNameContextAttributeEnabled(configProvider)) {
-      orderedContextAttributes.add(0, "operation");
+      orderedContextAttributes.add("resource");
+      orderedContextAttributes.add("operation");
+      orderedContextAttributes.add("service");
     }
+    orderedContextAttributes.addAll(contextAttributes);
     this.contextSetter = new ContextSetter(profiler, orderedContextAttributes);
     try {
       // sanity test - force load Datadog profiler to catch it not being available early
@@ -327,6 +330,14 @@ public final class DatadogProfiler {
 
   public int operationNameOffset() {
     return offsetOf("operation");
+  }
+
+  public int serviceNameOffset() {
+    return offsetOf("service");
+  }
+
+  public int resourceNameOffset() {
+    return offsetOf("resource");
   }
 
   public int offsetOf(String attribute) {
