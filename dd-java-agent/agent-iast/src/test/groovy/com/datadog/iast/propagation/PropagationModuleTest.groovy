@@ -35,93 +35,86 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     tracer.activeSpan() >> span
   }
 
-  void 'taintIfInputIsTainted(Object, Object) null or empty'() {
+  void 'taintIfInputIsTainted null or empty'() {
     when:
-    module.taintIfInputIsTainted(param1, param2)
+    module.&taintIfInputIsTainted.call(args.toArray())
 
     then:
     0 * _
 
     where:
-    param1       | param2
-    null         | null
-    null         | new Object()
-    null         | 'test'
-    new Object() | null
+    args                                                                            | _
+    [null, null]                                                                    | _
+    [null, new Object()]                                                            | _
+    [null, 'test']                                                                  | _
+    [new Object(), null]                                                            | _
+    [null as String, null]                                                          | _
+    ['', null]                                                                      | _
+    ['', new Object()]                                                              | _
+    [null as String, new Object()]                                                  | _
+    ['test', null]                                                                  | _
+    [null as String, 'test']                                                        | _
+    [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', null as String, null]             | _
+    [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', '', null]                         | _
+    [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', '', new Object()]                 | _
+    [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', null as String, new Object()]     | _
+    [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'test', null]                     | _
+    [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', null as String, 'test']           | _
+    [SourceTypes.REQUEST_PARAMETER_VALUE, [].toSet(), 'test']                       | _
+    [SourceTypes.REQUEST_PARAMETER_VALUE, ['test'].toSet(), null]                   | _
+    [SourceTypes.REQUEST_PARAMETER_VALUE, [:].entrySet().toList(), 'test']          | _
+    [SourceTypes.REQUEST_PARAMETER_VALUE, [key: "value"].entrySet().toList(), null] | _
+    [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', null, 'test']                     | _
+    [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', [], 'test']                       | _
+    [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', ['value'], null]                  | _
   }
 
-  void 'taintIfInputIsTainted(String, Object) null or empty'() {
+  void 'taint null or empty'() {
     when:
-    module.taintIfInputIsTainted(param1, param2)
+    module.&taint.call(args.toArray())
 
     then:
     0 * _
 
     where:
-    param1 | param2
-    null   | null
-    ''     | null
-    ''     | new Object()
-    null   | new Object()
-    'test' | null
-    null   | 'test'
+    args                                                      | _
+    [SourceTypes.REQUEST_PARAMETER_VALUE, null as Object[]]   | _
+    [SourceTypes.REQUEST_PARAMETER_VALUE, [] as Object[]]     | _
+    [SourceTypes.REQUEST_PARAMETER_VALUE, null as Collection] | _
+    [SourceTypes.REQUEST_PARAMETER_VALUE, []]                 | _
   }
 
-  void 'taintIfInputIsTainted(byte, String, String, Object) null or empty'() {
+  void 'taintIfInputIsTainted without span'() {
     when:
-    module.taintIfInputIsTainted(SourceTypes.REQUEST_PARAMETER_VALUE, 'name', param1, param2)
-
-    then:
-    0 * _
-
-    where:
-    param1 | param2
-    null   | null
-    ''     | null
-    ''     | new Object()
-    null   | new Object()
-    'test' | null
-    null   | 'test'
-  }
-
-  void 'taintIfInputIsTainted(Object, Object) without span'() {
-    when:
-    module.taintIfInputIsTainted(param1, param2)
+    module.&taintIfInputIsTainted.call(args.toArray())
 
     then:
     1 * tracer.activeSpan() >> null
     0 * _
 
     where:
-    param1       | param2
-    new Object() | new Object()
-    new Object() | 'test'
+    args                                                                                    | _
+    [new Object(), new Object()]                                                            | _
+    [new Object(), 'test']                                                                  | _
+    ['test', new Object()]                                                                  | _
+    [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value', new Object()]                    | _
+    [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', ['value'], new Object()]                  | _
+    [SourceTypes.REQUEST_PARAMETER_VALUE, ['value'].toSet(), new Object()]                  | _
+    [SourceTypes.REQUEST_PARAMETER_VALUE, [key: 'value'].entrySet().toList(), new Object()] | _
   }
 
-  void 'taintIfInputIsTainted(String, Object) without span'() {
+  void 'taint without span'() {
     when:
-    module.taintIfInputIsTainted(param1 as String, param2)
+    module.&taint.call(args.toArray())
 
     then:
     1 * tracer.activeSpan() >> null
     0 * _
 
     where:
-    param1 | param2
-    'test' | new Object()
-  }
-
-  void 'taintIfInputIsTainted(byte, String, String, Object) without span'() {
-    when:
-    module.taintIfInputIsTainted(SourceTypes.REQUEST_PARAMETER_VALUE, 'name', param1, param2)
-
-    then:
-    1 * tracer.activeSpan() >> null
-    0 * _
-
-    where:
-    param1 | param2
-    'test' | new Object()
+    args                                                              | _
+    [SourceTypes.REQUEST_PARAMETER_VALUE, [new Object()] as Object[]] | _
+    [SourceTypes.REQUEST_PARAMETER_VALUE, [new Object()]]             | _
   }
 
   void 'onJsonFactoryCreateParser'() {
@@ -183,104 +176,81 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     new Object() | '==>123<=='
   }
 
-  void 'taintIfInputIsTainted(Object, Object)'() {
-    given:
-    final origin = SourceTypes.REQUEST_PARAMETER_VALUE
-    if (inputTainted) {
-      taint(input, origin)
-    }
-
+  void 'test taintIfInputIsTainted'() {
     when:
-    module.taintIfInputIsTainted(toTaint, input)
+    final toTaint = toTaintClosure.call(args)
+    module.&taintIfInputIsTainted.call(args as Object[])
 
     then:
-    if (inputTainted) {
-      assertTainted(toTaint, origin)
-    } else {
-      assertNotTainted(toTaint)
-    }
-
-    where:
-    toTaint             | input               | inputTainted
-    new Object()        | new MockTaintable() | false
-    new MockTaintable() | new MockTaintable() | false
-    new Object()        | new MockTaintable() | true
-    new MockTaintable() | new MockTaintable() | true
-    new Object()        | new Object()        | false
-    new MockTaintable() | new Object()        | false
-    new Object()        | new Object()        | true
-    new MockTaintable() | new Object()        | true
-  }
-
-  void 'taintIfInputIsTainted(String, Object)'() {
-    given:
-    final origin = SourceTypes.REQUEST_PARAMETER_VALUE
-    if (inputTainted) {
-      taint(input, origin)
-    }
+    assertNotTainted(toTaint)
 
     when:
-    module.taintIfInputIsTainted(toTaint, input)
+    taint(args.last())
+    module.&taintIfInputIsTainted.call(args as Object[])
 
     then:
-    if (inputTainted) {
-      assertTainted(toTaint, origin)
-    } else {
-      assertNotTainted(toTaint)
-    }
+    assertTainted(toTaint)
 
     where:
-    toTaint | input               | inputTainted
-    'Hello' | new MockTaintable() | false
-    'Hello' | new MockTaintable() | true
-    'Hello' | new Object()        | false
-    'Hello' | new Object()        | true
+    args                                                                                            | toTaintClosure
+    [new Object(), 'I am an string']                                                                | { it[0] }
+    [new Object(), new Object()]                                                                    | { it[0] }
+    [new Object(), new MockTaintable()]                                                             | { it[0] }
+    ['Hello', 'I am an string']                                                                     | { it[0] }
+    ['Hello', new Object()]                                                                         | { it[0] }
+    ['Hello', new MockTaintable()]                                                                  | { it[0] }
+    [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value', 'I am an string']                        | { it[2] }
+    [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value', new Object()]                            | { it[2] }
+    [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value', new MockTaintable()]                     | { it[2] }
+    [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', ['value'], 'I am an string']                      | { it[2][0] }
+    [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', ['value'], new Object()]                          | { it[2][0] }
+    [SourceTypes.REQUEST_PARAMETER_VALUE, 'name', ['value'], new MockTaintable()]                   | { it[2][0] }
+    [SourceTypes.REQUEST_PARAMETER_VALUE, ['value'].toSet(), 'I am an string']                      | { it[1][0] }
+    [SourceTypes.REQUEST_PARAMETER_VALUE, ['value'].toSet(), new Object()]                          | { it[1][0] }
+    [SourceTypes.REQUEST_PARAMETER_VALUE, ['value'].toSet(), new MockTaintable()]                   | { it[1][0] }
+    [SourceTypes.REQUEST_PARAMETER_VALUE, [name: 'value'].entrySet().toList(), 'I am an string']    | { it[1][0].value }
+    [SourceTypes.REQUEST_PARAMETER_VALUE, [name: 'value'].entrySet().toList(), new Object()]        | { it[1][0].value }
+    [SourceTypes.REQUEST_PARAMETER_VALUE, [name: 'value'].entrySet().toList(), new MockTaintable()] | { it[1][0].value }
   }
 
-  void 'taintIfInputIsTainted(byte, String, String, Object)'() {
+  void 'test taint'() {
+    when:
+    module.&taint.call(args as Object[])
+
+    then:
+    final toTaint = toTaintClosure.call(args)
+    assertTainted(toTaint)
+
+    where:
+    args                                                         | toTaintClosure
+    [SourceTypes.REQUEST_PARAMETER_VALUE, new Object()]          | { it[1] }
+    [SourceTypes.REQUEST_PARAMETER_VALUE, [new Object()]]        | { it[1][0] }
+    [SourceTypes.REQUEST_PARAMETER_VALUE, new MockTaintable()]   | { it[1] }
+    [SourceTypes.REQUEST_PARAMETER_VALUE, [new MockTaintable()]] | { it[1][0] }
+  }
+
+  void 'test lazy tainted objects'() {
     given:
-    final origin = SourceTypes.REQUEST_PARAMETER_VALUE
-    if (inputTainted) {
-      taint(input, origin)
-    }
+    final to = PropagationModuleImpl.lazyTaintedObjects()
+    final tainted = 'I am tainted'
 
     when:
-    module.taintIfInputIsTainted(origin, 'test', toTaint, input)
+    to.taintInputString(tainted, new Source(SourceTypes.REQUEST_COOKIE_VALUE, null, null))
 
     then:
-    if (inputTainted) {
-      assertTainted(toTaint, origin)
-    } else {
-      assertNotTainted(toTaint)
-    }
-
-    where:
-    toTaint | input               | inputTainted
-    'Hello' | new MockTaintable() | false
-    'Hello' | new MockTaintable() | true
-    'Hello' | new Object()        | false
-    'Hello' | new Object()        | true
-  }
-
-  void 'taint(byte, Object...)'() {
-    given:
-    final origin = SourceTypes.REQUEST_PARAMETER_VALUE
+    ctx.taintedObjects.get(tainted) != null
+    to.estimatedSize == ctx.taintedObjects.estimatedSize
+    to.flat == ctx.taintedObjects.flat
 
     when:
-    module.taint(origin, [toTaint] as Object[])
+    to.release()
 
     then:
-    assertTainted(toTaint, origin)
-
-    where:
-    _ | toTaint
-    _ | 'Hello'
-    _ | new Object()
-    _ | new MockTaintable()
+    ctx.taintedObjects.estimatedSize == 0
   }
 
-  private Object taint(final Object toTaint, final byte origin) {
-    final source = new Source(origin, null, null)
+  private <E> E taint(final E toTaint) {
+    final source = new Source(SourceTypes.REQUEST_PARAMETER_VALUE, null, null)
     if (toTaint instanceof Taintable) {
       toTaint.$$DD$setSource(source)
     } else {
@@ -290,14 +260,13 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     return toTaint
   }
 
-  private void assertTainted(final Object toTaint, final byte origin) {
+  private void assertTainted(final Object toTaint) {
     final tainted = ctx.getTaintedObjects().get(toTaint)
     if (toTaint instanceof Taintable) {
       assert tainted == null
-      assert toTaint.$$DD$getSource().origin == origin
+      assert toTaint.$$DD$getSource() != null
     } else {
       assert tainted != null
-      assert tainted.ranges.first().source.origin == origin
     }
   }
 

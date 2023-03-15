@@ -53,4 +53,20 @@ public abstract class SourceTypes {
         return null;
     }
   }
+
+  public static byte namedSource(final byte sourceType) {
+    switch (sourceType) {
+      case SourceTypes.REQUEST_PARAMETER_VALUE:
+      case SourceTypes.REQUEST_PARAMETER_NAME:
+        return SourceTypes.REQUEST_PARAMETER_NAME;
+      case SourceTypes.REQUEST_HEADER_VALUE:
+      case SourceTypes.REQUEST_HEADER_NAME:
+        return SourceTypes.REQUEST_HEADER_NAME;
+      case SourceTypes.REQUEST_COOKIE_VALUE:
+      case SourceTypes.REQUEST_COOKIE_NAME:
+        return SourceTypes.REQUEST_COOKIE_NAME;
+      default:
+        return sourceType;
+    }
+  }
 }
