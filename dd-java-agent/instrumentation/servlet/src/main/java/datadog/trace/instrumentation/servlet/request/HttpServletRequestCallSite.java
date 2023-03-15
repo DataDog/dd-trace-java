@@ -7,6 +7,7 @@ import datadog.trace.api.iast.IastAdvice.Source;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.PropagationTypes;
 import datadog.trace.api.iast.SourceTypes;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.source.WebModule;
 import datadog.trace.util.stacktrace.StackUtils;
 import java.util.ArrayList;
@@ -114,10 +115,10 @@ public class HttpServletRequestCallSite {
   public static Cookie[] afterGetCookies(
       @CallSite.This final HttpServletRequest self, @CallSite.Return final Cookie[] cookies) {
     if (null != cookies && cookies.length > 0) {
-      final WebModule module = InstrumentationBridge.WEB;
+      final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.onCookies(cookies);
+          module.taint(SourceTypes.REQUEST_COOKIE_VALUE, (Object[]) cookies);
         } catch (final Throwable e) {
           module.onUnexpectedException("afterGetCookies threw", e);
         }
