@@ -13,7 +13,8 @@ class SQLCommenterTest extends DDSpecification {
     when:
     SQLCommenter commenter = new SQLCommenter(injectionMode, query, "my-service")
     if (injectionMode == "full") {
-      commenter = new SQLCommenter(injectionMode, query, "my-service", traceId, spanId, samplingPriority)
+      commenter = new SQLCommenter(injectionMode, query, "my-service", traceId, spanId)
+      commenter.setSamplingPriority(samplingPriority)
     }
     commenter.inject()
     String sqlWithComment = commenter.getCommentedSQL()

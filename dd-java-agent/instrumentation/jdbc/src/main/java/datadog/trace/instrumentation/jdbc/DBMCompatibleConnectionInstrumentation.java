@@ -5,12 +5,13 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameSta
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.SQL_COMMENT_INJECTION_STATIC;
-import static java.util.Collections.singletonMap;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logQueryInfoInjection;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -19,21 +20,15 @@ import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
 public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionInstrumentation
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.ForConfiguredType {
 
   /** Instrumentation class for connections for Database Monitoring supported DBs * */
   public DBMCompatibleConnectionInstrumentation() {
-    super("jdbc", "dbm_compatible");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("java.sql.Statement", DBQueryInfo.class.getName());
+    super("jdbc", "dbm");
   }
 
   // Classes to cover all currently supported
@@ -87,24 +82,29 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
   }
 
   @Override
+  public String configuredMatchingType() {
+    // this won't match any class unless the property is set
+    return InstrumenterConfig.get().getJdbcConnectionClassName();
+  }
+
+  @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         nameStartsWith("prepare")
             .and(takesArgument(0, String.class))
             // Also include CallableStatement, which is a subtype of PreparedStatement
             .and(returns(hasInterface(named("java.sql.PreparedStatement")))),
-        DBMCompatibleConnectionInstrumentation.class.getName() + "$ConnectionPrepareAdvice");
+        DBMCompatibleConnectionInstrumentation.class.getName() + "$ConnectionAdvice");
   }
 
-  public static class ConnectionPrepareAdvice {
+  public static class ConnectionAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static String onEnter(
         @Advice.This Connection connection,
         @Advice.Argument(value = 0, readOnly = false) String sql) {
       if (JDBCDecorator.injectSQLComment()) {
-        final int callDepth =
-            CallDepthThreadLocalMap.incrementCallDepth(ConnectionPrepareAdvice.class);
+        final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Connection.class);
         if (callDepth > 0) {
           return null;
         }
@@ -121,7 +121,9 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void addDBInfo(
-        @Advice.Enter final String inputSql, @Advice.Return final PreparedStatement statement) {
+        @Advice.This Connection connection,
+        @Advice.Enter final String inputSql,
+        @Advice.Return final PreparedStatement statement) {
       if (null == inputSql) {
         return;
       }
@@ -130,8 +132,9 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
       if (null == contextStore.get(statement)) {
         DBQueryInfo info = DBQueryInfo.ofPreparedStatement(inputSql);
         contextStore.put(statement, info);
+        logQueryInfoInjection(connection, statement, info);
       }
-      CallDepthThreadLocalMap.reset(ConnectionPrepareAdvice.class);
+      CallDepthThreadLocalMap.reset(Connection.class);
     }
   }
 }

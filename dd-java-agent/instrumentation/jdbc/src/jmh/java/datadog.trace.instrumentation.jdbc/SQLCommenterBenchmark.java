@@ -14,7 +14,6 @@ import org.openjdk.jmh.annotations.State;
 @State(Scope.Thread)
 public class SQLCommenterBenchmark {
 
-  private SQLCommenter sqlCommenter;
   private static final long spanId = 9876543210L;
   private static final DDTraceId traceId = DDTraceId.from(Long.MAX_VALUE);
   private static final Integer samplingPriority = 1;
