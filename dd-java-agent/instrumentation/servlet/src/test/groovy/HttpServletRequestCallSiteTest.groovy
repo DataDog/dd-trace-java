@@ -1,6 +1,8 @@
 import datadog.smoketest.controller.TestHttpServletRequestCallSiteSuite
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.SourceTypes
+import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.source.WebModule
 import datadog.trace.instrumentation.servlet.request.HttpServletRequestCallSite
 import groovy.transform.CompileDynamic
@@ -81,11 +83,11 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     HttpServletRequestWrapper | _
   }
 
-  def 'test getCookies'(final Class<? extends HttpServletRequest> clazz) {
+  void 'test getCookies'(final Class<? extends HttpServletRequest> clazz) {
     setup:
-    WebModule iastModule = Mock(WebModule)
+    final iastModule = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(iastModule)
-    final cookies = [new Cookie('name1', 'value1'), new Cookie('name2', 'value2')]
+    final cookies = [new Cookie('name1', 'value1'), new Cookie('name2', 'value2')] as Cookie[]
     final testSuite = new TestHttpServletRequestCallSiteSuite(Mock(clazz) {
       getCookies() >> cookies
     })
@@ -96,7 +98,7 @@ class HttpServletRequestCallSiteTest extends AgentTestRunner {
     then:
     result == cookies
 
-    1 * iastModule.onCookies(cookies)
+    1 * iastModule.taint(SourceTypes.REQUEST_COOKIE_VALUE, cookies)
 
     where:
     clazz                     | _

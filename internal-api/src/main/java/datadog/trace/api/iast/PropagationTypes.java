@@ -8,4 +8,5 @@ public abstract class PropagationTypes {
   public static final String JSON = "JSON";
   public static final String URL = "URL";
   public static final String COOKIE = "COOKIE";
+  public static final String BODY = "BODY";
 }

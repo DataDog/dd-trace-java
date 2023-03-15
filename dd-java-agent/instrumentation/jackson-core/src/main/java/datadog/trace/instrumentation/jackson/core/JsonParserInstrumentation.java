@@ -12,6 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import com.fasterxml.jackson.core.JsonParser;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -25,7 +26,7 @@ public class JsonParserInstrumentation extends Instrumenter.Iast
     implements Instrumenter.ForTypeHierarchy {
 
   public JsonParserInstrumentation() {
-    super("jsonParser");
+    super("jackson-core");
   }
 
   @Override
@@ -43,6 +44,11 @@ public class JsonParserInstrumentation extends Instrumenter.Iast
   @Override
   public String hierarchyMarkerType() {
     return "com.fasterxml.jackson.core.JsonParser";
+  }
+
+  @Override
+  public AdviceTransformer transformer() {
+    return new VisitingTransformer(new TaintableVisitor(hierarchyMarkerType()));
   }
 
   @Override
