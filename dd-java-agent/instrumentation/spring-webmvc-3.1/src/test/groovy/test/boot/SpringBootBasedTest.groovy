@@ -252,7 +252,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     TEST_WRITER.waitForTraces(1)
 
     then:
-    1 * mod.onRequestPathParameter('id', '123')
+    1 * mod.onRequestPathParameter('id', '123', _)
     0 * mod._
 
     cleanup:
@@ -288,11 +288,11 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     TEST_WRITER.waitForTraces(1)
 
     then:
-    1 * mod.onRequestPathParameter('var', 'a=x,y;a=z')
-    1 * mod.onRequestPathParameter('var', 'a')
-    1 * mod.onRequestPathParameter('var', 'x')
-    1 * mod.onRequestPathParameter('var', 'y')
-    1 * mod.onRequestPathParameter('var', 'z')
+    1 * mod.onRequestPathParameter('var', 'a=x,y;a=z', _)
+    1 * mod.onRequestMatrixParameter('var', 'a', _)
+    1 * mod.onRequestMatrixParameter('var', 'x', _)
+    1 * mod.onRequestMatrixParameter('var', 'y', _)
+    1 * mod.onRequestMatrixParameter('var', 'z', _)
     0 * mod._
 
     cleanup:

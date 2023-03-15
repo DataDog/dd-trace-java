@@ -114,7 +114,7 @@ public class TemplateVariablesUrlHandlerInstrumentation extends Instrumenter.Def
               if (parameterName == null || value == null) {
                 continue; // should not happen
               }
-              module.onRequestPathParameter(parameterName, value);
+              module.onRequestPathParameter(parameterName, value, iastRequestContext);
             }
           }
         }

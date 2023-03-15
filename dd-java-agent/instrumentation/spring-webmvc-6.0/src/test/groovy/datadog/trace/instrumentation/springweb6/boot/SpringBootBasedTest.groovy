@@ -253,7 +253,8 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     TEST_WRITER.waitForTraces(1)
 
     then:
-    1 * mod.onRequestPathParameter('id', '123')
+    // spring-security filter causes uri matching to happen twice
+    2 * mod.onRequestPathParameter('id', '123', _)
     0 * mod._
 
     cleanup:
@@ -291,11 +292,12 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     TEST_WRITER.waitForTraces(1)
 
     then:
-    1 * mod.onRequestPathParameter('var', 'a=x,y;a=z')
-    1 * mod.onRequestPathParameter('var', 'a')
-    1 * mod.onRequestPathParameter('var', 'x')
-    1 * mod.onRequestPathParameter('var', 'y')
-    1 * mod.onRequestPathParameter('var', 'z')
+    // spring-security filter (AuthorizationFilter.java:95) causes uri matching to happen twice
+    2 * mod.onRequestPathParameter('var', 'a=x,y', _) // this version of spring removes ;a=z
+    2 * mod.onRequestMatrixParameter('var', 'a', _)
+    2 * mod.onRequestMatrixParameter('var', 'x', _)
+    2 * mod.onRequestMatrixParameter('var', 'y', _)
+    2 * mod.onRequestMatrixParameter('var', 'z', _)
     0 * mod._
 
     cleanup:
