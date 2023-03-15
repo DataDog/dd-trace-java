@@ -5,14 +5,13 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameSta
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.SQL_COMMENT_INJECTION_STATIC;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logQueryInfoInjection;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logString;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
@@ -24,10 +23,11 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class DBMTraceInjectionConnectionInstrumentation extends AbstractConnectionInstrumentation
+public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionInstrumentation
     implements Instrumenter.ForKnownTypes {
 
-  public DBMTraceInjectionConnectionInstrumentation() {
+  /** Instrumentation class for connections for Database Monitoring supported DBs * */
+  public DBMCompatibleConnectionInstrumentation() {
     super("jdbc", "dbm_trace_injection");
   }
 
@@ -51,6 +51,10 @@ public class DBMTraceInjectionConnectionInstrumentation extends AbstractConnecti
     "oracle.jdbc.driver.PhysicalConnection",
     // complete
     "org.mariadb.jdbc.MySQLConnection",
+    // MariaDB Connector/J v2.x
+    "org.mariadb.jdbc.MariaDbConnection",
+    // MariaDB Connector/J v3.x
+    "org.mariadb.jdbc.Connection",
     // postgresql seems to be complete
     "org.postgresql.jdbc.PgConnection",
     "org.postgresql.jdbc1.Connection",
@@ -68,8 +72,6 @@ public class DBMTraceInjectionConnectionInstrumentation extends AbstractConnecti
     "net.sourceforge.jtds.jdbc.JtdsConnection", // 1.3
     // aws-mysql-jdbc
     "software.aws.rds.jdbc.mysql.shading.com.mysql.cj.jdbc.ConnectionImpl",
-    // for testing purposes
-    "test.TestConnection"
   };
 
   @Override
@@ -91,46 +93,45 @@ public class DBMTraceInjectionConnectionInstrumentation extends AbstractConnecti
             .and(takesArgument(0, String.class))
             // Also include CallableStatement, which is a subtype of PreparedStatement
             .and(returns(hasInterface(named("java.sql.PreparedStatement")))),
-        DBMTraceInjectionConnectionInstrumentation.class.getName() + "$ConnectionPrepareAdvice");
+        DBMCompatibleConnectionInstrumentation.class.getName() + "$ConnectionPrepareAdvice");
   }
 
   public static class ConnectionPrepareAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(
+    public static String onEnter(
         @Advice.This Connection connection,
-        @Advice.Argument(value = 0, readOnly = false) String sql,
-        @Advice.Local("originalSql") String originalSql) {
-      originalSql = sql;
-      logString("Orig sql in onenter " + sql);
+        @Advice.Argument(value = 0, readOnly = false) String sql) {
       if (JDBCDecorator.injectSQLComment()) {
+        final int callDepth =
+            CallDepthThreadLocalMap.incrementCallDepth(ConnectionPrepareAdvice.class);
+        if (callDepth > 0) {
+          return null;
+        }
+        final String inputSql = sql;
         final DBInfo dbInfo = JDBCDecorator.parseDBInfoFromConnection(connection);
         String dbService = DECORATE.dbService(dbInfo);
         SQLCommenter commenter = new SQLCommenter(SQL_COMMENT_INJECTION_STATIC, sql, dbService);
         commenter.inject();
         sql = commenter.getCommentedSQL();
-        logString("commented sql " + sql);
+        return inputSql;
       }
+      return sql;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void addDBInfo(
-        @Advice.This Connection connection,
-        @Advice.Argument(value = 0) final String sql,
-        @Advice.Local("originalSql") final String originalSql,
-        @Advice.Return final PreparedStatement statement) {
+        @Advice.Enter final String inputSql, @Advice.Return final PreparedStatement statement) {
+      if (null == inputSql) {
+        return;
+      }
       ContextStore<Statement, DBQueryInfo> contextStore =
           InstrumentationContext.get(Statement.class, DBQueryInfo.class);
-      logString("passed orig sql pre ctx " + originalSql);
-      logString("actual sql pre ctx " + sql);
       if (null == contextStore.get(statement)) {
-        logString("passed orig sql " + originalSql);
-        logString("actual sql " + sql);
-        DBQueryInfo info = DBQueryInfo.ofPreparedStatement(originalSql);
-        logString("new dbinfo " + info.getSql().toString());
+        DBQueryInfo info = DBQueryInfo.ofPreparedStatement(inputSql);
         contextStore.put(statement, info);
-        logQueryInfoInjection(connection, statement, info);
       }
+      CallDepthThreadLocalMap.reset(ConnectionPrepareAdvice.class);
     }
   }
 }

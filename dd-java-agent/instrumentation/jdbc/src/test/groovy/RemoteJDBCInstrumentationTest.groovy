@@ -308,10 +308,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     PreparedStatement statement = connection.prepareStatement(query)
     when:
     ResultSet resultSet = runUnderTrace("parent") {
-      ResultSet res = statement.executeQuery()
-      statement.close()
-      connection.close()
-      return res
+      return statement.executeQuery()
     }
     TEST_WRITER.waitForTraces(1)
 
@@ -348,19 +345,19 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     }
 
     cleanup:
-    //statement.close()
-    //connection.close()
+    statement.close()
+    connection.close()
 
     where:
     driver       | connection                                              | query                   | operation | obfuscatedQuery
-//    "mysql"      | connectTo(driver, peerConnectionProps)                  | "SELECT 3"              | "SELECT"  | "SELECT ?"
-//    "postgresql" | connectTo(driver, peerConnectionProps)                  | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
-//    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
-//    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
-//    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    "mysql"      | connectTo(driver, peerConnectionProps)                  | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    "postgresql" | connectTo(driver, peerConnectionProps)                  | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
     "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
-//    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"
-//    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
   }
 
   @Unroll

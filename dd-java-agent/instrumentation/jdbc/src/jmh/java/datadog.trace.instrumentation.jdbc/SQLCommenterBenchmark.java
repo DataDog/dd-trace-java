@@ -1,14 +1,13 @@
 package datadog.trace.instrumentation.jdbc;
 
 import datadog.trace.api.DDTraceId;
+import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.State;
-
-import java.util.concurrent.TimeUnit;
 
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
@@ -22,10 +21,10 @@ public class SQLCommenterBenchmark {
   private static final String injectionMode = "full";
   private static final String dbService = "users-db";
 
-    @Benchmark
-    public void testInject() {
-      SQLCommenter.toComment(injectionMode, dbService, traceId, spanId, samplingPriority);
-    }
+  @Benchmark
+  public void testInject() {
+    SQLCommenter.toComment(injectionMode, dbService, traceId, spanId, samplingPriority);
+  }
 
   @Benchmark
   public void testEncodeTraceParent() {

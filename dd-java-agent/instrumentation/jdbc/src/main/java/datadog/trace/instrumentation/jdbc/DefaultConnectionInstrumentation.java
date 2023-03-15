@@ -5,7 +5,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.InstrumenterConfig;
 
 @AutoService(Instrumenter.class)
-public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
+public class DefaultConnectionInstrumentation extends AbstractConnectionInstrumentation
     implements Instrumenter.ForKnownTypes, Instrumenter.ForConfiguredType {
 
   static final String[] CONCRETE_TYPES = {
@@ -13,17 +13,6 @@ public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
     "com.amazon.redshift.jdbc.RedshiftConnectionImpl",
     // jt400
     "com.ibm.as400.access.AS400JDBCConnection",
-    // possibly need more coverage
-    "com.microsoft.sqlserver.jdbc.SQLServerConnection",
-    // should cover mysql
-    "com.mysql.jdbc.Connection",
-    "com.mysql.jdbc.jdbc1.Connection",
-    "com.mysql.jdbc.jdbc2.Connection",
-    "com.mysql.jdbc.ConnectionImpl",
-    "com.mysql.jdbc.JDBC4Connection",
-    "com.mysql.cj.jdbc.ConnectionImpl",
-    // should cover Oracle
-    "oracle.jdbc.driver.PhysicalConnection",
     // should cover derby
     "org.apache.derby.impl.jdbc.EmbedConnection",
     "org.apache.hive.jdbc.HiveConnection",
@@ -36,24 +25,6 @@ public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
     // complete
     "org.hsqldb.jdbc.JDBCConnection",
     "org.hsqldb.jdbc.jdbcConnection",
-    // complete
-    "org.mariadb.jdbc.MySQLConnection",
-    // MariaDB Connector/J v2.x
-    "org.mariadb.jdbc.MariaDbConnection",
-    // MariaDB Connector/J v3.x
-    "org.mariadb.jdbc.Connection",
-    // postgresql seems to be complete
-    "org.postgresql.jdbc.PgConnection",
-    "org.postgresql.jdbc1.Connection",
-    "org.postgresql.jdbc1.Jdbc1Connection",
-    "org.postgresql.jdbc2.Connection",
-    "org.postgresql.jdbc2.Jdbc2Connection",
-    "org.postgresql.jdbc3.Jdbc3Connection",
-    "org.postgresql.jdbc3g.Jdbc3gConnection",
-    "org.postgresql.jdbc4.Jdbc4Connection",
-    "postgresql.Connection",
-    // EDB version of postgresql
-    "com.edb.jdbc.PgConnection",
     // sqlite seems to be complete
     "org.sqlite.Conn",
     "org.sqlite.jdbc3.JDBC3Connection",
@@ -65,13 +36,8 @@ public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
     // this covers apache calcite/drill plus the drill-all uber-jar
     "org.apache.calcite.avatica.AvaticaConnection",
     "oadd.org.apache.calcite.avatica.AvaticaConnection",
-    // jtds (for SQL Server and Sybase)
-    "net.sourceforge.jtds.jdbc.ConnectionJDBC2", // 1.2
-    "net.sourceforge.jtds.jdbc.JtdsConnection", // 1.3
     // SAP HANA in-memory DB
     "com.sap.db.jdbc.ConnectionSapDB",
-    // aws-mysql-jdbc
-    "software.aws.rds.jdbc.mysql.shading.com.mysql.cj.jdbc.ConnectionImpl",
     // for testing purposes
     "test.TestConnection"
   };
@@ -82,7 +48,7 @@ public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
     return InstrumenterConfig.get().getJdbcConnectionClassName();
   }
 
-  public ConnectionInstrumentation() {
+  public DefaultConnectionInstrumentation() {
     super("jdbc");
   }
 
