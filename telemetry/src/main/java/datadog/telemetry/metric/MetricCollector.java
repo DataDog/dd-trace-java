@@ -1,33 +1,38 @@
-package com.datadog.appsec.powerwaf;
+package datadog.telemetry.metric;
 
 import datadog.telemetry.api.Metric;
-import io.sqreen.powerwaf.Powerwaf;
-import io.sqreen.powerwaf.RuleSetInfo;
 
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class MetricCollector {
 
-  public enum AppSecAction {
-    NONE,
-    TRIGGERED,
-    BLOCKED
+  public static class Holder {
+    public static final MetricCollector INSTANCE = new MetricCollector();
   }
 
-  static final String NAMESPACE = "appsec";
+  public static MetricCollector get() {
+    return MetricCollector.Holder.INSTANCE;
+  }
 
-  private final Queue<Metric> metricsQueue = new ArrayBlockingQueue<>(1024);
+  private static final String NAMESPACE = "appsec";
 
-  private final AtomicInteger wafUpdateCounter = new AtomicInteger(0);
-  private final AtomicRequestCounter wafRequestCounter = new AtomicRequestCounter();
-  private final AtomicRequestCounter wafTriggeredRequestCounter = new AtomicRequestCounter();
-  private final AtomicRequestCounter wafBlockedRequestCounter = new AtomicRequestCounter();
+  private static final BlockingQueue<Metric> metricsQueue = new ArrayBlockingQueue<>(1024);
+
+  private static final AtomicInteger wafUpdateCounter = new AtomicInteger(0);
+  private static final AtomicRequestCounter wafRequestCounter = new AtomicRequestCounter();
+  private static final AtomicRequestCounter wafTriggeredRequestCounter = new AtomicRequestCounter();
+  private static final AtomicRequestCounter wafBlockedRequestCounter = new AtomicRequestCounter();
 
   // waf.init
-  public boolean wafInit(RuleSetInfo ruleSetInfo) {
+  public boolean wafInit(String wafVersion, String rulesVersion) {
     return metricsQueue.offer(
             new Metric()
                     .namespace(NAMESPACE)
@@ -40,13 +45,13 @@ public class MetricCollector {
                                     wafUpdateCounter.incrementAndGet()
                             )
                     )
-                    .addTagsItem("waf_version:" + Powerwaf.LIB_VERSION)
-                    .addTagsItem("event_rules_version:" + ruleSetInfo.fileVersion)
+                    .addTagsItem("waf_version:" + wafVersion)
+                    .addTagsItem("event_rules_version:" + rulesVersion)
     );
   }
 
   // waf.updates
-  public boolean wafUpdates(RuleSetInfo ruleSetInfo) {
+  public boolean wafUpdates(String rulesVersion) {
     return metricsQueue.offer(
             new Metric()
                     .namespace(NAMESPACE)
@@ -59,23 +64,23 @@ public class MetricCollector {
                                     wafUpdateCounter.incrementAndGet()
                             )
                     )
-                    .addTagsItem("event_rules_version:" + ruleSetInfo.fileVersion)
+                    .addTagsItem("event_rules_version:" + rulesVersion)
     );
   }
 
   // waf.requests
-  public void wafRequest(AppSecAction appSecAction) {
-    switch (appSecAction) {
-      case NONE:
-        wafRequestCounter.increment();
-        break;
-      case TRIGGERED:
-        wafTriggeredRequestCounter.increment();
-        break;
-      case BLOCKED:
-        wafBlockedRequestCounter.increment();
-        break;
-    }
+  public void wafRequest() {
+    wafRequestCounter.increment();
+  }
+
+  // waf.requests (triggered)
+  public void wafRequesTriggered() {
+    wafTriggeredRequestCounter.increment();
+  }
+
+  // waf.requests (blocked)
+  public void wafRequesBlocked() {
+    wafBlockedRequestCounter.increment();
   }
 
   public Queue<Metric> prepareMetrics() {
@@ -137,5 +142,15 @@ public class MetricCollector {
       );
     }
     return metricsQueue;
+  }
+
+  public Collection<Metric> drain() {
+    prepareMetrics();
+    List<Metric> list = new LinkedList<>();
+    int drained = metricsQueue.drainTo(list);
+    if (drained > 0) {
+      return list;
+    }
+    return Collections.emptyList();
   }
 }

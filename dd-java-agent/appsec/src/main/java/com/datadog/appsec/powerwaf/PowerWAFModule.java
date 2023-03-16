@@ -25,6 +25,7 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.telemetry.metric.MetricCollector;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.gateway.Flow;
@@ -301,6 +302,7 @@ public class PowerWAFModule implements AppSecModule {
     } finally {
       if (initReport != null) {
         this.initReporter.setReportForPublication(initReport);
+        MetricCollector.get().wafInit(Powerwaf.LIB_VERSION, initReport.fileVersion);
       }
     }
 
@@ -483,6 +485,15 @@ public class PowerWAFModule implements AppSecModule {
         }
         Collection<AppSecEvent100> events = buildEvents(resultWithData, ctxAndAddr.rulesInfoMap);
         reqCtx.reportEvents(events, null);
+
+        if (flow.isBlocking()) {
+          MetricCollector.get().wafRequesBlocked();
+        } else {
+          MetricCollector.get().wafRequesTriggered();
+        }
+
+      } else {
+        MetricCollector.get().wafRequest();
       }
     }
 
