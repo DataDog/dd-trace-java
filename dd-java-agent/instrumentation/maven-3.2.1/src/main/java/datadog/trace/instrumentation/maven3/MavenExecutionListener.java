@@ -7,6 +7,8 @@ import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.util.Strings;
 import java.io.File;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Properties;
 import org.apache.maven.execution.AbstractExecutionListener;
 import org.apache.maven.execution.ExecutionEvent;
@@ -23,6 +25,7 @@ public class MavenExecutionListener extends AbstractExecutionListener {
   private static final Logger log = LoggerFactory.getLogger(MavenExecutionListener.class);
 
   private static final String ARG_LINE_PROPERTY_NAME = "argLine";
+  private static final String TEST_EXECUTION_TAG = "test.execution";
 
   private final BuildEventsHandler<MavenSession> buildEventsHandler =
       InstrumentationBridge.getBuildEventsHandler();
@@ -73,23 +76,11 @@ public class MavenExecutionListener extends AbstractExecutionListener {
     }
   }
 
-  // FIXME additional tags to differentiate test runs
-  //  mojoExecution.getExecutionId() // default
-  //      mojoExecution.getGoal() // integration-test
-  //      mojoExecution.getPlugin().getArtifactId() // maven-failsafe-plugin
-  //
-  //// GRADLE??? what if there are several Test tasks for a single module
-  //// use test traits to differentiate
-
   @Override
   public void mojoStarted(ExecutionEvent event) {
     MojoExecution mojoExecution = event.getMojoExecution();
     if (MavenUtils.isMavenSurefireTest(mojoExecution)
         || MavenUtils.isMavenFailsafeTest(mojoExecution)) {
-      // FIXME mojoExecution.getMojoDescriptor().getParameterMap() ---- check for forking; how to
-      // handle if not forked????
-      // FIXME see org.apache.maven.plugin.surefire.AbstractSurefireMojo.isForking (compileOnly
-      // group: 'org.apache.maven.plugins', name: 'maven-surefire-plugin', version: '3.0.0-M8')
 
       MavenSession session = event.getSession();
       MavenProject project = event.getProject();
@@ -97,8 +88,18 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       String lifecyclePhase = mojoExecution.getLifecyclePhase();
       String moduleName = projectName + " " + lifecyclePhase;
       String startCommand = MavenUtils.getCommandLine(session);
+
+      String executionId =
+          mojoExecution.getPlugin().getArtifactId()
+              + ":"
+              + mojoExecution.getGoal()
+              + ":"
+              + mojoExecution.getExecutionId();
+      Map<String, Object> additionalTags =
+          Collections.singletonMap(TEST_EXECUTION_TAG, executionId);
+
       BuildEventsHandler.ModuleAndSessionId moduleAndSessionId =
-          buildEventsHandler.onTestModuleStart(session, moduleName, startCommand);
+          buildEventsHandler.onTestModuleStart(session, moduleName, startCommand, additionalTags);
 
       Collection<MavenUtils.TestFramework> testFrameworks =
           MavenUtils.collectTestFrameworks(project);
@@ -113,39 +114,14 @@ public class MavenExecutionListener extends AbstractExecutionListener {
             testFrameworks);
       }
 
+      // FIXME mojoExecution.getMojoDescriptor().getParameterMap() ---- check for forking; how to
+      // handle if not forked????
+      // FIXME see org.apache.maven.plugin.surefire.AbstractSurefireMojo.isForking (compileOnly
+      // group: 'org.apache.maven.plugins', name: 'maven-surefire-plugin', version: '3.0.0-M8')
+
       Xpp3Dom configuration = mojoExecution.getConfiguration();
       String argLine = MavenUtils.getConfigurationValue(configuration, ARG_LINE_PROPERTY_NAME);
-
-      if (argLine == null) {
-        argLine = "";
-      }
-      // FIXME write a generic property replacement mechanism
-      if (argLine.contains("${argLine}")) {
-        // when <argLine> is not set explicitly in plugin configuration,
-        // the resulting config property will have the value "${argLine}",
-        // essentially meaning that it should be taken from the property with the same name.
-        // This property might be present or not, under usual circumstances this
-        // makes no difference.
-        // However, for some strange reason, if we modify the arg line programmatically,
-        // missing property will cause the build to fail.
-        // Which is why here we check if the property is missing and fill it in
-        // if that is the case
-        Properties projectProperties = project.getProperties();
-        String argLineProjectProperty = projectProperties.getProperty("argLine");
-
-        Properties userProperties = session.getUserProperties();
-        String argLineUserProperty = userProperties.getProperty("argLine");
-
-        Properties systemProperties = session.getSystemProperties();
-        String argLineSystemProperty = systemProperties.getProperty("argLine");
-
-        if (argLineProjectProperty == null
-            && argLineUserProperty == null
-            && argLineSystemProperty == null) {
-          projectProperties.put(ARG_LINE_PROPERTY_NAME, "");
-        }
-      }
-
+      argLine = safeguardConfigurationValue(session, project, argLine, ARG_LINE_PROPERTY_NAME);
       argLine +=
           " " + arg(CiVisibilityConfig.CIVISIBILITY_SESSION_ID, moduleAndSessionId.sessionId);
       argLine += " " + arg(CiVisibilityConfig.CIVISIBILITY_MODULE_ID, moduleAndSessionId.moduleId);
@@ -154,6 +130,53 @@ public class MavenExecutionListener extends AbstractExecutionListener {
           MavenUtils.setConfigurationValue(argLine, configuration, ARG_LINE_PROPERTY_NAME);
       mojoExecution.setConfiguration(modifiedConfiguration);
     }
+  }
+
+  private static String safeguardConfigurationValue(
+      MavenSession session,
+      MavenProject project,
+      String configValue,
+      String... safeguardedReferences) {
+    if (configValue == null) {
+      return "";
+    }
+
+    for (String propertyReference : safeguardedReferences) {
+      if (configValue.equals("${" + propertyReference + "}")) {
+        // when a config tag (e.g. <argLine>) is not set explicitly in plugin configuration,
+        // the resulting config property might have the fallback-to-property value (e.g.
+        // "${argLine}"),
+        // essentially meaning that it should be taken from the property with the same name.
+
+        // This property might be present or not - it makes no difference if
+        // the config value only contains the property reference and nothing else.
+        // However, if we modify the value programmatically and add more tokens to id,
+        // missing property will cause the build to fail.
+        // (i.e. "${missingProp}" is fine, but "${missingProp} -Dkey=value" is not)
+
+        // Which is why here we check if the property is missing and create it if needed
+        Properties projectProperties = project.getProperties();
+        String projectProperty = projectProperties.getProperty(propertyReference);
+        if (projectProperty != null) {
+          continue;
+        }
+
+        Properties userProperties = session.getUserProperties();
+        String userProperty = userProperties.getProperty(propertyReference);
+        if (userProperty != null) {
+          continue;
+        }
+
+        Properties systemProperties = session.getSystemProperties();
+        String systemProperty = systemProperties.getProperty(propertyReference);
+        if (systemProperty != null) {
+          continue;
+        }
+
+        projectProperties.put(propertyReference, "");
+      }
+    }
+    return configValue;
   }
 
   private static String arg(String propertyName, Object value) {
