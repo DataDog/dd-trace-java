@@ -72,6 +72,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_STYLE_LEGACY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
@@ -295,6 +296,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOU
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE_INJECT;
+import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE_LEGACY;
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED;
@@ -457,6 +459,7 @@ public class Config {
   private final boolean tracePropagationStyleB3PaddingEnabled;
   private final Set<TracePropagationStyle> tracePropagationStylesToExtract;
   private final Set<TracePropagationStyle> tracePropagationStylesToInject;
+  private final boolean tracePropagationStyleLegacy;
   private final int clockSyncPeriod;
 
   private final String dogStatsDNamedPipe;
@@ -1027,6 +1030,9 @@ public class Config {
               ? Collections.singleton(PropagationStyle.DATADOG)
               : deprecatedInject;
     }
+    tracePropagationStyleLegacy =
+        configProvider.getBoolean(
+            TRACE_PROPAGATION_STYLE_LEGACY, DEFAULT_TRACE_PROPAGATION_STYLE_LEGACY);
 
     clockSyncPeriod = configProvider.getInteger(CLOCK_SYNC_PERIOD, DEFAULT_CLOCK_SYNC_PERIOD);
 
@@ -1693,6 +1699,10 @@ public class Config {
 
   public Set<TracePropagationStyle> getTracePropagationStylesToInject() {
     return tracePropagationStylesToInject;
+  }
+
+  public boolean isTracePropagationStyleLegacy() {
+    return tracePropagationStyleLegacy;
   }
 
   public int getClockSyncPeriod() {
@@ -3089,6 +3099,8 @@ public class Config {
         + tracePropagationStylesToExtract
         + ", tracePropagationStylesToInject="
         + tracePropagationStylesToInject
+        + ", tracePropagationStyleLegacy="
+        + tracePropagationStyleLegacy
         + ", clockSyncPeriod="
         + clockSyncPeriod
         + ", jmxFetchEnabled="
