@@ -51,6 +51,10 @@ import org.slf4j.LoggerFactory;
 public final class DatadogProfiler {
   private static final Logger log = LoggerFactory.getLogger(DatadogProfiler.class);
 
+  private static final String SERVICE = "_dd.trace.service";
+  private static final String OPERATION = "_dd.trace.operation";
+  private static final String RESOURCE = "_dd.trace.resource";
+
   private static final class Singleton {
     private static final DatadogProfiler INSTANCE = newInstance();
   }
@@ -149,13 +153,12 @@ public final class DatadogProfiler {
     if (isWallClockProfilerEnabled(configProvider)) {
       profilingModes.add(WALL);
     }
-    this.orderedContextAttributes = new ArrayList<>();
+    this.orderedContextAttributes = new ArrayList<>(contextAttributes);
     if (isSpanNameContextAttributeEnabled(configProvider)) {
-      orderedContextAttributes.add("resource");
-      orderedContextAttributes.add("operation");
-      orderedContextAttributes.add("service");
+      orderedContextAttributes.add(RESOURCE);
+      orderedContextAttributes.add(OPERATION);
+      orderedContextAttributes.add(SERVICE);
     }
-    orderedContextAttributes.addAll(contextAttributes);
     this.contextSetter = new ContextSetter(profiler, orderedContextAttributes);
     try {
       // sanity test - force load Datadog profiler to catch it not being available early
@@ -329,15 +332,15 @@ public final class DatadogProfiler {
   }
 
   public int operationNameOffset() {
-    return offsetOf("operation");
+    return offsetOf(OPERATION);
   }
 
   public int serviceNameOffset() {
-    return offsetOf("service");
+    return offsetOf(SERVICE);
   }
 
   public int resourceNameOffset() {
-    return offsetOf("resource");
+    return offsetOf(RESOURCE);
   }
 
   public int offsetOf(String attribute) {
