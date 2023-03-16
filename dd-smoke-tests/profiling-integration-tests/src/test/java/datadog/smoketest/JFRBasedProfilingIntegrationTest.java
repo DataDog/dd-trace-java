@@ -98,7 +98,8 @@ class JFRBasedProfilingIntegrationTest {
   public static final IAttribute<String> FOO = attr("foo", "", "", PLAIN_TEXT);
   public static final IAttribute<String> BAR = attr("bar", "", "", PLAIN_TEXT);
 
-  public static final IAttribute<String> OPERATION = attr("operation", "", "", PLAIN_TEXT);
+  public static final IAttribute<String> OPERATION =
+      attr("_dd.trace.operation", "", "", PLAIN_TEXT);
 
   private MockWebServer profilingServer;
   private MockWebServer tracingServer;
