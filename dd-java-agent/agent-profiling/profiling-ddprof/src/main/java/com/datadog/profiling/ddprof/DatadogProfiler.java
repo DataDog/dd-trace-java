@@ -349,7 +349,7 @@ public final class DatadogProfiler {
       try {
         profiler.setContext(spanId, rootSpanId);
       } catch (IllegalStateException e) {
-        log.warn("Failed to clear context", e);
+        log.debug("Failed to clear context", e);
       }
     }
   }
@@ -359,7 +359,7 @@ public final class DatadogProfiler {
       try {
         profiler.setContext(0L, 0L);
       } catch (IllegalStateException e) {
-        log.warn("Failed to set context", e);
+        log.debug("Failed to set context", e);
       }
     }
   }
