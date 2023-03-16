@@ -7,6 +7,7 @@ import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -76,7 +77,10 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
 
   @Override
   public ModuleAndSessionId onTestModuleStart(
-      final T sessionKey, final String moduleName, String startCommand) {
+      final T sessionKey,
+      final String moduleName,
+      String startCommand,
+      Map<String, Object> additionalTags) {
     SessionContext sessionContext = testSessionContexts.get(sessionKey);
     AgentSpan sessionSpan = sessionContext.context.getSpan();
     if (sessionSpan == null) {
@@ -87,6 +91,14 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
         startSpan(sessionContext.decorator.component() + ".test_module", sessionSpan.context());
     // will overwrite in case of skip/failure
     span.setTag(Tags.TEST_STATUS, CIConstants.TEST_PASS);
+
+    if (additionalTags != null) {
+      for (Map.Entry<String, Object> e : additionalTags.entrySet()) {
+        String tag = e.getKey();
+        Object value = e.getValue();
+        span.setTag(tag, value);
+      }
+    }
 
     TestModuleDescriptor<T> testModuleDescriptor =
         new TestModuleDescriptor<>(sessionKey, moduleName);
