@@ -176,19 +176,7 @@ public final class Strings {
    */
   @Nonnull
   public static String propertyNameToEnvironmentVariableName(final String setting) {
-    return "DD_" + setting.replace('.', '_').replace('-', '_').toUpperCase();
-  }
-
-  /**
-   * Converts the system property name, e.g. 'dd.service.name' into a public environment variable
-   * name, e.g. `DD_SERVICE_NAME`.
-   *
-   * @param setting The system property name, e.g. `dd.service.name`
-   * @return The public facing environment variable name
-   */
-  @Nonnull
-  public static String systemPropertyNameToEnvironmentVariableName(final String setting) {
-    return setting.replace('.', '_').replace('-', '_').toUpperCase();
+    return "DD_" + toEnvVar(setting);
   }
 
   /**

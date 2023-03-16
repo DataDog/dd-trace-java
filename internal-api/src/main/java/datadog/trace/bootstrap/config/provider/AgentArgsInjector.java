@@ -27,7 +27,7 @@ public class AgentArgsInjector {
         continue;
       }
 
-      String envVarName = Strings.systemPropertyNameToEnvironmentVariableName(propertyName);
+      String envVarName = Strings.toEnvVar(propertyName);
       String envVarValue = System.getenv(envVarName);
       if (envVarValue != null) {
         // env variables should have higher priority than agent arguments
