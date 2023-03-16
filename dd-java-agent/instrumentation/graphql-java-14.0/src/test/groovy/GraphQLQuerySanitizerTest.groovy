@@ -3,23 +3,23 @@ import datadog.trace.instrumentation.graphqljava.GraphQLQuerySanitizer
 import graphql.parser.Parser
 
 class GraphQLQuerySanitizerTest extends AgentTestRunner {
-  private Parser parser = new Parser();
+  private Parser parser = new Parser()
 
   def "sanitizes the use of a String literal in query"() {
     when:
     def parsedDoc = parser.parse(
       'query findBookById {\n' +
-        '  bookById(id: "book-1") {\n' +
-        '    id #test\n' +
-        '    name\n' +
-        '    pageCount\n' +
-        '    author {\n' +
-        '      firstName\n' +
-        '      lastName\n' +
-        '    }\n' +
-        '  }\n' +
-        '}'
-    );
+      '  bookById(id: "book-1") {\n' +
+      '    id #test\n' +
+      '    name\n' +
+      '    pageCount\n' +
+      '    author {\n' +
+      '      firstName\n' +
+      '      lastName\n' +
+      '    }\n' +
+      '  }\n' +
+      '}'
+      )
 
     then:
     GraphQLQuerySanitizer.sanitizeQuery(parsedDoc) ==
@@ -40,17 +40,17 @@ class GraphQLQuerySanitizerTest extends AgentTestRunner {
     when:
     def parsedDoc = parser.parse(
       'query findBooksByIds {\n' +
-        '  booksByIds(ids: ["book-1","book-2","book-3"]) {\n' +
-        '    id #test\n' +
-        '    name\n' +
-        '    pageCount\n' +
-        '    author {\n' +
-        '      firstName\n' +
-        '      lastName\n' +
-        '    }\n' +
-        '  }\n' +
-        '}'
-    );
+      '  booksByIds(ids: ["book-1","book-2","book-3"]) {\n' +
+      '    id #test\n' +
+      '    name\n' +
+      '    pageCount\n' +
+      '    author {\n' +
+      '      firstName\n' +
+      '      lastName\n' +
+      '    }\n' +
+      '  }\n' +
+      '}'
+      )
 
     then:
     GraphQLQuerySanitizer.sanitizeQuery(parsedDoc) ==
@@ -71,17 +71,17 @@ class GraphQLQuerySanitizerTest extends AgentTestRunner {
     when:
     def parsedDoc = parser.parse(
       'query findBookById {\n' +
-        '  bookById(id: 5) {\n' +
-        '    id #test\n' +
-        '    name\n' +
-        '    pageCount\n' +
-        '    author {\n' +
-        '      firstName\n' +
-        '      lastName\n' +
-        '    }\n' +
-        '  }\n' +
-        '}'
-    );
+      '  bookById(id: 5) {\n' +
+      '    id #test\n' +
+      '    name\n' +
+      '    pageCount\n' +
+      '    author {\n' +
+      '      firstName\n' +
+      '      lastName\n' +
+      '    }\n' +
+      '  }\n' +
+      '}'
+      )
 
     then:
     GraphQLQuerySanitizer.sanitizeQuery(parsedDoc) ==
@@ -102,17 +102,17 @@ class GraphQLQuerySanitizerTest extends AgentTestRunner {
     when:
     def parsedDoc = parser.parse(
       'query findCheapBooks {\n' +
-        '  booksCheaperThan(price: 15.99) {\n' +
-        '    id #test\n' +
-        '    name\n' +
-        '    pageCount\n' +
-        '    author {\n' +
-        '      firstName\n' +
-        '      lastName\n' +
-        '    }\n' +
-        '  }\n' +
-        '}'
-    );
+      '  booksCheaperThan(price: 15.99) {\n' +
+      '    id #test\n' +
+      '    name\n' +
+      '    pageCount\n' +
+      '    author {\n' +
+      '      firstName\n' +
+      '      lastName\n' +
+      '    }\n' +
+      '  }\n' +
+      '}'
+      )
 
     then:
     GraphQLQuerySanitizer.sanitizeQuery(parsedDoc) ==
@@ -133,17 +133,17 @@ class GraphQLQuerySanitizerTest extends AgentTestRunner {
     when:
     def parsedDoc = parser.parse(
       'query findCheapBooks {\n' +
-        '  findBooks(isCheap: true) {\n' +
-        '    id #test\n' +
-        '    name\n' +
-        '    pageCount\n' +
-        '    author {\n' +
-        '      firstName\n' +
-        '      lastName\n' +
-        '    }\n' +
-        '  }\n' +
-        '}'
-    );
+      '  findBooks(isCheap: true) {\n' +
+      '    id #test\n' +
+      '    name\n' +
+      '    pageCount\n' +
+      '    author {\n' +
+      '      firstName\n' +
+      '      lastName\n' +
+      '    }\n' +
+      '  }\n' +
+      '}'
+      )
 
     then:
     GraphQLQuerySanitizer.sanitizeQuery(parsedDoc) ==
@@ -164,14 +164,14 @@ class GraphQLQuerySanitizerTest extends AgentTestRunner {
     when:
     def parsedDoc = parser.parse(
       'mutation testUpdateBookAuthor{\n' +
-        '  updateBookAuthor(input: {bookId:2, author:{firstName: "Irma", lastName: "K"}}) {\n' +
-        '    author {\n' +
-        '      firstName\n' +
-        '      lastName\n' +
-        '    }\n' +
-        '  }\n' +
-        '}'
-    );
+      '  updateBookAuthor(input: {bookId:2, author:{firstName: "Irma", lastName: "K"}}) {\n' +
+      '    author {\n' +
+      '      firstName\n' +
+      '      lastName\n' +
+      '    }\n' +
+      '  }\n' +
+      '}'
+      )
 
     then:
     GraphQLQuerySanitizer.sanitizeQuery(parsedDoc) ==
@@ -189,14 +189,14 @@ class GraphQLQuerySanitizerTest extends AgentTestRunner {
     when:
     def parsedDoc = parser.parse(
       'mutation testUpdateBookAuthor($id: ID!, $authorFirst: String!, $authorLast: String!) {\n' +
-        '  updateBookAuthor(input: {bookId:$id, author:{firstName: $authorFirst, lastName: $authorLast}}) {\n' +
-        '    author {\n' +
-        '      firstName\n' +
-        '      lastName\n' +
-        '    }\n' +
-        '  }\n' +
-        '}'
-    );
+      '  updateBookAuthor(input: {bookId:$id, author:{firstName: $authorFirst, lastName: $authorLast}}) {\n' +
+      '    author {\n' +
+      '      firstName\n' +
+      '      lastName\n' +
+      '    }\n' +
+      '  }\n' +
+      '}'
+      )
 
     then:
     GraphQLQuerySanitizer.sanitizeQuery(parsedDoc) ==
@@ -209,5 +209,4 @@ class GraphQLQuerySanitizerTest extends AgentTestRunner {
       '  }\n' +
       '}\n'
   }
-
 }
