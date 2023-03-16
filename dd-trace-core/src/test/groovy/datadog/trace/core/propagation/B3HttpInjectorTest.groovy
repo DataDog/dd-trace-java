@@ -146,6 +146,12 @@ class B3HttpInjectorLegacyTest extends B3HttpInjectorTest {
   }
 
   String padded(String hex, int length) {
-    return hex.padLeft(length, '0')
+    def hexLength = hex.length()
+    if (hexLength > length) {
+      return hex.substring(hexLength - length, hexLength)
+    } else if (hexLength < length) {
+      return hex.padLeft(length, '0')
+    }
+    return hex
   }
 }
