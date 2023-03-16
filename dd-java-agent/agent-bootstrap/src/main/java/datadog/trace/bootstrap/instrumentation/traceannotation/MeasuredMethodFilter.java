@@ -24,9 +24,8 @@ public class MeasuredMethodFilter {
   public static boolean filter(Method method) {
     if (!filterIsEmpty) {
       String clazz = method.getDeclaringClass().getName();
-      return methodsToMeasure.containsKey(clazz)
-          && (methodsToMeasure.get(clazz).contains(method.getName())
-              || methodsToMeasure.get(clazz).contains("*"));
+      Set<String> methods = methodsToMeasure.get(clazz);
+      return methods != null && (methods.contains(method.getName()) || methods.contains("*"));
     }
     return false;
   }
