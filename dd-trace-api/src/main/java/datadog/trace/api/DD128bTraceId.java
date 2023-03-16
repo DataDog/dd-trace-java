@@ -23,15 +23,17 @@ public class DD128bTraceId implements DDTraceId {
   /** Represents the low-order 64 bits of the 128-bit trace id. */
   private final long lowOrderBits;
   /**
-   * A lower-case, zero-padded, 32 hexadecimal character String representation of the DDTraceId
-   * instance.
+   * The lower-case, zero-padded, 32 hexadecimal character {@link String} representation of the
+   * {@link DDTraceId} instance.
    */
+  private String hexStr;
+  /** The 64-bit only decimal {@link String} representation of the {@link DDTraceId} instance. */
   private String str;
 
-  private DD128bTraceId(long highOrderBits, long leastSigBits, String str) {
+  private DD128bTraceId(long highOrderBits, long leastSigBits, String hexStr) {
     this.highOrderBits = highOrderBits;
     this.lowOrderBits = leastSigBits;
-    this.str = str;
+    this.hexStr = hexStr;
   }
 
   /**
@@ -109,16 +111,16 @@ public class DD128bTraceId implements DDTraceId {
 
   @Override
   public String toHexString() {
-    String s = this.str;
+    String hexString = this.hexStr;
     // This race condition is intentional and benign.
     // The worst that can happen is that an identical value is produced and written into the field.
-    if (s == null) {
-      this.str =
-          s =
+    if (hexString == null) {
+      this.hexStr =
+          hexString =
               DDId.toHexStringPadded(this.highOrderBits, 16)
                   + DDId.toHexStringPadded(this.lowOrderBits, 16);
     }
-    return s;
+    return hexString;
   }
 
   @Override
@@ -162,6 +164,12 @@ public class DD128bTraceId implements DDTraceId {
 
   @Override
   public String toString() {
-    return toHexString();
+    String s = this.str;
+    // This race condition is intentional and benign.
+    // The worst that can happen is that an identical value is produced and written into the field.
+    if (s == null) {
+      this.str = s = Long.toUnsignedString(this.lowOrderBits);
+    }
+    return s;
   }
 }

@@ -46,10 +46,11 @@ public interface DDTraceId {
   }
 
   /**
-   * Returns the decimal {@link String} representation of the {@link DDTraceId}. The {@link String}
-   * will be cached.
+   * Returns a 64-bit only decimal {@link String} representation of the {@link DDTraceId}. The
+   * {@link String} will be cached.
    *
-   * @return A cached {@link String} representation of the {@link DDTraceId} instance.
+   * @return A cached 64-bit only decimal {@link String} representation of the {@link DDTraceId}
+   *     instance.
    */
   @Override
   String toString();

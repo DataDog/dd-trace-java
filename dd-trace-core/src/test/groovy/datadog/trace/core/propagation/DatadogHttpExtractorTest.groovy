@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation
 
+import datadog.trace.api.DD64bTraceId
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.config.TracerConfig
@@ -299,15 +300,15 @@ class DatadogHttpExtractorTest extends DDSpecification {
     }
 
     where:
-    traceId               | spanId                | expectedTraceId | expectedSpanId
-    "-1"                  | "1"                   | null            | null
-    "1"                   | "-1"                  | null            | null
-    "0"                   | "1"                   | null            | null
-    "1"                   | "0"                   | DDTraceId.ONE   | DDSpanId.ZERO
-    "$TRACE_ID_MAX"       | "1"                   | DDTraceId.MAX   | 1
-    "${TRACE_ID_MAX + 1}" | "1"                   | null            | null
-    "1"                   | "$TRACE_ID_MAX"       | DDTraceId.ONE   | DDSpanId.MAX
-    "1"                   | "${TRACE_ID_MAX + 1}" | null            | null
+    traceId               | spanId                | expectedTraceId  | expectedSpanId
+    "-1"                  | "1"                   | null             | null
+    "1"                   | "-1"                  | null             | null
+    "0"                   | "1"                   | null             | null
+    "1"                   | "0"                   | DD64bTraceId.ONE | DDSpanId.ZERO
+    "$TRACE_ID_MAX"       | "1"                   | DD64bTraceId.MAX | 1
+    "${TRACE_ID_MAX + 1}" | "1"                   | null             | null
+    "1"                   | "$TRACE_ID_MAX"       | DD64bTraceId.ONE | DDSpanId.MAX
+    "1"                   | "${TRACE_ID_MAX + 1}" | null             | null
   }
 
   def "extract http headers with end to end"() {
