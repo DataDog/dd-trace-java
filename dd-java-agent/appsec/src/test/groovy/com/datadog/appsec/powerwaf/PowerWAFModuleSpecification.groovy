@@ -127,7 +127,6 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ]
   }
 
-
   void 'override on_match through reconfiguration'() {
     ChangeableFlow flow = Mock()
     AppSecModuleConfigurer.Reconfiguration reconf = Mock()
@@ -195,6 +194,162 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
     1 * flow.isBlocking()
+    0 * _
+  }
+
+  void 'provide data through the initial config'() {
+    ChangeableFlow flow = Mock()
+    AppSecModuleConfigurer.Reconfiguration reconf = Mock()
+
+    when:
+    setupWithStubConfigService('rules_with_data_config.json')
+    dataListener = pwafModule.dataSubscriptions.first()
+    eventListener = pwafModule.eventSubscriptions.first()
+
+    def bundle = MapDataBundle.of(
+      KnownAddresses.USER_ID,
+      'user-to-block-1'
+      )
+    dataListener.onDataAvailable(flow, ctx, bundle, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
+      rba.statusCode == 403 &&
+        rba.blockingContentType == BlockingContentType.AUTO
+    })
+    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true) >> {
+      pwafAdditive = it[0].openAdditive()
+    }
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.getWafMetrics()
+    1 * ctx.closeAdditive()
+    0 * _
+
+    when: 'merges new waf data with the one in the rules config'
+    def newData = [
+      [
+        id  : 'blocked_users',
+        type: 'data_with_expiration',
+        data: [[
+            value     : 'user-to-block-2',
+            expiration: '0',
+          ]]
+      ]
+    ]
+    service.currentAppSecConfig.with {
+      mergedAsmData.addConfig('c', newData)
+      it.dirtyStatus.data = true
+
+      service.listeners['waf'].onNewSubconfig(it, reconf)
+      it.dirtyStatus.clearDirty()
+    }
+
+    dataListener.onDataAvailable(flow, ctx, bundle, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    1 * reconf.reloadSubscriptions()
+    1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
+      rba.statusCode == 403 &&
+        rba.blockingContentType == BlockingContentType.AUTO
+    })
+    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true) >> {
+      pwafAdditive = it[0].openAdditive()
+    }
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.getWafMetrics()
+    1 * ctx.closeAdditive()
+    0 * _
+
+    when:
+    bundle = MapDataBundle.of(
+      KnownAddresses.USER_ID,
+      'user-to-block-2'
+      )
+    dataListener.onDataAvailable(flow, ctx, bundle, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
+      rba.statusCode == 403 &&
+        rba.blockingContentType == BlockingContentType.AUTO
+    })
+    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true) >> {
+      pwafAdditive = it[0].openAdditive()
+    }
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.getWafMetrics()
+    1 * ctx.closeAdditive()
+    0 * _
+
+    when: 'changes the rules config'
+    def newCfg = [
+      version: '2.1',
+      rules: [
+        [
+          id: 'block-users',
+          name: 'Block User Addresses',
+          tags: [
+            type: 'block_user',
+            category: 'security_response'
+          ],
+          conditions: [
+            [
+              parameters: [
+                inputs: [[ address: 'usr.id' ]],
+                data: 'blocked_users'
+              ],
+              operator: 'exact_match'
+            ]
+          ],
+          on_match: ['block'] ]
+      ], ]
+
+    service.currentAppSecConfig.with {
+      setDdConfig(AppSecConfig.valueOf(newCfg))
+      dirtyStatus.markAllDirty()
+
+      service.listeners['waf'].onNewSubconfig(it, reconf)
+      dirtyStatus.clearDirty()
+    }
+
+    and:
+    bundle = MapDataBundle.of(
+      KnownAddresses.USER_ID,
+      'user-to-block-2'
+      )
+    dataListener.onDataAvailable(flow, ctx, bundle, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    1 * reconf.reloadSubscriptions()
+    1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
+      rba.statusCode == 403 &&
+        rba.blockingContentType == BlockingContentType.AUTO
+    })
+    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true) >> {
+      pwafAdditive = it[0].openAdditive()
+    }
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.getWafMetrics()
+    1 * ctx.closeAdditive()
+    0 * _
+
+    when:
+    bundle = MapDataBundle.of(
+      KnownAddresses.USER_ID,
+      'user-to-block-1'
+      )
+    dataListener.onDataAvailable(flow, ctx, bundle, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true) >> {
+      pwafAdditive = it[0].openAdditive()
+    }
+    1 * ctx.getWafMetrics()
+    1 * ctx.closeAdditive()
     0 * _
   }
 
