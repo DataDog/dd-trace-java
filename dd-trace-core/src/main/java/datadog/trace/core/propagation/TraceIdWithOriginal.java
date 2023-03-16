@@ -15,6 +15,13 @@ public abstract class TraceIdWithOriginal implements DDTraceId {
     this.delegate = delegate;
   }
 
+  // TODO Javadoc
+  public boolean isValid() {
+    // TODO Check 128-bit trace id activation/logging?
+    return this.delegate.toLong() != 0;
+    // return !DD128bTraceId.ZERO.equals(this.delegate);
+  }
+
   @Override
   public String toHexString() {
     return this.delegate.toHexString();
@@ -49,6 +56,58 @@ public abstract class TraceIdWithOriginal implements DDTraceId {
     return this.delegate.hashCode();
   }
 
+  /** A B3 formatted {@link DDTraceId}. */
+  public static final class B3TraceId extends TraceIdWithOriginal {
+    private B3TraceId(String original, DDTraceId delegate) {
+      super(original, delegate);
+    }
+
+    /**
+     * Create a {@link B3TraceId} from a B3 TraceId string.
+     *
+     * @param s The B3 TraceId string.
+     */
+    public static B3TraceId fromHex(String s) {
+      return new B3TraceId(s, DD128bTraceId.fromHex(s));
+    }
+
+    @Override
+    public String toHexStringOrOriginal() {
+      throw new IllegalStateException("SHOULD BE REMOVED");
+    }
+
+    @Override
+    public String toHexStringPaddedOrOriginal(int size) {
+      throw new IllegalStateException("SHOULD BE REMOVED");
+    }
+
+    /**
+     * Gte the original B3 TraceId.
+     *
+     * @return The original B3 TraceId.
+     */
+    public String getB3Original() {
+      return this.original;
+    }
+  }
+
+  public static final class XRayTraceId extends TraceIdWithOriginal {
+
+    private XRayTraceId(String original, DDTraceId delegate) {
+      super(original, delegate);
+    }
+
+    @Override
+    public String toHexStringOrOriginal() {
+      throw new IllegalStateException("SHOULD BE REMOVED");
+    }
+
+    @Override
+    public String toHexStringPaddedOrOriginal(int size) {
+      throw new IllegalStateException("SHOULD BE REMOVED");
+    }
+  }
+
   /** A W3C formatted {@link DDTraceId}. */
   public static final class W3CTraceId extends TraceIdWithOriginal {
     private W3CTraceId(String original, DDTraceId delegate) {
@@ -70,13 +129,7 @@ public abstract class TraceIdWithOriginal implements DDTraceId {
       } else {
         original = s.substring(start, start + 32);
       }
-      return new W3CTraceId(original, DD128bTraceId.fromHex(original, true));
-    }
-
-    public boolean isValid() {
-      // TODO Check 128-bit trace id activation/logging?
-      return this.delegate.toLong() != 0;
-      // return !DD128bTraceId.ZERO.equals(this.delegate);
+      return new W3CTraceId(original, DD128bTraceId.fromHex(original));
     }
 
     @Override

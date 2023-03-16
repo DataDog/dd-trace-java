@@ -3,11 +3,13 @@ package datadog.trace.core.propagation;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.propagation.TraceIdWithOriginal.B3TraceId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -55,16 +57,51 @@ class B3HttpCodec {
       this.paddingEnabled = paddingEnabled;
     }
 
-    protected final String getTraceId(DDSpanContext context) {
-      return paddingEnabled
-          ? context.getTraceId().toHexStringPaddedOrOriginal(32)
-          : context.getTraceId().toHexStringOrOriginal();
+    /**
+     * Get the TraceId {@link String} representation to inject according the following logic:
+     *
+     * <ul>
+     *   <li>Returns the original String representation if the trace was parsed from B3 extractor,
+     *   <li>Returns a 32 lower-case hexadecimal character for 128-bit TraceId,
+     *   <li>Returns a 16 lower-case hexadecimal character for 64-bit TraceId if legacy mode is not
+     *       enabled,
+     *   <li>Returns a non-padded lower-case hexadecimal character for 64-bit TraceId otherwise.
+     * </ul>
+     *
+     * @param context The context to get the TraceId from.
+     * @return The TraceId {@link String} representation to inject.
+     */
+    protected final String getInjectedTraceId(DDSpanContext context) {
+      DDTraceId traceId = context.getTraceId();
+      if (traceId instanceof B3TraceId) {
+        return ((B3TraceId) traceId).getB3Original();
+      } else if (traceId instanceof DD128bTraceId) {
+        return traceId.toHexString();
+      } else if (this.paddingEnabled) {
+        return traceId.toHexStringPadded(16);
+      } else {
+        return traceId.toHexString();
+      }
     }
 
-    protected final String getSpanId(DDSpanContext context) {
-      return paddingEnabled
-          ? DDSpanId.toHexStringPadded(context.getSpanId())
-          : DDSpanId.toHexString(context.getSpanId());
+    /**
+     * Get the SpanId {@link String} representation to inject according the following logic:
+     *
+     * <ul>
+     *   <li>Returns a 16 lower-case hexadecimal character if padding is enabled,
+     *   <li>Returns a non-padded lower-case hexadecimal character otherwise.
+     * </ul>
+     *
+     * @param context The context to get the SpanId from.
+     * @return The SpanId {@link String} representation to inject.
+     */
+    protected final String getInjectedSpanId(DDSpanContext context) {
+      long spanId = context.getSpanId();
+      if (this.paddingEnabled) {
+        return DDSpanId.toHexString(spanId);
+      } else {
+        return DDSpanId.toHexStringPadded(spanId);
+      }
     }
   }
 
@@ -76,8 +113,8 @@ class B3HttpCodec {
     @Override
     public <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
-      final String injectedTraceId = getTraceId(context);
-      final String injectedSpanId = getSpanId(context);
+      final String injectedTraceId = getInjectedTraceId(context);
+      final String injectedSpanId = getInjectedSpanId(context);
       setter.set(carrier, TRACE_ID_KEY, injectedTraceId);
       setter.set(carrier, SPAN_ID_KEY, injectedSpanId);
       if (context.lockSamplingPriority()) {
@@ -101,8 +138,8 @@ class B3HttpCodec {
     @Override
     public <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
-      final String injectedTraceId = getTraceId(context);
-      final String injectedSpanId = getSpanId(context);
+      final String injectedTraceId = getInjectedTraceId(context);
+      final String injectedSpanId = getInjectedSpanId(context);
       final StringBuilder injectedB3IdBuilder = new StringBuilder(100);
       injectedB3IdBuilder.append(injectedTraceId).append('-').append(injectedSpanId);
 
@@ -184,7 +221,8 @@ class B3HttpCodec {
         traceId = DDTraceId.ZERO;
         return false;
       } else {
-        traceId = DDTraceId.fromHexTruncatedWithOriginal(tId);
+        B3TraceId b3TraceId = B3TraceId.fromHex(tId);
+        traceId = b3TraceId.isValid() ? b3TraceId : DDTraceId.ZERO;
       }
       if (tags.isEmpty()) {
         tags = new TreeMap<>();

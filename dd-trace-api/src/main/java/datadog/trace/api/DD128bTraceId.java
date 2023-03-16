@@ -51,15 +51,13 @@ public class DD128bTraceId implements DDTraceId {
    * Create a new 128-bit {@link DD128bTraceId} from the given hexadecimal {@link String}
    * representation.
    *
-   * @param s The hexadecimal {@link String} representation to parse (a 32 lower or higher-case
-   *     hexadecimal characters maximum).
-   * @param lowerCaseOnly Whether the hexadecimal characters to parse are lower-case only or not.
+   * @param s The hexadecimal {@link String} representation to parse (a 32 lower-case hexadecimal
+   *     characters maximum).
    * @return The created TraceId instance.
    * @throws NumberFormatException If the hexadecimal {@link String} representation is not valid.
    */
-  public static DD128bTraceId fromHex(String s, boolean lowerCaseOnly)
-      throws NumberFormatException {
-    return fromHex(s, 0, s.length(), lowerCaseOnly);
+  public static DD128bTraceId fromHex(String s) throws NumberFormatException {
+    return fromHex(s, 0, s.length(), true);
   }
 
   /**
