@@ -17,7 +17,7 @@ import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class ConfigConverter {
+final class ConfigConverter {
 
   private static final Logger log = LoggerFactory.getLogger(ConfigConverter.class);
 
@@ -67,7 +67,7 @@ public final class ConfigConverter {
   }
 
   @Nonnull
-  public static Map<String, String> parseMap(
+  static Map<String, String> parseMap(
       final String str, final String settingName, final char keyValueSeparator) {
     // If we ever want to have default values besides an empty map, this will need to change.
     String trimmed = Strings.trim(str);
