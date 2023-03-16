@@ -2,7 +2,9 @@ package datadog.trace.instrumentation.maven3;
 
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import org.apache.maven.BuildFailureException;
@@ -14,6 +16,7 @@ import org.apache.maven.model.Dependency;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.project.MavenProject;
+import org.codehaus.plexus.logging.Logger;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 
 public abstract class MavenUtils {
@@ -24,67 +27,40 @@ public abstract class MavenUtils {
 
   /**
    * Returns command line used to start the build. Depending on Maven version the actual command
-   * line might not be available, in which case we will recreate one using the state of the request
-   * object
+   * line might not be available, in which case we will do our best to recreate one using the state
+   * of the request object
    */
   public static String getCommandLine(MavenSession session) {
-    // FIXME uncomment
-    //    String mavenCmdLineArgsEnvVar = System.getenv(MAVEN_CMD_LINE_ARGS_ENVIRONMENT_VAR);
-    //    if (mavenCmdLineArgsEnvVar != null) {
-    //      return "mvn " + mavenCmdLineArgsEnvVar;
-    //    }
-    //    Properties sessionSystemProperties = session.getSystemProperties();
-    //    String mavenCmdLineArgsProp = sessionSystemProperties.getProperty("env." +
-    // MAVEN_CMD_LINE_ARGS_ENVIRONMENT_VAR);
-    //    if (mavenCmdLineArgsProp != null) {
-    //      return "mvn " + mavenCmdLineArgsProp;
-    //    }
+    String mavenCmdLineArgsEnvVar = System.getenv(MAVEN_CMD_LINE_ARGS_ENVIRONMENT_VAR);
+    if (mavenCmdLineArgsEnvVar != null) {
+      return "mvn " + mavenCmdLineArgsEnvVar;
+    }
+
+    Properties sessionSystemProperties = session.getSystemProperties();
+    String mavenCmdLineArgsProp =
+        sessionSystemProperties.getProperty("env." + MAVEN_CMD_LINE_ARGS_ENVIRONMENT_VAR);
+    if (mavenCmdLineArgsProp != null) {
+      return "mvn " + mavenCmdLineArgsProp;
+    }
 
     MavenExecutionRequest request = session.getRequest();
     StringBuilder command = new StringBuilder("mvn");
 
-    // https://maven.apache.org/ref/3.2.1/maven-embedder/cli.html
-    // we're inferring the properties available in 3.2.1, since this is the version of the Maven
-    // Embedder we use for compilation
-    /*
-    -b,--builder <arg>	The id of the build strategy to use.
-    -C,--strict-checksums	Fail the build if checksums don't match
-    -c,--lax-checksums	Warn if checksums don't match
-    -cpu,--check-plugin-updates	Ineffective, only kept for backward compatibility
-    -D,--define <arg>	Define a system property
-    -e,--errors	Produce execution error messages
-    -emp,--encrypt-master-password <arg>	Encrypt master security password
-    -ep,--encrypt-password <arg>	Encrypt server password
-    -f,--file <arg>	Force the use of an alternate POM file (or directory with pom.xml).
-    -fae,--fail-at-end	Only fail the build afterwards; allow all non-impacted builds to continue
-    -ff,--fail-fast	Stop at first failure in reactorized builds
-    -fn,--fail-never	NEVER fail the build, regardless of project result
-    -gs,--global-settings <arg>	Alternate path for the global settings file
-    -h,--help	Display help information
-    -l,--log-file <arg>	Log file to where all build output will go.
-    -llr,--legacy-local-repository	Use Maven 2 Legacy Local Repository behaviour, ie no use of _remote.repositories. Can also be activated by using -Dmaven.legacyLocalRepo=true
-    -N,--non-recursive	Do not recurse into sub-projects
-    -npr,--no-plugin-registry	Ineffective, only kept for backward compatibility
-    -npu,--no-plugin-updates	Ineffective, only kept for backward compatibility
-    -nsu,--no-snapshot-updates	Suppress SNAPSHOT updates
-    -o,--offline	Work offline
-    -P,--activate-profiles <arg>	Comma-delimited list of profiles to activate
-    -pl,--projects <arg>	Comma-delimited list of specified reactor projects to build instead of all projects. A project can be specified by [groupId]:artifactId or by its relative path.
-    -q,--quiet	Quiet output - only show errors
-    -rf,--resume-from <arg>	Resume reactor from specified project
-    -s,--settings <arg>	Alternate path for the user settings file
-    -T,--threads <arg>	Thread count, for instance 2.0C where C is core multiplied
-    -t,--toolchains <arg>	Alternate path for the user toolchains file
-    -U,--update-snapshots	Forces a check for missing releases and updated snapshots on remote repositories
-    -up,--update-plugins	Ineffective, only kept for backward compatibility
-    -V,--show-version	Display version information WITHOUT stopping build
-    -v,--version	Display version information
-    -X,--debug	Produce execution debug output
-         */
-
-    // FIXME infer arguments ^^
     if (!request.isInteractiveMode()) {
       command.append(" -").append(CLIManager.BATCH_MODE);
+    }
+
+    if (request.getGlobalChecksumPolicy() != null) {
+      switch (request.getGlobalChecksumPolicy()) {
+        case "fail":
+          command.append(" -").append(CLIManager.CHECKSUM_FAILURE_POLICY);
+          break;
+        case "warn":
+          command.append(" -").append(CLIManager.CHECKSUM_WARNING_POLICY);
+          break;
+        default:
+          break;
+      }
     }
 
     if (request.getMakeBehavior() != null) {
@@ -104,12 +80,108 @@ public abstract class MavenUtils {
       }
     }
 
+    if (request.isShowErrors()) {
+      command.append(" -").append(CLIManager.ERRORS);
+    }
+
+    if (!Objects.equals(request.getPom().getParent(), request.getBaseDirectory())
+        || !Objects.equals(request.getPom().getName(), "pom.xml")) {
+      command
+          .append(" -")
+          .append(CLIManager.ALTERNATE_POM_FILE)
+          .append('=')
+          .append(request.getPom());
+    }
+
+    if (request.getReactorFailureBehavior() != null) {
+      switch (request.getReactorFailureBehavior()) {
+        case "FAIL_AT_END":
+          command.append(" -").append(CLIManager.FAIL_AT_END);
+          break;
+        case "FAIL_NEVER":
+          command.append(" -").append(CLIManager.FAIL_NEVER);
+          break;
+        default:
+          break;
+      }
+    }
+
+    int loggingLevel = request.getLoggingLevel();
+    switch (loggingLevel) {
+      case Logger.LEVEL_DEBUG:
+        command.append(" -").append(CLIManager.DEBUG);
+        break;
+      case Logger.LEVEL_ERROR:
+        command.append(" -").append(CLIManager.QUIET);
+        break;
+    }
+
+    if (!request.isRecursive()) {
+      command.append(" -").append(CLIManager.NON_RECURSIVE);
+    }
+
+    if (request.isUpdateSnapshots()) {
+      command.append(" -").append(CLIManager.UPDATE_SNAPSHOTS);
+    }
+
+    if (request.isNoSnapshotUpdates()) {
+      command.append(" -").append(CLIManager.SUPRESS_SNAPSHOT_UPDATES);
+    }
+
+    if (request.isOffline()) {
+      command.append(" -").append(CLIManager.OFFLINE);
+    }
+
+    if (request.getDegreeOfConcurrency() != 1) {
+      command.append(" -").append(CLIManager.THREADS).append(request.getDegreeOfConcurrency());
+    }
+
+    if (!request.getSelectedProjects().isEmpty()) {
+      command.append(" -").append(CLIManager.PROJECT_LIST).append('=');
+      Iterator<String> it = request.getSelectedProjects().iterator();
+      while (it.hasNext()) {
+        command.append(it.next());
+        if (it.hasNext()) {
+          command.append(',');
+        }
+      }
+    }
+
+    if (request.getResumeFrom() != null && !request.getResumeFrom().isEmpty()) {
+      command
+          .append(" -")
+          .append(CLIManager.RESUME_FROM)
+          .append('=')
+          .append(request.getResumeFrom());
+    }
+
     List<String> goals = request.getGoals();
     for (String goal : goals) {
       command.append(' ').append(goal);
     }
 
-    // FIXME infer system properties (e.g. -Dmaven.test.skip=true -DskipTests=true)
+    Properties userProperties = request.getUserProperties();
+    if (userProperties != null) {
+      for (Map.Entry<Object, Object> e : userProperties.entrySet()) {
+        command
+            .append(" -")
+            .append(CLIManager.SET_SYSTEM_PROPERTY)
+            .append(e.getKey())
+            .append('=')
+            .append(e.getValue());
+      }
+    }
+
+    if (!request.getActiveProfiles().isEmpty()) {
+      command.append(" -").append(CLIManager.ACTIVATE_PROFILES);
+      Iterator<String> it = request.getActiveProfiles().iterator();
+      while (it.hasNext()) {
+        command.append(it.next());
+        if (it.hasNext()) {
+          command.append(',');
+        }
+      }
+    }
 
     return command.toString();
   }
