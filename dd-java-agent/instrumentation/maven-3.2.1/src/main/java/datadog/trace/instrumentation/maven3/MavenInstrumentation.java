@@ -58,5 +58,4 @@ public class MavenInstrumentation extends Instrumenter.CiVisibility
   }
 
   // FIXME implement integration tests & latest dependency tests
-  // FIXME test manually with different versions of Maven (3.2.1, 3.3.0, 3.9.0, 4.0.0)
 }
