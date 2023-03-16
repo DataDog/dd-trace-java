@@ -33,7 +33,11 @@ public class MavenInstrumentation extends Instrumenter.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".MavenDecorator", packageName + ".CiVisibilityLifecycleParticipant"
+      packageName + ".MavenUtils",
+      packageName + ".MavenUtils$TestFramework",
+      packageName + ".MavenDecorator",
+      packageName + ".MavenExecutionListener",
+      packageName + ".MavenLifecycleParticipant"
     };
   }
 
@@ -49,9 +53,10 @@ public class MavenInstrumentation extends Instrumenter.CiVisibility
     @Advice.OnMethodEnter
     public static void addLifecycleExtension(@Advice.Argument(0) final PlexusContainer container) {
       container.addComponent(
-          new CiVisibilityLifecycleParticipant(), AbstractMavenLifecycleParticipant.class, null);
+          new MavenLifecycleParticipant(), AbstractMavenLifecycleParticipant.class, null);
     }
   }
 
-  // FIXME implement integration test
+  // FIXME implement integration tests & latest dependency tests
+  // FIXME test manually with different versions of Maven (3.2.1, 3.3.0, 3.9.0, 4.0.0)
 }
