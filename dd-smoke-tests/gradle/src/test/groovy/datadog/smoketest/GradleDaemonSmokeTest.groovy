@@ -120,12 +120,12 @@ class GradleDaemonSmokeTest extends Specification {
     verifyAll(moduleEndEvent) {
       verifyAll(content) {
         name == "gradle.test_module"
-        resource == "gradle-instrumentation-test-project" // project name
+        resource == ":test" // task path
         test_module_id > 0
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
-          it["test.module"] == "gradle-instrumentation-test-project"
-          it["test.bundle"] == "gradle-instrumentation-test-project"
+          it["test.module"] == ":test" // task path
+          it["test.bundle"] == ":test" // task path
         }
       }
     }
@@ -174,12 +174,12 @@ class GradleDaemonSmokeTest extends Specification {
     verifyAll(moduleEndEvent) {
       verifyAll(content) {
         name == "gradle.test_module"
-        resource == "gradle-instrumentation-test-project" // project name
+        resource == ":test" // task path
         test_module_id > 0
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
-          it["test.module"] == "gradle-instrumentation-test-project"
-          it["test.bundle"] == "gradle-instrumentation-test-project"
+          it["test.module"] == ":test" // task path
+          it["test.bundle"] == ":test" // task path
         }
       }
     }
@@ -221,34 +221,34 @@ class GradleDaemonSmokeTest extends Specification {
       }
     }
 
-    def moduleAEndEvent = events.find { it.type == "test_module_end" && it.content.resource == "submodule-a" }
+    def moduleAEndEvent = events.find { it.type == "test_module_end" && it.content.resource == ":submodule-a:test" }
     assert moduleAEndEvent != null
     verifyCommonTags(moduleAEndEvent)
     verifyAll(moduleAEndEvent) {
       verifyAll(content) {
         name == "gradle.test_module"
-        resource == "submodule-a" // module name
+        resource == ":submodule-a:test" // task path
         test_module_id > 0
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
-          it["test.module"] == "submodule-a"
-          it["test.bundle"] == "submodule-a"
+          it["test.module"] == ":submodule-a:test" // task path
+          it["test.bundle"] == ":submodule-a:test" // task path
         }
       }
     }
 
-    def moduleBEndEvent = events.find { it.type == "test_module_end" && it.content.resource == "submodule-b" }
+    def moduleBEndEvent = events.find { it.type == "test_module_end" && it.content.resource == ":submodule-b:test" }
     assert moduleBEndEvent != null
     verifyCommonTags(moduleBEndEvent)
     verifyAll(moduleBEndEvent) {
       verifyAll(content) {
         name == "gradle.test_module"
-        resource == "submodule-b" // module name
+        resource == ":submodule-b:test" // task path
         test_module_id > 0
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
-          it["test.module"] == "submodule-b"
-          it["test.bundle"] == "submodule-b"
+          it["test.module"] == ":submodule-b:test" // task path
+          it["test.bundle"] == ":submodule-b:test" // task path
         }
       }
     }
@@ -304,12 +304,12 @@ class GradleDaemonSmokeTest extends Specification {
     verifyAll(moduleEndEvent) {
       verifyAll(content) {
         name == "gradle.test_module"
-        resource == "gradle-instrumentation-test-project" // project name
+        resource == ":test" // task path
         test_module_id > 0
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
-          it["test.module"] == "gradle-instrumentation-test-project"
-          it["test.bundle"] == "gradle-instrumentation-test-project"
+          it["test.module"] == ":test" // task path
+          it["test.bundle"] == ":test" // task path
         }
       }
     }
@@ -356,12 +356,12 @@ class GradleDaemonSmokeTest extends Specification {
     verifyAll(moduleEndEvent) {
       verifyAll(content) {
         name == "gradle.test_module"
-        resource == "gradle-instrumentation-test-project" // project name
+        resource == ":test" // task path
         test_module_id > 0
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
-          it["test.module"] == "gradle-instrumentation-test-project"
-          it["test.bundle"] == "gradle-instrumentation-test-project"
+          it["test.module"] == ":test" // task path
+          it["test.bundle"] == ":test" // task path
           it["test.skip_reason"] == "NO-SOURCE"
         }
       }
