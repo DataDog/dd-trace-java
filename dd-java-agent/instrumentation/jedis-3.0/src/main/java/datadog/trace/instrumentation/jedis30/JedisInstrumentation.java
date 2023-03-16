@@ -50,7 +50,8 @@ public final class JedisInstrumentation extends Instrumenter.Tracing
   public static class JedisAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.Argument(1) final ProtocolCommand command) {
+    public static AgentScope onEnter(@Advice.Argument(1) final ProtocolCommand command,
+    @Advice.Argument(2)final byte[][] args ) {
       final AgentSpan span = startSpan(JedisClientDecorator.OPERATION_NAME);
       DECORATE.afterStart(span);
       if (command instanceof Protocol.Command) {
@@ -60,6 +61,13 @@ public final class JedisInstrumentation extends Instrumenter.Tracing
         // us if that changes
         DECORATE.onStatement(span, new String(command.getRaw()));
       }
+      StringBuilder args1 = new StringBuilder();
+      for(int i = 0; i < args.length; i++) {
+        args1.append(new String(args[i]));
+        args1.append(" ");
+      }
+
+      DECORATE.setRaw(span,args1.toString());
       return activateSpan(span);
     }
 

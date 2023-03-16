@@ -1,15 +1,5 @@
 package datadog.trace.instrumentation.jedis;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.jedis.JedisClientDecorator.DECORATE;
-import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-import static net.bytebuddy.matcher.ElementMatchers.not;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -17,6 +7,13 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 import redis.clients.jedis.Protocol.Command;
+
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.jedis.JedisClientDecorator.DECORATE;
+import static net.bytebuddy.matcher.ElementMatchers.*;
 
 @AutoService(Instrumenter.class)
 public final class JedisInstrumentation extends Instrumenter.Tracing
@@ -56,12 +53,18 @@ public final class JedisInstrumentation extends Instrumenter.Tracing
   }
 
   public static class JedisAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.Argument(1) final Command command) {
+    public static AgentScope onEnter(@Advice.Argument(1) final Command command, @Advice.Argument(2)final byte[][] args) {
       final AgentSpan span = startSpan(JedisClientDecorator.OPERATION_NAME);
       DECORATE.afterStart(span);
       DECORATE.onStatement(span, command.name());
+      //System.out.println("------- set raw "+ new String(command.raw));
+      StringBuilder args1 = new StringBuilder();
+      for(int i = 0; i < args.length; i++) {
+        args1.append(new String(args[i]));
+        args1.append(" ");
+      }
+      DECORATE.setRaw(span,args1.toString());
       return activateSpan(span);
     }
 

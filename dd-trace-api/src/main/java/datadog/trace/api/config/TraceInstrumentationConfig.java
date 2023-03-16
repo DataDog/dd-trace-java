@@ -42,13 +42,15 @@ public final class TraceInstrumentationConfig {
       "trace.jdbc.prepared.statement.class.name";
 
   public static final String JDBC_CONNECTION_CLASS_NAME = "trace.jdbc.connection.class.name";
-
+  public static final String JDBC_SQL_OBFUSCATION  = "jdbc.sql.obfuscation";
+  public static final String REDIS_COMMAND_ARGS  = "redis.command.args";
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
       "trace.runtime.context.field.injection";
   public static final String SERIALVERSIONUID_FIELD_INJECTION =
       "trace.serialversionuid.field.injection";
 
   public static final String LOGS_INJECTION_ENABLED = "logs.injection";
+  public static final String LOGS_PATTERN = "logs.pattern";
   public static final String LOGS_MDC_TAGS_INJECTION_ENABLED = "logs.mdc.tags.injection";
 
   public static final String KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS =

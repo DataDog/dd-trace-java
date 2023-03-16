@@ -17,6 +17,7 @@ public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorato
   private static final String SERVICE_NAME =
       SpanNaming.instance().namingSchema().cache().service(Config.get().getServiceName(), REDIS);
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("redis-command");
+  public boolean RedisCommandRaw = Config.get().getRedisCommandArgs();
 
   @Override
   protected String[] instrumentationNames() {
@@ -58,6 +59,14 @@ public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorato
     return null;
   }
 
+
   @Override
   protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
+
+  public AgentSpan setRaw(AgentSpan span, String raw) {
+    if (RedisCommandRaw){
+      span.setTag("redis.command.args",raw);
+    }
+    return span;
+  }
 }

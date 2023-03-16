@@ -1,5 +1,51 @@
 package datadog.trace.api;
 
+import datadog.trace.api.config.GeneralConfig;
+import datadog.trace.api.config.TracerConfig;
+import datadog.trace.api.iast.telemetry.Verbosity;
+import datadog.trace.api.naming.SpanNaming;
+import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
+import datadog.trace.util.PidHelper;
+import datadog.trace.util.Strings;
+import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nonnull;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.InetAddress;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.BitSet;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+import java.util.SortedSet;
+import java.util.UUID;
+import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
@@ -45,14 +91,18 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REQUEST_SAMPLING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_VULNERABILITIES_PER_REQUEST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_JDBC_SQL_OBFUSCATION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LOG_PATTERN;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_REDIS_COMMAND_ARGS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE;
@@ -229,16 +279,21 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_MEASUR
 import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.IGNITE_CACHE_INCLUDE_KEYS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_SQL_OBFUSCATION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_PATTERN;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MESSAGE_BROKER_SPLIT_BY_DESTINATION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.OBFUSCATION_QUERY_STRING_REGEXP;
 import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HTTP_STATUS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_INCLUDE_ROUTINGKEY_IN_RESOURCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES;
+import static datadog.trace.api.config.TraceInstrumentationConfig.REDIS_COMMAND_ARGS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_CONTEXT_SERVICE_NAME;
@@ -302,51 +357,6 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 import static datadog.trace.util.Strings.toEnvVar;
 
-import datadog.trace.api.config.GeneralConfig;
-import datadog.trace.api.config.TracerConfig;
-import datadog.trace.api.iast.telemetry.Verbosity;
-import datadog.trace.api.naming.SpanNaming;
-import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
-import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
-import datadog.trace.util.PidHelper;
-import datadog.trace.util.Strings;
-import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.InetAddress;
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.UnknownHostException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.BitSet;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.SortedSet;
-import java.util.UUID;
-import java.util.function.Function;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import javax.annotation.Nonnull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * Config reads values with the following priority: 1) system properties, 2) environment variables,
  * 3) optional configuration file, 4) platform dependant properties. It also includes default values
@@ -380,7 +390,9 @@ public class Config {
 
   private final boolean runtimeIdEnabled;
 
-  /** This is the version of the runtime, ex: 1.8.0_332, 11.0.15, 17.0.3 */
+  /**
+   * This is the version of the runtime, ex: 1.8.0_332, 11.0.15, 17.0.3
+   */
   private final String runtimeVersion;
 
   /**
@@ -450,7 +462,8 @@ public class Config {
   private final boolean jmxFetchEnabled;
   private final String jmxFetchConfigDir;
   private final List<String> jmxFetchConfigs;
-  @Deprecated private final List<String> jmxFetchMetricsConfigs;
+  @Deprecated
+  private final List<String> jmxFetchMetricsConfigs;
   private final Integer jmxFetchCheckPeriod;
   private final Integer jmxFetchInitialRefreshBeansPeriod;
   private final Integer jmxFetchRefreshBeansPeriod;
@@ -471,6 +484,7 @@ public class Config {
   private final int tracerMetricsMaxPending;
 
   private final boolean reportHostName;
+  private final String logPattern;
 
   private final boolean traceAnalyticsEnabled;
   private final String traceClientIpHeader;
@@ -483,7 +497,6 @@ public class Config {
   private final int traceRateLimit;
   private final String spanSamplingRules;
   private final String spanSamplingRulesFile;
-
   private final boolean profilingAgentless;
   private final boolean isDatadogProfilerEnabled;
   @Deprecated private final String profilingUrl;
@@ -504,6 +517,8 @@ public class Config {
   private final int profilingExceptionHistogramMaxCollectionSize;
   private final boolean profilingExcludeAgentThreads;
   private final boolean profilingUploadSummaryOn413Enabled;
+  private final boolean logsInjectionEnabled;
+  private final boolean logsMDCTagsInjectionEnabled;
   private final boolean profilingRecordExceptionMessage;
 
   private final boolean crashTrackingAgentless;
@@ -626,6 +641,10 @@ public class Config {
   private final List<String> traceAgentArgs;
   private final String dogStatsDPath;
   private final List<String> dogStatsDArgs;
+
+  private final boolean jdbcSqlObfuscation;
+
+  private final boolean redisCommandArgs;
 
   private String env;
   private String version;
@@ -1033,6 +1052,13 @@ public class Config {
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
     tracerMetricsMaxPending = configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048);
 
+    logsInjectionEnabled =
+        configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
+
+    logPattern = configProvider.getString(LOGS_PATTERN, DEFAULT_LOG_PATTERN);
+
+    logsMDCTagsInjectionEnabled = configProvider.getBoolean(LOGS_MDC_TAGS_INJECTION_ENABLED, true);
+
     reportHostName =
         configProvider.getBoolean(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
 
@@ -1076,7 +1102,7 @@ public class Config {
         try {
           tmpApiKey =
               new String(
-                      Files.readAllBytes(Paths.get(oldProfilingApiKeyFile)), StandardCharsets.UTF_8)
+                  Files.readAllBytes(Paths.get(oldProfilingApiKeyFile)), StandardCharsets.UTF_8)
                   .trim();
         } catch (final IOException e) {
           log.error("Cannot read API key from file {}, skipping", oldProfilingApiKeyFile, e);
@@ -1091,8 +1117,8 @@ public class Config {
         try {
           tmpApiKey =
               new String(
-                      Files.readAllBytes(Paths.get(veryOldProfilingApiKeyFile)),
-                      StandardCharsets.UTF_8)
+                  Files.readAllBytes(Paths.get(veryOldProfilingApiKeyFile)),
+                  StandardCharsets.UTF_8)
                   .trim();
         } catch (final IOException e) {
           log.error("Cannot read API key from file {}, skipping", veryOldProfilingApiKeyFile, e);
@@ -1249,7 +1275,7 @@ public class Config {
             REMOTE_CONFIG_POLL_INTERVAL_SECONDS, DEFAULT_REMOTE_CONFIG_POLL_INTERVAL_SECONDS);
     remoteConfigMaxPayloadSize =
         configProvider.getInteger(
-                REMOTE_CONFIG_MAX_PAYLOAD_SIZE, DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE)
+            REMOTE_CONFIG_MAX_PAYLOAD_SIZE, DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE)
             * 1024;
     remoteConfigTargetsKeyId =
         configProvider.getString(
@@ -1274,7 +1300,7 @@ public class Config {
     debuggerMetricEnabled =
         runtimeMetricsEnabled
             && configProvider.getBoolean(
-                DEBUGGER_METRICS_ENABLED, DEFAULT_DEBUGGER_METRICS_ENABLED);
+            DEBUGGER_METRICS_ENABLED, DEFAULT_DEBUGGER_METRICS_ENABLED);
     debuggerProbeFileLocation = configProvider.getString(DEBUGGER_PROBE_FILE_LOCATION);
     debuggerUploadBatchSize =
         configProvider.getInteger(DEBUGGER_UPLOAD_BATCH_SIZE, DEFAULT_DEBUGGER_UPLOAD_BATCH_SIZE);
@@ -1288,8 +1314,12 @@ public class Config {
             DEBUGGER_INSTRUMENT_THE_WORLD, DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD);
     debuggerExcludeFile = configProvider.getString(DEBUGGER_EXCLUDE_FILE);
 
-    awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
-    sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
+    jdbcSqlObfuscation = configProvider.getBoolean(JDBC_SQL_OBFUSCATION, DEFAULT_JDBC_SQL_OBFUSCATION);
+
+    redisCommandArgs = configProvider.getBoolean(REDIS_COMMAND_ARGS, DEFAULT_REDIS_COMMAND_ARGS);
+
+    awsPropagationEnabled = isPropagationEnabled(true, "aws");
+    sqsPropagationEnabled = awsPropagationEnabled && isPropagationEnabled(true, "sqs");
 
     kafkaClientPropagationEnabled = isPropagationEnabled(true, "kafka", "kafka.client");
     kafkaClientPropagationDisabledTopics =
@@ -1707,7 +1737,15 @@ public class Config {
   }
 
   public boolean isLogsInjectionEnabled() {
-    return instrumenterConfig.isLogsInjectionEnabled();
+    return logsInjectionEnabled;
+  }
+
+  public String getLogPattern() {
+    return logPattern;
+  }
+
+  public boolean isLogsMDCTagsInjectionEnabled() {
+    return logsMDCTagsInjectionEnabled;
   }
 
   public boolean isReportHostName() {
@@ -2069,7 +2107,7 @@ public class Config {
   public boolean isJmsPropagationDisabledForDestination(final String queueOrTopic) {
     return null != queueOrTopic
         && (jmsPropagationDisabledQueues.contains(queueOrTopic)
-            || jmsPropagationDisabledTopics.contains(queueOrTopic));
+        || jmsPropagationDisabledTopics.contains(queueOrTopic));
   }
 
   public boolean isKafkaClientBase64DecodingEnabled() {
@@ -2083,7 +2121,7 @@ public class Config {
   public boolean isRabbitPropagationDisabledForDestination(final String queueOrExchange) {
     return null != queueOrExchange
         && (rabbitPropagationDisabledQueues.contains(queueOrExchange)
-            || rabbitPropagationDisabledExchanges.contains(queueOrExchange));
+        || rabbitPropagationDisabledExchanges.contains(queueOrExchange));
   }
 
   public boolean isRabbitIncludeRoutingKeyInResource() {
@@ -2198,7 +2236,9 @@ public class Config {
     return grpcClientErrorStatuses;
   }
 
-  /** @return A map of tags to be applied only to the local application root span. */
+  /**
+   * @return A map of tags to be applied only to the local application root span.
+   */
   public Map<String, Object> getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
     final Map<String, Object> result = new HashMap<>(runtimeTags.size() + 1);
@@ -2523,7 +2563,7 @@ public class Config {
    * @param defaultEnabled
    * @return
    * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   *     #isJmxFetchIntegrationEnabled(Iterable, boolean)}.
+   * #isJmxFetchIntegrationEnabled(Iterable, boolean)}.
    */
   public static boolean jmxFetchIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
@@ -2631,7 +2671,7 @@ public class Config {
    * @param defaultEnabled
    * @return
    * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   *     #isTraceAnalyticsIntegrationEnabled(SortedSet, boolean)}.
+   * #isTraceAnalyticsIntegrationEnabled(SortedSet, boolean)}.
    */
   public static boolean traceAnalyticsIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
@@ -2781,8 +2821,8 @@ public class Config {
 
     // Try hostname command
     try (final BufferedReader reader =
-        new BufferedReader(
-            new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))) {
+             new BufferedReader(
+                 new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))) {
       possibleHostname = reader.readLine();
     } catch (final Throwable ignore) {
       // Ignore.  Hostname command is not always available
@@ -2867,6 +2907,14 @@ public class Config {
     } else {
       return new Config(ConfigProvider.withPropertiesOverride(properties));
     }
+  }
+
+  public boolean getJdbcSqlObfuscation() {
+    return jdbcSqlObfuscation;
+  }
+
+  public boolean getRedisCommandArgs(){
+    return redisCommandArgs;
   }
 
   @Override
@@ -3022,6 +3070,12 @@ public class Config {
         + tracerMetricsMaxAggregates
         + ", tracerMetricsMaxPending="
         + tracerMetricsMaxPending
+        + ", logsInjectionEnabled="
+        + logsInjectionEnabled
+        + ", logsMDCTagsInjectionEnabled="
+        + logsMDCTagsInjectionEnabled
+        + ", logPattern="
+        + logPattern
         + ", reportHostName="
         + reportHostName
         + ", traceAnalyticsEnabled="
