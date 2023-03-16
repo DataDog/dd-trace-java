@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation
 
+import datadog.trace.api.DD64bTraceId
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.time.TimeSource
@@ -39,7 +40,7 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDTraceId.ONE),
+      tracer.pendingTraceFactory.create(DD64bTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,
@@ -95,7 +96,7 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDTraceId.ONE),
+      tracer.pendingTraceFactory.create(DD64bTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,
@@ -146,7 +147,7 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDTraceId.ONE),
+      tracer.pendingTraceFactory.create(DD64bTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,
