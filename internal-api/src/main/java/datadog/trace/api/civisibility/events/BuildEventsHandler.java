@@ -1,6 +1,7 @@
 package datadog.trace.api.civisibility.events;
 
 import datadog.trace.api.civisibility.decorator.TestDecorator;
+import java.util.Map;
 
 public interface BuildEventsHandler<T> {
   void onTestSessionStart(
@@ -17,7 +18,8 @@ public interface BuildEventsHandler<T> {
 
   void onTestSessionFinish(T sessionKey);
 
-  ModuleAndSessionId onTestModuleStart(T sessionKey, String moduleName, String startCommand);
+  ModuleAndSessionId onTestModuleStart(
+      T sessionKey, String moduleName, String startCommand, Map<String, Object> additionalTags);
 
   void onModuleTestFrameworkDetected(
       T sessionKey, String moduleName, String frameworkName, String frameworkVersion);

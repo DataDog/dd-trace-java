@@ -90,10 +90,10 @@ public class GradleBuildListener extends BuildAdapter {
 
       Project project = task.getProject();
       Gradle gradle = project.getGradle();
-      String projectName = project.getName();
+      String taskPath = task.getPath();
       String startCommand = GradleUtils.recreateStartCommand(gradle.getStartParameter());
       BuildEventsHandler.ModuleAndSessionId moduleAndSessionId =
-          buildEventsHandler.onTestModuleStart(gradle, projectName, startCommand);
+          buildEventsHandler.onTestModuleStart(gradle, taskPath, startCommand, null);
 
       Collection<GradleUtils.TestFramework> testFrameworks =
           GradleUtils.collectTestFrameworks(project);
@@ -101,7 +101,7 @@ public class GradleBuildListener extends BuildAdapter {
         // if the module uses multiple test frameworks, we do not set the tags
         GradleUtils.TestFramework testFramework = testFrameworks.iterator().next();
         buildEventsHandler.onModuleTestFrameworkDetected(
-            gradle, projectName, testFramework.name, testFramework.version);
+            gradle, taskPath, testFramework.name, testFramework.version);
       }
 
       JavaForkOptions taskForkOptions = (JavaForkOptions) task;
@@ -122,18 +122,18 @@ public class GradleBuildListener extends BuildAdapter {
 
       Project project = task.getProject();
       Gradle gradle = project.getGradle();
-      String projectName = project.getName();
+      String taskPath = task.getPath();
 
       Throwable failure = state.getFailure();
       if (failure != null) {
-        buildEventsHandler.onTestModuleFail(gradle, projectName, failure);
+        buildEventsHandler.onTestModuleFail(gradle, taskPath, failure);
 
       } else if (state.getSkipped() || !state.getDidWork()) {
         String reason = state.getSkipMessage();
-        buildEventsHandler.onTestModuleSkip(gradle, projectName, reason);
+        buildEventsHandler.onTestModuleSkip(gradle, taskPath, reason);
       }
 
-      buildEventsHandler.onTestModuleFinish(gradle, projectName);
+      buildEventsHandler.onTestModuleFinish(gradle, taskPath);
     }
   }
 }
