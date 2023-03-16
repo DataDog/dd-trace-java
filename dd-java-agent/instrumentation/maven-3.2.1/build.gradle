@@ -12,9 +12,11 @@ muzzle {
 dependencies {
   compileOnly group: 'org.apache.maven', name: 'maven-embedder', version: '3.2.1'
 
+  // this is not the earliest version of Maven that we support,
+  // but using the earliest one is not possible here because of dependency conflicts
   testImplementation(group: 'org.apache.maven', name: 'maven-embedder') {
     version {
-      strictly '3.2.1'
+      strictly '3.2.5'
     }
   }
 }

@@ -10,6 +10,7 @@ import datadog.trace.api.civisibility.CITagsProvider
 import datadog.trace.api.civisibility.InstrumentationBridge
 import datadog.trace.api.civisibility.codeowners.Codeowners
 import datadog.trace.api.civisibility.decorator.TestDecorator
+import datadog.trace.api.civisibility.events.impl.BuildEventsHandlerImpl
 import datadog.trace.api.civisibility.events.impl.TestEventsHandlerImpl
 import datadog.trace.api.civisibility.source.MethodLinesResolver
 import datadog.trace.api.civisibility.source.SourcePathResolver
@@ -63,6 +64,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
     InstrumentationBridge.methodLinesResolver.getLines(_) >> new MethodLinesResolver.MethodLines(DUMMY_TEST_METHOD_START, DUMMY_TEST_METHOD_END)
 
     InstrumentationBridge.setTestEventsHandlerFactory { decorator -> new TestEventsHandlerImpl(decorator) }
+    InstrumentationBridge.setBuildEventsHandlerFactory { decorator -> new BuildEventsHandlerImpl<>() }
   }
 
   @Override
