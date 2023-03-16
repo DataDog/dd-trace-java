@@ -1143,7 +1143,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private boolean errorFlag;
     private CharSequence spanType;
     private boolean ignoreScope = false;
-    private Map<RequestContextSlot, Object> requestContextData;
+    private Object builderRequestContextDataAppSec;
+    private Object builderRequestContextDataIast;
+    private Object builderCiVisibilityContextData;
 
     CoreSpanBuilder(final CharSequence operationName, CoreTracer tracer) {
       this.operationName = operationName;
@@ -1244,12 +1246,17 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     @Override
     public <T> AgentTracer.SpanBuilder withRequestContextData(RequestContextSlot slot, T data) {
-      Map<RequestContextSlot, Object> requestContextDataMap = requestContextData;
-      if (requestContextDataMap == null) {
-        requestContextData =
-            requestContextDataMap = new HashMap<>(RequestContextSlot.values().length);
+      switch (slot) {
+        case APPSEC:
+          builderRequestContextDataAppSec = data;
+          break;
+        case CI_VISIBILITY:
+          builderCiVisibilityContextData = data;
+          break;
+        case IAST:
+          builderRequestContextDataIast = data;
+          break;
       }
-      requestContextDataMap.put(slot, data);
       return this;
     }
 
@@ -1384,20 +1391,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               + (null == coreTags ? 0 : coreTags.size())
               + (null == rootSpanTags ? 0 : rootSpanTags.size());
 
-      if (requestContextData != null) {
-        for (Map.Entry<RequestContextSlot, Object> entry : requestContextData.entrySet()) {
-          switch (entry.getKey()) {
-            case APPSEC:
-              requestContextDataAppSec = entry.getValue();
-              break;
-            case CI_VISIBILITY:
-              ciVisibilityContextData = entry.getValue();
-              break;
-            case IAST:
-              requestContextDataIast = entry.getValue();
-              break;
-          }
-        }
+      if (builderRequestContextDataAppSec != null) {
+        requestContextDataAppSec = builderRequestContextDataAppSec;
+      }
+      if (builderCiVisibilityContextData != null) {
+        ciVisibilityContextData = builderCiVisibilityContextData;
+      }
+      if (builderRequestContextDataIast != null) {
+        requestContextDataIast = builderRequestContextDataIast;
       }
 
       // some attributes are inherited from the parent
