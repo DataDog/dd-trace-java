@@ -42,5 +42,4 @@ public final class GraphQLQuerySanitizer extends NodeVisitorStub {
   public TraversalControl visitStringValue(StringValue node, TraverserContext<Node> context) {
     return TreeTransformerUtil.changeNode(context, new EnumValue("{String}"));
   }
-
 }
