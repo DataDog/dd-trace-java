@@ -1,7 +1,6 @@
 package datadog.telemetry.metric;
 
 import datadog.telemetry.api.Metric;
-
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -34,38 +33,28 @@ public class MetricCollector {
   // waf.init
   public boolean wafInit(String wafVersion, String rulesVersion) {
     return metricsQueue.offer(
-            new Metric()
-                    .namespace(NAMESPACE)
-                    .metric("waf.init")
-                    .type(Metric.TypeEnum.COUNT)
-                    .common(true)
-                    .addPointsItem(
-                            Arrays.asList(
-                                    System.currentTimeMillis(),
-                                    wafUpdateCounter.incrementAndGet()
-                            )
-                    )
-                    .addTagsItem("waf_version:" + wafVersion)
-                    .addTagsItem("event_rules_version:" + rulesVersion)
-    );
+        new Metric()
+            .namespace(NAMESPACE)
+            .metric("waf.init")
+            .type(Metric.TypeEnum.COUNT)
+            .common(true)
+            .addPointsItem(
+                Arrays.asList(System.currentTimeMillis(), wafUpdateCounter.incrementAndGet()))
+            .addTagsItem("waf_version:" + wafVersion)
+            .addTagsItem("event_rules_version:" + rulesVersion));
   }
 
   // waf.updates
   public boolean wafUpdates(String rulesVersion) {
     return metricsQueue.offer(
-            new Metric()
-                    .namespace(NAMESPACE)
-                    .metric("waf.updates")
-                    .type(Metric.TypeEnum.COUNT)
-                    .common(true)
-                    .addPointsItem(
-                            Arrays.asList(
-                                    System.currentTimeMillis(),
-                                    wafUpdateCounter.incrementAndGet()
-                            )
-                    )
-                    .addTagsItem("event_rules_version:" + rulesVersion)
-    );
+        new Metric()
+            .namespace(NAMESPACE)
+            .metric("waf.updates")
+            .type(Metric.TypeEnum.COUNT)
+            .common(true)
+            .addPointsItem(
+                Arrays.asList(System.currentTimeMillis(), wafUpdateCounter.incrementAndGet()))
+            .addTagsItem("event_rules_version:" + rulesVersion));
   }
 
   // waf.requests
@@ -79,7 +68,7 @@ public class MetricCollector {
   }
 
   // waf.requests (blocked)
-  public void wafRequesBlocked() {
+  public void wafRequestBlocked() {
     wafBlockedRequestCounter.increment();
   }
 
@@ -88,58 +77,47 @@ public class MetricCollector {
     // Requests
     if (wafRequestCounter.get() > 0) {
       metricsQueue.offer(
-              new Metric()
-                      .namespace(NAMESPACE)
-                      .metric("waf.requests")
-                      .type(Metric.TypeEnum.COUNT)
-                      .common(true)
-                      .addPointsItem(
-                              Arrays.asList(
-                                      wafRequestCounter.getTimestamp(),
-                                      wafRequestCounter.getAndReset()
-                              )
-                      )
-                      .addTagsItem("triggered:false")
-                      .addTagsItem("blocked:false")
-      );
+          new Metric()
+              .namespace(NAMESPACE)
+              .metric("waf.requests")
+              .type(Metric.TypeEnum.COUNT)
+              .common(true)
+              .addPointsItem(
+                  Arrays.asList(wafRequestCounter.getTimestamp(), wafRequestCounter.getAndReset()))
+              .addTagsItem("triggered:false")
+              .addTagsItem("blocked:false"));
     }
 
     // Triggered requests
     if (wafTriggeredRequestCounter.get() > 0) {
       metricsQueue.offer(
-              new Metric()
-                      .namespace(NAMESPACE)
-                      .metric("waf.requests")
-                      .type(Metric.TypeEnum.COUNT)
-                      .common(true)
-                      .addPointsItem(
-                              Arrays.asList(
-                                      wafTriggeredRequestCounter.getTimestamp(),
-                                      wafTriggeredRequestCounter.getAndReset()
-                              )
-                      )
-                      .addTagsItem("triggered:true")
-                      .addTagsItem("blocked:false")
-      );
+          new Metric()
+              .namespace(NAMESPACE)
+              .metric("waf.requests")
+              .type(Metric.TypeEnum.COUNT)
+              .common(true)
+              .addPointsItem(
+                  Arrays.asList(
+                      wafTriggeredRequestCounter.getTimestamp(),
+                      wafTriggeredRequestCounter.getAndReset()))
+              .addTagsItem("triggered:true")
+              .addTagsItem("blocked:false"));
     }
 
     // Blocked requests
     if (wafBlockedRequestCounter.get() > 0) {
       metricsQueue.offer(
-              new Metric()
-                      .namespace(NAMESPACE)
-                      .metric("waf.requests")
-                      .type(Metric.TypeEnum.COUNT)
-                      .common(true)
-                      .addPointsItem(
-                              Arrays.asList(
-                                      wafBlockedRequestCounter.getTimestamp(),
-                                      wafBlockedRequestCounter.getAndReset()
-                              )
-                      )
-                      .addTagsItem("triggered:true")
-                      .addTagsItem("blocked:true")
-      );
+          new Metric()
+              .namespace(NAMESPACE)
+              .metric("waf.requests")
+              .type(Metric.TypeEnum.COUNT)
+              .common(true)
+              .addPointsItem(
+                  Arrays.asList(
+                      wafBlockedRequestCounter.getTimestamp(),
+                      wafBlockedRequestCounter.getAndReset()))
+              .addTagsItem("triggered:true")
+              .addTagsItem("blocked:true"));
     }
     return metricsQueue;
   }

@@ -487,7 +487,7 @@ public class PowerWAFModule implements AppSecModule {
         reqCtx.reportEvents(events, null);
 
         if (flow.isBlocking()) {
-          MetricCollector.get().wafRequesBlocked();
+          MetricCollector.get().wafRequestBlocked();
         } else {
           MetricCollector.get().wafRequesTriggered();
         }
