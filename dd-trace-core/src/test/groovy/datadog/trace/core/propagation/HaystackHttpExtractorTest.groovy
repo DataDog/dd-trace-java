@@ -1,5 +1,7 @@
 package datadog.trace.core.propagation
 
+import datadog.trace.api.DD64bTraceId
+
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 import static datadog.trace.core.propagation.HaystackHttpCodec.OT_BAGGAGE_PREFIX
@@ -269,17 +271,17 @@ class HaystackHttpExtractorTest extends DDSpecification {
     false          | "-1"                                   | "1"                                    | null            | DDSpanId.ZERO
     false          | "1"                                    | "-1"                                   | null            | DDSpanId.ZERO
     true           | "0"                                    | "1"                                    | null            | DDSpanId.ZERO
-    true           | "00001"                                | "00001"                                | DDTraceId.ONE   | 1
+    true           | "00001"                                | "00001"                                | DD64bTraceId.ONE | 1
     true           | "463ac35c9f6413ad"                     | "463ac35c9f6413ad"                     | DDTraceId.from(5060571933882717101) | 5060571933882717101
     true           | "463ac35c9f6413ad48485a3953bb6124"     | "1"                                    | DDTraceId.from(5208512171318403364) | 1
     true           | "44617461-646f-6721-463a-c35c9f6413ad" | "44617461-646f-6721-463a-c35c9f6413ad" | DDTraceId.from(5060571933882717101) | 5060571933882717101
-    true           | "f" * 16                               | "1"                                    | DDTraceId.MAX   | 1
-    true           | "a" * 16 + "f" * 16                    | "1"                                    | DDTraceId.MAX   | 1
+    true           | "f" * 16                               | "1"                                    | DD64bTraceId.MAX   | 1
+    true           | "a" * 16 + "f" * 16                    | "1"                                    | DD64bTraceId.MAX   | 1
     false          | "1" + "f" * 32                         | "1"                                    | null            | 1
     false          | "0" + "f" * 32                         | "1"                                    | null            | 1
-    true           | "1"                                    | "f" * 16                               | DDTraceId.ONE   | DDSpanId.MAX
+    true           | "1"                                    | "f" * 16                               | DD64bTraceId.ONE   | DDSpanId.MAX
     false          | "1"                                    | "1" + "f" * 16                         | null            | DDSpanId.ZERO
-    true           | "1"                                    | "000" + "f" * 16                       | DDTraceId.ONE   | DDSpanId.MAX
+    true           | "1"                                    | "000" + "f" * 16                       | DD64bTraceId.ONE   | DDSpanId.MAX
   }
 
 
