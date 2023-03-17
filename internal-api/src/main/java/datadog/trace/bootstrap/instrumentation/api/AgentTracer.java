@@ -3,7 +3,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 
 import datadog.trace.api.*;
-import datadog.trace.api.experimental.ProfilingContext;
+import datadog.trace.api.experimental.Profiling;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -297,8 +297,8 @@ public class AgentTracer {
     public void flushMetrics() {}
 
     @Override
-    public ProfilingContext getProfilingContext() {
-      return ProfilingContext.NoOp.INSTANCE;
+    public Profiling getProfilingContext() {
+      return Profiling.NoOp.INSTANCE;
     }
 
     @Override
