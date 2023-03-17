@@ -1,0 +1,22 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  implementation deps.asm
+  implementation deps.asmcommons
+  implementation project(':dd-java-agent:agent-bootstrap')
+  compileOnly project(':dd-java-agent:agent-tooling')
+  compileOnly project(':dd-java-agent:agent-builder')
+  compileOnly group: 'org.apache.spark', name: 'spark-core_2.12', version: '3.3.2'
+}
+shadowJar {
+  dependencies deps.excludeShared
+}
+
+jar {
+  classifier = 'unbundled'
+  from sourceSets.main.output
+}

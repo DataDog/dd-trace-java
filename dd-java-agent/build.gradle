@@ -93,6 +93,7 @@ includeSubprojShadowJar ':dd-java-agent:agent-profiling', 'profiling'
 includeSubprojShadowJar ':dd-java-agent:appsec', 'appsec'
 includeSubprojShadowJar ':dd-java-agent:agent-iast', 'iast'
 includeSubprojShadowJar ':dd-java-agent:agent-debugger', 'debugger'
+includeSubprojShadowJar ':dd-java-agent:agent-spark', 'spark'
 includeSubprojShadowJar ':dd-java-agent:agent-ci-visibility', 'ci-visibility'
 if (project.rootProject.hasProperty("agentIncludeCwsTls") && agentIncludeCwsTls) {
   includeSubprojShadowJar ':dd-java-agent:cws-tls', 'cws-tls'

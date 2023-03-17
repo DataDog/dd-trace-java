@@ -289,7 +289,25 @@ public class Agent {
       StaticEventLogger.end("Profiling");
     }
 
+    startSparkAgent(inst);
+
     StaticEventLogger.end("Agent.start");
+  }
+
+  private static void startSparkAgent(Instrumentation inst) {
+    final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+    try {
+      Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
+      final Class<?> debuggerAgentClass =
+          AGENT_CLASSLOADER.loadClass("com.datadog.spark.SparkAgent");
+      final Method debuggerInstallerMethod =
+          debuggerAgentClass.getMethod("run", Instrumentation.class);
+      debuggerInstallerMethod.invoke(null, inst);
+    } catch (final Throwable ex) {
+      log.error("Throwable thrown while starting spark agent", ex);
+    } finally {
+      Thread.currentThread().setContextClassLoader(contextLoader);
+    }
   }
 
   public static void shutdown(final boolean sync) {
