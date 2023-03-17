@@ -22,9 +22,12 @@ import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.FileCollection
+import org.gradle.api.invocation.BuildInvocationDetails
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.SourceSet
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.workers.WorkAction
 import org.gradle.workers.WorkParameters
 import org.gradle.workers.WorkerExecutor
@@ -414,9 +417,11 @@ class MuzzleDirective {
   boolean assertPass
   boolean assertInverse = false
   boolean coreJdk = false
+  String javaVersion
 
-  void coreJdk() {
+  void coreJdk(version = null) {
     coreJdk = true
+    javaVersion = version
   }
 
   /**
@@ -545,10 +550,35 @@ abstract class MuzzleTask extends DefaultTask {
   }
 
   @javax.inject.Inject
+  abstract JavaToolchainService getJavaToolchainService()
+
+  @javax.inject.Inject
+  abstract BuildInvocationDetails getInvocationDetails()
+
+  @javax.inject.Inject
   abstract WorkerExecutor getWorkerExecutor()
 
-  void assertMuzzle(Project bootstrapProject, Project toolingProject, Project instrumentationProject, MuzzleDirective muzzleDirective = null) {
-    workerExecutor.noIsolation().submit(MuzzleAction.class, parameters -> {
+  void assertMuzzle(Project bootstrapProject,
+                    Project toolingProject,
+                    Project instrumentationProject,
+                    MuzzleDirective muzzleDirective = null)
+  {
+    def workQueue
+    String javaVersion = muzzleDirective?.javaVersion
+    if (javaVersion) {
+      def javaLauncher = javaToolchainService.launcherFor { spec ->
+        spec.languageVersion.set(JavaLanguageVersion.of(javaVersion))
+      }.get()
+      workQueue = workerExecutor.processIsolation { spec ->
+        spec.forkOptions { fork ->
+          fork.executable = javaLauncher.executablePath
+        }
+      }
+    } else {
+      workQueue = workerExecutor.noIsolation()
+    }
+    workQueue.submit(MuzzleAction.class, parameters -> {
+      parameters.buildStartedTime.set(invocationDetails.buildStartedTime)
       parameters.bootstrapClassPath.setFrom(MuzzlePlugin.createAgentClassPath(bootstrapProject))
       parameters.toolingClassPath.setFrom(MuzzlePlugin.createAgentClassPath(toolingProject))
       parameters.instrumentationClassPath.setFrom(MuzzlePlugin.createAgentClassPath(instrumentationProject))
@@ -562,8 +592,6 @@ abstract class MuzzleTask extends DefaultTask {
     })
   }
 
-
-
   void printMuzzle(Project instrumentationProject) {
     FileCollection cp = instrumentationProject.sourceSets.main.runtimeClasspath
     ClassLoader cl = new URLClassLoader(cp*.toURI()*.toURL() as URL[], null as ClassLoader)
@@ -574,6 +602,7 @@ abstract class MuzzleTask extends DefaultTask {
 }
 
 interface MuzzleWorkParameters extends WorkParameters {
+  Property<Long> getBuildStartedTime()
   ConfigurableFileCollection getBootstrapClassPath()
   ConfigurableFileCollection getToolingClassPath()
   ConfigurableFileCollection getInstrumentationClassPath()
@@ -584,22 +613,20 @@ interface MuzzleWorkParameters extends WorkParameters {
 
 abstract class MuzzleAction implements WorkAction<MuzzleWorkParameters> {
   private static final Object lock = new Object()
-  private static volatile ClassLoader bootCL
-  private static volatile ClassLoader toolCL
+  private static ClassLoader bootCL
+  private static ClassLoader toolCL
+  private static volatile long lastBuildStamp
 
   @Override
   void execute() {
-    if (!bootCL) {
+    // reset shared class-loaders each time a new build starts
+    long buildStamp = parameters.buildStartedTime.get()
+    if (lastBuildStamp < buildStamp || !bootCL || !toolCL) {
       synchronized (lock) {
-        if (!bootCL) {
+        if (lastBuildStamp < buildStamp || !bootCL || !toolCL) {
           bootCL = createClassLoader(parameters.bootstrapClassPath)
-        }
-      }
-    }
-    if (!toolCL) {
-      synchronized (lock) {
-        if (!toolCL) {
           toolCL = createClassLoader(parameters.toolingClassPath, bootCL)
+          lastBuildStamp = buildStamp
         }
       }
     }
