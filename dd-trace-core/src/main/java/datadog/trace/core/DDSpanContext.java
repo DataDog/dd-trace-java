@@ -3,6 +3,7 @@ package datadog.trace.core;
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
@@ -308,6 +309,16 @@ public class DDSpanContext
     if (samplingPriority != PrioritySampling.UNSET) {
       setSamplingPriority(samplingPriority, SamplingMechanism.UNKNOWN);
     }
+    syncTraceId();
+  }
+
+  /** Ensure {@link #traceId} and {@link #propagationTags} are synced. */
+  private void syncTraceId() {
+    String traceIdHighOrderBitsHex = null;
+    if (this.traceId instanceof DD128bTraceId) {
+      traceIdHighOrderBitsHex = ((DD128bTraceId) this.traceId).getHighOrderBitsHex();
+    }
+    this.propagationTags.updateTraceIdHighOrderBitsHex(traceIdHighOrderBitsHex);
   }
 
   @Override

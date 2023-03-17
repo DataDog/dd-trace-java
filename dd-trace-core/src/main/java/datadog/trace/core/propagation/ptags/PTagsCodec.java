@@ -14,6 +14,7 @@ abstract class PTagsCodec {
   private static final String PROPAGATION_ERROR_DISABLED = "disabled";
 
   protected static final TagKey DECISION_MAKER_TAG = TagKey.from("dm");
+  protected static final TagKey TRACE_ID_TAG = TagKey.from("tid");
   protected static final TagKey UPSTREAM_SERVICES_DEPRECATED_TAG = TagKey.from("upstream_services");
 
   static String headerValue(PTagsCodec codec, PTags ptags) {
@@ -28,6 +29,9 @@ abstract class PTagsCodec {
     if (!ptags.isPropagationTagsDisabled()) {
       if (ptags.getDecisionMakerTagValue() != null) {
         size = codec.appendTag(sb, DECISION_MAKER_TAG, ptags.getDecisionMakerTagValue(), size);
+      }
+      if (ptags.getTraceIdHighOrderBitsHexTagValue() != null) {
+        size = codec.appendTag(sb, TRACE_ID_TAG, ptags.getTraceIdHighOrderBitsHexTagValue(), size);
       }
       Iterator<TagElement> it = ptags.getTagPairs().iterator();
       while (it.hasNext() && !codec.isTooLarge(sb, size)) {

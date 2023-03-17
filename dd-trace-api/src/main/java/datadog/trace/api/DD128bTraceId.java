@@ -148,6 +148,17 @@ public class DD128bTraceId implements DDTraceId {
     return this.lowOrderBits & L63BITS_MASK;
   }
 
+  /**
+   * Get the high-order 64 bits of the 128-bit trace id.
+   *
+   * @return The high-order 64 bits of the 128-bit trace id.
+   */
+  public String getHighOrderBitsHex() { // TODO Review API to add it to interface?
+    return this.highOrderBits == 0
+        ? null
+        : DDId.toHexStringPadded(this.highOrderBits, 16); // TODO Cache?
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;

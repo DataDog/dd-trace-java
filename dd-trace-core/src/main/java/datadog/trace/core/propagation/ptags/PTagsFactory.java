@@ -4,6 +4,7 @@ import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.DECISION_MAKER_TAG;
 
+import datadog.trace.api.internal.util.HexStringUtils;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.core.propagation.PropagationTags;
@@ -78,6 +79,13 @@ public class PTagsFactory implements PropagationTags.Factory {
     private volatile int samplingPriority;
     private volatile CharSequence origin;
     private volatile String[] headerCache = null;
+    /** The high-order 64 bits of the trace id. */
+    private volatile long traceIdHighOrderBits;
+    /**
+     * The zero-padded lower-case 16 character hexadecimal representation of the high-order 64 bits
+     * of the trace id, wrapped into a {@link TagValue}, <code>null</code> if not set.
+     */
+    private volatile TagValue traceIdHighOrderBitsHexTagValue;
 
     public PTags(PTagsFactory factory, List<TagElement> tagPairs, TagValue decisionMakerTagValue) {
       this(factory, tagPairs, decisionMakerTagValue, PrioritySampling.UNSET, null);
@@ -159,6 +167,22 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
+    public long getTraceIdHighOrderBits() {
+      return traceIdHighOrderBits;
+    }
+
+    public void updateTraceIdHighOrderBitsHex(String hex) {
+      if (hex == null) {
+        traceIdHighOrderBits = 0;
+        traceIdHighOrderBitsHexTagValue = null;
+      } else {
+        traceIdHighOrderBits = HexStringUtils.parseUnsignedLongHex(hex, 0, hex.length(), true);
+        traceIdHighOrderBitsHexTagValue = TagValue.from(hex);
+      }
+    }
+
+    @Override
+    @SuppressWarnings("StringEquality")
     @SuppressFBWarnings("ES_COMPARING_STRINGS_WITH_EQ")
     public String headerValue(HeaderType headerType) {
       String header = getCachedHeader(headerType);
@@ -233,6 +257,10 @@ public class PTagsFactory implements PropagationTags.Factory {
         xDatadogTagsSize = size;
       }
       return size;
+    }
+
+    TagValue getTraceIdHighOrderBitsHexTagValue() {
+      return traceIdHighOrderBitsHexTagValue;
     }
 
     TagValue getDecisionMakerTagValue() {
