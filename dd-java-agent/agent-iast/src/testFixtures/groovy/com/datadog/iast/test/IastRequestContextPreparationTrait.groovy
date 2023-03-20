@@ -19,12 +19,10 @@ import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.slf4j.event.Level
 
 import java.util.function.BiFunction
 import java.util.function.Supplier
 
-import static ch.qos.logback.classic.Level.DEBUG
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
 
 trait IastRequestContextPreparationTrait {
