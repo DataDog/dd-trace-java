@@ -64,9 +64,7 @@ public abstract class PropagationTags {
 
   public abstract long getTraceIdHighOrderBits();
 
-  // TODO highOrderBits is a long, converted into a String, concerted back into long in child class
-  // TODO because DDId is not accessible outside package
-  public abstract void updateTraceIdHighOrderBitsHex(String hex);
+  public abstract void updateTraceIdHighOrderBits(long highOrderBits);
 
   /**
    * Constructs a header value that includes valid propagated _dd.p.* tags and possibly a new

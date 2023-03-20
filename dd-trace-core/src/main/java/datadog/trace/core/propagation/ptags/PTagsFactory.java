@@ -4,6 +4,7 @@ import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.DECISION_MAKER_TAG;
 
+import datadog.trace.api.DDId;
 import datadog.trace.api.internal.util.HexStringUtils;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -44,7 +45,7 @@ public class PTagsFactory implements PropagationTags.Factory {
 
   @Override
   public final PropagationTags empty() {
-    return createValid(null, null);
+    return createValid(null, null, null);
   }
 
   @Override
@@ -52,8 +53,9 @@ public class PTagsFactory implements PropagationTags.Factory {
     return DEC_ENC_MAP.get(headerType).fromHeaderValue(this, value);
   }
 
-  PropagationTags createValid(List<TagElement> tagPairs, TagValue decisionMakerTagValue) {
-    return new PTags(this, tagPairs, decisionMakerTagValue);
+  PropagationTags createValid(
+      List<TagElement> tagPairs, TagValue decisionMakerTagValue, TagValue traceIdTagValue) {
+    return new PTags(this, tagPairs, decisionMakerTagValue, traceIdTagValue);
   }
 
   PropagationTags createInvalid(String error) {
@@ -87,14 +89,19 @@ public class PTagsFactory implements PropagationTags.Factory {
      */
     private volatile TagValue traceIdHighOrderBitsHexTagValue;
 
-    public PTags(PTagsFactory factory, List<TagElement> tagPairs, TagValue decisionMakerTagValue) {
-      this(factory, tagPairs, decisionMakerTagValue, PrioritySampling.UNSET, null);
+    public PTags(
+        PTagsFactory factory,
+        List<TagElement> tagPairs,
+        TagValue decisionMakerTagValue,
+        TagValue traceIdTagValue) {
+      this(factory, tagPairs, decisionMakerTagValue, traceIdTagValue, PrioritySampling.UNSET, null);
     }
 
     PTags(
         PTagsFactory factory,
         List<TagElement> tagPairs,
         TagValue decisionMakerTagValue,
+        TagValue traceIdTagValue,
         int samplingPriority,
         CharSequence origin) {
       assert tagPairs == null || tagPairs.size() % 2 == 0;
@@ -104,6 +111,13 @@ public class PTagsFactory implements PropagationTags.Factory {
       this.decisionMakerTagValue = decisionMakerTagValue;
       this.samplingPriority = samplingPriority;
       this.origin = origin;
+      if (traceIdTagValue != null) {
+        CharSequence traceIdHighOrderBitsHex = traceIdTagValue.forType(TagElement.Encoding.DATADOG);
+        this.traceIdHighOrderBits =
+            HexStringUtils.parseUnsignedLongHex(
+                traceIdHighOrderBitsHex, 0, traceIdHighOrderBitsHex.length(), true);
+      }
+      this.traceIdHighOrderBitsHexTagValue = traceIdTagValue;
     }
 
     @Override
@@ -171,13 +185,10 @@ public class PTagsFactory implements PropagationTags.Factory {
       return traceIdHighOrderBits;
     }
 
-    public void updateTraceIdHighOrderBitsHex(String hex) {
-      if (hex == null) {
-        traceIdHighOrderBits = 0;
-        traceIdHighOrderBitsHexTagValue = null;
-      } else {
-        traceIdHighOrderBits = HexStringUtils.parseUnsignedLongHex(hex, 0, hex.length(), true);
-        traceIdHighOrderBitsHexTagValue = TagValue.from(hex);
+    public void updateTraceIdHighOrderBits(long highOrderBits) {
+      if (traceIdHighOrderBits != highOrderBits) {
+        traceIdHighOrderBits = highOrderBits;
+        traceIdHighOrderBitsHexTagValue = TagValue.from(DDId.toHexStringPadded(highOrderBits, 16));
       }
     }
 
@@ -276,7 +287,7 @@ public class PTagsFactory implements PropagationTags.Factory {
     final String error;
 
     public PTagsWithError(PTagsFactory factory, String error) {
-      super(factory, null, null, PrioritySampling.UNSET, null);
+      super(factory, null, null, null, PrioritySampling.UNSET, null);
       this.error = error;
     }
 

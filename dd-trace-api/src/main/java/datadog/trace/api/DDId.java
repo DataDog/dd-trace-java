@@ -10,7 +10,7 @@ import java.util.Arrays;
  * Utility class with common parsing and {@code String} creation methods used for Trace and Span
  * ids.
  */
-final class DDId {
+public final class DDId {
 
   // Don't allow instances
   private DDId() {}
@@ -71,7 +71,7 @@ final class DDId {
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
   };
 
-  static String toHexStringPadded(long id, int size) {
+  public static String toHexStringPadded(long id, int size) {
     if (size > 16) {
       size = 32;
     } else if (size < 16) {

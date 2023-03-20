@@ -329,7 +329,7 @@ class W3CHttpCodec {
         context.propagationTags = factory.fromHeaderValue(PropagationTags.HeaderType.W3C, ts);
         // Ensure to clear any high-order bits
         // to prevent inconsistent value with the parsed 128-bit TraceId
-        context.propagationTags.updateTraceIdHighOrderBitsHex(null);
+        context.propagationTags.updateTraceIdHighOrderBits(0);
       }
       int ptagsPriority = context.propagationTags.getSamplingPriority();
       int contextPriority = context.samplingPriority;

@@ -674,7 +674,7 @@ public class W3CPTagsCodec extends PTagsCodec {
         int ddMemberStart,
         int ddMemberValueEnd,
         int maxUnknownSize) {
-      super(factory, tagPairs, decisionMakerTagValue, samplingPriority, origin);
+      super(factory, tagPairs, decisionMakerTagValue, null, samplingPriority, origin);
       this.original = original;
       this.firstMemberStart = firstMemberStart;
       this.ddMemberStart = ddMemberStart;

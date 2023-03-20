@@ -302,6 +302,11 @@ public class DDSpanContext
         propagationTags != null
             ? propagationTags
             : trace.getTracer().getPropagationTagsFactory().empty();
+    if (this.traceId
+        instanceof DD128bTraceId) { // TODO Add getHighOrderBits to the parent interface
+      this.propagationTags.updateTraceIdHighOrderBits(
+          ((DD128bTraceId) this.traceId).getHighOrderBits());
+    }
 
     if (origin != null) {
       setOrigin(origin);
@@ -309,16 +314,6 @@ public class DDSpanContext
     if (samplingPriority != PrioritySampling.UNSET) {
       setSamplingPriority(samplingPriority, SamplingMechanism.UNKNOWN);
     }
-    syncTraceId();
-  }
-
-  /** Ensure {@link #traceId} and {@link #propagationTags} are synced. */
-  private void syncTraceId() {
-    String traceIdHighOrderBitsHex = null;
-    if (this.traceId instanceof DD128bTraceId) {
-      traceIdHighOrderBitsHex = ((DD128bTraceId) this.traceId).getHighOrderBitsHex();
-    }
-    this.propagationTags.updateTraceIdHighOrderBitsHex(traceIdHighOrderBitsHex);
   }
 
   @Override

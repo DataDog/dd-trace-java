@@ -128,6 +128,8 @@ abstract class PTagsCodec {
   protected static boolean validateTagValue(TagKey tagKey, TagValue tagValue) {
     if (tagKey.equals(DECISION_MAKER_TAG) && !validateDecisionMakerTag(tagValue)) {
       return false;
+    } else if (tagKey.equals(TRACE_ID_TAG) && !validateTraceId(tagValue)) {
+      return false;
     }
     return true;
   }
@@ -170,6 +172,20 @@ abstract class PTagsCodec {
     for (int i = samplingMechanismPos; i < len; i++) {
       if (!isDigit(value.charAt(i))) {
         // invalid sampling mechanism
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static boolean validateTraceId(TagValue value) {
+    // invalid length
+    if (value.length() != 16) {
+      return false;
+    }
+    for (int i = 0; i < 16; i++) {
+      // invalid trace id character
+      if (!isHexDigit(value.charAt(i))) {
         return false;
       }
     }

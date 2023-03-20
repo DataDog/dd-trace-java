@@ -119,8 +119,7 @@ class DDTraceIdTest extends DDSpecification {
     parsedId.toHexStringPadded(16) == paddedHexId.substring(16, 32)
     parsedId.toHexStringPadded(32) == paddedHexId
     parsedId.toLong() == low
-    // parsedId.getHighOrderBitsHex() == high // TODO Test number instead
-    parsedId.getHighOrderBitsHex() == (high == 0 ? null : DDId.toHexStringPadded(high, 16))
+    parsedId.getHighOrderBits() == high
     parsedId.toString() == Long.toUnsignedString(low)
 
     where:
@@ -145,7 +144,7 @@ class DDTraceIdTest extends DDSpecification {
     1311768467463790320L | 1311768467463790320L | "123456789abcdef0123456789abcdef0"
   }
 
-  def "fail parsing illegal 126-bits id hexadecimal String representation: #hexId"() {
+  def "fail parsing illegal 128-bits id hexadecimal String representation: #hexId"() {
     when:
     DD128bTraceId.fromHex(hexId)
 

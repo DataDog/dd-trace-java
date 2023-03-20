@@ -14,7 +14,7 @@ public class HexStringUtils {
    * @return long
    * @throws NumberFormatException
    */
-  public static long parseUnsignedLongHex(String s, int start, int len, boolean lowerCaseOnly)
+  public static long parseUnsignedLongHex(CharSequence s, int start, int len, boolean lowerCaseOnly)
       throws NumberFormatException {
     if (s == null) {
       throw new NumberFormatException("null");
@@ -37,7 +37,7 @@ public class HexStringUtils {
         result = result << 4 | d;
       }
       if (ok < 0) {
-        throw new NumberFormatException("Illegal character in " + s.substring(start, len));
+        throw new NumberFormatException("Illegal character in " + s.subSequence(start, len));
       }
       return result;
     } else {
@@ -45,7 +45,7 @@ public class HexStringUtils {
     }
   }
 
-  private static int firstNonZeroCharacter(String s, int start) {
+  private static int firstNonZeroCharacter(CharSequence s, int start) {
     int firstNonZero = start;
     for (; firstNonZero < s.length(); firstNonZero++) {
       if (s.charAt(firstNonZero) != '0') break;
@@ -59,7 +59,7 @@ public class HexStringUtils {
    * @param s the {@code String} that exceeds the range of a {@code Long}
    * @return NumberFormatException
    */
-  public static NumberFormatException numberFormatOutOfLongRange(String s) {
+  public static NumberFormatException numberFormatOutOfLongRange(CharSequence s) {
     return new NumberFormatException(
         String.format("String value %s exceeds range of unsigned long.", s));
   }

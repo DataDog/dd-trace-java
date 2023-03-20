@@ -1,6 +1,8 @@
 package datadog.trace.core.propagation
 
+import datadog.trace.api.DD128bTraceId
 import datadog.trace.api.DD64bTraceId
+import datadog.trace.api.DDId
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.config.TracerConfig
@@ -12,6 +14,7 @@ import datadog.trace.test.util.DDSpecification
 
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
+import static datadog.trace.core.propagation.DatadogHttpCodec.DATADOG_TAGS_KEY
 import static datadog.trace.core.propagation.DatadogHttpCodec.ORIGIN_KEY
 import static datadog.trace.core.propagation.DatadogHttpCodec.OT_BAGGAGE_PREFIX
 import static datadog.trace.core.propagation.DatadogHttpCodec.SAMPLING_PRIORITY_KEY
@@ -227,6 +230,40 @@ class DatadogHttpExtractorTest extends DDSpecification {
     ctx != null
     ctx.XForwardedFor == '::1'
     ctx.customIpHeader == '8.8.8.8'
+  }
+
+  def "extract http headers with 128-bit trace ID"() {
+    setup:
+    def headers = [
+      (TRACE_ID_KEY.toUpperCase())            : traceId.toString(),
+      (SPAN_ID_KEY.toUpperCase())             : "2",
+      (OT_BAGGAGE_PREFIX.toUpperCase() + "k1"): "v1",
+      (OT_BAGGAGE_PREFIX.toUpperCase() + "k2"): "v2",
+      SOME_HEADER                             : "my-interesting-info"
+    ] + additionalHeader
+
+    when:
+    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+
+    then:
+    context.traceId == expectedTraceId
+    context.spanId == DDSpanId.from("2")
+    context.baggage == ["k1": "v1",
+      "k2": "v2"]
+    context.tags == ["some-tag": "my-interesting-info"]
+
+    where:
+    hexId << [
+      "1",
+      "123456789abcdef0",
+      "123456789abcdef0123456789abcdef0",
+      "64184f2400000000123456789abcdef0",
+      "f" * 32
+    ]
+    traceId = DD128bTraceId.fromHex(hexId)
+    is128bTrace = traceId.getHighOrderBits() != 0
+    expectedTraceId = is128bTrace ? traceId : DD64bTraceId.from(traceId.toLong())
+    additionalHeader = is128bTrace ? [(DATADOG_TAGS_KEY.toUpperCase()) : '_dd.p.tid=' + DDId.toHexStringPadded(traceId.getHighOrderBits(), 16)] : [:]
   }
 
   def "extract http headers with invalid non-numeric ID"() {
