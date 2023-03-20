@@ -119,6 +119,8 @@ public class CapturedSnapshotTest {
     assertCaptureArgs(snapshot.getCaptures().getEntry(), "arg", "java.lang.String", "1");
     assertCaptureArgs(snapshot.getCaptures().getReturn(), "arg", "java.lang.String", "1");
     Assertions.assertTrue(snapshot.getDuration() > 0);
+    Assertions.assertTrue(snapshot.getStack().size() > 0);
+    Assertions.assertEquals("CapturedSnapshot01.main", snapshot.getStack().get(0).getFunction());
   }
 
   @Test
@@ -135,6 +137,8 @@ public class CapturedSnapshotTest {
     Assertions.assertEquals(1, snapshot.getCaptures().getLines().size());
     assertCaptureArgs(snapshot.getCaptures().getLines().get(8), "arg", "java.lang.String", "1");
     assertCaptureLocals(snapshot.getCaptures().getLines().get(8), "var1", "int", "1");
+    Assertions.assertTrue(snapshot.getStack().size() > 0);
+    Assertions.assertEquals("CapturedSnapshot01.java", snapshot.getStack().get(0).getFileName());
   }
 
   @Test

@@ -163,6 +163,9 @@ public class Snapshot {
   }
 
   public void addEvaluationErrors(List<EvaluationError> errors) {
+    if (errors == null || errors.isEmpty()) {
+      return;
+    }
     if (evaluationErrors == null) {
       evaluationErrors = new ArrayList<>();
     }
@@ -188,8 +191,9 @@ public class Snapshot {
      * - Thread.currentThread().getStackTrace()
      * - Snapshot.recordStackTrace()
      * - Snapshot.commit()
+     * - DebuggerContext.commit() or DebuggerContext.evalAndCommit()
      */
-    recordStackTrace(3);
+    recordStackTrace(4);
     DebuggerContext.addSnapshot(this);
   }
 
@@ -799,30 +803,30 @@ public class Snapshot {
         long startTimestamp,
         MethodLocation methodLocation) {
       Status status = statusByProbeId.computeIfAbsent(probeId, key -> new Status(probeDetails));
-      boolean shouldEvaluate = resolveEvaluateAt(probeDetails, methodLocation);
-      if (shouldEvaluate) {
-        switch (methodLocation) {
-          case ENTRY:
-            probeDetails.getSummaryBuilder().addEntry(this);
-            break;
-          case EXIT:
-            probeDetails.getSummaryBuilder().addExit(this);
-            break;
-          case DEFAULT:
-            probeDetails.getSummaryBuilder().addLine(this);
-            break;
-        }
-      }
-      status.hasLogTemplateErrors = handleEvalErrors(status.errors);
-      this.thisClassName = thisClassName;
       if (methodLocation == MethodLocation.EXIT) {
         this.duration = System.nanoTime() - startTimestamp;
         addExtension(ValueReferences.DURATION_EXTENSION_NAME, duration);
       }
+      boolean shouldEvaluate = resolveEvaluateAt(probeDetails, methodLocation);
       if (shouldEvaluate) {
         status.condition = executeScript(probeDetails.getScript(), this, probeId);
+        status.hasConditionErrors = handleEvalErrors(status.errors);
+        if (status.condition) {
+          switch (methodLocation) {
+            case ENTRY:
+              probeDetails.getSummaryBuilder().addEntry(this);
+              break;
+            case EXIT:
+              probeDetails.getSummaryBuilder().addExit(this);
+              break;
+            case DEFAULT:
+              probeDetails.getSummaryBuilder().addLine(this);
+              break;
+          }
+          status.hasLogTemplateErrors = handleEvalErrors(status.errors);
+        }
       }
-      status.hasConditionErrors = handleEvalErrors(status.errors);
+      this.thisClassName = thisClassName;
       if (probeDetails.isSnapshotProbe() && status.shouldSend()) {
         freeze();
       }

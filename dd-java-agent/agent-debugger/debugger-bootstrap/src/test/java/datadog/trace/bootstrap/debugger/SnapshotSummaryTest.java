@@ -159,13 +159,18 @@ public class SnapshotSummaryTest {
         getClass().getTypeName(),
         -1,
         Snapshot.MethodLocation.DEFAULT);
-    snapshot.commit();
+    commit(snapshot);
 
     // this is intentionally different from PROBE_DETAILS, the stacktrace should take precedence
     assertEquals(
         "SnapshotSummaryTest.testSummaryLineSnapshot(arg1=this is a string, arg2=42)\n"
             + "i=1001, list=[1, 2, 3], str=this is a local string",
         snapshot.buildSummary());
+  }
+
+  // used for increasing the stack level for the getting the excepted stack trace
+  private static void commit(Snapshot snapshot) {
+    snapshot.commit();
   }
 
   @Test

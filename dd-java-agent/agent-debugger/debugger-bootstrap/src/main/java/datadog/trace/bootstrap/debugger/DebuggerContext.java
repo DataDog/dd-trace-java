@@ -239,7 +239,10 @@ public class DebuggerContext {
       }
       context.evaluate(
           probeId, probeDetails, callingClass.getTypeName(), -1, Snapshot.MethodLocation.DEFAULT);
-      commit(context, line, probeDetails);
+      Snapshot snapshot = prepareForCommit(context, line, probeDetails);
+      if (snapshot != null) {
+        snapshot.commit();
+      }
     }
   }
 
@@ -250,7 +253,6 @@ public class DebuggerContext {
   public static void commit(
       Snapshot.CapturedContext entryContext,
       Snapshot.CapturedContext exitContext,
-      Class<?> callingClass,
       List<Snapshot.CapturedThrowable> caughtExceptions,
       String... probeIds) {
     if (entryContext == Snapshot.CapturedContext.EMPTY_CONTEXT
@@ -271,6 +273,8 @@ public class DebuggerContext {
       } else {
         throw new IllegalStateException("no probe details");
       }
+      boolean shouldCommit = false;
+      Snapshot snapshot = new Snapshot(Thread.currentThread(), probeDetails);
       if (entryStatus.shouldSend() && exitStatus.shouldSend()) {
         // only rate limit if a condition is defined
         if (probeDetails.getScript() != null) {
@@ -279,24 +283,23 @@ public class DebuggerContext {
             continue;
           }
         }
-        Snapshot snapshot = new Snapshot(Thread.currentThread(), probeDetails);
         if (probeDetails.isCaptureSnapshot()) {
           snapshot.setEntry(entryContext);
           snapshot.setExit(exitContext);
         }
         snapshot.setDuration(exitContext.getDuration());
         snapshot.addCaughtExceptions(caughtExceptions);
-        if (entryStatus.shouldReportError()) {
-          snapshot.addEvaluationErrors(entryStatus.errors);
-        }
-        if (exitStatus.shouldReportError()) {
-          snapshot.addEvaluationErrors(exitStatus.errors);
-        }
-        snapshot.commit();
-      } else if (entryStatus.shouldReportError() || exitStatus.shouldReportError()) {
-        Snapshot snapshot = new Snapshot(Thread.currentThread(), probeDetails);
+        shouldCommit = true;
+      }
+      if (entryStatus.shouldReportError()) {
         snapshot.addEvaluationErrors(entryStatus.errors);
+        shouldCommit = true;
+      }
+      if (exitStatus.shouldReportError()) {
         snapshot.addEvaluationErrors(exitStatus.errors);
+        shouldCommit = true;
+      }
+      if (shouldCommit) {
         snapshot.commit();
       } else {
         DebuggerContext.skipSnapshot(probeId, DebuggerContext.SkipCause.CONDITION);
@@ -305,30 +308,35 @@ public class DebuggerContext {
   }
 
   /** Commit snapshot based on line context and the current probe This is for line probes */
-  private static void commit(
+  private static Snapshot prepareForCommit(
       Snapshot.CapturedContext lineContext, int line, Snapshot.ProbeDetails probeDetails) {
     Snapshot.CapturedContext.Status status = lineContext.getStatus(probeDetails.getId());
     if (status == null) {
-      return;
+      return null;
     }
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), probeDetails);
+    boolean shouldCommit = false;
     if (status.shouldSend()) {
       // only rate limit if a condition is defined
       if (probeDetails.getScript() != null) {
         if (!ProbeRateLimiter.tryProbe(probeDetails.getId())) {
           DebuggerContext.skipSnapshot(probeDetails.getId(), DebuggerContext.SkipCause.RATE);
-          return;
+          return null;
         }
       }
-      Snapshot snapshot = new Snapshot(Thread.currentThread(), probeDetails);
       if (probeDetails.isSnapshotProbe()) {
         snapshot.addLine(lineContext, line);
       }
-      if (status.shouldReportError()) {
-        snapshot.addEvaluationErrors(status.errors);
-      }
-      snapshot.commit();
-    } else {
-      DebuggerContext.skipSnapshot(probeDetails.getId(), DebuggerContext.SkipCause.CONDITION);
+      shouldCommit = true;
     }
+    if (status.shouldReportError()) {
+      snapshot.addEvaluationErrors(status.errors);
+      shouldCommit = true;
+    }
+    if (shouldCommit) {
+      return snapshot;
+    }
+    DebuggerContext.skipSnapshot(probeDetails.getId(), DebuggerContext.SkipCause.CONDITION);
+    return null;
   }
 }
