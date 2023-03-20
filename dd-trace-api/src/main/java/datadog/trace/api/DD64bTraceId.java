@@ -113,4 +113,9 @@ public class DD64bTraceId implements DDTraceId {
   public long toLong() {
     return this.id;
   }
+
+  @Override
+  public long getHighOrderBits() {
+    return 0;
+  }
 }

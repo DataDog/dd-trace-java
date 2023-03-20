@@ -91,7 +91,7 @@ class DDTraceIdTest extends DDSpecification {
 
   def "fail parsing illegal 64-bit hexadecimal String representation: #hexId"() {
     when:
-    DDTraceId.fromHex(hexId)
+    DD64bTraceId.fromHex(hexId)
 
     then:
     thrown NumberFormatException

@@ -23,7 +23,7 @@ public class DD128bTraceId implements DDTraceId {
   /** Represents the low-order 64 bits of the 128-bit trace id. */
   private final long lowOrderBits;
   /**
-   * The lower-case, zero-padded, 32 hexadecimal character {@link String} representation of the
+   * The lower-case, zero-padded, 32 hexadecimal characters {@link String} representation of the
    * {@link DDTraceId} instance.
    */
   private String hexStr;
@@ -109,6 +109,13 @@ public class DD128bTraceId implements DDTraceId {
     return new DD128bTraceId(highOrderBits, lowOrderBits, str);
   }
 
+  /**
+   * Returns the lower-case zero-padded 32 hexadecimal characters {@link String} representation of
+   * the {@link DD128bTraceId}.
+   *
+   * @return A lower-case zero-padded 32 hexadecimal characters {@link String} representation of the
+   *     {@link DD128bTraceId} instance.
+   */
   @Override
   public String toHexString() {
     String hexString = this.hexStr;
@@ -132,18 +139,13 @@ public class DD128bTraceId implements DDTraceId {
   }
 
   @Override
-  @Deprecated
   public long toLong() {
     // Return only 63-bit of LSB
     return this.lowOrderBits & L63BITS_MASK;
   }
 
-  /**
-   * Get the high-order 64 bits of the 128-bit trace id.
-   *
-   * @return The high-order 64 bits of the 128-bit trace id.
-   */
-  public long getHighOrderBits() { // TODO Review API to add it to interface?
+  @Override
+  public long getHighOrderBits() {
     return this.highOrderBits;
   }
 

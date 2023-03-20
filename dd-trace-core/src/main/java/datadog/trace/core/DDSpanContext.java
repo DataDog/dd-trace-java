@@ -3,7 +3,6 @@ package datadog.trace.core;
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
@@ -302,11 +301,7 @@ public class DDSpanContext
         propagationTags != null
             ? propagationTags
             : trace.getTracer().getPropagationTagsFactory().empty();
-    if (this.traceId
-        instanceof DD128bTraceId) { // TODO Add getHighOrderBits to the parent interface
-      this.propagationTags.updateTraceIdHighOrderBits(
-          ((DD128bTraceId) this.traceId).getHighOrderBits());
-    }
+    this.propagationTags.updateTraceIdHighOrderBits(this.traceId.getHighOrderBits());
 
     if (origin != null) {
       setOrigin(origin);
