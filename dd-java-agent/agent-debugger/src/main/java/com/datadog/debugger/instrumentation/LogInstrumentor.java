@@ -15,7 +15,6 @@ import static org.objectweb.asm.Type.BOOLEAN_TYPE;
 import static org.objectweb.asm.Type.INT_TYPE;
 import static org.objectweb.asm.Type.LONG_TYPE;
 import static org.objectweb.asm.Type.VOID_TYPE;
-import static org.objectweb.asm.Type.getObjectType;
 import static org.objectweb.asm.Type.getType;
 
 import com.datadog.debugger.probe.LogProbe;
@@ -203,16 +202,14 @@ public final class LogInstrumentor extends Instrumentor {
     // stack [capturedcontext]
     getContext(insnList, exitContextVar);
     // stack [capturedcontext, capturedcontext]
-    ldc(insnList, getObjectType(classNode.name));
-    // stack [capturedcontext, capturedcontext, class]
     if (throwableListVar != -1) {
       insnList.add(new VarInsnNode(Opcodes.ALOAD, throwableListVar));
     } else {
       insnList.add(new InsnNode(Opcodes.ACONST_NULL));
     }
-    // stack [capturedcontext, capturedcontext, class, list]
+    // stack [capturedcontext, capturedcontext, list]
     pushProbesIds(insnList);
-    // stack [capturedcontext, capturedcontext, class, array]
+    // stack [capturedcontext, capturedcontext, array]
     invokeStatic(
         insnList,
         DEBUGGER_CONTEXT_TYPE,
@@ -220,7 +217,6 @@ public final class LogInstrumentor extends Instrumentor {
         VOID_TYPE,
         CAPTURED_CONTEXT_TYPE,
         CAPTURED_CONTEXT_TYPE,
-        CLASS_TYPE,
         getType(List.class),
         getType(String[].class));
     // stack []

@@ -318,12 +318,12 @@ public class DebuggerSinkTest {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     DebuggerContext.init(sink, null, null);
     Snapshot.CapturedContext entry = new Snapshot.CapturedContext();
-    Snapshot snapshot =
-        new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
+    Snapshot.ProbeDetails probeDetails = new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION);
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), probeDetails);
     snapshot.setEntry(entry);
     snapshot.addEvaluationErrors(
         Arrays.asList(new Snapshot.EvaluationError("obj.field", "Cannot dereference obj")));
-    snapshot.commit();
+    commit(snapshot);
     snapshot.getStack().clear();
     String fixtureContent =
         getFixtureContent(SINK_FIXTURE_PREFIX + "/snapshotWithEvalErrorRegex.txt");
@@ -332,6 +332,11 @@ public class DebuggerSinkTest {
     verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
     String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
     assertTrue(strPayload.matches(regex), strPayload);
+  }
+
+  // used for increasing the stack level for the getting the excepted stack trace
+  private static void commit(Snapshot snapshot) {
+    snapshot.commit();
   }
 
   @Test
