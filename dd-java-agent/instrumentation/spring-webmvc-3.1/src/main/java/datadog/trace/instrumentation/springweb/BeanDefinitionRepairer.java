@@ -17,7 +17,7 @@ public final class BeanDefinitionRepairer {
 
   public static boolean isDatadogBean(BeanDefinition beanDefinition) {
     String className = beanDefinition.getBeanClassName();
-    return null != className && null != ddBeanClasses.get(className);
+    return null != className && ddBeanClasses.containsKey(className);
   }
 
   public static void repair(RootBeanDefinition beanDefinition) {
