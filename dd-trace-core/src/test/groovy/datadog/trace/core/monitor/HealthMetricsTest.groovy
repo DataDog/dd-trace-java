@@ -72,14 +72,42 @@ class HealthMetricsTest extends DDSpecification {
     // spotless:on
   }
 
-  def "test onFailedPublish"() {
+  def "test onFailedPublish - no USER_KEEP"() {
     setup:
     def latch = new CountDownLatch(1)
     def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
     healthMetrics.start()
 
     when:
-    healthMetrics.onFailedPublish(samplingPriority,_)
+    healthMetrics.onFailedPublish(samplingPriority,1)
+    latch.await(10, TimeUnit.SECONDS)
+
+    then:
+    1 * statsD.count('queue.dropped.traces', 1, _)
+    1 * statsD.count('queue.dropped.spans', 1, _)
+    0 * _
+
+    cleanup:
+    healthMetrics.close()
+
+    where:
+    samplingPriority << [
+      PrioritySampling.SAMPLER_KEEP,
+      PrioritySampling.USER_DROP,
+      PrioritySampling.SAMPLER_DROP,
+      PrioritySampling.UNSET
+    ]
+  }
+
+  @Flaky
+  def "test onFailedPublish - USER_KEEP"() {
+    setup:
+    def latch = new CountDownLatch(1)
+    def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
+    healthMetrics.start()
+
+    when:
+    healthMetrics.onFailedPublish(samplingPriority,1)
     latch.await(10, TimeUnit.SECONDS)
 
     then:
@@ -90,13 +118,7 @@ class HealthMetricsTest extends DDSpecification {
     healthMetrics.close()
 
     where:
-    samplingPriority << [
-      PrioritySampling.SAMPLER_KEEP,
-      PrioritySampling.USER_KEEP,
-      PrioritySampling.USER_DROP,
-      PrioritySampling.SAMPLER_DROP,
-      PrioritySampling.UNSET
-    ]
+    samplingPriority << [PrioritySampling.USER_KEEP]
   }
 
   @Flaky
@@ -112,7 +134,7 @@ class HealthMetricsTest extends DDSpecification {
 
     then:
     1 * statsD.count('queue.partial.traces', 1)
-    1 * statsD.count('queue.dropped.spans', droppedSpans)
+    1 * statsD.count('queue.dropped.spans', droppedSpans, ['priority:sampler_drop'])
     0 * _
 
     cleanup:

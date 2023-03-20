@@ -128,7 +128,7 @@ class DDIntakeWriterTest extends DDCoreSpecification{
 
     then: "monitor is notified of unsuccessful publication"
     1 * worker.publish(_, _, trace) >> publishResult
-    1 * healthMetrics.onFailedPublish(_,_)
+    1 * healthMetrics.onFailedPublish(_,1)
     _ * worker.flush(1, TimeUnit.SECONDS)
     0 * _
 
@@ -141,7 +141,7 @@ class DDIntakeWriterTest extends DDCoreSpecification{
     writer.write([])
 
     then: "monitor is notified of unsuccessful publication"
-    1 * healthMetrics.onFailedPublish(_,_)
+    1 * healthMetrics.onFailedPublish(_,0)
     _ * worker.flush(1, TimeUnit.SECONDS)
     0 * _
   }
@@ -155,7 +155,7 @@ class DDIntakeWriterTest extends DDCoreSpecification{
     writer.write(trace)
 
     then:
-    1 * healthMetrics.onFailedPublish(_,_)
+    1 * healthMetrics.onFailedPublish(_,1)
     _ * worker.flush(1, TimeUnit.SECONDS)
     0 * _
   }

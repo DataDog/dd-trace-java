@@ -74,7 +74,15 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
       CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter finishedSpans =
       CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter failedPublishSpanCount =
+  private final FixedSizeStripedLongCounter samplerKeepFailedPublishSpanCount =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter userKeepFailedPublishSpanCount =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter userDropFailedPublishSpanCount =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter samplerDropFailedPublishSpanCount =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter unsetPriorityFailedPublishSpanCount =
       CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter sampledSpans =
       CountersFactory.createFixedSizeStripedCounter(8);
@@ -93,8 +101,6 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   private final FixedSizeStripedLongCounter scopeStackOverflow =
       CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter partialTraces =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter droppedSpans =
       CountersFactory.createFixedSizeStripedCounter(8);
   private final FixedSizeStripedLongCounter clientSpansWithoutContext =
       CountersFactory.createFixedSizeStripedCounter(8);
@@ -165,21 +171,25 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   @Override
   public void onFailedPublish(final int samplingPriority, final int spanCount) {
-    failedPublishSpanCount.inc(spanCount);
     switch (samplingPriority) {
       case USER_DROP:
+        userDropFailedPublishSpanCount.inc(spanCount);
         userDropDroppedTraces.inc();
         break;
       case USER_KEEP:
+        userKeepFailedPublishSpanCount.inc(spanCount);
         userKeepDroppedTraces.inc();
         break;
       case SAMPLER_DROP:
+        samplerDropFailedPublishSpanCount.inc(spanCount);
         samplerDropDroppedTraces.inc();
         break;
       case SAMPLER_KEEP:
+        samplerKeepFailedPublishSpanCount.inc(spanCount);
         samplerKeepDroppedTraces.inc();
         break;
       default:
+        unsetPriorityFailedPublishSpanCount.inc(spanCount);
         unsetPriorityDroppedTraces.inc();
     }
   }
@@ -187,7 +197,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   @Override
   public void onPartialPublish(final int numberOfDroppedSpans) {
     partialTraces.inc();
-    droppedSpans.inc(numberOfDroppedSpans);
+    samplerDropFailedPublishSpanCount.inc(numberOfDroppedSpans);
   }
 
   @Override
@@ -365,6 +375,31 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
           SERIAL_FAILED_TAG);
       reportIfChanged(
           target.statsd, "queue.dropped.traces", target.unsetPriorityDroppedTraces, UNSET_TAG);
+      reportIfChanged(
+          target.statsd,
+          "queue.dropped.spans",
+          target.unsetPriorityFailedPublishSpanCount,
+          UNSET_TAG);
+      reportIfChanged(
+          target.statsd,
+          "queue.dropped.spans",
+          target.samplerKeepFailedPublishSpanCount,
+          SAMPLER_KEEP_TAG);
+      reportIfChanged(
+          target.statsd,
+          "queue.dropped.spans",
+          target.samplerDropFailedPublishSpanCount,
+          SAMPLER_DROP_TAG);
+      reportIfChanged(
+          target.statsd,
+          "queue.dropped.spans",
+          target.userKeepFailedPublishSpanCount,
+          USER_KEEP_TAG);
+      reportIfChanged(
+          target.statsd,
+          "queue.dropped.spans",
+          target.userDropFailedPublishSpanCount,
+          USER_DROP_TAG);
       reportIfChanged(target.statsd, "queue.enqueued.spans", target.enqueuedSpans, NO_TAGS);
       reportIfChanged(target.statsd, "trace.pending.created", target.createdTraces, NO_TAGS);
       reportIfChanged(target.statsd, "span.pending.created", target.createdSpans, NO_TAGS);
@@ -375,9 +410,6 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
       reportIfChanged(
           target.statsd, "span.continuations.finished", target.finishedContinuations, NO_TAGS);
       reportIfChanged(target.statsd, "queue.partial.traces", target.partialTraces, NO_TAGS);
-      reportIfChanged(target.statsd, "queue.dropped.spans", target.droppedSpans, SAMPLER_DROP_TAG);
-      reportIfChanged(
-          target.statsd, "queue.dropped.spans", target.failedPublishSpanCount, PUBLISH_FAILED_TAG);
       reportIfChanged(
           target.statsd, "span.client.no-context", target.clientSpansWithoutContext, NO_TAGS);
       reportIfChanged(
