@@ -639,7 +639,7 @@ abstract class MuzzleAction implements WorkAction<MuzzleWorkParameters> {
     assertionMethod.invoke(null, instCL, testCL, assertPass, muzzleDirective)
   }
 
-  static ClassLoader createClassLoader(cp, parent = null) {
+  static ClassLoader createClassLoader(cp, parent = ClassLoader.systemClassLoader) {
     return new URLClassLoader(cp*.toURI()*.toURL() as URL[], parent as ClassLoader)
   }
 }
