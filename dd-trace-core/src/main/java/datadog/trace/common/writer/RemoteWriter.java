@@ -138,7 +138,7 @@ public abstract class RemoteWriter implements Writer {
   @Override
   public void close() {
     final boolean flushed = flush();
-    closed = true;R
+    closed = true;
     traceProcessingWorker.close();
     healthMetrics.onShutdown(flushed);
     healthMetrics.close();
