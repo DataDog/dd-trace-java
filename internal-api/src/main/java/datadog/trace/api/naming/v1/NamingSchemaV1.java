@@ -5,6 +5,7 @@ import datadog.trace.api.naming.NamingSchema;
 public class NamingSchemaV1 implements NamingSchema {
   private final NamingSchema.ForCache cacheNaming = new CacheNamingV1();
   private final NamingSchema.ForClient clientNaming = new ClientNamingV1();
+  private final NamingSchema.ForCloud cloudNaming = new CloudNamingV1();
   private final NamingSchema.ForDatabase databaseNaming = new DatabaseNamingV1();
   private final NamingSchema.ForMessaging messagingNaming = new MessagingNamingV1();
   private final NamingSchema.ForServer serverNaming = new ServerNamingV1();
@@ -17,6 +18,11 @@ public class NamingSchemaV1 implements NamingSchema {
   @Override
   public ForClient client() {
     return clientNaming;
+  }
+
+  @Override
+  public ForCloud cloud() {
+    return cloudNaming;
   }
 
   @Override
