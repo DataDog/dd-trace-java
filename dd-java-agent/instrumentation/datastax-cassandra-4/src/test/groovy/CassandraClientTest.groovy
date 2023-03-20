@@ -266,7 +266,7 @@ class CassandraClientV1ForkedTest extends CassandraClientTest {
 
   @Override
   String service() {
-    return Config.get().getServiceName() + "-cassandra"
+    return Config.get().getServiceName()
   }
 
   @Override

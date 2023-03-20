@@ -187,7 +187,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "java-jdbc-statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -255,7 +255,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "java-jdbc-prepared_statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -309,7 +309,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "java-jdbc-prepared_statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -363,7 +363,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "java-jdbc-prepared_statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -473,7 +473,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "java-jdbc-prepared_statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -541,7 +541,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
-          topLevel true
+          measured true
           tags {
             if (prepareStatement) {
               "$Tags.COMPONENT" "java-jdbc-prepared_statement"
@@ -659,7 +659,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "java-jdbc-statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -726,7 +726,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
           resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           errored false
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "java-jdbc-prepared_statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -831,7 +831,7 @@ class JDBCInstrumentationV1ForkedTest extends JDBCInstrumentationTest {
 
   @Override
   protected String service(String dbType) {
-    return Config.get().getServiceName() + "-${dbType}"
+    return Config.get().getServiceName()
   }
 
   @Override
