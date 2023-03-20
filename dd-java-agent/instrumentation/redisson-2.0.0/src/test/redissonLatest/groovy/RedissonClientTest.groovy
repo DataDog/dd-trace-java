@@ -82,7 +82,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "SET"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -123,7 +123,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "GET"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -147,7 +147,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "SET"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -188,7 +188,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "GET"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -229,7 +229,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "INCR"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -253,7 +253,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "PUBLISH"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -277,7 +277,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "PFADD"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -304,7 +304,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "PFADD"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -319,7 +319,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "PFCOUNT"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -343,7 +343,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "EVAL"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -367,7 +367,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "SADD"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -394,7 +394,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "SADD"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -409,7 +409,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "SREM"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -433,7 +433,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "RPUSH"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -459,7 +459,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "SET"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -489,7 +489,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "SET;GET"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -529,7 +529,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "SET;SET;GET;RPUSH;RPUSH;LRANGE"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -568,7 +568,7 @@ class RedissonClientV1ForkedTest extends RedissonClientTest {
 
   @Override
   String service() {
-    return datadog.trace.api.Config.get().getServiceName() + "-redis"
+    return datadog.trace.api.Config.get().getServiceName()
   }
 
   @Override

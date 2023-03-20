@@ -412,7 +412,7 @@ class Lettuce5AsyncClientV1ForkedTest extends Lettuce5AsyncClientTest {
 
   @Override
   String service() {
-    return Config.get().getServiceName() + "-redis"
+    return Config.get().getServiceName()
   }
 
   @Override

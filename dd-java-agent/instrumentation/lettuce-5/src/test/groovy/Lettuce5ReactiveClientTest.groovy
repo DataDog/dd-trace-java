@@ -587,7 +587,7 @@ class Lettuce5ReactiveClientV1ForkedTest extends Lettuce5ReactiveClientTest {
 
   @Override
   String service() {
-    return Config.get().getServiceName() + "-redis"
+    return Config.get().getServiceName()
   }
 
   @Override
