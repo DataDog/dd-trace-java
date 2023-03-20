@@ -9,25 +9,32 @@ import static datadog.trace.api.IdGenerationStrategy.Trace128bitStrategy.GENERAT
 import static datadog.trace.api.IdGenerationStrategy.Trace128bitStrategy.UNSUPPORTED
 
 class IdGenerationStrategyTest extends DDSpecification {
-  def "generate id with #strategyName"() {
+  def "generate id with #strategyName and #tIdSize bits"() {
     when:
-    def strategy = IdGenerationStrategy.fromName(strategyName)
+    def strategy = IdGenerationStrategy.fromName(strategyName, tId128b)
     def traceIds = (0..32768).collect { strategy.generateTraceId() }
     Set<DDTraceId> checked = new HashSet<>()
 
     then:
     traceIds.forEach { traceId ->
-      assert !traceId.equals(null)
-      assert !traceId.equals("foo")
-      assert traceId != DDTraceId.ZERO
-      assert traceId.equals(traceId)
+      assert traceId != null
+      assert !traceId.is(DDTraceId.ZERO)
+      assert traceId == traceId
       assert traceId.hashCode() == (int) (traceId.toLong() ^ (traceId.toLong() >>> 32))
       assert !checked.contains(traceId)
       checked.add(traceId)
     }
 
     where:
-    strategyName << ["RANDOM", "SEQUENTIAL", "SECURE_RANDOM"]
+    tId128b | strategyName
+    UNSUPPORTED   | "RANDOM"
+    UNSUPPORTED   | "SEQUENTIAL"
+    UNSUPPORTED   | "SECURE_RANDOM"
+    GENERATION    | "RANDOM"
+    GENERATION    | "SEQUENTIAL"
+    GENERATION    | "SECURE_RANDOM"
+
+    tIdSize = GENERATION ? 128 : 64
   }
 
   def "return null for non existing strategy #strategyName"() {
@@ -75,7 +82,7 @@ class IdGenerationStrategyTest extends DDSpecification {
     0 * _
   }
 
-  def "trace 128-bit strategy choices"() {
+  def "check trace 128-bit strategy choices"() {
     when:
     def strategy = IdGenerationStrategy.Trace128bitStrategy.get(withGeneration, withLogInjection)
 

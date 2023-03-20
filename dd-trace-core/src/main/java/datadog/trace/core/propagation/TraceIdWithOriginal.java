@@ -71,16 +71,6 @@ public abstract class TraceIdWithOriginal implements DDTraceId {
       return new B3TraceId(s, DD128bTraceId.fromHex(s));
     }
 
-    @Override
-    public String toHexStringOrOriginal() {
-      throw new IllegalStateException("SHOULD BE REMOVED");
-    }
-
-    @Override
-    public String toHexStringPaddedOrOriginal(int size) {
-      throw new IllegalStateException("SHOULD BE REMOVED");
-    }
-
     /**
      * Gte the original B3 TraceId.
      *
@@ -88,23 +78,6 @@ public abstract class TraceIdWithOriginal implements DDTraceId {
      */
     public String getB3Original() {
       return this.original;
-    }
-  }
-
-  public static final class XRayTraceId extends TraceIdWithOriginal {
-
-    private XRayTraceId(String original, DDTraceId delegate) {
-      super(original, delegate);
-    }
-
-    @Override
-    public String toHexStringOrOriginal() {
-      throw new IllegalStateException("SHOULD BE REMOVED");
-    }
-
-    @Override
-    public String toHexStringPaddedOrOriginal(int size) {
-      throw new IllegalStateException("SHOULD BE REMOVED");
     }
   }
 
@@ -130,16 +103,6 @@ public abstract class TraceIdWithOriginal implements DDTraceId {
         original = s.substring(start, start + 32);
       }
       return new W3CTraceId(original, DD128bTraceId.fromHex(original));
-    }
-
-    @Override
-    public String toHexStringOrOriginal() {
-      throw new IllegalStateException("SHOULD BE REMOVED");
-    }
-
-    @Override
-    public String toHexStringPaddedOrOriginal(int size) {
-      throw new IllegalStateException("SHOULD BE REMOVED");
     }
 
     /**

@@ -10,6 +10,7 @@ excludedClassesCoverage += [
   'datadog.trace.api.DDSpanTypes',
   'datadog.trace.api.DDTags',
   'datadog.trace.api.DDTraceApiInfo',
+  'datadog.trace.api.DDTraceId',
   'datadog.trace.api.GlobalTracer*',
   'datadog.trace.api.PropagationStyle',
   'datadog.trace.api.TracePropagationStyle',

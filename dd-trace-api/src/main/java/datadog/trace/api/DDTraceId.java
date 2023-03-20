@@ -7,7 +7,8 @@ package datadog.trace.api;
  * The string representations are either kept from parsing, or generated on demand and cached.
  */
 public interface DDTraceId {
-  DDTraceId ZERO = DD64bTraceId.ZERO;
+  /** Invalid TraceId value used to denote no TraceId. */
+  DDTraceId ZERO = from(0);
 
   /**
    * Create a new {@code DDTrace64Id} from the given {@code long} interpreted as the bits of the
@@ -29,8 +30,10 @@ public interface DDTraceId {
    * @return A new {@link DDTraceId} instance.
    * @throws NumberFormatException If the given {@link String} is not a valid number.
    */
-  static DDTraceId from(String s) throws NumberFormatException {
-    return DD64bTraceId.create(DDId.parseUnsignedLong(s), s); // TODO Support 128b
+  static DDTraceId from(String s)
+      throws NumberFormatException { // TODO Update Javadoc to document 64-bit only (in mirror to
+    // #toString)
+    return DD64bTraceId.create(DDId.parseUnsignedLong(s), s);
   }
 
   /**
@@ -42,7 +45,8 @@ public interface DDTraceId {
    *     valid number.
    */
   static DDTraceId fromHex(String s) throws NumberFormatException {
-    return DD64bTraceId.create(DDId.parseUnsignedLongHex(s), null); // TODO Support 128b
+    return DD64bTraceId.create(
+        DDId.parseUnsignedLongHex(s), null); // TODO Support 128b by testing String length
   }
 
   /**
@@ -75,25 +79,6 @@ public interface DDTraceId {
    *     DDTraceId} instance.
    */
   String toHexStringPadded(int size);
-
-  /**
-   * Returns the no zero padded hex representation, in lower case, of the unsigned 64 bit id, or the
-   * original {@code String} used to create this {@code DDId}. The hex {@code String} will NOT be
-   * cached.
-   *
-   * @return non zero padded hex String
-   */
-  String toHexStringOrOriginal(); // TODO Cleanup?
-
-  /**
-   * Returns the zero padded hex representation, in lower case, of the unsigned 64 bit id or the
-   * original. The size will be rounded up to 16 or 32 characters. The hex {@code String} will NOT
-   * be cached.
-   *
-   * @param size the size in characters of the 0 padded String (rounded up to 16 or 32)
-   * @return zero padded hex String
-   */
-  String toHexStringPaddedOrOriginal(int size); // TODO Cleanup?
 
   /**
    * Returns the id as a long representing the bits of the unsigned 64 bit id. This means that

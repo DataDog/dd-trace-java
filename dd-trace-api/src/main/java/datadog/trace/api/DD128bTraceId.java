@@ -59,7 +59,7 @@ public class DD128bTraceId implements DDTraceId {
    * @throws NumberFormatException If the hexadecimal {@link String} representation is not valid.
    */
   public static DD128bTraceId fromHex(String s) throws NumberFormatException {
-    return fromHex(s, 0, s.length(), true);
+    return fromHex(s, 0, s == null ? 0 : s.length(), true);
   }
 
   /**
@@ -77,7 +77,7 @@ public class DD128bTraceId implements DDTraceId {
   public static DD128bTraceId fromHex(String s, int start, int length, boolean lowerCaseOnly)
       throws NumberFormatException {
     if (s == null) {
-      throw new IllegalArgumentException("s can't be null");
+      throw new NumberFormatException("s can't be null");
     }
     int stringLength = s.length();
     if (start < 0 || length <= 0 || length > 32 || start + length > stringLength) {
@@ -129,16 +129,6 @@ public class DD128bTraceId implements DDTraceId {
       return DDId.toHexStringPadded(this.lowOrderBits, 16);
     }
     return toHexString();
-  }
-
-  @Override
-  public String toHexStringOrOriginal() {
-    throw new RuntimeException("SHOULD NOT BE CALLED");
-  }
-
-  @Override
-  public String toHexStringPaddedOrOriginal(int size) {
-    throw new RuntimeException("SHOULD NOT BE CALLED");
   }
 
   @Override
