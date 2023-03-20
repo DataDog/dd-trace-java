@@ -1,8 +1,11 @@
 package datadog.trace.core
 
+import static datadog.trace.api.DDTags.SCHEMA_VERSION_TAG_KEY
+
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.naming.SpanNaming
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -72,7 +75,8 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
       (THREAD_ID)       : Thread.currentThread().getId(),
       (RUNTIME_ID_TAG)  : Config.get().getRuntimeId(),
       (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
-      (PID_TAG) : Config.get().getProcessId()
+      (PID_TAG)         : Config.get().getProcessId(),
+      (SCHEMA_VERSION_TAG_KEY) : SpanNaming.instance().version()
     ]
 
     when:
@@ -328,9 +332,9 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     span.context().propagationTags.headerValue(PropagationTags.HeaderType.DATADOG) == extractedContext.propagationTags.headerValue(PropagationTags.HeaderType.DATADOG)
 
     where:
-    extractedContext | _
+    extractedContext                                                                                                                                                                                                          | _
     new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, null, 0, [:], [:], null, PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=934086a686-4,_dd.p.anytag=value")) | _
-    new ExtractedContext(DDTraceId.from(3), 4, PrioritySampling.SAMPLER_KEEP, "some-origin", 0, ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"], null, PropagationTags.factory().empty()) | _
+    new ExtractedContext(DDTraceId.from(3), 4, PrioritySampling.SAMPLER_KEEP, "some-origin", 0, ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"], null, PropagationTags.factory().empty())                     | _
   }
 
   def "TagContext should populate default span details"() {
@@ -344,9 +348,12 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     span.samplingPriority == null
     span.context().origin == tagContext.origin
     span.context().baggageItems == [:]
-    span.context().tags == tagContext.tags + [(RUNTIME_ID_TAG)  : Config.get().getRuntimeId(),
-      (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
-      (THREAD_NAME)     : thread.name, (THREAD_ID): thread.id, (PID_TAG) : Config.get().getProcessId()]
+    span.context().tags == tagContext.tags +
+      [(RUNTIME_ID_TAG)        : Config.get().getRuntimeId(),
+        (LANGUAGE_TAG_KEY)      : LANGUAGE_TAG_VALUE,
+        (THREAD_NAME)           : thread.name, (THREAD_ID): thread.id, (PID_TAG): Config.get().getProcessId(),
+        (SCHEMA_VERSION_TAG_KEY): SpanNaming.instance().version()
+      ]
 
     where:
     tagContext                                      | _
@@ -362,11 +369,12 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
 
     expect:
     span.tags == tags + [
-      (THREAD_NAME)     : Thread.currentThread().getName(),
-      (THREAD_ID)       : Thread.currentThread().getId(),
-      (RUNTIME_ID_TAG)  : Config.get().getRuntimeId(),
-      (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
-      (PID_TAG) : Config.get().getProcessId()
+      (THREAD_NAME)           : Thread.currentThread().getName(),
+      (THREAD_ID)             : Thread.currentThread().getId(),
+      (RUNTIME_ID_TAG)        : Config.get().getRuntimeId(),
+      (LANGUAGE_TAG_KEY)      : LANGUAGE_TAG_VALUE,
+      (PID_TAG)               : Config.get().getProcessId(),
+      (SCHEMA_VERSION_TAG_KEY): SpanNaming.instance().version()
     ]
 
     cleanup:
