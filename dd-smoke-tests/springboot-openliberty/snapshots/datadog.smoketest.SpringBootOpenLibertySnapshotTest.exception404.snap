@@ -33,7 +33,8 @@
               "peer.port" 57798
               "thread.id" 62
               "process_id" 123
-              "_dd.top_level" 1}}
+              "_dd.top_level" 1
+              "_dd.trace_span_attribute_schema" 0}}
       {"name" "spring.handler"
        "service" "smoke-test-java-app"
        "resource" "ResourceHttpRequestHandler.handleRequest"

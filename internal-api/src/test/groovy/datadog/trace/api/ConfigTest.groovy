@@ -1210,6 +1210,15 @@ class ConfigTest extends DDSpecification {
     config.localRootSpanTags.containsKey('_dd.hostname')
   }
 
+  def "verify schema version is added to local root span"() {
+
+    when:
+    def config = Config.get()
+
+    then:
+    config.localRootSpanTags.get('_dd.trace_span_attribute_schema') == 0
+  }
+
   def "verify fallback to properties file"() {
     setup:
     System.setProperty(PREFIX + CONFIGURATION_FILE, "src/test/resources/dd-java-tracer.properties")
