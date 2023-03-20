@@ -38,11 +38,10 @@ public final class AWSClientInstrumentation extends Instrumenter.Tracing
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".AwsSdkClientDecorator",
-      packageName + ".AwsSdkClientDecorator$1",
-      packageName + ".AwsSdkClientDecorator$2",
       packageName + ".RequestAccess",
       packageName + ".RequestAccess$1",
       packageName + ".TracingRequestHandler",
+      packageName + ".AwsNameCache",
     };
   }
 
