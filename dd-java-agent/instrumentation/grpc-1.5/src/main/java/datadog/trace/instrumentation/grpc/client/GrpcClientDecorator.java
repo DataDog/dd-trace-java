@@ -41,6 +41,7 @@ public class GrpcClientDecorator extends ClientDecorator {
 
   public static final GrpcClientDecorator DECORATE = new GrpcClientDecorator();
 
+  private static final String IGNORE_METHOD_IF_STARTS_WITH = "google.pubsub";
   private static final Set<String> IGNORED_METHODS = Config.get().getGrpcIgnoredOutboundMethods();
   private static final BitSet CLIENT_ERROR_STATUSES = Config.get().getGrpcClientErrorStatuses();
 
@@ -92,7 +93,8 @@ public class GrpcClientDecorator extends ClientDecorator {
   }
 
   public <ReqT, RespT> AgentSpan startCall(MethodDescriptor<ReqT, RespT> method) {
-    if (IGNORED_METHODS.contains(method.getFullMethodName())) {
+    if (IGNORED_METHODS.contains(method.getFullMethodName())
+        || method.getFullMethodName().startsWith(IGNORE_METHOD_IF_STARTS_WITH)) {
       return null;
     }
     AgentSpan span =
