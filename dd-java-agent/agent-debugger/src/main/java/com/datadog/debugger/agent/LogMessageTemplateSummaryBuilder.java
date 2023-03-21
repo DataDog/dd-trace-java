@@ -70,13 +70,17 @@ public class LogMessageTemplateSummaryBuilder implements SummaryBuilder {
         sb.append(segment.getStr());
       } else {
         if (parsedExr != null) {
-          Value<?> result = parsedExr.execute(entry);
-          if (result.isUndefined()) {
-            sb.append(result.getValue());
-          } else if (result.isNull()) {
-            sb.append("null");
-          } else {
-            serializeValue(sb, segment.getParsedExpr().getDsl(), result.getValue());
+          try {
+            Value<?> result = parsedExr.execute(entry);
+            if (result.isUndefined()) {
+              sb.append(result.getValue());
+            } else if (result.isNull()) {
+              sb.append("null");
+            } else {
+              serializeValue(sb, segment.getParsedExpr().getDsl(), result.getValue());
+            }
+          } catch (RuntimeException ex) {
+            sb.append("{").append(ex.getMessage()).append("}");
           }
         }
       }

@@ -597,7 +597,9 @@ public class Snapshot {
 
     private void checkUndefined(String expr, Object target, String name, String msg) {
       if (target == Values.UNDEFINED_OBJECT) {
-        addEvaluationError(expr, msg + name);
+        String errorMsg = msg + name;
+        addEvaluationError(expr, errorMsg);
+        throw new RuntimeException(errorMsg);
       }
     }
 
@@ -851,6 +853,9 @@ public class Snapshot {
         if (!script.execute(capture)) {
           return false;
         }
+      } catch (RuntimeException ex) {
+        LOG.debug("Evaluation error: ", ex);
+        return false;
       } finally {
         LOG.debug("Script for probe[{}] evaluated in {}ns", probeId, (System.nanoTime() - startTs));
       }
