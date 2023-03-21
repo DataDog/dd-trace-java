@@ -79,7 +79,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
       '  }\n' +
       '}'
     def expectedQuery = 'query findBookById {\n' +
-      '  bookById(id: ?) {\n' +
+      '  bookById(id: {String}) {\n' +
       '    id\n' +
       '    name\n' +
       '    pageCount\n' +
@@ -204,7 +204,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
       '  }\n' +
       '}'
     def expectedQuery = 'query findBookById {\n' +
-      '  bookById(id: ?) {\n' +
+      '  bookById(id: {String}) {\n' +
       '    id\n' +
       '    title\n' +
       '    color\n' +
@@ -320,7 +320,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
       '  }\n' +
       '}'
     def expectedQuery = 'query findBookById {\n' +
-      '  bookById(id: ?) {\n' +
+      '  bookById(id: {String}) {\n' +
       '    id\n' +
       '    cover\n' +
       '  }\n' +
