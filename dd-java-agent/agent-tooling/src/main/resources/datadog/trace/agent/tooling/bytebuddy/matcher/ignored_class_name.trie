@@ -91,6 +91,7 @@
 # Prevent IllegalAccessError in OpenJDK 17.0.4
 1 javax.management.*
 1 javax.swing.*
+0 javax.net.ssl.SSLSocket
 
 # -------- ADDITIONAL IGNORES --------
 
