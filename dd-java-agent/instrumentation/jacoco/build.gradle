@@ -4,4 +4,5 @@ muzzle {}
 
 dependencies {
   implementation deps.asm
+  implementation group: 'org.jacoco', name: 'org.jacoco.core', version: '0.8.8'
 }

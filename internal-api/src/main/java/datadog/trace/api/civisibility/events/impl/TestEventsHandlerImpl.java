@@ -1,8 +1,5 @@
 package datadog.trace.api.civisibility.events.impl;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DisableTestTrace;
@@ -10,6 +7,7 @@ import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.config.CiVisibilityConfig;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -23,6 +21,9 @@ import java.util.concurrent.ConcurrentMap;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
 public class TestEventsHandlerImpl implements TestEventsHandler {
 
@@ -234,7 +235,11 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       return;
     }
 
-    final AgentSpan span = startSpan(testDecorator.component() + ".test", null);
+    final AgentSpan span = AgentTracer.get().buildSpan(testDecorator.component() + ".test")
+        .asChildOf(null)
+        .withRequestContextData(RequestContextSlot.CI_VISIBILITY, new TestCoverageProbes())
+        .start();
+
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
 
@@ -255,6 +260,11 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
     if (!isTestSpan(span)) {
       return;
     }
+
+    TestCoverageProbes probes = span.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY);
+//    if (probes != null) {
+      probes.report();
+//    }
 
     final AgentScope scope = AgentTracer.activeScope();
     if (scope != null) {

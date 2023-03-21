@@ -32,6 +32,8 @@ public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility impl
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    // The jacoco javaagent jar that is published relocates internal classes to a "obfuscated" package name
+    // ex. org.jacoco.agent.rt.internal_72ddf3b.core.internal.instr.ProbeInserter.class
     return nameStartsWith("org.jacoco.agent.rt.internal").and(nameEndsWith(".ProbeInserter"));
   }
 
@@ -70,7 +72,7 @@ public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility impl
         methodVisitor.push(id);
         methodVisitor.visitMethodInsn(
             Opcodes.INVOKESTATIC,
-            "datadog/trace/bootstrap/instrumentation/civisibility/TestCoverageProbes",
+            "datadog/trace/api/civisibility/events/impl/TestCoverageProbes",
             "record",
             "(JLjava/lang/String;I)V",
             false);
