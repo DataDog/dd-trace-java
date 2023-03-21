@@ -8,13 +8,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import net.bytebuddy.asm.Advice;
 
 public class HeadersAdvice11 {
-  public static Object methodExit(Object headers) {
-    return doOnExit((HttpHeaders) headers);
-  }
-
-  private static HttpHeaders doOnExit(HttpHeaders headers) {
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+  public static void methodExit(@Advice.Return(readOnly = false) HttpHeaders headers) {
     final Map<String, List<String>> headerMap = new HashMap<>(headers.map());
 
     propagate()
@@ -23,6 +21,6 @@ public class HeadersAdvice11 {
             headerMap,
             (carrier, key, value) -> carrier.put(key, Collections.singletonList(value)));
 
-    return HttpHeaders.of(headerMap, (s, s2) -> true);
+    headers = HttpHeaders.of(headerMap, (s, s2) -> true);
   }
 }

@@ -10,9 +10,11 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import net.bytebuddy.asm.Advice;
 
 public class SendAdvice11 {
-  private static AgentScope doMethodEnter(final HttpRequest httpRequest) {
+  @Advice.OnMethodEnter(suppress = Throwable.class)
+  public static AgentScope methodEnter(@Advice.Argument(value = 0) final HttpRequest httpRequest) {
     final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
     if (callDepth > 0) {
       return null;
@@ -27,16 +29,11 @@ public class SendAdvice11 {
     return scope;
   }
 
-  public static AgentScope methodEnter(final Object httpRequest) {
-    return doMethodEnter((HttpRequest) httpRequest);
-  }
-
-  private static void doMethodExit(
-      final AgentScope scope,
-      final HttpRequest httpRequest,
-      final HttpResponse<?> httpResponse,
-      final Throwable throwable) {
-
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+  public static void methodExit(
+      @Advice.Enter final AgentScope scope,
+      @Advice.Return final HttpResponse<?> httpResponse,
+      @Advice.Thrown final Throwable throwable) {
     if (scope == null) {
       return;
     }
@@ -51,13 +48,5 @@ public class SendAdvice11 {
     DECORATE.beforeFinish(span);
     scope.close();
     span.finish();
-  }
-
-  public static void methodExit(
-      final AgentScope scope,
-      final Object httpRequest,
-      final Object httpResponse,
-      final Throwable throwable) {
-    doMethodExit(scope, (HttpRequest) httpRequest, (HttpResponse<?>) httpResponse, throwable);
   }
 }

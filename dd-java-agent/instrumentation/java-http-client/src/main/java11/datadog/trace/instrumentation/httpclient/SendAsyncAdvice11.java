@@ -12,14 +12,16 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.concurrent.CompletableFuture;
+import net.bytebuddy.asm.Advice;
 
 public class SendAsyncAdvice11 {
-
-  public static Object[] doMethodEnter(
-      final HttpRequest httpRequest, HttpResponse.BodyHandler<?> bodyHandler) {
+  @Advice.OnMethodEnter(suppress = Throwable.class)
+  public static AgentScope methodEnter(
+      @Advice.Argument(value = 0) final HttpRequest httpRequest,
+      @Advice.Argument(value = 1, readOnly = false) HttpResponse.BodyHandler<?> bodyHandler) {
     final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
     if (callDepth > 0) {
-      return new Object[] {null, null};
+      return null;
     }
     final AgentSpan span = AgentTracer.startSpan(JavaNetClientDecorator.OPERATION_NAME);
     final AgentScope scope = activateSpan(span, true);
@@ -32,20 +34,17 @@ public class SendAsyncAdvice11 {
 
     // propagate().inject(span, request, SETTER);
 
-    return new Object[] {bodyHandler, scope};
+    return scope;
   }
 
-  public static Object[] methodEnter(final Object httpRequest, Object bodyHandler) {
-    return doMethodEnter((HttpRequest) httpRequest, (HttpResponse.BodyHandler<?>) bodyHandler);
-  }
-
-  private static Object doMethodExit(
-      final AgentScope scope,
-      final HttpRequest httpRequest,
-      CompletableFuture<HttpResponse<?>> future,
-      final Throwable throwable) {
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+  public static void methodExit(
+      @Advice.Enter final AgentScope scope,
+      @Advice.Argument(value = 0) final HttpRequest httpRequest,
+      @Advice.Return(readOnly = false) CompletableFuture<HttpResponse<?>> future,
+      @Advice.Thrown final Throwable throwable) {
     if (scope == null) {
-      return null;
+      return;
     }
     CallDepthThreadLocalMap.reset(HttpClient.class);
 
@@ -56,12 +55,5 @@ public class SendAsyncAdvice11 {
       future = future.whenComplete(new ResponseConsumer(span, httpRequest));
     }
     scope.close();
-    return future;
-  }
-
-  public static Object methodExit(
-      final AgentScope scope, final Object httpRequest, Object future, final Throwable throwable) {
-    return doMethodExit(
-        scope, (HttpRequest) httpRequest, (CompletableFuture<HttpResponse<?>>) future, throwable);
   }
 }

@@ -9,9 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Platform;
-import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
@@ -45,22 +43,7 @@ public class HttpHeadersInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".HeadersAdvice11"};
-  }
-
-  @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
-        isMethod().and(named("headers")), getClass().getName() + "$HeadersAdvice");
-  }
-
-  public static class HeadersAdvice {
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(
-        @Advice.Return(readOnly = false, typing = Assigner.Typing.DYNAMIC) Object headers) {
-      headers = HeadersAdvice11.methodExit(headers);
-    }
+    transformation.applyAdvice(isMethod().and(named("headers")), packageName + ".HeadersAdvice11");
   }
 }
