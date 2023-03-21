@@ -72,7 +72,7 @@ class HealthMetricsTest extends DDSpecification {
     // spotless:on
   }
 
-  def "test onFailedPublish - no USER_KEEP"() {
+  def "test onFailedPublish - no KEEP"() {
     setup:
     def latch = new CountDownLatch(1)
     def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
@@ -92,7 +92,6 @@ class HealthMetricsTest extends DDSpecification {
 
     where:
     samplingPriority << [
-      PrioritySampling.SAMPLER_KEEP,
       PrioritySampling.USER_DROP,
       PrioritySampling.SAMPLER_DROP,
       PrioritySampling.UNSET
@@ -100,7 +99,7 @@ class HealthMetricsTest extends DDSpecification {
   }
 
   @Flaky
-  def "test onFailedPublish - USER_KEEP"() {
+  def "test onFailedPublish - KEEP"() {
     setup:
     def latch = new CountDownLatch(1)
     def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
@@ -118,7 +117,7 @@ class HealthMetricsTest extends DDSpecification {
     healthMetrics.close()
 
     where:
-    samplingPriority << [PrioritySampling.USER_KEEP]
+    samplingPriority << [PrioritySampling.SAMPLER_KEEP, PrioritySampling.USER_KEEP]
   }
 
   @Flaky

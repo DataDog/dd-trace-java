@@ -246,7 +246,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
     // this will be checked during flushing
     1 * healthMetrics.onFailedPublish(_,_)
     1 * healthMetrics.onFlush(_)
-    //2 * healthMetrics.onShutdown(_)
+    1 * healthMetrics.onShutdown(_)
     1 * healthMetrics.close()
     0 * _
 
