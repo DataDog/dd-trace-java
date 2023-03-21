@@ -2,8 +2,8 @@ package datadog.trace.core
 
 import datadog.communication.monitor.Monitoring
 import datadog.trace.SamplingPriorityMetadataChecker
-import datadog.trace.api.DD64bTraceId
 import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
@@ -67,7 +67,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
   def "continuation buffers root"() {
     setup:
-    def trace = factory.create(DD64bTraceId.ONE)
+    def trace = factory.create(DDTraceId.ONE)
     def span = newSpanOf(trace)
 
     expect:
@@ -98,7 +98,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
   def "unfinished child buffers root"() {
     setup:
-    def trace = factory.create(DD64bTraceId.ONE)
+    def trace = factory.create(DDTraceId.ONE)
     def parent = newSpanOf(trace)
     def child = newSpanOf(parent)
 
@@ -131,7 +131,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
   def "priority sampling is always sent"() {
     setup:
-    def parent = addContinuation(newSpanOf(factory.create(DD64bTraceId.ONE), PrioritySampling.USER_KEEP))
+    def parent = addContinuation(newSpanOf(factory.create(DDTraceId.ONE), PrioritySampling.USER_KEEP))
     def metadataChecker = new SamplingPriorityMetadataChecker()
 
     when: "Fill the buffer - Only children - Priority taken from root"
@@ -158,7 +158,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
     when: "Fill the buffer"
     for (i in  1..buffer.queue.capacity()) {
-      addContinuation(newSpanOf(factory.create(DD64bTraceId.ONE))).finish()
+      addContinuation(newSpanOf(factory.create(DDTraceId.ONE))).finish()
     }
 
     then:
@@ -170,7 +170,7 @@ class PendingTraceBufferTest extends DDSpecification {
     0 * _
 
     when:
-    def pendingTrace = factory.create(DD64bTraceId.ONE)
+    def pendingTrace = factory.create(DDTraceId.ONE)
     addContinuation(newSpanOf(pendingTrace)).finish()
 
     then:
@@ -188,7 +188,7 @@ class PendingTraceBufferTest extends DDSpecification {
     setup:
     def latch = new CountDownLatch(1)
 
-    def trace = factory.create(DD64bTraceId.ONE)
+    def trace = factory.create(DDTraceId.ONE)
     def parent = addContinuation(newSpanOf(trace))
     TraceScope.Continuation continuation = continuations[0]
 
@@ -239,7 +239,7 @@ class PendingTraceBufferTest extends DDSpecification {
     def parentLatch = new CountDownLatch(1)
     def childLatch = new CountDownLatch(1)
 
-    def trace = factory.create(DD64bTraceId.ONE)
+    def trace = factory.create(DDTraceId.ONE)
     def parent = newSpanOf(trace)
 
     when:
@@ -330,7 +330,7 @@ class PendingTraceBufferTest extends DDSpecification {
     // Don't start the buffer thread
 
     when: "finish the root span"
-    def pendingTrace = factory.create(DD64bTraceId.ONE)
+    def pendingTrace = factory.create(DDTraceId.ONE)
     def span = newSpanOf(pendingTrace)
     span.finish()
 

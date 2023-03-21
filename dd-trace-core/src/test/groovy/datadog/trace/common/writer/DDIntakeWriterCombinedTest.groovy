@@ -4,8 +4,8 @@ import datadog.communication.http.OkHttpUtils
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
-import datadog.trace.api.DD64bTraceId
 import datadog.trace.api.DDSpanId
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.intake.TrackType
@@ -734,7 +734,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
     def trace = Mock(PendingTrace)
     trace.getTracer() >> tracer
     return new DDSpanContext(
-      DD64bTraceId.ONE,
+      DDTraceId.ONE,
       1,
       DDSpanId.ZERO,
       "",

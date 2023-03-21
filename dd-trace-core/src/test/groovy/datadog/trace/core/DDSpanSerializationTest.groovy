@@ -3,7 +3,6 @@ package datadog.trace.core
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
-import datadog.trace.api.DD64bTraceId
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
@@ -153,7 +152,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()
     def context = new DDSpanContext(
-      DD64bTraceId.ONE,
+      DDTraceId.ONE,
       1,
       DDSpanId.ZERO,
       null,
@@ -166,7 +165,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       false,
       null,
       tags.size(),
-      tracer.pendingTraceFactory.create(DD64bTraceId.ONE),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,
@@ -224,7 +223,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()
     def context = new DDSpanContext(
-      DD64bTraceId.ONE,
+      DDTraceId.ONE,
       1,
       DDSpanId.ZERO,
       null,
@@ -237,7 +236,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       false,
       null,
       tags.size(),
-      tracer.pendingTraceFactory.create(DD64bTraceId.ONE),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,
@@ -294,7 +293,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     setup:
     def tracer = tracerBuilder().writer(new ListWriter()).build()
     def context = new DDSpanContext(
-      DD64bTraceId.ONE,
+      DDTraceId.ONE,
       1,
       DDSpanId.ZERO,
       null,
@@ -307,7 +306,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       false,
       null,
       0,
-      tracer.pendingTraceFactory.create(DD64bTraceId.ONE),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,
@@ -364,7 +363,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     setup:
     def tracer = tracerBuilder().writer(new ListWriter()).build()
     def context = new DDSpanContext(
-      DD64bTraceId.ONE,
+      DDTraceId.ONE,
       1,
       DDSpanId.ZERO,
       null,
@@ -377,7 +376,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       false,
       null,
       0,
-      tracer.pendingTraceFactory.create(DD64bTraceId.ONE),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,
@@ -458,7 +457,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       false,
       spanType,
       1,
-      tracer.pendingTraceFactory.create(DD64bTraceId.ONE),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,

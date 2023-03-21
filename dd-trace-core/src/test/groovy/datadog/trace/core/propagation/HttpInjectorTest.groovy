@@ -1,7 +1,6 @@
 package datadog.trace.core.propagation
 
 import datadog.trace.api.Config
-import datadog.trace.api.DD64bTraceId
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.core.CoreTracer
@@ -46,7 +45,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       isTracePropagationStyleB3PaddingEnabled() >> tracePropagationB3Padding()
     }
     HttpCodec.Injector injector = HttpCodec.createInjector(config, config.getTracePropagationStylesToInject(), [:])
-    def traceId = DD64bTraceId.ONE
+    def traceId = DDTraceId.ONE
     def spanId = 2
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()
@@ -115,7 +114,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       isTracePropagationStyleB3PaddingEnabled() >> tracePropagationB3Padding()
     }
     def injector = HttpCodec.createInjector(config, [style].toSet(), ["some-baggage-item": "SOME_HEADER"],)
-    def traceId = DD64bTraceId.ONE
+    def traceId = DDTraceId.ONE
     def spanId = 2
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()
@@ -187,7 +186,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DD64bTraceId.ONE),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,

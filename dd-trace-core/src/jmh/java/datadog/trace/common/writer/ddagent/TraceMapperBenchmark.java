@@ -10,7 +10,6 @@ import com.google.common.collect.Lists;
 import datadog.communication.serialization.StreamingBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
-import datadog.trace.api.DD64bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -101,7 +100,7 @@ public class TraceMapperBenchmark {
                 true) // Avoid any extra bookkeeping for traces since we write directly
             .build();
 
-    DDTraceId traceId = DD64bTraceId.ONE;
+    DDTraceId traceId = DDTraceId.ONE;
     PendingTrace pendingTrace = tracer.createTrace(traceId);
     DDSpanContext rootContext =
         new DDSpanContext(

@@ -1,7 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.DD64bTraceId
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
 import datadog.trace.core.propagation.PropagationTags
@@ -45,7 +45,7 @@ class OpenTracing31Test extends AgentTestRunner {
         .withTag("boolean", true)
     }
     if (addReference) {
-      def ctx = new ExtractedContext(DD64bTraceId.ONE, 2, SAMPLER_DROP, null, 0, [:], [:], null, PropagationTags.factory().empty())
+      def ctx = new ExtractedContext(DDTraceId.ONE, 2, SAMPLER_DROP, null, 0, [:], [:], null, PropagationTags.factory().empty())
       builder.addReference(addReference, tracer.tracer.converter.toSpanContext(ctx))
     }
     def result = builder.start()

@@ -13,8 +13,6 @@ public class DD64bTraceId implements DDTraceId {
   public static final DD64bTraceId MAX =
       new DD64bTraceId(-1, "18446744073709551615"); // All bits set
 
-  // Convenience constant used from tests
-  public static final DD64bTraceId ONE = DD64bTraceId.from(1);
   private final long id;
   private String str; // cache for string representation
   // private String hex; // TODO Implement cache?

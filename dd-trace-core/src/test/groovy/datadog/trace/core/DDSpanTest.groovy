@@ -1,6 +1,5 @@
 package datadog.trace.core
 
-import datadog.trace.api.DD64bTraceId
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
@@ -274,7 +273,7 @@ class DDSpanTest extends DDCoreSpecification {
     where:
     extractedContext                                                                                                                           | _
     new TagContext("some-origin", [:])                                                                                                         | _
-    new ExtractedContext(DD64bTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, "some-origin", 0, [:], [:], null, propagationTagsFactory.empty()) | _
+    new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, "some-origin", 0, [:], [:], null, propagationTagsFactory.empty()) | _
   }
 
   def "isRootSpan() in and not in the context of distributed tracing"() {
@@ -348,7 +347,7 @@ class DDSpanTest extends DDCoreSpecification {
     when:
     DDSpanContext context =
       new DDSpanContext(
-      DD64bTraceId.ONE,
+      DDTraceId.ONE,
       1,
       DDSpanId.ZERO,
       parentServiceName,
@@ -361,7 +360,7 @@ class DDSpanTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DD64bTraceId.ONE),
+      tracer.pendingTraceFactory.create(DDTraceId.ONE),
       null,
       null,
       NoopPathwayContext.INSTANCE,

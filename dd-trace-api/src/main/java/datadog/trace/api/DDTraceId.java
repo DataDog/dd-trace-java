@@ -9,6 +9,8 @@ package datadog.trace.api;
 public interface DDTraceId {
   /** Invalid TraceId value used to denote no TraceId. */
   DDTraceId ZERO = from(0);
+  /** Convenience constant used from tests */
+  DDTraceId ONE = from(1);
 
   /**
    * Create a new {@link DD64bTraceId 64-bit TraceId} from the given {@code long} interpreted as the

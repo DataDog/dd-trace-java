@@ -3,7 +3,6 @@ package datadog.trace.core
 import static datadog.trace.api.DDTags.SCHEMA_VERSION_TAG_KEY
 
 import datadog.trace.api.Config
-import datadog.trace.api.DD64bTraceId
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.gateway.RequestContextSlot
@@ -169,7 +168,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
   def "should link to parent span"() {
     setup:
     final long spanId = 1
-    final DDTraceId traceId = DD64bTraceId.ONE
+    final DDTraceId traceId = DDTraceId.ONE
     final long expectedParentId = spanId
 
     final DDSpanContext mockedContext = Mock()
@@ -177,7 +176,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     1 * mockedContext.getSpanId() >> spanId
     _ * mockedContext.getServiceName() >> "foo"
     1 * mockedContext.getBaggageItems() >> [:]
-    1 * mockedContext.getTrace() >> tracer.pendingTraceFactory.create(DD64bTraceId.ONE)
+    1 * mockedContext.getTrace() >> tracer.pendingTraceFactory.create(DDTraceId.ONE)
     _ * mockedContext.getPathwayContext() >> NoopPathwayContext.INSTANCE
 
     final String expectedName = "fakeName"
@@ -335,7 +334,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
 
     where:
     extractedContext                                                                                                                                                                                                          | _
-    new ExtractedContext(DD64bTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, null, 0, [:], [:], null, PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=934086a686-4,_dd.p.anytag=value")) | _
+    new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, null, 0, [:], [:], null, PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=934086a686-4,_dd.p.anytag=value")) | _
     new ExtractedContext(DDTraceId.from(3), 4, PrioritySampling.SAMPLER_KEEP, "some-origin", 0, ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"], null, PropagationTags.factory().empty())                     | _
   }
 
