@@ -1,17 +1,17 @@
 package datadog.trace.instrumentation.httpclient;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
-import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers;
-import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
@@ -29,7 +29,7 @@ public class HttpClientInstrumentation extends Instrumenter.Tracing
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return ClassLoaderMatchers.hasClassNamed("java.net.http.HttpClient");
+    return hasClassNamed("java.net.http.HttpClient");
   }
 
   @Override
@@ -47,7 +47,7 @@ public class HttpClientInstrumentation extends Instrumenter.Tracing
     return nameStartsWith("java.net.")
         .or(nameStartsWith("jdk.internal."))
         .and(not(named("jdk.internal.net.http.HttpClientFacade")))
-        .and(HierarchyMatchers.extendsClass(named("java.net.http.HttpClient")));
+        .and(extendsClass(named("java.net.http.HttpClient")));
   }
 
   @Override
