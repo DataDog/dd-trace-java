@@ -43,6 +43,11 @@ public class HttpHeadersInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {packageName + ".HttpHeadersInjectAdapter"};
+  }
+
+  @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(isMethod().and(named("headers")), packageName + ".HeadersAdvice11");
   }
