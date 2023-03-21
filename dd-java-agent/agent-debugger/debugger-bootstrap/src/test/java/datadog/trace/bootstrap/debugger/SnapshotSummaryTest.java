@@ -29,27 +29,29 @@ public class SnapshotSummaryTest {
   public void testSummaryEmptySnapshot() {
     Snapshot snapshot =
         new Snapshot(
-            Thread.currentThread(),
-            new ProbeDetails(UUID.randomUUID().toString(), PROBE_LOCATION),
-            CLASS_NAME);
+            Thread.currentThread(), new ProbeDetails(UUID.randomUUID().toString(), PROBE_LOCATION));
     assertEquals("SomeClass.someMethod()", snapshot.buildSummary());
   }
 
   @Test
   public void testSummaryEntryExitSnapshot() {
-    Snapshot snapshot =
-        new Snapshot(
-            Thread.currentThread(),
-            new ProbeDetails(
-                UUID.randomUUID().toString(),
-                PROBE_LOCATION,
-                Snapshot.MethodLocation.EXIT,
-                true,
-                null,
-                null,
-                new SnapshotSummaryBuilder(PROBE_LOCATION)),
-            CLASS_NAME);
+    ProbeDetails probeDetails =
+        new ProbeDetails(
+            UUID.randomUUID().toString(),
+            PROBE_LOCATION,
+            Snapshot.MethodLocation.EXIT,
+            true,
+            null,
+            null,
+            new SnapshotSummaryBuilder(PROBE_LOCATION));
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), probeDetails);
     CapturedContext entry = new CapturedContext();
+    entry.evaluate(
+        probeDetails.getId(),
+        probeDetails,
+        getClass().getTypeName(),
+        -1,
+        Snapshot.MethodLocation.ENTRY);
     snapshot.setEntry(entry);
     assertEquals("SomeClass.someMethod()", snapshot.buildSummary());
 
@@ -64,6 +66,12 @@ public class SnapshotSummaryTest {
           Snapshot.CapturedValue.of("arg4", Map.class.getTypeName(), argMap)
         });
     exit.addLocals(new Snapshot.CapturedValue[] {CapturedValue.of("@return", "double", 2.0)});
+    exit.evaluate(
+        probeDetails.getId(),
+        probeDetails,
+        getClass().getTypeName(),
+        -1,
+        Snapshot.MethodLocation.EXIT);
     snapshot.setExit(exit);
     assertEquals(
         "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c], arg4={foo=bar}): 2.0",
@@ -72,19 +80,23 @@ public class SnapshotSummaryTest {
 
   @Test
   public void testSummaryEntryExitSnapshotWithLocalVars() {
-    Snapshot snapshot =
-        new Snapshot(
-            Thread.currentThread(),
-            new ProbeDetails(
-                UUID.randomUUID().toString(),
-                PROBE_LOCATION,
-                Snapshot.MethodLocation.EXIT,
-                true,
-                null,
-                null,
-                new SnapshotSummaryBuilder(PROBE_LOCATION)),
-            CLASS_NAME);
+    ProbeDetails probeDetails =
+        new ProbeDetails(
+            UUID.randomUUID().toString(),
+            PROBE_LOCATION,
+            Snapshot.MethodLocation.EXIT,
+            true,
+            null,
+            null,
+            new SnapshotSummaryBuilder(PROBE_LOCATION));
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), probeDetails);
     CapturedContext entry = new CapturedContext();
+    entry.evaluate(
+        probeDetails.getId(),
+        probeDetails,
+        getClass().getTypeName(),
+        -1,
+        Snapshot.MethodLocation.ENTRY);
     snapshot.setEntry(entry);
     assertEquals("SomeClass.someMethod()", snapshot.buildSummary());
 
@@ -102,6 +114,12 @@ public class SnapshotSummaryTest {
           Snapshot.CapturedValue.of("arg2", "int", 42),
           Snapshot.CapturedValue.of("arg3", List.class.getTypeName(), Arrays.asList("a", "b", "c"))
         });
+    exit.evaluate(
+        probeDetails.getId(),
+        probeDetails,
+        getClass().getTypeName(),
+        -1,
+        Snapshot.MethodLocation.EXIT);
     snapshot.setExit(exit);
     assertEquals(
         "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c]): 2.0\n"
@@ -111,11 +129,8 @@ public class SnapshotSummaryTest {
 
   @Test
   public void testSummaryLineSnapshot() {
-    Snapshot snapshot =
-        new Snapshot(
-            Thread.currentThread(),
-            new ProbeDetails(UUID.randomUUID().toString(), PROBE_LOCATION),
-            CLASS_NAME);
+    ProbeDetails probeDetails = new ProbeDetails(UUID.randomUUID().toString(), PROBE_LOCATION);
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), probeDetails);
     StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
     // top frame is actually getStackTrace, we want the test method
     StackTraceElement topFrame = stackTrace[1];
@@ -138,13 +153,24 @@ public class SnapshotSummaryTest {
           Snapshot.CapturedValue.of("arg2", "int", 42),
         });
     snapshot.addLine(lineCapture, 23);
-    snapshot.commit();
+    lineCapture.evaluate(
+        probeDetails.getId(),
+        probeDetails,
+        getClass().getTypeName(),
+        -1,
+        Snapshot.MethodLocation.DEFAULT);
+    commit(snapshot);
 
     // this is intentionally different from PROBE_DETAILS, the stacktrace should take precedence
     assertEquals(
         "SnapshotSummaryTest.testSummaryLineSnapshot(arg1=this is a string, arg2=42)\n"
             + "i=1001, list=[1, 2, 3], str=this is a local string",
         snapshot.buildSummary());
+  }
+
+  // used for increasing the stack level for the getting the excepted stack trace
+  private static void commit(Snapshot snapshot) {
+    snapshot.commit();
   }
 
   @Test
@@ -163,8 +189,8 @@ public class SnapshotSummaryTest {
     ProbeLocation location =
         new ProbeLocation(null, null, "SomeFile", Collections.singletonList("13"));
     // if the line probe had a stacktrace we would use the method information from the stacktrace
-    Snapshot snapshot =
-        new Snapshot(Thread.currentThread(), new ProbeDetails("id", location), CLASS_NAME);
+    ProbeDetails probeDetails = new ProbeDetails("id", location);
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), probeDetails);
 
     CapturedContext lineCapture = new CapturedContext();
     lineCapture.addLocals(new Snapshot.CapturedValue[] {});
@@ -173,6 +199,12 @@ public class SnapshotSummaryTest {
           Snapshot.CapturedValue.of("arg1", String.class.getTypeName(), "this is a string"),
           Snapshot.CapturedValue.of("arg2", "int", 42),
         });
+    lineCapture.evaluate(
+        probeDetails.getId(),
+        probeDetails,
+        getClass().getTypeName(),
+        -1,
+        Snapshot.MethodLocation.DEFAULT);
     snapshot.addLine(lineCapture, 13);
     assertEquals("SomeFile:[13](arg1=this is a string, arg2=42)", snapshot.buildSummary());
   }

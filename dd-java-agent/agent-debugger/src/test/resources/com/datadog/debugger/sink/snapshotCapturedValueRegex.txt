@@ -49,6 +49,7 @@
 "locals":\{\}
 \}
 \},
+"id":"[^"]+",
 "language":"java",
 "probe":\{
 "evaluateAt":"DEFAULT",
