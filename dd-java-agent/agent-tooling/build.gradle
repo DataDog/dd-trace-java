@@ -23,11 +23,10 @@ sourceSets {
 }
 
 configurations {
-  // classpath used by the instrumentation muzzle plugin
-  instrumentationMuzzle {
+  instrumentPluginClasspath {
     canBeConsumed = true
     canBeResolved = false
-    extendsFrom implementation
+    extendsFrom runtimeElements
   }
 
   test_java11Implementation {

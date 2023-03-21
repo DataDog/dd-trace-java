@@ -22,8 +22,7 @@ subprojects { Project subProj ->
   apply plugin: 'muzzle'
 
   configurations {
-    // classpath used by the instrumentation muzzle plugin
-    instrumentationMuzzle {
+    instrumentPluginClasspath {
       visible = false
       canBeConsumed = false
       canBeResolved = true
@@ -70,7 +69,7 @@ subprojects { Project subProj ->
       testAnnotationProcessor deps.autoserviceProcessor
       testCompileOnly deps.autoserviceAnnotation
 
-      instrumentationMuzzle project(path: ':dd-java-agent:agent-tooling', configuration: 'instrumentationMuzzle')
+      instrumentPluginClasspath project(path: ':dd-java-agent:agent-tooling', configuration: 'instrumentPluginClasspath')
     }
 
     subProj.tasks.withType(Test).configureEach { subTask ->
