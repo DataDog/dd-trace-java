@@ -15,7 +15,6 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 import static datadog.trace.core.propagation.W3CHttpCodec.OT_BAGGAGE_PREFIX
-import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_PARENT_KEY
 import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_STATE_KEY
 
 class W3CHttpExtractorTest extends DDSpecification {
@@ -53,7 +52,7 @@ class W3CHttpExtractorTest extends DDSpecification {
     String originalTraceId = ""
     String originalSpanId = ""
     if (traceparent) {
-      headers.put(W3CHttpCodec.TRACE_PARENT_KEY, traceparent)
+      headers.put(PropagationUtils.TRACE_PARENT_KEY, traceparent)
       def parts = traceparent.split('-')
       originalTraceId = parts[1]
       originalSpanId = parts[2]
@@ -110,7 +109,7 @@ class W3CHttpExtractorTest extends DDSpecification {
     setup:
     def headers = [
       ""                                      : 'empty key',
-      (TRACE_PARENT_KEY.toUpperCase())        : traceparent,
+      (PropagationUtils.TRACE_PARENT_KEY.toUpperCase())        : traceparent,
       (TRACE_STATE_KEY.toUpperCase())         : tracestate,
       (OT_BAGGAGE_PREFIX.toUpperCase() + 'k1'): 'v1',
       (OT_BAGGAGE_PREFIX.toUpperCase() + 'k2'): 'v2',
@@ -189,7 +188,7 @@ class W3CHttpExtractorTest extends DDSpecification {
       'Forwarded' : "for=$forwardedIp:$forwardedPort"
     ]
     fullCtx = [
-      (TRACE_PARENT_KEY.toUpperCase())        : '00-00000000000000000000000000000001-0000000000000002-01',
+      (PropagationUtils.TRACE_PARENT_KEY.toUpperCase())        : '00-00000000000000000000000000000001-0000000000000002-01',
       'Forwarded' : "for=$forwardedIp:$forwardedPort"
     ]
   }
@@ -203,7 +202,7 @@ class W3CHttpExtractorTest extends DDSpecification {
       'X-Forwarded-Port': forwardedPort
     ]
     def fullCtx = [
-      (TRACE_PARENT_KEY.toUpperCase())        : '00-00000000000000000000000000000001-0000000000000002-01',
+      (PropagationUtils.TRACE_PARENT_KEY.toUpperCase())        : '00-00000000000000000000000000000001-0000000000000002-01',
       'x-forwarded-for'           : forwardedIp,
       'x-forwarded-port'          : forwardedPort
     ]
@@ -291,7 +290,7 @@ class W3CHttpExtractorTest extends DDSpecification {
     setup:
     def headers = [
       ''                                      : 'empty key',
-      (TRACE_PARENT_KEY.toUpperCase())        : '00-00000000000000000000000000000001-123456789abcdef0-01',
+      (PropagationUtils.TRACE_PARENT_KEY.toUpperCase())        : '00-00000000000000000000000000000001-123456789abcdef0-01',
       (OT_BAGGAGE_PREFIX.toUpperCase() + 'k1'): 'v1',
       (OT_BAGGAGE_PREFIX.toUpperCase() + 't0'): endToEndStartTime,
       (OT_BAGGAGE_PREFIX.toUpperCase() + 'k2'): 'v2',
@@ -320,7 +319,7 @@ class W3CHttpExtractorTest extends DDSpecification {
   def "baggage is mapped on context creation"() {
     setup:
     def headers = [
-      (TRACE_PARENT_KEY)                      : traceparent,
+      (PropagationUtils.TRACE_PARENT_KEY)                      : traceparent,
       SOME_CUSTOM_BAGGAGE_HEADER              : 'mappedBaggageValue',
       (OT_BAGGAGE_PREFIX.toUpperCase() + 'k1'): 'v1',
       (OT_BAGGAGE_PREFIX.toUpperCase() + 'k2'): 'v2',

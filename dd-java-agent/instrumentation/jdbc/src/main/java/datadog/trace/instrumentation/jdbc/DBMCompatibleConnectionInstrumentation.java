@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ha
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.SQL_COMMENT_INJECTION_STATIC;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logQueryInfoInjection;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
@@ -20,6 +21,8 @@ import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
+import java.util.HashMap;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
@@ -97,21 +100,31 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
         DBMCompatibleConnectionInstrumentation.class.getName() + "$ConnectionAdvice");
   }
 
+  @Override
+  public Map<String, String> contextStore() {
+    Map<String, String> contextStore = new HashMap<>(4);
+    contextStore.put("java.sql.Statement", DBQueryInfo.class.getName());
+    contextStore.put("java.sql.Connection", DBInfo.class.getName());
+    return contextStore;
+  }
+
   public static class ConnectionAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static String onEnter(
         @Advice.This Connection connection,
         @Advice.Argument(value = 0, readOnly = false) String sql) {
-      if (JDBCDecorator.injectSQLComment()) {
+      if (INJECT_COMMENT) {
         final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Connection.class);
         if (callDepth > 0) {
           return null;
         }
         final String inputSql = sql;
-        final DBInfo dbInfo = JDBCDecorator.parseDBInfoFromConnection(connection);
-        String dbService = DECORATE.dbService(dbInfo);
-        SQLCommenter commenter = new SQLCommenter(SQL_COMMENT_INJECTION_STATIC, sql, dbService);
+        final DBInfo dbInfo =
+            JDBCDecorator.parseDBInfo(
+                connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+        SQLCommenter commenter =
+            new SQLCommenter(SQL_COMMENT_INJECTION_STATIC, sql, DECORATE.getDbService(dbInfo));
         commenter.inject();
         sql = commenter.getCommentedSQL();
         return inputSql;

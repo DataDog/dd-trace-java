@@ -3,6 +3,14 @@ package datadog.trace.core.propagation;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
+import static datadog.trace.core.propagation.PropagationUtils.TRACE_PARENT_FLAGS_START;
+import static datadog.trace.core.propagation.PropagationUtils.TRACE_PARENT_KEY;
+import static datadog.trace.core.propagation.PropagationUtils.TRACE_PARENT_LENGTH;
+import static datadog.trace.core.propagation.PropagationUtils.TRACE_PARENT_SID_END;
+import static datadog.trace.core.propagation.PropagationUtils.TRACE_PARENT_SID_START;
+import static datadog.trace.core.propagation.PropagationUtils.TRACE_PARENT_TID_END;
+import static datadog.trace.core.propagation.PropagationUtils.TRACE_PARENT_TID_START;
+import static datadog.trace.core.propagation.PropagationUtils.traceParent;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
@@ -25,18 +33,10 @@ import org.slf4j.LoggerFactory;
 class W3CHttpCodec {
   private static final Logger log = LoggerFactory.getLogger(W3CHttpCodec.class);
 
-  static final String TRACE_PARENT_KEY = "traceparent";
   static final String TRACE_STATE_KEY = "tracestate";
   static final String OT_BAGGAGE_PREFIX = "ot-baggage-";
   private static final String E2E_START_KEY = OT_BAGGAGE_PREFIX + DDTags.TRACE_START_TIME;
-
-  private static final int TRACE_PARENT_TID_START = 2 + 1;
-  private static final int TRACE_PARENT_TID_END = TRACE_PARENT_TID_START + 32;
-  private static final int TRACE_PARENT_SID_START = TRACE_PARENT_TID_END + 1;
-  private static final int TRACE_PARENT_SID_END = TRACE_PARENT_SID_START + 16;
-  private static final int TRACE_PARENT_FLAGS_START = TRACE_PARENT_SID_END + 1;
   private static final int TRACE_PARENT_FLAGS_SAMPLED = 1;
-  private static final int TRACE_PARENT_LENGTH = TRACE_PARENT_FLAGS_START + 2;
 
   private W3CHttpCodec() {
     // This class should not be created. This also makes code coverage checks happy.
@@ -58,13 +58,7 @@ class W3CHttpCodec {
     @Override
     public <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
-      StringBuilder sb = new StringBuilder(TRACE_PARENT_LENGTH);
-      sb.append("00-");
-      sb.append(context.getTraceId().toHexStringPaddedOrOriginal(32));
-      sb.append("-");
-      sb.append(DDSpanId.toHexStringPadded(context.getSpanId()));
-      sb.append(context.getSamplingPriority() > 0 ? "-01" : "-00");
-      setter.set(carrier, TRACE_PARENT_KEY, sb.toString());
+      setter.set(carrier, TRACE_PARENT_KEY, traceParent(context).toString());
       String tracestate = context.getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
       if (tracestate != null && !tracestate.isEmpty()) {
         setter.set(carrier, TRACE_STATE_KEY, tracestate);

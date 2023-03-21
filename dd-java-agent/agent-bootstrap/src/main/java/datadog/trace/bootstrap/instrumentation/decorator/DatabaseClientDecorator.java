@@ -65,11 +65,9 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
       final String instanceName = dbInstance(connection);
       span.setTag(Tags.DB_INSTANCE, instanceName);
 
-      if (instanceName != null && Config.get().isDbClientSplitByInstance()) {
-        span.setServiceName(
-            Config.get().isDbClientSplitByInstanceTypeSuffix()
-                ? instanceName + "-" + dbType()
-                : instanceName);
+      String serviceName = dbClientService(instanceName);
+      if (null != serviceName) {
+        span.setServiceName(serviceName);
       }
 
       CharSequence hostName = dbHostname(connection);
@@ -78,6 +76,27 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
       }
     }
     return span;
+  }
+
+  // dbService is meant to be called outside the context of an agent span
+  // TODO: I am not sure that I need the extra logic around db client split by instance?
+  public String dbService(final String dbType, final String instanceName) {
+    if (instanceName != null && Config.get().isDbClientSplitByInstance()) {
+      return dbClientService(instanceName);
+    }
+    final NamingEntry entry = CACHE.computeIfAbsent(dbType, APPEND_OPERATION);
+    return entry.getService();
+  }
+
+  public String dbClientService(final String instanceName) {
+    String service = null;
+    if (instanceName != null && Config.get().isDbClientSplitByInstance()) {
+      service =
+          Config.get().isDbClientSplitByInstanceTypeSuffix()
+              ? instanceName + "-" + dbType()
+              : instanceName;
+    }
+    return service;
   }
 
   public AgentSpan onStatement(final AgentSpan span, final CharSequence statement) {
