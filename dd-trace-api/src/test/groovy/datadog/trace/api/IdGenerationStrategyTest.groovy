@@ -17,9 +17,12 @@ class IdGenerationStrategyTest extends DDSpecification {
 
     then:
     traceIds.forEach { traceId ->
-      assert traceId != null
-      assert !traceId.is(DDTraceId.ZERO)
-      assert traceId == traceId
+      // Test equals implementation
+      assert !traceId.equals(null)
+      assert !traceId.equals("foo")
+      assert traceId != DDTraceId.ZERO
+      assert traceId.equals(traceId)
+      // Test #hashCode implementation
       assert traceId.hashCode() == (int) (traceId.toLong() ^ (traceId.toLong() >>> 32))
       assert !checked.contains(traceId)
       checked.add(traceId)

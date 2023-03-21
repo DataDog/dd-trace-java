@@ -7,10 +7,13 @@ class DDTraceIdTest extends DDSpecification {
   def "convert 64-bit ids from/to long #longId and check strings"() {
     when:
     final ddid = DD64bTraceId.from(longId)
+    final defaultDdid = DDTraceId.from(longId)
 
     then:
     ddid == expectedId
+    ddid == defaultDdid
     ddid.toLong() == longId
+    ddid.getHighOrderBits() == 0L
     ddid.toString() == expectedString
     ddid.toHexString() == expectedHex
 
@@ -23,7 +26,7 @@ class DDTraceIdTest extends DDSpecification {
     Long.MIN_VALUE | DD64bTraceId.from(Long.MIN_VALUE) | "9223372036854775808"  | "8" + "0" * 15
   }
 
-  def "convert 64-bits ids from/to String representation: #stringId"() {
+  def "convert 64-bit ids from/to String representation: #stringId"() {
     when:
     final ddid = DD64bTraceId.from(stringId)
 
@@ -40,7 +43,7 @@ class DDTraceIdTest extends DDSpecification {
     "${BigInteger.valueOf(Long.MAX_VALUE).plus(1)}" | DD64bTraceId.from(Long.MIN_VALUE)
   }
 
-  def "fail parsing illegal 64-bits id String representation: #stringId"() {
+  def "fail parsing illegal 64-bit id String representation: #stringId"() {
     when:
     DD64bTraceId.from(stringId)
 
@@ -144,7 +147,7 @@ class DDTraceIdTest extends DDSpecification {
     1311768467463790320L | 1311768467463790320L | "123456789abcdef0123456789abcdef0"
   }
 
-  def "fail parsing illegal 128-bits id hexadecimal String representation: #hexId"() {
+  def "fail parsing illegal 128-bit id hexadecimal String representation: #hexId"() {
     when:
     DD128bTraceId.fromHex(hexId)
 
@@ -161,5 +164,33 @@ class DDTraceIdTest extends DDSpecification {
       "123ABC",
       "123abcg",
     ]
+  }
+
+  def "fail parsing illegal 128-bit id hexadecimal String representation from partial String: #hexId"() {
+    when:
+    DD128bTraceId.fromHex(hexId, start, length, lowerCaseOnly)
+
+    then:
+    thrown NumberFormatException
+
+    where:
+    hexId              | start | length | lowerCaseOnly
+    // Null string
+    null               | 0     | 0      | true
+    // Empty string
+    ""                 | 0     | 0      | true
+    // Out of bound
+    "123456789abcdef0" | 0     | 17     | true
+    "123456789abcdef0" | 7     | 10     | true
+    "123456789abcdef0" | 17    | 0      | true
+    // Invalid characters
+    "-1"               | 0     | 1      | true
+    "-a"               | 0     | 1      | true
+    "123abcg"          | 0     | 7      | true
+    // Invalid case
+    "A"                | 0     | 1      | true
+    "123ABC"           | 0     | 6      | true
+    // Too long id
+    "1" * 33           | 0     | 33     | true
   }
 }
