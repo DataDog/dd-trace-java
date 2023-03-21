@@ -20,4 +20,19 @@ class JavaHttpClientAsyncTest extends JavaHttpClientTest {
     callback?.call()
     return ret
   }
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "http.request"
+  }
 }

@@ -66,7 +66,7 @@ public class HttpClientInstrumentation extends Instrumenter.Tracing
             .and(isPublic())
             .and(takesArguments(2))
             .and(takesArgument(0, named("java.net.http.HttpRequest"))),
-        packageName + ".SendAdvice11");
+        packageName + ".SendAdvice");
 
     transformation.applyAdvice(
         isMethod()
@@ -74,6 +74,6 @@ public class HttpClientInstrumentation extends Instrumenter.Tracing
             .and(isPublic())
             .and(takesArgument(0, named("java.net.http.HttpRequest")))
             .and(takesArgument(1, named("java.net.http.HttpResponse$BodyHandler"))),
-        packageName + ".SendAsyncAdvice11");
+        packageName + ".SendAsyncAdvice");
   }
 }

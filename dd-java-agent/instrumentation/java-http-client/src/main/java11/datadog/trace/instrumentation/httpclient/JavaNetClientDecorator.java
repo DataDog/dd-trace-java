@@ -11,9 +11,10 @@ public class JavaNetClientDecorator extends HttpClientDecorator<HttpRequest, Htt
 
   public static final CharSequence COMPONENT = UTF8BytesString.create("java-http-client");
 
-  public static final String OPERATION_NAME = "http.request";
-
   public static final JavaNetClientDecorator DECORATE = new JavaNetClientDecorator();
+
+  public static final UTF8BytesString OPERATION_NAME =
+      UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected String[] instrumentationNames() {
