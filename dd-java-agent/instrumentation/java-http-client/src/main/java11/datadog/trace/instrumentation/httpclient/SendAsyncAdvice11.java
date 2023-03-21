@@ -32,8 +32,7 @@ public class SendAsyncAdvice11 {
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, httpRequest);
 
-    // propagate().inject(span, request, SETTER);
-
+    // propagation is done by another instrumentation since Headers are immutable
     return scope;
   }
 
