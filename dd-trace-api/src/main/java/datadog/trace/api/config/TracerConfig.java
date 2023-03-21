@@ -86,8 +86,6 @@ public final class TracerConfig {
 
   public static final String TRACE_128_BIT_TRACEID_GENERATION_ENABLED =
       "trace.128.bit.traceid.generation.enabled";
-  public static final String TRACE_128_BIT_TRACEID_LOGGING_ENABLED =
-      "trace.128.bit.traceid.logging.enabled";
 
   public static final String SECURE_RANDOM = "trace.secure-random";
 

@@ -1,7 +1,5 @@
 package datadog.trace.api;
 
-import static datadog.trace.api.IdGenerationStrategy.Trace128bitStrategy.UNSUPPORTED;
-
 import java.security.SecureRandom;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
@@ -13,25 +11,24 @@ import java.util.concurrent.atomic.AtomicLong;
  * configuration based, for example 128 bit trace ids et.c., without changing the public API.
  */
 public abstract class IdGenerationStrategy {
-  protected final Trace128bitStrategy trace128bitStrategy;
+  protected final boolean traceId128BitGenerationEnabled;
 
-  private IdGenerationStrategy(Trace128bitStrategy trace128bitStrategy) {
-    this.trace128bitStrategy = trace128bitStrategy;
+  private IdGenerationStrategy(boolean traceId128BitGenerationEnabled) {
+    this.traceId128BitGenerationEnabled = traceId128BitGenerationEnabled;
   }
 
   public static IdGenerationStrategy fromName(String name) {
-    return fromName(name, UNSUPPORTED);
+    return fromName(name, false);
   }
 
-  public static IdGenerationStrategy fromName(
-      String name, Trace128bitStrategy trace128bitStrategy) {
+  public static IdGenerationStrategy fromName(String name, boolean traceId128BitGenerationEnabled) {
     switch (name.toUpperCase()) {
       case "RANDOM":
-        return new Random(trace128bitStrategy);
+        return new Random(traceId128BitGenerationEnabled);
       case "SEQUENTIAL":
-        return new Sequential(trace128bitStrategy);
+        return new Sequential(traceId128BitGenerationEnabled);
       case "SECURE_RANDOM":
-        return new SRandom(trace128bitStrategy);
+        return new SRandom(traceId128BitGenerationEnabled);
       default:
         return null;
     }
@@ -46,27 +43,14 @@ public abstract class IdGenerationStrategy {
     return timestamp << 32;
   }
 
-  public enum Trace128bitStrategy {
-    GENERATION,
-    GENERATION_AND_LOG_INJECTION,
-    UNSUPPORTED;
-
-    public static Trace128bitStrategy get(boolean withGeneration, boolean withLogInjection) {
-      if (!withGeneration) {
-        return UNSUPPORTED;
-      }
-      return withLogInjection ? GENERATION_AND_LOG_INJECTION : GENERATION;
-    }
-  }
-
   static final class Random extends IdGenerationStrategy {
-    private Random(Trace128bitStrategy trace128bitStrategy) {
-      super(trace128bitStrategy);
+    private Random(boolean traceId128BitGenerationEnabled) {
+      super(traceId128BitGenerationEnabled);
     }
 
     @Override
     public DDTraceId generateTraceId() {
-      return this.trace128bitStrategy != UNSUPPORTED
+      return this.traceId128BitGenerationEnabled
           ? DD128bTraceId.from(generateHighOrderBits(), ThreadLocalRandom.current().nextLong())
           : DD64bTraceId.from(ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE));
     }
@@ -80,8 +64,8 @@ public abstract class IdGenerationStrategy {
   static final class Sequential extends IdGenerationStrategy {
     private final AtomicLong id;
 
-    private Sequential(Trace128bitStrategy trace128bitStrategy) {
-      super(trace128bitStrategy);
+    private Sequential(boolean traceId128BitGenerationEnabled) {
+      super(traceId128BitGenerationEnabled);
       this.id = new AtomicLong(0);
     }
 
@@ -104,12 +88,12 @@ public abstract class IdGenerationStrategy {
   static final class SRandom extends IdGenerationStrategy {
     private final SecureRandom secureRandom;
 
-    SRandom(Trace128bitStrategy trace128bitStrategy) {
-      this(trace128bitStrategy, SecureRandom::getInstanceStrong);
+    SRandom(boolean traceId128BitGenerationEnabled) {
+      this(traceId128BitGenerationEnabled, SecureRandom::getInstanceStrong);
     }
 
-    SRandom(Trace128bitStrategy trace128bitStrategy, ThrowingSupplier<SecureRandom> supplier) {
-      super(trace128bitStrategy);
+    SRandom(boolean traceId128BitGenerationEnabled, ThrowingSupplier<SecureRandom> supplier) {
+      super(traceId128BitGenerationEnabled);
       try {
         secureRandom = supplier.get();
       } catch (Throwable e) {
@@ -127,7 +111,7 @@ public abstract class IdGenerationStrategy {
 
     @Override
     public DDTraceId generateTraceId() {
-      return this.trace128bitStrategy != UNSUPPORTED
+      return this.traceId128BitGenerationEnabled
           ? DD128bTraceId.from(generateHighOrderBits(), secureRandom.nextLong())
           : DD64bTraceId.from(getNonZeroPositiveLong());
     }

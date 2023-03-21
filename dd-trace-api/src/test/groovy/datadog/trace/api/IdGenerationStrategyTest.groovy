@@ -4,10 +4,6 @@ import datadog.trace.test.util.DDSpecification
 
 import java.security.SecureRandom
 
-import static datadog.trace.api.IdGenerationStrategy.Trace128bitStrategy.GENERATION
-import static datadog.trace.api.IdGenerationStrategy.Trace128bitStrategy.GENERATION_AND_LOG_INJECTION
-import static datadog.trace.api.IdGenerationStrategy.Trace128bitStrategy.UNSUPPORTED
-
 class IdGenerationStrategyTest extends DDSpecification {
   def "generate id with #strategyName and #tIdSize bits"() {
     when:
@@ -30,14 +26,14 @@ class IdGenerationStrategyTest extends DDSpecification {
 
     where:
     tId128b | strategyName
-    UNSUPPORTED   | "RANDOM"
-    UNSUPPORTED   | "SEQUENTIAL"
-    UNSUPPORTED   | "SECURE_RANDOM"
-    GENERATION    | "RANDOM"
-    GENERATION    | "SEQUENTIAL"
-    GENERATION    | "SECURE_RANDOM"
+    false   | "RANDOM"
+    false   | "SEQUENTIAL"
+    false   | "SECURE_RANDOM"
+    true    | "RANDOM"
+    true    | "SEQUENTIAL"
+    true    | "SECURE_RANDOM"
 
-    tIdSize = GENERATION ? 128 : 64
+    tIdSize = tId128b ? 128 : 64
   }
 
   def "return null for non existing strategy #strategyName"() {
@@ -57,7 +53,7 @@ class IdGenerationStrategyTest extends DDSpecification {
     def provider = Mock(IdGenerationStrategy.ThrowingSupplier)
 
     when:
-    new IdGenerationStrategy.SRandom(UNSUPPORTED, provider)
+    new IdGenerationStrategy.SRandom(false, provider)
 
     then:
     1 * provider.get() >> { throw new IllegalArgumentException("SecureRandom init exception") }
@@ -72,7 +68,7 @@ class IdGenerationStrategyTest extends DDSpecification {
     def random = Mock(SecureRandom)
 
     when:
-    def strategy = new IdGenerationStrategy.SRandom(UNSUPPORTED, provider)
+    def strategy = new IdGenerationStrategy.SRandom(false, provider)
     strategy.generateTraceId().toLong() == 47
     strategy.generateSpanId() == 11
 
@@ -83,20 +79,5 @@ class IdGenerationStrategyTest extends DDSpecification {
     1 * random.nextLong() >> { 0 }
     1 * random.nextLong() >> { 11 }
     0 * _
-  }
-
-  def "check trace 128-bit strategy choices"() {
-    when:
-    def strategy = IdGenerationStrategy.Trace128bitStrategy.get(withGeneration, withLogInjection)
-
-    then:
-    strategy == expected
-
-    where:
-    withGeneration | withLogInjection | expected
-    false          | false            | UNSUPPORTED
-    false          | true             | UNSUPPORTED
-    true           | false            | GENERATION
-    true           | true             | GENERATION_AND_LOG_INJECTION
   }
 }

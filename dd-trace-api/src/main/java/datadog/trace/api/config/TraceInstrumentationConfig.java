@@ -57,6 +57,8 @@ public final class TraceInstrumentationConfig {
 
   public static final String LOGS_INJECTION_ENABLED = "logs.injection";
   public static final String LOGS_MDC_TAGS_INJECTION_ENABLED = "logs.mdc.tags.injection";
+  public static final String TRACE_128_BIT_TRACEID_LOGGING_ENABLED =
+      "trace.128.bit.traceid.logging.enabled";
 
   public static final String KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS =
       "kafka.client.propagation.disabled.topics";
