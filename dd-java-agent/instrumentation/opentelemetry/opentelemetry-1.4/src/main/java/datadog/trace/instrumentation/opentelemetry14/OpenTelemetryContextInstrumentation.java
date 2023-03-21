@@ -1,4 +1,4 @@
-package datadog.trace.opentelemetry14;
+package datadog.trace.instrumentation.opentelemetry14;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -8,15 +8,20 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import io.opentelemetry.api.trace.TracerProvider;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.context.Context;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
+public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
-  public OpenTelemetryInstrumentation() {
+
+  public OpenTelemetryContextInstrumentation() {
     super("opentelemetry.experimental", "opentelemetry-1");
   }
 
@@ -27,7 +32,7 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
 
   @Override
   public String hierarchyMarkerType() {
-    return "io.opentelemetry.api.OpenTelemetry";
+    return "io.opentelemetry.context.ContextStorage";
   }
 
   @Override
@@ -38,8 +43,8 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "io.opentelemetry.api.DefaultOpenTelemetry",
-      "io.opentelemetry.api.GlobalOpenTelemetry$ObfuscatedOpenTelemetry"
+      "io.opentelemetry.context.ThreadLocalContextStorage",
+      "io.opentelemetry.context.StrictContextStorage",
     };
   }
 
@@ -57,6 +62,7 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
       packageName + ".OtelSpan$NoopSpan",
       packageName + ".OtelSpan$NoopSpanContext",
       packageName + ".OtelSpanBuilder",
+      packageName + ".OtelSpanBuilder$1",
       packageName + ".OtelSpanContext",
       packageName + ".OtelTracer",
       packageName + ".OtelTracerBuilder",
@@ -66,19 +72,30 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    // TracerProvider.getTracerProvider()
+    // Context.current()
     transformation.applyAdvice(
         isMethod()
-            .and(named("getTracerProvider"))
+            .and(named("current"))
             .and(takesNoArguments())
-            .and(returns(named("io.opentelemetry.api.trace.TracerProvider"))),
-        OpenTelemetryInstrumentation.class.getName() + "$TracerProviderAdvice");
+            .and(returns(named("io.opentelemetry.context.Context"))),
+        OpenTelemetryContextInstrumentation.class.getName() + "$ContextCurrentAdvice");
   }
 
-  public static class TracerProviderAdvice {
+  public static class ContextCurrentAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void returnProvider(@Advice.Return(readOnly = false) TracerProvider result) {
-      result = OtelTracerProvider.INSTANCE;
+    public static void current(@Advice.Return(readOnly = false) Context result) {
+      AgentSpan agentSpan = AgentTracer.activeSpan();
+      Span otelSpan = null;
+      if (agentSpan instanceof AttachableWrapper) {
+        Object wrapper = ((AttachableWrapper) agentSpan).getWrapper();
+        if (wrapper instanceof OtelSpan) {
+          otelSpan = (OtelSpan) wrapper;
+        }
+      }
+      if (otelSpan == null) {
+        otelSpan = agentSpan == null ? OtelSpan.invalid() : new OtelSpan(agentSpan);
+      }
+      result = new OtelContext(otelSpan);
     }
   }
 }

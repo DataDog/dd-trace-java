@@ -22,9 +22,6 @@ class SourceTypesTest extends DDSpecification {
     SourceTypes.REQUEST_HEADER_NAME     | SourceTypes.REQUEST_HEADER_NAME_STRING
     SourceTypes.REQUEST_COOKIE_NAME     | SourceTypes.REQUEST_COOKIE_NAME_STRING
     SourceTypes.REQUEST_COOKIE_VALUE    | SourceTypes.REQUEST_COOKIE_VALUE_STRING
-    SourceTypes.REQUEST_COOKIE_COMMENT  | SourceTypes.REQUEST_COOKIE_COMMENT_STRING
-    SourceTypes.REQUEST_COOKIE_DOMAIN   | SourceTypes.REQUEST_COOKIE_DOMAIN_STRING
-    SourceTypes.REQUEST_COOKIE_PATH     | SourceTypes.REQUEST_COOKIE_PATH_STRING
     SourceTypes.REQUEST_BODY            | SourceTypes.REQUEST_BODY_STRING
     SourceTypes.REQUEST_QUERY           | SourceTypes.REQUEST_QUERY_STRING
   }

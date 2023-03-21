@@ -51,6 +51,10 @@ import org.slf4j.LoggerFactory;
 public final class DatadogProfiler {
   private static final Logger log = LoggerFactory.getLogger(DatadogProfiler.class);
 
+  private static final String SERVICE = "_dd.trace.service";
+  private static final String OPERATION = "_dd.trace.operation";
+  private static final String RESOURCE = "_dd.trace.resource";
+
   private static final class Singleton {
     private static final DatadogProfiler INSTANCE = newInstance();
   }
@@ -151,7 +155,9 @@ public final class DatadogProfiler {
     }
     this.orderedContextAttributes = new ArrayList<>(contextAttributes);
     if (isSpanNameContextAttributeEnabled(configProvider)) {
-      orderedContextAttributes.add(0, "operation");
+      orderedContextAttributes.add(RESOURCE);
+      orderedContextAttributes.add(OPERATION);
+      orderedContextAttributes.add(SERVICE);
     }
     this.contextSetter = new ContextSetter(profiler, orderedContextAttributes);
     try {
@@ -326,7 +332,15 @@ public final class DatadogProfiler {
   }
 
   public int operationNameOffset() {
-    return offsetOf("operation");
+    return offsetOf(OPERATION);
+  }
+
+  public int serviceNameOffset() {
+    return offsetOf(SERVICE);
+  }
+
+  public int resourceNameOffset() {
+    return offsetOf(RESOURCE);
   }
 
   public int offsetOf(String attribute) {
@@ -338,7 +352,7 @@ public final class DatadogProfiler {
       try {
         profiler.setContext(spanId, rootSpanId);
       } catch (IllegalStateException e) {
-        log.warn("Failed to clear context", e);
+        log.debug("Failed to clear context", e);
       }
     }
   }
@@ -348,7 +362,7 @@ public final class DatadogProfiler {
       try {
         profiler.setContext(0L, 0L);
       } catch (IllegalStateException e) {
-        log.warn("Failed to set context", e);
+        log.debug("Failed to set context", e);
       }
     }
   }

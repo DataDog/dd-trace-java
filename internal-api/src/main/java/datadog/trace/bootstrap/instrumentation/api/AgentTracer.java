@@ -823,6 +823,21 @@ public class AgentTracer {
     }
 
     @Override
+    public String getFastlyClientIp() {
+      return null;
+    }
+
+    @Override
+    public String getCfConnectingIp() {
+      return null;
+    }
+
+    @Override
+    public String getCfConnectingIpv6() {
+      return null;
+    }
+
+    @Override
     public String getXForwardedProto() {
       return null;
     }
@@ -863,17 +878,12 @@ public class AgentTracer {
     }
 
     @Override
-    public String getClientIp() {
+    public String getXClientIp() {
       return null;
     }
 
     @Override
     public String getUserAgent() {
-      return null;
-    }
-
-    @Override
-    public String getVia() {
       return null;
     }
 

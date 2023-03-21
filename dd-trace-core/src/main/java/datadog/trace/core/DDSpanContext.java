@@ -137,6 +137,8 @@ public class DDSpanContext
   private final ProfilingContextIntegration profilingContextIntegration;
 
   private volatile int encodedOperationName;
+  private volatile int encodedResourceName;
+  private volatile int encodedServiceName;
 
   public DDSpanContext(
       final DDTraceId traceId,
@@ -229,9 +231,16 @@ public class DDSpanContext
     final int capacity = Math.max((tagsSize <= 0 ? 3 : (tagsSize + 1)) * 4 / 3, 8);
     this.unsafeTags = new HashMap<>(capacity);
 
+    // must set this before setting the service and resource names below
+    this.profilingContextIntegration = profilingContextIntegration;
+    // as fast as we can try to make this operation, we still might need to activate/deactivate
+    // contexts at alarming rates in unpredictable async applications, so we'll try
+    // to get away with doing this just once per span
+    this.encodedOperationName = profilingContextIntegration.encode(operationName);
+
     setServiceName(serviceName);
     this.operationName = operationName;
-    this.resourceName = resourceName;
+    setResourceName(resourceName, ResourceNamePriorities.DEFAULT);
     this.errorFlag = errorFlag;
     this.spanType = spanType;
 
@@ -252,11 +261,6 @@ public class DDSpanContext
     if (samplingPriority != PrioritySampling.UNSET) {
       setSamplingPriority(samplingPriority, SamplingMechanism.UNKNOWN);
     }
-    this.profilingContextIntegration = profilingContextIntegration;
-    // as fast as we can try to make this operation, we still might need to activate/deactivate
-    // contexts at alarming rates in unpredictable async applications, so we'll try
-    // to get away with doing this just once per span
-    this.encodedOperationName = profilingContextIntegration.encode(operationName);
   }
 
   @Override
@@ -283,6 +287,16 @@ public class DDSpanContext
     return encodedOperationName;
   }
 
+  @Override
+  public int getEncodedServiceName() {
+    return encodedServiceName;
+  }
+
+  @Override
+  public int getEncodedResourceName() {
+    return encodedResourceName;
+  }
+
   public String getServiceName() {
     return serviceName;
   }
@@ -290,6 +304,9 @@ public class DDSpanContext
   public void setServiceName(final String serviceName) {
     this.serviceName = trace.getTracer().mapServiceName(serviceName);
     this.topLevel = isTopLevel(parentServiceName, this.serviceName);
+    if (this.serviceName != null) {
+      this.encodedServiceName = profilingContextIntegration.encode(this.serviceName);
+    }
   }
 
   // TODO this logic is inconsistent with hasResourceName
@@ -312,6 +329,7 @@ public class DDSpanContext
     if (priority >= this.resourceNamePriority) {
       this.resourceNamePriority = priority;
       this.resourceName = resourceName;
+      this.encodedResourceName = profilingContextIntegration.encode(resourceName);
     }
   }
 
