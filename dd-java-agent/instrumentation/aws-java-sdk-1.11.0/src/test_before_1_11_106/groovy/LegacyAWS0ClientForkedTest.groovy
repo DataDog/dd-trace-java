@@ -93,7 +93,7 @@ class LegacyAWS0ClientForkedTest extends AgentTestRunner {
 
     client.requestHandler2s != null
     client.requestHandler2s.size() == handlerCount
-    client.requestHandler2s.get(0).getClass().getSimpleName() == "TracingRequestHandler"
+    client.requestHandler2s.get(handlerCount - 1).getClass().getSimpleName() == "TracingRequestHandler"
 
     assertTraces(1) {
       trace(2) {
