@@ -38,6 +38,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   public static final String SQL_COMMENT_INJECTION_FULL = "full";
 
   public static final String SQL_COMMENT_INJECTION_MODE = Config.get().getSqlCommentInjectionMode();
+  public static final boolean INJECT_COMMENT = SQL_COMMENT_INJECTION_MODE.equals(SQL_COMMENT_INJECTION_FULL)
+      || SQL_COMMENT_INJECTION_MODE.equals(SQL_COMMENT_INJECTION_STATIC);
+  public static final boolean INJECT_SERVICE_TAGS = SQL_COMMENT_INJECTION_MODE.equals(SQL_COMMENT_INJECTION_STATIC);
+  public static final boolean INJECT_TRACE_CONTEXT = SQL_COMMENT_INJECTION_MODE.equals(SQL_COMMENT_INJECTION_FULL);
 
   public static void logMissingQueryInfo(Statement statement) throws SQLException {
     if (log.isDebugEnabled()) {
@@ -104,6 +108,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     }
   }
 
+  // TODO: this needs to be refactored elsewhere
   public String dbService(final DBInfo dbInfo) {
     String dbService;
     String dbInstance = dbInstance(dbInfo);
@@ -128,6 +133,15 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       final AgentSpan span,
       final Connection connection,
       ContextStore<Connection, DBInfo> contextStore) {
+
+    final DBInfo dbInfo = parseDBInfo(connection, contextStore);
+    if (dbInfo != null) {
+      processDatabaseType(span, dbInfo.getType());
+    }
+    return super.onConnection(span, dbInfo);
+  }
+
+  public static DBInfo parseDBInfo(final Connection connection, ContextStore<Connection, DBInfo> contextStore) {
     DBInfo dbInfo = contextStore.get(connection);
     /*
      * Logic to get the DBInfo from a JDBC Connection, if the connection was not created via
@@ -162,11 +176,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
         contextStore.put(connection, dbInfo);
       }
     }
-
-    if (dbInfo != null) {
-      processDatabaseType(span, dbInfo.getType());
-    }
-    return super.onConnection(span, dbInfo);
+    return dbInfo;
   }
 
   public static DBInfo parseDBInfoFromConnection(final Connection connection) {
@@ -208,9 +218,4 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return span.setTag(Tags.COMPONENT, component);
   }
 
-  /** For customers who elect to enable SQL comment injection */
-  public static boolean injectSQLComment() {
-    return SQL_COMMENT_INJECTION_MODE.equals(SQL_COMMENT_INJECTION_FULL)
-        || SQL_COMMENT_INJECTION_MODE.equals(SQL_COMMENT_INJECTION_STATIC);
-  }
 }

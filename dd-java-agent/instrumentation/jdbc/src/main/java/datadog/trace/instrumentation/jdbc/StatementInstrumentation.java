@@ -9,6 +9,9 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_SERVICE_TAGS;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_TRACE_CONTEXT;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.SQL_COMMENT_INJECTION_FULL;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.SQL_COMMENT_INJECTION_MODE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.SQL_COMMENT_INJECTION_STATIC;
@@ -90,13 +93,13 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
         DECORATE.onConnection(
             span, connection, InstrumentationContext.get(Connection.class, DBInfo.class));
         final String copy = sql;
-        if (span != null && JDBCDecorator.injectSQLComment()) {
-          if (SQL_COMMENT_INJECTION_MODE.equals(SQL_COMMENT_INJECTION_STATIC)) {
+        if (span != null && INJECT_COMMENT) {
+          if (INJECT_SERVICE_TAGS) {
             SQLCommenter carrier =
                 new SQLCommenter(SQL_COMMENT_INJECTION_STATIC, sql, span.getServiceName());
             carrier.inject();
             sql = carrier.getCommentedSQL();
-          } else if (SQL_COMMENT_INJECTION_MODE.equals(SQL_COMMENT_INJECTION_FULL)) {
+          } else if (INJECT_TRACE_CONTEXT) {
             SQLCommenter carrier =
                 new SQLCommenter(
                     SQL_COMMENT_INJECTION_FULL,
