@@ -190,7 +190,8 @@ public class PowerWAFModule implements AppSecModule {
       }
 
       try {
-        applyConfig(initialConfig.get(), AppSecModuleConfigurer.Reconfiguration.NOOP);
+        RuleSetInfo ruleSetInfo = applyConfig(initialConfig.get(), AppSecModuleConfigurer.Reconfiguration.NOOP);
+        MetricCollector.get().wafInit(Powerwaf.LIB_VERSION, ruleSetInfo.fileVersion);
       } catch (ClassCastException e) {
         throw new AppSecModuleActivationException("Config expected to be CurrentAppSecConfig", e);
       }
@@ -204,9 +205,10 @@ public class PowerWAFModule implements AppSecModule {
 
   // this function is called from one thread in the beginning that's different
   // from the RC thread that calls it later on
-  private void applyConfig(Object config_, AppSecModuleConfigurer.Reconfiguration reconf)
+  private RuleSetInfo applyConfig(Object config_, AppSecModuleConfigurer.Reconfiguration reconf)
       throws AppSecModuleActivationException {
     log.debug("Configuring WAF");
+    RuleSetInfo ruleSetInfo = null;
 
     CurrentAppSecConfig config = (CurrentAppSecConfig) config_;
 
@@ -224,7 +226,7 @@ public class PowerWAFModule implements AppSecModule {
     try {
       if (config.dirtyStatus.isDirtyForDdwafUpdate()) {
         // ddwaf_init/update
-        initializeNewWafCtx(reconf, config, curCtxAndAddresses);
+        ruleSetInfo = initializeNewWafCtx(reconf, config, curCtxAndAddresses);
       } else if (config.dirtyStatus.isDirtyForActions()) {
         // only internal actions change
         // if we're here curCtxAndAddresses is not null
@@ -240,9 +242,10 @@ public class PowerWAFModule implements AppSecModule {
     } catch (Exception e) {
       throw new AppSecModuleActivationException("Could not initialize/update waf", e);
     }
+    return ruleSetInfo;
   }
 
-  private void initializeNewWafCtx(
+  private RuleSetInfo initializeNewWafCtx(
       AppSecModuleConfigurer.Reconfiguration reconf,
       CurrentAppSecConfig config,
       CtxAndAddresses prevContextAndAddresses)
@@ -302,7 +305,6 @@ public class PowerWAFModule implements AppSecModule {
     } finally {
       if (initReport != null) {
         this.initReporter.setReportForPublication(initReport);
-        MetricCollector.get().wafInit(Powerwaf.LIB_VERSION, initReport.fileVersion);
       }
     }
 
@@ -316,6 +318,7 @@ public class PowerWAFModule implements AppSecModule {
     }
 
     reconf.reloadSubscriptions();
+    return initReport;
   }
 
   private Map<String, ActionInfo> calculateEffectiveActions(
