@@ -8,16 +8,7 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
 
-class JavaHttpClientTest extends HttpClientTest {
-
-  @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
-    // disable tracer metrics because it uses OkHttp and class loading is
-    // not isolated in tests
-    injectSysConfig("dd.trace.tracer.metrics.enabled", "false")
-  }
-
+abstract class JavaHttpClientTest extends HttpClientTest {
   @Override
   boolean useStrictTraceWrites() {
     // TODO fix this by making sure that spans get closed properly
@@ -48,13 +39,43 @@ class JavaHttpClientTest extends HttpClientTest {
     return DECORATE.component()
   }
 
-  @Override
-  String expectedOperationName() {
-    return "http.request"
-  }
-
-
   boolean testRedirects() {
     false
+  }
+}
+
+class JavaHttpClientV0Test extends JavaHttpClientTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "http.request"
+  }
+}
+
+class JavaHttpClientV1ForkedTest extends JavaHttpClientTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "http.client.request"
   }
 }
