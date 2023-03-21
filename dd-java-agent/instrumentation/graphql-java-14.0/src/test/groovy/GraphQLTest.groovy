@@ -1,4 +1,6 @@
-import datadog.trace.agent.test.AgentTestRunner
+import static graphql.schema.idl.TypeRuntimeWiring.newTypeWiring
+
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -10,13 +12,13 @@ import graphql.schema.GraphQLSchema
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.SchemaGenerator
 import graphql.schema.idl.SchemaParser
+import spock.lang.Shared
 
 import java.nio.charset.StandardCharsets
 
-import static graphql.schema.idl.TypeRuntimeWiring.newTypeWiring
-
-class GraphQLTest extends AgentTestRunner {
-  private GraphQL graphql
+abstract class GraphQLTest extends VersionedNamingTestBase {
+  @Shared
+  GraphQL graphql
 
   @Override
   def setup() {
@@ -88,8 +90,8 @@ class GraphQLTest extends AgentTestRunner {
     assertTraces(1) {
       trace(6) {
         span {
-          operationName "graphql.request"
-          resourceName "graphql.request"
+          operationName operation()
+          resourceName operation()
           spanType DDSpanTypes.GRAPHQL
           errored false
           measured true
@@ -192,8 +194,8 @@ class GraphQLTest extends AgentTestRunner {
     assertTraces(1) {
       trace(3) {
         span {
-          operationName "graphql.request"
-          resourceName "graphql.request"
+          operationName operation()
+          resourceName operation()
           spanType DDSpanTypes.GRAPHQL
           errored true
           measured true
@@ -251,8 +253,8 @@ class GraphQLTest extends AgentTestRunner {
     assertTraces(1) {
       trace(2) {
         span {
-          operationName "graphql.request"
-          resourceName "graphql.request"
+          operationName operation()
+          resourceName operation()
           spanType DDSpanTypes.GRAPHQL
           errored true
           measured true
@@ -306,8 +308,8 @@ class GraphQLTest extends AgentTestRunner {
     assertTraces(1) {
       trace(6) {
         span {
-          operationName "graphql.request"
-          resourceName "graphql.request"
+          operationName operation()
+          resourceName operation()
           spanType DDSpanTypes.GRAPHQL
           errored true
           measured true
@@ -387,5 +389,41 @@ class GraphQLTest extends AgentTestRunner {
         }
       }
     }
+  }
+}
+
+class GraphQLV0ForkedTest extends GraphQLTest {
+
+  @Override
+  int version() {
+    0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "graphql.request"
+  }
+}
+
+class GraphQLV1ForkedTest extends GraphQLTest {
+
+  @Override
+  int version() {
+    1
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "graphql.server.request"
   }
 }

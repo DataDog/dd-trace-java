@@ -244,11 +244,13 @@ class XRayHttpExtractorTest extends DDSpecification {
       (HttpCodec.USER_AGENT_KEY): 'some-user-agent',
       (HttpCodec.X_CLUSTER_CLIENT_IP_KEY): '1.1.1.1',
       (HttpCodec.X_REAL_IP_KEY): '2.2.2.2',
-      (HttpCodec.CLIENT_IP_KEY): '3.3.3.3',
+      (HttpCodec.X_CLIENT_IP_KEY): '3.3.3.3',
       (HttpCodec.TRUE_CLIENT_IP_KEY): '4.4.4.4',
-      (HttpCodec.VIA_KEY): '5.5.5.5',
-      (HttpCodec.FORWARDED_FOR_KEY): '6.6.6.6',
-      (HttpCodec.X_FORWARDED_KEY): '7.7.7.7'
+      (HttpCodec.FORWARDED_FOR_KEY): '5.5.5.5',
+      (HttpCodec.X_FORWARDED_KEY): '6.6.6.6',
+      (HttpCodec.FASTLY_CLIENT_IP_KEY): '7.7.7.7',
+      (HttpCodec.CF_CONNECTING_IP_KEY): '8.8.8.8',
+      (HttpCodec.CF_CONNECTING_IP_V6_KEY): '9.9.9.9',
     ]
 
     when:
@@ -258,10 +260,12 @@ class XRayHttpExtractorTest extends DDSpecification {
     assert context.userAgent == 'some-user-agent'
     assert context.XClusterClientIp == '1.1.1.1'
     assert context.XRealIp == '2.2.2.2'
-    assert context.clientIp == '3.3.3.3'
+    assert context.XClientIp == '3.3.3.3'
     assert context.trueClientIp == '4.4.4.4'
-    assert context.via == '5.5.5.5'
-    assert context.forwardedFor == '6.6.6.6'
-    assert context.XForwarded == '7.7.7.7'
+    assert context.forwardedFor == '5.5.5.5'
+    assert context.XForwarded == '6.6.6.6'
+    assert context.fastlyClientIp == '7.7.7.7'
+    assert context.cfConnectingIp == '8.8.8.8'
+    assert context.cfConnectingIpv6 == '9.9.9.9'
   }
 }

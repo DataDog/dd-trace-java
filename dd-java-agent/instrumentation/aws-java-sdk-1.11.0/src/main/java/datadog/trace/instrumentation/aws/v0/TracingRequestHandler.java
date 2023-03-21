@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.AWS_HTTP;
 import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.AWS_LEGACY_TRACING;
 import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.DECORATE;
 
@@ -40,7 +39,7 @@ public class TracingRequestHandler extends RequestHandler2 {
       // so we can tell when receive call is complete without affecting the rest of the trace
       span = noopSpan();
     } else {
-      span = startSpan(AWS_HTTP);
+      span = startSpan(AwsNameCache.spanName(request));
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       request.addHandlerContext(SPAN_CONTEXT_KEY, span);

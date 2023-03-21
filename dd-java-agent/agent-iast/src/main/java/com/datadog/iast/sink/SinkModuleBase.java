@@ -92,6 +92,43 @@ public abstract class SinkModuleBase implements HasDependencies {
     report(span, type, new Evidence(evidence, targetRanges));
   }
 
+  protected final <E> void checkInjection(
+      @Nullable final AgentSpan span,
+      @Nonnull final InjectionType type,
+      @Nonnull final RangesProvider<E>... rangeProviders) {
+    int rangeCount = 0;
+    for (final RangesProvider<E> provider : rangeProviders) {
+      rangeCount += provider.rangeCount();
+    }
+    if (rangeCount == 0) {
+      return;
+    }
+    if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
+      return;
+    }
+    final StringBuilder evidence = new StringBuilder();
+    final Range[] targetRanges = new Range[rangeCount];
+    int rangeIndex = 0;
+    for (final RangesProvider<E> rangeProvider : rangeProviders) {
+      for (int i = 0; i < rangeProvider.size(); i++) {
+        final E item = rangeProvider.value(i);
+        if (item != null) {
+          if (evidence.length() > 0) {
+            evidence.append(type.evidenceSeparator());
+          }
+          final Range[] taintedRanges = rangeProvider.ranges(item);
+          if (taintedRanges != null) {
+            Ranges.copyShift(taintedRanges, targetRanges, rangeIndex, evidence.length());
+            rangeIndex += taintedRanges.length;
+          }
+          evidence.append(item);
+        }
+      }
+    }
+
+    report(span, type, new Evidence(evidence.toString(), targetRanges));
+  }
+
   protected final void report(
       @Nullable final AgentSpan span,
       @Nonnull final VulnerabilityType type,

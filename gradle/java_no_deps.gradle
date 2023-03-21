@@ -311,11 +311,11 @@ def isJavaLanguageVersionAllowed(JavaLanguageVersion languageVersion, String tes
 }
 
 def isJdkForced(String javaName) {
-  return (project.hasProperty('forceJdk') && project.getProperty('forceJdk').contains(javaName))
+  return (project.hasProperty('forceJdk') && project.getProperty('forceJdk').any { it.equalsIgnoreCase(javaName) })
 }
 
 def isJdkExcluded(String javaName) {
-  return (project.hasProperty('excludeJdk') && project.getProperty('excludeJdk').contains(javaName))
+  return (project.hasProperty('excludeJdk') && project.getProperty('excludeJdk').any { it.equalsIgnoreCase(javaName) })
 }
 
 def getJavaHomePath(String path) {

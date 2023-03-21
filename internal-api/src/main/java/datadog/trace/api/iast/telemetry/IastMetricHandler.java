@@ -18,9 +18,9 @@ import java.util.function.Supplier;
 
 public interface IastMetricHandler {
 
-  void add(long value, String tag);
+  boolean add(long value, String tag);
 
-  void merge(MetricData metric);
+  boolean merge(MetricData metric);
 
   Collection<MetricData> drain();
 
@@ -52,13 +52,14 @@ public interface IastMetricHandler {
     }
 
     @Override
-    public void add(final long value, final String tag) {
-      collector.addMetric(metric, value, tag);
+    public boolean add(final long value, final String tag) {
+      return collector.addMetric(metric, value, tag);
     }
 
     @Override
-    public void merge(final MetricData metric) {
+    public boolean merge(final MetricData metric) {
       // delegating collector handles merge separately
+      return true;
     }
 
     @Override
@@ -78,13 +79,13 @@ public interface IastMetricHandler {
     }
 
     @Override
-    public void add(final long value, final String tag) {
-      combiner.add(value);
+    public boolean add(final long value, final String tag) {
+      return combiner.add(value);
     }
 
     @Override
-    public void merge(final MetricData metric) {
-      combiner.merge(metric);
+    public boolean merge(final MetricData metric) {
+      return combiner.merge(metric);
     }
 
     @Override
@@ -109,13 +110,13 @@ public interface IastMetricHandler {
     }
 
     @Override
-    public void add(final long value, final String tag) {
-      getOrCreateCombiner(tag).add(value);
+    public boolean add(final long value, final String tag) {
+      return getOrCreateCombiner(tag).add(value);
     }
 
     @Override
-    public void merge(final MetricData metric) {
-      getOrCreateCombiner(metric.getTag()).merge(metric);
+    public boolean merge(final MetricData metric) {
+      return getOrCreateCombiner(metric.getTag()).merge(metric);
     }
 
     private Combiner getOrCreateCombiner(final String tag) {
@@ -147,9 +148,9 @@ public interface IastMetricHandler {
   }
 
   interface Combiner {
-    void add(final long value);
+    boolean add(final long value);
 
-    void merge(MetricData metric);
+    boolean merge(MetricData metric);
 
     List<Point> drain();
   }
@@ -158,14 +159,16 @@ public interface IastMetricHandler {
     private final AtomicLong value = new AtomicLong(0);
 
     @Override
-    public void add(final long value) {
+    public boolean add(final long value) {
       this.value.addAndGet(value);
+      return true;
     }
 
     @Override
-    public void merge(final MetricData metric) {
+    public boolean merge(final MetricData metric) {
       final long total = metric.getPoints().stream().mapToLong(Point::getValue).sum();
       this.value.addAndGet(total);
+      return true;
     }
 
     @Override
@@ -189,13 +192,17 @@ public interface IastMetricHandler {
     }
 
     @Override
-    public void add(final long value) {
-      this.value.offer(new Point(value));
+    public boolean add(final long value) {
+      return this.value.offer(new Point(value));
     }
 
     @Override
-    public void merge(final MetricData metric) {
-      value.addAll(metric.getPoints());
+    public boolean merge(final MetricData metric) {
+      boolean result = true;
+      for (final Point point : metric.getPoints()) {
+        result &= value.offer(point);
+      }
+      return result;
     }
 
     @Override

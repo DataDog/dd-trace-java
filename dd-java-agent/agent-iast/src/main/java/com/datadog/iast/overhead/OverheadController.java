@@ -1,5 +1,7 @@
 package com.datadog.iast.overhead;
 
+import static datadog.trace.api.iast.IastDetectionMode.UNLIMITED;
+
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.IastSystem;
 import com.datadog.iast.util.NonBlockingSemaphore;
@@ -111,7 +113,6 @@ public interface OverheadController {
 
     private static final int RESET_PERIOD_SECONDS = 30;
 
-    private final int maxConcurrentRequests;
     private final int sampling;
 
     final NonBlockingSemaphore availableRequests;
@@ -121,10 +122,8 @@ public interface OverheadController {
     final OverheadContext globalContext = new OverheadContext();
 
     public OverheadControllerImpl(final Config config, final AgentTaskScheduler taskScheduler) {
-      maxConcurrentRequests = config.getIastMaxConcurrentRequests();
       sampling = computeSamplingParameter(config.getIastRequestSampling());
-      availableRequests =
-          NonBlockingSemaphore.withPermitCount(config.getIastMaxConcurrentRequests());
+      availableRequests = maxConcurrentRequests(config.getIastMaxConcurrentRequests());
       if (taskScheduler != null) {
         taskScheduler.scheduleAtFixedRate(
             this::reset, 2 * RESET_PERIOD_SECONDS, RESET_PERIOD_SECONDS, TimeUnit.SECONDS);
@@ -174,6 +173,12 @@ public interface OverheadController {
         return 1;
       }
       return Math.round(100 / pct);
+    }
+
+    static NonBlockingSemaphore maxConcurrentRequests(final int max) {
+      return max == UNLIMITED
+          ? NonBlockingSemaphore.unlimited()
+          : NonBlockingSemaphore.withPermitCount(max);
     }
 
     @Override

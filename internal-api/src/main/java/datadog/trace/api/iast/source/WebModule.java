@@ -1,9 +1,6 @@
 package datadog.trace.api.iast.source;
 
 import datadog.trace.api.iast.IastModule;
-import java.io.BufferedReader;
-import java.io.InputStream;
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public interface WebModule extends IastModule {
@@ -24,15 +21,7 @@ public interface WebModule extends IastModule {
 
   void onHeaderValue(@Nullable String headerName, @Nullable String headerValue);
 
-  <COOKIE> void onCookies(@Nullable COOKIE[] cookies);
+  void onQueryString(@Nullable String queryString);
 
-  <COOKIE> void onCookieGetter(
-      @Nonnull COOKIE self,
-      @Nullable String cookieName,
-      @Nullable String result,
-      byte sourceTypeValue);
-
-  void onGetInputStream(@Nullable InputStream inputStream);
-
-  void onGetReader(@Nullable BufferedReader bufferedReader);
+  void onCookieValue(@Nullable String cookieName, @Nullable String cookieValue);
 }

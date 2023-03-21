@@ -3,13 +3,14 @@ package com.datadog.iast.source
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.IastRequestContext
 import com.datadog.iast.model.Source
-import com.datadog.iast.model.SourceType
-import com.datadog.iast.taint.Ranges
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.source.WebModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import groovy.transform.CompileDynamic
 
+@CompileDynamic
 class WebModuleTest extends IastModuleImplTestBase {
 
   private WebModule module
@@ -74,8 +75,8 @@ class WebModuleTest extends IastModuleImplTestBase {
 
     where:
     method            | name    | source
-    'onParameterName' | 'param' | SourceType.REQUEST_PARAMETER_NAME
-    'onHeaderName'    | 'param' | SourceType.REQUEST_HEADER_NAME
+    'onParameterName' | 'param' | SourceTypes.REQUEST_PARAMETER_NAME
+    'onHeaderName'    | 'param' | SourceTypes.REQUEST_HEADER_NAME
   }
 
   void 'test #method: null or empty'(final String method, final String name, final String value) {
@@ -147,35 +148,37 @@ class WebModuleTest extends IastModuleImplTestBase {
 
     where:
     method             | name    | value   | source
-    'onParameterValue' | null    | "value" | SourceType.REQUEST_PARAMETER_VALUE
-    'onParameterValue' | ""      | "value" | SourceType.REQUEST_PARAMETER_VALUE
-    'onParameterValue' | "param" | "value" | SourceType.REQUEST_PARAMETER_VALUE
-    'onHeaderValue'    | null    | "value" | SourceType.REQUEST_HEADER_VALUE
-    'onHeaderValue'    | ""      | "value" | SourceType.REQUEST_HEADER_VALUE
-    'onHeaderValue'    | "param" | "value" | SourceType.REQUEST_HEADER_VALUE
+    'onParameterValue' | null    | "value" | SourceTypes.REQUEST_PARAMETER_VALUE
+    'onParameterValue' | ""      | "value" | SourceTypes.REQUEST_PARAMETER_VALUE
+    'onParameterValue' | "param" | "value" | SourceTypes.REQUEST_PARAMETER_VALUE
+    'onHeaderValue'    | null    | "value" | SourceTypes.REQUEST_HEADER_VALUE
+    'onHeaderValue'    | ""      | "value" | SourceTypes.REQUEST_HEADER_VALUE
+    'onHeaderValue'    | "param" | "value" | SourceTypes.REQUEST_HEADER_VALUE
   }
 
-  void 'test onCookies without span'() {
+  void 'test onQueryString without span'() {
     when:
-    module.onCookies([new Object()])
+    module.onQueryString('query string')
 
     then:
     1 * tracer.activeSpan() >> null
     0 * _
   }
 
-  void 'test onCookies null or empty'(final Object[] cookies) {
+  void 'test onQueryString with null or empty query string'() {
     when:
-    module.onCookies(cookies)
+    module.onQueryString(value)
 
     then:
     0 * _
 
     where:
-    cookies << [null, []]
+    value | _
+    null  | _
+    ''    | _
   }
 
-  void 'test onCookies'() {
+  void 'test onQueryString'() {
     given:
     final span = Mock(AgentSpan)
     tracer.activeSpan() >> span
@@ -183,10 +186,10 @@ class WebModuleTest extends IastModuleImplTestBase {
     span.getRequestContext() >> reqCtx
     final ctx = new IastRequestContext()
     reqCtx.getData(RequestContextSlot.IAST) >> ctx
-    final Object cookie = new Object()
+    final value = 'key=value'
 
     when:
-    module.onCookies(cookie)
+    module.onQueryString(value)
 
     then:
     1 * tracer.activeSpan() >> span
@@ -194,156 +197,9 @@ class WebModuleTest extends IastModuleImplTestBase {
     1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
     0 * _
 
-    def to = ctx.getTaintedObjects().get(cookie)
-    assert to != null
-  }
-
-
-  void 'test onCookieGetter without span'() {
-    when:
-    module.onCookieGetter(new Object(), null, "result", SourceType.REQUEST_COOKIE_NAME)
-
-    then:
-    1 * tracer.activeSpan() >> null
-    0 * _
-  }
-
-  void 'test onCookieGetter null or empty'(final String value) {
-    when:
-    module.onCookieGetter(new Object(), 'cookieName', value, SourceType.REQUEST_COOKIE_NAME)
-
-    then:
-    0 * _
-
-    where:
-    value << [null, ""]
-  }
-
-  void 'test onCookieGetter'(final String value, final byte sourceTypeValue, final boolean isCookieTainted) {
-    given:
-    final span = Mock(AgentSpan)
-    tracer.activeSpan() >> span
-    final reqCtx = Mock(RequestContext)
-    span.getRequestContext() >> reqCtx
-    final ctx = new IastRequestContext()
-    reqCtx.getData(RequestContextSlot.IAST) >> ctx
-    final Object cookie = new Object()
-    if (isCookieTainted) {
-      ctx.getTaintedObjects().taint(cookie, Ranges.EMPTY)
-    }
-
-    when:
-    module.onCookieGetter(cookie, 'cookieName', value, sourceTypeValue)
-
-    then:
-    1 * tracer.activeSpan() >> span
-    1 * span.getRequestContext() >> reqCtx
-    1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
-    0 * _
-
-    def to = ctx.getTaintedObjects().get(value)
-    if (isCookieTainted && value != null && value != "") {
-      assert to != null
-      assert to.get() == value
-      assert to.ranges.size() == 1
-      assert to.ranges[0].start == 0
-      assert to.ranges[0].length == value.length()
-      assert to.ranges[0].source == new Source(sourceTypeValue, 'cookieName', value)
-    } else {
-      assert to == null
-    }
-
-    where:
-    value     | sourceTypeValue                   | isCookieTainted
-    "name"    | SourceType.REQUEST_COOKIE_NAME    | true
-    "value"   | SourceType.REQUEST_COOKIE_VALUE   | true
-    "comment" | SourceType.REQUEST_COOKIE_COMMENT | true
-    "domain"  | SourceType.REQUEST_COOKIE_DOMAIN  | true
-    "path"    | SourceType.REQUEST_COOKIE_PATH    | true
-    "name"    | SourceType.REQUEST_COOKIE_NAME    | false
-    "value"   | SourceType.REQUEST_COOKIE_VALUE   | false
-    "comment" | SourceType.REQUEST_COOKIE_COMMENT | false
-    "domain"  | SourceType.REQUEST_COOKIE_DOMAIN  | false
-    "path"    | SourceType.REQUEST_COOKIE_PATH    | false
-  }
-
-  void 'test onGetInputStream without span'() {
-    when:
-    module.onGetInputStream(Mock(InputStream))
-
-    then:
-    1 * tracer.activeSpan() >> null
-    0 * _
-  }
-
-  void 'test onGetReader without span'() {
-    when:
-    module.onGetReader(Mock(BufferedReader))
-
-    then:
-    1 * tracer.activeSpan() >> null
-    0 * _
-  }
-
-  void 'test onGetInputStream null or empty'() {
-    when:
-    module.onGetInputStream(null)
-
-    then:
-    0 * _
-  }
-
-  void 'test onGetReader null or empty'() {
-    when:
-    module.onGetReader(null)
-
-    then:
-    0 * _
-  }
-
-  void 'test onGetInputStream'() {
-    given:
-    final span = Mock(AgentSpan)
-    tracer.activeSpan() >> span
-    final reqCtx = Mock(RequestContext)
-    span.getRequestContext() >> reqCtx
-    final ctx = new IastRequestContext()
-    reqCtx.getData(RequestContextSlot.IAST) >> ctx
-    final InputStream io = Mock(InputStream)
-
-    when:
-    module.onGetInputStream(io)
-
-    then:
-    1 * tracer.activeSpan() >> span
-    1 * span.getRequestContext() >> reqCtx
-    1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
-    0 * _
-
-    def to = ctx.getTaintedObjects().get(io)
-    assert to != null
-  }
-
-  void 'test onGetReader'() {
-    given:
-    final span = Mock(AgentSpan)
-    tracer.activeSpan() >> span
-    final reqCtx = Mock(RequestContext)
-    span.getRequestContext() >> reqCtx
-    final ctx = new IastRequestContext()
-    reqCtx.getData(RequestContextSlot.IAST) >> ctx
-    final BufferedReader reader = Mock(BufferedReader)
-
-    when:
-    module.onGetReader(reader)
-
-    then:
-    1 * tracer.activeSpan() >> span
-    1 * span.getRequestContext() >> reqCtx
-    1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
-    0 * _
-
-    def to = ctx.getTaintedObjects().get(reader)
-    assert to != null
+    final tainted = ctx.getTaintedObjects().get(value)
+    tainted != null
+    tainted.ranges.length == 1
+    tainted.ranges.first().source.origin == SourceTypes.REQUEST_QUERY
   }
 }

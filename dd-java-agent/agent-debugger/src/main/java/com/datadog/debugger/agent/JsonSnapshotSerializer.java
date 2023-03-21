@@ -34,13 +34,13 @@ public class JsonSnapshotSerializer implements DebuggerContext.SnapshotSerialize
   private void handlerLogger(Snapshot snapshot, IntakeRequest request) {
     request.loggerName = snapshot.getProbe().getLocation().getType();
     request.loggerMethod = snapshot.getProbe().getLocation().getMethod();
-    request.loggerVersion = snapshot.retrieveVersion();
-    request.loggerThreadId = snapshot.retrieveThread().getId();
-    request.loggerThreadName = snapshot.retrieveThread().getName();
+    request.loggerVersion = snapshot.getVersion();
+    request.loggerThreadId = snapshot.getThread().getId();
+    request.loggerThreadName = snapshot.getThread().getName();
   }
 
   private void handleDuration(Snapshot snapshot, IntakeRequest request) {
-    request.duration = snapshot.retrieveDuration();
+    request.duration = snapshot.getDuration();
   }
 
   private void handleCorrelationFields(Snapshot snapshot, IntakeRequest request) {

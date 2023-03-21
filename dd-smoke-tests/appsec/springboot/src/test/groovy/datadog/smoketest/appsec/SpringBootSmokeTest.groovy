@@ -25,7 +25,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     def request = new Request.Builder()
       .url(url)
       .addHeader("User-Agent", "Arachni/v1")
-      .addHeader("Forwarded", 'for="[::ffff:1.2.3.4]"')
+      .addHeader("X-Forwarded", 'for="[::ffff:1.2.3.4]"')
       .build()
     def response = client.newCall(request).execute()
     def responseBodyStr = response.body().string()

@@ -2,9 +2,9 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.opentelemetry14.OtelSpan
-import datadog.trace.opentelemetry14.OtelSpanBuilder
-import datadog.trace.opentelemetry14.OtelTracer
+import datadog.trace.instrumentation.opentelemetry14.OtelSpan
+import datadog.trace.instrumentation.opentelemetry14.OtelSpanBuilder
+import datadog.trace.instrumentation.opentelemetry14.OtelTracer
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.trace.Span
 import io.opentelemetry.api.trace.SpanKind
