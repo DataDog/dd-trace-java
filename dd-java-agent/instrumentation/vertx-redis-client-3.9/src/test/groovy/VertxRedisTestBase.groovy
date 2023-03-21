@@ -115,7 +115,7 @@ abstract class VertxRedisTestBase extends AgentTestRunner {
       operationName "redis.query"
       resourceName command
       spanType DDSpanTypes.REDIS
-      topLevel true
+      measured true
       tags {
         "$Tags.COMPONENT" "redis-command"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT

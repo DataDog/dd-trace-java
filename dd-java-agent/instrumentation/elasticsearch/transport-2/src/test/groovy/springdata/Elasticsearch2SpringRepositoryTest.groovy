@@ -327,7 +327,7 @@ class Elasticsearch2SpringRepositoryV1ForkedTest extends Elasticsearch2SpringRep
 
   @Override
   String service() {
-    return datadog.trace.api.Config.get().getServiceName() + "-elasticsearch"
+    return datadog.trace.api.Config.get().getServiceName()
   }
 
   @Override
