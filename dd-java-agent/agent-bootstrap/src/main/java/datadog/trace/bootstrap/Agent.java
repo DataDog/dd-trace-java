@@ -136,7 +136,7 @@ public class Agent {
   private static boolean telemetryEnabled = true;
   private static boolean debuggerEnabled = false;
 
-  public static void start(final Instrumentation inst, final URL agentJarURL) {
+  public static void start(final Instrumentation inst, final URL agentJarURL, String agentArgs) {
     StaticEventLogger.begin("Agent");
     StaticEventLogger.begin("Agent.start");
 
@@ -145,6 +145,10 @@ public class Agent {
     if (Platform.isNativeImageBuilder()) {
       startDatadogAgent(inst);
       return;
+    }
+
+    if (agentArgs != null && !agentArgs.isEmpty()) {
+      injectAgentArgsConfig(agentArgs);
     }
 
     // Retro-compatibility for the old way to configure CI Visibility
@@ -292,6 +296,18 @@ public class Agent {
     }
 
     StaticEventLogger.end("Agent.start");
+  }
+
+  private static void injectAgentArgsConfig(String agentArgs) {
+    try {
+      final Class<?> agentArgsInjectorClass =
+          AGENT_CLASSLOADER.loadClass("datadog.trace.bootstrap.config.provider.AgentArgsInjector");
+      final Method registerCallbackMethod =
+          agentArgsInjectorClass.getMethod("injectAgentArgsConfig", String.class);
+      registerCallbackMethod.invoke(null, agentArgs);
+    } catch (final Exception ex) {
+      log.error("Error injecting agent args config {}", agentArgs, ex);
+    }
   }
 
   public static void shutdown(final boolean sync) {
