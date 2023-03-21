@@ -18,16 +18,7 @@ import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.WithGlobalTracer;
-import datadog.trace.api.config.AppSecConfig;
-import datadog.trace.api.config.CiVisibilityConfig;
-import datadog.trace.api.config.CwsConfig;
-import datadog.trace.api.config.DebuggerConfig;
-import datadog.trace.api.config.GeneralConfig;
-import datadog.trace.api.config.IastConfig;
-import datadog.trace.api.config.JmxFetchConfig;
-import datadog.trace.api.config.ProfilingConfig;
-import datadog.trace.api.config.RemoteConfigConfig;
-import datadog.trace.api.config.TraceInstrumentationConfig;
+import datadog.trace.api.config.*;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.scopemanager.ScopeListener;
@@ -91,7 +82,8 @@ public class Agent {
     CIVISIBILITY_AGENTLESS(
         propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED), false),
     TELEMETRY(propertyNameToSystemPropertyName(GeneralConfig.TELEMETRY_ENABLED), true),
-    DEBUGGER(propertyNameToSystemPropertyName(DebuggerConfig.DEBUGGER_ENABLED), false);
+    DEBUGGER(propertyNameToSystemPropertyName(DebuggerConfig.DEBUGGER_ENABLED), false),
+    SPARK(propertyNameToSystemPropertyName(SparkConfig.SPARK_ENABLED), false);
 
     private final String systemProp;
     private final boolean enabledByDefault;
@@ -133,6 +125,7 @@ public class Agent {
   private static boolean ciVisibilityEnabled = false;
   private static boolean telemetryEnabled = true;
   private static boolean debuggerEnabled = false;
+  private static boolean sparkEnabled = false;
 
   public static void start(final Instrumentation inst, final URL agentJarURL) {
     StaticEventLogger.begin("Agent");
@@ -183,6 +176,7 @@ public class Agent {
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
     telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
     debuggerEnabled = isFeatureEnabled(AgentFeature.DEBUGGER);
+    sparkEnabled = isFeatureEnabled(AgentFeature.SPARK);
 
     if (profilingEnabled) {
       if (!isOracleJDK8()) {
@@ -289,25 +283,7 @@ public class Agent {
       StaticEventLogger.end("Profiling");
     }
 
-    startSparkAgent(inst);
-
     StaticEventLogger.end("Agent.start");
-  }
-
-  private static void startSparkAgent(Instrumentation inst) {
-    final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
-    try {
-      Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
-      final Class<?> debuggerAgentClass =
-          AGENT_CLASSLOADER.loadClass("com.datadog.spark.SparkAgent");
-      final Method debuggerInstallerMethod =
-          debuggerAgentClass.getMethod("run", Instrumentation.class);
-      debuggerInstallerMethod.invoke(null, inst);
-    } catch (final Throwable ex) {
-      log.error("Throwable thrown while starting spark agent", ex);
-    } finally {
-      Thread.currentThread().setContextClassLoader(contextLoader);
-    }
   }
 
   public static void shutdown(final boolean sync) {
@@ -433,6 +409,7 @@ public class Agent {
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
+      maybeStartSparkAgent(instrumentation, scoClass, sco);
 
       if (telemetryEnabled) {
         startTelemetry(instrumentation, scoClass, sco);
@@ -715,6 +692,24 @@ public class Agent {
     } catch (final Throwable e) {
       log.warn("Not starting IAST subsystem", e);
     }
+  }
+
+  private static void maybeStartSparkAgent(Instrumentation inst, Class<?> scoClass, Object o) {
+    if (!sparkEnabled) {
+      return;
+    }
+
+    StaticEventLogger.begin("Spark Agent");
+
+    try {
+      final Class<?> sparkAgentClass = AGENT_CLASSLOADER.loadClass("com.datadog.spark.SparkAgent");
+      final Method installMethod = sparkAgentClass.getMethod("run", Instrumentation.class);
+      installMethod.invoke(null, inst);
+    } catch (final Throwable e) {
+      log.warn("Not starting Spark Agent subsystem", e);
+    }
+
+    StaticEventLogger.end("Spark Agent");
   }
 
   private static void maybeStartCiVisibility(Class<?> scoClass, Object o) {

@@ -1,12 +1,15 @@
 package datadog.trace.bootstrap.instrumentation.spark;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class SparkAgentContext {
 
   public interface SparkAgentIntf {
-    void sendMetric(long value); // FIXME
-
     void register(ClassLoader sparkClassLoader);
   }
+
+  private static final Logger log = LoggerFactory.getLogger(SparkAgentContext.class);
 
   private static SparkAgentIntf sparkAgent;
 
@@ -15,11 +18,7 @@ public class SparkAgentContext {
   }
 
   public static void register(ClassLoader sparkClassLoader) {
-    System.err.println("SparkAgentContext.register");
+    log.info("SparkAgentContext.register");
     sparkAgent.register(sparkClassLoader);
-  }
-
-  public static void sendMetrics(long value) {
-    sparkAgent.sendMetric(value);
   }
 }
