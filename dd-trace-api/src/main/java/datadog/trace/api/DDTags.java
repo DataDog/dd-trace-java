@@ -43,4 +43,5 @@ public class DDTags {
   public static final String CI_ENV_VARS = "_dd.ci.env_vars";
   public static final String MEASURED = "_dd.measured";
   public static final String PID_TAG = "process_id";
+  public static final String SCHEMA_VERSION_TAG_KEY = "_dd.trace_span_attribute_schema";
 }
