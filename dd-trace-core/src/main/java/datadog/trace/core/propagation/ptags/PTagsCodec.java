@@ -76,6 +76,14 @@ abstract class PTagsCodec {
           DECISION_MAKER_TAG.forType(Encoding.DATADOG).toString(),
           propagationTags.getDecisionMakerTagValue().forType(Encoding.DATADOG).toString());
     }
+    if (propagationTags.getTraceIdHighOrderBitsHexTagValue() != null) {
+      tagMap.put(
+          TRACE_ID_TAG.forType(Encoding.DATADOG).toString(),
+          propagationTags
+              .getTraceIdHighOrderBitsHexTagValue()
+              .forType(Encoding.DATADOG)
+              .toString());
+    }
     if (propagationTags.getError() != null) {
       tagMap.put(PROPAGATION_ERROR_TAG_KEY, propagationTags.getError());
     }
