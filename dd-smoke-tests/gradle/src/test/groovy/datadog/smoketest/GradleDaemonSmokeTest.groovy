@@ -120,7 +120,7 @@ class GradleDaemonSmokeTest extends Specification {
     verifyAll(moduleEndEvent) {
       verifyAll(content) {
         name == "gradle.test_module"
-        resource == "gradle-instrumentation-test-project" // project name
+        resource == ":test" // task path
         test_module_id > 0
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
@@ -174,7 +174,7 @@ class GradleDaemonSmokeTest extends Specification {
     verifyAll(moduleEndEvent) {
       verifyAll(content) {
         name == "gradle.test_module"
-        resource == "gradle-instrumentation-test-project" // project name
+        resource == ":test" // task path
         test_module_id > 0
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
@@ -221,13 +221,13 @@ class GradleDaemonSmokeTest extends Specification {
       }
     }
 
-    def moduleAEndEvent = events.find { it.type == "test_module_end" && it.content.resource == "submodule-a" }
+    def moduleAEndEvent = events.find { it.type == "test_module_end" && it.content.resource == ":submodule-a:test" }
     assert moduleAEndEvent != null
     verifyCommonTags(moduleAEndEvent)
     verifyAll(moduleAEndEvent) {
       verifyAll(content) {
         name == "gradle.test_module"
-        resource == "submodule-a" // module name
+        resource == ":submodule-a:test" // task path
         test_module_id > 0
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
@@ -237,13 +237,13 @@ class GradleDaemonSmokeTest extends Specification {
       }
     }
 
-    def moduleBEndEvent = events.find { it.type == "test_module_end" && it.content.resource == "submodule-b" }
+    def moduleBEndEvent = events.find { it.type == "test_module_end" && it.content.resource == ":submodule-b:test" }
     assert moduleBEndEvent != null
     verifyCommonTags(moduleBEndEvent)
     verifyAll(moduleBEndEvent) {
       verifyAll(content) {
         name == "gradle.test_module"
-        resource == "submodule-b" // module name
+        resource == ":submodule-b:test" // task path
         test_module_id > 0
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
@@ -304,7 +304,7 @@ class GradleDaemonSmokeTest extends Specification {
     verifyAll(moduleEndEvent) {
       verifyAll(content) {
         name == "gradle.test_module"
-        resource == "gradle-instrumentation-test-project" // project name
+        resource == ":test" // task path
         test_module_id > 0
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
@@ -356,7 +356,7 @@ class GradleDaemonSmokeTest extends Specification {
     verifyAll(moduleEndEvent) {
       verifyAll(content) {
         name == "gradle.test_module"
-        resource == "gradle-instrumentation-test-project" // project name
+        resource == ":test" // task path
         test_module_id > 0
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
