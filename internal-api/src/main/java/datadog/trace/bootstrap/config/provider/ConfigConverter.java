@@ -68,13 +68,19 @@ final class ConfigConverter {
 
   @Nonnull
   static Map<String, String> parseMap(final String str, final String settingName) {
+    return parseMap(str, settingName, ':');
+  }
+
+  @Nonnull
+  static Map<String, String> parseMap(
+      final String str, final String settingName, final char keyValueSeparator) {
     // If we ever want to have default values besides an empty map, this will need to change.
     String trimmed = Strings.trim(str);
     if (trimmed.isEmpty()) {
       return Collections.emptyMap();
     }
     Map<String, String> map = new HashMap<>();
-    loadMap(map, trimmed, settingName);
+    loadMap(map, trimmed, settingName, keyValueSeparator);
     return map;
   }
 
@@ -116,7 +122,7 @@ final class ConfigConverter {
       return Collections.emptyMap();
     }
     Map<String, String> map = new LinkedHashMap<>();
-    loadMap(map, trimmed, settingName);
+    loadMap(map, trimmed, settingName, ':');
     return map;
   }
 
@@ -126,13 +132,14 @@ final class ConfigConverter {
     }
   }
 
-  private static void loadMap(Map<String, String> map, String str, String settingName) {
+  private static void loadMap(
+      Map<String, String> map, String str, String settingName, char keyValueSeparator) {
     // we know that the str is trimmed and rely on that there is no leading/trailing whitespace
     try {
       int start = 0;
-      int splitter = str.indexOf(':', start);
+      int splitter = str.indexOf(keyValueSeparator, start);
       while (splitter != -1) {
-        int nextSplitter = str.indexOf(':', splitter + 1);
+        int nextSplitter = str.indexOf(keyValueSeparator, splitter + 1);
         int nextComma = str.indexOf(',', splitter + 1);
         nextComma = nextComma == -1 ? str.length() : nextComma;
         int nextSpace = str.indexOf(' ', splitter + 1);
@@ -141,7 +148,7 @@ final class ConfigConverter {
         // allow for tags with ':' in them
         int end = nextComma < str.length() ? nextComma : nextSpace;
         while (nextSplitter != -1 && nextSplitter < end) {
-          nextSplitter = str.indexOf(':', nextSplitter + 1);
+          nextSplitter = str.indexOf(keyValueSeparator, nextSplitter + 1);
         }
         if (nextSplitter == -1) {
           // this is either the end of the string or the next position where the value should be
@@ -178,9 +185,15 @@ final class ConfigConverter {
     } catch (Throwable t) {
       if (t instanceof BadFormatException) {
         log.warn(
-            "Invalid config for {}. {}. Must match 'key1:value1,key2:value2' or 'key1:value1 key2:value2'.",
+            "Invalid config for {}. {}. Must match "
+                + "'key1{}value1,key2{}value2' or "
+                + "'key1{}value1 key2{}value2'.",
             settingName,
-            t.getMessage());
+            t.getMessage(),
+            keyValueSeparator,
+            keyValueSeparator,
+            keyValueSeparator,
+            keyValueSeparator);
       } else {
         log.warn("Unexpected exception during config parsing of {}.", settingName, t);
       }
