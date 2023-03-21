@@ -13,10 +13,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Platform;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
@@ -57,9 +54,7 @@ public class HttpClientInstrumentation extends Instrumenter.Tracing
       packageName + ".BodyHandlerWrapper$BodySubscriberWrapper",
       packageName + ".CompletableFutureWrapper",
       packageName + ".JavaNetClientDecorator",
-      packageName + ".ResponseConsumer",
-      packageName + ".SendAdvice11",
-      packageName + ".SendAsyncAdvice11"
+      packageName + ".ResponseConsumer"
     };
   }
 
@@ -71,7 +66,7 @@ public class HttpClientInstrumentation extends Instrumenter.Tracing
             .and(isPublic())
             .and(takesArguments(2))
             .and(takesArgument(0, named("java.net.http.HttpRequest"))),
-        getClass().getName() + "$SendAdvice");
+        packageName + ".SendAdvice11");
 
     transformation.applyAdvice(
         isMethod()
@@ -79,49 +74,6 @@ public class HttpClientInstrumentation extends Instrumenter.Tracing
             .and(isPublic())
             .and(takesArgument(0, named("java.net.http.HttpRequest")))
             .and(takesArgument(1, named("java.net.http.HttpResponse$BodyHandler"))),
-        getClass().getName() + "$SendAsyncAdvice");
-  }
-
-  public static class SendAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(@Advice.Argument(value = 0) final Object httpRequest) {
-      return SendAdvice11.methodEnter(httpRequest);
-    }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(
-        @Advice.Enter final AgentScope scope,
-        @Advice.Argument(0) final Object httpRequest,
-        @Advice.Return final Object httpResponse,
-        @Advice.Thrown final Throwable throwable) {
-      SendAdvice11.methodExit(scope, httpRequest, httpResponse, throwable);
-    }
-  }
-
-  public static class SendAsyncAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(
-        @Advice.Argument(value = 0) final Object httpRequest,
-        @Advice.Argument(value = 1, readOnly = false, typing = Assigner.Typing.DYNAMIC)
-            Object bodyHandler) {
-      final Object[] ret = SendAsyncAdvice11.methodEnter(httpRequest, bodyHandler);
-      if (ret[0] != null) {
-        bodyHandler = ret[0];
-      }
-      return (AgentScope) ret[1];
-    }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(
-        @Advice.Enter final AgentScope scope,
-        @Advice.Argument(value = 0) final Object httpRequest,
-        @Advice.Return(readOnly = false, typing = Assigner.Typing.DYNAMIC) Object future,
-        @Advice.Thrown final Throwable throwable) {
-      Object ret = SendAsyncAdvice11.methodExit(scope, httpRequest, future, throwable);
-      if (ret != null) {
-        future = ret;
-      }
-    }
+        packageName + ".SendAsyncAdvice11");
   }
 }
