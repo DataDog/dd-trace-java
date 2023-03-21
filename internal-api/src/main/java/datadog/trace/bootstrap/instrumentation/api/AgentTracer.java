@@ -203,6 +203,8 @@ public class AgentTracer {
     SpanBuilder withErrorFlag();
 
     SpanBuilder withSpanType(CharSequence spanType);
+
+    <T> SpanBuilder withRequestContextData(RequestContextSlot slot, T data);
   }
 
   static class NoopTracerAPI implements TracerAPI {
