@@ -78,7 +78,6 @@ class Jersey2SmokeTest extends AbstractServerSmokeTest {
     assert response.code() == 200
     waitForSpan(new PollingConditions(timeout: 5),
     hasVulnerability(type('SQL_INJECTION').and(evidence('queryParamValue'))))
-
   }
 
   def "Test header"() {
@@ -97,7 +96,6 @@ class Jersey2SmokeTest extends AbstractServerSmokeTest {
     assert response.code() == 200
     waitForSpan(new PollingConditions(timeout: 5),
     hasVulnerability(type('SQL_INJECTION').and(evidence('pepito'))))
-
   }
 
   def "Test cookie"() {
