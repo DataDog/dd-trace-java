@@ -66,6 +66,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTER
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
@@ -77,6 +78,7 @@ import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE;
 import static datadog.trace.api.DDTags.PID_TAG;
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
 import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG;
+import static datadog.trace.api.DDTags.SCHEMA_VERSION_TAG_KEY;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
 import static datadog.trace.api.Platform.GC.Z;
@@ -276,6 +278,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_RESOLVER_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING;
+import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE_EXTRACT;
@@ -423,6 +426,7 @@ public class Config {
   private final boolean httpServerRouteBasedNaming;
   private final Map<String, String> httpServerPathResourceNameMapping;
   private final Map<String, String> httpClientPathResourceNameMapping;
+  private final boolean httpResourceRemoveTrailingSlash;
   private final boolean httpClientTagQueryString;
   private final boolean httpClientSplitByDomain;
   private final boolean dbClientSplitByInstance;
@@ -830,6 +834,11 @@ public class Config {
 
     httpClientPathResourceNameMapping =
         configProvider.getOrderedMap(TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING);
+
+    httpResourceRemoveTrailingSlash =
+        configProvider.getBoolean(
+            TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH,
+            DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH);
 
     httpServerErrorStatuses =
         configProvider.getIntegerRange(
@@ -1530,6 +1539,10 @@ public class Config {
     return httpClientPathResourceNameMapping;
   }
 
+  public boolean getHttpResourceRemoveTrailingSlash() {
+    return httpResourceRemoveTrailingSlash;
+  }
+
   public BitSet getHttpServerErrorStatuses() {
     return httpServerErrorStatuses;
   }
@@ -2203,9 +2216,10 @@ public class Config {
   /** @return A map of tags to be applied only to the local application root span. */
   public Map<String, Object> getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
-    final Map<String, Object> result = new HashMap<>(runtimeTags.size() + 1);
+    final Map<String, Object> result = new HashMap<>(runtimeTags.size() + 2);
     result.putAll(runtimeTags);
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
+    result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
 
     if (reportHostName) {
       final String hostName = getHostName();
@@ -2959,6 +2973,8 @@ public class Config {
         + httpClientTagQueryString
         + ", httpClientSplitByDomain="
         + httpClientSplitByDomain
+        + ", httpResourceRemoveTrailingSlash"
+        + httpResourceRemoveTrailingSlash
         + ", dbClientSplitByInstance="
         + dbClientSplitByInstance
         + ", dbClientSplitByInstanceTypeSuffix="

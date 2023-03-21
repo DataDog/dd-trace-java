@@ -197,6 +197,7 @@ public class Instrumentor {
       case Opcodes.DRETURN:
       case Opcodes.ARETURN:
         {
+          // stack [ret_value]
           InsnList beforeReturnInsnList = getBeforeReturnInsnList(node);
           if (beforeReturnInsnList != null) {
             methodNode.instructions.insertBefore(node, beforeReturnInsnList);
@@ -278,8 +279,8 @@ public class Instrumentor {
   }
 
   protected int newVar(Type type) {
-    int varId = methodNode.maxLocals + (type.getSize());
-    methodNode.maxLocals = varId;
+    int varId = methodNode.maxLocals + 1;
+    methodNode.maxLocals += type.getSize();
     return varId;
   }
 

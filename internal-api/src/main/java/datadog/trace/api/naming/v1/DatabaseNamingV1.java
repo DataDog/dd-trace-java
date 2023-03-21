@@ -28,6 +28,6 @@ public class DatabaseNamingV1 implements NamingSchema.ForDatabase {
   @Nonnull
   @Override
   public String service(@Nonnull String ddService, @Nonnull String databaseType) {
-    return ddService + "-" + normalizeDatabaseType(databaseType);
+    return ddService;
   }
 }

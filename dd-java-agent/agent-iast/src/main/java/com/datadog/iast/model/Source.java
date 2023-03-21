@@ -1,9 +1,10 @@
 package com.datadog.iast.model;
 
 import com.datadog.iast.model.json.SourceTypeString;
+import datadog.trace.api.iast.Taintable;
 import java.util.Objects;
 
-public final class Source {
+public final class Source implements Taintable.Source {
   private final @SourceTypeString byte origin;
   private final String name;
   private final String value;
@@ -14,14 +15,17 @@ public final class Source {
     this.value = value;
   }
 
+  @Override
   public byte getOrigin() {
     return origin;
   }
 
+  @Override
   public String getName() {
     return name;
   }
 
+  @Override
   public String getValue() {
     return value;
   }

@@ -23,11 +23,10 @@ sourceSets {
 }
 
 configurations {
-  // classpath used by the instrumentation muzzle plugin
-  instrumentationMuzzle {
+  instrumentPluginClasspath {
     canBeConsumed = true
     canBeResolved = false
-    extendsFrom implementation
+    extendsFrom runtimeElements
   }
 
   test_java11Implementation {
@@ -55,6 +54,7 @@ dependencies {
   compileOnly group: 'com.github.jnr', name: 'jnr-posix', version: "${versions.jnr_posix}"
 
   testImplementation project(':dd-java-agent:testing')
+  testImplementation deps.bytebuddy
   testImplementation group: 'com.google.guava', name: 'guava-testlib', version: '20.0'
 
   jmhImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.3.5.RELEASE'

@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.AWS_HTTP;
 import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.AWS_LEGACY_TRACING;
 import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.DECORATE;
 
@@ -43,7 +42,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       return; // SQS messages spans are created by aws-java-sqs-2.0
     }
 
-    final AgentSpan span = startSpan(AWS_HTTP);
+    final AgentSpan span = startSpan(DECORATE.spanName(executionAttributes));
     DECORATE.afterStart(span);
     executionAttributes.putAttribute(SPAN_ATTRIBUTE, span);
   }

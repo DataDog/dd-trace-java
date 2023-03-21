@@ -441,7 +441,7 @@ class CouchbaseClient31V1ForkedTest extends CouchbaseClient31Test {
 
   @Override
   String service() {
-    return Config.get().getServiceName() + "-couchbase"
+    return Config.get().getServiceName()
   }
 
   @Override

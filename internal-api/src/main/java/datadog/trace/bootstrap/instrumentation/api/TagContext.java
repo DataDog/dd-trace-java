@@ -55,6 +55,21 @@ public class TagContext implements AgentSpan.Context.Extracted {
   }
 
   @Override
+  public String getFastlyClientIp() {
+    return httpHeaders.fastlyClientIp;
+  }
+
+  @Override
+  public String getCfConnectingIp() {
+    return httpHeaders.cfConnectingIp;
+  }
+
+  @Override
+  public String getCfConnectingIpv6() {
+    return httpHeaders.cfConnectingIpv6;
+  }
+
+  @Override
   public String getXForwardedProto() {
     return httpHeaders.xForwardedProto;
   }
@@ -95,18 +110,13 @@ public class TagContext implements AgentSpan.Context.Extracted {
   }
 
   @Override
-  public String getClientIp() {
-    return httpHeaders.clientIp;
+  public String getXClientIp() {
+    return httpHeaders.xClientIp;
   }
 
   @Override
   public String getUserAgent() {
     return httpHeaders.userAgent;
-  }
-
-  @Override
-  public String getVia() {
-    return httpHeaders.via;
   }
 
   @Override
@@ -184,18 +194,20 @@ public class TagContext implements AgentSpan.Context.Extracted {
   }
 
   public static class HttpHeaders {
-    public String forwardedFor;
+    public String fastlyClientIp;
+    public String cfConnectingIp;
+    public String cfConnectingIpv6;
     public String xForwarded;
     public String forwarded;
     public String xForwardedProto;
     public String xForwardedHost;
     public String xForwardedPort;
     public String xForwardedFor;
+    public String forwardedFor;
     public String xClusterClientIp;
     public String xRealIp;
-    public String clientIp;
+    public String xClientIp;
     public String userAgent;
-    public String via;
     public String trueClientIp;
     public String customIpHeader;
   }

@@ -176,7 +176,7 @@ public final class Strings {
    */
   @Nonnull
   public static String propertyNameToEnvironmentVariableName(final String setting) {
-    return "DD_" + setting.replace('.', '_').replace('-', '_').toUpperCase();
+    return "DD_" + toEnvVar(setting);
   }
 
   /**
