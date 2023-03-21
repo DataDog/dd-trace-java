@@ -300,10 +300,10 @@ public class Agent {
 
   private static void injectAgentArgsConfig(String agentArgs) {
     try {
-      final Class<?> agentInstallerClass =
+      final Class<?> agentArgsInjectorClass =
           AGENT_CLASSLOADER.loadClass("datadog.trace.bootstrap.config.provider.AgentArgsInjector");
       final Method registerCallbackMethod =
-          agentInstallerClass.getMethod("injectAgentArgsConfig", String.class);
+          agentArgsInjectorClass.getMethod("injectAgentArgsConfig", String.class);
       registerCallbackMethod.invoke(null, agentArgs);
     } catch (final Exception ex) {
       log.error("Error injecting agent args config {}", agentArgs, ex);
