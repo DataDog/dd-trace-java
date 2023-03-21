@@ -52,12 +52,18 @@ public class MetricCollector {
   }
 
   public Collection<RawMetric> drain() {
-    if (prepareRequestMetrics()) {
-      List<RawMetric> list = new LinkedList<>();
-      int drained = rawMetricsQueue.drainTo(list);
-      if (drained > 0) {
-        return list;
-      }
+    if (!prepareRequestMetrics()) {
+      return Collections.emptyList();
+    }
+
+    if (rawMetricsQueue.isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    List<RawMetric> list = new LinkedList<>();
+    int drained = rawMetricsQueue.drainTo(list);
+    if (drained > 0) {
+      return list;
     }
     return Collections.emptyList();
   }
