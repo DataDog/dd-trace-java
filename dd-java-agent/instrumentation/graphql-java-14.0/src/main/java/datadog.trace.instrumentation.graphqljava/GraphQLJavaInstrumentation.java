@@ -7,7 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import graphql.analysis.QueryTraverser;
+import graphql.execution.ValueUnboxer;
 import graphql.execution.instrumentation.Instrumentation;
 import net.bytebuddy.asm.Advice;
 
@@ -60,9 +60,9 @@ public class GraphQLJavaInstrumentation extends Instrumenter.Tracing
       instrumentation = GraphQLInstrumentation.install(instrumentation);
     }
 
-    public static void muzzleCheck(QueryTraverser queryTraverser) {
-      // Class renamed in 13.0
-      queryTraverser.newQueryTraverser();
+    public static void muzzleCheck() {
+      // Class introduced in 15.0
+      ValueUnboxer value = ValueUnboxer.DEFAULT;
     }
   }
 }
