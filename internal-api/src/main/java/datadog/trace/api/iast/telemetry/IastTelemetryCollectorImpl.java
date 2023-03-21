@@ -20,15 +20,17 @@ public class IastTelemetryCollectorImpl implements IastTelemetryCollector {
   }
 
   @Override
-  public void addMetric(final IastMetric metric, final long value, final String tag) {
-    getOrCreateHandler(metric).add(value, tag);
+  public boolean addMetric(final IastMetric metric, final long value, final String tag) {
+    return getOrCreateHandler(metric).add(value, tag);
   }
 
   @Override
-  public void merge(final Collection<MetricData> metrics) {
+  public boolean merge(final Collection<MetricData> metrics) {
+    boolean result = true;
     for (final MetricData data : metrics) {
-      getOrCreateHandler(data.getMetric()).merge(data);
+      result &= getOrCreateHandler(data.getMetric()).merge(data);
     }
+    return result;
   }
 
   @Override

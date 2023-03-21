@@ -11,6 +11,10 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
 
   private static final DatadogProfiler DDPROF = DatadogProfiler.getInstance();
   private static final int SPAN_NAME_INDEX = DDPROF.operationNameOffset();
+
+  private static final int RESOURCE_NAME_INDEX = DDPROF.resourceNameOffset();
+
+  private static final int SERVICE_NAME_INDEX = DDPROF.serviceNameOffset();
   private static final boolean WALLCLOCK_ENABLED =
       DatadogProfilerConfig.isWallClockProfilerEnabled();
 
@@ -39,13 +43,17 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   @Override
   public void setContext(ProfilerContext profilerContext) {
     DDPROF.setSpanContext(profilerContext.getSpanId(), profilerContext.getRootSpanId());
+    DDPROF.setContextValue(RESOURCE_NAME_INDEX, profilerContext.getEncodedResourceName());
     DDPROF.setContextValue(SPAN_NAME_INDEX, profilerContext.getEncodedOperationName());
+    DDPROF.setContextValue(SERVICE_NAME_INDEX, profilerContext.getEncodedServiceName());
   }
 
   @Override
   public void clearContext() {
     DDPROF.clearSpanContext();
+    DDPROF.clearContextValue(RESOURCE_NAME_INDEX);
     DDPROF.clearContextValue(SPAN_NAME_INDEX);
+    DDPROF.clearContextValue(SERVICE_NAME_INDEX);
   }
 
   @Override

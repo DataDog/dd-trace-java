@@ -120,7 +120,7 @@ public class DebuggerContext {
   }
 
   /**
-   * Indicates if the fully-qualifed-class-name is denied to be intstrumented Returns true if no
+   * Indicates if the fully-qualified-class-name is denied to be instrumented Returns true if no
    * implementation is available
    */
   public static boolean isDenied(String fullyQualifiedClassName) {
@@ -186,5 +186,157 @@ public class DebuggerContext {
       return null;
     }
     return localTracer.createSpan(operationName, tags);
+  }
+
+  /**
+   * tests whether the provided probe Ids are ready for capturing data
+   *
+   * @return true if can proceed to capture data
+   */
+  public static boolean isReadyToCapture(String... probeIds) {
+    // TODO provide overloaded version without string array
+    if (probeIds == null || probeIds.length == 0) {
+      return false;
+    }
+    boolean result = false;
+    for (String probeId : probeIds) {
+      // if all probes are rate limited, we don't capture
+      result |= ProbeRateLimiter.tryProbe(probeId);
+    }
+    return result;
+  }
+
+  /**
+   * resolve probe details based on probe ids and evaluate the captured context regarding summary &
+   * conditions This is for method probes
+   */
+  public static void evalContext(
+      Snapshot.CapturedContext context,
+      Class<?> callingClass,
+      long startTimestamp,
+      Snapshot.MethodLocation methodLocation,
+      String... probeIds) {
+    for (String probeId : probeIds) {
+      Snapshot.ProbeDetails probeDetails = resolveProbe(probeId, callingClass);
+      if (probeDetails == null) {
+        continue;
+      }
+      context.evaluate(
+          probeId, probeDetails, callingClass.getTypeName(), startTimestamp, methodLocation);
+    }
+  }
+
+  /**
+   * resolve probe details based on probe ids, evaluate the captured context regarding summary &
+   * conditions and commit snapshot to send it if needed. This is for line probes.
+   */
+  public static void evalContextAndCommit(
+      Snapshot.CapturedContext context, Class<?> callingClass, int line, String... probeIds) {
+    for (String probeId : probeIds) {
+      Snapshot.ProbeDetails probeDetails = resolveProbe(probeId, callingClass);
+      if (probeDetails == null) {
+        continue;
+      }
+      context.evaluate(
+          probeId, probeDetails, callingClass.getTypeName(), -1, Snapshot.MethodLocation.DEFAULT);
+      Snapshot snapshot = prepareForCommit(context, line, probeDetails);
+      if (snapshot != null) {
+        snapshot.commit();
+      }
+    }
+  }
+
+  /**
+   * Commit snapshot based on entry/exit contexts and eventually caught exceptions for given probe
+   * Ids This is for method probes
+   */
+  public static void commit(
+      Snapshot.CapturedContext entryContext,
+      Snapshot.CapturedContext exitContext,
+      List<Snapshot.CapturedThrowable> caughtExceptions,
+      String... probeIds) {
+    if (entryContext == Snapshot.CapturedContext.EMPTY_CONTEXT
+        && exitContext == Snapshot.CapturedContext.EMPTY_CONTEXT) {
+      // rate limited
+      return;
+    }
+    for (String probeId : probeIds) {
+      Snapshot.CapturedContext.Status entryStatus = entryContext.getStatus(probeId);
+      Snapshot.CapturedContext.Status exitStatus = exitContext.getStatus(probeId);
+      Snapshot.ProbeDetails probeDetails;
+      if (entryStatus.probeDetails != Snapshot.ProbeDetails.UNKNOWN
+          && (entryStatus.probeDetails.getEvaluateAt() == Snapshot.MethodLocation.ENTRY
+              || entryStatus.probeDetails.getEvaluateAt() == Snapshot.MethodLocation.DEFAULT)) {
+        probeDetails = entryStatus.probeDetails;
+      } else if (exitStatus.probeDetails.getEvaluateAt() == Snapshot.MethodLocation.EXIT) {
+        probeDetails = exitStatus.probeDetails;
+      } else {
+        throw new IllegalStateException("no probe details");
+      }
+      boolean shouldCommit = false;
+      Snapshot snapshot = new Snapshot(Thread.currentThread(), probeDetails);
+      if (entryStatus.shouldSend() && exitStatus.shouldSend()) {
+        // only rate limit if a condition is defined
+        if (probeDetails.getScript() != null) {
+          if (!ProbeRateLimiter.tryProbe(probeId)) {
+            DebuggerContext.skipSnapshot(probeId, DebuggerContext.SkipCause.RATE);
+            continue;
+          }
+        }
+        if (probeDetails.isCaptureSnapshot()) {
+          snapshot.setEntry(entryContext);
+          snapshot.setExit(exitContext);
+        }
+        snapshot.setDuration(exitContext.getDuration());
+        snapshot.addCaughtExceptions(caughtExceptions);
+        shouldCommit = true;
+      }
+      if (entryStatus.shouldReportError()) {
+        snapshot.addEvaluationErrors(entryStatus.errors);
+        shouldCommit = true;
+      }
+      if (exitStatus.shouldReportError()) {
+        snapshot.addEvaluationErrors(exitStatus.errors);
+        shouldCommit = true;
+      }
+      if (shouldCommit) {
+        snapshot.commit();
+      } else {
+        DebuggerContext.skipSnapshot(probeId, DebuggerContext.SkipCause.CONDITION);
+      }
+    }
+  }
+
+  /** Commit snapshot based on line context and the current probe This is for line probes */
+  private static Snapshot prepareForCommit(
+      Snapshot.CapturedContext lineContext, int line, Snapshot.ProbeDetails probeDetails) {
+    Snapshot.CapturedContext.Status status = lineContext.getStatus(probeDetails.getId());
+    if (status == null) {
+      return null;
+    }
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), probeDetails);
+    boolean shouldCommit = false;
+    if (status.shouldSend()) {
+      // only rate limit if a condition is defined
+      if (probeDetails.getScript() != null) {
+        if (!ProbeRateLimiter.tryProbe(probeDetails.getId())) {
+          DebuggerContext.skipSnapshot(probeDetails.getId(), DebuggerContext.SkipCause.RATE);
+          return null;
+        }
+      }
+      if (probeDetails.isSnapshotProbe()) {
+        snapshot.addLine(lineContext, line);
+      }
+      shouldCommit = true;
+    }
+    if (status.shouldReportError()) {
+      snapshot.addEvaluationErrors(status.errors);
+      shouldCommit = true;
+    }
+    if (shouldCommit) {
+      return snapshot;
+    }
+    DebuggerContext.skipSnapshot(probeDetails.getId(), DebuggerContext.SkipCause.CONDITION);
+    return null;
   }
 }

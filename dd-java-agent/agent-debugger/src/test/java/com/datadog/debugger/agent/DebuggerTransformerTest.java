@@ -73,8 +73,7 @@ public class DebuggerTransformerTest {
 
   enum InstrumentationKind {
     ENTRY_EXIT,
-    LINE,
-    LINE_RANGE
+    LINE
   }
 
   enum ExceptionKind {
@@ -552,17 +551,6 @@ public class DebuggerTransformerTest {
         throw new RuntimeException("Unable to find '" + LINE_PROBE_MARKER + "' marker");
       }
       return builder.where(targetClassName, targetMethodName, null, line, null).build();
-    } else if (kind == InstrumentationKind.LINE_RANGE) {
-      // locate the specially marked lines in the source code
-      int from = findLine(sourceCode, LINE_RANGE_START_MARKER);
-      if (from == -1) {
-        throw new RuntimeException("Unable to find '" + LINE_RANGE_START_MARKER + "' marker");
-      }
-      int till = findLine(sourceCode, LINE_RANGE_END_MARKER);
-      if (till == -1) {
-        throw new RuntimeException("Unable to find '" + LINE_RANGE_END_MARKER + "' marker");
-      }
-      return builder.where(targetClassName, targetMethodName, null, from, till, null).build();
     }
     return builder.where(targetClassName, targetMethodName).build();
   }

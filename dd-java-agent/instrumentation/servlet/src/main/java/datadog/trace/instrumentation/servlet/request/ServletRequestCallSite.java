@@ -2,9 +2,12 @@ package datadog.trace.instrumentation.servlet.request;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
+import datadog.trace.api.iast.IastAdvice.Propagation;
 import datadog.trace.api.iast.IastAdvice.Source;
 import datadog.trace.api.iast.InstrumentationBridge;
-import datadog.trace.api.iast.model.SourceTypes;
+import datadog.trace.api.iast.PropagationTypes;
+import datadog.trace.api.iast.SourceTypes;
+import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.source.WebModule;
 import datadog.trace.util.stacktrace.StackUtils;
 import java.io.BufferedReader;
@@ -18,7 +21,7 @@ import javax.servlet.ServletRequest;
 @CallSite(spi = IastAdvice.class)
 public class ServletRequestCallSite {
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
   @CallSite.After("java.lang.String javax.servlet.ServletRequest.getParameter(java.lang.String)")
   @CallSite.After(
       "java.lang.String javax.servlet.http.HttpServletRequest.getParameter(java.lang.String)")
@@ -41,7 +44,7 @@ public class ServletRequestCallSite {
     return paramValue;
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_NAME)
+  @Source(SourceTypes.REQUEST_PARAMETER_NAME_STRING)
   @CallSite.After("java.util.Enumeration javax.servlet.ServletRequest.getParameterNames()")
   @CallSite.After("java.util.Enumeration javax.servlet.http.HttpServletRequest.getParameterNames()")
   @CallSite.After(
@@ -73,7 +76,7 @@ public class ServletRequestCallSite {
     }
   }
 
-  @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
+  @Source(SourceTypes.REQUEST_PARAMETER_VALUE_STRING)
   @CallSite.After(
       "java.lang.String[] javax.servlet.ServletRequest.getParameterValues(java.lang.String)")
   @CallSite.After(
@@ -101,7 +104,7 @@ public class ServletRequestCallSite {
     return parameterValues;
   }
 
-  @Source(SourceTypes.REQUEST_BODY)
+  @Propagation(PropagationTypes.BODY)
   @CallSite.After("javax.servlet.ServletInputStream javax.servlet.ServletRequest.getInputStream()")
   @CallSite.After(
       "javax.servlet.ServletInputStream javax.servlet.http.HttpServletRequest.getInputStream()")
@@ -112,10 +115,10 @@ public class ServletRequestCallSite {
   public static ServletInputStream afterGetInputStream(
       @CallSite.This final ServletRequest self,
       @CallSite.Return final ServletInputStream inputStream) {
-    final WebModule module = InstrumentationBridge.WEB;
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.onGetInputStream(inputStream);
+        module.taint(SourceTypes.REQUEST_BODY, inputStream);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetInputStream threw", e);
       }
@@ -123,7 +126,7 @@ public class ServletRequestCallSite {
     return inputStream;
   }
 
-  @Source(SourceTypes.REQUEST_BODY)
+  @Propagation(PropagationTypes.BODY)
   @CallSite.After("java.io.BufferedReader javax.servlet.ServletRequest.getReader()")
   @CallSite.After("java.io.BufferedReader javax.servlet.http.HttpServletRequest.getReader()")
   @CallSite.After("java.io.BufferedReader javax.servlet.http.HttpServletRequestWrapper.getReader()")
@@ -131,10 +134,10 @@ public class ServletRequestCallSite {
   public static BufferedReader afterGetReader(
       @CallSite.This final ServletRequest self,
       @CallSite.Return final BufferedReader bufferedReader) {
-    final WebModule module = InstrumentationBridge.WEB;
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.onGetReader(bufferedReader);
+        module.taint(SourceTypes.REQUEST_BODY, bufferedReader);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterGetReader threw", e);
       }

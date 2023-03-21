@@ -6,6 +6,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.websocket.server.PathParam;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -108,6 +109,17 @@ public class IastWebController {
         + testBean.getName()
         + ", value: "
         + testBean.getValue();
+  }
+
+  @GetMapping("/query_string")
+  public String queryString(final HttpServletRequest request) {
+    return "QueryString is: " + request.getQueryString();
+  }
+
+  @GetMapping("/cookie")
+  public String cookie(final HttpServletRequest request) {
+    final Cookie cookie = request.getCookies()[0];
+    return "Cookie is: " + cookie.getName() + "=" + cookie.getValue();
   }
 
   private void withProcess(final Operation<Process> op) {

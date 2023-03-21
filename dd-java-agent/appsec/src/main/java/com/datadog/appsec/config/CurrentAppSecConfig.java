@@ -19,10 +19,22 @@ import org.slf4j.LoggerFactory;
 public class CurrentAppSecConfig {
   private static Logger log = LoggerFactory.getLogger(CurrentAppSecConfig.class);
 
-  AppSecConfig ddConfig; // assume there's only one of these
+  private AppSecConfig ddConfig; // assume there's only one of these
   CollectedUserConfigs userConfigs = new CollectedUserConfigs();
   MergedAsmData mergedAsmData = new MergedAsmData(new HashMap<>());
   public final DirtyStatus dirtyStatus = new DirtyStatus();
+
+  public void setDdConfig(AppSecConfig newConfig) {
+    this.ddConfig = newConfig;
+
+    List<Map<String, Object>> rulesData =
+        (List<Map<String, Object>>) newConfig.getRawConfig().get("rules_data");
+    if (rulesData != null) {
+      mergedAsmData.addConfig(MergedAsmData.KEY_BUNDLED_RULE_DATA, rulesData);
+    } else {
+      mergedAsmData.removeConfig(MergedAsmData.KEY_BUNDLED_RULE_DATA);
+    }
+  }
 
   public static class DirtyStatus {
     public boolean rules;

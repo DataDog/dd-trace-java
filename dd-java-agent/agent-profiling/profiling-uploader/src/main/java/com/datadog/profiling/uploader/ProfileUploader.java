@@ -361,7 +361,7 @@ public final class ProfileUploader {
     } catch (final InterruptedException e) {
       // Note: this should only happen in main thread right before exiting, so eating up interrupted
       // state should be fine.
-      log.warn("Wait for executor shutdown interrupted");
+      log.debug("Wait for executor shutdown interrupted");
     }
     client.connectionPool().evictAll();
   }

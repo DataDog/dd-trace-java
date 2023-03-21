@@ -11,7 +11,7 @@ public class AgentArgsInjector {
    * @param agentArgs Agent arguments to be parsed and set
    */
   public static void injectAgentArgsConfig(String agentArgs) {
-    Map<String, String> args = AgentArgsParser.parseAgentArgs(agentArgs);
+    Map<String, String> args = ConfigConverter.parseMap(agentArgs, "javaagent arguments", '=');
     injectAgentArgsConfig(args);
   }
 
@@ -27,7 +27,7 @@ public class AgentArgsInjector {
         continue;
       }
 
-      String envVarName = Strings.systemPropertyNameToEnvironmentVariableName(propertyName);
+      String envVarName = Strings.toEnvVar(propertyName);
       String envVarValue = System.getenv(envVarName);
       if (envVarValue != null) {
         // env variables should have higher priority than agent arguments

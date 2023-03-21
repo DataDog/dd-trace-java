@@ -1,7 +1,9 @@
 package datadog.telemetry;
 
 import datadog.telemetry.api.Dependency;
+import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
+import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import java.util.Map;
 import java.util.Queue;
@@ -22,6 +24,10 @@ public interface TelemetryService {
   boolean addIntegration(Integration integration);
 
   boolean addMetric(Metric metric);
+
+  boolean addLogMessage(LogMessage message);
+
+  boolean addDistributionSeries(DistributionSeries series);
 
   Queue<Request> prepareRequests();
 

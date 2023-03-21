@@ -142,6 +142,12 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
     interface Extracted extends Context {
       String getForwarded();
 
+      String getFastlyClientIp();
+
+      String getCfConnectingIp();
+
+      String getCfConnectingIpv6();
+
       String getXForwardedProto();
 
       String getXForwardedHost();
@@ -158,11 +164,9 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
       String getXRealIp();
 
-      String getClientIp();
+      String getXClientIp();
 
       String getUserAgent();
-
-      String getVia();
 
       String getTrueClientIp();
 

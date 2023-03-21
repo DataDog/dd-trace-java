@@ -30,12 +30,14 @@ public class HttpCodec {
   static final String X_FORWARDED_PORT_KEY = "x-forwarded-port";
 
   // other headers which may contain real ip
-  static final String CLIENT_IP_KEY = "client-ip";
+  static final String X_CLIENT_IP_KEY = "x-client-ip";
   static final String TRUE_CLIENT_IP_KEY = "true-client-ip";
   static final String X_CLUSTER_CLIENT_IP_KEY = "x-cluster-client-ip";
   static final String X_REAL_IP_KEY = "x-real-ip";
   static final String USER_AGENT_KEY = "user-agent";
-  static final String VIA_KEY = "via";
+  static final String FASTLY_CLIENT_IP_KEY = "fastly-client-ip";
+  static final String CF_CONNECTING_IP_KEY = "cf-connecting-ip";
+  static final String CF_CONNECTING_IP_V6_KEY = "cf-connecting-ipv6";
 
   public interface Injector {
     <C> void inject(

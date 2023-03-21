@@ -30,6 +30,7 @@
               "_sampling_priority_v1" 1
               "peer.port" 57792
               "_dd.top_level" 1
+              "_dd.trace_span_attribute_schema" 0
               "thread.id" 44
               "process_id" 123}}
       {"name" "spring.handler"

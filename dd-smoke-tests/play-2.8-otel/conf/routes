@@ -1,0 +1,8 @@
+# Routes
+# This file defines all application routes (Higher priority routes first)
+# https://www.playframework.com/documentation/latest/ScalaRouting
+# ~~~~
+
+# An example controller showing a sample home page
+GET     /welcomej                           controllers.JController.doGet(id: Int ?= 0)
+GET     /welcomes                           controllers.SController.doGet(id: Option[Int])
