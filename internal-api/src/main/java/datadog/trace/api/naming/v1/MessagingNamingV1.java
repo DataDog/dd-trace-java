@@ -5,10 +5,20 @@ import javax.annotation.Nonnull;
 
 public class MessagingNamingV1 implements NamingSchema.ForMessaging {
 
+  private String normalizeForCloud(@Nonnull final String messagingSystem) {
+    switch (messagingSystem) {
+      case "sns":
+      case "sqs":
+        return "aws." + messagingSystem;
+      default:
+        return messagingSystem;
+    }
+  }
+
   @Nonnull
   @Override
   public String outboundOperation(@Nonnull String messagingSystem) {
-    return messagingSystem + ".send";
+    return normalizeForCloud(messagingSystem) + ".send";
   }
 
   @Nonnull
@@ -20,7 +30,7 @@ public class MessagingNamingV1 implements NamingSchema.ForMessaging {
   @Nonnull
   @Override
   public String inboundOperation(@Nonnull String messagingSystem) {
-    return messagingSystem + ".process";
+    return normalizeForCloud(messagingSystem) + ".process";
   }
 
   @Nonnull
@@ -33,5 +43,11 @@ public class MessagingNamingV1 implements NamingSchema.ForMessaging {
   @Nonnull
   public String timeInQueueService(@Nonnull String messagingSystem) {
     return messagingSystem + "-queue";
+  }
+
+  @Nonnull
+  @Override
+  public String timeInQueueOperation(@Nonnull String messagingSystem) {
+    return normalizeForCloud(messagingSystem) + ".deliver";
   }
 }

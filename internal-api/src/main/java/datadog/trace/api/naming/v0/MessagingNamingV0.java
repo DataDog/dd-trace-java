@@ -23,10 +23,14 @@ public class MessagingNamingV0 implements NamingSchema.ForMessaging {
   @Nonnull
   @Override
   public String inboundOperation(@Nonnull final String messagingSystem) {
-    if ("amqp".equals(messagingSystem)) {
-      return "amqp.command";
+    switch (messagingSystem) {
+      case "amqp":
+        return "amqp.command";
+      case "sqs":
+        return "aws.http";
+      default:
+        return messagingSystem + ".consume";
     }
-    return messagingSystem + ".consume";
   }
 
   @Nonnull
@@ -40,5 +44,14 @@ public class MessagingNamingV0 implements NamingSchema.ForMessaging {
   @Nonnull
   public String timeInQueueService(@Nonnull final String messagingSystem) {
     return messagingSystem;
+  }
+
+  @Nonnull
+  @Override
+  public String timeInQueueOperation(@Nonnull String messagingSystem) {
+    if ("sqs".equals(messagingSystem)) {
+      return "aws.http";
+    }
+    return messagingSystem + ".deliver";
   }
 }
