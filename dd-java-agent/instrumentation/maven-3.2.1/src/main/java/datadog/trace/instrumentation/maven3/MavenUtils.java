@@ -25,6 +25,8 @@ public abstract class MavenUtils {
 
   private static final String MAVEN_VERSION_SYSTEM_PROPERTY = "maven.version";
 
+  private static final String MVN_CMD_LINE_INVOCATION = "mvn";
+
   /**
    * Returns command line used to start the build. Depending on Maven version the actual command
    * line might not be available, in which case we will do our best to recreate one using the state
@@ -33,14 +35,14 @@ public abstract class MavenUtils {
   public static String getCommandLine(MavenSession session) {
     String mavenCmdLineArgsEnvVar = System.getenv(MAVEN_CMD_LINE_ARGS_ENVIRONMENT_VAR);
     if (mavenCmdLineArgsEnvVar != null) {
-      return "mvn " + mavenCmdLineArgsEnvVar;
+      return "mvn" + mavenCmdLineArgsEnvVar;
     }
 
     Properties sessionSystemProperties = session.getSystemProperties();
     String mavenCmdLineArgsProp =
         sessionSystemProperties.getProperty("env." + MAVEN_CMD_LINE_ARGS_ENVIRONMENT_VAR);
     if (mavenCmdLineArgsProp != null) {
-      return "mvn " + mavenCmdLineArgsProp;
+      return MVN_CMD_LINE_INVOCATION + mavenCmdLineArgsProp;
     }
 
     MavenExecutionRequest request = session.getRequest();
@@ -277,6 +279,11 @@ public abstract class MavenUtils {
         testFrameworks.add(new TestFramework("testng", dependency.getVersion()));
       }
     }
+
+    for (MavenProject collectedProject : project.getCollectedProjects()) {
+      testFrameworks.addAll(collectTestFrameworks(collectedProject));
+    }
+
     return testFrameworks;
   }
 

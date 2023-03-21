@@ -56,6 +56,4 @@ public class MavenInstrumentation extends Instrumenter.CiVisibility
           new MavenLifecycleParticipant(), AbstractMavenLifecycleParticipant.class, null);
     }
   }
-
-  // FIXME implement integration tests & latest dependency tests
 }

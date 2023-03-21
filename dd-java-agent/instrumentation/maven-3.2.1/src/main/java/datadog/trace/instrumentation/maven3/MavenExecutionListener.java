@@ -4,6 +4,7 @@ import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.config.CiVisibilityConfig;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.Strings;
 import java.io.File;
 import java.util.Collection;
@@ -25,7 +26,6 @@ public class MavenExecutionListener extends AbstractExecutionListener {
 
   private static final String FORK_COUNT_CONFIG = "forkCount";
   private static final String SYSTEM_PROPERTY_VARIABLES_CONFIG = "systemPropertyVariables";
-  private static final String TEST_EXECUTION_TAG = "test.execution";
 
   private final BuildEventsHandler<MavenSession> buildEventsHandler =
       InstrumentationBridge.getBuildEventsHandler();
@@ -44,6 +44,19 @@ public class MavenExecutionListener extends AbstractExecutionListener {
 
     buildEventsHandler.onTestSessionStart(
         session, mavenDecorator, projectName, startCommand, "maven", mavenVersion);
+
+    Collection<MavenUtils.TestFramework> testFrameworks =
+        MavenUtils.collectTestFrameworks(event.getProject());
+    if (testFrameworks.size() == 1) {
+      // if the module uses multiple test frameworks, we do not set the tags
+      MavenUtils.TestFramework testFramework = testFrameworks.iterator().next();
+      buildEventsHandler.onTestFrameworkDetected(
+          session, testFramework.name, testFramework.version);
+    } else if (testFrameworks.size() > 1) {
+      log.info(
+          "Multiple test frameworks detected: {}. Test framework data will not be populated",
+          testFrameworks);
+    }
   }
 
   @Override
@@ -96,7 +109,7 @@ public class MavenExecutionListener extends AbstractExecutionListener {
               + ":"
               + mojoExecution.getExecutionId();
       Map<String, Object> additionalTags =
-          Collections.singletonMap(TEST_EXECUTION_TAG, executionId);
+          Collections.singletonMap(Tags.TEST_EXECUTION, executionId);
 
       BuildEventsHandler.ModuleAndSessionId moduleAndSessionId =
           buildEventsHandler.onTestModuleStart(session, moduleName, startCommand, additionalTags);
