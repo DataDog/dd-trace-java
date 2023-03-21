@@ -390,6 +390,33 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     "a:1,b-c:d"   | [a: "1", "b-c": "d"]
   }
 
+  def "can overwrite RequestContext data with builder from empty"() {
+    when:
+    def span1 = tracer.startSpan("span1")
+
+    then:
+    span1.getRequestContext().getData(RequestContextSlot.APPSEC) == null
+    span1.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY) == null
+    span1.getRequestContext().getData(RequestContextSlot.IAST) == null
+
+    when:
+    def span2 = tracer.buildSpan("span2")
+      .asChildOf(span1.context())
+      .withRequestContextData(RequestContextSlot.APPSEC, "override")
+      .withRequestContextData(RequestContextSlot.CI_VISIBILITY, "override")
+      .withRequestContextData(RequestContextSlot.IAST, "override")
+      .start()
+
+    then:
+    span2.getRequestContext().getData(RequestContextSlot.APPSEC) == "override"
+    span2.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY) == "override"
+    span2.getRequestContext().getData(RequestContextSlot.IAST) == "override"
+
+    cleanup:
+    span2.finish()
+    span1.finish()
+  }
+
   def "can overwrite RequestContext data with builder"() {
     setup:
     TagContext context = new TagContext()
