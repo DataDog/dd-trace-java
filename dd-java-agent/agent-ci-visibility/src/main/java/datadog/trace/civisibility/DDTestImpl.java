@@ -1,7 +1,6 @@
 package datadog.trace.civisibility;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.util.Strings.toJson;
 
 import datadog.trace.api.Config;
@@ -9,8 +8,10 @@ import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.codeowners.Codeowners;
 import datadog.trace.api.civisibility.decorator.TestDecorator;
+import datadog.trace.api.civisibility.events.impl.TestCoverageProbes;
 import datadog.trace.api.civisibility.source.MethodLinesResolver;
 import datadog.trace.api.civisibility.source.SourcePathResolver;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -42,11 +43,18 @@ public class DDTestImpl implements DDTest {
       MethodLinesResolver methodLinesResolver,
       Codeowners codeowners) {
     this.suiteContext = suiteContext;
+
+    AgentTracer.SpanBuilder spanBuilder =
+        AgentTracer.get()
+            .buildSpan(testDecorator.component() + ".test")
+            .asChildOf(null)
+            .withRequestContextData(RequestContextSlot.CI_VISIBILITY, new TestCoverageProbes());
+
     if (startTime != null) {
-      span = startSpan(testDecorator.component() + ".test", null, startTime);
-    } else {
-      span = startSpan(testDecorator.component() + ".test", null);
+      spanBuilder = spanBuilder.withStartTimestamp(startTime);
     }
+
+    span = spanBuilder.start();
 
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
@@ -150,6 +158,11 @@ public class DDTestImpl implements DDTest {
               + "expected span is: "
               + span);
     }
+
+    TestCoverageProbes probes = span.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY);
+    //    if (probes != null) {
+    probes.report();
+    //    }
 
     scope.close();
 
