@@ -37,4 +37,10 @@ class GetMemberExpressionTest {
     assertEquals(root.getB(), val.getValue());
     assertEquals("ref.ref.b", print(expr));
   }
+
+  @Test
+  void getMemberUndefined() {
+    GetMemberExpression expr = new GetMemberExpression(ValueExpression.UNDEFINED, "size");
+    assertEquals(Value.undefined(), expr.evaluate(RefResolverHelper.createResolver(this)));
+  }
 }

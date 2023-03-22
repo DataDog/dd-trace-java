@@ -263,7 +263,8 @@ public class LogProbesInstrumentationTest {
     Assertions.assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
-    assertEquals("this is log line with local var=UNDEFINED", snapshot.buildSummary());
+    assertEquals(
+        "this is log line with local var={Cannot find symbol: var42}", snapshot.buildSummary());
     assertEquals(1, snapshot.getEvaluationErrors().size());
     assertEquals("var42", snapshot.getEvaluationErrors().get(0).getExpr());
     assertEquals("Cannot find symbol: var42", snapshot.getEvaluationErrors().get(0).getMessage());
@@ -280,7 +281,9 @@ public class LogProbesInstrumentationTest {
     Assertions.assertEquals(143, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
-    assertEquals("this is log line with field=UNDEFINED", snapshot.buildSummary());
+    assertEquals(
+        "this is log line with field={Cannot dereference to field: intValue}",
+        snapshot.buildSummary());
     assertEquals(1, snapshot.getEvaluationErrors().size());
     assertEquals("intValue", snapshot.getEvaluationErrors().get(0).getExpr());
     assertEquals(
@@ -298,7 +301,9 @@ public class LogProbesInstrumentationTest {
     int result = Reflect.on(testClass).call("main", "f").get();
     Assertions.assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
-    assertEquals("this is log line with element of list=UNDEFINED", snapshot.buildSummary());
+    assertEquals(
+        "this is log line with element of list={index[10] out of bounds: [0-3]}",
+        snapshot.buildSummary());
     assertEquals(1, snapshot.getEvaluationErrors().size());
     assertEquals("strList[10]", snapshot.getEvaluationErrors().get(0).getExpr());
     assertEquals(
@@ -360,7 +365,8 @@ public class LogProbesInstrumentationTest {
     assertEquals(LOG_ID2, snapshot1.getProbe().getId());
     assertNotNull(snapshot1.getCaptures().getEntry());
     assertNotNull(snapshot1.getCaptures().getReturn());
-    assertEquals("this is log line #2 with arg=UNDEFINED", snapshot1.buildSummary());
+    assertEquals(
+        "this is log line #2 with arg={Cannot find symbol: typoArg}", snapshot1.buildSummary());
     assertEquals(1, snapshot1.getEvaluationErrors().size());
     assertEquals(
         "Cannot find symbol: typoArg", snapshot1.getEvaluationErrors().get(0).getMessage());
@@ -376,7 +382,8 @@ public class LogProbesInstrumentationTest {
     assertEquals(LOG_ID1, snapshot0.getProbe().getId());
     assertNotNull(snapshot0.getCaptures().getEntry());
     assertNotNull(snapshot0.getCaptures().getReturn());
-    assertEquals("this is log line #1 with arg=UNDEFINED", snapshot0.buildSummary());
+    assertEquals(
+        "this is log line #1 with arg={Cannot find symbol: typoArg}", snapshot0.buildSummary());
     assertEquals(1, snapshot0.getEvaluationErrors().size());
     assertEquals(
         "Cannot find symbol: typoArg", snapshot0.getEvaluationErrors().get(0).getMessage());
@@ -398,7 +405,8 @@ public class LogProbesInstrumentationTest {
     assertEquals(LOG_ID1, snapshot0.getProbe().getId());
     assertNotNull(snapshot0.getCaptures().getEntry());
     assertNotNull(snapshot0.getCaptures().getReturn());
-    assertEquals("this is log line #1 with arg=UNDEFINED", snapshot0.buildSummary());
+    assertEquals(
+        "this is log line #1 with arg={Cannot find symbol: typoArg1}", snapshot0.buildSummary());
     assertEquals(1, snapshot0.getEvaluationErrors().size());
     assertEquals(
         "Cannot find symbol: typoArg1", snapshot0.getEvaluationErrors().get(0).getMessage());
@@ -406,7 +414,8 @@ public class LogProbesInstrumentationTest {
     assertEquals(LOG_ID2, snapshot1.getProbe().getId());
     assertNotNull(snapshot1.getCaptures().getEntry());
     assertNotNull(snapshot1.getCaptures().getReturn());
-    assertEquals("this is log line #2 with arg=UNDEFINED", snapshot1.buildSummary());
+    assertEquals(
+        "this is log line #2 with arg={Cannot find symbol: typoArg2}", snapshot1.buildSummary());
     assertEquals(1, snapshot1.getEvaluationErrors().size());
     assertEquals(
         "Cannot find symbol: typoArg2", snapshot1.getEvaluationErrors().get(0).getMessage());
