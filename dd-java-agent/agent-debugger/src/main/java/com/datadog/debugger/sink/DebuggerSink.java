@@ -6,6 +6,7 @@ import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.AgentTaskScheduler;
@@ -205,24 +206,24 @@ public class DebuggerSink implements DebuggerContext.Sink {
     }
   }
 
-  public void addReceived(String probeId) {
+  public void addReceived(ProbeId probeId) {
     probeStatusSink.addReceived(probeId);
   }
 
-  public void addInstalled(String probeId) {
+  public void addInstalled(ProbeId probeId) {
     probeStatusSink.addInstalled(probeId);
   }
 
-  public void addBlocked(String probeId) {
+  public void addBlocked(ProbeId probeId) {
     probeStatusSink.addBlocked(probeId);
   }
 
-  public void removeDiagnostics(String probeId) {
+  public void removeDiagnostics(ProbeId probeId) {
     probeStatusSink.removeDiagnostics(probeId);
   }
 
   @Override
-  public void addDiagnostics(String probeId, List<DiagnosticMessage> messages) {
+  public void addDiagnostics(ProbeId probeId, List<DiagnosticMessage> messages) {
     for (DiagnosticMessage msg : messages) {
       switch (msg.getKind()) {
         case INFO:
@@ -239,7 +240,7 @@ public class DebuggerSink implements DebuggerContext.Sink {
     }
   }
 
-  private void reportError(String probeId, DiagnosticMessage msg) {
+  private void reportError(ProbeId probeId, DiagnosticMessage msg) {
     Throwable throwable = msg.getThrowable();
     if (throwable != null) {
       probeStatusSink.addError(probeId, throwable);

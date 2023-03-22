@@ -16,6 +16,7 @@ import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
@@ -36,9 +37,9 @@ import org.junit.jupiter.api.Test;
 
 public class LogProbesInstrumentationTest {
   private static final String LANGUAGE = "java";
-  private static final String LOG_ID = "beae1807-f3b0-4ea8-a74f-826790c5e6f8";
-  private static final String LOG_ID1 = "beae1807-f3b0-4ea8-a74f-826790c5e6f8";
-  private static final String LOG_ID2 = "beae1807-f3b0-4ea8-a74f-826790c5e6f9";
+  private static final ProbeId LOG_ID = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
+  private static final ProbeId LOG_ID1 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
+  private static final ProbeId LOG_ID2 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f9", 0);
   private static final String SERVICE_NAME = "service-name";
 
   private Instrumentation instr = ByteBuddyAgent.install();
@@ -135,12 +136,12 @@ public class LogProbesInstrumentationTest {
       throws IOException, URISyntaxException {
     List<Snapshot> snapshots = doMergedMethodTemplateMixCapture(true, false);
     Snapshot snapshot0 = snapshots.get(0);
-    assertEquals(LOG_ID1, snapshot0.getProbe().getId());
+    assertEquals(LOG_ID1.getId(), snapshot0.getProbe().getId());
     assertNotNull(snapshot0.getCaptures().getEntry());
     assertNotNull(snapshot0.getCaptures().getReturn());
     assertEquals("this is log line #1 with arg=1", snapshot0.buildSummary());
     Snapshot snapshot1 = snapshots.get(1);
-    assertEquals(LOG_ID2, snapshot1.getProbe().getId());
+    assertEquals(LOG_ID2.getId(), snapshot1.getProbe().getId());
     assertCapturesNull(snapshot1);
     assertEquals("this is log line #2 with arg=1", snapshot1.buildSummary());
   }
@@ -150,11 +151,11 @@ public class LogProbesInstrumentationTest {
       throws IOException, URISyntaxException {
     List<Snapshot> snapshots = doMergedMethodTemplateMixCapture(false, true);
     Snapshot snapshot0 = snapshots.get(0);
-    assertEquals(LOG_ID1, snapshot0.getProbe().getId());
+    assertEquals(LOG_ID1.getId(), snapshot0.getProbe().getId());
     assertCapturesNull(snapshot0);
     assertEquals("this is log line #1 with arg=1", snapshot0.buildSummary());
     Snapshot snapshot1 = snapshots.get(1);
-    assertEquals(LOG_ID2, snapshot1.getProbe().getId());
+    assertEquals(LOG_ID2.getId(), snapshot1.getProbe().getId());
     assertNotNull(snapshot1.getCaptures().getEntry());
     assertNotNull(snapshot1.getCaptures().getReturn());
     assertEquals("this is log line #2 with arg=1", snapshot1.buildSummary());
@@ -356,13 +357,13 @@ public class LogProbesInstrumentationTest {
         doMergedMethodTemplateMixLogError(
             "this is log line #1 with arg={arg}", "this is log line #2 with arg={typoArg}");
     Snapshot snapshot0 = snapshots.get(0);
-    assertEquals(LOG_ID1, snapshot0.getProbe().getId());
+    assertEquals(LOG_ID1.getId(), snapshot0.getProbe().getId());
     assertNotNull(snapshot0.getCaptures().getEntry());
     assertNotNull(snapshot0.getCaptures().getReturn());
     assertNull(snapshot0.getEvaluationErrors());
     assertEquals("this is log line #1 with arg=1", snapshot0.buildSummary());
     Snapshot snapshot1 = snapshots.get(1);
-    assertEquals(LOG_ID2, snapshot1.getProbe().getId());
+    assertEquals(LOG_ID2.getId(), snapshot1.getProbe().getId());
     assertNotNull(snapshot1.getCaptures().getEntry());
     assertNotNull(snapshot1.getCaptures().getReturn());
     assertEquals(
@@ -379,7 +380,7 @@ public class LogProbesInstrumentationTest {
         doMergedMethodTemplateMixLogError(
             "this is log line #1 with arg={typoArg}", "this is log line #2 with arg={arg}");
     Snapshot snapshot0 = snapshots.get(0);
-    assertEquals(LOG_ID1, snapshot0.getProbe().getId());
+    assertEquals(LOG_ID1.getId(), snapshot0.getProbe().getId());
     assertNotNull(snapshot0.getCaptures().getEntry());
     assertNotNull(snapshot0.getCaptures().getReturn());
     assertEquals(
@@ -388,7 +389,7 @@ public class LogProbesInstrumentationTest {
     assertEquals(
         "Cannot find symbol: typoArg", snapshot0.getEvaluationErrors().get(0).getMessage());
     Snapshot snapshot1 = snapshots.get(1);
-    assertEquals(LOG_ID2, snapshot1.getProbe().getId());
+    assertEquals(LOG_ID2.getId(), snapshot1.getProbe().getId());
     assertNotNull(snapshot1.getCaptures().getEntry());
     assertNotNull(snapshot1.getCaptures().getReturn());
     assertEquals("this is log line #2 with arg=1", snapshot1.buildSummary());
@@ -402,7 +403,7 @@ public class LogProbesInstrumentationTest {
         doMergedMethodTemplateMixLogError(
             "this is log line #1 with arg={typoArg1}", "this is log line #2 with arg={typoArg2}");
     Snapshot snapshot0 = snapshots.get(0);
-    assertEquals(LOG_ID1, snapshot0.getProbe().getId());
+    assertEquals(LOG_ID1.getId(), snapshot0.getProbe().getId());
     assertNotNull(snapshot0.getCaptures().getEntry());
     assertNotNull(snapshot0.getCaptures().getReturn());
     assertEquals(
@@ -411,7 +412,7 @@ public class LogProbesInstrumentationTest {
     assertEquals(
         "Cannot find symbol: typoArg1", snapshot0.getEvaluationErrors().get(0).getMessage());
     Snapshot snapshot1 = snapshots.get(1);
-    assertEquals(LOG_ID2, snapshot1.getProbe().getId());
+    assertEquals(LOG_ID2.getId(), snapshot1.getProbe().getId());
     assertNotNull(snapshot1.getCaptures().getEntry());
     assertNotNull(snapshot1.getCaptures().getReturn());
     assertEquals(
@@ -460,7 +461,7 @@ public class LogProbesInstrumentationTest {
   }
 
   private static LogProbe.Builder createProbeBuilder(
-      String id,
+      ProbeId id,
       String template,
       String typeName,
       String methodName,
@@ -475,7 +476,7 @@ public class LogProbesInstrumentationTest {
   }
 
   private static LogProbe createProbe(
-      String id,
+      ProbeId id,
       String template,
       String typeName,
       String methodName,
@@ -548,6 +549,7 @@ public class LogProbesInstrumentationTest {
 
         return new Snapshot.ProbeDetails(
             id,
+            0,
             location,
             ProbeDefinition.MethodLocation.convert(probe.getEvaluateAt()),
             probe.isCaptureSnapshot(),
@@ -559,6 +561,7 @@ public class LogProbesInstrumentationTest {
                     (ProbeDefinition relatedProbe) ->
                         new Snapshot.ProbeDetails(
                             relatedProbe.getId(),
+                            0,
                             location,
                             ProbeDefinition.MethodLocation.convert(relatedProbe.getEvaluateAt()),
                             ((LogProbe) relatedProbe).isCaptureSnapshot(),
@@ -577,7 +580,7 @@ public class LogProbesInstrumentationTest {
     Assertions.assertFalse(listener.skipped, "Snapshot skipped because " + listener.cause);
     Assertions.assertEquals(1, listener.snapshots.size());
     Snapshot snapshot = listener.snapshots.get(0);
-    Assertions.assertEquals(LOG_ID, snapshot.getProbe().getId());
+    Assertions.assertEquals(LOG_ID.getId(), snapshot.getProbe().getId());
     return snapshot;
   }
 

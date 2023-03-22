@@ -59,7 +59,8 @@
 "lines":\["12-15","23"\],
 "method":"indexOf",
 "type":"java.lang.String"
-\}
+\},
+"version":0
 \},
 "stack":\[\],
 "timestamp":\d+

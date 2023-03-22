@@ -4,6 +4,7 @@ import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.instrumentation.MetricInstrumentor;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -31,7 +32,7 @@ public class MetricProbe extends ProbeDefinition {
 
   public MetricProbe(
       String language,
-      String probeId,
+      ProbeId probeId,
       boolean active,
       String[] tagStrs,
       Where where,
@@ -105,6 +106,7 @@ public class MetricProbe extends ProbeDefinition {
     return active == that.active
         && Objects.equals(language, that.language)
         && Objects.equals(id, that.id)
+        && version == that.version
         && Arrays.equals(tags, that.tags)
         && Objects.equals(tagMap, that.tagMap)
         && Objects.equals(where, that.where)
@@ -118,7 +120,8 @@ public class MetricProbe extends ProbeDefinition {
   @Override
   public int hashCode() {
     int result =
-        Objects.hash(language, id, active, tagMap, where, evaluateAt, kind, metricName, value);
+        Objects.hash(
+            language, id, version, active, tagMap, where, evaluateAt, kind, metricName, value);
     result = 31 * result + Arrays.hashCode(tags);
     return result;
   }
@@ -133,6 +136,8 @@ public class MetricProbe extends ProbeDefinition {
         + ", id='"
         + id
         + '\''
+        + ", version="
+        + version
         + ", active="
         + active
         + ", tags="

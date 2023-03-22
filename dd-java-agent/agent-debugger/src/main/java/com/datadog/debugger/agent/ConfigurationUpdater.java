@@ -283,7 +283,8 @@ public class ConfigurationUpdater
     }
     LogProbe logProbe = (LogProbe) probe;
     return new Snapshot.ProbeDetails(
-        probe.getId(),
+        probe.getProbeId().getId(),
+        probe.getProbeId().getVersion(),
         location,
         ProbeDefinition.MethodLocation.convert(probe.getEvaluateAt()),
         logProbe.isCaptureSnapshot(),
