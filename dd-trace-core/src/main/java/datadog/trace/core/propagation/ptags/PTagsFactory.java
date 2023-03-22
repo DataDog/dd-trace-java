@@ -3,6 +3,7 @@ package datadog.trace.core.propagation.ptags;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.DECISION_MAKER_TAG;
+import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_ID_TAG;
 
 import datadog.trace.api.DDId;
 import datadog.trace.api.internal.util.HexStringUtils;
@@ -265,6 +266,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       if (size == -1) {
         size = PTagsCodec.calcXDatadogTagsSize(getTagPairs());
         size = PTagsCodec.calcXDatadogTagsSize(size, DECISION_MAKER_TAG, decisionMakerTagValue);
+        size = PTagsCodec.calcXDatadogTagsSize(size, TRACE_ID_TAG, traceIdHighOrderBitsHexTagValue);
         xDatadogTagsSize = size;
       }
       return size;
