@@ -380,7 +380,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     def otelParentSpan = tracer.spanBuilder("some-name").startSpan()
 
     when:
-    otelParentSpan.makeCurrent()
+    def otelParentScope = otelParentSpan.makeCurrent()
     def activeSpan = TEST_TRACER.activeSpan()
 
     then:
@@ -389,7 +389,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
     when:
     def ddChildSpan = TEST_TRACER.startSpan("other-name")
-    TEST_TRACER.activateSpan(ddChildSpan, MANUAL)
+    def ddChildScope = TEST_TRACER.activateSpan(ddChildSpan, MANUAL)
     def current = Span.current()
 
     then:
@@ -397,7 +397,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
     when:
     def otelGrandChildSpan = tracer.spanBuilder("another-name").startSpan()
-    otelGrandChildSpan.makeCurrent()
+    def otelGrandChildScope= otelGrandChildSpan.makeCurrent()
     activeSpan = TEST_TRACER.activeSpan()
 
     then:
@@ -405,8 +405,11 @@ class OpenTelemetry14Test extends AgentTestRunner {
     DDSpanId.toHexString(activeSpan.spanId) == otelGrandChildSpan.getSpanContext().spanId
 
     when:
+    otelGrandChildScope.close()
     otelGrandChildSpan.end()
+    ddChildScope.close()
     ddChildSpan.finish()
+    otelParentScope.close()
     otelParentSpan.end()
 
     then:
