@@ -41,7 +41,7 @@ public class HttpHeadersInstrumentation extends Instrumenter.Iast
         try {
           module.onHeaderValue(headerName, headerValue);
         } catch (final Throwable e) {
-          module.onUnexpectedException("afterGetParameter threw", e);
+          module.onUnexpectedException("HttpHeadersInstrumentation threw", e);
         }
       }
     }
