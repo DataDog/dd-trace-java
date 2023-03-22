@@ -1,8 +1,8 @@
+import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDTraceId
 import datadog.trace.instrumentation.jdbc.SQLCommenter
-import datadog.trace.test.util.DDSpecification
 
-class SQLCommenterTest extends DDSpecification {
+class SQLCommenterTest extends AgentTestRunner {
 
   def "test encode Sql Comment"() {
     setup:
