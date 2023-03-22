@@ -40,6 +40,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         .getValueForField("Bucket", String.class)
         .ifPresent(name -> span.setTag("aws.bucket.name", name));
     request
+        .getValueForField("Bucket", String.class)
+        .ifPresent(name -> span.setTag("bucketname", name));
+    request
         .getValueForField("StorageClass", String.class)
         .ifPresent(storageClass -> span.setTag("aws.storage.class", storageClass));
     // SQS
@@ -49,24 +52,36 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     request
         .getValueForField("QueueName", String.class)
         .ifPresent(name -> span.setTag("aws.queue.name", name));
+    request
+        .getValueForField("QueueName", String.class)
+        .ifPresent(name -> span.setTag("queuename", name));
     // SNS
     request
         .getValueForField("TopicArn", String.class)
         .ifPresent(
             name -> span.setTag("aws.topic.name", name.substring(name.lastIndexOf(':') + 1)));
+    request
+        .getValueForField("TopicArn", String.class)
+        .ifPresent(
+            name -> span.setTag("topicname", name.substring(name.lastIndexOf(':') + 1)));
     // Kinesis
     request
         .getValueForField("StreamName", String.class)
         .ifPresent(name -> span.setTag("aws.stream.name", name));
+    request
+        .getValueForField("StreamName", String.class)
+        .ifPresent(name -> span.setTag("streamname", name));
     // DynamoDB
     request
         .getValueForField("TableName", String.class)
         .ifPresent(name -> span.setTag("aws.table.name", name));
+    request
+        .getValueForField("TableName", String.class)
+        .ifPresent(name -> span.setTag("tablename", name));
     return span;
   }
 
   public AgentSpan onAttributes(final AgentSpan span, final ExecutionAttributes attributes) {
-
     final String awsServiceName = attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
     final String awsOperationName = attributes.getAttribute(SdkExecutionAttribute.OPERATION_NAME);
 
@@ -81,6 +96,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       case "Sqs.DeleteMessageBatch":
         span.setServiceName(SQS_SERVICE_NAME);
         break;
+      case "Sns.PublishBatch":
       case "Sns.Publish":
         span.setServiceName("sns");
         break;
@@ -88,9 +104,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         span.setServiceName("java-aws-sdk");
         break;
     }
-
     span.setTag("aws.agent", COMPONENT_NAME);
     span.setTag("aws.service", awsServiceName);
+    span.setTag("aws_service", awsServiceName);
     span.setTag("aws.operation", awsOperationName);
 
     return span;
