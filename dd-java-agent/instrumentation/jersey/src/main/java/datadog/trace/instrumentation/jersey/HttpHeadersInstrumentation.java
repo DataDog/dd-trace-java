@@ -30,7 +30,7 @@ public class HttpHeadersInstrumentation extends Instrumenter.Iast
     return new String[] {"javax.ws.rs.core.HttpHeaders", "jakarta.ws.rs.core.HttpHeaders"};
   }
 
-  public static class $InstrumenterAdvice {
+  public static class InstrumenterAdvice {
 
     @Advice.OnMethodExit
     public static void onExit(
