@@ -91,6 +91,36 @@ class OpenTelemetry14Test extends AgentTestRunner {
     }
   }
 
+  def "test no parent to create new root span"() {
+    setup:
+    def parentSpan = tracer.spanBuilder("some-name").startSpan()
+    def scope = parentSpan.makeCurrent()
+
+    when:
+    def childSpan = tracer.spanBuilder("other-name")
+      .setNoParent()
+      .startSpan()
+    childSpan.end()
+    scope.close()
+    parentSpan.end()
+
+    then:
+    assertTraces(2) {
+      trace(1) {
+        span {
+          parent()
+          operationName "some-name"
+        }
+      }
+      trace(1) {
+        span {
+          parent()
+          operationName "other-name"
+        }
+      }
+    }
+  }
+
   def "test non-supported features do not crash"() {
     setup:
     def builder = tracer.spanBuilder("some-name")
