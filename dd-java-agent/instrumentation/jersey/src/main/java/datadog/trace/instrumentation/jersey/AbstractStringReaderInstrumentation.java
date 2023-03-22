@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.jersey3;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -17,7 +18,8 @@ public class AbstractStringReaderInstrumentation extends Instrumenter.Iast
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        named("fromString").and(isPublic()), packageName + ".AbstractStringReaderAdvice");
+        named("fromString").and(isPublic().and(takesArguments(String.class))),
+        packageName + ".AbstractStringReaderAdvice");
   }
 
   @Override
