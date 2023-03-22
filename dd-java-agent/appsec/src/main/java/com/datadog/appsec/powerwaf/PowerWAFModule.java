@@ -176,6 +176,8 @@ public class PowerWAFModule implements AppSecModule {
       new PowerWAFInitializationResultReporter();
   private final PowerWAFStatsReporter statsReporter = new PowerWAFStatsReporter();
 
+  private String currentRulesVersion;
+
   @Override
   public void config(AppSecModuleConfigurer appSecConfigService)
       throws AppSecModuleActivationException {
@@ -190,8 +192,7 @@ public class PowerWAFModule implements AppSecModule {
       }
 
       try {
-        RuleSetInfo ruleSetInfo = applyConfig(initialConfig.get(), AppSecModuleConfigurer.Reconfiguration.NOOP);
-        MetricCollector.get().wafInit(Powerwaf.LIB_VERSION, ruleSetInfo.fileVersion);
+        applyConfig(initialConfig.get(), AppSecModuleConfigurer.Reconfiguration.NOOP);
       } catch (ClassCastException e) {
         throw new AppSecModuleActivationException("Config expected to be CurrentAppSecConfig", e);
       }
@@ -205,10 +206,9 @@ public class PowerWAFModule implements AppSecModule {
 
   // this function is called from one thread in the beginning that's different
   // from the RC thread that calls it later on
-  private RuleSetInfo applyConfig(Object config_, AppSecModuleConfigurer.Reconfiguration reconf)
+  private void applyConfig(Object config_, AppSecModuleConfigurer.Reconfiguration reconf)
       throws AppSecModuleActivationException {
     log.debug("Configuring WAF");
-    RuleSetInfo ruleSetInfo = null;
 
     CurrentAppSecConfig config = (CurrentAppSecConfig) config_;
 
@@ -226,7 +226,7 @@ public class PowerWAFModule implements AppSecModule {
     try {
       if (config.dirtyStatus.isDirtyForDdwafUpdate()) {
         // ddwaf_init/update
-        ruleSetInfo = initializeNewWafCtx(reconf, config, curCtxAndAddresses);
+        initializeNewWafCtx(reconf, config, curCtxAndAddresses);
       } else if (config.dirtyStatus.isDirtyForActions()) {
         // only internal actions change
         // if we're here curCtxAndAddresses is not null
@@ -242,10 +242,9 @@ public class PowerWAFModule implements AppSecModule {
     } catch (Exception e) {
       throw new AppSecModuleActivationException("Could not initialize/update waf", e);
     }
-    return ruleSetInfo;
   }
 
-  private RuleSetInfo initializeNewWafCtx(
+  private void initializeNewWafCtx(
       AppSecModuleConfigurer.Reconfiguration reconf,
       CurrentAppSecConfig config,
       CtxAndAddresses prevContextAndAddresses)
@@ -267,6 +266,17 @@ public class PowerWAFModule implements AppSecModule {
 
       initReport = newPwafCtx.getRuleSetInfo();
       Collection<Address<?>> addresses = getUsedAddresses(newPwafCtx);
+
+      // Update current rules' version if need
+      if (initReport != null && initReport.fileVersion != null) {
+        currentRulesVersion = initReport.fileVersion;
+      }
+
+      if (prevContextAndAddresses == null) {
+        MetricCollector.get().wafInit(Powerwaf.LIB_VERSION, currentRulesVersion);
+      } else {
+        MetricCollector.get().wafUpdates(currentRulesVersion);
+      }
 
       Map<String, RuleInfo> rulesInfoMap;
       if (ruleConfig.getRules() != null && !ruleConfig.getRules().isEmpty()) {
@@ -318,7 +328,6 @@ public class PowerWAFModule implements AppSecModule {
     }
 
     reconf.reloadSubscriptions();
-    return initReport;
   }
 
   private Map<String, ActionInfo> calculateEffectiveActions(

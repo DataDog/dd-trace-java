@@ -19,7 +19,6 @@ import datadog.remoteconfig.ConfigurationEndListener;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
-import datadog.trace.api.MetricCollector;
 import datadog.trace.api.ProductActivation;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -33,8 +32,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
-
-import io.sqreen.powerwaf.RuleSetInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -185,8 +182,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       }
       SubconfigListener listener = entry.getValue();
       try {
-        RuleSetInfo ruleSetInfo = listener.onNewSubconfig(newConfig.get(key), reconfiguration);
-        MetricCollector.get().wafUpdates(ruleSetInfo.fileVersion);
+        listener.onNewSubconfig(newConfig.get(key), reconfiguration);
       } catch (Exception rte) {
         log.warn("Error updating configuration of app sec module listening on key " + key, rte);
       }
