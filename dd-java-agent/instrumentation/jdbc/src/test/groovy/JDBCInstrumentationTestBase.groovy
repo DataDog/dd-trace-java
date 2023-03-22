@@ -886,7 +886,7 @@ class JDBCInstrumentationDBMTraceInjectedForkedTest extends JDBCInstrumentationT
 
   @Override
   protected String service(String dbType) {
-    return Config.get().getServiceName() + "-${dbType}"
+    return Config.get().getServiceName()
   }
 
   @Override

@@ -596,7 +596,7 @@ class RemoteDBMTraceInjectedForkedTest extends RemoteJDBCInstrumentationTest {
 
   @Override
   protected String service(String dbType) {
-    return Config.get().getServiceName() + "-${remapDbType(dbType)}"
+    return Config.get().getServiceName()
   }
 
   @Override
