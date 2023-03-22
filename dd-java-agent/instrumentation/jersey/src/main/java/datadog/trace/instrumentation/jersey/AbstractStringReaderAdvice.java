@@ -14,7 +14,7 @@ public class AbstractStringReaderAdvice {
         try {
           module.onParameterValue(null, (String) result);
         } catch (final Throwable e) {
-          module.onUnexpectedException("afterGetParameter threw", e);
+          module.onUnexpectedException("AbstractStringReaderAdvice.exit threw", e);
         }
       }
     }
