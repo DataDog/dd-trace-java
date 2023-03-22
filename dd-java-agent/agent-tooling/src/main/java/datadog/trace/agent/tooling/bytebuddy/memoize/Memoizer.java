@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import datadog.trace.agent.tooling.bytebuddy.TypeInfoCache;
 import datadog.trace.agent.tooling.bytebuddy.TypeInfoCache.SharedTypeInfo;
 import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade;
+import datadog.trace.agent.tooling.bytebuddy.outline.WithLocation;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -56,9 +57,11 @@ public final class Memoizer {
   private static final DDCache<ElementMatcher, MemoizingMatcher> memoizingMatcherCache =
       DDCaches.newFixedSizeIdentityCache(8);
 
+  private static final boolean namesAreUnique = InstrumenterConfig.get().isResolverNamesAreUnique();
+
   // caches positive memoized matches
   private static final TypeInfoCache<BitSet> memos =
-      new TypeInfoCache<>(InstrumenterConfig.get().getResolverMemoPoolSize(), true);
+      new TypeInfoCache<>(InstrumenterConfig.get().getResolverMemoPoolSize(), namesAreUnique);
 
   // local memoized results, used to detect circular references
   static final ThreadLocal<Map<String, BitSet>> localMemosHolder =
@@ -173,7 +176,9 @@ public final class Memoizer {
 
     SharedTypeInfo<BitSet> sharedMemo = memos.find(name);
     if (null != sharedMemo) {
-      return sharedMemo.get();
+      if (namesAreUnique || name.startsWith("java.") || sameOrigin(type, sharedMemo)) {
+        return sharedMemo.get();
+      }
     }
 
     localMemos.put(name, memo = new BitSet(matchers.size()));
@@ -217,9 +222,20 @@ public final class Memoizer {
       return NO_MATCH;
     }
 
-    memos.share(name, null, null, memo);
+    if (namesAreUnique || name.startsWith("java.") || !(type instanceof WithLocation)) {
+      memos.share(name, null, null, memo);
+    } else {
+      WithLocation origin = (WithLocation) type;
+      memos.share(name, origin.getClassLoader(), origin.getClassFile(), memo);
+    }
 
     return memo;
+  }
+
+  private static boolean sameOrigin(TypeDescription type, SharedTypeInfo<BitSet> sharedMemo) {
+    return !(type instanceof WithLocation)
+        || sharedMemo.sameClassLoader(((WithLocation) type).getClassLoader())
+        || sharedMemo.sameClassFile(((WithLocation) type).getClassFile());
   }
 
   /** Inherit positive matches from a super-class or interface. */
