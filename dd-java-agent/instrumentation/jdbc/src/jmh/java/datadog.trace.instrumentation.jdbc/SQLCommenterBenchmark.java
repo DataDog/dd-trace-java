@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.jdbc;
 
-import datadog.trace.api.DDTraceId;
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -14,19 +13,18 @@ import org.openjdk.jmh.annotations.State;
 @State(Scope.Thread)
 public class SQLCommenterBenchmark {
 
-  private static final long spanId = 9876543210L;
-  private static final DDTraceId traceId = DDTraceId.from(Long.MAX_VALUE);
-  private static final Integer samplingPriority = 1;
+  private static final String traceParent =
+      "00-00000000000000007fffffffffffffff-000000024cb016ea-01";
   private static final String injectionMode = "full";
   private static final String dbService = "users-db";
+  private static final String parentService = "parent";
+  private static final String env = "env";
+  private static final String version = "version";
 
   @Benchmark
-  public void testInject() {
-    SQLCommenter.toComment(injectionMode, dbService, traceId, spanId, samplingPriority);
-  }
-
-  @Benchmark
-  public void testEncodeTraceParent() {
-    SQLCommenter.encodeTraceParent(Long.parseLong(traceId.toString()), spanId, samplingPriority);
+  public void testToCommet() {
+    StringBuilder stringBuilder = new StringBuilder();
+    SQLCommenter.toComment(
+        stringBuilder, injectionMode, parentService, dbService, env, version, traceParent);
   }
 }

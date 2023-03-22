@@ -23,7 +23,6 @@ import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Map;
-
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
@@ -121,9 +120,11 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
           return null;
         }
         final String inputSql = sql;
-        final DBInfo dbInfo = JDBCDecorator.parseDBInfo(connection, InstrumentationContext.get(Connection.class, DBInfo.class));
-        String dbService = DECORATE.dbService(dbInfo);
-        SQLCommenter commenter = new SQLCommenter(SQL_COMMENT_INJECTION_STATIC, sql, dbService);
+        final DBInfo dbInfo =
+            JDBCDecorator.parseDBInfo(
+                connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+        SQLCommenter commenter =
+            new SQLCommenter(SQL_COMMENT_INJECTION_STATIC, sql, DECORATE.getDbService(dbInfo));
         commenter.inject();
         sql = commenter.getCommentedSQL();
         return inputSql;

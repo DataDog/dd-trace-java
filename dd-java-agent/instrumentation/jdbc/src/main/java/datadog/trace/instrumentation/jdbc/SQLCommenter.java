@@ -4,10 +4,8 @@ import static datadog.trace.instrumentation.jdbc.JDBCDecorator.SQL_COMMENT_INJEC
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.SQL_COMMENT_INJECTION_STATIC;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTraceId;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,49 +14,36 @@ public class SQLCommenter {
 
   private static final Logger log = LoggerFactory.getLogger(SQLCommenter.class);
   private static final String UTF8 = StandardCharsets.UTF_8.toString();
-  private static final String PARENT_SERVICE = "ddps";
-  private static final String DATABASE_SERVICE = "dddbs";
-  private static final String DD_ENV = "dde";
-  private static final String DD_VERSION = "ddpv";
-  private static final String TRACEPARENT = "traceparent";
-  private static final String W3C_CONTEXT_VERSION = "00";
+  private static final String PARENT_SERVICE = encode("ddps");
+  private static final String DATABASE_SERVICE = encode("dddbs");
+  private static final String DD_ENV = encode("dde");
+  private static final String DD_VERSION = encode("ddpv");
+  private static final String TRACEPARENT = encode("traceparent");
   private static final char EQUALS = '=';
   private static final char COMMA = ',';
   private static final char QUOTE = '\'';
-  private static final int COMMENT_CAPACITY = computeBuilderCapacity();
+  private static final String SPACE = " ";
+  private static final String OPEN_COMMENT = "/*";
+  private static final String CLOSE_COMMENT = "*/ ";
+  private static final int INITIAL_CAPACITY = computeInitialCapacity();
   String commentedSQL;
   String injectionMode;
   String sql;
-  DDTraceId traceId;
-  long spanId;
-  Integer samplingPriority;
   String dbService;
+  String traceparent;
 
   public String getCommentedSQL() {
     return commentedSQL;
   }
 
-  public void setSamplingPriority(Integer samplingPriority) {
-    this.samplingPriority = samplingPriority;
+  public void setTraceparent(String traceparent) {
+    this.traceparent = traceparent;
   }
 
   public SQLCommenter(final String injectionMode, final String sql, final String dbService) {
     this.injectionMode = injectionMode;
     this.sql = sql;
     this.dbService = dbService;
-  }
-
-  public SQLCommenter(
-      final String injectionMode,
-      final String sql,
-      final String dbService,
-      final DDTraceId traceId,
-      final long spanId) {
-    this.injectionMode = injectionMode;
-    this.sql = sql;
-    this.dbService = dbService;
-    this.traceId = traceId;
-    this.spanId = spanId;
   }
 
   public void inject() {
@@ -72,23 +57,21 @@ public class SQLCommenter {
       this.commentedSQL = this.sql;
       return;
     }
-
-    final String comment =
-        toComment(
-            this.injectionMode, this.dbService, this.traceId, this.spanId, this.samplingPriority);
-    if (comment.isEmpty()) {
+    final Config config = Config.get();
+    final String parentService = config.getServiceName();
+    final String env = config.getEnv();
+    final String version = config.getVersion();
+    final int commentSize = capacity(this.traceparent, parentService, this.dbService, env, version);
+    StringBuilder sb = new StringBuilder(this.sql.length() + commentSize);
+    toComment(
+        sb, this.injectionMode, parentService, this.dbService, env, version, this.traceparent);
+    if (sb.length() == 0) {
       this.commentedSQL = this.sql;
       return;
     }
-
-    int capacity = comment.length() + this.sql.length() + 5;
-    ByteBuffer buffer = ByteBuffer.allocate(capacity);
-    buffer.put("/*".getBytes(StandardCharsets.UTF_8));
-    buffer.put(comment.getBytes(StandardCharsets.UTF_8));
-    buffer.put("*/ ".getBytes(StandardCharsets.UTF_8));
-    buffer.put(sqlStmtBytes);
-
-    this.commentedSQL = new String(buffer.array(), 0, buffer.position(), StandardCharsets.UTF_8);
+    sb.append(SPACE);
+    sb.append(this.sql);
+    this.commentedSQL = sb.toString();
   }
 
   private static boolean hasDDComment(byte[] sql) {
@@ -140,27 +123,38 @@ public class SQLCommenter {
     return arr[startIndex + substring.length()] == EQUALS;
   }
 
-  protected static String toComment(
+  private static String encode(final String val) {
+    try {
+      return URLEncoder.encode(val, UTF8);
+    } catch (UnsupportedEncodingException exe) {
+      if (log.isDebugEnabled()) {
+        log.debug("exception thrown while encoding sql comment key %s", exe);
+      }
+    }
+    return val;
+  }
+
+  protected static void toComment(
+      StringBuilder sb,
       final String injectionMode,
+      final String parentService,
       final String dbService,
-      final DDTraceId traceId,
-      final long spanId,
-      final Integer samplingPriority) {
-    StringBuilder sb = new StringBuilder(COMMENT_CAPACITY);
-    final Config config = Config.get();
+      final String env,
+      final String version,
+      final String traceparent) {
     if (injectComment(injectionMode)) {
-      append(sb, PARENT_SERVICE, config.getServiceName());
+      append(sb, PARENT_SERVICE, parentService);
       append(sb, DATABASE_SERVICE, dbService);
-      append(sb, DD_ENV, config.getEnv());
-      append(sb, DD_VERSION, config.getVersion());
+      append(sb, DD_ENV, env);
+      append(sb, DD_VERSION, version);
       if (injectionMode.equals(SQL_COMMENT_INJECTION_FULL)) {
-        append(sb, TRACEPARENT, traceParent(traceId, spanId, samplingPriority));
+        append(sb, TRACEPARENT, traceparent);
       }
     }
     if (sb.length() > 0) {
-      sb.deleteCharAt(sb.length() - 1); // remove trailing comma
+      // remove the trailing comment
+      sb.deleteCharAt(sb.length() - 1);
     }
-    return sb.toString();
   }
 
   private static void append(StringBuilder sb, String key, String value) {
@@ -180,53 +174,47 @@ public class SQLCommenter {
     }
   }
 
+  private static int capacity(
+      final String traceparent,
+      final String parentService,
+      final String dbService,
+      final String env,
+      final String version) {
+    int len = INITIAL_CAPACITY;
+    if (null != traceparent) {
+      len += traceparent.length();
+    }
+    if (null != parentService) {
+      len += parentService.length();
+    }
+    if (null != dbService) {
+      len += dbService.length();
+    }
+    if (null != env) {
+      len += env.length();
+    }
+    if (null != version) {
+      len += version.length();
+    }
+    return len;
+  }
+
   private static boolean injectComment(String injectionMode) {
     return injectionMode.equals(SQL_COMMENT_INJECTION_FULL)
         || injectionMode.equals(SQL_COMMENT_INJECTION_STATIC);
   }
 
-  private static int computeBuilderCapacity() {
+  private static int computeInitialCapacity() {
     int tagKeysLen =
         PARENT_SERVICE.length()
             + DATABASE_SERVICE.length()
             + DD_ENV.length()
             + DD_VERSION.length()
             + TRACEPARENT.length();
-    int extraCharsLen = 4 * 5 + 4; // two quotes, one equals & one comma + \* */
-    int traceParentValueLen = 55;
-    return tagKeysLen + extraCharsLen + traceParentValueLen;
-  }
-
-  private static String traceParent(DDTraceId traceId, long spanId, Integer priority) {
-    long traceSampledFlag = 0L;
-    if (priority != null && priority >= 1) {
-      traceSampledFlag = 1L;
-    }
-    if (null == traceId) {
-      return "";
-    }
-    return encodeTraceParent(Long.parseLong(traceId.toString()), spanId, traceSampledFlag);
-  }
-
-  protected static String encodeTraceParent(long traceID, long spanID, long sampled) {
-    ByteBuffer bb = ByteBuffer.allocate(55);
-    bb.put(W3C_CONTEXT_VERSION.getBytes(StandardCharsets.US_ASCII));
-    bb.put((byte) '-');
-    String tid = String.format("%016x", traceID);
-    for (int i = 0; i < 32 - tid.length(); i++) {
-      bb.put((byte) '0');
-    }
-    bb.put(tid.getBytes(StandardCharsets.US_ASCII));
-    bb.put((byte) '-');
-    String sid = String.format("%016x", spanID);
-    for (int i = 0; i < 16 - sid.length(); i++) {
-      bb.put((byte) '0');
-    }
-    bb.put(sid.getBytes(StandardCharsets.US_ASCII));
-    bb.put((byte) '-');
-    bb.put((byte) '0');
-    String sampledStr = Long.toHexString(sampled);
-    bb.put(sampledStr.getBytes(StandardCharsets.US_ASCII));
-    return new String(bb.array(), StandardCharsets.US_ASCII);
+    int extraCharsLen =
+        4 * 5
+            + OPEN_COMMENT.length()
+            + CLOSE_COMMENT.length(); // two quotes, one equals & one comma * 5 + \* */
+    return tagKeysLen + extraCharsLen;
   }
 }

@@ -1,5 +1,8 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.core.propagation.PropagationUtils.TRACE_PARENT_KEY;
+import static datadog.trace.core.propagation.PropagationUtils.traceParent;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
 
@@ -19,11 +22,7 @@ public class SqlCommentInjector {
 
     @Override
     public <C> void inject(DDSpanContext context, C carrier, AgentPropagation.Setter<C> setter) {
-      if (context.lockSamplingPriority()) {
-        final String injectedSamplingPriority =
-            convertSamplingPriority(context.getSamplingPriority());
-        setter.set(carrier, SAMPLING_PRIORITY, injectedSamplingPriority);
-      }
+      setter.set(carrier, TRACE_PARENT_KEY, traceParent(context).toString());
     }
   }
 
