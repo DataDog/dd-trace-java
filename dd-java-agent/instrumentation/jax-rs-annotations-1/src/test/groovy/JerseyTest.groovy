@@ -1,11 +1,11 @@
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.dropwizard.testing.junit.ResourceTestRule
 import org.junit.ClassRule
 import spock.lang.Shared
-
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class JerseyTest extends AgentTestRunner {
 
@@ -15,6 +15,8 @@ class JerseyTest extends AgentTestRunner {
   .addResource(new Resource.Test1())
   .addResource(new Resource.Test2())
   .addResource(new Resource.Test3())
+  .addResource(new Resource.Test4())
+  .addProvider(new FakeProvider())
   .build()
 
   def "test #resource"() {
@@ -57,6 +59,52 @@ class JerseyTest extends AgentTestRunner {
     "/test/hello/bob"  | "POST /test/hello/{name}"  | "Test1.hello"  | "Test1 bob!"
     "/test2/hello/bob" | "POST /test2/hello/{name}" | "Test2.hello"  | "Test2 bob!"
     "/test3/hi/bob"    | "POST /test3/hi/{name}"    | "Test3.hello"  | "Test3 bob!"
+  }
+
+  def "decouple jaxrs client to server"() {
+    when:
+    // start a trace because the test doesn't go through any servlet or other instrumentation.
+    def response = runUnderTrace("test.span") {
+      resources.client().resource("/test4/whoami").post(String)
+    }
+    def expectedResourceName = "POST /test4/whoami"
+
+    then:
+    response ==  "Test1 world!"
+
+    assertTraces(1) {
+      trace(3) {
+        span {
+          operationName "test.span"
+          resourceName expectedResourceName
+          tags {
+            "$Tags.COMPONENT" "jax-rs"
+            "$Tags.HTTP_ROUTE" "/test4/whoami"
+            defaultTags()
+          }
+        }
+        span {
+          childOf span(0)
+          operationName "jax-rs.request"
+          resourceName  "Test4.whoami"
+          spanType DDSpanTypes.HTTP_SERVER
+          tags {
+            "$Tags.COMPONENT" "jax-rs-controller"
+            defaultTags()
+          }
+        }
+        span {
+          childOf span(1)
+          operationName "jax-rs.request"
+          resourceName  "Test1.hello"
+          spanType DDSpanTypes.HTTP_SERVER
+          tags {
+            "$Tags.COMPONENT" "jax-rs-controller"
+            defaultTags()
+          }
+        }
+      }
+    }
   }
 
   def "test nested call"() {

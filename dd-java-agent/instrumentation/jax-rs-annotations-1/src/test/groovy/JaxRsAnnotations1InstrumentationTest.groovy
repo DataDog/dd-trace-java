@@ -1,3 +1,5 @@
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.jaxrs1.JaxRsAnnotationsDecorator
@@ -9,8 +11,6 @@ import javax.ws.rs.OPTIONS
 import javax.ws.rs.POST
 import javax.ws.rs.PUT
 import javax.ws.rs.Path
-
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class JaxRsAnnotations1InstrumentationTest extends AgentTestRunner {
 
@@ -146,11 +146,11 @@ class JaxRsAnnotations1InstrumentationTest extends AgentTestRunner {
     }
 
     where:
-    obj | _
+    obj             | _
     new Jax() {
         void call() {
         }
-      }   | _
+      }               | _
   }
 
   interface Jax {

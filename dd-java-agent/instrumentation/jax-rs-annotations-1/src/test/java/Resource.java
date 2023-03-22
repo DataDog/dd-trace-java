@@ -1,6 +1,7 @@
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.core.Context;
 
 // Originally had this as a groovy class but was getting some weird errors.
 @Path("/ignored")
@@ -44,6 +45,15 @@ public interface Resource {
     @Path("/nested")
     public String nested() {
       return hello("nested");
+    }
+  }
+
+  @Path("/test4")
+  class Test4 {
+    @POST
+    @Path("/whoami")
+    public String whoami(@Context DummyContext context) {
+      return context.getValue();
     }
   }
 }
