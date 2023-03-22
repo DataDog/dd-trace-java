@@ -443,6 +443,7 @@ public class Config {
   private final boolean logExtractHeaderNames;
   private final Set<PropagationStyle> propagationStylesToExtract;
   private final Set<PropagationStyle> propagationStylesToInject;
+  private final boolean tracePropagationStyleB3PaddingEnabled;
   private final Set<TracePropagationStyle> tracePropagationStylesToExtract;
   private final Set<TracePropagationStyle> tracePropagationStylesToInject;
   private final int clockSyncPeriod;
@@ -904,6 +905,8 @@ public class Config {
             PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED,
             DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED);
 
+    tracePropagationStyleB3PaddingEnabled =
+        isEnabled(true, TRACE_PROPAGATION_STYLE, ".b3.padding.enabled");
     {
       // The dd.propagation.style.(extract|inject) settings have been deprecated in
       // favor of dd.trace.propagation.style(|.extract|.inject) settings.
@@ -1636,6 +1639,10 @@ public class Config {
   @Deprecated
   public Set<PropagationStyle> getPropagationStylesToInject() {
     return propagationStylesToInject;
+  }
+
+  public boolean isTracePropagationStyleB3PaddingEnabled() {
+    return tracePropagationStyleB3PaddingEnabled;
   }
 
   public Set<TracePropagationStyle> getTracePropagationStylesToExtract() {
