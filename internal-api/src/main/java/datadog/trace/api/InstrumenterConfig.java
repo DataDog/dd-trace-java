@@ -167,7 +167,7 @@ public class InstrumenterConfig {
 
     resolverCacheConfig =
         configProvider.getEnum(
-            RESOLVER_CACHE_CONFIG, ResolverCacheConfig.class, ResolverCacheConfig.DEFAULT);
+            RESOLVER_CACHE_CONFIG, ResolverCacheConfig.class, ResolverCacheConfig.MEMOS);
     resolverUseLoadClass = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
     resolverResetInterval =
         Platform.isNativeImageBuilder()
@@ -286,6 +286,14 @@ public class InstrumenterConfig {
 
   public List<String> getExcludedCodeSources() {
     return excludedCodeSources;
+  }
+
+  public boolean isResolverMemoizingEnabled() {
+    return resolverCacheConfig.memoPoolSize() > 0;
+  }
+
+  public int getResolverMemoPoolSize() {
+    return resolverCacheConfig.memoPoolSize();
   }
 
   public boolean isResolverOutliningEnabled() {

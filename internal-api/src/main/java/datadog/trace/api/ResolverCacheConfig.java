@@ -3,21 +3,49 @@ package datadog.trace.api;
 /** Named presets to help configure various caches inside the type resolver/matcher. */
 public enum ResolverCacheConfig {
 
-  /** Pool sizes to fit large enterprise apps. */
+  /** Memoizing and outlining for large enterprise apps. */
   LARGE {
     @Override
+    public int memoPoolSize() {
+      return 32768;
+    }
+
+    @Override
     public int outlinePoolSize() {
-      return 4096;
+      return 512;
     }
 
     @Override
     public int typePoolSize() {
-      return 256;
+      return 128;
     }
   },
 
-  /** Pool sizes to fit the average sized app. */
-  DEFAULT {
+  /** Memoizing and outlining for the average sized app. */
+  MEMOS {
+    @Override
+    public int memoPoolSize() {
+      return 8192;
+    }
+
+    @Override
+    public int outlinePoolSize() {
+      return 128;
+    }
+
+    @Override
+    public int typePoolSize() {
+      return 32;
+    }
+  },
+
+  /** Outlining only for the average sized app, no memoizing. */
+  NO_MEMOS {
+    @Override
+    public int memoPoolSize() {
+      return 0;
+    }
+
     @Override
     public int outlinePoolSize() {
       return 256;
@@ -29,8 +57,13 @@ public enum ResolverCacheConfig {
     }
   },
 
-  /** Pool sizes to fit small microservice apps. */
+  /** Outlining only for small microservice apps. */
   SMALL {
+    @Override
+    public int memoPoolSize() {
+      return 0;
+    }
+
     @Override
     public int outlinePoolSize() {
       return 32;
@@ -45,6 +78,11 @@ public enum ResolverCacheConfig {
   /** The old {@code DDCachingPoolStrategy} behaviour. */
   LEGACY {
     @Override
+    public int memoPoolSize() {
+      return 0;
+    }
+
+    @Override
     public int outlinePoolSize() {
       return 0;
     }
@@ -54,6 +92,8 @@ public enum ResolverCacheConfig {
       return 64;
     }
   };
+
+  public abstract int memoPoolSize();
 
   public abstract int outlinePoolSize();
 
