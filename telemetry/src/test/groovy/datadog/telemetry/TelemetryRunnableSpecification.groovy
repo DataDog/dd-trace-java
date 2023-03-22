@@ -6,16 +6,27 @@ import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
+import okhttp3.ResponseBody
 
 class TelemetryRunnableSpecification extends DDSpecification {
   private static final Request REQUEST = new Request.Builder()
   .url('https://example.com').build()
-  private static final Response OK_RESPONSE = new Response.Builder()
-  .request(REQUEST).protocol(Protocol.HTTP_1_0).message("msg").code(202).build()
-  private static final Response BAD_RESPONSE = new Response.Builder()
-  .request(REQUEST).protocol(Protocol.HTTP_1_0).message("msg").code(500).build()
-  private static final Response NOT_FOUND_RESPONSE = new Response.Builder()
-  .request(REQUEST).protocol(Protocol.HTTP_1_0).message("msg").code(404).build()
+
+  def okResponse() {
+    testResponse("msg", 202)
+  }
+  def badResponse() {
+    testResponse("msg", 500)
+  }
+  def notFoundResponse() {
+    testResponse("msg", 404)
+  }
+
+  def testResponse(String msg, int code) {
+    return new Response.Builder().request(REQUEST).protocol(Protocol.HTTP_1_0)
+      .body(ResponseBody.create(null, new byte[0]))
+      .message(msg).code(code).build()
+  }
 
   OkHttpClient okHttpClient = Mock()
   TelemetryRunnable.ThreadSleeper sleeper = Mock()
@@ -49,7 +60,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
     1 * periodicAction.doIteration(telemetryService)
     1 * telemetryService.prepareRequests() >> queue
     1 * okHttpClient.newCall(REQUEST) >> call
-    1 * call.execute() >> OK_RESPONSE
+    1 * call.execute() >> okResponse()
     queue.size() == 0
 
     then:
@@ -59,7 +70,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
     then:
     1 * telemetryService.appClosingRequest() >> REQUEST
     1 * okHttpClient.newCall(REQUEST) >> call
-    1 * call.execute() >> OK_RESPONSE
+    1 * call.execute() >> okResponse()
     0 * _
   }
 
@@ -89,9 +100,9 @@ class TelemetryRunnableSpecification extends DDSpecification {
     1 * periodicAction.doIteration(telemetryService)
     1 * telemetryService.prepareRequests() >> queue
     1 * okHttpClient.newCall(request1) >> call1
-    1 * call1.execute() >> OK_RESPONSE
+    1 * call1.execute() >> okResponse()
     1 * okHttpClient.newCall(request2) >> call2
-    1 * call2.execute() >> OK_RESPONSE
+    1 * call2.execute() >> okResponse()
     queue.size() == 0
 
     then:
@@ -101,7 +112,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
     then:
     1 * telemetryService.appClosingRequest() >> request3
     1 * okHttpClient.newCall(request3) >> call3
-    1 * call3.execute() >> OK_RESPONSE
+    1 * call3.execute() >> okResponse()
     0 * _
   }
 
@@ -123,7 +134,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
     1 * periodicAction.doIteration(telemetryService)
     1 * telemetryService.prepareRequests() >> queue
     1 * okHttpClient.newCall(REQUEST) >> call
-    1 * call.execute() >> NOT_FOUND_RESPONSE
+    1 * call.execute() >> notFoundResponse()
     queue.size() == 0
 
     then:
@@ -133,7 +144,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
     then:
     1 * telemetryService.appClosingRequest() >> REQUEST
     1 * okHttpClient.newCall(REQUEST) >> call
-    1 * call.execute() >> OK_RESPONSE
+    1 * call.execute() >> okResponse()
     0 * _
   }
 
@@ -157,7 +168,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
 
     then:
     1 * okHttpClient.newCall(REQUEST) >> call
-    1 * call.execute() >> BAD_RESPONSE
+    1 * call.execute() >> badResponse()
     queue.size() == 1
 
     then:
@@ -167,7 +178,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
     1 * periodicAction.doIteration(telemetryService)
     1 * telemetryService.prepareRequests() >> queue
     1 * okHttpClient.newCall(REQUEST) >> call
-    1 * call.execute() >> BAD_RESPONSE
+    1 * call.execute() >> badResponse()
     queue.size() == 1
 
     then:
@@ -176,7 +187,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
     then:
     1 * telemetryService.appClosingRequest() >> REQUEST
     1 * okHttpClient.newCall(REQUEST) >> call
-    1 * call.execute() >> OK_RESPONSE
+    1 * call.execute() >> okResponse()
     0 * _
   }
 }

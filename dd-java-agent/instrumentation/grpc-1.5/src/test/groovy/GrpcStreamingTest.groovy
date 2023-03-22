@@ -1,5 +1,5 @@
 import com.google.common.util.concurrent.MoreExecutors
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import example.GreeterGrpc
@@ -16,7 +16,21 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
-class GrpcStreamingTest extends AgentTestRunner {
+abstract class GrpcStreamingTest extends VersionedNamingTestBase {
+
+  @Override
+  final String service() {
+    return null
+  }
+
+  @Override
+  final String operation() {
+    return null
+  }
+
+  protected abstract String clientOperation()
+
+  protected abstract String serverOperation()
 
   @Override
   protected void configurePreAgent() {
@@ -130,7 +144,7 @@ class GrpcStreamingTest extends AgentTestRunner {
     assertTraces(2) {
       trace((clientMessageCount * serverMessageCount) + 1) {
         span {
-          operationName "grpc.client"
+          operationName clientOperation()
           resourceName "example.Greeter/Conversation"
           spanType DDSpanTypes.RPC
           parent()
@@ -162,7 +176,7 @@ class GrpcStreamingTest extends AgentTestRunner {
       }
       trace(clientMessageCount + 1) {
         span {
-          operationName "grpc.server"
+          operationName serverOperation()
           resourceName "example.Greeter/Conversation"
           spanType DDSpanTypes.RPC
           childOf trace(0).get(0)
@@ -211,5 +225,41 @@ class GrpcStreamingTest extends AgentTestRunner {
 
     clientRange = 1..clientMessageCount
     serverRange = 1..serverMessageCount
+  }
+}
+
+class GrpcStreamingV0ForkedTest extends GrpcStreamingTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  protected String clientOperation() {
+    return "grpc.client"
+  }
+
+  @Override
+  protected String serverOperation() {
+    return "grpc.server"
+  }
+}
+
+class GrpcStreamingV1ForkedTest extends GrpcStreamingTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  protected String clientOperation() {
+    return "grpc.client.request"
+  }
+
+  @Override
+  protected String serverOperation() {
+    return "grpc.server.request"
   }
 }

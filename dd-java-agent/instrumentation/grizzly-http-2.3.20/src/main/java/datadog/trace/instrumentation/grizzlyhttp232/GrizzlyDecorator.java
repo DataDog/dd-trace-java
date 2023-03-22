@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import java.util.Map;
 import org.glassfish.grizzly.filterchain.FilterChainContext;
 import org.glassfish.grizzly.filterchain.NextAction;
 import org.glassfish.grizzly.http.HttpCodecFilter;
@@ -166,11 +167,13 @@ public class GrizzlyDecorator
     }
 
     @Override
-    public boolean tryCommitBlockingResponse(int statusCode, BlockingContentType templateType) {
+    public boolean tryCommitBlockingResponse(
+        int statusCode, BlockingContentType templateType, Map<String, String> extraHeaders) {
       if (ctx == null) {
         return false;
       }
-      return GrizzlyHttpBlockingHelper.block(ctx, acceptHeader, statusCode, templateType);
+      return GrizzlyHttpBlockingHelper.block(
+          ctx, acceptHeader, statusCode, templateType, extraHeaders);
     }
   }
 }

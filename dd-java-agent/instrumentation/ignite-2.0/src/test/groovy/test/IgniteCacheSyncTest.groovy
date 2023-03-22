@@ -311,17 +311,17 @@ abstract class IgniteCacheSyncTest extends AbstractIgniteTest {
 class IgniteCacheSyncV0ForkedTest extends IgniteCacheSyncTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 0
   }
 
   @Override
-  protected String service() {
+  String service() {
     return AbstractIgniteTest.V0_SERVICE
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return AbstractIgniteTest.V0_OPERATION
   }
 }
@@ -329,17 +329,17 @@ class IgniteCacheSyncV0ForkedTest extends IgniteCacheSyncTest {
 class IgniteCacheSyncV1ForkedTest extends IgniteCacheSyncTest {
 
   @Override
-  protected int version() {
+  int version() {
     return 1
   }
 
   @Override
-  protected String service() {
+  String service() {
     return AbstractIgniteTest.V1_SERVICE
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return AbstractIgniteTest.V1_OPERATION
   }
 }

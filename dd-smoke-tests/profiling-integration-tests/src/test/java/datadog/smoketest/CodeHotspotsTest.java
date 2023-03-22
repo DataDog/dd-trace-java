@@ -257,6 +257,7 @@ public final class CodeHotspotsTest {
     runTestGenerativeStackTraces("Raw", depth);
   }
 
+  @Flaky
   @ParameterizedTest
   @ValueSource(ints = {128})
   void testGenerativeStackTracesWithMethodHandles(int depth) throws Exception {

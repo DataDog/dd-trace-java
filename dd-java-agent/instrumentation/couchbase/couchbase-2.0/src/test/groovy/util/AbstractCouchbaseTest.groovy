@@ -160,17 +160,17 @@ abstract class AbstractCouchbaseTest extends VersionedNamingTestBase {
   }
 
   @Override
-  protected int version() {
+  int version() {
     return 0
   }
 
   @Override
-  protected String service() {
+  String service() {
     return "couchbase"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "couchbase.call"
   }
 }

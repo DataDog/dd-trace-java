@@ -86,7 +86,6 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   @Shared
   ProxySelector proxySelector
 
-  @Shared
   String component = component()
 
   @Override
@@ -749,7 +748,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
       if (renameService) {
         serviceName uri.host
       }
-      operationName expectedOperationName()
+      operationName operation()
       resourceName "$method $uri.path"
       spanType DDSpanTypes.HTTP_CLIENT
       errored error
@@ -778,10 +777,6 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
         defaultTags()
       }
     }
-  }
-
-  String expectedOperationName() {
-    return operation()
   }
 
   int size(int size) {
@@ -822,20 +817,5 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     // FIXME: this hack is here because callback with parent is broken in play-ws when the stream()
     // function is used.  There is no way to stop a test from a derived class hence the flag
     true
-  }
-
-  @Override
-  protected int version() {
-    return 0
-  }
-
-  @Override
-  protected String service() {
-    return null
-  }
-
-  @Override
-  protected String operation() {
-    return "http.request"
   }
 }

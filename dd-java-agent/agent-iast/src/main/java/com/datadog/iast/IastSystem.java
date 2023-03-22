@@ -51,7 +51,7 @@ public class IastSystem {
     }
     DEBUG = config.isIastDebugEnabled();
     LOGGER.debug("IAST is starting: debug={}", DEBUG);
-    final Reporter reporter = new Reporter(config);
+    final Reporter reporter = new Reporter(config, AgentTaskScheduler.INSTANCE);
     if (overheadController == null) {
       overheadController = OverheadController.build(config, AgentTaskScheduler.INSTANCE);
     }

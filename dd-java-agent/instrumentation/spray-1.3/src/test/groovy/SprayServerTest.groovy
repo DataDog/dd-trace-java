@@ -1,8 +1,9 @@
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.spray.SprayHttpServerDecorator
 
-class SprayServerTest extends HttpServerTest<SprayHttpTestWebServer> {
+abstract class SprayServerTest extends HttpServerTest<SprayHttpTestWebServer> {
 
   @Override
   HttpServer server() {
@@ -23,7 +24,7 @@ class SprayServerTest extends HttpServerTest<SprayHttpTestWebServer> {
 
   @Override
   String expectedOperationName() {
-    return SprayHttpServerDecorator.DECORATE.SPRAY_HTTP_REQUEST
+    return operation()
   }
 
   @Override
@@ -55,4 +56,24 @@ class SprayServerTest extends HttpServerTest<SprayHttpTestWebServer> {
   @Override
   def setup() {
   }
+}
+
+class SprayServerV0ForkedTest extends SprayServerTest {
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "spray-http.request"
+  }
+}
+
+class SprayServerV1ForkedTest extends SprayServerTest implements TestingGenericHttpNamingConventions.ServerV1 {
 }

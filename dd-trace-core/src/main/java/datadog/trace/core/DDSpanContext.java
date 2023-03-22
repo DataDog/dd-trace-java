@@ -234,7 +234,6 @@ public class DDSpanContext
     this.resourceName = resourceName;
     this.errorFlag = errorFlag;
     this.spanType = spanType;
-    this.origin = origin;
 
     // Additional Metadata
     final Thread current = Thread.currentThread();
@@ -247,6 +246,9 @@ public class DDSpanContext
             ? propagationTags
             : trace.getTracer().getPropagationTagsFactory().empty();
 
+    if (origin != null) {
+      setOrigin(origin);
+    }
     if (samplingPriority != PrioritySampling.UNSET) {
       setSamplingPriority(samplingPriority, SamplingMechanism.UNKNOWN);
     }
@@ -485,12 +487,7 @@ public class DDSpanContext
   }
 
   public CharSequence getOrigin() {
-    final DDSpan rootSpan = trace.getRootSpan();
-    if (null != rootSpan) {
-      return rootSpan.context().origin;
-    } else {
-      return origin;
-    }
+    return getRootSpanContextOrThis().origin;
   }
 
   public void beginEndToEnd() {
@@ -570,7 +567,9 @@ public class DDSpanContext
   }
 
   public void setOrigin(final CharSequence origin) {
-    this.origin = origin;
+    DDSpanContext context = getRootSpanContextOrThis();
+    context.origin = origin;
+    context.propagationTags.updateTraceOrigin(origin);
   }
 
   public void setMetric(final CharSequence key, final Number value) {
@@ -750,22 +749,22 @@ public class DDSpanContext
 
   @Override
   public void setBlockResponseFunction(BlockResponseFunction blockResponseFunction) {
-    getTopContext().blockResponseFunction = blockResponseFunction;
+    getRootSpanContextOrThis().blockResponseFunction = blockResponseFunction;
   }
 
   @Override
   public BlockResponseFunction getBlockResponseFunction() {
-    return getTopContext().blockResponseFunction;
+    return getRootSpanContextOrThis().blockResponseFunction;
   }
 
   public PropagationTags getPropagationTags() {
-    return propagationTags;
+    return getRootSpanContextOrThis().propagationTags;
   }
 
   /** TraceSegment Implementation */
   @Override
   public void setTagTop(String key, Object value, boolean sanitize) {
-    getTopContext().setTagCurrent(key, value, sanitize);
+    getRootSpanContextOrThis().setTagCurrent(key, value, sanitize);
   }
 
   @Override
@@ -778,7 +777,7 @@ public class DDSpanContext
 
   @Override
   public void setDataTop(String key, Object value) {
-    getTopContext().setDataCurrent(key, value);
+    getRootSpanContextOrThis().setDataCurrent(key, value);
   }
 
   @Override
@@ -786,10 +785,5 @@ public class DDSpanContext
     // TODO is this decided?
     String tagKey = "_dd." + key + ".json";
     this.setTag(tagKey, value);
-  }
-
-  private DDSpanContext getTopContext() {
-    DDSpan span = trace.getRootSpan();
-    return null != span ? span.context() : this;
   }
 }

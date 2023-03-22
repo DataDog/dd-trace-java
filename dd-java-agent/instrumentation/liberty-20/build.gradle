@@ -86,7 +86,7 @@ tasks.register('installOpenLibertyDeps', Copy) {
   outputs.file ext.serverXmlFile
 }
 test.dependsOn webappClasses, installOpenLibertyDeps
-test {
+forkedTest {
   jvmArgs += ["-Dserver.xml=${installOpenLibertyDeps.serverXmlFile.absoluteFile}"]
 }
 

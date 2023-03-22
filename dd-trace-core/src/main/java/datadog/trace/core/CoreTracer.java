@@ -776,7 +776,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
       if (encodedContext != null) {
         log.debug("Injecting pathway context {}", pathwayContext);
-        setter.set(carrier, PathwayContext.PROPAGATION_KEY, encodedContext);
+        setter.set(carrier, PathwayContext.PROPAGATION_KEY_BASE64, encodedContext);
         injectPathwayTags(span, pathwayContext);
       }
     } catch (IOException e) {
@@ -1254,7 +1254,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final Map<String, String> baggage;
       final PendingTrace parentTrace;
       final int samplingPriority;
-      final String origin;
+      final CharSequence origin;
       final Map<String, String> coreTags;
       final Map<String, ?> rootSpanTags;
 

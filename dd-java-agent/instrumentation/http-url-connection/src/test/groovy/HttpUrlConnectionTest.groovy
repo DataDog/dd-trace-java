@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlConnectionDecorator
@@ -47,7 +48,7 @@ abstract class HttpUrlConnectionTest extends HttpClientTest {
 
   @Override
   CharSequence component() {
-    return HttpUrlConnectionDecorator.DECORATE.component()
+    return HttpUrlConnectionDecorator.HTTP_URL_CONNECTION
   }
 
   @Override
@@ -374,21 +375,7 @@ abstract class HttpUrlConnectionTest extends HttpClientTest {
   }
 }
 
-class HttpUrlConnectionV0ForkedTest extends HttpUrlConnectionTest {}
+class HttpUrlConnectionV0ForkedTest extends HttpUrlConnectionTest implements TestingGenericHttpNamingConventions.ClientV0 {}
 
-class HttpUrlConnectionV1ForkedTest extends HttpUrlConnectionTest {
-  @Override
-  protected int version() {
-    return 1
-  }
-
-  @Override
-  protected String service() {
-    return null
-  }
-
-  @Override
-  protected String operation() {
-    return "http.client.request"
-  }
+class HttpUrlConnectionV1ForkedTest extends HttpUrlConnectionTest implements TestingGenericHttpNamingConventions.ClientV1 {
 }

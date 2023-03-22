@@ -9,10 +9,11 @@ import org.apache.commons.httpclient.StatusLine;
 import org.apache.commons.httpclient.URIException;
 
 public class CommonsHttpClientDecorator extends HttpClientDecorator<HttpMethod, HttpMethod> {
-  public static final CharSequence HTTP_REQUEST = UTF8BytesString.create("http.request");
   public static final CharSequence COMMONS_HTTP_CLIENT =
       UTF8BytesString.create("commons-http-client");
   public static final CommonsHttpClientDecorator DECORATE = new CommonsHttpClientDecorator();
+
+  public static final CharSequence HTTP_REQUEST = UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected String[] instrumentationNames() {

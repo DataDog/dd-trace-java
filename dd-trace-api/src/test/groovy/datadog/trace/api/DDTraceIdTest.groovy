@@ -185,6 +185,8 @@ class DDTraceIdTest extends DDSpecification {
     if (expectedId) {
       assert ddid == expectedId
       assert ddid.toHexStringOrOriginal() == expectedHex
+      assert ddid.toHexStringPaddedOrOriginal(16) == padHex(16, expectedHex)
+      assert ddid.toHexStringPaddedOrOriginal(32) == padHex(32, expectedHex)
     } else {
       assert !ddid
     }
@@ -234,5 +236,13 @@ class DDTraceIdTest extends DDSpecification {
     1 * random.nextLong() >> { 0 }
     1 * random.nextLong() >> { 11 }
     0 * _
+  }
+
+  static padHex(int size, String hex) {
+    def len = hex.length()
+    if (len >= size) {
+      return hex
+    }
+    return "${"0" * (size - len)}$hex"
   }
 }

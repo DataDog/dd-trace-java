@@ -10,10 +10,12 @@ import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.util.ReferenceCountUtil;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,17 +25,19 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
 
   private final int statusCode;
   private final BlockingContentType bct;
+  private final Map<String, String> extraHeaders;
 
   private boolean hasBlockedAlready;
 
-  public BlockingResponseHandler(int statusCode, BlockingContentType bct) {
+  public BlockingResponseHandler(
+      int statusCode, BlockingContentType bct, Map<String, String> extraHeaders) {
     this.statusCode = statusCode;
     this.bct = bct;
+    this.extraHeaders = extraHeaders;
   }
 
   public BlockingResponseHandler(Flow.Action.RequestBlockingAction rba) {
-    this.statusCode = rba.getStatusCode();
-    this.bct = rba.getBlockingContentType();
+    this(rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
   }
 
   @Override
@@ -74,17 +78,23 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
     FullHttpResponse response =
         new DefaultFullHttpResponse(request.protocolVersion(), httpResponseStatus);
 
-    String acceptHeader = request.headers().get("accept");
-    BlockingActionHelper.TemplateType type =
-        BlockingActionHelper.determineTemplateType(bct, acceptHeader);
-    response
-        .headers()
-        .set("Content-type", BlockingActionHelper.getContentType(type))
-        .set("Connection", "close");
+    HttpHeaders headers = response.headers();
+    headers.set("Connection", "close");
 
-    byte[] template = BlockingActionHelper.getTemplate(type);
-    HttpUtil.setContentLength(response, template.length);
-    response.content().writeBytes(template);
+    for (Map.Entry<String, String> h : this.extraHeaders.entrySet()) {
+      headers.set(h.getKey(), h.getValue());
+    }
+
+    if (bct != BlockingContentType.NONE) {
+      String acceptHeader = request.headers().get("accept");
+      BlockingActionHelper.TemplateType type =
+          BlockingActionHelper.determineTemplateType(bct, acceptHeader);
+      headers.set("Content-type", BlockingActionHelper.getContentType(type));
+
+      byte[] template = BlockingActionHelper.getTemplate(type);
+      HttpUtil.setContentLength(response, template.length);
+      response.content().writeBytes(template);
+    }
 
     this.hasBlockedAlready = true;
 

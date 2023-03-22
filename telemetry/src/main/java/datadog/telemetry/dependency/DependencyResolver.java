@@ -36,7 +36,13 @@ public class DependencyResolver {
     List<Dependency> dependencies = Collections.emptyList();
     try {
       if ("file".equals(scheme)) {
-        dependencies = extractDependenciesFromJar(new File(uri));
+        File f;
+        if (uri.isOpaque()) {
+          f = new File(uri.getSchemeSpecificPart());
+        } else {
+          f = new File(uri);
+        }
+        dependencies = extractDependenciesFromJar(f);
       } else if ("jar".equals(scheme)) {
         Dependency dependency = getNestedDependency(uri);
         if (dependency != null) {

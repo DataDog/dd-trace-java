@@ -24,6 +24,13 @@ public interface NamingSchema {
    */
   ForDatabase database();
 
+  /**
+   * Get the naming policy for servers.
+   *
+   * @return a {@link NamingSchema.ForServer} instance.
+   */
+  ForServer server();
+
   interface ForCache {
     /**
      * Calculate the operation name for a cache span.
@@ -53,7 +60,16 @@ public interface NamingSchema {
      * @return the operation name
      */
     @Nonnull
-    String operation(@Nonnull String protocol);
+    String operationForProtocol(@Nonnull String protocol);
+
+    /**
+     * Calculate the operation name for a client span.
+     *
+     * @param component the name of the instrumentation componen
+     * @return the operation name
+     */
+    @Nonnull
+    String operationForComponent(@Nonnull String component);
   }
 
   interface ForDatabase {
@@ -75,5 +91,25 @@ public interface NamingSchema {
      */
     @Nonnull
     String service(@Nonnull String ddService, @Nonnull String databaseType);
+  }
+
+  interface ForServer {
+    /**
+     * Calculate the operation name for a server span.
+     *
+     * @param protocol the protocol used (e.g. http, soap, rmi ..)
+     * @return the operation name
+     */
+    @Nonnull
+    String operationForProtocol(@Nonnull String protocol);
+
+    /**
+     * Calculate the operation name for a server span.
+     *
+     * @param component the name of the instrumentation component
+     * @return the operation name
+     */
+    @Nonnull
+    String operationForComponent(@Nonnull String component);
   }
 }

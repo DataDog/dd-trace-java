@@ -64,34 +64,34 @@ abstract class AerospikeAsyncClientTest extends AerospikeBaseTest {
 
 class AerospikeAsyncClientV0ForkedTest extends AerospikeAsyncClientTest {
   @Override
-  protected int version() {
+  int version() {
     return 0
   }
 
   @Override
-  protected String service() {
+  String service() {
     return "aerospike"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "aerospike.query"
   }
 }
 
 class AerospikeAsyncClientV1ForkedTest extends AerospikeAsyncClientTest {
   @Override
-  protected int version() {
+  int version() {
     return 1
   }
 
   @Override
-  protected String service() {
+  String service() {
     return Config.get().getServiceName() + "-aerospike"
   }
 
   @Override
-  protected String operation() {
+  String operation() {
     return "aerospike.query"
   }
 }
