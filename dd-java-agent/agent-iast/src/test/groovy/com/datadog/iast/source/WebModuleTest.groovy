@@ -87,19 +87,35 @@ class WebModuleTest extends IastModuleImplTestBase {
     0 * _
 
     where:
-    method             | name    | value
-    'onParameterValue' | null    | null
-    'onParameterValue' | null    | ""
-    'onParameterValue' | ""      | null
-    'onParameterValue' | ""      | ""
-    'onParameterValue' | "param" | null
-    'onParameterValue' | "param" | ""
-    'onHeaderValue'    | null    | null
-    'onHeaderValue'    | null    | ""
-    'onHeaderValue'    | ""      | null
-    'onHeaderValue'    | ""      | ""
-    'onHeaderValue'    | "param" | null
-    'onHeaderValue'    | "param" | ""
+    method                   | name    | value
+    'onParameterValue'       | null    | null
+    'onParameterValue'       | null    | ""
+    'onParameterValue'       | ""      | null
+    'onParameterValue'       | ""      | ""
+    'onParameterValue'       | "param" | null
+    'onParameterValue'       | "param" | ""
+    'onHeaderValue'          | null    | null
+    'onHeaderValue'          | null    | ""
+    'onHeaderValue'          | ""      | null
+    'onHeaderValue'          | ""      | ""
+    'onHeaderValue'          | "param" | null
+    'onHeaderValue'          | "param" | ""
+  }
+
+  void 'onRequestPath and Matrix Parameter null or empty'() {
+    when:
+    module.onRequestPathParameter(name, value, ctx)
+    module.onRequestMatrixParameter(name, value, ctx)
+
+    then:
+    0 * _
+    where:
+    name    | value   | ctx
+    null    | null    | Mock(IastRequestContext)
+    null    | ''      | Mock(IastRequestContext)
+    'param' | null    | Mock(IastRequestContext)
+    'param' | ''      | Mock(IastRequestContext)
+    'param' | 'value' | null
   }
 
   void 'test #method: without span'(final String method, final String name, final String value) {
@@ -111,13 +127,13 @@ class WebModuleTest extends IastModuleImplTestBase {
     0 * _
 
     where:
-    method             | name    | value
-    'onParameterValue' | null    | "value"
-    'onParameterValue' | ""      | "value"
-    'onParameterValue' | "param" | "value"
-    'onHeaderValue'    | null    | "value"
-    'onHeaderValue'    | ""      | "value"
-    'onHeaderValue'    | "param" | "value"
+    method                   | name    | value
+    'onParameterValue'       | null    | "value"
+    'onParameterValue'       | ""      | "value"
+    'onParameterValue'       | "param" | "value"
+    'onHeaderValue'          | null    | "value"
+    'onHeaderValue'          | ""      | "value"
+    'onHeaderValue'          | "param" | "value"
   }
 
   void 'test #method'(final String method, final String name, final String value, final byte source) {
@@ -147,13 +163,39 @@ class WebModuleTest extends IastModuleImplTestBase {
     to.ranges[0].source == new Source(source, name, value)
 
     where:
-    method             | name    | value   | source
-    'onParameterValue' | null    | "value" | SourceTypes.REQUEST_PARAMETER_VALUE
-    'onParameterValue' | ""      | "value" | SourceTypes.REQUEST_PARAMETER_VALUE
-    'onParameterValue' | "param" | "value" | SourceTypes.REQUEST_PARAMETER_VALUE
-    'onHeaderValue'    | null    | "value" | SourceTypes.REQUEST_HEADER_VALUE
-    'onHeaderValue'    | ""      | "value" | SourceTypes.REQUEST_HEADER_VALUE
-    'onHeaderValue'    | "param" | "value" | SourceTypes.REQUEST_HEADER_VALUE
+    method                   | name    | value   | source
+    'onParameterValue'       | null    | "value" | SourceTypes.REQUEST_PARAMETER_VALUE
+    'onParameterValue'       | ""      | "value" | SourceTypes.REQUEST_PARAMETER_VALUE
+    'onParameterValue'       | "param" | "value" | SourceTypes.REQUEST_PARAMETER_VALUE
+    'onHeaderValue'          | null    | "value" | SourceTypes.REQUEST_HEADER_VALUE
+    'onHeaderValue'          | ""      | "value" | SourceTypes.REQUEST_HEADER_VALUE
+    'onHeaderValue'          | "param" | "value" | SourceTypes.REQUEST_HEADER_VALUE
+  }
+
+  void '#method — normal operation'() {
+    setup:
+    def ctx = new IastRequestContext()
+
+    when:
+    module."$method"(name, value, ctx)
+
+    then:
+    ctx.getTaintedObjects().get(name) == null
+    def to = ctx.getTaintedObjects().get(value)
+    to != null
+    to.get() == value
+    to.ranges.size() == 1
+    to.ranges[0].start == 0
+    to.ranges[0].length == value.length()
+    to.ranges[0].source == new Source(source, name, value)
+    0 * _
+
+    where:
+    method                     | name    | value   | source
+    'onRequestPathParameter'   | ""      | "value" | SourceTypes.REQUEST_PATH_PARAMETER
+    'onRequestPathParameter'   | "param" | "value" | SourceTypes.REQUEST_PATH_PARAMETER
+    'onRequestMatrixParameter' | ""      | "value" | SourceTypes.REQUEST_MATRIX_PARAMETER
+    'onRequestMatrixParameter' | "param" | "value" | SourceTypes.REQUEST_MATRIX_PARAMETER
   }
 
   void 'test onQueryString without span'() {

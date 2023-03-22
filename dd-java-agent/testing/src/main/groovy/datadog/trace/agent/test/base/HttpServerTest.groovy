@@ -20,11 +20,11 @@ import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.http.StoredBodySupplier
+import datadog.trace.api.normalize.SimpleHttpPathNormalizer
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
-import datadog.trace.api.normalize.SimpleHttpPathNormalizer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.test.util.Flaky
@@ -113,6 +113,14 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     ss.registerCallback(events.responseHeader(), callbacks.responseHeaderCb)
     ss.registerCallback(events.responseHeaderDone(), callbacks.responseHeaderDoneCb)
     ss.registerCallback(events.requestPathParams(), callbacks.requestParamsCb)
+
+    if (Config.get().iastEnabled) {
+      def iastSubService = get().getSubscriptionService(RequestContextSlot.IAST)
+      def iastCallbacks = new IastIGCallbacks()
+      Events<IastIGCallbacks.Context> iastEvents = Events.get()
+      iastSubService.registerCallback(iastEvents.requestStarted(), iastCallbacks.requestStartedCb)
+      iastSubService.registerCallback(iastEvents.requestEnded(), iastCallbacks.requestEndedCb)
+    }
   }
 
   @Override
@@ -1834,4 +1842,23 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext, Map<String, ?>, Flow<Void>>
   }
+
+  class IastIGCallbacks {
+    static class Context {
+    }
+
+    final Supplier<Flow<Context>> requestStartedCb =
+      ({
+        ->
+        new Flow.ResultFlow<Context>(new Context())
+      } as Supplier<Flow<Context>>)
+
+    final BiFunction<RequestContext, IGSpanInfo, Flow<Void>> requestEndedCb =
+      ({ RequestContext rqCtxt, IGSpanInfo info ->
+        Context context = rqCtxt.getData(RequestContextSlot.IAST)
+        assert context != null
+        Flow.ResultFlow.empty()
+      } as BiFunction<RequestContext, IGSpanInfo, Flow<Void>>)
+  }
+
 }
