@@ -381,7 +381,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       instrumentationGateway(new InstrumentationGateway());
       injector(
           HttpCodec.createInjector(
-              config.getTracePropagationStylesToInject(), invertMap(config.getBaggageMapping())));
+              config,
+              config.getTracePropagationStylesToInject(),
+              invertMap(config.getBaggageMapping())));
       extractor(
           HttpCodec.createExtractor(
               config, config.getRequestHeaderTags(), config.getBaggageMapping()));
@@ -580,7 +582,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.callbackProviderIast = instrumentationGateway.getCallbackProvider(RequestContextSlot.IAST);
     this.universalCallbackProvider = instrumentationGateway.getUniversalCallbackProvider();
 
-    injectors = HttpCodec.allInjectorsFor(invertMap(baggageMapping));
+    injectors = HttpCodec.allInjectorsFor(config, invertMap(baggageMapping));
 
     shutdownCallback = new ShutdownHook(this);
     try {
