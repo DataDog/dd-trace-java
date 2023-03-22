@@ -116,6 +116,8 @@ public abstract class MavenUtils {
       case Logger.LEVEL_ERROR:
         command.append(" -").append(CLIManager.QUIET);
         break;
+      default:
+        break;
     }
 
     if (!request.isRecursive()) {
