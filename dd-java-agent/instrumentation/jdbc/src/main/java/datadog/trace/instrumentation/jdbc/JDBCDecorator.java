@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.jdbc;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DDSpanId;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -210,5 +211,15 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       span.setResourceName(DB_QUERY);
     }
     return span.setTag(Tags.COMPONENT, component);
+  }
+
+  public String traceParent(AgentSpan span, int samplingPriority) {
+    StringBuilder sb = new StringBuilder(55);
+    sb.append("00-");
+    sb.append(span.getTraceId().toHexStringPaddedOrOriginal(32));
+    sb.append("-");
+    sb.append(DDSpanId.toHexStringPadded(span.getSpanId()));
+    sb.append(samplingPriority > 0 ? "-01" : "-00");
+    return sb.toString();
   }
 }

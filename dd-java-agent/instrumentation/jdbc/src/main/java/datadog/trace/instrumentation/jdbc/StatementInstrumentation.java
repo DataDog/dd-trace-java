@@ -23,7 +23,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
-import datadog.trace.core.propagation.PropagationUtils;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -92,8 +91,7 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
           if (INJECT_TRACE_CONTEXT) {
             Integer priority = span.forceSamplingDecision();
             if (priority != null) {
-              carrier.setTraceparent(
-                  PropagationUtils.traceParent(span.getTraceId(), span.getSpanId(), priority));
+              carrier.setTraceparent(DECORATE.traceParent(span, priority));
               // set the dbm trace injected tag on the span
               span.setTag(DBM_TRACE_INJECTED, true);
             }
