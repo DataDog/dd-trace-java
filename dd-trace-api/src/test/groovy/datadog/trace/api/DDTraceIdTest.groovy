@@ -1,6 +1,5 @@
 package datadog.trace.api
 
-
 import datadog.trace.test.util.DDSpecification
 
 class DDTraceIdTest extends DDSpecification {

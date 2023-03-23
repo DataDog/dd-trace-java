@@ -1,9 +1,9 @@
 package datadog.trace.api;
 
 import static datadog.trace.api.internal.util.HexStringUtils.numberFormatOutOfLongRange;
+import static java.nio.charset.StandardCharsets.US_ASCII;
 
 import datadog.trace.api.internal.util.HexStringUtils;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 /**
@@ -72,20 +72,38 @@ public final class DDId {
   };
 
   public static String toHexStringPadded(long id, int size) {
+    byte[] bytes = allocatePaddedHexStringBytes(size);
+    extracted(id, 0, bytes.length, bytes);
+    return new String(bytes, US_ASCII);
+  }
+
+  public static String toHexStringPadded(long highOrderBits, long lowOrderBits, int size) {
+    if (size <= 16) {
+      // Fallback to only one id formatting
+      return toHexStringPadded(lowOrderBits, size);
+    }
+    byte[] bytes = allocatePaddedHexStringBytes(size);
+    extracted(highOrderBits, 0, 16, bytes);
+    extracted(lowOrderBits, 16, 16, bytes);
+    return new String(bytes, US_ASCII);
+  }
+
+  private static byte[] allocatePaddedHexStringBytes(int size) {
     if (size > 16) {
       size = 32;
     } else if (size < 16) {
       size = 16;
     }
-    byte[] bytes = new byte[size];
-    long remaining = id;
-    int nibbleCount = Long.numberOfLeadingZeros(remaining) >>> 2;
-    Arrays.fill(bytes, 0, (size - 16) + nibbleCount, (byte) '0');
+    return new byte[size];
+  }
+
+  private static void extracted(long id, int index, int size, byte[] bytes) {
+    int nibbleCount = Long.numberOfLeadingZeros(id) >>> 2;
+    Arrays.fill(bytes, index, index + (size - 16) + nibbleCount, (byte) '0');
     for (int i = 0; i < 16 - nibbleCount; i++) {
-      int b = (int) (remaining & 0xF);
-      bytes[size - 1 - i] = HEX_DIGITS[b];
-      remaining >>>= 4;
+      int b = (int) (id & 0xF);
+      bytes[index + size - 1 - i] = HEX_DIGITS[b];
+      id >>>= 4;
     }
-    return new String(bytes, StandardCharsets.US_ASCII);
   }
 }

@@ -122,10 +122,7 @@ public class DD128bTraceId implements DDTraceId {
     // This race condition is intentional and benign.
     // The worst that can happen is that an identical value is produced and written into the field.
     if (hexString == null) {
-      this.hexStr =
-          hexString =
-              DDId.toHexStringPadded(this.highOrderBits, 16)
-                  + DDId.toHexStringPadded(this.lowOrderBits, 16);
+      this.hexStr = hexString = DDId.toHexStringPadded(this.highOrderBits, this.lowOrderBits, 32);
     }
     return hexString;
   }
