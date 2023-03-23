@@ -10,6 +10,7 @@ import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import io.grpc.MethodDescriptor;
@@ -93,7 +94,8 @@ public class GrpcClientDecorator extends ClientDecorator {
     AgentSpan span =
         startSpan(OPERATION_NAME)
             .setTag("request.type", requestMessageType(method))
-            .setTag("response.type", responseMessageType(method));
+            .setTag("response.type", responseMessageType(method))
+            .setTag(Tags.RPC_SERVICE, method.getServiceName());
     span.setResourceName(method.getFullMethodName());
     return afterStart(span);
   }

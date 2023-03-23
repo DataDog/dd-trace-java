@@ -5,10 +5,20 @@ import static datadog.trace.api.DDTags.MEASURED;
 import static datadog.trace.api.DDTags.ORIGIN_KEY;
 import static datadog.trace.api.DDTags.SPAN_TYPE;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_INSTANCE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
-import static datadog.trace.core.taginterceptor.RuleFlags.Feature.*;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.NET_PEER_NAME;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.PEER_HOSTNAME;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.RPC_SERVICE;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.FORCE_MANUAL_DROP;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.PEER_SERVICE;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.RESOURCE_NAME;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.SERVICE_NAME;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.STATUS_404;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.STATUS_404_DECORATOR;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.URL_AS_RESOURCE_NAME;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
@@ -16,6 +26,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.Pair;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.env.CapturedEnvironment;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.normalize.HttpResourceNames;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
@@ -27,6 +38,11 @@ import java.util.Set;
 
 public class TagInterceptor {
 
+  @FunctionalInterface
+  public interface UnsafeTagSetter {
+    void apply(DDSpanContext span, String tag, Object value);
+  }
+
   private static final UTF8BytesString NOT_FOUND_RESOURCE_NAME = UTF8BytesString.create("404");
 
   private final RuleFlags ruleFlags;
@@ -37,24 +53,28 @@ public class TagInterceptor {
 
   private final boolean shouldSet404ResourceName;
   private final boolean shouldSetUrlResourceAsName;
+  private final UnsafeTagSetter unsafeTagsSetter;
 
-  public TagInterceptor(RuleFlags ruleFlags) {
+  public TagInterceptor(RuleFlags ruleFlags, UnsafeTagSetter unsafeTagsSetter) {
     this(
         Config.get().isServiceNameSetByUser(),
         CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME),
         Config.get().getSplitByTags(),
-        ruleFlags);
+        ruleFlags,
+        unsafeTagsSetter);
   }
 
   public TagInterceptor(
       boolean isServiceNameSetByUser,
       String inferredServiceName,
       Set<String> splitServiceTags,
-      RuleFlags ruleFlags) {
+      RuleFlags ruleFlags,
+      UnsafeTagSetter unsafeTagsSetter) {
     this.isServiceNameSetByUser = isServiceNameSetByUser;
     this.inferredServiceName = inferredServiceName;
     this.splitServiceTags = splitServiceTags;
     this.ruleFlags = ruleFlags;
+    this.unsafeTagsSetter = unsafeTagsSetter;
     splitByServletContext = splitServiceTags.contains(InstrumentationTags.SERVLET_CONTEXT);
 
     shouldSet404ResourceName =
@@ -74,7 +94,9 @@ public class TagInterceptor {
       case "service":
         return interceptServiceName(SERVICE_NAME, span, value);
       case Tags.PEER_SERVICE:
-        return interceptServiceName(PEER_SERVICE, span, value);
+        interceptForPeerService(span, tag, value);
+        return interceptServiceName(PEER_SERVICE, span, value)
+            && !SpanNaming.instance().namingSchema().supportsPeerService();
       case DDTags.MANUAL_KEEP:
         if (asBoolean(value)) {
           span.forceKeep();
@@ -102,6 +124,13 @@ public class TagInterceptor {
         return interceptOrigin(span, value);
       case MEASURED:
         return interceptMeasured(span, value);
+      case PEER_HOSTNAME:
+        // also set net.peer.name
+        return interceptPeerHostName(span, value);
+      case NET_PEER_NAME:
+      case DB_INSTANCE:
+      case RPC_SERVICE:
+        return interceptForPeerService(span, tag, value);
       default:
         return intercept(span, tag, value);
     }
@@ -266,6 +295,44 @@ public class TagInterceptor {
       span.setMeasured(true);
       return true;
     }
+    return false;
+  }
+
+  private boolean interceptForPeerService(
+      final DDSpanContext span, final String tag, final Object value) {
+    // check if the schema support the peer service logic
+    if (!SpanNaming.instance().namingSchema().supportsPeerService()) {
+      return false;
+    }
+    // if the user is setting it, let's set the provenance and we're finished
+    if (Tags.PEER_SERVICE.equals(tag)) {
+      // user is setting it so let set the provenance and exit
+      span.setTag(DDTags.PEER_SERVICE_SOURCE, "_dd.user");
+      return false;
+    }
+    // otherwise we're calculating the peer.service.
+    // check span.kind eligibility
+    final Object kind = span.unsafeGetTag(Tags.SPAN_KIND);
+    if (!Tags.SPAN_KIND_CLIENT.equals(kind)) {
+      return false;
+    }
+    // we can calculate the peer service now
+    final Object peerServiceProvenance = span.unsafeGetTag(DDTags.PEER_SERVICE_SOURCE);
+    // simplified test for priority
+    if (peerServiceProvenance == null
+        || Tags.DB_INSTANCE.equals(tag)
+        || Tags.RPC_SERVICE.equals(tag)) {
+      // either is not set either we have a priority tag (db.instance or rpc.service)
+      span.setTag(DDTags.PEER_SERVICE_SOURCE, tag);
+      // to avoid being re-intercepted again
+      unsafeTagsSetter.apply(span, Tags.PEER_SERVICE, value);
+      return false;
+    }
+    return false;
+  }
+
+  private boolean interceptPeerHostName(final DDSpanContext span, final Object value) {
+    span.setTag(NET_PEER_NAME, value);
     return false;
   }
 

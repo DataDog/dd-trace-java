@@ -46,6 +46,13 @@ public interface NamingSchema {
    */
   ForServer server();
 
+  /**
+   * Whenever the schema versions supports `peer.service` tag
+   *
+   * @return
+   */
+  boolean supportsPeerService();
+
   interface ForCache {
     /**
      * Calculate the operation name for a cache span.

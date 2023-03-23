@@ -39,4 +39,9 @@ public class NamingSchemaV1 implements NamingSchema {
   public ForServer server() {
     return serverNaming;
   }
+
+  @Override
+  public boolean supportsPeerService() {
+    return true;
+  }
 }

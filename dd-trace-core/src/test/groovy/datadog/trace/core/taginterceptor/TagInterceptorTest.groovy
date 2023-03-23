@@ -12,14 +12,16 @@ import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.CoreSpan
+import datadog.trace.core.DDSpanContext
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
+import static datadog.trace.api.config.TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA
 
-class TagInterceptorTest extends DDCoreSpecification {
+abstract class TagInterceptorTest extends DDCoreSpecification {
   def setup() {
     injectSysConfig(SPLIT_BY_TAGS, "sn.tag1,sn.tag2")
   }
@@ -175,7 +177,9 @@ class TagInterceptorTest extends DDCoreSpecification {
       .sampler(new AllSampler())
       // equivalent to split-by-tags: tag
       .tagInterceptor(new TagInterceptor(true, "my-service",
-      Collections.singleton(tag), new RuleFlags()))
+      Collections.singleton(tag), new RuleFlags(), { DDSpanContext span, String key, Object value ->
+        span.setTag(key, value)
+      }))
       .build()
   }
 
@@ -655,5 +659,78 @@ class TagInterceptorTest extends DDCoreSpecification {
     "/with-method"              | "POST /with-method" | [(Tags.HTTP_METHOD): "Post"]
 
     ignore = meta.put(Tags.HTTP_URL, value)
+  }
+}
+
+class TagInterceptorV0ForkedTest extends TagInterceptorTest {
+  def "peer service and precursors should not be automatically calculated"() {
+    setup:
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    def span = tracer.buildSpan("test_me")
+      .withTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT)
+      .start()
+
+    when:
+    tags.each { span.setTag it.key, it.value }
+
+    then:
+    span.getTag(DDTags.PEER_SERVICE_SOURCE) == null
+    span.getTag(Tags.PEER_SERVICE) == peerService
+    span.getTag(Tags.NET_PEER_NAME) == span.getTag(Tags.PEER_HOSTNAME)
+
+    cleanup:
+    span.finish()
+    tracer.close()
+
+    where:
+    tags                                                          | peerService
+    [:]                                                           | null
+    ["peer.hostname" : "test"]                                    | null
+    ["peer.hostname":"test", "db.instance": "instance"]           | null
+    ["db.instance":"instance", "peer.hostname": "test"]           | null
+    ["peer.hostname":"test", "rpc.service": "svc"]                | null
+    ["rpc.service":"svc", "peer.hostname": "test"]                | null
+    ["peer.service": "userService"]                               | "userService"
+    ["peer.hostname":"test", "peer.service": "userService"]       | "userService"
+    [ "peer.service": "userService", "peer.hostname":"test"]      | "userService"
+  }
+}
+
+class TagInterceptorV1ForkedTest extends TagInterceptorTest {
+  def setup() {
+    injectSysConfig(TRACE_SPAN_ATTRIBUTE_SCHEMA, "v1")
+  }
+  def "test peer service default logic and precursors"() {
+    setup:
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    def span = tracer.buildSpan("test_me")
+      .withTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT)
+      .start()
+
+    when:
+    tags.each { span.setTag it.key, it.value }
+
+    then:
+    span.getTag(DDTags.PEER_SERVICE_SOURCE) == provenance
+    span.getTag(Tags.PEER_SERVICE) == peerService
+    span.getTag(Tags.NET_PEER_NAME) == span.getTag(Tags.PEER_HOSTNAME)
+
+    cleanup:
+    span.finish()
+    tracer.close()
+
+    where:
+    tags                                                          | provenance          | peerService
+    [:]                                                           | null                | null
+    ["peer.hostname" : "test"]                                    | Tags.NET_PEER_NAME  | "test"
+    ["peer.hostname":"test", "db.instance": "instance"]           | Tags.DB_INSTANCE    | "instance"
+    ["db.instance":"instance", "peer.hostname": "test"]           | Tags.DB_INSTANCE    | "instance"
+    ["peer.hostname":"test", "rpc.service": "svc"]                | Tags.RPC_SERVICE    | "svc"
+    ["rpc.service":"svc", "peer.hostname": "test"]                | Tags.RPC_SERVICE    | "svc"
+    ["peer.service": "userService"]                               | "_dd.user"          | "userService"
+    ["peer.hostname":"test", "peer.service": "userService"]       | "_dd.user"          | "userService"
+    [ "peer.service": "userService", "peer.hostname":"test"]      | "_dd.user"          | "userService"
   }
 }

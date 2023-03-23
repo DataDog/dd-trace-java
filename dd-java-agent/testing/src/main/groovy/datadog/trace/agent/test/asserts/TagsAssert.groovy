@@ -48,9 +48,12 @@ class TagsAssert {
     assertedTags.add("_sample_rate")
     assertedTags.add(DDTags.PID_TAG)
     assertedTags.add(DDTags.SCHEMA_VERSION_TAG_KEY)
+    assertedTags.add(Tags.NET_PEER_NAME)
+
 
     assert tags["thread.name"] != null
     assert tags["thread.id"] != null
+    assert tags["peer.hostname"] == tags["net.peer.name"]
 
     // FIXME: DQH - Too much conditional logic?  Maybe create specialized methods for client & server cases
 
@@ -71,6 +74,16 @@ class TagsAssert {
       assert tags[DDTags.LANGUAGE_TAG_KEY] == DDTags.LANGUAGE_TAG_VALUE
     } else {
       assert tags[DDTags.LANGUAGE_TAG_KEY] == null
+    }
+    boolean shouldSetPeerService = tags[Tags.SPAN_KIND] == Tags.SPAN_KIND_CLIENT
+    if (SpanNaming.instance().namingSchema().supportsPeerService() && shouldSetPeerService) {
+      assertedTags.add(Tags.PEER_SERVICE)
+      assertedTags.add(DDTags.PEER_SERVICE_SOURCE)
+      assert tags[Tags.PEER_SERVICE] != null
+      assert tags[Tags.PEER_SERVICE] == tags[tags[DDTags.PEER_SERVICE_SOURCE]]
+    } else {
+      assert tags[Tags.PEER_SERVICE] == null
+      assert tags[DDTags.PEER_SERVICE_SOURCE] == null
     }
   }
 

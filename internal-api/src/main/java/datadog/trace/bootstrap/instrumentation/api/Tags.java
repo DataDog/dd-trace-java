@@ -29,6 +29,8 @@ public class Tags {
   public static final String PEER_SERVICE = "peer.service";
   public static final String PEER_HOSTNAME = "peer.hostname";
   public static final String PEER_PORT = "peer.port";
+  public static final String NET_PEER_NAME = "net.peer.name";
+  public static final String RPC_SERVICE = "rpc.service";
   public static final String SAMPLING_PRIORITY = "sampling.priority";
   public static final String SPAN_KIND = "span.kind";
   public static final String COMPONENT = "component";
@@ -39,7 +41,6 @@ public class Tags {
   public static final String DB_OPERATION = "db.operation";
   public static final String DB_STATEMENT = "db.statement";
   public static final String MESSAGE_BUS_DESTINATION = "message_bus.destination";
-
   public static final String TEST_MODULE = "test.module";
   public static final String TEST_BUNDLE = "test.bundle";
   public static final String TEST_SUITE = "test.suite";

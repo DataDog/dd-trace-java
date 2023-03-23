@@ -558,7 +558,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.dataStreamsMonitoring.start();
 
     this.tagInterceptor =
-        null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;
+        null == tagInterceptor
+            ? new TagInterceptor(
+                new RuleFlags(config), (span, tag, value) -> span.unsafeSetTag(tag, value))
+            : tagInterceptor;
 
     if (config.isCiVisibilityEnabled()) {
       addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE);

@@ -44,4 +44,5 @@ public class DDTags {
   public static final String MEASURED = "_dd.measured";
   public static final String PID_TAG = "process_id";
   public static final String SCHEMA_VERSION_TAG_KEY = "_dd.trace_span_attribute_schema";
+  public static final String PEER_SERVICE_SOURCE = "_dd.peer.service.source";
 }
