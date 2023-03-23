@@ -23,7 +23,6 @@ public class MetricCollector {
 
   private static final BlockingQueue<RawMetric> rawMetricsQueue = new ArrayBlockingQueue<>(1024);
 
-
   private static final AtomicInteger wafInitCounter = new AtomicInteger();
   private static final AtomicInteger wafUpdatesCounter = new AtomicInteger();
 
@@ -32,11 +31,13 @@ public class MetricCollector {
   private static final AtomicRequestCounter wafBlockedRequestCounter = new AtomicRequestCounter();
 
   public boolean wafInit(String wafVersion, String rulesVersion) {
-    return rawMetricsQueue.offer(new WafInitRawMetric(wafInitCounter.incrementAndGet(), wafVersion, rulesVersion));
+    return rawMetricsQueue.offer(
+        new WafInitRawMetric(wafInitCounter.incrementAndGet(), wafVersion, rulesVersion));
   }
 
   public boolean wafUpdates(String rulesVersion) {
-    return rawMetricsQueue.offer(new WafUpdatesRawMetric(wafUpdatesCounter.incrementAndGet(), rulesVersion));
+    return rawMetricsQueue.offer(
+        new WafUpdatesRawMetric(wafUpdatesCounter.incrementAndGet(), rulesVersion));
   }
 
   public void wafRequest() {
@@ -71,26 +72,27 @@ public class MetricCollector {
   private boolean prepareRequestMetrics() {
     // Requests
     if (wafRequestCounter.get() > 0) {
-      if (!rawMetricsQueue.offer(new WafRequestsRawMetric(wafRequestCounter.getAndReset(), false, false))) {
+      if (!rawMetricsQueue.offer(
+          new WafRequestsRawMetric(wafRequestCounter.getAndReset(), false, false))) {
         return false;
       }
     }
 
     // Triggered requests
     if (wafTriggeredRequestCounter.get() > 0) {
-      if (!rawMetricsQueue.offer(new WafRequestsRawMetric(wafTriggeredRequestCounter.getAndReset(), true, false))) {
+      if (!rawMetricsQueue.offer(
+          new WafRequestsRawMetric(wafTriggeredRequestCounter.getAndReset(), true, false))) {
         return false;
       }
     }
 
     // Blocked requests
     if (wafBlockedRequestCounter.get() > 0) {
-      return rawMetricsQueue.offer(new WafRequestsRawMetric(wafBlockedRequestCounter.getAndReset(), true, true));
+      return rawMetricsQueue.offer(
+          new WafRequestsRawMetric(wafBlockedRequestCounter.getAndReset(), true, true));
     }
     return true;
   }
-
-
 
   public static class RawMetric {
     public final String metricName;
@@ -136,7 +138,6 @@ public class MetricCollector {
       this.blocked = blocked;
     }
   }
-
 
   public static class AtomicRequestCounter {
 
