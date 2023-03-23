@@ -14,8 +14,8 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 import static datadog.trace.api.sampling.SamplingMechanism.MANUAL
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 import static datadog.trace.core.propagation.W3CHttpCodec.OT_BAGGAGE_PREFIX
-import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_STATE_KEY
 import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_PARENT_KEY
+import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_STATE_KEY
 import static datadog.trace.core.propagation.W3CHttpCodec.newInjector
 
 

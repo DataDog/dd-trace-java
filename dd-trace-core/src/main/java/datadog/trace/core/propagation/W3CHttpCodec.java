@@ -29,6 +29,7 @@ class W3CHttpCodec {
   static final String TRACE_STATE_KEY = "tracestate";
   static final String OT_BAGGAGE_PREFIX = "ot-baggage-";
   private static final String E2E_START_KEY = OT_BAGGAGE_PREFIX + DDTags.TRACE_START_TIME;
+
   private static final int TRACE_PARENT_TID_START = 2 + 1;
   private static final int TRACE_PARENT_TID_END = TRACE_PARENT_TID_START + 32;
   private static final int TRACE_PARENT_SID_START = TRACE_PARENT_TID_END + 1;
@@ -36,6 +37,7 @@ class W3CHttpCodec {
   private static final int TRACE_PARENT_FLAGS_START = TRACE_PARENT_SID_END + 1;
   private static final int TRACE_PARENT_FLAGS_SAMPLED = 1;
   private static final int TRACE_PARENT_LENGTH = TRACE_PARENT_FLAGS_START + 2;
+
   private W3CHttpCodec() {
     // This class should not be created. This also makes code coverage checks happy.
   }

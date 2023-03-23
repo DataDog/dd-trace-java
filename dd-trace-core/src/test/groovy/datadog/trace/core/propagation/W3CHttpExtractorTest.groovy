@@ -15,8 +15,8 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 import static datadog.trace.core.propagation.W3CHttpCodec.OT_BAGGAGE_PREFIX
-import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_STATE_KEY
 import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_PARENT_KEY
+import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_STATE_KEY
 
 class W3CHttpExtractorTest extends DDSpecification {
 
@@ -53,7 +53,7 @@ class W3CHttpExtractorTest extends DDSpecification {
     String originalTraceId = ""
     String originalSpanId = ""
     if (traceparent) {
-      headers.put(TRACE_PARENT_KEY, traceparent)
+      headers.put(W3CHttpCodec.TRACE_PARENT_KEY, traceparent)
       def parts = traceparent.split('-')
       originalTraceId = parts[1]
       originalSpanId = parts[2]
