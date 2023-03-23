@@ -138,8 +138,6 @@ public class DDSpanContext
 
   private volatile int encodedOperationName;
 
-  private volatile int longRunningVersion = 0;
-
   public DDSpanContext(
       final DDTraceId traceId,
       final long spanId,
@@ -342,25 +340,6 @@ public class DDSpanContext
 
   public boolean isMeasured() {
     return measured;
-  }
-
-  // runningVersion values
-  // >0: span is finished and
-  // 0 : span is not long running and has not been flushed
-  // <0: span is long running and multiple versions can be flushed
-  public synchronized void setRunningVersion(int version) {
-    if (longRunningVersion < 0) {
-      return;
-    }
-    longRunningVersion = version;
-  }
-
-  public int getLongRunningVersion() {
-    return longRunningVersion;
-  }
-
-  public void closeRunning() {
-    setRunningVersion(-2 * longRunningVersion);
   }
 
   public void setMeasured(boolean measured) {
@@ -678,7 +657,7 @@ public class DDSpanContext
     }
   }
 
-  public void processTagsAndBaggage(final MetadataConsumer consumer) {
+  public void processTagsAndBaggage(final MetadataConsumer consumer, int longRunningVersion) {
     synchronized (unsafeTags) {
       Map<String, String> baggageItemsWithPropagationTags = new HashMap<>(baggageItems);
       propagationTags.fillTagMap(baggageItemsWithPropagationTags);

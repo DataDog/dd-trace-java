@@ -170,7 +170,6 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     // progress before the count has been incremented. It's being taken care of in the internal
     // write method.
     COMPLETED_SPAN_COUNT.incrementAndGet(this);
-    pendingTraceBuffer.untrackRunningSpan(span);
     return decrementRefAndMaybeWrite(span == getRootSpan());
   }
 

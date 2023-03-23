@@ -48,13 +48,6 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     runningSpans.add(span);
   }
 
-  public void untrackRunningSpan(final DDSpan span) {
-    if (runningSpans == null) { // feature not enabled
-      return;
-    }
-    span.context().closeRunning();
-  }
-
   private static class DelayingPendingTraceBuffer extends PendingTraceBuffer {
     private static final long FORCE_SEND_DELAY_MS = TimeUnit.SECONDS.toMillis(5);
     private static final long SEND_DELAY_NS = TimeUnit.MILLISECONDS.toNanos(500);

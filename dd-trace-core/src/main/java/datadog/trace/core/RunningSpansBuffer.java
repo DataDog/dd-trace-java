@@ -109,6 +109,7 @@ public class RunningSpansBuffer {
     private final int flushPeriodMilli = (int) TimeUnit.SECONDS.toMillis(5); // todo get from config
     private final DDSpan[] spansArray = new DDSpan[maxTrackedSpans];
     private int lastElementIndex = -1;
+    private long lastFlushMilli = 0;
     private int missedAdd = 0;
 
     public void add(DDSpan span) {
@@ -124,9 +125,10 @@ public class RunningSpansBuffer {
     }
 
     public boolean shouldFlush(long nowMilli, DDSpan span) {
-      long version = (long) span.context().getLongRunningVersion();
-      long nextFlushTime = span.getStartTime() / 1000000 + (version + 1) * flushPeriodMilli;
-      return nowMilli > nextFlushTime;
+      long startTimeMilli = span.getStartTime() / 1000000;
+      int prevVersion = (int) (lastFlushMilli - startTimeMilli) / flushPeriodMilli;
+      int version = (int) (nowMilli - startTimeMilli) / flushPeriodMilli;
+      return version > prevVersion;
     }
 
     public void flushAndCompact(long nowMilli) {
@@ -149,6 +151,7 @@ public class RunningSpansBuffer {
         writeLongRunning(nowMilli, spanStartMilli, span);
         i++;
       }
+      lastFlushMilli = nowMilli;
     }
 
     // TODO get guidance on best API to, gave a shot below
@@ -158,9 +161,8 @@ public class RunningSpansBuffer {
     // - set duration to flush time on the flushed long running span
     private void writeLongRunning(long nowMilli, long startTimeMilli, DDSpan span) {
       int version = (int) (nowMilli - startTimeMilli) / flushPeriodMilli;
-      span.context().setRunningVersion(version);
       DDSpan longRunningSpan =
-          span.cloneLongRunning(nowMilli * 1000000); // todo use tracer time source
+          span.cloneLongRunning(nowMilli * 1000000, version); // todo use tracer time source
       if (longRunningSpan == null) {
         return;
       }

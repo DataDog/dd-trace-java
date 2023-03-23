@@ -90,6 +90,11 @@ public class DDSpan
   // the request is to be blocked (AppSec)
   private volatile Flow.Action.RequestBlockingAction requestBlockingAction;
 
+  // >0: span is finished and
+  // 0 : span is not long running and has not been flushed
+  // <0: span is long running and multiple versions can be flushed
+  private volatile int longRunningVersion = 0;
+
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
    *
@@ -637,7 +642,7 @@ public class DDSpan
 
   @Override
   public void processTagsAndBaggage(final MetadataConsumer consumer) {
-    context.processTagsAndBaggage(consumer);
+    context.processTagsAndBaggage(consumer, longRunningVersion);
   }
 
   @Override
@@ -734,15 +739,17 @@ public class DDSpan
   }
 
   // only for long running spans
-  private DDSpan(DDSpan prevSpan, long endTimeNano) {
+  private DDSpan(DDSpan prevSpan, long endTimeNano, int version) {
     this.durationNano = endTimeNano - prevSpan.startTimeNano;
     this.startTimeNano = prevSpan.getStartTime();
     this.externalClock = prevSpan.externalClock;
     this.forceKeep = prevSpan.forceKeep;
     this.context = prevSpan.context();
+    this.longRunningVersion = version;
   }
 
-  public DDSpan cloneLongRunning(long flushTimeNano) {
-    return new DDSpan(this, flushTimeNano);
+  public DDSpan cloneLongRunning(long flushTimeNano, int version) {
+    this.longRunningVersion = -1;
+    return new DDSpan(this, flushTimeNano, version);
   }
 }
