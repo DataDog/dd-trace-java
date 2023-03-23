@@ -3,20 +3,19 @@ package datadog.trace.core.propagation
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
-
-import static datadog.trace.api.TracePropagationStyle.SQL_COMMENT
-import static datadog.trace.api.sampling.PrioritySampling.*
-import static datadog.trace.api.sampling.SamplingMechanism.*
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.test.DDCoreSpecification
 
-import static datadog.trace.api.TracePropagationStyle.B3SINGLE
 import static datadog.trace.api.TracePropagationStyle.B3MULTI
+import static datadog.trace.api.TracePropagationStyle.B3SINGLE
 import static datadog.trace.api.TracePropagationStyle.DATADOG
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
+import static datadog.trace.api.sampling.PrioritySampling.UNSET
+import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT
+import static datadog.trace.api.sampling.SamplingMechanism.UNKNOWN
 import static datadog.trace.core.propagation.B3HttpCodec.B3_KEY
-import static datadog.trace.core.propagation.W3CHttpInjectorTest.buildTraceParent
 
 class HttpInjectorTest extends DDCoreSpecification {
 
@@ -87,9 +86,6 @@ class HttpInjectorTest extends DDCoreSpecification {
         1 * carrier.put(B3_KEY, traceId.toString() + "-" + spanId.toString())
       }
     }
-    if (styles.contains(SQL_COMMENT)) {
-      1 * carrier.put(PropagationUtils.TRACE_PARENT_KEY, buildTraceParent(traceId.toString(), spanId.toString(), samplingPriority))
-    }
     0 * _
 
     cleanup:
@@ -112,7 +108,6 @@ class HttpInjectorTest extends DDCoreSpecification {
     [B3MULTI]                    | UNSET            | UNKNOWN           | null
     [B3MULTI]                    | SAMPLER_KEEP     | DEFAULT           | "saipan"
     [B3MULTI, DATADOG]           | SAMPLER_KEEP     | DEFAULT           | "saipan"
-    [SQL_COMMENT]                | SAMPLER_KEEP     | DEFAULT           | null
     // spotless:on
   }
 
@@ -177,8 +172,6 @@ class HttpInjectorTest extends DDCoreSpecification {
       } else {
         1 * carrier.put(B3_KEY, traceId.toString() + "-" + spanId.toString())
       }
-    } else if (style == SQL_COMMENT) {
-      1 * carrier.put(PropagationUtils.TRACE_PARENT_KEY, buildTraceParent(traceId.toString(), spanId.toString(), samplingPriority))
     }
     0 * _
 
@@ -197,8 +190,6 @@ class HttpInjectorTest extends DDCoreSpecification {
     B3MULTI     | UNSET            | UNKNOWN           | null
     B3MULTI     | SAMPLER_KEEP     | DEFAULT           | null
     B3MULTI     | SAMPLER_KEEP     | DEFAULT           | "saipan"
-    SQL_COMMENT | SAMPLER_KEEP     | DEFAULT           | null
-    SQL_COMMENT | SAMPLER_DROP     | DEFAULT           | null
     // spotless:on
   }
 }
