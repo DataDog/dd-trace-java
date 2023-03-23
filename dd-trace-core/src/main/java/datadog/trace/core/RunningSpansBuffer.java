@@ -169,6 +169,15 @@ public class RunningSpansBuffer {
       tracer.writer.write(
           Collections.singletonList(
               longRunningSpan)); // bypass metrics computation and spans health stats
+
+      // write all finished spans,
+      // parent spans are already flushed by the long running span
+      // mechanism as they precede this span
+      PendingTrace trace = span.context().getTrace();
+      if (trace == null) {
+        return;
+      }
+      trace.write();
     }
 
     private void cleanSlot(int index) {
