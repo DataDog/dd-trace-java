@@ -48,7 +48,7 @@ import org.slf4j.LoggerFactory;
  * the associated Span instance
  */
 public class DDSpanContext
-    implements AgentSpan.Context, RequestContext, TraceSegment, ProfilerContext, Cloneable {
+    implements AgentSpan.Context, RequestContext, TraceSegment, ProfilerContext {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
@@ -344,8 +344,19 @@ public class DDSpanContext
     return measured;
   }
 
-  public void setPartialVersion(int version) {
+  // runningVersion values
+  // >0: span is finished and
+  // 0 : span is not long running and has not been flushed
+  // <0: span is long running and multiple versions can be flushed
+  public synchronized void setRunningVersion(int version) {
+    if (longRunningVersion < 0) {
+      return;
+    }
     longRunningVersion = version;
+  }
+
+  public void closeRunning() {
+    setRunningVersion(-2 * longRunningVersion);
   }
 
   public void setMeasured(boolean measured) {

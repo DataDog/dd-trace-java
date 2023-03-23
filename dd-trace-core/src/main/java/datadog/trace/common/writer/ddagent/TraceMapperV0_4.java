@@ -55,7 +55,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
           (writeSamplingPriority && metadata.hasSamplingPriority() ? 1 : 0)
               + (metadata.measured() ? 1 : 0)
               + (metadata.topLevel() ? 1 : 0)
-              + (metadata.longRunningversion() != 0 ? 1 : 0)
+              + (metadata.longRunningVersion() != 0 ? 1 : 0)
               + 1;
       for (Map.Entry<String, Object> tag : metadata.getTags().entrySet()) {
         Object value = tag.getValue();
@@ -82,10 +82,10 @@ public final class TraceMapperV0_4 implements TraceMapper {
         writable.writeUTF8(InstrumentationTags.DD_TOP_LEVEL);
         writable.writeInt(1);
       }
-      if (metadata.longRunningversion() != 0) {
-        if (metadata.longRunningversion() > 0) {
+      if (metadata.longRunningVersion() != 0) {
+        if (metadata.longRunningVersion() > 0) {
           writable.writeUTF8(InstrumentationTags.DD_PARTIAL_VERSION);
-          writable.writeInt(metadata.longRunningversion());
+          writable.writeInt(metadata.longRunningVersion());
         } else {
           writable.writeUTF8(InstrumentationTags.DD_WAS_LONG_RUNNING);
           writable.writeInt(1);

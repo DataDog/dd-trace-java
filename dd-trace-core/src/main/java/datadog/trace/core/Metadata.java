@@ -69,7 +69,7 @@ public final class Metadata {
     return measured;
   }
 
-  public int longRunningversion() {
+  public int longRunningVersion() {
     return longRunningVersion;
   }
 

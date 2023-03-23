@@ -161,19 +161,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     ROOT_SPAN.compareAndSet(this, null, span);
     PENDING_REFERENCE_COUNT.incrementAndGet(this);
     healthMetrics.onCreateSpan();
-    trackRunningSpan(span);
-  }
-
-  void trackRunningSpan(final DDSpan span) {
-    // feature not enabled
-    if (pendingTraceBuffer.runningSpans == null) {
-      return;
-    }
-    Integer prio = span.getSamplingPriority();
-    if (prio == null || prio <= 0) {
-      return;
-    }
-    pendingTraceBuffer.runningSpans.add(span);
+    pendingTraceBuffer.trackRunningSpan(span);
   }
 
   PublishState onPublish(final DDSpan span) {
@@ -182,6 +170,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     // progress before the count has been incremented. It's being taken care of in the internal
     // write method.
     COMPLETED_SPAN_COUNT.incrementAndGet(this);
+    pendingTraceBuffer.untrackRunningSpan(span);
     return decrementRefAndMaybeWrite(span == getRootSpan());
   }
 

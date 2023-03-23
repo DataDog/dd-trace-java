@@ -35,7 +35,25 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     boolean setEnqueued(boolean enqueued);
   }
 
-  public RunningSpansBuffer runningSpans = null;
+  static RunningSpansBuffer runningSpans = null;
+
+  public void trackRunningSpan(final DDSpan span) {
+    if (runningSpans == null) { // feature not enabled
+      return;
+    }
+    Integer prio = span.getSamplingPriority();
+    if (prio == null || prio <= 0) {
+      return;
+    }
+    runningSpans.add(span);
+  }
+
+  public void untrackRunningSpan(final DDSpan span) {
+    if (runningSpans == null) { // feature not enabled
+      return;
+    }
+    span.context().closeRunning();
+  }
 
   private static class DelayingPendingTraceBuffer extends PendingTraceBuffer {
     private static final long FORCE_SEND_DELAY_MS = TimeUnit.SECONDS.toMillis(5);
@@ -200,7 +218,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       this.queue = new MpscBlockingConsumerArrayQueue<>(bufferSize);
       this.worker = newAgentThread(TRACE_MONITOR, new Worker());
       this.timeSource = timeSource;
-      this.runningSpans =
+      runningSpans =
           new RunningSpansBuffer(tracer, config); // TODO don't instantiate if not in config
     }
   }

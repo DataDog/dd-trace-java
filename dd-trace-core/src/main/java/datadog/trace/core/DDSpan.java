@@ -734,23 +734,15 @@ public class DDSpan
   }
 
   // only for long running spans
-  private DDSpan(DDSpan prevSpan, DDSpanContext newContext, long endTimeNano) {
+  private DDSpan(DDSpan prevSpan, long endTimeNano) {
     this.durationNano = endTimeNano - prevSpan.startTimeNano;
     this.startTimeNano = prevSpan.getStartTime();
     this.externalClock = prevSpan.externalClock;
     this.forceKeep = prevSpan.forceKeep;
-    this.context = newContext;
+    this.context = prevSpan.context();
   }
 
-  public DDSpan cloneLongRunning(int version, long flushTimeNano) {
-    DDSpanContext newContext;
-    try {
-      newContext = (DDSpanContext) context.clone();
-    } catch (Exception e) {
-      return null;
-    }
-    context.setPartialVersion(-1);
-    newContext.setPartialVersion(version);
-    return new DDSpan(this, newContext, flushTimeNano);
+  public DDSpan cloneLongRunning(long flushTimeNano) {
+    return new DDSpan(this, flushTimeNano);
   }
 }
