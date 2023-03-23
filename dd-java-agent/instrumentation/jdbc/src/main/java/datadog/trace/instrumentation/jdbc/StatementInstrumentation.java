@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
@@ -12,20 +11,19 @@ import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_TRACE_CONTEXT;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.SQL_COMMENT_INJECTION_MODE;
-import static datadog.trace.instrumentation.jdbc.SQLCommentInjectorAdaptor.SETTER;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
+import datadog.trace.core.propagation.PropagationUtils;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -60,9 +58,7 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JDBCDecorator",
-      packageName + ".SQLCommenter",
-      packageName + ".SQLCommentInjectorAdaptor",
+      packageName + ".JDBCDecorator", packageName + ".SQLCommenter",
     };
   }
 
@@ -94,10 +90,13 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
           SQLCommenter carrier =
               new SQLCommenter(SQL_COMMENT_INJECTION_MODE, sql, span.getServiceName());
           if (INJECT_TRACE_CONTEXT) {
-            // forces a sampling decision & sets the priority on the carrier
-            propagate().inject(span, carrier, SETTER, TracePropagationStyle.SQL_COMMENT);
-            // set the dbm trace injected tag on the span
-            span.setTag(DBM_TRACE_INJECTED, true);
+            Integer priority = span.forceSamplingDecision();
+            if (priority != null) {
+              carrier.setTraceparent(
+                  PropagationUtils.traceParent(span.getTraceId(), span.getSpanId(), priority));
+              // set the dbm trace injected tag on the span
+              span.setTag(DBM_TRACE_INJECTED, true);
+            }
           }
           carrier.inject();
           sql = carrier.getCommentedSQL();

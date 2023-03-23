@@ -551,6 +551,11 @@ public class AgentTracer {
     public void mergePathwayContext(PathwayContext pathwayContext) {}
 
     @Override
+    public Integer forceSamplingDecision() {
+      return null;
+    }
+
+    @Override
     public Integer getSamplingPriority() {
       return (int) PrioritySampling.UNSET;
     }
