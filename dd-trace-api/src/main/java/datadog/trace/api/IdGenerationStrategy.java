@@ -34,9 +34,17 @@ public abstract class IdGenerationStrategy {
     }
   }
 
-  public abstract DDTraceId generateTraceId();
+  public DDTraceId generateTraceId() {
+    return this.traceId128BitGenerationEnabled
+        ? DD128bTraceId.from(generateHighOrderBits(), getNonZeroPositiveLong())
+        : DD64bTraceId.from(getNonZeroPositiveLong());
+  }
 
-  public abstract long generateSpanId();
+  public long generateSpanId() {
+    return getNonZeroPositiveLong();
+  }
+
+  protected abstract long getNonZeroPositiveLong();
 
   protected long generateHighOrderBits() {
     long timestamp = System.currentTimeMillis() / 1000;
@@ -49,14 +57,7 @@ public abstract class IdGenerationStrategy {
     }
 
     @Override
-    public DDTraceId generateTraceId() {
-      return this.traceId128BitGenerationEnabled
-          ? DD128bTraceId.from(generateHighOrderBits(), ThreadLocalRandom.current().nextLong())
-          : DD64bTraceId.from(ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE));
-    }
-
-    @Override
-    public long generateSpanId() {
+    protected long getNonZeroPositiveLong() {
       return ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
     }
   }
@@ -71,12 +72,13 @@ public abstract class IdGenerationStrategy {
 
     @Override
     public DDTraceId generateTraceId() {
-      return DD64bTraceId.from(id.incrementAndGet());
+      // Only use 64-bit TraceId to use incremental values only
+      return DD64bTraceId.from(getNonZeroPositiveLong());
     }
 
     @Override
-    public long generateSpanId() {
-      return id.incrementAndGet();
+    protected long getNonZeroPositiveLong() {
+      return this.id.incrementAndGet();
     }
   }
 
@@ -101,24 +103,13 @@ public abstract class IdGenerationStrategy {
       }
     }
 
-    private long getNonZeroPositiveLong() {
+    @Override
+    protected long getNonZeroPositiveLong() {
       long value = secureRandom.nextLong() & Long.MAX_VALUE;
       while (value == 0) {
         value = secureRandom.nextLong() & Long.MAX_VALUE;
       }
       return value;
-    }
-
-    @Override
-    public DDTraceId generateTraceId() {
-      return this.traceId128BitGenerationEnabled
-          ? DD128bTraceId.from(generateHighOrderBits(), secureRandom.nextLong())
-          : DD64bTraceId.from(getNonZeroPositiveLong());
-    }
-
-    @Override
-    public long generateSpanId() {
-      return getNonZeroPositiveLong();
     }
   }
 }
