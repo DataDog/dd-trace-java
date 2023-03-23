@@ -49,19 +49,24 @@ public class HttpCodec {
   }
 
   public static Injector createInjector(
-      Set<TracePropagationStyle> styles, Map<String, String> invertedBaggageMapping) {
+      Config config,
+      Set<TracePropagationStyle> styles,
+      Map<String, String> invertedBaggageMapping) {
     ArrayList<Injector> injectors =
-        new ArrayList<>(createInjectors(styles, invertedBaggageMapping).values());
+        new ArrayList<>(createInjectors(config, styles, invertedBaggageMapping).values());
     return new CompoundInjector(injectors);
   }
 
   public static Map<TracePropagationStyle, Injector> allInjectorsFor(
-      Map<String, String> reverseBaggageMapping) {
-    return createInjectors(EnumSet.allOf(TracePropagationStyle.class), reverseBaggageMapping);
+      Config config, Map<String, String> reverseBaggageMapping) {
+    return createInjectors(
+        config, EnumSet.allOf(TracePropagationStyle.class), reverseBaggageMapping);
   }
 
   private static Map<TracePropagationStyle, Injector> createInjectors(
-      Set<TracePropagationStyle> propagationStyles, Map<String, String> reverseBaggageMapping) {
+      Config config,
+      Set<TracePropagationStyle> propagationStyles,
+      Map<String, String> reverseBaggageMapping) {
     EnumMap<TracePropagationStyle, Injector> result = new EnumMap<>(TracePropagationStyle.class);
     for (TracePropagationStyle style : propagationStyles) {
       switch (style) {
@@ -69,10 +74,14 @@ public class HttpCodec {
           result.put(style, DatadogHttpCodec.newInjector(reverseBaggageMapping));
           break;
         case B3SINGLE:
-          result.put(style, B3HttpCodec.SINGLE_INJECTOR);
+          result.put(
+              style,
+              B3HttpCodec.newSingleInjector(config.isTracePropagationStyleB3PaddingEnabled()));
           break;
         case B3MULTI:
-          result.put(style, B3HttpCodec.MULTI_INJECTOR);
+          result.put(
+              style,
+              B3HttpCodec.newMultiInjector(config.isTracePropagationStyleB3PaddingEnabled()));
           break;
         case HAYSTACK:
           result.put(style, HaystackHttpCodec.newInjector(reverseBaggageMapping));
