@@ -15,6 +15,7 @@ import static datadog.trace.api.sampling.SamplingMechanism.MANUAL
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 import static datadog.trace.core.propagation.W3CHttpCodec.OT_BAGGAGE_PREFIX
 import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_STATE_KEY
+import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_PARENT_KEY
 import static datadog.trace.core.propagation.W3CHttpCodec.newInjector
 
 
@@ -49,7 +50,7 @@ class W3CHttpInjectorTest extends DDCoreSpecification {
       PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, tracestate ? "_dd.p.usr=123" : ""))
     final Map<String, String> carrier = [:]
     Map<String, String> expected = [
-      (PropagationUtils.TRACE_PARENT_KEY): buildTraceParent(traceId, spanId, samplingPriority),
+      (TRACE_PARENT_KEY): buildTraceParent(traceId, spanId, samplingPriority),
       (OT_BAGGAGE_PREFIX + "k1"): "v1",
       (OT_BAGGAGE_PREFIX + "k2"): "v2",
       "SOME_CUSTOM_HEADER": "some-value"
@@ -111,7 +112,7 @@ class W3CHttpInjectorTest extends DDCoreSpecification {
 
     then:
     carrier == [
-      (PropagationUtils.TRACE_PARENT_KEY): buildTraceParent('1', '2', UNSET),
+      (TRACE_PARENT_KEY): buildTraceParent('1', '2', UNSET),
       (TRACE_STATE_KEY): "dd=o:fakeOrigin;t.dm:-4;t.anytag:value",
       (OT_BAGGAGE_PREFIX + "t0"): "${(long) (mockedContext.endToEndStartTime / 1000000L)}",
       (OT_BAGGAGE_PREFIX + "k1"): "v1",
@@ -157,7 +158,7 @@ class W3CHttpInjectorTest extends DDCoreSpecification {
 
     then:
     carrier == [
-      (PropagationUtils.TRACE_PARENT_KEY): buildTraceParent('1', '2', USER_KEEP),
+      (TRACE_PARENT_KEY): buildTraceParent('1', '2', USER_KEEP),
       (TRACE_STATE_KEY): "dd=s:2;o:fakeOrigin;t.dm:-4",
       (OT_BAGGAGE_PREFIX + "k1"): "v1",
       (OT_BAGGAGE_PREFIX + "k2"): "v2",
