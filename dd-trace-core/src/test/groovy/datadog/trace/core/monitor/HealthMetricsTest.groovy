@@ -80,25 +80,28 @@ class HealthMetricsTest extends DDSpecification {
     healthMetrics.start()
 
     when:
-    healthMetrics.onFailedPublish(samplingPriority,1)
-    latch.await(10, TimeUnit.SECONDS)
+    healthMetrics.onFailedPublish(samplingPriority,spanCount)
+    latch.await(2, TimeUnit.SECONDS)
 
     then:
-    1 * statsD.count('queue.dropped.traces', 1, _)
-    1 * statsD.count('queue.dropped.spans', 1, _)
+    1 * statsD.count('queue.dropped.traces', 1, samplingTag)
+    1 * statsD.count('queue.dropped.spans', 1, samplingTag)
     0 * _
 
     cleanup:
     healthMetrics.close()
 
     where:
-    samplingPriority << [
-      PrioritySampling.SAMPLER_KEEP,
-      PrioritySampling.USER_KEEP,
-      PrioritySampling.USER_DROP,
-      PrioritySampling.SAMPLER_DROP,
-      PrioritySampling.UNSET
-    ]
+    // spotless:off
+    samplingPriority              | samplingTag             | spanCount
+    PrioritySampling.SAMPLER_KEEP | "priority:sampler_keep" | 1
+    PrioritySampling.USER_KEEP    | "priority:user_keep"    | 1
+    PrioritySampling.USER_DROP    | "priority:user_drop"    | 1
+    PrioritySampling.SAMPLER_DROP | "priority:sampler_drop" | 1
+    PrioritySampling.UNSET        | "priority:unset"        | 1
+    // spotless:off
+
+
   }
 
   @Flaky
@@ -114,17 +117,19 @@ class HealthMetricsTest extends DDSpecification {
 
     then:
     1 * statsD.count('queue.partial.traces', 1)
-    1 * statsD.count('queue.dropped.spans', droppedSpans, ['priority:sampler_drop'])
+    1 * statsD.count('queue.dropped.spans', droppedSpans, samplingPriority)
     0 * _
 
     cleanup:
     healthMetrics.close()
 
     where:
-    droppedSpans | traces
-    1            | 4
-    42           | 1
-    3            | 5
+    // spotless:off
+    droppedSpans | traces | samplingPriority
+    1            | 4      | ['priority:sampler_drop']
+    42           | 1      | ['priority:sampler_drop']
+    3            | 5      | ['priority:sampler_drop']
+    // spotless:on
   }
 
   def "test onScheduleFlush"() {

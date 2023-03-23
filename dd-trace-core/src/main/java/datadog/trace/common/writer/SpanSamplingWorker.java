@@ -153,7 +153,7 @@ public interface SpanSamplingWorker extends AutoCloseable {
               && (droppingPolicy.active() || !secondaryQueue.offer(unsampledSpans))) {
             if (sampledSpans.isEmpty()) {
               // dropped all spans because none of the spans sampled
-              healthMetrics.onFailedPublish(samplingPriority, trace.size());
+              healthMetrics.onFailedPublish(samplingPriority, unsampledSpans.size());
               log.debug(
                   "Trace is empty after single span sampling. Counted but dropping trace: {}",
                   trace);

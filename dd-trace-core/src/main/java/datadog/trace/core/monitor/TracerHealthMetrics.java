@@ -232,8 +232,10 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   @Override
   public void onFailedSerialize(final List<DDSpan> trace, final Throwable optionalCause) {
-    serialFailedDroppedTraces.inc();
-    serialFailedDroppedSpans.inc(trace != null ? trace.size() : 0);
+    if (trace != null) {
+      serialFailedDroppedTraces.inc();
+      serialFailedDroppedSpans.inc(trace.size());
+    }
   }
 
   @Override
@@ -339,7 +341,6 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
     private static final String[] SAMPLER_KEEP_TAG = new String[] {"priority:sampler_keep"};
     private static final String[] SERIAL_FAILED_TAG = new String[] {"failure:serial"};
     private static final String[] UNSET_TAG = new String[] {"priority:unset"};
-    private static final String[] PUBLISH_FAILED_TAG = new String[] {"failure:publish"};
     private static final String[] SINGLE_SPAN_SAMPLER = new String[] {"sampler:single-span"};
 
     @Override
