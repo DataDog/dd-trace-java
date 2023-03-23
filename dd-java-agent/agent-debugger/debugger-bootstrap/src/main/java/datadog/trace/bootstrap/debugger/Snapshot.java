@@ -82,11 +82,6 @@ public class Snapshot {
       return;
     }
     snapshotStatuses.put(probe.id, new SnapshotStatus(probe.captureSnapshot, true, probe));
-    for (ProbeDetails additionalProbe : probe.additionalProbes) {
-      snapshotStatuses.put(
-          additionalProbe.id,
-          new SnapshotStatus(additionalProbe.captureSnapshot, true, additionalProbe));
-    }
   }
 
   public void setEntry(CapturedContext context) {
@@ -207,9 +202,6 @@ public class Snapshot {
       stack.add(CapturedStackFrame.from(ste));
     }
     summaryBuilder.addStack(stack);
-    for (ProbeDetails additionalProbe : this.probe.additionalProbes) {
-      additionalProbe.summaryBuilder.addStack(stack);
-    }
   }
 
   public enum Kind {
@@ -240,7 +232,6 @@ public class Snapshot {
     private final MethodLocation evaluateAt;
     private final transient boolean captureSnapshot;
     private final DebuggerScript script;
-    private final transient List<ProbeDetails> additionalProbes;
     private final String tags;
     private final transient SummaryBuilder summaryBuilder;
 
@@ -253,8 +244,7 @@ public class Snapshot {
           true,
           null,
           null,
-          new SnapshotSummaryBuilder(location),
-          Collections.emptyList());
+          new SnapshotSummaryBuilder(location));
     }
 
     public ProbeDetails(
@@ -266,35 +256,12 @@ public class Snapshot {
         DebuggerScript<Boolean> script,
         String tags,
         SummaryBuilder summaryBuilder) {
-      this(
-          id,
-          version,
-          location,
-          evaluateAt,
-          captureSnapshot,
-          script,
-          tags,
-          summaryBuilder,
-          Collections.emptyList());
-    }
-
-    public ProbeDetails(
-        String id,
-        int version,
-        ProbeLocation location,
-        MethodLocation evaluateAt,
-        boolean captureSnapshot,
-        DebuggerScript<Boolean> script,
-        String tags,
-        SummaryBuilder summaryBuilder,
-        List<ProbeDetails> additionalProbes) {
       this.id = id;
       this.version = version;
       this.location = location;
       this.evaluateAt = evaluateAt;
       this.captureSnapshot = captureSnapshot;
       this.script = script;
-      this.additionalProbes = additionalProbes;
       this.tags = tags;
       this.summaryBuilder = summaryBuilder;
     }

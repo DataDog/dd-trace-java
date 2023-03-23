@@ -158,7 +158,6 @@ public class ConfigurationTest {
     LogProbe snapshotProbe0 = logProbes0.get(0);
     assertEquals("java.lang.String", snapshotProbe0.getWhere().getTypeName());
     assertEquals(ProbeDefinition.MethodLocation.ENTRY, snapshotProbe0.getEvaluateAt());
-    assertEquals(1, snapshotProbe0.getAllProbeIds().count());
     assertEquals(2, snapshotProbe0.getTags().length);
     assertTrue(snapshotProbe0.isCaptureSnapshot());
     assertEquals("tag1:value1", snapshotProbe0.getTags()[0].toString());
@@ -175,8 +174,6 @@ public class ConfigurationTest {
     MetricProbe metricProbe0 = config0.getMetricProbes().iterator().next();
     assertEquals("metric_count", metricProbe0.getMetricName());
     assertEquals(COUNT, metricProbe0.getKind());
-    assertEquals(0, metricProbe0.getAdditionalProbes().size());
-    assertEquals(1, metricProbe0.getAllProbeIds().count());
     // log probe
     assertEquals(2, config0.getLogProbes().size());
     LogProbe logProbe0 = logProbes0.get(1);

@@ -321,8 +321,10 @@ public class LogProbe extends ProbeDefinition {
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics) {
-    new LogInstrumentor(this, classLoader, classNode, methodNode, diagnostics).instrument();
+      List<DiagnosticMessage> diagnostics,
+      List<String> probeIds) {
+    new LogInstrumentor(this, classLoader, classNode, methodNode, diagnostics, probeIds)
+        .instrument();
   }
 
   @Generated
@@ -344,8 +346,7 @@ public class LogProbe extends ProbeDefinition {
         && Objects.equals(captureSnapshot, that.captureSnapshot)
         && Objects.equals(probeCondition, that.probeCondition)
         && Objects.equals(capture, that.capture)
-        && Objects.equals(sampling, that.sampling)
-        && Objects.equals(additionalProbes, that.additionalProbes);
+        && Objects.equals(sampling, that.sampling);
   }
 
   @Generated
@@ -365,8 +366,7 @@ public class LogProbe extends ProbeDefinition {
             captureSnapshot,
             probeCondition,
             capture,
-            sampling,
-            additionalProbes);
+            sampling);
     result = 31 * result + Arrays.hashCode(tags);
     return result;
   }
@@ -406,8 +406,6 @@ public class LogProbe extends ProbeDefinition {
         + capture
         + ", sampling="
         + sampling
-        + ", additionalProbes="
-        + additionalProbes
         + "} ";
   }
 
