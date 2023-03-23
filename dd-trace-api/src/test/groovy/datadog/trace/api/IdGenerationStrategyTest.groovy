@@ -19,7 +19,7 @@ class IdGenerationStrategyTest extends DDSpecification {
       assert traceId != DDTraceId.ZERO
       assert traceId.equals(traceId)
       // Test #hashCode implementation
-      assert traceId.hashCode() == (int) (traceId.toLong() ^ (traceId.toLong() >>> 32))
+      assert traceId.hashCode() == 31 * (int) (traceId.getHighOrderBits() ^ (traceId.getHighOrderBits() >>> 32)) + (int) (traceId.toLong() ^ (traceId.toLong() >>> 32))
       assert !checked.contains(traceId)
       checked.add(traceId)
     }
