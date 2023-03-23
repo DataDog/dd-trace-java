@@ -804,9 +804,4 @@ public class DDSpanContext
     String tagKey = "_dd." + key + ".json";
     this.setTag(tagKey, value);
   }
-
-  @Override // shallow clone, can this create a race?
-  protected Object clone() throws CloneNotSupportedException {
-    return super.clone();
-  }
 }
