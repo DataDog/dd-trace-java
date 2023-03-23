@@ -247,7 +247,7 @@ abstract class MongoJava31ClientTest extends MongoBaseTest {
   }
 }
 
-class MongoJava31ClientV0ForkedTest extends MongoJava31ClientTest {
+class MongoJava31ClientV0Test extends MongoJava31ClientTest {
 
   @Override
   int version() {

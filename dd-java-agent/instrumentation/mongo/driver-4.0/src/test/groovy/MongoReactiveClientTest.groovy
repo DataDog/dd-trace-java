@@ -396,7 +396,7 @@ abstract class MongoReactiveClientTest extends MongoBaseTest {
   }
 }
 
-class MongoReactiveClientV0ForkedTest extends MongoReactiveClientTest {
+class MongoReactiveClientV0Test extends MongoReactiveClientTest {
 
   @Override
   int version() {

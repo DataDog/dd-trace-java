@@ -137,6 +137,7 @@ abstract class VertxRedisTestBase extends VersionedNamingTestBase {
         "$Tags.DB_TYPE" "redis"
         "$Tags.PEER_PORT" port
         "$Tags.PEER_HOSTNAME" "127.0.0.1"
+        peerServiceFrom(Tags.PEER_HOSTNAME)
         defaultTags()
       }
     }

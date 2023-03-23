@@ -105,7 +105,7 @@ abstract class HazelcastTest extends VersionedNamingTestBase {
           "hazelcast.operation" "Event.Handle"
           "hazelcast.service" "Event"
           "hazelcast.correlationId" Long
-          defaultTags()
+          defaultTagsNoPeerService()
         }
       }
     }
@@ -141,6 +141,7 @@ abstract class HazelcastTest extends VersionedNamingTestBase {
         "hazelcast.service" matcher.group("service")
         "hazelcast.instance" client.name
         "hazelcast.correlationId" Long
+        peerServiceFrom("hazelcast.instance")
         defaultTags()
       }
     }
