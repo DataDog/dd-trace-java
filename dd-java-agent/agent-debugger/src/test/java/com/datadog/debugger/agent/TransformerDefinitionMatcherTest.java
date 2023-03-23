@@ -32,7 +32,7 @@ public class TransformerDefinitionMatcherTest {
         createMatcher(emptyList(), Arrays.asList(probe), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(1, probeDefinitions.size());
-    assertEquals(PROBE_ID1.getId(), probeDefinitions.get(0).getId());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
   }
 
   @Test
@@ -42,7 +42,7 @@ public class TransformerDefinitionMatcherTest {
         createMatcher(emptyList(), Arrays.asList(probe), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(1, probeDefinitions.size());
-    assertEquals(PROBE_ID1.getId(), probeDefinitions.get(0).getId());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
   }
 
   @Test
@@ -57,7 +57,7 @@ public class TransformerDefinitionMatcherTest {
             String.class.getTypeName(),
             getClassFileBytes(String.class));
     assertEquals(1, probeDefinitions.size());
-    assertEquals(PROBE_ID1.getId(), probeDefinitions.get(0).getId());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
   }
 
   @Test
@@ -67,7 +67,7 @@ public class TransformerDefinitionMatcherTest {
         createMatcher(emptyList(), Arrays.asList(probe), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(1, probeDefinitions.size());
-    assertEquals(PROBE_ID1.getId(), probeDefinitions.get(0).getId());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
   }
 
   @Test
@@ -78,7 +78,7 @@ public class TransformerDefinitionMatcherTest {
         createMatcher(emptyList(), Arrays.asList(probe), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(1, probeDefinitions.size());
-    assertEquals(PROBE_ID1.getId(), probeDefinitions.get(0).getId());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
   }
 
   @Test
@@ -88,7 +88,7 @@ public class TransformerDefinitionMatcherTest {
         createMatcher(emptyList(), Arrays.asList(probe), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(1, probeDefinitions.size());
-    assertEquals(PROBE_ID1.getId(), probeDefinitions.get(0).getId());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
   }
 
   @Test
@@ -99,8 +99,8 @@ public class TransformerDefinitionMatcherTest {
         createMatcher(emptyList(), Arrays.asList(probe1, probe2), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(2, probeDefinitions.size());
-    assertEquals(PROBE_ID1.getId(), probeDefinitions.get(0).getId());
-    assertEquals(PROBE_ID2.getId(), probeDefinitions.get(1).getId());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
+    assertEquals(PROBE_ID2, probeDefinitions.get(1).getProbeId());
   }
 
   @Test
@@ -111,8 +111,8 @@ public class TransformerDefinitionMatcherTest {
         createMatcher(emptyList(), Arrays.asList(probe1, probe2), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(2, probeDefinitions.size());
-    assertEquals(PROBE_ID1.getId(), probeDefinitions.get(0).getId());
-    assertEquals(PROBE_ID2.getId(), probeDefinitions.get(1).getId());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
+    assertEquals(PROBE_ID2, probeDefinitions.get(1).getProbeId());
   }
 
   @Test
@@ -123,8 +123,8 @@ public class TransformerDefinitionMatcherTest {
         createMatcher(emptyList(), Arrays.asList(probe1, probe2), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(2, probeDefinitions.size());
-    assertEquals(PROBE_ID1.getId(), probeDefinitions.get(0).getId());
-    assertEquals(PROBE_ID2.getId(), probeDefinitions.get(1).getId());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
+    assertEquals(PROBE_ID2, probeDefinitions.get(1).getProbeId());
   }
 
   @Test
@@ -135,8 +135,8 @@ public class TransformerDefinitionMatcherTest {
         createMatcher(emptyList(), Arrays.asList(probe1, probe2), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(2, probeDefinitions.size());
-    assertEquals(PROBE_ID1.getId(), probeDefinitions.get(0).getId());
-    assertEquals(PROBE_ID2.getId(), probeDefinitions.get(1).getId());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
+    assertEquals(PROBE_ID2, probeDefinitions.get(1).getProbeId());
   }
 
   @Test
@@ -147,8 +147,8 @@ public class TransformerDefinitionMatcherTest {
         createMatcher(Arrays.asList(probe2), Arrays.asList(probe1), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(2, probeDefinitions.size());
-    assertEquals(PROBE_ID1.getId(), probeDefinitions.get(0).getId());
-    assertEquals(PROBE_ID2.getId(), probeDefinitions.get(1).getId());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
+    assertEquals(PROBE_ID2, probeDefinitions.get(1).getProbeId());
   }
 
   @Test

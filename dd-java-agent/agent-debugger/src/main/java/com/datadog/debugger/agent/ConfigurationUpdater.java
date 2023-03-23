@@ -5,7 +5,6 @@ import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanProbe;
-import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.api.Config;
@@ -14,11 +13,9 @@ import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.util.TagsHelper;
 import java.lang.instrument.Instrumentation;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -125,7 +122,6 @@ public class ConfigurationUpdater
             configuration::getMetricProbes, MetricProbe::isActive, MAX_ALLOWED_METRIC_PROBES);
     Collection<LogProbe> logProbes =
         filterProbes(configuration::getLogProbes, LogProbe::isActive, MAX_ALLOWED_LOG_PROBES);
-    logProbes = mergeDuplicatedProbes(logProbes);
     Collection<SpanProbe> spanProbes =
         filterProbes(configuration::getSpanProbes, SpanProbe::isActive, MAX_ALLOWED_SPAN_PROBES);
     return new Configuration(
@@ -151,17 +147,6 @@ public class ConfigurationUpdater
         .collect(Collectors.toList());
   }
 
-  Collection<LogProbe> mergeDuplicatedProbes(Collection<LogProbe> probes) {
-    Map<Where, LogProbe> mergedProbes = new HashMap<>();
-    for (LogProbe probe : probes) {
-      ProbeDefinition existingProbe = mergedProbes.putIfAbsent(probe.getWhere(), probe);
-      if (existingProbe != null) {
-        existingProbe.addAdditionalProbe(probe);
-      }
-    }
-    return new ArrayList<>(mergedProbes.values());
-  }
-
   private void handleProbesChanges(ConfigurationComparer changes) {
     removeCurrentTransformer();
     storeDebuggerDefinitions(changes);
@@ -181,10 +166,10 @@ public class ConfigurationUpdater
 
   private void reportReceived(ConfigurationComparer changes) {
     for (ProbeDefinition def : changes.getAddedDefinitions()) {
-      def.getAllProbeIds().forEach(sink::addReceived);
+      sink.addReceived(def.getProbeId());
     }
     for (ProbeDefinition def : changes.getRemovedDefinitions()) {
-      def.getAllProbeIds().forEach(sink::removeDiagnostics);
+      sink.removeDiagnostics(def.getProbeId());
     }
   }
 
@@ -205,9 +190,9 @@ public class ConfigurationUpdater
       ProbeDefinition definition, InstrumentationResult instrumentationResult) {
     instrumentationResults.put(definition.getId(), instrumentationResult);
     if (instrumentationResult.isInstalled()) {
-      definition.getAllProbeIds().forEach(sink::addInstalled);
+      sink.addInstalled(definition.getProbeId());
     } else if (instrumentationResult.isBlocked()) {
-      definition.getAllProbeIds().forEach(sink::addBlocked);
+      sink.addBlocked(definition.getProbeId());
     }
   }
 
@@ -242,9 +227,6 @@ public class ConfigurationUpdater
     }
     for (ProbeDefinition definition : changes.getAddedDefinitions()) {
       appliedDefinitions.put(definition.getId(), definition);
-      for (ProbeDefinition additionalDef : definition.getAdditionalProbes()) {
-        appliedDefinitions.put(additionalDef.getId(), additionalDef);
-      }
     }
     LOGGER.debug("Stored appliedDefinitions: {}", appliedDefinitions.values());
   }
@@ -290,10 +272,7 @@ public class ConfigurationUpdater
         logProbe.isCaptureSnapshot(),
         logProbe.getProbeCondition(),
         probe.concatTags(),
-        new LogMessageTemplateSummaryBuilder(logProbe),
-        probe.getAdditionalProbes().stream()
-            .map(relatedProbe -> convertToProbeDetails(relatedProbe, location))
-            .collect(Collectors.toList()));
+        new LogMessageTemplateSummaryBuilder(logProbe));
   }
 
   private void applyRateLimiter(ConfigurationComparer changes) {

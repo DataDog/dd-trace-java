@@ -158,10 +158,7 @@ public class ConfigurationUpdaterTest {
     Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
     assertEquals(2, appliedDefinitions.size());
     assertTrue(appliedDefinitions.containsKey(PROBE_ID.getId()));
-    assertEquals(1, appliedDefinitions.get(PROBE_ID.getId()).getAdditionalProbes().size());
-    assertEquals(
-        PROBE_ID2,
-        appliedDefinitions.get(PROBE_ID.getId()).getAdditionalProbes().get(0).getProbeId());
+    assertTrue(appliedDefinitions.containsKey(PROBE_ID2.getId()));
     verify(probeStatusSink).addReceived(eq(PROBE_ID));
     verify(probeStatusSink).addReceived(eq(PROBE_ID2));
   }
@@ -194,11 +191,8 @@ public class ConfigurationUpdaterTest {
     configurationUpdater.accept(createApp(logProbes));
     appliedDefinitions = configurationUpdater.getAppliedDefinitions();
     assertEquals(2, appliedDefinitions.size());
-    assertEquals(1, appliedDefinitions.get(PROBE_ID.getId()).getAdditionalProbes().size());
-    assertEquals(
-        PROBE_ID2,
-        appliedDefinitions.get(PROBE_ID.getId()).getAdditionalProbes().get(0).getProbeId());
-    verify(probeStatusSink, times(2)).addReceived(eq(PROBE_ID)); // re-installed for PROBE_ID2
+    assertTrue(appliedDefinitions.containsKey(PROBE_ID2.getId()));
+    verify(probeStatusSink).addReceived(eq(PROBE_ID));
     verify(probeStatusSink).addReceived(eq(PROBE_ID2));
   }
 
@@ -222,22 +216,19 @@ public class ConfigurationUpdaterTest {
     verify(inst).getAllLoadedClasses();
     Map<String, ProbeDefinition> appliedDefinitions = configurationUpdater.getAppliedDefinitions();
     assertEquals(2, appliedDefinitions.size());
-    assertEquals(1, appliedDefinitions.get(PROBE_ID.getId()).getAdditionalProbes().size());
     assertTrue(appliedDefinitions.containsKey(PROBE_ID.getId()));
-    assertEquals(
-        PROBE_ID2,
-        appliedDefinitions.get(PROBE_ID.getId()).getAdditionalProbes().get(0).getProbeId());
+    assertTrue(appliedDefinitions.containsKey(PROBE_ID2.getId()));
     // phase 2: remove duplicated probe definitions
     logProbes =
         Arrays.asList(
             LogProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build());
     configurationUpdater.accept(createApp(logProbes));
     appliedDefinitions = configurationUpdater.getAppliedDefinitions();
-    assertEquals(2, appliedDefinitions.size());
+    assertEquals(1, appliedDefinitions.size());
     assertTrue(appliedDefinitions.containsKey(PROBE_ID.getId()));
-    assertEquals(0, appliedDefinitions.get(PROBE_ID.getId()).getAdditionalProbes().size());
-    verify(probeStatusSink, times(2)).addReceived(eq(PROBE_ID)); // re-installed for PROBE_ID2
+    verify(probeStatusSink).addReceived(eq(PROBE_ID));
     verify(probeStatusSink).addReceived(eq(PROBE_ID2));
+    verify(probeStatusSink).removeDiagnostics(eq(PROBE_ID2));
   }
 
   @Test

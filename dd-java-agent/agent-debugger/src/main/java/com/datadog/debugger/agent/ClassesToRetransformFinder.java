@@ -77,10 +77,7 @@ public class ClassesToRetransformFinder {
       } else {
         key = normalizeFilePath(key);
       }
-      LOGGER.debug(
-          "instrumented class changed: {} for probe ids: {}",
-          key,
-          definition.getAllProbeIds().collect(Collectors.toList()));
+      LOGGER.debug("instrumented class changed: {} for probe id: {}", key, definition.getId());
       changedClasses.insert(reverseStr(key));
     }
     for (String typeName : comparer.getChangedBlockedTypes()) {

@@ -1,5 +1,8 @@
 package com.datadog.debugger.agent;
 
+import static java.util.Collections.singletonList;
+import static java.util.stream.Collectors.toList;
+
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -20,11 +23,12 @@ import java.nio.file.StandardOpenOption;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.pool.TypePool;
 import org.objectweb.asm.ClassReader;
@@ -136,9 +140,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
         log.info("No active definition for {}", fullyQualifiedClassName);
         return null;
       }
+      Map<Where, List<ProbeDefinition>> defByLocation = mergeLocations(definitions);
       ClassNode classNode = parseClassFile(classFilePath, classfileBuffer);
       boolean transformed =
-          performInstrumentation(loader, fullyQualifiedClassName, definitions, classNode);
+          performInstrumentation(loader, fullyQualifiedClassName, defByLocation, classNode);
       if (transformed) {
         return writeClassFile(loader, classFilePath, classNode);
       }
@@ -152,6 +157,16 @@ public class DebuggerTransformer implements ClassFileTransformer {
       log.warn("Cannot transform: ", ex);
     }
     return null;
+  }
+
+  private Map<Where, List<ProbeDefinition>> mergeLocations(List<ProbeDefinition> definitions) {
+    Map<Where, List<ProbeDefinition>> mergedProbes = new HashMap<>();
+    for (ProbeDefinition definition : definitions) {
+      List<ProbeDefinition> instrumentationDefinitions =
+          mergedProbes.computeIfAbsent(definition.getWhere(), key -> new ArrayList<>());
+      instrumentationDefinitions.add(definition);
+    }
+    return mergedProbes;
   }
 
   private boolean skipInstrumentation(ClassLoader loader, String classFilePath) {
@@ -202,7 +217,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
           probes.add(probe);
         }
       }
-      boolean transformed = performInstrumentation(loader, classFilePath, probes, classNode);
+      Map<Where, List<ProbeDefinition>> defByLocation = mergeLocations(probes);
+      boolean transformed = performInstrumentation(loader, classFilePath, defByLocation, classNode);
       if (transformed) {
         return writeClassFile(loader, classFilePath, classNode);
       }
@@ -307,40 +323,47 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private boolean performInstrumentation(
       ClassLoader loader,
       String fullyQualifiedClassName,
-      List<ProbeDefinition> definitions,
+      Map<Where, List<ProbeDefinition>> definitionByLocation,
       ClassNode classNode) {
     boolean transformed = false;
     // FIXME build a map also for methods to optimize the matching, currently O(probes*methods)
-    for (ProbeDefinition definition : definitions) {
+    for (Map.Entry<Where, List<ProbeDefinition>> entry : definitionByLocation.entrySet()) {
+      Where where = entry.getKey();
+      String methodName = where.getMethodName();
+      String[] lines = where.getLines();
       List<MethodNode> methodNodes;
-      String methodName = definition.getWhere().getMethodName();
-      String[] lines = definition.getWhere().getLines();
       if (methodName == null && lines != null) {
-        MethodNode methodNode = matchSourceFile(classNode, definition);
-        methodNodes =
-            methodNode != null ? Collections.singletonList(methodNode) : Collections.emptyList();
+        MethodNode methodNode = matchSourceFile(classNode, where);
+        methodNodes = methodNode != null ? singletonList(methodNode) : Collections.emptyList();
       } else {
-        methodNodes = matchMethodDescription(classNode, definition);
+        methodNodes = matchMethodDescription(classNode, where);
       }
+      List<ProbeDefinition> definitions = entry.getValue();
       if (methodNodes.isEmpty()) {
-        reportLocationNotFound(definition, classNode.name, methodName, lines);
+        reportLocationNotFound(definitions, classNode.name, methodName);
         continue;
       }
       for (MethodNode methodNode : methodNodes) {
-        log.debug(
-            "Instrumenting method: {}.{}{} for probe ids: {}",
-            fullyQualifiedClassName,
-            methodNode.name,
-            methodNode.desc,
-            definition.getAllProbeIds().collect(Collectors.toList()));
-        InstrumentationResult result =
-            applyInstrumentation(loader, classNode, definition, methodNode);
-        transformed |= result.isInstalled();
-        if (listener != null) {
-          listener.instrumentationResult(definition, result);
+        if (log.isDebugEnabled()) {
+          List<String> probeIds =
+              definitions.stream().map(ProbeDefinition::getId).collect(toList());
+          log.debug(
+              "Instrumenting method: {}.{}{} for probe ids: {}",
+              fullyQualifiedClassName,
+              methodNode.name,
+              methodNode.desc,
+              probeIds);
         }
-        if (!result.getDiagnostics().isEmpty()) {
-          DebuggerContext.reportDiagnostics(definition.getProbeId(), result.getDiagnostics());
+        InstrumentationResult result =
+            applyInstrumentation(loader, classNode, definitions, methodNode);
+        transformed |= result.isInstalled();
+        for (ProbeDefinition definition : definitions) {
+          if (listener != null) {
+            listener.instrumentationResult(definition, result);
+          }
+          if (!result.getDiagnostics().isEmpty()) {
+            DebuggerContext.reportDiagnostics(definition.getProbeId(), result.getDiagnostics());
+          }
         }
       }
     }
@@ -348,7 +371,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
   }
 
   private void reportLocationNotFound(
-      ProbeDefinition definition, String className, String methodName, String[] lines) {
+      List<ProbeDefinition> definitions, String className, String methodName) {
     String format;
     String location;
     if (methodName != null) {
@@ -361,9 +384,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
     }
     String msg = String.format(format, className, location);
     DiagnosticMessage diagnosticMessage = new DiagnosticMessage(DiagnosticMessage.Kind.ERROR, msg);
-    DebuggerContext.reportDiagnostics(
-        definition.getProbeId(), Collections.singletonList(diagnosticMessage));
-    log.debug("{} for definition: {}", msg, definition);
+    for (ProbeDefinition definition : definitions) {
+      DebuggerContext.reportDiagnostics(definition.getProbeId(), singletonList(diagnosticMessage));
+      log.debug("{} for definition: {}", msg, definition);
+    }
   }
 
   private void notifyBlockedDefinitions(
@@ -378,14 +402,25 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private InstrumentationResult applyInstrumentation(
       ClassLoader classLoader,
       ClassNode classNode,
-      ProbeDefinition definition,
+      List<ProbeDefinition> definitions,
       MethodNode methodNode) {
     List<DiagnosticMessage> diagnostics = new ArrayList<>();
     InstrumentationResult.Status status =
         preCheckInstrumentation(diagnostics, classLoader, methodNode);
     if (status != InstrumentationResult.Status.ERROR) {
       try {
-        definition.instrument(classLoader, classNode, methodNode, diagnostics);
+        List<ProbeDefinition> logProbes = new ArrayList<>();
+        for (ProbeDefinition definition : definitions) {
+          if (definition instanceof LogProbe) {
+            logProbes.add(definition);
+          } else {
+            definition.instrument(classLoader, classNode, methodNode, diagnostics);
+          }
+        }
+        if (logProbes.size() > 0) {
+          List<String> probesIds = logProbes.stream().map(ProbeDefinition::getId).collect(toList());
+          logProbes.get(0).instrument(classLoader, classNode, methodNode, diagnostics, probesIds);
+        }
       } catch (Throwable t) {
         log.warn("Exception during instrumentation: ", t);
         status = InstrumentationResult.Status.ERROR;
@@ -425,11 +460,11 @@ public class DebuggerTransformer implements ClassFileTransformer {
     return InstrumentationResult.Status.INSTALLED;
   }
 
-  private List<MethodNode> matchMethodDescription(ClassNode classNode, ProbeDefinition definition) {
+  private List<MethodNode> matchMethodDescription(ClassNode classNode, Where where) {
     List<MethodNode> result = new ArrayList<>();
     try {
       for (MethodNode methodNode : classNode.methods) {
-        if (definition.getWhere().isMethodMatching(methodNode.name, methodNode.desc)) {
+        if (where.isMethodMatching(methodNode.name, methodNode.desc)) {
           result.add(methodNode);
         }
       }
@@ -439,8 +474,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
     return result;
   }
 
-  private MethodNode matchSourceFile(ClassNode classNode, ProbeDefinition definition) {
-    Where.SourceLine[] lines = definition.getWhere().getSourceLines();
+  private MethodNode matchSourceFile(ClassNode classNode, Where where) {
+    Where.SourceLine[] lines = where.getSourceLines();
     if (lines == null || lines.length == 0) {
       return null;
     }
@@ -464,7 +499,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
   }
 
   private List<ProbeDefinition> filterActiveDefinitions(List<ProbeDefinition> definitions) {
-    return definitions.stream().filter(ProbeDefinition::isActive).collect(Collectors.toList());
+    return definitions.stream().filter(ProbeDefinition::isActive).collect(toList());
   }
 
   private void dumpInstrumentedClassFile(String className, byte[] data) {

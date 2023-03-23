@@ -1,5 +1,7 @@
 package com.datadog.debugger.probe;
 
+import static java.util.Collections.singletonList;
+
 import com.datadog.debugger.agent.Generated;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
@@ -14,7 +16,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Stream;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
@@ -48,24 +49,15 @@ public abstract class ProbeDefinition {
   protected final Map<String, String> tagMap = new HashMap<>();
   protected final Where where;
   protected final MethodLocation evaluateAt;
-  // transient for no serialization
-  protected final transient List<ProbeDefinition> additionalProbes = new ArrayList<>();
 
-  public ProbeDefinition(
+  protected ProbeDefinition(
       String language,
       ProbeId probeId,
       boolean active,
       String[] tagStrs,
       Where where,
       MethodLocation evaluateAt) {
-    this.language = language;
-    this.id = probeId != null ? probeId.getId() : null;
-    this.version = probeId != null ? probeId.getVersion() : 0;
-    this.active = active;
-    tags = Tag.fromStrings(tagStrs);
-    initTagMap(tagMap, tags);
-    this.where = where;
-    this.evaluateAt = evaluateAt;
+    this(language, probeId, active, Tag.fromStrings(tagStrs), where, evaluateAt);
   }
 
   protected ProbeDefinition(
@@ -131,19 +123,6 @@ public abstract class ProbeDefinition {
     return evaluateAt;
   }
 
-  public void addAdditionalProbe(ProbeDefinition probe) {
-    additionalProbes.add(probe);
-  }
-
-  public List<ProbeDefinition> getAdditionalProbes() {
-    return additionalProbes;
-  }
-
-  public Stream<ProbeId> getAllProbeIds() {
-    return Stream.concat(Stream.of(this), getAdditionalProbes().stream())
-        .map(ProbeDefinition::getProbeId);
-  }
-
   private static void initTagMap(Map<String, String> tagMap, Tag[] tags) {
     tagMap.clear();
     if (tags != null) {
@@ -153,11 +132,20 @@ public abstract class ProbeDefinition {
     }
   }
 
+  public void instrument(
+      ClassLoader classLoader,
+      ClassNode classNode,
+      MethodNode methodNode,
+      List<DiagnosticMessage> diagnostics) {
+    instrument(classLoader, classNode, methodNode, diagnostics, singletonList(getId()));
+  }
+
   public abstract void instrument(
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics);
+      List<DiagnosticMessage> diagnostics,
+      List<String> probeIds);
 
   public abstract static class Builder<T extends Builder> {
     protected String language = LANGUAGE;
