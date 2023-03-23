@@ -107,19 +107,9 @@ public class RunningSpansBuffer {
   private class LongRunningTracker {
     private final int maxTrackedSpans = 10000;
     private final int flushPeriodMilli = (int) TimeUnit.SECONDS.toMillis(5); // todo get from config
-    private final TrackedSpan[] spansArray = new TrackedSpan[maxTrackedSpans];
+    private final DDSpan[] spansArray = new DDSpan[maxTrackedSpans];
     private int lastElementIndex = -1;
     private int missedAdd = 0;
-
-    private class TrackedSpan {
-      private long nextFlushTimeMilli;
-      private final DDSpan span;
-
-      private TrackedSpan(long nextFlushTimeMilli, DDSpan span) {
-        this.nextFlushTimeMilli = nextFlushTimeMilli;
-        this.span = span;
-      }
-    }
 
     public void add(DDSpan span) {
       if (span == null || span.isFinished()) {
@@ -130,20 +120,24 @@ public class RunningSpansBuffer {
         return;
       }
       lastElementIndex++;
-      spansArray[lastElementIndex] =
-          new TrackedSpan(span.getStartTime() / 1000000 + flushPeriodMilli, span);
+      spansArray[lastElementIndex] = span;
+    }
+
+    public boolean shouldFlush(long nowMilli, DDSpan span) {
+      long version = (long) span.context().getLongRunningVersion();
+      long nextFlushTime = span.getStartTime() / 1000000 + (version + 1) * flushPeriodMilli;
+      return nowMilli > nextFlushTime;
     }
 
     public void flushAndCompact(long nowMilli) {
       int i = 0;
       while (i <= lastElementIndex) {
-        TrackedSpan tSpan = spansArray[i];
-        DDSpan span = tSpan.span;
+        DDSpan span = spansArray[i];
         if (span == null || span.isFinished()) {
           cleanSlot(i);
           continue;
         }
-        if (tSpan.nextFlushTimeMilli > nowMilli) {
+        if (!shouldFlush(nowMilli, span)) {
           i++;
           continue;
         }
@@ -153,8 +147,6 @@ public class RunningSpansBuffer {
           continue;
         }
         writeLongRunning(nowMilli, spanStartMilli, span);
-        tSpan.nextFlushTimeMilli = nowMilli + flushPeriodMilli;
-        spansArray[i] = tSpan;
         i++;
       }
     }
@@ -166,7 +158,6 @@ public class RunningSpansBuffer {
     // - set duration to flush time on the flushed long running span
     private void writeLongRunning(long nowMilli, long startTimeMilli, DDSpan span) {
       int version = (int) (nowMilli - startTimeMilli) / flushPeriodMilli;
-      System.out.println(version);
       span.context().setRunningVersion(version);
       DDSpan longRunningSpan =
           span.cloneLongRunning(nowMilli * 1000000); // todo use tracer time source

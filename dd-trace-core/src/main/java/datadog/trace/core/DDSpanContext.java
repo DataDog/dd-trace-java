@@ -355,6 +355,10 @@ public class DDSpanContext
     longRunningVersion = version;
   }
 
+  public int getLongRunningVersion() {
+    return longRunningVersion;
+  }
+
   public void closeRunning() {
     setRunningVersion(-2 * longRunningVersion);
   }
