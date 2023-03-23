@@ -270,8 +270,8 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "CapturedSnapshot03";
     LogProbe probe = createProbe(PROBE_ID1, CLASS_NAME, "f1", "(int)");
     LogProbe probe2 = createProbe(PROBE_ID2, CLASS_NAME, "f1", "(int)");
-    probe.addAdditionalProbe(probe2);
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, probe, probe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "").get();
     Assertions.assertEquals(48, result);
@@ -911,8 +911,8 @@ public class CapturedSnapshotTest {
         createProbeBuilder(PROBE_ID2, CLASS_NAME, "doit", "int (java.lang.String)")
             .when(probeCondition2)
             .build();
-    probe1.addAdditionalProbe(probe2);
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe1);
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, probe1, probe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
@@ -1017,8 +1017,8 @@ public class CapturedSnapshotTest {
                     DSL.when(DSL.gt(DSL.ref("@duration"), DSL.value(0))), "@duration > 0"))
             .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
             .build();
-    probe1.addAdditionalProbe(probe2);
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe1);
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, probe1, probe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
@@ -1408,14 +1408,7 @@ public class CapturedSnapshotTest {
       Collection<LogProbe> logProbes,
       Map<String, InstrumentationResult> instrumentationResults) {
     Assertions.assertEquals(expectedClassName, callingClass.getName());
-    List<LogProbe> logProbeList = new ArrayList<>();
     for (LogProbe probe : logProbes) {
-      logProbeList.add(probe);
-      for (ProbeDefinition def : probe.getAdditionalProbes()) {
-        logProbeList.add((LogProbe) def);
-      }
-    }
-    for (LogProbe probe : logProbeList) {
       if (probe.getId().equals(id)) {
         String typeName = probe.getWhere().getTypeName();
         String methodName = probe.getWhere().getMethodName();
@@ -1441,20 +1434,7 @@ public class CapturedSnapshotTest {
             true,
             probe.getProbeCondition(),
             probe.concatTags(),
-            new SnapshotSummaryBuilder(location),
-            probe.getAdditionalProbes().stream()
-                .map(
-                    (ProbeDefinition relatedProbe) ->
-                        new Snapshot.ProbeDetails(
-                            relatedProbe.getId(),
-                            0,
-                            location,
-                            ProbeDefinition.MethodLocation.convert(relatedProbe.getEvaluateAt()),
-                            true,
-                            ((LogProbe) relatedProbe).getProbeCondition(),
-                            relatedProbe.concatTags(),
-                            new SnapshotSummaryBuilder(location)))
-                .collect(Collectors.toList()));
+            new SnapshotSummaryBuilder(location));
       }
     }
     return null;

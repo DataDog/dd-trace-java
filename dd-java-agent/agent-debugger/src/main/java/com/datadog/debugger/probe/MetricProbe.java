@@ -63,8 +63,10 @@ public class MetricProbe extends ProbeDefinition {
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics) {
-    new MetricInstrumentor(this, classLoader, classNode, methodNode, diagnostics).instrument();
+      List<DiagnosticMessage> diagnostics,
+      List<String> probeIds) {
+    new MetricInstrumentor(this, classLoader, classNode, methodNode, diagnostics, probeIds)
+        .instrument();
   }
 
   public static Builder builder() {

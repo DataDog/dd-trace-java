@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -117,8 +116,8 @@ public class LogProbesInstrumentationTest {
             CLASS_NAME,
             "main",
             "int (java.lang.String)");
-    logProbe1.addAdditionalProbe(logProbe2);
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe1);
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, logProbe1, logProbe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
@@ -182,8 +181,8 @@ public class LogProbesInstrumentationTest {
                 "int (java.lang.String)")
             .captureSnapshot(additionalCapture)
             .build();
-    logProbe1.addAdditionalProbe(logProbe2);
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe1);
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, logProbe1, logProbe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
@@ -434,8 +433,8 @@ public class LogProbesInstrumentationTest {
                 LOG_ID2, additionalTemplate, CLASS_NAME, "main", "int (java.lang.String)")
             .captureSnapshot(true)
             .build();
-    logProbe1.addAdditionalProbe(logProbe2);
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe1);
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, logProbe1, logProbe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
@@ -522,14 +521,7 @@ public class LogProbesInstrumentationTest {
       Collection<LogProbe> logProbes,
       Map<String, InstrumentationResult> instrumentationResults) {
     Assertions.assertEquals(expectedClassName, callingClass.getName());
-    List<LogProbe> logProbeList = new ArrayList<>();
     for (LogProbe probe : logProbes) {
-      logProbeList.add(probe);
-      for (ProbeDefinition def : probe.getAdditionalProbes()) {
-        logProbeList.add((LogProbe) def);
-      }
-    }
-    for (LogProbe probe : logProbeList) {
       if (probe.getId().equals(id)) {
         String typeName = probe.getWhere().getTypeName();
         String methodName = probe.getWhere().getMethodName();
@@ -555,22 +547,7 @@ public class LogProbesInstrumentationTest {
             probe.isCaptureSnapshot(),
             null,
             probe.concatTags(),
-            new LogMessageTemplateSummaryBuilder(probe),
-            probe.getAdditionalProbes().stream()
-                .map(
-                    (ProbeDefinition relatedProbe) ->
-                        new Snapshot.ProbeDetails(
-                            relatedProbe.getId(),
-                            0,
-                            location,
-                            ProbeDefinition.MethodLocation.convert(relatedProbe.getEvaluateAt()),
-                            ((LogProbe) relatedProbe).isCaptureSnapshot(),
-                            relatedProbe instanceof LogProbe
-                                ? ((LogProbe) relatedProbe).getProbeCondition()
-                                : null,
-                            relatedProbe.concatTags(),
-                            new LogMessageTemplateSummaryBuilder((LogProbe) relatedProbe)))
-                .collect(Collectors.toList()));
+            new LogMessageTemplateSummaryBuilder(probe));
       }
     }
     return null;

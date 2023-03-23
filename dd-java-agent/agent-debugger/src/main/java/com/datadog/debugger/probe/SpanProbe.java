@@ -27,8 +27,10 @@ public class SpanProbe extends ProbeDefinition {
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics) {
-    new SpanInstrumentor(this, classLoader, classNode, methodNode, diagnostics).instrument();
+      List<DiagnosticMessage> diagnostics,
+      List<String> probeIds) {
+    new SpanInstrumentor(this, classLoader, classNode, methodNode, diagnostics, probeIds)
+        .instrument();
   }
 
   @Generated

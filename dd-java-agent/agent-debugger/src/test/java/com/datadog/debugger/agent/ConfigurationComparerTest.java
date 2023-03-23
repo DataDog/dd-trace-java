@@ -21,6 +21,8 @@ import org.objectweb.asm.tree.MethodNode;
 
 class ConfigurationComparerTest {
   private static final ProbeId PROBE_ID = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
+  private static final ProbeId PROBE_ID1 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f6", 0);
+  private static final ProbeId PROBE_ID2 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f7", 0);
   private static final String SERVICE_NAME = "service-name";
 
   @Test
@@ -114,49 +116,43 @@ class ConfigurationComparerTest {
   public void addDuplicate() {
     LogProbe probe =
         LogProbe.builder()
-            .probeId(PROBE_ID)
+            .probeId(PROBE_ID1)
             .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
             .build();
     Configuration singleProbeConfig = createConfig(Collections.singletonList(probe));
     LogProbe duplicatedProbe =
         LogProbe.builder()
-            .probeId(PROBE_ID)
+            .probeId(PROBE_ID2)
             .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
             .build();
-    duplicatedProbe.addAdditionalProbe(probe);
-    Configuration duplicatedProbeConfig = createConfig(Collections.singletonList(duplicatedProbe));
+    Configuration duplicatedProbeConfig = createConfig(Arrays.asList(probe, duplicatedProbe));
     ConfigurationComparer configurationComparer =
         new ConfigurationComparer(singleProbeConfig, duplicatedProbeConfig, emptyMap());
     Assertions.assertTrue(configurationComparer.hasProbeRelatedChanges());
     Assertions.assertFalse(configurationComparer.getAddedDefinitions().isEmpty());
     ProbeDefinition added = configurationComparer.getAddedDefinitions().iterator().next();
     Assertions.assertEquals(duplicatedProbe, added);
-    Assertions.assertFalse(configurationComparer.getRemovedDefinitions().isEmpty());
-    ProbeDefinition removed = configurationComparer.getRemovedDefinitions().iterator().next();
-    Assertions.assertEquals(probe, removed);
+    Assertions.assertTrue(configurationComparer.getRemovedDefinitions().isEmpty());
   }
 
   @Test
   public void removeDuplicate() {
     LogProbe probe =
         LogProbe.builder()
-            .probeId(PROBE_ID)
+            .probeId(PROBE_ID1)
             .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
             .build();
     Configuration singleProbeConfig = createConfig(Collections.singletonList(probe));
     LogProbe duplicatedProbe =
         LogProbe.builder()
-            .probeId(PROBE_ID)
+            .probeId(PROBE_ID2)
             .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
             .build();
-    duplicatedProbe.addAdditionalProbe(probe);
-    Configuration duplicatedProbeConfig = createConfig(Collections.singletonList(duplicatedProbe));
+    Configuration duplicatedProbeConfig = createConfig(Arrays.asList(probe, duplicatedProbe));
     ConfigurationComparer configurationComparer =
         new ConfigurationComparer(duplicatedProbeConfig, singleProbeConfig, emptyMap());
     Assertions.assertTrue(configurationComparer.hasProbeRelatedChanges());
-    Assertions.assertFalse(configurationComparer.getAddedDefinitions().isEmpty());
-    ProbeDefinition added = configurationComparer.getAddedDefinitions().iterator().next();
-    Assertions.assertEquals(probe, added);
+    Assertions.assertTrue(configurationComparer.getAddedDefinitions().isEmpty());
     Assertions.assertFalse(configurationComparer.getRemovedDefinitions().isEmpty());
     ProbeDefinition removed = configurationComparer.getRemovedDefinitions().iterator().next();
     Assertions.assertEquals(duplicatedProbe, removed);
