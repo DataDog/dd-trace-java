@@ -2,8 +2,6 @@ package datadog.trace.instrumentation.sslsocketimpl;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -28,7 +26,7 @@ import org.slf4j.LoggerFactory;
 import javax.net.ssl.SSLSocket;
 
 @AutoService(Instrumenter.class)
-public class SslSocketImplStreamsInstrumentation extends Instrumenter.Usm
+public final class SslSocketImplStreamsInstrumentation extends Instrumenter.Usm
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
   private static final Logger log =
@@ -40,9 +38,8 @@ public class SslSocketImplStreamsInstrumentation extends Instrumenter.Usm
 
   @Override
   public String hierarchyMarkerType() {
-    // we instrument both input and output streams which are inner classes of the
-    // SSLSocketImpl
-    return "javax.net.ssl.SSLSocket";
+    //for bootclass loader
+    return null;
   }
 
   @Override
@@ -58,7 +55,7 @@ public class SslSocketImplStreamsInstrumentation extends Instrumenter.Usm
         SslSocketImplStreamsInstrumentation.class.getName() + "$GetOutputStreamAdvice");
   }
 
-  public static class GetOutputStreamAdvice {
+  public static final class GetOutputStreamAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void getOutputStream(
@@ -84,7 +81,7 @@ public class SslSocketImplStreamsInstrumentation extends Instrumenter.Usm
     }
   }
 
-  public static class GetInputStreamAdvice {
+  public static final class GetInputStreamAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void getInputStream(
         @Advice.This final SSLSocket socket,
