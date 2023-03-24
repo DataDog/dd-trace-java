@@ -38,8 +38,8 @@ public abstract class TraceIdWithOriginal implements DDTraceId {
   }
 
   @Override
-  public long getHighOrderBits() {
-    return this.delegate.getHighOrderBits();
+  public long toHighOrderLong() {
+    return this.delegate.toHighOrderLong();
   }
 
   @Override

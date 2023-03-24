@@ -120,7 +120,7 @@ public class DD64bTraceId implements DDTraceId {
   }
 
   @Override
-  public long getHighOrderBits() {
+  public long toHighOrderLong() {
     return 0;
   }
 }

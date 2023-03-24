@@ -142,7 +142,7 @@ public class DD128bTraceId implements DDTraceId {
   }
 
   @Override
-  public long getHighOrderBits() {
+  public long toHighOrderLong() {
     return this.highOrderBits;
   }
 

@@ -12,7 +12,7 @@ class DDTraceIdTest extends DDSpecification {
     ddid == expectedId
     ddid == defaultDdid
     ddid.toLong() == longId
-    ddid.getHighOrderBits() == 0L
+    ddid.toHighOrderLong() == 0L
     ddid.toString() == expectedString
     ddid.toHexString() == expectedHex
 
@@ -118,7 +118,7 @@ class DDTraceIdTest extends DDSpecification {
     parsedId.toHexStringPadded(16) == paddedHexId.substring(16, 32)
     parsedId.toHexStringPadded(32) == paddedHexId
     parsedId.toLong() == low
-    parsedId.getHighOrderBits() == high
+    parsedId.toHighOrderLong() == high
     parsedId.toString() == Long.toUnsignedString(low)
 
     where:

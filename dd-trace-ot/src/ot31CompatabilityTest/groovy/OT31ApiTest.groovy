@@ -119,8 +119,8 @@ class OT31ApiTest extends DDSpecification {
       datadogTags << "_dd.p.dm=-$effectiveSamplingMechanism"
     }
     def traceId = span.delegate.context.traceId as DDTraceId
-    if (traceId.getHighOrderBits() != 0) {
-      datadogTags << "_dd.p.tid=" + DDId.toHexStringPadded(traceId.getHighOrderBits(), 16)
+    if (traceId.toHighOrderLong() != 0) {
+      datadogTags << "_dd.p.tid=" + DDId.toHexStringPadded(traceId.toHighOrderLong(), 16)
     }
     if (!datadogTags.empty) {
       expectedTextMap.put("x-datadog-tags", datadogTags.join(','))

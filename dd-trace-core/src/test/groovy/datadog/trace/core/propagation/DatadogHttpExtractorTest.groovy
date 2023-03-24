@@ -261,9 +261,9 @@ class DatadogHttpExtractorTest extends DDSpecification {
       "f" * 32
     ]
     traceId = DD128bTraceId.fromHex(hexId)
-    is128bTrace = traceId.getHighOrderBits() != 0
+    is128bTrace = traceId.toHighOrderLong() != 0
     expectedTraceId = is128bTrace ? traceId : DD64bTraceId.from(traceId.toLong())
-    additionalHeader = is128bTrace ? [(DATADOG_TAGS_KEY.toUpperCase()) : '_dd.p.tid=' + DDId.toHexStringPadded(traceId.getHighOrderBits(), 16)] : [:]
+    additionalHeader = is128bTrace ? [(DATADOG_TAGS_KEY.toUpperCase()) : '_dd.p.tid=' + DDId.toHexStringPadded(traceId.toHighOrderLong(), 16)] : [:]
   }
 
   def "extract http headers with invalid non-numeric ID"() {

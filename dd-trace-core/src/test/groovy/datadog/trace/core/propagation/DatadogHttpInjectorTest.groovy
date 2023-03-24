@@ -210,10 +210,10 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     1 * carrier.put(OT_BAGGAGE_PREFIX + "t0", "${(long) (mockedContext.endToEndStartTime / 1000000L)}")
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k1", "v1")
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
-    if (traceId.getHighOrderBits() == 0) {
+    if (traceId.toHighOrderLong() == 0) {
       1 * carrier.put(DATADOG_TAGS_KEY, '_dd.p.dm=-4,_dd.p.anytag=value')
     } else {
-      def tId = DDId.toHexStringPadded(traceId.getHighOrderBits(), 16)
+      def tId = DDId.toHexStringPadded(traceId.toHighOrderLong(), 16)
       1 * carrier.put(DATADOG_TAGS_KEY, "_dd.p.dm=-4,_dd.p.tid=${tId},_dd.p.anytag=value")
     }
     0 * _

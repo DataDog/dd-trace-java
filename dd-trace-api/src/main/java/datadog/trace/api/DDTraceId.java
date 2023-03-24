@@ -99,5 +99,5 @@ public interface DDTraceId {
    * @return The high-order 64 bits of the 128-bit {@link DDTraceId} as an unsigned <code>long
    *     </code>, <code>0</code> for 64-bit {@link DDTraceId} only.
    */
-  long getHighOrderBits();
+  long toHighOrderLong();
 }
