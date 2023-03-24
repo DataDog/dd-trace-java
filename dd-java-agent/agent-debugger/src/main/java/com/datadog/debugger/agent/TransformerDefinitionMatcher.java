@@ -25,10 +25,7 @@ public class TransformerDefinitionMatcher {
 
   public TransformerDefinitionMatcher(Configuration configuration) {
     this.definitionsByClass = buildDefinitionsMap(configuration.getDefinitions());
-    populateDefinitionFileNamesMap(
-        configuration.getDefinitions(),
-        definitionsBySimpleFileNames,
-        definitionsByQualifiedFileNames);
+    populateDefinitionFileNamesMap(configuration.getDefinitions());
     this.definitionFileNames = buildDefinitionFileNamesTrie(definitionsByQualifiedFileNames);
   }
 
@@ -56,22 +53,17 @@ public class TransformerDefinitionMatcher {
     return map;
   }
 
-  private void populateDefinitionFileNamesMap(
-      Collection<ProbeDefinition> definitions,
-      Map<String, List<ProbeDefinition>> definitionsBySimpleFileNames,
-      Map<String, List<ProbeDefinition>> definitionsByQualifiedFileNames) {
+  private void populateDefinitionFileNamesMap(Collection<ProbeDefinition> definitions) {
     for (ProbeDefinition definition : definitions) {
       String fileName = definition.getWhere().getSourceFile();
       if (fileName == null) {
         continue;
       }
-      Map<String, List<ProbeDefinition>> resultMap =
+      Map<String, List<ProbeDefinition>> targetMap =
           fileName.indexOf('/') != -1
               ? definitionsByQualifiedFileNames
               : definitionsBySimpleFileNames;
-      List<ProbeDefinition> definitionByFileName =
-          resultMap.computeIfAbsent("/" + fileName, key -> new ArrayList<>());
-      definitionByFileName.add(definition);
+      targetMap.computeIfAbsent("/" + fileName, key -> new ArrayList<>()).add(definition);
     }
   }
 
