@@ -73,7 +73,7 @@ public final class DDId {
 
   public static String toHexStringPadded(long id, int size) {
     byte[] bytes = allocatePaddedHexStringBytes(size);
-    extracted(id, 0, bytes.length, bytes);
+    fillStringBytesWithPaddedHexId(id, 0, bytes.length, bytes);
     return new String(bytes, US_ASCII);
   }
 
@@ -83,8 +83,8 @@ public final class DDId {
       return toHexStringPadded(lowOrderBits, size);
     }
     byte[] bytes = allocatePaddedHexStringBytes(size);
-    extracted(highOrderBits, 0, 16, bytes);
-    extracted(lowOrderBits, 16, 16, bytes);
+    fillStringBytesWithPaddedHexId(highOrderBits, 0, 16, bytes);
+    fillStringBytesWithPaddedHexId(lowOrderBits, 16, 16, bytes);
     return new String(bytes, US_ASCII);
   }
 
@@ -97,7 +97,7 @@ public final class DDId {
     return new byte[size];
   }
 
-  private static void extracted(long id, int index, int size, byte[] bytes) {
+  private static void fillStringBytesWithPaddedHexId(long id, int index, int size, byte[] bytes) {
     int nibbleCount = Long.numberOfLeadingZeros(id) >>> 2;
     Arrays.fill(bytes, index, index + (size - 16) + nibbleCount, (byte) '0');
     for (int i = 0; i < 16 - nibbleCount; i++) {

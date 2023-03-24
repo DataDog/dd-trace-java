@@ -74,7 +74,7 @@ public interface DDTraceId {
   /**
    * Returns the lower-case zero-padded {@link #toHexString() hexadecimal String} representation of
    * the {@link DDTraceId}. The size will be rounded up to <code>16</code> or <code>32</code>
-   * characters. This hexadecimal {@code String} <strong>will not be cached</strong>.
+   * characters. This hexadecimal {@link String} <strong>will not be cached</strong>.
    *
    * @param size The size in characters of the zero-padded {@link String} (rounded up to <code>16
    *     </code> or <code>32</code>).
@@ -84,20 +84,19 @@ public interface DDTraceId {
   String toHexStringPadded(int size);
 
   /**
-   * Returns the low-order 64 bits of the {@link DDTraceId} as an unsigned <code>long</code>. This
-   * means that values larger than {@link Long#MAX_VALUE} will be represented as negative numbers.
+   * Returns the low-order 64 bits of the {@link DDTraceId} as an unsigned {@code long}. This means
+   * that values larger than {@link Long#MAX_VALUE} will be represented as negative numbers.
    *
-   * @return The low-order 64 bits of the {@link DDTraceId} as an unsigned <code>long</code>.
+   * @return The low-order 64 bits of the {@link DDTraceId} as an unsigned {@code long}.
    */
   long toLong();
 
   /**
-   * Returns the high-order 64 bits of 128-bit {@link DDTraceId} as un unsigned <code>long</code>.
-   * This * means that values larger than {@link Long#MAX_VALUE} will be represented as negative
-   * numbers.
+   * Returns the high-order 64 bits of 128-bit {@link DDTraceId} as un unsigned {@code long}. This
+   * means that values larger than {@link Long#MAX_VALUE} will be represented as negative numbers.
    *
-   * @return The high-order 64 bits of the 128-bit {@link DDTraceId} as an unsigned <code>long
-   *     </code>, <code>0</code> for 64-bit {@link DDTraceId} only.
+   * @return The high-order 64 bits of the 128-bit {@link DDTraceId} as an unsigned {@code long},
+   *     <code>0</code> for 64-bit {@link DDTraceId} only.
    */
   long toHighOrderLong();
 }

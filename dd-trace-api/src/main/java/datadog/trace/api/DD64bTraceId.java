@@ -108,12 +108,6 @@ public class DD64bTraceId implements DDTraceId {
     return DDId.toHexStringPadded(this.id, size);
   }
 
-  /**
-   * Returns the id as a long representing the bits of the unsigned 64 bit id. This means that
-   * values larger than Long.MAX_VALUE will be represented as negative numbers.
-   *
-   * @return long value representing the bits of the unsigned 64 bit id.
-   */
   @Override
   public long toLong() {
     return this.id;
