@@ -469,7 +469,6 @@ public class LogProbesInstrumentationTest {
     return LogProbe.builder()
         .language(LANGUAGE)
         .probeId(id)
-        .active(true)
         .where(typeName, methodName, signature, lines)
         .template(template, parseTemplate(template));
   }

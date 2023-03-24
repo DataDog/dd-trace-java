@@ -747,7 +747,6 @@ public class CapturedSnapshotTest {
         new LogProbe.Builder()
             .language(LANGUAGE)
             .probeId(PROBE_ID)
-            .active(true)
             .where(CLASS_NAME, 8)
             .sampling(new LogProbe.Sampling(1))
             .build();
@@ -1664,7 +1663,6 @@ public class CapturedSnapshotTest {
     return LogProbe.builder()
         .language(LANGUAGE)
         .probeId(id)
-        .active(true)
         .captureSnapshot(true)
         .where(typeName, methodName, signature, lines)
         .sampling(new LogProbe.Sampling(100));
@@ -1674,7 +1672,6 @@ public class CapturedSnapshotTest {
     return new LogProbe.Builder()
         .language(LANGUAGE)
         .probeId(id)
-        .active(true)
         .captureSnapshot(true)
         .where(null, null, null, line, sourceFile)
         .build();
