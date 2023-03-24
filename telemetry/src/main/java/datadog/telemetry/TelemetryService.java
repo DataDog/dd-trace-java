@@ -32,4 +32,6 @@ public interface TelemetryService {
   Queue<Request> prepareRequests();
 
   int getHeartbeatInterval();
+
+  int getMetricsInterval();
 }

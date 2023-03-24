@@ -101,7 +101,9 @@ public class TelemetryRunnable implements Runnable {
 
   private void successWait() {
     consecutiveFailures = 0;
-    final int waitMs = telemetryService.getHeartbeatInterval();
+    final int waitMs =
+        Math.min(telemetryService.getMetricsInterval(), telemetryService.getHeartbeatInterval());
+    // Find which interval is less - more often collect data
     sleeper.sleep(waitMs);
   }
 
@@ -141,7 +143,7 @@ public class TelemetryRunnable implements Runnable {
   enum SendResult {
     SUCCESS,
     FAILURE,
-    DROP;
+    DROP
   }
 
   interface ThreadSleeper {

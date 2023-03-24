@@ -63,6 +63,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERV
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_METRICS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
@@ -136,6 +137,7 @@ import static datadog.trace.api.config.GeneralConfig.SITE;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL;
+import static datadog.trace.api.config.GeneralConfig.TELEMETRY_METRICS_INTERVAL;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_BUFFERING_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES;
@@ -617,6 +619,7 @@ public class Config {
   private final boolean iastDeduplicationEnabled;
 
   private final int telemetryHeartbeatInterval;
+  private final int telemetryMetricsInterval;
   private final boolean isTelemetryDependencyServiceEnabled;
 
   private final boolean azureAppServices;
@@ -1160,6 +1163,16 @@ public class Config {
       telemetryInterval = DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
     }
     telemetryHeartbeatInterval = telemetryInterval;
+
+    telemetryInterval =
+        configProvider.getInteger(TELEMETRY_METRICS_INTERVAL, DEFAULT_TELEMETRY_METRICS_INTERVAL);
+    if (telemetryInterval < 1 || telemetryInterval > 3600) {
+      log.warn(
+          "Wrong Telemetry metrics interval: {}. The value must be in range 1-3600",
+          telemetryInterval);
+      telemetryInterval = DEFAULT_TELEMETRY_METRICS_INTERVAL;
+    }
+    telemetryMetricsInterval = telemetryInterval;
 
     isTelemetryDependencyServiceEnabled =
         configProvider.getBoolean(
@@ -1859,6 +1872,10 @@ public class Config {
 
   public int getTelemetryHeartbeatInterval() {
     return telemetryHeartbeatInterval;
+  }
+
+  public int getTelemetryMetricsInterval() {
+    return telemetryMetricsInterval;
   }
 
   public boolean isTelemetryDependencyServiceEnabled() {
