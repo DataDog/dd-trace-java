@@ -59,35 +59,26 @@ public class SQLCommenter {
     if (!(sql.startsWith("/*"))) {
       return false;
     }
-
     // else check to see if it's a DBM trace sql comment
     int i = 2;
     boolean found = false;
-    while (i < sql.length() - 1) {
+    if (sql.length() > 2) {
       // check if the next word starts with one of the specified keys
       if (sql.charAt(i) == PARENT_SERVICE.charAt(0)
           && hasMatchingSubstring(sql, i, PARENT_SERVICE)) {
         found = true;
-        break;
       } else if (sql.charAt(i) == DATABASE_SERVICE.charAt(0)
           && hasMatchingSubstring(sql, i, DATABASE_SERVICE)) {
         found = true;
-        break;
       } else if (sql.charAt(i) == DD_ENV.charAt(0) && hasMatchingSubstring(sql, i, DD_ENV)) {
         found = true;
-        break;
       } else if (sql.charAt(i) == DD_VERSION.charAt(0)
           && hasMatchingSubstring(sql, i, DD_VERSION)) {
         found = true;
-        break;
       } else if (sql.charAt(i) == TRACEPARENT.charAt(0)
           && hasMatchingSubstring(sql, i, TRACEPARENT)) {
         found = true;
-        break;
       }
-      // if none of the tags we set appear in the first word of the sql comment
-      // we can safely assume, that this is a customer comment & we should move on
-      break;
     }
 
     return found;
