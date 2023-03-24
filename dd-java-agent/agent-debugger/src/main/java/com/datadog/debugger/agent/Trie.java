@@ -90,7 +90,7 @@ public class Trie {
 
   /**
    * @param prefix prefix to search into the trie
-   * @return all the strings that matches the given prefix
+   * @return all the strings that match the given prefix
    */
   public Collection<String> getStringsStartingWith(String prefix) {
     TrieNode node = searchNode(prefix, false);
