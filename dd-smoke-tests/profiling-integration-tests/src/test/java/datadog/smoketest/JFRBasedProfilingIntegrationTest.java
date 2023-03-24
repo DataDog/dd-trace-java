@@ -576,6 +576,9 @@ class JFRBasedProfilingIntegrationTest {
     }
     if (asyncProfilerEnabled) {
       verifyDatadogEventsNotCorrupt(events);
+      assertEquals(
+          Platform.isJavaVersionAtLeast(11),
+          events.apply(ItemFilters.type("datadog.ObjectSample")).hasItems());
     }
 
     // check exception events
