@@ -1,5 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.bootstrap.instrumentation.traceannotation.MeasuredMethodFilter
 import datadog.trace.instrumentation.trace_annotation.TraceConfigInstrumentation
 
 class TraceAnnotationConfigParserTest extends AgentTestRunner{
