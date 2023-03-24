@@ -51,6 +51,8 @@ class HttpInjectorTest extends DDCoreSpecification {
     def tracer = tracerBuilder().writer(writer).build()
     final DDSpanContext mockedContext = mockedContext(tracer, traceId, spanId, samplingPriority, origin, ["k1": "v1", "k2": "v2"])
     final Map<String, String> carrier = Mock()
+    def b3TraceIdHex = idOrPadded(traceId)
+    def b3SpanIdHex = idOrPadded(spanId)
 
     when:
     injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
@@ -70,17 +72,17 @@ class HttpInjectorTest extends DDCoreSpecification {
       1 * carrier.put('x-datadog-tags', '_dd.p.usr=123')
     }
     if (styles.contains(B3MULTI)) {
-      1 * carrier.put(B3HttpCodec.TRACE_ID_KEY, idOrPadded(traceId))
-      1 * carrier.put(B3HttpCodec.SPAN_ID_KEY, idOrPadded(spanId))
+      1 * carrier.put(B3HttpCodec.TRACE_ID_KEY, b3TraceIdHex)
+      1 * carrier.put(B3HttpCodec.SPAN_ID_KEY, b3SpanIdHex)
       if (samplingPriority != UNSET) {
         1 * carrier.put(B3HttpCodec.SAMPLING_PRIORITY_KEY, "1")
       }
     }
     if (styles.contains(B3SINGLE)) {
       if (samplingPriority != UNSET) {
-        1 * carrier.put(B3_KEY, idOrPadded(traceId) + "-" + idOrPadded(spanId) + "-1")
+        1 * carrier.put(B3_KEY, "$b3TraceIdHex-$b3SpanIdHex-1")
       } else {
-        1 * carrier.put(B3_KEY, idOrPadded(traceId) + "-" + idOrPadded(spanId))
+        1 * carrier.put(B3_KEY, "$b3TraceIdHex-$b3SpanIdHex")
       }
     }
     0 * _
@@ -120,6 +122,8 @@ class HttpInjectorTest extends DDCoreSpecification {
     def tracer = tracerBuilder().writer(writer).build()
     final DDSpanContext mockedContext = mockedContext(tracer, traceId, spanId, samplingPriority, origin, ["k1": "v1", "k2": "v2","some-baggage-item":"some-baggage-value"])
     final Map<String, String> carrier = Mock()
+    def b3TraceIdHex = idOrPadded(traceId)
+    def b3SpanIdHex = idOrPadded(spanId)
 
     when:
     injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
@@ -139,16 +143,16 @@ class HttpInjectorTest extends DDCoreSpecification {
       }
       1 * carrier.put('x-datadog-tags', '_dd.p.usr=123')
     } else if (style == B3MULTI) {
-      1 * carrier.put(B3HttpCodec.TRACE_ID_KEY, idOrPadded(traceId))
-      1 * carrier.put(B3HttpCodec.SPAN_ID_KEY, idOrPadded(spanId))
+      1 * carrier.put(B3HttpCodec.TRACE_ID_KEY, b3TraceIdHex)
+      1 * carrier.put(B3HttpCodec.SPAN_ID_KEY, b3SpanIdHex)
       if (samplingPriority != UNSET) {
         1 * carrier.put(B3HttpCodec.SAMPLING_PRIORITY_KEY, "1")
       }
     } else if (style == B3SINGLE) {
       if (samplingPriority != UNSET) {
-        1 * carrier.put(B3_KEY, idOrPadded(traceId) + "-" + idOrPadded(spanId) + "-1")
+        1 * carrier.put(B3_KEY, "$b3TraceIdHex-$b3SpanIdHex-1")
       } else {
-        1 * carrier.put(B3_KEY, idOrPadded(traceId) + "-" + idOrPadded(spanId))
+        1 * carrier.put(B3_KEY, "$b3TraceIdHex-$b3SpanIdHex")
       }
     }
     0 * _

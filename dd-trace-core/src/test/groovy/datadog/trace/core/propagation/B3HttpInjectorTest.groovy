@@ -49,13 +49,13 @@ class B3HttpInjectorTest extends DDCoreSpecification {
     injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
 
     then:
-    1 * carrier.put(TRACE_ID_KEY, idOrPadded(traceId, 32))
-    1 * carrier.put(SPAN_ID_KEY, idOrPadded(spanId, 16))
+    1 * carrier.put(TRACE_ID_KEY, traceIdHex)
+    1 * carrier.put(SPAN_ID_KEY, spanIdHex)
     if (expectedSamplingPriority != null) {
       1 * carrier.put(SAMPLING_PRIORITY_KEY, "$expectedSamplingPriority")
-      1 * carrier.put(B3_KEY, idOrPadded(traceId, 32) + "-" + idOrPadded(spanId, 16) + "-$expectedSamplingPriority")
+      1 * carrier.put(B3_KEY,  "$traceIdHex-$spanIdHex-$expectedSamplingPriority")
     } else {
-      1 * carrier.put(B3_KEY, idOrPadded(traceId, 32) + "-" + idOrPadded(spanId, 16))
+      1 * carrier.put(B3_KEY,  "$traceIdHex-$spanIdHex")
     }
     0 * _
 
@@ -71,6 +71,9 @@ class B3HttpInjectorTest extends DDCoreSpecification {
     6G               | 7G               | USER_DROP        | SAMPLER_DROP
     TRACE_ID_MAX     | TRACE_ID_MAX - 1 | UNSET            | null
     TRACE_ID_MAX - 1 | TRACE_ID_MAX     | SAMPLER_KEEP     | SAMPLER_KEEP
+
+    traceIdHex = idOrPadded(traceId, 32)
+    spanIdHex = idOrPadded(spanId, 16)
   }
 
   def "inject http headers with extracted original"() {
@@ -91,9 +94,9 @@ class B3HttpInjectorTest extends DDCoreSpecification {
     injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
 
     then:
-    1 * carrier.put(TRACE_ID_KEY, idOrPadded(traceId, 32))
-    1 * carrier.put(SPAN_ID_KEY, idOrPadded(trimHex(spanId), 16))
-    1 * carrier.put(B3_KEY, idOrPadded(traceId, 32) + "-" + idOrPadded(trimHex(spanId), 16))
+    1 * carrier.put(TRACE_ID_KEY, traceIdHex)
+    1 * carrier.put(SPAN_ID_KEY, spanIdHex)
+    1 * carrier.put(B3_KEY, "$traceIdHex-$spanIdHex")
     0 * _
 
     cleanup:
@@ -108,6 +111,9 @@ class B3HttpInjectorTest extends DDCoreSpecification {
     "a" * 16 + "f" * 16                | "1"
     "1"                                | "f" * 16
     "1"                                | "000" + "f" * 16
+
+    traceIdHex = idOrPadded(traceId, 32)
+    spanIdHex = idOrPadded(trimHex(spanId), 16)
   }
 
   static DDSpanContext mockedContext(CoreTracer tracer, TagContext context) {
@@ -138,19 +144,9 @@ class B3HttpInjectorTest extends DDCoreSpecification {
   }
 }
 
-class B3HttpInjectorLegacyTest extends B3HttpInjectorTest {
+class B3HttpInjectorPaddedTest extends B3HttpInjectorTest {
   @Override
   boolean tracePropagationB3Padding() {
     return true
-  }
-
-  String padded(String hex, int length) {
-    def hexLength = hex.length()
-    if (hexLength > length) {
-      return hex.substring(hexLength - length, hexLength)
-    } else if (hexLength < length) {
-      return hex.padLeft(length, '0')
-    }
-    return hex
   }
 }

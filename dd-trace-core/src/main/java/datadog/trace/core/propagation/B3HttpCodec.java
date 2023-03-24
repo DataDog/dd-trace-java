@@ -61,11 +61,11 @@ class B3HttpCodec {
      * Get the TraceId {@link String} representation to inject according the following logic:
      *
      * <ul>
+     *   <li>Returns a 32 lower-case hexadecimal character if padding is enabled,
      *   <li>Returns the original String representation if the trace was parsed from B3 extractor,
      *   <li>Returns a 32 lower-case hexadecimal character for 128-bit TraceId,
-     *   <li>Returns a 16 lower-case hexadecimal character for 64-bit TraceId if legacy mode is not
-     *       enabled,
-     *   <li>Returns a non-padded lower-case hexadecimal character for 64-bit TraceId otherwise.
+     *   <li>Return a non-padded lower-case hexadecimal String (for remaining 64-bit TraceId). //
+     *       TODO Cleanup the last rule
      * </ul>
      *
      * @param context The context to get the TraceId from.
@@ -73,12 +73,14 @@ class B3HttpCodec {
      */
     protected final String getInjectedTraceId(DDSpanContext context) {
       DDTraceId traceId = context.getTraceId();
-      if (traceId instanceof B3TraceId) {
+      if (this.paddingEnabled) {
+        if (traceId instanceof DD128bTraceId) { // TODO Clean up
+          return traceId.toHexString();
+        } else {
+          return traceId.toHexStringPadded(32);
+        }
+      } else if (traceId instanceof B3TraceId) {
         return ((B3TraceId) traceId).getB3Original();
-      } else if (traceId instanceof DD128bTraceId) {
-        return traceId.toHexString();
-      } else if (this.paddingEnabled) {
-        return traceId.toHexStringPadded(16);
       } else {
         return traceId.toHexString();
       }
@@ -98,9 +100,9 @@ class B3HttpCodec {
     protected final String getInjectedSpanId(DDSpanContext context) {
       long spanId = context.getSpanId();
       if (this.paddingEnabled) {
-        return DDSpanId.toHexString(spanId);
-      } else {
         return DDSpanId.toHexStringPadded(spanId);
+      } else {
+        return DDSpanId.toHexString(spanId);
       }
     }
   }
