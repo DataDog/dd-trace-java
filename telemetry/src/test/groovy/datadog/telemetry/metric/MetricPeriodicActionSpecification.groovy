@@ -50,6 +50,7 @@ class MetricPeriodicActionSpecification extends DDSpecification {
     MetricCollector.get().wafRequestTriggered()
 
     when:
+    MetricCollector.get().prepareRequestMetrics()
     periodicAction.doIteration(telemetryService)
 
     then:

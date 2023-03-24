@@ -66,7 +66,8 @@ public class TelemetrySystem {
         new TelemetryServiceImpl(
             new RequestBuilderSupplier(sco.agentUrl),
             SystemTimeSource.INSTANCE,
-            Config.get().getTelemetryHeartbeatInterval());
+            Config.get().getTelemetryHeartbeatInterval(),
+            Config.get().getTelemetryMetricsInterval());
     TELEMETRY_THREAD =
         createTelemetryRunnable(telemetryService, sco.okHttpClient, dependencyService);
     TELEMETRY_THREAD.start();

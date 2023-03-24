@@ -53,10 +53,6 @@ public class MetricCollector {
   }
 
   public Collection<RawMetric> drain() {
-    if (!prepareRequestMetrics()) {
-      return Collections.emptyList();
-    }
-
     if (rawMetricsQueue.isEmpty()) {
       return Collections.emptyList();
     }
@@ -69,7 +65,7 @@ public class MetricCollector {
     return Collections.emptyList();
   }
 
-  private boolean prepareRequestMetrics() {
+  public boolean prepareRequestMetrics() {
     // Requests
     if (wafRequestCounter.get() > 0) {
       if (!rawMetricsQueue.offer(
