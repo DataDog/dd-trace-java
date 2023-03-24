@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 public class TransformerDefinitionMatcherTest {
   private static final ProbeId PROBE_ID1 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f6", 0);
   private static final ProbeId PROBE_ID2 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f7", 0);
+  private static final ProbeId PROBE_ID3 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
   private static final String SERVICE_NAME = "service-name";
 
   @Test
@@ -158,6 +159,20 @@ public class TransformerDefinitionMatcherTest {
         createMatcher(emptyList(), Arrays.asList(probe1), emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(0, probeDefinitions.size());
+  }
+
+  @Test
+  public void mixedSourceFileName() {
+    LogProbe probe1 = createProbe(PROBE_ID1, "src/main/java/java/lang/String.java", 23);
+    LogProbe probe2 = createProbe(PROBE_ID2, "myproject/src/main/java/java/lang/String.java", 42);
+    LogProbe probe3 = createProbe(PROBE_ID3, "String.java", 11);
+    TransformerDefinitionMatcher matcher =
+        createMatcher(emptyList(), Arrays.asList(probe1, probe2, probe3), emptyList());
+    List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
+    assertEquals(3, probeDefinitions.size());
+    assertEquals(PROBE_ID1.getId(), probeDefinitions.get(0).getId());
+    assertEquals(PROBE_ID2.getId(), probeDefinitions.get(1).getId());
+    assertEquals(PROBE_ID3.getId(), probeDefinitions.get(2).getId());
   }
 
   private TransformerDefinitionMatcher createMatcher(
