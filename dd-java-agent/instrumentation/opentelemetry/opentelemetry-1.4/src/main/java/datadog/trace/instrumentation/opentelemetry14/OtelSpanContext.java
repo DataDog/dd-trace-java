@@ -25,7 +25,7 @@ public class OtelSpanContext implements SpanContext {
   @Override
   public String getTraceId() {
     if (this.traceId == null) {
-      this.traceId = this.delegate.getTraceId().toHexStringPadded(32);
+      this.traceId = this.delegate.getTraceId().toHexString();
     }
     return this.traceId;
   }

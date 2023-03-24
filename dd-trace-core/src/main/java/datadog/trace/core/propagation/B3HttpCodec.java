@@ -61,11 +61,10 @@ class B3HttpCodec {
      * Get the TraceId {@link String} representation to inject according the following logic:
      *
      * <ul>
-     *   <li>Returns a 32 lower-case hexadecimal character if padding is enabled,
+     *   <li>Returns a 32 lower-case hexadecimal character if padding is enabled or for 128-bit
+     *       TraceIds,
      *   <li>Returns the original String representation if the trace was parsed from B3 extractor,
-     *   <li>Returns a 32 lower-case hexadecimal character for 128-bit TraceId,
-     *   <li>Return a non-padded lower-case hexadecimal String (for remaining 64-bit TraceId). //
-     *       TODO Cleanup the last rule
+     *   <li>Return a non-padded lower-case hexadecimal String for remaining 64-bit TraceIds.
      * </ul>
      *
      * @param context The context to get the TraceId from.
@@ -73,16 +72,12 @@ class B3HttpCodec {
      */
     protected final String getInjectedTraceId(DDSpanContext context) {
       DDTraceId traceId = context.getTraceId();
-      if (this.paddingEnabled) {
-        if (traceId instanceof DD128bTraceId) { // TODO Clean up
-          return traceId.toHexString();
-        } else {
-          return traceId.toHexStringPadded(32);
-        }
+      if (this.paddingEnabled || traceId instanceof DD128bTraceId) {
+        return traceId.toHexString();
       } else if (traceId instanceof B3TraceId) {
         return ((B3TraceId) traceId).getB3Original();
       } else {
-        return traceId.toHexString();
+        return DDSpanId.toHexString(traceId.toLong());
       }
     }
 

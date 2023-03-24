@@ -88,7 +88,7 @@ class W3CHttpCodec {
       if (traceId instanceof W3CTraceId) {
         return ((W3CTraceId) traceId).getW3COriginal();
       } else {
-        return traceId.toHexStringPadded(32);
+        return traceId.toHexString();
       }
     }
   }

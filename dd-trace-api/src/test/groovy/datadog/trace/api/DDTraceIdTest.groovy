@@ -18,11 +18,11 @@ class DDTraceIdTest extends DDSpecification {
 
     where:
     longId         | expectedId                        | expectedString         | expectedHex
-    0              | DD64bTraceId.ZERO                 | "0"                    | "0"
-    1              | DD64bTraceId.ONE                  | "1"                    | "1"
-    -1             | DD64bTraceId.MAX                  | "18446744073709551615" | "f" * 16
-    Long.MAX_VALUE | DD64bTraceId.from(Long.MAX_VALUE) | "9223372036854775807"  | "7" + "f" * 15
-    Long.MIN_VALUE | DD64bTraceId.from(Long.MIN_VALUE) | "9223372036854775808"  | "8" + "0" * 15
+    0              | DD64bTraceId.ZERO                 | "0"                    | "0" * 32
+    1              | DD64bTraceId.ONE                  | "1"                    | "0" * 31 + "1"
+    -1             | DD64bTraceId.MAX                  | "18446744073709551615" | "0" * 16 + "f" * 16
+    Long.MAX_VALUE | DD64bTraceId.from(Long.MAX_VALUE) | "9223372036854775807"  | "0" * 16 + "7" + "f" * 15
+    Long.MIN_VALUE | DD64bTraceId.from(Long.MIN_VALUE) | "9223372036854775808"  | "0" * 16 + "8" + "0" * 15
   }
 
   def "convert 64-bit ids from/to String representation: #stringId"() {
@@ -72,10 +72,7 @@ class DDTraceIdTest extends DDSpecification {
 
     then:
     ddid == expectedId
-    if (hexId.length() > 1) {
-      hexId = hexId.replaceAll("^0+", "") // drop leading zeros
-    }
-    ddid.toHexString() == hexId
+    ddid.toHexString() == padded32
     ddid.toHexStringPadded(16) == padded16
     ddid.toHexStringPadded(32) == padded32
 

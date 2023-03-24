@@ -24,7 +24,10 @@ class HttpInjectorTest extends DDCoreSpecification {
   }
 
   String idOrPadded(DDTraceId id) {
-    return idOrPadded(id.toHexString(), 32)
+    if (id.getHighOrderBits() == 0) {
+      return idOrPadded(DDSpanId.toHexString(id.toLong()), 32)
+    }
+    return id.toHexString()
   }
 
   String idOrPadded(long id) {

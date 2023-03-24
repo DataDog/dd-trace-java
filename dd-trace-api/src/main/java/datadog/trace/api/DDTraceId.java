@@ -13,9 +13,9 @@ public interface DDTraceId {
   DDTraceId ONE = from(1);
 
   /**
-   * Create a new {@link DD64bTraceId 64-bit TraceId} from the given {@code long} interpreted as the
-   * bits of the unsigned 64-bit id. This means that values larger than {@link Long#MAX_VALUE} will
-   * be represented as negative numbers.
+   * Creates a new {@link DD64bTraceId 64-bit TraceId} from the given {@code long} interpreted as
+   * the bits of the unsigned 64-bit id. This means that values larger than {@link Long#MAX_VALUE}
+   * will be represented as negative numbers.
    *
    * @param id The {@code long} representing the bits of the unsigned 64-bit id.
    * @return A new {@link DDTraceId} instance.
@@ -25,7 +25,7 @@ public interface DDTraceId {
   }
 
   /**
-   * Create a new {@link DD64bTraceId 64-bit TraceId} from the given {@link #toString() String
+   * Creates a new {@link DD64bTraceId 64-bit TraceId} from the given {@link #toString() String
    * representation}.
    *
    * @param s The {@link #toString() String representation} of a {@link DDTraceId}.
@@ -37,7 +37,7 @@ public interface DDTraceId {
   }
 
   /**
-   * Create a new {@link DDTraceId} from the given {@link #toHexString() hexadecimal
+   * Creates a new {@link DDTraceId} from the given {@link #toHexString() hexadecimal
    * representation}.
    *
    * @param s The hexadecimal {@link String} representation of a {@link DD128bTraceId} to parse.
@@ -63,11 +63,11 @@ public interface DDTraceId {
   String toString();
 
   /**
-   * Returns the lower-case non-zero-padded hexadecimal {@link String} representation of the {@link
-   * DDTraceId}. This hexadecimal {@code String} <strong>will not be cached</strong>.
+   * Returns the lower-case zero-padded 32 hexadecimal characters {@link String} representation of
+   * the {@link DDTraceId}. The * {@link String} will be cached.
    *
-   * @return A lower-case non-zero-padded hexadecimal {@link String} representation of the {@link
-   *     DDTraceId} instance.
+   * @return A cached lower-case zero-padded 32 hexadecimal characters {@link String} representation
+   *     of the {@link DDTraceId} instance.
    */
   String toHexString();
 
@@ -84,17 +84,20 @@ public interface DDTraceId {
   String toHexStringPadded(int size);
 
   /**
-   * Returns the id as a long representing the bits of the unsigned 64 bit id. This means that
-   * values larger than {@link Long#MAX_VALUE} will be represented as negative numbers.
+   * Returns the low-order 64 bits of the {@link DDTraceId} as an unsigned <code>long</code>. This
+   * means that values larger than {@link Long#MAX_VALUE} will be represented as negative numbers.
    *
-   * @return long value representing the bits of the unsigned 64 bit id.
+   * @return The low-order 64 bits of the {@link DDTraceId} as an unsigned <code>long</code>.
    */
-  long toLong(); // TODO Cleanup name and Javadoc?
+  long toLong();
 
   /**
-   * Get the high-order 64 bits of 128-bit TraceId.
+   * Returns the high-order 64 bits of 128-bit {@link DDTraceId} as un unsigned <code>long</code>.
+   * This * means that values larger than {@link Long#MAX_VALUE} will be represented as negative
+   * numbers.
    *
-   * @return The high-order 64 bits of the 128-bit trace id, <code>0</code> on 64-bit TraceId.
+   * @return The high-order 64 bits of the 128-bit {@link DDTraceId} as an unsigned <code>long
+   *     </code>, <code>0</code> for 64-bit {@link DDTraceId} only.
    */
   long getHighOrderBits();
 }

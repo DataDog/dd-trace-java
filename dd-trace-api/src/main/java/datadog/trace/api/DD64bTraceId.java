@@ -15,7 +15,7 @@ public class DD64bTraceId implements DDTraceId {
 
   private final long id;
   private String str; // cache for string representation
-  // private String hex; // TODO Implement cache?
+  private String hexStr; // cache for hex string representation
 
   DD64bTraceId(long id, String str) {
     this.id = id;
@@ -91,13 +91,20 @@ public class DD64bTraceId implements DDTraceId {
 
   @Override
   public String toHexString() {
-    // TODO use the cached String and trim it if necessary
-    return Long.toHexString(this.id);
+    String hexStr = this.hexStr;
+    // This race condition is intentional and benign.
+    // The worst that can happen is that an identical value is produced and written into the field.
+    if (hexStr == null) {
+      this.hexStr = hexStr = DDId.toHexStringPadded(this.id, 32);
+    }
+    return hexStr;
   }
 
   @Override
   public String toHexStringPadded(int size) {
-    // TODO use the cached String and pad it if necessary
+    if (size > 16) {
+      return toHexString();
+    }
     return DDId.toHexStringPadded(this.id, size);
   }
 
