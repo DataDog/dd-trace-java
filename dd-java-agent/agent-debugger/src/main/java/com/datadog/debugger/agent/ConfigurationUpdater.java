@@ -19,7 +19,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -118,12 +117,11 @@ public class ConfigurationUpdater
 
   private Configuration applyConfigurationFilters(Configuration configuration) {
     Collection<MetricProbe> metricProbes =
-        filterProbes(
-            configuration::getMetricProbes, MetricProbe::isActive, MAX_ALLOWED_METRIC_PROBES);
+        filterProbes(configuration::getMetricProbes, MAX_ALLOWED_METRIC_PROBES);
     Collection<LogProbe> logProbes =
-        filterProbes(configuration::getLogProbes, LogProbe::isActive, MAX_ALLOWED_LOG_PROBES);
+        filterProbes(configuration::getLogProbes, MAX_ALLOWED_LOG_PROBES);
     Collection<SpanProbe> spanProbes =
-        filterProbes(configuration::getSpanProbes, SpanProbe::isActive, MAX_ALLOWED_SPAN_PROBES);
+        filterProbes(configuration::getSpanProbes, MAX_ALLOWED_SPAN_PROBES);
     return new Configuration(
         serviceName,
         metricProbes,
@@ -135,13 +133,12 @@ public class ConfigurationUpdater
   }
 
   private <E extends ProbeDefinition> Collection<E> filterProbes(
-      Supplier<Collection<E>> probeSupplier, Predicate<E> isActive, int maxAllowedProbes) {
+      Supplier<Collection<E>> probeSupplier, int maxAllowedProbes) {
     Collection<E> probes = probeSupplier.get();
     if (probes == null) {
       return Collections.emptyList();
     }
     return probes.stream()
-        .filter(isActive)
         .filter(envAndVersionCheck::isEnvAndVersionMatch)
         .limit(maxAllowedProbes)
         .collect(Collectors.toList());

@@ -14,12 +14,11 @@ public class SpanProbe extends ProbeDefinition {
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
   public SpanProbe() {
-    this(LANGUAGE, null, true, null, null);
+    this(LANGUAGE, null, null, null);
   }
 
-  public SpanProbe(
-      String language, ProbeId probeId, boolean active, String[] tagStrs, Where where) {
-    super(language, probeId, active, tagStrs, where, MethodLocation.DEFAULT);
+  public SpanProbe(String language, ProbeId probeId, String[] tagStrs, Where where) {
+    super(language, probeId, tagStrs, where, MethodLocation.DEFAULT);
   }
 
   @Override
@@ -36,7 +35,7 @@ public class SpanProbe extends ProbeDefinition {
   @Generated
   @Override
   public int hashCode() {
-    int result = Objects.hash(language, id, version, active, tagMap, where, evaluateAt);
+    int result = Objects.hash(language, id, version, tagMap, where, evaluateAt);
     result = 31 * result + Arrays.hashCode(tags);
     return result;
   }
@@ -47,8 +46,7 @@ public class SpanProbe extends ProbeDefinition {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     SpanProbe that = (SpanProbe) o;
-    return active == that.active
-        && Objects.equals(language, that.language)
+    return Objects.equals(language, that.language)
         && Objects.equals(id, that.id)
         && version == that.version
         && Arrays.equals(tags, that.tags)
@@ -69,8 +67,6 @@ public class SpanProbe extends ProbeDefinition {
         + '\''
         + ", version="
         + version
-        + ", active="
-        + active
         + ", tags="
         + Arrays.toString(tags)
         + ", tagMap="
@@ -88,7 +84,7 @@ public class SpanProbe extends ProbeDefinition {
 
   public static class Builder extends ProbeDefinition.Builder<Builder> {
     public SpanProbe build() {
-      return new SpanProbe(LANGUAGE, probeId, active, tagStrs, where);
+      return new SpanProbe(LANGUAGE, probeId, tagStrs, where);
     }
   }
 }

@@ -214,7 +214,6 @@ public class LogProbe extends ProbeDefinition {
     this(
         LANGUAGE,
         null,
-        true,
         Tag.fromStrings(null),
         null,
         MethodLocation.DEFAULT,
@@ -229,7 +228,6 @@ public class LogProbe extends ProbeDefinition {
   public LogProbe(
       String language,
       ProbeId probeId,
-      boolean active,
       String[] tagStrs,
       Where where,
       MethodLocation evaluateAt,
@@ -242,7 +240,6 @@ public class LogProbe extends ProbeDefinition {
     this(
         language,
         probeId,
-        active,
         Tag.fromStrings(tagStrs),
         where,
         evaluateAt,
@@ -257,7 +254,6 @@ public class LogProbe extends ProbeDefinition {
   private LogProbe(
       String language,
       ProbeId probeId,
-      boolean active,
       Tag[] tags,
       Where where,
       MethodLocation evaluateAt,
@@ -267,7 +263,7 @@ public class LogProbe extends ProbeDefinition {
       ProbeCondition probeCondition,
       Capture capture,
       Sampling sampling) {
-    super(language, probeId, active, tags, where, evaluateAt);
+    super(language, probeId, tags, where, evaluateAt);
     this.template = template;
     this.segments = segments;
     this.captureSnapshot = captureSnapshot;
@@ -280,7 +276,6 @@ public class LogProbe extends ProbeDefinition {
     return new LogProbe(
         language,
         new ProbeId(id, version),
-        active,
         tags,
         where,
         evaluateAt,
@@ -333,8 +328,7 @@ public class LogProbe extends ProbeDefinition {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     LogProbe that = (LogProbe) o;
-    return active == that.active
-        && Objects.equals(language, that.language)
+    return Objects.equals(language, that.language)
         && Objects.equals(id, that.id)
         && version == that.version
         && Arrays.equals(tags, that.tags)
@@ -357,7 +351,6 @@ public class LogProbe extends ProbeDefinition {
             language,
             id,
             version,
-            active,
             tagMap,
             where,
             evaluateAt,
@@ -383,8 +376,6 @@ public class LogProbe extends ProbeDefinition {
         + '\''
         + ", version="
         + version
-        + ", active="
-        + active
         + ", tags="
         + Arrays.toString(tags)
         + ", tagMap="
@@ -460,7 +451,6 @@ public class LogProbe extends ProbeDefinition {
       return new LogProbe(
           language,
           probeId,
-          active,
           tagStrs,
           where,
           evaluateAt,
