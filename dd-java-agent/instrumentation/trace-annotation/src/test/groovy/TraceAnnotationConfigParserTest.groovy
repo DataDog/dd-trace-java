@@ -1,20 +1,18 @@
-package datadog.trace.bootstrap.instrumentation
-
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.traceannotation.MeasuredMethodFilter
+import datadog.trace.instrumentation.trace_annotation.TraceConfigInstrumentation
 
 class TraceAnnotationConfigParserTest extends AgentTestRunner{
   def "test configuration \"#value\""() {
-    //
     setup:
     if (value) {
-      injectSysConfig("dd.measure.methods", value)
+      injectSysConfig("dd.trace.methods", value)
     } else {
-      removeSysConfig("dd.measure.methods")
+      removeSysConfig("dd.trace.methods")
     }
 
     expect:
-    MeasuredMethodFilter.methodsToMeasure == expected
+    new TraceConfigInstrumentation().classMethodsToTrace == expected
 
     where:
     value                                                           | expected
@@ -56,9 +54,10 @@ class TraceAnnotationConfigParserTest extends AgentTestRunner{
       expected.put("c$it".toString(), mset)
       return "c$it[${mset.join(",")}]"
     }.join(";")
-    injectSysConfig("dd.measure.methods", methods)
+    injectSysConfig("dd.trace.methods", methods)
+
     expect:
-    new MeasuredMethodFilter().methodsToMeasure == expected
+    new TraceConfigInstrumentation().classMethodsToTrace == expected
   }
 }
 
