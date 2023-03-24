@@ -78,8 +78,6 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
     return span;
   }
 
-  // dbService is meant to be called outside the context of an agent span
-  // TODO: I am not sure that I need the extra logic around db client split by instance?
   public String dbService(final String dbType, final String instanceName) {
     if (instanceName != null && Config.get().isDbClientSplitByInstance()) {
       return dbClientService(instanceName);
