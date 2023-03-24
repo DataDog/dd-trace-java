@@ -84,18 +84,35 @@ public class OpenTelemetryContextInstrumentation extends Instrumenter.Tracing
   public static class ContextCurrentAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void current(@Advice.Return(readOnly = false) Context result) {
-      AgentSpan agentSpan = AgentTracer.activeSpan();
-      Span otelSpan = null;
-      if (agentSpan instanceof AttachableWrapper) {
-        Object wrapper = ((AttachableWrapper) agentSpan).getWrapper();
+      // Get OTel current span
+      AgentSpan agentCurrentSpan = AgentTracer.activeSpan();
+      Span otelCurrentSpan = null;
+      if (agentCurrentSpan instanceof AttachableWrapper) {
+        Object wrapper = ((AttachableWrapper) agentCurrentSpan).getWrapper();
         if (wrapper instanceof OtelSpan) {
-          otelSpan = (OtelSpan) wrapper;
+          otelCurrentSpan = (OtelSpan) wrapper;
         }
       }
-      if (otelSpan == null) {
-        otelSpan = agentSpan == null ? OtelSpan.invalid() : new OtelSpan(agentSpan);
+      if (otelCurrentSpan == null) {
+        otelCurrentSpan =
+            agentCurrentSpan == null ? OtelSpan.invalid() : new OtelSpan(agentCurrentSpan);
       }
-      result = new OtelContext(otelSpan);
+      // Get OTel root span
+      Span otelRootSpan = null;
+      AgentSpan agentRootSpan = null;
+      if (agentCurrentSpan != null) {
+        agentRootSpan = agentCurrentSpan.getLocalRootSpan();
+        if (agentRootSpan instanceof AttachableWrapper) {
+          Object wrapper = ((AttachableWrapper) agentRootSpan).getWrapper();
+          if (wrapper instanceof OtelSpan) {
+            otelRootSpan = (OtelSpan) wrapper;
+          }
+        }
+      }
+      if (otelRootSpan == null) {
+        otelRootSpan = agentRootSpan == null ? OtelSpan.invalid() : new OtelSpan(agentRootSpan);
+      }
+      result = new OtelContext(otelCurrentSpan, otelRootSpan);
     }
   }
 }
