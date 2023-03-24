@@ -10,7 +10,6 @@ import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_TRACE_CONTEXT;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.SQL_COMMENT_INJECTION_MODE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -86,18 +85,16 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
             span, connection, InstrumentationContext.get(Connection.class, DBInfo.class));
         final String copy = sql;
         if (span != null && INJECT_COMMENT) {
-          SQLCommenter carrier =
-              new SQLCommenter(SQL_COMMENT_INJECTION_MODE, sql, span.getServiceName());
+          String traceParent = null;
           if (INJECT_TRACE_CONTEXT) {
             Integer priority = span.forceSamplingDecision();
             if (priority != null) {
-              carrier.setTraceparent(DECORATE.traceParent(span, priority));
+              traceParent = DECORATE.traceParent(span, priority);
               // set the dbm trace injected tag on the span
               span.setTag(DBM_TRACE_INJECTED, true);
             }
           }
-          carrier.inject();
-          sql = carrier.getCommentedSQL();
+          sql = SQLCommenter.inject(sql, span.getServiceName(), traceParent, INJECT_TRACE_CONTEXT);
         }
         DECORATE.onStatement(span, DBQueryInfo.ofStatement(copy));
         return activateSpan(span);

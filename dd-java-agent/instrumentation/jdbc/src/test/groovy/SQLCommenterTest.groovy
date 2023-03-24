@@ -10,12 +10,13 @@ class SQLCommenterTest extends AgentTestRunner {
     injectSysConfig("dd.version", "TestVersion")
 
     when:
-    SQLCommenter commenter = new SQLCommenter(injectionMode, query, "my-service")
+    String sqlWithComment = ""
     if (injectionMode == "full") {
-      commenter.setTraceparent(traceParent)
+      sqlWithComment = SQLCommenter.inject(query, "my-service", traceParent, true)
+    } else {
+      sqlWithComment = SQLCommenter.inject(query, "my-service")
     }
-    commenter.inject()
-    String sqlWithComment = commenter.getCommentedSQL()
+
     sqlWithComment == expected
 
     then:
@@ -29,8 +30,6 @@ class SQLCommenterTest extends AgentTestRunner {
     "SELECT * FROM foo"                                                                           | "service"     | null                                                      | "/*ddps='SqlCommenter',dddbs='my-service',dde='Test',ddpv='TestVersion'*/ SELECT * FROM foo"
     "SELECT /* customer-comment */ * FROM foo"                                                    | "service"     | null                                                      | "/*ddps='SqlCommenter',dddbs='my-service',dde='Test',ddpv='TestVersion'*/ SELECT /* customer-comment */ * FROM foo"
     "SELECT * from FOO -- test query"                                                             | "service"     | null                                                      | "/*ddps='SqlCommenter',dddbs='my-service',dde='Test',ddpv='TestVersion'*/ SELECT * from FOO -- test query"
-    "SELECT * FROM foo"                                                                           | "disabled"    | null                                                      | "SELECT * FROM foo"
-    "SELECT * FROM foo /* customer-comment */"                                                    | "disabled"    | null                                                      | "SELECT * FROM foo /* customer-comment */"
     ""                                                                                            | "full"        | "00-00000000000000007fffffffffffffff-000000024cb016ea-00" | ""
     "   "                                                                                         | "full"        | "00-00000000000000007fffffffffffffff-000000024cb016ea-01" | "/*ddps='SqlCommenter',dddbs='my-service',dde='Test',ddpv='TestVersion',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-01'*/    "
     "/*dddbs='my-service',dde='Test',ddps='SqlCommenter',ddpv='TestVersion'*/ SELECT * FROM foo"  | "service"     | null                                                      | "/*dddbs='my-service',dde='Test',ddps='SqlCommenter',ddpv='TestVersion'*/ SELECT * FROM foo"

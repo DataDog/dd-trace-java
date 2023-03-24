@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameSta
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.SQL_COMMENT_INJECTION_STATIC;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logQueryInfoInjection;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -123,10 +122,7 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
         final DBInfo dbInfo =
             JDBCDecorator.parseDBInfo(
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
-        SQLCommenter commenter =
-            new SQLCommenter(SQL_COMMENT_INJECTION_STATIC, sql, DECORATE.getDbService(dbInfo));
-        commenter.inject();
-        sql = commenter.getCommentedSQL();
+        sql = SQLCommenter.inject(sql, DECORATE.getDbService(dbInfo));
         return inputSql;
       }
       return sql;

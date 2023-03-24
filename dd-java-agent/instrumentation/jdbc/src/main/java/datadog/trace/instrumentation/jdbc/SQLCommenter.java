@@ -1,8 +1,5 @@
 package datadog.trace.instrumentation.jdbc;
 
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.SQL_COMMENT_INJECTION_FULL;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.SQL_COMMENT_INJECTION_STATIC;
-
 import datadog.trace.api.Config;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
@@ -25,80 +22,66 @@ public class SQLCommenter {
   private static final String OPEN_COMMENT = "/*";
   private static final String CLOSE_COMMENT = "*/ ";
   private static final int INITIAL_CAPACITY = computeInitialCapacity();
-  String commentedSQL;
-  String injectionMode;
-  String sql;
-  String dbService;
-  String traceparent;
 
-  public String getCommentedSQL() {
-    return commentedSQL;
+  public static String inject(final String sql, final String dbService) {
+    return inject(sql, dbService, null, false);
   }
 
-  public void setTraceparent(String traceparent) {
-    this.traceparent = traceparent;
-  }
-
-  public SQLCommenter(final String injectionMode, final String sql, final String dbService) {
-    this.injectionMode = injectionMode;
-    this.sql = sql;
-    this.dbService = dbService;
-  }
-
-  public void inject() {
-    if (this.sql == null || this.sql.isEmpty()) {
-      this.commentedSQL = this.sql;
-      return;
+  public static String inject(
+      final String sql,
+      final String dbService,
+      final String traceParent,
+      final boolean injectTrace) {
+    if (sql == null || sql.isEmpty()) {
+      return sql;
     }
-    // If the SQL already has a comment, just return it.
-    final byte[] sqlStmtBytes = this.sql.getBytes(StandardCharsets.UTF_8);
-    if (hasDDComment(sqlStmtBytes)) {
-      this.commentedSQL = this.sql;
-      return;
+    if (hasDDComment(sql)) {
+      return sql;
     }
     final Config config = Config.get();
     final String parentService = config.getServiceName();
     final String env = config.getEnv();
     final String version = config.getVersion();
-    final int commentSize = capacity(this.traceparent, parentService, this.dbService, env, version);
-    StringBuilder sb = new StringBuilder(this.sql.length() + commentSize);
-    toComment(
-        sb, this.injectionMode, parentService, this.dbService, env, version, this.traceparent);
+    final int commentSize = capacity(traceParent, parentService, dbService, env, version);
+    StringBuilder sb = new StringBuilder(sql.length() + commentSize);
+    toComment(sb, injectTrace, parentService, dbService, env, version, traceParent);
     if (sb.length() == 0) {
-      this.commentedSQL = this.sql;
-      return;
+      return sql;
     }
     sb.insert(0, OPEN_COMMENT);
     sb.append(CLOSE_COMMENT);
-    sb.append(this.sql);
-    this.commentedSQL = sb.toString();
+    sb.append(sql);
+    return sb.toString();
   }
 
-  private static boolean hasDDComment(byte[] sql) {
+  private static boolean hasDDComment(String sql) {
     // first check to see if sql starts with a comment
-    if (sql.length < 1 || !(sql[0] == '/' && sql[1] == '*')) {
+    if (!(sql.startsWith("/*"))) {
       return false;
     }
 
     // else check to see if it's a DBM trace sql comment
     int i = 2;
     boolean found = false;
-    while (i < sql.length - 1) {
+    while (i < sql.length() - 1) {
       // check if the next word starts with one of the specified keys
-      if (sql[i] == PARENT_SERVICE.charAt(0) && hasMatchingSubstring(sql, i, PARENT_SERVICE)) {
+      if (sql.charAt(i) == PARENT_SERVICE.charAt(0)
+          && hasMatchingSubstring(sql, i, PARENT_SERVICE)) {
         found = true;
         break;
-      } else if (sql[i] == DATABASE_SERVICE.charAt(0)
+      } else if (sql.charAt(i) == DATABASE_SERVICE.charAt(0)
           && hasMatchingSubstring(sql, i, DATABASE_SERVICE)) {
         found = true;
         break;
-      } else if (sql[i] == DD_ENV.charAt(0) && hasMatchingSubstring(sql, i, DD_ENV)) {
+      } else if (sql.charAt(i) == DD_ENV.charAt(0) && hasMatchingSubstring(sql, i, DD_ENV)) {
         found = true;
         break;
-      } else if (sql[i] == DD_VERSION.charAt(0) && hasMatchingSubstring(sql, i, DD_VERSION)) {
+      } else if (sql.charAt(i) == DD_VERSION.charAt(0)
+          && hasMatchingSubstring(sql, i, DD_VERSION)) {
         found = true;
         break;
-      } else if (sql[i] == TRACEPARENT.charAt(0) && hasMatchingSubstring(sql, i, TRACEPARENT)) {
+      } else if (sql.charAt(i) == TRACEPARENT.charAt(0)
+          && hasMatchingSubstring(sql, i, TRACEPARENT)) {
         found = true;
         break;
       }
@@ -110,17 +93,17 @@ public class SQLCommenter {
     return found;
   }
 
-  private static boolean hasMatchingSubstring(byte[] arr, int startIndex, String substring) {
-    if (startIndex + substring.length() >= arr.length) {
+  private static boolean hasMatchingSubstring(String str, int startIndex, String substring) {
+    if (startIndex + substring.length() >= str.length()) {
       return false;
     }
     for (int i = 0; i < substring.length(); i++) {
-      if (arr[startIndex + i] != substring.charAt(i)) {
+      if (str.charAt(startIndex + i) != substring.charAt(i)) {
         return false;
       }
     }
     // check that the substring is followed by an equals sign
-    return arr[startIndex + substring.length()] == EQUALS;
+    return str.charAt(startIndex + substring.length()) == EQUALS;
   }
 
   private static String encode(final String val) {
@@ -136,20 +119,18 @@ public class SQLCommenter {
 
   protected static void toComment(
       StringBuilder sb,
-      final String injectionMode,
+      final boolean injectTrace,
       final String parentService,
       final String dbService,
       final String env,
       final String version,
       final String traceparent) {
-    if (injectComment(injectionMode)) {
-      append(sb, PARENT_SERVICE, parentService);
-      append(sb, DATABASE_SERVICE, dbService);
-      append(sb, DD_ENV, env);
-      append(sb, DD_VERSION, version);
-      if (injectionMode.equals(SQL_COMMENT_INJECTION_FULL)) {
-        append(sb, TRACEPARENT, traceparent);
-      }
+    append(sb, PARENT_SERVICE, parentService);
+    append(sb, DATABASE_SERVICE, dbService);
+    append(sb, DD_ENV, env);
+    append(sb, DD_VERSION, version);
+    if (injectTrace) {
+      append(sb, TRACEPARENT, traceparent);
     }
     if (sb.length() > 0) {
       // remove the trailing comment
@@ -160,7 +141,7 @@ public class SQLCommenter {
   private static void append(StringBuilder sb, String key, String value) {
     if (null != value && !value.isEmpty()) {
       try {
-        sb.append(URLEncoder.encode(key, UTF8));
+        sb.append(key);
         sb.append(EQUALS);
         sb.append(QUOTE);
         sb.append(URLEncoder.encode(value, UTF8));
@@ -197,11 +178,6 @@ public class SQLCommenter {
       len += version.length();
     }
     return len;
-  }
-
-  private static boolean injectComment(String injectionMode) {
-    return injectionMode.equals(SQL_COMMENT_INJECTION_FULL)
-        || injectionMode.equals(SQL_COMMENT_INJECTION_STATIC);
   }
 
   private static int computeInitialCapacity() {

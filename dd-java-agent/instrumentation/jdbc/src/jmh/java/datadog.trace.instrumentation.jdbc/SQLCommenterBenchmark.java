@@ -20,11 +20,12 @@ public class SQLCommenterBenchmark {
   private static final String parentService = "parent";
   private static final String env = "env";
   private static final String version = "version";
+  private static final boolean injectTrace = true;
 
   @Benchmark
-  public void testToCommet() {
+  public void testToComment() {
     StringBuilder stringBuilder = new StringBuilder();
     SQLCommenter.toComment(
-        stringBuilder, injectionMode, parentService, dbService, env, version, traceParent);
+        stringBuilder, injectTrace, parentService, dbService, env, version, traceParent);
   }
 }
