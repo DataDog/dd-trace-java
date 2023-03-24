@@ -44,33 +44,21 @@ public abstract class ProbeDefinition {
   protected final String language;
   protected final String id;
   protected final int version;
-  protected final boolean active;
   protected final Tag[] tags;
   protected final Map<String, String> tagMap = new HashMap<>();
   protected final Where where;
   protected final MethodLocation evaluateAt;
 
   protected ProbeDefinition(
-      String language,
-      ProbeId probeId,
-      boolean active,
-      String[] tagStrs,
-      Where where,
-      MethodLocation evaluateAt) {
-    this(language, probeId, active, Tag.fromStrings(tagStrs), where, evaluateAt);
+      String language, ProbeId probeId, String[] tagStrs, Where where, MethodLocation evaluateAt) {
+    this(language, probeId, Tag.fromStrings(tagStrs), where, evaluateAt);
   }
 
   protected ProbeDefinition(
-      String language,
-      ProbeId probeId,
-      boolean active,
-      Tag[] tags,
-      Where where,
-      MethodLocation evaluateAt) {
+      String language, ProbeId probeId, Tag[] tags, Where where, MethodLocation evaluateAt) {
     this.language = language;
     this.id = probeId != null ? probeId.getId() : null;
     this.version = probeId != null ? probeId.getVersion() : 0;
-    this.active = active;
     this.tags = tags;
     initTagMap(tagMap, tags);
     this.where = where;
@@ -87,10 +75,6 @@ public abstract class ProbeDefinition {
 
   public String getLanguage() {
     return language;
-  }
-
-  public boolean isActive() {
-    return active;
   }
 
   public Tag[] getTags() {
@@ -150,7 +134,6 @@ public abstract class ProbeDefinition {
   public abstract static class Builder<T extends Builder> {
     protected String language = LANGUAGE;
     protected ProbeId probeId;
-    protected boolean active = true;
     protected String[] tagStrs;
     protected Where where;
     protected MethodLocation evaluateAt = MethodLocation.DEFAULT;
@@ -167,11 +150,6 @@ public abstract class ProbeDefinition {
 
     public T probeId(ProbeId probeId) {
       this.probeId = probeId;
-      return (T) this;
-    }
-
-    public T active(boolean active) {
-      this.active = active;
       return (T) this;
     }
 

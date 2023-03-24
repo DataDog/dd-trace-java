@@ -135,11 +135,6 @@ public class DebuggerTransformer implements ClassFileTransformer {
       if (!instrumentationIsAllowed(fullyQualifiedClassName, definitions)) {
         return null;
       }
-      definitions = filterActiveDefinitions(definitions);
-      if (definitions.isEmpty()) {
-        log.info("No active definition for {}", fullyQualifiedClassName);
-        return null;
-      }
       Map<Where, List<ProbeDefinition>> defByLocation = mergeLocations(definitions);
       ClassNode classNode = parseClassFile(classFilePath, classfileBuffer);
       boolean transformed =
@@ -496,10 +491,6 @@ public class DebuggerTransformer implements ClassFileTransformer {
     }
     log.debug("Cannot find line: {} in class {}", matchingLine, classNode.name);
     return null;
-  }
-
-  private List<ProbeDefinition> filterActiveDefinitions(List<ProbeDefinition> definitions) {
-    return definitions.stream().filter(ProbeDefinition::isActive).collect(toList());
   }
 
   private void dumpInstrumentedClassFile(String className, byte[] data) {

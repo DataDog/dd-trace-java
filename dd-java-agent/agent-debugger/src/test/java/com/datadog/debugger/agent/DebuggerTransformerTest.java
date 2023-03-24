@@ -298,43 +298,6 @@ public class DebuggerTransformerTest {
   }
 
   @Test
-  public void testDeactivatedProbes() {
-    Config config = mock(Config.class);
-    List<LogProbe> logProbes =
-        Arrays.asList(
-            LogProbe.builder()
-                .language(LANGUAGE)
-                .probeId(PROBE_ID)
-                .active(false)
-                .where("java.lang.String", "toString")
-                .build(),
-            LogProbe.builder()
-                .language(LANGUAGE)
-                .probeId(PROBE_ID)
-                .active(false)
-                .where("java.util.HashMap", "<init>", "void ()")
-                .build());
-    Configuration configuration = new Configuration(SERVICE_NAME, logProbes);
-    DebuggerTransformer debuggerTransformer = new DebuggerTransformer(config, configuration);
-    byte[] newClassBuffer =
-        debuggerTransformer.transform(
-            ClassLoader.getSystemClassLoader(),
-            "java.lang.String",
-            String.class,
-            null,
-            getClassFileBytes(String.class));
-    Assertions.assertNull(newClassBuffer);
-    newClassBuffer =
-        debuggerTransformer.transform(
-            ClassLoader.getSystemClassLoader(),
-            "java.util.HashMap",
-            HashMap.class,
-            null,
-            getClassFileBytes(HashMap.class));
-    Assertions.assertNull(newClassBuffer);
-  }
-
-  @Test
   public void testBlockedProbes() {
     Config config = mock(Config.class);
     List<LogProbe> logProbes =
@@ -342,7 +305,6 @@ public class DebuggerTransformerTest {
             LogProbe.builder()
                 .language(LANGUAGE)
                 .probeId(PROBE_ID)
-                .active(true)
                 .where("java.lang.String", "toString")
                 .build());
     Configuration configuration = new Configuration(SERVICE_NAME, logProbes);
