@@ -1,6 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.instrumentation.trace_annotation.TraceConfigInstrumentation
 
 import java.util.concurrent.Callable
 
