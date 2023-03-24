@@ -47,7 +47,10 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       return;
     }
     if (prio == null && tracer != null) {
-      tracer.sampler.sample(span); // sets sampling priority in the root context
+      // evaluate priority
+      DDSpan rootSpan = span.getLocalRootSpan();
+      DDSpan spanToSample = rootSpan == null ? span : rootSpan;
+      tracer.sampler.sample(spanToSample);
       prio = span.getSamplingPriority();
       if (prio != null && prio <= 0) {
         return;
