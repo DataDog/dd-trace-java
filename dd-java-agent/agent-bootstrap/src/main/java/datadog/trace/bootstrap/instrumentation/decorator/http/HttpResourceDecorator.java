@@ -44,7 +44,12 @@ public class HttpResourceDecorator {
     }
     span.setTag(Tags.HTTP_ROUTE, routeTag);
     if (Config.get().isHttpServerRouteBasedNaming()) {
-      final CharSequence resourceName = HttpResourceNames.join(method, route);
+      CharSequence path = route;
+      String servletContext = String.valueOf(span.getTag("servlet.context"));
+      if (servletContext != null && !servletContext.isEmpty()) {
+        path = servletContext + path;
+      }
+      final CharSequence resourceName = HttpResourceNames.join(method, path);
       span.setResourceName(resourceName, ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
     }
     return span;
