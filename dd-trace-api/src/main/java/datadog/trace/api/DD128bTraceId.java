@@ -95,18 +95,18 @@ public class DD128bTraceId implements DDTraceId {
       lowOrderBits = HexStringUtils.parseUnsignedLongHex(s, start, length, lowerCaseOnly);
     }
     // Extract hexadecimal string representation to cache
-    String str = null;
+    String hexStr = null;
     if (length == 32) {
       if (start == 0) {
-        str = s;
+        hexStr = s;
       } else {
-        str = s.substring(start, start + 32);
+        hexStr = s.substring(start, start + 32);
       }
       if (!lowerCaseOnly) {
-        str = str.toLowerCase();
+        hexStr = hexStr.toLowerCase();
       }
     }
-    return new DD128bTraceId(highOrderBits, lowOrderBits, str);
+    return new DD128bTraceId(highOrderBits, lowOrderBits, hexStr);
   }
 
   /**

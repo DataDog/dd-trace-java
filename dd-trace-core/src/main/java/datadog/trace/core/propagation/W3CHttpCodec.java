@@ -7,6 +7,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
@@ -16,7 +17,6 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.core.propagation.TraceIdWithOriginal.W3CTraceId;
 import java.util.Map;
 import java.util.TreeMap;
 import org.slf4j.Logger;
@@ -61,7 +61,7 @@ class W3CHttpCodec {
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
       StringBuilder sb = new StringBuilder(TRACE_PARENT_LENGTH);
       sb.append("00-");
-      sb.append(getTraceId(context));
+      sb.append(context.getTraceId().toHexString());
       sb.append("-");
       sb.append(DDSpanId.toHexStringPadded(context.getSpanId()));
       sb.append(context.getSamplingPriority() > 0 ? "-01" : "-00");
@@ -80,15 +80,6 @@ class W3CHttpCodec {
         String header = invertedBaggageMapping.get(entry.getKey());
         header = header != null ? header : OT_BAGGAGE_PREFIX + entry.getKey();
         setter.set(carrier, header, HttpCodec.encode(entry.getValue()));
-      }
-    }
-
-    private String getTraceId(DDSpanContext context) {
-      DDTraceId traceId = context.getTraceId();
-      if (traceId instanceof W3CTraceId) {
-        return ((W3CTraceId) traceId).getW3COriginal();
-      } else {
-        return traceId.toHexString();
       }
     }
   }
@@ -297,8 +288,8 @@ class W3CHttpCodec {
       } else if (version == 0 && length > TRACE_PARENT_LENGTH) {
         throw new IllegalStateException("The length of traceparent '" + tp + "' is too long");
       }
-      W3CTraceId traceId = W3CTraceId.fromHex(tp, TRACE_PARENT_TID_START);
-      if (!traceId.isValid()) {
+      DDTraceId traceId = DD128bTraceId.fromHex(tp, TRACE_PARENT_TID_START, 32, true);
+      if (traceId.toLong() == 0) {
         throw new IllegalStateException(
             "Illegal all zero 64 bit trace id "
                 + tp.substring(TRACE_PARENT_TID_START, TRACE_PARENT_TID_END));

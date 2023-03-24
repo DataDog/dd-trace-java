@@ -9,7 +9,6 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.core.propagation.TraceIdWithOriginal.B3TraceId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -75,7 +74,7 @@ class B3HttpCodec {
       if (this.paddingEnabled || traceId instanceof DD128bTraceId) {
         return traceId.toHexString();
       } else if (traceId instanceof B3TraceId) {
-        return ((B3TraceId) traceId).getB3Original();
+        return ((B3TraceId) traceId).getOriginal();
       } else {
         return DDSpanId.toHexString(traceId.toLong());
       }
@@ -219,7 +218,7 @@ class B3HttpCodec {
         return false;
       } else {
         B3TraceId b3TraceId = B3TraceId.fromHex(tId);
-        traceId = b3TraceId.isValid() ? b3TraceId : DDTraceId.ZERO;
+        traceId = b3TraceId.toLong() == 0 ? DDTraceId.ZERO : b3TraceId;
       }
       if (tags.isEmpty()) {
         tags = new TreeMap<>();

@@ -13,7 +13,6 @@ import static datadog.trace.core.propagation.B3HttpCodec.B3_KEY
 import static datadog.trace.core.propagation.B3HttpCodec.SAMPLING_PRIORITY_KEY
 import static datadog.trace.core.propagation.B3HttpCodec.SPAN_ID_KEY
 import static datadog.trace.core.propagation.B3HttpCodec.TRACE_ID_KEY
-import static datadog.trace.core.propagation.TraceIdWithOriginal.B3TraceId
 
 class B3HttpExtractorTest extends DDSpecification {
 
@@ -54,7 +53,7 @@ class B3HttpExtractorTest extends DDSpecification {
     context.spanId == DDSpanId.from("$spanId")
     context.baggage == [:]
     context.tags == [
-      "b3.traceid": context.traceId.b3Original,
+      "b3.traceid": context.traceId.original,
       "b3.spanid" : DDSpanId.toHexString(context.spanId),
       "some-tag"  : "my-interesting-info"
     ]
@@ -92,7 +91,7 @@ class B3HttpExtractorTest extends DDSpecification {
     context.spanId == DDSpanId.from("$expectedSpanId")
     context.baggage == [:]
     context.tags == [
-      "b3.traceid": context.traceId.b3Original,
+      "b3.traceid": context.traceId.original,
       "b3.spanid" : DDSpanId.toHexString(context.spanId),
       "some-tag"  : "my-interesting-info"
     ]
@@ -134,7 +133,7 @@ class B3HttpExtractorTest extends DDSpecification {
     context.spanId == DDSpanId.from("$expectedSpanId")
     context.baggageItems().empty
     context.tags == [
-      "b3.traceid": context.traceId.b3Original,
+      "b3.traceid": context.traceId.original,
       "b3.spanid" : DDSpanId.toHexString(context.spanId),
       "some-tag"  : "my-interesting-info"
     ]
@@ -169,7 +168,7 @@ class B3HttpExtractorTest extends DDSpecification {
       assert context instanceof ExtractedContext
       assert context.traceId == expectedTraceId
       assert context.spanId == (expectedSpanId == null ? 0 : expectedSpanId)
-      assert context.tags["b3.traceid"] == expectedTraceId.b3Original
+      assert context.tags["b3.traceid"] == expectedTraceId.original
       assert context.tags["b3.spanid"] == (expectedSpanId == null ? null : DDSpanId.toHexString(expectedSpanId))
     } else {
       assert context == null || (context instanceof TagContext && !(context instanceof ExtractedContext))
@@ -319,7 +318,7 @@ class B3HttpExtractorTest extends DDSpecification {
     then:
     if (expectedTraceId) {
       assert context.traceId == expectedTraceId
-      assert context.traceId.b3Original == traceId
+      assert context.traceId.original == traceId
       assert context.spanId == expectedSpanId
       assert DDSpanId.toHexString(context.spanId) == trimmed(spanId)
     } else {

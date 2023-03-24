@@ -24,9 +24,9 @@ class W3CHttpExtractorTest extends DDSpecification {
   private static final String TEST_TP_DROP = "00-00000000000000000000000000000001-123456789abcdef0-00"
   private static final String TEST_TP_KEEP = "00-00000000000000000000000000000001-123456789abcdef0-01"
   private static final long TEST_SPAN_ID = 1311768467463790320L
-  private static final DDTraceId TRACE_ID_ONE = TraceIdWithOriginal.W3CTraceId.fromHex("00000000000000000000000000000001", 0)
-  private static final DDTraceId TRACE_ID_NO_HIGH_LOW_MAX = TraceIdWithOriginal.W3CTraceId.fromHex("0000000000000000ffffffffffffffff", 0)
-  private static final DDTraceId TRACE_ID_LOW_MAX = TraceIdWithOriginal.W3CTraceId.fromHex("123456789abcdef0ffffffffffffffff", 0)
+  private static final DDTraceId TRACE_ID_ONE = DDTraceId.fromHex("00000000000000000000000000000001")
+  private static final DDTraceId TRACE_ID_NO_HIGH_LOW_MAX = DDTraceId.fromHex("0000000000000000ffffffffffffffff")
+  private static final DDTraceId TRACE_ID_LOW_MAX = DDTraceId.fromHex("123456789abcdef0ffffffffffffffff")
 
   private HttpCodec.Extractor _extractor
 
@@ -54,13 +54,8 @@ class W3CHttpExtractorTest extends DDSpecification {
   def "extract traceparent '#traceparent'"() {
     setup:
     HashMap<String, String> headers = []
-    String originalTraceId = ""
-    String originalSpanId = ""
     if (traceparent) {
       headers.put(W3CHttpCodec.TRACE_PARENT_KEY, traceparent)
-      def parts = traceparent.split('-')
-      originalTraceId = parts[1]
-      originalSpanId = parts[2]
     }
 
     when:
@@ -71,8 +66,6 @@ class W3CHttpExtractorTest extends DDSpecification {
       assert context.traceId == traceId
       assert context.spanId == spanId
       assert context.samplingPriority == priority
-      assert context.traceId.w3COriginal == originalTraceId
-      DDSpanId.toHexStringPadded(context.spanId) == originalSpanId
     } else {
       assert context == null
     }
