@@ -147,12 +147,17 @@ public class StringTokenWriter implements SerializerWithLimits.TokenWriter {
   }
 
   @Override
-  public void objectMaxFieldCount() {
-    sb.append(", ...");
-  }
-
-  @Override
-  public void reachedMaxDepth() {
-    sb.append("...");
+  public void notCaptured(SerializerWithLimits.NotCapturedReason reason) {
+    switch (reason) {
+      case MAX_DEPTH:
+      case TIMEOUT:
+        sb.append("...");
+        break;
+      case FIELD_COUNT:
+        sb.append(", ...");
+        break;
+      default:
+        throw new RuntimeException("Unsupported NotCapturedReason: " + reason);
+    }
   }
 }
