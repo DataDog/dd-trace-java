@@ -7,6 +7,9 @@ import static datadog.trace.bootstrap.debugger.Limits.DEFAULT_REFERENCE_DEPTH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import datadog.trace.bootstrap.debugger.Limits;
+import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -118,7 +121,9 @@ class StringTokenWriterTest {
   private String serializeValue(Object value, Limits limits) throws Exception {
     StringBuilder sb = new StringBuilder();
     SerializerWithLimits serializer =
-        new SerializerWithLimits(new StringTokenWriter(sb, new ArrayList<>()));
+        new SerializerWithLimits(
+            new StringTokenWriter(sb, new ArrayList<>()),
+            new TimeoutChecker(Duration.of(1, ChronoUnit.SECONDS)));
     serializer.serialize(value, value != null ? value.getClass().getTypeName() : null, limits);
     return sb.toString();
   }

@@ -5,6 +5,9 @@ import datadog.trace.bootstrap.debugger.el.ReflectiveFieldValueResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import datadog.trace.bootstrap.debugger.el.Values;
+import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -491,6 +494,7 @@ public class Snapshot {
         new CapturedContext(null, Status.EMPTY_STATUS);
     public static final CapturedContext EMPTY_CAPTURING_CONTEXT =
         new CapturedContext(ProbeDetails.UNKNOWN, Status.EMPTY_PASSING_STATUS);
+    private static final Duration TIME_OUT = Duration.of(100, ChronoUnit.MILLIS);
 
     private final transient Map<String, Object> extensions = new HashMap<>();
 
@@ -763,15 +767,15 @@ public class Snapshot {
      * 'Freeze' the context. The contained arguments, locals and fields are converted from their
      * Java instance representation into the corresponding string value.
      */
-    public void freeze() {
+    public void freeze(TimeoutChecker timeoutChecker) {
       if (arguments != null) {
-        arguments.values().forEach(CapturedValue::freeze);
+        arguments.values().forEach(capturedValue -> capturedValue.freeze(timeoutChecker));
       }
       if (locals != null) {
-        locals.values().forEach(CapturedValue::freeze);
+        locals.values().forEach(capturedValue -> capturedValue.freeze(timeoutChecker));
       }
       if (fields != null) {
-        fields.values().forEach(CapturedValue::freeze);
+        fields.values().forEach(capturedValue -> capturedValue.freeze(timeoutChecker));
       }
     }
 
@@ -807,7 +811,7 @@ public class Snapshot {
       }
       this.thisClassName = thisClassName;
       if (probeDetails.isSnapshotProbe() && status.shouldSend()) {
-        freeze();
+        freeze(new TimeoutChecker(TIME_OUT));
       }
     }
 
@@ -930,6 +934,7 @@ public class Snapshot {
     private String strValue;
     private final Map<String, CapturedValue> fields;
     private final Limits limits;
+    private TimeoutChecker timeoutChecker;
     private final String notCapturedReason;
 
     private CapturedValue(
@@ -1047,11 +1052,12 @@ public class Snapshot {
       return val;
     }
 
-    public void freeze() {
+    public void freeze(TimeoutChecker timeoutChecker) {
       if (this.strValue != null) {
         // already frozen
         return;
       }
+      this.timeoutChecker = timeoutChecker;
       this.strValue = DebuggerContext.serializeValue(this);
       if (this.strValue != null) {
         // if serialization has happened, release the value object
@@ -1112,6 +1118,10 @@ public class Snapshot {
           + notCapturedReason
           + '\''
           + '}';
+    }
+
+    public TimeoutChecker getTimeoutChecker() {
+      return timeoutChecker;
     }
   }
 

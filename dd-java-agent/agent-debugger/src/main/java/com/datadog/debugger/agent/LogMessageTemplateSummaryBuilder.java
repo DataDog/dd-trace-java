@@ -9,6 +9,9 @@ import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.bootstrap.debugger.SummaryBuilder;
+import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,6 +22,8 @@ public class LogMessageTemplateSummaryBuilder implements SummaryBuilder {
    * obj.field.deepfield or array[1001]
    */
   private static final Limits LIMITS = new Limits(1, 3, 255, 5);
+
+  private static final Duration TIME_OUT = Duration.of(100, ChronoUnit.MILLIS);
 
   private final LogProbe logProbe;
   private final List<Snapshot.EvaluationError> evaluationErrors = new ArrayList<>();
@@ -90,7 +95,8 @@ public class LogMessageTemplateSummaryBuilder implements SummaryBuilder {
 
   private void serializeValue(StringBuilder sb, String expr, Object value) {
     SerializerWithLimits serializer =
-        new SerializerWithLimits(new StringTokenWriter(sb, evaluationErrors));
+        new SerializerWithLimits(
+            new StringTokenWriter(sb, evaluationErrors), new TimeoutChecker(TIME_OUT));
     try {
       serializer.serialize(value, value != null ? value.getClass().getTypeName() : null, LIMITS);
     } catch (Exception ex) {
