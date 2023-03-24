@@ -28,6 +28,7 @@ import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.EndpointCheckpointerHolder;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.config.GeneralConfig;
@@ -194,6 +195,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   private final Map<TracePropagationStyle, HttpCodec.Injector> injectors;
   private final HttpCodec.Extractor extractor;
+
+  private final boolean logs128bTraceIdEnabled;
 
   private final InstrumentationGateway instrumentationGateway;
   private final CallbackProvider callbackProviderAppSec;
@@ -479,6 +482,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.sampler = sampler;
     this.injector = injector;
     this.extractor = extractor;
+    this.logs128bTraceIdEnabled = InstrumenterConfig.get().isLogs128bTraceIdEnabled();
     this.localRootSpanTags = localRootSpanTags;
     this.defaultSpanTags = defaultSpanTags;
     this.serviceNameMappings = serviceNameMappings;
@@ -960,7 +964,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public String getTraceId() {
     final AgentSpan activeSpan = activeSpan();
     if (activeSpan instanceof DDSpan) {
-      return activeSpan.getTraceId().toString();
+      DDTraceId traceId = activeSpan.getTraceId();
+      // Return padded hexadecimal string representation if 128-bit TraceId logging is enabled and
+      // TraceId is a 128-bit ID, otherwise use the default numerical string representation.
+      if (this.logs128bTraceIdEnabled && traceId.toHighOrderLong() != 0) {
+        return traceId.toHexString();
+      } else {
+        return traceId.toString();
+      }
     }
     return "0";
   }
