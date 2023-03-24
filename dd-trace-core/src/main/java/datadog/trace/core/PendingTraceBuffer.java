@@ -36,14 +36,22 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
   }
 
   static RunningSpansBuffer runningSpans = null;
+  static CoreTracer tracer = null;
 
   public void trackRunningSpan(final DDSpan span) {
     if (runningSpans == null) { // feature not enabled
       return;
     }
     Integer prio = span.getSamplingPriority();
-    if (prio == null || prio <= 0) {
+    if (prio != null && prio <= 0) {
       return;
+    }
+    if (prio == null && tracer != null) {
+      tracer.sampler.sample(span); // sets sampling priority in the root context
+      prio = span.getSamplingPriority();
+      if (prio != null && prio <= 0) {
+        return;
+      }
     }
     runningSpans.add(span);
   }
@@ -213,6 +221,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       this.timeSource = timeSource;
       runningSpans =
           new RunningSpansBuffer(tracer, config); // TODO don't instantiate if not in config
+      this.tracer = tracer;
     }
   }
 
