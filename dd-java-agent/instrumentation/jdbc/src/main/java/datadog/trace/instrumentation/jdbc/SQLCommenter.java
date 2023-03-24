@@ -44,11 +44,11 @@ public class SQLCommenter {
     final String version = config.getVersion();
     final int commentSize = capacity(traceParent, parentService, dbService, env, version);
     StringBuilder sb = new StringBuilder(sql.length() + commentSize);
+    sb.append(OPEN_COMMENT);
     toComment(sb, injectTrace, parentService, dbService, env, version, traceParent);
-    if (sb.length() == 0) {
+    if (sb.length() == 2) {
       return sql;
     }
-    sb.insert(0, OPEN_COMMENT);
     sb.append(CLOSE_COMMENT);
     sb.append(sql);
     return sb.toString();
@@ -64,19 +64,16 @@ public class SQLCommenter {
     boolean found = false;
     if (sql.length() > 2) {
       // check if the next word starts with one of the specified keys
-      if (sql.charAt(i) == PARENT_SERVICE.charAt(0)
-          && hasMatchingSubstring(sql, i, PARENT_SERVICE)) {
+      if (sql.startsWith(PARENT_SERVICE, i) && hasMatchingSubstring(sql, i, PARENT_SERVICE)) {
         found = true;
-      } else if (sql.charAt(i) == DATABASE_SERVICE.charAt(0)
+      } else if (sql.startsWith(DATABASE_SERVICE, i)
           && hasMatchingSubstring(sql, i, DATABASE_SERVICE)) {
         found = true;
-      } else if (sql.charAt(i) == DD_ENV.charAt(0) && hasMatchingSubstring(sql, i, DD_ENV)) {
+      } else if (sql.startsWith(DD_ENV, i) && hasMatchingSubstring(sql, i, DD_ENV)) {
         found = true;
-      } else if (sql.charAt(i) == DD_VERSION.charAt(0)
-          && hasMatchingSubstring(sql, i, DD_VERSION)) {
+      } else if (sql.startsWith(DD_VERSION, i) && hasMatchingSubstring(sql, i, DD_VERSION)) {
         found = true;
-      } else if (sql.charAt(i) == TRACEPARENT.charAt(0)
-          && hasMatchingSubstring(sql, i, TRACEPARENT)) {
+      } else if (sql.startsWith(TRACEPARENT, i) && hasMatchingSubstring(sql, i, TRACEPARENT)) {
         found = true;
       }
     }
@@ -116,34 +113,37 @@ public class SQLCommenter {
       final String env,
       final String version,
       final String traceparent) {
-    append(sb, PARENT_SERVICE, parentService);
-    append(sb, DATABASE_SERVICE, dbService);
-    append(sb, DD_ENV, env);
-    append(sb, DD_VERSION, version);
+    boolean first = false;
+    first = append(sb, PARENT_SERVICE, parentService, first);
+    first = append(sb, DATABASE_SERVICE, dbService, first);
+    first = append(sb, DD_ENV, env, first);
+    first = append(sb, DD_VERSION, version, first);
     if (injectTrace) {
-      append(sb, TRACEPARENT, traceparent);
-    }
-    if (sb.length() > 0) {
-      // remove the trailing comment
-      sb.deleteCharAt(sb.length() - 1);
+      append(sb, TRACEPARENT, traceparent, first);
     }
   }
 
-  private static void append(StringBuilder sb, String key, String value) {
+  private static boolean append(StringBuilder sb, String key, String value, boolean prependComma) {
     if (null != value && !value.isEmpty()) {
       try {
+        if (prependComma) {
+          sb.append(COMMA);
+        }
         sb.append(key);
         sb.append(EQUALS);
         sb.append(QUOTE);
         sb.append(URLEncoder.encode(value, UTF8));
         sb.append(QUOTE);
-        sb.append(COMMA);
       } catch (UnsupportedEncodingException e) {
         if (log.isDebugEnabled()) {
           log.debug("exception thrown while encoding sql comment %s", e);
         }
       }
     }
+    if (sb.length() > 2) {
+      prependComma = true;
+    }
+    return prependComma;
   }
 
   private static int capacity(
