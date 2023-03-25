@@ -581,7 +581,7 @@ class RemoteDBMTraceInjectedForkedTest extends RemoteJDBCInstrumentationTest {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig("dd.sql.commenter.injection.mode", "full")
+    injectSysConfig("dd.dbm.propagation.mode", "full")
   }
 
   @Override

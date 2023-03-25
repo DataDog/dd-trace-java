@@ -41,7 +41,7 @@ public final class TraceInstrumentationConfig {
   public static final String JDBC_PREPARED_STATEMENT_CLASS_NAME =
       "trace.jdbc.prepared.statement.class.name";
 
-  public static final String DB_CLIENT_SQL_COMMENT_INJECTION_MODE = "sql.commenter.injection.mode";
+  public static final String DB_DBM_PROPAGATION_MODE_MODE = "dbm.propagation.mode";
 
   public static final String JDBC_CONNECTION_CLASS_NAME = "trace.jdbc.connection.class.name";
 

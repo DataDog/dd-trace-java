@@ -35,15 +35,15 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   private static final UTF8BytesString JDBC_PREPARED_STATEMENT =
       UTF8BytesString.create("java-jdbc-prepared_statement");
 
-  public static final String SQL_COMMENT_INJECTION_STATIC = "service";
-  public static final String SQL_COMMENT_INJECTION_FULL = "full";
+  public static final String DBM_PROPAGATION_MODE_STATIC = "service";
+  public static final String DBM_PROPAGATION_MODE_FULL = "full";
 
-  public static final String SQL_COMMENT_INJECTION_MODE = Config.get().getSqlCommentInjectionMode();
+  public static final String DBM_PROPAGATION_MODE = Config.get().getDBMPropagationMode();
   public static final boolean INJECT_COMMENT =
-      SQL_COMMENT_INJECTION_MODE.equals(SQL_COMMENT_INJECTION_FULL)
-          || SQL_COMMENT_INJECTION_MODE.equals(SQL_COMMENT_INJECTION_STATIC);
+      DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL)
+          || DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_STATIC);
   public static final boolean INJECT_TRACE_CONTEXT =
-      SQL_COMMENT_INJECTION_MODE.equals(SQL_COMMENT_INJECTION_FULL);
+      DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL);
 
   public static void logMissingQueryInfo(Statement statement) throws SQLException {
     if (log.isDebugEnabled()) {
