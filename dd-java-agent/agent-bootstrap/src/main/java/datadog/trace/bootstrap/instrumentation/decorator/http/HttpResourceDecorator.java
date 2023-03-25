@@ -16,6 +16,9 @@ public class HttpResourceDecorator {
   private final boolean shouldSetUrlResourceName =
       Config.get().isRuleEnabled("URLAsResourceNameRule");
 
+  private final boolean shouldPrependServletPathToResourceName =
+      Config.get().isRuleEnabled("PrependServletPathToResourceNameRule", false);
+
   private HttpResourceDecorator() {}
 
   public final AgentSpan withClientPath(AgentSpan span, CharSequence method, CharSequence path) {
@@ -45,9 +48,11 @@ public class HttpResourceDecorator {
     span.setTag(Tags.HTTP_ROUTE, routeTag);
     if (Config.get().isHttpServerRouteBasedNaming()) {
       CharSequence path = route;
-      String servletContext = String.valueOf(span.getTag("servlet.context"));
-      if (servletContext != null && !servletContext.isEmpty()) {
-        path = servletContext + path;
+      if (shouldPrependServletPathToResourceName) {
+        String servletContext = String.valueOf(span.getTag("servlet.context"));
+        if (servletContext != null && !servletContext.isEmpty()) {
+          path = servletContext + path;
+        }
       }
       final CharSequence resourceName = HttpResourceNames.join(method, path);
       span.setResourceName(resourceName, ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
