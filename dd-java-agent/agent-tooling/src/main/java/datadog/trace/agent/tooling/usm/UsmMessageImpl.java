@@ -17,6 +17,10 @@ public abstract class UsmMessageImpl {
 
     // message created from a hook on close method of the SSLSocketImpl
     CLOSE_CONNECTION,
+
+    // message created by SocketChannelImpl for async connection
+    // to pass the peer hostname for later correlation of the 2 tuple to full 4 tuples
+    HOSTNAME,
   }
 
   private static final Logger log = LoggerFactory.getLogger(BaseUsmMessage.class);
@@ -150,6 +154,44 @@ public abstract class UsmMessageImpl {
     }
   }
 
+  static class HostUsmMessage extends BaseUsmMessage {
+
+
+    // though according to rfc 1035 (https://www.rfc-editor.org/rfc/rfc1035) max hostname can be up to 256 bytes
+    // most of the hostname don't exceed 64 bytes
+    static final int MAX_HOSTNAME_SIZE = 64;
+
+    public HostUsmMessage(UsmConnection connection, String hostname) {
+      super(MessageType.HOSTNAME, connection);
+      int size = hostname.length();
+      // check the buffer is not larger than max allowed,
+      if (hostname.length() > MAX_HOSTNAME_SIZE) {
+        log.warn("got hostname that exceeds the max size " +hostname);
+        size = MAX_HOSTNAME_SIZE;
+      }
+      pointer.setInt(offset, size);
+      offset += Integer.BYTES;
+      pointer.write(offset, hostname.substring(0,size).getBytes(), 0, size);
+      offset += size;
+      log.debug("hostname: "+hostname);
+      log.debug(
+          "src host: "
+              + connection.getSrcIP().toString()
+              + " src port: "
+              + connection.getSrcPort());
+      log.debug(
+          "dst host: "
+              + connection.getDstIP().toString()
+              + " dst port: "
+              + connection.getDstPort());
+    }
+
+    @Override
+    public int dataSize() {
+      return MAX_HOSTNAME_SIZE + Integer.BYTES;
+    }
+  }
+
   static class RequestUsmMessage extends BaseUsmMessage {
 
     // This determines the size of the payload fragment that is captured for each
@@ -157,6 +199,7 @@ public abstract class UsmMessageImpl {
     // should be equal to:
     // https://github.com/DataDog/datadog-agent/blob/main/pkg/network/ebpf/c/protocols/http-types.h#L7
     static final int MAX_HTTPS_BUFFER_SIZE = 8 * 20;
+
 
     public RequestUsmMessage(UsmConnection connection, byte[] buffer, int bufferOffset, int len) {
       super(MessageType.REQUEST, connection);
@@ -198,4 +241,5 @@ public abstract class UsmMessageImpl {
       return MAX_HTTPS_BUFFER_SIZE + Integer.BYTES;
     }
   }
+
 }

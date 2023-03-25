@@ -2,9 +2,10 @@ package datadog.trace.agent.tooling.usm;
 
 import datadog.trace.agent.tooling.usm.UsmMessageImpl.CloseConnectionUsmMessage;
 import datadog.trace.agent.tooling.usm.UsmMessageImpl.RequestUsmMessage;
-import datadog.trace.bootstrap.instrumentation.usm.UsmConnection;
-import datadog.trace.bootstrap.instrumentation.usm.UsmMessage;
-import datadog.trace.bootstrap.instrumentation.usm.UsmMessageFactory;
+import datadog.trace.agent.tooling.usm.UsmMessageImpl.HostUsmMessage;
+import datadog.trace.bootstrap.instrumentation.api.UsmConnection;
+import datadog.trace.bootstrap.instrumentation.api.UsmMessage;
+import datadog.trace.bootstrap.instrumentation.api.UsmMessageFactory;
 
 public class UsmMessageFactoryImpl implements UsmMessageFactory {
   @Override
@@ -16,6 +17,11 @@ public class UsmMessageFactoryImpl implements UsmMessageFactory {
   public UsmMessage getRequestMessage(
       UsmConnection connection, byte[] buffer, int bufferOffset, int len) {
     return new RequestUsmMessage(connection, buffer, bufferOffset, len);
+  }
+
+  @Override
+  public UsmMessage getHostMessage(UsmConnection connection, String hostName) {
+    return new HostUsmMessage(connection, hostName);
   }
 
   public static void registerAsSupplier() {

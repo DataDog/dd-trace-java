@@ -5,11 +5,17 @@ public interface UsmMessageFactory {
 
   UsmMessage getRequestMessage(UsmConnection connection, byte[] buffer, int bufferOffset, int len);
 
+  UsmMessage getHostMessage(UsmConnection connection, String hostName);
+
   abstract class Supplier {
     private static volatile UsmMessageFactory SUPPLIER;
 
     public static UsmMessage getCloseMessage(UsmConnection connection) {
       return SUPPLIER.getCloseMessage(connection);
+    }
+
+    public static UsmMessage getHostMessage(UsmConnection connection, String hostName) {
+      return SUPPLIER.getHostMessage(connection,hostName);
     }
 
     public static UsmMessage getRequestMessage(
