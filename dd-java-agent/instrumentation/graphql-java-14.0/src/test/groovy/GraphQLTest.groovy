@@ -1,5 +1,3 @@
-import static graphql.schema.idl.TypeRuntimeWiring.newTypeWiring
-
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Trace
@@ -15,6 +13,8 @@ import graphql.schema.idl.SchemaParser
 import spock.lang.Shared
 
 import java.nio.charset.StandardCharsets
+
+import static graphql.schema.idl.TypeRuntimeWiring.newTypeWiring
 
 abstract class GraphQLTest extends VersionedNamingTestBase {
   @Shared
@@ -107,7 +107,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
           parent()
           tags {
             "$Tags.COMPONENT" "graphql-java"
-            "graphql.query" expectedQuery
+            "graphql.source" expectedQuery
             "graphql.operation.name" "findBookById"
             defaultTags()
           }
@@ -227,7 +227,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
           parent()
           tags {
             "$Tags.COMPONENT" "graphql-java"
-            "graphql.query" expectedQuery
+            "graphql.source" expectedQuery
             "graphql.operation.name" null
             "error.message" { it.contains("Field 'title' in type 'Book' is undefined") }
             "error.message" { it.contains("(and 1 more errors)") }
@@ -286,7 +286,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
           parent()
           tags {
             "$Tags.COMPONENT" "graphql-java"
-            "graphql.query" query
+            "graphql.source" query
             "graphql.operation.name" null
             "error.message" { it.toLowerCase().startsWith("invalid syntax") }
             defaultTags()
@@ -341,7 +341,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
           parent()
           tags {
             "$Tags.COMPONENT" "graphql-java"
-            "graphql.query" expectedQuery
+            "graphql.source" expectedQuery
             "graphql.operation.name" "findBookById"
             "error.message" "Exception while fetching data (/bookById/cover) : TEST"
             defaultTags()
