@@ -2,9 +2,9 @@ package datadog.trace.instrumentation.gradle;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.decorator.TestDecorator;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.config.CiVisibilityConfig;
-import datadog.trace.bootstrap.instrumentation.decorator.AbstractTestDecorator;
 import datadog.trace.util.Strings;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -18,10 +18,12 @@ import org.gradle.api.initialization.Settings;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.tasks.TaskState;
 import org.gradle.process.JavaForkOptions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GradleBuildListener extends BuildAdapter {
 
-  private static final String DD_CIVISIBILITY_PROPERTY = "dd-civisibility";
+  private static final Logger log = LoggerFactory.getLogger(GradleBuildListener.class);
 
   private final BuildEventsHandler<Gradle> buildEventsHandler =
       InstrumentationBridge.getBuildEventsHandler();
@@ -33,7 +35,7 @@ public class GradleBuildListener extends BuildAdapter {
     }
     Gradle gradle = settings.getGradle();
     Path projectRoot = settings.getRootDir().toPath();
-    AbstractTestDecorator gradleDecorator = new GradleDecorator(projectRoot);
+    TestDecorator gradleDecorator = new GradleDecorator(projectRoot);
     ProjectDescriptor rootProject = settings.getRootProject();
     String projectName = rootProject.getName();
     String startCommand = GradleUtils.recreateStartCommand(settings.getStartParameter());
@@ -54,6 +56,10 @@ public class GradleBuildListener extends BuildAdapter {
       // if the project uses multiple test frameworks, we do not set the tags
       GradleUtils.TestFramework testFramework = testFrameworks.iterator().next();
       buildEventsHandler.onTestFrameworkDetected(gradle, testFramework.name, testFramework.version);
+    } else if (testFrameworks.size() > 1) {
+      log.info(
+          "Multiple test frameworks detected: {}. Test framework data will not be populated",
+          testFrameworks);
     }
 
     gradle.addListener(new TestTaskExecutionListener(buildEventsHandler));

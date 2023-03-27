@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.testng
 
+import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.base.TestFrameworkTest
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -32,13 +33,17 @@ abstract class TestNGTest extends TestFrameworkTest {
     testNG.run()
 
     expect:
-    assertTraces(1) {
-      trace(3, true) {
-        long testModuleId = testModuleSpan(it, 1, CIConstants.TEST_PASS)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestSucceed", CIConstants.TEST_PASS)
+    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long testSuiteId
+      trace(2, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceed", CIConstants.TEST_PASS)
+      }
+      trace(1) {
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceed", "test_succeed", CIConstants.TEST_PASS)
       }
-    }
+    })
   }
 
   def "test inheritance generates spans"() {
@@ -49,13 +54,17 @@ abstract class TestNGTest extends TestFrameworkTest {
     testNG.run()
 
     expect:
-    assertTraces(1) {
-      trace(3, true) {
-        long testModuleId = testModuleSpan(it, 1, CIConstants.TEST_PASS)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestInheritance", CIConstants.TEST_PASS)
+    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long testSuiteId
+      trace(2, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestInheritance", CIConstants.TEST_PASS)
+      }
+      trace(1) {
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestInheritance", "test_succeed", CIConstants.TEST_PASS)
       }
-    }
+    })
   }
 
   def "test failed generates spans"() {
@@ -70,13 +79,17 @@ abstract class TestNGTest extends TestFrameworkTest {
     }
 
     expect:
-    assertTraces(1) {
-      trace(3, true) {
-        long testModuleId = testModuleSpan(it, 1, CIConstants.TEST_FAIL)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestFailed", CIConstants.TEST_FAIL)
+    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long testSuiteId
+      trace(2, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_FAIL)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestFailed", CIConstants.TEST_FAIL)
+      }
+      trace(1) {
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailed", "test_failed", CIConstants.TEST_FAIL, null, exception)
       }
-    }
+    })
 
     where:
     exception = new AssertionError(assertionErrorMessage(), null)
@@ -94,17 +107,29 @@ abstract class TestNGTest extends TestFrameworkTest {
     }
 
     expect:
-    assertTraces(1) {
-      trace(7, true) {
-        long testModuleId = testModuleSpan(it, 5, CIConstants.TEST_FAIL)
-        long testSuiteId = testSuiteSpan(it, 6, testModuleId, "org.example.TestFailedWithSuccessPercentage", CIConstants.TEST_FAIL)
-        testSpan(it, 3, testModuleId, testSuiteId, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", CIConstants.TEST_FAIL, null, exception)
-        testSpan(it, 4, testModuleId, testSuiteId, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", CIConstants.TEST_FAIL, null, exception)
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", CIConstants.TEST_PASS)
-        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", CIConstants.TEST_PASS)
-        testSpan(it, 2, testModuleId, testSuiteId, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", CIConstants.TEST_PASS)
+    ListWriterAssert.assertTraces(TEST_WRITER, 6, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long testSuiteId
+      trace(2, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_FAIL)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestFailedWithSuccessPercentage", CIConstants.TEST_FAIL)
       }
-    }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", CIConstants.TEST_FAIL, null, exception)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", CIConstants.TEST_FAIL, null, exception)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", CIConstants.TEST_PASS)
+      }
+    })
 
     where:
     exception = new AssertionError(assertionErrorMessage(), null)
@@ -118,13 +143,17 @@ abstract class TestNGTest extends TestFrameworkTest {
     testNG.run()
 
     expect:
-    assertTraces(1) {
-      trace(3, true) {
-        long testModuleId = testModuleSpan(it, 1, CIConstants.TEST_FAIL)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestError", CIConstants.TEST_FAIL)
+    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long testSuiteId
+      trace(2, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_FAIL)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestError", CIConstants.TEST_FAIL)
+      }
+      trace(1) {
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestError", "test_error", CIConstants.TEST_FAIL, null, exception)
       }
-    }
+    })
 
     where:
     exception = new IllegalArgumentException("This exception is an example")
@@ -138,13 +167,17 @@ abstract class TestNGTest extends TestFrameworkTest {
     testNG.run()
 
     expect:
-    assertTraces(1) {
-      trace(3, true) {
-        long testModuleId = testModuleSpan(it, 1, CIConstants.TEST_SKIP)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestSkipped", CIConstants.TEST_SKIP)
+    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long testSuiteId
+      trace(2, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_SKIP)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSkipped", CIConstants.TEST_SKIP)
+      }
+      trace(1) {
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags)
       }
-    }
+    })
 
     where:
     testTags = [(Tags.TEST_SKIP_REASON): "Ignore reason in test"]
@@ -158,14 +191,20 @@ abstract class TestNGTest extends TestFrameworkTest {
     testNG.run()
 
     expect:
-    assertTraces(1) {
-      trace(4, true) {
-        long testModuleId = testModuleSpan(it, 2, CIConstants.TEST_PASS)
-        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestParameterized", CIConstants.TEST_PASS)
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "parameterized_test_succeed", CIConstants.TEST_PASS, testTags_1)
-        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestParameterized", "parameterized_test_succeed", CIConstants.TEST_PASS, testTags_0)
+    ListWriterAssert.assertTraces(TEST_WRITER, 3, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long testSuiteId
+      trace(2, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestParameterized", CIConstants.TEST_PASS)
       }
-    }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "parameterized_test_succeed", CIConstants.TEST_PASS, testTags_0)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestParameterized", "parameterized_test_succeed", CIConstants.TEST_PASS, testTags_1)
+      }
+    })
 
     where:
     testTags_0 = [(Tags.TEST_PARAMETERS): '{"arguments":{"0":"hello","1":"true"}}']
@@ -180,15 +219,19 @@ abstract class TestNGTest extends TestFrameworkTest {
     testNG.run()
 
     expect:
-    assertTraces(1) {
-      trace(3, true) {
-        long testModuleId = testModuleSpan(it, 1, CIConstants.TEST_PASS)
-        long testSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestSucceedGroups", CIConstants.TEST_PASS,
+    ListWriterAssert.assertTraces(TEST_WRITER, 2, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long testSuiteId
+      trace(2, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceedGroups", CIConstants.TEST_PASS,
           null, null, false, ["classGroup", "parentGroup"])
+      }
+      trace(1) {
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedGroups", "test_succeed", CIConstants.TEST_PASS,
           null, null, false, ["classGroup", "testCaseGroup", "parentGroup"])
       }
-    }
+    })
   }
 
   def "test class skipped generated spans"() {
@@ -199,14 +242,20 @@ abstract class TestNGTest extends TestFrameworkTest {
     testNG.run()
 
     expect:
-    assertTraces(1) {
-      trace(4, true) {
-        long testModuleId = testModuleSpan(it, 2, CIConstants.TEST_SKIP)
-        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestSkippedClass", CIConstants.TEST_SKIP)
-        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_class_skipped", CIConstants.TEST_SKIP, testTags)
+    ListWriterAssert.assertTraces(TEST_WRITER, 3, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long testSuiteId
+      trace(2, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_SKIP)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSkippedClass", CIConstants.TEST_SKIP)
+      }
+      trace(1) {
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_class_another_skipped", CIConstants.TEST_SKIP, testTags)
       }
-    }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSkippedClass", "test_class_skipped", CIConstants.TEST_SKIP, testTags)
+      }
+    })
 
     where:
     testTags = [(Tags.TEST_SKIP_REASON): classSkipReason()] // framework versions used in tests cannot provide skip reason
@@ -221,14 +270,20 @@ abstract class TestNGTest extends TestFrameworkTest {
     testNG.run()
 
     expect:
-    assertTraces(1) {
-      trace(4, true) {
-        long testModuleId = testModuleSpan(it, 2, CIConstants.TEST_PASS)
-        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestSucceedAndSkipped", CIConstants.TEST_PASS)
-        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags)
-        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", CIConstants.TEST_PASS)
+    ListWriterAssert.assertTraces(TEST_WRITER, 3, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long testSuiteId
+      trace(2, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceedAndSkipped", CIConstants.TEST_PASS)
       }
-    }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", CIConstants.TEST_PASS)
+      }
+    })
 
     where:
     testTags = [(Tags.TEST_SKIP_REASON): "Ignore reason in test"]
@@ -242,15 +297,23 @@ abstract class TestNGTest extends TestFrameworkTest {
     testNG.run()
 
     expect:
-    assertTraces(1) {
-      trace(5, true) {
-        long testModuleId = testModuleSpan(it, 3, CIConstants.TEST_FAIL)
-        long testSuiteId = testSuiteSpan(it, 4, testModuleId, "org.example.TestFailedAndSucceed", CIConstants.TEST_FAIL)
-        testSpan(it, 2, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_succeed", CIConstants.TEST_PASS)
-        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_failed", CIConstants.TEST_FAIL, null, exception)
+    ListWriterAssert.assertTraces(TEST_WRITER, 4, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long testSuiteId
+      trace(2, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_FAIL)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestFailedAndSucceed", CIConstants.TEST_FAIL)
+      }
+      trace(1) {
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_another_succeed", CIConstants.TEST_PASS)
       }
-    }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_failed", CIConstants.TEST_FAIL, null, exception)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedAndSucceed", "test_succeed", CIConstants.TEST_PASS)
+      }
+    })
 
     where:
     exception = new AssertionError(assertionErrorMessage(), null)
@@ -264,14 +327,20 @@ abstract class TestNGTest extends TestFrameworkTest {
     testNG.run()
 
     expect:
-    assertTraces(1) {
-      trace(4, true) {
-        long testModuleId = testModuleSpan(it, 2, CIConstants.TEST_FAIL)
-        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestFailedSuiteTearDown", CIConstants.TEST_FAIL, null, exception)
-        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestFailedSuiteTearDown", "test_succeed", CIConstants.TEST_PASS)
+    ListWriterAssert.assertTraces(TEST_WRITER, 3, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long testSuiteId
+      trace(2, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_FAIL)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestFailedSuiteTearDown", CIConstants.TEST_FAIL, null, exception)
+      }
+      trace(1) {
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedSuiteTearDown", "test_another_succeed", CIConstants.TEST_PASS)
       }
-    }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedSuiteTearDown", "test_succeed", CIConstants.TEST_PASS)
+      }
+    })
 
     where:
     exception = new RuntimeException("suite tear down failed")
@@ -285,15 +354,21 @@ abstract class TestNGTest extends TestFrameworkTest {
     testNG.run()
 
     expect:
-    assertTraces(1) {
-      trace(4, true) {
-        long testModuleId = testModuleSpan(it, 2, CIConstants.TEST_FAIL)
-        long testSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestFailedSuiteSetup", CIConstants.TEST_FAIL, null, exception)
-        // if suite set up fails, TestNG will report that suite's test cases as skipped
-        testSpan(it, 1, testModuleId, testSuiteId, "org.example.TestFailedSuiteSetup", "test_succeed", CIConstants.TEST_SKIP, testTags)
+    ListWriterAssert.assertTraces(TEST_WRITER, 3, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long testSuiteId
+      trace(2, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_FAIL)
+        testSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestFailedSuiteSetup", CIConstants.TEST_FAIL, null, exception)
+      }
+      // if suite set up fails, TestNG will report that suite's test cases as skipped
+      trace(1) {
         testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedSuiteSetup", "test_another_succeed", CIConstants.TEST_SKIP, testTags)
       }
-    }
+      trace(1) {
+        testSpan(it, 0, testModuleId, testSuiteId, "org.example.TestFailedSuiteSetup", "test_succeed", CIConstants.TEST_SKIP, testTags)
+      }
+    })
 
     where:
     exception = new RuntimeException("suite set up failed")
@@ -308,18 +383,25 @@ abstract class TestNGTest extends TestFrameworkTest {
     testNG.run()
 
     expect:
-    assertTraces(1) {
-      trace(6, true) {
-        long testModuleId = testModuleSpan(it, 3, CIConstants.TEST_PASS)
-
-        long firstSuiteId = testSuiteSpan(it, 4, testModuleId, "org.example.TestSucceed", CIConstants.TEST_PASS)
-        testSpan(it, 0, testModuleId, firstSuiteId, "org.example.TestSucceed", "test_succeed", CIConstants.TEST_PASS)
-
-        long secondSuiteId = testSuiteSpan(it, 5, testModuleId, "org.example.TestSucceedAndSkipped", CIConstants.TEST_PASS)
-        testSpan(it, 1, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags)
-        testSpan(it, 2, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", CIConstants.TEST_PASS)
+    ListWriterAssert.assertTraces(TEST_WRITER, 4, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long firstSuiteId
+      long secondSuiteId
+      trace(3, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        firstSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceed", CIConstants.TEST_PASS)
+        secondSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestSucceedAndSkipped", CIConstants.TEST_PASS)
       }
-    }
+      trace(1) {
+        testSpan(it, 0, testModuleId, firstSuiteId, "org.example.TestSucceed", "test_succeed", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_skipped", CIConstants.TEST_SKIP, testTags)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestSucceedAndSkipped", "test_succeed", CIConstants.TEST_PASS)
+      }
+    })
 
     where:
     testTags = [(Tags.TEST_SKIP_REASON): "Ignore reason in test"]
@@ -333,19 +415,28 @@ abstract class TestNGTest extends TestFrameworkTest {
     testNG.run()
 
     expect:
-    assertTraces(1) {
-      trace(7, true) {
-        long testModuleId = testModuleSpan(it, 4, CIConstants.TEST_FAIL)
-
-        long firstSuiteId = testSuiteSpan(it, 6, testModuleId, "org.example.TestSucceed", CIConstants.TEST_PASS)
-        testSpan(it, 3, testModuleId, firstSuiteId, "org.example.TestSucceed", "test_succeed", CIConstants.TEST_PASS)
-
-        long secondSuiteId = testSuiteSpan(it, 5, testModuleId, "org.example.TestFailedAndSucceed", CIConstants.TEST_FAIL)
-        testSpan(it, 2, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_succeed", CIConstants.TEST_PASS)
-        testSpan(it, 1, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_failed", CIConstants.TEST_FAIL, null, exception)
+    ListWriterAssert.assertTraces(TEST_WRITER, 5, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long firstSuiteId
+      long secondSuiteId
+      trace(3, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_FAIL)
+        firstSuiteId = testSuiteSpan(it, 2, testModuleId, "org.example.TestSucceed", CIConstants.TEST_PASS)
+        secondSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestFailedAndSucceed", CIConstants.TEST_FAIL)
+      }
+      trace(1) {
         testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_another_succeed", CIConstants.TEST_PASS)
       }
-    }
+      trace(1) {
+        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_failed", CIConstants.TEST_FAIL, null, exception)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, secondSuiteId, "org.example.TestFailedAndSucceed", "test_succeed", CIConstants.TEST_PASS)
+      }
+      trace(1) {
+        testSpan(it, 0, testModuleId, firstSuiteId, "org.example.TestSucceed", "test_succeed", CIConstants.TEST_PASS)
+      }
+    })
 
     where:
     exception = new AssertionError(assertionErrorMessage(), null)
@@ -359,17 +450,22 @@ abstract class TestNGTest extends TestFrameworkTest {
     testNG.run()
 
     expect:
-    assertTraces(1) {
-      trace(5, true) {
-        long testModuleId = testModuleSpan(it, 2, CIConstants.TEST_PASS)
-
-        long topLevelSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestSucceedNested", CIConstants.TEST_PASS)
-        testSpan(it, 1, testModuleId, topLevelSuiteId, "org.example.TestSucceedNested", "test_succeed", CIConstants.TEST_PASS)
-
-        long nestedSuiteId = testSuiteSpan(it, 4, testModuleId, 'org.example.TestSucceedNested$NestedSuite', CIConstants.TEST_PASS)
+    ListWriterAssert.assertTraces(TEST_WRITER, 3, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long topLevelSuiteId
+      long nestedSuiteId
+      trace(3, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        topLevelSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSucceedNested", CIConstants.TEST_PASS)
+        nestedSuiteId = testSuiteSpan(it, 2, testModuleId, 'org.example.TestSucceedNested$NestedSuite', CIConstants.TEST_PASS)
+      }
+      trace(1) {
         testSpan(it, 0, testModuleId, nestedSuiteId, 'org.example.TestSucceedNested$NestedSuite', "test_succeed_nested", CIConstants.TEST_PASS)
       }
-    }
+      trace(1) {
+        testSpan(it, 0, testModuleId, topLevelSuiteId, "org.example.TestSucceedNested", "test_succeed", CIConstants.TEST_PASS)
+      }
+    })
   }
 
   def "test nested skipped suites"() {
@@ -380,17 +476,22 @@ abstract class TestNGTest extends TestFrameworkTest {
     testNG.run()
 
     expect:
-    assertTraces(1) {
-      trace(5, true) {
-        long testModuleId = testModuleSpan(it, 2, CIConstants.TEST_PASS)
-
-        long topLevelSuiteId = testSuiteSpan(it, 3, testModuleId, "org.example.TestSkippedNested", CIConstants.TEST_SKIP)
-        testSpan(it, 1, testModuleId, topLevelSuiteId, "org.example.TestSkippedNested", "test_succeed", CIConstants.TEST_SKIP, testTags)
-
-        long nestedSuiteId = testSuiteSpan(it, 4, testModuleId, 'org.example.TestSkippedNested$NestedSuite', CIConstants.TEST_PASS)
+    ListWriterAssert.assertTraces(TEST_WRITER, 3, false, SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES, {
+      long testModuleId
+      long topLevelSuiteId
+      long nestedSuiteId
+      trace(3, true) {
+        testModuleId = testModuleSpan(it, 0, CIConstants.TEST_PASS)
+        topLevelSuiteId = testSuiteSpan(it, 1, testModuleId, "org.example.TestSkippedNested", CIConstants.TEST_SKIP)
+        nestedSuiteId = testSuiteSpan(it, 2, testModuleId, 'org.example.TestSkippedNested$NestedSuite', CIConstants.TEST_PASS)
+      }
+      trace(1) {
         testSpan(it, 0, testModuleId, nestedSuiteId, 'org.example.TestSkippedNested$NestedSuite', "test_succeed_nested", CIConstants.TEST_PASS)
       }
-    }
+      trace(1) {
+        testSpan(it, 0, testModuleId, topLevelSuiteId, "org.example.TestSkippedNested", "test_succeed", CIConstants.TEST_SKIP, testTags)
+      }
+    })
 
     where:
     testTags = testCaseTagsIfSuiteSetUpFailedOrSkipped("Ignore reason in class")

@@ -124,8 +124,8 @@ class GradleDaemonSmokeTest extends Specification {
         test_module_id > 0
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
-          it["test.module"] == ":test"
-          it["test.bundle"] == ":test"
+          it["test.module"] == ":test" // task path
+          it["test.bundle"] == ":test" // task path
         }
       }
     }
@@ -178,8 +178,8 @@ class GradleDaemonSmokeTest extends Specification {
         test_module_id > 0
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
-          it["test.module"] == ":test"
-          it["test.bundle"] == ":test"
+          it["test.module"] == ":test" // task path
+          it["test.bundle"] == ":test" // task path
         }
       }
     }
@@ -231,8 +231,8 @@ class GradleDaemonSmokeTest extends Specification {
         test_module_id > 0
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
-          it["test.module"] == ":submodule-a:test"
-          it["test.bundle"] == ":submodule-a:test"
+          it["test.module"] == ":submodule-a:test" // task path
+          it["test.bundle"] == ":submodule-a:test" // task path
         }
       }
     }
@@ -247,8 +247,8 @@ class GradleDaemonSmokeTest extends Specification {
         test_module_id > 0
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
-          it["test.module"] == ":submodule-b:test"
-          it["test.bundle"] == ":submodule-b:test"
+          it["test.module"] == ":submodule-b:test" // task path
+          it["test.bundle"] == ":submodule-b:test" // task path
         }
       }
     }
@@ -308,8 +308,8 @@ class GradleDaemonSmokeTest extends Specification {
         test_module_id > 0
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
-          it["test.module"] == ":test"
-          it["test.bundle"] == ":test"
+          it["test.module"] == ":test" // task path
+          it["test.bundle"] == ":test" // task path
         }
       }
     }
@@ -360,8 +360,8 @@ class GradleDaemonSmokeTest extends Specification {
         test_module_id > 0
         verifyAll(meta) {
           it["span.kind"] == "test_module_end"
-          it["test.module"] == ":test"
-          it["test.bundle"] == ":test"
+          it["test.module"] == ":test" // task path
+          it["test.bundle"] == ":test" // task path
           it["test.skip_reason"] == "NO-SOURCE"
         }
       }

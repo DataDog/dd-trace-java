@@ -17,6 +17,7 @@ import datadog.trace.api.civisibility.source.SourcePathResolver
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import datadog.trace.util.Strings
 import spock.lang.Unroll
 
@@ -26,6 +27,8 @@ import java.nio.file.Paths
 
 @Unroll
 abstract class TestFrameworkTest extends AgentTestRunner {
+
+  protected static final Comparator<List<DDSpan>> SORT_TRACES_BY_DESC_SIZE_THEN_BY_NAMES = new SortTracesByDescSizeThenByNames()
 
   static String dummyModule
   static final String DUMMY_CI_TAG = "dummy_ci_tag"
@@ -294,11 +297,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
     def testFrameworkVersion = expectedTestFrameworkVersion()
 
     trace.span(index) {
-      if (testSuiteId != null) {
-        parentSpanId(BigInteger.valueOf(testSuiteId))
-      } else {
-        parent()
-      }
+      parent()
       operationName expectedOperationPrefix() + ".test"
       resourceName "$testSuite.$testName"
       spanType DDSpanTypes.TEST
@@ -368,4 +367,20 @@ abstract class TestFrameworkTest extends AgentTestRunner {
   abstract String expectedTestFrameworkVersion()
 
   abstract String component()
+
+  private static class SortTracesByDescSizeThenByNames implements Comparator<List<DDSpan>> {
+    @Override
+    int compare(List<DDSpan> o1, List<DDSpan> o2) {
+      if (o1.size() != o2.size()) {
+        return o2.size() - o1.size()
+      }
+      return rootSpanTrace(o1) <=> rootSpanTrace(o2)
+    }
+
+    String rootSpanTrace(List<DDSpan> trace) {
+      assert !trace.isEmpty()
+      def rootSpan = trace.get(0).localRootSpan
+      return "${rootSpan.serviceName}/${rootSpan.operationName}/${rootSpan.resourceName}"
+    }
+  }
 }

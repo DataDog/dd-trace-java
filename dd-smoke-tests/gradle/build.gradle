@@ -9,6 +9,6 @@ dependencies {
   testImplementation project(':dd-smoke-tests')
   testImplementation gradleTestKit()
 
-  implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.14.0'
+  testImplementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.14.0'
   testImplementation group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.20'
 }
