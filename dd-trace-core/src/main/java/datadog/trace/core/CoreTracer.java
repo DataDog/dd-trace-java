@@ -4,6 +4,11 @@ import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDCli
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.api.DDTags.PATHWAY_HASH;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -26,6 +31,8 @@ import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.config.GeneralConfig;
+import datadog.trace.api.datastreams.DataStreamsCheckpointer;
+import datadog.trace.api.datastreams.DataStreamsContextCarrier;
 import datadog.trace.api.experimental.Profiling;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.InstrumentationGateway;
@@ -61,6 +68,7 @@ import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
+import datadog.trace.core.datastreams.DataStreamsContextCarrierAdapter;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
@@ -966,6 +974,48 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public boolean addTraceInterceptor(final TraceInterceptor interceptor) {
     return interceptors.add(interceptor);
+  }
+
+  @Override
+  public DataStreamsCheckpointer getDataStreamsCheckpointer() {
+    return this;
+  }
+
+  @Override
+  public <T> void setConsumeCheckpoint(String type, String source,
+      DataStreamsContextCarrier carrier) {
+    AgentSpan span = activeSpan();
+    if (span == null) {
+      log.warn("SetConsumeCheckpoint is called with no active span");
+      return;
+    }
+
+    PathwayContext pathwayContext = extractPathwayContext(carrier, DataStreamsContextCarrierAdapter.INSTANCE);
+    span.mergePathwayContext(pathwayContext);
+
+    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+    sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+    sortedTags.put(TYPE_TAG, type);
+    sortedTags.put(TOPIC_TAG, source);
+
+    setDataStreamCheckpoint(span, sortedTags);
+  }
+
+  @Override
+  public <T> void setProduceCheckpoint(String type, String source,
+      DataStreamsContextCarrier carrier) {
+    AgentSpan span = activeSpan();
+    if (span == null) {
+      log.warn("SetProduceCheckpoint is called with no active span");
+      return;
+    }
+
+    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+    sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+    sortedTags.put(TYPE_TAG, type);
+    sortedTags.put(TOPIC_TAG, source);
+
+    injectPathwayContext(span, carrier, DataStreamsContextCarrierAdapter.INSTANCE, sortedTags);
   }
 
   @Override

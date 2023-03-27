@@ -2,7 +2,13 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 
-import datadog.trace.api.*;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
+import datadog.trace.api.EndpointCheckpointer;
+import datadog.trace.api.EndpointTracker;
+import datadog.trace.api.TracePropagationStyle;
+import datadog.trace.api.datastreams.DataStreamsCheckpointer;
+import datadog.trace.api.datastreams.DataStreamsContextCarrier;
 import datadog.trace.api.experimental.Profiling;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -119,6 +125,7 @@ public class AgentTracer {
           InternalTracer,
           AgentPropagation,
           EndpointCheckpointer,
+          DataStreamsCheckpointer,
           ScopeStateAware {
     AgentSpan startSpan(CharSequence spanName);
 
@@ -322,6 +329,11 @@ public class AgentTracer {
     }
 
     @Override
+    public DataStreamsCheckpointer getDataStreamsCheckpointer() {
+      return null;
+    }
+
+    @Override
     public void addScopeListener(final ScopeListener listener) {}
 
     @Override
@@ -411,6 +423,17 @@ public class AgentTracer {
     @Override
     public DataStreamsMonitoring getDataStreamsMonitoring() {
       return dataStreamsMonitoring;
+    }
+
+    @Override
+    public <T> void setConsumeCheckpoint(String type, String source,
+        DataStreamsContextCarrier setter) {
+    }
+
+    @Override
+    public <T> void setProduceCheckpoint(String type, String source,
+        DataStreamsContextCarrier setter) {
+
     }
   }
 

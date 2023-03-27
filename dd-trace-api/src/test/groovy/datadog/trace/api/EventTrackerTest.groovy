@@ -1,5 +1,6 @@
 package datadog.trace.api
 
+import datadog.trace.api.datastreams.DataStreamsCheckpointer
 import datadog.trace.api.experimental.Profiling
 import datadog.trace.api.interceptor.TraceInterceptor
 import datadog.trace.api.internal.InternalTracer
@@ -147,6 +148,11 @@ class EventTrackerTest extends DDSpecification {
     @Override
     boolean addTraceInterceptor(TraceInterceptor traceInterceptor) {
       return false
+    }
+
+    @Override
+    DataStreamsCheckpointer getDataStreamsCheckpointer() {
+      return null
     }
 
     @Override
