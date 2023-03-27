@@ -21,6 +21,7 @@ public abstract class UsmMessageImpl {
     // message created by SocketChannelImpl for async connection
     // to pass the peer hostname for later correlation of the 2 tuple to full 4 tuples
     HOSTNAME,
+    PLAIN,
   }
 
   private static final Logger log = LoggerFactory.getLogger(BaseUsmMessage.class);
@@ -163,17 +164,15 @@ public abstract class UsmMessageImpl {
 
     public HostUsmMessage(UsmConnection connection, String hostname) {
       super(MessageType.HOSTNAME, connection);
-      int size = hostname.length();
+
+      log.debug("hostname: " + hostname);
       // check the buffer is not larger than max allowed,
       if (hostname.length() > MAX_HOSTNAME_SIZE) {
         log.warn("got hostname that exceeds the max size " +hostname);
-        size = MAX_HOSTNAME_SIZE;
       }
-      pointer.setInt(offset, size);
-      offset += Integer.BYTES;
-      pointer.write(offset, hostname.substring(0,size).getBytes(), 0, size);
-      offset += size;
-      log.debug("hostname: "+hostname);
+      pointer.write(offset, hostname.getBytes(), 0, Integer.min(hostname.length(),MAX_HOSTNAME_SIZE));
+      offset += MAX_HOSTNAME_SIZE;
+
       log.debug(
           "src host: "
               + connection.getSrcIP().toString()
@@ -188,7 +187,7 @@ public abstract class UsmMessageImpl {
 
     @Override
     public int dataSize() {
-      return MAX_HOSTNAME_SIZE + Integer.BYTES;
+      return MAX_HOSTNAME_SIZE;
     }
   }
 
@@ -242,4 +241,64 @@ public abstract class UsmMessageImpl {
     }
   }
 
+  static class PlainUsmMessage extends BaseUsmMessage {
+
+    // This determines the size of the payload fragment that is captured for each
+    // HTTPS request
+    // should be equal to:
+    // https://github.com/DataDog/datadog-agent/blob/main/pkg/network/ebpf/c/protocols/http-types.h#L7
+    static final int MAX_HTTPS_BUFFER_SIZE = 8 * 20;
+    // though according to rfc 1035 (https://www.rfc-editor.org/rfc/rfc1035) max hostname can be up to 256 bytes
+    // most of the hostname don't exceed 64 bytes
+    static final int MAX_HOSTNAME_SIZE = 64;
+
+
+    public PlainUsmMessage(UsmConnection connection, String hostname, byte[] buffer, int bufferOffset, int len) {
+      super(MessageType.PLAIN, connection);
+
+      log.debug("hostname: " + hostname);
+      // check the buffer is not larger than max allowed,
+      if (hostname.length() > MAX_HOSTNAME_SIZE) {
+        log.warn("got hostname that exceeds the max size " +hostname);
+      }
+      pointer.write(offset, hostname.getBytes(), 0, Integer.min(hostname.length(),MAX_HOSTNAME_SIZE));
+      offset += MAX_HOSTNAME_SIZE;
+
+      log.debug("Request packet:");
+      log.debug(
+          "src host: "
+              + connection.getSrcIP().toString()
+              + " src port: "
+              + connection.getSrcPort());
+      log.debug(
+          "dst host: "
+              + connection.getDstIP().toString()
+              + " dst port: "
+              + connection.getDstPort());
+      log.debug("intercepted byte len: " + len);
+
+      // check the buffer is not larger than max allowed,
+      if (len - bufferOffset <= MAX_HTTPS_BUFFER_SIZE) {
+        pointer.setInt(offset, len);
+        offset += Integer.BYTES;
+
+        pointer.write(offset, buffer, bufferOffset, len);
+        offset += len;
+
+      }
+      // if it is, use only max allowed bytes
+      else {
+        pointer.setInt(offset, MAX_HTTPS_BUFFER_SIZE);
+        offset += Integer.BYTES;
+        pointer.write(offset, buffer, bufferOffset, MAX_HTTPS_BUFFER_SIZE);
+        offset += MAX_HTTPS_BUFFER_SIZE;
+      }
+    }
+
+    @Override
+    public int dataSize() {
+      // max buffer preceded by the actual length [4 bytes] of the buffer
+      return MAX_HOSTNAME_SIZE + MAX_HTTPS_BUFFER_SIZE + Integer.BYTES;
+    }
+  }
 }

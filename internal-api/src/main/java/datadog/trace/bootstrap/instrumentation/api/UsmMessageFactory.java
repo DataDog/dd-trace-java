@@ -5,6 +5,8 @@ public interface UsmMessageFactory {
 
   UsmMessage getRequestMessage(UsmConnection connection, byte[] buffer, int bufferOffset, int len);
 
+  UsmMessage getPlainMessage(UsmConnection connection, String hostname, byte[] buffer, int bufferOffset, int len);
+
   UsmMessage getHostMessage(UsmConnection connection, String hostName);
 
   abstract class Supplier {
@@ -16,6 +18,11 @@ public interface UsmMessageFactory {
 
     public static UsmMessage getHostMessage(UsmConnection connection, String hostName) {
       return SUPPLIER.getHostMessage(connection,hostName);
+    }
+
+    public static UsmMessage getPlainMessage(
+        UsmConnection connection, String hostname, byte[] buffer, int bufferOffset, int len) {
+      return SUPPLIER.getPlainMessage(connection, hostname, buffer, bufferOffset, len);
     }
 
     public static UsmMessage getRequestMessage(
