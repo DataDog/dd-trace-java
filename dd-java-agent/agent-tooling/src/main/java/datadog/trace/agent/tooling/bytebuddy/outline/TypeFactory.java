@@ -42,7 +42,7 @@ final class TypeFactory {
   static final ThreadLocal<TypeFactory> typeFactory = ThreadLocal.withInitial(TypeFactory::new);
 
   private static final boolean fallBackToLoadClass =
-      InstrumenterConfig.get().isResolverUseLoadClassEnabled();
+      InstrumenterConfig.get().isResolverUseLoadClass();
 
   private static final Map<String, TypeDescription> primitiveDescriptorTypes = new HashMap<>();
 
@@ -232,17 +232,18 @@ final class TypeFactory {
       LazyType request, TypeInfoCache<TypeDescription> types, TypeParser typeParser) {
     String name = request.name;
 
-    // existing info from same classloader?
-    SharedTypeInfo<TypeDescription> typeInfo = types.find(name);
-    if (null != typeInfo && (name.startsWith("java.") || typeInfo.sameClassLoader(classLoader))) {
-      return typeInfo.get();
+    // existing type description from same classloader?
+    SharedTypeInfo<TypeDescription> sharedType = types.find(name);
+    if (null != sharedType
+        && (name.startsWith("java.") || sharedType.sameClassLoader(classLoader))) {
+      return sharedType.get();
     }
 
     URL classFile = request.getClassFile();
 
-    // existing info from same class file?
-    if (null != typeInfo && typeInfo.sameClassFile(classFile)) {
-      return typeInfo.get();
+    // existing type description from same class file?
+    if (null != sharedType && sharedType.sameClassFile(classFile)) {
+      return sharedType.get();
     }
 
     TypeDescription type = null;

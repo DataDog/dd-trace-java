@@ -161,7 +161,9 @@ public final class Strings {
   public static String replaceFirst(String str, String delimiter, String replacement) {
     StringBuilder sb = new StringBuilder(str);
     int i = sb.indexOf(delimiter);
-    if (i != -1) sb.replace(i, i + delimiter.length(), replacement);
+    if (i != -1) {
+      sb.replace(i, i + delimiter.length(), replacement);
+    }
     return sb.toString();
   }
 
@@ -224,6 +226,10 @@ public final class Strings {
   }
 
   public static String toJson(final Map<String, String> map) {
+    return toJson(map, false);
+  }
+
+  public static String toJson(final Map<String, String> map, boolean valuesAreJson) {
     if (map == null || map.isEmpty()) {
       return "{}";
     }
@@ -231,16 +237,37 @@ public final class Strings {
     final Iterator<Entry<String, String>> entriesIter = map.entrySet().iterator();
     while (entriesIter.hasNext()) {
       final Entry<String, String> entry = entriesIter.next();
-      sb.append("\"")
-          .append(escapeToJson(entry.getKey()))
-          .append("\":\"")
-          .append(escapeToJson(entry.getValue()))
-          .append("\"");
+
+      sb.append("\"").append(escapeToJson(entry.getKey())).append("\":");
+
+      if (valuesAreJson) {
+        sb.append(entry.getValue());
+      } else {
+        sb.append("\"").append(escapeToJson(entry.getValue())).append("\"");
+      }
+
       if (entriesIter.hasNext()) {
         sb.append(",");
       }
     }
     sb.append("}");
     return sb.toString();
+  }
+
+  public static String toJson(final Iterable<String> items) {
+    if (items == null) {
+      return "[]";
+    }
+    StringBuilder json = new StringBuilder("[");
+    Iterator<String> it = items.iterator();
+    while (it.hasNext()) {
+      String item = it.next();
+      json.append('"').append(escapeToJson(item)).append('"');
+      if (it.hasNext()) {
+        json.append(",");
+      }
+    }
+    json.append("]");
+    return json.toString();
   }
 }

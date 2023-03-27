@@ -17,7 +17,7 @@ public class CapturedValueAdapterTest {
   private static final String CAPTURED_VALUE_COLLECTION_TEMPLATE =
       "{\"type\": \"%s\", \"elements\": [%s]}";
   private static final String CAPTURED_VALUE_MAP_TEMPLATE = "{\"type\": \"%s\", \"entries\": [%s]}";
-  Moshi moshi = new Moshi.Builder().add(new MoshiSnapshotHelper.SnapshotJsonFactory()).build();
+  Moshi moshi = MoshiSnapshotTestHelper.createMoshiSnapshot();
   JsonAdapter<Snapshot.CapturedValue> adapter = moshi.adapter(Snapshot.CapturedValue.class);
 
   @Test

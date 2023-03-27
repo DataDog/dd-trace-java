@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -17,7 +18,7 @@ import java.util.LinkedHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecorator {
+public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedClientDecorator {
   public static final LinkedHashMap<String, String> CLIENT_PATHWAY_EDGE_TAGS;
 
   static {
@@ -62,26 +63,16 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecor
       try {
         final URI url = url(request);
         if (url != null) {
-          String host = url.getHost();
-          String path = url.getPath();
-          int port = url.getPort();
-          span.setTag(Tags.HTTP_URL, URIUtils.buildURL(url.getScheme(), host, port, path));
-          if (null != host && !host.isEmpty()) {
-            span.setTag(Tags.PEER_HOSTNAME, host);
-            if (Config.get().isHttpClientSplitByDomain() && host.charAt(0) >= 'A') {
-              span.setServiceName(host);
-            }
-            if (port > 0) {
-              setPeerPort(span, port);
-            }
-          }
-
+          onURI(span, url);
+          span.setTag(
+              Tags.HTTP_URL,
+              URIUtils.buildURL(url.getScheme(), url.getHost(), url.getPort(), url.getPath()));
           if (Config.get().isHttpClientTagQueryString()) {
             span.setTag(DDTags.HTTP_QUERY, url.getQuery());
             span.setTag(DDTags.HTTP_FRAGMENT, url.getFragment());
           }
           if (shouldSetResourceName()) {
-            HTTP_RESOURCE_DECORATOR.withClientPath(span, method, path);
+            HTTP_RESOURCE_DECORATOR.withClientPath(span, method, url.getPath());
           }
         } else if (shouldSetResourceName()) {
           span.setResourceName(DEFAULT_RESOURCE_NAME);
@@ -104,5 +95,12 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecor
       }
     }
     return span;
+  }
+
+  public String operationName() {
+    return SpanNaming.instance()
+        .namingSchema()
+        .client()
+        .operationForComponent(component().toString());
   }
 }

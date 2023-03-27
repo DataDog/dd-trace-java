@@ -11,6 +11,7 @@ import spock.lang.Unroll
 import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.Callable
+import java.util.concurrent.ExecutorCompletionService
 import java.util.concurrent.Executors
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.ForkJoinTask
@@ -35,6 +36,8 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
   def submitRunnable = { e, c -> e.submit((Runnable) c) }
   @Shared
   def submitCallable = { e, c -> e.submit((Callable) c) }
+  @Shared
+  def submitRunnableExecutorCompletionService = { ecs, c -> ecs.submit((Runnable) c, null) }
   @Shared
   def submitForkJoinTask = { e, c -> e.submit((ForkJoinTask) c) }
   @Shared
@@ -106,6 +109,8 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     "execute Runnable"       | executeRunnable     | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
     "submit Runnable"        | submitRunnable      | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
     "submit Callable"        | submitCallable      | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
+    "submit Runnable ECS"    | submitRunnableExecutorCompletionService | new ExecutorCompletionService<>(new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1)))
+    "submit Callable ECS"    | submitCallable      | new ExecutorCompletionService<>(new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1)))
     "invokeAll"              | invokeAll           | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
     "invokeAll with timeout" | invokeAllTimeout    | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
     "invokeAny"              | invokeAny           | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
@@ -117,6 +122,8 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     "execute Runnable"       | executeRunnable     | new ScheduledThreadPoolExecutor(1)
     "submit Runnable"        | submitRunnable      | new ScheduledThreadPoolExecutor(1)
     "submit Callable"        | submitCallable      | new ScheduledThreadPoolExecutor(1)
+    "submit Runnable ECS"    | submitRunnableExecutorCompletionService | new ExecutorCompletionService<>(new ScheduledThreadPoolExecutor(1))
+    "submit Callable ECS"    | submitCallable      | new ExecutorCompletionService<>(new ScheduledThreadPoolExecutor(1))
     "invokeAll"              | invokeAll           | new ScheduledThreadPoolExecutor(1)
     "invokeAll with timeout" | invokeAllTimeout    | new ScheduledThreadPoolExecutor(1)
     "invokeAny"              | invokeAny           | new ScheduledThreadPoolExecutor(1)
@@ -129,6 +136,8 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     "execute ForkJoinTask"   | executeForkJoinTask | new ForkJoinPool()
     "submit Runnable"        | submitRunnable      | new ForkJoinPool()
     "submit Callable"        | submitCallable      | new ForkJoinPool()
+    "submit Runnable ECS"    | submitRunnableExecutorCompletionService | new ExecutorCompletionService<>(new ForkJoinPool())
+    "submit Callable ECS"    | submitCallable      | new ExecutorCompletionService<>(new ForkJoinPool())
     "submit ForkJoinTask"    | submitForkJoinTask  | new ForkJoinPool()
     "invoke ForkJoinTask"    | invokeForkJoinTask  | new ForkJoinPool()
     "invokeAll"              | invokeAll           | new ForkJoinPool()
@@ -140,6 +149,8 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     "execute Runnable"       | executeRunnable     | new CustomThreadPoolExecutor()
     "submit Runnable"        | submitRunnable      | new CustomThreadPoolExecutor()
     "submit Callable"        | submitCallable      | new CustomThreadPoolExecutor()
+    "submit Runnable ECS"    | submitRunnableExecutorCompletionService | new ExecutorCompletionService<>(new CustomThreadPoolExecutor())
+    "submit Callable ECS"    | submitCallable      | new ExecutorCompletionService<>(new CustomThreadPoolExecutor())
     "invokeAll"              | invokeAll           | new CustomThreadPoolExecutor()
     "invokeAll with timeout" | invokeAllTimeout    | new CustomThreadPoolExecutor()
     "invokeAny"              | invokeAny           | new CustomThreadPoolExecutor()
@@ -149,6 +160,8 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     "execute Runnable"       | executeRunnable     | new TypeAwareThreadPoolExecutor()
     "submit Runnable"        | submitRunnable      | new TypeAwareThreadPoolExecutor()
     "submit Callable"        | submitCallable      | new TypeAwareThreadPoolExecutor()
+    "submit Runnable ECS"    | submitRunnableExecutorCompletionService | new ExecutorCompletionService<>(new TypeAwareThreadPoolExecutor())
+    "submit Callable ECS"    | submitCallable      | new ExecutorCompletionService<>(new TypeAwareThreadPoolExecutor())
     "invokeAll"              | invokeAll           | new TypeAwareThreadPoolExecutor()
     "invokeAll with timeout" | invokeAllTimeout    | new TypeAwareThreadPoolExecutor()
     "invokeAny"              | invokeAny           | new TypeAwareThreadPoolExecutor()
@@ -158,6 +171,8 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     "execute Runnable"       | executeRunnable     | Executors.newSingleThreadExecutor()
     "submit Runnable"        | submitRunnable      | Executors.newSingleThreadExecutor()
     "submit Callable"        | submitCallable      | Executors.newSingleThreadExecutor()
+    "submit Runnable ECS"    | submitRunnableExecutorCompletionService | new ExecutorCompletionService<>(Executors.newSingleThreadExecutor())
+    "submit Callable ECS"    | submitCallable      | new ExecutorCompletionService<>(Executors.newSingleThreadExecutor())
     "invokeAll"              | invokeAll           | Executors.newSingleThreadExecutor()
     "invokeAll with timeout" | invokeAllTimeout    | Executors.newSingleThreadExecutor()
     "invokeAny"              | invokeAny           | Executors.newSingleThreadExecutor()

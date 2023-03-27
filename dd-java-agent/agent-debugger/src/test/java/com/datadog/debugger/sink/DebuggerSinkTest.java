@@ -346,6 +346,7 @@ public class DebuggerSinkTest {
   @Test
   public void addSnapshotWithEvalErrors() throws URISyntaxException, IOException {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
+    DebuggerContext.init(sink, null, null);
     Snapshot.CapturedContext entry = new Snapshot.CapturedContext();
     entry.addEvaluationError("obj.field", "Cannot dereference obj");
     Snapshot snapshot =
@@ -356,7 +357,6 @@ public class DebuggerSinkTest {
     snapshot.setEntry(entry);
     snapshot.commit();
     snapshot.getStack().clear();
-    sink.addSnapshot(snapshot);
     String fixtureContent =
         getFixtureContent(SINK_FIXTURE_PREFIX + "/snapshotWithEvalErrorRegex.txt");
     String regex = fixtureContent.replaceAll("\\n", "");

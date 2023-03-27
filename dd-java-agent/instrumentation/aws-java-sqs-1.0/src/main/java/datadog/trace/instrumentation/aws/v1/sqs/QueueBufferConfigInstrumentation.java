@@ -16,11 +16,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class QueueBufferConfigInstrumentation extends Instrumenter.Tracing
+public class QueueBufferConfigInstrumentation extends AbstractSqsInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.WithTypeStructure {
-  public QueueBufferConfigInstrumentation() {
-    super("aws-sdk");
-  }
 
   @Override
   public String instrumentedType() {

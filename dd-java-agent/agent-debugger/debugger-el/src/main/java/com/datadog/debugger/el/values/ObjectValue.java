@@ -1,6 +1,7 @@
 package com.datadog.debugger.el.values;
 
 import com.datadog.debugger.el.Literal;
+import com.datadog.debugger.el.Visitor;
 import datadog.trace.bootstrap.debugger.el.Values;
 
 /**
@@ -8,6 +9,8 @@ import datadog.trace.bootstrap.debugger.el.Values;
  * other value types: boolean, string, number, collection, null, undefined
  */
 public final class ObjectValue extends Literal<Object> {
+  public static final ObjectValue THIS = new ObjectValue(Values.THIS_OBJECT);
+
   public ObjectValue(Object value) {
     super(value == null ? Values.NULL_OBJECT : value);
   }
@@ -18,13 +21,7 @@ public final class ObjectValue extends Literal<Object> {
   }
 
   @Override
-  public String prettyPrint() {
-    if (value == null || value == Values.NULL_OBJECT) {
-      return "null";
-    }
-    if (value == Values.UNDEFINED_OBJECT) {
-      return value.toString();
-    }
-    return value.getClass().getTypeName();
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
   }
 }

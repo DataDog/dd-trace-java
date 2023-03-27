@@ -1,5 +1,6 @@
 package com.datadog.debugger.agent;
 
+import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -28,7 +29,7 @@ class LogMessageTemplateSummaryBuilderTest {
 
   @Test
   public void emptyTemplate() {
-    LogProbe probe = LogProbe.builder().template("").build();
+    LogProbe probe = createLogProbe("");
     LogMessageTemplateSummaryBuilder summaryBuilder = new LogMessageTemplateSummaryBuilder(probe);
     summaryBuilder.addEntry(new Snapshot.CapturedContext());
     assertEquals("", summaryBuilder.build());
@@ -36,7 +37,7 @@ class LogMessageTemplateSummaryBuilderTest {
 
   @Test
   public void onlyStringTemplate() {
-    LogProbe probe = LogProbe.builder().template("this is a simple string").build();
+    LogProbe probe = createLogProbe("this is a simple string");
     LogMessageTemplateSummaryBuilder summaryBuilder = new LogMessageTemplateSummaryBuilder(probe);
     summaryBuilder.addEntry(new Snapshot.CapturedContext());
     assertEquals("this is a simple string", summaryBuilder.build());
@@ -44,7 +45,7 @@ class LogMessageTemplateSummaryBuilderTest {
 
   @Test
   public void undefinedArgTemplate() {
-    LogProbe probe = LogProbe.builder().template("{arg}").build();
+    LogProbe probe = createLogProbe("{arg}");
     LogMessageTemplateSummaryBuilder summaryBuilder = new LogMessageTemplateSummaryBuilder(probe);
     summaryBuilder.addEntry(new Snapshot.CapturedContext());
     assertEquals("UNDEFINED", summaryBuilder.build());
@@ -52,7 +53,7 @@ class LogMessageTemplateSummaryBuilderTest {
 
   @Test
   public void argTemplate() {
-    LogProbe probe = LogProbe.builder().template("{arg}").build();
+    LogProbe probe = createLogProbe("{arg}");
     LogMessageTemplateSummaryBuilder summaryBuilder = new LogMessageTemplateSummaryBuilder(probe);
     Snapshot.CapturedContext capturedContext = new Snapshot.CapturedContext();
     capturedContext.addArguments(
@@ -64,8 +65,29 @@ class LogMessageTemplateSummaryBuilderTest {
   }
 
   @Test
+  public void argMultipleInFlightTemplate() {
+    LogProbe probe = createLogProbe("{arg}");
+    LogMessageTemplateSummaryBuilder summaryBuilder = new LogMessageTemplateSummaryBuilder(probe);
+    Snapshot.CapturedContext capturedContext = new Snapshot.CapturedContext();
+    capturedContext.addArguments(
+        new Snapshot.CapturedValue[] {
+          Snapshot.CapturedValue.of("arg", String.class.getTypeName(), "foo")
+        });
+    summaryBuilder.addEntry(capturedContext);
+    LogMessageTemplateSummaryBuilder summaryBuilder2 = new LogMessageTemplateSummaryBuilder(probe);
+    Snapshot.CapturedContext capturedContext2 = new Snapshot.CapturedContext();
+    capturedContext2.addArguments(
+        new Snapshot.CapturedValue[] {
+          Snapshot.CapturedValue.of("arg", String.class.getTypeName(), "bar")
+        });
+    summaryBuilder2.addEntry(capturedContext2);
+    assertEquals("foo", summaryBuilder.build());
+    assertEquals("bar", summaryBuilder2.build());
+  }
+
+  @Test
   public void argNullTemplate() {
-    LogProbe probe = LogProbe.builder().template("{nullObject}").build();
+    LogProbe probe = createLogProbe("{nullObject}");
     LogMessageTemplateSummaryBuilder summaryBuilder = new LogMessageTemplateSummaryBuilder(probe);
     Snapshot.CapturedContext capturedContext = new Snapshot.CapturedContext();
     capturedContext.addArguments(
@@ -78,7 +100,7 @@ class LogMessageTemplateSummaryBuilderTest {
 
   @Test
   public void argArrayTemplate() {
-    LogProbe probe = LogProbe.builder().template("{primArray} {strArray}").build();
+    LogProbe probe = createLogProbe("{primArray} {strArray}");
     LogMessageTemplateSummaryBuilder summaryBuilder = new LogMessageTemplateSummaryBuilder(probe);
     Snapshot.CapturedContext capturedContext = new Snapshot.CapturedContext();
     capturedContext.addArguments(
@@ -98,7 +120,7 @@ class LogMessageTemplateSummaryBuilderTest {
 
   @Test
   public void argCollectionTemplate() {
-    LogProbe probe = LogProbe.builder().template("{strList} {strSet}").build();
+    LogProbe probe = createLogProbe("{strList} {strSet}");
     LogMessageTemplateSummaryBuilder summaryBuilder = new LogMessageTemplateSummaryBuilder(probe);
     Snapshot.CapturedContext capturedContext = new Snapshot.CapturedContext();
     capturedContext.addArguments(
@@ -124,7 +146,7 @@ class LogMessageTemplateSummaryBuilderTest {
 
   @Test
   public void argMapTemplate() {
-    LogProbe probe = LogProbe.builder().template("{strMap}").build();
+    LogProbe probe = createLogProbe("{strMap}");
     LogMessageTemplateSummaryBuilder summaryBuilder = new LogMessageTemplateSummaryBuilder(probe);
     Snapshot.CapturedContext capturedContext = new Snapshot.CapturedContext();
     Map<String, String> map = new LinkedHashMap<>();
@@ -152,7 +174,7 @@ class LogMessageTemplateSummaryBuilderTest {
 
   @Test
   public void argComplexObjectTemplate() {
-    LogProbe probe = LogProbe.builder().template("{obj}").build();
+    LogProbe probe = createLogProbe("{obj}");
     LogMessageTemplateSummaryBuilder summaryBuilder = new LogMessageTemplateSummaryBuilder(probe);
     Snapshot.CapturedContext capturedContext = new Snapshot.CapturedContext();
     capturedContext.addArguments(
@@ -164,9 +186,23 @@ class LogMessageTemplateSummaryBuilderTest {
   }
 
   @Test
+  public void argComplexObjectArrayTemplate() {
+    LogProbe probe = createLogProbe("{array}");
+    LogMessageTemplateSummaryBuilder summaryBuilder = new LogMessageTemplateSummaryBuilder(probe);
+    Snapshot.CapturedContext capturedContext = new Snapshot.CapturedContext();
+    capturedContext.addArguments(
+        new Snapshot.CapturedValue[] {
+          Snapshot.CapturedValue.of(
+              "array", Level0[].class.getTypeName(), new Level0[] {new Level0(), new Level0()})
+        });
+    summaryBuilder.addEntry(capturedContext);
+    assertEquals("[..., ...]", summaryBuilder.build());
+  }
+
+  @Test
   @EnabledOnJre(JRE.JAVA_17)
   public void argInaccessibleFieldTemplate() {
-    LogProbe probe = LogProbe.builder().template("{obj}").build();
+    LogProbe probe = createLogProbe("{obj}");
     LogMessageTemplateSummaryBuilder summaryBuilder = new LogMessageTemplateSummaryBuilder(probe);
     Snapshot.CapturedContext capturedContext = new Snapshot.CapturedContext();
     capturedContext.addArguments(
@@ -183,5 +219,9 @@ class LogMessageTemplateSummaryBuilderTest {
     for (int i = 0; i < 5; i++) {
       assertTrue(evaluationErrors.get(i).getMessage().contains("Cannot extract field:"));
     }
+  }
+
+  private LogProbe createLogProbe(String template) {
+    return LogProbe.builder().template(template, parseTemplate(template)).build();
   }
 }

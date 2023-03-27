@@ -1,0 +1,17 @@
+plugins {
+  id 'java-test-fixtures'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'org.testng', name: 'testng', version: '6.4'
+
+  testFixturesImplementation project(':dd-java-agent:testing')
+  testFixturesImplementation project(':utils:test-utils')
+  testFixturesImplementation(group: 'org.testng', name: 'testng') {
+    version {
+      strictly '6.4'
+    }
+  }
+}

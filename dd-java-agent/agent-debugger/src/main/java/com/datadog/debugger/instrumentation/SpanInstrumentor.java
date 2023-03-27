@@ -3,6 +3,7 @@ package com.datadog.debugger.instrumentation;
 import static com.datadog.debugger.instrumentation.Types.DEBUGGER_CONTEXT_TYPE;
 import static com.datadog.debugger.instrumentation.Types.DEBUGGER_SPAN_TYPE;
 import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
+import static com.datadog.debugger.util.ClassFileHelper.stripPackagePath;
 
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.Where;
@@ -10,10 +11,15 @@ import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import java.util.List;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
-import org.objectweb.asm.tree.*;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.InsnList;
+import org.objectweb.asm.tree.InsnNode;
+import org.objectweb.asm.tree.LabelNode;
+import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.TryCatchBlockNode;
+import org.objectweb.asm.tree.VarInsnNode;
 
 public class SpanInstrumentor extends Instrumentor {
-  private String spanName;
   private int spanVar;
 
   public SpanInstrumentor(
@@ -23,7 +29,6 @@ public class SpanInstrumentor extends Instrumentor {
       MethodNode methodNode,
       List<DiagnosticMessage> diagnostics) {
     super(spanProbe, classLoader, classNode, methodNode, diagnostics);
-    this.spanName = spanProbe.getName();
   }
 
   public void instrument() {
@@ -67,8 +72,10 @@ public class SpanInstrumentor extends Instrumentor {
 
   private InsnList createSpan(LabelNode initSpanLabel) {
     InsnList insnList = new InsnList();
-    ldc(insnList, spanName); // stack: [string]
-    pushTags(insnList, definition.getTags()); // stack: [string, tags]
+    ldc(insnList, buildResourceName());
+    // stack: [string]
+    pushTags(insnList, addProbeIdWithTags(definition.getId(), definition.getTags()));
+    // stack: [string, tags]
     invokeStatic(
         insnList,
         DEBUGGER_CONTEXT_TYPE,
@@ -77,7 +84,8 @@ public class SpanInstrumentor extends Instrumentor {
         STRING_TYPE,
         Types.asArray(STRING_TYPE, 1)); // tags
     // stack: [span]
-    insnList.add(new VarInsnNode(Opcodes.ASTORE, spanVar)); // stack: []
+    insnList.add(new VarInsnNode(Opcodes.ASTORE, spanVar));
+    // stack: []
     insnList.add(initSpanLabel);
     return insnList;
   }
@@ -127,5 +135,20 @@ public class SpanInstrumentor extends Instrumentor {
   private void debuggerSpanFinish(InsnList insnList) {
     insnList.add(new VarInsnNode(Opcodes.ALOAD, spanVar));
     invokeInterface(insnList, DEBUGGER_SPAN_TYPE, "finish", Type.VOID_TYPE);
+  }
+
+  private String buildResourceName() {
+    String resourceName = stripPackagePath(classNode.name) + "." + methodNode.name;
+    if (isLineProbe) {
+      Where.SourceLine[] targetLines = definition.getWhere().getSourceLines();
+      if (targetLines == null || targetLines.length == 0) {
+        return resourceName;
+      }
+      if (lineMap.isEmpty()) {
+        return resourceName;
+      }
+      return resourceName + ":L" + targetLines[0];
+    }
+    return resourceName;
   }
 }

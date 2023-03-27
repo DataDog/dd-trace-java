@@ -6,16 +6,19 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
-import datadog.trace.api.TraceSegment;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.config.TracerConfig;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
+import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -23,6 +26,7 @@ import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.tagprocessor.QueryObfuscator;
 import datadog.trace.core.tagprocessor.TagsPostProcessor;
+import datadog.trace.util.TagsHelper;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
@@ -43,7 +47,8 @@ import org.slf4j.LoggerFactory;
  * across Span boundaries and (2) any Datadog fields that are needed to identify or contextualize
  * the associated Span instance
  */
-public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSegment {
+public class DDSpanContext
+    implements AgentSpan.Context, RequestContext, TraceSegment, ProfilerContext {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
@@ -127,6 +132,12 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
 
   private volatile PathwayContext pathwayContext;
 
+  private volatile BlockResponseFunction blockResponseFunction;
+
+  private final ProfilingContextIntegration profilingContextIntegration;
+
+  private volatile int encodedOperationName;
+
   public DDSpanContext(
       final DDTraceId traceId,
       final long spanId,
@@ -147,6 +158,50 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
       final PathwayContext pathwayContext,
       final boolean disableSamplingMechanismValidation,
       final PropagationTags propagationTags) {
+    this(
+        traceId,
+        spanId,
+        parentId,
+        parentServiceName,
+        serviceName,
+        operationName,
+        resourceName,
+        samplingPriority,
+        origin,
+        baggageItems,
+        errorFlag,
+        spanType,
+        tagsSize,
+        trace,
+        requestContextDataAppSec,
+        requestContextDataIast,
+        pathwayContext,
+        disableSamplingMechanismValidation,
+        propagationTags,
+        ProfilingContextIntegration.NoOp.INSTANCE);
+  }
+
+  public DDSpanContext(
+      final DDTraceId traceId,
+      final long spanId,
+      final long parentId,
+      final CharSequence parentServiceName,
+      final String serviceName,
+      final CharSequence operationName,
+      final CharSequence resourceName,
+      final int samplingPriority,
+      final CharSequence origin,
+      final Map<String, String> baggageItems,
+      final boolean errorFlag,
+      final CharSequence spanType,
+      final int tagsSize,
+      final PendingTrace trace,
+      final Object requestContextDataAppSec,
+      final Object requestContextDataIast,
+      final PathwayContext pathwayContext,
+      final boolean disableSamplingMechanismValidation,
+      final PropagationTags propagationTags,
+      final ProfilingContextIntegration profilingContextIntegration) {
 
     assert trace != null;
     this.trace = trace;
@@ -179,7 +234,6 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
     this.resourceName = resourceName;
     this.errorFlag = errorFlag;
     this.spanType = spanType;
-    this.origin = origin;
 
     // Additional Metadata
     final Thread current = Thread.currentThread();
@@ -192,9 +246,17 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
             ? propagationTags
             : trace.getTracer().getPropagationTagsFactory().empty();
 
+    if (origin != null) {
+      setOrigin(origin);
+    }
     if (samplingPriority != PrioritySampling.UNSET) {
       setSamplingPriority(samplingPriority, SamplingMechanism.UNKNOWN);
     }
+    this.profilingContextIntegration = profilingContextIntegration;
+    // as fast as we can try to make this operation, we still might need to activate/deactivate
+    // contexts at alarming rates in unpredictable async applications, so we'll try
+    // to get away with doing this just once per span
+    this.encodedOperationName = profilingContextIntegration.encode(operationName);
   }
 
   @Override
@@ -209,6 +271,16 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
   @Override
   public long getSpanId() {
     return spanId;
+  }
+
+  @Override
+  public long getRootSpanId() {
+    return getRootSpanContextOrThis().spanId;
+  }
+
+  @Override
+  public int getEncodedOperationName() {
+    return encodedOperationName;
   }
 
   public String getServiceName() {
@@ -234,6 +306,9 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
   }
 
   public void setResourceName(final CharSequence resourceName, byte priority) {
+    if (null == resourceName) {
+      return;
+    }
     if (priority >= this.resourceNamePriority) {
       this.resourceNamePriority = priority;
       this.resourceName = resourceName;
@@ -250,6 +325,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
 
   public void setOperationName(final CharSequence operationName) {
     this.operationName = operationName;
+    this.encodedOperationName = profilingContextIntegration.encode(operationName);
   }
 
   public boolean getErrorFlag() {
@@ -300,8 +376,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
     // even if the old sampling priority and mechanism have already propagated
     if (SAMPLING_PRIORITY_UPDATER.getAndSet(this, PrioritySampling.USER_KEEP)
         == PrioritySampling.UNSET) {
-      propagationTags.updateTraceSamplingPriority(
-          PrioritySampling.USER_KEEP, samplingMechanism, serviceName);
+      propagationTags.updateTraceSamplingPriority(PrioritySampling.USER_KEEP, samplingMechanism);
     }
   }
 
@@ -342,7 +417,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
       return false;
     }
     // set trace level sampling priority tag propagationTags
-    propagationTags.updateTraceSamplingPriority(newPriority, newMechanism, serviceName);
+    propagationTags.updateTraceSamplingPriority(newPriority, newMechanism);
     return true;
   }
 
@@ -372,14 +447,15 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
     return true;
   }
 
-  /** @return the sampling priority of this span's trace, or null if no priority has been set */
+  /**
+   * @return the trace sampling priority of this span's trace, or null if no priority has been set
+   */
   public int getSamplingPriority() {
     return getRootSpanContextOrThis().samplingPriority;
   }
 
   public void setSpanSamplingPriority(double rate, int limit) {
     synchronized (unsafeTags) {
-      forceKeepThisSpan(SamplingMechanism.SPAN_SAMPLING_RATE);
       unsafeSetTag(SPAN_SAMPLING_MECHANISM_TAG, SamplingMechanism.SPAN_SAMPLING_RATE);
       unsafeSetTag(SPAN_SAMPLING_RULE_RATE_TAG, rate);
       if (limit != Integer.MAX_VALUE) {
@@ -411,12 +487,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
   }
 
   public CharSequence getOrigin() {
-    final DDSpan rootSpan = trace.getRootSpan();
-    if (null != rootSpan) {
-      return rootSpan.context().origin;
-    } else {
-      return origin;
-    }
+    return getRootSpanContextOrThis().origin;
   }
 
   public void beginEndToEnd() {
@@ -496,7 +567,9 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
   }
 
   public void setOrigin(final CharSequence origin) {
-    this.origin = origin;
+    DDSpanContext context = getRootSpanContextOrThis();
+    context.origin = origin;
+    context.propagationTags.updateTraceOrigin(origin);
   }
 
   public void setMetric(final CharSequence key, final Number value) {
@@ -674,24 +747,37 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
     return this;
   }
 
+  @Override
+  public void setBlockResponseFunction(BlockResponseFunction blockResponseFunction) {
+    getRootSpanContextOrThis().blockResponseFunction = blockResponseFunction;
+  }
+
+  @Override
+  public BlockResponseFunction getBlockResponseFunction() {
+    return getRootSpanContextOrThis().blockResponseFunction;
+  }
+
   public PropagationTags getPropagationTags() {
-    return propagationTags;
+    return getRootSpanContextOrThis().propagationTags;
   }
 
   /** TraceSegment Implementation */
   @Override
-  public void setTagTop(String key, Object value) {
-    getTopContext().setTagCurrent(key, value);
+  public void setTagTop(String key, Object value, boolean sanitize) {
+    getRootSpanContextOrThis().setTagCurrent(key, value, sanitize);
   }
 
   @Override
-  public void setTagCurrent(String key, Object value) {
+  public void setTagCurrent(String key, Object value, boolean sanitize) {
+    if (sanitize) {
+      key = TagsHelper.sanitize(key);
+    }
     this.setTag(key, value);
   }
 
   @Override
   public void setDataTop(String key, Object value) {
-    getTopContext().setDataCurrent(key, value);
+    getRootSpanContextOrThis().setDataCurrent(key, value);
   }
 
   @Override
@@ -699,10 +785,5 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSe
     // TODO is this decided?
     String tagKey = "_dd." + key + ".json";
     this.setTag(tagKey, value);
-  }
-
-  private DDSpanContext getTopContext() {
-    DDSpan span = trace.getRootSpan();
-    return null != span ? span.context() : this;
   }
 }

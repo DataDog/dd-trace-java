@@ -3,7 +3,6 @@ package datadog.trace.bootstrap;
 import static datadog.trace.api.Platform.getRuntimeVendor;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.Platform.isOracleJDK8;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED;
 import static datadog.trace.bootstrap.Library.WILDFLY;
 import static datadog.trace.bootstrap.Library.detectLibraries;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
@@ -11,6 +10,7 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_STARTUP
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static datadog.trace.util.Strings.getResourceName;
+import static datadog.trace.util.Strings.propertyNameToSystemPropertyName;
 import static datadog.trace.util.Strings.toEnvVar;
 
 import datadog.trace.api.Config;
@@ -18,6 +18,16 @@ import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.WithGlobalTracer;
+import datadog.trace.api.config.AppSecConfig;
+import datadog.trace.api.config.CiVisibilityConfig;
+import datadog.trace.api.config.CwsConfig;
+import datadog.trace.api.config.DebuggerConfig;
+import datadog.trace.api.config.GeneralConfig;
+import datadog.trace.api.config.IastConfig;
+import datadog.trace.api.config.JmxFetchConfig;
+import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.config.RemoteConfigConfig;
+import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.scopemanager.ScopeListener;
@@ -64,21 +74,24 @@ public class Agent {
 
   private static final int DEFAULT_JMX_START_DELAY = 15; // seconds
 
+  private static final String STARTUP_LOGS_ENABLED = "trace.startup.logs";
+
   private static final Logger log;
 
   private enum AgentFeature {
-    TRACING("dd.tracing.enabled", true),
-    JMXFETCH("dd.jmxfetch.enabled", true),
-    STARTUP_LOGS("dd.trace.startup.logs", true),
-    PROFILING("dd.profiling.enabled", false),
-    APPSEC("dd.appsec.enabled", false),
-    IAST("dd.iast.enabled", false),
-    REMOTE_CONFIG("dd.remote_config.enabled", true),
-    CWS("dd.cws.enabled", false),
-    CIVISIBILITY("dd.civisibility.enabled", false),
-    CIVISIBILITY_AGENTLESS("dd.civisibility.agentless.enabled", false),
-    TELEMETRY("dd.instrumentation.telemetry.enabled", true),
-    DEBUGGER("dd." + DEBUGGER_ENABLED, false);
+    TRACING(propertyNameToSystemPropertyName(TraceInstrumentationConfig.TRACE_ENABLED), true),
+    JMXFETCH(propertyNameToSystemPropertyName(JmxFetchConfig.JMX_FETCH_ENABLED), true),
+    STARTUP_LOGS(propertyNameToSystemPropertyName(STARTUP_LOGS_ENABLED), true),
+    PROFILING(propertyNameToSystemPropertyName(ProfilingConfig.PROFILING_ENABLED), false),
+    APPSEC(propertyNameToSystemPropertyName(AppSecConfig.APPSEC_ENABLED), false),
+    IAST(propertyNameToSystemPropertyName(IastConfig.IAST_ENABLED), false),
+    REMOTE_CONFIG(propertyNameToSystemPropertyName(RemoteConfigConfig.REMOTE_CONFIG_ENABLED), true),
+    CWS(propertyNameToSystemPropertyName(CwsConfig.CWS_ENABLED), false),
+    CIVISIBILITY(propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED), false),
+    CIVISIBILITY_AGENTLESS(
+        propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED), false),
+    TELEMETRY(propertyNameToSystemPropertyName(GeneralConfig.TELEMETRY_ENABLED), true),
+    DEBUGGER(propertyNameToSystemPropertyName(DebuggerConfig.DEBUGGER_ENABLED), false);
 
     private final String systemProp;
     private final boolean enabledByDefault;
@@ -142,7 +155,6 @@ public class Agent {
     if (ciVisibilityEnabled) {
       // if CI Visibility is enabled, all the other features are disabled by default
       // unless the user had explicitly enabled them.
-      setSystemPropertyDefault(AgentFeature.TRACING.getSystemProp(), "false");
       setSystemPropertyDefault(AgentFeature.JMXFETCH.getSystemProp(), "false");
       setSystemPropertyDefault(AgentFeature.PROFILING.getSystemProp(), "false");
       setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
@@ -399,6 +411,7 @@ public class Agent {
       installDatadogTracer(scoClass, sco);
       maybeStartAppSec(scoClass, sco);
       maybeStartIast(scoClass, sco);
+      maybeStartCiVisibility(scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
@@ -686,6 +699,23 @@ public class Agent {
     }
   }
 
+  private static void maybeStartCiVisibility(Class<?> scoClass, Object o) {
+    if (ciVisibilityEnabled) {
+      StaticEventLogger.begin("CI Visibility");
+
+      try {
+        final Class<?> ciVisibilitySysClass =
+            AGENT_CLASSLOADER.loadClass("datadog.trace.civisibility.CiVisibilitySystem");
+        final Method ciVisibilityInstallerMethod = ciVisibilitySysClass.getMethod("start");
+        ciVisibilityInstallerMethod.invoke(null);
+      } catch (final Throwable e) {
+        log.warn("Not starting CI Visibility subsystem", e);
+      }
+
+      StaticEventLogger.end("CI Visibility");
+    }
+  }
+
   private static void startTelemetry(Instrumentation inst, Class<?> scoClass, Object sco) {
     StaticEventLogger.begin("Telemetry");
 
@@ -940,7 +970,7 @@ public class Agent {
     }
   }
 
-  /** @see datadog.trace.api.ProductActivation#fromString(String) */
+  /** @see datadog.trace.api.ProductActivationConfig#fromString(String) */
   private static boolean isAppSecFullyDisabled() {
     // must be kept in sync with logic from Config!
     final String featureEnabledSysprop = AgentFeature.APPSEC.systemProp;

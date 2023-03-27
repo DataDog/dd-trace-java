@@ -40,9 +40,10 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected Map<String, String> tags;
   protected Map<String, String> baggage;
 
-  protected String origin;
+  protected CharSequence origin;
   protected long endToEndStartTime;
   protected boolean valid;
+  protected boolean fullContext;
   protected PropagationTags propagationTags;
 
   private TagContext.HttpHeaders httpHeaders;
@@ -232,6 +233,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     tags = Collections.emptyMap();
     baggage = Collections.emptyMap();
     valid = true;
+    fullContext = true;
     httpHeaders = null;
     collectIpHeaders =
         this.clientIpWithoutAppSec
@@ -239,9 +241,9 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     return this;
   }
 
-  TagContext build() {
+  protected TagContext build() {
     if (valid) {
-      if (!DDTraceId.ZERO.equals(traceId)) {
+      if (fullContext && !DDTraceId.ZERO.equals(traceId)) {
         final ExtractedContext context;
         context =
             new ExtractedContext(
@@ -269,6 +271,10 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
 
   protected void invalidateContext() {
     this.valid = false;
+  }
+
+  protected void onlyTagContext() {
+    this.fullContext = false;
   }
 
   protected int defaultSamplingPriority() {

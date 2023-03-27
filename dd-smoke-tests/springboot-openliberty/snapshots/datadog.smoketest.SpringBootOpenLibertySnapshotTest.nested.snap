@@ -98,7 +98,8 @@
                        "span.kind" "server"
                        "http.method" "GET"
                        "http.route" "/connect/{user}"
-                       "servlet.path" "/connect/92"}
+                       "servlet.path" "/connect/92",
+                       "_dd.p.dm" "-1"}
                "metrics" {"_dd.measured" 1
                           "_sampling_priority_v1" 1
                           "peer.port" 57796

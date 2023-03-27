@@ -1,6 +1,10 @@
 package datadog.trace.agent.test.base
 
 import ch.qos.logback.classic.Level
+import datadog.appsec.api.blocking.Blocking
+import datadog.appsec.api.blocking.BlockingContentType
+import datadog.appsec.api.blocking.BlockingDetails
+import datadog.appsec.api.blocking.BlockingService
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
@@ -9,18 +13,21 @@ import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
+import datadog.trace.api.gateway.BlockResponseFunction
 import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.http.StoredBodySupplier
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.bootstrap.instrumentation.decorator.http.SimplePathNormalizer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
+import datadog.trace.test.util.Flaky
 import groovy.transform.CompileStatic
 import okhttp3.HttpUrl
 import okhttp3.MediaType
@@ -29,12 +36,12 @@ import okhttp3.RequestBody
 import okhttp3.Response
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import spock.lang.Shared
 import spock.lang.Unroll
 
 import java.util.function.BiFunction
 import java.util.function.Function
 import java.util.function.Supplier
+import javax.annotation.Nonnull
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
@@ -54,6 +61,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
@@ -116,7 +124,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     // We don't inject a matching response header tag here since it would be always on and show up in all the tests
   }
 
-  @Shared
   String component = component()
 
   abstract String component()
@@ -286,6 +293,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false
   }
 
+  boolean testUserBlocking() {
+    testBlocking()
+  }
+
   /** Tomcat 5.5 can't seem to handle the encoded URIs */
   boolean testEncodedPath() {
     true
@@ -298,6 +309,21 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   boolean testMultipleHeader() {
     true
+  }
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return expectedOperationName()
   }
 
   enum ServerEndpoint {
@@ -316,6 +342,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     TIMEOUT("timeout", 500, null),
     TIMEOUT_ERROR("timeout_error", 500, null),
+
+    USER_BLOCK("user-block", 403, null),
 
     QUERY_PARAM("query?some=query", 200, "some=query"),
     QUERY_ENCODED_BOTH("encoded%20path%20query?some=is%20both", 200, "some=is both"),
@@ -420,6 +448,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     return runUnderTrace("controller", closure)
   }
 
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
   def "test success with #count requests"() {
     setup:
     def request = request(SUCCESS, method, body).build()
@@ -467,6 +496,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     count << [1, 4, 50] // make multiple requests.
   }
 
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
   def "test forwarded request"() {
     setup:
     assumeTrue(testForwarded())
@@ -509,6 +539,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     body = null
   }
 
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
   def "test success with parent"() {
     setup:
     def traceId = 123G
@@ -554,6 +585,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     body = null
   }
 
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
   def "test success with request header #header tag mapping"() {
     setup:
     def request = request(SUCCESS, method, body)
@@ -598,6 +630,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     'GET'  | null | 'x-datadog-test-request-header'  | 'bar' | [ 'request_header_tag': 'bar' ]
   }
 
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
   def "test #endpoint with response header #header tag mapping"() {
     setup:
     injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "true")
@@ -642,6 +675,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     QUERY_ENCODED_BOTH | 'GET'  | null | IG_RESPONSE_HEADER | 'mapped_response_header_tag' | [ 'mapped_response_header_tag': "$IG_RESPONSE_HEADER_VALUE" ]
   }
 
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
   def "test tag query string for #endpoint rawQuery=#rawQuery"() {
     setup:
     injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "true")
@@ -800,7 +834,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     when:
     def response = client.newCall(request).execute()
     response.body().string() == PATH_PARAM.body
-    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.waitForTraces(2)
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
@@ -1324,6 +1358,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4681", suites = ["GrizzlyAsyncTest", "GrizzlyTest"])
   def 'test blocking of request with auto and accept=#acceptHeader'(boolean expectedJson, String acceptHeader) {
     // Note: this does not actually test that the handler for SUCCESS is never called,
     //       only that the response is the expected one (insofar as invoking the handler
@@ -1377,6 +1412,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     true         | 'text/html;q=0.8, application/json;q=0.9'
   }
 
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4681", suites = ["GrizzlyAsyncTest", "GrizzlyTest"])
   def 'test blocking of request with json response'() {
     setup:
     assumeTrue(testBlocking())
@@ -1411,6 +1447,103 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         edgeTags.size() == DSM_EDGE_TAGS.size()
       }
     }
+  }
+
+
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4681", suites = ["GrizzlyAsyncTest", "GrizzlyTest"])
+  def 'test blocking of request with redirect response'() {
+    setup:
+    assumeTrue(testBlocking())
+
+    def request = request(SUCCESS, 'GET', null)
+      .addHeader(IG_BLOCK_HEADER, 'none').build()
+    def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+
+    expect:
+    response.code() == 301
+    response.header('location') == 'https://www.google.com/'
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+    def trace = TEST_WRITER.get(0)
+
+    then:
+    trace.size() == 1
+    trace[0].tags['http.status_code'] == 301
+
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
+  }
+
+  def 'user blocking'() {
+    setup:
+    assumeTrue(testUserBlocking())
+    BlockingService origBlockingService = Blocking.SERVICE
+    BlockingService bs = new BlockingService() {
+        @Override
+        BlockingDetails shouldBlockUser(@Nonnull String userId) {
+          userId == 'user-to-block' ?
+            new BlockingDetails(403, BlockingContentType.JSON, ['X-Header': 'X-Header-Value']) :
+            null
+        }
+
+        @Override
+        boolean tryCommitBlockingResponse(int statusCode, @Nonnull BlockingContentType type,
+                                          @Nonnull Map<String, String> extraHeaders) {
+          RequestContext reqCtx = AgentTracer.get().activeSpan().requestContext
+          if (reqCtx == null) {
+            return false
+          }
+
+          BlockResponseFunction blockResponseFunction = reqCtx.blockResponseFunction
+          if (blockResponseFunction == null) {
+            throw new UnsupportedOperationException("Do not know how to commit blocking response for this server")
+          }
+          blockResponseFunction.tryCommitBlockingResponse(statusCode, type, extraHeaders)
+        }
+      }
+    Blocking.blockingService = bs
+
+    def request = request(USER_BLOCK, 'GET', null)
+      .addHeader('Accept', 'application/json')
+      .build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.code() == USER_BLOCK.status
+    response.header('Content-type') =~ /(?i)\Aapplication\/json(?:;\s?charset=utf-8)?\z/
+    response.header('X-Header') == 'X-Header-Value'
+    response.body().charStream().text.contains('"title": "You\'ve been blocked"')
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+    def trace = TEST_WRITER.get(0)
+
+    then: 'there is an error span'
+    trace.find { span ->
+      def errorMsg = span.getTag(DDTags.ERROR_MSG)
+      if (!errorMsg) {
+        return false
+      }
+      "Blocking user with id 'user-to-block'" in errorMsg
+    } != null
+
+    and: 'there is a span with status code 403'
+    trace.find { span ->
+      span.httpStatusCode == 403
+    } != null
+
+    cleanup:
+    Blocking.blockingService = origBlockingService
   }
 
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
@@ -1467,7 +1600,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def expectedUrl = expectedUrl(endpoint, address)
     trace.span {
       serviceName expectedServiceName()
-      operationName expectedOperationName()
+      operationName operation()
       resourceName expectedResourceName(endpoint, method, address)
       spanType DDSpanTypes.HTTP_SERVER
       errored expectedErrored(endpoint)
@@ -1589,14 +1722,21 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         context.doneHeaderValue = stringOrEmpty(context.doneHeaderValue) + context.matchingHeaderValue
       }
 
-      if (context.blockingContentType) {
+      if (context.blockingContentType && context.blockingContentType != 'none') {
         new Flow.ResultFlow<Void>(null) {
             @Override
             Flow.Action getAction() {
               new Flow.Action.RequestBlockingAction(418,
-                Flow.Action.BlockingContentType.valueOf(context.blockingContentType.toUpperCase(Locale.ROOT)))
+                BlockingContentType.valueOf(context.blockingContentType.toUpperCase(Locale.ROOT)))
             }
           }
+      } else if (context.blockingContentType && context.blockingContentType == 'none') {
+        new Flow.ResultFlow<Void>(null) {
+          @Override
+          Flow.Action getAction() {
+            Flow.Action.RequestBlockingAction.forRedirect(301, 'https://www.google.com/')
+          }
+        }
       } else {
         Flow.ResultFlow.empty()
       }

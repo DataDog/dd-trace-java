@@ -60,13 +60,7 @@ public final class ShouldInjectFieldsMatcher
       shouldInject = matchedType.equals(injectionTarget);
     }
     if (log.isDebugEnabled()) {
-      if (shouldInject) {
-        log.debug(
-            "Added context-store field - instrumentation.target.class={} instrumentation.target.context={}->{}",
-            matchedType,
-            keyType,
-            valueType);
-      } else if (null != injectionTarget) {
+      if (!shouldInject && null != injectionTarget) {
         log.debug(
             "Will not add context-store field, alternate target found {} - instrumentation.target.class={} instrumentation.target.context={}->{}",
             injectionTarget,

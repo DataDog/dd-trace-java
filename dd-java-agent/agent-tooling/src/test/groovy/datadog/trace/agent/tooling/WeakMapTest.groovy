@@ -1,14 +1,12 @@
 package datadog.trace.agent.tooling
 
+import datadog.trace.test.util.Flaky
 import datadog.trace.test.util.GCUtils
 import datadog.trace.test.util.DDSpecification
-import spock.lang.Retry
 
 import java.lang.ref.WeakReference
 import java.util.concurrent.TimeUnit
 
-@Retry
-// These tests fail sometimes in CI.
 class WeakMapTest extends DDSpecification {
 
   def "WeakMap accepts null values"() {
@@ -37,6 +35,7 @@ class WeakMapTest extends DDSpecification {
     map2.get(key) == "value2"
   }
 
+  //@Flaky("awaitGC usage is flaky")
   def "Unreferenced map gets cleaned up"() {
     setup:
     def map = WeakMaps.newWeakMap()
@@ -51,6 +50,7 @@ class WeakMapTest extends DDSpecification {
     ref.get() == null
   }
 
+  //@Flaky("awaitGC usage is flaky")
   def "Unreferenced keys get cleaned up"() {
     setup:
     def key = new Object()

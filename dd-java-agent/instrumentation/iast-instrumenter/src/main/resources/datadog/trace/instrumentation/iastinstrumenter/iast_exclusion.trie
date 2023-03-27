@@ -34,6 +34,7 @@
 0 com.datadog.demo.*
 1 datadog.*
 0 datadog.smoketest.*
+1 com.timgroup.statsd.*
 
 # -------- Libraries --------
 1 antlr.*
@@ -54,6 +55,8 @@
 1 com.ecwid.consul.*
 1 com.esotericsoftware.kryo.*
 1 com.fasterxml.*
+#Need for JsonFactoryCallSite.createParser()
+0 com.fasterxml.jackson.databind.ObjectMapper
 1 com.filenet.*
 1 com.github.benmanes.caffeine.*
 1 com.google.*
@@ -66,6 +69,7 @@
 1 com.jprofiler.*
 1 com.lowagie.*
 1 com.mchange.*
+1 com.mongodb.*
 1 com.mysql.*
 1 com.neo4j.*
 1 com.netscape.*
@@ -175,6 +179,8 @@
 0 org.springframework.web.context.request.*
 0 org.springframework.samples.*
 0 org.springframework.web.util.WebUtils
+#Need for ServletRequestCallSite.getInputStream()
+0 org.springframework.http.server.*
 1 org.synchronoss.*
 1 org.terracotta.*
 1 org.testcontainers.*
@@ -185,6 +191,7 @@
 1 org.xnio.*
 1 org.yaml.*
 1 reactor.*
+1 software.amazon.awssdk.*
 1 springfox.*
 1 tech.jhipster.*
 1 weblogic.*
@@ -192,6 +199,6 @@
 
 # --------- testing ----------------
 
+1 org.gradle.*
 1 org.spockframework.*
 1 worker.org.gradle.*
-1 org.gradle.*

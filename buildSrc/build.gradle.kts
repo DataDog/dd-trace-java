@@ -48,4 +48,5 @@ dependencies {
 tasks.test {
   useJUnitPlatform()
   dependsOn(":call-site-instrumentation-plugin:build")
+  enabled = project.hasProperty("runBuildSrcTests")
 }

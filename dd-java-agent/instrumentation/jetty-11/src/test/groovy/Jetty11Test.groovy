@@ -1,5 +1,7 @@
+import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import jakarta.servlet.http.HttpServlet
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.AbstractHandler
@@ -12,7 +14,7 @@ import org.eclipse.jetty.servlet.ServletContextHandler
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.*
 
-class Jetty11Test extends HttpServerTest<Server> {
+abstract class Jetty11Test extends HttpServerTest<Server> {
 
   class JettyServer implements HttpServer {
     def port = 0
@@ -81,7 +83,7 @@ class Jetty11Test extends HttpServerTest<Server> {
 
   @Override
   String expectedOperationName() {
-    return "servlet.request"
+    return operation()
   }
 
   @Override
@@ -144,6 +146,9 @@ class Jetty11Test extends HttpServerTest<Server> {
             response.status = endpoint.status
             response.writer.print(endpoint.bodyForQuery(request.queryString))
             break
+          case USER_BLOCK:
+            Blocking.forUser('user-to-block').blockIfMatch()
+            break
           case REDIRECT:
             response.sendRedirect(endpoint.body)
             break
@@ -160,4 +165,12 @@ class Jetty11Test extends HttpServerTest<Server> {
       }
     }
   }
+}
+
+class Jetty11V0ForkedTest extends Jetty11Test implements TestingGenericHttpNamingConventions.ServerV0 {
+
+}
+
+class Jetty11V1ForkedTest extends Jetty11Test implements TestingGenericHttpNamingConventions.ServerV1 {
+
 }

@@ -1,11 +1,15 @@
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.jaxrs.JaxRsClientDecorator
+import datadog.trace.test.util.Flaky
 import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl
 import org.glassfish.jersey.client.ClientConfig
 import org.glassfish.jersey.client.ClientProperties
 import org.glassfish.jersey.client.JerseyClientBuilder
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder
+import org.spockframework.runtime.ConditionNotSatisfiedError
 import spock.lang.IgnoreIf
+import spock.lang.Retry
 import spock.lang.Timeout
 
 import javax.ws.rs.client.Client
@@ -39,13 +43,25 @@ abstract class JaxRsClientTest extends HttpClientTest {
   }
 
   @Override
-  String expectedOperationName() {
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
     return "jax-rs.client.call"
   }
 
   abstract ClientBuilder builder()
 }
 
+@Flaky
+@Retry(exceptions = [ConditionNotSatisfiedError])
 @Timeout(5)
 class JerseyClientTest extends JaxRsClientTest {
 
@@ -62,8 +78,7 @@ class JerseyClientTest extends JaxRsClientTest {
   }
 }
 
-@Timeout(5)
-class ResteasyClientTest extends JaxRsClientTest {
+abstract class ResteasyClientTest extends JaxRsClientTest {
 
   @Override
   ClientBuilder builder() {
@@ -75,6 +90,14 @@ class ResteasyClientTest extends JaxRsClientTest {
   boolean testRedirects() {
     false
   }
+}
+
+@Timeout(5)
+class ResteasyClientV0ForkedTest extends ResteasyClientTest {
+}
+
+@Timeout(5)
+class ResteasyClientV1ForkedTest extends ResteasyClientTest implements TestingGenericHttpNamingConventions.ClientV1 {
 }
 
 @Timeout(5)

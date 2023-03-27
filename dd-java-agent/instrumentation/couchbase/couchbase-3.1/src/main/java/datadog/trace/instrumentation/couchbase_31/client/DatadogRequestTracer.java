@@ -12,7 +12,6 @@ import java.time.Duration;
 import reactor.core.publisher.Mono;
 
 public class DatadogRequestTracer implements RequestTracer {
-  private static final CharSequence COUCHBASE_CALL = UTF8BytesString.create("couchbase.call");
   private static final CharSequence COUCHBASE_INTERNAL =
       UTF8BytesString.create("couchbase.internal");
 
@@ -24,7 +23,7 @@ public class DatadogRequestTracer implements RequestTracer {
 
   @Override
   public RequestSpan requestSpan(String requestName, RequestSpan requestParent) {
-    CharSequence spanName = COUCHBASE_CALL;
+    CharSequence spanName = CouchbaseClientDecorator.OPERATION_NAME;
     boolean measured = true;
 
     AgentSpan parent = DatadogRequestSpan.unwrap(requestParent);

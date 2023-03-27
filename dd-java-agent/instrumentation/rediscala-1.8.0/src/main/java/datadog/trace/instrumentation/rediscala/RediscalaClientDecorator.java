@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.rediscala;
 
+import datadog.trace.api.Config;
+import datadog.trace.api.naming.SpanNaming;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
@@ -9,12 +12,14 @@ import redis.protocol.RedisReply;
 public class RediscalaClientDecorator
     extends DBTypeProcessingDatabaseClientDecorator<RedisCommand<? extends RedisReply, ?>> {
 
-  public static final CharSequence REDIS_COMMAND = UTF8BytesString.create("redis.command");
-
-  private static final String SERVICE_NAME = "redis";
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("redis-command");
 
   public static final RediscalaClientDecorator DECORATE = new RediscalaClientDecorator();
+
+  public static final CharSequence OPERATION_NAME =
+      UTF8BytesString.create(SpanNaming.instance().namingSchema().cache().operation("redis"));
+  private static final String SERVICE_NAME =
+      SpanNaming.instance().namingSchema().cache().service(Config.get().getServiceName(), "redis");
 
   @Override
   protected String[] instrumentationNames() {
@@ -55,4 +60,7 @@ public class RediscalaClientDecorator
   protected String dbHostname(RedisCommand<? extends RedisReply, ?> redisCommand) {
     return null;
   }
+
+  @Override
+  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
 }

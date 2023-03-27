@@ -1,5 +1,7 @@
 package datadog.trace.api;
 
+import datadog.trace.api.internal.util.HexStringUtils;
+
 /**
  * Class encapsulating the unsigned 64 bit id used for Traceids.
  *
@@ -66,9 +68,47 @@ public class DDTraceId {
       throw new NumberFormatException("null");
     }
 
-    int len = s.length();
-    int trimmed = Math.min(s.length(), 16);
-    return new DDTraceId(DDId.parseUnsignedLongHex(s, len - trimmed, trimmed), null, s);
+    return fromHexTruncatedWithOriginal(s, 0, s.length(), false);
+  }
+
+  /**
+   * Create a new {@code DDTraceId} from the given {@code String} hex representation of the unsigned
+   * 64 bit (or more) id truncated to 64 bits, while retaining the original {@code String}
+   * representation for use in headers.
+   *
+   * @param s String in hex of unsigned 64 bit (or more) id
+   * @param start the start index of the hex value
+   * @param len the len of the hex value
+   * @param lowerCaseOnly if the allowed hex characters are lower case only
+   * @return DDTraceId
+   * @throws NumberFormatException
+   */
+  public static DDTraceId fromHexTruncatedWithOriginal(
+      String s, int start, int len, boolean lowerCaseOnly) throws NumberFormatException {
+    if (s == null) {
+      throw new NumberFormatException("null");
+    }
+    int size = s.length();
+    if (start < 0 || len <= 0 || len > 32 || start + len > size) {
+      throw new NumberFormatException("Illegal start or length");
+    }
+    int trimmed = Math.min(len, 16);
+    int end = start + len;
+    int trimmedStart = end - trimmed;
+    if (trimmedStart > 0) {
+      // we need to check that the characters we don't parse are valid
+      HexStringUtils.parseUnsignedLongHex(s, start, trimmedStart, lowerCaseOnly);
+    }
+    String original;
+    if (start == 0 && end == len) {
+      original = s;
+    } else {
+      original = s.substring(start, end);
+    }
+    return new DDTraceId(
+        HexStringUtils.parseUnsignedLongHex(s, trimmedStart, trimmed, lowerCaseOnly),
+        null,
+        original);
   }
 
   private static DDTraceId create(long id, String str) {
@@ -154,6 +194,39 @@ public class DDTraceId {
       this.hex = h = this.toHexString();
     }
     return h;
+  }
+
+  /**
+   * Returns the zero padded hex representation, in lower case, of the unsigned 64 bit id or the
+   * original. The size will be rounded up to 16 or 32 characters. The hex {@code String} will NOT
+   * be cached.
+   *
+   * @param size the size in characters of the 0 padded String (rounded up to 16 or 32)
+   * @return zero padded hex String
+   */
+  public String toHexStringPaddedOrOriginal(int size) {
+    if (size > 16) {
+      size = 32;
+    } else if (size < 16) {
+      size = 16;
+    }
+    String h = this.hex;
+    if (h == null) {
+      h = DDId.toHexStringPadded(this.id, size);
+    }
+    int len = h.length();
+    if (len == size) {
+      return h;
+    } else if (len > size) {
+      return h.substring((len - 1) - size, len);
+    } else {
+      StringBuilder sb = new StringBuilder(size);
+      for (int i = len; i < size; i++) {
+        sb.append('0');
+      }
+      sb.append(h);
+      return sb.toString();
+    }
   }
 
   /**

@@ -17,7 +17,7 @@ public class ExtractedContext extends TagContext {
       final DDTraceId traceId,
       final long spanId,
       final int samplingPriority,
-      final String origin,
+      final CharSequence origin,
       final long endToEndStartTime,
       final Map<String, String> baggage,
       final Map<String, String> tags,

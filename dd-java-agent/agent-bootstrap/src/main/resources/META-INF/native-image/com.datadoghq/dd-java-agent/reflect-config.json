@@ -30,6 +30,18 @@
     ]
   },
   {
+    "name" : "datadog.trace.agent.common.sampling.SpanSamplingRules$RuleAdapter",
+    "methods": [
+      {"name": "fromJson"}
+    ]
+  },
+  {
+    "name" : "datadog.trace.agent.common.sampling.TraceSamplingRules$RuleAdapter",
+    "methods": [
+      {"name": "fromJson"}
+    ]
+  },
+  {
     "name" : "datadog.trace.instrumentation.springweb.HandlerMappingResourceNameFilter",
     "methods": [
       {"name": "<init>", "parameterTypes": []}
@@ -37,6 +49,18 @@
   },
   {
     "name" : "datadog.trace.instrumentation.springweb.OrderedServletPathRequestFilter",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []}
+    ]
+  },
+  {
+    "name" : "datadog.trace.instrumentation.springweb6.HandlerMappingResourceNameFilter",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []}
+    ]
+  },
+  {
+    "name" : "datadog.trace.instrumentation.springweb6.OrderedServletPathRequestFilter",
     "methods": [
       {"name": "<init>", "parameterTypes": []}
     ]

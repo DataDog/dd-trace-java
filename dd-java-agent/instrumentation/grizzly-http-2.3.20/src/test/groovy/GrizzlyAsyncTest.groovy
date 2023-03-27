@@ -1,3 +1,5 @@
+import datadog.appsec.api.blocking.Blocking
+
 import javax.ws.rs.Consumes
 import javax.ws.rs.FormParam
 import javax.ws.rs.GET
@@ -23,6 +25,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 
 class GrizzlyAsyncTest extends GrizzlyTest {
 
@@ -128,6 +131,17 @@ class GrizzlyAsyncTest extends GrizzlyTest {
       executor.execute {
         controller(ERROR) {
           ar.resume(Response.status(ERROR.status).entity(ERROR.body).build())
+        }
+      }
+    }
+
+    @GET
+    @Path("user-block")
+    Response userBlock(@Suspended AsyncResponse ar) {
+      executor.execute {
+        controller(USER_BLOCK) {
+          Blocking.forUser('user-to-block').blockIfMatch()
+          ar.resume(Response.status(200).entity('should not be reached').build())
         }
       }
     }

@@ -1,6 +1,7 @@
 import com.google.common.io.Files
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.api.CorrelationIdentifier
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
@@ -80,6 +81,7 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
 
     @Override
     void stop() {
+      //      sleep 10_000
       server.stop()
       server.destroy()
     }
@@ -340,6 +342,10 @@ class TomcatServlet3TestSync extends TomcatServlet3Test {
   }
 }
 
+class TomcatServlet3SyncV1ForkedTest extends TomcatServlet3TestSync implements TestingGenericHttpNamingConventions.ServerV1 {
+
+}
+
 class TomcatServlet3TestAsync extends TomcatServlet3Test {
 
   @Override
@@ -357,6 +363,10 @@ class TomcatServlet3TestAsync extends TomcatServlet3Test {
     // The exception will just cause an async timeout
     false
   }
+}
+
+class TomcatServlet3AsyncV1ForkedTest extends TomcatServlet3TestAsync implements TestingGenericHttpNamingConventions.ServerV1 {
+
 }
 
 class TomcatServlet3TestFakeAsync extends TomcatServlet3Test {

@@ -1,16 +1,20 @@
 import com.google.api.client.http.HttpRequest
 import com.google.api.client.http.HttpResponse
-import spock.lang.Retry
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import spock.lang.Timeout
 
-@Retry(condition = {
-  !invocation.method.name.contains('circular redirects')
-})
-@Timeout(5)
-class GoogleHttpClientTest extends AbstractGoogleHttpClientTest {
+abstract class GoogleHttpClientTest extends AbstractGoogleHttpClientTest {
 
   @Override
   HttpResponse executeRequest(HttpRequest request) {
     return request.execute()
   }
+}
+
+@Timeout(5)
+class GoogleHttpClientV0ForkedTest extends GoogleHttpClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
+}
+
+@Timeout(5)
+class GoogleHttpClientV1ForkedTest extends GoogleHttpClientTest implements TestingGenericHttpNamingConventions.ClientV1 {
 }

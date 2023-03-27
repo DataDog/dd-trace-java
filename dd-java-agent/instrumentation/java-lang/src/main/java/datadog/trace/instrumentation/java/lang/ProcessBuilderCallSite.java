@@ -2,12 +2,15 @@ package datadog.trace.instrumentation.java.lang;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastAdvice;
+import datadog.trace.api.iast.IastAdvice.Sink;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.model.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.CommandInjectionModule;
 import java.util.List;
 import javax.annotation.Nullable;
 
 // TODO deal with the environment
+@Sink(VulnerabilityTypes.COMMAND_INJECTION)
 @CallSite(spi = IastAdvice.class)
 public class ProcessBuilderCallSite {
 

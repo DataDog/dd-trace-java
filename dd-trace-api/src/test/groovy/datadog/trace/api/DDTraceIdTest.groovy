@@ -146,14 +146,23 @@ class DDTraceIdTest extends DDSpecification {
 
   def "convert ids from/to hex String and truncate to 64 bits while keeping the original"() {
     when:
-    final ddid = DDTraceId.fromHexTruncatedWithOriginal(hexId)
+    DDTraceId ddid = null
+    try {
+      ddid = DDTraceId.fromHexTruncatedWithOriginal(hexId)
+    } catch (NumberFormatException ignored) {
+    }
 
     then:
-    ddid == expectedId
-    ddid.toHexStringOrOriginal() == hexId
+    if (expectedId) {
+      assert ddid == expectedId
+      assert ddid.toHexStringOrOriginal() == hexId
+    } else {
+      assert !ddid
+    }
 
     where:
     hexId                          | expectedId
+    null                           | null
     "000"                          | DDTraceId.ZERO
     "0001"                         | DDTraceId.ONE
     "f" * 16                       | DDTraceId.MAX
@@ -162,6 +171,38 @@ class DDTraceIdTest extends DDSpecification {
     "0" * 4 + "8" + "0" * 15       | DDTraceId.from(Long.MIN_VALUE)
     "1" * 8 + "0" * 8 + "cafebabe" | DDTraceId.from(3405691582)
     "1" * 12 + "0123456789abcdef"  | DDTraceId.from(81985529216486895)
+  }
+
+  def "convert ids from/to part of hex String and truncate to 64 bits while keeping the original part"() {
+    when:
+    DDTraceId ddid = null
+    try {
+      ddid = DDTraceId.fromHexTruncatedWithOriginal(hexId, start, length, lcOnly)
+    } catch (NumberFormatException ignored) {
+    }
+
+    then:
+    if (expectedId) {
+      assert ddid == expectedId
+      assert ddid.toHexStringOrOriginal() == expectedHex
+      assert ddid.toHexStringPaddedOrOriginal(16) == padHex(16, expectedHex)
+      assert ddid.toHexStringPaddedOrOriginal(32) == padHex(32, expectedHex)
+    } else {
+      assert !ddid
+    }
+
+    where:
+    hexId                          | start| length | lcOnly | expectedHex | expectedId
+    null                           |  1   |  1     | false  | null        | null
+    ""                             |  1   |  1     | false  | null        | null
+    "00"                           | -1   |  1     | false  | null        | null
+    "00"                           |  0   |  0     | false  | null        | null
+    "00"                           |  1   |  1     | false  | "0"         | DDTraceId.ZERO
+    "0001"                         |  2   |  2     | false  | "01"        | DDTraceId.ONE
+    "f" * 16                       |  0   |  16    | true   | "f" * 16    | DDTraceId.MAX
+    "f" * 12 + "Ffff"              |  0   |  16    | true   | null        | null
+    "fFff" + ("f" * 16)            |  0   |  20    | true   | null        | null
+    "Cafe" + ("f" * 16) + "F00d"   |  4   |  16    | false  | "f" * 16    | DDTraceId.MAX
   }
 
   def "exception created on SecureRandom strategy"() {
@@ -195,5 +236,13 @@ class DDTraceIdTest extends DDSpecification {
     1 * random.nextLong() >> { 0 }
     1 * random.nextLong() >> { 11 }
     0 * _
+  }
+
+  static padHex(int size, String hex) {
+    def len = hex.length()
+    if (len >= size) {
+      return hex
+    }
+    return "${"0" * (size - len)}$hex"
   }
 }

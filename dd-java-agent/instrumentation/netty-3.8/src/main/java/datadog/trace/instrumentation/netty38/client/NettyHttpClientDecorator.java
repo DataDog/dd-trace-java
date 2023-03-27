@@ -11,12 +11,13 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 
 public class NettyHttpClientDecorator extends HttpClientDecorator<HttpRequest, HttpResponse> {
   public static final CharSequence NETTY_CLIENT = UTF8BytesString.create("netty-client");
-  public static final CharSequence NETTY_CLIENT_REQUEST =
-      UTF8BytesString.create("netty.client.request");
 
   public static final NettyHttpClientDecorator DECORATE = new NettyHttpClientDecorator("http://");
   public static final NettyHttpClientDecorator DECORATE_SECURE =
       new NettyHttpClientDecorator("https://");
+
+  public static final CharSequence NETTY_CLIENT_REQUEST =
+      UTF8BytesString.create(DECORATE.operationName());
 
   private final String uriPrefix;
 

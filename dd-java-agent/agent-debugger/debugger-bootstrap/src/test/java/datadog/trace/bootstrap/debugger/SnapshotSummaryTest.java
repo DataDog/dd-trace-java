@@ -32,7 +32,7 @@ public class SnapshotSummaryTest {
             Thread.currentThread(),
             new ProbeDetails(UUID.randomUUID().toString(), PROBE_LOCATION),
             CLASS_NAME);
-    assertEquals("SomeClass.someMethod()", snapshot.getSummary());
+    assertEquals("SomeClass.someMethod()", snapshot.buildSummary());
   }
 
   @Test
@@ -40,29 +40,34 @@ public class SnapshotSummaryTest {
     Snapshot snapshot =
         new Snapshot(
             Thread.currentThread(),
-            new ProbeDetails(UUID.randomUUID().toString(), PROBE_LOCATION),
+            new ProbeDetails(
+                UUID.randomUUID().toString(),
+                PROBE_LOCATION,
+                Snapshot.MethodLocation.EXIT,
+                true,
+                null,
+                null,
+                new SnapshotSummaryBuilder(PROBE_LOCATION)),
             CLASS_NAME);
     CapturedContext entry = new CapturedContext();
+    snapshot.setEntry(entry);
+    assertEquals("SomeClass.someMethod()", snapshot.buildSummary());
+
+    CapturedContext exit = new CapturedContext();
     HashMap<String, String> argMap = new HashMap<>();
     argMap.put("foo", "bar");
-    entry.addArguments(
+    exit.addArguments(
         new Snapshot.CapturedValue[] {
           Snapshot.CapturedValue.of("arg1", String.class.getTypeName(), "this is a string"),
           Snapshot.CapturedValue.of("arg2", "int", 42),
           Snapshot.CapturedValue.of("arg3", List.class.getTypeName(), Arrays.asList("a", "b", "c")),
           Snapshot.CapturedValue.of("arg4", Map.class.getTypeName(), argMap)
         });
-    snapshot.setEntry(entry);
-    assertEquals(
-        "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c], arg4={foo=bar})",
-        snapshot.getSummary());
-
-    CapturedContext exit = new CapturedContext();
     exit.addLocals(new Snapshot.CapturedValue[] {CapturedValue.of("@return", "double", 2.0)});
     snapshot.setExit(exit);
     assertEquals(
         "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c], arg4={foo=bar}): 2.0",
-        snapshot.getSummary());
+        snapshot.buildSummary());
   }
 
   @Test
@@ -70,19 +75,18 @@ public class SnapshotSummaryTest {
     Snapshot snapshot =
         new Snapshot(
             Thread.currentThread(),
-            new ProbeDetails(UUID.randomUUID().toString(), PROBE_LOCATION),
+            new ProbeDetails(
+                UUID.randomUUID().toString(),
+                PROBE_LOCATION,
+                Snapshot.MethodLocation.EXIT,
+                true,
+                null,
+                null,
+                new SnapshotSummaryBuilder(PROBE_LOCATION)),
             CLASS_NAME);
     CapturedContext entry = new CapturedContext();
-    entry.addArguments(
-        new Snapshot.CapturedValue[] {
-          Snapshot.CapturedValue.of("arg1", String.class.getTypeName(), "this is a string"),
-          Snapshot.CapturedValue.of("arg2", "int", 42),
-          Snapshot.CapturedValue.of("arg3", List.class.getTypeName(), Arrays.asList("a", "b", "c"))
-        });
     snapshot.setEntry(entry);
-    assertEquals(
-        "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c])",
-        snapshot.getSummary());
+    assertEquals("SomeClass.someMethod()", snapshot.buildSummary());
 
     CapturedContext exit = new CapturedContext();
     exit.addLocals(
@@ -92,11 +96,17 @@ public class SnapshotSummaryTest {
           Snapshot.CapturedValue.of("list", List.class.getTypeName(), Arrays.asList("1", "2", "3")),
           CapturedValue.of("@return", "double", 2.0)
         });
+    exit.addArguments(
+        new Snapshot.CapturedValue[] {
+          Snapshot.CapturedValue.of("arg1", String.class.getTypeName(), "this is a string"),
+          Snapshot.CapturedValue.of("arg2", "int", 42),
+          Snapshot.CapturedValue.of("arg3", List.class.getTypeName(), Arrays.asList("a", "b", "c"))
+        });
     snapshot.setExit(exit);
     assertEquals(
         "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c]): 2.0\n"
             + "i=1001, list=[1, 2, 3], str=this is a local string",
-        snapshot.getSummary());
+        snapshot.buildSummary());
   }
 
   @Test
@@ -134,7 +144,7 @@ public class SnapshotSummaryTest {
     assertEquals(
         "SnapshotSummaryTest.testSummaryLineSnapshot(arg1=this is a string, arg2=42)\n"
             + "i=1001, list=[1, 2, 3], str=this is a local string",
-        snapshot.getSummary());
+        snapshot.buildSummary());
   }
 
   @Test
@@ -164,6 +174,6 @@ public class SnapshotSummaryTest {
           Snapshot.CapturedValue.of("arg2", "int", 42),
         });
     snapshot.addLine(lineCapture, 13);
-    assertEquals("SomeFile:[13](arg1=this is a string, arg2=42)", snapshot.getSummary());
+    assertEquals("SomeFile:[13](arg1=this is a string, arg2=42)", snapshot.buildSummary());
   }
 }

@@ -3,6 +3,7 @@ package datadog.trace.core
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
@@ -17,10 +18,13 @@ class DDSpanContextTest extends DDCoreSpecification {
 
   def writer
   def tracer
+  def profilingContextIntegration
 
   def setup() {
     writer = new ListWriter()
-    tracer = tracerBuilder().writer(writer).build()
+    profilingContextIntegration = Mock(ProfilingContextIntegration)
+    tracer = tracerBuilder().writer(writer)
+      .profilingContextIntegration(profilingContextIntegration).build()
   }
 
   def cleanup() {
@@ -225,14 +229,49 @@ class DDSpanContextTest extends DDCoreSpecification {
     context.getTag(SPAN_SAMPLING_MECHANISM_TAG) == SPAN_SAMPLING_RATE
     context.getTag(SPAN_SAMPLING_RULE_RATE_TAG) == rate
     context.getTag(SPAN_SAMPLING_MAX_PER_SECOND_TAG) == (limit == Integer.MAX_VALUE ? null : limit)
-    context.getSamplingPriority() == USER_KEEP
-    context.getPropagationTags().createTagMap() == ["_dd.p.dm":"-" + SPAN_SAMPLING_RATE]
+    // single span sampling should not change the trace sampling priority
+    context.getSamplingPriority() == UNSET
+    // make sure the `_dd.p.dm` tag has not been set by single span sampling
+    context.getPropagationTags().createTagMap() == [:]
 
     where:
     rate | limit
     1.0  | 10
     0.5  | 100
     0.25 | Integer.MAX_VALUE
+  }
+
+  def "setting resource name to null is ignored"() {
+    setup:
+    def span = tracer.buildSpan("fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .start()
+
+    when:
+    span.setResourceName(null)
+
+    then:
+    span.resourceName == "fakeResource"
+  }
+
+  def "setting operation name triggers constant encoding"() {
+    when:
+    def span = tracer.buildSpan("fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .start()
+
+    then: "encoded operation name matches operation name"
+    1 * profilingContextIntegration.encode("fakeOperation") >> 1
+    span.context.encodedOperationName == 1
+
+    when:
+    span.setOperationName("newOperationName")
+
+    then:
+    1 * profilingContextIntegration.encode("newOperationName") >> 2
+    span.context.encodedOperationName == 2
   }
 
   private static String dataTag(String tag) {

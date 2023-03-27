@@ -5,6 +5,8 @@ import com.mongodb.connection.ConnectionDescription;
 import com.mongodb.connection.ConnectionId;
 import com.mongodb.connection.ServerId;
 import com.mongodb.event.CommandStartedEvent;
+import datadog.trace.api.Config;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -16,14 +18,17 @@ import org.bson.BsonBinaryReader;
 import org.bson.BsonDocument;
 import org.bson.BsonDocumentReader;
 import org.bson.ByteBuf;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public abstract class MongoDecorator
     extends DBTypeProcessingDatabaseClientDecorator<CommandStartedEvent> {
-  private static final Logger log = LoggerFactory.getLogger(MongoDecorator.class);
-
-  public static final UTF8BytesString MONGO_QUERY = UTF8BytesString.create("mongo.query");
+  private static final String DB_TYPE = "mongo";
+  private static final String SERVICE_NAME =
+      SpanNaming.instance()
+          .namingSchema()
+          .database()
+          .service(Config.get().getServiceName(), DB_TYPE);
+  public static final UTF8BytesString OPERATION_NAME =
+      UTF8BytesString.create(SpanNaming.instance().namingSchema().database().operation(DB_TYPE));
 
   @Override
   protected final String[] instrumentationNames() {
@@ -32,7 +37,7 @@ public abstract class MongoDecorator
 
   @Override
   protected final String service() {
-    return "mongo";
+    return SERVICE_NAME;
   }
 
   @Override
@@ -47,7 +52,7 @@ public abstract class MongoDecorator
 
   @Override
   protected final String dbType() {
-    return "mongo";
+    return DB_TYPE;
   }
 
   @Override
@@ -101,6 +106,9 @@ public abstract class MongoDecorator
     // Fallback to db name.
     return event.getDatabaseName();
   }
+
+  @Override
+  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
 
   protected abstract BsonScrubber newScrubber();
 

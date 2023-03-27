@@ -82,4 +82,11 @@ public class TestStringSuite {
     LOGGER.debug("After string trim {}", result);
     return result;
   }
+
+  public static String stringConstructor(String self) {
+    LOGGER.debug("Before string stringConstructor {} from {}", self);
+    final String result = new String(self);
+    LOGGER.debug("After string stringConstructor {}", result);
+    return result;
+  }
 }

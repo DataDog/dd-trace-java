@@ -5,7 +5,8 @@ import com.datadog.iast.model.Location
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityBatch
 import com.datadog.iast.model.VulnerabilityType
-import datadog.trace.api.TraceSegment
+import datadog.trace.api.Config
+import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
@@ -15,6 +16,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.test.util.DDSpecification
+import datadog.trace.util.AgentTaskScheduler
 import groovy.json.JsonSlurper
 import spock.lang.Shared
 
@@ -345,7 +347,7 @@ class ReporterTest extends DDSpecification {
     final executors = Executors.newCachedThreadPool()
     final int size = 32
     final latch = new CountDownLatch(size)
-    final predicate = new Reporter.HashBasedDeduplication(size >> 3) // maximum of 4 hashes
+    final predicate = new Reporter.HashBasedDeduplication(size >> 3, null) // maximum of 4 hashes
     final Reporter reporter = new Reporter({ final Vulnerability vul ->
       latch.countDown()
       predicate.test(vul)
@@ -370,6 +372,18 @@ class ReporterTest extends DDSpecification {
     executors.awaitTermination(5, TimeUnit.SECONDS)
     executors.isTerminated()
     batch.vulnerabilities.size() >= 8
+  }
+
+  void 'cache reset is scheduled'() {
+    given:
+    final AgentTaskScheduler scheduler = Mock()
+
+    when:
+    new Reporter(Config.get(), scheduler)
+
+    then: 'there are vulnerabilities reported'
+    1 * scheduler.scheduleAtFixedRate(_, 1, 1, TimeUnit.HOURS)
+    0 * _
   }
 
   private AgentSpan spanWithBatch(final VulnerabilityBatch batch) {

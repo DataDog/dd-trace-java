@@ -6,7 +6,7 @@ public enum TracePropagationStyle {
   DATADOG,
   // B3 single header context propagation style
   // https://github.com/openzipkin/b3-propagation/tree/master#single-header
-  B3,
+  B3SINGLE,
   // B3 multi header context propagation style
   // https://github.com/openzipkin/b3-propagation/tree/master#multiple-headers
   B3MULTI,
@@ -15,15 +15,24 @@ public enum TracePropagationStyle {
   HAYSTACK,
   // Amazon X-Ray context propagation style
   // https://docs.aws.amazon.com/xray/latest/devguide/xray-concepts.html#xray-concepts-tracingheader
-  XRAY;
+  XRAY,
+  // W3C trace context propagation style
+  // https://www.w3.org/TR/trace-context-1/
+  TRACECONTEXT,
+  // None does not extract or inject
+  NONE;
 
   public static TracePropagationStyle valueOfDisplayName(String displayName) {
     String convertedName = displayName.toUpperCase().replace(' ', '_');
     // Another name for B3 for cross tracer compatibility
-    if (convertedName.equals("B3_SINGLE_HEADER")) {
-      return B3;
+    switch (convertedName) {
+      case "B3_SINGLE_HEADER":
+        return B3SINGLE;
+      case "B3":
+        return B3MULTI;
+      default:
+        return TracePropagationStyle.valueOf(convertedName);
     }
-    return TracePropagationStyle.valueOf(convertedName);
   }
 
   private String displayName;

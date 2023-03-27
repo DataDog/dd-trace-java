@@ -34,8 +34,11 @@ public class InternalSpanTypes {
 
   public static final CharSequence GRAPHQL = UTF8BytesString.create(DDSpanTypes.GRAPHQL);
 
-  public static final CharSequence TEST = UTF8BytesString.create(DDSpanTypes.TEST);
-
-  public static final CharSequence VULNERABILITY =
+  public static final UTF8BytesString TEST = UTF8BytesString.create(DDSpanTypes.TEST);
+  public static final UTF8BytesString TEST_SUITE_END =
+      UTF8BytesString.create(DDSpanTypes.TEST_SUITE_END);
+  public static final UTF8BytesString TEST_MODULE_END =
+      UTF8BytesString.create(DDSpanTypes.TEST_MODULE_END);
+  public static final UTF8BytesString VULNERABILITY =
       UTF8BytesString.create(DDSpanTypes.VULNERABILITY);
 }

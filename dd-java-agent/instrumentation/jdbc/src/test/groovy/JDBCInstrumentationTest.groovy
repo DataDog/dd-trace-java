@@ -1,7 +1,8 @@
 import com.mchange.v2.c3p0.ComboPooledDataSource
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.apache.derby.jdbc.EmbeddedDataSource
@@ -23,7 +24,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
-class JDBCInstrumentationTest extends AgentTestRunner {
+abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
   @Shared
   def dbName = "jdbcUnitTest"
 
@@ -180,8 +181,8 @@ class JDBCInstrumentationTest extends AgentTestRunner {
       trace(2) {
         basicSpan(it, "parent")
         span {
-          serviceName renameService ? dbName.toLowerCase() : driver
-          operationName "${driver}.query"
+          serviceName renameService ? dbName.toLowerCase() : service(driver)
+          operationName this.operation(driver)
           resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
@@ -248,8 +249,8 @@ class JDBCInstrumentationTest extends AgentTestRunner {
       trace(2) {
         basicSpan(it, "parent")
         span {
-          operationName "${driver}.query"
-          serviceName driver
+          operationName this.operation(driver)
+          serviceName service(driver)
           resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
@@ -302,8 +303,8 @@ class JDBCInstrumentationTest extends AgentTestRunner {
       trace(2) {
         basicSpan(it, "parent")
         span {
-          operationName "${driver}.query"
-          serviceName driver
+          operationName this.operation(driver)
+          serviceName service(driver)
           resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
@@ -356,8 +357,8 @@ class JDBCInstrumentationTest extends AgentTestRunner {
       trace(2) {
         basicSpan(it, "parent")
         span {
-          operationName "${driver}.query"
-          serviceName driver
+          operationName this.operation(driver)
+          serviceName service(driver)
           resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
@@ -410,8 +411,8 @@ class JDBCInstrumentationTest extends AgentTestRunner {
       trace(2) {
         basicSpan(it, "parent")
         span {
-          operationName "${driver}.query"
-          serviceName driver
+          operationName this.operation(driver)
+          serviceName service(driver)
           resourceName query
           spanType DDSpanTypes.SQL
           childOf span(0)
@@ -466,8 +467,8 @@ class JDBCInstrumentationTest extends AgentTestRunner {
       trace(2) {
         basicSpan(it, "parent")
         span {
-          operationName "${driver}.query"
-          serviceName driver
+          operationName this.operation(driver)
+          serviceName service(driver)
           resourceName query
           spanType DDSpanTypes.SQL
           childOf span(0)
@@ -534,8 +535,8 @@ class JDBCInstrumentationTest extends AgentTestRunner {
       trace(2) {
         basicSpan(it, "parent")
         span {
-          operationName "${driver}.query"
-          serviceName driver
+          operationName this.operation(driver)
+          serviceName service(driver)
           resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
@@ -652,8 +653,8 @@ class JDBCInstrumentationTest extends AgentTestRunner {
       trace(2) {
         basicSpan(it, "parent")
         span {
-          operationName "${database}.query"
-          serviceName database
+          operationName this.operation(database)
+          serviceName service(database)
           resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
@@ -720,8 +721,8 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     assertTraces(5) {
       trace(1) {
         span {
-          operationName "${dbType}.query"
-          serviceName dbType
+          operationName this.operation(dbType)
+          serviceName service(dbType)
           resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           errored false
@@ -740,8 +741,8 @@ class JDBCInstrumentationTest extends AgentTestRunner {
       for (int i = 1; i < numQueries; ++i) {
         trace(1) {
           span {
-            operationName "${dbType}.query"
-            serviceName dbType
+            operationName this.operation(dbType)
+            serviceName service(dbType)
             resourceName obfuscatedQuery
             spanType DDSpanTypes.SQL
             errored false
@@ -787,5 +788,54 @@ class JDBCInstrumentationTest extends AgentTestRunner {
   Connection connect(String driverClass, String url, Properties properties) {
     return newDriver(driverClass)
       .connect(url, properties)
+  }
+  @Override
+  final String service() {
+    return null
+  }
+
+  @Override
+  final String operation() {
+    return null
+  }
+
+  protected abstract String service(String dbType)
+
+  protected abstract String operation(String dbType)
+}
+
+class JDBCInstrumentationV0ForkedTest extends JDBCInstrumentationTest {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  protected String service(String dbType) {
+    return dbType
+  }
+
+  @Override
+  protected String operation(String dbType) {
+    return "${dbType}.query"
+  }
+}
+
+class JDBCInstrumentationV1ForkedTest extends JDBCInstrumentationTest {
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  protected String service(String dbType) {
+    return Config.get().getServiceName() + "-${dbType}"
+  }
+
+  @Override
+  protected String operation(String dbType) {
+    return "${dbType}.query"
   }
 }

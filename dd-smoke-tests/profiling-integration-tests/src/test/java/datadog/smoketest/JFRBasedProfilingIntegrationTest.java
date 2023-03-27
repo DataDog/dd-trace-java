@@ -60,6 +60,7 @@ import org.openjdk.jmc.common.unit.UnitLookup;
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import spock.util.environment.OperatingSystem;
 
 @DisabledIfSystemProperty(named = "java.vm.name", matches = ".*J9.*")
 class JFRBasedProfilingIntegrationTest {
@@ -96,6 +97,8 @@ class JFRBasedProfilingIntegrationTest {
 
   public static final IAttribute<String> FOO = attr("foo", "", "", PLAIN_TEXT);
   public static final IAttribute<String> BAR = attr("bar", "", "", PLAIN_TEXT);
+
+  public static final IAttribute<String> OPERATION = attr("operation", "", "", PLAIN_TEXT);
 
   private MockWebServer profilingServer;
   private MockWebServer tracingServer;
@@ -142,13 +145,23 @@ class JFRBasedProfilingIntegrationTest {
   @Test
   @DisplayName("Test continuous recording - no jmx delay")
   public void testContinuousRecording_no_jmx_delay(final TestInfo testInfo) throws Exception {
-    testWithRetry(() -> testContinuousRecording(0, ENDPOINT_COLLECTION_ENABLED, true), testInfo, 5);
+    testWithRetry(
+        () ->
+            testContinuousRecording(
+                0, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux()),
+        testInfo,
+        5);
   }
 
   @Test
   @DisplayName("Test continuous recording - 1 sec jmx delay")
   public void testContinuousRecording(final TestInfo testInfo) throws Exception {
-    testWithRetry(() -> testContinuousRecording(1, ENDPOINT_COLLECTION_ENABLED, true), testInfo, 5);
+    testWithRetry(
+        () ->
+            testContinuousRecording(
+                1, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux()),
+        testInfo,
+        5);
   }
 
   private void testContinuousRecording(
@@ -517,6 +530,7 @@ class JFRBasedProfilingIntegrationTest {
         IItemCollection executionSamples =
             events.apply(ItemFilters.type("datadog.ExecutionSample"));
         Set<Long> rootSpanIds = new HashSet<>();
+        Set<String> operations = new HashSet<>();
         Set<String> values = new HashSet<>();
         for (IItemIterable executionSampleEvents : executionSamples) {
           IMemberAccessor<IQuantity, IItem> rootSpanIdAccessor =
@@ -525,8 +539,14 @@ class JFRBasedProfilingIntegrationTest {
               FOO.getAccessor(executionSampleEvents.getType());
           IMemberAccessor<String, IItem> barAccessor =
               BAR.getAccessor(executionSampleEvents.getType());
+          IMemberAccessor<String, IItem> operationAccessor =
+              OPERATION.getAccessor(executionSampleEvents.getType());
           for (IItem executionSample : executionSampleEvents) {
-            rootSpanIds.add(rootSpanIdAccessor.getMember(executionSample).longValue());
+            long rootSpanId = rootSpanIdAccessor.getMember(executionSample).longValue();
+            rootSpanIds.add(rootSpanId);
+            if (rootSpanId != 0) {
+              operations.add(operationAccessor.getMember(executionSample));
+            }
             String foo = fooAccessor.getMember(executionSample);
             if (foo != null) {
               values.add(foo);
@@ -534,6 +554,8 @@ class JFRBasedProfilingIntegrationTest {
             assertNull(barAccessor.getMember(executionSample));
           }
         }
+        assertEquals(1, operations.size(), "wrong number of operation names");
+        assertEquals("trace.annotation", operations.iterator().next(), "wrong operation names");
         int matches = 0;
         for (IItemIterable event : endpointEvents) {
           IMemberAccessor<IQuantity, IItem> rootSpanIdAccessor =
@@ -661,6 +683,7 @@ class JFRBasedProfilingIntegrationTest {
             "-Ddd.profiling.endpoint.collection.enabled=" + endpointCollectionEnabled,
             "-Ddd.profiling.upload.timeout=" + PROFILING_UPLOAD_TIMEOUT_SECONDS,
             "-Ddd.profiling.debug.dump_path=/tmp/dd-profiler",
+            "-Ddd.profiling.ddprof.experimental.queueing.time.enabled=true",
             "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
             "-Ddd.profiling.experimental.context.attributes=foo,bar",
             "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",

@@ -1,7 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
-import com.datadog.debugger.el.Expression;
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.CollectionValue;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.StringValue;
@@ -45,7 +45,7 @@ public final class LenExpression implements ValueExpression<Value<? extends Numb
   }
 
   @Override
-  public String prettyPrint() {
-    return "len(" + Expression.nullSafePrettyPrint(source) + ")";
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
   }
 }

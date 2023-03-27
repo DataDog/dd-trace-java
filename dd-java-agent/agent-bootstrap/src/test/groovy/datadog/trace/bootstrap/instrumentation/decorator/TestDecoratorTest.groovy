@@ -1,12 +1,23 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.api.DDTags
+import datadog.trace.api.civisibility.InstrumentationBridge
+import datadog.trace.api.civisibility.codeowners.Codeowners
+import datadog.trace.api.civisibility.source.MethodLinesResolver
+import datadog.trace.api.civisibility.source.SourcePathResolver
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.bootstrap.instrumentation.ci.CITagsProvider
 
 class TestDecoratorTest extends BaseDecoratorTest {
+
+  def setupSpec() {
+    InstrumentationBridge.ci = true
+    InstrumentationBridge.ciTags = Collections.singletonMap("sample-ci-key", "sample-ci-value")
+    InstrumentationBridge.codeowners = Stub(Codeowners)
+    InstrumentationBridge.sourcePathResolver = Stub(SourcePathResolver)
+    InstrumentationBridge.methodLinesResolver = Stub(MethodLinesResolver)
+  }
 
   def span = Mock(AgentSpan)
 
@@ -19,7 +30,6 @@ class TestDecoratorTest extends BaseDecoratorTest {
 
     then:
     1 * span.setTag(Tags.COMPONENT, "test-component")
-    1 * span.setTag(Tags.SPAN_KIND, decorator.spanKind())
     1 * span.setSpanType(decorator.spanType())
     1 * span.setTag(Tags.TEST_FRAMEWORK, decorator.testFramework())
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
@@ -31,9 +41,11 @@ class TestDecoratorTest extends BaseDecoratorTest {
     1 * span.setTag(Tags.OS_PLATFORM, decorator.osPlatform())
     1 * span.setTag(Tags.OS_VERSION, decorator.osVersion())
     1 * span.setTag(DDTags.ORIGIN_KEY, decorator.origin())
-    decorator.ciTags.each {
+
+    InstrumentationBridge.ciTags.each {
       1 * span.setTag(it.key, it.value)
     }
+
     _ * span.setTag(_, _) // Want to allow other calls from child implementations.
     _ * span.setServiceName(_)
     _ * span.setOperationName(_)
@@ -53,7 +65,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
 
   @Override
   def newDecorator() {
-    return new TestDecorator(newMockCiInfo()) {
+    return new TestDecorator() {
         @Override
         protected String testFramework() {
           return "test-framework"
@@ -70,29 +82,13 @@ class TestDecoratorTest extends BaseDecoratorTest {
         }
 
         @Override
-        protected String spanKind() {
+        protected String testSpanKind() {
           return "test-type"
         }
 
         @Override
-        protected CharSequence component() {
+        CharSequence component() {
           return "test-component"
-        }
-      }
-  }
-
-  def newMockCiInfo() {
-    return new CITagsProvider() {
-        @Override
-        boolean isCI() {
-          return true
-        }
-
-        @Override
-        Map<String, String> getCiTags() {
-          def mockCiTags = new HashMap()
-          mockCiTags.put("sample-ci-key", "sample-ci-value")
-          return mockCiTags
         }
       }
   }

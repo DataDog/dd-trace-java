@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator
 import org.apache.hc.client5.http.config.RequestConfig
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse
@@ -15,7 +16,7 @@ import spock.lang.Timeout
 
 import java.util.concurrent.TimeUnit
 
-abstract class ApacheHttpClientTest<T extends HttpRequest> extends HttpClientTest {
+abstract class ApacheHttpClientTest<T extends HttpRequest> extends HttpClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
 
   @Shared
   def client = HttpClients.custom()
@@ -181,8 +182,7 @@ class ApacheClientRequestContextResponseHandler extends ApacheHttpClientTest<Cla
   }
 }
 
-@Timeout(5)
-class ApacheClientResponseHandlerAll extends ApacheHttpClientTest<ClassicHttpRequest> {
+abstract class ApacheClientResponseHandlerAll extends ApacheHttpClientTest<ClassicHttpRequest> {
   @Override
   ClassicHttpRequest createRequest(String method, URI uri) {
     return new BasicClassicHttpRequest(method, fullPathFromURI(uri))
@@ -193,3 +193,12 @@ class ApacheClientResponseHandlerAll extends ApacheHttpClientTest<ClassicHttpReq
     return client.execute(new HttpHost(uri.scheme, uri.host, uri.port), request, new BasicHttpContext(), { CloseableHttpResponse response -> response })
   }
 }
+
+@Timeout(5)
+class ApacheClientResponseHandlerAllV0ForkedTest extends ApacheClientResponseHandlerAll {
+}
+
+@Timeout(5)
+class ApacheClientResponseHandlerAllV1ForkedTest extends ApacheClientResponseHandlerAll implements TestingGenericHttpNamingConventions.ClientV1 {
+}
+

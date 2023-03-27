@@ -6,6 +6,9 @@ import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage.Kind;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
@@ -26,6 +29,7 @@ import org.objectweb.asm.tree.TypeInsnNode;
 /** Common class for generating instrumentation */
 public class Instrumentor {
   protected static final String CONSTRUCTOR_NAME = "<init>";
+  protected static final String PROBEID_TAG_NAME = "debugger.probeid";
 
   protected final ProbeDefinition definition;
   protected final ClassLoader classLoader;
@@ -38,7 +42,7 @@ public class Instrumentor {
   protected final LabelNode methodEnterLabel;
   protected int localVarBaseOffset;
   protected int argOffset;
-  protected final String[] argumentNames;
+  protected final LocalVariableNode[] localVarsBySlot;
   protected LabelNode returnHandlerLabel;
 
   public Instrumentor(
@@ -61,7 +65,35 @@ public class Instrumentor {
     for (Type t : argTypes) {
       argOffset += t.getSize();
     }
-    argumentNames = extractArgumentNames(argTypes);
+    localVarsBySlot = extractLocalVariables(argTypes);
+  }
+
+  private LocalVariableNode[] extractLocalVariables(Type[] argTypes) {
+    if (methodNode.localVariables == null || methodNode.localVariables.isEmpty()) {
+      return new LocalVariableNode[0];
+    }
+    List<LocalVariableNode> sortedLocalVars = new ArrayList<>(methodNode.localVariables);
+    sortedLocalVars.sort(Comparator.comparingInt(o -> o.index));
+    int maxIndex = sortedLocalVars.get(sortedLocalVars.size() - 1).index;
+    LocalVariableNode[] localVars = new LocalVariableNode[maxIndex + 1];
+    localVarBaseOffset = sortedLocalVars.get(0).index;
+    for (LocalVariableNode localVariableNode : sortedLocalVars) {
+      localVars[localVariableNode.index] = localVariableNode;
+    }
+    // assume that first local variables matches method arguments
+    // as stated into the JVM spec:
+    // https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-2.html#jvms-2.6.1
+    // so we reassigned local var in arg slots if they are empty
+    int slot = isStatic ? 0 : 1;
+    int localVarTableIdx = slot;
+    for (Type t : argTypes) {
+      if (localVars[slot] == null) {
+        localVars[slot] = sortedLocalVars.get(localVarTableIdx);
+      }
+      slot += t.getSize();
+      localVarTableIdx++;
+    }
+    return localVars;
   }
 
   private String[] extractArgumentNames(Type[] argTypes) {
@@ -285,5 +317,14 @@ public class Instrumentor {
 
   protected void reportWarning(String message) {
     diagnostics.add(new DiagnosticMessage(Kind.WARN, message));
+  }
+
+  protected ProbeDefinition.Tag[] addProbeIdWithTags(String probeId, ProbeDefinition.Tag[] tags) {
+    if (tags == null) {
+      return new ProbeDefinition.Tag[] {new ProbeDefinition.Tag(PROBEID_TAG_NAME, probeId)};
+    }
+    ProbeDefinition.Tag[] newTags = Arrays.copyOf(tags, tags.length + 1);
+    newTags[newTags.length - 1] = new ProbeDefinition.Tag(PROBEID_TAG_NAME, probeId);
+    return newTags;
   }
 }

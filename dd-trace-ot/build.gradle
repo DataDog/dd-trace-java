@@ -76,6 +76,7 @@ tasks.named("test").configure {
 }
 
 jar {
+  destinationDirectory.set(file("$buildDir/libs-unbundled"))
   archiveClassifier = 'unbundled'
 }
 
@@ -90,7 +91,11 @@ shadowJar {
     exclude(dependency('org.slf4j:'))
   }
 
-  relocate('com.', 'ddtrot.com.')
+  relocate('com.', 'ddtrot.com.') {
+    // don't relocate native methods
+    exclude('com.kenai.jffi.*')
+    exclude('com.kenai.jffi.internal.*')
+  }
   relocate('dogstatsd/', 'ddtrot/dogstatsd/')
   relocate('jni/', 'ddtrot/jni/')
   relocate('jnr/', 'ddtrot/jnr/')
@@ -107,6 +112,7 @@ shadowJar {
     exclude('datadog.trace.api.experimental.*')
     exclude('datadog.trace.api.interceptor.*')
     exclude('datadog.trace.api.internal.*')
+    exclude('datadog.trace.api.internal.util.*')
     exclude('datadog.trace.api.sampling.*')
     exclude('datadog.trace.context.*')
   }

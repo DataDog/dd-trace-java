@@ -29,48 +29,61 @@ public class ProbeConditionTest {
     ProbeCondition probeCondition = load("/test_conditional_01.json");
 
     Collection<String> tags = Arrays.asList("hello", "world", "ko");
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, singletonMap("tags", tags));
+    ValueReferenceResolver ctx =
+        RefResolverHelper.createResolver(null, null, singletonMap("tags", tags));
 
     assertTrue(probeCondition.execute(ctx));
 
     Collection<String> tags2 = Arrays.asList("hey", "world", "ko");
     ValueReferenceResolver ctx2 =
-        RefResolverHelper.createResolver(null, singletonMap("tags", tags2));
+        RefResolverHelper.createResolver(null, null, singletonMap("tags", tags2));
     assertFalse(probeCondition.execute(ctx2));
   }
 
   @Test
   void testGetMember() throws Exception {
     ProbeCondition probeCondition = load("/test_conditional_04.json");
-
+    class Obj {
+      Container container = new Container("hello");
+    }
     ValueReferenceResolver ctx =
         RefResolverHelper.createResolver(
+            singletonMap("this", new Obj()),
             singletonMap("container", new Container("world")),
-            singletonMap("container", new Container("hello")));
+            null);
 
     assertTrue(probeCondition.execute(ctx));
-
+    class Obj2 {
+      Container obj = new Container("hello");
+    }
     ValueReferenceResolver ctx2 =
         RefResolverHelper.createResolver(
+            singletonMap("this", new Obj2()),
             singletonMap("container", new Container("world")),
-            singletonMap("obj", new Container("hello")));
+            null);
     assertFalse(probeCondition.execute(ctx2));
   }
 
   @Test
   void testComparisonOperators() throws Exception {
     ProbeCondition probeCondition = load("/test_conditional_05.json");
+    class Obj {
+      int intField1 = 42;
+    }
     ValueReferenceResolver ctx =
-        RefResolverHelper.createResolver(null, singletonMap("intField1", 42));
+        RefResolverHelper.createResolver(singletonMap("this", new Obj()), null, null);
     assertTrue(probeCondition.execute(ctx));
   }
 
   @Test
   void testNullLiteral() throws Exception {
     ProbeCondition probeCondition = load("/test_conditional_06.json");
+    class Obj {
+      Object objField = new Object();
+    }
     ValueReferenceResolver ctx =
         RefResolverHelper.createResolver(
-            singletonMap("nullField", null), singletonMap("objField", new Object()));
+            singletonMap("this", new Obj()), singletonMap("nullField", null), null);
     assertTrue(probeCondition.execute(ctx));
   }
 
@@ -85,7 +98,7 @@ public class ProbeConditionTest {
     strMap.put("bar", "foobar");
     fields.put("strMap", strMap);
     fields.put("idx", 1);
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, fields);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null, fields);
     assertTrue(probeCondition.execute(ctx));
   }
 
@@ -94,7 +107,7 @@ public class ProbeConditionTest {
     ProbeCondition probeCondition = load("/test_conditional_08.json");
     Map<String, Object> fields = new HashMap<>();
     fields.put("strField", "foobar");
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, fields);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null, fields);
     assertTrue(probeCondition.execute(ctx));
   }
 
@@ -114,7 +127,8 @@ public class ProbeConditionTest {
   void testJsonParsing() throws IOException {
     ProbeCondition probeCondition = load("/test_conditional_02.json");
     Collection<String> vets = Arrays.asList("vet1", "vet2", "vet3");
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, singletonMap("vets", vets));
+    ValueReferenceResolver ctx =
+        RefResolverHelper.createResolver(null, null, singletonMap("vets", vets));
 
     // the condition checks if length of vets > 2
     assertTrue(probeCondition.execute(ctx));

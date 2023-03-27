@@ -1,5 +1,6 @@
 package com.datadog.appsec;
 
+import com.datadog.appsec.blocking.BlockingServiceImpl;
 import com.datadog.appsec.config.AppSecConfigService;
 import com.datadog.appsec.config.AppSecConfigServiceImpl;
 import com.datadog.appsec.event.EventDispatcher;
@@ -8,6 +9,7 @@ import com.datadog.appsec.gateway.GatewayBridge;
 import com.datadog.appsec.gateway.RateLimiter;
 import com.datadog.appsec.util.AbortStartupException;
 import com.datadog.appsec.util.StandardizedLogging;
+import datadog.appsec.api.blocking.Blocking;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
@@ -84,6 +86,8 @@ public class AppSecSystem {
     setActive(appSecEnabledConfig == ProductActivation.FULLY_ENABLED);
 
     APP_SEC_CONFIG_SERVICE.maybeSubscribeConfigPolling();
+
+    Blocking.setBlockingService(new BlockingServiceImpl(REPLACEABLE_EVENT_PRODUCER));
 
     STARTED.set(true);
 

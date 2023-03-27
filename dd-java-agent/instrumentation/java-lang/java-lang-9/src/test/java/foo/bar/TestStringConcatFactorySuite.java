@@ -55,4 +55,60 @@ public abstract class TestStringConcatFactorySuite {
     LOGGER.debug("After string plus {}", result);
     return result;
   }
+
+  public static String stringPlusWithPrimitive(final String left, final int right) {
+    LOGGER.debug("Before string plus with primitive {} {}", left, right);
+    final String result = left + right;
+    LOGGER.debug("After string plus with primitive {}", result);
+    return result;
+  }
+
+  public static String stringPlusWithPrimitive(final String left, final byte right) {
+    LOGGER.debug("Before string plus with primitive {} {}", left, right);
+    final String result = left + right;
+    LOGGER.debug("After string plus with primitive {}", result);
+    return result;
+  }
+
+  public static String stringPlusWithPrimitive(final String left, final short right) {
+    LOGGER.debug("Before string plus with primitive {} {}", left, right);
+    final String result = left + right;
+    LOGGER.debug("After string plus with primitive {}", result);
+    return result;
+  }
+
+  public static String stringPlusWithPrimitive(final String left, final boolean right) {
+    LOGGER.debug("Before string plus with primitive {} {}", left, right);
+    final String result = left + right;
+    LOGGER.debug("After string plus with primitive {}", result);
+    return result;
+  }
+
+  public static String stringPlusWithPrimitive(final String left, final char right) {
+    LOGGER.debug("Before string plus with primitive {} {}", left, right);
+    final String result = left + right;
+    LOGGER.debug("After string plus with primitive {}", result);
+    return result;
+  }
+
+  public static String stringPlusWithPrimitive(final String left, final long right) {
+    LOGGER.debug("Before string plus with primitive {} {}", left, right);
+    final String result = left + right;
+    LOGGER.debug("After string plus with primitive {}", result);
+    return result;
+  }
+
+  public static String stringPlusWithPrimitive(final String left, final float right) {
+    LOGGER.debug("Before string plus with primitive {} {}", left, right);
+    final String result = left + right;
+    LOGGER.debug("After string plus with primitive {}", result);
+    return result;
+  }
+
+  public static String stringPlusWithPrimitive(final String left, final double right) {
+    LOGGER.debug("Before string plus with primitive {} {}", left, right);
+    final String result = left + right;
+    LOGGER.debug("After string plus with primitive {}", result);
+    return result;
+  }
 }

@@ -3,12 +3,14 @@ package datadog.trace.api.gateway;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import datadog.trace.api.TraceSegment;
+import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -45,6 +47,14 @@ public class InstrumentationGatewayTest {
           @Override
           public TraceSegment getTraceSegment() {
             return TraceSegment.NoOp.INSTANCE;
+          }
+
+          @Override
+          public void setBlockResponseFunction(BlockResponseFunction blockResponseFunction) {}
+
+          @Override
+          public BlockResponseFunction getBlockResponseFunction() {
+            return null;
           }
         };
     flow = new Flow.ResultFlow<>(null);
@@ -123,10 +133,26 @@ public class InstrumentationGatewayTest {
   @Test
   public void testRequestBlockingAction() {
     Flow.Action.RequestBlockingAction rba =
-        new Flow.Action.RequestBlockingAction(400, Flow.Action.BlockingContentType.HTML);
+        new Flow.Action.RequestBlockingAction(400, BlockingContentType.HTML);
     assertThat(rba.isBlocking()).isTrue();
     assertThat(rba.getStatusCode()).isEqualTo(400);
-    assertThat(rba.getBlockingContentType()).isEqualTo(Flow.Action.BlockingContentType.HTML);
+    assertThat(rba.getBlockingContentType()).isEqualTo(BlockingContentType.HTML);
+
+    rba =
+        new Flow.Action.RequestBlockingAction(
+            400,
+            BlockingContentType.HTML,
+            Collections.singletonMap("Location", "https://www.google.com/"));
+    assertThat(rba.isBlocking()).isTrue();
+    assertThat(rba.getStatusCode()).isEqualTo(400);
+    assertThat(rba.getBlockingContentType()).isEqualTo(BlockingContentType.HTML);
+    assertThat(rba.getExtraHeaders().get("Location")).isEqualTo("https://www.google.com/");
+
+    rba = Flow.Action.RequestBlockingAction.forRedirect(301, "https://www.google.com/");
+    assertThat(rba.isBlocking()).isTrue();
+    assertThat(rba.getStatusCode()).isEqualTo(301);
+    assertThat(rba.getBlockingContentType()).isEqualTo(BlockingContentType.NONE);
+    assertThat(rba.getExtraHeaders().get("Location")).isEqualTo("https://www.google.com/");
   }
 
   @Test
@@ -322,7 +348,7 @@ public class InstrumentationGatewayTest {
         new Flow.ResultFlow<Void>(null) {
           @Override
           public Action getAction() {
-            return new Action.RequestBlockingAction(410, Action.BlockingContentType.AUTO);
+            return new Action.RequestBlockingAction(410, BlockingContentType.AUTO);
           }
         };
 

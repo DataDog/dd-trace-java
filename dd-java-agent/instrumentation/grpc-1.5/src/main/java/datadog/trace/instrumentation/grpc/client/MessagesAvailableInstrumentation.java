@@ -5,16 +5,13 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.DECORATE;
-import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.GRPC_CLIENT;
 import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.GRPC_MESSAGE;
-import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.OPERATION_NAME;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Collections;
 import java.util.Map;
@@ -52,22 +49,14 @@ public final class MessagesAvailableInstrumentation extends Instrumenter.Tracing
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Capture");
     transformation.applyAdvice(named("runInContext"), getClass().getName() + "$ReceiveMessages");
-  }
-
-  public static final class Capture {
-    @Advice.OnMethodExit
-    public static void capture(@Advice.This Runnable task) {
-      AdviceUtils.capture(InstrumentationContext.get(Runnable.class, State.class), task, true);
-    }
   }
 
   public static final class ReceiveMessages {
     @Advice.OnMethodEnter
     public static AgentScope before() {
       AgentSpan clientSpan = activeSpan();
-      if (clientSpan != null && clientSpan.getOperationName() == GRPC_CLIENT) {
+      if (clientSpan != null && OPERATION_NAME.equals(clientSpan.getOperationName())) {
         AgentSpan messageSpan =
             startSpan(GRPC_MESSAGE).setTag("message.type", clientSpan.getTag("response.type"));
         DECORATE.afterStart(messageSpan);

@@ -119,21 +119,18 @@ public class TelemetryRunnable implements Runnable {
   }
 
   private SendResult sendRequest(Request request) {
-    Response response;
-    try {
-      response = okHttpClient.newCall(request).execute();
+    try (Response response = okHttpClient.newCall(request).execute()) {
+      if (response.code() == 404) {
+        log.debug("Telemetry endpoint is disabled, dropping message");
+        return SendResult.DROP;
+      }
+      if (response.code() != 202) {
+        log.debug(
+            "Telemetry Intake Service responded with: {} {} ", response.code(), response.message());
+        return SendResult.FAILURE;
+      }
     } catch (IOException e) {
       log.debug("IOException on HTTP request to Telemetry Intake Service: {}", e.toString());
-      return SendResult.FAILURE;
-    }
-
-    if (response.code() == 404) {
-      log.debug("Telemetry endpoint is disabled, dropping message");
-      return SendResult.DROP;
-    }
-    if (response.code() != 202) {
-      log.debug(
-          "Telemetry Intake Service responded with: {} {} ", response.code(), response.message());
       return SendResult.FAILURE;
     }
 

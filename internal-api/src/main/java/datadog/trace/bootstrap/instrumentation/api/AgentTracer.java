@@ -11,6 +11,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.InternalTracer;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
@@ -52,7 +53,7 @@ public class AgentTracer {
   }
 
   public static AgentScope.Continuation captureSpan(final AgentSpan span) {
-    return get().captureSpan(span, ScopeSource.INSTRUMENTATION);
+    return get().captureSpan(span);
   }
 
   /**
@@ -131,7 +132,7 @@ public class AgentTracer {
 
     AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating);
 
-    AgentScope.Continuation captureSpan(AgentSpan span, ScopeSource source);
+    AgentScope.Continuation captureSpan(AgentSpan span);
 
     void closePrevious(boolean finishSpan);
 
@@ -174,6 +175,8 @@ public class AgentTracer {
     AgentSpan.Context notifyExtensionStart(Object event);
 
     void notifyExtensionEnd(AgentSpan span, Object result, boolean isError);
+
+    DataStreamsMonitoring getDataStreamsMonitoring();
   }
 
   public interface SpanBuilder {
@@ -205,6 +208,8 @@ public class AgentTracer {
   static class NoopTracerAPI implements TracerAPI {
 
     protected NoopTracerAPI() {}
+
+    private final DataStreamsMonitoring dataStreamsMonitoring = new NoopDataStreamsMonitoring();
 
     @Override
     public AgentSpan startSpan(final CharSequence spanName) {
@@ -239,7 +244,7 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentScope.Continuation captureSpan(final AgentSpan span, final ScopeSource source) {
+    public AgentScope.Continuation captureSpan(final AgentSpan span) {
       return NoopContinuation.INSTANCE;
     }
 
@@ -292,6 +297,11 @@ public class AgentTracer {
     @Override
     public ProfilingContext getProfilingContext() {
       return ProfilingContext.NoOp.INSTANCE;
+    }
+
+    @Override
+    public TraceSegment getTraceSegment() {
+      return null;
     }
 
     @Override
@@ -394,6 +404,11 @@ public class AgentTracer {
     @Override
     public ScopeState newScopeState() {
       return null;
+    }
+
+    @Override
+    public DataStreamsMonitoring getDataStreamsMonitoring() {
+      return dataStreamsMonitoring;
     }
   }
 

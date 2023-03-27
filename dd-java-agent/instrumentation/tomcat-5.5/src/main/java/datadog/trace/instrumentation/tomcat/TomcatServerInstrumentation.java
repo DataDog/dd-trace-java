@@ -49,6 +49,7 @@ public final class TomcatServerInstrumentation extends Instrumenter.Tracing
       packageName + ".ExtractAdapter$Request",
       packageName + ".ExtractAdapter$Response",
       packageName + ".TomcatDecorator",
+      packageName + ".TomcatDecorator$TomcatBlockResponseFunction",
       packageName + ".RequestURIDataAdapter",
       packageName + ".TomcatBlockingHelper",
     };

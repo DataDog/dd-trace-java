@@ -1,5 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
+import com.datadog.debugger.el.Visitor;
+
 public enum BinaryOperator {
   AND("&&") {
     @Override
@@ -22,7 +24,11 @@ public enum BinaryOperator {
 
   public abstract Boolean apply(Boolean left, Boolean right);
 
-  public String prettyPrint() {
+  public <R> R accept(Visitor<R> visitor) {
+    return visitor.visit(this);
+  }
+
+  public String getSymbol() {
     return symbol;
   }
 }

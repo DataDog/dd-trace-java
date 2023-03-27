@@ -7,29 +7,31 @@ import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
 import com.datadog.iast.model.SourceType
 import datadog.trace.test.util.DDSpecification
+import groovy.transform.CompileDynamic
 
+@CompileDynamic
 class TaintedObjectsLogTest extends DDSpecification {
 
   private boolean defaultDebug
   private Logger logger
   private Level defaultLevel
 
-  def setup() {
+  void setup() {
     defaultDebug = IastSystem.DEBUG
     logger = TaintedObjects.TaintedObjectsDebugAdapter.LOGGER as Logger
     defaultLevel = logger.getLevel()
   }
 
-  def cleanup() {
+  void cleanup() {
     IastSystem.DEBUG = defaultDebug
     logger.setLevel(defaultLevel)
   }
 
-  def "test TaintedObjects debug log"() {
+  void "test TaintedObjects debug log"() {
     given:
     IastSystem.DEBUG = true
     logger.setLevel(Level.ALL)
-    TaintedObjects taintedObjects = TaintedObjects.build()
+    TaintedObjects taintedObjects = TaintedObjects.acquire()
     final value = "A"
 
     when:
@@ -47,13 +49,14 @@ class TaintedObjectsLogTest extends DDSpecification {
     tainted != null
   }
 
-  def "test TaintedObjects debug log on release"() {
+  void "test TaintedObjects debug log on release"() {
     given:
     IastSystem.DEBUG = true
-    logger.setLevel(Level.ALL)
-    TaintedObjects taintedObjects = TaintedObjects.build()
-    taintedObjects.taint("A", [new Range(0, 1, new Source(SourceType.NONE, null, null))] as Range[])
-    taintedObjects.taintInputString("B", new Source(SourceType.REQUEST_PARAMETER_NAME, 'test', 'value'))
+    logger.level = Level.ALL
+    TaintedObjects taintedObjects = TaintedObjects.acquire()
+    taintedObjects.taint('A', [new Range(0, 1, new Source(SourceType.NONE, null, null))] as Range[])
+    taintedObjects.taintInputString('B', new Source(SourceType.REQUEST_PARAMETER_NAME, 'test', 'value'))
+    taintedObjects.taintInputObject(new Date(), new Source(SourceType.REQUEST_HEADER_VALUE, 'test', 'value'))
 
     when:
     taintedObjects.release()

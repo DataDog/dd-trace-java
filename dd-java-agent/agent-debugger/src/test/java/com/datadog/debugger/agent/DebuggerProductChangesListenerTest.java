@@ -1,10 +1,14 @@
 package com.datadog.debugger.agent;
 
+import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.lenient;
 
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.SpanProbe;
 import datadog.remoteconfig.ConfigurationChangesListener;
 import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.trace.api.Config;
@@ -112,6 +116,7 @@ public class DebuggerProductChangesListenerTest {
 
     MetricProbe metricProbe = createMetricProbe(UUID.randomUUID().toString());
     LogProbe logProbe = createLogProbe(UUID.randomUUID().toString());
+    SpanProbe spanProbe = createSpanProbe(UUID.randomUUID().toString());
 
     acceptMetricProbe(listener, metricProbe);
     listener.commit(pollingHinter);
@@ -125,13 +130,30 @@ public class DebuggerProductChangesListenerTest {
         Configuration.builder().setService(SERVICE_NAME).add(metricProbe).add(logProbe).build(),
         acceptor.getConfiguration());
 
+    acceptSpanProbe(listener, spanProbe);
+    listener.commit(pollingHinter);
+    Assert.assertEquals(
+        Configuration.builder()
+            .setService(SERVICE_NAME)
+            .add(metricProbe)
+            .add(logProbe)
+            .add(spanProbe)
+            .build(),
+        acceptor.getConfiguration());
+
     removeMetricProbe(listener, metricProbe);
     listener.commit(pollingHinter);
     Assert.assertEquals(
-        Configuration.builder().setService(SERVICE_NAME).add(logProbe).build(),
+        Configuration.builder().setService(SERVICE_NAME).add(logProbe).add(spanProbe).build(),
         acceptor.getConfiguration());
 
     removeLogProbe(listener, logProbe);
+    listener.commit(pollingHinter);
+    Assert.assertEquals(
+        Configuration.builder().setService(SERVICE_NAME).add(spanProbe).build(),
+        acceptor.getConfiguration());
+
+    removeSpanProbe(listener, spanProbe);
     listener.commit(pollingHinter);
     Assert.assertEquals(
         Configuration.builder().setService(SERVICE_NAME).build(), acceptor.getConfiguration());
@@ -147,12 +169,14 @@ public class DebuggerProductChangesListenerTest {
     LogProbe logProbeWithSnapshot = createLogProbeWithSnapshot("123");
     MetricProbe metricProbe = createMetricProbe("345");
     LogProbe logProbe = createLogProbe("567");
+    SpanProbe spanProbe = createSpanProbe("890");
 
     Configuration config =
         Configuration.builder()
             .setService(SERVICE_NAME)
             .add(metricProbe)
             .add(logProbe)
+            .add(spanProbe)
             .add(new LogProbe.Sampling(3.0))
             .addDenyList(createFilteredList())
             .build();
@@ -181,6 +205,22 @@ public class DebuggerProductChangesListenerTest {
         () -> listener.accept(createConfigKey("bad-config-id"), null, pollingHinter));
   }
 
+  @Test
+  public void createNewInstancesForLogProbe() {
+    SimpleAcceptor acceptor = new SimpleAcceptor();
+    DebuggerProductChangesListener listener =
+        new DebuggerProductChangesListener(tracerConfig, acceptor);
+    LogProbe logProbe = createLogProbe(UUID.randomUUID().toString());
+    acceptLogProbe(listener, logProbe);
+    listener.commit(pollingHinter);
+    LogProbe receivedProbe = acceptor.getConfiguration().getLogProbes().iterator().next();
+    receivedProbe.addAdditionalProbe(createLogProbe(UUID.randomUUID().toString()));
+    listener.commit(pollingHinter);
+    LogProbe receivedProbe2 = acceptor.getConfiguration().getLogProbes().iterator().next();
+    assertNotSame(receivedProbe, receivedProbe2);
+    assertTrue(receivedProbe2.getAdditionalProbes().isEmpty());
+  }
+
   byte[] toContent(Configuration configuration) {
     return DebuggerProductChangesListener.Adapter.CONFIGURATION_JSON_ADAPTER
         .toJson(configuration)
@@ -195,6 +235,12 @@ public class DebuggerProductChangesListenerTest {
 
   byte[] toContent(LogProbe probe) {
     return DebuggerProductChangesListener.Adapter.LOG_PROBE_JSON_ADAPTER
+        .toJson(probe)
+        .getBytes(StandardCharsets.UTF_8);
+  }
+
+  byte[] toContent(SpanProbe probe) {
+    return DebuggerProductChangesListener.Adapter.SPAN_PROBE_JSON_ADAPTER
         .toJson(probe)
         .getBytes(StandardCharsets.UTF_8);
   }
@@ -229,6 +275,18 @@ public class DebuggerProductChangesListenerTest {
         () -> listener.remove(createConfigKey("logProbe_" + probe.getId()), pollingHinter));
   }
 
+  void acceptSpanProbe(DebuggerProductChangesListener listener, SpanProbe probe) {
+    assertDoesNotThrow(
+        () ->
+            listener.accept(
+                createConfigKey("spanProbe_" + probe.getId()), toContent(probe), pollingHinter));
+  }
+
+  void removeSpanProbe(DebuggerProductChangesListener listener, SpanProbe probe) {
+    assertDoesNotThrow(
+        () -> listener.remove(createConfigKey("spanProbe_" + probe.getId()), pollingHinter));
+  }
+
   LogProbe createLogProbeWithSnapshot(String id) {
     return LogProbe.builder()
         .probeId(id)
@@ -246,10 +304,18 @@ public class DebuggerProductChangesListenerTest {
   }
 
   LogProbe createLogProbe(String id) {
+    final String LOG_LINE = "hello {world}";
     return LogProbe.builder()
         .probeId(id)
         .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
-        .template("hello {world}")
+        .template(LOG_LINE, parseTemplate(LOG_LINE))
+        .build();
+  }
+
+  SpanProbe createSpanProbe(String id) {
+    return SpanProbe.builder()
+        .probeId(id)
+        .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
         .build();
   }
 

@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.lettuce5;
 
+import datadog.trace.api.Config;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -10,8 +12,11 @@ import io.lettuce.core.protocol.RedisCommand;
 
 public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecorator<RedisURI> {
   public static final CharSequence REDIS_CLIENT = UTF8BytesString.create("redis-client");
-  public static final CharSequence REDIS_QUERY = UTF8BytesString.create("redis.query");
   public static final LettuceClientDecorator DECORATE = new LettuceClientDecorator();
+  public static final CharSequence OPERATION_NAME =
+      UTF8BytesString.create(SpanNaming.instance().namingSchema().cache().operation("redis"));
+  private static final String SERVICE_NAME =
+      SpanNaming.instance().namingSchema().cache().service(Config.get().getServiceName(), "redis");
 
   @Override
   protected String[] instrumentationNames() {
@@ -20,7 +25,7 @@ public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecora
 
   @Override
   protected String service() {
-    return "redis";
+    return SERVICE_NAME;
   }
 
   @Override
@@ -52,6 +57,9 @@ public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecora
   protected String dbHostname(RedisURI redisURI) {
     return redisURI.getHost();
   }
+
+  @Override
+  protected void postProcessServiceAndOperationName(AgentSpan span, String dbType) {}
 
   @Override
   public AgentSpan onConnection(final AgentSpan span, final RedisURI connection) {
