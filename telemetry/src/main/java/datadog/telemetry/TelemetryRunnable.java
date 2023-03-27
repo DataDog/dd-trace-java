@@ -5,6 +5,8 @@ import datadog.trace.api.ConfigCollector;
 import java.io.IOException;
 import java.util.List;
 import java.util.Queue;
+
+import datadog.trace.api.MetricCollector;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -25,6 +27,8 @@ public class TelemetryRunnable implements Runnable {
 
   private int consecutiveFailures;
 
+  private long collectMetricsTimestamp;
+
   public TelemetryRunnable(
       OkHttpClient okHttpClient,
       TelemetryService telemetryService,
@@ -41,6 +45,7 @@ public class TelemetryRunnable implements Runnable {
     this.telemetryService = telemetryService;
     this.actions = actions;
     this.sleeper = sleeper;
+    this.collectMetricsTimestamp = 0;
   }
 
   @Override
@@ -76,6 +81,14 @@ public class TelemetryRunnable implements Runnable {
   }
 
   private boolean mainLoopIteration() throws InterruptedException {
+
+    // Collect request metrics every N seconds (default 10s)
+    long currentTime = System.currentTimeMillis();
+    if (currentTime - collectMetricsTimestamp > Config.get().getTelemetryMetricsInterval()) {
+      collectMetricsTimestamp = currentTime;
+      MetricCollector.get().prepareRequestMetrics();
+    }
+
     for (TelemetryPeriodicAction action : this.actions) {
       action.doIteration(this.telemetryService);
     }
