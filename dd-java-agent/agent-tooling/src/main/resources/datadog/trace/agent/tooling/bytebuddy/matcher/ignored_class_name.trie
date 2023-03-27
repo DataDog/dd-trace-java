@@ -39,6 +39,7 @@
 1 datadog.trace.core.*
 1 io.micrometer.*
 1 io.micronaut.tracing.*
+1 io.opentelemetry.javaagent.*
 1 java.*
 # allow exception profiling instrumentation
 0 java.lang.Throwable
