@@ -209,7 +209,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       return;
     }
 
-    final AgentSpan span = startSpan(testDecorator.component() + ".test");
+    final AgentSpan span = startSpan(testDecorator.component() + ".test", null);
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
 
@@ -271,7 +271,7 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       return;
     }
 
-    final AgentSpan span = startSpan("junit.test");
+    final AgentSpan span = startSpan("junit.test", null);
     final AgentScope scope = activateSpan(span);
 
     testDecorator.afterTestStart(
