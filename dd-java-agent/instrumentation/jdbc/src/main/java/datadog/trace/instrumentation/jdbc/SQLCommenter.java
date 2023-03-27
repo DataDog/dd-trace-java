@@ -64,34 +64,27 @@ public class SQLCommenter {
     boolean found = false;
     if (sql.length() > 2) {
       // check if the next word starts with one of the specified keys
-      if (sql.startsWith(PARENT_SERVICE, i) && hasMatchingSubstring(sql, i, PARENT_SERVICE)) {
+      if (hasMatchingSubstring(sql, i, PARENT_SERVICE)) {
         found = true;
-      } else if (sql.startsWith(DATABASE_SERVICE, i)
-          && hasMatchingSubstring(sql, i, DATABASE_SERVICE)) {
+      } else if (hasMatchingSubstring(sql, i, DATABASE_SERVICE)) {
         found = true;
-      } else if (sql.startsWith(DD_ENV, i) && hasMatchingSubstring(sql, i, DD_ENV)) {
+      } else if (hasMatchingSubstring(sql, i, DD_ENV)) {
         found = true;
-      } else if (sql.startsWith(DD_VERSION, i) && hasMatchingSubstring(sql, i, DD_VERSION)) {
+      } else if (hasMatchingSubstring(sql, i, DD_VERSION)) {
         found = true;
-      } else if (sql.startsWith(TRACEPARENT, i) && hasMatchingSubstring(sql, i, TRACEPARENT)) {
+      } else if (hasMatchingSubstring(sql, i, TRACEPARENT)) {
         found = true;
       }
     }
-
     return found;
   }
 
-  private static boolean hasMatchingSubstring(String str, int startIndex, String substring) {
-    if (startIndex + substring.length() >= str.length()) {
+  private static boolean hasMatchingSubstring(String sql, int startIndex, String substring) {
+    final boolean tooLong = startIndex + substring.length() >= sql.length();
+    if (tooLong || !(sql.charAt(startIndex + substring.length()) == EQUALS)) {
       return false;
     }
-    for (int i = 0; i < substring.length(); i++) {
-      if (str.charAt(startIndex + i) != substring.charAt(i)) {
-        return false;
-      }
-    }
-    // check that the substring is followed by an equals sign
-    return str.charAt(startIndex + substring.length()) == EQUALS;
+    return sql.startsWith(substring, startIndex);
   }
 
   private static String encode(final String val) {
@@ -113,17 +106,17 @@ public class SQLCommenter {
       final String env,
       final String version,
       final String traceparent) {
-    boolean first = false;
-    first = append(sb, PARENT_SERVICE, parentService, first);
-    first = append(sb, DATABASE_SERVICE, dbService, first);
-    first = append(sb, DD_ENV, env, first);
-    first = append(sb, DD_VERSION, version, first);
+    int emptySize = sb.length();
+    append(sb, PARENT_SERVICE, parentService, false);
+    append(sb, DATABASE_SERVICE, dbService, sb.length() > emptySize);
+    append(sb, DD_ENV, env, sb.length() > emptySize);
+    append(sb, DD_VERSION, version, sb.length() > emptySize);
     if (injectTrace) {
-      append(sb, TRACEPARENT, traceparent, first);
+      append(sb, TRACEPARENT, traceparent, sb.length() > emptySize);
     }
   }
 
-  private static boolean append(StringBuilder sb, String key, String value, boolean prependComma) {
+  private static void append(StringBuilder sb, String key, String value, boolean prependComma) {
     if (null != value && !value.isEmpty()) {
       try {
         if (prependComma) {
@@ -140,10 +133,6 @@ public class SQLCommenter {
         }
       }
     }
-    if (sb.length() > 2) {
-      prependComma = true;
-    }
-    return prependComma;
   }
 
   private static int capacity(
