@@ -5,6 +5,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_MEASURE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_INJECTION;
@@ -28,6 +29,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_
 import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_INSTALLER_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_CONFIG;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
@@ -90,6 +92,7 @@ public class InstrumenterConfig {
 
   private final String traceAnnotations;
   private final String traceMethods;
+  private final String measureMethods;
 
   private final boolean internalExitOnFailure;
 
@@ -173,7 +176,7 @@ public class InstrumenterConfig {
 
     traceAnnotations = configProvider.getString(TRACE_ANNOTATIONS, DEFAULT_TRACE_ANNOTATIONS);
     traceMethods = configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS);
-
+    measureMethods = configProvider.getString(MEASURE_METHODS, DEFAULT_MEASURE_METHODS);
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
 
     legacyInstallerEnabled = configProvider.getBoolean(LEGACY_INSTALLER_ENABLED, false);
@@ -302,6 +305,10 @@ public class InstrumenterConfig {
     return traceMethods;
   }
 
+  public String getMeasureMethods() {
+    return measureMethods;
+  }
+
   public boolean isInternalExitOnFailure() {
     return internalExitOnFailure;
   }
@@ -382,6 +389,9 @@ public class InstrumenterConfig {
         + '\''
         + ", traceMethods='"
         + traceMethods
+        + '\''
+        + ", measureMethods= '"
+        + measureMethods
         + '\''
         + ", internalExitOnFailure="
         + internalExitOnFailure
