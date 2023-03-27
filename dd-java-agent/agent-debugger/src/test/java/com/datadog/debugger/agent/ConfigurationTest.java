@@ -158,7 +158,6 @@ public class ConfigurationTest {
     LogProbe snapshotProbe0 = logProbes0.get(0);
     assertEquals("java.lang.String", snapshotProbe0.getWhere().getTypeName());
     assertEquals(ProbeDefinition.MethodLocation.ENTRY, snapshotProbe0.getEvaluateAt());
-    assertEquals(1, snapshotProbe0.getAllProbeIds().count());
     assertEquals(2, snapshotProbe0.getTags().length);
     assertTrue(snapshotProbe0.isCaptureSnapshot());
     assertEquals("tag1:value1", snapshotProbe0.getTags()[0].toString());
@@ -175,8 +174,6 @@ public class ConfigurationTest {
     MetricProbe metricProbe0 = config0.getMetricProbes().iterator().next();
     assertEquals("metric_count", metricProbe0.getMetricName());
     assertEquals(COUNT, metricProbe0.getKind());
-    assertEquals(0, metricProbe0.getAdditionalProbes().size());
-    assertEquals(1, metricProbe0.getAllProbeIds().count());
     // log probe
     assertEquals(2, config0.getLogProbes().size());
     LogProbe logProbe0 = logProbes0.get(1);
@@ -250,8 +247,7 @@ public class ConfigurationTest {
       String id, String typeName, String methodName, String signature) {
     return LogProbe.builder()
         .language("java")
-        .probeId(id)
-        .active(true)
+        .probeId(id, 0)
         .captureSnapshot(true)
         .where(typeName, methodName, signature)
         .capture(
@@ -274,8 +270,7 @@ public class ConfigurationTest {
       String signature) {
     return MetricProbe.builder()
         .language("java")
-        .probeId(id)
-        .active(true)
+        .probeId(id, 0)
         .where(typeName, methodName, signature)
         .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
         .metricName(metricName)
@@ -288,8 +283,7 @@ public class ConfigurationTest {
       String id, String template, String typeName, String methodName, String signature) {
     return LogProbe.builder()
         .language("java")
-        .probeId(id)
-        .active(true)
+        .probeId(id, 0)
         .captureSnapshot(false)
         .where(typeName, methodName, signature)
         .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
@@ -302,8 +296,7 @@ public class ConfigurationTest {
       String id, String typeName, String methodName, String signature) {
     return SpanProbe.builder()
         .language("java")
-        .probeId(id)
-        .active(true)
+        .probeId(id, 0)
         .where(typeName, methodName, signature)
         .evaluateAt(ProbeDefinition.MethodLocation.ENTRY)
         .tags("tag1:value1", "tag2:value2")
@@ -313,8 +306,7 @@ public class ConfigurationTest {
   private static SpanProbe createSpan(String id, String sourceFile, int lineFrom, int lineTill) {
     return SpanProbe.builder()
         .language("java")
-        .probeId(id)
-        .active(true)
+        .probeId(id, 0)
         .where(sourceFile, lineFrom, lineTill)
         .tags("tag1:value1", "tag2:value2")
         .build();

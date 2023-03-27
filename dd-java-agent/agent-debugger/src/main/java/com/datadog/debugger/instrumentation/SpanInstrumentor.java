@@ -27,10 +27,12 @@ public class SpanInstrumentor extends Instrumentor {
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics) {
-    super(spanProbe, classLoader, classNode, methodNode, diagnostics);
+      List<DiagnosticMessage> diagnostics,
+      List<String> probeIds) {
+    super(spanProbe, classLoader, classNode, methodNode, diagnostics, probeIds);
   }
 
+  @Override
   public void instrument() {
     if (isLineProbe) {
       fillLineMap();

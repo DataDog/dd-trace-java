@@ -37,6 +37,7 @@ public class IndexExpression implements ValueExpression<Value<?>> {
       }
     } catch (IllegalArgumentException ex) {
       valueRefResolver.addEvaluationError(PrettyPrintVisitor.print(this), ex.getMessage());
+      throw ex;
     }
 
     return result;

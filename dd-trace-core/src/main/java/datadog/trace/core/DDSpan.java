@@ -502,6 +502,14 @@ public class DDSpan
     context.mergePathwayContext(pathwayContext);
   }
 
+  @Override
+  public Integer forceSamplingDecision() {
+    PendingTrace trace = this.context.getTrace();
+    DDSpan rootSpan = trace.getRootSpan();
+    trace.getTracer().setSamplingPriorityIfNecessary(rootSpan);
+    return rootSpan.getSamplingPriority();
+  }
+
   @Deprecated
   @Override
   public final DDSpan setSamplingPriority(final int newPriority) {

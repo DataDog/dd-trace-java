@@ -66,7 +66,7 @@ abstract class JedisClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "SET"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -185,7 +185,7 @@ class JedisClientV1ForkedTest extends JedisClientTest {
 
   @Override
   String service() {
-    return Config.get().getServiceName() + "-redis"
+    return Config.get().getServiceName()
   }
 
   @Override

@@ -233,10 +233,15 @@ commands:
           cacheType: lib
 
       - run:
+          # TODO: removes this step once host-in-runner is merged on system tests
           name: Install good version of docker-compose
           command: |
             sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
             sudo chmod +x /usr/local/bin/docker-compose
+
+      - run:
+          name: Install python 3.9
+          command: sudo apt-get install python3.9-venv
 
       - run:
           name: versions

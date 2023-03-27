@@ -18,8 +18,11 @@ excludedClassesCoverage += [
   'datadog.trace.api.internal.TraceSegment.NoOp',
   'datadog.trace.api.config.ProfilingConfig',
   'datadog.trace.api.interceptor.MutableSpan',
+  'datadog.trace.api.experimental.Profiling',
+  'datadog.trace.api.experimental.Profiling.NoOp',
+  'datadog.trace.api.experimental.ProfilingScope',
   'datadog.trace.api.experimental.ProfilingContext',
-  'datadog.trace.api.experimental.ProfilingContext.NoOp',
+  'datadog.trace.api.experimental.ProfilingContextSetter.NoOp',
   'datadog.appsec.api.blocking.*',
 ]
 

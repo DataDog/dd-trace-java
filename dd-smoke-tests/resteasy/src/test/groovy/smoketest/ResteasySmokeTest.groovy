@@ -40,16 +40,10 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
   def "test path parameter"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/bypathparam/pathParamValue"
-    boolean sqlInjectionFound = false
 
     when:
     def request = new Request.Builder().url(url).get().build()
     def response = client.newCall(request).execute()
-    checkLog {
-      if (it.contains("SQL_INJECTION") && it.contains("smoketest.resteasy.DB") && it.contains("pathParamValue")) {
-        sqlInjectionFound = true
-      }
-    }
 
     then:
     String body = response.body().string()
@@ -57,22 +51,18 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     assert response.body().contentType().toString().contains("text/plain")
     assert body.contains("RestEasy: hello pathParamValue")
     assert response.code() == 200
-    assert sqlInjectionFound
+    processTestLogLines {
+      it.contains("SQL_INJECTION") && it.contains("smoketest.resteasy.DB") && it.contains("pathParamValue")
+    }
   }
 
   def "Test query parameter in RestEasy"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/byqueryparam?param=queryParamValue"
-    boolean sqlInjectionFound = false
 
     when:
     def request = new Request.Builder().url(url).get().build()
     def response = client.newCall(request).execute()
-    checkLog {
-      if (it.contains("SQL_INJECTION") && it.contains("smoketest.resteasy.DB") && it.contains("queryParamValue")) {
-        sqlInjectionFound = true
-      }
-    }
 
     then:
     String body = response.body().string()
@@ -80,22 +70,18 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     assert response.body().contentType().toString().contains("text/plain")
     assert body.contains("RestEasy: hello queryParamValue")
     assert response.code() == 200
-    assert sqlInjectionFound
+    processTestLogLines {
+      it.contains("SQL_INJECTION") && it.contains("smoketest.resteasy.DB") && it.contains("queryParamValue")
+    }
   }
 
   def "Test header in RestEasy"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/byheader"
-    boolean sqlInjectionFound = false
 
     when:
     def request = new Request.Builder().url(url).header("X-Custom-header", "pepito").get().build()
     def response = client.newCall(request).execute()
-    checkLog {
-      if (it.contains("SQL_INJECTION") && it.contains("smoketest.resteasy.DB") && it.contains("pepito")) {
-        sqlInjectionFound = true
-      }
-    }
 
     then:
     String body = response.body().string()
@@ -103,22 +89,18 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     assert response.body().contentType().toString().contains("text/plain")
     assert body.contains("RestEasy: hello pepito")
     assert response.code() == 200
-    assert sqlInjectionFound
+    processTestLogLines {
+      it.contains("SQL_INJECTION") && it.contains("smoketest.resteasy.DB") && it.contains("pepito")
+    }
   }
 
   def "Test cookie in RestEasy"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/bycookie"
-    boolean sqlInjectionFound = false
 
     when:
     def request = new Request.Builder().url(url).addHeader("Cookie", "cookieName=cookieValue").get().build()
     def response = client.newCall(request).execute()
-    checkLog {
-      if (it.contains("SQL_INJECTION") && it.contains("smoketest.resteasy.DB") && it.contains("cookieValue")) {
-        sqlInjectionFound = true
-      }
-    }
 
     then:
     String body = response.body().string()
@@ -126,22 +108,18 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     assert response.body().contentType().toString().contains("text/plain")
     assert body.contains("RestEasy: hello cookieValue")
     assert response.code() == 200
-    assert sqlInjectionFound
+    processTestLogLines {
+      it.contains("SQL_INJECTION") && it.contains("smoketest.resteasy.DB") && it.contains("cookieValue")
+    }
   }
 
   def "Test collection injection in RestEasy"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/collection?param=value1&param=value2"
-    boolean sqlInjectionFound = false
 
     when:
     def request = new Request.Builder().url(url).get().build()
     def response = client.newCall(request).execute()
-    checkLog {
-      if (it.contains("SQL_INJECTION") && it.contains("smoketest.resteasy.DB") && it.contains("value1")) {
-        sqlInjectionFound = true
-      }
-    }
 
     then:
     String body = response.body().string()
@@ -149,22 +127,18 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     assert response.body().contentType().toString().contains("text/plain")
     assert body.contains("RestEasy: hello [value1, value2]")
     assert response.code() == 200
-    assert sqlInjectionFound
+    processTestLogLines {
+      it.contains("SQL_INJECTION") && it.contains("smoketest.resteasy.DB") && it.contains("value1")
+    }
   }
 
   def "Test Set injection in RestEasy"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/set?param=setValue1&param=setValue2"
-    boolean sqlInjectionFound = false
 
     when:
     def request = new Request.Builder().url(url).get().build()
     def response = client.newCall(request).execute()
-    checkLog {
-      if (it.contains("SQL_INJECTION") && it.contains("smoketest.resteasy.DB") && it.contains("setValue1")) {
-        sqlInjectionFound = true
-      }
-    }
 
     then:
     String body = response.body().string()
@@ -172,22 +146,18 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     assert response.body().contentType().toString().contains("text/plain")
     assert body.contains("setValue1")
     assert response.code() == 200
-    assert sqlInjectionFound
+    processTestLogLines {
+      it.contains("SQL_INJECTION") && it.contains("smoketest.resteasy.DB") && it.contains("setValue1")
+    }
   }
 
   def "Test Sorted Set injection in RestEasy"() {
     setup:
     def url = "http://localhost:${httpPort}/hello/sortedset?param=sortedsetValue1&param=sortedsetValue2"
-    boolean sqlInjectionFound = false
 
     when:
     def request = new Request.Builder().url(url).get().build()
     def response = client.newCall(request).execute()
-    checkLog {
-      if (it.contains("SQL_INJECTION") && it.contains("smoketest.resteasy.DB") && it.contains("sortedsetValue1")) {
-        sqlInjectionFound = true
-      }
-    }
 
     then:
     String body = response.body().string()
@@ -195,7 +165,9 @@ class ResteasySmokeTest extends AbstractServerSmokeTest {
     assert response.body().contentType().toString().contains("text/plain")
     assert body.contains("sortedsetValue1")
     assert response.code() == 200
-    assert sqlInjectionFound
+    processTestLogLines {
+      it.contains("SQL_INJECTION") && it.contains("smoketest.resteasy.DB") && it.contains("sortedsetValue1")
+    }
   }
 
 

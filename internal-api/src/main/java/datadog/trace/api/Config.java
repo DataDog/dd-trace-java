@@ -18,6 +18,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_TLS_REFRESH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_PROPAGATION_MODE_MODE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_ENABLED;
@@ -213,6 +214,7 @@ import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_INBOUND_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_OUTBOUND_METHODS;
@@ -445,6 +447,7 @@ public class Config {
   private final boolean logExtractHeaderNames;
   private final Set<PropagationStyle> propagationStylesToExtract;
   private final Set<PropagationStyle> propagationStylesToInject;
+  private final boolean tracePropagationStyleB3PaddingEnabled;
   private final Set<TracePropagationStyle> tracePropagationStylesToExtract;
   private final Set<TracePropagationStyle> tracePropagationStylesToInject;
   private final int clockSyncPeriod;
@@ -550,6 +553,8 @@ public class Config {
   private final long remoteConfigMaxPayloadSize;
   private final String remoteConfigTargetsKeyId;
   private final String remoteConfigTargetsKey;
+
+  private final String DBMPropagationMode;
 
   private final boolean debuggerEnabled;
   private final int debuggerUploadTimeout;
@@ -884,6 +889,10 @@ public class Config {
             DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX,
             DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX);
 
+    DBMPropagationMode =
+        configProvider.getString(
+            DB_DBM_PROPAGATION_MODE_MODE, DEFAULT_DB_DBM_PROPAGATION_MODE_MODE);
+
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
 
     springDataRepositoryInterfaceResourceName =
@@ -908,6 +917,8 @@ public class Config {
             PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED,
             DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED);
 
+    tracePropagationStyleB3PaddingEnabled =
+        isEnabled(true, TRACE_PROPAGATION_STYLE, ".b3.padding.enabled");
     {
       // The dd.propagation.style.(extract|inject) settings have been deprecated in
       // favor of dd.trace.propagation.style(|.extract|.inject) settings.
@@ -1638,6 +1649,10 @@ public class Config {
   @Deprecated
   public Set<PropagationStyle> getPropagationStylesToInject() {
     return propagationStylesToInject;
+  }
+
+  public boolean isTracePropagationStyleB3PaddingEnabled() {
+    return tracePropagationStyleB3PaddingEnabled;
   }
 
   public Set<TracePropagationStyle> getTracePropagationStylesToExtract() {
@@ -2597,6 +2612,10 @@ public class Config {
         Collections.singletonList(settingName), "", settingSuffix, defaultEnabled);
   }
 
+  public String getDBMPropagationMode() {
+    return DBMPropagationMode;
+  }
+
   private void logIgnoredSettingWarning(
       String setting, String overridingSetting, String overridingSuffix) {
     log.warn(
@@ -3006,6 +3025,8 @@ public class Config {
         + dbClientSplitByInstance
         + ", dbClientSplitByInstanceTypeSuffix="
         + dbClientSplitByInstanceTypeSuffix
+        + ", DBMPropagationMode="
+        + DBMPropagationMode
         + ", splitByTags="
         + splitByTags
         + ", scopeDepthLimit="

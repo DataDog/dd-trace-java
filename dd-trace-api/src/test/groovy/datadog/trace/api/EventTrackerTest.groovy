@@ -1,6 +1,6 @@
 package datadog.trace.api
 
-import datadog.trace.api.experimental.ProfilingContext
+import datadog.trace.api.experimental.Profiling
 import datadog.trace.api.interceptor.TraceInterceptor
 import datadog.trace.api.internal.InternalTracer
 import datadog.trace.api.internal.TraceSegment
@@ -162,7 +162,7 @@ class EventTrackerTest extends DDSpecification {
     }
 
     @Override
-    ProfilingContext getProfilingContext() {
+    Profiling getProfilingContext() {
       return null
     }
 

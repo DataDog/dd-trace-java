@@ -23,12 +23,7 @@ import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.datadog.debugger.util.SerializerWithLimits;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.debugger.CorrelationAccess;
-import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.Limits;
-import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
-import datadog.trace.bootstrap.debugger.Snapshot;
-import datadog.trace.bootstrap.debugger.SnapshotSummaryBuilder;
+import datadog.trace.bootstrap.debugger.*;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import groovy.lang.GroovyClassLoader;
 import java.io.File;
@@ -72,9 +67,9 @@ import utils.SourceCompiler;
 
 public class CapturedSnapshotTest {
   private static final String LANGUAGE = "java";
-  private static final String PROBE_ID = "beae1807-f3b0-4ea8-a74f-826790c5e6f8";
-  private static final String PROBE_ID1 = "beae1807-f3b0-4ea8-a74f-826790c5e6f6";
-  private static final String PROBE_ID2 = "beae1807-f3b0-4ea8-a74f-826790c5e6f7";
+  private static final ProbeId PROBE_ID = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
+  private static final ProbeId PROBE_ID1 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f6", 0);
+  private static final ProbeId PROBE_ID2 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f7", 0);
   private static final String SERVICE_NAME = "service-name";
   private static final JsonAdapter<Snapshot.CapturedValue> VALUE_ADAPTER =
       new MoshiSnapshotTestHelper.CapturedValueAdapter();
@@ -102,7 +97,7 @@ public class CapturedSnapshotTest {
     Assertions.assertEquals(2, result);
     Assertions.assertEquals(
         "Cannot find method CapturedSnapshot01::foobar",
-        listener.errors.get(PROBE_ID).get(0).getMessage());
+        listener.errors.get(PROBE_ID.getId()).get(0).getMessage());
   }
 
   @Test
@@ -275,8 +270,8 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "CapturedSnapshot03";
     LogProbe probe = createProbe(PROBE_ID1, CLASS_NAME, "f1", "(int)");
     LogProbe probe2 = createProbe(PROBE_ID2, CLASS_NAME, "f1", "(int)");
-    probe.addAdditionalProbe(probe2);
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, probe, probe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "").get();
     Assertions.assertEquals(48, result);
@@ -292,10 +287,10 @@ public class CapturedSnapshotTest {
   private List<Snapshot> assertSnapshots(
       DebuggerTransformerTest.TestSnapshotListener listener,
       int expectedCount,
-      String... probeIds) {
+      ProbeId... probeIds) {
     Assertions.assertEquals(expectedCount, listener.snapshots.size());
     for (int i = 0; i < probeIds.length; i++) {
-      Assertions.assertEquals(probeIds[i], listener.snapshots.get(i).getProbe().getId());
+      Assertions.assertEquals(probeIds[i].getId(), listener.snapshots.get(i).getProbe().getId());
     }
     return listener.snapshots;
   }
@@ -752,7 +747,6 @@ public class CapturedSnapshotTest {
         new LogProbe.Builder()
             .language(LANGUAGE)
             .probeId(PROBE_ID)
-            .active(true)
             .where(CLASS_NAME, 8)
             .sampling(new LogProbe.Sampling(1))
             .build();
@@ -916,8 +910,8 @@ public class CapturedSnapshotTest {
         createProbeBuilder(PROBE_ID2, CLASS_NAME, "doit", "int (java.lang.String)")
             .when(probeCondition2)
             .build();
-    probe1.addAdditionalProbe(probe2);
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe1);
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, probe1, probe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
@@ -1022,8 +1016,8 @@ public class CapturedSnapshotTest {
                     DSL.when(DSL.gt(DSL.ref("@duration"), DSL.value(0))), "@duration > 0"))
             .evaluateAt(ProbeDefinition.MethodLocation.EXIT)
             .build();
-    probe1.addAdditionalProbe(probe2);
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe1);
+    DebuggerTransformerTest.TestSnapshotListener listener =
+        installProbes(CLASS_NAME, probe1, probe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
@@ -1158,10 +1152,10 @@ public class CapturedSnapshotTest {
     Assertions.assertEquals(1, result);
     Assertions.assertEquals(
         "Cannot instrument an abstract or native method",
-        listener.errors.get(PROBE_ID1).get(0).getMessage());
+        listener.errors.get(PROBE_ID1.getId()).get(0).getMessage());
     Assertions.assertEquals(
         "Cannot instrument an abstract or native method",
-        listener.errors.get(PROBE_ID2).get(0).getMessage());
+        listener.errors.get(PROBE_ID2.getId()).get(0).getMessage());
   }
 
   @Test
@@ -1362,7 +1356,7 @@ public class CapturedSnapshotTest {
   private Snapshot assertOneSnapshot(DebuggerTransformerTest.TestSnapshotListener listener) {
     Assertions.assertEquals(1, listener.snapshots.size());
     Snapshot snapshot = listener.snapshots.get(0);
-    Assertions.assertEquals(PROBE_ID, snapshot.getProbe().getId());
+    Assertions.assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
     return snapshot;
   }
 
@@ -1413,14 +1407,7 @@ public class CapturedSnapshotTest {
       Collection<LogProbe> logProbes,
       Map<String, InstrumentationResult> instrumentationResults) {
     Assertions.assertEquals(expectedClassName, callingClass.getName());
-    List<LogProbe> logProbeList = new ArrayList<>();
     for (LogProbe probe : logProbes) {
-      logProbeList.add(probe);
-      for (ProbeDefinition def : probe.getAdditionalProbes()) {
-        logProbeList.add((LogProbe) def);
-      }
-    }
-    for (LogProbe probe : logProbeList) {
       if (probe.getId().equals(id)) {
         String typeName = probe.getWhere().getTypeName();
         String methodName = probe.getWhere().getMethodName();
@@ -1440,24 +1427,13 @@ public class CapturedSnapshotTest {
 
         return new Snapshot.ProbeDetails(
             id,
+            0,
             location,
             ProbeDefinition.MethodLocation.convert(probe.getEvaluateAt()),
             true,
             probe.getProbeCondition(),
             probe.concatTags(),
-            new SnapshotSummaryBuilder(location),
-            probe.getAdditionalProbes().stream()
-                .map(
-                    (ProbeDefinition relatedProbe) ->
-                        new Snapshot.ProbeDetails(
-                            relatedProbe.getId(),
-                            location,
-                            ProbeDefinition.MethodLocation.convert(relatedProbe.getEvaluateAt()),
-                            true,
-                            ((LogProbe) relatedProbe).getProbeCondition(),
-                            relatedProbe.concatTags(),
-                            new SnapshotSummaryBuilder(location)))
-                .collect(Collectors.toList()));
+            new SnapshotSummaryBuilder(location));
       }
     }
     return null;
@@ -1678,26 +1654,24 @@ public class CapturedSnapshotTest {
   }
 
   private static LogProbe createProbe(
-      String id, String typeName, String methodName, String signature, String... lines) {
+      ProbeId id, String typeName, String methodName, String signature, String... lines) {
     return createProbeBuilder(id, typeName, methodName, signature, lines).build();
   }
 
   private static LogProbe.Builder createProbeBuilder(
-      String id, String typeName, String methodName, String signature, String... lines) {
+      ProbeId id, String typeName, String methodName, String signature, String... lines) {
     return LogProbe.builder()
         .language(LANGUAGE)
         .probeId(id)
-        .active(true)
         .captureSnapshot(true)
         .where(typeName, methodName, signature, lines)
         .sampling(new LogProbe.Sampling(100));
   }
 
-  private static LogProbe createSourceFileProbe(String id, String sourceFile, int line) {
+  private static LogProbe createSourceFileProbe(ProbeId id, String sourceFile, int line) {
     return new LogProbe.Builder()
         .language(LANGUAGE)
         .probeId(id)
-        .active(true)
         .captureSnapshot(true)
         .where(null, null, null, line, sourceFile)
         .build();

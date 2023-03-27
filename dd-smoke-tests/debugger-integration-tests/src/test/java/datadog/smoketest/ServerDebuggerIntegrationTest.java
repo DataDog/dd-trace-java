@@ -10,6 +10,7 @@ import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.LogProbe;
 import com.squareup.moshi.JsonAdapter;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.util.TagsHelper;
 import java.io.EOFException;
@@ -39,7 +40,8 @@ public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
       "datadog.smoketest.debugger.ServerDebuggerTestApplication";
   private static final String CONTROL_URL = "/control";
   private static final MockResponse EMPTY_HTTP_200 = new MockResponse().setResponseCode(200);
-  private static final String PROBE_ID = "123356536";
+  private static final ProbeId PROBE_ID = new ProbeId("123356536", 1);
+  private static final ProbeId PROBE_ID2 = new ProbeId("1233565367", 1);
   private static final String TEST_APP_CLASS_NAME = "ServerDebuggerTestApplication";
   private static final String FULL_METHOD_NAME = "fullMethod";
 
@@ -113,13 +115,7 @@ public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
     List<Snapshot> snapshots = waitForSnapshots();
     assertEquals(1, snapshots.size());
     assertEquals(FULL_METHOD_NAME, snapshots.get(0).getProbe().getLocation().getMethod());
-    LogProbe disabledLogProbe =
-        LogProbe.builder()
-            .probeId(PROBE_ID)
-            .active(false)
-            .where(TEST_APP_CLASS_NAME, "fullMethod")
-            .build();
-    addProbe(disabledLogProbe);
+    setCurrentConfiguration(createConfig(Collections.emptyList())); // no probe
     waitForReTransformation(appUrl);
     addProbe(logProbe);
     waitForInstrumentation(appUrl);

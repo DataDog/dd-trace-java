@@ -65,7 +65,7 @@ abstract class Jedis40ClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "SET"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -106,7 +106,7 @@ abstract class Jedis40ClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "GET"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -133,7 +133,7 @@ abstract class Jedis40ClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "SET"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -148,7 +148,7 @@ abstract class Jedis40ClientTest extends VersionedNamingTestBase {
           operationName operation()
           resourceName "RANDOMKEY"
           spanType DDSpanTypes.REDIS
-          topLevel true
+          measured true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -325,7 +325,7 @@ class Jedis40ClientV1ForkedTest extends Jedis40ClientTest {
 
   @Override
   String service() {
-    return Config.get().getServiceName() + "-redis"
+    return Config.get().getServiceName()
   }
 
   @Override

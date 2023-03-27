@@ -48,7 +48,7 @@ class LogMessageTemplateSummaryBuilderTest {
     LogProbe probe = createLogProbe("{arg}");
     LogMessageTemplateSummaryBuilder summaryBuilder = new LogMessageTemplateSummaryBuilder(probe);
     summaryBuilder.addEntry(new Snapshot.CapturedContext());
-    assertEquals("UNDEFINED", summaryBuilder.build());
+    assertEquals("{Cannot find symbol: arg}", summaryBuilder.build());
   }
 
   @Test
