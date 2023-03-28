@@ -7,6 +7,7 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.COLLECTION_SIZE_REAS
 import static com.datadog.debugger.util.MoshiSnapshotHelper.DEPTH_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.ELEMENTS;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.ENTRIES;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.ENTRY;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.FIELDS;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.FIELD_COUNT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.IS_NULL;
@@ -15,6 +16,7 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.RETURN;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.SIZE;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.THIS;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.TIMEOUT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TRUNCATED;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TYPE;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.VALUE;
@@ -31,6 +33,7 @@ import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import datadog.trace.bootstrap.debugger.SnapshotSummaryBuilder;
+import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
@@ -39,13 +42,16 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.LockSupport;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -762,6 +768,39 @@ public class SnapshotSerializationTest {
     Assertions.assertNull(thisArg.get(NOT_CAPTURED_REASON));
   }
 
+  @Test
+  public void timeOut() throws IOException {
+    DebuggerContext.initSnapshotSerializer(
+        new TimeoutSnapshotSerializer(Duration.of(100, ChronoUnit.MILLIS)));
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
+    Snapshot snapshot = createSnapshot();
+    Snapshot.CapturedContext context = new Snapshot.CapturedContext();
+    Snapshot.CapturedValue arg1 = Snapshot.CapturedValue.of("arg1", "int", 42);
+    Snapshot.CapturedValue arg2 = Snapshot.CapturedValue.of("arg2", "int", 42);
+    Snapshot.CapturedValue arg3 = Snapshot.CapturedValue.of("arg3", "int", 42);
+    context.addArguments(new Snapshot.CapturedValue[] {arg1, arg2, arg3});
+    snapshot.setEntry(context);
+    String buffer = adapter.toJson(snapshot);
+    System.out.println(buffer);
+    Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);
+    Map<String, Object> capturesJson = (Map<String, Object>) json.get(CAPTURES);
+    Map<String, Object> entryJson = (Map<String, Object>) capturesJson.get(ENTRY);
+    Assertions.assertEquals(TIMEOUT_REASON, entryJson.get(NOT_CAPTURED_REASON));
+  }
+
+  @Test
+  public void valueTimeout() throws IOException {
+    DebuggerContext.initSnapshotSerializer(
+        new TimeoutSnapshotSerializer(Duration.of(20, ChronoUnit.MILLIS)));
+    Snapshot.CapturedValue arg1 =
+        Snapshot.CapturedValue.of("arg1", Random.class.getTypeName(), new Random(0));
+    arg1.freeze(new TimeoutChecker(Duration.ofMillis(10)));
+    String buffer = arg1.getStrValue();
+    System.out.println(buffer);
+    Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);
+    Assertions.assertEquals(TIMEOUT_REASON, json.get(NOT_CAPTURED_REASON));
+  }
+
   private Map<String, Object> doFieldCount(int maxFieldCount) throws IOException {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshotForFieldCount(maxFieldCount);
@@ -1083,5 +1122,26 @@ public class SnapshotSerializationTest {
 
   private static JsonAdapter<Snapshot> createSnapshotAdapter() {
     return MoshiSnapshotTestHelper.createMoshiSnapshot().adapter(Snapshot.class);
+  }
+
+  private static class TimeoutSnapshotSerializer implements DebuggerContext.SnapshotSerializer {
+    private final JsonAdapter<Snapshot.CapturedValue> VALUE_ADAPTER =
+        new MoshiSnapshotHelper.CapturedValueAdapter();
+    private final Duration sleepTime;
+
+    public TimeoutSnapshotSerializer(Duration sleepTime) {
+      this.sleepTime = sleepTime;
+    }
+
+    @Override
+    public String serializeSnapshot(String serviceName, Snapshot snapshot) {
+      return null;
+    }
+
+    @Override
+    public String serializeValue(Snapshot.CapturedValue value) {
+      LockSupport.parkNanos(sleepTime.toNanos());
+      return VALUE_ADAPTER.toJson(value);
+    }
   }
 }
