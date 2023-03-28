@@ -30,9 +30,9 @@ public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    // The jacoco javaagent jar that is published relocates internal classes to a "obfuscated"
+    // The jacoco javaagent jar that is published relocates internal classes to an "obfuscated"
     // package name
-    // ex. org.jacoco.agent.rt.internal_72ddf3b.core.internal.instr.ProbeInserter.class
+    // ex. org.jacoco.agent.rt.internal_72ddf3b.core.internal.instr.ProbeInserter
     return nameStartsWith("org.jacoco.agent.rt.internal").and(nameEndsWith(".ProbeInserter"));
   }
 
@@ -67,11 +67,11 @@ public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
 
         Field classIdField = arrayStrategy.getClass().getDeclaredField("classId");
         classIdField.setAccessible(true);
-        long classId = classIdField.getLong(arrayStrategy);
+        Long classId = classIdField.getLong(arrayStrategy);
 
         ReflectiveMethodVisitor methodVisitor = ReflectiveMethodVisitor.wrap(mv);
 
-        methodVisitor.visitLdcInsn(Long.valueOf(classId));
+        methodVisitor.visitLdcInsn(classId);
         methodVisitor.visitLdcInsn(className);
         methodVisitor.push(id);
         methodVisitor.visitMethodInsn(
