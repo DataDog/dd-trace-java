@@ -5,11 +5,12 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation.KeyClassifier;
 import java.util.Map;
 
-public class DataStreamsContextCarrierAdapter implements
-    AgentPropagation.Setter<DataStreamsContextCarrier>,
-AgentPropagation.ContextVisitor<DataStreamsContextCarrier>{
+public class DataStreamsContextCarrierAdapter
+    implements AgentPropagation.Setter<DataStreamsContextCarrier>,
+        AgentPropagation.ContextVisitor<DataStreamsContextCarrier> {
 
-  public static final DataStreamsContextCarrierAdapter INSTANCE = new DataStreamsContextCarrierAdapter();
+  public static final DataStreamsContextCarrierAdapter INSTANCE =
+      new DataStreamsContextCarrierAdapter();
 
   @Override
   public void set(DataStreamsContextCarrier carrier, String key, String value) {

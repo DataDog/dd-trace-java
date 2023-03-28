@@ -982,15 +982,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public void setConsumeCheckpoint(String type, String source,
-      DataStreamsContextCarrier carrier) {
+  public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {
     AgentSpan span = activeSpan();
     if (span == null) {
       log.warn("SetConsumeCheckpoint is called with no active span");
       return;
     }
 
-    PathwayContext pathwayContext = extractPathwayContext(carrier, DataStreamsContextCarrierAdapter.INSTANCE);
+    PathwayContext pathwayContext =
+        extractPathwayContext(carrier, DataStreamsContextCarrierAdapter.INSTANCE);
     span.mergePathwayContext(pathwayContext);
 
     LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
@@ -1002,8 +1002,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public void setProduceCheckpoint(String type, String target,
-      DataStreamsContextCarrier carrier) {
+  public void setProduceCheckpoint(String type, String target, DataStreamsContextCarrier carrier) {
     AgentSpan span = activeSpan();
     if (span == null) {
       log.warn("SetProduceCheckpoint is called with no active span");

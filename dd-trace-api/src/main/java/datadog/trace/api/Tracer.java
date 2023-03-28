@@ -25,6 +25,7 @@ public interface Tracer {
 
   /**
    * Return the global instance of the DataStreams checkpointer.
+   *
    * @return DataStreamsCheckpointer instance.
    */
   DataStreamsCheckpointer getDataStreamsCheckpointer();

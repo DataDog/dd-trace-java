@@ -426,15 +426,12 @@ public class AgentTracer {
     }
 
     @Override
-    public void setConsumeCheckpoint(String type, String source,
-        DataStreamsContextCarrier setter) {
-    }
+    public void setConsumeCheckpoint(
+        String type, String source, DataStreamsContextCarrier setter) {}
 
     @Override
-    public void setProduceCheckpoint(String type, String target,
-        DataStreamsContextCarrier setter) {
-
-    }
+    public void setProduceCheckpoint(
+        String type, String target, DataStreamsContextCarrier setter) {}
   }
 
   public static final class NoopAgentSpan implements AgentSpan {
