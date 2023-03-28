@@ -133,6 +133,8 @@ public class W3CPTagsCodec extends PTagsCodec {
           }
           if (tagKey.equals(DECISION_MAKER_TAG)) {
             decisionMakerTagValue = tagValue;
+          } else if (tagKey.equals(TRACE_ID_TAG)) {
+            log.debug("Dropped tid value as not expected in W3C context");
           } else {
             if (tagPairs == null) {
               // This is roughly the size of a two element linked list but can hold six
